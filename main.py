@@ -5,8 +5,9 @@ import colorsys
 import event_sys
 import context
 import sprite
-
-
+import core_dnd.Character
+import core_dnd.entities
+import movement_sys
 #/* clear.c ... */
 
 # /*
@@ -28,10 +29,11 @@ import sprite
 # /* This function runs once at startup. */
 texture = sdl3.SDL_Texture()
 
+BASE_WIDTH = 1600
+BASE_HEIGHT = 900
 
 
-
-window = sdl3.SDL_CreateWindow("examp wind".encode(), 1600, 900, sdl3.SDL_WINDOW_RESIZABLE)
+window = sdl3.SDL_CreateWindow("examp wind".encode(), BASE_WIDTH, BASE_HEIGHT, sdl3.SDL_WINDOW_RESIZABLE)
 renderDrivers = [sdl3.SDL_GetRenderDriver(i).decode() for i in range(sdl3.SDL_GetNumRenderDrivers())]
 tryGetDriver, tryUseVulkan = lambda order, drivers: next((i for i in order if i in drivers), None), False
 renderDriver = tryGetDriver((["vulkan"] if tryUseVulkan else []) + ["opengl", "software"], renderDrivers)
@@ -40,11 +42,16 @@ if not (renderer := sdl3.SDL_CreateRenderer(window, renderDriver.encode())):
         
 #renderer = sdl3.SDL_CreateRenderer(window, "examp_rend".encode())
 SDL_MAIN_USE_CALLBACKS = 1
+# test for futures
+test_spell = core_dnd.entities.Spell(name="test", description="test", level=1, sprite="resources/magic_projectile.gif".encode())
+test_context = context.Context(renderer, window,base_width = BASE_WIDTH, base_height = BASE_HEIGHT)
+test_character= core_dnd.Character.Character(name="test",race='test',char_class=None,hp=10,level=1,stats=None)
+test_character.add_spell(test_spell)
 
-test_context = context.Context(renderer, window)
-test_context.add_sprite("resources/map.jpg".encode(),scale = 0.5)
-test_context.add_sprite("resources/nude_woman.png".encode(),scale = 0.05)
-test_context.add_sprite("resources/token_1.png".encode(),scale = 0.05)
+test_context.add_sprite("resources/map.jpg".encode(),scale_x = 0.5,scale_y= 0.5)
+test_context.add_sprite("resources/woman.png".encode(),scale_x = 0.5,scale_y= 0.5, character=test_character)
+test_context.add_sprite("resources/token_1.png".encode(),scale_x = 0.5,scale_y= 0.5)
+test_context.add_sprite("resources/test.gif".encode(),scale_x = 0.5,scale_y= 0.5)
 
 # png_path="resources/nude_woman.png".encode()
 # #png_path="res/example.png".encode()
@@ -106,7 +113,9 @@ def SDL_AppEvent(event):
 def SDL_AppIterate(context,i):
     
     
-    now = sdl3.SDL_GetTicks() / 1000.0
+    now = sdl3.SDL_GetTicks() 
+    delta_time= now - context.last_time
+    context.last_time = now
     # red=0.5 + 0.5 * sdl3.SDL_sin(now )
     # green= 0.5 + 0.5 * sdl3.SDL_sin(now + sdl3.SDL_PI_D * 2 / 3)
     # blue=0.5 + 0.5 * sdl3.SDL_sin(now + sdl3.SDL_PI_D * 4 / 3)
@@ -117,58 +126,15 @@ def SDL_AppIterate(context,i):
     # /* clear the window to the draw color. */
     sdl3.SDL_RenderClear(renderer)
     # /* put the newly-cleared rendering on the screen. */
-    width, height = ctypes.c_int(), ctypes.c_int()
-    sdl3.SDL_GetWindowSize(window, width, height)
-    scale=0.05
+    
+    sdl3.SDL_GetWindowSize(context.window, context.window_width, context.window_height)
+
    
     cnt=test_context
     # context.step.value= max(frect.w,frect.h)
-    for sprite in cnt.sprites_list:
-        frect=sprite.frect
-        frect.x = sprite.coord_x
-        frect.y = sprite.coord_y
-        try:
-            frect.w = frect.w * width.value / frect.w * sprite.scale
-            frect.h = frect.h * height.value / frect.h * sprite.scale
-        except ZeroDivisionError:
-             print('error zero division')
-        cnt.step.value= max(frect.w, frect.h)
-        sdl3.SDL_RenderTexture( cnt.renderer, sprite.texture, None, ctypes.byref(sprite.frect))
-    #color selected
-    sprite= cnt.selected
+    movement_sys.move_sprites(cnt,delta_time)
+    movement_sys.test_margin(cnt) 
     
-    
-    #make 4 rectangles for 4 sides
-    rec1,rec2,rec3,rec4 = sdl3.SDL_FRect(),sdl3.SDL_FRect(),sdl3.SDL_FRect(),sdl3.SDL_FRect()
-    
-    # rec1: left edge
-    rec1.x = ctypes.c_float(sprite.frect.x - 20)
-    rec1.y = ctypes.c_float(sprite.frect.y - 20)
-    rec1.w = ctypes.c_float(40)
-    rec1.h = ctypes.c_float(sprite.frect.h+40)
-    # rec2: bottom edge
-    rec2.x = ctypes.c_float(sprite.frect.x-20)
-    rec2.y = ctypes.c_float(sprite.frect.y +sprite.frect.h -20)
-    rec2.w = ctypes.c_float(sprite.frect.w+40)
-    rec2.h = ctypes.c_float(40)
-
-    # rec3: top edge
-    rec3.x = ctypes.c_float(sprite.frect.x - 20)
-    rec3.y = ctypes.c_float(sprite.frect.y - 20)
-    rec3.w = ctypes.c_float(sprite.frect.w+40)
-    rec3.h = ctypes.c_float(40)
-
-    # rec4: right edge
-    rec4.x = ctypes.c_float(sprite.frect.x + sprite.frect.w - 20)
-    rec4.y = ctypes.c_float(sprite.frect.y - 20)
-    rec4.w = ctypes.c_float(40)
-    rec4.h = ctypes.c_float(sprite.frect.h+40)
-    sdl3.SDL_SetRenderDrawColor(cnt.renderer, 0, 255, 0, sdl3.SDL_ALPHA_OPAQUE)  
-    sdl3.SDL_RenderRect(cnt.renderer, ctypes.byref(rec1))
-    sdl3.SDL_RenderRect(cnt.renderer, ctypes.byref(rec2))
-    sdl3.SDL_RenderRect(cnt.renderer, ctypes.byref(rec3))
-    sdl3.SDL_RenderRect(cnt.renderer, ctypes.byref(rec4))
-    sdl3.SDL_RenderRect(cnt.renderer, ctypes.byref(cnt.selected.frect))
 
     # if i<5:
     #     print(ctypes.byref(test_context.selected.frect))

@@ -159,3 +159,7 @@ __pycache__/context.cpython-310.pyc
 core_dnd/__pycache__/Character.cpython-310.pyc
 __pycache__/sprite.cpython-310.pyc
 __pycache__/io_sys.cpython-310.pyc
+__pycache__/client_sdl.cpython-310.pyc
+__pycache__/context.cpython-310.pyc
+__pycache__/event_sys.cpython-310.pyc
+__pycache__/context.cpython-310.pyc

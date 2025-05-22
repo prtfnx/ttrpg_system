@@ -295,6 +295,9 @@ def handle_key_event(cnt, key_code):
                 vy=dy/length
                 sprite.set_speed(vx*sprite.speed, vy*sprite.speed)
                 print(f'dx and dy {dx} {dy}projectile speed {vx} {vy}')
+        case sdl3.SDL_SCANCODE_LCTRL:
+            print("Control key pressed, sending message")
+            cnt.queue_to_send.put("hello")
         case _:
             return sdl3.SDL_APP_CONTINUE
         

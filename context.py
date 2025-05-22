@@ -1,5 +1,6 @@
 import ctypes
 import sprite
+import queue
 
 class Context:
     def __init__(self,renderer, window,base_width, base_height):
@@ -17,6 +18,10 @@ class Context:
         self.last_time = 0
         self.current_time = 0
         self.window_width, self.window_height = ctypes.c_int(), ctypes.c_int()
+        self.net_client_started = False
+        self.net_socket = None
+        self.queue_to_send = queue.Queue(1000)
+        self.queue_to_read = queue.Queue(1000)
     def add_sprite(self, texture_path,scale_x,scale_y,character=None, moving=False,speed=None,collidable=False):
         self.sprites_list.append(sprite.Sprite(self.renderer,texture_path,scale_x=scale_x,scale_y=scale_y,character=character,moving=moving,speed=speed,collidable=collidable))
         if self.selected == None:

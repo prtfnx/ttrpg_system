@@ -5,12 +5,13 @@ import colorsys
 import event_sys
 import context
 import sprite
-import core_dnd.Character
-import core_dnd.entities
+import core_table.Character
+import core_table.entities
 import movement_sys
 import threading
 import client_sdl
 import time
+import json
 
 
 #/* clear.c ... */
@@ -53,8 +54,6 @@ BASE_HEIGHT = 900
 # if texture == False:
 #     sdl3.SDL_Log("Couldn't create static texture: %s", sdl3.SDL_GetError())
     
-    
-
 
 def SDL_AppInit_func():
     
@@ -64,15 +63,16 @@ def SDL_AppInit_func():
     renderDriver = tryGetDriver((["vulkan"] if tryUseVulkan else []) + ["opengl", "software"], renderDrivers)
     if not (renderer := sdl3.SDL_CreateRenderer(window, renderDriver.encode())):
             print(f"Failed to create renderer: {sdl3.SDL_GetError().decode()}.")
-            
+           
     #renderer = sdl3.SDL_CreateRenderer(window, "examp_rend".encode())
-    SDL_MAIN_USE_CALLBACKS = 1
     # test for futures
-    test_spell = core_dnd.entities.Spell(name="test", description="test", level=1, sprite="resources/magic_projectile.gif".encode())
+    test_spell = core_table.entities.Spell(name="test", description="test", level=1, sprite="resources/magic_projectile.gif".encode())
     test_context = context.Context(renderer, window,base_width = BASE_WIDTH, base_height = BASE_HEIGHT)
-    test_character= core_dnd.Character.Character(name="test",race='test',char_class=None,hp=10,level=1,stats=None)
+    print('1') 
+    test_table = test_context.add_table("test_table", BASE_WIDTH, BASE_HEIGHT)
+    test_character = core_table.Character.Character(name="test_name",race='test_race',char_class=None,hp=10,level=1,stats=None)
     test_character.add_spell(test_spell)
-
+    
     test_context.add_sprite("resources/map.jpg".encode(),scale_x = 0.5,scale_y= 0.5)
     test_context.add_sprite("resources/woman.png".encode(),scale_x = 0.5,scale_y= 0.5, character=test_character)
     test_context.add_sprite("resources/token_1.png".encode(),scale_x = 0.5,scale_y= 0.5,collidable=True)
@@ -87,11 +87,11 @@ def SDL_AppInit_func():
     print("init_success")
     return test_context
 
+ 
 def SDL_AppEvent(event):
     if event.type == sdl3.SDL_EVENT_QUIT:
         return sdl3.SDL_APP_SUCCESS
     return sdl3.SDL_APP_CONTINUE
-
 
 
 def SDL_AppIterate(context):
@@ -145,15 +145,27 @@ def SDL_AppIterate(context):
     return sdl3.SDL_APP_CONTINUE 
 
 def handle_information(msg,context):
-    #TODO
+    #TODO ugly, need to be fixed. possibly use a dict to map the message to the function
+    #TODO add a check for the type of message
+    
+    if context.waiting_for_table:
+        #TODO
+        context.waiting_for_table = False
+        msg = json.loads(msg)
+        table = context.create_table_from_json(msg)
+        context.list_of_tables.append(table)
+        context.current_table = table
+        print("table created and changed")
     print(msg)
-    if msg == "ACK: hello":
+    if msg == "INITIALIZE_TABLE":
+        context.waiting_for_table = True
+
+    if msg == "hello":
         event_sys.handle_key_event(context, sdl3.SDL_SCANCODE_SPACE)
 
 def net_thread(context):
     ''' This function runs in a separate thread to handle network communication. '''
     print('net_thread started')
-    print(context.net_socket)
     while not context.net_socket:
         time.sleep(0.01)
     socket = context.net_socket

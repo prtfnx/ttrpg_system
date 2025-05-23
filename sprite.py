@@ -3,7 +3,9 @@ import io_sys
 import sdl3
 
 class Sprite:
-    def __init__(self,renderer, texture_path,scale_x=1,scale_y=1,character=None,moving=False,speed=None,collidable=False,texture=None):
+    def __init__(self,renderer, texture_path,scale_x=1,scale_y=1,
+                 character=None,moving=False,speed=None,collidable=False,
+                 texture=None,layer='tokens'):
         self.coord_x = ctypes.c_float(0)
         self.coord_y = ctypes.c_float(0)
         self.rect = sdl3.SDL_Rect()
@@ -18,8 +20,9 @@ class Sprite:
         self.speed=speed
         self.die_timer = None
         self.collidable = collidable
+        self.layer = layer
     def __repr__(self):
-        return f"Sprite(coord_x={self.coord_x}, coord_y={self.coord_y}, rect={self.rect}, frect={self.frect}, texture_path={self.texture_path}, scale={self.scale})"
+        return f"Sprite(coord_x={self.coord_x}, coord_y={self.coord_y}, rect={self.rect}, frect={self.frect}, texture_path={self.texture_path}, scale_x={self.scale_x}, scale_y={self.scale_y})"
     def __str__(self):
         return f"Sprite at ({self.coord_x}, {self.coord_y}) with texture {self.texture_path} and scale {self.scale_x} {self.scale_y}"   
     def set_speed(self, dx, dy):
@@ -34,6 +37,7 @@ class Sprite:
         self.die_timer = time
     def set_texture(self, texture_path):
         self.texture_path = texture_path
+        print(f'texture path: {texture_path}')
         self.texture = io_sys.load_texture(self)
     def set_position(self, x, y):
         self.coord_x.value = x.value

@@ -1,5 +1,6 @@
 import sdl3
 import ctypes
+import json
 
 class Directions:
     EAST=1
@@ -13,62 +14,70 @@ class Directions:
 
 def handle_mouse_motion(cnt, event):
     if cnt.grabing:
-        # Handle dragging
-        if cnt.selected is not None:
-            cnt.selected.coord_x = ctypes.c_float(event.motion.x - cnt.selected.coord_x.value / 2)
-            cnt.selected.coord_y = ctypes.c_float(event.motion.y - cnt.selected.coord_y.value  / 2)
-            #print('grabbing')
+        # Handle grabing
+        if cnt.current_table.selected_sprite is not None:
+            sprite = cnt.current_table.selected_sprite
+            # Move sprite so its center follows the mouse
+            sprite.coord_x.value = event.motion.x - sprite.frect.w / 2
+            sprite.coord_y.value = event.motion.y - sprite.frect.h / 2
+    if cnt.moving_table:
+        # Handle moving table
+        
+        cnt.current_table.x_moved += event.motion.xrel
+        cnt.current_table.y_moved += event.motion.yrel
+        print(f'moving table {cnt.current_table.x_moved} {cnt.current_table.y_moved}')
+        #print(cnt.current_table.coord_x.value, cnt.current_table.coord_y.value)
     if cnt.resizing:
         # Handle resizing
         match cnt.resize_direction:
             case Directions.EAST:
                 # Handle east resize
-                cnt.selected.frect.w = cnt.selected.frect.w + event.motion.xrel
-                cnt.selected.scale_x = cnt.selected.frect.w / cnt.selected.original_w
-                print('east', cnt.selected.frect.w)
+                cnt.current_table.selected_sprite.frect.w = cnt.current_table.selected_sprite.frect.w + event.motion.xrel
+                cnt.current_table.selected_sprite.scale_x = cnt.current_table.selected_sprite.frect.w / cnt.current_table.selected_sprite.original_w
+                print('east', cnt.current_table.selected_sprite.frect.w)
             case Directions.WEST:
                 # Handle west resize
-                cnt.selected.frect.w = cnt.selected.frect.w - event.motion.xrel
-                cnt.selected.scale_x = cnt.selected.frect.w / cnt.selected.original_w
-                print('west', cnt.selected.frect.w)
+                cnt.current_table.selected_sprite.frect.w = cnt.current_table.selected_sprite.frect.w - event.motion.xrel
+                cnt.current_table.selected_sprite.scale_x = cnt.current_table.selected_sprite.frect.w / cnt.current_table.selected_sprite.original_w
+                print('west', cnt.current_table.selected_sprite.frect.w)
             case Directions.NORTH:
                 # Handle north resize
-                cnt.selected.frect.h = cnt.selected.frect.h - event.motion.yrel
-                cnt.selected.scale_y = cnt.selected.frect.h / cnt.selected.original_h
-                print('north', cnt.selected.frect.h)
+                cnt.current_table.selected_sprite.frect.h = cnt.current_table.selected_sprite.frect.h - event.motion.yrel
+                cnt.current_table.selected_sprite.scale_y = cnt.current_table.selected_sprite.frect.h / cnt.current_table.selected_sprite.original_h
+                print('north', cnt.current_table.selected_sprite.frect.h)
             case Directions.SOUTH:
                 # Handle south resize
-                cnt.selected.frect.h = cnt.selected.frect.h + event.motion.yrel
-                cnt.selected.scale_y = cnt.selected.frect.h / cnt.selected.original_h
-                print('south', cnt.selected.frect.h)
+                cnt.current_table.selected_sprite.frect.h = cnt.current_table.selected_sprite.frect.h + event.motion.yrel
+                cnt.current_table.selected_sprite.scale_y = cnt.current_table.selected_sprite.frect.h / cnt.current_table.selected_sprite.original_h
+                print('south', cnt.current_table.selected_sprite.frect.h)
             case Directions.NORTHEAST:
                 # Handle northeast resize
-                cnt.selected.frect.w = cnt.selected.frect.w + event.motion.xrel
-                cnt.selected.frect.h = cnt.selected.frect.h - event.motion.yrel
-                cnt.selected.scale_x = cnt.selected.frect.w / cnt.selected.original_w
-                cnt.selected.scale_y = cnt.selected.frect.h / cnt.selected.original_h
-                print('northeast', cnt.selected.frect.w, cnt.selected.frect.h)
+                cnt.current_table.selected_sprite.frect.w = cnt.current_table.selected_sprite.frect.w + event.motion.xrel
+                cnt.current_table.selected_sprite.frect.h = cnt.current_table.selected_sprite.frect.h - event.motion.yrel
+                cnt.current_table.selected_sprite.scale_x = cnt.current_table.selected_sprite.frect.w / cnt.current_table.selected_sprite.original_w
+                cnt.current_table.selected_sprite.scale_y = cnt.current_table.selected_sprite.frect.h / cnt.current_table.selected_sprite.original_h
+                print('northeast', cnt.current_table.selected_sprite.frect.w, cnt.current_table.selected_sprite.frect.h)
             case Directions.NORTHWEST:
                 # Handle northwest resize
-                cnt.selected.frect.w = cnt.selected.frect.w - event.motion.xrel
-                cnt.selected.frect.h = cnt.selected.frect.h - event.motion.yrel
-                cnt.selected.scale_x = cnt.selected.frect.w / cnt.selected.original_w
-                cnt.selected.scale_y = cnt.selected.frect.h / cnt.selected.original_h
-                print('northwest', cnt.selected.frect.w, cnt.selected.frect.h)
+                cnt.current_table.selected_sprite.frect.w = cnt.current_table.selected_sprite.frect.w - event.motion.xrel
+                cnt.current_table.selected_sprite.frect.h = cnt.current_table.selected_sprite.frect.h - event.motion.yrel
+                cnt.current_table.selected_sprite.scale_x = cnt.current_table.selected_sprite.frect.w / cnt.current_table.selected_sprite.original_w
+                cnt.current_table.selected_sprite.scale_y = cnt.current_table.selected_sprite.frect.h / cnt.current_table.selected_sprite.original_h
+                print('northwest', cnt.current_table.selected_sprite.frect.w, cnt.current_table.selected_sprite.frect.h)
             case Directions.SOUTHEAST:
                 # Handle southeast resize
-                cnt.selected.frect.w = cnt.selected.frect.w + event.motion.xrel
-                cnt.selected.frect.h = cnt.selected.frect.h + event.motion.yrel
-                cnt.selected.scale_x = cnt.selected.frect.w / cnt.selected.original_w
-                cnt.selected.scale_y = cnt.selected.frect.h / cnt.selected.original_h
-                print('southeast', cnt.selected.frect.w, cnt.selected.frect.h)
+                cnt.current_table.selected_sprite.frect.w = cnt.current_table.selected_sprite.frect.w + event.motion.xrel
+                cnt.current_table.selected_sprite.frect.h = cnt.current_table.selected_sprite.frect.h + event.motion.yrel
+                cnt.current_table.selected_sprite.scale_x = cnt.current_table.selected_sprite.frect.w / cnt.current_table.selected_sprite.original_w
+                cnt.current_table.selected_sprite.scale_y = cnt.current_table.selected_sprite.frect.h / cnt.current_table.selected_sprite.original_h
+                print('southeast', cnt.current_table.selected_sprite.frect.w, cnt.current_table.selected_sprite.frect.h)
             case Directions.SOUTHWEST:
                 # Handle southwest resize
-                cnt.selected.frect.w = cnt.selected.frect.w - event.motion.xrel
-                cnt.selected.frect.h = cnt.selected.frect.h + event.motion.yrel
-                cnt.selected.scale_x = cnt.selected.frect.w / cnt.selected.original_w
-                cnt.selected.scale_y = cnt.selected.frect.h / cnt.selected.original_h
-                print('southwest', cnt.selected.frect.w, cnt.selected.frect.h)
+                cnt.current_table.selected_sprite.frect.w = cnt.current_table.selected_sprite.frect.w - event.motion.xrel
+                cnt.current_table.selected_sprite.frect.h = cnt.current_table.selected_sprite.frect.h + event.motion.yrel
+                cnt.current_table.selected_sprite.scale_x = cnt.current_table.selected_sprite.frect.w / cnt.current_table.selected_sprite.original_w
+                cnt.current_table.selected_sprite.scale_y = cnt.current_table.selected_sprite.frect.h / cnt.current_table.selected_sprite.original_h
+                print('southwest', cnt.current_table.selected_sprite.frect.w, cnt.current_table.selected_sprite.frect.h)
         #print('resizing')
     else:
         # Determine intersect with sprites
@@ -80,7 +89,7 @@ def handle_mouse_motion(cnt, event):
         resize_cursor = None
         #  Check if edge is near
         frec1, frec2, frec3, frec4 = sdl3.SDL_FRect(), sdl3.SDL_FRect(), sdl3.SDL_FRect(), sdl3.SDL_FRect()
-        sprite = cnt.selected
+        sprite = cnt.current_table.selected_sprite
         if sprite is not None:    
             #print(point, point.x, point.y)
             # rec1: left edge
@@ -138,8 +147,8 @@ def handle_mouse_motion(cnt, event):
         
 
 # # Handle resizing texture when mouse button is pressed near edge
-#             if hasattr(cnt, 'selected') and cnt.selected is not None:
-#                 sprite = cnt.selected
+#             if hasattr(cnt, 'current_table.selected_sprite') and cnt.current_table.selected_sprite is not None:
+#                 sprite = cnt.current_table.selected_sprite
 #                 margin_w = sprite.frect.w / 40
 #                 margin_h = sprite.frect.h / 40
 #                 frec1 = sdl3.SDL_FRect(sprite.frect.x - margin_w, sprite.frect.y - margin_h, margin_w * 2, sprite.frect.h + 2 * margin_h)
@@ -204,17 +213,21 @@ def handle_mouse_button_down(cnt, event):
                 handle_resize(cnt, Directions.NORTH)
         
         # Check if cursor is inside any sprite's rectangle and select it
-    for sprite in cnt.sprites_list:
-       #print('button 1 point')
-       #print(point, point.x, point.y)
-       #print(sprite.frect, sprite.frect.x, sprite.frect.y)
-       #print(sdl3.SDL_PointInRectFloat(ctypes.byref(point), ctypes.byref(sprite.frect)))
-       if sdl3.SDL_PointInRectFloat(ctypes.byref(point), ctypes.byref(sprite.frect)):
-            #print('intersect')
-            cnt.selected = sprite
-            cnt.grabing = True
-            #print("grabed")
-            pass
+    for sprites in cnt.current_table.dict_of_sprites_list.values():
+        for sprite in sprites:
+            #print('button 1 point')
+            #print(point, point.x, point.y)
+            #print(sprite.frect, sprite.frect.x, sprite.frect.y)
+            #print(sdl3.SDL_PointInRectFloat(ctypes.byref(point), ctypes.byref(sprite.frect)))
+            if sdl3.SDL_PointInRectFloat(ctypes.byref(point), ctypes.byref(sprite.frect)):
+                #print('intersect')
+                cnt.current_table.selected_sprite = sprite
+                cnt.grabing = True
+                #print("grabed")
+    if not cnt.grabing:
+        cnt.moving_table = True
+        print("not grabed, moving table")
+           
     
 
 def handle_mouse_button_up(cnt, event):
@@ -222,6 +235,7 @@ def handle_mouse_button_up(cnt, event):
     if event.button.button == 1:
         cnt.resizing = False
         cnt.grabing = False
+        cnt.moving_table = False
         cnt.resize_direction = None
         sdl3.SDL_SetCursor(sdl3.SDL_CreateSystemCursor(sdl3.SDL_SYSTEM_CURSOR_DEFAULT))
         cnt.cursor = sdl3.SDL_SYSTEM_CURSOR_DEFAULT
@@ -229,8 +243,8 @@ def handle_mouse_button_up(cnt, event):
         print(cnt.cursor)
      
 def handle_key_event(cnt, key_code):
-    #print(cnt.selected.coord_y.value, cnt.selected.coord_x.value, cnt.selected, cnt.selected.frect)
-    #print(ctypes.byref(cnt.selected.frect))
+    #print(cnt.current_table.selected_sprite.coord_y.value, cnt.current_table.selected_sprite.coord_x.value, cnt.current_table.selected_sprite, cnt.current_table.selected_sprite.frect)
+    #print(ctypes.byref(cnt.current_table.selected_sprite.frect))
     match key_code: 
     # /* Quit. */
         case sdl3.SDL_SCANCODE_ESCAPE:
@@ -242,28 +256,33 @@ def handle_key_event(cnt, key_code):
             pass
         # /* Decide new direction of the snake. */
         case sdl3.SDL_SCANCODE_RIGHT:
-            cnt.selected.coord_x.value=cnt.selected.coord_x.value+cnt.step.value
+            sprite = cnt.current_table.selected_sprite
+            sprite.coord_x.value = sprite.coord_x.value + min(cnt.step.value, sprite.frect.w)
         case sdl3.SDL_SCANCODE_UP:
-            
-            print('up')
-            cnt.selected.coord_y.value=cnt.selected.coord_y.value-cnt.step.value
-            
+            sprite = cnt.current_table.selected_sprite
+            sprite.coord_y.value = sprite.coord_y.value - min(cnt.step.value, sprite.frect.h)
         case sdl3.SDL_SCANCODE_LEFT:
-            cnt.selected.coord_x.value=cnt.selected.coord_x.value-cnt.step.value
+            sprite = cnt.current_table.selected_sprite
+            sprite.coord_x.value = sprite.coord_x.value - min(cnt.step.value, sprite.frect.w)
         case sdl3.SDL_SCANCODE_DOWN:
-            cnt.selected.coord_y.value=cnt.selected.coord_y.value+cnt.step.value
+            sprite = cnt.current_table.selected_sprite
+            sprite.coord_y.value = sprite.coord_y.value + min(cnt.step.value, sprite.frect.h)
         case sdl3.SDL_SCANCODE_1:
-            cnt.selected=cnt.sprites_list[0]
+            cnt.current_table.selected_sprite=cnt.current_table.dict_of_sprites_list['tokens'][0]
         case sdl3.SDL_SCANCODE_2:
-            cnt.selected=cnt.sprites_list[1]  
+            cnt.current_table.selected_sprite=cnt.current_table.dict_of_sprites_list['tokens'][1]  
         case sdl3.SDL_SCANCODE_3:
-            cnt.selected=cnt.sprites_list[2]
+            cnt.current_table.selected_sprite=cnt.current_table.dict_of_sprites_list['tokens'][2]
+        case sdl3.SDL_SCANCODE_4:
+            cnt.current_table=cnt.list_of_tables[0]
+        case sdl3.SDL_SCANCODE_5:
+            cnt.current_table=cnt.list_of_tables[1]
         case sdl3.SDL_SCANCODE_KP_PLUS:
-            cnt.selected.scale_x=cnt.selected.scale_x+0.1
-            cnt.selected.scale_y=cnt.selected.scale_y+0.1
+            cnt.current_table.selected_sprite.scale_x=cnt.current_table.selected_sprite.scale_x+0.1
+            cnt.current_table.selected_sprite.scale_y=cnt.current_table.selected_sprite.scale_y+0.1
         case sdl3.SDL_SCANCODE_KP_MINUS:
-            cnt.selected.scale_x=cnt.selected.scale_x-0.1
-            cnt.selected.scale_y=cnt.selected.scale_y-0.1
+            cnt.current_table.selected_sprite.scale_x=cnt.current_table.selected_sprite.scale_x-0.1
+            cnt.current_table.selected_sprite.scale_y=cnt.current_table.selected_sprite.scale_y-0.1
         case sdl3.SDL_SCANCODE_SPACE:
             #test attack projectile, refactor later
             x, y = ctypes.c_float(), ctypes.c_float()
@@ -273,11 +292,11 @@ def handle_key_event(cnt, key_code):
             # target.y=y.value
             # target.name='test_target'
             print("mouse pos", x.value, y.value)
-            if cnt.selected.character is not None:
-                spell = cnt.selected.character.spells[0]
-                cnt.selected.character.spell_attack(x,y,spell)
+            if cnt.current_table.selected_sprite.character is not None:
+                spell = cnt.current_table.selected_sprite.character.spells[0]
+                cnt.current_table.selected_sprite.character.spell_attack(x,y,spell)
                 sprite=cnt.add_sprite(spell.sprite,scale_x = 0.1,scale_y=0.1, moving=True,speed=1,collidable=True)
-                sprite.set_position(cnt.selected.coord_x, cnt.selected.coord_y)
+                sprite.set_position(cnt.current_table.selected_sprite.coord_x, cnt.current_table.selected_sprite.coord_y)
                 # # Calculate direction vector from sprite's position to (x.value, y.value)
                 # dx = x.value - sprite.frect.x
                 # dy = y.value - sprite.frect.y
@@ -287,8 +306,8 @@ def handle_key_event(cnt, key_code):
                 #     vy = dy / length * 0.1
                 # else:
                 #     vx, vy = 0, 0
-                dx= x.value - cnt.selected.coord_x.value
-                dy= y.value - cnt.selected.coord_y.value
+                dx= x.value - cnt.current_table.selected_sprite.coord_x.value
+                dy= y.value - cnt.current_table.selected_sprite.coord_y.value
                 # calculate length
                 length = (dx ** 2 + dy ** 2) ** 0.5
                 vx=dx/length
@@ -298,6 +317,15 @@ def handle_key_event(cnt, key_code):
         case sdl3.SDL_SCANCODE_LCTRL:
             print("Control key pressed, sending message")
             cnt.queue_to_send.put("hello")
+        case sdl3.SDL_SCANCODE_LALT:
+            print("Alt key pressed, make table from json")
+            with open('table.json', 'r') as f:
+                data = json.load(f)
+            print(data)
+            table = cnt.create_table_from_json(data)
+            cnt.list_of_tables.append(table)
+            cnt.current_table = table
+            print("table created and changed")
         case _:
             return sdl3.SDL_APP_CONTINUE
         
@@ -318,14 +346,21 @@ def handle_key_event(cnt, key_code):
 #             return True
         
 def handle_mouse_wheel(cnt, event):
-    # Resize selected sprite's texture on mouse wheel scroll
-    if hasattr(cnt, 'selected') and cnt.selected is not None:
-        if event.wheel.y > 0:
-            cnt.selected.scale_x += 0.01
-            cnt.selected.scale_y += 0.01
-        elif event.wheel.y < 0:
-            cnt.selected.scale_x = max(0.05, cnt.selected.scale_x - 0.01)
-            cnt.selected.scale_y = max(0.05, cnt.selected.scale_y - 0.01)
+    # zoom in and out on mouse wheel scroll
+    if event.wheel.y > 0:
+        cnt.current_table.scale += 0.1
+    elif event.wheel.y < 0:
+        cnt.current_table.scale -= 0.1
+
+    # Resize current_table.selected_sprite sprite's texture on mouse wheel scroll
+    # if hasattr(cnt, 'current_table.selected_sprite') and cnt.current_table.selected_sprite is not None:
+    #     if event.wheel.y > 0:
+    #         cnt.current_table.selected_sprite.scale_x += 0.01
+    #         cnt.current_table.selected_sprite.scale_y += 0.01
+    #     elif event.wheel.y < 0:
+    #         cnt.current_table.selected_sprite.scale_x = max(0.05, cnt.current_table.selected_sprite.scale_x - 0.01)
+    #         cnt.current_table.selected_sprite.scale_y = max(0.05, cnt.current_table.selected_sprite.scale_y - 0.01)
+
 
 # Add mouse wheel event handling to handle_event
 def handle_event(cnt, event):

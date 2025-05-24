@@ -58,7 +58,8 @@ def receive_data(socket):
             return "__pong__"
         return game_update
     else:
-        logger.debug("No data received from server.")
+        pass
+        #logger.debug("No data received from server.")
     return None
 
 def close_connection(socket):

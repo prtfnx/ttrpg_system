@@ -61,12 +61,14 @@ def move_sprites(cnt, delta_time):
             table_x_moved = cnt.current_table.x_moved
             table_y_moved = cnt.current_table.y_moved
             # Change view position of table
-            frect.x = sprite.coord_x.value + table_x_moved
-            frect.y = sprite.coord_y.value + table_y_moved
+            frect.x = (sprite.coord_x.value + table_x_moved) * table_scale
+            frect.y = (sprite.coord_y.value + table_y_moved) * table_scale
             # Scale sprites to window size and table scale
             try:
                 frect.w = sprite.original_w * width.value / cnt.base_width * sprite.scale_x * table_scale
                 frect.h = sprite.original_h * height.value / cnt.base_height * sprite.scale_y * table_scale
+                #frect.w = sprite.original_w  /  sprite.scale_x * table_scale
+                #frect.h = sprite.original_h  /  sprite.scale_y * table_scale
             except ZeroDivisionError:
                 logger.error("ZeroDivisionError in sprite scaling.")
             cnt.step.value = max(frect.w, frect.h)
@@ -74,6 +76,10 @@ def move_sprites(cnt, delta_time):
 
 def test_margin(cnt):
     """Draw margin rectangles around the selected sprite for visual debugging."""
+    # Add this check at the beginning of the function
+    if not cnt.current_table or not cnt.current_table.selected_sprite:
+        return  # Exit early if no sprite is selected
+        
     sprite = cnt.current_table.selected_sprite
     frect = sprite.frect
 

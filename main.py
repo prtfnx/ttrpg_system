@@ -13,30 +13,33 @@ import threading
 import client_sdl
 import time
 import json
+import paint  
+import gui_imgui  
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s %(levelname)s:%(name)s: %(message)s"
 )
 logger = logging.getLogger(__name__)
 
-BASE_WIDTH: int = 1600
-BASE_HEIGHT: int = 900
+
+BASE_WIDTH: int = 1920
+BASE_HEIGHT: int = 1080
 NET_SLEEP: float = 0.1
 CHECK_INTERVAL: float = 2.0
 
 def SDL_AppInit_func():
     """Initialize SDL window, renderer, and network client."""
     window = sdl3.SDL_CreateWindow(
-        b"examp wind", BASE_WIDTH, BASE_HEIGHT, sdl3.SDL_WINDOW_RESIZABLE
+        b"TTRPG System", BASE_WIDTH, BASE_HEIGHT, sdl3.SDL_WINDOW_RESIZABLE
     )
     if not window:
         logger.critical("Failed to create SDL window: %s", sdl3.SDL_GetError().decode())
         sys.exit(1)
 
     render_drivers = [sdl3.SDL_GetRenderDriver(i).decode() for i in range(sdl3.SDL_GetNumRenderDrivers())]
-    render_driver = next((d for d in ["opengl", "software"] if d in render_drivers), None)
+    render_driver = next((d for d in ["vulkan", "opengl", "software"] if d in render_drivers), None)
     if not render_driver:
         logger.error("No suitable render driver found.")
         sys.exit(1)
@@ -63,6 +66,18 @@ def SDL_AppInit_func():
     test_context.add_sprite(b"resources/token_1.png", scale_x=0.5, scale_y=0.5, collidable=True)
     test_context.add_sprite(b"resources/test.gif", scale_x=0.5, scale_y=0.5)
 
+    # Initialize paint system
+    paint.init_paint_system(test_context)
+    logger.info("Paint system initialized.")
+    
+
+    
+    # Initialize ImGui GUI system
+    gui_imgui_sys = gui_imgui.init_gui_imgui_system(test_context, renderer, BASE_WIDTH, BASE_HEIGHT)
+    test_context.gui_imgui_sys = gui_imgui_sys
+    logger.info("ImGui GUI system initialized.")
+    
+
     def init_net_thread():
         socket = client_sdl.init_connection()
         test_context.net_socket = socket
@@ -87,12 +102,25 @@ def SDL_AppIterate(context):
 
     sdl3.SDL_SetRenderDrawColorFloat(renderer, 0, 0, 0, sdl3.SDL_ALPHA_OPAQUE_FLOAT)
     sdl3.SDL_RenderClear(renderer)
-    # /* put the newly-cleared rendering on the screen. */
+    
     sdl3.SDL_GetWindowSize(context.window, context.window_width, context.window_height)
+
+    # Always render the table first
+    if context.current_table:
+        context.current_table.draw_grid(renderer, context.window)
 
     movement_sys.move_sprites(context, delta_time)
     movement_sys.test_margin(context)
 
+    # Render paint system if active
+    if paint.is_paint_mode_active():
+        paint.render_paint_system()
+
+    # Update and render GUI last (so it's on top)
+
+
+    # Render ImGui GUI last
+    context.gui_imgui_sys.render()
     sdl3.SDL_RenderPresent(context.renderer)
 
     if not context.queue_to_read.empty():
@@ -100,24 +128,27 @@ def SDL_AppIterate(context):
         handle_information(data, context)
     return sdl3.SDL_APP_CONTINUE
 
-def handle_information(msg,context):
-    #TODO ugly, need to be fixed. possibly use a dict to map the message to the function
-    #TODO add a check for the type of message
-    
+def handle_information(msg, context):
+    """Handle incoming network messages."""
     if context.waiting_for_table:
-        #TODO
         context.waiting_for_table = False
         msg = json.loads(msg)
         table = context.create_table_from_json(msg)
         context.list_of_tables.append(table)
         context.current_table = table
         logger.info("Table created and changed")
+        #gui_sys.add_chat_message(f"Table '{table.name}' loaded from network")
+        
     logger.info("Received message: %s", msg)
+    #gui_sys.add_chat_message(f"Network: {msg}", "Server")
+    
     if msg == "INITIALIZE_TABLE":
         context.waiting_for_table = True
+        #gui_sys.add_chat_message("Waiting for table data...", "System")
 
     if msg == "hello":
         event_sys.handle_key_event(context, sdl3.SDL_SCANCODE_SPACE)
+        #gui_sys.add_chat_message("Hello received from server!", "Server")
 
 def net_thread(context):
     """Thread for network communication."""
@@ -187,6 +218,7 @@ def main():
         logger.critical("Error initializing SDL: %s", e)
         sdl3.SDL_Quit()
         sys.exit(1)
+        
     # Initialize Net thread
     if ctx.net_client_started:
         logger.info("Starting network client thread")
@@ -198,10 +230,20 @@ def main():
 
     while running:
         while sdl3.SDL_PollEvent(ctypes.byref(event)):
+            ctx.gui_imgui_sys.process_event(event)  # <-- Add this
+            # Handle GUI events first (they have priority)
+         
+            # Handle paint events
+            if paint.handle_paint_events(event):
+                continue  # Paint system consumed the event
+                
+            # Handle normal game events
             running = event_sys.handle_event(ctx, event)
+            
         SDL_AppIterate(ctx)
 
     # Cleanup
+  
     sdl3.SDL_DestroyRenderer(ctx.renderer)
     sdl3.SDL_DestroyWindow(ctx.window)
     sdl3.SDL_Quit()

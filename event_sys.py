@@ -2,6 +2,9 @@ import sdl3
 import ctypes
 import json
 import logging
+import paint
+import clipboard_sys  # Add clipboard import
+import dragdrop_sys   # Add drag drop import
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +29,9 @@ def handle_mouse_motion(cnt, event):
             sprite.coord_y.value = event.motion.y - sprite.frect.h / 2
             logger.debug(f"grabing sprite {sprite} ")            
     if cnt.moving_table:
-        # Handle moving table
-        
-        cnt.current_table.x_moved += event.motion.xrel
-        cnt.current_table.y_moved += event.motion.yrel
+        # Handle moving table       
+        cnt.current_table.move_table(event.motion.xrel, event.motion.yrel)
+
         logger.debug(f"Moving table {cnt.current_table.x_moved} {cnt.current_table.y_moved}")
     if cnt.resizing:
         # Handle resizing
@@ -191,6 +193,54 @@ def handle_key_event(cnt, key_code):
             pass
         case sdl3.SDL_SCANCODE_Q:
             return sdl3.SDL_APP_SUCCESS
+        case sdl3.SDL_SCANCODE_P:  # Paint mode toggle
+            paint.toggle_paint_mode()
+            logger.info("Toggled paint mode")
+        case sdl3.SDL_SCANCODE_V:  # Paste
+            logger.info("V key pressed - attempting clipboard paste")
+            try:
+                if clipboard_sys.handle_clipboard_paste(cnt):
+                    logger.info("Successfully pasted from clipboard")
+                else:
+                    logger.info("Nothing to paste from clipboard")
+            except Exception as e:
+                logger.error(f"Error during clipboard paste: {e}")
+        case sdl3.SDL_SCANCODE_C:  # Copy
+            logger.info("C key pressed - attempting to copy selected sprite")
+            try:
+                if clipboard_sys.handle_clipboard_copy(cnt):
+                    logger.info("Successfully copied selected sprite")
+                else:
+                    logger.info("No sprite selected to copy")
+            except Exception as e:
+                logger.error(f"Error during sprite copy: {e}")
+        case sdl3.SDL_SCANCODE_X:  # Cut (copy + delete)
+            logger.info("X key pressed - attempting to cut selected sprite")
+            try:
+                if clipboard_sys.handle_clipboard_copy(cnt):
+                    # Delete the original sprite after copying
+                    if cnt.current_table and cnt.current_table.selected_sprite:
+                        # Remove from all layers
+                        for layer_sprites in cnt.current_table.dict_of_sprites_list.values():
+                            if cnt.current_table.selected_sprite in layer_sprites:
+                                layer_sprites.remove(cnt.current_table.selected_sprite)
+                        cnt.current_table.selected_sprite = None
+                        logger.info("Successfully cut selected sprite")
+                    else:
+                        logger.info("No sprite selected to cut")
+                else:
+                    logger.info("Failed to copy sprite for cutting")
+            except Exception as e:
+                logger.error(f"Error during sprite cut: {e}")
+        case sdl3.SDL_SCANCODE_TAB:  # Cycle paint colors when in paint mode
+            if paint.is_paint_mode_active():
+                paint.paint_system.cycle_paint_colors()
+        case sdl3.SDL_SCANCODE_EQUALS:  # Increase brush width
+            if paint.is_paint_mode_active():
+                paint.paint_system.adjust_paint_width(1)
+        case sdl3.SDL_SCANCODE_MINUS:  # Decrease brush width
+            if paint.is_paint_mode_active():
+                paint.paint_system.adjust_paint_width(-1)
         case sdl3.SDL_SCANCODE_R:
             pass
         case sdl3.SDL_SCANCODE_RIGHT:
@@ -254,28 +304,100 @@ def handle_key_event(cnt, key_code):
 
 def handle_mouse_wheel(cnt, event):
     if event.wheel.y > 0:
-        cnt.current_table.scale += 0.1
+        cnt.current_table.change_scale(0.1)
+        logger.debug("Table scale increased and now: %s", cnt.current_table.scale)
     elif event.wheel.y < 0:
-        cnt.current_table.scale -= 0.1
+        cnt.current_table.change_scale(-0.1)
 
 def handle_event(cnt, event):
+    # First check if paint system should handle the event
+    try:
+        if paint.handle_paint_events(event):
+            return True
+    except Exception as e:
+        logger.error(f"Error in paint system event handling: {e}")
+    
     match event.type:
         case sdl3.SDL_EVENT_QUIT:
             return False
         case sdl3.SDL_EVENT_KEY_DOWN:
-            handle_key_event(cnt, event.key.scancode)
-            return True
+            try:
+                # Handle Ctrl+C for copy
+                if event.key.scancode == sdl3.SDL_SCANCODE_C and (event.key.mod & sdl3.SDL_KMOD_CTRL):
+                    logger.info("Ctrl+C pressed - attempting to copy selected sprite")
+                    if clipboard_sys.handle_clipboard_copy(cnt):
+                        logger.info("Successfully copied selected sprite (Ctrl+C)")
+                    else:
+                        logger.info("No sprite selected to copy (Ctrl+C)")
+                    return True
+                # Handle Ctrl+V for paste
+                elif event.key.scancode == sdl3.SDL_SCANCODE_V and (event.key.mod & sdl3.SDL_KMOD_CTRL):
+                    logger.info("Ctrl+V pressed - attempting clipboard paste")
+                    if clipboard_sys.handle_clipboard_paste(cnt):
+                        logger.info("Successfully pasted from clipboard (Ctrl+V)")
+                    else:
+                        logger.info("Nothing to paste from clipboard (Ctrl+V)")
+                    return True
+                # Handle Ctrl+X for cut
+                elif event.key.scancode == sdl3.SDL_SCANCODE_X and (event.key.mod & sdl3.SDL_KMOD_CTRL):
+                    logger.info("Ctrl+X pressed - attempting to cut selected sprite")
+                    if clipboard_sys.handle_clipboard_copy(cnt):
+                        # Delete the original sprite after copying
+                        if cnt.current_table and cnt.current_table.selected_sprite:
+                            # Remove from all layers
+                            for layer_sprites in cnt.current_table.dict_of_sprites_list.values():
+                                if cnt.current_table.selected_sprite in layer_sprites:
+                                    layer_sprites.remove(cnt.current_table.selected_sprite)
+                            cnt.current_table.selected_sprite = None
+                            logger.info("Successfully cut selected sprite (Ctrl+X)")
+                        else:
+                            logger.info("No sprite selected to cut (Ctrl+X)")
+                    else:
+                        logger.info("Failed to copy sprite for cutting (Ctrl+X)")
+                    return True
+                else:
+                    handle_key_event(cnt, event.key.scancode)
+                    return True
+            except Exception as e:
+                logger.error(f"Error handling key event: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                return True
         case sdl3.SDL_EVENT_MOUSE_BUTTON_DOWN:
-            handle_mouse_button_down(cnt, event)
-            return True
+            try:
+                handle_mouse_button_down(cnt, event)
+                return True
+            except Exception as e:
+                logger.error(f"Error handling mouse button down: {e}")
+                return True
         case sdl3.SDL_EVENT_MOUSE_BUTTON_UP:
-            handle_mouse_button_up(cnt, event)
-            return True
+            try:
+                handle_mouse_button_up(cnt, event)
+                return True
+            except Exception as e:
+                logger.error(f"Error handling mouse button up: {e}")
+                return True
         case sdl3.SDL_EVENT_MOUSE_WHEEL:
-            handle_mouse_wheel(cnt, event)
-            return True
+            try:
+                handle_mouse_wheel(cnt, event)
+                return True
+            except Exception as e:
+                logger.error(f"Error handling mouse wheel: {e}")
+                return True
         case sdl3.SDL_EVENT_MOUSE_MOTION:
-            handle_mouse_motion(cnt, event)
-            return True
+            try:
+                handle_mouse_motion(cnt, event)
+                return True
+            except Exception as e:
+                logger.error(f"Error handling mouse motion: {e}")
+                return True
+        # Add drag and drop event handling
+        case sdl3.SDL_EVENT_DROP_BEGIN | sdl3.SDL_EVENT_DROP_FILE | sdl3.SDL_EVENT_DROP_TEXT | sdl3.SDL_EVENT_DROP_COMPLETE:
+            try:
+                dragdrop_sys.handle_drag_drop_event(cnt, event)
+                return True
+            except Exception as e:
+                logger.error(f"Error handling drag drop: {e}")
+                return True
         case _:
             return True

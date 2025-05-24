@@ -2,6 +2,18 @@ import ctypes
 import sprite
 import queue
 import json
+import sdl3
+import logging
+
+logger = logging.getLogger(__name__)
+
+CELL_SIDE: int = 20
+MIN_SCALE: float = 0.1
+MAX_SCALE: float = 10.0
+MAX_TABLE_X: float = 0.0
+MIN_TABLE_X: float = -1000.0
+MAX_TABLE_Y: float = 0.0
+MIN_TABLE_Y: float = -1000.0
 
 class Context:
     def __init__(self, renderer, window, base_width, base_height):
@@ -78,4 +90,58 @@ class ContextTable:
         self.scale= scale
         self.x_moved= 1.0
         self.y_moved= 1.0
+        self.show_grid = True
+        self.cell_side = CELL_SIDE
+
+    def draw_grid(self, renderer, window=None, color=(100, 100, 100, 255)):
+        """Draw the grid overlay using SDL."""
+        if not self.show_grid:
+            return
+            
+        window_width = ctypes.c_int()
+        window_height = ctypes.c_int()
+        if window is None:
+            logger.warning("No window provided to draw_grid")
+            return
+            
+        sdl3.SDL_GetWindowSize(window, ctypes.byref(window_width), ctypes.byref(window_height))
+
+        #cell_width = (window_width.value * self.grid_scale) / self.width
+        #cell_height = (window_height.value * self.grid_scale) / self.height
+        cell_width = self.width / self.cell_side * self.scale
+        cell_height = self.height / self.cell_side * self.scale
+        
+        # Set color for grid lines
+        sdl3.SDL_SetRenderDrawColor(renderer, *color)
+        
+        # Draw vertical grid lines
+        for x in range(self.width + 1):
+            x_pos = int(x * cell_width + self.x_moved)
+            if 0 <= x_pos <= window_width.value:
+                sdl3.SDL_RenderLine(renderer, x_pos, 0, x_pos, window_height.value)
+        
+        # Draw horizontal grid lines
+        for y in range(self.height + 1):
+            y_pos = int(y * cell_height + self.y_moved)
+            if 0 <= y_pos <= window_height.value:
+                sdl3.SDL_RenderLine(renderer, 0, y_pos, window_width.value, y_pos)
+
+    def toggle_grid(self):
+        """Toggle grid visibility."""
+        self.show_grid = not self.show_grid
+        logger.info(f"Grid visibility: {self.show_grid}")
+    
+    def change_scale(self, increment):
+        """Change the scale of the table"""
+        self.scale += increment
+        self.scale = max(MIN_SCALE, min(MAX_SCALE, self.scale))
+        logger.info(f"Grid scale: {self.scale}")
+    
+    def move_table(self, x, y):
+        """Move the table by a certain amount"""
+        self.x_moved += x
+        self.y_moved += y
+        self.x_moved = max(MIN_TABLE_X, min(MAX_TABLE_X, self.x_moved))
+        self.y_moved = max(MIN_TABLE_Y, min(MAX_TABLE_Y, self.y_moved))
+        logger.info(f"Table moved to: ({self.x_moved}, {self.y_moved})")
 

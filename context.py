@@ -79,6 +79,17 @@ class Context:
         #self.table.update_grid()
         return table
 
+    def setup_protocol(self, send_callback):
+        """Initialize protocol handler"""
+        from client_protocol import ClientProtocol
+        self.protocol = ClientProtocol(self, send_callback)
+        return self.protocol
+
+    def send_table_update(self, update_type: str, data: dict):
+        """Send table update to server"""
+        if hasattr(self, 'protocol'):
+            self.protocol.send_update(update_type, data)
+
 class ContextTable:
     def __init__(self, name: str, width: int, height: int, scale: float = 1.0):
         self.name = name
@@ -144,4 +155,15 @@ class ContextTable:
         self.x_moved = max(MIN_TABLE_X, min(MAX_TABLE_X, self.x_moved))
         self.y_moved = max(MIN_TABLE_Y, min(MAX_TABLE_Y, self.y_moved))
         logger.info(f"Table moved to: ({self.x_moved}, {self.y_moved})")
+
+   
+    def update_position(self, dx: float, dy: float):
+        """Update position and notify server"""
+        self.x_moved = max(-1000, min(0, self.x_moved + dx))
+        self.y_moved = max(-1000, min(0, self.y_moved + dy))
+        if hasattr(self, '_context'):
+            self._context.send_table_update('move', {
+                'x_moved': self.x_moved, 
+                'y_moved': self.y_moved
+            })
 

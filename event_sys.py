@@ -18,65 +18,101 @@ class Directions:
     SOUTHEAST=7
     SOUTHWEST=8
 
+# Fix the handle_mouse_motion to use the stored offset:
+
 def handle_mouse_motion(cnt, event):
-    
     if cnt.grabing:
-        # Handle grabing
         if cnt.current_table.selected_sprite is not None:
             sprite = cnt.current_table.selected_sprite
-            # Move sprite so its center follows the mouse
-            sprite.coord_x.value = event.motion.x - sprite.frect.w / 2
-            sprite.coord_y.value = event.motion.y - sprite.frect.h / 2
-            logger.debug(f"grabing sprite {sprite} ")            
+            table_scale = cnt.current_table.scale
+            
+            # Use the stored offset to prevent jumping
+            if hasattr(sprite, '_grab_offset_x') and hasattr(sprite, '_grab_offset_y'):
+                # Calculate target position accounting for the grab offset
+                target_screen_x = event.motion.x - sprite._grab_offset_x
+                target_screen_y = event.motion.y - sprite._grab_offset_y
+                
+                # Convert to table coordinates
+                sprite.coord_x.value = (target_screen_x - cnt.current_table.x_moved) / table_scale
+                sprite.coord_y.value = (target_screen_y - cnt.current_table.y_moved) / table_scale
+            else:
+                # Fallback to relative movement
+                movement_scale = 1.0 / table_scale
+                sprite.coord_x.value += event.motion.xrel * movement_scale
+                sprite.coord_y.value += event.motion.yrel * movement_scale
+            
+            logger.debug(f"Grabing sprite at {sprite.coord_x.value}, {sprite.coord_y.value}")
+            
     if cnt.moving_table:
-        # Handle moving table       
+        # Handle moving table - this is fine as is
         cnt.current_table.move_table(event.motion.xrel, event.motion.yrel)
-
         logger.debug(f"Moving table {cnt.current_table.x_moved} {cnt.current_table.y_moved}")
+        
     if cnt.resizing:
-        # Handle resizing
-        match cnt.resize_direction:
-            case Directions.EAST:
-                # Handle east resize
-                cnt.current_table.selected_sprite.frect.w = cnt.current_table.selected_sprite.frect.w + event.motion.xrel
-                cnt.current_table.selected_sprite.scale_x = cnt.current_table.selected_sprite.frect.w / cnt.current_table.selected_sprite.original_w
-                logger.debug(f"East resize: {cnt.current_table.selected_sprite.frect.w}")
-            case Directions.WEST:
-                cnt.current_table.selected_sprite.frect.w -= event.motion.xrel
-                cnt.current_table.selected_sprite.scale_x = cnt.current_table.selected_sprite.frect.w / cnt.current_table.selected_sprite.original_w
-                logger.debug(f"West resize: {cnt.current_table.selected_sprite.frect.w}")
-            case Directions.NORTH:
-                cnt.current_table.selected_sprite.frect.h -= event.motion.yrel
-                cnt.current_table.selected_sprite.scale_y = cnt.current_table.selected_sprite.frect.h / cnt.current_table.selected_sprite.original_h
-                logger.debug(f"North resize: {cnt.current_table.selected_sprite.frect.h}")
-            case Directions.SOUTH:
-                cnt.current_table.selected_sprite.frect.h += event.motion.yrel
-                cnt.current_table.selected_sprite.scale_y = cnt.current_table.selected_sprite.frect.h / cnt.current_table.selected_sprite.original_h
-                logger.debug(f"South resize: {cnt.current_table.selected_sprite.frect.h}")
-            case Directions.NORTHEAST:
-                cnt.current_table.selected_sprite.frect.w += event.motion.xrel
-                cnt.current_table.selected_sprite.frect.h -= event.motion.yrel
-                cnt.current_table.selected_sprite.scale_x = cnt.current_table.selected_sprite.frect.w / cnt.current_table.selected_sprite.original_w
-                cnt.current_table.selected_sprite.scale_y = cnt.current_table.selected_sprite.frect.h / cnt.current_table.selected_sprite.original_h
-                logger.debug(f"Northeast resize: {cnt.current_table.selected_sprite.frect.w}, {cnt.current_table.selected_sprite.frect.h}")
-            case Directions.NORTHWEST:
-                cnt.current_table.selected_sprite.frect.w -= event.motion.xrel
-                cnt.current_table.selected_sprite.frect.h -= event.motion.yrel
-                cnt.current_table.selected_sprite.scale_x = cnt.current_table.selected_sprite.frect.w / cnt.current_table.selected_sprite.original_w
-                cnt.current_table.selected_sprite.scale_y = cnt.current_table.selected_sprite.frect.h / cnt.current_table.selected_sprite.original_h
-                logger.debug(f"Northwest resize: {cnt.current_table.selected_sprite.frect.w}, {cnt.current_table.selected_sprite.frect.h}")
-            case Directions.SOUTHEAST:
-                cnt.current_table.selected_sprite.frect.w += event.motion.xrel
-                cnt.current_table.selected_sprite.frect.h += event.motion.yrel
-                cnt.current_table.selected_sprite.scale_x = cnt.current_table.selected_sprite.frect.w / cnt.current_table.selected_sprite.original_w
-                cnt.current_table.selected_sprite.scale_y = cnt.current_table.selected_sprite.frect.h / cnt.current_table.selected_sprite.original_h
-                logger.debug(f"Southeast resize: {cnt.current_table.selected_sprite.frect.w}, {cnt.current_table.selected_sprite.frect.h}")
-            case Directions.SOUTHWEST:
-                cnt.current_table.selected_sprite.frect.w -= event.motion.xrel
-                cnt.current_table.selected_sprite.frect.h += event.motion.yrel
-                cnt.current_table.selected_sprite.scale_x = cnt.current_table.selected_sprite.frect.w / cnt.current_table.selected_sprite.original_w
-                cnt.current_table.selected_sprite.scale_y = cnt.current_table.selected_sprite.frect.h / cnt.current_table.selected_sprite.original_h
-                logger.debug(f"Southwest resize: {cnt.current_table.selected_sprite.frect.w}, {cnt.current_table.selected_sprite.frect.h}")
+        # Handle resizing - FIXED to work correctly with all scales
+        sprite = cnt.current_table.selected_sprite
+        if sprite is not None:
+            # Use absolute positioning from stored start values
+            if hasattr(sprite, '_resize_start_scale_x'):
+                dx = event.motion.x - sprite._resize_start_mouse_x
+                dy = event.motion.y - sprite._resize_start_mouse_y
+                
+                # Scale sensitivity based on table scale for consistent feel
+                table_scale = cnt.current_table.scale
+                base_sensitivity = 0.001
+                
+                # Adjust sensitivity inversely with table scale
+                # When table is zoomed in (large scale), reduce sensitivity
+                # When table is zoomed out (small scale), increase sensitivity
+                scale_sensitivity = base_sensitivity / table_scale
+                
+                # Also factor in sprite's current scale to prevent tiny sprites from being hard to resize
+                sprite_scale_factor = max(0.1, min(sprite.scale_x, sprite.scale_y))
+                final_sensitivity = scale_sensitivity * sprite_scale_factor
+                
+                match cnt.resize_direction:
+                    case Directions.EAST:
+                        sprite.scale_x = max(0.1, sprite._resize_start_scale_x + dx * final_sensitivity)
+                        
+                    case Directions.WEST:
+                        sprite.scale_x = max(0.1, sprite._resize_start_scale_x - dx * final_sensitivity)
+                        # Adjust position to keep right edge in place
+                        sprite.coord_x.value = sprite._resize_start_coord_x
+                        
+                    case Directions.NORTH:
+                        sprite.scale_y = max(0.1, sprite._resize_start_scale_y - dy * final_sensitivity)
+                        # Adjust position to keep bottom edge in place
+                        sprite.coord_y.value = sprite._resize_start_coord_y
+                        
+                    case Directions.SOUTH:
+                        sprite.scale_y = max(0.1, sprite._resize_start_scale_y + dy * final_sensitivity)
+                        
+                    case Directions.SOUTHEAST:
+                        sprite.scale_x = max(0.1, sprite._resize_start_scale_x + dx * final_sensitivity)
+                        sprite.scale_y = max(0.1, sprite._resize_start_scale_y + dy * final_sensitivity)
+                        
+                    case Directions.SOUTHWEST:
+                        sprite.scale_x = max(0.1, sprite._resize_start_scale_x - dx * final_sensitivity)
+                        sprite.scale_y = max(0.1, sprite._resize_start_scale_y + dy * final_sensitivity)
+                        sprite.coord_x.value = sprite._resize_start_coord_x
+                        
+                    case Directions.NORTHEAST:
+                        sprite.scale_x = max(0.1, sprite._resize_start_scale_x + dx * final_sensitivity)
+                        sprite.scale_y = max(0.1, sprite._resize_start_scale_y - dy * final_sensitivity)
+                        sprite.coord_y.value = sprite._resize_start_coord_y
+                        
+                    case Directions.NORTHWEST:
+                        sprite.scale_x = max(0.1, sprite._resize_start_scale_x - dx * final_sensitivity)
+                        sprite.scale_y = max(0.1, sprite._resize_start_scale_y - dy * final_sensitivity)
+                        sprite.coord_x.value = sprite._resize_start_coord_x
+                        sprite.coord_y.value = sprite._resize_start_coord_y
+            
+            # Clamp maximum scale
+            sprite.scale_x = min(10.0, sprite.scale_x)
+            sprite.scale_y = min(10.0, sprite.scale_y)
+            
+            logger.debug(f"Resize: scale_x={sprite.scale_x:.3f}, scale_y={sprite.scale_y:.3f}, sensitivity={final_sensitivity:.6f}")
+    
     else:
         # Determine intersect with sprites
         # Get position
@@ -141,51 +177,145 @@ def handle_resize(cnt, direction):
     cnt.resizing = True
     cnt.resize_direction = direction
 
-def handle_mouse_button_down(cnt, event):
-    point = sdl3.SDL_FPoint()
-    logger.debug(f"Mouse button event: {event.button}")
-    point.x, point.y = event.button.x, event.button.y
+# Fix the handle_mouse_button_down function:
 
-    if event.button.button == 1:
-        cursor = cnt.cursor
-        logger.debug(f"Button down position {event.button.x} {event.button.y}")
-        match cursor:
-            case sdl3.SDL_SYSTEM_CURSOR_W_RESIZE:
-                handle_resize(cnt, Directions.WEST)
-            case sdl3.SDL_SYSTEM_CURSOR_E_RESIZE:
-                handle_resize(cnt, Directions.EAST)
-            case sdl3.SDL_SYSTEM_CURSOR_NW_RESIZE:
-                handle_resize(cnt, Directions.NORTHWEST)
-            case sdl3.SDL_SYSTEM_CURSOR_NE_RESIZE:
-                handle_resize(cnt, Directions.NORTHEAST )
-            case sdl3.SDL_SYSTEM_CURSOR_SW_RESIZE:
-                handle_resize(cnt, Directions.SOUTHWEST)
-            case sdl3.SDL_SYSTEM_CURSOR_SE_RESIZE:
-                handle_resize(cnt, Directions.SOUTHEAST)
-            case sdl3.SDL_SYSTEM_CURSOR_S_RESIZE:
-                handle_resize(cnt, Directions.SOUTH)
-            case sdl3.SDL_SYSTEM_CURSOR_N_RESIZE:
-                handle_resize(cnt, Directions.NORTH)
-    for sprites in cnt.current_table.dict_of_sprites_list.values():
-        for sprite in sprites:
-            if sdl3.SDL_PointInRectFloat(ctypes.byref(point), ctypes.byref(sprite.frect)):
-                cnt.current_table.selected_sprite = sprite
-                cnt.grabing = True
-                logger.debug("Sprite grabbed")
-    if not cnt.grabing and not cnt.resizing:
-        cnt.moving_table = True
-        logger.debug("Not grabbed, moving table")
+def handle_mouse_button_down(cnt, event):
+    if event.button.button == 1:  # Left mouse button
+        # Create the point for mouse position
+        point = sdl3.SDL_FPoint()
+        point.x, point.y = event.button.x, event.button.y
+        
+        # Check if we're clicking on a resize handle first
+        if cnt.current_table and cnt.current_table.selected_sprite:
+            sprite = cnt.current_table.selected_sprite
+            resize_direction = None
+            
+            # Check resize handles (same logic as in handle_mouse_motion)
+            margin_w = sprite.frect.w/40
+            margin_h = sprite.frect.h/40
+            
+            # Create resize areas
+            frec1 = sdl3.SDL_FRect()  # left edge
+            frec1.x = sprite.frect.x - margin_w
+            frec1.y = sprite.frect.y - margin_h
+            frec1.w = margin_w * 2
+            frec1.h = sprite.frect.h + 2 * margin_h
+            
+            frec2 = sdl3.SDL_FRect()  # bottom edge
+            frec2.x = sprite.frect.x - margin_w
+            frec2.y = sprite.frect.y + sprite.frect.h - margin_h
+            frec2.w = sprite.frect.w + 2 * margin_w
+            frec2.h = margin_h * 2
+            
+            frec3 = sdl3.SDL_FRect()  # top edge
+            frec3.x = sprite.frect.x - margin_w
+            frec3.y = sprite.frect.y - margin_h
+            frec3.w = sprite.frect.w + margin_w * 2
+            frec3.h = margin_h * 2
+            
+            frec4 = sdl3.SDL_FRect()  # right edge
+            frec4.x = sprite.frect.x + sprite.frect.w - margin_w
+            frec4.y = sprite.frect.y - margin_h
+            frec4.w = margin_w * 2
+            frec4.h = sprite.frect.h + margin_h * 2
+            
+            # Check which resize area was clicked
+            if sdl3.SDL_PointInRectFloat(ctypes.byref(point), ctypes.byref(frec1)):
+                resize_direction = Directions.WEST
+                if sdl3.SDL_PointInRectFloat(ctypes.byref(point), ctypes.byref(frec2)):
+                    resize_direction = Directions.SOUTHWEST
+                elif sdl3.SDL_PointInRectFloat(ctypes.byref(point), ctypes.byref(frec3)):
+                    resize_direction = Directions.NORTHWEST
+            elif sdl3.SDL_PointInRectFloat(ctypes.byref(point), ctypes.byref(frec2)):
+                resize_direction = Directions.SOUTH
+                if sdl3.SDL_PointInRectFloat(ctypes.byref(point), ctypes.byref(frec4)):
+                    resize_direction = Directions.SOUTHEAST
+            elif sdl3.SDL_PointInRectFloat(ctypes.byref(point), ctypes.byref(frec3)):
+                resize_direction = Directions.NORTH
+                if sdl3.SDL_PointInRectFloat(ctypes.byref(point), ctypes.byref(frec4)):
+                    resize_direction = Directions.NORTHEAST
+            elif sdl3.SDL_PointInRectFloat(ctypes.byref(point), ctypes.byref(frec4)):
+                resize_direction = Directions.EAST
+            
+            # If we clicked on a resize handle, start resizing
+            if resize_direction:
+                handle_resize(cnt, resize_direction)
+                
+                # Store resize start values
+                sprite._resize_start_scale_x = sprite.scale_x
+                sprite._resize_start_scale_y = sprite.scale_y
+                sprite._resize_start_mouse_x = event.button.x
+                sprite._resize_start_mouse_y = event.button.y
+                sprite._resize_start_coord_x = sprite.coord_x.value
+                sprite._resize_start_coord_y = sprite.coord_y.value
+                
+                logger.debug(f"Starting resize in direction {resize_direction}")
+                return  # Don't process as grab or table move
+            
+            # If not resizing, prepare for grabbing
+            table_scale = cnt.current_table.scale
+            
+            # Calculate where the mouse clicked relative to sprite position
+            sprite_screen_x = (sprite.coord_x.value + cnt.current_table.x_moved) * table_scale
+            sprite_screen_y = (sprite.coord_y.value + cnt.current_table.y_moved) * table_scale
+            
+            # Store the offset from mouse to sprite center
+            sprite._grab_offset_x = event.button.x - sprite_screen_x
+            sprite._grab_offset_y = event.button.y - sprite_screen_y
+        
+        # Check if we clicked on any sprite
+        clicked_on_sprite = False
+        if cnt.current_table:
+            for sprites in cnt.current_table.dict_of_sprites_list.values():
+                for sprite in sprites:
+                    if sdl3.SDL_PointInRectFloat(ctypes.byref(point), ctypes.byref(sprite.frect)):
+                        cnt.current_table.selected_sprite = sprite
+                        cnt.grabing = True
+                        clicked_on_sprite = True
+                        logger.debug("Sprite grabbed")
+                        break
+                if clicked_on_sprite:
+                    break
+        
+        # If we didn't click on a sprite and we're not resizing, start moving the table
+        if not clicked_on_sprite and not cnt.resizing:
+            cnt.moving_table = True
+            logger.debug("Not grabbed, moving table")
+        
+        logger.debug(f"Button down at {event.button.x}, {event.button.y}")
+
+# Fix the handle_mouse_button_up to clean up stored values:
 
 def handle_mouse_button_up(cnt, event):
     if event.button.button == 1:
+        # Clean up all stored interaction data
+        if cnt.current_table and cnt.current_table.selected_sprite:
+            sprite = cnt.current_table.selected_sprite
+            
+            # Remove grab offset data
+            if hasattr(sprite, '_grab_offset_x'):
+                delattr(sprite, '_grab_offset_x')
+            if hasattr(sprite, '_grab_offset_y'):
+                delattr(sprite, '_grab_offset_y')
+                
+            # Remove resize data
+            for attr in ['_resize_start_scale_x', '_resize_start_scale_y', 
+                        '_resize_start_mouse_x', '_resize_start_mouse_y',
+                        '_resize_start_coord_x', '_resize_start_coord_y']:
+                if hasattr(sprite, attr):
+                    delattr(sprite, attr)
+        
+        # Reset interaction states
         cnt.resizing = False
         cnt.grabing = False
         cnt.moving_table = False
         cnt.resize_direction = None
+        
+        # Reset cursor
         sdl3.SDL_SetCursor(sdl3.SDL_CreateSystemCursor(sdl3.SDL_SYSTEM_CURSOR_DEFAULT))
         cnt.cursor = sdl3.SDL_SYSTEM_CURSOR_DEFAULT
-        logger.debug(f"Button up position {event.button.x} {event.button.y}")
-        logger.debug(f"Cursor reset to default: {cnt.cursor}")
+        
+        logger.debug(f"Button up at {event.button.x}, {event.button.y}")
 
 def handle_key_event(cnt, key_code):
     match key_code:

@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 CELL_SIDE: int = 20
 MIN_SCALE: float = 0.1
 MAX_SCALE: float = 10.0
-MAX_TABLE_X: float = 0.0
+MAX_TABLE_X: float = 200.0
 MIN_TABLE_X: float = -1000.0
-MAX_TABLE_Y: float = 0.0
+MAX_TABLE_Y: float = 200.0
 MIN_TABLE_Y: float = -1000.0
 
 class Context:
@@ -41,7 +41,7 @@ class Context:
 
     def add_sprite(self, texture_path, scale_x, scale_y, layer='tokens',
                    character=None, moving=False, speed=None,
-                   collidable=False, table=None):
+                   collidable=False, table=None, coord_x=0.0, coord_y=0.0):
         table = table if table else self.current_table
         if not table:
             logger.error("No table selected for sprite creation")
@@ -62,9 +62,11 @@ class Context:
                 character=character,
                 moving=moving, 
                 speed=speed, 
-                collidable=collidable
+                collidable=collidable,
+                coord_x=coord_x,
+                coord_y=coord_y
             )
-            
+
             # Check if sprite creation was successful
             if not new_sprite or not hasattr(new_sprite, 'texture') or not new_sprite.texture:
                 logger.error(f"Failed to create sprite from {texture_path}")

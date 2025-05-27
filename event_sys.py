@@ -392,12 +392,14 @@ def handle_key_event(cnt, key_code):
             sdl3.SDL_GetMouseState(ctypes.byref(x), ctypes.byref(y))
             logger.info(f"Mouse pos {x.value}, {y.value}")
             if cnt.current_table.selected_sprite.character is not None:
-                spell = cnt.current_table.selected_sprite.character.spells[0]
-                cnt.current_table.selected_sprite.character.spell_attack(x, y, spell)
-                sprite = cnt.add_sprite(spell.sprite, scale_x=0.1, scale_y=0.1, moving=True, speed=1, collidable=True)
+                table= cnt.current_table
+                spell = table.selected_sprite.character.spells[0]
+                table.selected_sprite.character.spell_attack(x, y, spell)
+                sprite = cnt.add_sprite(spell.sprite, scale_x=0.1, scale_y=0.1, moving=True, speed=1, collidable=True, coord_x=table.selected_sprite.coord_x.value, coord_y=table.selected_sprite.coord_y.value)
                 sprite.set_position(cnt.current_table.selected_sprite.coord_x.value, cnt.current_table.selected_sprite.coord_y.value)
-                dx = x.value - cnt.current_table.selected_sprite.coord_x.value
-                dy = y.value - cnt.current_table.selected_sprite.coord_y.value
+                print(f" x.value:{x.value}, cnt.current_table.selected_sprite.coord_x.value: {cnt.current_table.selected_sprite.coord_x.value}, cnt.current_table.x_moved: {cnt.current_table.x_moved}" )
+                dx = x.value - table.selected_sprite.coord_x.value*table.scale - table.x_moved
+                dy = y.value - table.selected_sprite.coord_y.value*table.scale - table.y_moved
                 length = (dx ** 2 + dy ** 2) ** 0.5
                 vx = dx / length
                 vy = dy / length

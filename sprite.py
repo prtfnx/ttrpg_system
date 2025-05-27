@@ -8,10 +8,10 @@ logger = logging.getLogger(__name__)
 class Sprite:
     def __init__(self, renderer, texture_path, scale_x=1, scale_y=1,
                  character=None, moving=False, speed=None, collidable=False,
-                 texture=None, layer='tokens'):
+                 texture=None, layer='tokens',coord_x= 0.0, coord_y=0.0):
         # Initialize all ctypes structures properly
-        self.coord_x = ctypes.c_float(0.0)
-        self.coord_y = ctypes.c_float(0.0)
+        self.coord_x = ctypes.c_float(coord_x)
+        self.coord_y = ctypes.c_float(coord_y)
         self.rect = sdl3.SDL_Rect()
         self.frect = sdl3.SDL_FRect()
         

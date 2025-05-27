@@ -43,16 +43,108 @@ class Context:
                    character=None, moving=False, speed=None,
                    collidable=False, table=None):
         table = table if table else self.current_table
-        if table:
-            table.dict_of_sprites_list[layer].append(sprite.Sprite(self.renderer, texture_path,
-                                               scale_x=scale_x, scale_y=scale_y, character=character,
-                                               moving=moving, speed=speed, collidable=collidable))
-            if table.selected_sprite == None:
-                table.selected_sprite = table.dict_of_sprites_list[layer][-1]
-            return table.dict_of_sprites_list[layer][-1]
-        else:
-            print("No table selected")
+        if not table:
+            logger.error("No table selected for sprite creation")
             return None
+        
+        # Validate layer exists
+        if layer not in table.dict_of_sprites_list:
+            logger.error(f"Invalid layer: {layer}")
+            return None
+        
+        try:
+            # Create sprite with error handling
+            new_sprite = sprite.Sprite(
+                self.renderer, 
+                texture_path,
+                scale_x=scale_x, 
+                scale_y=scale_y, 
+                character=character,
+                moving=moving, 
+                speed=speed, 
+                collidable=collidable
+            )
+            
+            # Check if sprite creation was successful
+            if not new_sprite or not hasattr(new_sprite, 'texture') or not new_sprite.texture:
+                logger.error(f"Failed to create sprite from {texture_path}")
+                # Clean up any partially created sprite
+                if new_sprite:
+                    try:
+                        new_sprite.cleanup()  # You'll need to add this method to Sprite class
+                    except:
+                        pass
+                return None
+            
+            # Add to table's sprite list
+            table.dict_of_sprites_list[layer].append(new_sprite)
+            
+            # Set as selected sprite if none selected
+            if table.selected_sprite is None:
+                table.selected_sprite = new_sprite
+                
+            logger.info(f"Successfully added sprite from {texture_path} to layer {layer}")
+            return new_sprite
+            
+        except Exception as e:
+            logger.error(f"Error creating sprite from {texture_path}: {e}")
+            return None
+
+    def remove_sprite(self, sprite_to_remove, table=None):
+        """Remove sprite and clean up its resources"""
+        table = table if table else self.current_table
+        if not table:
+            logger.error("No table selected for sprite removal")
+            return False
+        
+        try:
+            # Find and remove sprite from all layers
+            for layer, sprite_list in table.dict_of_sprites_list.items():
+                if sprite_to_remove in sprite_list:
+                    sprite_list.remove(sprite_to_remove)
+                    
+                    # Update selected sprite if it was removed
+                    if table.selected_sprite == sprite_to_remove:
+                        # Select another sprite or set to None
+                        table.selected_sprite = None
+                        for layer_sprites in table.dict_of_sprites_list.values():
+                            if layer_sprites:
+                                table.selected_sprite = layer_sprites[0]
+                                break
+                    
+                    # Clean up sprite resources
+                    if hasattr(sprite_to_remove, 'cleanup'):
+                        sprite_to_remove.cleanup()
+                    
+                    logger.info(f"Successfully removed sprite from layer {layer}")
+                    return True
+            
+            logger.warning("Sprite not found in any layer")
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error removing sprite: {e}")
+            return False
+
+    def cleanup_table(self, table=None):
+        """Clean up all sprites in a table"""
+        table = table if table else self.current_table
+        if not table:
+            return
+        
+        try:
+            for layer, sprite_list in table.dict_of_sprites_list.items():
+                for sprite_obj in sprite_list:
+                    if hasattr(sprite_obj, 'cleanup'):
+                        sprite_obj.cleanup()
+                sprite_list.clear()
+            
+            table.selected_sprite = None
+            logger.info(f"Cleaned up table: {table.name}")
+            
+        except Exception as e:
+            logger.error(f"Error cleaning up table: {e}")
+
     def add_table(self, name, width, height):
         table = ContextTable(name, width, height)
         self.list_of_tables.append(table)

@@ -25,21 +25,10 @@ def handle_mouse_motion(cnt, event):
         if cnt.current_table.selected_sprite is not None:
             sprite = cnt.current_table.selected_sprite
             table_scale = cnt.current_table.scale
-            
-            # Use the stored offset to prevent jumping
-            if hasattr(sprite, '_grab_offset_x') and hasattr(sprite, '_grab_offset_y'):
-                # Calculate target position accounting for the grab offset
-                target_screen_x = event.motion.x - sprite._grab_offset_x
-                target_screen_y = event.motion.y - sprite._grab_offset_y
-                
-                # Convert to table coordinates
-                sprite.coord_x.value = (target_screen_x - cnt.current_table.x_moved) / table_scale
-                sprite.coord_y.value = (target_screen_y - cnt.current_table.y_moved) / table_scale
-            else:
-                # Fallback to relative movement
-                movement_scale = 1.0 / table_scale
-                sprite.coord_x.value += event.motion.xrel * movement_scale
-                sprite.coord_y.value += event.motion.yrel * movement_scale
+  
+            movement_scale = 1.0 / table_scale
+            sprite.coord_x.value += event.motion.xrel * movement_scale
+            sprite.coord_y.value += event.motion.yrel * movement_scale
             
             logger.debug(f"Grabing sprite at {sprite.coord_x.value}, {sprite.coord_y.value}")
             
@@ -54,64 +43,59 @@ def handle_mouse_motion(cnt, event):
         if sprite is not None:
             # Use absolute positioning from stored start values
             if hasattr(sprite, '_resize_start_scale_x'):
-                dx = event.motion.x - sprite._resize_start_mouse_x
-                dy = event.motion.y - sprite._resize_start_mouse_y
+                
+                moved_dx = event.motion.x - sprite._resize_start_mouse_x
+                moved_dy = event.motion.y - sprite._resize_start_mouse_y
                 
                 # Scale sensitivity based on table scale for consistent feel
                 table_scale = cnt.current_table.scale
-                base_sensitivity = 0.001
-                
-                # Adjust sensitivity inversely with table scale
-                # When table is zoomed in (large scale), reduce sensitivity
-                # When table is zoomed out (small scale), increase sensitivity
-                scale_sensitivity = base_sensitivity / table_scale
-                
-                # Also factor in sprite's current scale to prevent tiny sprites from being hard to resize
-                sprite_scale_factor = max(0.1, min(sprite.scale_x, sprite.scale_y))
-                final_sensitivity = scale_sensitivity * sprite_scale_factor
+                #base_sensitivity = 0.001
+                 # Also factor in sprite's current scale to prevent tiny sprites from being hard to resize
+                dx = moved_dx/ sprite._resize_start_width* sprite._resize_start_scale_x 
+                dy= moved_dy/ sprite._resize_start_height* sprite._resize_start_scale_y 
                 
                 match cnt.resize_direction:
                     case Directions.EAST:
-                        sprite.scale_x = max(0.1, sprite._resize_start_scale_x + dx * final_sensitivity)
-                        
+                        sprite.scale_x = max(0.05, sprite._resize_start_scale_x + dx) 
                     case Directions.WEST:
-                        sprite.scale_x = max(0.1, sprite._resize_start_scale_x - dx * final_sensitivity)
+                        sprite.scale_x = max(0.05, sprite._resize_start_scale_x - dx)
                         # Adjust position to keep right edge in place
-                        sprite.coord_x.value = sprite._resize_start_coord_x
-                        
+                        sprite.coord_x.value = sprite._resize_start_coord_x+moved_dx/table_scale
+                        print(f'Resize WEST: frect_x={sprite.frect.x:.3f}, moved={moved_dx:.3f}')
+
                     case Directions.NORTH:
-                        sprite.scale_y = max(0.1, sprite._resize_start_scale_y - dy * final_sensitivity)
+                        sprite.scale_y = max(0.05, sprite._resize_start_scale_y - dy )
                         # Adjust position to keep bottom edge in place
-                        sprite.coord_y.value = sprite._resize_start_coord_y
-                        
+                        sprite.coord_y.value = sprite._resize_start_coord_y+moved_dy/table_scale
+
                     case Directions.SOUTH:
-                        sprite.scale_y = max(0.1, sprite._resize_start_scale_y + dy * final_sensitivity)
+                        sprite.scale_y = max(0.05, sprite._resize_start_scale_y + dy)
                         
                     case Directions.SOUTHEAST:
-                        sprite.scale_x = max(0.1, sprite._resize_start_scale_x + dx * final_sensitivity)
-                        sprite.scale_y = max(0.1, sprite._resize_start_scale_y + dy * final_sensitivity)
+                        sprite.scale_x = max(0.05, sprite._resize_start_scale_x + dx )
+                        sprite.scale_y = max(0.05, sprite._resize_start_scale_y + dy )
                         
                     case Directions.SOUTHWEST:
-                        sprite.scale_x = max(0.1, sprite._resize_start_scale_x - dx * final_sensitivity)
-                        sprite.scale_y = max(0.1, sprite._resize_start_scale_y + dy * final_sensitivity)
-                        sprite.coord_x.value = sprite._resize_start_coord_x
-                        
+                        sprite.scale_x = max(0.05, sprite._resize_start_scale_x - dx)
+                        sprite.scale_y = max(0.05, sprite._resize_start_scale_y + dy)
+                        sprite.coord_x.value = sprite._resize_start_coord_x+ moved_dx/table_scale
+
                     case Directions.NORTHEAST:
-                        sprite.scale_x = max(0.1, sprite._resize_start_scale_x + dx * final_sensitivity)
-                        sprite.scale_y = max(0.1, sprite._resize_start_scale_y - dy * final_sensitivity)
-                        sprite.coord_y.value = sprite._resize_start_coord_y
+                        sprite.scale_x = max(0.05, sprite._resize_start_scale_x + dx)
+                        sprite.scale_y = max(0.05, sprite._resize_start_scale_y - dy)
+                        sprite.coord_y.value = sprite._resize_start_coord_y+ moved_dy/table_scale
                         
                     case Directions.NORTHWEST:
-                        sprite.scale_x = max(0.1, sprite._resize_start_scale_x - dx * final_sensitivity)
-                        sprite.scale_y = max(0.1, sprite._resize_start_scale_y - dy * final_sensitivity)
-                        sprite.coord_x.value = sprite._resize_start_coord_x
-                        sprite.coord_y.value = sprite._resize_start_coord_y
-            
+                        sprite.scale_x = max(0.05, sprite._resize_start_scale_x - dx)
+                        sprite.scale_y = max(0.05, sprite._resize_start_scale_y - dy)
+                        sprite.coord_x.value = sprite._resize_start_coord_x+ moved_dx/table_scale
+                        sprite.coord_y.value = sprite._resize_start_coord_y+ moved_dy/table_scale
+
             # Clamp maximum scale
             sprite.scale_x = min(10.0, sprite.scale_x)
             sprite.scale_y = min(10.0, sprite.scale_y)
             
-            logger.debug(f"Resize: scale_x={sprite.scale_x:.3f}, scale_y={sprite.scale_y:.3f}, sensitivity={final_sensitivity:.6f}")
+            logger.debug(f"Resize: scale_x={sprite.scale_x:.3f}, scale_y={sprite.scale_y:.3f}")
     
     else:
         # Determine intersect with sprites
@@ -248,6 +232,8 @@ def handle_mouse_button_down(cnt, event):
                 sprite._resize_start_mouse_y = event.button.y
                 sprite._resize_start_coord_x = sprite.coord_x.value
                 sprite._resize_start_coord_y = sprite.coord_y.value
+                sprite._resize_start_width = sprite.frect.w
+                sprite._resize_start_height = sprite.frect.h 
                 
                 logger.debug(f"Starting resize in direction {resize_direction}")
                 return  # Don't process as grab or table move

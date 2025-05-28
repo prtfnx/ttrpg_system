@@ -1,6 +1,8 @@
 import sdl3
 import ctypes
 import logging
+import json
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -81,3 +83,39 @@ def load_texture(sprite):
                 sdl3.SDL_DestroySurface(surface)
             except Exception as e:
                 logger.error(f"Error destroying surface: {e}")
+
+def save_dict_to_disk(dict_data):
+    try:
+
+        filename = f'{dict_data.get("name")}.json'
+
+        with open(filename, 'w') as f:
+            json.dump(dict_data, f, indent=2)
+
+        logger.info(f"Saved table as {filename}")
+    
+    except Exception as e:
+        error_msg = f"Error saving json: {e}"
+        
+        logger.error(error_msg)
+
+def load_json_from_disk(filename):
+    try:
+        #TODO implement
+        # Simple implementation - look for JSON files in current directory
+        json_files = [f for f in os.listdir('.') if f.endswith('.json') and os.path.isfile(f)]
+        
+        if not json_files:
+            logger.warning("No JSON table files found")
+            return
+        
+        # Load the first JSON file found (in production, use file dialog)
+        filename = json_files[0]
+        with open(filename, 'r') as f:
+            data = json.load(f)
+        return data
+    except Exception as e:
+        error_msg = f"Error loading json file: {e}"
+        logger.error(error_msg)
+    
+        # Create table from JSON data

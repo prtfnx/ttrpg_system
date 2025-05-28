@@ -1,67 +1,200 @@
 import asyncio
 import logging
+import json
+import uuid
+import os
+import sys
+from typing import Dict, Set
+
+# Add parent directory to path to import protocol
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from server_protocol import ServerProtocol
+from table import VirtualTable
+from protocol import Message, MessageType
 
 logger = logging.getLogger(__name__)
 
 HOST = '127.0.0.1'
 PORT = 12345
 
-clients = set()
+class TableManager:
+    """Manages virtual tables for the server"""
+    def __init__(self):
+        self.tables: Dict[str, VirtualTable] = {}
+        self.default_table = self._create_default_table()
+        
+    def _create_default_table(self) -> VirtualTable:
+        """Create a default table"""
+        table = VirtualTable("default", 100, 100)
+        self.tables["default"] = table
+        return table
+    
+    def get_table(self, name: str = None) -> VirtualTable:
+        """Get table by name or return default"""
+        if name and name in self.tables:
+            return self.tables[name]
+        return self.default_table
+    
+    def create_table(self, name: str, width: int, height: int) -> VirtualTable:
+        """Create a new table"""
+        table = VirtualTable(name, width, height)
+        self.tables[name] = table
+        logger.info(f"Created table '{name}' ({width}x{height})")
+        return table
+    
+    def add_table(self, table: VirtualTable):
+        """Add existing table to manager"""
+        self.tables[table.name] = table
+        logger.info(f"Added table '{table.name}' to manager")
+    
+    def apply_update(self, data: Dict):
+        """Apply general table updates"""
+        table_name = data.get('table_name', 'default')
+        table = self.get_table(table_name)
+        
+        update_type = data.get('type')
+        if update_type == 'scale':
+            # Handle table scaling
+            pass
+        elif update_type == 'grid':
+            # Handle grid changes
+            pass
+        # Add more general update types as needed
 
-async def handle_client(reader, writer, queue_to_read, queue_to_write):
-    addr = writer.get_extra_info('peername')
-    logger.info("Connected by %s", addr)
-    clients.add(writer)
-    try:
-        while True:
-            data = await reader.read(4096)
-            if not data and queue_to_write.empty():
-                break
-            if data:
-                message = data.decode('utf-8').strip()
-                # Handle ping/pong
-                if message == "__ping__":
-                    writer.write("__pong__".encode())
-                    await writer.drain()
-                    logger.debug("Received ping, sent pong to %s", addr)
+class GameServer:
+    """Main game server that uses ServerProtocol"""
+    def __init__(self, table_manager: TableManager = None):
+        self.table_manager = table_manager or TableManager()
+        self.protocol = ServerProtocol(self.table_manager)
+        self.clients: Dict[str, asyncio.StreamWriter] = {}
+        self.client_addresses: Dict[str, str] = {}
+        
+    async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+        """Handle individual client connection with proper message parsing"""
+        addr = writer.get_extra_info('peername')
+        client_id = str(uuid.uuid4())
+        
+        logger.info(f"Client {client_id} connected from {addr}")
+        
+        self.clients[client_id] = writer
+        self.client_addresses[client_id] = str(addr)
+        
+        # Message buffer for this client
+        message_buffer = ""
+        
+        try:
+            # Send welcome message
+            welcome_msg = Message(MessageType.PING, {'message': 'Welcome to TTRPG Server'})
+            await self._send_to_client(writer, welcome_msg)
+            
+            # Handle client messages
+            while True:
+                data = await reader.read(8192)  # Increased buffer size
+                if not data:
+                    break
+                
+                # Decode and add to buffer
+                try:
+                    chunk = data.decode('utf-8')
+                    message_buffer += chunk
+                    
+                    # Process complete messages (separated by newlines)
+                    while '\n' in message_buffer:
+                        message_str, message_buffer = message_buffer.split('\n', 1)
+                        message_str = message_str.strip()
+                        
+                        if not message_str:
+                            continue
+                        
+                        # Handle simple ping/pong for backwards compatibility
+                        if message_str == "__ping__":
+                            writer.write(b"__pong__\n")
+                            await writer.drain()
+                            logger.debug(f"Received ping, sent pong to {addr}")
+                            continue
+                        
+                        # Process through protocol handler
+                        try:
+                            await self.protocol.handle_client(client_id, writer, message_str)
+                        except json.JSONDecodeError as e:
+                            logger.error(f"Invalid JSON from {client_id}: {e}")
+                            error_msg = Message(MessageType.ERROR, {'error': 'Invalid JSON format'})
+                            await self._send_to_client(writer, error_msg)
+                        except Exception as e:
+                            logger.error(f"Error processing message from {client_id}: {e}")
+                            error_msg = Message(MessageType.ERROR, {'error': str(e)})
+                            await self._send_to_client(writer, error_msg)
+                            
+                except UnicodeDecodeError as e:
+                    logger.error(f"Failed to decode data from {client_id}: {e}")
                     continue
-                logger.info("Received from %s: %s", addr, message)
-                await queue_to_read.put(message)
-            elif not queue_to_write.empty():
-                # TODO determine client
-                out_data = queue_to_write.get_nowait()
-                # broadcast to all clients
-                for client in clients:
-                    client.write(out_data.encode())
-                    await client.drain()
-    except (asyncio.IncompleteReadError, ConnectionResetError) as e:
-        logger.warning("Client %s disconnected: %s", addr, e)
-    finally:
-        logger.info("Disconnected %s", addr)
-        clients.remove(writer)
-        writer.close()
-        await writer.wait_closed()
+                    
+        except (asyncio.IncompleteReadError, ConnectionResetError) as e:
+            logger.warning(f"Client {client_id} ({addr}) disconnected: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error with client {client_id}: {e}")
+        finally:
+            await self._cleanup_client(client_id, writer)
+    
+    async def _send_to_client(self, writer: asyncio.StreamWriter, message: Message):
+        """Send message to a specific client with proper framing"""
+        try:
+            # Add newline delimiter for message framing
+            data = message.to_json().encode() + b'\n'
+            writer.write(data)
+            await writer.drain()
+        except Exception as e:
+            logger.error(f"Failed to send message to client: {e}")
+    
+    async def _cleanup_client(self, client_id: str, writer: asyncio.StreamWriter):
+        """Clean up client connection"""
+        logger.info(f"Cleaning up client {client_id}")
+        
+        # Remove from protocol
+        self.protocol.disconnect_client(client_id)
+        
+        # Remove from our tracking
+        self.clients.pop(client_id, None)
+        self.client_addresses.pop(client_id, None)
+        
+        # Close connection
+        try:
+            writer.close()
+            await writer.wait_closed()
+        except Exception as e:
+            logger.error(f"Error closing connection for {client_id}: {e}")
+    
+    async def run_server(self):
+        """Run the game server"""
+        server = await asyncio.start_server(
+            self.handle_client,
+            HOST, PORT
+        )
+        
+        logger.info(f"Game server listening on {HOST}:{PORT}")
+        logger.info(f"Tables available: {list(self.table_manager.tables.keys())}")
+        
+        async with server:
+            await server.serve_forever()
 
-async def run_server(queue_to_read, queue_to_write):
-    server = await asyncio.start_server(
-        lambda r, w: handle_client(r, w, queue_to_read, queue_to_write),
-        HOST, PORT
-    )
-    logger.info("Server listening on %s:%s", HOST, PORT)
-    async with server:
-        await server.serve_forever()
+# Backwards compatibility functions
+async def handle_client(reader, writer, queue_to_read=None, queue_to_write=None):
+    """Legacy function - redirects to GameServer"""
+    # Create a temporary server instance
+    table_manager = TableManager()
+    game_server = GameServer(table_manager)
+    await game_server.handle_client(reader, writer)
 
-async def main():
-    queue_to_read = asyncio.Queue()
-    queue_to_write = asyncio.Queue()
-    # Start the server
-    server = await asyncio.start_server(
-        lambda r, w: handle_client(r, w, queue_to_read, queue_to_write),
-        HOST, PORT
-    )
-    logger.info("Server listening on %s:%s", HOST, PORT)
-    async with server:
-        await server.serve_forever()
+async def run_server(queue_to_read=None, queue_to_write=None, table_manager=None):
+    """Legacy function - creates and runs GameServer"""
+    game_server = GameServer(table_manager)
+    await game_server.run_server()
+
+async def main(table_manager=None):
+    """Main server entry point"""
+    game_server = GameServer(table_manager)
+    await game_server.run_server()
 
 if __name__ == "__main__":
     logging.basicConfig(

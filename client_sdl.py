@@ -3,11 +3,69 @@ import logging
 import sdl3
 import sdl3.SDL_net
 import ctypes
+import json
 
 logger = logging.getLogger(__name__)
 
 SERVER_IP = ctypes.c_char_p(b"127.0.0.1")
 SERVER_PORT = ctypes.c_uint16(12345)
+
+class MessageBuffer:
+    """Handle incomplete JSON messages from network"""
+    def __init__(self):
+        self.buffer = ""
+        
+    def add_data(self, data: str) -> list:
+        """Add data to buffer and return complete messages"""
+        self.buffer += data
+        messages = []
+        
+        # Look for complete JSON messages (ending with newline or complete braces)
+        while self.buffer:
+            # Try to find a complete JSON object
+            brace_count = 0
+            in_string = False
+            escape_next = False
+            end_pos = -1
+            
+            for i, char in enumerate(self.buffer):
+                if escape_next:
+                    escape_next = False
+                    continue
+                    
+                if char == '\\':
+                    escape_next = True
+                    continue
+                    
+                if char == '"' and not escape_next:
+                    in_string = not in_string
+                    continue
+                    
+                if not in_string:
+                    if char == '{':
+                        brace_count += 1
+                    elif char == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            end_pos = i + 1
+                            break
+                    elif char == '\n' and brace_count == 0:
+                        # Handle simple messages that end with newline
+                        end_pos = i
+                        break
+            
+            if end_pos > 0:
+                # Extract complete message
+                message = self.buffer[:end_pos].strip()
+                self.buffer = self.buffer[end_pos:].lstrip('\n')
+                
+                if message:
+                    messages.append(message)
+            else:
+                # No complete message found
+                break
+                
+        return messages
 
 def init_connection(server_ip=SERVER_IP, server_port=SERVER_PORT):
     """Initialize net connection."""
@@ -39,27 +97,43 @@ def init_connection(server_ip=SERVER_IP, server_port=SERVER_PORT):
     return client
 
 def send_data(socket, data):
-    """Send data to server."""
-    status_msg = data.encode('utf-8')
-    sent = sdl3.SDL_net.NET_WriteToStreamSocket(socket, status_msg, len(status_msg))
+    """Send data to server with proper framing."""
+    # Add newline delimiter for message framing
+    message = data.encode('utf-8') + b'\n'
+    sent = sdl3.SDL_net.NET_WriteToStreamSocket(socket, message, len(message))
     if sent <= 0:
         logger.warning("Failed to send data to server.")
-    logger.debug("Sent status to server: %s", status_msg)
+    logger.debug("Sent status to server: %s", message)
 
-def receive_data(socket):
-    """Receive data from server."""
-    buffer = ctypes.create_string_buffer(1024)
+def receive_data(socket, message_buffer=None):
+    """Receive data from server with proper message handling."""
+    if message_buffer is None:
+        message_buffer = MessageBuffer()
+        
+    # Use larger buffer for big messages
+    buffer = ctypes.create_string_buffer(8192)  # Increased from 1024
     received = sdl3.SDL_net.NET_ReadFromStreamSocket(socket, buffer, len(buffer))
+    
     if received > 0:
-        game_update = buffer[:received].decode('utf-8')
-        # Handle pong reply for ping
-        if game_update.strip() == "__pong__":
-            logger.debug("Received pong from server.")
-            return "__pong__"
-        return game_update
-    else:
-        pass
-        #logger.debug("No data received from server.")
+        try:
+            data = buffer[:received].decode('utf-8')
+            
+            # Handle simple ping/pong without buffering
+            if data.strip() == "__pong__":
+                logger.debug("Received pong from server.")
+                return "__pong__"
+            
+            # Add to message buffer and get complete messages
+            messages = message_buffer.add_data(data)
+            
+            # Return the first complete message, store others for next call
+            if messages:
+                return messages[0]  # Return first complete message
+                
+        except UnicodeDecodeError as e:
+            logger.error(f"Failed to decode received data: {e}")
+            return None
+    
     return None
 
 def close_connection(socket):

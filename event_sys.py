@@ -17,7 +17,7 @@ class Directions:
     NORTHWEST=6
     SOUTHEAST=7
     SOUTHWEST=8
-
+DIFF_POSITION = 10  # Minimum position change to trigger network sync
 # Fix the handle_mouse_motion to use the stored offset:
 
 def handle_mouse_motion(cnt, event):
@@ -25,10 +25,27 @@ def handle_mouse_motion(cnt, event):
         if cnt.current_table.selected_sprite is not None:
             sprite = cnt.current_table.selected_sprite
             table_scale = cnt.current_table.scale
-  
+            
+            # Store old position for network sync
+            old_pos = (sprite.coord_x.value, sprite.coord_y.value)
+            
             movement_scale = 1.0 / table_scale
             sprite.coord_x.value += event.motion.xrel * movement_scale
             sprite.coord_y.value += event.motion.yrel * movement_scale
+            
+            # New position for network sync
+            new_pos = (sprite.coord_x.value, sprite.coord_y.value)
+            
+            # Send network update if position changed significantly
+            if hasattr(sprite, '_last_network_x'):
+                dx = abs(new_pos[0] - sprite._last_network_x)
+                dy = abs(new_pos[1] - sprite._last_network_y)
+                
+                # Only send if moved more than threshold (reduce network spam)
+                if dx > DIFF_POSITION or dy > DIFF_POSITION:
+                    cnt.network_context.sync_sprite_move(sprite, old_pos, new_pos)
+                    sprite._last_network_x = new_pos[0]
+                    sprite._last_network_y = new_pos[1]
             
             logger.debug(f"Grabing sprite at {sprite.coord_x.value}, {sprite.coord_y.value}")
             
@@ -274,6 +291,25 @@ def handle_mouse_button_down(cnt, event):
 
 def handle_mouse_button_up(cnt, event):
     if event.button.button == 1:
+        # Handle resize end
+        if cnt.resizing and cnt.current_table and cnt.current_table.selected_sprite:
+            handle_resize_end(cnt, cnt.current_table.selected_sprite)
+        
+        # Send final position update when releasing sprite
+        if cnt.grabing and cnt.current_table and cnt.current_table.selected_sprite:
+            sprite = cnt.current_table.selected_sprite
+            
+            # Send final position to ensure sync
+            final_pos = (sprite.coord_x.value, sprite.coord_y.value)
+            old_pos = (getattr(sprite, '_last_network_x', final_pos[0]), 
+                      getattr(sprite, '_last_network_y', final_pos[1]))
+            
+            cnt.network_context.sync_sprite_move(sprite, old_pos, final_pos)
+            
+            # Update last network position
+            sprite._last_network_x = final_pos[0]
+            sprite._last_network_y = final_pos[1]
+        
         # Clean up all stored interaction data
         if cnt.current_table and cnt.current_table.selected_sprite:
             sprite = cnt.current_table.selected_sprite
@@ -303,6 +339,15 @@ def handle_mouse_button_up(cnt, event):
         
         logger.debug(f"Button up at {event.button.x}, {event.button.y}")
 
+def handle_resize_end(cnt, sprite):
+    """Called when sprite resize operation ends"""
+    if sprite and hasattr(cnt, 'network_context'):
+        # Send scale update
+        new_scale = (sprite.scale_x, sprite.scale_y)
+        old_scale = (getattr(sprite, '_resize_start_scale_x', new_scale[0]),
+                    getattr(sprite, '_resize_start_scale_y', new_scale[1]))
+        cnt.network_context.sync_sprite_scale(sprite, old_scale, new_scale)
+        
 def handle_key_event(cnt, key_code):
     match key_code:
         case sdl3.SDL_SCANCODE_ESCAPE:
@@ -362,6 +407,16 @@ def handle_key_event(cnt, key_code):
         case sdl3.SDL_SCANCODE_RIGHT:
             sprite = cnt.current_table.selected_sprite
             sprite.coord_x.value += min(cnt.step.value, sprite.frect.w)
+              # Send final position to ensure sync
+            final_pos = (sprite.coord_x.value, sprite.coord_y.value)
+            old_pos = (getattr(sprite, '_last_network_x', final_pos[0]), 
+                      getattr(sprite, '_last_network_y', final_pos[1]))
+            
+            cnt.network_context.sync_sprite_move(sprite, old_pos, final_pos)
+            
+            # Update last network position
+            sprite._last_network_x = final_pos[0]
+            sprite._last_network_y = final_pos[1]
         case sdl3.SDL_SCANCODE_UP:
             sprite = cnt.current_table.selected_sprite
             sprite.coord_y.value -= min(cnt.step.value, sprite.frect.h)
@@ -406,8 +461,9 @@ def handle_key_event(cnt, key_code):
                 sprite.set_speed(vx * sprite.speed, vy * sprite.speed)
                 logger.info(f"Projectile dx/dy: {dx} {dy}, speed: {vx} {vy}")
         case sdl3.SDL_SCANCODE_LCTRL:
-            logger.info("Control key pressed, sending message")
-            cnt.queue_to_send.put("hello")
+            logger.info("Control key pressed, asking table")
+            
+            cnt.network_context.ask_for_table('large_table')
         case sdl3.SDL_SCANCODE_LALT:
             logger.info("Alt key pressed, make table from json")
             with open('table.json', 'r') as f:

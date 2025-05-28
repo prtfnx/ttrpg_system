@@ -1,165 +1,343 @@
 import json
+import os
 import logging
 from typing import Dict, Tuple, List, Optional
+import uuid
 
-
+logger = logging.getLogger(__name__)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s:%(message)s')
 
 LAYER_NAMES = ['map', 'tokens', 'dungeon_master', 'light', 'height']
 
 class Entity:
-    def __init__(self, entity_id: int, name: str, position: Tuple[int, int], 
-                 layer: str = 'tokens', texture_path: [str] = None,
-                 scale_x: float = 1.0, scale_y: float = 1.0,
-                 character: Optional[object] = None, moving: bool = False,
-                 speed: Optional[float] = None, collidable: bool = False):
+    def __init__(self, name: str, position: Tuple[int, int], layer: str, 
+                 path_to_texture: str = None, entity_id: int = None, coord_x: float = 0.0, coord_y: float = 0.0,):
+        # Use entity_id consistently
         self.entity_id = entity_id
+        self.id = entity_id  # Keep both for backward compatibility
         self.name = name
         self.position = position
         self.layer = layer
-        self.texture_path = texture_path
-        self.scale_x = scale_x
-        self.scale_y = scale_y
-        self.character = character
-        self.moving = moving
-        self.speed = speed
-        self.collidable = collidable
-
+        self.texture_path = path_to_texture
+        self.scale_x = 1.0
+        self.scale_y = 1.0
+        self.get_entity_at_position = get_entity_at_position
+        self.get_entities_in_area = get_entities_in_area
+        
+        # Add sprite ID for network tracking
+        self.sprite_id = str(uuid.uuid4())
+        
     def to_dict(self):
         return {
             'entity_id': self.entity_id,
+            'sprite_id': self.sprite_id,
             'name': self.name,
-            'position': self.position,
+            'position': list(self.position),
             'layer': self.layer,
             'texture_path': self.texture_path,
             'scale_x': self.scale_x,
             'scale_y': self.scale_y,
-            'character': self.character,
-            'moving': self.moving,
-            'speed': self.speed,
-            'collidable': self.collidable
+            'character': None,
+            'moving': False,
+            'speed': None,
+            'collidable': False
         }
-
-    @staticmethod
-    def from_dict(data):
-        return Entity(data['entity_id'], data['name'], tuple(data['position']), data.get('layer', 'tokens'))
 
 class VirtualTable:
     def __init__(self, name: str, width: int, height: int):
         self.name = name
         self.width = width
         self.height = height
-        # Each layer is a 2D grid
-        self.grid: Dict[str, List[List[Optional[int]]]] = {
-            layer: [[None for _ in range(width)] for _ in range(height)]
-            for layer in LAYER_NAMES
-        }
-        # Entities by id
+        self.layers = ['map', 'tokens', 'dungeon_master', 'light', 'height']
         self.entities: Dict[int, Entity] = {}
-        # Layers dict: each layer has a list of entity ids in that layer
-        self.layers: Dict[str, List[int]] = {layer: [] for layer in LAYER_NAMES}
         self.next_entity_id = 1
-        logging.info(f"Initialized virtual table {width}x{height} with layers {LAYER_NAMES}")
         
-
-    def add_entity(self, name: str, position: Tuple[int, int], layer: str = 'tokens', path_to_texture: Optional[str] = None) -> Entity:
+        # Sprite ID to entity ID mapping for quick lookup
+        self.sprite_to_entity: Dict[str, int] = {}
+        
+        # Initialize grid
+        self.grid = {}
+        for layer in self.layers:
+            self.grid[layer] = [[None for _ in range(width)] for _ in range(height)]
+    
+    def add_entity(self, name: str, position: Tuple[int, int], layer: str = 'tokens', 
+                   path_to_texture: str = None) -> Optional[Entity]:
+        """Add entity and return it"""
         if not self.is_valid_position(position):
-            logging.error(f"Invalid position {position}")
             raise ValueError("Invalid position")
-        if layer not in LAYER_NAMES:
-            logging.error(f"Invalid layer {layer}")
+        if layer not in self.layers:
             raise ValueError("Invalid layer")
-        entity = Entity(self.next_entity_id, name, position, layer, path_to_texture)
+        if self.grid[layer][position[1]][position[0]] is not None:
+            raise ValueError("Position already occupied")
+        
+        entity = Entity(name, position, layer, path_to_texture, self.next_entity_id)
         self.entities[self.next_entity_id] = entity
-        self.grid[layer][position[1]][position[0]] = entity.entity_id
+        self.sprite_to_entity[entity.sprite_id] = self.next_entity_id
+        self.grid[layer][position[1]][position[0]] = self.next_entity_id
+        
+        logger.info(f"Added entity {name} (ID: {self.next_entity_id}, Sprite: {entity.sprite_id}) at {position}")
         self.next_entity_id += 1
-        logging.info(f"Added entity {entity.name} at {entity.position} on layer {layer}")
         return entity
-
+    
+    def find_entity_by_sprite_id(self, sprite_id: str) -> Optional[Entity]:
+        """Find entity by sprite ID"""
+        entity_id = self.sprite_to_entity.get(sprite_id)
+        if entity_id:
+            return self.entities.get(entity_id)
+        return None
+    
     def move_entity(self, entity_id: int, new_position: Tuple[int, int], new_layer: Optional[str] = None):
+        """Move entity with sprite ID tracking"""
         if entity_id not in self.entities:
-            logging.error(f"Entity {entity_id} not found")
+            logger.error(f"Entity {entity_id} not found")
             raise ValueError("Entity not found")
         if not self.is_valid_position(new_position):
-            logging.error(f"Invalid move to {new_position}")
+            logger.error(f"Invalid move to {new_position}")
             raise ValueError("Invalid position")
+            
         entity = self.entities[entity_id]
         old_x, old_y = entity.position
         old_layer = entity.layer
+        
+        # Clear old position
         self.grid[old_layer][old_y][old_x] = None
+        
+        # Update entity
         entity.position = new_position
-        if new_layer:
-            if new_layer not in LAYER_NAMES:
-                logging.error(f"Invalid layer {new_layer}")
-                raise ValueError("Invalid layer")
+        if new_layer and new_layer in self.layers:
             entity.layer = new_layer
+        
+        # Check if new position is free
+        if self.grid[entity.layer][new_position[1]][new_position[0]] is not None:
+            # Rollback
+            self.grid[old_layer][old_y][old_x] = entity_id
+            entity.position = (old_x, old_y)
+            entity.layer = old_layer
+            raise ValueError("Target position occupied")
+        
+        # Place in new position
         self.grid[entity.layer][new_position[1]][new_position[0]] = entity_id
-        logging.info(f"Moved entity {entity_id} to {new_position} on layer {entity.layer}")
-
+        logger.info(f"Moved entity {entity_id} (sprite: {entity.sprite_id}) to {new_position} on layer {entity.layer}")
+    
+    def remove_entity(self, entity_id: int):
+        """Remove entity and clean up sprite tracking"""
+        if entity_id not in self.entities:
+            raise ValueError("Entity not found")
+        
+        entity = self.entities[entity_id]
+        x, y = entity.position
+        layer = entity.layer
+        
+        # Clear from grid
+        self.grid[layer][y][x] = None
+        
+        # Remove from sprite mapping
+        if entity.sprite_id in self.sprite_to_entity:
+            del self.sprite_to_entity[entity.sprite_id]
+        
+        # Remove entity
+        del self.entities[entity_id]
+        logger.info(f"Removed entity {entity_id} (sprite: {entity.sprite_id})")
+    
     def is_valid_position(self, position: Tuple[int, int]) -> bool:
+        """Check if position is within table bounds"""
         x, y = position
         return 0 <= x < self.width and 0 <= y < self.height
-
-    def table_to_layered_dict(table: 'VirtualTable') -> dict:
-        layers_dict = {layer: {} for layer in LAYER_NAMES}
-        for entity in table.entities.values():
+    
+    def table_to_layered_dict(self) -> Dict:
+        """Convert table to layered dictionary format (renamed from entities)"""
+        layers_dict = {}
+        
+        # Initialize all layers
+        for layer in self.layers:
+            layers_dict[layer] = {}
+        
+        # Add entities to their respective layers
+        for entity in self.entities.values():
             if entity.layer in layers_dict:
+                # Use entity_id consistently
                 layers_dict[entity.layer][str(entity.entity_id)] = entity.to_dict()
-        return {
-            'name': table.name,
-            'width': table.width,
-            'height': table.height,
-            'layers': layers_dict
-        }
-    def to_dict(self):
-        return {
+            else:
+                logger.warning(f"Entity {entity.entity_id} has unknown layer: {entity.layer}")
+        
+        return layers_dict
+    
+    def to_json(self) -> str:
+        """Convert table to JSON with 'layers' instead of 'entities'"""
+        data = {
             'name': self.name,
             'width': self.width,
             'height': self.height,
-            'layers': LAYER_NAMES,
-            'entities': [e.to_dict() for e in self.entities.values()]
+            'layers': self.table_to_layered_dict()  # Changed from 'entities' to 'layers'
         }
-    def to_json(self):
-        return json.dumps(self.table_to_layered_dict(), indent=2)
+        
+        import json
+        return json.dumps(data, indent=2)
     
-    def save_to_disk(self, filename: str):
-        with open(filename, 'w') as f:
-            json.dump(self.table_to_layered_dict(), f, indent=2)
-        logging.info(f"Saved table to {filename}")
+    def from_dict(self, data: Dict):
+        """Load table from dictionary data"""
+        self.name = data.get('name', 'Unknown Table')
+        self.width = data.get('width', 100)
+        self.height = data.get('height', 100)
+        
+        # Clear existing entities
+        self.entities.clear()
+        self.sprite_to_entity.clear()
+        
+        # Reinitialize grid
+        self.grid = {}
+        for layer in self.layers:
+            self.grid[layer] = [[None for _ in range(self.width)] for _ in range(self.height)]
+        
+        # Load entities from layers
+        layers_data = data.get('layers', {})
+        max_entity_id = 0
+        
+        for layer, entities_data in layers_data.items():
+            if layer not in self.layers:
+                logger.warning(f"Unknown layer in data: {layer}")
+                continue
+                
+            for entity_id_str, entity_data in entities_data.items():
+                try:
+                    entity_id = int(entity_id_str)
+                    max_entity_id = max(max_entity_id, entity_id)
+                    
+                    # Create entity from data
+                    entity = Entity(
+                        name=entity_data.get('name', f'Entity {entity_id}'),
+                        position=tuple(entity_data.get('position', [0, 0])),
+                        layer=layer,
+                        path_to_texture=entity_data.get('texture_path'),
+                        entity_id=entity_id
+                    )
+                    
+                    # Restore additional properties
+                    entity.scale_x = entity_data.get('scale_x', 1.0)
+                    entity.scale_y = entity_data.get('scale_y', 1.0)
+                    entity.sprite_id = entity_data.get('sprite_id', str(uuid.uuid4()))
+                    
+                    # Add to collections
+                    self.entities[entity_id] = entity
+                    self.sprite_to_entity[entity.sprite_id] = entity_id
+                    
+                    # Place on grid
+                    x, y = entity.position
+                    if self.is_valid_position((x, y)):
+                        self.grid[layer][y][x] = entity_id
+                    else:
+                        logger.warning(f"Entity {entity_id} has invalid position: {entity.position}")
+                        
+                except (ValueError, KeyError) as e:
+                    logger.error(f"Failed to load entity {entity_id_str}: {e}")
+                    continue
+        
+        # Set next entity ID
+        self.next_entity_id = max_entity_id + 1
+        logger.info(f"Loaded table '{self.name}' with {len(self.entities)} entities")
+    
+    def save_to_disk(self, file_path: str):
+        """Save table to disk with 'layers' format"""
+        try:
+            # Ensure directory exists
+            directory = os.path.dirname(file_path)
+            if directory and not os.path.exists(directory):
+                os.makedirs(directory)
+            
+            # Create save data with 'layers' instead of 'entities'
+            save_data = {
+                'name': self.name,
+                'width': self.width,
+                'height': self.height,
+                'layers': self.table_to_layered_dict(),  # Changed from 'entities' to 'layers'
+                'metadata': {
+                    'version': '1.0',
+                    'entity_count': len(self.entities),
+                    'next_entity_id': self.next_entity_id,
+                    'created_timestamp': __import__('time').time()
+                }
+            }
+            
+            # Write to file
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(save_data, f, indent=2, ensure_ascii=False)
+            
+            logger.info(f"Saved table '{self.name}' to {file_path} ({len(self.entities)} entities)")
+            
+        except Exception as e:
+            logger.error(f"Failed to save table to {file_path}: {e}")
+            raise
 
-    @staticmethod
-    def load_from_disk(filename: str):
-        with open(filename, 'r') as f:
-            data = json.load(f)
-        table = VirtualTable(data['name'], data['width'], data['height'])
-        for layer_name, entities in data['layers'].items():
-            for e_data in entities.values():
-                entity = Entity.from_dict(e_data)
-                table.entities[entity.entity_id] = entity
-                table.grid[layer_name][entity.position[1]][entity.position[0]] = entity.entity_id
-                table.next_entity_id = max(table.next_entity_id, entity.entity_id + 1)
-        logging.info(f"Loaded table from {filename}")
-        return table
+# Fix any references to id vs entity_id in the rest of the file
+def get_entity_at_position(self, position: Tuple[int, int], layer: str = None) -> Optional[Entity]:
+    """Get entity at specific position"""
+    x, y = position
+    if not self.is_valid_position(position):
+        return None
+    
+    if layer:
+        entity_id = self.grid[layer][y][x]
+        if entity_id:
+            return self.entities.get(entity_id)
+    else:
+        # Check all layers
+        for layer_name in self.layers:
+            entity_id = self.grid[layer_name][y][x]
+            if entity_id:
+                return self.entities.get(entity_id)
+    
+    return None
+
+def get_entities_in_area(self, top_left: Tuple[int, int], bottom_right: Tuple[int, int], 
+                        layer: str = None) -> List[Entity]:
+    """Get all entities in a rectangular area"""
+    entities = []
+    x1, y1 = top_left
+    x2, y2 = bottom_right
+    
+    # Ensure bounds are within table
+    x1 = max(0, min(x1, self.width - 1))
+    y1 = max(0, min(y1, self.height - 1))
+    x2 = max(0, min(x2, self.width - 1))
+    y2 = max(0, min(y2, self.height - 1))
+    
+    layers_to_check = [layer] if layer else self.layers
+    
+    for layer_name in layers_to_check:
+        for y in range(y1, y2 + 1):
+            for x in range(x1, x2 + 1):
+                entity_id = self.grid[layer_name][y][x]
+                if entity_id:
+                    entity = self.entities.get(entity_id)
+                    if entity and entity not in entities:
+                        entities.append(entity)
+    
+    return entities
+
+# Add these methods to VirtualTable class
 
 
 def create_table_from_json(json_data: str) -> VirtualTable:
     data = json.loads(json_data)
-    table = VirtualTable(data['width'], data['height'])
+    table = VirtualTable(data['name'], data['width'], data['height'])
     for e_data in data['entities']:
         entity = Entity.from_dict(e_data)
         table.entities[entity.entity_id] = entity
         table.grid[entity.layer][entity.position[1]][entity.position[0]] = entity.entity_id
         table.next_entity_id = max(table.next_entity_id, entity.entity_id + 1)
-    logging.info(f"Created table from JSON data")
+    logger.info(f"Created table from JSON data")
     return table
 # Example usage:
+
+
+
 if __name__ == "__main__":
     table = VirtualTable('test_table',10, 10)
     table.add_entity("Hero", (2, 3), layer='tokens', path_to_texture='resources/hero.png')
     table.add_entity("Goblin", (5, 6), layer='dungeon_master', path_to_texture='resources/goblin.png')
     table.save_to_disk("table.json")
-    test_table = VirtualTable.load_from_disk("table.json")
+    
     # Start server in background
     # Client fetches table
 

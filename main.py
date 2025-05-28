@@ -20,6 +20,7 @@ from protocol import ProtocolHandler, Message, MessageType
 from imgui_bundle import imgui
 import OpenGL.GL as gl
 import example
+import argparse
 
 # Configure logging
 logging.basicConfig(
@@ -269,8 +270,28 @@ def net_thread(context):
 
         time.sleep(NET_SLEEP)
 
+def parse_arguments():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(description='TTRPG System Main Application')
+    parser.add_argument('--mode', choices=['client', 'server'], default='client',
+                       help='Run as client or server (default: client)')
+    parser.add_argument('--server', default='127.0.0.1',
+                       help='Server IP address (default: 127.0.0.1)')
+    parser.add_argument('--port', default='12345',
+                       help='Server port (default: 12345)')
+    parser.add_argument('--no-menu', action='store_true',
+                       help='Skip main menu and start directly')
+    
+    return parser.parse_args()
+
 def main():
     """Main entry point."""
+    # Parse command line arguments
+    args = parse_arguments()
+    
+    logger.info(f"Starting TTRPG System in {args.mode} mode")
+    logger.info(f"Server: {args.server}:{args.port}")
+    
     # Initialize SDL
     try:
         ctx = SDL_AppInit_func()

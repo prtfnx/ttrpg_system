@@ -11,7 +11,10 @@ class MessageType(enum.Enum):
     ERROR = "error"
     
     # Table sync
+    NEW_TABLE_REQUEST = "new_table_request"
+    NEW_TABLE_RESPONSE = "new_table_response"
     TABLE_REQUEST = "table_request"
+    TABLE_RESPONSE = "table_response"
     TABLE_DATA = "table_data"
     TABLE_UPDATE = "table_update"
     

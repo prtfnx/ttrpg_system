@@ -4,6 +4,8 @@ import queue
 import json
 import sdl3
 import logging
+import time
+from protocol import Message, MessageType
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +40,12 @@ class Context:
         self.current_table = None
         self.list_of_tables = []
         self.moving_table = False
+        self.network_context = NetworkedContext(self)
 
     def add_sprite(self, texture_path, scale_x, scale_y, layer='tokens',
                    character=None, moving=False, speed=None,
-                   collidable=False, table=None, coord_x=0.0, coord_y=0.0):
+                   collidable=False, table=None, coord_x=0.0, coord_y=0.0,sprite_id=None):
+        """Add a sprite to the specified layer in the current table"""
         table = table if table else self.current_table
         if not table:
             logger.error("No table selected for sprite creation")
@@ -64,7 +68,8 @@ class Context:
                 speed=speed, 
                 collidable=collidable,
                 coord_x=coord_x,
-                coord_y=coord_y
+                coord_y=coord_y,
+                sprite_id=sprite_id
             )
 
             # Check if sprite creation was successful
@@ -91,7 +96,21 @@ class Context:
         except Exception as e:
             logger.error(f"Error creating sprite from {texture_path}: {e}")
             return None
-
+    def find_sprite_by_id(self, sprite_id, table_name):
+        """Find and return a sprite by its ID from all layers in the table."""
+        table = next((t for t in self.list_of_tables if t.name == table_name), None)
+        if not table or not sprite_id:
+            logger.error(f"Table '{table_name}' not found or sprite_id is None")
+            return None
+        for layer, sprite_list in table.dict_of_sprites_list.items():
+            for sprite_obj in sprite_list:
+                if hasattr(sprite_obj, 'sprite_id') and sprite_obj.sprite_id == sprite_id:
+                    return sprite_obj
+                # Fallback for alternate id attribute
+                if hasattr(sprite_obj, 'id') and sprite_obj.id == sprite_id:
+                    return sprite_obj
+        return None
+    
     def remove_sprite(self, sprite_to_remove, table=None):
         """Remove sprite and clean up its resources"""
         table = table if table else self.current_table
@@ -148,30 +167,80 @@ class Context:
             logger.error(f"Error cleaning up table: {e}")
 
     def add_table(self, name, width, height):
-        table = ContextTable(name, width, height)
-        self.list_of_tables.append(table)
-        self.current_table = table
-        return table    
-    
+        """Add a new table and return it"""
+        try:
+            table = ContextTable(name, width, height)
+            self.list_of_tables.append(table)
+            
+            # Set as current table if it's the first one
+            if not self.current_table:
+                self.current_table = table
+                
+            logger.info(f"Added table: {name} ({width}x{height})")
+            return table
+            
+        except Exception as e:
+            logger.error(f"Error adding table: {e}")
+            return None
+
     def create_table_from_json(self, json_data):
-        # Assuming json_data is a dictionary with the necessary information
-        table=self.add_table(json_data['name'], json_data['width'], json_data['height'])
-        # Add layers
-        for layer, entities in json_data['layers'].items():
-            for entity_data in entities.values():
-                self.add_sprite(
-                    texture_path=entity_data['texture_path'].encode(),
-                    scale_x=entity_data['scale_x'],
-                    scale_y=entity_data['scale_y'],
-                    layer=layer,
-                    character=entity_data.get('character'),
-                    moving=entity_data.get('moving', False),
-                    speed=entity_data.get('speed'),
-                    collidable=entity_data.get('collidable', False),
-                    table=self.current_table
-                )
-        #self.table.update_grid()
-        return table
+        """Create table from JSON data"""
+        try:
+            # Create the table
+            table = self.add_table(
+                json_data.get('name', 'Loaded Table'), 
+                json_data.get('width', 1920), 
+                json_data.get('height', 1080)
+            )
+            
+            # Set table properties
+            table.scale = json_data.get('scale', 1.0)
+            table.x_moved = json_data.get('x_moved', 1.0)
+            table.y_moved = json_data.get('y_moved', 1.0)
+            table.show_grid = json_data.get('show_grid', True)
+            table.cell_side = json_data.get('cell_side', CELL_SIDE)
+            print(json_data)
+            # Add sprites from layers
+            layers_data = json_data.get('layers', {})
+            print('4')
+            print(layers_data.items())
+            for layer, sprites_data in layers_data.items():
+                print(f"sprite data: {sprites_data}, layer: {layer}")
+                print(f"Processing layer: {layer} with {len(sprites_data)} sprites")
+                if layer in table.layers:  # Only add to valid layers
+                    for sprite_data in sprites_data.values():
+                        print(f"Creating sprite from data: {sprite_data}")
+                        try:
+                            # Create sprite with proper parameters
+                            print(f"Adding sprite with id: {sprite_data.get('sprite_id', None)}")
+                            sprite = self.add_sprite(
+                                texture_path=sprite_data.get('texture_path', '').encode(),
+                                scale_x=sprite_data.get('scale_x', 1.0),
+                                scale_y=sprite_data.get('scale_y', 1.0),
+                                layer=layer,
+                                character=sprite_data.get('character'),
+                                moving=sprite_data.get('moving', False),
+                                speed=sprite_data.get('speed'),
+                                collidable=sprite_data.get('collidable', False),
+                                table=table,
+                                coord_x=sprite_data.get('position', ([0,0]))[0],
+                                coord_y=sprite_data.get('position', ([0,0]))[1],
+                                sprite_id=sprite_data.get('sprite_id', None)
+                            )
+                            
+                            if not sprite:
+                                logger.warning(f"Failed to create sprite from {sprite_data.get('texture_path')}")
+                                
+                        except Exception as e:
+                            logger.error(f"Error creating sprite: {e}")
+                            continue
+            
+            logger.info(f"Successfully created table '{table.name}' from JSON")
+            return table
+            
+        except Exception as e:
+            logger.error(f"Error creating table from JSON: {e}")
+            return None
 
     def setup_protocol(self, send_callback):
         """Initialize protocol handler"""
@@ -260,4 +329,125 @@ class ContextTable:
                 'x_moved': self.x_moved, 
                 'y_moved': self.y_moved
             })
+    def save_to_dict(self):
+        """Save table to dictionary format"""
+        data = {
+            'name': self.name,
+            'width': self.width,
+            'height': self.height,
+            'scale': self.scale,
+            'x_moved': self.x_moved,
+            'y_moved': self.y_moved,
+            'show_grid': self.show_grid,
+            'cell_side': self.cell_side,
+            'layers': {layer: [sprite.to_dict() for sprite in sprites] 
+                       for layer, sprites in self.dict_of_sprites_list.items()}
+        }
+        logger.info(f"Saved table as json")
+        print(data)
+        return data
 
+class NetworkedContext:
+    def __init__(self, context, is_server=False, is_client=True):
+        self.is_server = is_server
+        self.is_client = is_client
+        self.state_version = 0
+        self.pending_changes = []
+        self.last_sync_time = 0
+        self.context = context
+        
+    def sync_sprite_move(self, sprite, old_pos, new_pos):
+        """Handle sprite movement with network sync"""
+        if not hasattr(self.context, 'protocol') or not self.context.protocol:
+            return  # No network connection
+            
+        # Ensure sprite has an ID
+        if not hasattr(sprite, 'sprite_id') or not sprite.sprite_id:
+            sprite.sprite_id = str(__import__('uuid').uuid4())
+
+        # Send sprite movement update with proper protocol format
+        change = {
+            'category': 'sprite',
+            'type': 'sprite_move',
+            'data': {
+                'sprite_id': sprite.sprite_id,
+                'from': {'x': old_pos[0], 'y': old_pos[1]},
+                'to': {'x': new_pos[0], 'y': new_pos[1]},
+                'table_id': self.context.current_table.name if self.context.current_table else 'default',
+                'timestamp': __import__('time').time()
+            }
+        }
+        
+        # Send via protocol using TABLE_UPDATE message type
+        
+        msg = Message(MessageType.TABLE_UPDATE, change, 
+                     getattr(self.context.protocol, 'client_id', 'unknown'))
+        
+        try:
+            # Send the message (adapt based on your protocol's send method)
+            if hasattr(self.context.protocol, 'send'):
+                self.context.protocol.send(msg.to_json())
+            elif hasattr(self.context.protocol, 'send_message'):
+                self.context.protocol.send_message(msg)
+            
+            logger.info(f"Sent sprite move: {sprite.id} to ({new_pos[0]:.1f}, {new_pos[1]:.1f})")
+            
+        except Exception as e:
+            logger.error(f"Failed to send sprite movement: {e}")
+    
+    def sync_sprite_scale(self, sprite, old_scale, new_scale):
+        """Handle sprite scaling with network sync"""
+        if not hasattr(self.context, 'protocol') or not self.context.protocol:
+            return
+            
+        # Ensure sprite has an ID
+        if not hasattr(sprite, 'id') or not sprite.id:
+            sprite.id = str(__import__('uuid').uuid4())
+            
+        change = {
+            'category': 'sprite',
+            'type': 'sprite_scale',
+            'data': {
+                'sprite_id': sprite.id,
+                'from': {'x': old_scale[0], 'y': old_scale[1]},
+                'to': {'x': new_scale[0], 'y': new_scale[1]},
+                'table_id': self.context.current_table.name if self.context.current_table else 'default',
+                'timestamp': __import__('time').time()
+            }
+        }
+        
+        
+        msg = Message(MessageType.TABLE_UPDATE, change,
+                     getattr(self.context.protocol, 'client_id', 'unknown'))
+        
+        try:
+            if hasattr(self.context.protocol, 'send'):
+                self.context.protocol.send(msg.to_json())
+            elif hasattr(self.context.protocol, 'send_message'):
+                self.context.protocol.send_message(msg)
+                
+            logger.info(f"Sent sprite scale: {sprite.id} to ({new_scale[0]:.2f}, {new_scale[1]:.2f})")
+            
+        except Exception as e:
+            logger.error(f"Failed to send sprite scaling: {e}")
+    
+    def ask_for_table(self, table_name):
+        """Request a specific table from the server"""
+        if not hasattr(self.context, 'protocol') or not self.context.protocol:
+            logger.error("No protocol available to request table")
+            return
+            
+        msg = Message(MessageType.NEW_TABLE_REQUEST, {'table_name': table_name},
+                     getattr(self.context.protocol, 'client_id', 'unknown'))
+        
+        try:
+            if hasattr(self.context.protocol, 'send'):
+                self.context.protocol.send(msg.to_json())
+            elif hasattr(self.context.protocol, 'send_message'):
+                self.context.protocol.send_message(msg)
+                
+            logger.info(f"Requested new table: {table_name}")
+            
+        except Exception as e:
+            logger.error(f"Failed to request table: {e}")
+        

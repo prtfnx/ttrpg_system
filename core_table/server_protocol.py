@@ -1,7 +1,7 @@
 import os
 import sys
 import time
-from typing import Dict, Set, Optional, Tuple
+from typing import Dict, Set, Optional, Tuple, Any
 import logging
 
 # Add parent directory to path to import protocol
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class ServerProtocol:
     def __init__(self, table_manager):
         self.table_manager = table_manager
-        self.clients: Dict[str, any] = {}
+        self.clients: Dict[str, Any] = {}
         self.files = self._scan_files()
         self.handlers: Dict[MessageType, ProtocolHandler] = {}
         
@@ -50,28 +50,49 @@ class ServerProtocol:
                 response = await self.handlers[msg.type].handle_message(msg, client_id)
                 if response:
                     await self._send(writer, response)
-                return
-            
+                return            
             # Built-in handlers
             if msg.type == MessageType.PING:
                 await self._send(writer, Message(MessageType.PONG))
             elif msg.type == MessageType.NEW_TABLE_REQUEST:
-                logger.info(f"New table request received, name: {msg.data.get('table_name', 'default')}")
-                await self._send_new_table(writer, msg.data.get('table_name'))
+                table_name = msg.data.get('table_name', 'default') if msg.data else 'default'
+                logger.info(f"New table request received, name: {table_name}")
+                await self._send_new_table(writer, table_name)
             elif msg.type == MessageType.TABLE_REQUEST:
-                logger.info(f"Table request received, name: {msg.data.get('table_name', 'default')}")
-                await self._send_table(writer, msg.data.get('table_name'))
+                table_name = msg.data.get('table_name', 'default') if msg.data else 'default'
+                logger.info(f"Table request received, name: {table_name}")
+                await self._send_table(writer, table_name)
             elif msg.type == MessageType.FILE_REQUEST:
-                await self._send_file(writer, msg.data['filename'])
+                if msg.data and 'filename' in msg.data:
+                    await self._send_file(writer, msg.data['filename'])
+                else:
+                    await self._send(writer, Message(MessageType.ERROR, {'error': 'Missing filename in file request'}))
             elif msg.type == MessageType.TABLE_UPDATE:
-                # Pass the actual client_id, not msg.client_id
-                await self._handle_table_update(client_id, msg.data)  # Fixed: use client_id parameter
+                if msg.data:
+                    await self._handle_table_update(client_id, msg.data)
+                else:
+                    await self._send(writer, Message(MessageType.ERROR, {'error': 'Missing data in table update'}))
+            elif msg.type == MessageType.COMPENDIUM_SPRITE_ADD:
+                if msg.data:
+                    await self._handle_compendium_sprite_add(client_id, msg.data)
+                else:
+                    await self._send(writer, Message(MessageType.ERROR, {'error': 'Missing data in compendium sprite add'}))
+            elif msg.type == MessageType.COMPENDIUM_SPRITE_UPDATE:
+                if msg.data:
+                    await self._handle_compendium_sprite_update(client_id, msg.data)
+                else:
+                    await self._send(writer, Message(MessageType.ERROR, {'error': 'Missing data in compendium sprite update'}))
+            elif msg.type == MessageType.COMPENDIUM_SPRITE_REMOVE:
+                if msg.data:
+                    await self._handle_compendium_sprite_remove(client_id, msg.data)
+                else:
+                    await self._send(writer, Message(MessageType.ERROR, {'error': 'Missing data in compendium sprite remove'}))
                 
         except Exception as e:
             logger.error(f"Error handling message from {client_id}: {e}")
             await self._send(writer, Message(MessageType.ERROR, {'error': str(e)}))
     
-    async def _send_table(self, writer, table_name: str = None):
+    async def _send_table(self, writer, table_name: Optional[str] = None):
         """Send table data to client with size optimization"""
         try:
             table = self.table_manager.get_table(table_name)
@@ -119,7 +140,7 @@ class ServerProtocol:
             error_msg = Message(MessageType.ERROR, {'error': f'Failed to send table: {e}'})
             await self._send(writer, error_msg)
 
-    async def _send_new_table(self, writer, table_name: str = None):
+    async def _send_new_table(self, writer, table_name: Optional[str] = None):
         """Send new table data to client with size optimization"""
         try:
             table = self.table_manager.get_table(table_name)
@@ -156,7 +177,7 @@ class ServerProtocol:
             if len(json_str) > 4096:  # 4KB limit
                 logger.warning(f"Large table message ({len(json_str)} bytes), reducing file list")
                 # Reduce file list for large messages
-                table_data['files'] = files[:10]  # Only first 10 files
+                table_data['files'] = files[:10]  # Only first 10 files                
                 msg = Message(MessageType.NEW_TABLE_RESPONSE, table_data)
 
             await self._send(writer, msg)
@@ -185,7 +206,11 @@ class ServerProtocol:
             update_data = data.get('data', {})
             
             if update_category == 'sprite':
-                await self._handle_sprite_update(client_id, update_type, update_data)
+                if update_type:
+                    await self._handle_sprite_update(client_id, update_type, update_data)
+                else:
+                    logger.error(f"Missing update_type in sprite update from {client_id}")
+                    await self._broadcast_error(client_id, "Missing update_type in sprite update")
             else:
                 # Handle general table updates
                 await self._handle_general_update(client_id, data)
@@ -479,6 +504,185 @@ class ServerProtocol:
         writer.write(message.to_json().encode() + b'\n')
         await writer.drain()
     
+    async def _handle_compendium_sprite_add(self, client_id: str, data: Dict):
+        """Handle adding a compendium sprite to the table"""
+        try:
+            logger.info(f"Handling compendium sprite add from {client_id}: {data}")
+            
+            # Extract required data
+            table_name = data.get('table_name', 'default')
+            entity_data = data.get('entity_data', {})
+            position = data.get('position', {'x': 0, 'y': 0})
+            entity_type = data.get('entity_type', 'unknown')
+            
+            # Get the table
+            table = self.table_manager.get_table(table_name)
+            if not table:
+                await self._send_error_to_client(client_id, f"Table {table_name} not found")
+                return
+            
+            # Validate the entity data has required fields
+            if not entity_data.get('name'):
+                await self._send_error_to_client(client_id, "Entity data missing required 'name' field")
+                return
+            
+            # Create sprite data for the table
+            sprite_data = {
+                'name': entity_data['name'],
+                'entity_type': entity_type,
+                'compendium_data': entity_data,
+                'position': position,
+                'layer': data.get('layer', 'tokens'),
+                'scale_x': data.get('scale_x', 1.0),
+                'scale_y': data.get('scale_y', 1.0),
+                'rotation': data.get('rotation', 0.0),
+                'client_id': client_id,
+                'timestamp': time.time()
+            }
+            
+            # Add sprite to table (this will depend on your table implementation)
+            # For now, we'll broadcast the addition to all clients
+            
+            logger.info(f"Added compendium sprite {entity_data['name']} to table {table_name}")
+            
+            # Broadcast to all clients
+            await self._broadcast_compendium_update(client_id, {
+                'type': 'compendium_sprite_add',
+                'table_name': table_name,
+                'sprite_data': sprite_data
+            })
+            
+        except Exception as e:
+            logger.error(f"Error handling compendium sprite add: {e}")
+            await self._send_error_to_client(client_id, f"Failed to add compendium sprite: {e}")
+    
+    async def _handle_compendium_sprite_update(self, client_id: str, data: Dict):
+        """Handle updating a compendium sprite"""
+        try:
+            logger.info(f"Handling compendium sprite update from {client_id}: {data}")
+            
+            sprite_id = data.get('sprite_id')
+            table_name = data.get('table_name', 'default')
+            updates = data.get('updates', {})
+            
+            if not sprite_id:
+                await self._send_error_to_client(client_id, "Missing sprite_id in update")
+                return
+            
+            # Get the table
+            table = self.table_manager.get_table(table_name)
+            if not table:
+                await self._send_error_to_client(client_id, f"Table {table_name} not found")
+                return
+            
+            # Validate and apply updates
+            update_data = {
+                'sprite_id': sprite_id,
+                'table_name': table_name,
+                'updates': updates,
+                'client_id': client_id,
+                'timestamp': time.time()
+            }
+            
+            logger.info(f"Updated compendium sprite {sprite_id} in table {table_name}")
+            
+            # Broadcast to all clients
+            await self._broadcast_compendium_update(client_id, {
+                'type': 'compendium_sprite_update',
+                **update_data
+            })
+            
+        except Exception as e:
+            logger.error(f"Error handling compendium sprite update: {e}")
+            await self._send_error_to_client(client_id, f"Failed to update compendium sprite: {e}")
+    
+    async def _handle_compendium_sprite_remove(self, client_id: str, data: Dict):
+        """Handle removing a compendium sprite from the table"""
+        try:
+            logger.info(f"Handling compendium sprite remove from {client_id}: {data}")
+            
+            sprite_id = data.get('sprite_id')
+            table_name = data.get('table_name', 'default')
+            
+            if not sprite_id:
+                await self._send_error_to_client(client_id, "Missing sprite_id in remove request")
+                return
+            
+            # Get the table
+            table = self.table_manager.get_table(table_name)
+            if not table:
+                await self._send_error_to_client(client_id, f"Table {table_name} not found")
+                return
+            
+            # Create removal data
+            removal_data = {
+                'sprite_id': sprite_id,
+                'table_name': table_name,
+                'client_id': client_id,
+                'timestamp': time.time()
+            }
+            
+            logger.info(f"Removed compendium sprite {sprite_id} from table {table_name}")
+            
+            # Broadcast to all clients
+            await self._broadcast_compendium_update(client_id, {
+                'type': 'compendium_sprite_remove',
+                **removal_data
+            })
+            
+        except Exception as e:
+            logger.error(f"Error handling compendium sprite remove: {e}")
+            await self._send_error_to_client(client_id, f"Failed to remove compendium sprite: {e}")
+    
+    async def _broadcast_compendium_update(self, sender_client_id: str, update_data: Dict):
+        """Broadcast compendium update to all clients except sender"""
+        try:
+            # Determine message type based on update type
+            update_type = update_data.get('type', 'compendium_sprite_update')
+            message_type_map = {
+                'compendium_sprite_add': MessageType.COMPENDIUM_SPRITE_ADD,
+                'compendium_sprite_update': MessageType.COMPENDIUM_SPRITE_UPDATE,
+                'compendium_sprite_remove': MessageType.COMPENDIUM_SPRITE_REMOVE
+            }
+            
+            msg_type = message_type_map.get(update_type, MessageType.COMPENDIUM_SPRITE_UPDATE)
+            msg = Message(msg_type, update_data)
+            
+            broadcast_count = 0
+            disconnected_clients = []
+            
+            for client_id, writer in self.clients.items():
+                if client_id != sender_client_id:
+                    try:
+                        await self._send(writer, msg)
+                        broadcast_count += 1
+                        logger.debug(f"Sent compendium update to client {client_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to send to client {client_id}: {e}")
+                        disconnected_clients.append(client_id)
+                else:
+                    logger.debug(f"Skipping sender client {client_id}")
+            
+            logger.info(f"Broadcasted compendium update to {broadcast_count} clients (excluding sender {sender_client_id})")
+            
+            # Clean up disconnected clients
+            for client_id in disconnected_clients:
+                self.disconnect_client(client_id)
+                
+        except Exception as e:
+            logger.error(f"Error broadcasting compendium update: {e}")
+    
+    async def _send_error_to_client(self, client_id: str, error_message: str):
+        """Send error message to specific client"""
+        if client_id in self.clients:
+            try:
+                error_msg = Message(MessageType.ERROR, {'error': error_message})
+                await self._send(self.clients[client_id], error_msg)
+            except Exception as e:
+                logger.error(f"Failed to send error to client {client_id}: {e}")
+    
     def disconnect_client(self, client_id: str):
-        """Handle client disconnection"""
-        self.clients.pop(client_id, None)
+        """Remove a disconnected client"""
+        if client_id in self.clients:
+            del self.clients[client_id]
+            logger.info(f"Disconnected client {client_id}")

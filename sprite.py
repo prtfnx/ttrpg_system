@@ -2,13 +2,15 @@ import ctypes
 import logging
 import io_sys
 import sdl3
+import uuid
 
 logger = logging.getLogger(__name__)
 
 class Sprite:
     def __init__(self, renderer, texture_path, scale_x=1, scale_y=1,
                  character=None, moving=False, speed=None, collidable=False,
-                 texture=None, layer='tokens',coord_x= 0.0, coord_y=0.0):
+                 texture=None, layer='tokens', coord_x=0.0, coord_y=0.0,
+                 compendium_entity=None, entity_type=None, sprite_id=None, die_timer=None):
         # Initialize all ctypes structures properly
         self.coord_x = ctypes.c_float(coord_x)
         self.coord_y = ctypes.c_float(coord_y)
@@ -27,16 +29,32 @@ class Sprite:
         self.character = character
         self.moving = moving
         self.speed = speed
-        self.die_timer = None
+        self.die_timer = die_timer
         self.collidable = collidable
         self.layer = layer
         self.texture = None
+        
+        # Compendium entity support
+        self.compendium_entity = compendium_entity
+        self.entity_type = entity_type
+        self.sprite_id = sprite_id if sprite_id is not None else str(uuid.uuid4())
+        
+        # Add name attribute for identification
+        if compendium_entity and hasattr(compendium_entity, 'name'):
+            self.name = compendium_entity.name
+        else:
+            self.name = None
         
         # Initialize movement properties
         self.dx = 0.0
         self.dy = 0.0
         
+        # Store previous position for network sync
+        self._last_network_x = coord_x
+        self._last_network_y = coord_y
+        
         # Load texture last, after everything is initialized
+        logger.info(f"created sprite {self.sprite_id} at ({coord_x}, {coord_y}) with texture {texture_path}")
         try:
             self.set_texture(texture_path)
         except Exception as e:
@@ -101,6 +119,7 @@ class Sprite:
         self.rect.y = int(self.coord_y)
         self.rect.w = int(self.frect.w * self.scale_x)
         self.rect.h = int(self.frect.h * self.scale_y)
+        
     def set_original_size(self):
         """Set original size with validation"""
         if self.frect.w > 0 and self.frect.h > 0:
@@ -110,6 +129,7 @@ class Sprite:
             logger.warning(f"Invalid frect dimensions: {self.frect.w}x{self.frect.h}")
             self.original_w = 32.0  # Default fallback
             self.original_h = 32.0
+            
     def die(self):
         #TODO: remove
         self.cleanup()

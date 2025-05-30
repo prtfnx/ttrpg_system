@@ -22,15 +22,20 @@ class MessageType(enum.Enum):
     FILE_REQUEST = "file_request"
     FILE_DATA = "file_data"
     
+    # Compendium operations
+    COMPENDIUM_SPRITE_ADD = "compendium_sprite_add"
+    COMPENDIUM_SPRITE_UPDATE = "compendium_sprite_update"
+    COMPENDIUM_SPRITE_REMOVE = "compendium_sprite_remove"
+    
     # Extension point for new message types
     CUSTOM = "custom"
 
 @dataclass
 class Message:
     type: MessageType
-    data: Dict[str, Any] = None
-    client_id: str = None
-    timestamp: float = None
+    data: Optional[Dict[str, Any]] = None
+    client_id: Optional[str] = None
+    timestamp: Optional[float] = None
     
     def __post_init__(self):
         if self.timestamp is None:

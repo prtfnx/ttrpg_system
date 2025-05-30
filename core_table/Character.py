@@ -35,6 +35,16 @@ class Character:
         if not hasattr(self, 'spells'):
             self.spells = []
         self.spells.append(spell)
+    def to_dict(self):
+        return {
+            'name': self.name,
+            'race': self.race,
+            'char_class': self.char_class,
+            'level': self.level,
+            'hp': self.hp,
+            'stats': self.stats.copy(),
+            'spells': [spell.name for spell in getattr(self, 'spells', [])]
+        }
         
 
 class Player(Character):

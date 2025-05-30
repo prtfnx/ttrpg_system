@@ -6,8 +6,8 @@ import sdl3
 import ctypes
 import logging
 import sys
+import os
 import io_sys
-
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +16,13 @@ class GuiState:
     def __init__(self):
         # Tool states
         self.selected_tool = "select"  # select, paint, dice, measure
+        self.brush_size = 3
+        self.paint_mode = "Add"
+        self.custom_dice = "1d20"
+        self.measure_unit = "Grid"
+        self.dice_history = []
+        
+        # Paint tool specific
         self.paint_brush_size = 5
         self.paint_color = [1.0, 1.0, 1.0, 1.0]  # RGBA
         
@@ -38,11 +45,14 @@ class GuiState:
         self.selected_table = None
         
         # Right sidebar tabs
-        self.right_tab = 0  # 0=Chat, 1=Entities, 2=Debug, 3=Network
+        self.right_tab = 0  # 0=Chat, 1=Entities, 2=Debug, 3=Network, 4=Compendium
         
         # Debug info
         self.show_fps = True
         self.fps = 0.0
+        
+        # Compendium GUI state
+        self.compendium_panel = None
 
 class ImGuiSystem:
     """Main ImGui system with complete UI layout"""
@@ -65,6 +75,9 @@ class ImGuiSystem:
             # Configure ImGui
             self.io.config_flags |= imgui.ConfigFlags_.docking_enable
             
+            # Load font with Unicode support
+            self._load_fonts()
+            
             # Create SDL3 renderer backend
             self.impl = SDL3Renderer(window)
             
@@ -80,6 +93,60 @@ class ImGuiSystem:
             self.impl = None
             self.io = None
             raise e
+
+    def _load_fonts(self):
+        """Load fonts with Unicode support"""
+        try:
+            # Get font atlas
+            font_atlas = self.io.fonts
+            
+            # Try to load a system font with Unicode support
+            import platform
+            system = platform.system()
+            
+            font_paths = []
+            if system == "Windows":
+                font_paths = [
+                    "C:/Windows/Fonts/arial.ttf",
+                    "C:/Windows/Fonts/segoeui.ttf",
+                    "C:/Windows/Fonts/calibri.ttf"
+                ]
+            elif system == "Darwin":  # macOS
+                font_paths = [
+                    "/System/Library/Fonts/Arial.ttf",
+                    "/System/Library/Fonts/Helvetica.ttc"
+                ]
+            else:  # Linux
+                font_paths = [
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                    "/usr/share/fonts/TTF/arial.ttf"
+                ]
+            
+            # Try to load a font
+            font_loaded = False
+            for font_path in font_paths:
+                if os.path.exists(font_path):
+                    try:
+                        font_atlas.add_font_from_file_ttf(font_path, 16.0)
+                        font_loaded = True
+                        logger.info(f"Loaded font: {font_path}")
+                        break
+                    except Exception as e:
+                        logger.warning(f"Failed to load font {font_path}: {e}")
+                        continue
+            
+            if not font_loaded:
+                # Fallback to default font
+                font_atlas.add_font_default()
+                logger.info("Using default ImGui font")
+            
+            # Build font atlas
+            font_atlas.build()
+            
+        except Exception as e:
+            logger.error(f"Error loading fonts: {e}")
+            # Use default font as fallback
+            self.io.fonts.add_font_default()
 
     def process_event(self, event):
         """Process SDL events for ImGui and pass through to SDL if needed"""
@@ -360,12 +427,12 @@ class ImGuiSystem:
                 imgui.text("Tool Selection")
                 imgui.separator()
                 
-                # Tool buttons
+                # Tool buttons with ASCII icons
                 tools = [
-                    ("Select", "select", "🔍"),
-                    ("Paint", "paint", "🎨"),
-                    ("Dice", "dice", "🎲"),
-                    ("Measure", "measure", "📏")
+                    ("Select", "select", "[S]"),
+                    ("Paint", "paint", "[P]"),
+                    ("Dice", "dice", "[D]"),
+                    ("Measure", "measure", "[M]")
                 ]
                 
                 for name, tool_id, icon in tools:
@@ -397,49 +464,328 @@ class ImGuiSystem:
         finally:
             imgui.end()
 
-    def _render_paint_options(self):
-        """Render paint tool options"""
-        imgui.text("Paint Options")
+    def _render_select_options(self):
+        """Render options for the select tool"""
+        imgui.text("Select Tool")
+        imgui.separator()
         
-        # Paint mode toggle
-        if imgui.button("Toggle Paint Mode", (-1, 30)):
-            import paint
-            paint.toggle_paint_mode()
+        if imgui.button("Select All", (-1, 25)):
+            self._select_all_entities()
         
-        # Paint controls (only show if paint mode is active)
-        import paint
-        if paint.is_paint_mode_active():
-            imgui.text("Color:")
-            if imgui.button("Cycle Colors", (-1, 25)):
-                paint.cycle_paint_colors()
+        if imgui.button("Deselect All", (-1, 25)):
+            self._deselect_all_entities()
+        
+        imgui.separator()
+        
+        # Selection info
+        selected_count = self._get_selected_entity_count()
+        imgui.text(f"Selected: {selected_count}")
+        
+        if selected_count > 0:
+            if imgui.button("Delete Selected", (-1, 25)):
+                self._delete_selected_entities()
             
-            imgui.text("Brush Size:")
-            if imgui.button("+ Size", (-1, 25)):
-                paint.adjust_paint_width(1)
-            if imgui.button("- Size", (-1, 25)):
-                paint.adjust_paint_width(-1)
+            if imgui.button("Group Selected", (-1, 25)):
+                self._group_selected_entities()
+
+    def _render_paint_options(self):
+        """Render options for the paint tool"""
+        imgui.text("Paint Tool")
+        imgui.separator()
+        
+        imgui.text("Brush Size:")
+        _, self.gui_state.brush_size = imgui.slider_int("##brush_size", self.gui_state.brush_size, 1, 10)
+        
+        imgui.text("Paint Mode:")
+        paint_modes = ["Add", "Remove", "Replace"]
+        for mode in paint_modes:
+            if imgui.radio_button(mode, self.gui_state.paint_mode == mode):
+                self.gui_state.paint_mode = mode
+        
+        imgui.separator()
+        
+        if imgui.button("Clear Layer", (-1, 25)):
+            self._clear_current_layer()
 
     def _render_dice_options(self):
-        """Render dice tool options"""
-        imgui.text("Dice Options")
+        """Render options for the dice tool"""
+        imgui.text("Dice Roller")
+        imgui.separator()
         
+        # Common dice
         dice_types = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"]
         for dice in dice_types:
-            if imgui.button(f"Roll {dice}", (-1, 30)):
+            if imgui.button(dice, (50, 25)):
                 self._roll_dice(dice)
+            if dice != dice_types[-1]:
+                imgui.same_line()
+        
+        imgui.separator()
+        
+        # Custom dice
+        imgui.text("Custom:")
+        _, self.gui_state.custom_dice = imgui.input_text("##custom_dice", self.gui_state.custom_dice)
+        imgui.same_line()
+        if imgui.button("Roll"):
+            self._roll_custom_dice(self.gui_state.custom_dice)
+        
+        # Dice history
+        imgui.separator()
+        imgui.text("Recent Rolls:")
+        if imgui.begin_child("dice_history", (0, 100), True):
+            for roll in getattr(self.gui_state, 'dice_history', []):
+                imgui.text(f"{roll['dice']}: {roll['result']}")
+            imgui.end_child()
 
     def _render_measure_options(self):
-        """Render measure tool options"""
-        imgui.text("Measurement Options")
+        """Render options for the measure tool"""
+        imgui.text("Measure Tool")
+        imgui.separator()
         
-        if imgui.button("Linear Ruler", (-1, 30)):
-            self._activate_linear_measurement()
+        imgui.text("Units:")
+        units = ["Grid", "Feet", "Meters"]
+        for unit in units:
+            if imgui.radio_button(unit, self.gui_state.measure_unit == unit):
+                self.gui_state.measure_unit = unit
         
-        if imgui.button("Area Measurement", (-1, 30)):
-            self._activate_area_measurement()
+        imgui.separator()
         
-        if imgui.button("Clear Measurements", (-1, 30)):
-            self._clear_measurements()
+        if hasattr(self.gui_state, 'measure_distance'):
+            imgui.text(f"Distance: {self.gui_state.measure_distance:.1f} {self.gui_state.measure_unit}")
+        else:
+            imgui.text("Click and drag to measure")
+        
+        if imgui.button("Clear Measurement", (-1, 25)):
+            self._clear_measurement()
+
+    def _on_tool_selected(self, tool_id):
+        """Handle tool selection"""
+        logger.info(f"Selected tool: {tool_id}")
+        self.gui_state.selected_tool = tool_id
+        
+        # Reset tool-specific state
+        if tool_id == "measure":
+            self._clear_measurement()
+
+    # Helper methods for tool functionality
+    def _select_all_entities(self):
+        """Select all entities on current layer"""
+        if self.sdl_context.current_table:
+            # Implementation depends on your table structure
+            logger.info("Select all entities")
+
+    def _deselect_all_entities(self):
+        """Deselect all entities"""
+        if self.sdl_context.current_table:
+            self.sdl_context.current_table.selected_sprite = None
+            logger.info("Deselected all entities")
+
+    def _get_selected_entity_count(self):
+        """Get number of selected entities"""
+        if self.sdl_context.current_table and self.sdl_context.current_table.selected_sprite:
+            return 1
+        return 0
+
+    def _delete_selected_entities(self):
+        """Delete selected entities"""
+        if self.sdl_context.current_table and self.sdl_context.current_table.selected_sprite:
+            # Implementation depends on your table structure
+            logger.info("Delete selected entities")
+            self._delete_selected()
+
+    def _group_selected_entities(self):
+        """Group selected entities"""
+        logger.info("Group selected entities")
+        self._group_selected()
+
+    def _clear_current_layer(self):
+        """Clear current layer"""
+        logger.info("Clear current layer")
+
+    def _roll_dice(self, dice_type):
+        """Roll dice and show result"""
+        import random
+        
+        # Parse dice type (e.g., "d20" -> 20)
+        sides = int(dice_type[1:])
+        result = random.randint(1, sides)
+        
+        # Add to history
+        if not hasattr(self.gui_state, 'dice_history'):
+            self.gui_state.dice_history = []
+        
+        self.gui_state.dice_history.append({
+            'dice': dice_type,
+            'result': result
+        })
+        
+        # Keep only last 10 rolls
+        if len(self.gui_state.dice_history) > 10:
+            self.gui_state.dice_history.pop(0)
+        
+        self.gui_state.chat_messages.append(f"Rolled {dice_type}: {result}")
+        logger.info(f"Rolled {dice_type}: {result}")
+
+    def _roll_custom_dice(self, dice_string):
+        """Roll custom dice string (e.g., "2d6+3")"""
+        try:
+            import random
+            import re
+            
+            # Simple parser for XdY+Z format
+            match = re.match(r'(\d*)d(\d+)([+-]\d+)?', dice_string.lower())
+            if match:
+                count = int(match.group(1)) if match.group(1) else 1
+                sides = int(match.group(2))
+                modifier = int(match.group(3)) if match.group(3) else 0
+                
+                rolls = [random.randint(1, sides) for _ in range(count)]
+                total = sum(rolls) + modifier
+                
+                # Add to history
+                if not hasattr(self.gui_state, 'dice_history'):
+                    self.gui_state.dice_history = []
+                
+                result_str = f"{total} ({'+'.join(map(str, rolls))}{'+' + str(modifier) if modifier else ''})"
+                self.gui_state.dice_history.append({
+                    'dice': dice_string,
+                    'result': result_str
+                })
+                
+                # Keep only last 10 rolls
+                if len(self.gui_state.dice_history) > 10:
+                    self.gui_state.dice_history.pop(0)
+                
+                self.gui_state.chat_messages.append(f"Rolled {dice_string}: {result_str}")
+                logger.info(f"Rolled {dice_string}: {total}")
+            else:
+                error_msg = f"Invalid dice format: {dice_string}"
+                self.gui_state.chat_messages.append(error_msg)
+                logger.error(error_msg)
+        except Exception as e:
+            error_msg = f"Error rolling dice: {e}"
+            self.gui_state.chat_messages.append(error_msg)
+            logger.error(error_msg)
+
+    def _clear_measurement(self):
+        """Clear measurement data"""
+        if hasattr(self.gui_state, 'measure_distance'):
+            delattr(self.gui_state, 'measure_distance')
+        logger.info("Cleared measurement")
+
+    def _send_chat_message(self, message):
+        """Send chat message"""
+        if message.strip():
+            self.gui_state.chat_messages.append(f"You: {message}")
+            logger.info(f"Chat message sent: {message}")
+
+    def _get_selected_character(self):
+        """Get currently selected character"""
+        if (self.sdl_context.current_table and 
+            self.sdl_context.current_table.selected_sprite and
+            hasattr(self.sdl_context.current_table.selected_sprite, 'character')):
+            return self.sdl_context.current_table.selected_sprite.character
+        return None
+
+    def _cast_spell(self, spell):
+        """Cast a spell"""
+        self.gui_state.chat_messages.append(f"Casting {spell.name}!")
+        logger.info(f"Casting spell: {spell.name}")
+
+    def _character_attack(self):
+        """Handle character attack"""
+        character = self._get_selected_character()
+        if character:
+            name = character.name if hasattr(character, 'name') else 'Character'
+            self.gui_state.chat_messages.append(f"{name} attacks!")
+            logger.info(f"Character {name} performs attack")
+        else:
+            self.gui_state.chat_messages.append("No character selected for attack!")
+
+    def _character_spell(self):
+        """Handle character spell casting"""
+        character = self._get_selected_character()
+        if character and hasattr(character, 'spells') and character.spells:
+            spell = character.spells[0]  # Use first spell for now
+            self._cast_spell(spell)
+        else:
+            self.gui_state.chat_messages.append("No spells available!")
+
+    def _character_move(self):
+        """Handle character movement"""
+        character = self._get_selected_character()
+        if character:
+            name = character.name if hasattr(character, 'name') else 'Character'
+            self.gui_state.chat_messages.append(f"{name} moves!")
+            logger.info(f"Character {name} moves")
+        else:
+            self.gui_state.chat_messages.append("No character selected for movement!")
+
+    def _end_turn(self):
+        """End current turn"""
+        self.gui_state.chat_messages.append("Turn ended")
+        logger.info("Turn ended")
+
+    def _roll_initiative(self):
+        """Roll initiative"""
+        import random
+        result = random.randint(1, 20)
+        self.gui_state.chat_messages.append(f"Initiative roll: {result}")
+        logger.info(f"Initiative rolled: {result}")
+
+    def _save_game(self):
+        """Save the entire game state"""
+        try:
+            import json
+            game_state = {
+                'current_table_index': self.sdl_context.list_of_tables.index(self.sdl_context.current_table) if self.sdl_context.current_table else 0,
+                'tables': [self._serialize_table(table) for table in self.sdl_context.list_of_tables]
+            }
+            
+            with open('game_save.json', 'w') as f:
+                json.dump(game_state, f, indent=2)
+                
+            self.gui_state.chat_messages.append("Game saved successfully")
+            logger.info("Game saved to game_save.json")
+            
+        except Exception as e:
+            error_msg = f"Error saving game: {e}"
+            self.gui_state.chat_messages.append(error_msg)
+            logger.error(error_msg)
+
+    def _load_game(self):
+        """Load the entire game state"""
+        try:
+            import json
+            import os
+            
+            if not os.path.exists('game_save.json'):
+                self.gui_state.chat_messages.append("No saved game found")
+                return
+                
+            with open('game_save.json', 'r') as f:
+                game_state = json.load(f)
+            
+            # Clear current tables
+            for table in self.sdl_context.list_of_tables:
+                self.sdl_context.cleanup_table(table)
+            self.sdl_context.list_of_tables.clear()
+            
+            # Load tables
+            for table_data in game_state.get('tables', []):
+                self.sdl_context.create_table_from_json(table_data)
+            
+            # Set current table
+            current_index = game_state.get('current_table_index', 0)
+            if self.sdl_context.list_of_tables and current_index < len(self.sdl_context.list_of_tables):
+                    if self.gui_state.chat_input.strip():
+                        self._send_chat_message(self.gui_state.chat_input)
+                        self.gui_state.chat_input = ""
+                        
+        except Exception as e:
+            logger.error(f"Error rendering bottom sidebar: {e}")
+        finally:
+            imgui.end()
 
     def _render_select_options(self):
         """Render select tool options"""
@@ -550,8 +896,7 @@ class ImGuiSystem:
                     self._load_game()
             
                 imgui.separator()
-                
-                # Quick chat
+                  # Quick chat
                 imgui.text("Quick Chat")
                 _, self.gui_state.chat_input = imgui.input_text("##chat_input", self.gui_state.chat_input)
                 imgui.same_line()
@@ -565,7 +910,7 @@ class ImGuiSystem:
             logger.error(f"Error rendering bottom sidebar: {e}")
         finally:
             imgui.end()
-
+    
     def _render_right_sidebar(self):
         """Render the right sidebar with tabs"""
         if hasattr(self, 'initial_dock_setup') and "Information Panel" in self.initial_dock_setup:
@@ -598,6 +943,10 @@ class ImGuiSystem:
                     
                     if imgui.begin_tab_item("Debug")[0]:
                         self._render_debug_tab()
+                        imgui.end_tab_item()
+                    
+                    if imgui.begin_tab_item("Compendium")[0]:
+                        self._render_compendium_tab()
                         imgui.end_tab_item()
                     
                     imgui.end_tab_bar()
@@ -639,7 +988,8 @@ class ImGuiSystem:
                                 entity_name = sprite.name
                             
                             is_selected = sprite == self.sdl_context.current_table.selected_sprite
-                            if imgui.selectable(f"🎭 {entity_name}##entity{i}", is_selected)[0]:
+                            # Use ASCII instead of emoji
+                            if imgui.selectable(f"[E] {entity_name}##entity{i}", is_selected)[0]:
                                 self.sdl_context.current_table.selected_sprite = sprite
                         imgui.tree_pop()
             else:
@@ -687,8 +1037,8 @@ class ImGuiSystem:
                                 if isinstance(texture_path, bytes):
                                     texture_path = texture_path.decode()
                                 sprite_name = f"Sprite {i}: {texture_path}"
-                            
-                            if imgui.selectable(sprite_name)[0]:
+                            selected = sprite == table.selected_sprite
+                            if imgui.selectable(sprite_name, selected)[0]:
                                 table.selected_sprite = sprite
                         imgui.tree_pop()
                 imgui.end_child()
@@ -781,11 +1131,11 @@ class ImGuiSystem:
                 
                 imgui.separator()
                 
-                # Spells
+                # Spells with ASCII
                 if hasattr(character, 'spells') and character.spells:
                     imgui.text("Spells:")
                     for i, spell in enumerate(character.spells):
-                        if imgui.selectable(f"✨ {spell.name} (Lv.{spell.level})")[0]:
+                        if imgui.selectable(f"[*] {spell.name} (Lv.{spell.level})")[0]:
                             self._cast_spell(spell)
                         if imgui.is_item_hovered():
                             imgui.set_tooltip(spell.description)
@@ -924,15 +1274,15 @@ class ImGuiSystem:
         imgui.text("Quick Switch:")
         imgui.same_line()
         
-        # Render table icons
+        # Render table icons with ASCII
         for i, table in enumerate(self.sdl_context.list_of_tables):
             if i > 0:  # Add spacing between icons
                 imgui.same_line()
             
-            # Choose icon based on table state
-            icon = "📋"
+            # Choose ASCII icon based on table state
+            icon = "[T]"  # Table icon
             if table == self.sdl_context.current_table:
-                icon = "📄"  # Different icon for current table
+                icon = "[*]"  # Current table icon
                 imgui.push_style_color(imgui.Col_.button, (0.2, 0.6, 0.8, 1.0))
             
             # Create button with icon and table index
@@ -1018,314 +1368,489 @@ class ImGuiSystem:
         finally:
             imgui.end()
 
-def _serialize_table(self, table):
-    """Serialize table for saving"""
-    return {
-        'name': table.name,
-        'width': table.width if hasattr(table, 'width') else 1920,
-        'height': table.height if hasattr(table, 'height') else 1080,
-        'scale': table.scale if hasattr(table, 'scale') else 1.0,
-        'x_moved': table.x_moved if hasattr(table, 'x_moved') else 0.0,
-        'y_moved': table.y_moved if hasattr(table, 'y_moved') else 0.0,
-        'show_grid': table.show_grid if hasattr(table, 'show_grid') else True,
-        'cell_side': table.cell_side if hasattr(table, 'cell_side') else 20,
-        'layers': {
-            layer: [self._serialize_sprite(sprite) for sprite in sprites]
-            for layer, sprites in table.dict_of_sprites_list.items()
-        } if hasattr(table, 'dict_of_sprites_list') else {}
-    }
+    def _serialize_table(self, table):
+        """Serialize table for saving"""
+        return {
+            'name': table.name,
+            'width': table.width if hasattr(table, 'width') else 1920,
+            'height': table.height if hasattr(table, 'height') else 1080,
+            'scale': table.scale if hasattr(table, 'scale') else 1.0,
+            'x_moved': table.x_moved if hasattr(table, 'x_moved') else 0.0,
+            'y_moved': table.y_moved if hasattr(table, 'y_moved') else 0.0,
+            'show_grid': table.show_grid if hasattr(table, 'show_grid') else True,
+            'cell_side': table.cell_side if hasattr(table, 'cell_side') else 20,
+            'layers': {
+                layer: [self._serialize_sprite(sprite) for sprite in sprites]
+                for layer, sprites in table.dict_of_sprites_list.items()
+            } if hasattr(table, 'dict_of_sprites_list') else {}
+        }
 
-def _serialize_sprite(self, sprite):
-    """Serialize sprite for saving"""
-    return {
-        'texture_path': sprite.texture_path.decode() if isinstance(sprite.texture_path, bytes) else str(sprite.texture_path),
-        'scale_x': sprite.scale_x if hasattr(sprite, 'scale_x') else 1.0,
-        'scale_y': sprite.scale_y if hasattr(sprite, 'scale_y') else 1.0,
-        'coord_x': sprite.coord_x.value if hasattr(sprite.coord_x, 'value') else float(sprite.coord_x),
-        'coord_y': sprite.coord_y.value if hasattr(sprite.coord_y, 'value') else float(sprite.coord_y),
-        'moving': sprite.moving if hasattr(sprite, 'moving') else False,
-        'collidable': sprite.collidable if hasattr(sprite, 'collidable') else True,
-        'layer': getattr(sprite, 'layer', 'tokens')  # Default to tokens layer
-    }
+    def _serialize_sprite(self, sprite):
+        """Serialize sprite for saving"""
+        return {
+            'texture_path': sprite.texture_path.decode() if isinstance(sprite.texture_path, bytes) else str(sprite.texture_path),
+            'scale_x': sprite.scale_x if hasattr(sprite, 'scale_x') else 1.0,
+            'scale_y': sprite.scale_y if hasattr(sprite, 'scale_y') else 1.0,
+            'coord_x': sprite.coord_x.value if hasattr(sprite.coord_x, 'value') else float(sprite.coord_x),
+            'coord_y': sprite.coord_y.value if hasattr(sprite.coord_y, 'value') else float(sprite.coord_y),
+            'moving': sprite.moving if hasattr(sprite, 'moving') else False,
+            'collidable': sprite.collidable if hasattr(sprite, 'collidable') else True,
+            'layer': getattr(sprite, 'layer', 'tokens')  # Default to tokens layer
+        }
 
-def _get_selected_character(self):
-    """Get currently selected character"""
-    if (self.sdl_context.current_table and 
-        self.sdl_context.current_table.selected_sprite and
-        hasattr(self.sdl_context.current_table.selected_sprite, 'character')):
-        return self.sdl_context.current_table.selected_sprite.character
-    return None
+    def _get_selected_character(self):
+        """Get currently selected character"""
+        if (self.sdl_context.current_table and 
+            self.sdl_context.current_table.selected_sprite and
+            hasattr(self.sdl_context.current_table.selected_sprite, 'character')):
+            return self.sdl_context.current_table.selected_sprite.character
+        return None
 
-def _cast_spell(self, spell):
-    """Cast a spell"""
-    self.gui_state.chat_messages.append(f"Casting {spell.name}!")
-    logger.info(f"Casting spell: {spell.name}")
+    def _cast_spell(self, spell):
+        """Cast a spell"""
+        self.gui_state.chat_messages.append(f"Casting {spell.name}!")
+        logger.info(f"Casting spell: {spell.name}")
 
-def _character_attack(self):
-    """Handle character attack"""
-    character = self._get_selected_character()
-    if character:
-        name = character.name if hasattr(character, 'name') else 'Character'
-        self.gui_state.chat_messages.append(f"{name} attacks!")
-        logger.info(f"Character {name} performs attack")
-    else:
-        self.gui_state.chat_messages.append("No character selected for attack!")
+    def _character_attack(self):
+        """Handle character attack"""
+        character = self._get_selected_character()
+        if character:
+            name = character.name if hasattr(character, 'name') else 'Character'
+            self.gui_state.chat_messages.append(f"{name} attacks!")
+            logger.info(f"Character {name} performs attack")
+        else:
+            self.gui_state.chat_messages.append("No character selected for attack!")
 
-def _character_spell(self):
-    """Handle character spell casting"""
-    character = self._get_selected_character()
-    if character and hasattr(character, 'spells') and character.spells:
-        spell = character.spells[0]  # Use first spell for now
-        self._cast_spell(spell)
-    else:
-        self.gui_state.chat_messages.append("No spells available!")
+    def _character_spell(self):
+        """Handle character spell casting"""
+        character = self._get_selected_character()
+        if character and hasattr(character, 'spells') and character.spells:
+            spell = character.spells[0]  # Use first spell for now
+            self._cast_spell(spell)
+        else:
+            self.gui_state.chat_messages.append("No spells available!")
 
-def _character_move(self):
-    """Handle character movement"""
-    character = self._get_selected_character()
-    if character:
-        name = character.name if hasattr(character, 'name') else 'Character'
-        self.gui_state.chat_messages.append(f"{name} moves!")
-        logger.info(f"Character {name} moves")
-    else:
-        self.gui_state.chat_messages.append("No character selected for movement!")
+    def _character_move(self):
+        """Handle character movement"""
+        character = self._get_selected_character()
+        if character:
+            name = character.name if hasattr(character, 'name') else 'Character'
+            self.gui_state.chat_messages.append(f"{name} moves!")
+            logger.info(f"Character {name} moves")
+        else:
+            self.gui_state.chat_messages.append("No character selected for movement!")
 
-def _end_turn(self):
-    """End current turn"""
-    self.gui_state.chat_messages.append("Turn ended")
-    logger.info("Turn ended")
+    def _end_turn(self):
+        """End current turn"""
+        self.gui_state.chat_messages.append("Turn ended")
+        logger.info("Turn ended")
 
-def _roll_initiative(self):
-    """Roll initiative"""
-    import random
-    result = random.randint(1, 20)
-    self.gui_state.chat_messages.append(f"Initiative roll: {result}")
-    logger.info(f"Initiative rolled: {result}")
+    def _roll_initiative(self):
+        """Roll initiative"""
+        import random
+        result = random.randint(1, 20)
+        self.gui_state.chat_messages.append(f"Initiative roll: {result}")
+        logger.info(f"Initiative rolled: {result}")
 
-def _save_game(self):
-    """Save the entire game state"""
-    try:
-        import json
-        game_state = {
-            'current_table_index': self.sdl_context.list_of_tables.index(self.sdl_context.current_table) if self.sdl_context.current_table else 0,
-            'tables': [self._serialize_table(table) for table in self.sdl_context.list_of_tables]
+    def _save_game(self):
+        """Save the entire game state"""
+        try:
+            import json
+            game_state = {
+                'current_table_index': self.sdl_context.list_of_tables.index(self.sdl_context.current_table) if self.sdl_context.current_table else 0,
+                'tables': [self._serialize_table(table) for table in self.sdl_context.list_of_tables]
+            }
+            
+            with open('game_save.json', 'w') as f:
+                json.dump(game_state, f, indent=2)
+                
+            self.gui_state.chat_messages.append("Game saved successfully")
+            logger.info("Game saved to game_save.json")
+            
+        except Exception as e:
+            error_msg = f"Error saving game: {e}"
+            self.gui_state.chat_messages.append(error_msg)
+            logger.error(error_msg)
+
+    def _load_game(self):
+        """Load the entire game state"""
+        try:
+            import json
+            import os
+            
+            if not os.path.exists('game_save.json'):
+                self.gui_state.chat_messages.append("No saved game found")
+                return
+                
+            with open('game_save.json', 'r') as f:
+                game_state = json.load(f)
+            
+            # Clear current tables
+            for table in self.sdl_context.list_of_tables:
+                self.sdl_context.cleanup_table(table)
+            self.sdl_context.list_of_tables.clear()
+            
+            # Load tables
+            for table_data in game_state.get('tables', []):
+                self.sdl_context.create_table_from_json(table_data)
+            
+            # Set current table
+            current_index = game_state.get('current_table_index', 0)
+            if self.sdl_context.list_of_tables and current_index < len(self.sdl_context.list_of_tables):
+                self.sdl_context.current_table = self.sdl_context.list_of_tables[current_index]
+            
+            # Update icons
+            self._update_table_icons()
+            
+            self.gui_state.chat_messages.append("Game loaded successfully")
+            logger.info("Game loaded from game_save.json")
+            
+        except Exception as e:
+            error_msg = f"Error loading game: {e}"
+            self.gui_state.chat_messages.append(error_msg)
+            logger.error(error_msg)
+
+    def _add_character(self):
+        """Add a character entity"""
+        if not self.sdl_context.current_table:
+            self.gui_state.chat_messages.append("No table selected")
+            return
+        
+        try:
+            # Create a test character
+            import core_table.Character
+            test_character = core_table.Character.Character(
+                name=f"Character {len(self.sdl_context.current_table.dict_of_sprites_list['tokens']) + 1}",
+                race="Human",
+                char_class="Fighter",
+                hp=20,
+                level=1,
+                stats={"STR": 15, "DEX": 12, "CON": 14, "INT": 10, "WIS": 13, "CHA": 11}
+            )
+            
+            # Add sprite with character
+            sprite = self.sdl_context.add_sprite(
+                b"resources/woman.png",
+                scale_x=0.5,
+                scale_y=0.5,
+                layer='tokens',
+                character=test_character
+            )
+            
+            if sprite:
+                self.gui_state.chat_messages.append(f"Added character: {test_character.name}")
+                logger.info(f"Added character: {test_character.name}")
+            else:
+                self.gui_state.chat_messages.append("Failed to add character")
+                
+        except Exception as e:
+            error_msg = f"Error adding character: {e}"
+            self.gui_state.chat_messages.append(error_msg)
+            logger.error(error_msg)
+
+    def _add_monster(self):
+        """Add a monster entity"""
+        if not self.sdl_context.current_table:
+            self.gui_state.chat_messages.append("No table selected")
+            return
+        
+        try:
+            # Add a monster sprite
+            sprite = self.sdl_context.add_sprite(
+                b"resources/token_1.png",
+                scale_x=0.5,
+                scale_y=0.5,
+                layer='tokens',
+                collidable=True
+            )
+            
+            if sprite:
+                self.gui_state.chat_messages.append("Added monster")
+                logger.info("Added monster sprite")
+            else:
+                self.gui_state.chat_messages.append("Failed to add monster")
+                
+        except Exception as e:
+            error_msg = f"Error adding monster: {e}"
+            self.gui_state.chat_messages.append(error_msg)
+            logger.error(error_msg)
+
+    # Fix the indentation and move these methods inside the class
+    def _activate_linear_measurement(self):
+        """Activate linear measurement tool"""
+        self.gui_state.measurement_mode = "linear"
+        self.gui_state.chat_messages.append("Linear measurement activated")
+        logger.info("Activated linear measurement")
+
+    def _activate_area_measurement(self):
+        """Activate area measurement tool"""
+        self.gui_state.measurement_mode = "area"
+        self.gui_state.chat_messages.append("Area measurement activated")
+        logger.info("Activated area measurement")
+
+    def _clear_measurements(self):
+        """Clear all measurements"""
+        self.gui_state.chat_messages.append("Measurements cleared")
+        logger.info("Cleared all measurements")
+
+    def _delete_selected(self):
+        """Delete selected sprite"""
+        if not self.sdl_context.current_table or not self.sdl_context.current_table.selected_sprite:
+            self.gui_state.chat_messages.append("No sprite selected")
+            return
+        
+        try:
+            sprite = self.sdl_context.current_table.selected_sprite
+            if self.sdl_context.remove_sprite(sprite):
+                self.gui_state.chat_messages.append("Selected sprite deleted")
+                logger.info("Deleted selected sprite")
+            else:
+                self.gui_state.chat_messages.append("Failed to delete sprite")
+        except Exception as e:
+            error_msg = f"Error deleting sprite: {e}"
+            self.gui_state.chat_messages.append(error_msg)
+            logger.error(error_msg)
+
+    def _duplicate_selected(self):
+        """Duplicate selected sprite"""
+        if not self.sdl_context.current_table or not self.sdl_context.current_table.selected_sprite:
+            self.gui_state.chat_messages.append("No sprite selected")
+            return
+        
+        try:
+            original = self.sdl_context.current_table.selected_sprite
+            # Create duplicate with slight offset
+            new_sprite = self.sdl_context.add_sprite(
+                original.texture_path,
+                scale_x=original.scale_x,
+                scale_y=original.scale_y,
+                layer='tokens',
+                coord_x=original.coord_x.value + 50,
+                coord_y=original.coord_y.value + 50
+            )
+            
+            if new_sprite:
+                self.gui_state.chat_messages.append("Sprite duplicated")
+                logger.info("Duplicated selected sprite")
+            else:
+                self.gui_state.chat_messages.append("Failed to duplicate sprite")
+                
+        except Exception as e:
+            error_msg = f"Error duplicating sprite: {e}"
+            self.gui_state.chat_messages.append(error_msg)
+            logger.error(error_msg)
+
+    def _group_selected(self):
+        """Group selected sprites (placeholder)"""
+        self.gui_state.chat_messages.append("Group function not implemented yet")
+        logger.info("Group selected called (not implemented)")
+
+    def _toggle_network_connection(self):
+        """Toggle network connection"""
+        self.gui_state.chat_messages.append("Network connection toggled")
+        logger.info("Toggling network connection")
+
+    def _request_table_from_server(self):
+        """Request table from server"""
+        if hasattr(self.sdl_context, 'protocol') and self.sdl_context.protocol:
+            self.sdl_context.protocol.request_table()
+            self.gui_state.chat_messages.append("Requested table from server")
+            logger.info("Requested table from server")
+        else:
+            self.gui_state.chat_messages.append("No server connection")
+            logger.warning("No protocol connection available")
+
+    def _upload_table_to_server(self):
+        """Upload current table to server"""
+        self.gui_state.chat_messages.append("Uploading table to server")
+        logger.info("Uploading table to server")
+
+    def _sync_table_changes(self):
+        """Sync table changes"""
+        self.gui_state.chat_messages.append("Syncing table changes")
+        logger.info("Syncing table changes")
+
+    def _send_network_ping(self):
+        """Send network ping"""
+        if hasattr(self.sdl_context, 'protocol') and self.sdl_context.protocol:        
+            self.sdl_context.protocol.ping()
+            self.gui_state.chat_messages.append("Ping sent")
+            logger.info("Sent network ping")
+        else:
+            self.gui_state.chat_messages.append("No server connection for ping")
+            logger.warning("No protocol connection available")
+
+    def _render_compendium_tab(self):
+        """Render the compendium tab with D&D 5e data browser"""
+        imgui.text("D&D 5e Compendium")
+        imgui.separator()
+        
+        # Initialize compendium panel if needed
+        if not hasattr(self.gui_state, 'compendium_panel') or self.gui_state.compendium_panel is None:
+            try:
+                # Import here to avoid circular imports
+                from gui.compendium_gui import CompendiumPanel
+                if hasattr(self.sdl_context, 'compendium_manager') and self.sdl_context.compendium_manager:
+                    self.gui_state.compendium_panel = CompendiumPanel()
+                else:
+                    imgui.text_colored((1, 0.5, 0, 1), "Compendium not loaded!")
+                    imgui.text("Check logs for loading errors.")
+                    return
+            except Exception as e:
+                imgui.text_colored((1, 0, 0, 1), f"Error loading compendium: {e}")
+                logger.error(f"Error initializing compendium panel: {e}")
+                return
+        
+        # Render compendium panel with proper error handling
+        if self.gui_state.compendium_panel:
+            # Always ensure begin_child has matching end_child
+            child_started = False
+            try:
+                child_started = imgui.begin_child("CompendiumContent", (0, 0), True)
+                if child_started:
+                    self.gui_state.compendium_panel.render(self.sdl_context)
+            except Exception as e:
+                imgui.text_colored((1, 0, 0, 1), f"Compendium error: {e}")
+                logger.error(f"Error rendering compendium panel: {e}")
+            finally:
+                # Always call end_child if begin_child was called
+                if child_started:
+                    imgui.end_child()
+        else:
+            imgui.text("Compendium panel not available")
+
+    def _render_compendium_actions(self):
+        """Render action buttons for selected compendium entities"""
+        panel = self.gui_state.compendium_panel
+        
+        # Monster actions
+        if hasattr(panel, 'selected_monster') and panel.selected_monster:
+            imgui.separator()
+            monster = panel.selected_monster
+            imgui.text(f"Selected Monster: {getattr(monster, 'name', 'Unknown')}")
+            imgui.text(f"CR: {getattr(monster, 'challenge_rating', '?')} | HP: {getattr(monster, 'hit_points', '?')}")
+            
+            if imgui.button("Add Monster to Table", (-1, 30)):
+                self._add_compendium_entity_to_table(monster, 'monster')
+        
+        # Equipment actions
+        if hasattr(panel, 'selected_equipment') and panel.selected_equipment:
+            imgui.separator()
+            item = panel.selected_equipment
+            imgui.text(f"Selected Item: {getattr(item, 'name', 'Unknown')}")
+            imgui.text(f"Type: {getattr(item, 'type', '?')}")
+            
+            if imgui.button("Add Item to Table", (-1, 30)):
+                self._add_compendium_entity_to_table(item, 'equipment')
+        
+        # Spell actions
+        if hasattr(panel, 'selected_spell') and panel.selected_spell:
+            imgui.separator()
+            spell = panel.selected_spell
+            imgui.text(f"Selected Spell: {getattr(spell, 'name', 'Unknown')}")
+            imgui.text(f"Level: {getattr(spell, 'level', '?')} | School: {getattr(spell, 'school', '?')}")
+            
+            if imgui.button("Cast Spell Effect", (-1, 30)):
+                self._add_compendium_entity_to_table(spell, 'spell')
+        else:
+            imgui.text("Compendium panel not available")
+
+    def _add_compendium_entity_to_table(self, entity, entity_type):
+            """Add a compendium entity (monster, item, spell) to the current table"""
+            if not self.sdl_context.current_table:
+                self.gui_state.chat_messages.append("No table selected!")
+                return
+                
+            entity_name = getattr(entity, 'name', 'Unknown Entity')
+                
+            try:
+                # Import sprite and compendium sprite helpers
+                from sprite import Sprite
+                from compendium_sprites import create_compendium_sprite
+                
+                # Create sprite from compendium entity at a default position
+                position = (100, 100)  # Default position on table
+                sprite = create_compendium_sprite(entity, entity_type, position, self.sdl_context)
+                
+                if sprite:
+                    # Add to current table
+                    self.sdl_context.current_table.add_sprite(sprite)
+                    
+                    # Send to server if connected
+                    if hasattr(self.sdl_context, 'protocol') and self.sdl_context.protocol:
+                        self._send_compendium_sprite_to_server(sprite, entity, entity_type)
+                    
+                    # Update GUI
+                    self.gui_state.chat_messages.append(f"Added {entity_name} to table")
+                    logger.info(f"Added compendium {entity_type} '{entity_name}' to table")
+                else:
+                    self.gui_state.chat_messages.append(f"Failed to create sprite for {entity_name}")
+                    
+            except Exception as e:            
+                error_msg = f"Failed to add {entity_name} to table: {e}"
+                self.gui_state.chat_messages.append(f"Error: {error_msg}")
+                logger.error(error_msg)
+
+    def _send_compendium_sprite_to_server(self, sprite, entity, entity_type):
+        """Send compendium sprite data to server for multiplayer sync"""
+        try:
+            # Get current table name
+            table_name = self.sdl_context.current_table.name if self.sdl_context.current_table else 'default'
+            
+            # Get sprite position
+            position = {
+                'x': float(getattr(sprite, 'coord_x', 0) if hasattr(sprite, 'coord_x') and hasattr(sprite.coord_x, 'value') else getattr(sprite, 'x', 0)),
+                'y': float(getattr(sprite, 'coord_y', 0) if hasattr(sprite, 'coord_y') and hasattr(sprite.coord_y, 'value') else getattr(sprite, 'y', 0))
+            }
+            
+            # Serialize entity data
+            entity_data = self._serialize_compendium_entity(entity, entity_type)
+            
+            # Use client protocol to send compendium sprite add request
+            if hasattr(self.sdl_context, 'protocol') and self.sdl_context.protocol:
+                self.sdl_context.protocol.send_compendium_sprite_add(
+                    table_name=table_name,
+                    entity_data=entity_data,
+                    position=position,
+                    entity_type=entity_type,
+                    layer='tokens'
+                )
+                logger.info(f"Sent compendium sprite to server: {entity_data.get('name', 'Unknown')}")
+            else:
+                logger.warning("No protocol connection available for sending compendium sprite")
+            
+        except Exception as e:
+            logger.error(f"Failed to send compendium sprite to server: {e}")
+
+    def _serialize_compendium_entity(self, entity, entity_type):
+        """Serialize compendium entity data for network transmission"""
+        base_data = {
+            'name': getattr(entity, 'name', 'Unknown'),
+            'type': entity_type
         }
         
-        with open('game_save.json', 'w') as f:
-            json.dump(game_state, f, indent=2)
-            
-        self.gui_state.chat_messages.append("Game saved successfully")
-        logger.info("Game saved to game_save.json")
-        
-    except Exception as e:
-        error_msg = f"Error saving game: {e}"
-        self.gui_state.chat_messages.append(error_msg)
-        logger.error(error_msg)
+        if entity_type == 'monster':
+            base_data.update({
+                'challenge_rating': getattr(entity, 'challenge_rating', '?'),
+                'hit_points': getattr(entity, 'hit_points', '?'),
+                'armor_class': getattr(entity, 'armor_class', '?'),
+                'monster_type': getattr(entity, 'type', '?'),
+                'size': getattr(entity, 'size', '?')
+            })
+        elif entity_type == 'equipment':
+            base_data.update({
+                'item_type': getattr(entity, 'type', '?'),
+                'cost': getattr(entity, 'cost', '?'),
+                'weight': getattr(entity, 'weight', '?'),
+                'rarity': getattr(entity, 'rarity', 'Common')
+            })
+        elif entity_type == 'spell':
+            base_data.update({
+                'level': getattr(entity, 'level', '?'),
+                'school': getattr(entity, 'school', '?'),
+                'casting_time': getattr(entity, 'casting_time', '?'),
+                'range': getattr(entity, 'range', '?'),
+                'duration': getattr(entity, 'duration', '?')
+            })
 
-def _load_game(self):
-    """Load the entire game state"""
-    try:
-        import json
-        import os
-        
-        if not os.path.exists('game_save.json'):
-            self.gui_state.chat_messages.append("No saved game found")
-            return
-            
-        with open('game_save.json', 'r') as f:
-            game_state = json.load(f)
-        
-        # Clear current tables
-        for table in self.sdl_context.list_of_tables:
-            self.sdl_context.cleanup_table(table)
-        self.sdl_context.list_of_tables.clear()
-        
-        # Load tables
-        for table_data in game_state.get('tables', []):
-            self.sdl_context.create_table_from_json(table_data)
-        
-        # Set current table
-        current_index = game_state.get('current_table_index', 0)
-        if self.sdl_context.list_of_tables and current_index < len(self.sdl_context.list_of_tables):
-            self.sdl_context.current_table = self.sdl_context.list_of_tables[current_index]
-        
-        # Update icons
-        self._update_table_icons()
-        
-        self.gui_state.chat_messages.append("Game loaded successfully")
-        logger.info("Game loaded from game_save.json")
-        
-    except Exception as e:
-        error_msg = f"Error loading game: {e}"
-        self.gui_state.chat_messages.append(error_msg)
-        logger.error(error_msg)
-
-def _add_character(self):
-    """Add a character entity"""
-    if not self.sdl_context.current_table:
-        self.gui_state.chat_messages.append("No table selected")
-        return
-    
-    try:
-        # Create a test character
-        import core_table.Character
-        test_character = core_table.Character.Character(
-            name=f"Character {len(self.sdl_context.current_table.dict_of_sprites_list['tokens']) + 1}",
-            race="Human",
-            char_class="Fighter",
-            hp=20,
-            level=1,
-            stats={"STR": 15, "DEX": 12, "CON": 14, "INT": 10, "WIS": 13, "CHA": 11}
-        )
-        
-        # Add sprite with character
-        sprite = self.sdl_context.add_sprite(
-            b"resources/woman.png",
-            scale_x=0.5,
-            scale_y=0.5,
-            layer='tokens',
-            character=test_character
-        )
-        
-        if sprite:
-            self.gui_state.chat_messages.append(f"Added character: {test_character.name}")
-            logger.info(f"Added character: {test_character.name}")
-        else:
-            self.gui_state.chat_messages.append("Failed to add character")
-            
-    except Exception as e:
-        error_msg = f"Error adding character: {e}"
-        self.gui_state.chat_messages.append(error_msg)
-        logger.error(error_msg)
-
-def _add_monster(self):
-    """Add a monster entity"""
-    if not self.sdl_context.current_table:
-        self.gui_state.chat_messages.append("No table selected")
-        return
-    
-    try:
-        # Add a monster sprite
-        sprite = self.sdl_context.add_sprite(
-            b"resources/token_1.png",
-            scale_x=0.5,
-            scale_y=0.5,
-            layer='tokens',
-            collidable=True
-        )
-        
-        if sprite:
-            self.gui_state.chat_messages.append("Added monster")
-            logger.info("Added monster sprite")
-        else:
-            self.gui_state.chat_messages.append("Failed to add monster")
-            
-    except Exception as e:
-        error_msg = f"Error adding monster: {e}"
-        self.gui_state.chat_messages.append(error_msg)
-        logger.error(error_msg)
-
-# Fix the indentation and move these methods inside the class
-def _activate_linear_measurement(self):
-    """Activate linear measurement tool"""
-    self.gui_state.measurement_mode = "linear"
-    self.gui_state.chat_messages.append("Linear measurement activated")
-    logger.info("Activated linear measurement")
-
-def _activate_area_measurement(self):
-    """Activate area measurement tool"""
-    self.gui_state.measurement_mode = "area"
-    self.gui_state.chat_messages.append("Area measurement activated")
-    logger.info("Activated area measurement")
-
-def _clear_measurements(self):
-    """Clear all measurements"""
-    self.gui_state.chat_messages.append("Measurements cleared")
-    logger.info("Cleared all measurements")
-
-def _delete_selected(self):
-    """Delete selected sprite"""
-    if not self.sdl_context.current_table or not self.sdl_context.current_table.selected_sprite:
-        self.gui_state.chat_messages.append("No sprite selected")
-        return
-    
-    try:
-        sprite = self.sdl_context.current_table.selected_sprite
-        if self.sdl_context.remove_sprite(sprite):
-            self.gui_state.chat_messages.append("Selected sprite deleted")
-            logger.info("Deleted selected sprite")
-        else:
-            self.gui_state.chat_messages.append("Failed to delete sprite")
-    except Exception as e:
-        error_msg = f"Error deleting sprite: {e}"
-        self.gui_state.chat_messages.append(error_msg)
-        logger.error(error_msg)
-
-def _duplicate_selected(self):
-    """Duplicate selected sprite"""
-    if not self.sdl_context.current_table or not self.sdl_context.current_table.selected_sprite:
-        self.gui_state.chat_messages.append("No sprite selected")
-        return
-    
-    try:
-        original = self.sdl_context.current_table.selected_sprite
-        # Create duplicate with slight offset
-        new_sprite = self.sdl_context.add_sprite(
-            original.texture_path,
-            scale_x=original.scale_x,
-            scale_y=original.scale_y,
-            layer='tokens',
-            coord_x=original.coord_x.value + 50,
-            coord_y=original.coord_y.value + 50
-        )
-        
-        if new_sprite:
-            self.gui_state.chat_messages.append("Sprite duplicated")
-            logger.info("Duplicated selected sprite")
-        else:
-            self.gui_state.chat_messages.append("Failed to duplicate sprite")
-            
-    except Exception as e:
-        error_msg = f"Error duplicating sprite: {e}"
-        self.gui_state.chat_messages.append(error_msg)
-        logger.error(error_msg)
-
-def _group_selected(self):
-    """Group selected sprites (placeholder)"""
-    self.gui_state.chat_messages.append("Group function not implemented yet")
-    logger.info("Group selected called (not implemented)")
-
-def _toggle_network_connection(self):
-    """Toggle network connection"""
-    self.gui_state.chat_messages.append("Network connection toggled")
-    logger.info("Toggling network connection")
-
-def _request_table_from_server(self):
-    """Request table from server"""
-    if hasattr(self.sdl_context, 'protocol') and self.sdl_context.protocol:
-        self.sdl_context.protocol.request_table()
-        self.gui_state.chat_messages.append("Requested table from server")
-        logger.info("Requested table from server")
-    else:
-        self.gui_state.chat_messages.append("No server connection")
-        logger.warning("No protocol connection available")
-
-def _upload_table_to_server(self):
-    """Upload current table to server"""
-    self.gui_state.chat_messages.append("Uploading table to server")
-    logger.info("Uploading table to server")
-
-def _sync_table_changes(self):
-    """Sync table changes"""
-    self.gui_state.chat_messages.append("Syncing table changes")
-    logger.info("Syncing table changes")
-
-def _send_network_ping(self):
-    """Send network ping"""
-    if hasattr(self.sdl_context, 'protocol') and self.sdl_context.protocol:
-        self.sdl_context.protocol.ping()
-        self.gui_state.chat_messages.append("Ping sent")
-        logger.info("Sent network ping")
-    else:
-        self.gui_state.chat_messages.append("No server connection for ping")
-        logger.warning("No protocol connection available")
+        return base_data

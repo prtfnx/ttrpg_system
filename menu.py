@@ -16,7 +16,7 @@ class MenuApp:
         self.window = None
         self.gl_context = None
         self.imgui_renderer = None
-        self.selected_mode = "client"
+        self.selected_mode = "player"
         self.server_ip = "127.0.0.1"
         self.server_port = "12345"
         self.show_settings = False
@@ -70,26 +70,26 @@ class MenuApp:
         
         # Mode selection
         imgui.text("Mode:")
-        if imgui.radio_button("Client", self.selected_mode == "client"):
-            self.selected_mode = "client"
+        if imgui.radio_button("Player", self.selected_mode == "player"):
+            self.selected_mode = "player"
         imgui.same_line()
-        if imgui.radio_button("Server", self.selected_mode == "server"):
-            self.selected_mode = "server"
+        if imgui.radio_button("Master", self.selected_mode == "Master"):
+            self.selected_mode = "Master"
         
         imgui.separator()
         
-        # Buttons
-        if imgui.button("Connect to Table", (-1, 35)):
+        # Buttons with ASCII icons
+        if imgui.button("[C] Connect to Table", (-1, 35)):
             self._launch_main()
             should_continue = False
             
-        if imgui.button("Character Manager", (-1, 35)):
+        if imgui.button("[P] Character Manager", (-1, 35)):
             imgui.open_popup("Character Manager")
             
-        if imgui.button("Settings", (-1, 35)):
+        if imgui.button("[S] Settings", (-1, 35)):
             self.show_settings = True
             
-        if imgui.button("Exit", (-1, 35)):
+        if imgui.button("[X] Exit", (-1, 35)):
             should_continue = False
         
         imgui.end()  # Always call end
@@ -131,7 +131,7 @@ class MenuApp:
     def _launch_main(self):
         try:
             cmd = [sys.executable, "main.py", "--mode", self.selected_mode]
-            if self.selected_mode == "client":
+            if self.selected_mode == "player":
                 cmd.extend(["--server", self.server_ip, "--port", self.server_port])
             
             subprocess.Popen(cmd)

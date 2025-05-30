@@ -19,7 +19,7 @@ class ClientProtocol:
         """Extension point for custom message handlers"""
         self.handlers[msg_type] = handler
     
-    def request_table(self, table_name: str = None):
+    def request_table(self, table_name: Optional[str] = None):
         msg = Message(MessageType.TABLE_REQUEST, {'name': table_name}, self.client_id)
         self.send(msg.to_json())
     
@@ -50,20 +50,33 @@ class ClientProtocol:
                 if response:
                     self.send(response.to_json())
                 return
-            print('1')
-            # Built-in handlers
+            print('1')            # Built-in handlers
             if msg.type == MessageType.PONG:
                 logger.debug("Pong received")
             elif msg.type == MessageType.NEW_TABLE_RESPONSE:
-                self._create_table(msg.data)
+                if msg.data:
+                    self._create_table(msg.data)
             elif msg.type == MessageType.TABLE_DATA:
-                self._update_table(msg.data)
+                if msg.data:
+                    self._update_table(msg.data)
             elif msg.type == MessageType.FILE_DATA:
-                self._save_file(msg.data)
+                if msg.data:
+                    self._save_file(msg.data)
             elif msg.type == MessageType.TABLE_UPDATE:
-                self._apply_update(msg.data)
+                if msg.data:
+                    self._apply_update(msg.data)
+            elif msg.type == MessageType.COMPENDIUM_SPRITE_ADD:
+                if msg.data:
+                    self._handle_compendium_sprite_add(msg.data)
+            elif msg.type == MessageType.COMPENDIUM_SPRITE_UPDATE:
+                if msg.data:
+                    self._handle_compendium_sprite_update(msg.data)
+            elif msg.type == MessageType.COMPENDIUM_SPRITE_REMOVE:
+                if msg.data:
+                    self._handle_compendium_sprite_remove(msg.data)
             elif msg.type == MessageType.ERROR:
-                logger.error(f"Server error: {msg.data}")
+                if msg.data:
+                    logger.error(f"Server error: {msg.data}")
                 
         except Exception as e:
             logger.error(f"Message handling error: {e}")
@@ -189,3 +202,174 @@ class ClientProtocol:
             sprite.scale_y = float(to_scale.get('y', sprite.scale_y))
             
             logger.info(f"Applied sprite scale: {sprite_id} to ({sprite.scale_x:.2f}, {sprite.scale_y:.2f})")
+    
+    # Compendium sprite methods
+    def send_compendium_sprite_add(self, table_name: str, entity_data: Dict[str, Any], position: Dict[str, float], entity_type: str, layer: str = 'tokens'):
+        """Send compendium sprite add request to server"""
+        msg = Message(MessageType.COMPENDIUM_SPRITE_ADD, {
+            'table_name': table_name,
+            'entity_data': entity_data,
+            'position': position,
+            'entity_type': entity_type,
+            'layer': layer,
+            'scale_x': 1.0,
+            'scale_y': 1.0,
+            'rotation': 0.0
+        }, self.client_id)
+        self.send(msg.to_json())
+        logger.info(f"Sent compendium sprite add request: {entity_data.get('name', 'Unknown')} to {table_name}")
+    
+    def send_compendium_sprite_update(self, sprite_id: str, table_name: str, updates: Dict[str, Any]):
+        """Send compendium sprite update request to server"""
+        msg = Message(MessageType.COMPENDIUM_SPRITE_UPDATE, {
+            'sprite_id': sprite_id,
+            'table_name': table_name,
+            'updates': updates
+        }, self.client_id)
+        self.send(msg.to_json())
+        logger.info(f"Sent compendium sprite update request: {sprite_id}")
+    
+    def send_compendium_sprite_remove(self, sprite_id: str, table_name: str):
+        """Send compendium sprite remove request to server"""
+        msg = Message(MessageType.COMPENDIUM_SPRITE_REMOVE, {
+            'sprite_id': sprite_id,
+            'table_name': table_name
+        }, self.client_id)
+        self.send(msg.to_json())
+        logger.info(f"Sent compendium sprite remove request: {sprite_id}")
+    
+    def _handle_compendium_sprite_add(self, data: Dict[str, Any]):
+        """Handle compendium sprite addition from server"""
+        try:
+            logger.info(f"Handling compendium sprite add: {data}")
+            
+            sprite_data = data.get('sprite_data', {})
+            table_name = data.get('table_name', 'default')
+            
+            if not sprite_data:
+                logger.error("No sprite data in compendium sprite add")
+                return
+            
+            # Get the table or use current table
+            table = self.context.get_table_by_name(table_name) if hasattr(self.context, 'get_table_by_name') else self.context.current_table
+            if not table:
+                logger.error(f"Table {table_name} not found for compendium sprite add")
+                return
+            
+            # Extract sprite information
+            name = sprite_data.get('name', 'Unknown Entity')
+            entity_type = sprite_data.get('entity_type', 'unknown')
+            position = sprite_data.get('position', {'x': 0, 'y': 0})
+            layer = sprite_data.get('layer', 'tokens')
+            scale_x = sprite_data.get('scale_x', 1.0)
+            scale_y = sprite_data.get('scale_y', 1.0)
+            compendium_data = sprite_data.get('compendium_data', {})
+            
+            # Import compendium_sprites to create the sprite
+            try:
+                from compendium_sprites import create_compendium_sprite
+                  # Create the sprite using the compendium helper
+                sprite = create_compendium_sprite(
+                    entity=compendium_data,
+                    entity_type=entity_type,
+                    position=(position['x'], position['y']),
+                    context=self.context
+                )
+                
+                if sprite:
+                    # Add sprite to the table
+                    if hasattr(table, 'add_sprite'):
+                        table.add_sprite(sprite, layer)
+                    else:
+                        # Fallback to context method
+                        self.context.add_sprite_to_table(sprite, layer, table_name)
+                    
+                    logger.info(f"Added compendium sprite {name} to table {table_name}")
+                    
+                    # Add to chat if available
+                    if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
+                        self.context.gui_system.gui_state.chat_messages.append(f"Added {entity_type}: {name}")
+                else:
+                    logger.error(f"Failed to create compendium sprite for {name}")
+                    
+            except ImportError as e:
+                logger.error(f"Could not import compendium_sprites: {e}")
+            except Exception as e:
+                logger.error(f"Error creating compendium sprite: {e}")
+                
+        except Exception as e:
+            logger.error(f"Error handling compendium sprite add: {e}")
+    
+    def _handle_compendium_sprite_update(self, data: Dict[str, Any]):
+        """Handle compendium sprite update from server"""
+        try:
+            logger.info(f"Handling compendium sprite update: {data}")
+            
+            sprite_id = data.get('sprite_id')
+            table_name = data.get('table_name', 'default')
+            updates = data.get('updates', {})
+            
+            if not sprite_id:
+                logger.error("No sprite_id in compendium sprite update")
+                return
+            
+            # Find the sprite
+            sprite = self.context.find_sprite_by_id(sprite_id, table_name=table_name)
+            if not sprite:
+                logger.warning(f"Compendium sprite not found: {sprite_id}")
+                return
+            
+            # Apply updates
+            for key, value in updates.items():
+                if key == 'position':
+                    sprite.coord_x.value = float(value.get('x', sprite.coord_x.value))
+                    sprite.coord_y.value = float(value.get('y', sprite.coord_y.value))
+                elif key == 'scale':
+                    sprite.scale_x = float(value.get('x', sprite.scale_x))
+                    sprite.scale_y = float(value.get('y', sprite.scale_y))
+                elif key == 'rotation':
+                    if hasattr(sprite, 'rotation'):
+                        sprite.rotation = float(value)
+                elif hasattr(sprite, key):
+                    setattr(sprite, key, value)
+            
+            logger.info(f"Updated compendium sprite: {sprite_id}")
+            
+        except Exception as e:
+            logger.error(f"Error handling compendium sprite update: {e}")
+    
+    def _handle_compendium_sprite_remove(self, data: Dict[str, Any]):
+        """Handle compendium sprite removal from server"""
+        try:
+            logger.info(f"Handling compendium sprite remove: {data}")
+            
+            sprite_id = data.get('sprite_id')
+            table_name = data.get('table_name', 'default')
+            
+            if not sprite_id:
+                logger.error("No sprite_id in compendium sprite remove")
+                return
+            
+            # Find and remove the sprite
+            sprite = self.context.find_sprite_by_id(sprite_id, table_name=table_name)
+            if not sprite:
+                logger.warning(f"Compendium sprite not found for removal: {sprite_id}")
+                return
+            
+            # Remove sprite from table
+            table = self.context.get_table_by_name(table_name) if hasattr(self.context, 'get_table_by_name') else self.context.current_table
+            if table and hasattr(table, 'remove_sprite'):
+                table.remove_sprite(sprite)
+            else:
+                # Fallback to context removal
+                self.context.remove_sprite_from_table(sprite, table_name)
+            
+            logger.info(f"Removed compendium sprite: {sprite_id}")
+            
+            # Add to chat if available
+            if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
+                sprite_name = getattr(sprite, 'name', sprite_id)
+                self.context.gui_system.gui_state.chat_messages.append(f"Removed sprite: {sprite_name}")
+            
+        except Exception as e:
+            logger.error(f"Error handling compendium sprite remove: {e}")

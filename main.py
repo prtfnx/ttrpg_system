@@ -14,13 +14,17 @@ import client_sdl
 import time
 import json
 import paint  
-import gui_imgui  
+import gui.gui_imgui as gui_imgui  
 import asyncio
 from protocol import ProtocolHandler, Message, MessageType
 from imgui_bundle import imgui
 import OpenGL.GL as gl
 import example
 import argparse
+
+# Import compendium integration
+from compendium_manager import get_compendium_manager, load_compendiums
+import compendium_sprites
 
 # Configure logging
 logging.basicConfig(
@@ -40,16 +44,16 @@ def SDL_AppInit_func():
     
     # Set OpenGL attributes BEFORE creating window
     
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_DOUBLEBUFFER, ctypes.c_int(1))
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_DEPTH_SIZE, ctypes.c_int(24))
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_STENCIL_SIZE, ctypes.c_int(8))
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_ACCELERATED_VISUAL, ctypes.c_int(1))
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_MULTISAMPLEBUFFERS, ctypes.c_int(1))
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_MULTISAMPLESAMPLES, ctypes.c_int(8))
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_CONTEXT_FLAGS, sdl3.SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG)
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_CONTEXT_MAJOR_VERSION, ctypes.c_int(4))
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_CONTEXT_MINOR_VERSION, ctypes.c_int(1))
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_CONTEXT_PROFILE_MASK, sdl3.SDL_GL_CONTEXT_PROFILE_CORE)
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_DOUBLEBUFFER), ctypes.c_int(1))
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_DEPTH_SIZE), ctypes.c_int(24))
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_STENCIL_SIZE), ctypes.c_int(8))
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_ACCELERATED_VISUAL), ctypes.c_int(1))
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_MULTISAMPLEBUFFERS), ctypes.c_int(1))
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_MULTISAMPLESAMPLES), ctypes.c_int(8))
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_CONTEXT_FLAGS), ctypes.c_int(sdl3.SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG))
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_CONTEXT_MAJOR_VERSION), ctypes.c_int(4))
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_CONTEXT_MINOR_VERSION), ctypes.c_int(1))
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_CONTEXT_PROFILE_MASK), ctypes.c_int(sdl3.SDL_GL_CONTEXT_PROFILE_CORE))
     
     # Create window with OpenGL support
     window = sdl3.SDL_CreateWindow(
@@ -108,6 +112,24 @@ def SDL_AppInit_func():
     #         logger.warning("VSync not supported by this renderer.")
     
     logger.info(f"Renderer {render_driver} initialized.")
+    
+    # Initialize D&D 5e Compendiums
+    logger.info("Loading D&D 5e compendiums...")
+    try:
+        compendium_results = load_compendiums()
+        compendium_manager = get_compendium_manager()
+        test_context.compendium_manager = compendium_manager
+        
+        loaded_systems = sum(compendium_results.values())
+        logger.info(f"Loaded {loaded_systems}/4 compendium systems: {compendium_results}")
+        
+        # Log system status
+        status = compendium_manager.get_system_status()
+        if status['data_counts']:
+            logger.info(f"Compendium data loaded: {status['data_counts']}")
+    except Exception as e:
+        logger.error(f"Failed to load compendiums: {e}")
+        test_context.compendium_manager = None
     
     test_spell = core_table.entities.Spell(
         name="test", description="test", level=1, sprite=b"resources/magic_projectile.gif"
@@ -273,8 +295,8 @@ def net_thread(context):
 def parse_arguments():
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(description='TTRPG System Main Application')
-    parser.add_argument('--mode', choices=['client', 'server'], default='client',
-                       help='Run as client or server (default: client)')
+    parser.add_argument('--mode', choices=['player', 'master'], default='player',
+                       help='Run as player or master (default: player)')
     parser.add_argument('--server', default='127.0.0.1',
                        help='Server IP address (default: 127.0.0.1)')
     parser.add_argument('--port', default='12345',

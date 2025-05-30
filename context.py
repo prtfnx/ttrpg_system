@@ -41,6 +41,9 @@ class Context:
         self.list_of_tables = []
         self.moving_table = False
         self.network_context = NetworkedContext(self)
+        
+        # Compendium integration
+        self.compendium_manager = None
 
     def add_sprite(self, texture_path, scale_x, scale_y, layer='tokens',
                    character=None, moving=False, speed=None,
@@ -96,12 +99,24 @@ class Context:
         except Exception as e:
             logger.error(f"Error creating sprite from {texture_path}: {e}")
             return None
-    def find_sprite_by_id(self, sprite_id, table_name):
+            
+    def find_sprite_by_id(self, sprite_id, table_name=None):
         """Find and return a sprite by its ID from all layers in the table."""
-        table = next((t for t in self.list_of_tables if t.name == table_name), None)
+        # Use current table if no table name provided
+        if table_name is None:
+            table = self.current_table
+            if table:
+                table_name = table.name
+            else:
+                logger.error("No current table and no table_name provided")
+                return None
+        else:
+            table = next((t for t in self.list_of_tables if t.name == table_name), None)
+        
         if not table or not sprite_id:
             logger.error(f"Table '{table_name}' not found or sprite_id is None")
             return None
+            
         for layer, sprite_list in table.dict_of_sprites_list.items():
             for sprite_obj in sprite_list:
                 if hasattr(sprite_obj, 'sprite_id') and sprite_obj.sprite_id == sprite_id:
@@ -109,6 +124,8 @@ class Context:
                 # Fallback for alternate id attribute
                 if hasattr(sprite_obj, 'id') and sprite_obj.id == sprite_id:
                     return sprite_obj
+        
+        logger.warning(f"Sprite with ID '{sprite_id}' not found in table '{table_name}'")
         return None
     
     def remove_sprite(self, sprite_to_remove, table=None):
@@ -389,8 +406,7 @@ class NetworkedContext:
                 self.context.protocol.send(msg.to_json())
             elif hasattr(self.context.protocol, 'send_message'):
                 self.context.protocol.send_message(msg)
-            
-            logger.info(f"Sent sprite move: {sprite.id} to ({new_pos[0]:.1f}, {new_pos[1]:.1f})")
+            logger.info(f"Sent sprite move: {sprite.sprite_id} to ({new_pos[0]:.1f}, {new_pos[1]:.1f})")
             
         except Exception as e:
             logger.error(f"Failed to send sprite movement: {e}")
@@ -401,14 +417,13 @@ class NetworkedContext:
             return
             
         # Ensure sprite has an ID
-        if not hasattr(sprite, 'id') or not sprite.id:
-            sprite.id = str(__import__('uuid').uuid4())
-            
-        change = {
+        if not hasattr(sprite, 'sprite_id') or not sprite.sprite_id:
+            sprite.sprite_id = str(__import__('uuid').uuid4())
+            change = {
             'category': 'sprite',
             'type': 'sprite_scale',
             'data': {
-                'sprite_id': sprite.id,
+                'sprite_id': sprite.sprite_id,
                 'from': {'x': old_scale[0], 'y': old_scale[1]},
                 'to': {'x': new_scale[0], 'y': new_scale[1]},
                 'table_id': self.context.current_table.name if self.context.current_table else 'default',
@@ -425,8 +440,7 @@ class NetworkedContext:
                 self.context.protocol.send(msg.to_json())
             elif hasattr(self.context.protocol, 'send_message'):
                 self.context.protocol.send_message(msg)
-                
-            logger.info(f"Sent sprite scale: {sprite.id} to ({new_scale[0]:.2f}, {new_scale[1]:.2f})")
+                logger.info(f"Sent sprite scale: {sprite.sprite_id} to ({new_scale[0]:.2f}, {new_scale[1]:.2f})")
             
         except Exception as e:
             logger.error(f"Failed to send sprite scaling: {e}")
@@ -450,4 +464,4 @@ class NetworkedContext:
             
         except Exception as e:
             logger.error(f"Failed to request table: {e}")
-        
+

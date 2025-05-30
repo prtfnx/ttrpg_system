@@ -93,7 +93,7 @@ def init_connection(server_ip=SERVER_IP, server_port=SERVER_PORT):
         logger.error("Failed to connect to server: %s", sdl3.SDL_GetError())
         return
 
-    logger.info("Connected to server at %s %s", server_ip.value.decode(), server_port.value)
+    logger.info("Net socket created at %s %s", server_ip.value.decode(), server_port.value)
     return client
 
 def send_data(socket, data):
@@ -133,8 +133,9 @@ def receive_data(socket, message_buffer=None):
         except UnicodeDecodeError as e:
             logger.error(f"Failed to decode received data: {e}")
             return None
-    
-    return None
+    elif received == 0:
+        return None
+    return '-1' #TODO implement propper send receive handling
 
 def close_connection(socket):
     """Close the network connection."""

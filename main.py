@@ -37,7 +37,9 @@ logger = logging.getLogger(__name__)
 BASE_WIDTH: int = 1920
 BASE_HEIGHT: int = 1080
 NET_SLEEP: float = 0.1
-CHECK_INTERVAL: float = 20.0
+CHECK_INTERVAL: float = 2.0
+NUMBER_OF_NET_FAILS: int = 5
+TIME_TO_CONNECT: int = 4000  # 4 seconds
 
 def SDL_AppInit_func():
     """Initialize SDL window, renderer, and network client."""
@@ -152,20 +154,16 @@ def SDL_AppInit_func():
     # Initialize paint system
     paint.init_paint_system(test_context)
     logger.info("Paint system initialized.")
-    
 
-    
-    
-    
-
-    def init_net_thread():
-        socket = client_sdl.init_connection()
-        test_context.net_socket = socket
-
-    net_thread = threading.Thread(target=init_net_thread, daemon=True)
-    net_thread.start()
-    test_context.net_client_started = True
-    logger.info("Network client initialized.")
+    logger.info("Start to initialize network client.")
+    try:
+        logger.info("Starting network client thread")
+        net_thread = threading.Thread(target=start_net_connection_thread, args=(test_context,), daemon=True)
+        net_thread.start()
+        test_context.net_client_started = True
+    except Exception as e:
+        logger.error(f"Failed to start network connection: {e}")
+        test_context.net_client_started = False
 
     # Setup protocol
     def send_to_server(msg: str):
@@ -232,47 +230,89 @@ def handle_information(msg, context):
     if msg == "hello":
         event_sys.handle_key_event(context, sdl3.SDL_SCANCODE_SPACE)
         #gui_sys.add_chat_message("Hello received from server!", "Server")
+# def init_net_func(context):
+#     """Initialize the network thread."""
+#     logger.info("Initializing network thread...")
+#     socket = client_sdl.init_connection()
+#     context.net_socket = socket
 
-def net_thread(context):
+def start_net_connection_thread(context):
+    """Start the network connection."""
+    logger.info("Starting network connection...")
+    while True:
+        try:
+            logger.info("Creating network socket...")
+            socket = client_sdl.init_connection()
+            context.net_socket = socket
+            net_thread_func(context)
+        except Exception as e:
+            logger.error("Error creating network socket: %s", e)
+            time.sleep(1)
+
+    #init_net_thread = threading.Thread(target=init_net_func, daemon=True)
+    #init_net_thread.start()
+
+def net_thread_func(context):
     """Thread for network communication."""
-    logger.info("Network thread started.")
+    logger.info("Network thread func started.")
     last_check = time.time()
     check_interval = CHECK_INTERVAL
+    net_fails = 0
 
-    def is_socket_alive(sock):
+
+    socket = context.net_socket
+    logger.info("Waiting for network connection...")
+    connected = sdl3.SDL_net.NET_GetConnectionStatus(socket)
+
+    while not connected == 1:
+        logger.info(f'Connected status: {connected}')
+        logger.info("Waiting for network connection...")
+        #time.sleep(1)
+        connected = sdl3.SDL_net.NET_WaitUntilConnected(
+            socket, 
+            TIME_TO_CONNECT     # Wait for 2 second to ensure connection
+        )
+        if connected == -1:
+            logger.error("Failed to connect to server: %s", sdl3.SDL_GetError().decode())
+            try:
+                logger.info("Closing socket after failed connection.")
+                logger.info(f"socket: {socket}")
+                client_sdl.close_connection(socket)                
+            except Exception as e:
+                logger.error("Error closing socket: %s", e)
+            return 
+        
+    def manual_ping(socket, ):
         try:
-            client_sdl.send_data(sock, "__ping__")
+            
+            client_sdl.send_data(socket, "__ping__")
             return True
         except Exception as e:
             logger.warning("Socket check failed: %s", e)
             return False
 
-    while not context.net_socket:
-        time.sleep(NET_SLEEP)
-    socket = context.net_socket
+    
     logger.info("Network socket obtained.")
 
     while True:
+        #logger.info(f'time.time() {time.time()}  last_check {last_check}  check_interval: {check_interval}')
         # Periodically check connection
         if time.time() - last_check > check_interval:
-            if not is_socket_alive(socket):
+            # TODO: Implement a proper reconnect mechanism, refactor this
+            if net_fails > NUMBER_OF_NET_FAILS :
+                logger.warning(f"net fails {net_fails}  is more than {NUMBER_OF_NET_FAILS}.")
                 logger.warning("Connection lost. Reconnecting...")
                 try:
                     client_sdl.close_connection(socket)
                 except Exception as e:
                     logger.error("Error closing socket: %s", e)
-                while True:
-                    try:
-                        socket = client_sdl.init_connection()
-                        if socket:
-                            context.net_socket = socket
-                            logger.info("Reconnected to server.")
-                            break
-                    except Exception as e:
-                        logger.error("Reconnect failed: %s", e)
-                    time.sleep(2)
+                return
+            
+            logger.debug(f"Manual ping attempt, net fails:  {net_fails}")
+            net_fails +=1  
+            manual_ping(socket)
+                         
             last_check = time.time()
-
         # Write from queue_to_send to socket
         try:
             while not context.queue_to_send.empty():
@@ -284,9 +324,20 @@ def net_thread(context):
         # Read from socket and put into queue_to_read
         try:
             data = client_sdl.receive_data(socket)
-            if data and data.strip() != "__pong__":
-                context.queue_to_read.put(data)
-                logger.info("Received data: %s", data)
+            if data:
+                if data.strip() == "__pong__":
+                    net_fails = max(0, net_fails - 1)
+                    logger.debug(f'Received pong decrease net fails. net_fails={net_fails}.')
+                elif data.strip() == "-1":
+                    pass
+                    #TODO: implement proper send receive handling
+                    #net_fails += 1
+                    #logger.error(f'Cannt receive data, increase net_fails={net_fails}')
+                else:
+                    context.queue_to_read.put(data)
+                    logger.debug(f"Received data: %s", data)  
+                    #net_fails -= 1
+
         except Exception as e:
             logger.error("Error receiving data: %s", e)
 
@@ -316,17 +367,17 @@ def main():
     
     # Initialize SDL
     try:
-        ctx = SDL_AppInit_func()
+        context = SDL_AppInit_func()
     except Exception as e:
         logger.critical("Error initializing SDL: %s", e)
         sdl3.SDL_Quit()
         sys.exit(1)
         
     # Initialize Net thread
-    if ctx.net_client_started:
-        logger.info("Starting network client thread")
-        t = threading.Thread(target=net_thread, args=(ctx,), daemon=True)
-        t.start()
+    # if context.net_client_started:
+    #     logger.info("Starting network client thread")
+    #     net_thread = threading.Thread(target=net_thread_func, args=(context,), daemon=True)
+    #     net_thread.start()
 
     running = True
     event = sdl3.SDL_Event()
@@ -335,7 +386,7 @@ def main():
         # Handle events
         while sdl3.SDL_PollEvent(ctypes.byref(event)):
             # Let ImGui process events first and check if it consumed them
-            gui_consumed = ctx.imgui.process_event(event)
+            gui_consumed = context.imgui.process_event(event)
             #if ctx.imgui.io.want_capture_mouse or ctx.imgui.io.want_capture_keyboard:
                 #gui_consumed = ctx.imgui.process_event(event)
             
@@ -344,25 +395,25 @@ def main():
                 # Handle paint events
                 if paint.handle_paint_events(event):
                     continue  # Paint system consumed the event
-                    
+                
                 # Handle normal game events
-                running = event_sys.handle_event(ctx, event)
-        
+                running = event_sys.handle_event(context, event)
+
         # Render SDL content first (SDL handles its own clearing)
-        SDL_AppIterate(ctx)
+        SDL_AppIterate(context)
         
         # Then render ImGui over the SDL content
-        ctx.imgui.iterate()
+        context.imgui.iterate()
 
         #sdl3.SDL_RenderPresent(ctx.renderer)
         #sdl3.SDL_GL_SwapWindow(ctx.window)
         
         # Final buffer swap to display both SDL and ImGui content
-        sdl3.SDL_GL_SwapWindow(ctx.window)
-        
+        sdl3.SDL_GL_SwapWindow(context.window)
+
     # Cleanup
-    sdl3.SDL_DestroyRenderer(ctx.renderer)
-    sdl3.SDL_DestroyWindow(ctx.window)
+    sdl3.SDL_DestroyRenderer(context.renderer)
+    sdl3.SDL_DestroyWindow(context.window)
     sdl3.SDL_Quit()
 
 if __name__ == "__main__":

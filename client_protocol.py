@@ -50,7 +50,7 @@ class ClientProtocol:
                 if response:
                     self.send(response.to_json())
                 return
-            print('1')            # Built-in handlers
+            # Built-in handlers
             if msg.type == MessageType.PONG:
                 logger.debug("Pong received")
             elif msg.type == MessageType.NEW_TABLE_RESPONSE:
@@ -85,7 +85,7 @@ class ClientProtocol:
         """Update local table from server data"""
         if not self.context.current_table:
             self.context.add_table(data['name'], data['width'], data['height'])
-        print('2')
+        
         table = self.context.current_table
         table.scale = data.get('scale', 1.0)
         table.x_moved = data.get('x_moved', 0.0)
@@ -112,7 +112,7 @@ class ClientProtocol:
         """Create a new table from the provided data"""
        
         self.context.create_table_from_json(data)
-        print('3')
+        
         
 
     def _save_file(self, data: Dict):
@@ -127,7 +127,8 @@ class ClientProtocol:
     
     def send_sprite_update(self, update_type: str, sprite_data: Dict[str, Any]):
         """Send sprite-specific updates"""
-        msg = Message(MessageType.TABLE_UPDATE, {
+        
+        msg = Message(MessageType.SPRITE_UPDATE, {
             'category': 'sprite',
             'type': update_type, 
             'data': sprite_data

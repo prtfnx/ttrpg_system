@@ -28,7 +28,7 @@ import compendium_sprites
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.WARNING,
     format="%(asctime)s %(levelname)s:%(name)s: %(message)s"
 )
 logger = logging.getLogger(__name__)
@@ -89,8 +89,10 @@ def SDL_AppInit_func():
     if not renderer:
         logger.critical("Failed to create renderer: %s", sdl3.SDL_GetError().decode())
         sys.exit(1)
-    # Initialize ImGui GUI system
+    # Create context for the application
     test_context = context.Context(renderer, window, base_width=BASE_WIDTH, base_height=BASE_HEIGHT)
+    #Initialize ImGui GUI system
+    
     try:
         imgui_sys = gui_imgui.ImGuiSystem(window, gl_context, test_context)
         logger.info("GUI ImGui system initialized.")
@@ -99,9 +101,9 @@ def SDL_AppInit_func():
         logger.error(f"Error initializing ImGui: {e}")
         imgui_sys = None
     
-    # Enable VSync for the SDL renderer
+    #Enable VSync for the SDL renderer
     # vsync_result = sdl3.SDL_SetRenderVSync(renderer, ctypes.c_int(1))  # 1 = enable VSync
-    # print(('x'))
+    # #print(('x'))
     # if vsync_result == 0:
     #     logger.info(f"VSync enabled for {render_driver} renderer.")
     # else:
@@ -167,6 +169,7 @@ def SDL_AppInit_func():
 
     # Setup protocol
     def send_to_server(msg: str):
+          
         test_context.queue_to_send.put(msg)
     
     protocol = test_context.setup_protocol(send_to_server)
@@ -387,8 +390,9 @@ def main():
         while sdl3.SDL_PollEvent(ctypes.byref(event)):
             # Let ImGui process events first and check if it consumed them
             gui_consumed = context.imgui.process_event(event)
-            #if ctx.imgui.io.want_capture_mouse or ctx.imgui.io.want_capture_keyboard:
-                #gui_consumed = ctx.imgui.process_event(event)
+            
+            # if ctx.imgui.io.want_capture_mouse or ctx.imgui.io.want_capture_keyboard:
+            #     gui_consumed = ctx.imgui.process_event(event)
             
             # Only process game events if ImGui didn't consume them
             if not gui_consumed:

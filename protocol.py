@@ -18,9 +18,17 @@ class MessageType(enum.Enum):
     TABLE_DATA = "table_data"
     TABLE_UPDATE = "table_update"
     
+    # Sprite sync
+    SPRITE_REQUEST = "sprite_request"
+    SPRITE_RESPONSE = "sprite_response"
+    SPRITE_DATA = "sprite_data"
+    SPRITE_UPDATE = "sprite_update"
+    SPRITE_REMOVE = "sprite_remove"
+    
     # File transfer
     FILE_REQUEST = "file_request"
     FILE_DATA = "file_data"
+    
     
     # Compendium operations
     COMPENDIUM_SPRITE_ADD = "compendium_sprite_add"

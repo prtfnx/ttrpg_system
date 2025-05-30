@@ -37,13 +37,16 @@ def handle_mouse_motion(cnt, event):
             new_pos = (sprite.coord_x.value, sprite.coord_y.value)
             
             # Send network update if position changed significantly
+            
             if hasattr(sprite, '_last_network_x'):
                 dx = abs(new_pos[0] - sprite._last_network_x)
                 dy = abs(new_pos[1] - sprite._last_network_y)
-                
-                # Only send if moved more than threshold (reduce network spam)
+                  
+            # Only send if moved more than threshold (reduce network spam)
                 if dx > DIFF_POSITION or dy > DIFF_POSITION:
+                    #print(f"cnt.network_context.sync_sprite_move: {cnt.network_context.sync_sprite_move} ")
                     cnt.network_context.sync_sprite_move(sprite, old_pos, new_pos)
+                    
                     sprite._last_network_x = new_pos[0]
                     sprite._last_network_y = new_pos[1]
             
@@ -78,7 +81,7 @@ def handle_mouse_motion(cnt, event):
                         sprite.scale_x = max(0.05, sprite._resize_start_scale_x - dx)
                         # Adjust position to keep right edge in place
                         sprite.coord_x.value = sprite._resize_start_coord_x+moved_dx/table_scale
-                        print(f'Resize WEST: frect_x={sprite.frect.x:.3f}, moved={moved_dx:.3f}')
+                       # print(f'Resize WEST: frect_x={sprite.frect.x:.3f}, moved={moved_dx:.3f}')
 
                     case Directions.NORTH:
                         sprite.scale_y = max(0.05, sprite._resize_start_scale_y - dy )
@@ -341,6 +344,8 @@ def handle_mouse_button_up(cnt, event):
 
 def handle_resize_end(cnt, sprite):
     """Called when sprite resize operation ends"""
+    logger.debug(f"Resize ended for sprite {sprite.name} at scale ({sprite.scale_x}, {sprite.scale_y})")
+    cnt.resizing = False
     if sprite and hasattr(cnt, 'network_context'):
         # Send scale update
         new_scale = (sprite.scale_x, sprite.scale_y)
@@ -452,7 +457,7 @@ def handle_key_event(cnt, key_code):
                 table.selected_sprite.character.spell_attack(x, y, spell)
                 sprite = cnt.add_sprite(spell.sprite, scale_x=0.1, scale_y=0.1, moving=True, speed=1, collidable=True, coord_x=table.selected_sprite.coord_x.value, coord_y=table.selected_sprite.coord_y.value)
                 sprite.set_position(cnt.current_table.selected_sprite.coord_x.value, cnt.current_table.selected_sprite.coord_y.value)
-                print(f" x.value:{x.value}, cnt.current_table.selected_sprite.coord_x.value: {cnt.current_table.selected_sprite.coord_x.value}, cnt.current_table.x_moved: {cnt.current_table.x_moved}" )
+                #print(f" x.value:{x.value}, cnt.current_table.selected_sprite.coord_x.value: {cnt.current_table.selected_sprite.coord_x.value}, cnt.current_table.x_moved: {cnt.current_table.x_moved}" )
                 dx = x.value - table.selected_sprite.coord_x.value*table.scale - table.x_moved
                 dy = y.value - table.selected_sprite.coord_y.value*table.scale - table.y_moved
                 length = (dx ** 2 + dy ** 2) ** 0.5

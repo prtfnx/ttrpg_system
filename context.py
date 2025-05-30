@@ -34,8 +34,8 @@ class Context:
         self.window_width, self.window_height = ctypes.c_int(), ctypes.c_int()
         self.net_client_started = False
         self.net_socket = None
-        self.queue_to_send = queue.Queue(1000)
-        self.queue_to_read = queue.Queue(1000)
+        self.queue_to_send = queue.Queue(0)
+        self.queue_to_read = queue.Queue(0)
         self.waiting_for_table = False
         self.current_table = None
         self.list_of_tables = []
@@ -216,20 +216,20 @@ class Context:
             table.y_moved = json_data.get('y_moved', 1.0)
             table.show_grid = json_data.get('show_grid', True)
             table.cell_side = json_data.get('cell_side', CELL_SIDE)
-            print(json_data)
+            #print(json_data)
             # Add sprites from layers
             layers_data = json_data.get('layers', {})
-            print('4')
-            print(layers_data.items())
+            #print('4')
+            #print(layers_data.items())
             for layer, sprites_data in layers_data.items():
-                print(f"sprite data: {sprites_data}, layer: {layer}")
-                print(f"Processing layer: {layer} with {len(sprites_data)} sprites")
+                #print(f"sprite data: {sprites_data}, layer: {layer}")
+                #print(f"Processing layer: {layer} with {len(sprites_data)} sprites")
                 if layer in table.layers:  # Only add to valid layers
                     for sprite_data in sprites_data.values():
-                        print(f"Creating sprite from data: {sprite_data}")
+                        #print(f"Creating sprite from data: {sprite_data}")
                         try:
                             # Create sprite with proper parameters
-                            print(f"Adding sprite with id: {sprite_data.get('sprite_id', None)}")
+                            #print(f"Adding sprite with id: {sprite_data.get('sprite_id', None)}")
                             sprite = self.add_sprite(
                                 texture_path=sprite_data.get('texture_path', '').encode(),
                                 scale_x=sprite_data.get('scale_x', 1.0),
@@ -361,7 +361,7 @@ class ContextTable:
                        for layer, sprites in self.dict_of_sprites_list.items()}
         }
         logger.info(f"Saved table as json")
-        print(data)
+        #print(data)
         return data
 
 class NetworkedContext:
@@ -395,17 +395,16 @@ class NetworkedContext:
             }
         }
         
-        # Send via protocol using TABLE_UPDATE message type
+        # Send via protocol using SPRITE_UPDATE message type
         
-        msg = Message(MessageType.TABLE_UPDATE, change, 
-                     getattr(self.context.protocol, 'client_id', 'unknown'))
+        msg = Message(MessageType.SPRITE_UPDATE, change, 
+                    getattr(self.context.protocol, 'client_id', 'unknown'))
         
+        #print(f"Sending sprite move: {sprite.sprite_id} from ({old_pos[0]:.1f}, {old_pos[1]:.1f}) to ({new_pos[0]:.1f}, {new_pos[1]:.1f})")
+        #print(f"Sender: {self.context.protocol.send}")
         try:
             # Send the message (adapt based on your protocol's send method)
-            if hasattr(self.context.protocol, 'send'):
-                self.context.protocol.send(msg.to_json())
-            elif hasattr(self.context.protocol, 'send_message'):
-                self.context.protocol.send_message(msg)
+            self.context.protocol.send(msg.to_json())
             logger.info(f"Sent sprite move: {sprite.sprite_id} to ({new_pos[0]:.1f}, {new_pos[1]:.1f})")
             
         except Exception as e:

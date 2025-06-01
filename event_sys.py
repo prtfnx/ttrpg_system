@@ -21,6 +21,12 @@ DIFF_POSITION = 10  # Minimum position change to trigger network sync
 # Fix the handle_mouse_motion to use the stored offset:
 
 def handle_mouse_motion(cnt, event):
+    cnt.cursor_position_x, cnt.cursor_position_y = event.motion.x, event.motion.y
+    cnt.LightingManager.frect_light.x = cnt.cursor_position_x -360
+    cnt.LightingManager.frect_light.y = cnt.cursor_position_y -360
+    #print(f"event motion.x y {event.motion.x}, {event.motion.y}")
+    #print(f"cursor: {cnt.cursor_position_x}, {cnt.cursor_position_y}")
+    #print(f"rect: {cnt.LightingManager.rectLight_x}, {cnt.LightingManager.rectLight_y}")
     if cnt.grabing:
         if cnt.current_table.selected_sprite is not None:
             sprite = cnt.current_table.selected_sprite
@@ -176,6 +182,7 @@ def handle_mouse_motion(cnt, event):
             else:
                 sdl3.SDL_SetCursor(sdl3.SDL_CreateSystemCursor(sdl3.SDL_SYSTEM_CURSOR_DEFAULT))
                 cnt.cursor = sdl3.SDL_SYSTEM_CURSOR_DEFAULT
+    
 
 def handle_resize(cnt, direction):
     cnt.resizing = True

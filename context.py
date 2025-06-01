@@ -5,7 +5,9 @@ import json
 import sdl3
 import logging
 import time
+import ctypes
 from protocol import Message, MessageType
+
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +43,13 @@ class Context:
         self.list_of_tables = []
         self.moving_table = False
         self.network_context = NetworkedContext(self)
-        
+        self.LightingManager = None
         # Compendium integration
         self.compendium_manager = None
+        self.light_on = True
+        self.cursor_position_x = 0.0
+        self.cursor_position_y = 0.0
+
 
     def add_sprite(self, texture_path, scale_x, scale_y, layer='tokens',
                    character=None, moving=False, speed=None,

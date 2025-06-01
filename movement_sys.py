@@ -72,7 +72,37 @@ def move_sprites(cnt, delta_time):
             except ZeroDivisionError:
                 logger.error("ZeroDivisionError in sprite scaling.")
             cnt.step.value = max(frect.w, frect.h)
-            sdl3.SDL_RenderTexture(cnt.renderer, sprite.texture, None, ctypes.byref(sprite.frect))
+            #cnt.light_on=False
+            if cnt.light_on:
+                render_texture_light = cnt.LightingManager.render_texture_light
+                render_texture = cnt.LightingManager.render_texture
+                texture_light = cnt.LightingManager.texture_light
+                frect_light = cnt.LightingManager.frect_light
+                sdl3.SDL_SetRenderDrawColor(cnt.renderer, 0, 0, 0, sdl3.SDL_ALPHA_OPAQUE)
+                sdl3.SDL_SetRenderTarget(cnt.renderer, render_texture_light)
+                sdl3.SDL_RenderClear(cnt.renderer)
+                sdl3.SDL_RenderTexture(cnt.renderer,texture_light,  None, ctypes.byref(frect_light))
+                
+                #print(f"frect: {frect_light.x}, y={frect_light.y}, w={frect_light.w}, h={frect_light.h}")
+                
+                sdl3.SDL_SetRenderTarget(cnt.renderer, render_texture)
+                sdl3.SDL_RenderClear(cnt.renderer)
+
+                sdl3.SDL_SetRenderDrawColor(cnt.renderer, 255, 255, 255, 255)
+                
+                sdl3.SDL_RenderFillRect(cnt.renderer, ctypes.byref(sprite.frect))
+                 ### polygon
+                sdl3.SDL_SetRenderTarget(cnt.renderer, None)
+                sdl3.SDL_RenderClear(cnt.renderer)
+                # #mode for sprites
+                #sdl3.SDL_SetTextureBlendMode(sprite.texture, sdl3.SDL_BLENDMODE_BLEND)
+                
+                sdl3.SDL_RenderTexture(cnt.renderer, sprite.texture, None, ctypes.byref(sprite.frect))
+                sdl3.SDL_RenderTexture(cnt.renderer, render_texture, None, None)
+                sdl3.SDL_RenderTexture(cnt.renderer, render_texture_light, None, None)
+                #sdl3.SDL_RenderPresent(cnt.renderer)
+            else:
+                sdl3.SDL_RenderTexture(cnt.renderer, sprite.texture, None, ctypes.byref(sprite.frect))
 
 def test_margin(cnt):
     """Draw margin rectangles around the selected sprite for visual debugging."""

@@ -21,10 +21,13 @@ from imgui_bundle import imgui
 import OpenGL.GL as gl
 import example
 import argparse
+import lighting_sys
 
-# Import compendium integration
-from compendium_manager import get_compendium_manager, load_compendiums
-import compendium_sprites
+
+
+#Import profiling system
+#import profiler
+#from profiler_integration import profile_sdl_operations, profile_imgui_operations, profile_context_operations
 
 # Configure logging
 logging.basicConfig(
@@ -40,6 +43,13 @@ NET_SLEEP: float = 0.1
 CHECK_INTERVAL: float = 2.0
 NUMBER_OF_NET_FAILS: int = 5
 TIME_TO_CONNECT: int = 4000  # 4 seconds
+COMPENDIUM_SYSTEM: bool = False
+LIGHTING_SYS: bool = True
+
+# Import compendium integration
+if COMPENDIUM_SYSTEM:
+    from compendium_manager import get_compendium_manager, load_compendiums
+    import compendium_sprites
 
 def SDL_AppInit_func():
     """Initialize SDL window, renderer, and network client."""
@@ -118,30 +128,32 @@ def SDL_AppInit_func():
     logger.info(f"Renderer {render_driver} initialized.")
     
     # Initialize D&D 5e Compendiums
-    logger.info("Loading D&D 5e compendiums...")
-    try:
-        compendium_results = load_compendiums()
-        compendium_manager = get_compendium_manager()
-        test_context.compendium_manager = compendium_manager
-        
-        loaded_systems = sum(compendium_results.values())
-        logger.info(f"Loaded {loaded_systems}/4 compendium systems: {compendium_results}")
-        
-        # Log system status
-        status = compendium_manager.get_system_status()
-        if status['data_counts']:
-            logger.info(f"Compendium data loaded: {status['data_counts']}")
-    except Exception as e:
-        logger.error(f"Failed to load compendiums: {e}")
-        test_context.compendium_manager = None
+    if COMPENDIUM_SYSTEM:
+        logger.info("Loading D&D 5e compendiums...")
+        try:
+            compendium_results = load_compendiums()
+            compendium_manager = get_compendium_manager()
+            test_context.compendium_manager = compendium_manager
+            
+            loaded_systems = sum(compendium_results.values())
+            logger.info(f"Loaded {loaded_systems}/4 compendium systems: {compendium_results}")
+            
+            # Log system status
+            status = compendium_manager.get_system_status()
+            if status['data_counts']:
+                logger.info(f"Compendium data loaded: {status['data_counts']}")
+        except Exception as e:
+            logger.error(f"Failed to load compendiums: {e}")
+            test_context.compendium_manager = None
     
-    test_spell = core_table.entities.Spell(
-        name="test", description="test", level=1, sprite=b"resources/magic_projectile.gif"
-    )
+   
     
     test_context.gl_context = sdl3.SDL_GL_CreateContext(window)
     logger.info("Context initialized.")
-
+    # Initialize table, spell and character
+    test_spell = core_table.entities.Spell(
+        name="test", description="test", level=1, sprite=b"resources/magic_projectile.gif"
+    )
     test_table = test_context.add_table("test_table", BASE_WIDTH, BASE_HEIGHT)
     test_character = core_table.Character.Character(
         name="test_name", race="test_race", char_class=None, hp=10, level=1, stats=None
@@ -152,7 +164,24 @@ def SDL_AppInit_func():
     test_context.add_sprite(b"resources/woman.png", scale_x=0.5, scale_y=0.5, character=test_character)
     test_context.add_sprite(b"resources/token_1.png", scale_x=0.5, scale_y=0.5, collidable=True)
     test_context.add_sprite(b"resources/test.gif", scale_x=0.5, scale_y=0.5)
-    
+    # Initialize lighting system
+    if LIGHTING_SYS:
+        logger.info("Initializing lighting system...")
+        try:
+            test_context.LightingManager = lighting_sys.LightManager(test_context, name ="default_lighting_manager") 
+            print(f"Lighting manager: {test_context.LightingManager}")
+            default_light = lighting_sys.Light('default_light')
+            test_context.LightingManager.add_light(default_light)
+            light_sprite = test_context.add_sprite(
+                b"resources/light.png", scale_x=0.5, scale_y=0.5,layer='light',)
+            #test_context.LightingManager.add_light_sprite(default_light, light_sprite)
+            test_context.LightingManager.create_light_texture(default_light, path_to_image=b"resources/light.png")
+            test_context.light_on= True
+            logger.info("Lighting system initialized.")
+        except Exception as e:
+            logger.error(f"Failed to initialize lighting system: {e}")
+            test_context.LightingManager = None
+
     # Initialize paint system
     paint.init_paint_system(test_context)
     logger.info("Paint system initialized.")
@@ -206,7 +235,7 @@ def SDL_AppIterate(context):
         handle_information(data, context)
     
     # FLUSH SDL content to OpenGL - this is the key fix
-    sdl3.SDL_FlushRenderer(renderer)
+    #sdl3.SDL_FlushRenderer(renderer)
     
     return sdl3.SDL_APP_CONTINUE
 
@@ -405,11 +434,12 @@ def main():
 
         # Render SDL content first (SDL handles its own clearing)
         SDL_AppIterate(context)
-        
+        #context.LightingManager.iterate()
         # Then render ImGui over the SDL content
+        sdl3.SDL_FlushRenderer(context.renderer)
         context.imgui.iterate()
 
-        #sdl3.SDL_RenderPresent(ctx.renderer)
+        #sdl3.SDL_RenderPresent(context.renderer)
         #sdl3.SDL_GL_SwapWindow(ctx.window)
         
         # Final buffer swap to display both SDL and ImGui content

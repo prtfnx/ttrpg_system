@@ -30,8 +30,46 @@ def move_sprites(cnt, delta_time):
     """Move all sprites, handle collisions and dying sprites."""
     width = cnt.window_width
     height = cnt.window_height
-    for layers in cnt.current_table.dict_of_sprites_list.values():
-        for sprite in layers:
+    for layer, list in cnt.current_table.dict_of_sprites_list.items():
+        if layer == 'light' and cnt.light_on:
+             
+            render_texture_light = cnt.LightingManager.render_texture_light
+            render_texture = cnt.LightingManager.render_texture
+            texture_light = cnt.LightingManager.texture_light
+            frect_light = sdl3.SDL_FRect()
+            # light_width= 1000
+            # light_height= 1000
+            light_width = cnt.current_table.selected_sprite.frect.w
+            light_height = cnt.current_table.selected_sprite.frect.h
+            frect_light.x = (cnt.current_table.selected_sprite.frect.x - light_width / 2)  -500
+            frect_light.y = (cnt.current_table.selected_sprite.frect.y )-500
+            frect_light.w = light_width*2 +1000
+            frect_light.h = light_height+1000
+            #print(f"frect_light: {frect_light.x}, y={frect_light.y}, w={frect_light.w}, h={frect_light.h}")
+            #print(f"sprite_frect: x={cnt.current_table.selected_sprite.frect.x}, y={cnt.current_table.selected_sprite.frect.y}, w={cnt.current_table.selected_sprite.frect.w}, h={cnt.current_table.selected_sprite.frect.h}")
+            sdl3.SDL_SetRenderDrawColor(cnt.renderer, 0, 0, 0, sdl3.SDL_ALPHA_OPAQUE)
+            sdl3.SDL_SetRenderTarget(cnt.renderer, render_texture_light)
+            sdl3.SDL_RenderClear(cnt.renderer)
+            sdl3.SDL_RenderTexture(cnt.renderer, texture_light,  None, ctypes.byref(frect_light))
+            sdl3.SDL_SetRenderTarget(cnt.renderer, render_texture)
+            sdl3.SDL_RenderClear(cnt.renderer)
+
+            sdl3.SDL_SetRenderDrawColor(cnt.renderer, 255, 255, 255, 255)
+            sdl3.SDL_RenderFillRect(cnt.renderer, ctypes.byref(frect_light))
+                
+            sdl3.SDL_SetRenderTarget(cnt.renderer, None)
+                
+             # ???? sdl3.SDL_RenderClear(cnt.renderer)
+              # #mode for sprites
+             #sdl3.SDL_SetTextureBlendMode(sprite.texture, sdl3.SDL_BLENDMODE_BLEND)
+            print(f"frect_light: {frect_light.x}, y={frect_light.y}, w={frect_light.w}, h={frect_light.h}")
+            print(f"sprite_frect: x={cnt.current_table.selected_sprite.frect.x}, y={cnt.current_table.selected_sprite.frect.y}, w={cnt.current_table.selected_sprite.frect.w}, h={cnt.current_table.selected_sprite.frect.h}")   
+            
+            #sdl3.SDL_RenderTexture(cnt.renderer, sprite.texture, None, ctypes.byref(sprite.frect))
+            #sdl3.SDL_RenderTexture(cnt.renderer, render_texture, None, None)
+            
+            sdl3.SDL_RenderTexture(cnt.renderer, render_texture_light, None, None)
+        for sprite in list:
             # Movement
             if sprite.moving:
                 sprite.move(delta_time)
@@ -73,36 +111,49 @@ def move_sprites(cnt, delta_time):
                 logger.error("ZeroDivisionError in sprite scaling.")
             cnt.step.value = max(frect.w, frect.h)
             #cnt.light_on=False
-            if cnt.light_on:
-                render_texture_light = cnt.LightingManager.render_texture_light
-                render_texture = cnt.LightingManager.render_texture
-                texture_light = cnt.LightingManager.texture_light
-                frect_light = cnt.LightingManager.frect_light
-                sdl3.SDL_SetRenderDrawColor(cnt.renderer, 0, 0, 0, sdl3.SDL_ALPHA_OPAQUE)
-                sdl3.SDL_SetRenderTarget(cnt.renderer, render_texture_light)
-                sdl3.SDL_RenderClear(cnt.renderer)
-                sdl3.SDL_RenderTexture(cnt.renderer,texture_light,  None, ctypes.byref(frect_light))
+            # working light 
+            #if cnt.light_on:
+            #     render_texture_light = cnt.LightingManager.render_texture_light
+            #     render_texture = cnt.LightingManager.render_texture
+            #     texture_light = cnt.LightingManager.texture_light
+            #     frect_light = cnt.LightingManager.frect_light
                 
-                #print(f"frect: {frect_light.x}, y={frect_light.y}, w={frect_light.w}, h={frect_light.h}")
+            #     sdl3.SDL_SetRenderDrawColor(cnt.renderer, 0, 0, 0, sdl3.SDL_ALPHA_OPAQUE)
+            #     sdl3.SDL_SetRenderTarget(cnt.renderer, render_texture_light)
+            #     sdl3.SDL_RenderClear(cnt.renderer)
+            #     sdl3.SDL_RenderTexture(cnt.renderer,texture_light,  None, ctypes.byref(frect_light))
                 
-                sdl3.SDL_SetRenderTarget(cnt.renderer, render_texture)
-                sdl3.SDL_RenderClear(cnt.renderer)
+            #     #print(f"frect: {frect_light.x}, y={frect_light.y}, w={frect_light.w}, h={frect_light.h}")
+                
+            #     sdl3.SDL_SetRenderTarget(cnt.renderer, render_texture)
+            #     sdl3.SDL_RenderClear(cnt.renderer)
 
-                sdl3.SDL_SetRenderDrawColor(cnt.renderer, 255, 255, 255, 255)
+            #      ### polygon of visibility
+            #     sdl3.SDL_SetRenderDrawColor(cnt.renderer, 255, 255, 255, 255)
+            #     sdl3.SDL_RenderFillRect(cnt.renderer, ctypes.byref(frect_light))
                 
-                sdl3.SDL_RenderFillRect(cnt.renderer, ctypes.byref(sprite.frect))
-                 ### polygon
-                sdl3.SDL_SetRenderTarget(cnt.renderer, None)
-                sdl3.SDL_RenderClear(cnt.renderer)
-                # #mode for sprites
-                #sdl3.SDL_SetTextureBlendMode(sprite.texture, sdl3.SDL_BLENDMODE_BLEND)
+            #     sdl3.SDL_SetRenderTarget(cnt.renderer, None)
                 
-                sdl3.SDL_RenderTexture(cnt.renderer, sprite.texture, None, ctypes.byref(sprite.frect))
-                sdl3.SDL_RenderTexture(cnt.renderer, render_texture, None, None)
-                sdl3.SDL_RenderTexture(cnt.renderer, render_texture_light, None, None)
-                #sdl3.SDL_RenderPresent(cnt.renderer)
-            else:
-                sdl3.SDL_RenderTexture(cnt.renderer, sprite.texture, None, ctypes.byref(sprite.frect))
+            #     # ???? sdl3.SDL_RenderClear(cnt.renderer)
+            #     # #mode for sprites
+            #     #sdl3.SDL_SetTextureBlendMode(sprite.texture, sdl3.SDL_BLENDMODE_BLEND)
+                
+            #     sdl3.SDL_RenderTexture(cnt.renderer, sprite.texture, None, ctypes.byref(sprite.frect))
+            #     sdl3.SDL_RenderTexture(cnt.renderer, render_texture, None, None)
+            #     sdl3.SDL_RenderTexture(cnt.renderer, render_texture_light, None, None)
+            #     #sdl3.SDL_RenderPresent(cnt.renderer)
+            #else:
+            # for test
+            if layer == 'light': 
+                #sdl3.SDL_SetRenderDrawColorFloat(cnt.renderer, 0, 0, 0, sdl3.SDL_ALPHA_TRANSPARENT_FLOAT)
+                #sdl3.SDL_RenderClear(cnt.renderer)
+                # If the layer is 'lights', we skip rendering the sprite texture
+                #print(f"Skipping rendering for layer: {layer}")
+                cnt.light_mode = 'blend'
+                match cnt.light_mode:
+                    case 'blend':
+                        sdl3.SDL_SetTextureBlendMode(sprite.texture, sdl3.SDL_BLENDMODE_MOD)
+            sdl3.SDL_RenderTexture(cnt.renderer, sprite.texture, None, ctypes.byref(sprite.frect))
 
 def test_margin(cnt):
     """Draw margin rectangles around the selected sprite for visual debugging."""

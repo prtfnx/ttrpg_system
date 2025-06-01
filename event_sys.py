@@ -195,7 +195,7 @@ def handle_mouse_button_down(cnt, event):
         # Create the point for mouse position
         point = sdl3.SDL_FPoint()
         point.x, point.y = event.button.x, event.button.y
-        
+        logger.debug(f"Mouse button down at {point.x}, {point.y}")
         # Check if we're clicking on a resize handle first
         if cnt.current_table and cnt.current_table.selected_sprite:
             sprite = cnt.current_table.selected_sprite

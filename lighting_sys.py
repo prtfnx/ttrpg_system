@@ -11,8 +11,8 @@ class LightManager:
         self.context = context
         self.lights = []
         self.dict_of_light_sprites = {}
-        self.rectLight_x = context.cursor_position_x - 360.0
-        self.rectLight_y = context.cursor_position_y - 360.0
+        self.frectLight_x = context.cursor_position_x - 360.0
+        self.frectLight_y = context.cursor_position_y - 360.0
 
     def add_light_sprite(self, light, sprite):
         """Add a sprite to a light"""
@@ -74,7 +74,7 @@ class LightManager:
         except Exception as e:
             logger.error(f"Error during light iteration: {e}")
             raise
-    def create_light_texture(self, light, path_to_image=b"resources/light.png",width=264, height=264):
+    def create_light_texture(self, light, path_to_image=b"resources/light.png",width=1920, height=1080):
         """test purpose: create a texture for a light"""
         renderer= self.context.renderer
         print('Creating light texture for', light.name)
@@ -97,7 +97,7 @@ class LightManager:
         self.render_texture_light = render_texture_light
         self.render_texture = render_texture
         self.frect_light= sdl3.SDL_FRect(
-            x=self.rectLight_x, y=self.rectLight_y, 
+            x=self.frectLight_x, y=self.frectLight_y, 
             w=width, h=height
         )
 

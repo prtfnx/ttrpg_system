@@ -29,12 +29,22 @@ import lighting_sys
 #import profiler
 #from profiler_integration import profile_sdl_operations, profile_imgui_operations, profile_context_operations
 
-# Configure logging
+# Configure logging with enhanced debug visibility
 logging.basicConfig(
-    level=logging.WARNING,
-    format="%(asctime)s %(levelname)s:%(name)s: %(message)s"
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)8s] %(name)s: %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),  # Console output
+        logging.FileHandler('debug.log', mode='w')  # File output for persistence
+    ]
 )
+
+# Set specific loggers to debug level to ensure they show debug messages
+logging.getLogger().setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+
 
 
 BASE_WIDTH: int = 1920

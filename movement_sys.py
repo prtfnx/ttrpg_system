@@ -62,8 +62,8 @@ def move_sprites(cnt, delta_time):
              # ???? sdl3.SDL_RenderClear(cnt.renderer)
               # #mode for sprites
              #sdl3.SDL_SetTextureBlendMode(sprite.texture, sdl3.SDL_BLENDMODE_BLEND)
-            print(f"frect_light: {frect_light.x}, y={frect_light.y}, w={frect_light.w}, h={frect_light.h}")
-            print(f"sprite_frect: x={cnt.current_table.selected_sprite.frect.x}, y={cnt.current_table.selected_sprite.frect.y}, w={cnt.current_table.selected_sprite.frect.w}, h={cnt.current_table.selected_sprite.frect.h}")   
+            #print(f"frect_light: {frect_light.x}, y={frect_light.y}, w={frect_light.w}, h={frect_light.h}")
+            #print(f"sprite_frect: x={cnt.current_table.selected_sprite.frect.x}, y={cnt.current_table.selected_sprite.frect.y}, w={cnt.current_table.selected_sprite.frect.w}, h={cnt.current_table.selected_sprite.frect.h}")   
             
             #sdl3.SDL_RenderTexture(cnt.renderer, sprite.texture, None, ctypes.byref(sprite.frect))
             #sdl3.SDL_RenderTexture(cnt.renderer, render_texture, None, None)

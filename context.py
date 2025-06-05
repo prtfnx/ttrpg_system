@@ -6,7 +6,7 @@ import sdl3
 import logging
 import time
 import ctypes
-from protocol import Message, MessageType
+from net.protocol import Message, MessageType
 
 
 logger = logging.getLogger(__name__)
@@ -267,7 +267,7 @@ class Context:
 
     def setup_protocol(self, send_callback):
         """Initialize protocol handler"""
-        from client_protocol import ClientProtocol
+        from net.client_protocol import ClientProtocol
         self.protocol = ClientProtocol(self, send_callback)
         return self.protocol
 

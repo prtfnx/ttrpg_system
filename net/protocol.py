@@ -9,6 +9,7 @@ class MessageType(enum.Enum):
     PING = "ping"
     PONG = "pong"
     ERROR = "error"
+    TEST = "test"  # Add test message type
     
     # Table sync
     NEW_TABLE_REQUEST = "new_table_request"

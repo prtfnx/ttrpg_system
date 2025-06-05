@@ -2,7 +2,7 @@ import os
 import time
 import hashlib
 from typing import Callable, Optional, Dict, Any
-from protocol import Message, MessageType, ProtocolHandler
+from .protocol import Message, MessageType, ProtocolHandler
 import logging
 
 logger = logging.getLogger(__name__)

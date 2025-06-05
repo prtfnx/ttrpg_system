@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from server_protocol import ServerProtocol
 from table import VirtualTable
-from protocol import Message, MessageType
+from net.protocol import Message, MessageType
 
 logger = logging.getLogger(__name__)
 

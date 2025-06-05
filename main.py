@@ -10,13 +10,15 @@ import core_table.Character
 import core_table.entities
 import movement_sys
 import threading
-import client_sdl
+from net import client_sdl
+from net import client_webhook
+from net import client_webhook_protocol
 import time
 import json
 import paint  
 import gui.gui_imgui as gui_imgui  
 import asyncio
-from protocol import ProtocolHandler, Message, MessageType
+from net.protocol import ProtocolHandler, Message, MessageType
 from imgui_bundle import imgui
 import OpenGL.GL as gl
 import example
@@ -61,7 +63,7 @@ if COMPENDIUM_SYSTEM:
     from compendium_manager import get_compendium_manager, load_compendiums
     import compendium_sprites
 
-def SDL_AppInit_func():
+def SDL_AppInit_func(args=None):
     """Initialize SDL window, renderer, and network client."""
     
     # Set OpenGL attributes BEFORE creating window
@@ -195,23 +197,32 @@ def SDL_AppInit_func():
     # Initialize paint system
     paint.init_paint_system(test_context)
     logger.info("Paint system initialized.")
-
     logger.info("Start to initialize network client.")
     try:
-        logger.info("Starting network client thread")
-        net_thread = threading.Thread(target=start_net_connection_thread, args=(test_context,), daemon=True)
-        net_thread.start()
+        if args and args.connection == 'webhook':
+            logger.info("Starting webhook client")
+            webhook_thread = threading.Thread(
+                target=start_webhook_connection_thread, 
+                args=(test_context, args.server_url, int(args.webhook_port)), 
+                daemon=True
+            )
+            webhook_thread.start()
+        else:
+            logger.info("Starting SDL network client thread")
+            net_thread = threading.Thread(target=start_net_connection_thread, args=(test_context,), daemon=True)
+            net_thread.start()
         test_context.net_client_started = True
     except Exception as e:
         logger.error(f"Failed to start network connection: {e}")
-        test_context.net_client_started = False
-
-    # Setup protocol
+        test_context.net_client_started = False    # Setup protocol
     def send_to_server(msg: str):
-          
         test_context.queue_to_send.put(msg)
     
-    protocol = test_context.setup_protocol(send_to_server)
+    if args and args.connection == 'webhook':
+        protocol = client_webhook_protocol.setup_webhook_protocol(test_context, test_context.net_socket)
+    else:
+        protocol = test_context.setup_protocol(send_to_server)
+    
     protocol.request_table()  # Request default table
     
     return test_context
@@ -385,6 +396,71 @@ def net_thread_func(context):
 
         time.sleep(NET_SLEEP)
 
+def start_webhook_connection_thread(context, server_url, webhook_port):
+    """Start the webhook connection."""
+    logger.info("Starting webhook connection...")
+    while True:
+        try:
+            logger.info("Creating webhook client...")
+            webhook_client = client_webhook.init_connection(server_url, webhook_port)
+            context.net_socket = webhook_client  # Store webhook client in same attribute
+            webhook_thread_func(context)
+        except Exception as e:
+            logger.error("Error creating webhook connection: %s", e)
+            time.sleep(1)
+
+def webhook_thread_func(context):
+    """Thread for webhook communication."""
+    logger.info("Webhook thread func started.")
+    last_check = time.time()
+    check_interval = CHECK_INTERVAL
+    net_fails = 0
+
+    webhook_client = context.net_socket
+    logger.info("Webhook client ready for communication...")
+
+    while True:
+        current_time = time.time()
+        
+        # Check connection periodically
+        if current_time - last_check > check_interval:
+            try:
+                webhook_client.ping_server()
+                last_check = current_time
+            except Exception as e:
+                logger.error("Webhook ping error: %s", e)
+                net_fails += 1
+                if net_fails > NUMBER_OF_NET_FAILS:
+                    logger.error("Too many webhook failures, reconnecting...")
+                    break
+
+        # Send queued messages
+        try:
+            while not context.queue_to_send.empty():
+                msg = context.queue_to_send.get_nowait()
+                webhook_client.send_data(msg)
+                logger.debug(f"Sent webhook data: {msg[:100]}...")
+        except Exception as e:
+            logger.error("Error sending webhook data: %s", e)
+
+        # Receive messages
+        try:
+            data = client_webhook.receive_data(webhook_client)
+            if data:
+                if data.strip() == "__pong__":
+                    net_fails = max(0, net_fails - 1)
+                    logger.debug(f'Received webhook pong, net_fails={net_fails}.')
+                elif data.strip() == "-1":
+                    pass  # Handle webhook specific errors
+                else:
+                    context.queue_to_read.put(data)
+                    logger.debug(f"Received webhook data: {data[:100]}...")
+        except Exception as e:
+            logger.error("Error receiving webhook data: %s", e)
+            net_fails += 1
+
+        time.sleep(NET_SLEEP)
+
 def parse_arguments():
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(description='TTRPG System Main Application')
@@ -394,22 +470,31 @@ def parse_arguments():
                        help='Server IP address (default: 127.0.0.1)')
     parser.add_argument('--port', default='12345',
                        help='Server port (default: 12345)')
+    parser.add_argument('--connection', choices=['sdl', 'webhook'], default='sdl',
+                       help='Connection type: sdl for TCP socket or webhook for HTTP/webhooks (default: sdl)')
+    parser.add_argument('--webhook-port', default='8080',
+                       help='Local webhook server port (default: 8080)')
+    parser.add_argument('--server-url', default='https://your-app.onrender.com',
+                       help='Server URL for webhook connection (default: https://your-app.onrender.com)')
     parser.add_argument('--no-menu', action='store_true',
                        help='Skip main menu and start directly')
     
     return parser.parse_args()
 
 def main():
-    """Main entry point."""
-    # Parse command line arguments
+    """Main entry point."""    # Parse command line arguments
     args = parse_arguments()
-    
     logger.info(f"Starting TTRPG System in {args.mode} mode")
-    logger.info(f"Server: {args.server}:{args.port}")
+    logger.info(f"Connection type: {args.connection}")
+    if args.connection == 'webhook':
+        logger.info(f"Server URL: {args.server_url}")
+        logger.info(f"Webhook port: {args.webhook_port}")
+    else:
+        logger.info(f"Server: {args.server}:{args.port}")
     
     # Initialize SDL
     try:
-        context = SDL_AppInit_func()
+        context = SDL_AppInit_func(args)
     except Exception as e:
         logger.critical("Error initializing SDL: %s", e)
         sdl3.SDL_Quit()

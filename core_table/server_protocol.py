@@ -7,7 +7,7 @@ import logging
 # Add parent directory to path to import protocol
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from protocol import Message, MessageType, ProtocolHandler
+from net.protocol import Message, MessageType, ProtocolHandler
 
 logger = logging.getLogger(__name__)
 

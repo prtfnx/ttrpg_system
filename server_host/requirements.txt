@@ -1,0 +1,6 @@
+# Server requirements for render.com deployment
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+aiohttp>=3.10.0
+aiofiles>=24.1.0
+python-multipart>=0.0.9

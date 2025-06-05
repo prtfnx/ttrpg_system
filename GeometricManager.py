@@ -94,23 +94,24 @@ class GeometricManager:
     @profile_function
     def generate_visibility_polygon(player_pos: np.ndarray, obstacles: np.ndarray, 
                                   max_view_distance: int = 100,
-                                  additional_rays: int = 40) -> np.ndarray:
+                                  step_to_gap: int = 1) -> np.ndarray:
         """
         FAST visibility polygon generation - cast rays ONLY to obstacle endpoints + few additional rays.
         
-        EXACT LOGIC AS REQUESTED:
+        LOGIC:
         2.1) Player point of view in 2D map with line obstacles (start/end points)
-        2.2) Find vertices for visibility polygon very fast, accuracy not critical
+        2.2) Find vertices for visibility polygon very fast
         2.3) Cast rays using fast function to ALL obstacle start/end points 
         2.4) Find intersections between rays and obstacles
         2.5) Find distances for intersections
         2.6) Collect only points with shortest distance for visibility polygon
+        2.7) Cast rays to fill gaps between arcs (if needed) 
         
         Args:
             player_pos: numpy array [x, y] representing player position
             obstacles: numpy array of shape (N, 2, 2) representing line segments
             max_view_distance: maximum viewing distance
-            additional_rays: number of additional rays for coverage (default 40)
+            step_to_gap: number of additional rays for coverage (default 40)
         
         Returns:
             numpy array of shape (M, 2) representing visibility polygon vertices
@@ -120,20 +121,28 @@ class GeometricManager:
         # Step 2.3: Cast rays to ALL obstacle start and end points
         if obstacles.size > 0:
             # Get all obstacle endpoints (start and end points)
+            #print(f"Obstacles : {obstacles}")
             endpoints = obstacles.reshape(-1, 2)  # Shape: (2*N, 2) - all start/end points
-            
+            #print(f"Obstacle endpoints: {endpoints}")
             # Calculate angles from player to each obstacle endpoint - FAST vectorized
             vectors = endpoints - player_pos
+            #print('Vectors to endpoints:', vectors)
             angles_to_endpoints = np.arctan2(vectors[:, 1], vectors[:, 0])
-            
+            #print(f"Angles to endpoints: {angles_to_endpoints}")
+            # FIX: Normalize angles to [0, 2π] range to handle negative angles
+            angles_to_endpoints = np.where(angles_to_endpoints < 0, 
+                                         angles_to_endpoints + 2 * np.pi, 
+                                         angles_to_endpoints)
+            #print(f"Norm angles endpoints: {angles_to_endpoints}")
             # Add small perturbations for shadow boundaries (edge cases)
             epsilon = 0.001
             for angle in angles_to_endpoints:
                 ray_angles.extend([angle - epsilon, angle, angle + epsilon])
-        
-        # Add ONLY ~40 additional rays for general coverage (not many!)
-        additional_angles = np.linspace(0, 2 * np.pi, additional_rays, endpoint=False)
-        ray_angles.extend(additional_angles)
+           
+        else:
+            # No obstacles - just add regular rays in all directions
+            additional_angles = np.linspace(0, 2 * np.pi, step_to_gap, endpoint=False)
+            ray_angles.extend(additional_angles)
         
         # Step 2.4, 2.5, 2.6: Cast rays and find shortest intersections
         visibility_points = []
@@ -143,12 +152,212 @@ class GeometricManager:
                 player_pos, angle, max_view_distance, obstacles
             )
             visibility_points.append(intersection_point)
-        
+
+        # Step 2.7: Cast rays to fill gaps between arcs
+        gap_mask= GeometricManager._find_arc_gaps_fast(angles_to_endpoints,step_to_gap=step_to_gap)
+        if isinstance(gap_mask, np.ndarray) and gap_mask.dtype == bool:
+            gap_indices = np.where(~gap_mask)[0]  # Find False elements (gaps)
+            #print(f"Gap indices: {gap_indices}")
+            if len(gap_indices) > 0:
+                # Convert indices to radians
+                gap_angles_from_mask = (gap_indices[:] * 2 * np.pi / len(gap_mask))
+                for angle in gap_angles_from_mask:
+                    end_point = GeometricManager._cast_ray_to_max_distance(
+                        player_pos, angle, max_view_distance
+                    )
+                    #print(f"Adding gap ray at angle {angle} to point {end_point}")
+                    visibility_points.append(end_point)
+                GeometricManager.angle_gaps = gap_angles_from_mask
+            
+
         if len(visibility_points) == 0:
             return np.array([]).reshape(0, 2)
         
         visibility_array = np.array(visibility_points)
+        #for test visual
+        
+        GeometricManager.visibility_polygon = visibility_array
+        GeometricManager.ray_angles = ray_angles
         return GeometricManager._sort_points_clockwise(visibility_array, player_pos)
+
+    
+    @staticmethod
+    @profile_function
+    def _find_arc_gaps_fast(angles_to_endpoints: np.ndarray, step_to_gap: int = 10) -> np.ndarray:
+        """
+        Simple and fast gap detection using numpy mask operations.
+        Find gaps between obstacle coverage and return angles to it.        
+        """
+        #TODO: fix logic. Temprorary solution to back to vectors:
+        #if np.any(angles_to_endpoints < 0.2) or np.any(angles_to_endpoints > 6.0):
+        #    return GeometricManager._find_arc_gaps_fast_vector(angles_to_endpoints, step_to_gap=step_to_gap)
+        
+        # Convert full circle in radians 6.28 to step_to_gap segments
+        mask_size= 628 // step_to_gap
+        #print(f"step_to_gap: {step_to_gap}, size: {mask_size}")        
+        # If no obstacles, return full circle
+        min_gap_threshold = np.pi / 36
+        shadow_angle = np.pi / 72
+        if len(angles_to_endpoints) == 0:
+            return np.zeros(mask_size, dtype=bool)
+        # Form mask for angles to obstacles
+        else:
+            mask = np.zeros(mask_size, dtype=bool)
+            for i in range(0,len(angles_to_endpoints) - 1, 2):
+                angular_span = angles_to_endpoints[i+1] - angles_to_endpoints[i]
+
+                # Handle wraparound case
+                if angular_span < 0:
+                    angular_span += 2 * np.pi
+                #first_norm_vector = int(angles_to_endpoints[i]*100// step_to_gap)
+                #second_norm_vector = int(angles_to_endpoints[i+1]*10000 // step_to_gap)
+                first_norm_vector = int((angles_to_endpoints[i] / (2 * np.pi)) * mask_size) % mask_size
+                second_norm_vector = int((angles_to_endpoints[i+1] / (2 * np.pi)) * mask_size) % mask_size
+
+                #print(f"first_norm_vector: {first_norm_vector}, second_norm_vector: {second_norm_vector}")
+                #print(f"i: {i}")
+                #print(f"angular span {angular_span}")
+                #print(f"first_norm_vector: {first_norm_vector}, second_norm_vector: {second_norm_vector}")
+                # Excess checks to ensure indices are within bounds, and try to cover obstacles excessively
+                if angular_span < np.pi:
+                    #print(f"Angular span is less than pi: {angular_span}")
+                    if first_norm_vector <= second_norm_vector:
+                        #print(f"First norm vector <= second norm vector: {first_norm_vector} <= {second_norm_vector}")
+                        if first_norm_vector > 1:
+                            if second_norm_vector < mask_size:
+                                mask[first_norm_vector-1:second_norm_vector+1] = True
+                            else:
+                                mask[first_norm_vector-1:second_norm_vector] = True
+                        # elif second_norm_vector < mask_size:
+                        #     mask[second_norm_vector:first_norm_vector+1] = True
+                        # else:
+                        #     mask[second_norm_vector:first_norm_vector] = True
+                    # reverse case
+                    else:
+                        #print(f"Second norm vector >= first norm vector: {first_norm_vector} >= {second_norm_vector}")
+                        # if second_norm_vector > 1:
+                        #     if first_norm_vector < mask_size:
+                        #         mask[second_norm_vector-1:first_norm_vector+1] = True
+                        #     else:
+                        #         mask[second_norm_vector-1:first_norm_vector] = True
+                        # elif first_norm_vector < mask_size:
+                        #     mask[second_norm_vector:first_norm_vector+1] = True
+                        # else:
+                        #     mask[second_norm_vector:first_norm_vector] = True
+                        mask[first_norm_vector-1:mask_size] = True
+                        mask[0:second_norm_vector+1] = True
+                else:
+                    #print(f"Angular span is more than pi: {angular_span}")
+                    if first_norm_vector < second_norm_vector:
+                        print(f"First norm vector <= second norm vector: {first_norm_vector} <= {second_norm_vector}")
+                        if first_norm_vector < mask_size:
+                            if second_norm_vector > 1:
+                                mask[0:first_norm_vector+1] = True
+                                mask[second_norm_vector-1:mask_size] = True
+                            else:
+                                mask[0:first_norm_vector+1] = True
+                                mask[second_norm_vector:mask_size] = True
+                        elif second_norm_vector > 1:
+                            mask[0:first_norm_vector] = True
+                            mask[second_norm_vector-1:mask_size] = True
+                        else:
+                            mask[0:first_norm_vector] = True
+                            mask[second_norm_vector-1:mask_size] = True
+
+                    # reverse case
+                    else:
+                        #print(f"Second norm vector >= first norm vector: {second_norm_vector} >= {first_norm_vector}")
+                        # if second_norm_vector > 1:
+                        #     if first_norm_vector < mask_size:
+                        #         mask[second_norm_vector-1:first_norm_vector+1] = True
+                        #     else:
+                        #         mask[second_norm_vector-1:first_norm_vector] = True
+                        # elif first_norm_vector < mask_size:
+                        #     mask[second_norm_vector:first_norm_vector+1] = True
+                        # else:
+                        #     mask[second_norm_vector:first_norm_vector] = True
+                        if second_norm_vector > 1:
+                            if first_norm_vector < mask_size:
+                                mask[second_norm_vector-1:first_norm_vector+1] = True   
+                            else:
+                                mask[second_norm_vector-1:first_norm_vector] = True
+                        elif first_norm_vector < mask_size:
+                            mask[second_norm_vector:first_norm_vector+1] = True
+                        else:
+                            mask[second_norm_vector:first_norm_vector] = True
+            #print(f"Mask after angles: {mask}")
+            return mask
+            
+
+    @staticmethod
+    @profile_function
+    def _find_arc_gaps_fast_vector(angles_to_endpoints: np.ndarray, step_to_gap: int = 10) -> np.ndarray:
+        """
+        Simple and fast gap detection using vector operations instead of angle normalization.
+        Find gaps between obstacle coverage and return mask indicating coverage.
+        Back airdrome version with vectors.
+        """
+        # Convert full circle to step_to_gap segments
+        mask_size = 628 // step_to_gap
+        
+        # If no obstacles, return all gaps (no coverage)
+        if len(angles_to_endpoints) == 0:
+            return np.zeros(mask_size, dtype=bool)
+        
+        # Create unit vectors for each mask segment (evenly spaced around circle)
+        segment_angles = np.linspace(0, 2 * np.pi, mask_size, endpoint=False)
+        segment_vectors = np.column_stack([np.cos(segment_angles), np.sin(segment_angles)])
+        
+        # Create unit vectors from angles to endpoints
+        endpoint_vectors = np.column_stack([np.cos(angles_to_endpoints), np.sin(angles_to_endpoints)])
+        
+        # Initialize mask (False = gap, True = covered by obstacle)
+        mask = np.zeros(mask_size, dtype=bool)
+        
+        # For each pair of consecutive endpoint vectors, mark the arc between them as covered
+        for i in range(0, len(endpoint_vectors) - 1, 2):
+            if i + 1 >= len(endpoint_vectors):
+                break
+                
+            vec1 = endpoint_vectors[i]
+            vec2 = endpoint_vectors[i + 1]
+            
+            # Calculate which segments fall between these two vectors
+            # Use cross product to determine if segment is between vec1 and vec2
+            for j, segment_vec in enumerate(segment_vectors):
+                if GeometricManager._vector_is_between(segment_vec, vec1, vec2):
+                    mask[j] = True
+        
+        return mask
+
+    @staticmethod
+    def _vector_is_between(test_vec: np.ndarray, vec1: np.ndarray, vec2: np.ndarray) -> bool:
+        """
+        Check if test_vec is between vec1 and vec2 in counterclockwise direction.
+        All vectors should be unit vectors (normalized).
+        """
+        # Calculate cross products to determine relative positions
+        cross1 = np.cross(vec1, test_vec)  # vec1 × test_vec
+        cross2 = np.cross(test_vec, vec2)  # test_vec × vec2
+        cross_span = np.cross(vec1, vec2)  # vec1 × vec2
+        
+        # If the span is small (vectors are very close), consider it covered
+        if abs(cross_span) < 1e-6:
+            return True
+        
+        # Check if test_vec is in the sector from vec1 to vec2
+        if cross_span > 0:  # Counterclockwise from vec1 to vec2
+            return cross1 >= 0 and cross2 >= 0
+        else:  # Clockwise from vec1 to vec2 (or crossing zero)
+            return cross1 <= 0 or cross2 <= 0
+    
+    @staticmethod
+    @profile_function
+    def _cast_ray_to_max_distance(start: np.ndarray, angle: float, max_distance: int, 
+                                    ) -> np.ndarray:
+        direction = np.array([np.cos(angle), np.sin(angle)], dtype=np.float64)
+        ray_end = start + max_distance * direction
+        return ray_end
 
     @staticmethod
     @profile_function
@@ -277,13 +486,14 @@ class GeometricManager:
         return mask
 
     @staticmethod
-    def test_visibility_system():
+    def test_visibility_system(stress_test: bool = False, fill_polygon: bool = False,
+                               step_to_gap: int = 40) -> None:
         """
         SDL visual test for the FAST visibility system.
         Shows the fast method logic in action with real-time visualization.
         """
         print("Testing SDL3 FAST visibility system...")
-        
+        print(f'step_to_gap: {step_to_gap}, stress_test: {stress_test}, fill_polygon: {fill_polygon}')
         # Initialize SDL with proper flags
         if sdl3.SDL_Init(sdl3.SDL_INIT_VIDEO) < 0:
             print(f"SDL initialization failed: {sdl3.SDL_GetError().decode()}")
@@ -326,14 +536,39 @@ class GeometricManager:
         
         # Test setup - player and obstacles (same as original but numpy format)
         player_pos = np.array([400.0, 300.0], dtype=np.float64)  # Center of window
+        # default test
         obstacles = np.array([
             [[200, 150], [350, 150]],  # Top wall
-            [[450, 200], [600, 250]],  # Diagonal wall
+            #[[450, 200], [600, 250]],  # Diagonal wall
+            [[350, 150], [400, 350]],  # Diagonal wall
             [[150, 400], [150, 500]],  # Left vertical wall
             [[500, 350], [650, 350]],  # Bottom wall
             [[100, 100], [200, 200]],  # Corner obstacle
         ], dtype=np.float64)
-        
+        # stress test
+        if stress_test:
+            # Generate 20 obstacles near the center area for stress testing
+            np.random.seed(42)
+            center_x, center_y = 400, 300
+            num_obstacles = 20
+            obstacle_length = 60
+            angles = np.random.uniform(0, 2 * np.pi, num_obstacles)
+            radii = np.random.uniform(80, 200, num_obstacles)
+            offsets = np.random.uniform(-obstacle_length/2, obstacle_length/2, (num_obstacles, 2))
+
+            obstacles = []
+            for i in range(num_obstacles):
+                # Place obstacle center near a ring around the player
+                cx = center_x + radii[i] * np.cos(angles[i])
+                cy = center_y + radii[i] * np.sin(angles[i])
+                # Random orientation
+                theta = np.random.uniform(0, 2 * np.pi)
+                dx = (obstacle_length / 2) * np.cos(theta)
+                dy = (obstacle_length / 2) * np.sin(theta)
+                p1 = [cx - dx + offsets[i,0], cy - dy + offsets[i,1]]
+                p2 = [cx + dx + offsets[i,0], cy + dy + offsets[i,1]]
+                obstacles.append([p1, p2])
+            obstacles = np.array(obstacles, dtype=np.float64)
         # FPS tracking variables
         frame_count = 0
         fps_timer = time.time()
@@ -379,8 +614,9 @@ class GeometricManager:
             
             # Render FAST visibility system (this will be profiled)
             GeometricManager._render_fast_visibility_test(renderer, player_pos, obstacles, 
-                                                       max_view_distance=250.0)
-            
+                                                       max_view_distance=250.0, fill_polygon=fill_polygon,
+                                                       step_to_gap=step_to_gap)
+
             # Render FPS counter on screen
             GeometricManager._render_fps_display(renderer, current_fps, WINDOW_WIDTH, WINDOW_HEIGHT)
             
@@ -396,7 +632,7 @@ class GeometricManager:
                 current_fps = frame_count / elapsed_time
                 
                 # Update window title with FPS
-                fps_title = f"FAST Visibility - FPS: {current_fps:.1f} - Rays: {len(obstacles)*6+40}".encode()
+                fps_title = f"FAST Visibility - FPS: {current_fps:.1f} ".encode()
                 sdl3.SDL_SetWindowTitle(window, fps_title)
                 
                 # Reset counters
@@ -422,14 +658,15 @@ class GeometricManager:
     @staticmethod
     @profile_function
     def _render_fast_visibility_test(renderer, player_pos: np.ndarray, obstacles: np.ndarray, 
-                                   max_view_distance: float = 200.0):
+                                   max_view_distance: float = 200.0, fill_polygon: bool = False,
+                                   step_to_gap: int = 1) -> None:
         """
         Render FAST visibility polygon visualization showing the optimized ray casting method.
-        Shows rays cast ONLY to obstacle endpoints + 40 additional rays.
+        Shows rays cast ONLY to obstacle endpoints + additional rays.
         """
         # Generate visibility polygon using FAST method
         visibility_polygon = GeometricManager.generate_visibility_polygon(
-            player_pos, obstacles, max_view_distance, additional_rays=10        )
+            player_pos, obstacles, max_view_distance, step_to_gap=step_to_gap        )
           # Render obstacles (red lines)
         sdl3.SDL_SetRenderDrawColorFloat(renderer, ctypes.c_float(1.0), ctypes.c_float(0.0), ctypes.c_float(0.0), ctypes.c_float(1.0))  # Red
         for obstacle in obstacles:
@@ -470,56 +707,18 @@ class GeometricManager:
                                 ctypes.c_float(start_point[0]-5), ctypes.c_float(start_point[1]+5),
                                 ctypes.c_float(start_point[0]+5), ctypes.c_float(start_point[1]-5))
 
-
-            # Show rays to endpoints (bright green - the KEY optimization!)
-            sdl3.SDL_SetRenderDrawColorFloat(renderer, 0.0, 1.0, 0.0, 0.6)  # Bright green
-            
-            
-            # for obstacle in obstacles:
-            #     for endpoint in obstacle:
-            #         # Cast ray to this endpoint to show the FAST method logic
-            #         angle = np.arctan2(endpoint[1] - player_pos[1], endpoint[0] - player_pos[0])
-            #         intersection = GeometricManager._cast_ray_to_closest_obstacle(
-            #             player_pos, angle, max_view_distance, obstacles
-            #         )
-            #         sdl3.SDL_RenderLine(renderer,
-            #                           ctypes.c_float(player_pos[0]), ctypes.c_float(player_pos[1]),
-            #                           ctypes.c_float(intersection[0]), ctypes.c_float(intersection[1]))            # Draw filled visibility polygon using triangle fan from center
-            # if len(visibility_polygon) >= 3:
-            #     # Set semi-transparent green for fill
-            #     sdl3.SDL_SetRenderDrawColorFloat(renderer, ctypes.c_float(0.0), ctypes.c_float(1.0), ctypes.c_float(0.0), ctypes.c_float(0.2))
-                
-            #     # Draw triangles from player position to each edge of the polygon
-            #     for i in range(len(visibility_polygon)):
-            #         p1 = visibility_polygon[i]
-            #         p2 = visibility_polygon[(i + 1) % len(visibility_polygon)]
-                    
-            #         # Draw triangle: player_pos -> p1 -> p2
-            #         # Since SDL3 doesn't have filled triangle, we'll draw lines to simulate it
-            #         for alpha_step in range(0, 10):  # Create fill effect with multiple lines
-            #             alpha = alpha_step / 10.0
-                        
-            #             # Interpolate between the triangle edges
-            #             line1_x = player_pos[0] + alpha * (p1[0] - player_pos[0])
-            #             line1_y = player_pos[1] + alpha * (p1[1] - player_pos[1])
-            #             line2_x = player_pos[0] + alpha * (p2[0] - player_pos[0])
-            #             line2_y = player_pos[1] + alpha * (p2[1] - player_pos[1])
-                        
-            #             sdl3.SDL_RenderLine(renderer,
-            #                               ctypes.c_float(line1_x), ctypes.c_float(line1_y),
-            #                               ctypes.c_float(line2_x), ctypes.c_float(line2_y))
-            # Show some additional coverage rays (blue - only 40 total)
-            sdl3.SDL_SetRenderDrawColorFloat(renderer, 0.0, 0.6, 1.0, 0.3)  # Light blue
+            sdl3.SDL_SetRenderDrawColorFloat(renderer, 0.7, 0.6, 1.0, 1)  # e
+            angle_gaps = GeometricManager.angle_gaps           
+            ray_angles = GeometricManager.ray_angles 
             additional_angles = np.linspace(0, 2 * np.pi, 40, endpoint=False)
-            for i, angle in enumerate(additional_angles):
-                if i % 4 == 0:  # Show every 4th ray to reduce visual clutter
-                    intersection = GeometricManager._cast_ray_to_closest_obstacle(
-                        player_pos, angle, max_view_distance, obstacles
-                    )
+            
+            sdl3.SDL_SetRenderDrawColorFloat(renderer, 0.7, 0.8, 0, 1)    
+            for ray in ray_angles:
+                    direction = np.array([np.cos(ray), np.sin(ray)], dtype=np.float64)
+                    ray_end = player_pos + max_view_distance * direction
                     sdl3.SDL_RenderLine(renderer,
-                                      ctypes.c_float(player_pos[0]), ctypes.c_float(player_pos[1]),
-                                      ctypes.c_float(intersection[0]), ctypes.c_float(intersection[1]))
-        
+                                    ctypes.c_float(player_pos[0]), ctypes.c_float(player_pos[1]),
+                                    ctypes.c_float(ray_end[0]), ctypes.c_float(ray_end[1]))
         # Render player position (white cross)
         sdl3.SDL_SetRenderDrawColorFloat(renderer, 1.0, 1.0, 1.0, 1.0)  # White
         player_size = 8
@@ -530,10 +729,29 @@ class GeometricManager:
                           ctypes.c_float(player_pos[0]), ctypes.c_float(player_pos[1] - player_size),
                           ctypes.c_float(player_pos[0]), ctypes.c_float(player_pos[1] + player_size))
         
+
         # Render max view distance circle (faint gray)
         sdl3.SDL_SetRenderDrawColorFloat(renderer, 0.3, 0.3, 0.3, 0.5)  # Faint gray
         GeometricManager._draw_circle_outline(renderer, player_pos, max_view_distance)
-
+        if fill_polygon:
+            # Fill the visibility polygon using SDL3's geometry API (if available)
+            # Fallback: draw many triangles (triangle fan) from player_pos to polygon edges
+            if len(visibility_polygon) >= 3:
+                sdl3.SDL_SetRenderDrawColorFloat(renderer, 0.0, 1.0, 0.0, 0.2)  # Semi-transparent green
+                center = player_pos
+                for i in range(len(visibility_polygon)):
+                    p1 = visibility_polygon[i]
+                    p2 = visibility_polygon[(i + 1) % len(visibility_polygon)]
+                    # Draw triangle: center -> p1 -> p2 by drawing many lines between edges
+                    steps = 10
+                    for alpha in np.linspace(0, 1, steps):
+                        x1 = center[0] + alpha * (p1[0] - center[0])
+                        y1 = center[1] + alpha * (p1[1] - center[1])
+                        x2 = center[0] + alpha * (p2[0] - center[0])
+                        y2 = center[1] + alpha * (p2[1] - center[1])
+                        sdl3.SDL_RenderLine(renderer,
+                            ctypes.c_float(x1), ctypes.c_float(y1),
+                            ctypes.c_float(x2), ctypes.c_float(y2))
     @staticmethod
     @profile_function
     def _render_fps_display(renderer, fps: float, window_width: int, window_height: int):
@@ -598,7 +816,7 @@ class GeometricManager:
                               ctypes.c_float(x2), ctypes.c_float(y2))
 
 def test_fast_visibility():
-    """Test the FAST visibility system according to exact user requirements"""
+    """Test the FAST visibility system"""
     print("=== FAST VISIBILITY SYSTEM TEST ===")
     print("Logic: Cast rays ONLY to obstacle endpoints + 40 additional rays")
     print("Focus: Maximum performance, readable code, best practices")
@@ -620,7 +838,7 @@ def test_fast_visibility():
     
     # Generate visibility polygon (profiled)
     visibility_polygon = GeometricManager.generate_visibility_polygon(
-        player, obstacles, max_view_distance=100, additional_rays=40
+        player, obstacles, max_view_distance=100, step_to_gap=40
     )
     
     print(f"\nVisibility polygon has {len(visibility_polygon)} vertices:")
@@ -644,7 +862,7 @@ def test_fast_visibility():
     for i in range(10):
         start_time = time.perf_counter()
         visibility_polygon = GeometricManager.generate_visibility_polygon(
-            player, large_obstacles, max_view_distance=100, additional_rays=40
+            player, large_obstacles, max_view_distance=100, step_to_gap=40
         )
         end_time = time.perf_counter()
         times.append((end_time - start_time) * 1000)  # Convert to ms
@@ -657,7 +875,7 @@ def test_fast_visibility():
     # Print profiling stats from all tests
     print("\n=== PROFILING SUMMARY ===")
     print(profiler.get_summary())
-    GeometricManager.test_visibility_system()
-    
+    GeometricManager.test_visibility_system(stress_test=False, fill_polygon=True, step_to_gap=30)
+
 if __name__ == "__main__":
     test_fast_visibility()

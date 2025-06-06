@@ -36,6 +36,14 @@ class MessageType(enum.Enum):
     COMPENDIUM_SPRITE_UPDATE = "compendium_sprite_update"
     COMPENDIUM_SPRITE_REMOVE = "compendium_sprite_remove"
     
+    # Registration and connection
+    REGISTRATION_REQUEST = "registration_request"
+    REGISTRATION_RESPONSE = "registration_response"
+    REGISTRATION_CONFIRM = "registration_confirm"
+    CLIENT_DISCONNECT = "client_disconnect"
+    CLIENT_DISCONNECT_RESPONSE = "client_disconnect_response"
+    
+    
     # Extension point for new message types
     CUSTOM = "custom"
 
@@ -45,6 +53,10 @@ class Message:
     data: Optional[Dict[str, Any]] = None
     client_id: Optional[str] = None
     timestamp: Optional[float] = None
+    # Enhanced fields for production games
+    version: str = "1.0"  # Protocol version for backward compatibility
+    priority: int = 0     # Message priority (0=normal, 1=high, 2=critical)
+    sequence_id: Optional[int] = None  # For message ordering and deduplication
     
     def __post_init__(self):
         if self.timestamp is None:
@@ -55,7 +67,10 @@ class Message:
             'type': self.type.value,
             'data': self.data or {},
             'client_id': self.client_id,
-            'timestamp': self.timestamp
+            'timestamp': self.timestamp,
+            'version': self.version,
+            'priority': self.priority,
+            'sequence_id': self.sequence_id
         })
     
     @classmethod
@@ -65,7 +80,10 @@ class Message:
             type=MessageType(data['type']),
             data=data.get('data', {}),
             client_id=data.get('client_id'),
-            timestamp=data.get('timestamp')
+            timestamp=data.get('timestamp'),
+            version=data.get('version', '1.0'),
+            priority=data.get('priority', 0),
+            sequence_id=data.get('sequence_id')
         )
 
 # Protocol handlers interface for extension

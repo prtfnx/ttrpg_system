@@ -85,17 +85,18 @@ class ClientProtocol:
         """Update local table from server data"""
         if not self.context.current_table:
             self.context.add_table(data['name'], data['width'], data['height'])
-        
+        print(f"Updating table: {data['name']}")
         table = self.context.current_table
         table.scale = data.get('scale', 1.0)
         table.x_moved = data.get('x_moved', 0.0)
         table.y_moved = data.get('y_moved', 0.0)
         table.show_grid = data.get('show_grid', True)
-        
+        logger.debug(f"Updating table: {table.name} with scale {table.scale}, moved ({table.x_moved}, {table.y_moved}), grid {table.show_grid}")
         # Load entities
         for layer, entities in data.get('entities', {}).items():
-            table.dict_of_sprites_list[layer].clear()
+            #table.dict_of_sprites_list[layer].clear()
             for entity in entities:
+                logger.debug(f"proccess {entity} from: {layer}")
                 self.context.add_sprite(
                     texture_path=entity['texture_path'].encode(),
                     scale_x=entity.get('scale_x', 1.0),

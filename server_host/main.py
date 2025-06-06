@@ -1,6 +1,6 @@
 """
 FastAPI-based TTRPG Server for render.com hosting
-Provides HTTP/webhook endpoints for client communication
+Provides HTTP/webhook and WebSocket endpoints for client communication
 """
 import asyncio
 import logging
@@ -8,46 +8,57 @@ import os
 import sys
 import uvicorn
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, List, Optional
 import json
 
+
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from server_host.webhook_server import WebhookGameServer
-from server_host.table_manager import WebhookTableManager
-
+from server_host.websocket_server import WebSocketGameServer
+#from core_table.server import TableManager
+import core_table.game as game_module
 logger = logging.getLogger(__name__)
 
-# Global server instance
-game_server: Optional[WebhookGameServer] = None
+# Global server instances
+webhook_server: Optional[WebhookGameServer] = None
+websocket_server: Optional[WebSocketGameServer] = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage server lifecycle"""
-    global game_server
+    global webhook_server, websocket_server
     
     # Startup
-    logger.info("Starting TTRPG Webhook Server...")
-    table_manager = WebhookTableManager()
-    game_server = WebhookGameServer(table_manager)
-    await game_server.initialize()
-    logger.info("Server initialized successfully")
+    logger.info("Starting TTRPG Hybrid Server...")
+    
+    game = game_module.create_test_game()
+    # Initialize both webhook and websocket servers
+    webhook_server = WebhookGameServer(game)
+    websocket_server = WebSocketGameServer(game)
+
+    await webhook_server.initialize()
+    await websocket_server.initialize()
+    
+    logger.info("Hybrid server initialized successfully")
     
     yield
     
     # Shutdown
-    if game_server:
-        await game_server.cleanup()
+    if webhook_server:
+        await webhook_server.cleanup()
+    if websocket_server:
+        await websocket_server.cleanup()
     logger.info("Server shutdown complete")
 
 # Create FastAPI app
 app = FastAPI(
-    title="TTRPG Webhook Server",
-    description="HTTP/Webhook-based TTRPG server for render.com hosting",
+    title="TTRPG Hybrid Server",
+    description="HTTP/Webhook and WebSocket-based TTRPG server for render.com hosting",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -64,12 +75,35 @@ app.add_middleware(
 @app.get("/")
 async def root():
     """Root endpoint - server status"""
+    webhook_clients = len(webhook_server.clients) if webhook_server else 0
+    websocket_clients = len(websocket_server.clients) if websocket_server else 0
+    total_tables = len(webhook_server.table_manager.tables) if webhook_server else 0
+    
     return {
         "status": "running",
-        "server": "TTRPG Webhook Server",
+        "server": "TTRPG Hybrid Server",
         "version": "1.0.0",
-        "clients_connected": len(game_server.clients) if game_server else 0,
-        "tables_available": len(game_server.table_manager.tables) if game_server else 0
+        "webhook_clients_connected": webhook_clients,
+        "websocket_clients_connected": websocket_clients,
+        "total_clients_connected": webhook_clients + websocket_clients,
+        "tables_available": total_tables
+    }
+
+@app.get("/status")
+async def server_status():
+    """Server status endpoint"""
+    webhook_clients = len(webhook_server.clients) if webhook_server else 0
+    websocket_clients = len(websocket_server.clients) if websocket_server else 0
+    total_tables = len(webhook_server.table_manager.tables) if webhook_server else 0
+    
+    return {
+        "status": "running",
+        "server": "TTRPG Hybrid Server",
+        "version": "1.0.0",
+        "webhook_clients_connected": webhook_clients,
+        "websocket_clients_connected": websocket_clients,
+        "total_clients_connected": webhook_clients + websocket_clients,
+        "tables_available": total_tables
     }
 
 @app.get("/health")
@@ -77,9 +111,22 @@ async def health_check():
     """Health check endpoint for render.com"""
     return {
         "status": "healthy",
-        "server_running": game_server is not None,
+        "webhook_server_running": webhook_server is not None,
+        "websocket_server_running": websocket_server is not None,
         "timestamp": asyncio.get_event_loop().time()
     }
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for real-time client connections"""
+    await websocket.accept()
+    
+    if not websocket_server:
+        await websocket.close(code=1011, reason="WebSocket server not initialized")
+        return
+    
+    # Handle the WebSocket connection
+    await websocket_server.handle_websocket_connection(websocket, "/ws")
 
 @app.post("/api/client/register")
 async def register_client(request: Request):
@@ -93,7 +140,10 @@ async def register_client(request: Request):
         if not client_id or not webhook_url:
             raise HTTPException(status_code=400, detail="client_id and webhook_url required")
         
-        success = await game_server.register_client(client_id, webhook_url, client_type)
+        if not webhook_server:
+            raise HTTPException(status_code=503, detail="Webhook server not initialized")
+        
+        success = await webhook_server.register_client(client_id, webhook_url, client_type)
         
         if success:
             return {
@@ -118,7 +168,10 @@ async def unregister_client(request: Request):
         if not client_id:
             raise HTTPException(status_code=400, detail="client_id required")
         
-        await game_server.unregister_client(client_id)
+        if not webhook_server:
+            raise HTTPException(status_code=503, detail="Webhook server not initialized")
+        
+        await webhook_server.unregister_client(client_id)
         
         return {
             "status": "unregistered",
@@ -141,8 +194,11 @@ async def receive_message(request: Request):
         if not client_id or not message:
             raise HTTPException(status_code=400, detail="client_id and message required")
         
-        # Process the message through the game server
-        await game_server.handle_client_message(client_id, message)
+        if not webhook_server:
+            raise HTTPException(status_code=503, detail="Webhook server not initialized")
+        
+        # Process the message through the webhook server
+        await webhook_server.handle_client_message(client_id, message)
         
         return {
             "status": "received",
@@ -164,8 +220,11 @@ async def handle_ping(request: Request):
         if not client_id:
             raise HTTPException(status_code=400, detail="client_id required")
         
+        if not webhook_server:
+            raise HTTPException(status_code=503, detail="Webhook server not initialized")
+        
         # Update client's last ping time
-        await game_server.handle_client_ping(client_id)
+        await webhook_server.handle_client_ping(client_id)
         
         return {
             "status": "pong",
@@ -181,7 +240,10 @@ async def handle_ping(request: Request):
 async def list_clients():
     """List connected clients"""
     try:
-        clients = await game_server.get_client_list()
+        if not webhook_server:
+            raise HTTPException(status_code=503, detail="Webhook server not initialized")
+        
+        clients = await webhook_server.get_client_list()
         return {
             "status": "success",
             "clients": clients,
@@ -196,7 +258,10 @@ async def list_clients():
 async def list_tables():
     """List available tables"""
     try:
-        tables = await game_server.get_table_list()
+        if not webhook_server:
+            raise HTTPException(status_code=503, detail="Webhook server not initialized")
+        
+        tables = await webhook_server.get_table_list()
         return {
             "status": "success",
             "tables": tables,
@@ -211,7 +276,10 @@ async def list_tables():
 async def get_table_data(table_name: str):
     """Get specific table data"""
     try:
-        table_data = await game_server.get_table_data(table_name)
+        if not webhook_server:
+            raise HTTPException(status_code=503, detail="Webhook server not initialized")
+        
+        table_data = await webhook_server.get_table_data(table_name)
         return {
             "status": "success",
             "table": table_data
@@ -233,7 +301,10 @@ async def create_table(request: Request):
         if not name:
             raise HTTPException(status_code=400, detail="table name required")
         
-        table = await game_server.create_table(name, width, height)
+        if not webhook_server:
+            raise HTTPException(status_code=503, detail="Webhook server not initialized")
+        
+        table = await webhook_server.create_table(name, width, height)
         
         return {
             "status": "created",

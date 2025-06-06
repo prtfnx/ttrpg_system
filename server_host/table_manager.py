@@ -14,7 +14,7 @@ from core_table.table import VirtualTable
 
 logger = logging.getLogger(__name__)
 
-class WebhookTableManager:
+class TableManager:
     """Manages virtual tables for the webhook server"""
     
     def __init__(self):

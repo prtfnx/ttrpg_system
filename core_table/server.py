@@ -9,8 +9,8 @@ from typing import Dict, Set
 # Add parent directory to path to import protocol
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from server_protocol import ServerProtocol
-from table import VirtualTable
+from core_table.server_protocol import ServerProtocol
+from core_table.table import VirtualTable
 from net.protocol import Message, MessageType
 
 logger = logging.getLogger(__name__)

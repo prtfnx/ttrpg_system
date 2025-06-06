@@ -10,14 +10,16 @@ import core_table.Character
 import core_table.entities
 import movement_sys
 import threading
+import time
+import json
+import asyncio
+import paint
+import gui.gui_imgui as gui_imgui
 from net import client_sdl
 from net import client_webhook
 from net import client_webhook_protocol
-import time
-import json
-import paint  
-import gui.gui_imgui as gui_imgui  
-import asyncio
+from net import client_websocket
+from net import client_websocket_protocol
 from net.protocol import ProtocolHandler, Message, MessageType
 from imgui_bundle import imgui
 import OpenGL.GL as gl
@@ -207,19 +209,31 @@ def SDL_AppInit_func(args=None):
                 daemon=True
             )
             webhook_thread.start()
+        elif args and args.connection == 'websocket':
+            logger.info("Starting WebSocket client")
+            websocket_thread = threading.Thread(
+                target=start_websocket_connection_thread, 
+                args=(test_context, args.server_url), 
+                daemon=True
+            )
+            websocket_thread.start()
         else:
             logger.info("Starting SDL network client thread")
             net_thread = threading.Thread(target=start_net_connection_thread, args=(test_context,), daemon=True)
             net_thread.start()
         test_context.net_client_started = True
     except Exception as e:
-        logger.error(f"Failed to start network connection: {e}")
-        test_context.net_client_started = False    # Setup protocol
+        logger.error(f"Failed to start network connection: {e}")        
+        test_context.net_client_started = False
+    
+    # Setup protocol
     def send_to_server(msg: str):
         test_context.queue_to_send.put(msg)
     
     if args and args.connection == 'webhook':
         protocol = client_webhook_protocol.setup_webhook_protocol(test_context, test_context.net_socket)
+    elif args and args.connection == 'websocket':
+        protocol = client_websocket_protocol.setup_websocket_protocol(test_context, test_context.net_socket)
     else:
         protocol = test_context.setup_protocol(send_to_server)
     
@@ -262,27 +276,52 @@ def SDL_AppIterate(context):
 
 def handle_information(msg, context):
     """Handle incoming network messages."""
-    asyncio.run(context.protocol.handle_message(msg))
+    try:
+        # Handle WebSocket wrapped messages (old format compatibility)
+        if isinstance(msg, str):
+            try:
+                parsed = json.loads(msg)
+                # Check if this is a wrapped message format from WebSocket server
+                if isinstance(parsed, dict) and "message" in parsed and "server_id" in parsed:
+                    # Extract the actual message from the wrapper
+                    actual_message = parsed["message"]
+                    # If the message is a JSON string, use it directly
+                    if isinstance(actual_message, str):
+                        msg = actual_message
+                    else:
+                        # If it's already parsed, re-serialize it
+                        msg = json.dumps(actual_message)
+                    logger.debug("Unwrapped WebSocket message")
+            except (json.JSONDecodeError, KeyError):
+                # Not a wrapped message, use as-is
+                pass
+        print('context.protocol.handle_message', context.protocol)
+        # Process the message through the protocol handler
+        asyncio.run(context.protocol.handle_message(msg))
 
-    if context.waiting_for_table:
-        context.waiting_for_table = False
-        msg = json.loads(msg)
-        table = context.create_table_from_json(msg)
-        context.list_of_tables.append(table)
-        context.current_table = table
-        logger.info("Table created and changed")
-        #gui_sys.add_chat_message(f"Table '{table.name}' loaded from network")
+        if context.waiting_for_table:
+            context.waiting_for_table = False
+            msg_data = json.loads(msg) if isinstance(msg, str) else msg
+            table = context.create_table_from_json(msg_data)
+            context.list_of_tables.append(table)
+            context.current_table = table
+            logger.info("Table created and changed")
+            #gui_sys.add_chat_message(f"Table '{table.name}' loaded from network")
+            
+        logger.info("Received message: %s", msg)
+        #gui_sys.add_chat_message(f"Network: {msg}", "Server")
         
-    logger.info("Received message: %s", msg)
-    #gui_sys.add_chat_message(f"Network: {msg}", "Server")
-    
-    if msg == "INITIALIZE_TABLE":
-        context.waiting_for_table = True
-        #gui_sys.add_chat_message("Waiting for table data...", "System")
+        if msg == "INITIALIZE_TABLE":
+            context.waiting_for_table = True
+            #gui_sys.add_chat_message("Waiting for table data...", "System")
 
-    if msg == "hello":
-        event_sys.handle_key_event(context, sdl3.SDL_SCANCODE_SPACE)
-        #gui_sys.add_chat_message("Hello received from server!", "Server")
+        if msg == "hello":
+            event_sys.handle_key_event(context, sdl3.SDL_SCANCODE_SPACE)
+            #gui_sys.add_chat_message("Hello received from server!", "Server")
+            
+    except Exception as e:
+        logger.error(f"Error handling message: {e}")
+        logger.debug(f"Problematic message: {msg[:200] if isinstance(msg, str) else str(msg)[:200]}...")
 # def init_net_func(context):
 #     """Initialize the network thread."""
 #     logger.info("Initializing network thread...")
@@ -457,8 +496,72 @@ def webhook_thread_func(context):
                     logger.debug(f"Received webhook data: {data[:100]}...")
         except Exception as e:
             logger.error("Error receiving webhook data: %s", e)
-            net_fails += 1
+            net_fails += 1        
+        time.sleep(NET_SLEEP)
 
+def start_websocket_connection_thread(context, server_url):
+    """Start the WebSocket connection."""
+    logger.info("Starting WebSocket connection...")
+    while True:
+        try:
+            logger.info("Creating WebSocket client...")
+            websocket_client = client_websocket.init_connection(server_url)
+            context.net_socket = websocket_client  # Store WebSocket client in same attribute
+            websocket_thread_func(context)
+        except Exception as e:
+            logger.error("Error creating WebSocket connection: %s", e)
+            time.sleep(1)
+
+def websocket_thread_func(context):
+    """Thread for WebSocket communication."""
+    logger.info("WebSocket thread func started.")
+    last_check = time.time()
+    check_interval = CHECK_INTERVAL
+    net_fails = 0
+
+    websocket_client = context.net_socket
+    logger.info("WebSocket client ready for communication...")
+
+    while True:
+        current_time = time.time()
+        
+        # Check connection periodically
+        if current_time - last_check > check_interval:
+            try:
+                websocket_client.ping_server()
+                last_check = current_time
+            except Exception as e:
+                logger.error("WebSocket ping error: %s", e)
+                net_fails += 1
+                if net_fails > NUMBER_OF_NET_FAILS:
+                    logger.error("Too many WebSocket failures, reconnecting...")
+                    break
+
+        # Send queued messages
+        try:
+            while not context.queue_to_send.empty():
+                msg = context.queue_to_send.get_nowait()
+                websocket_client.send_data(msg)
+                logger.debug(f"Sent WebSocket data: {msg[:100]}...")
+        except Exception as e:
+            logger.error("Error sending WebSocket data: %s", e)
+
+        # Receive messages
+        try:
+            data = client_websocket.receive_data(websocket_client)
+            if data:
+                if data.strip() == "__pong__":
+                    net_fails = max(0, net_fails - 1)
+                    logger.debug(f'Received WebSocket pong, net_fails={net_fails}.')
+                elif data.strip() == "-1":
+                    pass  # Handle WebSocket specific errors
+                else:
+                    context.queue_to_read.put(data)
+                    logger.debug(f"Received WebSocket data: {data[:100]}...")
+        except Exception as e:
+            logger.error("Error receiving WebSocket data: %s", e)
+            net_fails += 1
+            
         time.sleep(NET_SLEEP)
 
 def parse_arguments():
@@ -470,8 +573,8 @@ def parse_arguments():
                        help='Server IP address (default: 127.0.0.1)')
     parser.add_argument('--port', default='12345',
                        help='Server port (default: 12345)')
-    parser.add_argument('--connection', choices=['sdl', 'webhook'], default='sdl',
-                       help='Connection type: sdl for TCP socket or webhook for HTTP/webhooks (default: sdl)')
+    parser.add_argument('--connection', choices=['sdl', 'webhook', 'websocket'], default='sdl',
+                       help='Connection type: sdl for TCP socket, webhook for HTTP/webhooks, or websocket for WebSocket connection (default: sdl)')
     parser.add_argument('--webhook-port', default='8080',
                        help='Local webhook server port (default: 8080)')
     parser.add_argument('--server-url', default='https://your-app.onrender.com',
@@ -482,7 +585,8 @@ def parse_arguments():
     return parser.parse_args()
 
 def main():
-    """Main entry point."""    # Parse command line arguments
+    """Main entry point."""
+    # Parse command line arguments
     args = parse_arguments()
     logger.info(f"Starting TTRPG System in {args.mode} mode")
     logger.info(f"Connection type: {args.connection}")

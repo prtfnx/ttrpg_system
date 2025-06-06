@@ -217,15 +217,15 @@ class WebhookGameServer:
         
         return {
             "name": table.name,
-            "width": table.width,
-            "height": table.height,
+            "width": table.width,            "height": table.height,
             "scale": getattr(table, 'scale', 1.0),
             "x_moved": getattr(table, 'x_moved', 0.0),
             "y_moved": getattr(table, 'y_moved', 0.0),
             "show_grid": getattr(table, 'show_grid', True),
             "entities": entities_data,
             "layers": layers_data,
-            "files": list(self.protocol.files) if self.protocol else []        }
+            "files": list(self.protocol.files) if self.protocol else []
+        }
         
     async def create_table(self, name: str, width: int, height: int) -> VirtualTable:
         """Create a new table"""
@@ -244,17 +244,14 @@ class WebhookGameServer:
         client = self.clients[client_id]
         
         try:
-            # Prepare webhook payload
-            payload = {
-                "message": message.to_json(),
-                "timestamp": time.time(),
-                "server_id": "ttrpg_webhook_server"
-            }
+            # Send message directly as JSON (don't double-wrap)
+            # Parse the JSON from message.to_json() to send as proper JSON object
+            message_data = json.loads(message.to_json())
             
-            # Send webhook request
+            # Send webhook request with direct message data
             async with self.session.post(
                 client.webhook_url,
-                json=payload,
+                json=message_data,
                 headers={"Content-Type": "application/json"}
             ) as response:
                 if response.status == 200:

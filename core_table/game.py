@@ -7,9 +7,9 @@ from typing import Dict, List
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import table
-from server import GameServer, TableManager
-from entities import Spell
+import core_table.table as table
+from core_table.server import GameServer, TableManager
+from core_table.entities import Spell
 
 logger = logging.getLogger(__name__)
 

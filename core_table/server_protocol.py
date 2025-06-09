@@ -43,7 +43,7 @@ class ServerProtocol:
             msg = Message.from_json(message_str)
             self.clients[client_id] = writer
             logger.info(f"msg received: {msg} from {client_id}")
-            logger.info(f"data: {msg.data} from {client_id}")
+            #logger.info(f"data: {msg.data} from {client_id}")
             
             # Check custom handlers first
             if msg.type in self.handlers:
@@ -149,7 +149,9 @@ class ServerProtocol:
                 await self._send(writer, error_msg)
                 return
             #print(table.table_to_layered_dict())
-            # Create table data
+            # Create table data 
+            # TODO Change logic for uniformity for all app.
+            
             table_data = {
                 'name': table.name,
                 'width': table.width,

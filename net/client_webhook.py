@@ -47,11 +47,16 @@ class WebhookClient:
     """Webhook-based client for render.com hosted server"""
     
     def __init__(self, server_url: str = "https://your-app.onrender.com", 
-                 webhook_port: int = 8080, webhook_host: str = "localhost"):
+                 webhook_port: int = 8080, webhook_host: str = "localhost"):        
         self.server_url = server_url.rstrip('/')
         self.webhook_port = webhook_port
         self.webhook_host = webhook_host
         self.client_id = hashlib.md5(f"{time.time()}_{os.getpid()}".encode()).hexdigest()[:8]
+        
+        # Authentication state
+        self.jwt_token = None
+        self.username = None
+        self.is_authenticated = False
         
         self.message_buffer = WebhookMessageBuffer()
         self.app = FastAPI(title="TTRPG Webhook Client")
@@ -209,9 +214,74 @@ class WebhookClient:
             
             self.is_connected = False
             logger.info("Webhook client disconnected")
-            
         except Exception as e:
             logger.error(f"Disconnect error: {e}")
+
+    def register_user(self, username: str, password: str) -> bool:
+        """Register a new user account"""
+        try:
+            # Server expects form data, not JSON
+            response = requests.post(
+                f"{self.server_url}/users/register",
+                data={
+                    "username": username,
+                    "password": password
+                },
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"Successfully registered user: {username}")
+                return True
+            else:
+                logger.error(f"Registration failed: {response.status_code} - {response.text}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Registration error: {e}")
+            return False
+
+    def login_user(self, username: str, password: str) -> bool:
+        """Login user and obtain JWT token"""
+        try:
+            # Server expects form data for OAuth2PasswordRequestForm
+            response = requests.post(
+                f"{self.server_url}/users/token",
+                data={
+                    "username": username,
+                    "password": password
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.jwt_token = data.get("access_token")
+                self.username = username
+                self.is_authenticated = True
+                logger.info(f"Successfully logged in user: {username}")
+                return True
+            else:
+                logger.error(f"Login failed: {response.status_code} - {response.text}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Login error: {e}")
+            return False
+
+    def logout_user(self):
+        """Logout user and clear authentication state"""
+        self.jwt_token = None
+        self.username = None
+        self.is_authenticated = False
+        logger.info("User logged out")
+
+    def get_auth_headers(self) -> Dict[str, str]:
+        """Get authentication headers for API requests"""
+        if self.jwt_token:
+            return {"Authorization": f"Bearer {self.jwt_token}"}
+        return {}
 
 
 def init_connection(server_url: str = "https://your-app.onrender.com", 

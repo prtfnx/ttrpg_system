@@ -20,7 +20,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from server_host.routers import users
 from server_host.routers import game
 from server_host.api import game_ws
-from server_host.api import websocket_router
 from server_host.database.database import create_tables
 from server_host.service.game_session import ConnectionManager
 
@@ -80,7 +79,6 @@ if os.path.exists("static"):
 app.include_router(users.router)
 app.include_router(game.router)
 app.include_router(game_ws.router)
-app.include_router(websocket_router.router)
 
 @app.get("/")
 async def root():
@@ -88,10 +86,9 @@ async def root():
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url="/users/login")
 
-if __name__ == "__main__":
-    # Configure logging
+if __name__ == "__main__":    # Configure logging
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,  # Changed to DEBUG to see protocol messages
         format="%(asctime)s %(levelname)s:%(name)s: %(message)s"
     )
     

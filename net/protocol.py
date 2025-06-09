@@ -11,6 +11,13 @@ class MessageType(enum.Enum):
     ERROR = "error"
     TEST = "test"  # Add test message type
     
+    # Authentication messages
+    AUTH_REGISTER = "auth_register"
+    AUTH_LOGIN = "auth_login"
+    AUTH_LOGOUT = "auth_logout"
+    AUTH_TOKEN = "auth_token"
+    AUTH_STATUS = "auth_status"
+    
     # Table sync
     NEW_TABLE_REQUEST = "new_table_request"
     NEW_TABLE_RESPONSE = "new_table_response"
@@ -35,14 +42,7 @@ class MessageType(enum.Enum):
     COMPENDIUM_SPRITE_ADD = "compendium_sprite_add"
     COMPENDIUM_SPRITE_UPDATE = "compendium_sprite_update"
     COMPENDIUM_SPRITE_REMOVE = "compendium_sprite_remove"
-    
-    # Registration and connection
-    REGISTRATION_REQUEST = "registration_request"
-    REGISTRATION_RESPONSE = "registration_response"
-    REGISTRATION_CONFIRM = "registration_confirm"
-    CLIENT_DISCONNECT = "client_disconnect"
-    CLIENT_DISCONNECT_RESPONSE = "client_disconnect_response"
-    
+      
     
     # Extension point for new message types
     CUSTOM = "custom"

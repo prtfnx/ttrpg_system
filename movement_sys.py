@@ -31,8 +31,7 @@ def move_sprites(cnt, delta_time):
     width = cnt.window_width
     height = cnt.window_height
     for layer, list in cnt.current_table.dict_of_sprites_list.items():
-        if layer == 'light' and cnt.light_on:
-             
+        if layer == 'light' and cnt.light_on and list:
             render_texture_light = cnt.LightingManager.render_texture_light
             render_texture = cnt.LightingManager.render_texture
             texture_light = cnt.LightingManager.texture_light

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTRPG Server - Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Welcome, {{ user.username }}!</h1>
+            <nav>
+                <a href="/users/dashboard" class="btn-secondary">Dashboard</a>
+                <a href="/game/" class="btn-secondary">Game Lobby</a>
+                <a href="/users/logout" class="btn-secondary">Logout</a>
+            </nav>
+        </header>
+
+        <main>
+            <section class="dashboard-section">
+                <h2>Your Game Sessions</h2>
+                {% if sessions %}
+                    <div class="sessions-grid">
+                        {% for session in sessions %}
+                            <div class="session-card">
+                                <h3>{{ session.name }}</h3>
+                                <p><strong>Code:</strong> {{ session.session_code }}</p>
+                                <p><strong>Created:</strong> {{ session.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                                <div class="session-actions">
+                                    <a href="/game/session/{{ session.session_code }}" class="btn-primary">Join Game</a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p>No game sessions yet. <a href="/game/">Create your first game!</a></p>
+                {% endif %}
+            </section>
+
+            <section class="dashboard-section">
+                <h2>Quick Actions</h2>
+                <div class="quick-actions">
+                    <a href="/game/" class="btn-primary">Go to Game Lobby</a>
+                    <a href="/users/me" class="btn-secondary">View Profile</a>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

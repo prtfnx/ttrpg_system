@@ -23,7 +23,7 @@ from net import client_websocket_protocol
 from net.protocol import ProtocolHandler, Message, MessageType
 from imgui_bundle import imgui
 import OpenGL.GL as gl
-import example
+
 import argparse
 import lighting_sys
 
@@ -208,12 +208,16 @@ def SDL_AppInit_func(args=None):
                 args=(test_context, args.server_url, int(args.webhook_port)), 
                 daemon=True
             )
-            webhook_thread.start()
+            webhook_thread.start()        
         elif args and args.connection == 'websocket':
             logger.info("Starting WebSocket client")
+            # For WebSocket, we need authentication parameters
+            session_code = getattr(args, 'session_code', None)
+            jwt_token = getattr(args, 'jwt_token', None)
+            
             websocket_thread = threading.Thread(
                 target=start_websocket_connection_thread, 
-                args=(test_context, args.server_url), 
+                args=(test_context, args.server_url, session_code, jwt_token), 
                 daemon=True
             )
             websocket_thread.start()
@@ -225,15 +229,15 @@ def SDL_AppInit_func(args=None):
     except Exception as e:
         logger.error(f"Failed to start network connection: {e}")        
         test_context.net_client_started = False
-    
-    # Setup protocol
+      # Setup protocol
     def send_to_server(msg: str):
         test_context.queue_to_send.put(msg)
     
     if args and args.connection == 'webhook':
         protocol = client_webhook_protocol.setup_webhook_protocol(test_context, test_context.net_socket)
     elif args and args.connection == 'websocket':
-        protocol = client_websocket_protocol.setup_websocket_protocol(test_context, test_context.net_socket)
+        session_code = getattr(test_context, 'session_code', None)
+        protocol = client_websocket_protocol.setup_websocket_protocol(test_context, test_context.net_socket, session_code)
     else:
         protocol = test_context.setup_protocol(send_to_server)
     
@@ -499,14 +503,34 @@ def webhook_thread_func(context):
             net_fails += 1        
         time.sleep(NET_SLEEP)
 
-def start_websocket_connection_thread(context, server_url):
-    """Start the WebSocket connection."""
+def start_websocket_connection_thread(context, server_url, session_code=None, jwt_token=None):
+    """Start the WebSocket connection with authentication."""
     logger.info("Starting WebSocket connection...")
     while True:
         try:
             logger.info("Creating WebSocket client...")
             websocket_client = client_websocket.init_connection(server_url)
+            
+            if not websocket_client:
+                logger.error("Failed to initialize WebSocket client")
+                time.sleep(5)
+                continue
+            
+            # Set authentication token if provided
+            if jwt_token:
+                websocket_client.set_auth_token(jwt_token)
+                logger.info("JWT token set for WebSocket client")
+            
+            # Connect to session if specified
+            if session_code and jwt_token:
+                success = websocket_client.connect_to_session(session_code)
+                if not success:
+                    logger.error("Failed to connect to session - missing authentication")
+                    time.sleep(5)
+                    continue
+                    
             context.net_socket = websocket_client  # Store WebSocket client in same attribute
+            context.session_code = session_code  # Store session code for protocol
             websocket_thread_func(context)
         except Exception as e:
             logger.error("Error creating WebSocket connection: %s", e)
@@ -579,6 +603,15 @@ def parse_arguments():
                        help='Local webhook server port (default: 8080)')
     parser.add_argument('--server-url', default='https://your-app.onrender.com',
                        help='Server URL for webhook connection (default: https://your-app.onrender.com)')
+    # Authentication parameters for WebSocket connections
+    parser.add_argument('--session-code', default=None,
+                       help='Game session code for WebSocket connection')
+    parser.add_argument('--jwt-token', default=None,
+                       help='JWT authentication token for WebSocket connection')
+    parser.add_argument('--username', default=None,
+                       help='Username for authentication')
+    parser.add_argument('--password', default=None,
+                       help='Password for authentication')
     parser.add_argument('--no-menu', action='store_true',
                        help='Skip main menu and start directly')
     

@@ -2,25 +2,40 @@
 FastAPI WebSocket router for TTRPG protocol integrated with game sessions
 Provides WebSocket endpoints for game session communication with table protocol support
 """
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, Request
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from typing import Optional
 import logging
 import json
+import jwt
 
 from ..service.game_session import get_connection_manager, ConnectionManager
 from ..service.game_session_protocol import get_session_protocol_manager, SessionProtocolManager
+from ..database.database import get_db
+from ..database import crud
+from ..routers.users import SECRET_KEY, ALGORITHM
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ws", tags=["websocket"])
 
+async def get_user_from_token(token: str, db):
+    """Get user from JWT token for WebSocket authentication"""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if username is None:
+            return None
+        user = crud.get_user_by_username(db, username=username)
+        return user
+    except:
+        return None
+
 @router.websocket("/game/{session_code}")
 async def websocket_game_session_endpoint(
     websocket: WebSocket,
     session_code: str,
-    user_id: int,
-    username: str,
+    token: str = None,
     connection_manager: ConnectionManager = Depends(get_connection_manager)
 ):
     """WebSocket endpoint for game session with table protocol support"""

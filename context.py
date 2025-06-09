@@ -456,7 +456,7 @@ class NetworkedContext:
             logger.error("No protocol available to request table")
             return
             
-        msg = Message(MessageType.NEW_TABLE_REQUEST, {'table_name': table_name},
+        msg = Message(MessageType.TABLE_REQUEST, {'table_name': table_name},
                      getattr(self.context.protocol, 'client_id', 'unknown'))
         
         try:

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTRPG Server - Game Lobby</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Game Lobby</h1>
+            <nav>
+                <a href="/users/dashboard" class="btn-secondary">Dashboard</a>
+                <a href="/users/logout" class="btn-secondary">Logout</a>
+            </nav>
+        </header>
+
+        <main>
+            {% if error %}
+                <div class="error">{{ error }}</div>
+            {% endif %}
+
+            <section class="lobby-section">
+                <h2>Join Existing Game</h2>
+                <form method="post" action="/game/join" class="lobby-form">
+                    <div class="form-group">
+                        <label for="session_code">Session Code:</label>
+                        <input type="text" id="session_code" name="session_code" placeholder="Enter 8-digit code" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="character_name">Character Name (optional):</label>
+                        <input type="text" id="character_name" name="character_name" placeholder="Your character name">
+                    </div>
+                    <button type="submit" class="btn-primary">Join Game</button>
+                </form>
+            </section>
+
+            <section class="lobby-section">
+                <h2>Create New Game</h2>
+                <form method="post" action="/game/create" class="lobby-form">
+                    <div class="form-group">
+                        <label for="game_name">Game Name:</label>
+                        <input type="text" id="game_name" name="game_name" placeholder="Name your adventure" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Create Game Session</button>
+                </form>
+            </section>
+
+            <section class="lobby-section">
+                <h2>Your Active Sessions</h2>
+                {% if sessions %}
+                    <div class="sessions-grid">
+                        {% for session in sessions %}
+                            <div class="session-card">
+                                <h3>{{ session.name }}</h3>
+                                <p><strong>Code:</strong> {{ session.session_code }}</p>
+                                <p><strong>Created:</strong> {{ session.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                                <div class="session-actions">
+                                    <a href="/game/session/{{ session.session_code }}" class="btn-primary">Enter Game</a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p>You have no active game sessions.</p>
+                {% endif %}
+            </section>
+        </main>
+    </div>
+</body>
+</html>

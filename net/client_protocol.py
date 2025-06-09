@@ -39,22 +39,55 @@ class ClientProtocol:
             msg = Message(MessageType.PING, client_id=self.client_id)
             self.send(msg.to_json())
             self.last_ping = time.time()
+      # Authentication methods
+    def auth_register(self, username: str, password: str, email: Optional[str] = None, full_name: Optional[str] = None):
+        """Send authentication registration request via protocol"""
+        msg = Message(MessageType.AUTH_REGISTER, {
+            'username': username,
+            'password': password,
+            'email': email,
+            'full_name': full_name
+        }, self.client_id)
+        self.send(msg.to_json())
+    
+    def auth_login(self, username: str, password: str):
+        """Send authentication login request via protocol"""
+        msg = Message(MessageType.AUTH_LOGIN, {
+            'username': username,
+            'password': password
+        }, self.client_id)
+        self.send(msg.to_json())
+    
+    def auth_logout(self):
+        """Send authentication logout request via protocol"""
+        msg = Message(MessageType.AUTH_LOGOUT, client_id=self.client_id)
+        self.send(msg.to_json())
+    
+    def request_auth_status(self):
+        """Request current authentication status via protocol"""
+        msg = Message(MessageType.AUTH_STATUS, client_id=self.client_id)
+        self.send(msg.to_json())
     
     async def handle_message(self, message_str: str):
         try:
             msg = Message.from_json(message_str)
-            #logger.debug(f"Received message: {msg}")
-            # Check for custom handlers first
+            #logger.debug(f"Received message: {msg}")        
+            #Check for custom handlers first
             if msg.type in self.handlers:
                 response = await self.handlers[msg.type].handle_message(msg)
                 if response:
                     self.send(response.to_json())
                 return
+            
             # Built-in handlers
             if msg.type == MessageType.PONG:
                 logger.debug("Pong received")
             elif msg.type == MessageType.NEW_TABLE_RESPONSE:
                 if msg.data:
+                    self._create_table(msg.data)
+            elif msg.type == MessageType.TABLE_RESPONSE:
+                if msg.data:
+                    #TODO another logic for table response
                     self._create_table(msg.data)
             elif msg.type == MessageType.TABLE_DATA:
                 if msg.data:
@@ -65,9 +98,12 @@ class ClientProtocol:
             elif msg.type == MessageType.TABLE_UPDATE:
                 if msg.data:
                     self._apply_update(msg.data)
-            elif msg.type == MessageType.COMPENDIUM_SPRITE_ADD:
+            elif msg.type == MessageType.SPRITE_UPDATE:
                 if msg.data:
-                    self._handle_compendium_sprite_add(msg.data)
+                    self._apply_update(msg.data)
+            elif msg.type == MessageType.COMPENDIUM_SPRITE_ADD:
+                    if msg.data:
+                        self._handle_compendium_sprite_add(msg.data)
             elif msg.type == MessageType.COMPENDIUM_SPRITE_UPDATE:
                 if msg.data:
                     self._handle_compendium_sprite_update(msg.data)
@@ -77,6 +113,13 @@ class ClientProtocol:
             elif msg.type == MessageType.ERROR:
                 if msg.data:
                     logger.error(f"Server error: {msg.data}")
+            # Authentication message handlers
+            elif msg.type == MessageType.AUTH_TOKEN:
+                if msg.data:
+                    self._handle_auth_token(msg.data)
+            elif msg.type == MessageType.AUTH_STATUS:
+                if msg.data:
+                    self._handle_auth_status(msg.data)
                 
         except Exception as e:
             logger.error(f"Message handling error: {e}")
@@ -375,3 +418,52 @@ class ClientProtocol:
             
         except Exception as e:
             logger.error(f"Error handling compendium sprite remove: {e}")
+    
+    def _handle_auth_token(self, data: Dict):
+        """Handle authentication token response"""
+        try:
+            access_token = data.get('access_token')
+            token_type = data.get('token_type', 'bearer')
+            
+            if access_token:
+                logger.info("Authentication successful - received JWT token")
+                # Store token in context if available
+                if hasattr(self.context, 'auth_token'):
+                    self.context.auth_token = access_token
+                if hasattr(self.context, 'is_authenticated'):
+                    self.context.is_authenticated = True
+                    
+                # Add to chat if available
+                if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
+                    self.context.gui_system.gui_state.chat_messages.append("✅ Authentication successful")
+            else:
+                logger.error("Authentication failed - no token received")
+                if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
+                    self.context.gui_system.gui_state.chat_messages.append("❌ Authentication failed")
+                    
+        except Exception as e:
+            logger.error(f"Error handling auth token: {e}")
+    
+    def _handle_auth_status(self, data: Dict):
+        """Handle authentication status response"""
+        try:
+            is_authenticated = data.get('authenticated', False)
+            username = data.get('username')
+            
+            logger.info(f"Authentication status: {'authenticated' if is_authenticated else 'not authenticated'}")
+            
+            # Update context if available
+            if hasattr(self.context, 'is_authenticated'):
+                self.context.is_authenticated = is_authenticated
+            if hasattr(self.context, 'username') and username:
+                self.context.username = username
+                
+            # Add to chat if available
+            if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
+                status_msg = f"Auth status: {'✅ Authenticated' if is_authenticated else '❌ Not authenticated'}"
+                if username:
+                    status_msg += f" as {username}"
+                self.context.gui_system.gui_state.chat_messages.append(status_msg)
+                
+        except Exception as e:
+            logger.error(f"Error handling auth status: {e}")

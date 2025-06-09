@@ -41,26 +41,31 @@ class WebSocketMessageBuffer:
             return None
 
 class WebSocketClient:
-    """WebSocket-based client for TTRPG server"""
+    """WebSocket-based client for TTRPG server with session-based architecture"""
     
     def __init__(self, server_url: str = "http://localhost:8000"):
         self.server_url = server_url.rstrip('/')
-        # Convert HTTP URLs to WebSocket URLs or handle existing WebSocket URLs
+        # Store base WebSocket URL without specific endpoint
         if self.server_url.startswith('http://'):
-            self.websocket_url = self.server_url.replace('http://', 'ws://') + '/ws'
+            self.base_websocket_url = self.server_url.replace('http://', 'ws://')
         elif self.server_url.startswith('https://'):
-            self.websocket_url = self.server_url.replace('https://', 'wss://') + '/ws'
+            self.base_websocket_url = self.server_url.replace('https://', 'wss://')
         elif self.server_url.startswith('ws://') or self.server_url.startswith('wss://'):
-            # Already a WebSocket URL, just add /ws if not present
-            if '/ws' not in self.server_url:
-                self.websocket_url = self.server_url + '/ws'
-            else:
-                self.websocket_url = self.server_url
+            self.base_websocket_url = self.server_url
         else:
             # Plain hostname:port, assume WebSocket
-            self.websocket_url = f"ws://{self.server_url}/ws"
+            self.base_websocket_url = f"ws://{self.server_url}"
+            
+        # Remove any existing /ws path for clean base URL
+        if '/ws' in self.base_websocket_url:
+            self.base_websocket_url = self.base_websocket_url.split('/ws')[0]
             
         self.client_id = hashlib.md5(f"{time.time()}_{os.getpid()}".encode()).hexdigest()[:8]
+        
+        # Authentication state
+        self.jwt_token = None
+        self.session_code = None
+        self.current_websocket_url = None
         
         self.message_buffer = WebSocketMessageBuffer()
         self.websocket = None
@@ -69,19 +74,44 @@ class WebSocketClient:
         self.is_connected = False
         self.last_ping = time.time()
         self._stop_event = threading.Event()
+
+    def set_auth_token(self, jwt_token: str):
+        """Set JWT authentication token"""
+        self.jwt_token = jwt_token
+
+    def build_websocket_url(self, session_code: str) -> str:
+        """Build WebSocket URL for game session with authentication"""
+        url = f"{self.base_websocket_url}/ws/game/{session_code}"
+        if self.jwt_token:
+            url += f"?token={self.jwt_token}"
+        return url
+
+    def connect_to_session(self, session_code: str) -> bool:
+        """Connect to a specific game session"""
+        if not self.jwt_token:
+            logger.error("Cannot connect to session without authentication token")
+            return False
+            
+        self.session_code = session_code
+        self.current_websocket_url = self.build_websocket_url(session_code)
         
+        # Start connection in background thread
+        self.start_connection_thread()
+        return True
+
     async def connect_websocket(self):
         """Establish WebSocket connection and handle messages"""
-        try:
-            logger.info(f"Connecting to WebSocket at {self.websocket_url}")
+        if not self.current_websocket_url:
+            logger.error("No WebSocket URL set - call connect_to_session first")
+            return
             
-            async with websockets.connect(self.websocket_url) as websocket:
+        try:
+            logger.info(f"Connecting to WebSocket at {self.current_websocket_url}")
+            
+            async with websockets.connect(self.current_websocket_url) as websocket:
                 self.websocket = websocket
                 self.is_connected = True
-                logger.info(f"WebSocket connected. Client ID: {self.client_id}")
-                
-                # Send registration message
-                await self.register_with_websocket()
+                logger.info(f"WebSocket connected to session {self.session_code}")
                 
                 # Start message handling tasks
                 receive_task = asyncio.create_task(self.receive_messages())
@@ -106,51 +136,14 @@ class WebSocketClient:
             self.is_connected = False
             self.websocket = None
 
-    async def register_with_websocket(self):
-        """Send registration message via WebSocket"""
-        try:
-            registration_message = {
-                "type": "register",
-                "client_id": self.client_id,
-                "client_type": "ttrpg_client"
-            }
-            
-            await self.websocket.send(json.dumps(registration_message))
-            logger.info(f"Registration message sent via WebSocket")
-            
-        except Exception as e:
-            logger.error(f"WebSocket registration error: {e}")
-
-    async def register_with_server_http(self) -> bool:
-        """Register this client with the server via HTTP (for compatibility)"""
-        try:
-            response = requests.post(
-                f"{self.server_url}/api/client/register",
-                json={
-                    "client_id": self.client_id,
-                    "client_type": "websocket_client",
-                    "connection_type": "websocket"
-                },
-                timeout=10
-            )
-            
-            if response.status_code == 200:
-                logger.info(f"Successfully registered with server via HTTP. Client ID: {self.client_id}")
-                return True
-            else:
-                logger.error(f"HTTP registration failed: {response.status_code} - {response.text}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"HTTP registration error: {e}")
-            return False
-
     async def receive_messages(self):
         """Receive messages from WebSocket"""
         try:
-            async for message in self.websocket:
-                logger.debug(f"Received WebSocket message: {message[:100]}...")
-                self.message_buffer.add_incoming(message)
+            if self.websocket:
+                async for message in self.websocket:
+                    message_str = message if isinstance(message, str) else message.decode('utf-8')
+                    logger.debug(f"Received WebSocket message: {message_str[:100]}...")
+                    self.message_buffer.add_incoming(message_str)
                 
         except websockets.exceptions.ConnectionClosed:
             logger.info("WebSocket receive connection closed")
@@ -162,7 +155,7 @@ class WebSocketClient:
         try:
             while self.is_connected and not self._stop_event.is_set():
                 message = self.message_buffer.get_outgoing()
-                if message:
+                if message and self.websocket:
                     await self.websocket.send(message)
                     logger.debug(f"Sent WebSocket message: {message[:100]}...")
                 else:
@@ -178,7 +171,7 @@ class WebSocketClient:
         try:
             while self.is_connected and not self._stop_event.is_set():
                 await asyncio.sleep(30)  # Ping every 30 seconds
-                if self.is_connected:
+                if self.is_connected and self.websocket:
                     ping_message = {
                         "type": "ping",
                         "client_id": self.client_id,
@@ -217,7 +210,8 @@ class WebSocketClient:
             self.message_buffer.add_outgoing(data)
             logger.debug(f"Queued message for WebSocket: {data[:100]}...")
         else:
-            logger.warning("Cannot send data - WebSocket not connected")    
+            logger.warning("Cannot send data - WebSocket not connected")
+
     def receive_data(self) -> Optional[str]:
         """Receive data from WebSocket queue"""
         return self.message_buffer.get_incoming()
@@ -233,18 +227,6 @@ class WebSocketClient:
             self._stop_event.set()
             self.is_connected = False
             
-            # Send unregistration message if possible
-            if self.websocket:
-                unregister_message = {
-                    "type": "unregister",
-                    "client_id": self.client_id
-                }
-                # Note: This is synchronous, but the connection might be closing
-                try:
-                    asyncio.run(self.websocket.send(json.dumps(unregister_message)))
-                except:
-                    pass  # Ignore errors during shutdown
-            
             logger.info("WebSocket client disconnected")
             
         except Exception as e:
@@ -252,22 +234,11 @@ class WebSocketClient:
 
 
 def init_connection(server_url: str = "http://localhost:8000") -> Optional[WebSocketClient]:
-    """Initialize WebSocket connection"""
+    """Initialize WebSocket client (connection happens later via connect_to_session)"""
     try:
         client = WebSocketClient(server_url)
-        
-        # Start WebSocket connection
-        client.start_connection_thread()
-        
-        # Wait a bit more for WebSocket connection to establish
-        time.sleep(3)
-        
-        if client.is_connected:
-            logger.info("WebSocket connection established")
-            return client
-        else:
-            logger.warning("WebSocket connection not established yet, but client created")
-            return client  # Return anyway, connection might establish later
+        logger.info("WebSocket client initialized (ready for session connection)")
+        return client
             
     except Exception as e:
         logger.error(f"WebSocket init error: {e}")
@@ -278,14 +249,8 @@ def send_data(client: WebSocketClient, data: str):
     if client:
         client.send_data(data)
 
-async def receive_data_async(client: WebSocketClient) -> Optional[str]:
-    """Receive data via WebSocket client (async)"""
-    if client:
-        return client.receive_data()
-    return None
-
 def receive_data(client: WebSocketClient) -> Optional[str]:
-    """Receive data via WebSocket client (sync wrapper)"""
+    """Receive data via WebSocket client"""
     if not client:
         return None
     
@@ -296,41 +261,43 @@ def close_connection(client: WebSocketClient):
     if client:
         client.close_connection()
 
-async def register_client_async(client: WebSocketClient) -> bool:
-    """Register client with server (async version)"""
-    if client:
-        return await client.register_with_server_http()
-    return False
-
 if __name__ == "__main__":
     # Test WebSocket client
     import sys
     
     server_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000"
+    session_code = sys.argv[2] if len(sys.argv) > 2 else "TEST123"
     
     client = init_connection(server_url)
     if client:
         print("WebSocket client started. Testing connection...")
         
-        # Wait for connection
-        for i in range(10):
-            if client.is_connected:
-                break
-            print(f"Waiting for connection... ({i+1}/10)")
-            time.sleep(1)
+        # Set a dummy token for testing
+        client.set_auth_token("dummy_token_for_testing")
         
-        if client.is_connected:
-            # Test sending a message
-            send_data(client, '{"type": "ping", "data": {}}')
-            
-            # Test receiving messages
-            for i in range(5):
-                message = receive_data(client)
-                if message:
-                    print(f"Received: {message}")
+        # Connect to session
+        if client.connect_to_session(session_code):
+            # Wait for connection
+            for i in range(10):
+                if client.is_connected:
+                    break
+                print(f"Waiting for connection... ({i+1}/10)")
                 time.sleep(1)
+            
+            if client.is_connected:
+                # Test sending a message
+                send_data(client, '{"type": "ping", "data": {}}')
+                
+                # Test receiving messages
+                for i in range(5):
+                    message = receive_data(client)
+                    if message:
+                        print(f"Received: {message}")
+                    time.sleep(1)
+            else:
+                print("Failed to establish WebSocket connection")
         else:
-            print("Failed to establish WebSocket connection")
+            print("Failed to connect to session")
         
         close_connection(client)
     else:

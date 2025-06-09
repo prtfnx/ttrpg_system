@@ -1,16 +1,33 @@
 <!DOCTYPE html>
-<html>
-<head><title>Enter</title></head>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTRPG Server - Login</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
 <body>
-  <h2>Enter the system</h2>
-  {% if error %}<p style="color: red;">{{ error }}</p>{% endif %}
-  <form method="post" action="./login">
-    <label>Login:</label><br>
-    <input type="text" name="username"><br>
-    <label>Password:</label><br>
-    <input type="password" name="password"><br><br>
-    <input type="submit" value="Log in">
-  </form>
-  <p>No account? <a href="/register">Register</a></p>
+    <div class="container">
+        <div class="form-container">
+            <h2>Enter the TTRPG System</h2>
+            {% if error %}
+                <div class="error">{{ error }}</div>
+            {% endif %}
+            <form method="post" action="/users/login">
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="btn-primary">Log In</button>
+            </form>
+            <p class="link-text">
+                No account? <a href="/users/register">Register here</a>
+            </p>
+        </div>
+    </div>
 </body>
 </html>

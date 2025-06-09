@@ -195,7 +195,7 @@ class ConnectionManager:
                 }, websocket)
                 
         except Exception as e:
-            logger.error(f"Error handling message: {e}")
+            logger.error(f"Error handling message: {e}")            
             await self.send_personal_message({
                 "type": "error",
                 "data": {"message": "Error processing message"}
@@ -205,10 +205,10 @@ class ConnectionManager:
         """Check if message is a protocol message"""
         # Protocol messages have 'message_type' and 'data' fields
         return 'message_type' in message_data or ('type' in message_data and 'data' in message_data and 
-                message_data.get('type') in ['PING', 'PONG', 'TABLE_REQUEST', 'TABLE_DATA', 'NEW_TABLE_REQUEST', 
-                                            'NEW_TABLE_RESPONSE', 'TABLE_UPDATE', 'SPRITE_UPDATE', 'FILE_REQUEST', 
-                                            'FILE_DATA', 'COMPENDIUM_SPRITE_ADD', 'COMPENDIUM_SPRITE_UPDATE', 
-                                            'COMPENDIUM_SPRITE_REMOVE', 'ERROR'])
+                message_data.get('type') in ['ping', 'pong', 'table_request', 'table_data', 'new_table_request', 
+                                            'new_table_response', 'table_update', 'sprite_update', 'file_request', 
+                                            'file_data', 'compendium_sprite_add', 'compendium_sprite_update', 
+                                            'compendium_sprite_remove', 'error'])
 
     def get_session_players(self, session_code: str) -> List[dict]:
         """Get list of connected players in a session"""

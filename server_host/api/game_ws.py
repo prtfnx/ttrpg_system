@@ -16,16 +16,23 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-async def get_user_from_token(token: str, db: Session):
+def get_user_from_token(token: str, db: Session):
     """Get user from JWT token for WebSocket authentication"""
     try:
+        logger.info(f"Validating JWT token: {token[:20]}...")
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
         if username is None:
+            logger.error("No username in JWT payload")
             return None
         user = crud.get_user_by_username(db, username=username)
+        if user:
+            logger.info(f"User {username} validated successfully")
+        else:
+            logger.error(f"User {username} not found in database")
         return user
-    except:
+    except Exception as e:
+        logger.error(f"Token validation error: {e}")
         return None
 
 @router.websocket("/ws/game/{session_code}")
@@ -49,7 +56,7 @@ async def websocket_game_endpoint(
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
         
-        user = await get_user_from_token(token, db)
+        user = get_user_from_token(token, db)
         if not user:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
@@ -58,10 +65,8 @@ async def websocket_game_endpoint(
         game_session = crud.get_game_session_by_code(db, session_code)
         if not game_session:
             await websocket.close(code=status.WS_1003_UNSUPPORTED_DATA)
-            return
-        
-        # Connect user to session
-        await connection_manager.connect(websocket, session_code, user.id, user.username)
+            return        # Connect user to session
+        await connection_manager.connect(websocket, session_code, int(user.id), str(user.username))
         
         # Send welcome message
         await connection_manager.send_personal_message({

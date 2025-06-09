@@ -1,0 +1,518 @@
+/* TTRPG Server Styles */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: #333;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Form Styling */
+.form-container {
+    background: white;
+    border-radius: 10px;
+    padding: 40px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    max-width: 400px;
+    margin: auto;
+    margin-top: 10vh;
+}
+
+.form-container h2 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #2a5298;
+    font-size: 24px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #555;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #2a5298;
+}
+
+/* Buttons */
+.btn-primary, .btn-secondary {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+    transition: all 0.3s;
+}
+
+.btn-primary {
+    background: #2a5298;
+    color: white;
+    width: 100%;
+}
+
+.btn-primary:hover {
+    background: #1e3c72;
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #545b62;
+}
+
+/* Error Messages */
+.error {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 12px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    border: 1px solid #f5c6cb;
+}
+
+/* Link Text */
+.link-text {
+    text-align: center;
+    margin-top: 20px;
+    color: #666;
+}
+
+.link-text a {
+    color: #2a5298;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.link-text a:hover {
+    text-decoration: underline;
+}
+
+/* Header */
+header {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+header h1 {
+    color: #2a5298;
+    font-size: 28px;
+}
+
+nav {
+    display: flex;
+    gap: 10px;
+}
+
+nav a {
+    padding: 8px 16px;
+    text-decoration: none;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+/* Dashboard */
+.dashboard-section {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 10px;
+    padding: 30px;
+    margin-bottom: 20px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-section h2 {
+    color: #2a5298;
+    margin-bottom: 20px;
+    font-size: 22px;
+}
+
+/* Sessions Grid */
+.sessions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.session-card {
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    transition: all 0.3s;
+}
+
+.session-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    border-color: #2a5298;
+}
+
+.session-card h3 {
+    color: #2a5298;
+    margin-bottom: 10px;
+    font-size: 18px;
+}
+
+.session-card p {
+    margin-bottom: 8px;
+    color: #666;
+}
+
+.session-actions {
+    margin-top: 15px;
+}
+
+.session-actions .btn-primary {
+    width: auto;
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+/* Quick Actions */
+.quick-actions {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.quick-actions .btn-primary,
+.quick-actions .btn-secondary {
+    width: auto;
+    padding: 12px 24px;
+}
+
+/* Lobby Forms */
+.lobby-section {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 10px;
+    padding: 30px;
+    margin-bottom: 20px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.lobby-section h2 {
+    color: #2a5298;
+    margin-bottom: 20px;
+    font-size: 22px;
+}
+
+.lobby-form {
+    max-width: 400px;
+}
+
+.lobby-form .btn-primary {
+    width: auto;
+    padding: 12px 24px;
+}
+
+/* Game Session Styles */
+.game-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: #1a1a1a;
+    color: white;
+}
+
+.game-header {
+    background: #2a5298;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.game-header h1 {
+    color: white;
+    font-size: 24px;
+}
+
+.session-info {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.session-info span {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+#connection-status.connected {
+    background: #28a745;
+}
+
+#connection-status.disconnected {
+    background: #dc3545;
+}
+
+#connection-status.error {
+    background: #ffc107;
+    color: #000;
+}
+
+.game-main {
+    flex: 1;
+    overflow: hidden;
+}
+
+.game-layout {
+    display: flex;
+    height: 100%;
+}
+
+.game-area {
+    flex: 1;
+    background: #2d2d2d;
+    position: relative;
+}
+
+.table-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#game-table {
+    background: #3d3d3d;
+    border: 2px solid #555;
+    border-radius: 10px;
+    width: 90%;
+    height: 90%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #ccc;
+}
+
+.game-sidebar {
+    width: 350px;
+    background: #1e1e1e;
+    border-left: 2px solid #444;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.players-section,
+.chat-section,
+.dice-section {
+    padding: 20px;
+    border-bottom: 2px solid #444;
+}
+
+.players-section h3,
+.chat-section h3,
+.dice-section h3 {
+    color: #2a5298;
+    margin-bottom: 15px;
+    font-size: 16px;
+}
+
+/* Players List */
+.player-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #444;
+}
+
+.player-name {
+    font-weight: 600;
+}
+
+.connection-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #dc3545;
+}
+
+.connection-indicator.connected {
+    background: #28a745;
+}
+
+/* Chat */
+.chat-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    max-height: 300px;
+}
+
+.chat-message {
+    margin-bottom: 10px;
+    padding: 8px;
+    background: #2d2d2d;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+.chat-sender {
+    font-weight: 600;
+    color: #2a5298;
+}
+
+.chat-text {
+    margin-left: 5px;
+}
+
+.chat-time {
+    float: right;
+    font-size: 12px;
+    color: #888;
+}
+
+.chat-input {
+    display: flex;
+    gap: 10px;
+}
+
+.chat-input input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #555;
+    border-radius: 5px;
+    background: #2d2d2d;
+    color: white;
+}
+
+.chat-input input:focus {
+    outline: none;
+    border-color: #2a5298;
+}
+
+.chat-input .btn-primary {
+    width: auto;
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+/* Dice Controls */
+.dice-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.dice-controls select,
+.dice-controls input {
+    padding: 8px;
+    border: 1px solid #555;
+    border-radius: 5px;
+    background: #2d2d2d;
+    color: white;
+    flex: 1;
+    min-width: 60px;
+}
+
+.dice-controls .btn-primary {
+    width: auto;
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+.dice-results {
+    font-size: 14px;
+}
+
+.dice-result {
+    background: #2d2d2d;
+    padding: 8px;
+    border-radius: 5px;
+    margin-bottom: 5px;
+    border-left: 3px solid #2a5298;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    
+    .form-container {
+        margin-top: 5vh;
+        padding: 20px;
+    }
+    
+    header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+    
+    .sessions-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .game-layout {
+        flex-direction: column;
+    }
+    
+    .game-sidebar {
+        width: 100%;
+        height: 300px;
+    }
+    
+    .quick-actions {
+        justify-content: center;
+    }
+}

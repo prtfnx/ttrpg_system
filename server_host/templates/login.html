@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head><title>Enter</title></head>
+<body>
+  <h2>Enter the system</h2>
+  {% if error %}<p style="color: red;">{{ error }}</p>{% endif %}
+  <form method="post" action="./login">
+    <label>Login:</label><br>
+    <input type="text" name="username"><br>
+    <label>Password:</label><br>
+    <input type="password" name="password"><br><br>
+    <input type="submit" value="Log in">
+  </form>
+  <p>No account? <a href="/register">Register</a></p>
+</body>
+</html>

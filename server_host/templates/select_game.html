@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head><title>Game Selection</title></head>
+<body>
+  <h2>Hello, {{ username }}!</h2>
+  <h3>Select a session or create a new one:</h3>
+  <form method="post" action="/join_game">
+    <label>Код сессии:</label><br>
+    <input type="text" name="session_code"><br>
+    <input type="submit" value="Подключиться к игре">
+  </form>
+
+  <form method="post" action="/create_game" style="margin-top: 20px;">
+    <label>Name of the new game:</label><br>
+    <input type="text" name="game_name"><br>
+    <input type="submit" value="Create a new session">
+  </form>
+</body>
+</html>

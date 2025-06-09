@@ -114,15 +114,7 @@ async def login(
         )
 
     response = RedirectResponse(url="/users/dashboard", status_code=status.HTTP_302_FOUND)
-    response.set_cookie(
-        key="token", 
-        value=token.access_token, 
-        httponly=True, 
-        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        samesite="lax",
-        secure=False,  # Set to True in production with HTTPS
-        path="/"
-    )
+    response.set_cookie(key="token", value=token.access_token, httponly=True)
     return response
 
 @router.get("/dashboard")
@@ -162,5 +154,5 @@ def register_user_view(
 def logout():
     """Logout by redirecting and clearing cookie"""
     response = RedirectResponse(url="/users/login", status_code=status.HTTP_302_FOUND)
-    response.delete_cookie(key="token", path="/", samesite="lax")
+    response.delete_cookie(key="token")
     return response

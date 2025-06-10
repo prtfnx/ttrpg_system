@@ -20,15 +20,22 @@ class MenuApp:
         self.server_ip = "127.0.0.1"
         self.server_port = "12345"
         self.show_settings = False
-        
-        # Authentication state
+          # Authentication state
         self.show_auth_menu = False
         self.show_session_menu = False
         self.username = ""
         self.password = ""
         self.session_code = ""
-        self.server_url = "http://localhost:8000"
-        self.connection_type = "websocket"  # Default to websocket for new auth flow        self.jwt_token = ""
+        self.server_url = "http://127.0.0.1:12345"  # Use first option as default
+        self.server_port_input = "12345"  # Update default port to match
+        self.connection_type = "websocket"  # Default to websocket for new auth flow
+        # Server URL dropdown options
+        self.server_url_options = [
+            "http://127.0.0.1:12345",
+            "https://ttrpg-system.onrender.com"
+        ]
+        self.selected_server_index = 0  # Default to localhost
+        self.jwt_token = ""
         self.is_authenticated = False
         self.auth_error = ""
         self.auth_success = ""
@@ -127,18 +134,27 @@ class MenuApp:
             imgui.end_popup()
             
         return should_continue
-    
     def _render_settings(self):
-        imgui.set_next_window_size((300, 200), imgui.Cond_.first_use_ever)
+        imgui.set_next_window_size((300, 250), imgui.Cond_.first_use_ever)
         
         # Always call begin/end pair
         imgui.begin("Settings", None, imgui.WindowFlags_.no_collapse)
+        
+        imgui.text("Server URL:")
+        _, self.server_url = imgui.input_text("##server_url", self.server_url)
+        
+        imgui.separator()
+        imgui.text("Legacy Settings (auto-parsed from URL):")
         
         imgui.text("Server IP:")
         _, self.server_ip = imgui.input_text("##ip", self.server_ip)
         
         imgui.text("Port:")
         _, self.server_port = imgui.input_text("##port", self.server_port)
+        
+        # Update legacy fields from URL when URL changes
+        if imgui.button("Parse URL"):
+            self.server_ip, self.server_port = self._parse_server_url()
         
         if imgui.button("Save & Close"):
             self.show_settings = False
@@ -147,12 +163,13 @@ class MenuApp:
             self.show_settings = False
             
         imgui.end()  # Always call end
-    
     def _launch_main(self):
         try:
             cmd = [sys.executable, "main.py", "--mode", self.selected_mode]
             if self.selected_mode == "player":
-                cmd.extend(["--server", self.server_ip, "--port", self.server_port])
+                # Parse server URL to get IP and port
+                parsed_ip, parsed_port = self._parse_server_url()
+                cmd.extend(["--server", parsed_ip, "--port", parsed_port])
             
             subprocess.Popen(cmd)
             logger.info(f"Launched main.py: {' '.join(cmd)}")
@@ -200,13 +217,26 @@ class MenuApp:
         imgui.set_next_window_size((450, 400), imgui.Cond_.first_use_ever)
         
         imgui.begin("Authentication", None, imgui.WindowFlags_.no_collapse)
-        
         imgui.text("Server Connection")
         imgui.separator()
         
-        # Server URL
+        # Server URL dropdown
         imgui.text("Server URL:")
-        _, self.server_url = imgui.input_text("##server_url", self.server_url)
+        current_server = self.server_url_options[self.selected_server_index]
+        if imgui.begin_combo("##server_url_combo", current_server):
+            for i, url_option in enumerate(self.server_url_options):
+                is_selected = (i == self.selected_server_index)
+                if imgui.selectable(url_option, is_selected)[0]:
+                    self.selected_server_index = i
+                    self.server_url = url_option
+                    # Auto-update port from URL
+                    parsed_ip, parsed_port = self._parse_server_url()
+                    self.server_port_input = parsed_port
+            imgui.end_combo()
+        
+        # Port input field
+        imgui.text("Port:")
+        _, self.server_port_input = imgui.input_text("##port_input", self.server_port_input)
         
         # Connection type
         imgui.text("Connection Type:")
@@ -378,7 +408,6 @@ class MenuApp:
                 headers={"Authorization": f"Bearer {self.jwt_token}"},
                 timeout=10
             )
-            
             if response.status_code == 200:
                 self.available_sessions = response.json()
                 logger.info(f"Fetched {len(self.available_sessions)} sessions")
@@ -389,15 +418,55 @@ class MenuApp:
         except Exception as e:
             logger.error(f"Error fetching sessions: {str(e)}")
             self.available_sessions = []
-    
+
+    def _parse_server_url(self):
+        """Simple URL parsing to extract IP and port"""
+        try:
+            from urllib.parse import urlparse
+            
+            # Handle URLs without scheme
+            url_to_parse = self.server_url
+            if not url_to_parse.startswith(('http://', 'https://')):
+                url_to_parse = 'http://' + url_to_parse
+            
+            parsed = urlparse(url_to_parse)
+            
+            # Extract hostname (IP or domain)
+            hostname = parsed.hostname or "127.0.0.1"
+            
+            # Use explicit port from URL, or default to user input
+            port = str(parsed.port) if parsed.port else self.server_port_input
+            
+            logger.info(f"Parsed server: {hostname}:{port}")
+            return hostname, port
+            
+        except Exception as e:
+            logger.error(f"Error parsing server URL '{self.server_url}': {e}")
+            return "127.0.0.1", self.server_port_input
+
+    def _test_server_connection(self):
+        """Test if the current server URL is reachable"""
+        try:
+            import requests
+            response = requests.get(f"{self.server_url}/health", timeout=5)
+            return response.status_code in [200, 404, 405]
+        except Exception as e:
+            logger.debug(f"Server connection test failed: {e}")
+            return False
+
     def _launch_authenticated_game(self):
         """Launch main.py with authentication parameters"""
         try:
             cmd = [sys.executable, "main.py", "--mode", self.selected_mode]
             
+            # Parse server URL to get IP and port for legacy compatibility
+            parsed_ip, parsed_port = self._parse_server_url()
+            
             if self.connection_type == "websocket":
                 cmd.extend([
                     "--connection", "websocket",
+                    "--server", parsed_ip,
+                    "--port", parsed_port,
                     "--server-url", self.server_url,
                     "--session-code", self.session_code,
                     "--jwt-token", self.jwt_token,
@@ -410,6 +479,7 @@ class MenuApp:
                     "--username", self.username
                 ])
             
+            print(f"Launching game with command: {cmd}")
             subprocess.Popen(cmd)
             logger.info(f"Launched authenticated game: {' '.join(cmd[:6])}...")  # Don't log tokens
         except Exception as e:
@@ -417,7 +487,6 @@ class MenuApp:
             self.auth_error = f"Failed to launch: {str(e)}"
 
 def main():
-    logging.basicConfig(level=logging.INFO)
     MenuApp().run()
 
 if __name__ == "__main__":

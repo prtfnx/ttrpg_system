@@ -1,7 +1,37 @@
-# Core webhook dependencies
+# Web Framework & Server
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
-requests>=2.31.0
 
-# Existing dependencies (if any)
-# Add any other dependencies you have here
+# HTTP & Networking
+aiohttp>=3.9.0
+requests>=2.31.0
+websockets>=12.0
+
+# Authentication & Security
+PyJWT>=2.8.0
+passlib[bcrypt]>=1.7.4
+
+# Data Handling & Validation
+pydantic>=2.5.0
+python-multipart>=0.0.6
+email-validator>=2.0.0
+
+# Graphics & GUI
+imgui-bundle>=1.2.0
+pysdl3>=0.9.8b2
+PyOpenGL>=3.1.7
+
+# Scientific Computing
+numpy>=1.24.0
+matplotlib>=3.7.0
+scikit-image>=0.21.0
+
+# Utilities
+PyYAML>=6.0
+psutil>=5.9.0
+
+# Web Scraping (if needed)
+beautifulsoup4>=4.12.0
+
+# Testing
+pytest>=7.4.0

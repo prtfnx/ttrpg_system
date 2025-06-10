@@ -5,16 +5,32 @@ services:
   - type: web
     name: ttrpg-webhook-server
     env: python
+    plan: free  # Use 'starter' or 'standard' for paid plans
     buildCommand: |
       cd server_host
+      pip install --upgrade pip
       pip install -r requirements.txt
     startCommand: |
       cd server_host
       python main.py
     envVars:
       - key: PYTHON_VERSION
-        value: 3.10.0
+        value: 3.11.0
       - key: PORT
         generateValue: true
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        generateValue: true
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "*"
     healthCheckPath: /health
     autoDeploy: true
+    
+  # Optional: Redis service for session management
+  # - type: redis
+  #   name: ttrpg-redis
+  #   plan: free
+  #   ipAllowList: []

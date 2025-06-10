@@ -35,19 +35,18 @@ import lighting_sys
 
 # Configure logging with enhanced debug visibility
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.CRITICAL,
     format="%(asctime)s [%(levelname)8s] %(name)s: %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),  # Console output
         logging.FileHandler('debug.log', mode='w')  # File output for persistence
-    ]
+    ],    
 )
 
 # Set specific loggers to debug level to ensure they show debug messages
-logging.getLogger().setLevel(logging.DEBUG)
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
 
 
 
@@ -183,7 +182,7 @@ def SDL_AppInit_func(args=None):
         logger.info("Initializing lighting system...")
         try:
             test_context.LightingManager = lighting_sys.LightManager(test_context, name ="default_lighting_manager") 
-            print(f"Lighting manager: {test_context.LightingManager}")
+            #print(f"Lighting manager: {test_context.LightingManager}")
             default_light = lighting_sys.Light('default_light')
             test_context.LightingManager.add_light(default_light)
             light_sprite = test_context.add_sprite(
@@ -299,7 +298,7 @@ def handle_information(msg, context):
             except (json.JSONDecodeError, KeyError):
                 # Not a wrapped message, use as-is
                 pass
-        print('context.protocol.handle_message', context.protocol)
+        #print('context.protocol.handle_message', context.protocol)
         # Process the message through the protocol handler
         asyncio.run(context.protocol.handle_message(msg))
 
@@ -581,7 +580,7 @@ def websocket_thread_func(context):
                     pass  # Handle WebSocket specific errors
                 else:
                     context.queue_to_read.put(data)
-                    logger.debug(f"Received WebSocket data: {data[:100]}...")
+                    logger.debug(f"Received WebSocket data: {data}...")
         except Exception as e:
             logger.error("Error receiving WebSocket data: %s", e)
             net_fails += 1
@@ -597,30 +596,37 @@ def parse_arguments():
                        help='Server IP address (default: 127.0.0.1)')
     parser.add_argument('--port', default='12345',
                        help='Server port (default: 12345)')
-    parser.add_argument('--connection', choices=['sdl', 'webhook', 'websocket'], default='sdl',
+    parser.add_argument('--connection', choices=['sdl', 'webhook', 'websocket'], default='websocket',
                        help='Connection type: sdl for TCP socket, webhook for HTTP/webhooks, or websocket for WebSocket connection (default: sdl)')
     parser.add_argument('--webhook-port', default='8080',
                        help='Local webhook server port (default: 8080)')
-    parser.add_argument('--server-url', default='https://your-app.onrender.com',
-                       help='Server URL for webhook connection (default: https://your-app.onrender.com)')
+    parser.add_argument('--server-url', default='127.0.0.01:12345',
+                       help='Server URL for webhook connection (default: localhost:12345)')
     # Authentication parameters for WebSocket connections
-    parser.add_argument('--session-code', default=None,
+    parser.add_argument('--session-code', default='V2ERPCXR',
                        help='Game session code for WebSocket connection')
-    parser.add_argument('--jwt-token', default=None,
+    parser.add_argument('--jwt-token', default='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNzQ5NTkzMTg3fQ.WpdR9rgF_jLlvOoKnpVCXn7J-mj6JSHFiXgOHXbn72U',
                        help='JWT authentication token for WebSocket connection')
-    parser.add_argument('--username', default=None,
+    parser.add_argument('--username', default='test',
                        help='Username for authentication')
-    parser.add_argument('--password', default=None,
+    parser.add_argument('--password', default='test',
                        help='Password for authentication')
     parser.add_argument('--no-menu', action='store_true',
                        help='Skip main menu and start directly')
     
+
     return parser.parse_args()
 
-def main():
+def main(args=None):
     """Main entry point."""
     # Parse command line arguments
-    args = parse_arguments()
+    print(args)
+    if args is None:
+        args = parse_arguments()
+    else:
+        # Convert dict to argparse Namespace
+        args = argparse.Namespace(**args)
+    
     logger.info(f"Starting TTRPG System in {args.mode} mode")
     logger.info(f"Connection type: {args.connection}")
     if args.connection == 'webhook':

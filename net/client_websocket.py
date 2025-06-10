@@ -270,8 +270,8 @@ if __name__ == "__main__":
     
     client = init_connection(server_url)
     if client:
-        print("WebSocket client started. Testing connection...")
-        
+        logger.info("WebSocket client started. Testing connection...")
+
         # Set a dummy token for testing
         client.set_auth_token("dummy_token_for_testing")
         
@@ -281,7 +281,7 @@ if __name__ == "__main__":
             for i in range(10):
                 if client.is_connected:
                     break
-                print(f"Waiting for connection... ({i+1}/10)")
+                logger.info(f"Waiting for connection... ({i+1}/10)")
                 time.sleep(1)
             
             if client.is_connected:
@@ -292,13 +292,13 @@ if __name__ == "__main__":
                 for i in range(5):
                     message = receive_data(client)
                     if message:
-                        print(f"Received: {message}")
+                        logger.info(f"Received: {message}")
                     time.sleep(1)
             else:
-                print("Failed to establish WebSocket connection")
+                logger.error("Failed to establish WebSocket connection")
         else:
-            print("Failed to connect to session")
-        
+            logger.error("Failed to connect to session")
+
         close_connection(client)
     else:
-        print("Failed to start WebSocket client")
+        logger.error("Failed to start WebSocket client")

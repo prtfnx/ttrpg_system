@@ -2,7 +2,6 @@ import logging
 import ctypes
 import sdl3
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class LightManager:
@@ -49,9 +48,9 @@ class LightManager:
                     self.draw_method(light)
             else:
                 for light in self.lights:
-                    print(f"Drawing light: {light}")
+                    logger.info(f"Drawing light: {light.name}")
         except Exception as e:
-            print(f"Error occurred while drawing lights: {e}")
+            logger.error(f"Error during drawing lights: {e}")
     def clear_lights(self):
         """Clear all lights from the manager"""
         self.lights.clear()
@@ -77,7 +76,7 @@ class LightManager:
     def create_light_texture(self, light, path_to_image=b"resources/light.png",width=1920, height=1080):
         """test purpose: create a texture for a light"""
         renderer= self.context.renderer
-        print('Creating light texture for', light.name)
+        logger.info(f"Creating light texture for {light.name}")
         surface = sdl3.IMG_Load(path_to_image)
         light_texture = sdl3.SDL_CreateTextureFromSurface(renderer, surface)
         

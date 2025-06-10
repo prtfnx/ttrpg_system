@@ -21,9 +21,16 @@ from core_table.server import TableManager
 
 logger = logging.getLogger(__name__)
 
+# Enable debug logging for this module
+logger.setLevel(logging.DEBUG)
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s %(levelname)s:%(name)s: %(message)s')
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
 class GameSessionProtocolService:
     """Manages table protocol within a game session"""
-    
     def __init__(self, session_code: str):
         self.session_code = session_code
         self.table_manager = TableManager()
@@ -47,7 +54,68 @@ class GameSessionProtocolService:
             MessageType.COMPENDIUM_SPRITE_REMOVE: self._handle_compendium_sprite_remove,
         }
         
+        # Initialize test tables with entities
+        self._create_test_tables()
+        
         logger.info(f"GameSessionProtocolService created for session {session_code}")
+        
+        # Debug: Log available message handlers
+        #logger.debug(f"Available message handlers: {list(self.message_handlers.keys())}")
+        #logger.debug(f"Handler keys as strings: {[k.value for k in self.message_handlers.keys()]}")
+    
+    def _create_test_tables(self):
+        """Create test tables with entities for testing"""
+        try:
+            # Import VirtualTable here to avoid circular imports
+            from core_table.table import VirtualTable
+            
+            # Create small test table
+            test_table = VirtualTable('test_table', 20, 20)
+            self.table_manager.add_table(test_table)
+            
+            # Add some test entities
+            hero = test_table.add_entity("Hero", (2, 3), layer='tokens', path_to_texture='resources/hero.png')
+            goblin = test_table.add_entity("Goblin", (5, 6), layer='tokens', path_to_texture='resources/goblin.png')
+            treasure = test_table.add_entity("Treasure", (8, 9), layer='tokens', path_to_texture='resources/treasure.png')
+            
+            logger.info(f"Created test_table with entities:")
+            logger.info(f"  Hero (ID: {hero.entity_id}, Sprite: {hero.sprite_id}) at {hero.position}")
+            logger.info(f"  Goblin (ID: {goblin.entity_id}, Sprite: {goblin.sprite_id}) at {goblin.position}")
+            logger.info(f"  Treasure (ID: {treasure.entity_id}, Sprite: {treasure.sprite_id}) at {treasure.position}")
+            
+            # Create large table for testing with multiple entities in different layers
+            large_table = VirtualTable('large_table', 1080, 1920)
+            self.table_manager.add_table(large_table)
+            
+            # Add entities across different layers
+            map_bg = large_table.add_entity("Map Background", (0, 0), layer='map', path_to_texture='resources/map.jpg')
+            player1 = large_table.add_entity("Player 1", (10, 10), layer='tokens', path_to_texture='resources/player1.png')
+            player2 = large_table.add_entity("Player 2", (12, 10), layer='tokens', path_to_texture='resources/player2.png')
+            dm_note = large_table.add_entity("DM Note", (25, 25), layer='dungeon_master', path_to_texture='resources/note.png')
+            light_source = large_table.add_entity("Light Source", (15, 15), layer='light', path_to_texture='resources/torch.png')
+            
+            # Add some more entities to make it feel populated
+            orc1 = large_table.add_entity("Orc Warrior", (20, 15), layer='tokens', path_to_texture='resources/orc.png')
+            orc2 = large_table.add_entity("Orc Archer", (22, 17), layer='tokens', path_to_texture='resources/orc_archer.png')
+            chest = large_table.add_entity("Treasure Chest", (30, 30), layer='tokens', path_to_texture='resources/chest.png')
+            trap = large_table.add_entity("Hidden Trap", (18, 18), layer='dungeon_master', path_to_texture='resources/trap.png')
+            
+            logger.info(f"Created large_table (1080x1920) with {len(large_table.entities)} entities:")
+            for entity in large_table.entities.values():
+                logger.info(f"  {entity.name} (ID: {entity.entity_id}, Sprite: {entity.sprite_id}) at {entity.position} [Layer: {entity.layer}]")
+            
+            logger.info(f"Session {self.session_code} - Available tables: {list(self.table_manager.tables.keys())}")
+            
+        except Exception as e:
+            logger.error(f"Failed to create test tables: {e}")
+            # Create a minimal fallback table
+            try:
+                from core_table.table import VirtualTable
+                fallback_table = VirtualTable('fallback_table', 10, 10)
+                self.table_manager.add_table(fallback_table)
+                logger.info(f"Created fallback table for session {self.session_code}")
+            except Exception as fallback_error:
+                logger.error(f"Failed to create fallback table: {fallback_error}")
 
     async def add_client(self, websocket: WebSocket, client_id: str, user_info: dict):
         """Add a client to this game session"""
@@ -92,6 +160,7 @@ class GameSessionProtocolService:
         """Handle incoming protocol message from a client"""
         try:
             message = Message.from_json(message_str)
+            logger.debug(f"Handling protocol message in session {self.session_code}: {message}")
             client_id = self.websocket_to_client.get(websocket)
             
             if not client_id:
@@ -101,8 +170,9 @@ class GameSessionProtocolService:
             # Update last activity
             if client_id in self.client_info:
                 self.client_info[client_id]["last_ping"] = time.time()
-            
             logger.debug(f"Received {message.type.value} from {client_id} in session {self.session_code}")
+            #logger.debug(f"Available handlers: {list(self.message_handlers.keys())}")
+            logger.debug(f"Message type object: {message.type}")
             
             # Handle message by type
             if message.type in self.message_handlers:
@@ -152,20 +222,31 @@ class GameSessionProtocolService:
         await self._send_message(websocket, Message(MessageType.PONG, {
             "timestamp": time.time(),
             "session_code": self.session_code
-        }))
-
+        }))    
     async def _handle_table_request(self, websocket: WebSocket, message: Message, client_id: str):
         """Handle table data request"""
         try:
-            table_name = message.data.get('name') if message.data else "default"
-            if table_name is None:
-                table_name = "default"
+            logger.debug(f"Handling table request from {client_id} with message {message}")
+              # Extract table name from message data  
+            table_name = None
+            if message.data:
+                table_name = message.data.get('name') or message.data.get('table_name')
+            
+            # Use 'default' if no table name specified
+            if not table_name:
+                table_name = 'default'
+                
+            logger.debug(f"Table request for '{table_name}' in session {self.session_code}")
+            logger.debug(f"Available tables: {list(self.table_manager.tables.keys())}")
+            
             table = self.table_manager.get_table(table_name)
+            logger.debug(f"Table found: {table is not None}")
+            logger.debug(f"Table name returned: {table.name if table else 'None'}")
             
             if not table:
                 await self._send_error(websocket, f"Table '{table_name}' not found")
                 return
-            
+
             # Create table data response
             table_data = {
                 'name': table.name,
@@ -179,7 +260,7 @@ class GameSessionProtocolService:
                 'session_code': self.session_code
             }
             
-            await self._send_message(websocket, Message(MessageType.TABLE_DATA, table_data))
+            await self._send_message(websocket, Message(MessageType.TABLE_RESPONSE, table_data))
             
         except Exception as e:
             logger.error(f"Error handling table request: {e}")

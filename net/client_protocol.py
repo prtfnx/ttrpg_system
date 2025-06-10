@@ -128,7 +128,7 @@ class ClientProtocol:
         """Update local table from server data"""
         if not self.context.current_table:
             self.context.add_table(data['name'], data['width'], data['height'])
-        print(f"Updating table: {data['name']}")
+        
         table = self.context.current_table
         table.scale = data.get('scale', 1.0)
         table.x_moved = data.get('x_moved', 0.0)

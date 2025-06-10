@@ -100,12 +100,23 @@ async def health_check():
     )
 
 if __name__ == "__main__":
-    # Configure logging
+    # Configure logging - more verbose for debugging production issues
+    log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
     logging.basicConfig(
-        level=logging.INFO,  # Changed to DEBUG to see protocol messages
+        level=getattr(logging, log_level),
         format="%(asctime)s %(levelname)s:%(name)s: %(message)s"
-    )    # Get port from environment (render.com sets this automatically)
-    port = int(os.environ.get("PORT", 8000))
+    )
+    
+    # Enable debug logging for key modules in production
+    if os.environ.get("ENVIRONMENT") == "production":
+        logging.getLogger("server_host.service.game_session_protocol").setLevel(logging.DEBUG)
+        logging.getLogger("server_host.api.websocket_router").setLevel(logging.DEBUG)
+        logging.getLogger("core_table.server").setLevel(logging.DEBUG)
+        logging.getLogger("core_table.server_protocol").setLevel(logging.DEBUG)
+        logger.info("Enabled debug logging for protocol components")
+    
+    # Get port from environment (render.com sets this automatically)
+    port = int(os.environ.get("PORT", 12345))
     
     # Determine host based on environment
     # If PORT is set by cloud provider (Render, Heroku, etc.), bind to 0.0.0.0
@@ -113,6 +124,7 @@ if __name__ == "__main__":
     host = "0.0.0.0" if "PORT" in os.environ or os.environ.get("ENVIRONMENT") == "production" else "127.0.0.1"
     logger.info(f"Starting server on {host}:{port}")
     logger.info(f"PORT environment variable: {os.environ.get('PORT', 'Not set')}")
+    logger.info(f"ENVIRONMENT: {os.environ.get('ENVIRONMENT', 'development')}")
 
     # Run server
     uvicorn.run(

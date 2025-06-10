@@ -8,11 +8,13 @@ import os
 import sys
 import uvicorn
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.exception_handlers import http_exception_handler
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -76,6 +78,42 @@ app.add_middleware(
 if os.path.exists("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Set up templates
+templates = Jinja2Templates(directory="templates")
+
+# Custom exception handlers
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc: HTTPException):
+    """Custom 404 error page"""
+    return templates.TemplateResponse("404.html", {"request": request}, status_code=404)
+
+@app.exception_handler(401)
+async def unauthorized_handler(request: Request, exc: HTTPException):
+    """Custom 401 authentication error page"""
+    # Check if this is an API request (JSON) vs web request (HTML)
+    accept_header = request.headers.get("accept", "")
+    if "application/json" in accept_header:
+        # Return JSON for API requests
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Authentication required"}
+        )
+    else:
+        # Redirect to auth error page for web requests
+        return RedirectResponse(url="/users/auth-error", status_code=302)
+
+@app.exception_handler(403)
+async def forbidden_handler(request: Request, exc: HTTPException):
+    """Custom 403 forbidden error page"""
+    accept_header = request.headers.get("accept", "")
+    if "application/json" in accept_header:
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Access forbidden"}
+        )
+    else:
+        return RedirectResponse(url="/users/auth-error", status_code=302)
+
 # Include routers
 app.include_router(users.router)
 app.include_router(game.router)
@@ -84,8 +122,17 @@ app.include_router(game_ws.router)
 @app.get("/")
 async def root():
     """Root endpoint - redirect to login"""
-    from fastapi.responses import RedirectResponse
     return RedirectResponse(url="/users/login")
+
+@app.get("/test-404")
+async def test_404():
+    """Test route to trigger 404 page"""
+    raise HTTPException(status_code=404, detail="Test 404 page")
+
+@app.get("/test-auth-error")
+async def test_auth_error():
+    """Test route to trigger auth error page"""
+    raise HTTPException(status_code=401, detail="Test authentication error")
 
 @app.get("/health")
 async def health_check():

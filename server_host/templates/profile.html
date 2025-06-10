@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTRPG Server - Character Profile</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* User Profile Page Styles */
+        .profile-container {
+            position: relative;
+            width: 100%;
+            min-height: 80vh;
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 50%, #6c5ce7 100%);
+            background-size: 400% 400%;
+            animation: heroicShift 10s ease infinite;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            padding: 2rem;
+        }
+
+        @keyframes heroicShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .profile-overlay {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            margin-bottom: 3rem;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .profile-avatar {
+            font-size: 8rem;
+            animation: heroStance 3s ease-in-out infinite;
+            text-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .profile-avatar:hover {
+            transform: scale(1.1);
+            filter: drop-shadow(0 0 20px rgba(116, 185, 255, 0.6));
+        }
+
+        @keyframes heroStance {
+            0%, 100% { transform: translateY(0px) rotate(-2deg); }
+            50% { transform: translateY(-10px) rotate(2deg); }
+        }
+
+        .profile-info h1 {
+            font-size: 3rem;
+            color: #2d3436;
+            margin-bottom: 0.5rem;
+            font-weight: 900;
+        }
+
+        .profile-info .username {
+            font-size: 1.5rem;
+            color: #636e72;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .profile-info .level-badge {
+            background: linear-gradient(45deg, #fdcb6e, #e17055);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            font-weight: 700;
+            display: inline-block;
+            animation: levelGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes levelGlow {
+            0%, 100% { box-shadow: 0 0 10px rgba(253, 203, 110, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(253, 203, 110, 0.6); }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            border-color: #74b9ff;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-card .icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .stat-card h3 {
+            font-size: 1.5rem;
+            color: #2d3436;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .stat-card .value {
+            font-size: 2.5rem;
+            color: #0984e3;
+            font-weight: 900;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .description {
+            color: #636e72;
+            font-weight: 600;
+        }
+
+        .achievements-section {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            margin-bottom: 2rem;
+        }
+
+        .achievements-section h2 {
+            font-size: 2rem;
+            color: #2d3436;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .achievement-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .achievement {
+            background: linear-gradient(135deg, #fdcb6e, #e17055);
+            color: white;
+            padding: 1rem;
+            border-radius: 10px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .achievement:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .achievement.locked {
+            background: #ddd;
+            color: #666;
+            opacity: 0.6;
+        }
+
+        .achievement .icon {
+            font-size: 2rem;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .achievement .name {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .btn-profile-action {
+            background: linear-gradient(45deg, #6c5ce7, #a29bfe);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-decoration: none;
+            display: inline-block;
+            margin: 0 0.5rem;
+        }
+
+        .btn-profile-action:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-profile-action.danger {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+        }
+
+        .btn-profile-action.success {
+            background: linear-gradient(45deg, #00b894, #00cec9);
+        }
+
+        .floating-particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            top: 0;
+            left: 0;
+        }
+
+        .floating-particle {
+            position: absolute;
+            font-size: 1.5rem;
+            opacity: 0.3;
+            animation: particleFloat 20s linear infinite;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        @keyframes particleFloat {
+            0% { 
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% { opacity: 0.3; }
+            90% { opacity: 0.3; }
+            100% { 
+                transform: translateY(-100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        .magical-aura {
+            animation: auraGlow 4s ease-in-out infinite;
+        }
+
+        @keyframes auraGlow {
+            0%, 100% { filter: drop-shadow(0 0 10px rgba(116, 185, 255, 0.3)); }
+            50% { filter: drop-shadow(0 0 25px rgba(116, 185, 255, 0.6)); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="session-header">
+            <div class="session-info">
+                <h2>⚔️ Hero's Chronicle</h2>
+                <div class="session-code">Character Profile</div>
+            </div>
+            <a href="/users/dashboard" class="btn-fun">📊 Dashboard</a>
+        </div>
+
+        <div class="profile-container">
+            <div class="floating-particles" id="floatingParticles"></div>
+            
+            <div class="profile-overlay">
+                <div class="profile-header">
+                    <div class="profile-avatar magical-aura" id="heroAvatar">🧙‍♂️</div>
+                    <div class="profile-info">
+                        <h1>{{ user.character_name if user and user.character_name else 'Epic Hero' }}</h1>
+                        <div class="username">@{{ user.username if user else 'adventurer' }}</div>
+                        <div class="level-badge">⭐ Level {{ user.level if user and user.level else '42' }} Hero ⭐</div>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="icon">🎮</span>
+                        <h3>Games Played</h3>
+                        <div class="value">{{ user.games_played if user and user.games_played else '127' }}</div>
+                        <div class="description">Epic Adventures</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <span class="icon">🏆</span>
+                        <h3>Victories</h3>
+                        <div class="value">{{ user.victories if user and user.victories else '89' }}</div>
+                        <div class="description">Glorious Triumphs</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <span class="icon">⚔️</span>
+                        <h3>Monsters Defeated</h3>
+                        <div class="value">{{ user.monsters_defeated if user and user.monsters_defeated else '2,156' }}</div>
+                        <div class="description">Fallen Foes</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <span class="icon">💰</span>
+                        <h3>Gold Earned</h3>
+                        <div class="value">{{ user.gold_earned if user and user.gold_earned else '45,892' }}</div>
+                        <div class="description">Treasure Hoarded</div>
+                    </div>
+                </div>
+
+                <div class="achievements-section">
+                    <h2>🏅 Hall of Achievements</h2>
+                    <div class="achievement-grid">
+                        <div class="achievement">
+                            <span class="icon">⚔️</span>
+                            <div class="name">First Blood</div>
+                        </div>
+                        <div class="achievement">
+                            <span class="icon">🐉</span>
+                            <div class="name">Dragon Slayer</div>
+                        </div>
+                        <div class="achievement">
+                            <span class="icon">👑</span>
+                            <div class="name">Noble Quest</div>
+                        </div>
+                        <div class="achievement">
+                            <span class="icon">🔮</span>
+                            <div class="name">Arcane Master</div>
+                        </div>
+                        <div class="achievement">
+                            <span class="icon">🛡️</span>
+                            <div class="name">Defender</div>
+                        </div>
+                        <div class="achievement locked">
+                            <span class="icon">🌟</span>
+                            <div class="name">Legendary</div>
+                        </div>
+                        <div class="achievement locked">
+                            <span class="icon">💎</span>
+                            <div class="name">Immortal</div>
+                        </div>
+                        <div class="achievement locked">
+                            <span class="icon">🚀</span>
+                            <div class="name">Ascended</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 2rem;">
+                    <a href="/users/edit" class="btn-profile-action">✏️ Edit Profile</a>
+                    <a href="/game/" class="btn-profile-action success">🎮 Play Game</a>
+                    <a href="/users/logout" class="btn-profile-action danger">🚪 Logout</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Create floating magical particles
+        const particles = ['✨', '⭐', '🌟', '💫', '🔥', '❄️', '⚡', '💎', '🔮', '🌀', '💜', '💙', '💚', '💛', '❤️', '🧿'];
+        const particlesContainer = document.getElementById('floatingParticles');
+
+        function createFloatingParticle() {
+            const particle = document.createElement('div');
+            particle.className = 'floating-particle';
+            particle.textContent = particles[Math.floor(Math.random() * particles.length)];
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 3 + 's';
+            particle.style.animationDuration = (Math.random() * 8 + 15) + 's';
+            
+            particlesContainer.appendChild(particle);
+            
+            setTimeout(() => {
+                if (particle.parentNode) {
+                    particle.parentNode.removeChild(particle);
+                }
+            }, 25000);
+        }
+
+        // Create floating particles periodically
+        setInterval(createFloatingParticle, 2000);
+
+        // Add some initial particles
+        for (let i = 0; i < 5; i++) {
+            setTimeout(createFloatingParticle, i * 600);
+        }
+
+        // Avatar character rotation on click
+        const avatars = ['🧙‍♂️', '🧙‍♀️', '⚔️', '🏹', '🛡️', '🧝‍♂️', '🧝‍♀️', '🧚‍♂️', '🧚‍♀️', '🦸‍♂️', '🦸‍♀️', '👑', '🤴', '👸'];
+        let currentAvatarIndex = 0;
+
+        document.getElementById('heroAvatar').addEventListener('click', function() {
+            currentAvatarIndex = (currentAvatarIndex + 1) % avatars.length;
+            this.textContent = avatars[currentAvatarIndex];
+            
+            // Add sparkle effect
+            this.style.transform = 'scale(1.3) rotate(360deg)';
+            this.style.transition = 'transform 0.5s ease-out';
+            
+            setTimeout(() => {
+                this.style.transform = '';
+            }, 500);
+            
+            // Create burst of stars
+            for (let i = 0; i < 12; i++) {
+                setTimeout(() => {
+                    const star = document.createElement('div');
+                    star.textContent = '⭐';
+                    star.style.position = 'absolute';
+                    star.style.fontSize = '2rem';
+                    star.style.left = Math.random() * 100 + '%';
+                    star.style.top = Math.random() * 100 + '%';
+                    star.style.pointerEvents = 'none';
+                    star.style.animation = 'levelGlow 1s ease-out forwards';
+                    star.style.zIndex = '1000';
+                    
+                    particlesContainer.appendChild(star);
+                    
+                    setTimeout(() => {
+                        if (star.parentNode) {
+                            star.parentNode.removeChild(star);
+                        }
+                    }, 1000);
+                }, i * 100);
+            }
+        });
+
+        // Achievement click effects
+        document.querySelectorAll('.achievement:not(.locked)').forEach(achievement => {
+            achievement.addEventListener('click', function() {
+                // Achievement unlock animation
+                this.style.transform = 'scale(1.2)';
+                this.style.filter = 'brightness(1.3)';
+                
+                setTimeout(() => {
+                    this.style.transform = '';
+                    this.style.filter = '';
+                }, 300);
+                
+                // Create achievement particles
+                const achievementParticles = ['🎉', '🎊', '⭐', '🏆', '👑'];
+                for (let i = 0; i < 8; i++) {
+                    setTimeout(() => {
+                        const particle = document.createElement('div');
+                        particle.textContent = achievementParticles[Math.floor(Math.random() * achievementParticles.length)];
+                        particle.style.position = 'absolute';
+                        particle.style.fontSize = '1.5rem';
+                        particle.style.left = Math.random() * 100 + '%';
+                        particle.style.top = Math.random() * 100 + '%';
+                        particle.style.pointerEvents = 'none';
+                        particle.style.animation = 'particleFloat 2s ease-out forwards';
+                        particle.style.zIndex = '1000';
+                        
+                        particlesContainer.appendChild(particle);
+                        
+                        setTimeout(() => {
+                            if (particle.parentNode) {
+                                particle.parentNode.removeChild(particle);
+                            }
+                        }, 2000);
+                    }, i * 50);
+                }
+            });
+        });
+
+        // Stat card hover effects
+        document.querySelectorAll('.stat-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                // Create small sparkle on hover
+                const sparkle = document.createElement('div');
+                sparkle.textContent = '✨';
+                sparkle.style.position = 'absolute';
+                sparkle.style.fontSize = '1.5rem';
+                sparkle.style.right = '10px';
+                sparkle.style.top = '10px';
+                sparkle.style.pointerEvents = 'none';
+                sparkle.style.animation = 'levelGlow 1s ease-out forwards';
+                sparkle.style.zIndex = '100';
+                
+                this.style.position = 'relative';
+                this.appendChild(sparkle);
+                
+                setTimeout(() => {
+                    if (sparkle.parentNode) {
+                        sparkle.parentNode.removeChild(sparkle);
+                    }
+                }, 1000);
+            });
+        });
+
+        // Console message
+        console.log('⚔️ Welcome to your Hero\'s Chronicle!');
+        console.log('🏆 Your legendary deeds are recorded here for all eternity.');
+        console.log('✨ Click on your avatar to change your heroic appearance!');
+    </script>
+</body>
+</html>

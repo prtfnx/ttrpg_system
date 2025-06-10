@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTRPG Server - Authentication Error</title>
+    <link rel="stylesheet" href="/static/style.css">    <style>
+        /* Authentication Error Page Styles */
+        .auth-error-container {
+            position: relative;
+            width: 100%;
+            height: 80vh;
+            background: linear-gradient(135deg, #2d3436 0%, #636e72 50%, #2d3436 100%);
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            border: 2px solid #b2bec3;
+        }
+
+        @keyframes darkPulse {
+            0%, 100% { box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7), inset 0 0 30px rgba(45, 52, 54, 0.3); }
+            50% { box-shadow: 0 15px 30px rgba(0, 0, 0, 0.9), inset 0 0 50px rgba(99, 110, 114, 0.5); }
+        }        .auth-error-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .error-guardian {
+            font-size: 8rem;
+            animation: guardianStare 3s ease-in-out infinite;
+            text-shadow: 5px 5px 15px rgba(0, 0, 0, 0.8);
+            margin-bottom: 2rem;
+            color: #ddd;
+        }
+
+        @keyframes guardianStare {
+            0%, 100% { transform: translateY(0px); opacity: 0.9; }
+            50% { transform: translateY(-5px); opacity: 1; }
+        }
+
+        .error-text {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2.5rem 3rem;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            max-width: 90%;
+            border: 1px solid #636e72;
+            position: relative;
+        }
+
+        .error-text h1 {
+            font-size: 2.2rem;
+            color: #2d3436;
+            margin-bottom: 1rem;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+        }
+
+        .error-text p {
+            font-size: 1.1rem;
+            color: #636e72;
+            margin-bottom: 1rem;
+            font-weight: 500;
+            line-height: 1.4;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .error-code {
+            font-family: 'Courier New', monospace;
+            background: #2d3436;
+            color: #00b894;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+            border-left: 4px solid #e17055;
+        }
+
+        .btn-return {
+            background: #636e72;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 3px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-decoration: none;
+            display: inline-block;
+            margin: 0 0.5rem;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .btn-return:hover {
+            background: #2d3436;
+            transform: translateY(-1px);
+        }
+
+        .btn-return.primary {
+            background: #00b894;
+        }
+
+        .btn-return.primary:hover {
+            background: #00a085;
+        }
+
+        .floating-runes {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .floating-rune {
+            position: absolute;
+            font-size: 2rem;
+            opacity: 0.2;
+            animation: runeFloat 12s linear infinite;
+            color: #fff;
+        }
+
+        @keyframes runeFloat {
+            0% { 
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% { opacity: 0.2; }
+            90% { opacity: 0.2; }
+            100% { 
+                transform: translateY(-100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        .warning-badge {
+            color: #e17055;
+            animation: warningPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes warningPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">        <div class="session-header">
+            <div class="session-info">
+                <h2>⚠️ ACCESS VIOLATION</h2>
+                <div class="session-code">Security Protocol Engaged</div>
+            </div>
+        </div>
+
+        <div class="auth-error-container">
+            <div class="auth-error-overlay">
+                <div class="error-guardian">🔒</div>
+                
+                <div class="error-text">
+                    <h1>UNAUTHORIZED ACCESS ATTEMPT</h1>
+                    <p>Your session credentials have expired or are invalid.</p>
+                    <p>This incident has been logged for security review.</p>
+                    
+                    <div class="error-code">
+ERROR 401: Authentication token invalid or missing<br>
+TIMESTAMP: {{ "now" | default("2024-12-10 15:42:33 UTC") }}<br>
+IP: REDACTED<br>
+USER_AGENT: Potentially suspicious
+                    </div>
+                    
+                    <p><strong>Please authenticate yourself to continue.</strong></p>
+                    <p><em>Remember: Big Brother is watching. Always.</em></p>
+                    
+                    <div style="margin-top: 2rem;">
+                        <a href="/users/login" class="btn-return primary">LOGIN</a>
+                        <a href="/users/register" class="btn-return">REGISTER</a>
+                        <a href="/" class="btn-return">HOME</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>    <script>
+        // Minimal interaction for serious tone
+        let clickCount = 0;
+        
+        document.querySelector('.error-guardian').addEventListener('click', function() {
+            clickCount++;
+            if (clickCount === 1) {
+                this.textContent = '👁️';
+                setTimeout(() => {
+                    this.textContent = '🔒';
+                }, 2000);
+            } else if (clickCount >= 3) {
+                // Easter egg for persistent users
+                const errorText = document.querySelector('.error-text h1');
+                errorText.textContent = 'PERSISTENCE IS FUTILE';
+                setTimeout(() => {
+                    errorText.textContent = 'UNAUTHORIZED ACCESS ATTEMPT';
+                }, 3000);
+                clickCount = 0;
+            }
+        });
+
+        // Console message
+        console.log('%c[SECURITY] Unauthorized access attempt detected', 'color: red; font-weight: bold;');
+        console.log('%c[SYSTEM] Please authenticate to continue', 'color: orange;');
+        console.log('%c[INFO] This incident has been logged', 'color: gray;');
+    </script>
+</body>
+</html>

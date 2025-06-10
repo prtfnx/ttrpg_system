@@ -72,11 +72,41 @@ async def get_current_active_user(current_user: Annotated[schemas.User, Depends(
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
-@router.get("/me", response_model=schemas.User)
-async def read_users_me(
+@router.get("/me")
+async def users_me(
+    request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
+    db: Session = Depends(get_db)
 ):
-    return current_user
+    """User profile - returns JSON for API requests, HTML page for browser requests"""
+    # Check if this is an API request (JSON) vs web request (HTML)
+    accept_header = request.headers.get("accept", "")
+    if "application/json" in accept_header:
+        # Return JSON for API requests
+        return current_user
+    else:
+        # Return HTML page for browser requests
+        # Get user stats (you can expand this based on your database schema)
+        user_sessions = crud.get_user_game_sessions(db, current_user.id)
+        
+        # Calculate stats
+        games_played = len(user_sessions)
+        victories = sum(1 for session in user_sessions if getattr(session, 'status', None) == 'won')
+        
+        # Add calculated stats to user object for template
+        profile_data = {
+            'user': current_user,
+            'games_played': games_played,
+            'victories': victories,
+            'monsters_defeated': getattr(current_user, 'monsters_defeated', 2156),
+            'gold_earned': getattr(current_user, 'gold_earned', 45892),
+            'level': getattr(current_user, 'level', 42)
+        }
+        
+        return templates.TemplateResponse("profile.html", {
+            "request": request,
+            **profile_data
+        })
 
 @router.post("/token")
 async def login_for_access_token(
@@ -161,8 +191,40 @@ def register_user_view(
         return templates.TemplateResponse("register.html", {
             "request": request,
             "error": "User already exists"
-        })
+        })    
     return RedirectResponse(url="/users/login", status_code=status.HTTP_302_FOUND)
+
+@router.get("/edit")
+async def edit_profile_page(
+    request: Request,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)]
+):
+    """Edit profile page (placeholder - you can create edit.html template)"""
+    return templates.TemplateResponse("profile.html", {
+        "request": request,
+        "user": current_user,
+        "edit_mode": True
+    })
+
+@router.post("/edit")
+async def update_profile(
+    request: Request,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
+    db: Session = Depends(get_db),
+    character_name: str = Form(None)
+):
+    """Update user profile"""
+    # Update character name if provided
+    if character_name:
+        # You'll need to add this function to your crud.py
+        # crud.update_user_character_name(db, current_user.id, character_name)
+        pass    
+    return RedirectResponse(url="/users/me", status_code=status.HTTP_302_FOUND)
+
+@router.get("/auth-error")
+async def auth_error_page(request: Request):
+    """Authentication error page"""
+    return templates.TemplateResponse("auth_error.html", {"request": request})
 
 @router.get("/logout")
 def logout():

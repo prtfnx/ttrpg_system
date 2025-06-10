@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTRPG Server - {{ session.name }}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* Fun mock game area styles */
+        .mock-game-container {
+            position: relative;
+            width: 100%;
+            height: 80vh;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #ffeaa7);
+            background-size: 400% 400%;
+            animation: rainbowShift 6s ease infinite;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        @keyframes rainbowShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .mock-game-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .mock-dragon {
+            font-size: 15rem;
+            animation: dragonBounce 2s ease-in-out infinite;
+            text-shadow: 10px 10px 20px rgba(0, 0, 0, 0.5);
+            margin-bottom: 2rem;
+        }
+
+        @keyframes dragonBounce {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-30px) rotate(5deg); }
+        }
+
+        .mock-text {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 3rem 4rem;
+            border-radius: 25px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+            text-align: center;
+            max-width: 90%;
+            border: 5px solid #ff6b6b;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mock-text::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        .mock-text h1 {
+            font-size: 3.5rem;
+            color: #ff6b6b;
+            margin-bottom: 1rem;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.3);
+            font-weight: 900;
+            position: relative;
+            z-index: 1;
+        }
+
+        .mock-text p {
+            font-size: 1.8rem;
+            color: #2d3436;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            position: relative;
+            z-index: 1;
+        }
+
+        .mock-text .price {
+            font-size: 4rem;
+            color: #00b894;
+            font-weight: 900;
+            text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.4);
+            animation: priceGlow 2s ease-in-out infinite;
+            position: relative;
+            z-index: 1;
+        }
+
+        @keyframes priceGlow {
+            0%, 100% { text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 184, 148, 0.3); }
+            50% { text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.4), 0 0 40px rgba(0, 184, 148, 0.8); }
+        }
+
+        .floating-icons {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .floating-icon {
+            position: absolute;
+            font-size: 3rem;
+            opacity: 0.3;
+            animation: float 8s linear infinite;
+        }
+
+        @keyframes float {
+            0% { 
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% { opacity: 0.3; }
+            90% { opacity: 0.3; }
+            100% { 
+                transform: translateY(-100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        .session-header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 1.5rem 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .session-info h2 {
+            color: #2d3436;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .session-code {
+            color: #636e72;
+            font-weight: 600;
+        }
+
+        .btn-fun {
+            background: linear-gradient(45deg, #fd79a8, #fdcb6e);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-fun:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .sparkle {
+            color: #f39c12;
+            animation: sparkle 1.5s ease-in-out infinite;
+        }
+
+        @keyframes sparkle {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="session-header">
+            <div class="session-info">
+                <h2>{{ session.name if session else 'Epic TTRPG Adventure' }}</h2>
+                <div class="session-code">Session Code: {{ session_code if session_code else 'DEMO123' }}</div>
+            </div>
+            <button id="leave-game" class="btn-fun">Leave Game</button>
+        </div>
+
+        <div class="mock-game-container">
+            <div class="floating-icons" id="floatingIcons"></div>
+            
+            <div class="mock-game-overlay">
+                <div class="mock-dragon">🐉</div>
+                
+                <div class="mock-text">
+                    <h1>Epic Adventure Awaits! <span class="sparkle">✨</span></h1>
+                    <p>For the actual game experience,</p>
+                    <p>buy the client app for</p>
+                    <div class="price">$4888</div>
+                    <p><span class="sparkle">🎮</span> Full 3D Graphics <span class="sparkle">⚔️</span> Real-time Combat <span class="sparkle">🏰</span> Unlimited Adventures <span class="sparkle">🎲</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Create floating gaming icons
+        const icons = ['🎲', '⚔️', '🛡️', '🏰', '🧙‍♂️', '🧝‍♀️', '🗡️', '💎', '🏹', '🧪', '📜', '🔮', '👑', '🐲', '🦄', '⚡'];
+        const floatingContainer = document.getElementById('floatingIcons');
+
+        function createFloatingIcon() {
+            const icon = document.createElement('div');
+            icon.className = 'floating-icon';
+            icon.textContent = icons[Math.floor(Math.random() * icons.length)];
+            icon.style.left = Math.random() * 100 + '%';
+            icon.style.animationDelay = Math.random() * 2 + 's';
+            icon.style.animationDuration = (Math.random() * 4 + 6) + 's';
+            
+            floatingContainer.appendChild(icon);
+            
+            // Remove icon after animation completes
+            setTimeout(() => {
+                if (icon.parentNode) {
+                    icon.parentNode.removeChild(icon);
+                }
+            }, 10000);
+        }
+
+        // Create floating icons periodically
+        setInterval(createFloatingIcon, 800);
+
+        // Add some initial icons
+        for (let i = 0; i < 5; i++) {
+            setTimeout(createFloatingIcon, i * 200);
+        }
+
+        // Leave game functionality
+        document.getElementById('leave-game').addEventListener('click', function() {
+            if (confirm('Are you sure you want to leave this epic adventure?')) {
+                window.location.href = '/game/';
+            }
+        });
+
+        // Add some interactive effects
+        document.querySelector('.mock-text').addEventListener('click', function() {
+            // Create explosion of sparkles on click
+            for (let i = 0; i < 20; i++) {
+                setTimeout(() => {
+                    const sparkle = document.createElement('div');
+                    sparkle.textContent = '✨';
+                    sparkle.style.position = 'absolute';
+                    sparkle.style.fontSize = '2rem';
+                    sparkle.style.left = Math.random() * 100 + '%';
+                    sparkle.style.top = Math.random() * 100 + '%';
+                    sparkle.style.pointerEvents = 'none';
+                    sparkle.style.animation = 'sparkle 1s ease-out forwards';
+                    
+                    floatingContainer.appendChild(sparkle);
+                    
+                    setTimeout(() => {
+                        if (sparkle.parentNode) {
+                            sparkle.parentNode.removeChild(sparkle);
+                        }
+                    }, 1000);
+                }, i * 50);
+            }
+        });
+
+        // Add rainbow text animation to the price on hover
+        document.querySelector('.price').addEventListener('mouseenter', function() {
+            this.style.background = 'linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #ffeaa7)';
+            this.style.backgroundSize = '400% 400%';
+            this.style.webkitBackgroundClip = 'text';
+            this.style.webkitTextFillColor = 'transparent';
+            this.style.animation = 'rainbowShift 1s ease infinite, priceGlow 2s ease-in-out infinite';
+        });
+
+        document.querySelector('.price').addEventListener('mouseleave', function() {
+            this.style.background = 'none';
+            this.style.webkitBackgroundClip = 'initial';
+            this.style.webkitTextFillColor = '#00b894';
+            this.style.animation = 'priceGlow 2s ease-in-out infinite';
+        });
+
+        // Console easter egg
+        console.log('🐉 Welcome to the TTRPG Demo! 🎲');
+        console.log('For the full experience, contact our sales team at: sales@ttrpg-adventures.com');
+        console.log('💰 Special discount code: CONSOLE20 for 20% off! 💰');
+    </script>
+</body>
+</html>

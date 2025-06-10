@@ -24,6 +24,7 @@ from server_host.routers import game
 from server_host.api import game_ws
 from server_host.database.database import create_tables
 from server_host.service.game_session import ConnectionManager
+from server_host.utils.rate_limiter import registration_limiter, login_limiter
 
 # Import table manager for WebSocket protocol
 from core_table.server import TableManager
@@ -47,14 +48,37 @@ async def lifespan(app: FastAPI):
     # Create database tables
     create_tables()
     logger.info("Database tables created/verified")
-      # Store app state in FastAPI app
+    
+    # Store app state in FastAPI app
     app.state.connection_manager = app_state.connection_manager
     app.state.table_manager = app_state.table_manager
+    
+    # Start cleanup task for rate limiters
+    cleanup_task = asyncio.create_task(rate_limiter_cleanup_task())
     
     yield
     
     # Shutdown
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
     logger.info("Server shutdown complete")
+
+async def rate_limiter_cleanup_task():
+    """Background task to clean up old rate limiter entries"""
+    while True:
+        try:
+            # Clean up entries older than 1 hour every 30 minutes
+            await asyncio.sleep(1800)  # 30 minutes
+            registration_limiter.cleanup_old_entries(hours_old=1)
+            login_limiter.cleanup_old_entries(hours_old=1)
+            logger.debug("Rate limiter cleanup completed")
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"Rate limiter cleanup error: {e}")
 
 # Create FastAPI app
 app = FastAPI(

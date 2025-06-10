@@ -15,6 +15,7 @@ from ..database.database import get_db
 from ..database import crud
 from ..database import schemas
 from ..models import auth as auth_models
+from ..utils.rate_limiter import registration_limiter, login_limiter, get_client_ip
 from functools import lru_cache
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -134,32 +135,70 @@ async def read_own_items(
 
 @router.get("/login")
 def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+    """Login page with optional registration success message"""
+    # Check if user just registered
+    registered = request.query_params.get("registered")
+    success_message = "Registration successful! Please log in with your credentials." if registered else None
+    
+    return templates.TemplateResponse("login.html", {
+        "request": request,
+        "success": success_message
+    })
 
 @router.post("/login")
 async def login(
+    request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Session = Depends(get_db)
-) -> RedirectResponse:
-    token = await login_for_access_token(form_data, db)
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+):
+    """Login with rate limiting protection"""
+    client_ip = get_client_ip(request)
+    
+    # Rate limiting check - 10 login attempts per 5 minutes per IP
+    if not login_limiter.is_allowed(client_ip, max_requests=10, window_minutes=5):
+        time_until_reset = login_limiter.get_time_until_reset(client_ip, window_minutes=5)
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": f"Too many login attempts. Please try again in {time_until_reset} seconds."
+        })
+    
+    # Validate input lengths
+    if len(form_data.username) < 4:
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": "Username must be at least 4 characters long"
+        })
+    
+    if len(form_data.password) < 4:
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": "Password must be at least 4 characters long"
+        })
+    
+    try:
+        token = await login_for_access_token(form_data, db)
+        if not token:
+            return templates.TemplateResponse("login.html", {
+                "request": request,
+                "error": "Incorrect username or password"
+            })
 
-    response = RedirectResponse(url="/users/dashboard", status_code=status.HTTP_302_FOUND)
-    response.set_cookie(
-        key="token", 
-        value=token.access_token, 
-        httponly=True, 
-        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        samesite="lax",
-        secure=False,  # Set to True in production with HTTPS
-        path="/"
-    )
-    return response
+        response = RedirectResponse(url="/users/dashboard", status_code=status.HTTP_302_FOUND)
+        response.set_cookie(
+            key="token", 
+            value=token.access_token, 
+            httponly=True, 
+            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            samesite="lax",
+            secure=False,  # Set to True in production with HTTPS
+            path="/"
+        )
+        return response
+    except HTTPException:
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": "Incorrect username or password"
+        })
 
 @router.get("/dashboard")
 async def dashboard(
@@ -186,13 +225,50 @@ def register_user_view(
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    user = crud.register_user(db, username, password)
-    if not user:
+    """Register a new user with validation and rate limiting"""
+    client_ip = get_client_ip(request)
+    
+    # Rate limiting check - 5 registration attempts per 10 minutes per IP
+    if not registration_limiter.is_allowed(client_ip, max_requests=5, window_minutes=10):
+        time_until_reset = registration_limiter.get_time_until_reset(client_ip, window_minutes=10)
         return templates.TemplateResponse("register.html", {
             "request": request,
-            "error": "User already exists"
-        })    
-    return RedirectResponse(url="/users/login", status_code=status.HTTP_302_FOUND)
+            "error": f"Too many registration attempts. Please try again in {time_until_reset} seconds.",
+            "username": username  # Preserve username in form
+        })
+    
+    # Additional basic validation (the main validation is in crud.py)
+    if not username or not password:
+        return templates.TemplateResponse("register.html", {
+            "request": request,
+            "error": "Username and password are required",
+            "username": username
+        })
+    
+    # Attempt to register user
+    result = crud.register_user(db, username, password)
+    
+    # Handle the new return format (user_or_none, message)
+    if isinstance(result, tuple):
+        user, message = result
+        if user is None:
+            # Registration failed
+            return templates.TemplateResponse("register.html", {
+                "request": request,
+                "error": message,
+                "username": username
+            })
+        # Registration successful
+        return RedirectResponse(url="/users/login?registered=1", status_code=status.HTTP_302_FOUND)
+    else:
+        # Handle old format for backward compatibility
+        if not result:
+            return templates.TemplateResponse("register.html", {
+                "request": request,
+                "error": "Registration failed. Username may already exist.",
+                "username": username
+            })
+        return RedirectResponse(url="/users/login?registered=1", status_code=status.HTTP_302_FOUND)
 
 @router.get("/edit")
 async def edit_profile_page(

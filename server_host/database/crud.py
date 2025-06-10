@@ -6,6 +6,9 @@ from passlib.context import CryptContext
 from . import models, schemas
 import secrets
 import string
+import re
+from datetime import datetime, timedelta
+from sqlalchemy import func
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -18,6 +21,69 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def generate_session_code() -> str:
     """Generate a unique session code"""
     return ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+
+def validate_username(username: str) -> tuple[bool, str]:
+    """
+    Validate username format and length.
+    
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if not username:
+        return False, "Username is required"
+    
+    if len(username) < 4:
+        return False, "Username must be at least 4 characters long"
+    
+    if len(username) > 50:
+        return False, "Username must be less than 50 characters long"
+    
+    # Check for valid characters (alphanumeric and underscore)
+    if not re.match(r'^[a-zA-Z0-9_]+$', username):
+        return False, "Username can only contain letters, numbers, and underscores"
+    
+    return True, ""
+
+def validate_password(password: str) -> tuple[bool, str]:
+    """
+    Validate password format and length.
+    
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if not password:
+        return False, "Password is required"
+    
+    if len(password) < 4:
+        return False, "Password must be at least 4 characters long"
+    
+    if len(password) > 128:
+        return False, "Password must be less than 128 characters long"
+    
+    return True, ""
+
+def check_registration_flood_protection(db: Session, time_window_minutes: int = 10, max_registrations: int = 10) -> tuple[bool, str]:
+    """
+    Check if too many users have been registered recently (flood protection).
+    
+    Args:
+        db: Database session
+        time_window_minutes: Time window to check
+        max_registrations: Maximum registrations allowed in time window
+        
+    Returns:
+        Tuple of (is_allowed, error_message)
+    """
+    cutoff_time = datetime.utcnow() - timedelta(minutes=time_window_minutes)
+    
+    recent_registrations = db.query(func.count(models.User.id)).filter(
+        models.User.created_at >= cutoff_time
+    ).scalar()
+    
+    if recent_registrations >= max_registrations:
+        return False, f"Too many registrations recently. Please try again in {time_window_minutes} minutes."
+    
+    return True, ""
 
 # User operations
 def get_user(db: Session, user_id: int):
@@ -43,22 +109,45 @@ def create_user(db: Session, user: schemas.UserCreate):
     return db_user
 
 def register_user(db: Session, username: str, password: str, email: str = None, full_name: str = None):
-    """Register a new user - simplified version"""
+    """Register a new user - simplified version with validation and flood protection"""
+    
+    # Validate input
+    username_valid, username_error = validate_username(username)
+    if not username_valid:
+        return None, username_error
+    
+    password_valid, password_error = validate_password(password)
+    if not password_valid:
+        return None, password_error
+    
+    # Check flood protection
+    flood_allowed, flood_error = check_registration_flood_protection(db)
+    if not flood_allowed:
+        return None, flood_error
+    
     # Check if user already exists
     if get_user_by_username(db, username):
-        return None
+        return None, "Username already exists"
+    
+    # Check email uniqueness if provided
+    if email and email.strip() and get_user_by_email(db, email.strip()):
+        return None, "Email already registered"
     
     # Handle empty email - set to None instead of empty string to avoid unique constraint issues
     email_value = email if email and email.strip() else None
     full_name_value = full_name if full_name and full_name.strip() else None
     
-    user_data = schemas.UserCreate(
-        username=username,
-        password=password,
-        email=email_value,
-        full_name=full_name_value
-    )
-    return create_user(db, user_data)
+    try:
+        user_data = schemas.UserCreate(
+            username=username,
+            password=password,
+            email=email_value,
+            full_name=full_name_value
+        )
+        user = create_user(db, user_data)
+        return user, "Registration successful"
+    except Exception as e:
+        return None, f"Registration failed: {str(e)}"
 
 def authenticate_user(db: Session, username: str, password: str):
     user = get_user_by_username(db, username)

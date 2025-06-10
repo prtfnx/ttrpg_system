@@ -124,7 +124,7 @@ if __name__ == "__main__":
     host = "0.0.0.0" if "PORT" in os.environ or os.environ.get("ENVIRONMENT") == "production" else "127.0.0.1"
     logger.info(f"Starting server on {host}:{port}")
     logger.info(f"PORT environment variable: {os.environ.get('PORT', 'Not set')}")
-    logger.info(f"ENVIRONMENT: {os.environ.get('ENVIRONMENT', 'development')}")
+    logger.info(f"ENVIRONMENT: {os.environ.get('ENVIRONMENT', 'test')}")
 
     # Run server
     uvicorn.run(

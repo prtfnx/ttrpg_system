@@ -180,7 +180,6 @@ class GameSessionProtocolService:
             else:
                 logger.warning(f"Unknown message type: {message.type.value}")
                 await self._send_error(websocket, f"Unknown message type: {message.type.value}")
-                
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON from WebSocket in session {self.session_code}: {e}")
             await self._send_error(websocket, "Invalid JSON format")
@@ -191,14 +190,25 @@ class GameSessionProtocolService:
     async def broadcast_to_session(self, message: Message, exclude_client: Optional[str] = None):
         """Broadcast message to all clients in this game session"""
         disconnected_clients = []
+        broadcast_count = 0
+        
+        logger.info(f"BROADCAST: Broadcasting {message.type.value} to session {self.session_code}")
+        logger.info(f"BROADCAST: Available clients: {list(self.clients.keys())}")
+        logger.info(f"BROADCAST: Excluding client: {exclude_client}")
         
         for client_id, websocket in self.clients.items():
             if client_id != exclude_client:
                 try:
                     await self._send_message(websocket, message)
+                    broadcast_count += 1
+                    logger.info(f"BROADCAST: Successfully sent {message.type.value} to client {client_id}")
                 except Exception as e:
-                    logger.error(f"Failed to send to {client_id}: {e}")
+                    logger.error(f"BROADCAST: Failed to send to {client_id}: {e}")
                     disconnected_clients.append(websocket)
+            else:
+                logger.info(f"BROADCAST: Skipping sender client {client_id}")
+        
+        logger.info(f"BROADCAST: Broadcasted {message.type.value} to {broadcast_count} clients in session {self.session_code}")
         
         # Clean up disconnected clients
         for websocket in disconnected_clients:
@@ -324,7 +334,6 @@ class GameSessionProtocolService:
                 Message(message.type, update_data),
                 exclude_client=client_id
             )
-            
         except Exception as e:
             logger.error(f"Error handling table update: {e}")
             await self._send_error(websocket, "Failed to process table update")
@@ -336,18 +345,24 @@ class GameSessionProtocolService:
             return
         
         try:
+            logger.info(f"SPRITE UPDATE: Handling sprite update from {client_id} in session {self.session_code}")
+            logger.info(f"SPRITE UPDATE: Data: {message.data}")
+            logger.info(f"SPRITE UPDATE: Connected clients in session: {list(self.clients.keys())}")
+            
             # Add session info
             update_data = message.data.copy()
             update_data['session_code'] = self.session_code
             
             # Broadcast sprite update to other clients in the session
+            logger.info(f"SPRITE UPDATE: About to broadcast to {len(self.clients) - 1} other clients")
             await self.broadcast_to_session(
                 Message(message.type, update_data),
                 exclude_client=client_id
             )
+            logger.info(f"SPRITE UPDATE: Broadcast completed for session {self.session_code}")
             
         except Exception as e:
-            logger.error(f"Error handling sprite update: {e}")
+            logger.error(f"SPRITE UPDATE ERROR: {e}")
             await self._send_error(websocket, "Failed to process sprite update")
 
     async def _handle_file_request(self, websocket: WebSocket, message: Message, client_id: str):

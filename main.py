@@ -35,7 +35,7 @@ import lighting_sys
 
 # Configure logging with enhanced debug visibility
 logging.basicConfig(
-    level=logging.CRITICAL,
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)8s] %(name)s: %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),  # Console output
@@ -597,11 +597,11 @@ def parse_arguments():
     parser.add_argument('--port', default='12345',
                        help='Server port (default: 12345)')
     parser.add_argument('--connection', choices=['sdl', 'webhook', 'websocket'], default='websocket',
-                       help='Connection type: sdl for TCP socket, webhook for HTTP/webhooks, or websocket for WebSocket connection (default: sdl)')
+                       help='Connection type: sdl for TCP socket, webhook for HTTP/webhooks, or websocket for WebSocket connection (default: websocket)')
     parser.add_argument('--webhook-port', default='8080',
-                       help='Local webhook server port (default: 8080)')
-    parser.add_argument('--server-url', default='127.0.0.01:12345',
-                       help='Server URL for webhook connection (default: localhost:12345)')
+                       help='Local webhook server port (default: 8080)')    
+    parser.add_argument('--server-url', default='http://127.0.0.1:12345',
+                       help='Server URL for webhook/websocket connection (default: http://127.0.0.1:12345)')
     # Authentication parameters for WebSocket connections
     parser.add_argument('--session-code', default='V2ERPCXR',
                        help='Game session code for WebSocket connection')

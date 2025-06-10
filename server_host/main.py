@@ -110,11 +110,10 @@ if __name__ == "__main__":
     # Determine host based on environment
     # If PORT is set by cloud provider (Render, Heroku, etc.), bind to 0.0.0.0
     # Otherwise, bind to localhost for local development
-    host = "0.0.0.0" if "PORT" in os.environ else "127.0.0.1"
-    
+    host = "0.0.0.0" if "PORT" in os.environ or os.environ.get("ENVIRONMENT") == "production" else "127.0.0.1"
     logger.info(f"Starting server on {host}:{port}")
     logger.info(f"PORT environment variable: {os.environ.get('PORT', 'Not set')}")
-    
+
     # Run server
     uvicorn.run(
         "main:app",

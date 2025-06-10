@@ -63,9 +63,10 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+cors_origins = os.environ.get("CORS_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -86,19 +87,38 @@ async def root():
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url="/users/login")
 
-if __name__ == "__main__":    # Configure logging
-    logging.basicConfig(
-        level=logging.DEBUG,  # Changed to DEBUG to see protocol messages
-        format="%(asctime)s %(levelname)s:%(name)s: %(message)s"
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for Render.com"""
+    return JSONResponse(
+        content={
+            "status": "healthy",
+            "service": "ttrpg-server",
+            "version": "1.0.0"
+        },
+        status_code=200
     )
-    
-    # Get port from environment (render.com sets this automatically)
+
+if __name__ == "__main__":
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,  # Changed to DEBUG to see protocol messages
+        format="%(asctime)s %(levelname)s:%(name)s: %(message)s"
+    )    # Get port from environment (render.com sets this automatically)
     port = int(os.environ.get("PORT", 8000))
+    
+    # Determine host based on environment
+    # If PORT is set by cloud provider (Render, Heroku, etc.), bind to 0.0.0.0
+    # Otherwise, bind to localhost for local development
+    host = "0.0.0.0" if "PORT" in os.environ else "127.0.0.1"
+    
+    logger.info(f"Starting server on {host}:{port}")
+    logger.info(f"PORT environment variable: {os.environ.get('PORT', 'Not set')}")
     
     # Run server
     uvicorn.run(
         "main:app",
-        host="127.0.0.1",  # Bind to localhost for testing
+        host=host,
         port=port,
         log_level="info",
         access_log=True

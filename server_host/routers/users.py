@@ -15,13 +15,19 @@ from ..database.database import get_db
 from ..database import crud
 from ..database import schemas
 from ..models import auth as auth_models
+from functools import lru_cache
 
 router = APIRouter(prefix="/users", tags=["users"])
 templates = Jinja2Templates(directory="templates")
+from .. import config
 
-SECRET_KEY = "330eafae58d6ad8ccb161b49abf324a73a71ec1102d0826b5fd4d3f020ff7304"
-ALGORITHM = "HS256"
+@lru_cache
+def get_settings():
+    return config.Settings()
 ACCESS_TOKEN_EXPIRE_MINUTES = 360
+SECRET_KEY = get_settings().SECRET_KEY
+ALGORITHM = get_settings().ALGORITHM
+
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()

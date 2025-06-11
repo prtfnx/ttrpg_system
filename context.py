@@ -6,7 +6,9 @@ import sdl3
 import logging
 import time
 import ctypes
+import uuid
 from net.protocol import Message, MessageType
+from Actions import Actions  # Import our Actions protocol implementation
 
 
 logger = logging.getLogger(__name__)
@@ -61,6 +63,17 @@ class Context:
         }
         # GUI system reference
         self.imgui = None
+        
+        # Actions protocol integration
+        self.actions = Actions(self)
+        
+        # Chat messages for GUI
+        self.chat_messages = []
+        
+        # Current tool selection
+        self.current_tool = "Select"
+        
+        logger.info("Context initialized with Actions protocol")
 
 
     def add_sprite(self, texture_path, scale_x, scale_y, layer='tokens',
@@ -113,26 +126,34 @@ class Context:
                 
             logger.info(f"Successfully added sprite from {texture_path} to layer {layer}")
             return new_sprite
-            
         except Exception as e:
             logger.error(f"Error creating sprite from {texture_path}: {e}")
             return None
-            
-    def find_sprite_by_id(self, sprite_id, table_name=None):
-        """Find and return a sprite by its ID from all layers in the table."""
-        # Use current table if no table name provided
-        if table_name is None:
+    
+    def find_sprite_by_id(self, sprite_id, table_identifier=None):
+        """Find and return a sprite by its ID from all layers in the table.
+        
+        Args:
+            sprite_id: The sprite ID to search for
+            table_identifier: Either table name or table_id (UUID). If None, uses current table
+        """
+        # Use current table if no table identifier provided
+        if table_identifier is None:
             table = self.current_table
             if table:
-                table_name = table.name
+                table_identifier = table.name
             else:
-                logger.error("No current table and no table_name provided")
+                logger.error("No current table and no table_identifier provided")
                 return None
         else:
-            table = next((t for t in self.list_of_tables if t.name == table_name), None)
+            # Try to find table by name first, then by table_id
+            table = next((t for t in self.list_of_tables if t.name == table_identifier), None)
+            if not table:
+                # Try finding by table_id (UUID)
+                table = next((t for t in self.list_of_tables if t.table_id == table_identifier), None)
         
         if not table or not sprite_id:
-            logger.error(f"Table '{table_name}' not found or sprite_id is None")
+            logger.error(f"Table '{table_identifier}' not found or sprite_id is None")
             return None
             
         for layer, sprite_list in table.dict_of_sprites_list.items():
@@ -143,7 +164,7 @@ class Context:
                 if hasattr(sprite_obj, 'id') and sprite_obj.id == sprite_id:
                     return sprite_obj
         
-        logger.warning(f"Sprite with ID '{sprite_id}' not found in table '{table_name}'")
+        logger.warning(f"Sprite with ID '{sprite_id}' not found in table '{table_identifier}'")
         return None
     
     def remove_sprite(self, sprite_to_remove, table=None):
@@ -205,8 +226,7 @@ class Context:
         try:
             table = ContextTable(name, width, height)
             self.list_of_tables.append(table)
-            
-            # Set as current table if it's the first one
+              # Set as current table if it's the first one
             if not self.current_table:
                 self.current_table = table
                 
@@ -216,20 +236,27 @@ class Context:
         except Exception as e:
             logger.error(f"Error adding table: {e}")
             return None
-
+    
     def create_table_from_json(self, json_data):
         """Create table from JSON data"""
         try:
+            # Get table info from JSON data
+            table_name = json_data.get('table_name', json_data.get('name', 'Loaded Table'))
+            table_id = json_data.get('table_id')  # May be None for legacy saves
+            
             # Create the table
-            table = self.add_table(
-                json_data.get('name', 'Loaded Table'), 
-                json_data.get('width', 1920), 
-                json_data.get('height', 1080)
+            table = ContextTable(
+                table_name=table_name,
+                width=json_data.get('width', 1920), 
+                height=json_data.get('height', 1080),
+                table_id=table_id
             )
             
-            if not table:
-                logger.error("Failed to create table")
-                return None
+            self.list_of_tables.append(table)
+            
+            # Set as current table if it's the first one
+            if not self.current_table:
+                self.current_table = table
             
             # Set table properties
             table.scale = json_data.get('scale', 1.0)
@@ -291,9 +318,100 @@ class Context:
         if hasattr(self, 'protocol'):
             self.protocol.send_update(update_type, data)
 
+    # Actions protocol convenience methods
+    def create_table_via_actions(self, name: str, width: int, height: int):
+        """Create table using Actions protocol"""
+        table_id = name  # Use name as ID for simplicity
+        result = self.actions.create_table(table_id, name, width, height)
+        if result.success:
+            logger.info(f"Table created via actions: {result.message}")
+            return self._get_table_by_name(name)
+        else:
+            logger.error(f"Failed to create table: {result.message}")
+            return None
+    
+    def add_sprite_via_actions(self, sprite_id: str, image_path: str, position_x: float, position_y: float, layer: str = "tokens"):
+        """Add sprite using Actions protocol"""
+        if not self.current_table:
+            logger.error("No current table for sprite creation")
+            return None
+            
+        from core_table.actions_protocol import Position
+        position = Position(position_x, position_y)
+        table_id = self.current_table.name
+        
+        result = self.actions.create_sprite(table_id, sprite_id, position, image_path, layer)
+        if result.success:
+            logger.info(f"Sprite created via actions: {result.message}")
+            return True
+        else:
+            logger.error(f"Failed to create sprite: {result.message}")
+            return False
+    
+    def move_sprite_via_actions(self, sprite_id: str, new_x: float, new_y: float):
+        """Move sprite using Actions protocol"""
+        if not self.current_table:
+            return False
+            
+        from core_table.actions_protocol import Position
+        position = Position(new_x, new_y)
+        table_id = self.current_table.name
+        
+        result = self.actions.move_sprite(table_id, sprite_id, position)
+        return result.success
+    
+    def delete_sprite_via_actions(self, sprite_id: str):
+        """Delete sprite using Actions protocol"""
+        if not self.current_table:
+            return False
+            
+        table_id = self.current_table.name
+        result = self.actions.delete_sprite(table_id, sprite_id)
+        return result.success
+    def get_table_sprites_via_actions(self, layer=None):
+        """Get sprites using Actions protocol"""
+        if not self.current_table:
+            return {}
+            
+        table_id = self.current_table.name
+        result = self.actions.get_table_sprites(table_id, layer)
+        if result.success and result.data:
+            return result.data.get('sprites', {})
+        return {}
+    
+    def add_chat_message(self, message: str):
+        """Add message to chat history"""
+        timestamp = time.strftime("%H:%M:%S")
+        self.chat_messages.append(f"[{timestamp}] {message}")
+        # Keep only last 100 messages
+        if len(self.chat_messages) > 100:
+            self.chat_messages.pop(0)
+        logger.info(f"Chat: {message}")
+    
+    def set_current_tool(self, tool: str):
+        """Set the current tool"""
+        self.current_tool = tool
+        logger.info(f"Tool changed to: {tool}")
+    def _get_table_by_name(self, name: str):
+        """Helper to get table by name"""
+        for table in self.list_of_tables:
+            if table.name == name:
+                return table
+        return None
+    
+    def _get_table_by_id(self, table_id: str):
+        """Helper to get table by table_id (UUID)"""
+        for table in self.list_of_tables:
+            if table.table_id == table_id:
+                return table
+        return None
+
 class ContextTable:
-    def __init__(self, name: str, width: int, height: int, scale: float = 1.0):
-        self.name = name
+    def __init__(self, table_name: str, width: int, height: int, scale: float = 1.0, table_id: str | None = None):
+        # Use provided table_id or generate a new UUID
+        self.table_id = table_id or str(uuid.uuid4())
+        self.table_name = table_name  # Display name
+        self.name = table_name  # Legacy compatibility
         self.width = width
         self.height = height
         self.layers = ['map','tokens', 'dungeon_master', 'light', 'height']
@@ -474,12 +592,12 @@ class ContextTable:
         """Update position and notify server"""
         self.x_moved = max(-1000, min(0, self.x_moved + dx))
         self.y_moved = max(-1000, min(0, self.y_moved + dy))
-        # Note: removed _context reference for now
-
-    def save_to_dict(self):
+        # Note: removed _context reference for now    def save_to_dict(self):
         """Save table to dictionary format"""
         data = {
-            'name': self.name,
+            'table_id': self.table_id,
+            'table_name': self.table_name,
+            'name': self.name,  # Legacy compatibility
             'width': self.width,
             'height': self.height,
             'scale': self.scale,

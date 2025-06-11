@@ -1,9 +1,14 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, TYPE_CHECKING
 from core_table.actions_protocol import ActionsProtocol, ActionResult, Position, LAYERS
-from context import Context, ContextTable
-from sprite import Sprite
 import uuid
 import copy
+import logging
+
+if TYPE_CHECKING:
+    from context import Context, ContextTable
+    from sprite import Sprite
+
+logger = logging.getLogger(__name__)
 
 class Actions(ActionsProtocol):
     """
@@ -11,7 +16,7 @@ class Actions(ActionsProtocol):
     Handles visual representation, user interface, and client-side validation.
     """
     
-    def __init__(self, context: Context):
+    def __init__(self, context: 'Context'):
         self.context = context
         self.action_history: List[Dict[str, Any]] = []
         self.undo_stack: List[Dict[str, Any]] = []
@@ -22,16 +27,23 @@ class Actions(ActionsProtocol):
     def _add_to_history(self, action: Dict[str, Any]):
         """Add action to history for undo/redo functionality"""
         self.action_history.append(action)
-        if len(self.action_history) > self.max_history:
-            self.action_history.pop(0)
+        if len(self.action_history) > self.max_history:        self.action_history.pop(0)
         self.undo_stack.append(action)
         self.redo_stack.clear()
     
-    def _get_table_by_id(self, table_id: str) -> Optional[ContextTable]:
-        """Get table by ID (using name as ID)"""
-        for table in self.context.list_of_tables:
-            if table.name == table_id:
-                return table
+    def _get_table_by_id(self, table_id: str) -> Optional['ContextTable']:
+        """Get table by ID (using table_id UUID)"""
+        return self.context._get_table_by_id(table_id)
+    
+    def _find_sprite_in_table(self, table, sprite_id: str):
+        """Find sprite directly in a table object to avoid ID lookup issues"""
+        for layer, sprite_list in table.dict_of_sprites_list.items():
+            for sprite_obj in sprite_list:
+                if hasattr(sprite_obj, 'sprite_id') and sprite_obj.sprite_id == sprite_id:
+                    return sprite_obj
+                # Fallback for alternate id attribute
+                if hasattr(sprite_obj, 'id') and sprite_obj.id == sprite_id:
+                    return sprite_obj
         return None
     
     # Table Actions
@@ -42,10 +54,13 @@ class Actions(ActionsProtocol):
             if self._get_table_by_id(table_id):
                 return ActionResult(False, f"Table with ID {table_id} already exists")
             
-            # Create new table using Context method
+            # Create new table using Context method - pass the display name, not table_id
             table = self.context.add_table(name, width, height)
             if not table:
                 return ActionResult(False, f"Failed to create table {name}")
+            
+            # Update the table to use the specified table_id instead of auto-generated one
+            table.table_id = table_id
             
             action = {
                 'type': 'create_table',
@@ -183,9 +198,8 @@ class Actions(ActionsProtocol):
             
             if layer not in LAYERS:
                 return ActionResult(False, f"Invalid layer: {layer}")
-            
-            # Check if sprite already exists
-            existing_sprite = self.context.find_sprite_by_id(sprite_id, table_id)
+              # Check if sprite already exists
+            existing_sprite = self._find_sprite_in_table(table, sprite_id)
             if existing_sprite:
                 return ActionResult(False, f"Sprite {sprite_id} already exists")
             
@@ -222,7 +236,6 @@ class Actions(ActionsProtocol):
             })
         except Exception as e:
             return ActionResult(False, f"Failed to create sprite: {str(e)}")
-    
     def delete_sprite(self, table_id: str, sprite_id: str) -> ActionResult:
         """Delete a sprite from a table"""
         try:
@@ -230,7 +243,7 @@ class Actions(ActionsProtocol):
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
-            sprite = self.context.find_sprite_by_id(sprite_id, table_id)
+            sprite = self._find_sprite_in_table(table, sprite_id)
             if not sprite:
                 return ActionResult(False, f"Sprite {sprite_id} not found")
             
@@ -267,8 +280,7 @@ class Actions(ActionsProtocol):
             table = self._get_table_by_id(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
-            
-            sprite = self.context.find_sprite_by_id(sprite_id, table_id)
+            sprite = self._find_sprite_in_table(table, sprite_id)
             if not sprite:
                 return ActionResult(False, f"Sprite {sprite_id} not found")
             
@@ -295,8 +307,7 @@ class Actions(ActionsProtocol):
             table = self._get_table_by_id(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
-            
-            sprite = self.context.find_sprite_by_id(sprite_id, table_id)
+            sprite = self._find_sprite_in_table(table, sprite_id)
             if not sprite:
                 return ActionResult(False, f"Sprite {sprite_id} not found")
             
@@ -323,8 +334,7 @@ class Actions(ActionsProtocol):
             table = self._get_table_by_id(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
-            
-            sprite = self.context.find_sprite_by_id(sprite_id, table_id)
+            sprite = self._find_sprite_in_table(table, sprite_id)
             if not sprite:
                 return ActionResult(False, f"Sprite {sprite_id} not found")
             
@@ -351,8 +361,7 @@ class Actions(ActionsProtocol):
             table = self._get_table_by_id(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
-            
-            sprite = self.context.find_sprite_by_id(sprite_id, table_id)
+            sprite = self._find_sprite_in_table(table, sprite_id)
             if not sprite:
                 return ActionResult(False, f"Sprite {sprite_id} not found")
             
@@ -428,8 +437,7 @@ class Actions(ActionsProtocol):
             
             if new_layer not in LAYERS:
                 return ActionResult(False, f"Invalid layer: {new_layer}")
-            
-            sprite = self.context.find_sprite_by_id(sprite_id, table_id)
+            sprite = self._find_sprite_in_table(table, sprite_id)
             if not sprite:
                 return ActionResult(False, f"Sprite {sprite_id} not found")
             
@@ -513,7 +521,6 @@ class Actions(ActionsProtocol):
             return ActionResult(True, f"Table {table_id} info retrieved", info)
         except Exception as e:
             return ActionResult(False, f"Failed to get table info: {str(e)}")
-    
     def get_sprite_info(self, table_id: str, sprite_id: str) -> ActionResult:
         """Get sprite information"""
         try:
@@ -521,7 +528,16 @@ class Actions(ActionsProtocol):
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
-            sprite = self.context.find_sprite_by_id(sprite_id, table_id)
+            # Search directly in the table's sprite lists to avoid ID lookup issues
+            sprite = None
+            for layer, sprite_list in table.dict_of_sprites_list.items():
+                for sprite_obj in sprite_list:
+                    if hasattr(sprite_obj, 'sprite_id') and sprite_obj.sprite_id == sprite_id:
+                        sprite = sprite_obj
+                        break
+                if sprite:
+                    break
+            
             if not sprite:
                 return ActionResult(False, f"Sprite {sprite_id} not found")
             

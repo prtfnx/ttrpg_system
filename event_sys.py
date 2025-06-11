@@ -22,22 +22,36 @@ DIFF_POSITION = 10  # Minimum position change to trigger network sync
 
 def handle_mouse_motion(cnt, event):
     cnt.cursor_position_x, cnt.cursor_position_y = event.motion.x, event.motion.y
-    cnt.LightingManager.frect_light.x = cnt.cursor_position_x -360
-    cnt.LightingManager.frect_light.y = cnt.cursor_position_y -360
+
     #print(f"event motion.x y {event.motion.x}, {event.motion.y}")
     #print(f"cursor: {cnt.cursor_position_x}, {cnt.cursor_position_y}")
-    #print(f"rect: {cnt.LightingManager.rectLight_x}, {cnt.LightingManager.rectLight_y}")
+    #print(f"rect: {cnt.LightingManager.rectLight_x}, {cnt.LightingManager.rectLight_y}")    
     if cnt.grabing:
         if cnt.current_table.selected_sprite is not None:
             sprite = cnt.current_table.selected_sprite
-            table_scale = cnt.current_table.scale
             
             # Store old position for network sync
             old_pos = (sprite.coord_x.value, sprite.coord_y.value)
             
-            movement_scale = 1.0 / table_scale
-            sprite.coord_x.value += event.motion.xrel * movement_scale
-            sprite.coord_y.value += event.motion.yrel * movement_scale
+            # Use new coordinate system for movement
+            if hasattr(cnt.current_table, 'screen_to_table'):
+                # Convert mouse movement from screen coordinates to table coordinates
+                # This automatically accounts for zoom level
+                start_table_x, start_table_y = cnt.current_table.screen_to_table(0, 0)
+                end_table_x, end_table_y = cnt.current_table.screen_to_table(event.motion.xrel, event.motion.yrel)
+                
+                # Apply movement in table coordinate space
+                sprite.coord_x.value += (end_table_x - start_table_x)
+                sprite.coord_y.value += (end_table_y - start_table_y)
+            else:
+                # Fallback to legacy system
+                table_scale = cnt.current_table.scale
+                movement_scale = 1.0 / table_scale
+                sprite.coord_x.value += event.motion.xrel * movement_scale
+                sprite.coord_y.value += event.motion.yrel * movement_scale
+            
+            # Constrain sprite to table boundaries
+            cnt.current_table.constrain_sprite_to_bounds(sprite)
             
             # New position for network sync
             new_pos = (sprite.coord_x.value, sprite.coord_y.value)
@@ -53,15 +67,21 @@ def handle_mouse_motion(cnt, event):
                     #print(f"cnt.network_context.sync_sprite_move: {cnt.network_context.sync_sprite_move} ")
                     cnt.network_context.sync_sprite_move(sprite, old_pos, new_pos)
                     
-                    sprite._last_network_x = new_pos[0]
+                    sprite._last_network_x = new_pos[0]            
                     sprite._last_network_y = new_pos[1]
             
             logger.debug(f"Grabing sprite at {sprite.coord_x.value}, {sprite.coord_y.value}")
             
     if cnt.moving_table:
-        # Handle moving table - this is fine as is
-        cnt.current_table.move_table(event.motion.xrel, event.motion.yrel)
-        logger.debug(f"Moving table {cnt.current_table.x_moved} {cnt.current_table.y_moved}")
+        # Handle moving table using new coordinate system
+        if hasattr(cnt.current_table, 'pan_viewport'):
+            # Use new coordinate system for panning
+            cnt.current_table.pan_viewport(-event.motion.xrel, -event.motion.yrel)
+            logger.debug(f"Panning table viewport {cnt.current_table.viewport_x} {cnt.current_table.viewport_y}")
+        else:
+            # Fallback to legacy system
+            cnt.current_table.move_table(event.motion.xrel, event.motion.yrel)
+            logger.debug(f"Moving table {cnt.current_table.x_moved} {cnt.current_table.y_moved}")
         
     if cnt.resizing:
         # Handle resizing - FIXED to work correctly with all scales
@@ -87,12 +107,16 @@ def handle_mouse_motion(cnt, event):
                         sprite.scale_x = max(0.05, sprite._resize_start_scale_x - dx)
                         # Adjust position to keep right edge in place
                         sprite.coord_x.value = sprite._resize_start_coord_x+moved_dx/table_scale
+                        # Constrain position after adjustment
+                        
                        # print(f'Resize WEST: frect_x={sprite.frect.x:.3f}, moved={moved_dx:.3f}')
 
                     case Directions.NORTH:
                         sprite.scale_y = max(0.05, sprite._resize_start_scale_y - dy )
                         # Adjust position to keep bottom edge in place
                         sprite.coord_y.value = sprite._resize_start_coord_y+moved_dy/table_scale
+                        # Constrain position after adjustment
+                        
 
                     case Directions.SOUTH:
                         sprite.scale_y = max(0.05, sprite._resize_start_scale_y + dy)
@@ -105,21 +129,36 @@ def handle_mouse_motion(cnt, event):
                         sprite.scale_x = max(0.05, sprite._resize_start_scale_x - dx)
                         sprite.scale_y = max(0.05, sprite._resize_start_scale_y + dy)
                         sprite.coord_x.value = sprite._resize_start_coord_x+ moved_dx/table_scale
+                        # Constrain position after adjustment
+                        
 
                     case Directions.NORTHEAST:
                         sprite.scale_x = max(0.05, sprite._resize_start_scale_x + dx)
                         sprite.scale_y = max(0.05, sprite._resize_start_scale_y - dy)
                         sprite.coord_y.value = sprite._resize_start_coord_y+ moved_dy/table_scale
+                        # Constrain position after adjustment
+                        
                         
                     case Directions.NORTHWEST:
                         sprite.scale_x = max(0.05, sprite._resize_start_scale_x - dx)
                         sprite.scale_y = max(0.05, sprite._resize_start_scale_y - dy)
                         sprite.coord_x.value = sprite._resize_start_coord_x+ moved_dx/table_scale
                         sprite.coord_y.value = sprite._resize_start_coord_y+ moved_dy/table_scale
-
+                        # Constrain position after adjustment
+                
+                
             # Clamp maximum scale
             sprite.scale_x = min(10.0, sprite.scale_x)
             sprite.scale_y = min(10.0, sprite.scale_y)
+            
+            # Constrain sprite to table boundaries after resize
+            cnt.current_table.constrain_sprite_to_bounds(sprite)
+            if cnt.current_table.out_of_bounds(sprite):
+                sprite.scale_x = sprite._last_valid_scale_x
+                sprite.scale_y = sprite._last_valid_scale_y
+            else:
+                sprite._last_valid_scale_x = sprite.scale_x
+                sprite._last_valid_scale_y = sprite.scale_y
             
             logger.debug(f"Resize: scale_x={sprite.scale_x:.3f}, scale_y={sprite.scale_y:.3f}")
     
@@ -410,7 +449,7 @@ def handle_key_event(cnt, key_code):
                 paint.paint_system.cycle_paint_colors()
         case sdl3.SDL_SCANCODE_EQUALS:  # Increase brush width
             if paint.is_paint_mode_active():
-                paint.paint_system.adjust_paint_width(1)
+                paint.paint_system.adjust_paint_width(1)        
         case sdl3.SDL_SCANCODE_MINUS:  # Decrease brush width
             if paint.is_paint_mode_active():
                 paint.paint_system.adjust_paint_width(-1)
@@ -419,6 +458,7 @@ def handle_key_event(cnt, key_code):
         case sdl3.SDL_SCANCODE_RIGHT:
             sprite = cnt.current_table.selected_sprite
             sprite.coord_x.value += min(cnt.step.value, sprite.frect.w)
+            cnt.current_table.constrain_sprite_to_bounds(sprite)
               # Send final position to ensure sync
             final_pos = (sprite.coord_x.value, sprite.coord_y.value)
             old_pos = (getattr(sprite, '_last_network_x', final_pos[0]), 
@@ -490,10 +530,22 @@ def handle_key_event(cnt, key_code):
 
 def handle_mouse_wheel(cnt, event):
     if event.wheel.y > 0:
-        cnt.current_table.change_scale(0.1)
-        logger.debug("Table scale increased and now: %s", cnt.current_table.scale)
+        # Use new coordinate system for zooming if available
+        if hasattr(cnt.current_table, 'zoom_table'):
+            cnt.current_table.zoom_table(1.1)  # Zoom in by 10%
+            logger.debug("Table zoom increased, new scale: %s", cnt.current_table.table_scale)
+        else:
+            # Fallback to legacy system
+            cnt.current_table.change_scale(0.1)
+            logger.debug("Table scale increased and now: %s", cnt.current_table.scale)
     elif event.wheel.y < 0:
-        cnt.current_table.change_scale(-0.1)
+        # Use new coordinate system for zooming if available
+        if hasattr(cnt.current_table, 'zoom_table'):
+            cnt.current_table.zoom_table(0.9)  # Zoom out by 10%
+            logger.debug("Table zoom decreased, new scale: %s", cnt.current_table.table_scale)
+        else:
+            # Fallback to legacy system
+            cnt.current_table.change_scale(-0.1)
 
 def handle_event(cnt, event):
     # First check if paint system should handle the event

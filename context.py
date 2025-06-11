@@ -43,12 +43,24 @@ class Context:
         self.list_of_tables = []
         self.moving_table = False
         self.network_context = NetworkedContext(self)
-        self.LightingManager = None
-        # Compendium integration
+        self.LightingManager = None        # Compendium integration
         self.compendium_manager = None
         self.light_on = True
         self.cursor_position_x = 0.0
         self.cursor_position_y = 0.0
+        # Layout information for rendering subsystems
+        self.layout = None
+        self.table_viewport = None
+        # GUI system
+        self.imgui = None
+        # Layout information for window areas
+        self.layout = {
+            'table_area': (0, 0, 0, 0),
+            'gui_area': (0, 0, 0, 0),
+            'spacing': 0
+        }
+        # GUI system reference
+        self.imgui = None
 
 
     def add_sprite(self, texture_path, scale_x, scale_y, layer='tokens',
@@ -87,7 +99,7 @@ class Context:
                 # Clean up any partially created sprite
                 if new_sprite:
                     try:
-                        new_sprite.cleanup()  # You'll need to add this method to Sprite class
+                        new_sprite.cleanup()  
                     except:
                         pass
                 return None
@@ -185,11 +197,10 @@ class Context:
             
             table.selected_sprite = None
             logger.info(f"Cleaned up table: {table.name}")
-            
         except Exception as e:
             logger.error(f"Error cleaning up table: {e}")
 
-    def add_table(self, name, width, height):
+    def add_table(self, name, width, height) -> 'ContextTable | None':
         """Add a new table and return it"""
         try:
             table = ContextTable(name, width, height)
@@ -215,6 +226,10 @@ class Context:
                 json_data.get('width', 1920), 
                 json_data.get('height', 1080)
             )
+            
+            if not table:
+                logger.error("Failed to create table")
+                return None
             
             # Set table properties
             table.scale = json_data.get('scale', 1.0)
@@ -267,7 +282,7 @@ class Context:
 
     def setup_protocol(self, send_callback):
         """Initialize protocol handler"""
-        from net.client_protocol import ClientProtocol
+        from net.client_protocol import ClientProtocol        
         self.protocol = ClientProtocol(self, send_callback)
         return self.protocol
 
@@ -283,45 +298,159 @@ class ContextTable:
         self.height = height
         self.layers = ['map','tokens', 'dungeon_master', 'light', 'height']
         self.dict_of_sprites_list = {layer: [] for layer in self.layers}
-        self.selected_sprite = None
+        self.selected_sprite: sprite.Sprite | None = None
         self.scale= scale
-        self.x_moved= 1.0
+        
+        # Table coordinate system - independent of screen
+        self.table_x = 0.0  # Table position in its own coordinate space
+        self.table_y = 0.0
+        self.table_scale = 1.0  # Internal table scaling
+        
+        # Viewport position within table (for panning)
+        self.viewport_x = 0.0
+        self.viewport_y = 0.0
+        
+        # Screen area allocated to this table (set by layout manager)
+        self.screen_area = None  # (x, y, width, height) 
+        
+        # Legacy properties for backward compatibility
+        self.x_moved= 1.0        
         self.y_moved= 1.0
+        
         self.show_grid = True
         self.cell_side = CELL_SIDE
 
-    def draw_grid(self, renderer, window=None, color=(100, 100, 100, 255)):
-        """Draw the grid overlay using SDL."""
-        if not self.show_grid:
-            return
-            
-        window_width = ctypes.c_int()
-        window_height = ctypes.c_int()
-        if window is None:
-            logger.warning("No window provided to draw_grid")
-            return
-            
-        sdl3.SDL_GetWindowSize(window, ctypes.byref(window_width), ctypes.byref(window_height))
+    def set_screen_area(self, x: int, y: int, width: int, height: int):
+        """Set the screen area allocated to this table."""
+        self.screen_area = (x, y, width, height)
 
-        #cell_width = (window_width.value * self.grid_scale) / self.width
-        #cell_height = (window_height.value * self.grid_scale) / self.height
-        cell_width = self.width / self.cell_side * self.scale
-        cell_height = self.height / self.cell_side * self.scale
+    def table_to_screen(self, table_x: float, table_y: float) -> tuple[float, float]:
+        """Convert table coordinates to screen coordinates."""
+        if not self.screen_area:
+            return table_x, table_y
+            
+        screen_x, screen_y, screen_width, screen_height = self.screen_area
+        
+        # Apply viewport offset and scaling
+        relative_x = (table_x - self.viewport_x) * self.table_scale
+        relative_y = (table_y - self.viewport_y) * self.table_scale
+        
+        # Map to screen area
+        final_x = screen_x + relative_x
+        final_y = screen_y + relative_y
+        
+        return final_x, final_y
+
+    def screen_to_table(self, screen_x: float, screen_y: float) -> tuple[float, float]:
+        """Convert screen coordinates to table coordinates."""
+        if not self.screen_area:
+            return screen_x, screen_y
+            
+        area_x, area_y, area_width, area_height = self.screen_area
+        
+        # Convert to relative coordinates within table area
+        relative_x = screen_x - area_x
+        relative_y = screen_y - area_y
+        
+        # Apply inverse scaling and viewport offset
+        table_x = (relative_x / self.table_scale) + self.viewport_x
+        table_y = (relative_y / self.table_scale) + self.viewport_y
+        
+        return table_x, table_y
+
+    def is_point_in_table_area(self, screen_x: float, screen_y: float) -> bool:
+        """Check if a screen point is within the table's allocated area."""
+        if not self.screen_area:
+            return True
+            
+        area_x, area_y, area_width, area_height = self.screen_area
+        return (area_x <= screen_x <= area_x + area_width and 
+                area_y <= screen_y <= area_y + area_height)
+
+    def pan_viewport(self, dx: float, dy: float):
+        """Pan the viewport within the table coordinate space."""
+        self.viewport_x += dx / self.table_scale
+        self.viewport_y += dy / self.table_scale
+        
+        # Clamp viewport to table bounds
+        if self.screen_area:
+            _, _, screen_width, screen_height = self.screen_area
+            # Calculate visible area in table coordinates
+            visible_width = screen_width / self.table_scale
+            visible_height = screen_height / self.table_scale
+            
+            # Clamp viewport to keep it within table bounds
+            self.viewport_x = max(0, min(self.width - visible_width, self.viewport_x))
+            self.viewport_y = max(0, min(self.height - visible_height, self.viewport_y))
+
+    def zoom_table(self, factor: float, center_x: float | None = None, center_y: float | None = None):
+        """Zoom the table around a center point (in table coordinates)."""
+        old_scale = self.table_scale
+        self.table_scale *= factor
+        self.table_scale = max(0.1, min(5.0, self.table_scale))  # Clamp zoom
+          # If center point provided, adjust viewport to zoom around that point
+        if center_x is not None and center_y is not None:
+            scale_diff = self.table_scale / old_scale
+            self.viewport_x = center_x - (center_x - self.viewport_x) * scale_diff
+            self.viewport_y = center_y - (center_y - self.viewport_y) * scale_diff
+
+    def draw_grid(self, renderer, window=None, color=(100, 100, 100, 255), table_area=None):
+        """Draw the grid overlay using the new table coordinate system."""
+        if not self.show_grid or not self.screen_area:
+            return
+            
+        area_x, area_y, area_width, area_height = self.screen_area
+        
+        # Grid configuration
+        grid_size = 50.0  # Grid cell size in table coordinates
+        cells_per_row = int(area_width / (grid_size * self.table_scale)) + 2
+        cells_per_col = int(area_height / (grid_size * self.table_scale)) + 2
         
         # Set color for grid lines
-        sdl3.SDL_SetRenderDrawColor(renderer, *color)
+        try:
+            sdl3.SDL_SetRenderDrawColor(renderer, ctypes.c_ubyte(color[0]), ctypes.c_ubyte(color[1]), 
+                                       ctypes.c_ubyte(color[2]), ctypes.c_ubyte(color[3]))
+        except:
+            pass
         
-        # Draw vertical grid lines
-        for x in range(self.width + 1):
-            x_pos = int(x * cell_width + self.x_moved)
-            if 0 <= x_pos <= window_width.value:
-                sdl3.SDL_RenderLine(renderer, x_pos, 0, x_pos, window_height.value)
+        # Calculate starting grid position in table coordinates
+        start_x = int(self.viewport_x / grid_size) * grid_size
+        start_y = int(self.viewport_y / grid_size) * grid_size
+          # Draw vertical grid lines
+        for i in range(cells_per_row + 1):
+            table_x = start_x + i * grid_size
+            
+            # Only draw if line is within table bounds
+            if 0 <= table_x <= self.width:
+                screen_x, screen_y1 = self.table_to_screen(table_x, max(0, self.viewport_y))
+                screen_x, screen_y2 = self.table_to_screen(table_x, min(self.height, self.viewport_y + area_height / self.table_scale))
+                
+                # Only draw if line is within screen area
+                if area_x <= screen_x <= area_x + area_width:
+                    try:
+                        sdl3.SDL_RenderLine(renderer, 
+                                           ctypes.c_float(screen_x), ctypes.c_float(max(area_y, screen_y1)), 
+                                           ctypes.c_float(screen_x), ctypes.c_float(min(area_y + area_height, screen_y2)))
+                    except:
+                        pass
         
         # Draw horizontal grid lines
-        for y in range(self.height + 1):
-            y_pos = int(y * cell_height + self.y_moved)
-            if 0 <= y_pos <= window_height.value:
-                sdl3.SDL_RenderLine(renderer, 0, y_pos, window_width.value, y_pos)
+        for i in range(cells_per_col + 1):
+            table_y = start_y + i * grid_size
+            
+            # Only draw if line is within table bounds
+            if 0 <= table_y <= self.height:
+                screen_x1, screen_y = self.table_to_screen(max(0, self.viewport_x), table_y)
+                screen_x2, screen_y = self.table_to_screen(min(self.width, self.viewport_x + area_width / self.table_scale), table_y)
+                
+                # Only draw if line is within screen area
+                if area_y <= screen_y <= area_y + area_height:
+                    try:
+                        sdl3.SDL_RenderLine(renderer, 
+                                           ctypes.c_float(max(area_x, screen_x1)), ctypes.c_float(screen_y),
+                                           ctypes.c_float(min(area_x + area_width, screen_x2)), ctypes.c_float(screen_y))
+                    except:
+                        pass
 
     def toggle_grid(self):
         """Toggle grid visibility."""
@@ -333,7 +462,6 @@ class ContextTable:
         self.scale += increment
         self.scale = max(MIN_SCALE, min(MAX_SCALE, self.scale))
         logger.info(f"Grid scale: {self.scale}")
-    
     def move_table(self, x, y):
         """Move the table by a certain amount"""
         self.x_moved += x
@@ -342,16 +470,12 @@ class ContextTable:
         self.y_moved = max(MIN_TABLE_Y, min(MAX_TABLE_Y, self.y_moved))
         logger.info(f"Table moved to: ({self.x_moved}, {self.y_moved})")
 
-   
     def update_position(self, dx: float, dy: float):
         """Update position and notify server"""
         self.x_moved = max(-1000, min(0, self.x_moved + dx))
         self.y_moved = max(-1000, min(0, self.y_moved + dy))
-        if hasattr(self, '_context'):
-            self._context.send_table_update('move', {
-                'x_moved': self.x_moved, 
-                'y_moved': self.y_moved
-            })
+        # Note: removed _context reference for now
+
     def save_to_dict(self):
         """Save table to dictionary format"""
         data = {
@@ -364,12 +488,34 @@ class ContextTable:
             'show_grid': self.show_grid,
             'cell_side': self.cell_side,
             'layers': {layer: [sprite.to_dict() for sprite in sprites] 
-                       for layer, sprites in self.dict_of_sprites_list.items()}
-        }
+                       for layer, sprites in self.dict_of_sprites_list.items()}        }
         logger.info(f"Saved table as json")
         #print(data)
         return data
-
+    
+    def constrain_sprite_to_bounds(self, sprite):
+        """Constrain sprite position to stay within table boundaries."""
+        # Get sprite dimensions in table coordinates for boundary calculations
+        # Convert from screen pixels to table coordinates
+        sprite_width_table = sprite.original_w * sprite.scale_x 
+        sprite_height_table = sprite.original_h * sprite.scale_y
+        
+        # Clamp sprite position to table bounds (accounting for sprite size)
+        sprite.coord_x.value = max(0, min(self.width - sprite_width_table, sprite.coord_x.value))
+        sprite.coord_y.value = max(0, min(self.height - sprite_height_table, sprite.coord_y.value))
+    
+    def out_of_bounds(self, sprite):
+        """Check if sprite is out of table bounds."""
+        # Get sprite dimensions in table coordinates for boundary calculations
+        # Convert from screen pixels to table coordinates
+        sprite_width_table = (sprite.original_w * sprite.scale_x) 
+        sprite_height_table = (sprite.original_h * sprite.scale_y)
+        
+        # Check if sprite position is within table bounds
+        return (sprite.coord_x.value < 0 or 
+                sprite.coord_x.value + sprite_width_table > self.width or 
+                sprite.coord_y.value < 0 or 
+                sprite.coord_y.value + sprite_height_table > self.height)
 class NetworkedContext:
     def __init__(self, context, is_server=False, is_client=True):
         self.is_server = is_server
@@ -420,11 +566,11 @@ class NetworkedContext:
         """Handle sprite scaling with network sync"""
         if not hasattr(self.context, 'protocol') or not self.context.protocol:
             return
-            
-        # Ensure sprite has an ID
+              # Ensure sprite has an ID
         if not hasattr(sprite, 'sprite_id') or not sprite.sprite_id:
             sprite.sprite_id = str(__import__('uuid').uuid4())
-            change = {
+            
+        change = {
             'category': 'sprite',
             'type': 'sprite_scale',
             'data': {

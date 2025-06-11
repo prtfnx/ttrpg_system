@@ -14,7 +14,7 @@ import time
 import json
 import asyncio
 import paint
-import gui.gui_imgui as gui_imgui
+import gui.simple_gui as simple_gui
 from net import client_sdl
 from net import client_webhook
 from net import client_webhook_protocol
@@ -57,7 +57,12 @@ CHECK_INTERVAL: float = 2.0
 NUMBER_OF_NET_FAILS: int = 5
 TIME_TO_CONNECT: int = 4000  # 4 seconds
 COMPENDIUM_SYSTEM: bool = False
-LIGHTING_SYS: bool = True
+LIGHTING_SYS: bool = False
+
+# Layout configuration - centered table with GUI panels on all sides
+TABLE_AREA_PERCENT: float = 0.60   # 60% for centered table
+GUI_PANEL_SIZE: int = 200           # Fixed size for GUI panels (pixels)
+MARGIN_SIZE: int = 20               # Margin between table and GUI panels
 
 # Import compendium integration
 if COMPENDIUM_SYSTEM:
@@ -111,17 +116,17 @@ def SDL_AppInit_func(args=None):
     renderer = sdl3.SDL_CreateRenderer(window, render_driver.encode())
     if not renderer:
         logger.critical("Failed to create renderer: %s", sdl3.SDL_GetError().decode())
-        sys.exit(1)
-    # Create context for the application
-    test_context = context.Context(renderer, window, base_width=BASE_WIDTH, base_height=BASE_HEIGHT)
-    #Initialize ImGui GUI system
-    
+        sys.exit(1)    # Create context for the application
+    test_context = context.Context(renderer, window, base_width=BASE_WIDTH, base_height=BASE_HEIGHT)    #Initialize ImGui GUI system
     try:
-        imgui_sys = gui_imgui.ImGuiSystem(window, gl_context, test_context)
-        logger.info("GUI ImGui system initialized.")
-        test_context.imgui= imgui_sys
+        # For now, disable ImGui to focus on the layout
+        # imgui_sys = simple_gui.SimpleImGuiSystem(window, gl_context, test_context)
+        # logger.info("Simple GUI system initialized.")
+        # test_context.imgui = imgui_sys
+        test_context.imgui = None
+        logger.info("GUI disabled for layout testing.")
     except Exception as e:
-        logger.error(f"Error initializing ImGui: {e}")
+        logger.error(f"Error initializing Simple GUI: {e}")
         imgui_sys = None
     
     #Enable VSync for the SDL renderer
@@ -228,19 +233,20 @@ def SDL_AppInit_func(args=None):
     except Exception as e:
         logger.error(f"Failed to start network connection: {e}")        
         test_context.net_client_started = False
-      # Setup protocol
+      # Setup net protocol
     def send_to_server(msg: str):
         test_context.queue_to_send.put(msg)
-    
-    if args and args.connection == 'webhook':
-        protocol = client_webhook_protocol.setup_webhook_protocol(test_context, test_context.net_socket)
-    elif args and args.connection == 'websocket':
-        session_code = getattr(test_context, 'session_code', None)
-        protocol = client_websocket_protocol.setup_websocket_protocol(test_context, test_context.net_socket, session_code)
-    else:
-        protocol = test_context.setup_protocol(send_to_server)
-    
-    protocol.request_table()  # Request default table
+    test_context.net = False
+    if test_context.net is True:
+        if args and args.connection == 'webhook':
+            protocol = client_webhook_protocol.setup_webhook_protocol(test_context, test_context.net_socket)
+        elif args and args.connection == 'websocket':
+            session_code = getattr(test_context, 'session_code', None)
+            protocol = client_websocket_protocol.setup_websocket_protocol(test_context, test_context.net_socket, session_code)
+        else:
+            protocol = test_context.setup_protocol(send_to_server)
+        
+        protocol.request_table()  # Request default table
     
     return test_context
 
@@ -251,29 +257,119 @@ def SDL_AppIterate(context):
     delta_time = now - context.last_time
     context.last_time = now
 
-    # Clear SDL render surface
-    sdl3.SDL_SetRenderDrawColorFloat(renderer, 0.2, 0.2, 0.2, sdl3.SDL_ALPHA_OPAQUE_FLOAT)
+    # Get current window size
+    sdl3.SDL_GetWindowSize(context.window, context.window_width, context.window_height)
+    window_width = context.window_width.value
+    window_height = context.window_height.value
+    
+    # Calculate centered table layout
+    table_width = int(window_width * TABLE_AREA_PERCENT)
+    table_height = int(window_height * TABLE_AREA_PERCENT)
+    
+    # Center the table
+    table_x = (window_width - table_width) // 2
+    table_y = (window_height - table_height) // 2
+    
+    # Calculate GUI panel areas
+    left_panel_width = table_x - MARGIN_SIZE
+    right_panel_width = window_width - (table_x + table_width + MARGIN_SIZE)
+    top_panel_height = table_y - MARGIN_SIZE
+    bottom_panel_height = window_height - (table_y + table_height + MARGIN_SIZE)
+    
+    # Store layout info in context for other systems to use
+    context.layout = {
+        'table_area': (table_x, table_y, table_width, table_height),
+        'left_panel': (0, 0, left_panel_width, window_height),
+        'right_panel': (table_x + table_width + MARGIN_SIZE, 0, right_panel_width, window_height),
+        'top_panel': (0, 0, window_width, top_panel_height),
+        'bottom_panel': (0, table_y + table_height + MARGIN_SIZE, window_width, bottom_panel_height),
+        'margin_size': MARGIN_SIZE
+    }
+
+    # Clear entire window with background color
+    try:
+        sdl3.SDL_SetRenderDrawColorFloat(renderer, ctypes.c_float(0.1), ctypes.c_float(0.1), ctypes.c_float(0.1), ctypes.c_float(1.0))
+    except:
+        # Fallback for different SDL3 API
+        sdl3.SDL_SetRenderDrawColor(renderer, 25, 25, 25, 255)
     sdl3.SDL_RenderClear(renderer)
     
-    sdl3.SDL_GetWindowSize(context.window, context.window_width, context.window_height)
+    # Draw GUI panel areas with different colors
+    try:
+        # Left panel (darker blue)
+        if left_panel_width > 0:
+            left_rect = sdl3.SDL_FRect(0.0, 0.0, float(left_panel_width), float(window_height))
+            sdl3.SDL_SetRenderDrawColorFloat(renderer, ctypes.c_float(0.15), ctypes.c_float(0.15), ctypes.c_float(0.25), ctypes.c_float(1.0))
+            sdl3.SDL_RenderFillRect(renderer, ctypes.byref(left_rect))
+        
+        # Right panel (darker blue)
+        if right_panel_width > 0:
+            right_rect = sdl3.SDL_FRect(float(table_x + table_width + MARGIN_SIZE), 0.0, float(right_panel_width), float(window_height))
+            sdl3.SDL_SetRenderDrawColorFloat(renderer, ctypes.c_float(0.15), ctypes.c_float(0.15), ctypes.c_float(0.25), ctypes.c_float(1.0))
+            sdl3.SDL_RenderFillRect(renderer, ctypes.byref(right_rect))
+        
+        # Top panel (darker green)
+        if top_panel_height > 0:
+            top_rect = sdl3.SDL_FRect(0.0, 0.0, float(window_width), float(top_panel_height))
+            sdl3.SDL_SetRenderDrawColorFloat(renderer, ctypes.c_float(0.15), ctypes.c_float(0.25), ctypes.c_float(0.15), ctypes.c_float(1.0))
+            sdl3.SDL_RenderFillRect(renderer, ctypes.byref(top_rect))
+        
+        # Bottom panel (darker green)
+        if bottom_panel_height > 0:
+            bottom_rect = sdl3.SDL_FRect(0.0, float(table_y + table_height + MARGIN_SIZE), float(window_width), float(bottom_panel_height))
+            sdl3.SDL_SetRenderDrawColorFloat(renderer, ctypes.c_float(0.15), ctypes.c_float(0.25), ctypes.c_float(0.15), ctypes.c_float(1.0))
+            sdl3.SDL_RenderFillRect(renderer, ctypes.byref(bottom_rect))
+        
+        # Draw margin areas (darker color)
+        sdl3.SDL_SetRenderDrawColorFloat(renderer, ctypes.c_float(0.05), ctypes.c_float(0.05), ctypes.c_float(0.05), ctypes.c_float(1.0))
+        
+        # Left margin
+        if MARGIN_SIZE > 0:
+            left_margin_rect = sdl3.SDL_FRect(float(table_x - MARGIN_SIZE), float(table_y), float(MARGIN_SIZE), float(table_height))
+            sdl3.SDL_RenderFillRect(renderer, ctypes.byref(left_margin_rect))
+            
+            # Right margin
+            right_margin_rect = sdl3.SDL_FRect(float(table_x + table_width), float(table_y), float(MARGIN_SIZE), float(table_height))
+            sdl3.SDL_RenderFillRect(renderer, ctypes.byref(right_margin_rect))
+            
+            # Top margin
+            top_margin_rect = sdl3.SDL_FRect(float(table_x), float(table_y - MARGIN_SIZE), float(table_width), float(MARGIN_SIZE))
+            sdl3.SDL_RenderFillRect(renderer, ctypes.byref(top_margin_rect))
+            
+            # Bottom margin
+            bottom_margin_rect = sdl3.SDL_FRect(float(table_x), float(table_y + table_height), float(table_width), float(MARGIN_SIZE))
+            sdl3.SDL_RenderFillRect(renderer, ctypes.byref(bottom_margin_rect))
+        
+    except Exception as e:
+        logger.debug(f"Error drawing GUI panels: {e}")
+    
+    # Draw table area with different background color
+    try:
+        sdl3.SDL_SetRenderDrawColorFloat(renderer, ctypes.c_float(0.25), ctypes.c_float(0.25), ctypes.c_float(0.25), ctypes.c_float(1.0))
+        table_rect = sdl3.SDL_FRect(float(table_x), float(table_y), float(table_width), float(table_height))
+        sdl3.SDL_RenderFillRect(renderer, ctypes.byref(table_rect))
+    except Exception as e:
+        logger.debug(f"Error drawing table background: {e}")
 
-    # Always render the table first
+    # Store viewport info for other systems
+    context.table_viewport = (table_x, table_y, table_width, table_height)    # Render the table and grid only in the table area
     if context.current_table:
-        context.current_table.draw_grid(renderer, context.window)
+        # Set the table's screen area for coordinate transformation
+        context.current_table.set_screen_area(table_x, table_y, table_width, table_height)
+        context.current_table.draw_grid(renderer, context.window, table_area=context.layout['table_area'])
 
+    # Render sprites in table area (they should respect the layout)
     movement_sys.move_sprites(context, delta_time)
     movement_sys.test_margin(context)
 
-    # Render paint system if active
+    # Render paint system if active (in table area)
     if paint.is_paint_mode_active():
         paint.render_paint_system()
 
+    # Handle network messages
     if not context.queue_to_read.empty():
         data = context.queue_to_read.get()
         handle_information(data, context)
-    
-    # FLUSH SDL content to OpenGL - this is the key fix
-    #sdl3.SDL_FlushRenderer(renderer)
     
     return sdl3.SDL_APP_CONTINUE
 
@@ -650,13 +746,14 @@ def main(args=None):
     #     net_thread.start()
 
     running = True
-    event = sdl3.SDL_Event()
-
+    event = sdl3.SDL_Event()    
     while running:
         # Handle events
         while sdl3.SDL_PollEvent(ctypes.byref(event)):
             # Let ImGui process events first and check if it consumed them
-            gui_consumed = context.imgui.process_event(event)
+            gui_consumed = False
+            if context.imgui:
+                gui_consumed = context.imgui.process_event(event)
             
             # if ctx.imgui.io.want_capture_mouse or ctx.imgui.io.want_capture_keyboard:
             #     gui_consumed = ctx.imgui.process_event(event)
@@ -675,7 +772,8 @@ def main(args=None):
         #context.LightingManager.iterate()
         # Then render ImGui over the SDL content
         sdl3.SDL_FlushRenderer(context.renderer)
-        context.imgui.iterate()
+        if context.imgui:
+            context.imgui.iterate()
 
         #sdl3.SDL_RenderPresent(context.renderer)
         #sdl3.SDL_GL_SwapWindow(ctx.window)

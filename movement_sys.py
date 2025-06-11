@@ -30,12 +30,14 @@ def move_sprites(cnt, delta_time):
     """Move all sprites, handle collisions and dying sprites."""
     width = cnt.window_width
     height = cnt.window_height
-    for layer, list in cnt.current_table.dict_of_sprites_list.items():
-        if layer == 'light' and cnt.light_on and list:
+    
+    for layer, sprite_list in cnt.current_table.dict_of_sprites_list.items():
+        if layer == 'light' and cnt.light_on and sprite_list:
             render_texture_light = cnt.LightingManager.render_texture_light
             render_texture = cnt.LightingManager.render_texture
             texture_light = cnt.LightingManager.texture_light
             frect_light = sdl3.SDL_FRect()
+            
             # light_width= 1000
             # light_height= 1000
             light_width = cnt.current_table.selected_sprite.frect.w
@@ -68,7 +70,8 @@ def move_sprites(cnt, delta_time):
             #sdl3.SDL_RenderTexture(cnt.renderer, render_texture, None, None)
             
             sdl3.SDL_RenderTexture(cnt.renderer, render_texture_light, None, None)
-        for sprite in list:
+            
+        for sprite in sprite_list:
             # Movement
             if sprite.moving:
                 sprite.move(delta_time)
@@ -93,22 +96,34 @@ def move_sprites(cnt, delta_time):
                 if sprite.die_timer <= 0:
                     sprite.die()
                     cnt.current_table.dict_of_sprites_list[sprite.layer].remove(sprite)
-            frect = sprite.frect
-            table_scale = cnt.current_table.scale
-            table_x_moved = cnt.current_table.x_moved
-            table_y_moved = cnt.current_table.y_moved
-            # Change view position of table
-            frect.x = (sprite.coord_x.value + table_x_moved) * table_scale
-            frect.y = (sprite.coord_y.value + table_y_moved) * table_scale
-            # Scale sprites to window size and table scale
-            try:
-                frect.w = sprite.original_w * width.value / cnt.base_width * sprite.scale_x * table_scale
-                frect.h = sprite.original_h * height.value / cnt.base_height * sprite.scale_y * table_scale
-                #frect.w = sprite.original_w  /  sprite.scale_x * table_scale
-                #frect.h = sprite.original_h  /  sprite.scale_y * table_scale
-            except ZeroDivisionError:
-                logger.error("ZeroDivisionError in sprite scaling.")
-            cnt.step.value = max(frect.w, frect.h)
+            
+            # Convert sprite's table coordinates to screen coordinates for rendering
+            if hasattr(cnt.current_table, 'table_to_screen'):
+                # Use new coordinate system
+                screen_x, screen_y = cnt.current_table.table_to_screen(sprite.coord_x.value, sprite.coord_y.value)
+                sprite.frect.x = ctypes.c_float(screen_x)
+                sprite.frect.y = ctypes.c_float(screen_y)
+                
+                # Scale sprites based on table scale
+                sprite.frect.w = ctypes.c_float(sprite.original_w * sprite.scale_x * cnt.current_table.table_scale)
+                sprite.frect.h = ctypes.c_float(sprite.original_h * sprite.scale_y * cnt.current_table.table_scale)
+            else:
+                # Legacy coordinate system (fallback)
+                frect = sprite.frect
+                table_scale = cnt.current_table.scale
+                table_x_moved = cnt.current_table.x_moved
+                table_y_moved = cnt.current_table.y_moved
+                # Change view position of table
+                frect.x = ctypes.c_float((sprite.coord_x.value + table_x_moved) * table_scale)
+                frect.y = ctypes.c_float((sprite.coord_y.value + table_y_moved) * table_scale)
+                # Scale sprites to window size and table scale
+                try:
+                    frect.w = ctypes.c_float(sprite.original_w * width.value / cnt.base_width * sprite.scale_x * table_scale)
+                    frect.h = ctypes.c_float(sprite.original_h * height.value / cnt.base_height * sprite.scale_y * table_scale)
+                except ZeroDivisionError:
+                    logger.error("ZeroDivisionError in sprite scaling.")
+            
+            cnt.step.value = max(float(sprite.frect.w), float(sprite.frect.h))
             #cnt.light_on=False
             # working light 
             #if cnt.light_on:

@@ -5,21 +5,21 @@
 ### GUI
 1. [ ] Complete character representation and make gui for character manager
 2. [ ] Complete gui to support all operations with sprites, character, character manager. Including:
-    - [ ] Manage tables
+    - [ x] Manage tables
     - [ ] Create characters and npc
-    - [ ] Layer managment
+    - [x] Layer managment
     - [ ] Tools like measure, paint
     - [ ] Create monsters from compendium
 3. [ ] All settings move to menu with redacting
-4. [ ] Server operations
+4. [x] Server operations
 5. [ ] Maybe switch gui lib??????
 6. [ ] Connection status indication with all players
 
 ### SDL app
 1. [ ] Rotation for sprites
 2. [ ] Right click context menu
-3. [ ] Develop and implement working space with table. Only table is implemented now
-4. [ ] Scale options refactor
+3. [x] Develop and implement working space with table. Only table is implemented now
+4. [x] Scale options refactor
 5. [ ] Layer render system
 6. [ ] Test for NET connection lost, bad internet and implement logic in client_sdl for it
 7. [ ] Implement file storage with adequate functional
@@ -27,22 +27,22 @@
 9. [ ] Audio and video(?) support
 
 ### Virtual Table
-1. [ ] Implement proper DND-like character system with actions, hp, AC, rolls, spells, items
-2. [ ] Connect virtual table characters and sdl table tokens with sync hp and etc
-3. [ ] Actions characters can do to GUI
+1. [ x] Implement proper DND-like character system with actions, hp, AC, rolls, spells, items
+2. [ x] Connect virtual table characters and sdl table tokens with sync hp and etc
+3. [ x] Actions characters can do to GUI
 4. [ ] Level up system????
 5. [ ] Implement basic DND mechanic like long rest and spell slots
 6. [ ] Connection managment on serverside
-7. [ ] Log actions and revert system
+7. [x] Log actions and revert system
 
 ### Common
-1. [ ] Unit tests, integration tests
+1. [ x] Unit tests, integration tests
 2. [x] Documentation
-3. [ ] Deployment and host
+3. [x] Deployment and host
 
 ### Server
-1. [ ] Implement clean protocol-implementation. For now it's for testing pretty dirty
-2. [ ] Make proper interface and layer abstarctions
+1. [ x] Implement clean protocol-implementation. For now it's for testing pretty dirty
+2. [ x] Make proper interface and layer abstarctions
 
 ## Optional
 

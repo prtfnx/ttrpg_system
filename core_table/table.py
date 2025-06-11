@@ -21,11 +21,13 @@ class Entity:
         self.layer = layer
         self.texture_path = path_to_texture
         self.scale_x = 1.0
-        self.scale_y = 1.0
-        self.get_entity_at_position = get_entity_at_position
-        self.get_entities_in_area = get_entities_in_area
+        self.scale_y = 1.0        # Add rotation attribute
+        self.rotation = 0.0
         
-        # Add sprite ID for network tracking
+        # Remove these problematic lines for now
+        # self.get_entity_at_position = get_entity_at_position
+        # self.get_entities_in_area = get_entities_in_area
+          # Add sprite ID for network tracking
         self.sprite_id = str(uuid.uuid4())
         
     def to_dict(self):
@@ -38,11 +40,28 @@ class Entity:
             'texture_path': self.texture_path,
             'scale_x': self.scale_x,
             'scale_y': self.scale_y,
+            'rotation': self.rotation,
             'character': None,
             'moving': False,
             'speed': None,
             'collidable': False
         }
+    
+    @classmethod
+    def from_dict(cls, data):
+        """Create Entity from dictionary"""
+        entity = cls(
+            name=data['name'],
+            position=tuple(data['position']),
+            layer=data['layer'],
+            path_to_texture=data.get('texture_path'),
+            entity_id=data['entity_id']
+        )
+        entity.sprite_id = data.get('sprite_id', str(uuid.uuid4()))
+        entity.scale_x = data.get('scale_x', 1.0)
+        entity.scale_y = data.get('scale_y', 1.0)
+        entity.rotation = data.get('rotation', 0.0)
+        return entity
 
 class VirtualTable:
     def __init__(self, name: str, width: int, height: int):
@@ -55,6 +74,11 @@ class VirtualTable:
         
         # Sprite ID to entity ID mapping for quick lookup
         self.sprite_to_entity: Dict[str, int] = {}
+        
+        # Add missing attributes for the protocol
+        self.position = (0.0, 0.0)
+        self.scale = (1.0, 1.0)
+        self.layer_visibility = {layer: True for layer in self.layers}
         
         # Initialize grid
         self.grid = {}

@@ -1,9 +1,11 @@
 """
 Entities Panel - Right sidebar panel for character and entity management
+Updated to use Actions protocol bridge
 """
 
 from imgui_bundle import imgui
 import logging
+from core_table.actions_protocol import Position
 
 logger = logging.getLogger(__name__)
 
@@ -11,38 +13,53 @@ logger = logging.getLogger(__name__)
 class EntitiesPanel:
     """Entities panel for managing characters, NPCs, and objects on the table"""
     
-    def __init__(self, context):
+    def __init__(self, context, actions_bridge):
         self.context = context
+        self.actions_bridge = actions_bridge
         self.entity_filter = ""
         self.selected_entity = None
         self.show_players_only = False
         self.show_npcs_only = False
+        self.selected_layer = "tokens"
         
     def render(self):
         """Render the entities panel content"""
-        imgui.text("Entities & Characters")
+        imgui.text("Entities & Sprites")
+        imgui.separator()
+        
+        # Current table status
+        if not self.actions_bridge.has_current_table():
+            imgui.text_colored((0.8, 0.4, 0.4, 1.0), "No table selected")
+            return
+            
+        table_name = self.actions_bridge.get_current_table_name()
+        imgui.text(f"Table: {table_name}")
+        imgui.separator()
+        
+        # Layer selection
+        imgui.text("Layer:")
+        layers = self.actions_bridge.get_available_layers()
+        for layer in layers:
+            if imgui.radio_button(layer.title(), self.selected_layer == layer):
+                self.selected_layer = layer
+        
         imgui.separator()
         
         # Filter controls
         imgui.text("Filter:")
         changed, self.entity_filter = imgui.input_text("##filter", self.entity_filter, 64)
         
-        # Filter checkboxes
-        _, self.show_players_only = imgui.checkbox("Players Only", self.show_players_only)
-        imgui.same_line()
-        _, self.show_npcs_only = imgui.checkbox("NPCs Only", self.show_npcs_only)
-        
         imgui.separator()
         
         # Entity list
-        if imgui.begin_child("entity_list", (0, -120)):
+        if imgui.begin_child("entity_list", (0, -150)):
             entities = self._get_filtered_entities()
             
             if not entities:
-                imgui.text_colored((0.7, 0.7, 0.7, 1.0), "No entities found")
+                imgui.text_colored((0.7, 0.7, 0.7, 1.0), "No sprites found")
             else:
-                for entity in entities:
-                    self._render_entity_item(entity)
+                for entity_id, entity_data in entities.items():
+                    self._render_entity_item(entity_id, entity_data)
         
         imgui.end_child()
         
@@ -51,257 +68,192 @@ class EntitiesPanel:
         if self.selected_entity:
             self._render_entity_details()
         else:
-            imgui.text("No entity selected")
+            imgui.text("No sprite selected")
         
         # Entity actions
         imgui.separator()
         self._render_entity_actions()
     
     def _get_filtered_entities(self):
-        """Get entities from context with filtering applied"""
-        # Try to get entities from context
-        entities = getattr(self.context, 'entities', [])
+        """Get sprites from current layer with filtering applied"""
+        # Get sprites from the selected layer
+        sprites = self.actions_bridge.get_layer_sprites(self.selected_layer)
         
-        # If no entities in context, create some example data
-        if not entities:
-            entities = [
-                {
-                    'id': 'player_1',
-                    'name': 'Gandalf the Grey',
-                    'type': 'player',
-                    'class': 'Wizard',
-                    'level': 10,
-                    'hp': 58,
-                    'max_hp': 58,
-                    'ac': 15,
-                    'position': {'x': 5, 'y': 8}
-                },
-                {
-                    'id': 'player_2', 
-                    'name': 'Legolas',
-                    'type': 'player',
-                    'class': 'Ranger',
-                    'level': 9,
-                    'hp': 72,
-                    'max_hp': 72,
-                    'ac': 17,
-                    'position': {'x': 6, 'y': 8}
-                },
-                {
-                    'id': 'npc_1',
-                    'name': 'Orc Captain',
-                    'type': 'npc',
-                    'class': 'Fighter',
-                    'level': 5,
-                    'hp': 45,
-                    'max_hp': 58,
-                    'ac': 16,
-                    'position': {'x': 15, 'y': 15}
-                }
-            ]
+        # Apply text filter
+        if self.entity_filter:
+            filtered = {}
+            search_text = self.entity_filter.lower()
+            for sprite_id, sprite_data in sprites.items():
+                if search_text in sprite_id.lower():
+                    filtered[sprite_id] = sprite_data
+            return filtered
         
-        # Apply filters
-        filtered = []
-        for entity in entities:
-            # Text filter
-            if self.entity_filter:
-                search_text = self.entity_filter.lower()
-                entity_text = f"{entity.get('name', '')} {entity.get('class', '')}".lower()
-                if search_text not in entity_text:
-                    continue
-            
-            # Type filters
-            entity_type = entity.get('type', 'unknown')
-            if self.show_players_only and entity_type != 'player':
-                continue
-            if self.show_npcs_only and entity_type != 'npc':
-                continue
-            
-            filtered.append(entity)
-        
-        return filtered
-    
-    def _render_entity_item(self, entity):
-        """Render a single entity item in the list"""
-        entity_id = entity.get('id', 'unknown')
-        entity_name = entity.get('name', 'Unknown')
-        entity_type = entity.get('type', 'unknown')
-        
-        # Color code by type
-        if entity_type == 'player':
-            color = (0.5, 0.8, 0.5, 1.0)  # Green for players
-        elif entity_type == 'npc':
-            color = (0.8, 0.5, 0.5, 1.0)  # Red for NPCs
-        else:
-            color = (0.8, 0.8, 0.5, 1.0)  # Yellow for other
+        return sprites
+    def _render_entity_item(self, sprite_id: str, sprite_data: dict):
+        """Render a single sprite item in the list"""
+        # Get position for display
+        position = sprite_data.get('position', Position(0, 0))
         
         # Selectable item
-        is_selected = self.selected_entity and self.selected_entity.get('id') == entity_id
+        is_selected = self.selected_entity == sprite_id
         
-        if imgui.selectable(f"{entity_name}##{entity_id}", is_selected)[0]:
-            self.selected_entity = entity
-            self._handle_entity_selection(entity)
+        if imgui.selectable(f"{sprite_id}##{sprite_id}", is_selected):
+            self.selected_entity = sprite_id
+            self._handle_entity_selection(sprite_id, sprite_data)
         
-        # Show type indicator and health bar
+        # Show position and scale info
         if imgui.is_item_hovered():
-            hp = entity.get('hp', 0)
-            max_hp = entity.get('max_hp', 1)
-            ac = entity.get('ac', 10)
-            level = entity.get('level', 1)
+            scale = sprite_data.get('scale', (1.0, 1.0))
+            rotation = sprite_data.get('rotation', 0.0)
             
-            tooltip = f"Type: {entity_type.title()}\n"
-            tooltip += f"Level: {level}\n"
-            tooltip += f"HP: {hp}/{max_hp}\n"
-            tooltip += f"AC: {ac}"
+            tooltip = f"Position: ({position.x:.1f}, {position.y:.1f})\\n"
+            tooltip += f"Scale: ({scale[0]:.2f}, {scale[1]:.2f})\\n"
+            tooltip += f"Rotation: {rotation:.1f}°"
             
             imgui.set_tooltip(tooltip)
         
-        # Health bar
-        if 'hp' in entity and 'max_hp' in entity:
-            hp_ratio = entity['hp'] / max(entity['max_hp'], 1)
-            
-            # Color based on health
-            if hp_ratio > 0.7:
-                bar_color = (0.2, 0.8, 0.2, 1.0)  # Green
-            elif hp_ratio > 0.3:
-                bar_color = (0.8, 0.8, 0.2, 1.0)  # Yellow
-            else:
-                bar_color = (0.8, 0.2, 0.2, 1.0)  # Red
-            
-            # Small health bar
-            imgui.same_line()
-            imgui.text_colored(bar_color, f"({entity['hp']}/{entity['max_hp']})")
+        # Show position inline
+        imgui.same_line()
+        imgui.text_colored((0.7, 0.7, 0.7, 1.0), f"({position.x:.0f}, {position.y:.0f})")
     
     def _render_entity_details(self):
-        """Render details for the selected entity"""
-        entity = self.selected_entity
-        imgui.text(f"Selected: {entity.get('name', 'Unknown')}")
+        """Render details for the selected sprite"""
+        if not self.selected_entity:
+            return
+            
+        sprite_info = self.actions_bridge.get_sprite_info(self.selected_entity)
+        if not sprite_info:
+            imgui.text("Failed to get sprite info")
+            return
+            
+        imgui.text(f"Selected: {self.selected_entity}")
+          # Position controls
+        pos = sprite_info.get('position', Position(0, 0))
+        imgui.text("Position:")
+        new_x = imgui.drag_float("X##pos", pos.x, 0.1, -1000, 1000)[1]
+        new_y = imgui.drag_float("Y##pos", pos.y, 0.1, -1000, 1000)[1]
         
-        # Basic info
-        if 'class' in entity:
-            imgui.text(f"Class: {entity['class']}")
-        if 'level' in entity:
-            imgui.text(f"Level: {entity['level']}")
+        if new_x != pos.x or new_y != pos.y:
+            if self.actions_bridge.move_sprite(self.selected_entity, new_x, new_y):
+                logger.info(f"Moved {self.selected_entity} to ({new_x:.1f}, {new_y:.1f})")
         
-        # Position
-        pos = entity.get('position', {})
-        if pos:
-            imgui.text(f"Position: ({pos.get('x', 0)}, {pos.get('y', 0)})")
+        # Scale controls
+        scale = sprite_info.get('scale', (1.0, 1.0))
+        imgui.text("Scale:")
+        new_scale_x = imgui.drag_float("Scale X##scale", scale[0], 0.01, 0.1, 5.0)[1]
+        new_scale_y = imgui.drag_float("Scale Y##scale", scale[1], 0.01, 0.1, 5.0)[1]
         
-        # Health controls for DM
-        if entity.get('type') != 'player':  # DM can modify NPC health
-            if 'hp' in entity and 'max_hp' in entity:
-                imgui.separator()
-                imgui.text("Health:")
-                
-                # HP slider
-                new_hp = imgui.slider_int("HP", entity['hp'], 0, entity['max_hp'])[1]
-                if new_hp != entity['hp']:
-                    entity['hp'] = new_hp
-                    logger.info(f"Updated {entity['name']} HP to {new_hp}")
+        if new_scale_x != scale[0] or new_scale_y != scale[1]:
+            if self.actions_bridge.scale_sprite(self.selected_entity, new_scale_x, new_scale_y):
+                logger.info(f"Scaled {self.selected_entity} to ({new_scale_x:.2f}, {new_scale_y:.2f})")
+        
+        # Rotation control
+        rotation = sprite_info.get('rotation', 0.0)
+        new_rotation = imgui.drag_float("Rotation##rot", rotation, 1.0, -180, 180)[1]
+        
+        if new_rotation != rotation:
+            if self.actions_bridge.rotate_sprite(self.selected_entity, new_rotation):
+                logger.info(f"Rotated {self.selected_entity} to {new_rotation:.1f}°")
+        
+        # Layer controls
+        current_layer = sprite_info.get('layer', 'tokens')
+        imgui.text(f"Current Layer: {current_layer}")
+        
+        layers = self.actions_bridge.get_available_layers()
+        for layer in layers:
+            if layer != current_layer:
+                if imgui.button(f"Move to {layer.title()}"):
+                    if self.actions_bridge.move_sprite_to_layer(self.selected_entity, layer):
+                        logger.info(f"Moved {self.selected_entity} to layer {layer}")
+                        # Refresh selection if we moved to a different layer
+                        if layer != self.selected_layer:
+                            self.selected_entity = None
     
     def _render_entity_actions(self):
-        """Render action buttons for entity management"""
-        # Add entity button
-        if imgui.button("Add Entity", (-1, 25)):
-            self._handle_add_entity()
+        """Render action buttons for sprite management"""
+        # Layer visibility controls
+        imgui.text("Layer Visibility:")
+        layers = self.actions_bridge.get_available_layers()
         
-        # Actions for selected entity
+        for layer in layers:
+            visible = self.actions_bridge.get_layer_visibility(layer)
+            clicked, new_visible = imgui.checkbox(f"{layer.title()}##vis", visible)
+            if clicked and new_visible != visible:
+                self.actions_bridge.set_layer_visibility(layer, new_visible)
+                logger.info(f"Layer {layer} visibility: {new_visible}")
+        
+        imgui.separator()
+        
+        # Sprite actions
+        if imgui.button("Add Sprite", (-1, 25)):
+            self._handle_add_sprite()
+        
+        # Actions for selected sprite
         if self.selected_entity:
-            if imgui.button("Remove Selected", (-1, 25)):
-                self._handle_remove_entity()
+            if imgui.button("Delete Selected", (-1, 25)):
+                self._handle_delete_sprite()
             
             if imgui.button("Duplicate", (-1, 25)):
-                self._handle_duplicate_entity()
-            
-            if imgui.button("Center View", (-1, 25)):
-                self._handle_center_view()
+                self._handle_duplicate_sprite()
     
-    def _handle_entity_selection(self, entity):
-        """Handle entity selection"""
-        logger.info(f"Entity selected: {entity.get('name', 'Unknown')}")
-        
-        # Notify context if it has a selection handler
-        if hasattr(self.context, 'select_entity'):
-            try:
-                self.context.select_entity(entity)
-            except Exception as e:
-                logger.error(f"Error notifying context of entity selection: {e}")
+    def _handle_entity_selection(self, sprite_id: str, sprite_data: dict):
+        """Handle sprite selection"""
+        pass
+        #logger.info(f"Sprite selected: {sprite_id}")
     
-    def _handle_add_entity(self):
-        """Handle adding a new entity"""
-        logger.info("Add entity requested")
+    def _handle_add_sprite(self):
+        """Handle adding a new sprite"""
+        # This would typically open a file dialog
+        # For now, we'll add a placeholder sprite
+        sprite_id = f"sprite_{len(self._get_filtered_entities()) + 1}"
         
-        # Create a simple new entity
-        new_entity = {
-            'id': f'entity_{len(self._get_filtered_entities()) + 1}',
-            'name': 'New Entity',
-            'type': 'npc',
-            'class': 'Fighter',
-            'level': 1,
-            'hp': 10,
-            'max_hp': 10,
-            'ac': 12,
-            'position': {'x': 10, 'y': 10}
-        }
+        # Default position
+        x, y = 0.0, 0.0
         
-        # Add to context if possible
-        if hasattr(self.context, 'entities') and isinstance(self.context.entities, list):
-            self.context.entities.append(new_entity)
-        
-        self.selected_entity = new_entity
-        logger.info("New entity added")
+        # Try to add sprite (this will fail without a valid image path)
+        # In a real implementation, you'd open a file dialog here
+        logger.info("Add sprite requested - file dialog would open here")
+        self.actions_bridge.add_chat_message("Add sprite: Please implement file dialog")
     
-    def _handle_remove_entity(self):
-        """Handle removing the selected entity"""
+    def _handle_delete_sprite(self):
+        """Handle deleting the selected sprite"""
         if not self.selected_entity:
             return
             
-        entity_name = self.selected_entity.get('name', 'Unknown')
-        logger.info(f"Remove entity requested: {entity_name}")
-        
-        # Remove from context if possible
-        if hasattr(self.context, 'entities') and isinstance(self.context.entities, list):
-            try:
-                self.context.entities.remove(self.selected_entity)
-            except ValueError:
-                pass
-        
-        self.selected_entity = None
-        logger.info(f"Entity removed: {entity_name}")
+        if self.actions_bridge.delete_sprite(self.selected_entity):
+            logger.info(f"Deleted sprite: {self.selected_entity}")
+            self.selected_entity = None
     
-    def _handle_duplicate_entity(self):
-        """Handle duplicating the selected entity"""
+    def _handle_duplicate_sprite(self):
+        """Handle duplicating the selected sprite"""
         if not self.selected_entity:
             return
             
-        # Create a copy
-        import copy
-        new_entity = copy.deepcopy(self.selected_entity)
-        new_entity['id'] = f"{new_entity['id']}_copy"
-        new_entity['name'] = f"{new_entity['name']} (Copy)"
-        
-        # Offset position slightly
-        if 'position' in new_entity:
-            new_entity['position']['x'] += 1
-            new_entity['position']['y'] += 1
-        
-        # Add to context
-        if hasattr(self.context, 'entities') and isinstance(self.context.entities, list):
-            self.context.entities.append(new_entity)
-        
-        self.selected_entity = new_entity
-        logger.info(f"Entity duplicated: {new_entity['name']}")
-    
-    def _handle_center_view(self):
-        """Handle centering the view on the selected entity"""
-        if not self.selected_entity:
+        # Get current sprite info
+        sprite_info = self.actions_bridge.get_sprite_info(self.selected_entity)
+        if not sprite_info:
             return
             
-        pos = self.selected_entity.get('position', {})
-        if pos and hasattr(self.context, 'center_view_on'):
-            try:
-                self.context.center_view_on(pos.get('x', 0), pos.get('y', 0))
-                logger.info(f"Centered view on {self.selected_entity['name']}")
-            except Exception as e:
-                logger.error(f"Failed to center view: {e}")
+        # Create new sprite ID
+        new_id = f"{self.selected_entity}_copy"
+          # Get position and offset it slightly
+        pos = sprite_info.get('position', Position(0, 0))
+        new_x = pos.x + 50  # Offset by 50 units
+        new_y = pos.y + 50
+        
+        # Get image path
+        image_path = sprite_info.get('image_path', '')
+        layer = sprite_info.get('layer', 'tokens')
+        
+        if image_path and self.actions_bridge.create_sprite(new_id, image_path, new_x, new_y, layer):
+            # Apply same scale and rotation
+            scale = sprite_info.get('scale', (1.0, 1.0))
+            rotation = sprite_info.get('rotation', 0.0)
+            
+            self.actions_bridge.scale_sprite(new_id, scale[0], scale[1])
+            self.actions_bridge.rotate_sprite(new_id, rotation)
+            
+            self.selected_entity = new_id
+            logger.info(f"Duplicated sprite: {new_id}")
+        else:
+            logger.error("Failed to duplicate sprite")

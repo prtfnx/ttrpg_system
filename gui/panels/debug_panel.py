@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 
 class DebugPanel:
     """Debug panel for performance monitoring and debug information"""
-    
-    def __init__(self, context):
+    def __init__(self, context, actions_bridge):
         self.context = context
+        self.actions_bridge = actions_bridge
         self.show_performance = True
         self.show_memory = True
         self.show_logs = True

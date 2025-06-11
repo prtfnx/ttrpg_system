@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 
 class ChatPanel:
     """Chat panel for player and DM communication"""
-    
-    def __init__(self, context):
+    def __init__(self, context, actions_bridge):
         self.context = context
+        self.actions_bridge = actions_bridge
         self.chat_input = ""
         self.chat_messages = []
         

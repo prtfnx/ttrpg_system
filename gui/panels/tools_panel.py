@@ -12,8 +12,9 @@ logger = logging.getLogger(__name__)
 class ToolsPanel:
     """Tools panel for DM tools, dice rolling, and initiative tracking"""
     
-    def __init__(self, context):
+    def __init__(self, context, actions_bridge):
         self.context = context
+        self.actions_bridge = actions_bridge
         self.selected_tool = "Select"
         self.custom_dice = "1d20"
         self.dice_history = []
@@ -74,12 +75,10 @@ class ToolsPanel:
         
         if imgui.button("End Combat", (-1, 25)):
             self._handle_end_combat()
-    
     def _handle_tool_selection(self, tool: str):
         """Handle tool selection"""
+        self.actions_bridge.set_current_tool(tool)
         logger.info(f"Tool selected: {tool}")
-        if hasattr(self.context, 'set_current_tool'):
-            self.context.set_current_tool(tool)
     
     def _roll_dice(self, dice_type: str):
         """Roll a standard dice type"""

@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 
 class TablePanel:
     """Table panel for managing the game table, sessions, and global state"""
-    
-    def __init__(self, context):
+    def __init__(self, context, actions_bridge):
         self.context = context
+        self.actions_bridge = actions_bridge
         self.session_name = "New Session"
         self.player_count = 4
         self.is_dm_mode = True
@@ -23,7 +23,7 @@ class TablePanel:
         imgui.text("Session:")
         imgui.same_line()
         changed, self.session_name = imgui.input_text("##session_name", self.session_name, 64)
-        imgui.same_line()
+        #imgui.same_line()
         imgui.text(f"Players: {self.player_count}")
         
         # DM controls section

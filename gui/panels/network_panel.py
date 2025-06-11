@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 class NetworkPanel:
     """Network panel for multiplayer connectivity and session sharing"""
-    
-    def __init__(self, context):
+    def __init__(self, context, actions_bridge):
         self.context = context
+        self.actions_bridge = actions_bridge
         self.server_ip = "127.0.0.1"
         self.server_port = 8080
         self.player_name = "Player"
@@ -22,24 +22,24 @@ class NetworkPanel:
         self.is_connected = False
         self.connection_status = "Disconnected"
         self.connected_players = []
-        
     def render(self):
         """Render the network panel content"""
-        if not imgui.collapsing_header("Network & Multiplayer")[0]:
-            return
+        # Always use collapsing header but don't return early to avoid Begin/End mismatches
+        header_expanded = imgui.collapsing_header("Network & Multiplayer")
+        
+        if header_expanded:
+            # Connection status
+            self._render_status_section()
             
-        # Connection status
-        self._render_status_section()
-        
-        # Host section
-        self._render_host_section()
-        
-        # Join section  
-        self._render_join_section()
-        
-        # Player management (if hosting)
-        if self.is_hosting:
-            self._render_player_management()
+            # Host section
+            self._render_host_section()
+            
+            # Join section  
+            self._render_join_section()
+            
+            # Player management (if hosting)
+            if self.is_hosting:
+                self._render_player_management()
     
     def _render_status_section(self):
         """Render connection status section"""
@@ -63,7 +63,7 @@ class NetworkPanel:
     
     def _render_host_section(self):
         """Render hosting controls section"""
-        if imgui.collapsing_header("Host Session")[0]:
+        if imgui.collapsing_header("Host Session"):
             # Port input
             imgui.text("Port:")
             imgui.same_line()
@@ -95,7 +95,7 @@ class NetworkPanel:
     
     def _render_join_section(self):
         """Render join session controls section"""
-        if imgui.collapsing_header("Join Session")[0]:
+        if imgui.collapsing_header("Join Session"):
             # Server IP input
             imgui.text("Server IP:")
             imgui.same_line()
@@ -123,7 +123,7 @@ class NetworkPanel:
     
     def _render_player_management(self):
         """Render player management section (for hosts)"""
-        if imgui.collapsing_header("Connected Players")[0]:
+        if imgui.collapsing_header("Connected Players"):
             if not self.connected_players:
                 imgui.text("No players connected")
             else:

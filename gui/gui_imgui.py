@@ -28,6 +28,9 @@ from .panels import (
     CompendiumPanel
 )
 
+# Import GUI actions bridge
+from .gui_actions_bridge import GuiActionsBridge
+
 logger = logging.getLogger(__name__)
 
 
@@ -62,6 +65,9 @@ class SimplifiedGui:
         self.impl = None
         self.io = None
         
+        # Initialize GUI actions bridge
+        self.actions_bridge = GuiActionsBridge(context)
+        
         # Panel states
         self.panels: Dict[GuiPanel, PanelState] = {
             panel: PanelState() for panel in GuiPanel
@@ -72,23 +78,22 @@ class SimplifiedGui:
         self.top_height = 80.0
         self.bottom_height = 200.0
         self.panel_spacing = 5
-        self.menu_height = 25
+        self.menu_height = 0
         
         # Active panel tracking
         self.active_left_panel = GuiPanel.TOOLS
         self.active_right_panel = GuiPanel.ENTITIES
         self.active_top_panel = GuiPanel.TABLE
         self.active_bottom_panel = GuiPanel.CHAT
-        
-        # Initialize panel instances
+          # Initialize panel instances with actions bridge
         self.panel_instances = {
-            GuiPanel.TOOLS: ToolsPanel(context),
-            GuiPanel.CHAT: ChatPanel(context),
-            GuiPanel.ENTITIES: EntitiesPanel(context),
-            GuiPanel.TABLE: TablePanel(context),
-            GuiPanel.DEBUG: DebugPanel(context),
-            GuiPanel.NETWORK: NetworkPanel(context),
-            GuiPanel.COMPENDIUM: CompendiumPanel(context),
+            GuiPanel.TOOLS: ToolsPanel(context, self.actions_bridge),
+            GuiPanel.CHAT: ChatPanel(context, self.actions_bridge),
+            GuiPanel.ENTITIES: EntitiesPanel(context, self.actions_bridge),
+            GuiPanel.TABLE: TablePanel(context, self.actions_bridge),
+            GuiPanel.DEBUG: DebugPanel(context, self.actions_bridge),
+            GuiPanel.NETWORK: NetworkPanel(context, self.actions_bridge),
+            GuiPanel.COMPENDIUM: CompendiumPanel(context, self.actions_bridge),
         }
         
         # Initialize state
@@ -194,17 +199,17 @@ class SimplifiedGui:
             
             # Tools menu
             if imgui.begin_menu("Tools"):
-                if imgui.menu_item("Dice Roller", "", False)[0]:
+                if imgui.menu_item("Dice Roller", "", False):
                     self._handle_dice_roller()
-                if imgui.menu_item("Initiative Tracker", "", False)[0]:
+                if imgui.menu_item("Initiative Tracker", "", False):
                     self._handle_initiative_tracker()
-                if imgui.menu_item("Combat Manager", "", False)[0]:
+                if imgui.menu_item("Combat Manager", "", False):
                     self._handle_combat_manager()
                 imgui.end_menu()
             
             # Help menu
             if imgui.begin_menu("Help"):
-                if imgui.menu_item("About", "", False)[0]:
+                if imgui.menu_item("About", "", False):
                     self._handle_about()
                 imgui.end_menu()
             

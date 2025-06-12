@@ -27,54 +27,60 @@ class Context:
         self.sprites_list=[]
         self.window= window
         self.renderer = renderer
+        
+        # For manage  mouse state:
         self.resizing = False
         self.grabing= False
         self.mouse_state = None
         self.cursor = None
-        self.base_width = base_width
-        self.base_height = base_height
-        self.last_time = 0
-        self.current_time = 0
-        self.window_width, self.window_height = ctypes.c_int(), ctypes.c_int()
-        self.net_client_started = False
-        self.net_socket = None
-        self.queue_to_send = queue.Queue(0)
-        self.queue_to_read = queue.Queue(0)
-        self.waiting_for_table = False
-        self.current_table = None
-        self.list_of_tables = []
         self.moving_table = False
-        self.network_context = NetworkedContext(self)
-        self.LightingManager = None        # Compendium integration
-        self.compendium_manager = None
-        self.light_on = True
         self.cursor_position_x = 0.0
         self.cursor_position_y = 0.0
-        # Layout information for rendering subsystems
-        self.layout = None
-        self.table_viewport = None
-        # GUI system
-        self.imgui = None
-        # Geometry
-        self.GeometryManager = GeometricManager
+        
+        # Window dimensions
+        self.base_width = base_width
+        self.base_height = base_height
+        self.window_width, self.window_height = ctypes.c_int(), ctypes.c_int()
         # Layout information for window areas
+        self.table_viewport = None
         self.layout = {
             'table_area': (0, 0, 0, 0),
             'gui_area': (0, 0, 0, 0),
             'spacing': 0
         }
-        # GUI system reference
-        self.imgui = None
+        # Time management
+        self.last_time = 0
+        self.current_time = 0     
+
+        # Tables management
+        self.current_table = None
+        self.list_of_tables = []       
         
-        # Actions protocol integration
-        self.actions = Actions(self)
-        
-        # Chat messages for GUI
+        # Managers
+        self.network_context = NetworkedContext(self)
+        self.LightingManager = None        
+        self.compendium_manager = None
+        self.GeometryManager = GeometricManager
+
+        # Net section
+        self.net_client_started = False
+        self.net_socket = None
+        self.queue_to_send = queue.PriorityQueue(0)
+        self.queue_to_read = queue.PriorityQueue(0)
+        self.waiting_for_table = False
+        # GUI system
+        self.imgui = None     
         self.chat_messages = []
-        
         # Current tool selection
         self.current_tool = "Select"
-        self.point_of_view_changed = True
+          
+        # Actions protocol integration
+        self.actions = Actions(self)
+        #Light
+        self.point_of_view_changed = True 
+        # Settings
+        self.light_on = True
+        self.net= True
         
         logger.info("Context initialized with Actions protocol")
 

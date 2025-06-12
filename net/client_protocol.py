@@ -204,11 +204,11 @@ class ClientProtocol:
     def _apply_sprite_update(self, update_type: str, data: Dict):
         """Apply sprite updates from server"""
         sprite_id = data.get('sprite_id')
-        table_name = data.get('table_id', None)
+        table_id = data.get('table_id', None)
         if not sprite_id:
             return
-
-        sprite = self.context.find_sprite_by_id(sprite_id, table_name=table_name)
+       
+        sprite = self.context.find_sprite_by_id(sprite_id, table_id=table_id)
         if not sprite:
             logger.warning(f"Sprite not found: {sprite_id}")
             return

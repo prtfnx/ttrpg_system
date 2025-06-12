@@ -140,7 +140,7 @@ class Context:
             logger.error(f"Error creating sprite from {texture_path}: {e}")
             return None
     
-    def find_sprite_by_id(self, sprite_id, table_identifier=None):
+    def find_sprite_by_id(self, sprite_id, table_id=None):
         """Find and return a sprite by its ID from all layers in the table.
         
         Args:
@@ -148,22 +148,22 @@ class Context:
             table_identifier: Either table name or table_id (UUID). If None, uses current table
         """
         # Use current table if no table identifier provided
-        if table_identifier is None:
+        if table_id is None:
             table = self.current_table
             if table:
-                table_identifier = table.name
+                table_id = table.table_id
             else:
                 logger.error("No current table and no table_identifier provided")
                 return None
         else:
             # Try to find table by name first, then by table_id
-            table = next((t for t in self.list_of_tables if t.name == table_identifier), None)
+            table = next((t for t in self.list_of_tables if t.name == table_id), None)
             if not table:
                 # Try finding by table_id (UUID)
-                table = next((t for t in self.list_of_tables if t.table_id == table_identifier), None)
+                table = next((t for t in self.list_of_tables if t.table_id == table_id), None)
         
         if not table or not sprite_id:
-            logger.error(f"Table '{table_identifier}' not found or sprite_id is None")
+            logger.error(f"Table '{table_id}' not found or sprite_id is None")
             return None
             
         for layer, sprite_list in table.dict_of_sprites_list.items():
@@ -257,6 +257,7 @@ class Context:
     def create_table_from_json(self, json_data):
         """Create table from JSON data"""
         try:
+            logger.info(f"Creating table from JSON: {json_data}")   
             # Get table info from JSON data
             table_name = json_data.get('table_name', json_data.get('name', 'Loaded Table'))
             table_id = json_data.get('table_id')  # May be None for legacy saves

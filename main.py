@@ -590,7 +590,7 @@ def parse_arguments():
     # Authentication parameters for WebSocket connections
     parser.add_argument('--session-code', default='V2ERPCXR',
                        help='Game session code for WebSocket connection')
-    parser.add_argument('--jwt-token', default='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNzQ5NzU2MDAzfQ.8YOV5BLRYk_1Ir-QmhpyjhbMZLxSZy0jpdC9IVbX93Q',
+    parser.add_argument('--jwt-token', default='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNzQ5Nzc3OTIwfQ.g9sJT_ZRAaIpyp5BGOE0A7OzJ4XHcbgpoi2GJqwNwdQ',
                        help='JWT authentication token for WebSocket connection')
     parser.add_argument('--username', default='test',
                        help='Username for authentication')

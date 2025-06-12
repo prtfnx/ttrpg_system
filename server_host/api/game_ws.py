@@ -13,7 +13,7 @@ from ..service.game_session import ConnectionManager, get_connection_manager
 from ..routers.users import SECRET_KEY, ALGORITHM
 
 logger = logging.getLogger(__name__)
-
+logger.setLevel(logging.INFO)
 router = APIRouter()
 
 def get_user_from_token(token: str, db: Session):
@@ -35,6 +35,47 @@ def get_user_from_token(token: str, db: Session):
         logger.error(f"Token validation error: {e}")
         return None
 
+@router.websocket("/")
+async def websocket_general_endpoint(
+    websocket: WebSocket,
+    connection_manager: ConnectionManager = Depends(get_connection_manager)
+):
+    """General WebSocket endpoint that redirects based on headers"""
+    logger.info("General WebSocket connection attempt")
+    
+   
+    try:
+        # Extract session_code and token from headers
+        logger.info(f"WebSocket headers: {websocket.headers}")
+        headers = dict(websocket.headers)
+        session_code = headers.get("session_code") 
+                
+        token = (            
+            headers.get("authorization", "").replace("Bearer ", "") or
+            headers.get("Authorization", "").replace("Bearer ", "") or
+            websocket.query_params.get("token")
+        )
+        if not session_code:
+            logger.error("No session_code provided in headers")
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+            
+        if not token:
+            logger.error("No token provided in headers or query params")
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+        
+        logger.info(f"Redirecting to game session: {session_code}")
+        
+        # Call the game endpoint directly
+        await websocket_game_endpoint(websocket, session_code, token, connection_manager)
+        
+    except Exception as e:
+        logger.error(f"Error in general WebSocket endpoint: {e}")
+        await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
+
+
+
 @router.websocket("/ws/game/{session_code}")
 async def websocket_game_endpoint(
     websocket: WebSocket, 
@@ -47,25 +88,34 @@ async def websocket_game_endpoint(
     db = next(get_db())
     
     try:
-        # Authenticate user via token (from query parameter or header)
+        # Authenticate user via token (from query parameter or passed directly)
         if not token:
             # Try to get token from query parameters
             token = websocket.query_params.get("token")
-        
         if not token:
+            # Try to get from Authorization header
+            auth_header = dict(websocket.headers).get("Authorization")
+            if auth_header:
+                token = auth_header.replace("Bearer ", "")
+        if not token:
+            logger.error("No token provided")
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
         
         user = get_user_from_token(token, db)
         if not user:
+            logger.error("Invalid token")
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
         
         # Verify session exists
         game_session = crud.get_game_session_by_code(db, session_code)
         if not game_session:
+            logger.error(f"Game session {session_code} not found")
             await websocket.close(code=status.WS_1003_UNSUPPORTED_DATA)
-            return        # Connect user to session
+            return
+            
+        # Connect user to session
         await connection_manager.connect(websocket, session_code, int(user.id), str(user.username))
         
         # Send welcome message

@@ -170,7 +170,7 @@ class GameSessionProtocolService:
             return
         
         try:
-            table_name = message.data.get('name') if message.data else None
+            table_name = message.data.get('table_name') if message.data else None
             table = self.server_protocol.table_manager.get_table(table_name)
             
             if not table:
@@ -179,7 +179,7 @@ class GameSessionProtocolService:
             
             # Create table data response
             table_data = {
-                'name': table.name,
+                'table_name': table.name,
                 'width': table.width,
                 'height': table.height,
                 'scale': 1.0,
@@ -211,7 +211,7 @@ class GameSessionProtocolService:
                 table = self.server_protocol.table_manager.create_table(table_name, 30, 30)
             
             table_data = {
-                'name': table.name,
+                'table_name': table.name,
                 'width': table.width,
                 'height': table.height,
                 'scale': 1.0,

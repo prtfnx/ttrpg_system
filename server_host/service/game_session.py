@@ -9,6 +9,7 @@ import logging
 import hashlib
 import time
 from datetime import datetime
+from net.protocol import Message, MessageType, ProtocolHandler
 
 logger = logging.getLogger(__name__)
 
@@ -55,17 +56,16 @@ class ConnectionManager:
         })
         
         logger.info(f"User {username} connected to session {session_code} with client_id {client_id}")
-        
-        # Notify other players
-        await self.broadcast_to_session(session_code, {
-            "type": "player_joined",
-            "data": {
-                "username": username,
-                "user_id": user_id,
-                "client_id": client_id,
-                "timestamp": datetime.now().isoformat()
+        message = Message(
+            MessageType.PLAYER_JOINED,{
+            "username": username,
+            "user_id": user_id,
+            "client_id": client_id,
+            "timestamp": datetime.now().isoformat()
             }
-        }, exclude_websocket=websocket)
+        )
+        # Notify other players
+        await self.broadcast_to_session(session_code, message,exclude_websocket=websocket)
 
     async def disconnect(self, websocket: WebSocket):
         """Disconnect a user from their game session with protocol cleanup"""
@@ -91,16 +91,17 @@ class ConnectionManager:
         
         del self.connection_info[websocket]
         
-        logger.info(f"User {username} disconnected from session {session_code}")
-        
+        logger.info(f"User {username} disconnected from session {session_code}")       
         # Notify other players
-        await self.broadcast_to_session(session_code, {
-            "type": "player_left", 
-            "data": {
-                "username": username,
-                "timestamp": datetime.now().isoformat()
+        # TODO: Handle all messages throught protocol
+        await self.broadcast_to_session(session_code, 
+        Message(
+            MessageType.PLAYER_LEFT,
+            {               
+                    "username": username,
+                    "timestamp": datetime.now().isoformat()
             }
-        })
+        ))
 
     async def send_personal_message(self, message: dict, websocket: WebSocket):
         """Send message to specific websocket"""
@@ -109,14 +110,12 @@ class ConnectionManager:
         except Exception as e:
             logger.error(f"Error sending personal message: {e}")
 
-    async def broadcast_to_session(self, session_code: str, message: dict, exclude_websocket: Optional[WebSocket] = None):
+    async def broadcast_to_session(self, session_code: str, message: Message, exclude_websocket: Optional[WebSocket] = None):
         """Broadcast message to all users in a session"""
         if session_code not in self.active_connections:
             return
-        
-        message_text = json.dumps(message)
+        message_text = message.to_json()
         disconnected_websockets = []
-        
         for websocket in self.active_connections[session_code]:
             if websocket == exclude_websocket:
                 continue
@@ -164,12 +163,13 @@ class ConnectionManager:
             
             # Handle regular game session messages
             # Add sender info
-            response_message = {
-                "type": message_type,
+         
+            response_message = Message(
+                message_type,{                
                 "data": data,
                 "sender": username,
                 "timestamp": datetime.now().isoformat()
-            }
+            })
             
             if message_type == "chat_message":
                 # Broadcast chat message to all session members

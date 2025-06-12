@@ -12,18 +12,24 @@ logger = logging.getLogger(__name__)
 
 
 class QueueBridge:
-    def __init__(self, sync_queue: PriorityQueue):
+    def __init__(self, sync_queue: PriorityQueue, revert_bridge: bool = False):
         self.sync_queue = sync_queue
         self.async_queue = asyncio.PriorityQueue()
         self._bridge_task = None
+        self.revert_bridge = revert_bridge
 
     async def start_bridge(self):
         """Start the bridge in a separate thread"""
-        self._bridge_task = asyncio.create_task(self._bridge_worker())
+        if self.revert_bridge:
+            logger.info(f"Starting revert bridge worker")
+            self._bridge_task = asyncio.create_task(self._revert_bridge_worker())
+        else:
+            logger.info(f"Starting bridge worker")
+            self._bridge_task = asyncio.create_task(self._bridge_worker())
 
     async def _bridge_worker(self):
         """Worker that moves items from sync to async queue"""
-        def get_from_sync_queue():
+        def get_from_sync_queue(): 
             try:
                 return self.sync_queue.get(timeout=0.1)
             except Empty:
@@ -37,6 +43,18 @@ class QueueBridge:
                     await self.async_queue.put(item)
                 else:
                     await asyncio.sleep(0.01)
+            except asyncio.CancelledError:
+                break
+    
+    async def _revert_bridge_worker(self):
+        """Worker that moves items from async to sync queue"""
+        while True:
+            
+            try:
+               
+                item = await self.async_queue.get()
+                self.sync_queue.put(item)
+                
             except asyncio.CancelledError:
                 break
 
@@ -54,7 +72,7 @@ class WebSocketClient:
         self.uri = uri
         self.websocket = None
         self.server_bridge = QueueBridge(queue_to_send)
-        self.client_bridge = QueueBridge(queue_to_read)        
+        self.client_bridge = QueueBridge(queue_to_read, revert_bridge=True)        
         # For authentication and session management
         self.jwt_token = jwt_token
         self.session_code = session_code
@@ -108,16 +126,17 @@ class WebSocketClient:
     async def consumer_handler(self, websocket):
         async for message in websocket:
             logger.info(f"Received message: {message}")
-            #TODO: remove wrapper
-            if isinstance(message, Message):
-                pass
-            elif isinstance(message, str):
-                message = Message(message)
-            else:
-                logger.warning(f"Received unknown message type: {type(message)}")
-                continue
-            priority_message = PrioritizedItem(priority=message.priority, item=message)
-            await self.client_bridge.put(priority_message)
+            #TODO: remove wrapper, make prioritized item 
+            # if isinstance(message, Message):               
+            #     pass
+            # elif isinstance(message, str):
+            #     message = Message(message)
+                
+            # else:
+            #     logger.warning(f"Received unknown message type: {type(message)}")
+            #     continue
+            #priority_message = PrioritizedItem(priority=message.priority, item=message)
+            await self.client_bridge.put(message)
 
     async def producer_handler(self, websocket):
         while True:

@@ -24,6 +24,39 @@ class ToolsPanel:
         imgui.text("DM Tools")
         imgui.separator()
         
+        # === SYSTEM CONTROLS ===
+        imgui.text("System Controls")
+        
+        # Lighting System Toggle
+        light_on = getattr(self.context, 'light_on', True)
+        clicked, new_light_on = imgui.checkbox("Lighting System", light_on)
+        if clicked:
+            self.context.light_on = new_light_on
+            logger.info(f"Lighting system {'enabled' if new_light_on else 'disabled'}")
+            if hasattr(self.context, 'add_chat_message'):
+                self.context.add_chat_message(f"Lighting system {'enabled' if new_light_on else 'disabled'}")
+        
+        # Network System Toggle
+        net_on = getattr(self.context, 'net', False)
+        clicked, new_net_on = imgui.checkbox("Network System", net_on)
+        if clicked:
+            self.context.net = new_net_on
+            logger.info(f"Network system {'enabled' if new_net_on else 'disabled'}")
+            if hasattr(self.context, 'add_chat_message'):
+                self.context.add_chat_message(f"Network system {'enabled' if new_net_on else 'disabled'}")
+        
+        # GUI System Toggle
+        gui_on = getattr(self.context, 'gui', True)
+        clicked, new_gui_on = imgui.checkbox("GUI System", gui_on)
+        if clicked:
+            self.context.gui = new_gui_on
+            logger.info(f"GUI system {'enabled' if new_gui_on else 'disabled'}")
+            if hasattr(self.context, 'add_chat_message'):
+                self.context.add_chat_message(f"GUI system {'enabled' if new_gui_on else 'disabled'}")
+            # Note: GUI disable will take effect on next frame
+        
+        imgui.separator()
+        
         # Tool selection
         tools = ["Select", "Move", "Rotate", "Scale", "Measure", "Draw", "Erase"]
         for tool in tools:

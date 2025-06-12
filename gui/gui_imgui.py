@@ -25,7 +25,8 @@ from .panels import (
     TablePanel,
     DebugPanel,
     NetworkPanel,
-    CompendiumPanel
+    CompendiumPanel,
+    LayerPanel
 )
 
 # Import GUI actions bridge
@@ -43,6 +44,7 @@ class GuiPanel(Enum):
     NETWORK = "network"
     COMPENDIUM = "compendium"
     TABLE = "table"
+    LAYERS = "layers"
 
 
 @dataclass
@@ -72,10 +74,9 @@ class SimplifiedGui:
         self.panels: Dict[GuiPanel, PanelState] = {
             panel: PanelState() for panel in GuiPanel
         }
-        
-        # Layout constants - using ImGui's native resizing
+          # Layout constants - using ImGui's native resizing
         self.sidebar_width = 250.0
-        self.top_height = 80.0
+        self.top_height = 140.0  # Increased for TablePanel content
         self.bottom_height = 200.0
         self.panel_spacing = 5
         self.menu_height = 0
@@ -94,6 +95,7 @@ class SimplifiedGui:
             GuiPanel.DEBUG: DebugPanel(context, self.actions_bridge),
             GuiPanel.NETWORK: NetworkPanel(context, self.actions_bridge),
             GuiPanel.COMPENDIUM: CompendiumPanel(context, self.actions_bridge),
+            GuiPanel.LAYERS: LayerPanel(context, self.actions_bridge),
         }
         
         # Initialize state
@@ -245,26 +247,37 @@ class SimplifiedGui:
         imgui.set_next_window_pos((0, content_y))
         imgui.set_next_window_size((self.sidebar_width, content_height))
         
-        # Allow horizontal resizing from the right edge
         window_flags = (
             imgui.WindowFlags_.no_move.value |
             imgui.WindowFlags_.no_collapse.value |
             imgui.WindowFlags_.no_title_bar.value
         )
-          # Create resizable window
+        
         if imgui.begin("Left Panel", None, window_flags):
             # Check if window was resized
             current_width = imgui.get_window_width()
             if abs(current_width - self.sidebar_width) > 1.0:
                 old_width = self.sidebar_width
                 self.sidebar_width = max(150.0, min(400.0, current_width))
-                # Update layout manager when sidebar is resized
                 if abs(old_width - self.sidebar_width) > 1.0:
                     self._update_layout_manager()
             
-            # Render active panel
-            if self.active_left_panel in self.panel_instances:
-                self.panel_instances[self.active_left_panel].render()
+            # Split left panel: Tools on top, Layers on bottom
+            available_height = imgui.get_content_region_avail()[1]
+            
+            # Tools section (top 70%)
+            if imgui.begin_child("ToolsSection", (0, available_height * 0.7)):
+                if GuiPanel.TOOLS in self.panel_instances:
+                    self.panel_instances[GuiPanel.TOOLS].render()
+                imgui.end_child()
+            
+            imgui.separator()
+            
+            # Layers section (bottom 30%)
+            if imgui.begin_child("LayersSection", (0, available_height * 0.3)):
+                if GuiPanel.LAYERS in self.panel_instances:
+                    self.panel_instances[GuiPanel.LAYERS].render()
+                imgui.end_child()
         
         imgui.end()
         

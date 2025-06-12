@@ -1,6 +1,6 @@
 import json
 import enum
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from typing import Dict, List, Any, Optional
 import time
 
@@ -26,6 +26,19 @@ class MessageType(enum.Enum):
     TABLE_DATA = "table_data"
     TABLE_UPDATE = "table_update"
     
+ 
+    # Player actions
+    PLAYER_ACTION = "player_action"
+    PLAYER_ACTION_RESPONSE = "player_action_response"
+    PLAYER_ACTION_UPDATE = "player_action_update"
+    PLAYER_ACTION_REMOVE = "player_action_remove"
+    PLAYER_LEFT = "player_left"
+    PLAYER_JOINED = "player_joined"
+    PLAYER_READY = "player_ready"
+    PLAYER_UNREADY = "player_unready"
+    PLAYER_STATUS = "player_status"
+    
+
     # Sprite sync
     SPRITE_REQUEST = "sprite_request"
     SPRITE_RESPONSE = "sprite_response"
@@ -54,8 +67,8 @@ class Message:
     client_id: Optional[str] = None
     timestamp: Optional[float] = None
     # Enhanced fields for production games
-    version: str = "1.0"  # Protocol version for backward compatibility
-    priority: int = 0     # Message priority (0=normal, 1=high, 2=critical)
+    version: str = "0.1"  # Protocol version for backward compatibility
+    priority: int = 5     # Message priority (5=normal, 2=high, 0=critical)
     sequence_id: Optional[int] = None  # For message ordering and deduplication
     
     def __post_init__(self):
@@ -82,7 +95,7 @@ class Message:
             client_id=data.get('client_id'),
             timestamp=data.get('timestamp'),
             version=data.get('version', '1.0'),
-            priority=data.get('priority', 0),
+            priority=data.get('priority', 5),
             sequence_id=data.get('sequence_id')
         )
 
@@ -91,3 +104,8 @@ class ProtocolHandler:
     async def handle_message(self, message: Message, sender=None) -> Optional[Message]:
         """Override this method to handle custom message types"""
         pass
+
+@dataclass(order=True)
+class PrioritizedItem:
+    priority: int
+    item: Any=field(compare=False)

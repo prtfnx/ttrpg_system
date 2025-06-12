@@ -4,11 +4,11 @@ import hashlib
 from typing import Callable, Optional, Dict, Any
 from .protocol import Message, MessageType, ProtocolHandler
 import logging
-
+import Actions
 logger = logging.getLogger(__name__)
 
 class ClientProtocol:
-    def __init__(self, context, send_callback: Callable[[str], None]):
+    def __init__(self, context, send_callback: Callable[[Message], None]):
         self.context = context
         self.send = send_callback
         self.client_id = hashlib.md5(f"{time.time()}_{os.getpid()}".encode()).hexdigest()[:8]
@@ -153,8 +153,8 @@ class ClientProtocol:
             if not os.path.exists(filename):
                 self.request_file(filename)
     def _create_table(self, data: Dict):
-        """Create a new table from the provided data"""
-       
+        """Create a new table from the provided data"""        
+        #TODO use Actions 
         self.context.create_table_from_json(data)
         
         

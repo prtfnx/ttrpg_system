@@ -36,7 +36,7 @@ def move_sprites(cnt, delta_time):
     
     cnt.point_of_view_changed = True
     # Prepare for light rendering:
-    if cnt.light_on and cnt.point_of_view_changed:
+    if cnt.light_on and cnt.point_of_view_changed and cnt.current_table.selected_sprite:
         render_texture_light = cnt.LightingManager.render_texture_light
         render_texture = cnt.LightingManager.render_texture
         texture_light = cnt.LightingManager.texture_light
@@ -95,12 +95,12 @@ def move_sprites(cnt, delta_time):
                      
             sdl3.SDL_RenderTexture(cnt.renderer, render_texture, None, None)
             sdl3.SDL_RenderTexture(cnt.renderer, render_texture_light, None, None)
-            for i in range(len(visibility_polygon_vertices)):
-                start_vertex = player_pos
-                end_vertex = visibility_polygon_vertices[i] 
-                sdl3.SDL_RenderLine(cnt.renderer, 
-                                    player_pos[0], player_pos[1],
-                                    end_vertex.position.x, end_vertex.position.y)    
+            #for i in range(len(visibility_polygon_vertices)):
+            #    start_vertex = player_pos
+            #    end_vertex = visibility_polygon_vertices[i] 
+            #    sdl3.SDL_RenderLine(cnt.renderer, 
+            #                        player_pos[0], player_pos[1],
+            #                        end_vertex.position.x, end_vertex.position.y)    
              # ???? sdl3.SDL_RenderClear(cnt.renderer)
               # #mode for sprites
              #sdl3.SDL_SetTextureBlendMode(sprite.texture, sdl3.SDL_BLENDMODE_BLEND)

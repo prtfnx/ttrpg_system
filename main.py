@@ -18,9 +18,10 @@ import gui.gui_imgui as gui_imgui
 from net import client_sdl
 from net import client_webhook
 from net import client_webhook_protocol
-from net import client_websocket
+from net.client_websocket import WebSocketClient
 from net import client_websocket_protocol
 from net.protocol import ProtocolHandler, Message, MessageType
+from net.client_protocol import ClientProtocol
 from imgui_bundle import imgui
 from layout_manager import LayoutManager
 import OpenGL.GL as gl
@@ -209,6 +210,7 @@ def SDL_AppInit_func(args=None):
     paint.init_paint_system(test_context)
     logger.info("Paint system initialized.")
     logger.info("Start to initialize network client.")
+    # Initialize network client
     try:
         if args and args.connection == 'webhook':
             logger.info("Starting webhook client")
@@ -242,19 +244,22 @@ def SDL_AppInit_func(args=None):
     def send_to_server(msg: str):
         test_context.queue_to_send.put(msg)
     
-    test_context.net = False
+    #test_context.net = False
     
     if test_context.net is True:
-        if args and args.connection == 'webhook':
-            protocol = client_webhook_protocol.setup_webhook_protocol(test_context, test_context.net_socket)
-        elif args and args.connection == 'websocket':
-            session_code = getattr(test_context, 'session_code', None)
-            protocol = client_websocket_protocol.setup_websocket_protocol(test_context, test_context.net_socket, session_code)
-        else:
-            protocol = test_context.setup_protocol(send_to_server)
+        # if args and args.connection == 'webhook':
+        #     protocol = client_webhook_protocol.setup_webhook_protocol(test_context, test_context.net_socket)
+        # elif args and args.connection == 'websocket':
+        #     session_code = getattr(test_context, 'session_code', None)
+        #     protocol = client_websocket_protocol.setup_websocket_protocol(test_context, test_context.net_socket, session_code)
+        # else:
+        #     protocol = test_context.setup_protocol(send_to_server)
         
-        protocol.request_table()  # Request default table
-    
+        # protocol.request_table()  # Request default table
+        def send_message(msg: Message):
+            test_context.queue_to_send.put(msg)
+        protocol = ClientProtocol(test_context, send_message)
+        test_context.protocol = protocol
     return test_context
 
 def SDL_AppIterate(context):
@@ -367,11 +372,6 @@ def handle_information(msg, context):
     except Exception as e:
         logger.error(f"Error handling message: {e}")
         logger.debug(f"Problematic message: {msg[:200] if isinstance(msg, str) else str(msg)[:200]}...")
-# def init_net_func(context):
-#     """Initialize the network thread."""
-#     logger.info("Initializing network thread...")
-#     socket = client_sdl.init_connection()
-#     context.net_socket = socket
 
 def start_net_connection_thread(context):
     """Start the network connection."""
@@ -544,90 +544,33 @@ def webhook_thread_func(context):
             net_fails += 1        
         time.sleep(NET_SLEEP)
 
-def start_websocket_connection_thread(context, server_url, session_code=None, jwt_token=None):
+def start_websocket_connection_thread(context, server_url:str, session_code:str, jwt_token:str):
     """Start the WebSocket connection with authentication."""
-    logger.info("Starting WebSocket connection...")
+    logger.info("Starting WebSocket connection thread...")
+    print(f"Server URL: {server_url}")
     while True:
         try:
             logger.info("Creating WebSocket client...")
-            websocket_client = client_websocket.init_connection(server_url)
-            
-            if not websocket_client:
-                logger.error("Failed to initialize WebSocket client")
-                time.sleep(5)
-                continue
-            
-            # Set authentication token if provided
-            if jwt_token:
-                websocket_client.set_auth_token(jwt_token)
-                logger.info("JWT token set for WebSocket client")
-            
-            # Connect to session if specified
-            if session_code and jwt_token:
-                success = websocket_client.connect_to_session(session_code)
-                if not success:
-                    logger.error("Failed to connect to session - missing authentication")
-                    time.sleep(5)
-                    continue
-                    
-            context.net_socket = websocket_client  # Store WebSocket client in same attribute
-            context.session_code = session_code  # Store session code for protocol
-            websocket_thread_func(context)
+            websocket_client = WebSocketClient(uri=server_url, queue_to_send=context.queue_to_send, 
+                                               queue_to_read=context.queue_to_read,
+                                               session_code=session_code, jwt_token=jwt_token)
         except Exception as e:
-            logger.error("Error creating WebSocket connection: %s", e)
+            logger.error("Error creating WebSocket client: %s", e)
             time.sleep(1)
-
-def websocket_thread_func(context):
-    """Thread for WebSocket communication."""
-    logger.info("WebSocket thread func started.")
-    last_check = time.time()
-    check_interval = CHECK_INTERVAL
-    net_fails = 0
-
-    websocket_client = context.net_socket
-    logger.info("WebSocket client ready for communication...")
-
-    while True:
-        current_time = time.time()
-        
-        # Check connection periodically
-        if current_time - last_check > check_interval:
-            try:
-                websocket_client.ping_server()
-                last_check = current_time
-            except Exception as e:
-                logger.error("WebSocket ping error: %s", e)
-                net_fails += 1
-                if net_fails > NUMBER_OF_NET_FAILS:
-                    logger.error("Too many WebSocket failures, reconnecting...")
-                    break
-
-        # Send queued messages
-        try:
-            while not context.queue_to_send.empty():
-                msg = context.queue_to_send.get_nowait()
-                websocket_client.send_data(msg)
-                logger.debug(f"Sent WebSocket data: {msg[:100]}...")
-        except Exception as e:
-            logger.error("Error sending WebSocket data: %s", e)
-
-        # Receive messages
-        try:
-            data = client_websocket.receive_data(websocket_client)
-            if data:
-                if data.strip() == "__pong__":
-                    net_fails = max(0, net_fails - 1)
-                    logger.debug(f'Received WebSocket pong, net_fails={net_fails}.')
-                elif data.strip() == "-1":
-                    pass  # Handle WebSocket specific errors
-                else:
-                    context.queue_to_read.put(data)
-                    logger.debug(f"Received WebSocket data: {data}...")
-        except Exception as e:
-            logger.error("Error receiving WebSocket data: %s", e)
-            net_fails += 1
+            continue
             
-        time.sleep(NET_SLEEP)
+        try:
+            logger.info("Initialise WebSocket connection...")
+            websocket_client.start_from_sync_func()
+        except Exception as e:
+            logger.error("Error connecting WebSocket client: %s", e)           
+            time.sleep(5)
+            continue
+                   
+
+
+
+
 
 def parse_arguments():
     """Parse command line arguments"""
@@ -647,7 +590,7 @@ def parse_arguments():
     # Authentication parameters for WebSocket connections
     parser.add_argument('--session-code', default='V2ERPCXR',
                        help='Game session code for WebSocket connection')
-    parser.add_argument('--jwt-token', default='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNzQ5NTkzMTg3fQ.WpdR9rgF_jLlvOoKnpVCXn7J-mj6JSHFiXgOHXbn72U',
+    parser.add_argument('--jwt-token', default='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNzQ5NzU2MDAzfQ.8YOV5BLRYk_1Ir-QmhpyjhbMZLxSZy0jpdC9IVbX93Q',
                        help='JWT authentication token for WebSocket connection')
     parser.add_argument('--username', default='test',
                        help='Username for authentication')
@@ -698,27 +641,31 @@ def main(args=None):
         while sdl3.SDL_PollEvent(ctypes.byref(event)):
             # Let ImGui process events first and check if it consumed them
             gui_consumed = False
-            if context.imgui:
+            if context.gui:
                 gui_consumed = context.imgui.process_event(event)
             
             # if ctx.imgui.io.want_capture_mouse or ctx.imgui.io.want_capture_keyboard:
             #     gui_consumed = ctx.imgui.process_event(event)
             
             # Only process game events if ImGui didn't consume them
-            if not gui_consumed:
+            if context.gui:
+                if not gui_consumed:
                 # Handle paint events
-                if paint.handle_paint_events(event):
-                    continue  # Paint system consumed the event
+                    if paint.handle_paint_events(event):
+                        continue  # Paint system consumed the event
                 
                 # Handle normal game events
+                    running = event_sys.handle_event(context, event)
+            else:
+                if paint.handle_paint_events(event):
+                        continue 
                 running = event_sys.handle_event(context, event)
-
         # Render SDL content first (SDL handles its own clearing)
         SDL_AppIterate(context)
         #context.LightingManager.iterate()
         # Then render ImGui over the SDL content
         sdl3.SDL_FlushRenderer(context.renderer)
-        if context.imgui:
+        if context.gui:
             context.imgui.iterate()
 
         #sdl3.SDL_RenderPresent(context.renderer)

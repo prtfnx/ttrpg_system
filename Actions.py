@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from context import Context, ContextTable
     from sprite import Sprite
 
+
 logger = logging.getLogger(__name__)
 
 class Actions(ActionsProtocol):
@@ -23,11 +24,11 @@ class Actions(ActionsProtocol):
         self.redo_stack: List[Dict[str, Any]] = []
         self.max_history = 100
         self.layer_visibility = {layer: True for layer in LAYERS.keys()}
-    
     def _add_to_history(self, action: Dict[str, Any]):
         """Add action to history for undo/redo functionality"""
         self.action_history.append(action)
-        if len(self.action_history) > self.max_history:        self.action_history.pop(0)
+        if len(self.action_history) > self.max_history:
+            self.action_history.pop(0)
         self.undo_stack.append(action)
         self.redo_stack.clear()
     
@@ -40,8 +41,7 @@ class Actions(ActionsProtocol):
         for layer, sprite_list in table.dict_of_sprites_list.items():
             for sprite_obj in sprite_list:
                 if hasattr(sprite_obj, 'sprite_id') and sprite_obj.sprite_id == sprite_id:
-                    return sprite_obj
-                # Fallback for alternate id attribute
+                    return sprite_obj                # Fallback for alternate id attribute
                 if hasattr(sprite_obj, 'id') and sprite_obj.id == sprite_id:
                     return sprite_obj
         return None
@@ -50,18 +50,22 @@ class Actions(ActionsProtocol):
     def create_table(self, table_id: str, name: str, width: int, height: int) -> ActionResult:
         """Create a new table"""
         try:
+            
             # Check if table already exists
             if self._get_table_by_id(table_id):
                 return ActionResult(False, f"Table with ID {table_id} already exists")
-            
-            # Create new table using Context method - pass the display name, not table_id
-            table = self.context.add_table(name, width, height)
+            # Create new table using Context method - pass table_id to constructor
+            table = self.context.add_table(name, width, height, table_id=table_id)
             if not table:
                 return ActionResult(False, f"Failed to create table {name}")
             
-            # Update the table to use the specified table_id instead of auto-generated one
-            table.table_id = table_id
+            # Add to context list manually to maintain control
+
             
+            # Set as current table if it's the first one
+            if not self.context.current_table:
+                self.context.current_table = table
+                
             action = {
                 'type': 'create_table',
                 'table_id': table_id,
@@ -195,10 +199,10 @@ class Actions(ActionsProtocol):
             table = self._get_table_by_id(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
-            
             if layer not in LAYERS:
                 return ActionResult(False, f"Invalid layer: {layer}")
-              # Check if sprite already exists
+            
+            # Check if sprite already exists
             existing_sprite = self._find_sprite_in_table(table, sprite_id)
             if existing_sprite:
                 return ActionResult(False, f"Sprite {sprite_id} already exists")

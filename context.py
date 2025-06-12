@@ -81,6 +81,7 @@ class Context:
         # Settings
         self.light_on = True
         self.net= True
+        self.gui= True
         
         logger.info("Context initialized with Actions protocol")
 
@@ -229,13 +230,20 @@ class Context:
             logger.info(f"Cleaned up table: {table.name}")
         except Exception as e:
             logger.error(f"Error cleaning up table: {e}")
-
-    def add_table(self, name, width, height) -> 'ContextTable | None':
+    
+    def add_table(self, name, width, height,table_id=None) -> 'ContextTable | None':
         """Add a new table and return it"""
         try:
             table = ContextTable(name, width, height)
+            
+            if table_id:
+                table.table_id = table_id
+            else:
+                table.table_id = str(uuid.uuid4())
+                
             self.list_of_tables.append(table)
-              # Set as current table if it's the first one
+            
+            # Set as current table if it's the first one
             if not self.current_table:
                 self.current_table = table
                 

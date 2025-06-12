@@ -8,8 +8,8 @@ import time
 import ctypes
 import uuid
 from net.protocol import Message, MessageType
-from Actions import Actions  # Import our Actions protocol implementation
-
+from Actions import Actions  
+from GeometricManager import GeometricManager  
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +55,8 @@ class Context:
         self.table_viewport = None
         # GUI system
         self.imgui = None
+        # Geometry
+        self.GeometryManager = GeometricManager
         # Layout information for window areas
         self.layout = {
             'table_area': (0, 0, 0, 0),
@@ -72,6 +74,7 @@ class Context:
         
         # Current tool selection
         self.current_tool = "Select"
+        self.point_of_view_changed = True
         
         logger.info("Context initialized with Actions protocol")
 

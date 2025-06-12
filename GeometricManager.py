@@ -7,6 +7,10 @@ import functools
 import sdl3
 import ctypes
 import sys
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Profiling utilities
 class ProfilerStats:
@@ -89,6 +93,130 @@ class GeometricManager:
     def line(r0: int, c0: int, r1: int, c1: int) -> Tuple[np.ndarray, np.ndarray]:
         """Using skimage.draw for line coordinates"""
         return draw.line(r0, c0, r1, c1)
+
+    def sprites_to_obstacles_numpy(sprite_list : List[sprite]) -> np.ndarray:
+        """
+        numpy-vectorized conversion of sprites to obstacles array.
+        
+        Uses vectorized operations for maximum performance when processing many sprites.
+        Args:
+            include_non_collidable: Whether to include non-collidable sprites (default: True)
+
+        Returns:
+            numpy array of shape (N*4, 2, 2) representing line segments
+            Each sprite contributes 4 line segments (rectangle edges)
+           
+        """
+
+        # Pre-filter and extract sprite data in one pass
+        valid_sprites = []
+        for sprite in sprite_list:
+            x, y, w, h = float(sprite.frect.x), float(sprite.frect.y), float(sprite.frect.w), float(sprite.frect.h)
+                
+            # Skip invalid dimensions
+            if w <= 0 or h <= 0:
+                continue                    
+            valid_sprites.append([x, y, w, h])              
+        
+        sprite_rects = np.array(valid_sprites, dtype=np.float64)  # Shape: (N, 4) [x, y, w, h]
+        
+        # Vectorized calculation of all corners
+        x, y, w, h = sprite_rects[:, 0], sprite_rects[:, 1], sprite_rects[:, 2], sprite_rects[:, 3]
+        # Calculate all corner points vectorized
+        x2 = x + w  # Right edge x-coordinate
+        y2 = y + h  # Bottom edge y-coordinate        
+        #  Create all line segments at once using vectorized operations
+        num_sprites = len(sprite_rects)
+                # Pre-allocate obstacles array: 4 segments per sprite
+        obstacles = np.empty((num_sprites * 4, 2, 2), dtype=np.float64)
+        
+        # Vectorized assignment of all line segments
+        # Top edges: (x, y) -> (x2, y)
+        obstacles[0::4, 0, 0] = x     # Start x
+        obstacles[0::4, 0, 1] = y     # Start y  
+        obstacles[0::4, 1, 0] = x2    # End x
+        obstacles[0::4, 1, 1] = y     # End y
+        
+        # Right edges: (x2, y) -> (x2, y2)
+        obstacles[1::4, 0, 0] = x2    # Start x
+        obstacles[1::4, 0, 1] = y     # Start y
+        obstacles[1::4, 1, 0] = x2    # End x  
+        obstacles[1::4, 1, 1] = y2    # End y
+        
+        # Bottom edges: (x2, y2) -> (x, y2)
+        obstacles[2::4, 0, 0] = x2    # Start x
+        obstacles[2::4, 0, 1] = y2    # Start y
+        obstacles[2::4, 1, 0] = x     # End x
+        obstacles[2::4, 1, 1] = y2    # End y
+        
+        # Left edges: (x, y2) -> (x, y)
+        obstacles[3::4, 0, 0] = x     # Start x
+        obstacles[3::4, 0, 1] = y2    # Start y
+        obstacles[3::4, 1, 0] = x     # End x
+        obstacles[3::4, 1, 1] = y     # End y
+        
+        logger.debug(f" Created {len(obstacles)} line segments from {num_sprites} sprites '")
+        logger.debug(f"Obstacles array shape: {obstacles.shape}")
+        
+        return obstacles
+    
+    @staticmethod
+    def polygon_to_sdl_triangles(polygon_points: np.ndarray, center_point: np.ndarray,
+                            color: Tuple[float, float, float, float] = (0.0, 1.0, 0.0, 0.5)) -> ctypes.Array:
+        """
+        Convert visibility polygon numpy array to SDL_Vertex triangle fan for GPU rendering.
+        
+        Args:
+            polygon_points: numpy array of shape (N, 2) with polygon vertices
+            center_point: numpy array [x, y] representing the center point
+            color: RGBA color tuple (r, g, b, a) with values 0.0-1.0
+            
+        Returns:
+            ctypes array of SDL_Vertex structures for triangle rendering
+        """
+        if polygon_points.shape[0] < 3:
+            return (sdl3.SDL_Vertex * 0)()
+        
+        num_triangles = polygon_points.shape[0]
+        num_vertices = num_triangles * 3  # 3 vertices per triangle
+        vertices = (sdl3.SDL_Vertex * num_vertices)()
+        
+        # Pre-convert color to SDL format
+        r, g, b, a = color
+        sdl_color = sdl3.SDL_FColor()
+        sdl_color.r = ctypes.c_float(r)
+        sdl_color.g = ctypes.c_float(g)
+        sdl_color.b = ctypes.c_float(b)
+        sdl_color.a = ctypes.c_float(a)
+        
+        # Fast triangle fan generation: center -> each polygon edge
+        for i in range(num_triangles):
+            base_idx = i * 3
+            next_idx = (i + 1) % num_triangles
+            
+            # Triangle: center, current point, next point
+            # Vertex 1: Center
+            vertices[base_idx].position.x = ctypes.c_float(center_point[0])
+            vertices[base_idx].position.y = ctypes.c_float(center_point[1])
+            vertices[base_idx].color = sdl_color
+            vertices[base_idx].tex_coord.x = ctypes.c_float(0.5)
+            vertices[base_idx].tex_coord.y = ctypes.c_float(0.5)
+            
+            # Vertex 2: Current polygon point
+            vertices[base_idx + 1].position.x = ctypes.c_float(polygon_points[i, 0])
+            vertices[base_idx + 1].position.y = ctypes.c_float(polygon_points[i, 1])
+            vertices[base_idx + 1].color = sdl_color
+            vertices[base_idx + 1].tex_coord.x = ctypes.c_float(0.0)
+            vertices[base_idx + 1].tex_coord.y = ctypes.c_float(0.0)
+            
+            # Vertex 3: Next polygon point
+            vertices[base_idx + 2].position.x = ctypes.c_float(polygon_points[next_idx, 0])
+            vertices[base_idx + 2].position.y = ctypes.c_float(polygon_points[next_idx, 1])
+            vertices[base_idx + 2].color = sdl_color
+            vertices[base_idx + 2].tex_coord.x = ctypes.c_float(1.0)
+            vertices[base_idx + 2].tex_coord.y = ctypes.c_float(0.0)
+
+        return vertices
 
     @staticmethod
     @profile_function

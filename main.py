@@ -58,7 +58,7 @@ CHECK_INTERVAL: float = 2.0
 NUMBER_OF_NET_FAILS: int = 5
 TIME_TO_CONNECT: int = 4000  # 4 seconds
 COMPENDIUM_SYSTEM: bool = False
-LIGHTING_SYS: bool = False
+LIGHTING_SYS: bool = True
 GUI_SYS: bool = True
 # Layout configuration - centered table with GUI panels on all sides
 TABLE_AREA_PERCENT: float = 0.60   # 60% for centered table
@@ -183,6 +183,7 @@ def SDL_AppInit_func(args=None):
     test_context.add_sprite(b"resources/woman.png", scale_x=0.5, scale_y=0.5, character=test_character)
     test_context.add_sprite(b"resources/token_1.png", scale_x=0.5, scale_y=0.5, collidable=True)
     test_context.add_sprite(b"resources/test.gif", scale_x=0.5, scale_y=0.5)
+    test_context.add_sprite(b"resources/wall1.png", coord_x=300, coord_y=300,scale_x=0.1, scale_y=0.1, collidable=True,layer='light')
     # Initialize layout_manager
     test_context.layout_manager = LayoutManager()
     test_context.layout_manager.update_layout(window)
@@ -193,9 +194,9 @@ def SDL_AppInit_func(args=None):
             test_context.LightingManager = lighting_sys.LightManager(test_context, name ="default_lighting_manager") 
             #print(f"Lighting manager: {test_context.LightingManager}")
             default_light = lighting_sys.Light('default_light')
-            test_context.LightingManager.add_light(default_light)
-            light_sprite = test_context.add_sprite(
-                b"resources/light.png", scale_x=0.5, scale_y=0.5,layer='light',)
+            #test_context.LightingManager.add_light(default_light)
+            #light_sprite = test_context.add_sprite(
+            #    b"resources/light.png", scale_x=0.5, scale_y=0.5,layer='light',)
             #test_context.LightingManager.add_light_sprite(default_light, light_sprite)
             test_context.LightingManager.create_light_texture(default_light, path_to_image=b"resources/light.png")
             test_context.light_on= True
@@ -301,7 +302,7 @@ def SDL_AppIterate(context):
     if context.current_table:
         # Set the table's screen area for coordinate transformation
         context.current_table.set_screen_area(table_x, table_y, table_width, table_height)
-        context.current_table.draw_grid(renderer, context.window, table_area=context.layout['table_area'])
+        
 
     # Render sprites in table area (they should respect the layout)
     movement_sys.move_sprites(context, delta_time)

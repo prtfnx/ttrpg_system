@@ -10,31 +10,32 @@ logger = logging.getLogger(__name__)
 
 class CompendiumPanel:
     """Compendium panel for browsing spells, items, monsters, and other game content"""
-    
-    def __init__(self, context):
+    def __init__(self, context, actions_bridge):
         self.context = context
+        self.actions_bridge = actions_bridge
         self.search_query = ""
         self.selected_category = "Spells"
-        self.selected_item = None
+        self.selected_item = None        
         self.categories = ["Spells", "Items", "Monsters", "Classes", "Races", "Rules"]
         
     def render(self):
-        """Render the compendium panel content"""
-        if not imgui.collapsing_header("Compendium & References")[0]:
-            return
+        """Render the compendium panel content"""        
+        # Always use collapsing header but don't return early to avoid Begin/End mismatches
+        header_expanded = imgui.collapsing_header("Compendium & References")
+        
+        if header_expanded:
+            # Search bar
+            self._render_search_section()
             
-        # Search bar
-        self._render_search_section()
-        
-        # Category selection
-        self._render_category_section()
-        
-        # Content list
-        self._render_content_list()
-        
-        # Selected item details
-        if self.selected_item:
-            self._render_item_details()
+            # Category selection
+            self._render_category_section()
+            
+            # Content list
+            self._render_content_list()
+            
+            # Selected item details
+            if self.selected_item:
+                self._render_item_details()
     
     def _render_search_section(self):
         """Render the search section"""
@@ -90,11 +91,12 @@ class CompendiumPanel:
             item_text = f"{item_name} {item.get('description', '')}".lower()
             if search_lower not in item_text:
                 return
-        
         # Selectable item
         is_selected = self.selected_item and self.selected_item.get('id') == item_id
-        
-        if imgui.selectable(f"{item_name}##{item_id}", is_selected)[0]:
+        if is_selected is None:
+            is_selected = False
+        clicked, _ = imgui.selectable(f"{item_name}##{item_id}", is_selected)
+        if clicked:
             self.selected_item = item
             self._handle_item_selection(item)
         

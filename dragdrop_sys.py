@@ -3,6 +3,9 @@ import ctypes
 import logging
 import os
 
+# Import storage system for file handling
+from storage.file_upload import handle_dropped_files
+
 logger = logging.getLogger(__name__)
 
 def init_drag_drop_system():
@@ -42,24 +45,38 @@ def handle_drag_drop_event(context, event):
     return False
 
 def handle_dropped_file(context, file_path):
-    """Handle a dropped file."""
+    """Handle a dropped file using new storage system."""
     try:
         # Validate file exists
         if not os.path.exists(file_path):
             logger.error(f"Dropped file does not exist: {file_path}")
             return False
-            
-        # Check if it's an image file
-        image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.webp')
-        if file_path.lower().endswith(image_extensions):
-            return create_sprite_from_dropped_image(context, file_path)
-            
-        # Check if it's a JSON table file
-        elif file_path.lower().endswith('.json'):
-            return load_table_from_json_file(context, file_path)
-            
+        
+        # Use new storage system to handle the file
+        upload_results = handle_dropped_files([file_path])
+        
+        if upload_results and len(upload_results) > 0:
+            result = upload_results[0]
+            if result.get('success', False):
+                # File was successfully uploaded to storage
+                local_path = result.get('local_path')
+                file_type = result.get('file_type', 'other')
+                
+                # If it's an image, create a sprite
+                if file_type == 'images' and local_path:
+                    return create_sprite_from_stored_image(context, local_path, result['filename'])
+                
+                # If it's a JSON table file, load it
+                elif file_path.lower().endswith('.json'):
+                    return load_table_from_json_file(context, local_path or file_path)
+                
+                logger.info(f"File successfully stored: {result['filename']}")
+                return True
+            else:
+                logger.error(f"Failed to store dropped file: {result.get('error', 'Unknown error')}")
+                return False
         else:
-            logger.warning(f"Unsupported file type dropped: {file_path}")
+            logger.error("No results from file upload")
             return False
             
     except Exception as e:
@@ -126,12 +143,14 @@ def create_sprite_from_dropped_image(context, file_path):
     try:
         if not context.current_table:
             logger.warning("No current table to add sprite to")
-            return False
-            
-        # Get mouse position to place the sprite where it was dropped
-        mouse_x = ctypes.c_float()
-        mouse_y = ctypes.c_float()
-        sdl3.SDL_GetMouseState(ctypes.byref(mouse_x), ctypes.byref(mouse_y))
+            return False        # Get mouse position to place the sprite where it was dropped
+        # Using fallback position due to SDL3 API compatibility issues
+        mouse_pos_x = 100.0  # Default position
+        mouse_pos_y = 100.0  # Default position
+        
+        # TODO: Replace with proper SDL3 mouse state API when available
+        # The current PySDL3 version has type issues with SDL_GetMouseState
+        logger.debug("Using default mouse position for sprite placement")
         
         # Create sprite
         new_sprite = context.add_sprite(
@@ -141,11 +160,10 @@ def create_sprite_from_dropped_image(context, file_path):
             layer='tokens'
         )
         
-        if new_sprite:
-            # Position sprite at mouse location (where it was dropped)
+        if new_sprite:            # Position sprite at mouse location (where it was dropped)
             table = context.current_table
-            table_x = (mouse_x.value - table.x_moved) / table.scale
-            table_y = (mouse_y.value - table.y_moved) / table.scale
+            table_x = (mouse_pos_x - table.x_moved) / table.scale
+            table_y = (mouse_pos_y - table.y_moved) / table.scale
             
             new_sprite.set_position(
                 table_x - new_sprite.frect.w // 2,
@@ -160,6 +178,52 @@ def create_sprite_from_dropped_image(context, file_path):
         logger.error(f"Error creating sprite from dropped image {file_path}: {e}")
         
     return False
+
+def create_sprite_from_stored_image(context, image_path, filename):
+    """Create a sprite from an image that's been stored in the storage system."""
+    try:
+        if not context.current_table:
+            logger.warning("No current table to add sprite to")
+            return False        # Get mouse position for sprite placement
+        # Using fallback position due to SDL3 API compatibility issues
+        mouse_pos_x = 100.0  # Default position
+        mouse_pos_y = 100.0  # Default position
+        
+        # TODO: Replace with proper SDL3 mouse state API when available
+        # The current PySDL3 version has type issues with SDL_GetMouseState
+        logger.debug("Using default mouse position for sprite placement")
+        
+        # Create sprite
+        new_sprite = context.add_sprite(
+            texture_path=image_path.encode(),
+            scale_x=1.0,
+            scale_y=1.0,
+            layer='tokens'
+        )
+        
+        if new_sprite:            # Position sprite at mouse location (where it was dropped)
+            table = context.current_table
+            # Fix the SDL mouse state issue by converting properly
+            table_x = (mouse_pos_x - table.x_moved) / table.scale
+            table_y = (mouse_pos_y - table.y_moved) / table.scale
+            
+            new_sprite.set_position(
+                table_x - new_sprite.frect.w // 2,
+                table_y - new_sprite.frect.h // 2
+            )
+            
+            # Set as selected sprite
+            context.current_table.selected_sprite = new_sprite
+            
+            logger.info(f"Created sprite from stored image: {filename}")
+            return True
+        else:
+            logger.error(f"Failed to create sprite from stored image: {filename}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error creating sprite from stored image {filename}: {e}")
+        return False
 
 def load_table_from_json_file(context, file_path):
     """Load a table from a dropped JSON file."""

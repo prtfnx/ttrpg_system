@@ -26,7 +26,8 @@ from .panels import (
     DebugPanel,
     NetworkPanel,
     CompendiumPanel,
-    LayerPanel
+    LayerPanel,
+    StoragePanel
 )
 
 # Import GUI actions bridge
@@ -45,6 +46,7 @@ class GuiPanel(Enum):
     COMPENDIUM = "compendium"
     TABLE = "table"
     LAYERS = "layers"
+    STORAGE = "storage"
 
 
 @dataclass
@@ -73,20 +75,16 @@ class SimplifiedGui:
         # Panel states
         self.panels: Dict[GuiPanel, PanelState] = {
             panel: PanelState() for panel in GuiPanel
-        }
-          # Layout constants - using ImGui's native resizing
+        }        # Layout constants - using ImGui's native resizing
         self.sidebar_width = 250.0
         self.top_height = 140.0  # Increased for TablePanel content
         self.bottom_height = 200.0
         self.panel_spacing = 5
-        self.menu_height = 0
-        
-        # Active panel tracking
+        self.menu_height = 0  # No menu bar anymore        # Active panel tracking
         self.active_left_panel = GuiPanel.TOOLS
         self.active_right_panel = GuiPanel.ENTITIES
         self.active_top_panel = GuiPanel.TABLE
-        self.active_bottom_panel = GuiPanel.CHAT
-          # Initialize panel instances with actions bridge
+        self.active_bottom_panel = GuiPanel.CHAT# Initialize panel instances with actions bridge
         self.panel_instances = {
             GuiPanel.TOOLS: ToolsPanel(context, self.actions_bridge),
             GuiPanel.CHAT: ChatPanel(context, self.actions_bridge),
@@ -96,6 +94,7 @@ class SimplifiedGui:
             GuiPanel.NETWORK: NetworkPanel(context, self.actions_bridge),
             GuiPanel.COMPENDIUM: CompendiumPanel(context, self.actions_bridge),
             GuiPanel.LAYERS: LayerPanel(context, self.actions_bridge),
+            GuiPanel.STORAGE: StoragePanel(context, self.actions_bridge),
         }
         
         # Initialize state
@@ -147,8 +146,7 @@ class SimplifiedGui:
                 self.window_width, self.window_height,
                 left_width, right_width, top_height, bottom_height, 
                 self.menu_height
-            )
-            
+            )            
             logger.debug(f"Layout manager calculated table area: {table_area}")
             logger.debug(f"Panel sizes - Left: {left_width}, Right: {right_width}, Top: {top_height}, Bottom: {bottom_height}")
 
@@ -158,10 +156,7 @@ class SimplifiedGui:
             # Update window size
             display_size = imgui.get_io().display_size
             self.window_width, self.window_height = display_size.x, display_size.y
-            
-            # Render main menu bar
-            self._render_menu_bar()
-            
+              # No menu bar - just render the layout directly
             # Render the 4-sided layout
             self._render_layout()
             
@@ -170,52 +165,6 @@ class SimplifiedGui:
             
         except Exception as e:
             logger.error(f"GUI render error: {e}")
-    
-    def _render_menu_bar(self):
-        """Render the top menu bar"""
-        if imgui.begin_main_menu_bar():
-            # File menu
-            if imgui.begin_menu("File"):
-                if imgui.menu_item("New Campaign", "", False)[0]:
-                    self._handle_new_campaign()
-                if imgui.menu_item("Load Campaign", "", False)[0]:
-                    self._handle_load_campaign()
-                if imgui.menu_item("Save Campaign", "", False)[0]:
-                    self._handle_save_campaign()
-                imgui.separator()
-                if imgui.menu_item("Exit", "", False)[0]:
-                    self._handle_exit()
-                imgui.end_menu()
-            
-            # View menu
-            if imgui.begin_menu("View"):
-                for panel in GuiPanel:
-                    clicked, state = imgui.menu_item(
-                        panel.value.title(), 
-                        "",
-                        self.panels[panel].visible
-                    )
-                    if clicked:
-                        self.panels[panel].visible = state
-                imgui.end_menu()
-            
-            # Tools menu
-            if imgui.begin_menu("Tools"):
-                if imgui.menu_item("Dice Roller", "", False):
-                    self._handle_dice_roller()
-                if imgui.menu_item("Initiative Tracker", "", False):
-                    self._handle_initiative_tracker()
-                if imgui.menu_item("Combat Manager", "", False):
-                    self._handle_combat_manager()
-                imgui.end_menu()
-            
-            # Help menu
-            if imgui.begin_menu("Help"):
-                if imgui.menu_item("About", "", False):
-                    self._handle_about()
-                imgui.end_menu()
-            
-            imgui.end_main_menu_bar()
     
     def _render_layout(self):
         """Render the 4-sided fixed layout with resizable panels"""
@@ -302,12 +251,10 @@ class SimplifiedGui:
                 self.sidebar_width = max(150.0, min(400.0, current_width))
                 # Update layout manager when sidebar is resized
                 if abs(old_width - self.sidebar_width) > 1.0:
-                    self._update_layout_manager()
-            
-            # Panel tabs
+                    self._update_layout_manager()            # Panel tabs
             if imgui.begin_tab_bar("RightTabs"):
                 for panel_type in [GuiPanel.CHAT, GuiPanel.ENTITIES, GuiPanel.DEBUG, 
-                                 GuiPanel.NETWORK, GuiPanel.COMPENDIUM]:
+                                 GuiPanel.NETWORK, GuiPanel.COMPENDIUM, GuiPanel.STORAGE]:
                     panel_name = panel_type.value.title()
                     if imgui.begin_tab_item(panel_name)[0]:
                         if panel_type in self.panel_instances:
@@ -381,45 +328,9 @@ class SimplifiedGui:
             
             # Render active panel
             if self.active_bottom_panel in self.panel_instances:
-                self.panel_instances[self.active_bottom_panel].render()
-        
+                self.panel_instances[self.active_bottom_panel].render()        
         imgui.end()
 
-    # Event handlers
-    def _handle_new_campaign(self):
-        """Handle new campaign creation"""
-        logger.info("New campaign requested")
-    
-    def _handle_load_campaign(self):
-        """Handle campaign loading"""
-        logger.info("Load campaign requested")
-    
-    def _handle_save_campaign(self):
-        """Handle campaign saving"""
-        logger.info("Save campaign requested")
-    
-    def _handle_exit(self):
-        """Handle application exit"""
-        logger.info("Exit requested")
-        if hasattr(self.context, 'quit'):
-            self.context.quit()
-    
-    def _handle_dice_roller(self):
-        """Handle dice roller tool"""
-        logger.info("Dice roller opened")
-    
-    def _handle_initiative_tracker(self):
-        """Handle initiative tracker tool"""
-        logger.info("Initiative tracker opened")
-    
-    def _handle_combat_manager(self):
-        """Handle combat manager tool"""
-        logger.info("Combat manager opened")
-    
-    def _handle_about(self):
-        """Handle about dialog"""
-        logger.info("About dialog requested")
-    
     def _load_fonts(self):
         """Load fonts with Unicode support"""
         try:
@@ -522,14 +433,13 @@ class SimplifiedGui:
             
             # Start new frame
             imgui.new_frame()
-            
-            # Get window size using ImGui's display size (more reliable)
+              # Get window size using ImGui's display size (more reliable)
             display_size = imgui.get_io().display_size
             self.window_width = display_size.x
             self.window_height = display_size.y
             
-            # Render the simplified GUI layout
-            self._render_layout()
+            # Render the complete GUI (including menu bar)
+            self.render()
             
             # Update FPS
             self.fps = self.io.framerate

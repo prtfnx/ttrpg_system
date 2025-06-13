@@ -720,30 +720,315 @@ class TablePanel:
             
         except Exception as e:
             logger.error(f"Failed to apply style '{style_name}': {e}")
-    def _apply_fantasy_parchment_style(self):
-        """Apply the fantasy parchment theme"""
-        style = imgui.get_style()
-        
+            
+    def _apply_fantasy_parchment_colors(self, style):
+        """Apply comprehensive fantasy parchment theme colors"""
         # Parchment colors
         parchment_bg = imgui.ImVec4(0.96, 0.92, 0.86, 1.00)  # Light parchment
         parchment_frame = imgui.ImVec4(0.98, 0.94, 0.82, 1.00)  # Slightly lighter
+        parchment_hover = imgui.ImVec4(0.94, 0.90, 0.78, 1.00)  # Darker on hover
+        parchment_active = imgui.ImVec4(0.92, 0.88, 0.76, 1.00)  # Even darker when active
         text_color = imgui.ImVec4(0.35, 0.27, 0.13, 1.00)  # Dark brown
         border_color = imgui.ImVec4(0.63, 0.47, 0.31, 1.00)  # Medium brown
+        accent_color = imgui.ImVec4(0.55, 0.37, 0.21, 1.00)  # Brown accent
         
-        # Apply colors using set_color_
+        # Apply comprehensive color scheme
+        style.set_color_(imgui.Col_.text.value, text_color)
+        style.set_color_(imgui.Col_.text_disabled.value, imgui.ImVec4(0.5, 0.4, 0.2, 1.0))
         style.set_color_(imgui.Col_.window_bg.value, parchment_bg)
         style.set_color_(imgui.Col_.child_bg.value, parchment_frame)
-        style.set_color_(imgui.Col_.frame_bg.value, parchment_frame)
-        style.set_color_(imgui.Col_.frame_bg_hovered.value, imgui.ImVec4(0.94, 0.90, 0.78, 1.00))
-        style.set_color_(imgui.Col_.frame_bg_active.value, imgui.ImVec4(0.92, 0.88, 0.76, 1.00))
-        style.set_color_(imgui.Col_.text.value, text_color)
+        style.set_color_(imgui.Col_.popup_bg.value, parchment_bg)
         style.set_color_(imgui.Col_.border.value, border_color)
+        style.set_color_(imgui.Col_.border_shadow.value, imgui.ImVec4(0.0, 0.0, 0.0, 0.0))
+        style.set_color_(imgui.Col_.frame_bg.value, parchment_frame)
+        style.set_color_(imgui.Col_.frame_bg_hovered.value, parchment_hover)
+        style.set_color_(imgui.Col_.frame_bg_active.value, parchment_active)
+        style.set_color_(imgui.Col_.title_bg.value, accent_color)
+        style.set_color_(imgui.Col_.title_bg_active.value, accent_color)
+        style.set_color_(imgui.Col_.title_bg_collapsed.value, imgui.ImVec4(0.45, 0.27, 0.11, 0.8))
+        style.set_color_(imgui.Col_.menu_bar_bg.value, parchment_frame)
+        style.set_color_(imgui.Col_.scrollbar_bg.value, parchment_frame)
+        style.set_color_(imgui.Col_.scrollbar_grab.value, accent_color)
+        style.set_color_(imgui.Col_.scrollbar_grab_hovered.value, imgui.ImVec4(0.65, 0.47, 0.31, 1.0))
+        style.set_color_(imgui.Col_.scrollbar_grab_active.value, imgui.ImVec4(0.75, 0.57, 0.41, 1.0))
+        style.set_color_(imgui.Col_.check_mark.value, accent_color)
+        style.set_color_(imgui.Col_.slider_grab.value, accent_color)
+        style.set_color_(imgui.Col_.slider_grab_active.value, imgui.ImVec4(0.75, 0.57, 0.41, 1.0))
+        style.set_color_(imgui.Col_.button.value, parchment_frame)
+        style.set_color_(imgui.Col_.button_hovered.value, parchment_hover)
+        style.set_color_(imgui.Col_.button_active.value, parchment_active)
+        style.set_color_(imgui.Col_.header.value, parchment_hover)
+        style.set_color_(imgui.Col_.header_hovered.value, parchment_active)
+        style.set_color_(imgui.Col_.header_active.value, accent_color)
         style.set_color_(imgui.Col_.separator.value, border_color)
+        style.set_color_(imgui.Col_.separator_hovered.value, accent_color)
+        style.set_color_(imgui.Col_.separator_active.value, imgui.ImVec4(0.75, 0.57, 0.41, 1.0))
+        style.set_color_(imgui.Col_.resize_grip.value, border_color)
+        style.set_color_(imgui.Col_.resize_grip_hovered.value, accent_color)
+        style.set_color_(imgui.Col_.resize_grip_active.value, imgui.ImVec4(0.75, 0.57, 0.41, 1.0))
+        style.set_color_(imgui.Col_.tab.value, parchment_frame)
+        style.set_color_(imgui.Col_.tab_hovered.value, parchment_hover)
+        style.set_color_(imgui.Col_.tab_selected.value, parchment_active)
+      
+        style.set_color_(imgui.Col_.table_header_bg.value, accent_color)
+        style.set_color_(imgui.Col_.table_border_strong.value, border_color)
+        style.set_color_(imgui.Col_.table_border_light.value, imgui.ImVec4(0.73, 0.57, 0.41, 0.5))
+        style.set_color_(imgui.Col_.table_row_bg.value, imgui.ImVec4(0.0, 0.0, 0.0, 0.0))
+        style.set_color_(imgui.Col_.table_row_bg_alt.value, imgui.ImVec4(0.94, 0.90, 0.78, 0.3))
         
-        # Styling
+        # Fantasy styling
         style.frame_rounding = 5.0
         style.window_rounding = 10.0
         style.child_rounding = 8.0
         style.frame_padding = imgui.ImVec2(12, 8)
         style.item_spacing = imgui.ImVec2(12, 8)
         style.window_padding = imgui.ImVec2(20, 20)
+        style.grab_rounding = 4.0
+        style.tab_rounding = 6.0
+
+    def _apply_high_contrast_colors(self, style):
+        """Apply comprehensive high contrast theme colors"""
+        # High contrast colors
+        white = imgui.ImVec4(1.0, 1.0, 1.0, 1.0)
+        black = imgui.ImVec4(0.0, 0.0, 0.0, 1.0)
+        dark_gray = imgui.ImVec4(0.2, 0.2, 0.2, 1.0)
+        med_gray = imgui.ImVec4(0.3, 0.3, 0.3, 1.0)
+        light_gray = imgui.ImVec4(0.4, 0.4, 0.4, 1.0)
+        
+        # Apply high contrast colors
+        style.set_color_(imgui.Col_.text.value, white)
+        style.set_color_(imgui.Col_.text_disabled.value, imgui.ImVec4(0.6, 0.6, 0.6, 1.0))
+        style.set_color_(imgui.Col_.window_bg.value, black)
+        style.set_color_(imgui.Col_.child_bg.value, black)
+        style.set_color_(imgui.Col_.popup_bg.value, black)
+        style.set_color_(imgui.Col_.border.value, white)
+        style.set_color_(imgui.Col_.border_shadow.value, imgui.ImVec4(0.0, 0.0, 0.0, 0.0))
+        style.set_color_(imgui.Col_.frame_bg.value, dark_gray)
+        style.set_color_(imgui.Col_.frame_bg_hovered.value, med_gray)
+        style.set_color_(imgui.Col_.frame_bg_active.value, light_gray)
+        style.set_color_(imgui.Col_.title_bg.value, dark_gray)
+        style.set_color_(imgui.Col_.title_bg_active.value, med_gray)
+        style.set_color_(imgui.Col_.title_bg_collapsed.value, dark_gray)
+        style.set_color_(imgui.Col_.menu_bar_bg.value, dark_gray)
+        style.set_color_(imgui.Col_.scrollbar_bg.value, black)
+        style.set_color_(imgui.Col_.scrollbar_grab.value, dark_gray)
+        style.set_color_(imgui.Col_.scrollbar_grab_hovered.value, med_gray)
+        style.set_color_(imgui.Col_.scrollbar_grab_active.value, light_gray)
+        style.set_color_(imgui.Col_.check_mark.value, white)
+        style.set_color_(imgui.Col_.slider_grab.value, white)
+        style.set_color_(imgui.Col_.slider_grab_active.value, light_gray)
+        style.set_color_(imgui.Col_.button.value, dark_gray)
+        style.set_color_(imgui.Col_.button_hovered.value, med_gray)
+        style.set_color_(imgui.Col_.button_active.value, light_gray)
+        style.set_color_(imgui.Col_.header.value, dark_gray)
+        style.set_color_(imgui.Col_.header_hovered.value, med_gray)
+        style.set_color_(imgui.Col_.header_active.value, light_gray)
+        style.set_color_(imgui.Col_.separator.value, white)
+        style.set_color_(imgui.Col_.separator_hovered.value, white)
+        style.set_color_(imgui.Col_.separator_active.value, white)
+        style.set_color_(imgui.Col_.resize_grip.value, white)
+        style.set_color_(imgui.Col_.resize_grip_hovered.value, light_gray)        
+        style.set_color_(imgui.Col_.resize_grip_active.value, white)
+        style.set_color_(imgui.Col_.tab.value, dark_gray)
+        style.set_color_(imgui.Col_.tab_hovered.value, med_gray)
+        style.set_color_(imgui.Col_.tab_selected.value, light_gray)
+        # Note: Some tab color enums may not be available in this imgui_bundle version
+        style.set_color_(imgui.Col_.table_header_bg.value, dark_gray)
+        style.set_color_(imgui.Col_.table_border_strong.value, white)
+        style.set_color_(imgui.Col_.table_border_light.value, imgui.ImVec4(0.5, 0.5, 0.5, 1.0))
+        style.set_color_(imgui.Col_.table_row_bg.value, imgui.ImVec4(0.0, 0.0, 0.0, 0.0))
+        style.set_color_(imgui.Col_.table_row_bg_alt.value, imgui.ImVec4(0.1, 0.1, 0.1, 1.0))
+        
+        # High contrast styling
+        style.frame_rounding = 0.0
+        style.window_rounding = 0.0
+        style.child_rounding = 0.0
+        style.frame_padding = imgui.ImVec2(8, 6)
+        style.item_spacing = imgui.ImVec2(8, 6)
+        style.window_padding = imgui.ImVec2(16, 16)
+
+    def _apply_blue_steel_colors(self, style):
+        """Apply comprehensive blue steel theme colors"""
+        # Blue steel colors
+        steel_blue = imgui.ImVec4(0.2, 0.3, 0.5, 1.0)
+        light_steel = imgui.ImVec4(0.3, 0.4, 0.6, 1.0)
+        dark_steel = imgui.ImVec4(0.1, 0.2, 0.4, 1.0)
+        accent_blue = imgui.ImVec4(0.4, 0.6, 0.9, 1.0)
+        text_color = imgui.ImVec4(0.9, 0.9, 1.0, 1.0)
+        
+        imgui.style_colors_dark()  # Start with dark theme
+        
+        # Apply blue steel colors
+        style.set_color_(imgui.Col_.text.value, text_color)
+        style.set_color_(imgui.Col_.window_bg.value, dark_steel)
+        style.set_color_(imgui.Col_.child_bg.value, steel_blue)
+        style.set_color_(imgui.Col_.popup_bg.value, dark_steel)
+        style.set_color_(imgui.Col_.frame_bg.value, steel_blue)
+        style.set_color_(imgui.Col_.frame_bg_hovered.value, light_steel)
+        style.set_color_(imgui.Col_.frame_bg_active.value, accent_blue)
+        style.set_color_(imgui.Col_.title_bg.value, dark_steel)
+        style.set_color_(imgui.Col_.title_bg_active.value, steel_blue)
+        style.set_color_(imgui.Col_.button.value, steel_blue)
+        style.set_color_(imgui.Col_.button_hovered.value, light_steel)
+        style.set_color_(imgui.Col_.button_active.value, accent_blue)
+        style.set_color_(imgui.Col_.header.value, steel_blue)
+        style.set_color_(imgui.Col_.header_hovered.value, light_steel)
+        style.set_color_(imgui.Col_.header_active.value, accent_blue)
+        style.set_color_(imgui.Col_.tab.value, steel_blue)
+        style.set_color_(imgui.Col_.tab_hovered.value, light_steel)
+        style.set_color_(imgui.Col_.tab_selected.value, accent_blue)
+        style.set_color_(imgui.Col_.table_header_bg.value, steel_blue)
+        
+        # Blue steel styling
+        style.frame_rounding = 3.0
+        style.window_rounding = 6.0
+        style.child_rounding = 4.0
+
+    def _apply_forest_green_colors(self, style):
+        """Apply comprehensive forest green theme colors"""
+        # Forest green colors
+        forest_green = imgui.ImVec4(0.1, 0.3, 0.1, 1.0)
+        light_green = imgui.ImVec4(0.2, 0.4, 0.2, 1.0)
+        dark_green = imgui.ImVec4(0.05, 0.2, 0.05, 1.0)
+        accent_green = imgui.ImVec4(0.3, 0.6, 0.3, 1.0)
+        text_color = imgui.ImVec4(0.9, 1.0, 0.9, 1.0)
+        
+        imgui.style_colors_dark()  # Start with dark theme
+        
+        # Apply forest green colors
+        style.set_color_(imgui.Col_.text.value, text_color)
+        style.set_color_(imgui.Col_.window_bg.value, dark_green)
+        style.set_color_(imgui.Col_.child_bg.value, forest_green)
+        style.set_color_(imgui.Col_.popup_bg.value, dark_green)
+        style.set_color_(imgui.Col_.frame_bg.value, forest_green)
+        style.set_color_(imgui.Col_.frame_bg_hovered.value, light_green)
+        style.set_color_(imgui.Col_.frame_bg_active.value, accent_green)
+        style.set_color_(imgui.Col_.title_bg.value, dark_green)
+        style.set_color_(imgui.Col_.title_bg_active.value, forest_green)
+        style.set_color_(imgui.Col_.button.value, forest_green)
+        style.set_color_(imgui.Col_.button_hovered.value, light_green)
+        style.set_color_(imgui.Col_.button_active.value, accent_green)
+        style.set_color_(imgui.Col_.header.value, forest_green)
+        style.set_color_(imgui.Col_.header_hovered.value, light_green)
+        style.set_color_(imgui.Col_.header_active.value, accent_green)
+        style.set_color_(imgui.Col_.tab.value, forest_green)
+        style.set_color_(imgui.Col_.tab_hovered.value, light_green)
+        style.set_color_(imgui.Col_.tab_selected.value, accent_green)
+        style.set_color_(imgui.Col_.table_header_bg.value, forest_green)
+
+    def _apply_royal_purple_colors(self, style):
+        """Apply comprehensive royal purple theme colors"""
+        # Royal purple colors
+        royal_purple = imgui.ImVec4(0.3, 0.1, 0.3, 1.0)
+        light_purple = imgui.ImVec4(0.4, 0.2, 0.4, 1.0)
+        dark_purple = imgui.ImVec4(0.2, 0.05, 0.2, 1.0)
+        accent_purple = imgui.ImVec4(0.6, 0.3, 0.6, 1.0)
+        text_color = imgui.ImVec4(1.0, 0.9, 1.0, 1.0)
+        
+        imgui.style_colors_dark()  # Start with dark theme
+        
+        # Apply royal purple colors
+        style.set_color_(imgui.Col_.text.value, text_color)
+        style.set_color_(imgui.Col_.window_bg.value, dark_purple)
+        style.set_color_(imgui.Col_.child_bg.value, royal_purple)
+        style.set_color_(imgui.Col_.popup_bg.value, dark_purple)
+        style.set_color_(imgui.Col_.frame_bg.value, royal_purple)
+        style.set_color_(imgui.Col_.frame_bg_hovered.value, light_purple)
+        style.set_color_(imgui.Col_.frame_bg_active.value, accent_purple)
+        style.set_color_(imgui.Col_.title_bg.value, dark_purple)
+        style.set_color_(imgui.Col_.title_bg_active.value, royal_purple)
+        style.set_color_(imgui.Col_.button.value, royal_purple)
+        style.set_color_(imgui.Col_.button_hovered.value, light_purple)
+        style.set_color_(imgui.Col_.button_active.value, accent_purple)
+        style.set_color_(imgui.Col_.header.value, royal_purple)
+        style.set_color_(imgui.Col_.header_hovered.value, light_purple)
+        style.set_color_(imgui.Col_.header_active.value, accent_purple)
+        style.set_color_(imgui.Col_.tab.value, royal_purple)
+        style.set_color_(imgui.Col_.tab_hovered.value, light_purple)
+        style.set_color_(imgui.Col_.tab_selected.value, accent_purple)
+        style.set_color_(imgui.Col_.table_header_bg.value, royal_purple)
+
+    def _apply_cyberpunk_colors(self, style):
+        """Apply comprehensive cyberpunk theme colors"""
+        # Cyberpunk colors
+        cyber_dark = imgui.ImVec4(0.05, 0.05, 0.1, 1.0)
+        cyber_frame = imgui.ImVec4(0.1, 0.1, 0.2, 1.0)
+        neon_cyan = imgui.ImVec4(0.0, 1.0, 1.0, 1.0)
+        neon_magenta = imgui.ImVec4(1.0, 0.0, 1.0, 1.0)
+        neon_pink = imgui.ImVec4(1.0, 0.2, 0.6, 1.0)
+        
+        imgui.style_colors_dark()  # Start with dark theme
+        
+        # Apply cyberpunk colors
+        style.set_color_(imgui.Col_.text.value, neon_cyan)
+        style.set_color_(imgui.Col_.window_bg.value, cyber_dark)
+        style.set_color_(imgui.Col_.child_bg.value, cyber_frame)
+        style.set_color_(imgui.Col_.popup_bg.value, cyber_dark)
+        style.set_color_(imgui.Col_.frame_bg.value, cyber_frame)
+        style.set_color_(imgui.Col_.frame_bg_hovered.value, imgui.ImVec4(0.15, 0.15, 0.25, 1.0))
+        style.set_color_(imgui.Col_.frame_bg_active.value, imgui.ImVec4(0.2, 0.2, 0.3, 1.0))
+        style.set_color_(imgui.Col_.title_bg.value, cyber_dark)
+        style.set_color_(imgui.Col_.title_bg_active.value, cyber_frame)
+        style.set_color_(imgui.Col_.button.value, imgui.ImVec4(0.8, 0.0, 0.8, 0.6))
+        style.set_color_(imgui.Col_.button_hovered.value, neon_magenta)
+        style.set_color_(imgui.Col_.button_active.value, neon_pink)
+        style.set_color_(imgui.Col_.header.value, cyber_frame)
+        style.set_color_(imgui.Col_.header_hovered.value, imgui.ImVec4(0.15, 0.15, 0.25, 1.0))
+        style.set_color_(imgui.Col_.header_active.value, neon_magenta)
+        style.set_color_(imgui.Col_.tab.value, cyber_frame)
+        style.set_color_(imgui.Col_.tab_hovered.value, imgui.ImVec4(0.15, 0.15, 0.25, 1.0))
+        style.set_color_(imgui.Col_.tab_selected.value, neon_magenta)
+        style.set_color_(imgui.Col_.table_header_bg.value, cyber_frame)
+        
+        # Cyberpunk styling - sharp edges
+        style.frame_rounding = 0.0
+        style.window_rounding = 0.0
+        style.child_rounding = 0.0
+        style.grab_rounding = 0.0
+        style.tab_rounding = 0.0
+
+    def _apply_minimal_clean_colors(self, style):
+        """Apply comprehensive minimal clean theme colors"""
+        # Minimal clean colors
+        clean_white = imgui.ImVec4(1.0, 1.0, 1.0, 1.0)
+        clean_bg = imgui.ImVec4(0.98, 0.98, 0.98, 1.0)
+        clean_frame = imgui.ImVec4(0.95, 0.95, 0.95, 1.0)
+        clean_hover = imgui.ImVec4(0.92, 0.92, 0.92, 1.0)
+        clean_active = imgui.ImVec4(0.88, 0.88, 0.88, 1.0)
+        clean_text = imgui.ImVec4(0.2, 0.2, 0.2, 1.0)
+        clean_border = imgui.ImVec4(0.8, 0.8, 0.8, 1.0)
+        clean_accent = imgui.ImVec4(0.0, 0.5, 1.0, 1.0)
+        
+        imgui.style_colors_light()  # Start with light theme
+        
+        # Apply minimal clean colors
+        style.set_color_(imgui.Col_.text.value, clean_text)
+        style.set_color_(imgui.Col_.window_bg.value, clean_bg)
+        style.set_color_(imgui.Col_.child_bg.value, clean_white)
+        style.set_color_(imgui.Col_.popup_bg.value, clean_white)
+        style.set_color_(imgui.Col_.border.value, clean_border)
+        style.set_color_(imgui.Col_.frame_bg.value, clean_frame)
+        style.set_color_(imgui.Col_.frame_bg_hovered.value, clean_hover)
+        style.set_color_(imgui.Col_.frame_bg_active.value, clean_active)
+        style.set_color_(imgui.Col_.title_bg.value, clean_frame)
+        style.set_color_(imgui.Col_.title_bg_active.value, clean_hover)
+        style.set_color_(imgui.Col_.button.value, clean_frame)
+        style.set_color_(imgui.Col_.button_hovered.value, clean_hover)
+        style.set_color_(imgui.Col_.button_active.value, clean_active)
+        style.set_color_(imgui.Col_.header.value, clean_frame)
+        style.set_color_(imgui.Col_.header_hovered.value, clean_hover)
+        style.set_color_(imgui.Col_.header_active.value, clean_accent)
+        style.set_color_(imgui.Col_.tab.value, clean_frame)
+        style.set_color_(imgui.Col_.tab_hovered.value, clean_hover)
+        style.set_color_(imgui.Col_.tab_selected.value, clean_white)
+        style.set_color_(imgui.Col_.table_header_bg.value, clean_frame)
+        
+        # Minimal clean styling
+        style.frame_rounding = 2.0
+        style.window_rounding = 4.0
+        style.child_rounding = 2.0
+        style.frame_padding = imgui.ImVec2(8, 4)
+        style.item_spacing = imgui.ImVec2(8, 4)
+        style.window_padding = imgui.ImVec2(12, 12)
+        style.grab_rounding = 2.0
+        style.tab_rounding = 2.0

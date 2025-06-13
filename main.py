@@ -604,8 +604,7 @@ def parse_arguments():
 
 def main(args=None):
     """Main entry point."""
-    # Parse command line arguments
-    print(args)
+    # Parse command line arguments    
     if args is None:
         args = parse_arguments()
     else:

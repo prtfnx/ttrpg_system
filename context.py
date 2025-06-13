@@ -693,8 +693,8 @@ class NetworkedContext:
         try:
             # Send the message (adapt based on your protocol's send method)
             self.context.protocol.send(msg.to_json())
-            logger.info(f"Sent sprite move: {sprite.sprite_id} to ({new_pos[0]:.1f}, {new_pos[1]:.1f})")
-            
+            logger.debug(f"Sent sprite move: {sprite.sprite_id} to ({new_pos[0]:.1f}, {new_pos[1]:.1f})")
+
         except Exception as e:
             logger.error(f"Failed to send sprite movement: {e}")
     

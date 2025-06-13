@@ -92,51 +92,11 @@ class CharacterSheetPanel:
         
         # Equipment
         self.equipment = ""
-        
-        # Other proficiencies and languages
+          # Other proficiencies and languages
         self.other_proficiencies_languages = ""
         
         # Features and traits
         self.features_traits = ""
-        
-    def setup_fantasy_style(self):
-        """Setup fantasy parchment-style theme"""
-        style = imgui.get_style()
-        
-        # Apply colors using the correct imgui_bundle syntax
-        # Use .value to get the integer value from the enum
-        style.color_(imgui.Col_.window_bg.value).x = 0.96
-        style.color_(imgui.Col_.window_bg.value).y = 0.92
-        style.color_(imgui.Col_.window_bg.value).z = 0.86
-        style.color_(imgui.Col_.window_bg.value).w = 1.00
-        
-        style.color_(imgui.Col_.child_bg.value).x = 0.98
-        style.color_(imgui.Col_.child_bg.value).y = 0.94
-        style.color_(imgui.Col_.child_bg.value).z = 0.82
-        style.color_(imgui.Col_.child_bg.value).w = 1.00
-        
-        style.color_(imgui.Col_.frame_bg.value).x = 0.98
-        style.color_(imgui.Col_.frame_bg.value).y = 0.94
-        style.color_(imgui.Col_.frame_bg.value).z = 0.82
-        style.color_(imgui.Col_.frame_bg.value).w = 1.00
-        
-        style.color_(imgui.Col_.text.value).x = 0.35
-        style.color_(imgui.Col_.text.value).y = 0.27
-        style.color_(imgui.Col_.text.value).z = 0.13
-        style.color_(imgui.Col_.text.value).w = 1.00
-        
-        style.color_(imgui.Col_.border.value).x = 0.63
-        style.color_(imgui.Col_.border.value).y = 0.47
-        style.color_(imgui.Col_.border.value).z = 0.31
-        style.color_(imgui.Col_.border.value).w = 1.00
-        
-        # Styling
-        style.frame_rounding = 5.0
-        style.window_rounding = 10.0
-        style.child_rounding = 8.0
-        style.frame_padding = imgui.ImVec2(12, 8)
-        style.item_spacing = imgui.ImVec2(12, 8)
-        style.window_padding = imgui.ImVec2(20, 20)
         
     def calculate_modifier(self, score: int) -> int:
         """Calculate ability score modifier"""
@@ -164,13 +124,9 @@ class CharacterSheetPanel:
                 skill_data["value"] = modifier + self.proficiency_bonus
             else:
                 skill_data["value"] = modifier
-                
-        # Update passive perception
+                  # Update passive perception
         perception_modifier = self.skills["Perception"]["value"]
         self.passive_perception = 10 + perception_modifier
-        
-        # Update initiative
-        self.initiative = self.calculate_modifier(self.ability_scores["DEX"])
         
     def render_text_field(self, label: str, value: str, width: float = 200) -> str:
         """Render a labeled text input field"""
@@ -254,7 +210,7 @@ class CharacterSheetPanel:
             
         imgui.same_line()
         imgui.set_next_item_width(180)
-        changed, new_xp = imgui.input_int("##experience", self.experience_points)
+        changed, new_xp = imgui.input_int("##experience", self.experience_points, 0, 0)
         if changed:
             self.experience_points = max(0, new_xp)
             
@@ -268,17 +224,15 @@ class CharacterSheetPanel:
         abilities = ["STR", "DEX", "CON", "INT", "WIS", "CHA"]
         ability_names = ["STRENGTH", "DEXTERITY", "CONSTITUTION", "INTELLIGENCE", "WISDOM", "CHARISMA"]
         
-        # Create ability score boxes in a row
-        for i, (ability, full_name) in enumerate(zip(abilities, ability_names)):
-            if i > 0:
-                imgui.same_line()
-                
+        # Create ability score boxes vertically (one per row)
+        for ability, full_name in zip(abilities, ability_names):
             # Create a group for each ability score
             imgui.begin_group()
             
-            # Ability name
-            imgui.text(full_name)
-            imgui.spacing()
+            # Ability name (centered)
+            name_size = imgui.calc_text_size(ability)
+            imgui.set_cursor_pos_x(imgui.get_cursor_pos_x() + (120 - name_size.x) * 0.5)
+            imgui.text(ability)
             
             # Modifier (large circle)
             modifier = self.calculate_modifier(self.ability_scores[ability])
@@ -287,7 +241,7 @@ class CharacterSheetPanel:
             # Draw modifier circle
             draw_list = imgui.get_window_draw_list()
             pos = imgui.get_cursor_screen_pos()
-            center = imgui.ImVec2(pos.x + 30, pos.y + 25)
+            center = imgui.ImVec2(pos.x + 60, pos.y + 25)
             draw_list.add_circle(center, 25, imgui.color_convert_float4_to_u32(imgui.ImVec4(0.63, 0.47, 0.31, 1.0)), 0, 2.0)
             
             # Center the modifier text
@@ -295,17 +249,17 @@ class CharacterSheetPanel:
             text_pos = imgui.ImVec2(center.x - text_size.x * 0.5, center.y - text_size.y * 0.5)
             draw_list.add_text(text_pos, imgui.color_convert_float4_to_u32(imgui.ImVec4(0.35, 0.27, 0.13, 1.0)), modifier_text)
             
-            # Move cursor down
-            imgui.dummy(imgui.ImVec2(60, 50))
-            
-            # Score input
+            # Move cursor down past the circle
+            imgui.dummy(imgui.ImVec2(120, 50))            # Score input (centered)
             imgui.set_next_item_width(60)
-            changed, new_score = imgui.input_int(f"##{ability}", self.ability_scores[ability])
+            imgui.set_cursor_pos_x(imgui.get_cursor_pos_x() + 30)
+            changed, new_score = imgui.input_int(f"##{ability}", self.ability_scores[ability], 0, 0)
             if changed:
                 self.ability_scores[ability] = max(1, min(30, new_score))
                 self.update_derived_stats()
                 
             imgui.end_group()
+            imgui.spacing()
             
         imgui.separator()
         
@@ -322,10 +276,13 @@ class CharacterSheetPanel:
             self.inspiration = new_inspiration
             
         imgui.same_line(150)
-        # Proficiency bonus display
-        prof_text = self.format_modifier(self.proficiency_bonus)
-        imgui.text(prof_text)
-        
+        # Proficiency bonus input (editable)
+        imgui.set_next_item_width(80)
+        changed, new_prof_bonus = imgui.input_int("##prof_bonus", self.proficiency_bonus, 0, 0)
+        if changed:
+            self.proficiency_bonus = max(0, min(10, new_prof_bonus))
+            self.update_derived_stats()
+            
         imgui.separator()
         
     def render_saving_throws(self):
@@ -384,17 +341,19 @@ class CharacterSheetPanel:
         imgui.text("Speed")
         
         imgui.set_next_item_width(80)
-        changed, new_ac = imgui.input_int("##ac", self.armor_class)
+        changed, new_ac = imgui.input_int("##ac", self.armor_class, 0, 0)
         if changed:
             self.armor_class = max(0, new_ac)
             
         imgui.same_line(120)
-        initiative_text = self.format_modifier(self.initiative)
-        imgui.text(initiative_text)
+        imgui.set_next_item_width(80)
+        changed, new_init = imgui.input_int("##initiative", self.initiative, 0, 0)
+        if changed:
+            self.initiative = new_init
         
         imgui.same_line(240)
         imgui.set_next_item_width(80)
-        changed, new_speed = imgui.input_int("##speed", self.speed)
+        changed, new_speed = imgui.input_int("##speed", self.speed, 0, 0)
         if changed:
             self.speed = max(0, new_speed)
             
@@ -408,19 +367,19 @@ class CharacterSheetPanel:
         imgui.text("Temporary Hit Points")
         
         imgui.set_next_item_width(80)
-        changed, new_max_hp = imgui.input_int("##max_hp", self.hit_point_maximum)
+        changed, new_max_hp = imgui.input_int("##max_hp", self.hit_point_maximum, 0, 0)
         if changed:
             self.hit_point_maximum = max(1, new_max_hp)
             
         imgui.same_line(180)
         imgui.set_next_item_width(80)
-        changed, new_curr_hp = imgui.input_int("##curr_hp", self.current_hit_points)
+        changed, new_curr_hp = imgui.input_int("##curr_hp", self.current_hit_points, 0, 0)
         if changed:
             self.current_hit_points = max(0, min(self.hit_point_maximum, new_curr_hp))
             
         imgui.same_line(360)
         imgui.set_next_item_width(80)
-        changed, new_temp_hp = imgui.input_int("##temp_hp", self.temporary_hit_points)
+        changed, new_temp_hp = imgui.input_int("##temp_hp", self.temporary_hit_points, 0, 0)
         if changed:
             self.temporary_hit_points = max(0, new_temp_hp)
             
@@ -493,12 +452,11 @@ class CharacterSheetPanel:
     def render_passive_perception(self):
         """Render passive perception"""
         imgui.text(f"Passive Wisdom (Perception): {self.passive_perception}")
-        imgui.separator()    
+        imgui.separator()
+        
     def render(self):
         """Main render method for the character sheet"""
         try:
-            self.setup_fantasy_style()
-            
             # Header section (spans full width)
             self.render_header_section()
             

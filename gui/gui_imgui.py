@@ -13,6 +13,7 @@ import ctypes
 import logging
 import os
 import platform
+import time
 from typing import Dict, Any, Optional, Tuple, List
 from dataclasses import dataclass
 from enum import Enum
@@ -102,19 +103,17 @@ class SimplifiedGui:
         }
         
         # Initialize state
-        self.fps = 0.0
-          # Initialize ImGui
+        self.fps = 0.0          # Initialize ImGui
         try:
             # Create ImGui context
             imgui.create_context()
             self.io = imgui.get_io()
-              # Enable multi-viewports (allows windows to be moved outside main window)
-            self.io.config_flags |= imgui.ConfigFlags_.viewports_enable.value
+              # Enable only docking (viewports disabled for stability)
             self.io.config_flags |= imgui.ConfigFlags_.docking_enable.value
             
-            # Log viewport support status
-            logger.info(f"ImGui viewports enabled: {bool(self.io.config_flags & imgui.ConfigFlags_.viewports_enable.value)}")
+            # Log configuration status
             logger.info(f"ImGui docking enabled: {bool(self.io.config_flags & imgui.ConfigFlags_.docking_enable.value)}")
+            logger.info("ImGui viewports disabled for improved stability")
             
             # Load fonts
             self._load_fonts()
@@ -134,16 +133,16 @@ class SimplifiedGui:
             self.impl = None
             self.io = None
             raise e
-    
-    def update_window_size(self, width: int, height: int):
+      def update_window_size(self, width: int, height: int):
         """Update window dimensions for layout calculations"""
         self.window_width = width
         self.window_height = height
-          # Update layout manager with current panel sizes
+        
+        # Update layout manager with current panel sizes
         self._update_layout_manager()
     
     def _update_layout_manager(self):
-        """Update the layout manager with current panel dimensions for dynamic viewport"""
+        """Update the layout manager with current panel dimensions"""
         if hasattr(self.context, 'layout_manager'):
             # Get current panel sizes (only if panels are visible)
             left_width = self.left_sidebar_width if self.panels[self.active_left_panel].visible else 0
@@ -473,25 +472,61 @@ class SimplifiedGui:
             # Enable blending
             gl.glEnable(gl.GL_BLEND)
             gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-            
-            # Render ImGui
+              # Render ImGui
             self.impl.render(imgui.get_draw_data())
-            
-            # Update and render additional viewports (for external windows)
-            if self.io.config_flags & imgui.ConfigFlags_.viewports_enable.value:
-                imgui.update_platform_windows()
-                imgui.render_platform_windows_default()
             
             # End frame - this ensures proper frame lifecycle
             imgui.end_frame()
-            
         except Exception as e:
-            logger.error(f"ImGui iterate error: {e}")
+            # Rate limit error messages to prevent flooding
+            current_time = time.time()
+            if not hasattr(self, '_last_error_time'):
+                self._last_error_time = 0
+                self._error_count = 0
+                
+            time_since_last_error = current_time - self._last_error_time
+            
+            # Only log every 5 seconds when flooding occurs
+            if time_since_last_error > 5.0 or self._error_count < 3:
+                logger.error(f"ImGui iterate error: {e}")
+                if self._error_count >= 3:
+                    logger.error("ImGui error rate limited - suppressing further messages for 5 seconds")
+                self._last_error_time = current_time
+                self._error_count += 1
+            
             # Emergency cleanup - ensure we end the frame even on error
             try:
                 imgui.end_frame()
             except:
                 pass
+            
+            # If we're getting too many errors, try emergency recovery
+            if self._error_count > 10:
+                logger.error("Too many ImGui errors - attempting emergency recovery")
+                self._emergency_recovery()
+
+
+    def _emergency_recovery(self):
+        """Emergency recovery when ImGui gets into a bad state"""
+        try:
+            logger.error("Performing emergency ImGui recovery...")
+            
+            # Force close any open windows that might be causing issues
+            if hasattr(self, 'panel_instances'):
+                for panel_type, panel in self.panel_instances.items():
+                    if hasattr(panel, 'show_full_window'):
+                        panel.show_full_window = False
+                    if hasattr(panel, '_window_error_occurred'):
+                        panel._window_error_occurred = True
+                        
+            # Reset error count after recovery attempt
+            self._error_count = 0
+            self._last_error_time = time.time()
+            
+            logger.error("Emergency recovery completed - closed all secondary windows")
+            
+        except Exception as recovery_error:
+            logger.error(f"Emergency recovery failed: {recovery_error}")
 
 
 # Factory function for backward compatibility

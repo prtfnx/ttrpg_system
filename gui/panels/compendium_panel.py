@@ -48,7 +48,6 @@ class CompendiumPanel:
             self.search_query = ""
         
         imgui.separator()
-    
     def _render_category_section(self):
         """Render category selection"""
         imgui.text("Category:")
@@ -69,7 +68,8 @@ class CompendiumPanel:
         """Render the content list for the selected category"""
         imgui.text(f"{self.selected_category}:")
         
-        if imgui.begin_child("content_list", (0, -150)):
+        # Use simple child window sizing without negative heights to avoid viewport issues
+        if imgui.begin_child("content_list", (0, 0)):
             content_items = self._get_content_items()
             
             if not content_items:
@@ -106,16 +106,21 @@ class CompendiumPanel:
             if len(tooltip) > 100:
                 tooltip = tooltip[:100] + "..."
             imgui.set_tooltip(tooltip)
-    
     def _render_item_details(self):
         """Render details for the selected item"""
         imgui.separator()
         item = self.selected_item
         
-        # Item name and type
-        imgui.text(f"Selected: {item.get('name', 'Unknown')}")
+        # Safety check - ensure item is not None
+        if item is None:
+            imgui.text("No item selected")
+            return
         
-        if 'type' in item:
+        # Item name and type
+        item_name = item.get('name', 'Unknown') if isinstance(item, dict) else 'Unknown'
+        imgui.text(f"Selected: {item_name}")
+        
+        if isinstance(item, dict) and 'type' in item:
             imgui.same_line()
             imgui.text_colored((0.7, 0.7, 0.7, 1.0), f"({item['type']})")
         

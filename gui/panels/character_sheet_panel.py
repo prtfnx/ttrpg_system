@@ -781,73 +781,33 @@ class CharacterSheetPanel:
         try:
             # Header section (spans full width)
             self.render_header_section()
-            
-            # Create main content table with 3 columns
+              # Create main content table with 3 columns - disable resizing to prevent child window conflicts
             table_begun = imgui.begin_table("CharacterSheetTable", 3, 
-                                imgui.TableFlags_.resizable.value | 
                                 imgui.TableFlags_.borders_inner_v.value)
             if table_begun:
                 try:
-                    # Setup columns
+                    # Setup columns with fixed sizes to prevent resize conflicts
                     imgui.table_setup_column("Left", imgui.TableColumnFlags_.width_fixed.value, 300.0)
                     imgui.table_setup_column("Center", imgui.TableColumnFlags_.width_fixed.value, 350.0)
-                    imgui.table_setup_column("Right", imgui.TableColumnFlags_.width_stretch.value)
-                    imgui.table_next_row()
-                      # Left column - Ability Scores alongside Inspiration/Proficiency/Saves/Skills
+                    imgui.table_setup_column("Right", imgui.TableColumnFlags_.width_fixed.value, 300.0)
+                    imgui.table_next_row()                  # Left column - Ability Scores alongside Inspiration/Proficiency/Saves/Skills
                     imgui.table_next_column()
-                    # Use simple child window with fixed height instead of auto-sizing
-                    left_child_begun = imgui.begin_child("LeftColumn", imgui.ImVec2(0, 400))
-                    if left_child_begun:
-                        try:
-                            # Create 2-column layout within left section
-                            left_table_begun = imgui.begin_table("LeftSectionTable", 2, imgui.TableFlags_.resizable.value)
-                            if left_table_begun:
-                                try:
-                                    # Setup sub-columns
-                                    imgui.table_setup_column("Abilities", imgui.TableColumnFlags_.width_fixed.value, 140.0)
-                                    imgui.table_setup_column("Modifiers", imgui.TableColumnFlags_.width_stretch.value)
-                                    
-                                    imgui.table_next_row()
-                                    
-                                    # Left sub-column: Ability Scores
-                                    imgui.table_next_column()
-                                    self.render_ability_scores()
-                                    
-                                    # Right sub-column: Inspiration, Proficiency, Saves, Skills
-                                    imgui.table_next_column()
-                                    self.render_inspiration_proficiency()
-                                    self.render_saving_throws()
-                                    self.render_skills()
-                                    self.render_passive_perception()
-                                finally:
-                                    if left_table_begun:
-                                        imgui.end_table()
-                        finally:
-                            if left_child_begun:
-                                imgui.end_child()
-                        
-                    # Center column - Combat Stats, Attacks & Equipment
+                    # Render content directly without child windows to avoid resize conflicts
+                    self.render_ability_scores()
+                    imgui.separator()
+                    self.render_inspiration_proficiency()
+                    self.render_saving_throws()
+                    self.render_skills()
+                    self.render_passive_perception()                  # Center column - Combat Stats, Attacks & Equipment
                     imgui.table_next_column()
-                    # Use simple child window with fixed height instead of auto-sizing
-                    center_child_begun = imgui.begin_child("CenterColumn", imgui.ImVec2(0, 400))
-                    if center_child_begun:
-                        try:
-                            self.render_combat_stats()
-                            self.render_attacks_equipment()
-                        finally:
-                            imgui.end_child()                    # Right column - Features & Traits (SAFE VERSION)
-                    imgui.table_next_column()                    # Use simple child window with fixed height instead of auto-sizing
-                    right_child_begun = imgui.begin_child("RightColumn", imgui.ImVec2(0, 400))
-                    if right_child_begun:
-                        try:
-                            self.render_features_traits()
-                        finally:
-                            imgui.end_child()
-                    else:
-                        # Fallback if child window fails
-                        imgui.text("FEATURES & TRAITS")
-                        imgui.text("(Child window failed to create)")
-                        imgui.text_wrapped(self.features_traits[:100] + "..." if len(self.features_traits) > 100 else self.features_traits)
+                    # Render content directly without child windows
+                    self.render_combat_stats()
+                    self.render_attacks_equipment()
+                    
+                    # Right column - Features & Traits
+                    imgui.table_next_column()
+                    # Render content directly without child windows
+                    self.render_features_traits()
                 finally:
                     if table_begun:
                         imgui.end_table()

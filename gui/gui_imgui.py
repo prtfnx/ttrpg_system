@@ -133,7 +133,7 @@ class SimplifiedGui:
             self.impl = None
             self.io = None
             raise e
-      def update_window_size(self, width: int, height: int):
+    def update_window_size(self, width: int, height: int):
         """Update window dimensions for layout calculations"""
         self.window_width = width
         self.window_height = height

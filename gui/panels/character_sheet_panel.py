@@ -1,581 +1,600 @@
+#!/usr/bin/env python3
 """
-Character Sheet Panel - D&D 5e Character Sheet Interface
-Comprehensive character display and action system inspired by official D&D character sheet
+D&D 5E Character Sheet Panel - Official Layout Recreation
+Matches the official D&D 5E character sheet PDF with fantasy styling
 """
 
 from imgui_bundle import imgui
-import logging
-import random
-from typing import Optional, Dict, Any, List, Tuple
+import math
+from typing import Dict, List, Optional, Tuple
 from core_table.compendiums.characters.character import (
     Character, AbilityScore, Skill, Race, CharacterClass, Background, Feat,
     AbilityScoreIncrease, Size
 )
 
-logger = logging.getLogger(__name__)
-
 
 class CharacterSheetPanel:
-    """Character sheet panel with full D&D 5e character display and actions"""
-    
-    def __init__(self, context, actions_bridge):
+    def __init__(self, context=None, actions_bridge=None):
         self.context = context
         self.actions_bridge = actions_bridge
-        
-        # Character data
-        self.current_character: Optional[Character] = None
-        self.character_list: List[Character] = []
-        
-        # UI state
-        self.selected_character_index = 0
-        self.is_popup_window = False
-        self.popup_window_open = False
-        self.window_width = 800
-        self.window_height = 1000
-        
-        # Sheet tabs
-        self.active_tab = "main"  # main, spells, equipment, features
-        
-        # Action states
-        self.roll_results: List[str] = []
-        self.max_roll_results = 10
-        
-        # Character sheet sections expanded state
-        self.sections_expanded = {
-            "basic_info": True,
-            "abilities": True,
-            "skills": True,
-            "combat": True,
-            "equipment": False,
-            "features": False,
-            "spells": False,
-            "backstory": False
-        }
-        
-        # Load sample character for testing
-        self._create_sample_character()
-    
-    def set_character(self, character: Character):
-        """Set the current character to display"""
-        self.current_character = character
-        if character:
-            character.update_calculated_values()
-    
-    def render(self):
-        """Render the character sheet panel"""
-        imgui.text("Character Sheet")
-        imgui.separator()
-        
-        # Character selection
-        self._render_character_selection()
-        
-        if not self.current_character:
-            imgui.text_colored((0.8, 0.4, 0.4, 1.0), "No character selected")
-            return
-        
-        imgui.separator()
-        
-        # Pop-out window button
-        if imgui.button("Open in Window"):
-            self.popup_window_open = True
-        
-        imgui.separator()
-        
-        # Render character sheet content
-        if imgui.begin_child("character_sheet_content", (0, 0)):
-            self._render_character_sheet()
-        imgui.end_child()
-        
-        # Handle pop-out window
-        if self.popup_window_open:
-            self._render_popup_window()
-    
-    def _render_character_selection(self):
-        """Render character selection dropdown"""
-        if not self.character_list:
-            imgui.text("No characters loaded")
-            return
-        
-        character_names = [char.name if char.name else f"Character {i+1}" 
-                          for i, char in enumerate(self.character_list)]
-        
-        changed, self.selected_character_index = imgui.combo(
-            "Character", self.selected_character_index, character_names
-        )
-        
-        if changed:
-            self.current_character = self.character_list[self.selected_character_index]
-            if self.current_character:
-                self.current_character.update_calculated_values()
-    
-    def _render_popup_window(self):
-        """Render character sheet in a popup window"""
-        if not self.popup_window_open:
-            return
-            
-        imgui.set_next_window_size((self.window_width, self.window_height), imgui.Cond_.first_use_ever.value)
-        
-        window_flags = (
-            imgui.WindowFlags_.horizontal_scrollbar.value |
-            imgui.WindowFlags_.always_vertical_scrollbar.value
-        )
-        
-        character_name = self.current_character.name if self.current_character and self.current_character.name else "Unknown"
-        expanded, self.popup_window_open = imgui.begin(f"Character Sheet - {character_name}", self.popup_window_open, flags=window_flags)
-        
-        if expanded:
-            self._render_character_sheet()
-        
-        imgui.end()
-    
-    def _render_character_sheet(self):
-        """Render the main character sheet content"""
-        if not self.current_character:
-            return
-        
-        # Tab bar for different sections
-        if imgui.begin_tab_bar("character_tabs"):
-            if imgui.begin_tab_item("Main Sheet")[0]:
-                self._render_main_sheet()
-                imgui.end_tab_item()
-            
-            if imgui.begin_tab_item("Spells")[0]:
-                self._render_spells_tab()
-                imgui.end_tab_item()
-            
-            if imgui.begin_tab_item("Equipment")[0]:
-                self._render_equipment_tab()
-                imgui.end_tab_item()
-            
-            if imgui.begin_tab_item("Features & Traits")[0]:
-                self._render_features_tab()
-                imgui.end_tab_item()
-            
-            imgui.end_tab_bar()    
-    def _render_main_sheet(self):
-        """Render the main character sheet tab in official D&D layout"""
-        char = self.current_character
-        if not char:
-            return
-        
-        # Main layout: Left column (Abilities + Skills), Right column (Basic Info + Combat)
-        imgui.columns(2, "main_sheet_columns", True)
-        
-        # === LEFT COLUMN ===
-        # Character Basic Info (condensed at top)
-        if self._render_collapsible_section("Character Info", "basic_info"):
-            self._render_basic_info()
-        
-        imgui.spacing()
-        
-        # Ability Scores
-        if self._render_collapsible_section("Ability Scores", "abilities"):
-            self._render_ability_scores()
-        
-        imgui.next_column()
-        
-        # === RIGHT COLUMN ===
-        # Combat Stats
-        if self._render_collapsible_section("Combat Stats", "combat"):
-            self._render_combat_stats()
-        
-        imgui.spacing()
-        
-        # Skills (in right column to save space)
-        if self._render_collapsible_section("Skills", "skills"):
-            self._render_skills()
-        
-        imgui.columns(1)
-        
-        # Recent Roll Results (full width at bottom)
-        self._render_roll_results()
-    
-    def _render_collapsible_section(self, title: str, key: str) -> bool:
-        """Render a collapsible section header"""
-        expanded = self.sections_expanded.get(key, True)
-        result = imgui.collapsing_header(title, flags=imgui.TreeNodeFlags_.default_open.value if expanded else 0)
-        self.sections_expanded[key] = result
-        return result
-    
-    def _render_basic_info(self):
-        """Render basic character information"""
-        char = self.current_character
-        if not char:
-            return
-        
-        imgui.columns(2, "basic_info_columns")
-        
-        # Left column
-        imgui.text(f"Name: {char.name or 'Unnamed'}")
-        imgui.text(f"Level: {char.level}")
-        imgui.text(f"Experience: {char.experience_points} XP")
-        imgui.text(f"Race: {char.race.name if char.race else 'Unknown'}")
-        
-        imgui.next_column()
-        
-        # Right column
-        imgui.text(f"Class: {char.character_class.name if char.character_class else 'Unknown'}")
-        imgui.text(f"Background: {char.background.name if char.background else 'Unknown'}")
-        imgui.text(f"Alignment: {char.alignment or 'Unknown'}")
-        imgui.text(f"Proficiency: +{char.proficiency_bonus}")
-        
-        imgui.columns(1)
-    
-    def _render_ability_scores(self):
-        """Render ability scores like official D&D character sheet - fantasy themed"""
-        char = self.current_character
-        if not char:
-            return
-        
-        # Fantasy-themed ability score display
-        for ability in AbilityScore:
-            base_score = char.ability_scores.get(ability, 10)
-            racial_bonus = char.race.get_ability_modifier(ability) if char.race else 0
-            total_score = base_score + racial_bonus
-            modifier = char.get_ability_modifier(ability)
-            modifier_str = f"+{modifier}" if modifier >= 0 else str(modifier)
-            
-            # Create parchment-like background for ability scores
-            imgui.push_style_color(imgui.Col_.frame_bg.value, (0.35, 0.25, 0.15, 0.9))  # Parchment brown
-            imgui.push_style_color(imgui.Col_.border.value, (0.6, 0.45, 0.25, 1.0))     # Golden border
-            imgui.push_style_var(imgui.StyleVar_.frame_padding.value, (12, 8))
-            imgui.push_style_var(imgui.StyleVar_.frame_border_size.value, 2.0)
-            
-            # Ability name with fantasy styling
-            imgui.text_colored((0.9, 0.8, 0.6, 1.0), f"══ {ability.value.upper()} ══")
-            
-            # Ornate score display box
-            imgui.begin_child(f"ability_box_{ability.value}", (140, 90), True)
-            
-            # Large score with fantasy font effect
-            imgui.set_cursor_pos((45, 15))
-            imgui.push_font(None)  # Could load a fantasy font here
-            imgui.text_colored((1.0, 0.9, 0.7, 1.0), f"{total_score}")
-            imgui.pop_font()
-            
-            # Modifier in a decorative frame
-            imgui.set_cursor_pos((30, 55))
-            imgui.push_style_color(imgui.Col_.frame_bg.value, (0.2, 0.15, 0.1, 0.95))
-            imgui.begin_child(f"modifier_{ability.value}", (80, 28), True)
-            imgui.set_cursor_pos((30, 6))
-            imgui.text_colored((0.8, 0.9, 1.0, 1.0), modifier_str)
-            imgui.end_child()
-            imgui.pop_style_color()
-            
-            imgui.end_child()
-            
-            # Fantasy-themed roll button
-            imgui.same_line()
-            imgui.set_cursor_pos_y(imgui.get_cursor_pos_y() + 30)
-            imgui.push_style_color(imgui.Col_.button.value, (0.4, 0.2, 0.1, 0.8))
-            imgui.push_style_color(imgui.Col_.button_hovered.value, (0.6, 0.3, 0.15, 0.9))
-            if imgui.button(f"⚅ Roll###{ability.value}", (60, 35)):
-                self._roll_ability_check(ability)
-            imgui.pop_style_color(2)
-            
-            imgui.pop_style_var(2)
-            imgui.pop_style_color(2)
-            
-            # Show racial bonus with fantasy theming
-            if racial_bonus != 0:
-                imgui.same_line()
-                imgui.text_colored((0.6, 0.8, 0.9, 1.0), f"[Base: {base_score} + Racial: {racial_bonus}]")
-            
-            imgui.spacing()
-            imgui.separator_text("~")
-    
-    def _render_skills(self):
-        """Render skills with roll buttons"""
-        char = self.current_character
-        if not char:
-            return
-        
-        imgui.columns(2, "skills_columns")
-        
-        for i, skill in enumerate(Skill):
-            if i > 0 and i % 9 == 0:  # Split into two columns
-                imgui.next_column()
-            
-            modifier = char.get_skill_modifier(skill)
-            modifier_str = f"+{modifier}" if modifier >= 0 else str(modifier)
-              # Proficiency indicator
-            is_proficient = skill in char.skill_proficiencies
-            has_expertise = skill in char.expertise
-            
-            prof_symbol = "**" if has_expertise else "*" if is_proficient else "o"
-            
-            # Skill name and roll button
-            imgui.text(f"{prof_symbol} {skill.value}")
-            imgui.same_line()
-            
-            if imgui.small_button(f"Roll##{skill.value}"):
-                self._roll_skill_check(skill)
-            
-            imgui.same_line()
-            imgui.text(f"({modifier_str})")
-        
-        imgui.columns(1)
-          # Legend
-        imgui.separator()
-        imgui.text_colored((0.8, 0.8, 0.8, 1.0), "o Not Proficient  * Proficient  ** Expertise")
-    
-    def _render_combat_stats(self):
-        """Render combat-related statistics"""
-        char = self.current_character
-        if not char:
-            return
-        
-        imgui.columns(2, "combat_columns")
-        
-        # Left column
-        imgui.text(f"Armor Class: {char.armor_class}")
-        imgui.text(f"Hit Points: {char.hit_points}")
-        imgui.text(f"Speed: {char.race.speed if char.race else 30} ft")
-        
-        imgui.next_column()
-        
-        # Right column
-        imgui.text("Saving Throws:")
-        if char.character_class:
-            for ability in char.character_class.saving_throw_proficiencies:
-                modifier = char.get_ability_modifier(ability) + char.proficiency_bonus
-                modifier_str = f"+{modifier}" if modifier >= 0 else str(modifier)
-                imgui.text(f"  {ability.value[:3]}: {modifier_str}")
-                imgui.same_line()
-                if imgui.small_button(f"Roll##{ability.value}_save"):
-                    self._roll_saving_throw(ability)
-        
-        imgui.columns(1)
-        
-        # Initiative
-        imgui.separator()
-        dex_mod = char.get_ability_modifier(AbilityScore.DEXTERITY)
-        init_mod = f"+{dex_mod}" if dex_mod >= 0 else str(dex_mod)
-        imgui.text(f"Initiative: {init_mod}")
-        imgui.same_line()
-        if imgui.button("Roll Initiative"):
-            self._roll_initiative()
-    
-    def _render_spells_tab(self):
-        """Render spells tab"""
-        char = self.current_character
-        if not char:
-            return
-        
-        if not char.spells_known:
-            imgui.text("No spells known")
-            return
-        
-        imgui.text("Known Spells:")
-        imgui.separator()
-        
-        for spell in char.spells_known:
-            imgui.bullet_text(spell)
-            imgui.same_line()
-            if imgui.small_button(f"Cast##{spell}"):
-                self._cast_spell(spell)
-    
-    def _render_equipment_tab(self):
-        """Render equipment tab"""
-        char = self.current_character
-        if not char:
-            return
-        
-        if not char.equipment:
-            imgui.text("No equipment")
-            return
-        
-        imgui.text("Equipment:")
-        imgui.separator()
-        
-        for item in char.equipment:
-            imgui.bullet_text(item)
-    
-    def _render_features_tab(self):
-        """Render features and traits tab"""
-        char = self.current_character
-        if not char:
-            return
-        
-        # Class features
-        if char.character_class:
-            imgui.text("Class Features:")
-            features = char.character_class.get_features_at_level(char.level)
-            for feature in features:
-                if imgui.collapsing_header(f"{feature.name} (Level {feature.level})"):
-                    imgui.text_wrapped(feature.description)
-            imgui.separator()
-        
-        # Racial traits
-        if char.race and char.race.traits:
-            imgui.text("Racial Traits:")
-            for trait in char.race.traits:
-                if imgui.collapsing_header(trait.name):
-                    imgui.text_wrapped(trait.description)
-            imgui.separator()
-        
-        # Background features
-        if char.background and hasattr(char.background, 'features') and char.background.features:
-            imgui.text("Background Features:")
-            for feature in char.background.features:
-                if imgui.collapsing_header(feature.name):
-                    imgui.text_wrapped(feature.description)
-            imgui.separator()
-        
-        # Feats
-        if char.feats:
-            imgui.text("Feats:")
-            for feat in char.feats:
-                if imgui.collapsing_header(feat.name):
-                    imgui.text_wrapped(feat.description)
-    
-    def _render_roll_results(self):
-        """Render recent roll results"""
-        if not self.roll_results:
-            return
-        
-        imgui.separator()
-        imgui.text("Recent Rolls:")
-        
-        if imgui.begin_child("roll_results", (0, 120)):
-            for result in reversed(self.roll_results):
-                imgui.text(result)
-        imgui.end_child()
-        
-        if imgui.button("Clear Rolls"):
-            self.roll_results.clear()
-    
-    def _roll_ability_check(self, ability: AbilityScore):
-        """Roll an ability check"""
-        if not self.current_character:
-            return
-            
-        roll = random.randint(1, 20)
-        modifier = self.current_character.get_ability_modifier(ability)
-        total = roll + modifier
-        
-        result = f"{ability.value} Check: {roll} + {modifier} = {total}"
-        self._add_roll_result(result)
-    
-    def _roll_skill_check(self, skill: Skill):
-        """Roll a skill check"""
-        if not self.current_character:
-            return
-            
-        roll = random.randint(1, 20)
-        modifier = self.current_character.get_skill_modifier(skill)
-        total = roll + modifier
-        
-        result = f"{skill.value}: {roll} + {modifier} = {total}"
-        self._add_roll_result(result)
-    
-    def _roll_saving_throw(self, ability: AbilityScore):
-        """Roll a saving throw"""
-        if not self.current_character:
-            return
-            
-        roll = random.randint(1, 20)
-        modifier = self.current_character.get_ability_modifier(ability) + self.current_character.proficiency_bonus
-        total = roll + modifier
-        
-        result = f"{ability.value} Save: {roll} + {modifier} = {total}"
-        self._add_roll_result(result)
-    
-    def _roll_initiative(self):
-        """Roll initiative"""
-        if not self.current_character:
-            return
-            
-        roll = random.randint(1, 20)
-        modifier = self.current_character.get_ability_modifier(AbilityScore.DEXTERITY)
-        total = roll + modifier
-        
-        result = f"Initiative: {roll} + {modifier} = {total}"
-        self._add_roll_result(result)
-    
-    def _cast_spell(self, spell_name: str):
-        """Cast a spell (placeholder)"""
-        result = f"Cast {spell_name}"
-        self._add_roll_result(result)
-    
-    def _add_roll_result(self, result: str):
-        """Add a roll result to the history"""
-        self.roll_results.append(result)
-        if len(self.roll_results) > self.max_roll_results:
-            self.roll_results.pop(0)
-        
-        logger.info(f"Roll: {result}")
-    
-    def _create_sample_character(self):
-        """Create a sample character for testing"""
-        # Create sample character
-        char = Character()
-        char.name = "Lyra Moonwhisper"
-        char.level = 3
-        char.experience_points = 900
-        char.alignment = "Chaotic Good"
-        char.backstory = "A half-elf ranger who grew up in the forests..."
+        self.character = Character()
+        
+        # Character sheet fields matching official PDF
+        self.character_name = ""
+        self.class_level = ""
+        self.background = ""
+        self.player_name = ""
+        self.race = ""
+        self.alignment = ""
+        self.experience_points = 0
         
         # Ability scores
-        char.ability_scores[AbilityScore.STRENGTH] = 12
-        char.ability_scores[AbilityScore.DEXTERITY] = 16
-        char.ability_scores[AbilityScore.CONSTITUTION] = 14
-        char.ability_scores[AbilityScore.INTELLIGENCE] = 13
-        char.ability_scores[AbilityScore.WISDOM] = 15
-        char.ability_scores[AbilityScore.CHARISMA] = 14
+        self.ability_scores = {
+            "STR": 10, "DEX": 10, "CON": 10, 
+            "INT": 10, "WIS": 10, "CHA": 10
+        }
         
-        # Create sample race (Half-Elf)
-        race = Race()
-        race.name = "Half-Elf"
-        race.size = Size.MEDIUM
-        race.speed = 30
-        race.ability_score_increases = [
-            AbilityScoreIncrease(AbilityScore.CHARISMA, 2),
-            AbilityScoreIncrease(AbilityScore.DEXTERITY, 1),
-            AbilityScoreIncrease(AbilityScore.WISDOM, 1)
-        ]
-        race.darkvision = 60
-        race.languages = ["Common", "Elvish"]
-        char.race = race
+        # Inspiration and Proficiency Bonus
+        self.inspiration = False
+        self.proficiency_bonus = 2
         
-        # Create sample class (Ranger)
-        char_class = CharacterClass()
-        char_class.name = "Ranger"
-        char_class.hit_die = 10
-        char_class.primary_abilities = [AbilityScore.DEXTERITY, AbilityScore.WISDOM]
-        char_class.saving_throw_proficiencies = [AbilityScore.STRENGTH, AbilityScore.DEXTERITY]
-        char.character_class = char_class
+        # Saving throws
+        self.saving_throws = {
+            "STR": {"proficient": False, "value": 0},
+            "DEX": {"proficient": False, "value": 0},
+            "CON": {"proficient": False, "value": 0},
+            "INT": {"proficient": False, "value": 0},
+            "WIS": {"proficient": False, "value": 0},
+            "CHA": {"proficient": False, "value": 0}
+        }
         
-        # Create sample background
-        background = Background()
-        background.name = "Outlander"
-        char.background = background
+        # Skills (matching official sheet order)
+        self.skills = {
+            "Acrobatics": {"ability": "DEX", "proficient": False, "value": 0},
+            "Animal Handling": {"ability": "WIS", "proficient": False, "value": 0},
+            "Arcana": {"ability": "INT", "proficient": False, "value": 0},
+            "Athletics": {"ability": "STR", "proficient": False, "value": 0},
+            "Deception": {"ability": "CHA", "proficient": False, "value": 0},
+            "History": {"ability": "INT", "proficient": False, "value": 0},
+            "Insight": {"ability": "WIS", "proficient": False, "value": 0},
+            "Intimidation": {"ability": "CHA", "proficient": False, "value": 0},
+            "Investigation": {"ability": "INT", "proficient": False, "value": 0},
+            "Medicine": {"ability": "WIS", "proficient": False, "value": 0},
+            "Nature": {"ability": "INT", "proficient": False, "value": 0},
+            "Perception": {"ability": "WIS", "proficient": False, "value": 0},
+            "Performance": {"ability": "CHA", "proficient": False, "value": 0},
+            "Persuasion": {"ability": "CHA", "proficient": False, "value": 0},
+            "Religion": {"ability": "INT", "proficient": False, "value": 0},
+            "Sleight of Hand": {"ability": "DEX", "proficient": False, "value": 0},
+            "Stealth": {"ability": "DEX", "proficient": False, "value": 0},
+            "Survival": {"ability": "WIS", "proficient": False, "value": 0}
+        }
         
-        # Skills
-        char.skill_proficiencies = [
-            Skill.ATHLETICS,
-            Skill.INSIGHT,
-            Skill.INVESTIGATION,
-            Skill.NATURE,
-            Skill.PERCEPTION,
-            Skill.STEALTH,
-            Skill.SURVIVAL
-        ]
-        char.expertise = [Skill.SURVIVAL, Skill.STEALTH]
+        # Combat stats
+        self.armor_class = 10
+        self.initiative = 0
+        self.speed = 30
+        self.hit_point_maximum = 8
+        self.current_hit_points = 8
+        self.temporary_hit_points = 0
+        self.total_hit_dice = "1d8"
+        self.hit_dice = "1d8"
+        
+        # Death saves
+        self.death_save_successes = [False, False, False]
+        self.death_save_failures = [False, False, False]
+        
+        # Passive perception
+        self.passive_perception = 10
+        
+        # Attacks and spellcasting
+        self.attacks_spellcasting = ""
         
         # Equipment
-        char.equipment = [
-            "Longbow", "Quiver with 20 arrows", "Studded leather armor",
-            "Shortsword", "Dungeoneer's pack", "Staff", "Hunting trap"
-        ]
+        self.equipment = ""
         
-        # Spells
-        char.spells_known = ["Hunter's Mark", "Cure Wounds", "Goodberry"]
+        # Other proficiencies and languages
+        self.other_proficiencies_languages = ""
         
-        # Update calculated values
-        char.update_calculated_values()
-        char.armor_class = 13  # Studded leather + dex
+        # Features and traits
+        self.features_traits = ""
         
-        # Add to character list
-        self.character_list = [char]
-        self.current_character = char
+    def setup_fantasy_style(self):
+        """Setup fantasy parchment-style theme"""
+        style = imgui.get_style()
+        
+        # Apply colors using the correct imgui_bundle syntax
+        # Use .value to get the integer value from the enum
+        style.color_(imgui.Col_.window_bg.value).x = 0.96
+        style.color_(imgui.Col_.window_bg.value).y = 0.92
+        style.color_(imgui.Col_.window_bg.value).z = 0.86
+        style.color_(imgui.Col_.window_bg.value).w = 1.00
+        
+        style.color_(imgui.Col_.child_bg.value).x = 0.98
+        style.color_(imgui.Col_.child_bg.value).y = 0.94
+        style.color_(imgui.Col_.child_bg.value).z = 0.82
+        style.color_(imgui.Col_.child_bg.value).w = 1.00
+        
+        style.color_(imgui.Col_.frame_bg.value).x = 0.98
+        style.color_(imgui.Col_.frame_bg.value).y = 0.94
+        style.color_(imgui.Col_.frame_bg.value).z = 0.82
+        style.color_(imgui.Col_.frame_bg.value).w = 1.00
+        
+        style.color_(imgui.Col_.text.value).x = 0.35
+        style.color_(imgui.Col_.text.value).y = 0.27
+        style.color_(imgui.Col_.text.value).z = 0.13
+        style.color_(imgui.Col_.text.value).w = 1.00
+        
+        style.color_(imgui.Col_.border.value).x = 0.63
+        style.color_(imgui.Col_.border.value).y = 0.47
+        style.color_(imgui.Col_.border.value).z = 0.31
+        style.color_(imgui.Col_.border.value).w = 1.00
+        
+        # Styling
+        style.frame_rounding = 5.0
+        style.window_rounding = 10.0
+        style.child_rounding = 8.0
+        style.frame_padding = imgui.ImVec2(12, 8)
+        style.item_spacing = imgui.ImVec2(12, 8)
+        style.window_padding = imgui.ImVec2(20, 20)
+        
+    def calculate_modifier(self, score: int) -> int:
+        """Calculate ability score modifier"""
+        return (score - 10) // 2
+        
+    def format_modifier(self, modifier: int) -> str:
+        """Format modifier with + or - sign"""
+        return f"+{modifier}" if modifier >= 0 else str(modifier)
+        
+    def update_derived_stats(self):
+        """Update stats that depend on ability scores"""
+        # Update saving throws
+        for ability in self.saving_throws:
+            modifier = self.calculate_modifier(self.ability_scores[ability])
+            if self.saving_throws[ability]["proficient"]:
+                self.saving_throws[ability]["value"] = modifier + self.proficiency_bonus
+            else:
+                self.saving_throws[ability]["value"] = modifier
+                
+        # Update skills
+        for skill_name, skill_data in self.skills.items():
+            ability = skill_data["ability"]
+            modifier = self.calculate_modifier(self.ability_scores[ability])
+            if skill_data["proficient"]:
+                skill_data["value"] = modifier + self.proficiency_bonus
+            else:
+                skill_data["value"] = modifier
+                
+        # Update passive perception
+        perception_modifier = self.skills["Perception"]["value"]
+        self.passive_perception = 10 + perception_modifier
+        
+        # Update initiative
+        self.initiative = self.calculate_modifier(self.ability_scores["DEX"])
+        
+    def render_text_field(self, label: str, value: str, width: float = 200) -> str:
+        """Render a labeled text input field"""
+        imgui.text(label)
+        imgui.same_line()
+        imgui.set_next_item_width(width)
+        changed, new_value = imgui.input_text(f"##{label}", value)
+        if changed:
+            return new_value
+        return value
+        
+    def render_int_field(self, label: str, value: int, width: float = 100, min_val: int = 0, max_val: int = 999) -> int:
+        """Render a labeled integer input field"""
+        imgui.text(label)
+        imgui.same_line()
+        imgui.set_next_item_width(width)
+        changed, new_value = imgui.input_int(f"##{label}", value)
+        if changed:
+            return max(min_val, min(max_val, new_value))
+        return value
+        
+    def render_checkbox_field(self, label: str, value: bool) -> bool:
+        """Render a checkbox field"""
+        changed, new_value = imgui.checkbox(label, value)
+        return new_value if changed else value
+        
+    def render_header_section(self):
+        """Render the character header information"""
+        imgui.text("CHARACTER NAME")
+        imgui.same_line(200)
+        imgui.text("CLASS & LEVEL")
+        imgui.same_line(400)
+        imgui.text("BACKGROUND")
+        imgui.same_line(600)
+        imgui.text("PLAYER NAME")
+        
+        # First row inputs
+        imgui.set_next_item_width(180)
+        changed, new_name = imgui.input_text("##char_name", self.character_name)
+        if changed:
+            self.character_name = new_name
+            
+        imgui.same_line()
+        imgui.set_next_item_width(180)
+        changed, new_class = imgui.input_text("##class_level", self.class_level)
+        if changed:
+            self.class_level = new_class
+            
+        imgui.same_line()
+        imgui.set_next_item_width(180)
+        changed, new_bg = imgui.input_text("##background", self.background)
+        if changed:
+            self.background = new_bg
+            
+        imgui.same_line()
+        imgui.set_next_item_width(180)
+        changed, new_player = imgui.input_text("##player_name", self.player_name)
+        if changed:
+            self.player_name = new_player
+            
+        imgui.spacing()
+        
+        # Second row labels
+        imgui.text("RACE")
+        imgui.same_line(200)
+        imgui.text("ALIGNMENT")
+        imgui.same_line(400)
+        imgui.text("EXPERIENCE POINTS")
+        
+        # Second row inputs
+        imgui.set_next_item_width(180)
+        changed, new_race = imgui.input_text("##race", self.race)
+        if changed:
+            self.race = new_race
+            
+        imgui.same_line()
+        imgui.set_next_item_width(180)
+        changed, new_align = imgui.input_text("##alignment", self.alignment)
+        if changed:
+            self.alignment = new_align
+            
+        imgui.same_line()
+        imgui.set_next_item_width(180)
+        changed, new_xp = imgui.input_int("##experience", self.experience_points)
+        if changed:
+            self.experience_points = max(0, new_xp)
+            
+        imgui.separator()
+        
+    def render_ability_scores(self):
+        """Render the ability scores section"""
+        imgui.text("ABILITY SCORES")
+        imgui.spacing()
+        
+        abilities = ["STR", "DEX", "CON", "INT", "WIS", "CHA"]
+        ability_names = ["STRENGTH", "DEXTERITY", "CONSTITUTION", "INTELLIGENCE", "WISDOM", "CHARISMA"]
+        
+        # Create ability score boxes in a row
+        for i, (ability, full_name) in enumerate(zip(abilities, ability_names)):
+            if i > 0:
+                imgui.same_line()
+                
+            # Create a group for each ability score
+            imgui.begin_group()
+            
+            # Ability name
+            imgui.text(full_name)
+            imgui.spacing()
+            
+            # Modifier (large circle)
+            modifier = self.calculate_modifier(self.ability_scores[ability])
+            modifier_text = self.format_modifier(modifier)
+            
+            # Draw modifier circle
+            draw_list = imgui.get_window_draw_list()
+            pos = imgui.get_cursor_screen_pos()
+            center = imgui.ImVec2(pos.x + 30, pos.y + 25)
+            draw_list.add_circle(center, 25, imgui.color_convert_float4_to_u32(imgui.ImVec4(0.63, 0.47, 0.31, 1.0)), 0, 2.0)
+            
+            # Center the modifier text
+            text_size = imgui.calc_text_size(modifier_text)
+            text_pos = imgui.ImVec2(center.x - text_size.x * 0.5, center.y - text_size.y * 0.5)
+            draw_list.add_text(text_pos, imgui.color_convert_float4_to_u32(imgui.ImVec4(0.35, 0.27, 0.13, 1.0)), modifier_text)
+            
+            # Move cursor down
+            imgui.dummy(imgui.ImVec2(60, 50))
+            
+            # Score input
+            imgui.set_next_item_width(60)
+            changed, new_score = imgui.input_int(f"##{ability}", self.ability_scores[ability])
+            if changed:
+                self.ability_scores[ability] = max(1, min(30, new_score))
+                self.update_derived_stats()
+                
+            imgui.end_group()
+            
+        imgui.separator()
+        
+    def render_inspiration_proficiency(self):
+        """Render inspiration and proficiency bonus"""
+        imgui.text("INSPIRATION")
+        imgui.same_line(150)
+        imgui.text("PROFICIENCY BONUS")
+        
+        # Inspiration checkbox (styled as circle)
+        imgui.set_next_item_width(30)
+        changed, new_inspiration = imgui.checkbox("##inspiration", self.inspiration)
+        if changed:
+            self.inspiration = new_inspiration
+            
+        imgui.same_line(150)
+        # Proficiency bonus display
+        prof_text = self.format_modifier(self.proficiency_bonus)
+        imgui.text(prof_text)
+        
+        imgui.separator()
+        
+    def render_saving_throws(self):
+        """Render saving throws section"""
+        imgui.text("SAVING THROWS")
+        imgui.spacing()
+        
+        for ability in ["STR", "DEX", "CON", "INT", "WIS", "CHA"]:
+            # Proficiency checkbox
+            changed, new_prof = imgui.checkbox(f"##save_{ability}", self.saving_throws[ability]["proficient"])
+            if changed:
+                self.saving_throws[ability]["proficient"] = new_prof
+                self.update_derived_stats()
+                
+            imgui.same_line()
+            
+            # Bonus display
+            bonus = self.saving_throws[ability]["value"]
+            bonus_text = self.format_modifier(bonus)
+            imgui.text(f"{bonus_text} {ability}")
+            
+        imgui.separator()
+        
+    def render_skills(self):
+        """Render skills section"""
+        imgui.text("SKILLS")
+        imgui.spacing()
+        
+        for skill_name, skill_data in self.skills.items():
+            # Proficiency checkbox
+            changed, new_prof = imgui.checkbox(f"##skill_{skill_name}", skill_data["proficient"])
+            if changed:
+                skill_data["proficient"] = new_prof
+                self.update_derived_stats()
+                
+            imgui.same_line()
+            
+            # Skill bonus display
+            bonus = skill_data["value"]
+            bonus_text = self.format_modifier(bonus)
+            ability = skill_data["ability"]
+            imgui.text(f"{bonus_text} {skill_name} ({ability})")
+            
+        imgui.separator()
+        
+    def render_combat_stats(self):
+        """Render combat statistics"""
+        imgui.text("COMBAT")
+        imgui.spacing()
+        
+        # First row: AC, Initiative, Speed
+        imgui.text("Armor Class")
+        imgui.same_line(120)
+        imgui.text("Initiative")
+        imgui.same_line(240)
+        imgui.text("Speed")
+        
+        imgui.set_next_item_width(80)
+        changed, new_ac = imgui.input_int("##ac", self.armor_class)
+        if changed:
+            self.armor_class = max(0, new_ac)
+            
+        imgui.same_line(120)
+        initiative_text = self.format_modifier(self.initiative)
+        imgui.text(initiative_text)
+        
+        imgui.same_line(240)
+        imgui.set_next_item_width(80)
+        changed, new_speed = imgui.input_int("##speed", self.speed)
+        if changed:
+            self.speed = max(0, new_speed)
+            
+        imgui.spacing()
+        
+        # Hit Points section
+        imgui.text("Hit Point Maximum")
+        imgui.same_line(180)
+        imgui.text("Current Hit Points")
+        imgui.same_line(360)
+        imgui.text("Temporary Hit Points")
+        
+        imgui.set_next_item_width(80)
+        changed, new_max_hp = imgui.input_int("##max_hp", self.hit_point_maximum)
+        if changed:
+            self.hit_point_maximum = max(1, new_max_hp)
+            
+        imgui.same_line(180)
+        imgui.set_next_item_width(80)
+        changed, new_curr_hp = imgui.input_int("##curr_hp", self.current_hit_points)
+        if changed:
+            self.current_hit_points = max(0, min(self.hit_point_maximum, new_curr_hp))
+            
+        imgui.same_line(360)
+        imgui.set_next_item_width(80)
+        changed, new_temp_hp = imgui.input_int("##temp_hp", self.temporary_hit_points)
+        if changed:
+            self.temporary_hit_points = max(0, new_temp_hp)
+            
+        imgui.spacing()
+        
+        # Hit Dice and Death Saves
+        imgui.text("Hit Dice")
+        imgui.same_line(150)
+        imgui.text("Death Saves")
+        
+        imgui.set_next_item_width(100)
+        changed, new_hit_dice = imgui.input_text("##hit_dice", self.hit_dice)
+        if changed:
+            self.hit_dice = new_hit_dice
+            
+        imgui.same_line(150)
+        imgui.text("Successes:")
+        for i in range(3):
+            imgui.same_line()
+            changed, new_success = imgui.checkbox(f"##death_success_{i}", self.death_save_successes[i])
+            if changed:
+                self.death_save_successes[i] = new_success
+                
+        imgui.same_line(150)
+        imgui.text("Failures:")
+        for i in range(3):
+            imgui.same_line()
+            changed, new_failure = imgui.checkbox(f"##death_failure_{i}", self.death_save_failures[i])
+            if changed:
+                self.death_save_failures[i] = new_failure
+                
+        imgui.separator()
+        
+    def render_attacks_equipment(self):
+        """Render attacks and equipment section"""
+        imgui.text("ATTACKS & SPELLCASTING")
+        imgui.set_next_item_width(-1)
+        changed, new_attacks = imgui.input_text_multiline("##attacks", self.attacks_spellcasting, imgui.ImVec2(-1, 100))
+        if changed:
+            self.attacks_spellcasting = new_attacks
+            
+        imgui.spacing()
+        
+        imgui.text("EQUIPMENT")
+        imgui.set_next_item_width(-1)
+        changed, new_equipment = imgui.input_text_multiline("##equipment", self.equipment, imgui.ImVec2(-1, 150))
+        if changed:
+            self.equipment = new_equipment
+            
+        imgui.spacing()
+        
+        imgui.text("OTHER PROFICIENCIES & LANGUAGES")
+        imgui.set_next_item_width(-1)
+        changed, new_prof = imgui.input_text_multiline("##other_prof", self.other_proficiencies_languages, imgui.ImVec2(-1, 80))
+        if changed:
+            self.other_proficiencies_languages = new_prof
+            
+        imgui.separator()
+        
+    def render_features_traits(self):
+        """Render features and traits section"""
+        imgui.text("FEATURES & TRAITS")
+        imgui.set_next_item_width(-1)
+        changed, new_features = imgui.input_text_multiline("##features", self.features_traits, imgui.ImVec2(-1, 200))
+        if changed:
+            self.features_traits = new_features
+            
+        imgui.separator()
+        
+    def render_passive_perception(self):
+        """Render passive perception"""
+        imgui.text(f"Passive Wisdom (Perception): {self.passive_perception}")
+        imgui.separator()    
+    def render(self):
+        """Main render method for the character sheet"""
+        try:
+            self.setup_fantasy_style()
+            
+            # Header section (spans full width)
+            self.render_header_section()
+            
+            # Create main content table with 3 columns
+            if imgui.begin_table("CharacterSheetTable", 3, 
+                                imgui.TableFlags_.resizable.value | 
+                                imgui.TableFlags_.borders_inner_v.value):
+                
+                # Setup columns
+                imgui.table_setup_column("Left", imgui.TableColumnFlags_.width_fixed.value, 300.0)
+                imgui.table_setup_column("Center", imgui.TableColumnFlags_.width_fixed.value, 350.0)
+                imgui.table_setup_column("Right", imgui.TableColumnFlags_.width_stretch.value)
+                
+                imgui.table_next_row()
+                
+                # Left column - Ability Scores, Saving Throws, Skills
+                imgui.table_next_column()
+                if imgui.begin_child("LeftColumn", imgui.ImVec2(0, 0)):
+                    self.render_ability_scores()
+                    self.render_inspiration_proficiency()
+                    self.render_saving_throws()
+                    self.render_skills()
+                    self.render_passive_perception()
+                imgui.end_child()
+                    
+                # Center column - Combat Stats, Attacks & Equipment
+                imgui.table_next_column()
+                if imgui.begin_child("CenterColumn", imgui.ImVec2(0, 0)):
+                    self.render_combat_stats()
+                    self.render_attacks_equipment()
+                imgui.end_child()
+                    
+                # Right column - Features & Traits
+                imgui.table_next_column()
+                if imgui.begin_child("RightColumn", imgui.ImVec2(0, 0)):
+                    self.render_features_traits()
+                imgui.end_child()
+                    
+                imgui.end_table()
+            
+        except Exception as e:
+            imgui.text(f"Character Sheet Error: {str(e)}")
+            imgui.text("Please check the console for details.")
+        
+    def load_character_from_compendium(self, character_data):
+        """Load character from compendium data"""
+        if hasattr(character_data, 'name'):
+            self.character_name = character_data.name
+        if hasattr(character_data, 'character_class'):
+            self.class_level = f"{character_data.character_class} {getattr(character_data, 'level', 1)}"
+        if hasattr(character_data, 'race'):
+            self.race = character_data.race
+        if hasattr(character_data, 'background'):
+            self.background = character_data.background
+        if hasattr(character_data, 'alignment'):
+            self.alignment = character_data.alignment
+            
+        # Load ability scores
+        if hasattr(character_data, 'ability_scores'):
+            for ability, score in character_data.ability_scores.items():
+                if ability.upper() in self.ability_scores:
+                    self.ability_scores[ability.upper()] = score
+                    
+        self.update_derived_stats()
+        
+    def export_character(self):
+        """Export current character sheet data"""
+        return {
+            'name': self.character_name,
+            'class_level': self.class_level,
+            'background': self.background,
+            'player_name': self.player_name,
+            'race': self.race,
+            'alignment': self.alignment,
+            'experience_points': self.experience_points,
+            'ability_scores': self.ability_scores.copy(),
+            'inspiration': self.inspiration,
+            'proficiency_bonus': self.proficiency_bonus,
+            'saving_throws': self.saving_throws.copy(),
+            'skills': self.skills.copy(),
+            'combat_stats': {
+                'armor_class': self.armor_class,
+                'initiative': self.initiative,
+                'speed': self.speed,
+                'hit_point_maximum': self.hit_point_maximum,
+                'current_hit_points': self.current_hit_points,
+                'temporary_hit_points': self.temporary_hit_points,
+                'hit_dice': self.hit_dice
+            },
+            'death_saves': {
+                'successes': self.death_save_successes.copy(),
+                'failures': self.death_save_failures.copy()
+            },
+            'attacks_spellcasting': self.attacks_spellcasting,
+            'equipment': self.equipment,
+            'other_proficiencies_languages': self.other_proficiencies_languages,
+            'features_traits': self.features_traits,
+            'passive_perception': self.passive_perception
+        }

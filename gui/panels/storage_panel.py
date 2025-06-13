@@ -9,11 +9,8 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Optional, List, Dict, Any
+from imgui_bundle import imgui
 
-try:
-    from imgui_bundle import imgui
-except ImportError:
-    import imgui
 
 # Import storage system components
 from storage import get_storage_manager
@@ -31,7 +28,7 @@ class StoragePanel:
         
         # Initialize storage system components        self.storage_manager = get_storage_manager()
         self.r2_manager = R2AssetManager()
-        
+        self.R2_ENABLED = settings.R2_ENABLED
         # Panel state
         self.show_storage_window = False
         self.show_config_window = False
@@ -58,7 +55,7 @@ class StoragePanel:
         # Simple storage interface within the tab
         if imgui.button("Open Storage Manager"):
             self.show_storage_window = True
-          imgui.same_line()
+        imgui.same_line()
         if imgui.button("Open Folder"):
             self._open_file_browser()
         
@@ -68,7 +65,7 @@ class StoragePanel:
         
         imgui.separator()
         imgui.text("Storage System")
-        imgui.text(f"Root: {self.config_manager.config.root_storage_path}")
+        imgui.text(f"Root: {settings.DEFAULT_STORAGE_PATH}")
         
         # Quick stats (cached - only update every few seconds)
         if not hasattr(self, '_storage_stats_cache') or \
@@ -175,26 +172,24 @@ class StoragePanel:
             expanded, self.show_config_window = imgui.begin("Storage Settings", self.show_config_window)
             
             if expanded:
-                if self.config_cache is None:
-                    self.config_cache = self.config_manager.config.to_dict()
                 
                 # Storage paths
                 imgui.text("Storage Configuration")
                 imgui.separator()
                 
                 # Root path (read-only for now)
-                root_path = self.config_cache.get('root_storage_path', '')
+                root_path = settings.DEFAULT_STORAGE_PATH
                 imgui.text(f"Root Storage Path: {root_path}")
                 
                 imgui.spacing()
                 
                 # R2 Configuration (simplified)
-                changed, enabled = imgui.checkbox("Enable R2 Cloud Storage", self.config_cache.get('r2_enabled', False))
+                changed, enabled = imgui.checkbox("Enable R2 Cloud Storage", self.R2_ENABLED)
                 if changed:
-                    self.config_cache['r2_enabled'] = enabled
-                    self.config_modified = True
-                
-                if self.config_cache.get('r2_enabled', False):
+                    self.R2_ENABLED = enabled
+                    
+
+                if self.R2_ENABLED:
                     imgui.text("R2 settings would go here...")
                 
                 imgui.spacing()
@@ -304,7 +299,7 @@ class StoragePanel:
         except Exception as e:
             logger.error(f"Failed to refresh file list: {e}")
             self.file_list = []
-      def _open_file_browser(self):
+    def _open_file_browser(self):
         """Open folder in system file manager for drag-drop upload"""
         try:
             folder_path = self.storage_manager.config.get_folder_path(self.current_folder)
@@ -341,18 +336,8 @@ class StoragePanel:
     
     def _save_config(self):
         """Save configuration changes"""
-        try:
-            if self.config_cache and self.config_modified:
-                for key, value in self.config_cache.items():
-                    if hasattr(self.config_manager.config, key):
-                        setattr(self.config_manager.config, key, value)
-                
-                self.config_manager.save_config()
-                self.config_modified = False
-                self.show_config_window = False
-                logger.info("Storage configuration saved")
-        except Exception as e:
-            logger.error(f"Failed to save config: {e}")
+        #TODO: implement
+        pass
     
     def _cleanup_storage(self):
         """Run storage cleanup"""

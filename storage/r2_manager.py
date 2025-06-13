@@ -57,7 +57,7 @@ class R2AssetManager:
                 region_name='auto'  # R2 uses 'auto' region
             )
         return self._s3_client
-      def is_r2_configured(self) -> bool:
+    def is_r2_configured(self) -> bool:
         """Check if R2 is properly configured"""
         if not settings.R2_ENABLED:
             return False

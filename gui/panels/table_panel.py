@@ -31,6 +31,23 @@ class TablePanel:
         self.show_save_dialog = False
         self.show_load_dialog = False
         self.save_filename = "table_session"
+          # Global Style System
+        self.current_style = "Default"
+        self.available_styles = [
+            "Default",
+            "Fantasy Parchment", 
+            "Dark Theme",
+            "High Contrast",
+            "Blue Steel",
+            "Forest Green",
+            "Royal Purple",
+            "Cyberpunk",
+            "Minimal Clean"
+        ]
+        self.current_style_index = 0  # Index for combo widget
+        
+        # Style application state
+        self._last_applied_style = None
           # Performance optimization: Cache frequently accessed values
         self._cached_table_info = None
         self._cached_table = None
@@ -42,6 +59,10 @@ class TablePanel:
     def render(self):
         """Render the table panel content with clean layout"""
         try:
+            # === ROW 0: Global Style Selector ===
+            self._render_style_selector()
+            imgui.separator()
+            
             # === ROW 1: Current Table Status ===
             self._render_table_status()
             
@@ -64,6 +85,18 @@ class TablePanel:
             logger.error(f"Error rendering table panel: {e}")            
             imgui.text_colored((1.0, 0.2, 0.2, 1.0), f"Table Panel Error: {str(e)}")
     
+    def _render_style_selector(self):
+        """Render global style selector"""
+        imgui.text("Style:")
+        imgui.same_line()
+        
+        # Style combo box
+        changed, new_style_index = imgui.combo("##style_selector", self.current_style_index, self.available_styles)
+        if changed:
+            self.current_style_index = new_style_index
+            self.current_style = self.available_styles[new_style_index]
+            self._apply_style(self.current_style)
+
     def _render_table_status(self):
         """Render current table status and sync indicator - OPTIMIZED"""
         current_table = self.context.current_table
@@ -628,10 +661,89 @@ class TablePanel:
                     self.context.add_chat_message("Entities cleared")
             else:
                 logger.info("Clear table functionality not available")
-                if hasattr(self.context, 'add_chat_message'):
-                    self.context.add_chat_message("Clear table not available")
+                if hasattr(self.context, 'add_chat_message'):                    self.context.add_chat_message("Clear table not available")
                     
         except Exception as e:
             logger.error(f"Failed to clear table: {e}")
             if hasattr(self.context, 'add_chat_message'):
                 self.context.add_chat_message("Failed to clear table")
+                
+    def _apply_style(self, style_name):
+        """Apply the selected global style theme to ImGui with comprehensive color coverage"""
+        try:
+            style = imgui.get_style()
+            
+            if style_name == "Default":
+                # Use ImGui's default dark theme
+                imgui.style_colors_dark()
+                
+            elif style_name == "Fantasy Parchment":
+                # Fantasy parchment theme - comprehensive styling
+                self._apply_fantasy_parchment_colors(style)
+                
+            elif style_name == "Dark Theme":
+                # Enhanced dark theme
+                imgui.style_colors_dark()
+                style.frame_rounding = 4.0
+                style.window_rounding = 8.0
+                style.child_rounding = 4.0
+                style.frame_padding = imgui.ImVec2(8, 4)
+                
+            elif style_name == "High Contrast":
+                # High contrast theme for accessibility - comprehensive colors
+                self._apply_high_contrast_colors(style)
+                
+            elif style_name == "Blue Steel":
+                # Blue steel theme - comprehensive
+                self._apply_blue_steel_colors(style)
+                
+            elif style_name == "Forest Green":
+                # Forest green theme - comprehensive
+                self._apply_forest_green_colors(style)
+                
+            elif style_name == "Royal Purple":
+                # Royal purple theme - comprehensive
+                self._apply_royal_purple_colors(style)
+                
+            elif style_name == "Cyberpunk":
+                # Cyberpunk neon theme - comprehensive
+                self._apply_cyberpunk_colors(style)
+                
+            elif style_name == "Minimal Clean":
+                # Minimal clean light theme - comprehensive
+                self._apply_minimal_clean_colors(style)
+                
+            # Cache the applied style to avoid redundant applications
+            self._last_applied_style = style_name
+            
+            logger.info(f"Applied comprehensive style: {style_name}")
+            
+        except Exception as e:
+            logger.error(f"Failed to apply style '{style_name}': {e}")
+    def _apply_fantasy_parchment_style(self):
+        """Apply the fantasy parchment theme"""
+        style = imgui.get_style()
+        
+        # Parchment colors
+        parchment_bg = imgui.ImVec4(0.96, 0.92, 0.86, 1.00)  # Light parchment
+        parchment_frame = imgui.ImVec4(0.98, 0.94, 0.82, 1.00)  # Slightly lighter
+        text_color = imgui.ImVec4(0.35, 0.27, 0.13, 1.00)  # Dark brown
+        border_color = imgui.ImVec4(0.63, 0.47, 0.31, 1.00)  # Medium brown
+        
+        # Apply colors using set_color_
+        style.set_color_(imgui.Col_.window_bg.value, parchment_bg)
+        style.set_color_(imgui.Col_.child_bg.value, parchment_frame)
+        style.set_color_(imgui.Col_.frame_bg.value, parchment_frame)
+        style.set_color_(imgui.Col_.frame_bg_hovered.value, imgui.ImVec4(0.94, 0.90, 0.78, 1.00))
+        style.set_color_(imgui.Col_.frame_bg_active.value, imgui.ImVec4(0.92, 0.88, 0.76, 1.00))
+        style.set_color_(imgui.Col_.text.value, text_color)
+        style.set_color_(imgui.Col_.border.value, border_color)
+        style.set_color_(imgui.Col_.separator.value, border_color)
+        
+        # Styling
+        style.frame_rounding = 5.0
+        style.window_rounding = 10.0
+        style.child_rounding = 8.0
+        style.frame_padding = imgui.ImVec2(12, 8)
+        style.item_spacing = imgui.ImVec2(12, 8)
+        style.window_padding = imgui.ImVec2(20, 20)

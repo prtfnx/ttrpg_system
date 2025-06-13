@@ -78,11 +78,12 @@ class SimplifiedGui:
         self.panels: Dict[GuiPanel, PanelState] = {
             panel: PanelState() for panel in GuiPanel
         }        # Layout constants - using ImGui's native resizing
-        self.sidebar_width = 250.0
+        self.left_sidebar_width = 200.0   # Smaller for tools
+        self.right_sidebar_width = 350.0  # Larger for character sheet
         self.top_height = 140.0  # Increased for TablePanel content
         self.bottom_height = 200.0
         self.panel_spacing = 5
-        self.menu_height = 0  # No menu bar anymore        # Active panel tracking
+        self.menu_height = 0  # No menu bar anymore# Active panel tracking
         self.active_left_panel = GuiPanel.TOOLS
         self.active_right_panel = GuiPanel.CHARACTER_SHEET
         self.active_top_panel = GuiPanel.TABLE
@@ -102,12 +103,18 @@ class SimplifiedGui:
         
         # Initialize state
         self.fps = 0.0
-        
-        # Initialize ImGui
+          # Initialize ImGui
         try:
             # Create ImGui context
             imgui.create_context()
             self.io = imgui.get_io()
+              # Enable multi-viewports (allows windows to be moved outside main window)
+            self.io.config_flags |= imgui.ConfigFlags_.viewports_enable.value
+            self.io.config_flags |= imgui.ConfigFlags_.docking_enable.value
+            
+            # Log viewport support status
+            logger.info(f"ImGui viewports enabled: {bool(self.io.config_flags & imgui.ConfigFlags_.viewports_enable.value)}")
+            logger.info(f"ImGui docking enabled: {bool(self.io.config_flags & imgui.ConfigFlags_.docking_enable.value)}")
             
             # Load fonts
             self._load_fonts()
@@ -132,15 +139,15 @@ class SimplifiedGui:
         """Update window dimensions for layout calculations"""
         self.window_width = width
         self.window_height = height
-        
-        # Update layout manager with current panel sizes
+          # Update layout manager with current panel sizes
         self._update_layout_manager()
+    
     def _update_layout_manager(self):
         """Update the layout manager with current panel dimensions for dynamic viewport"""
         if hasattr(self.context, 'layout_manager'):
             # Get current panel sizes (only if panels are visible)
-            left_width = self.sidebar_width if self.panels[self.active_left_panel].visible else 0
-            right_width = self.sidebar_width if self.panels[self.active_right_panel].visible else 0
+            left_width = self.left_sidebar_width if self.panels[self.active_left_panel].visible else 0
+            right_width = self.right_sidebar_width if self.panels[self.active_right_panel].visible else 0
             top_height = self.top_height if self.panels[self.active_top_panel].visible else 0
             bottom_height = self.bottom_height if self.panels[self.active_bottom_panel].visible else 0
             
@@ -149,7 +156,8 @@ class SimplifiedGui:
                 self.window_width, self.window_height,
                 left_width, right_width, top_height, bottom_height, 
                 self.menu_height
-            )            
+            )
+            
             logger.debug(f"Layout manager calculated table area: {table_area}")
             logger.debug(f"Panel sizes - Left: {left_width}, Right: {right_width}, Top: {top_height}, Bottom: {bottom_height}")
 
@@ -159,15 +167,25 @@ class SimplifiedGui:
             # Update window size
             display_size = imgui.get_io().display_size
             self.window_width, self.window_height = display_size.x, display_size.y
-              # No menu bar - just render the layout directly
+            
+            # No menu bar - just render the layout directly
             # Render the 4-sided layout
             self._render_layout()
             
             # Update layout manager
             self._update_layout_manager()
             
+            # Render external windows AFTER all panels (so they appear on top)
+            self._render_external_windows()
+            
         except Exception as e:
             logger.error(f"GUI render error: {e}")
+    
+    def _render_external_windows(self):
+        """Render all external windows from panels"""
+        # Render character sheet fullscreen window if it exists
+        if hasattr(self.panel_instances[GuiPanel.CHARACTER_SHEET], 'render_external_window'):
+            self.panel_instances[GuiPanel.CHARACTER_SHEET].render_external_window()
     
     def _render_layout(self):
         """Render the 4-sided fixed layout with resizable panels"""
@@ -197,7 +215,7 @@ class SimplifiedGui:
     def _render_left_sidebar(self, content_y, content_height):
         """Render left sidebar with tools - resizable width"""
         imgui.set_next_window_pos((0, content_y))
-        imgui.set_next_window_size((self.sidebar_width, content_height))
+        imgui.set_next_window_size((self.left_sidebar_width, content_height))
         
         window_flags = (
             imgui.WindowFlags_.no_move.value |
@@ -208,10 +226,10 @@ class SimplifiedGui:
         if imgui.begin("Left Panel", None, window_flags):
             # Check if window was resized
             current_width = imgui.get_window_width()
-            if abs(current_width - self.sidebar_width) > 1.0:
-                old_width = self.sidebar_width
-                self.sidebar_width = max(150.0, min(400.0, current_width))
-                if abs(old_width - self.sidebar_width) > 1.0:
+            if abs(current_width - self.left_sidebar_width) > 1.0:
+                old_width = self.left_sidebar_width
+                self.left_sidebar_width = max(150.0, min(300.0, current_width))  # Smaller max for tools
+                if abs(old_width - self.left_sidebar_width) > 1.0:
                     self._update_layout_manager()
             
             # Split left panel: Tools on top, Layers on bottom
@@ -232,12 +250,12 @@ class SimplifiedGui:
                 imgui.end_child()
         
         imgui.end()
-        
+    
     def _render_right_sidebar(self, content_y, content_height):
         """Render right sidebar with tabs - resizable width"""
-        x_pos = self.window_width - self.sidebar_width
+        x_pos = self.window_width - self.right_sidebar_width
         imgui.set_next_window_pos((x_pos, content_y))
-        imgui.set_next_window_size((self.sidebar_width, content_height))
+        imgui.set_next_window_size((self.right_sidebar_width, content_height))
         
         # Allow horizontal resizing from the left edge
         window_flags = (
@@ -245,16 +263,19 @@ class SimplifiedGui:
             imgui.WindowFlags_.no_collapse.value |
             imgui.WindowFlags_.no_title_bar.value
         )
-          # Create resizable window
+        
+        # Create resizable window
         if imgui.begin("Right Panel", None, window_flags):
             # Check if window was resized
             current_width = imgui.get_window_width()
-            if abs(current_width - self.sidebar_width) > 1.0:
-                old_width = self.sidebar_width
-                self.sidebar_width = max(150.0, min(400.0, current_width))
+            if abs(current_width - self.right_sidebar_width) > 1.0:
+                old_width = self.right_sidebar_width
+                self.right_sidebar_width = max(250.0, min(600.0, current_width))  # Larger for character sheet
                 # Update layout manager when sidebar is resized
-                if abs(old_width - self.sidebar_width) > 1.0:
-                    self._update_layout_manager()            # Panel tabs
+                if abs(old_width - self.right_sidebar_width) > 1.0:
+                    self._update_layout_manager()
+            
+            # Panel tabs
             if imgui.begin_tab_bar("RightTabs"):
                 for panel_type in [GuiPanel.CHAT, GuiPanel.ENTITIES, GuiPanel.DEBUG, 
                                  GuiPanel.NETWORK, GuiPanel.COMPENDIUM, GuiPanel.STORAGE,
@@ -268,12 +289,12 @@ class SimplifiedGui:
                 imgui.end_tab_bar()
         
         imgui.end()
-
+    
     def _render_top_panel(self):
         """Render top panel - resizable height"""
         # Calculate position and size based on visible sidebars
-        left_offset = self.sidebar_width if self.panels[self.active_left_panel].visible else 0
-        right_offset = self.sidebar_width if self.panels[self.active_right_panel].visible else 0
+        left_offset = self.left_sidebar_width if self.panels[self.active_left_panel].visible else 0
+        right_offset = self.right_sidebar_width if self.panels[self.active_right_panel].visible else 0
         panel_width = self.window_width - left_offset - right_offset
         
         imgui.set_next_window_pos((left_offset, self.menu_height))
@@ -303,10 +324,9 @@ class SimplifiedGui:
         imgui.end()
 
     def _render_bottom_panel(self):
-        """Render bottom panel - resizable height"""
-        # Calculate position and size based on visible sidebars
-        left_offset = self.sidebar_width if self.panels[self.active_left_panel].visible else 0
-        right_offset = self.sidebar_width if self.panels[self.active_right_panel].visible else 0
+        """Render bottom panel - resizable height"""        # Calculate position and size based on visible sidebars
+        left_offset = self.left_sidebar_width if self.panels[self.active_left_panel].visible else 0
+        right_offset = self.right_sidebar_width if self.panels[self.active_right_panel].visible else 0
         panel_width = self.window_width - left_offset - right_offset
         bottom_y = self.window_height - self.bottom_height
         
@@ -447,8 +467,7 @@ class SimplifiedGui:
             
             # Update FPS
             self.fps = self.io.framerate
-            
-            # Render - this must be called before render()
+              # Render - this must be called before render()
             imgui.render()
             
             # Enable blending
@@ -457,6 +476,11 @@ class SimplifiedGui:
             
             # Render ImGui
             self.impl.render(imgui.get_draw_data())
+            
+            # Update and render additional viewports (for external windows)
+            if self.io.config_flags & imgui.ConfigFlags_.viewports_enable.value:
+                imgui.update_platform_windows()
+                imgui.render_platform_windows_default()
             
             # End frame - this ensures proper frame lifecycle
             imgui.end_frame()

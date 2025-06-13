@@ -9,6 +9,7 @@ from .compendium_panel import CompendiumPanel
 from .network_panel import NetworkPanel
 from .layer_panel import LayerPanel
 from .storage_panel import StoragePanel
+from .character_sheet_panel import CharacterSheetPanel
 
 __all__ = [
     'ToolsPanel',
@@ -19,5 +20,6 @@ __all__ = [
     'CompendiumPanel',
     'NetworkPanel',
     'LayerPanel',
-    'StoragePanel'
+    'StoragePanel',
+    'CharacterSheetPanel'
 ]

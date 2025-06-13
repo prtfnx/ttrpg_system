@@ -27,7 +27,8 @@ from .panels import (
     NetworkPanel,
     CompendiumPanel,
     LayerPanel,
-    StoragePanel
+    StoragePanel,
+    CharacterSheetPanel
 )
 
 # Import GUI actions bridge
@@ -47,6 +48,7 @@ class GuiPanel(Enum):
     TABLE = "table"
     LAYERS = "layers"
     STORAGE = "storage"
+    CHARACTER_SHEET = "character_sheet"
 
 
 @dataclass
@@ -82,7 +84,7 @@ class SimplifiedGui:
         self.panel_spacing = 5
         self.menu_height = 0  # No menu bar anymore        # Active panel tracking
         self.active_left_panel = GuiPanel.TOOLS
-        self.active_right_panel = GuiPanel.ENTITIES
+        self.active_right_panel = GuiPanel.CHARACTER_SHEET
         self.active_top_panel = GuiPanel.TABLE
         self.active_bottom_panel = GuiPanel.CHAT# Initialize panel instances with actions bridge
         self.panel_instances = {
@@ -95,6 +97,7 @@ class SimplifiedGui:
             GuiPanel.COMPENDIUM: CompendiumPanel(context, self.actions_bridge),
             GuiPanel.LAYERS: LayerPanel(context, self.actions_bridge),
             GuiPanel.STORAGE: StoragePanel(context, self.actions_bridge),
+            GuiPanel.CHARACTER_SHEET: CharacterSheetPanel(context, self.actions_bridge),
         }
         
         # Initialize state
@@ -254,8 +257,9 @@ class SimplifiedGui:
                     self._update_layout_manager()            # Panel tabs
             if imgui.begin_tab_bar("RightTabs"):
                 for panel_type in [GuiPanel.CHAT, GuiPanel.ENTITIES, GuiPanel.DEBUG, 
-                                 GuiPanel.NETWORK, GuiPanel.COMPENDIUM, GuiPanel.STORAGE]:
-                    panel_name = panel_type.value.title()
+                                 GuiPanel.NETWORK, GuiPanel.COMPENDIUM, GuiPanel.STORAGE,
+                                 GuiPanel.CHARACTER_SHEET]:
+                    panel_name = panel_type.value.replace('_', ' ').title()
                     if imgui.begin_tab_item(panel_name)[0]:
                         if panel_type in self.panel_instances:
                             self.panel_instances[panel_type].render()

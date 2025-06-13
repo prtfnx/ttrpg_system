@@ -7,6 +7,8 @@ from .table_panel import TablePanel
 from .debug_panel import DebugPanel
 from .compendium_panel import CompendiumPanel
 from .network_panel import NetworkPanel
+from .layer_panel import LayerPanel
+from .storage_panel import StoragePanel
 
 __all__ = [
     'ToolsPanel',
@@ -15,5 +17,7 @@ __all__ = [
     'TablePanel',
     'DebugPanel',
     'CompendiumPanel',
-    'NetworkPanel'
+    'NetworkPanel',
+    'LayerPanel',
+    'StoragePanel'
 ]

@@ -10,10 +10,10 @@
     - [x] Layer managment
     - [ ] Tools like measure, paint
     - [ ] Create monsters from compendium
-3. [ ] All settings move to menu with redacting
+3. [ x] All settings move to menu with redacting
 4. [x] Server operations
 5. [ ] Maybe switch gui lib??????
-6. [ ] Connection status indication with all players
+6. [ x] Connection status indication with all players
 
 ### SDL app
 1. [ ] Rotation for sprites
@@ -21,8 +21,8 @@
 3. [x] Develop and implement working space with table. Only table is implemented now
 4. [x] Scale options refactor
 5. [ ] Layer render system
-6. [ ] Test for NET connection lost, bad internet and implement logic in client_sdl for it
-7. [ ] Implement file storage with adequate functional
+6. [x] Test for NET connection lost, bad internet and implement logic in client_sdl for it
+7. [ x] Implement file storage with adequate functional
 8. [ ] Basic manual fog of war
 9. [ ] Audio and video(?) support
 
@@ -53,7 +53,7 @@
 1. [ ] Realtime context reading, like walls for movement, measure distance, render possible movement, select target, possible attack
 2. [ ] Animations maybe?
 3. [x] ~~Light system with fog of war dynamical for each character. And point of view light. Light for maps.~~
-4. [ ] Layer with hight to implement point of view for attacks, for hiding and etc
+4. [x] Layer with hight to implement point of view for attacks, for hiding and etc
 5. [ ] 3d regime?????
 
 ### Virtual Table

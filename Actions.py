@@ -316,8 +316,8 @@ class Actions(ActionsProtocol):
                 return ActionResult(False, f"Sprite {sprite_id} not found")
             
             old_scale = (sprite.scale_x, sprite.scale_y)
-            sprite.scale_x = int(scale_x)
-            sprite.scale_y = int(scale_y)
+            sprite.scale_x = scale_x
+            sprite.scale_y = scale_y
             
             action = {
                 'type': 'scale_sprite',

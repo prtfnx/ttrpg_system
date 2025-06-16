@@ -5,7 +5,8 @@ import os
 import json
 import tempfile
 import time
-
+import uuid
+from core_table.actions_protocol import Position
 logger = logging.getLogger(__name__)
 
 # Global variable to store copied sprite data
@@ -68,10 +69,10 @@ def handle_clipboard_copy(context):
         # Store sprite data for internal copying
         global _copied_sprite_data
         _copied_sprite_data = {
-            'texture_path': selected_sprite.texture_path.decode() if hasattr(selected_sprite, 'texture_path') else None,
+            'texture_path': selected_sprite.texture_path.decode() if hasattr(selected_sprite, 'texture_path') and isinstance(selected_sprite.texture_path, bytes) else str(selected_sprite.texture_path) if hasattr(selected_sprite, 'texture_path') else None,
             'scale_x': selected_sprite.scale_x,
             'scale_y': selected_sprite.scale_y,
-            'layer': getattr(selected_sprite, 'layer', 'tokens'),
+            'layer': getattr(selected_sprite, 'layer', 'tokens'),  # Ensure layer is preserved
             'character': getattr(selected_sprite, 'character', None),
             'moving': getattr(selected_sprite, 'moving', False),
             'speed': getattr(selected_sprite, 'speed', None),
@@ -79,8 +80,8 @@ def handle_clipboard_copy(context):
             'coord_x': selected_sprite.coord_x.value if hasattr(selected_sprite, 'coord_x') else 0,
             'coord_y': selected_sprite.coord_y.value if hasattr(selected_sprite, 'coord_y') else 0,
         }
-        
-        logger.info(f"Copied sprite: {_copied_sprite_data['texture_path']}")
+        logger.info(f"Copied sprite: {_copied_sprite_data} from sprite: {selected_sprite} at layer {selected_sprite.layer}")
+        logger.info(f"Copied sprite: {_copied_sprite_data['texture_path']} from layer: {_copied_sprite_data['layer']}")
         
         # Also copy to system clipboard as JSON (optional) - but exclude non-serializable objects
         try:
@@ -119,34 +120,65 @@ def paste_copied_sprite(context):
         if not context or not context.current_table:
             logger.warning("No current table to paste sprite to")
             return False
-            
-        # Create new sprite from copied data
-        new_sprite = context.add_sprite(
-            texture_path=_copied_sprite_data['texture_path'].encode(),
-            scale_x=_copied_sprite_data['scale_x'],
-            scale_y=_copied_sprite_data['scale_y'],
-            layer=_copied_sprite_data['layer'],
-            character=_copied_sprite_data['character'],
-            moving=_copied_sprite_data['moving'],
-            speed=_copied_sprite_data['speed'],
-            collidable=_copied_sprite_data['collidable']
-        )
         
-        if not new_sprite:
-            logger.error("Failed to create pasted sprite")
-            return False
-            
-        # Position sprite offset from original position
+        # Generate a unique sprite ID for the pasted sprite
+        
+        new_sprite_id = str(uuid.uuid4())
+        
+        # Calculate offset position
         offset_x = 50  # Offset so it doesn't overlap exactly
         offset_y = 50
         new_x = _copied_sprite_data['coord_x'] + offset_x
         new_y = _copied_sprite_data['coord_y'] + offset_y
+          # Use Actions protocol for consistency with the rest of the system
+        if hasattr(context, 'actions') and context.actions:
+            
+            table_id = context.current_table.table_id if hasattr(context.current_table, 'table_id') else context.current_table.name
+            position = Position(new_x, new_y)
+            
+            logger.info(f"Attempting to paste sprite to layer: {_copied_sprite_data['layer']}")
+            
+            result = context.actions.create_sprite(
+                table_id=table_id,
+                sprite_id=new_sprite_id,
+                position=position,
+                image_path=_copied_sprite_data['texture_path'],
+                layer=_copied_sprite_data['layer']  
+            )
+            
+            if result.success:
+                logger.info(f"Sprite created successfully via Actions on layer: {_copied_sprite_data['layer']}")
+                
+                # Scale the sprite to match the original
+                context.actions.scale_sprite(
+                    table_id=table_id,
+                    sprite_id=new_sprite_id,
+                    scale_x=_copied_sprite_data['scale_x'],
+                    scale_y=_copied_sprite_data['scale_y']
+                )
+                
+                # Find and select the new sprite
+                new_sprite = context.find_sprite_by_id(new_sprite_id)
+                if new_sprite:
+                    context.current_table.selected_sprite = new_sprite
+                    logger.info(f"New sprite layer confirmed: {getattr(new_sprite, 'layer', 'UNKNOWN')}")
+                
+                logger.info(f"Successfully pasted sprite at ({new_x}, {new_y}) on layer {_copied_sprite_data['layer']}")
+                return True
+            else:
+                logger.error(f"Failed to paste sprite using Actions: {result.message}")
+                # Fall back to old method
+          # Fallback to old context.add_sprite method    
         
-        new_sprite.set_position(new_x, new_y)
+
+        
+        # Verify the layer was set correctly
+        actual_layer = getattr(new_sprite, 'layer', 'UNKNOWN')
+        logger.info(f"Sprite created with layer: {actual_layer} (expected: {_copied_sprite_data['layer']})")
         
         # Select the new sprite
         context.current_table.selected_sprite = new_sprite
-        logger.info(f"Successfully pasted sprite at ({new_x}, {new_y})")
+        logger.info(f"Successfully pasted sprite at ({new_x}, {new_y}) on layer {_copied_sprite_data['layer']}")
         return True
         
     except Exception as e:

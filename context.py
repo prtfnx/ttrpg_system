@@ -113,7 +113,8 @@ class Context:
                 collidable=collidable,
                 coord_x=coord_x,
                 coord_y=coord_y,
-                sprite_id=sprite_id
+                sprite_id=sprite_id,
+                layer=layer
             )
 
             # Check if sprite creation was successful
@@ -432,7 +433,7 @@ class ContextTable:
         self.name = table_name  # Legacy compatibility
         self.width = width
         self.height = height
-        self.layers = ['map','tokens', 'dungeon_master', 'light', 'height']
+        self.layers = ['map','tokens', 'dungeon_master', 'light', 'height', 'obstacles']
         self.dict_of_sprites_list = {layer: [] for layer in self.layers}
         self.selected_sprite: sprite.Sprite | None = None
         self.scale= scale

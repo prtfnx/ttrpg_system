@@ -106,9 +106,7 @@ class GeometricManager:
             numpy array of shape (N*4, 2, 2) representing line segments
             Each sprite contributes 4 line segments (rectangle edges)
            
-        """
-
-        # Pre-filter and extract sprite data in one pass
+        """        # Pre-filter and extract sprite data in one pass
         valid_sprites = []
         for sprite in sprite_list:
             x, y, w, h = float(sprite.frect.x), float(sprite.frect.y), float(sprite.frect.w), float(sprite.frect.h)
@@ -118,7 +116,20 @@ class GeometricManager:
                 continue                    
             valid_sprites.append([x, y, w, h])              
         
-        sprite_rects = np.array(valid_sprites, dtype=np.float64)  # Shape: (N, 4) [x, y, w, h]
+        # Handle empty case
+        if not valid_sprites:
+            logger.debug("No valid sprites found, returning empty obstacles array")
+            return np.empty((0, 2, 2), dtype=np.float64)
+        
+        # Ensure 2D array shape even with single sprite
+        sprite_rects = np.array(valid_sprites, dtype=np.float64)
+        if sprite_rects.ndim == 1:
+            sprite_rects = sprite_rects.reshape(1, -1)  # Reshape to (1, 4) for single sprite
+        
+        # Ensure we have the expected 2D shape (N, 4)
+        if sprite_rects.shape[1] != 4:
+            logger.error(f"Unexpected sprite_rects shape: {sprite_rects.shape}, expected (N, 4)")
+            return np.empty((0, 2, 2), dtype=np.float64)
         
         # Vectorized calculation of all corners
         x, y, w, h = sprite_rects[:, 0], sprite_rects[:, 1], sprite_rects[:, 2], sprite_rects[:, 3]
@@ -219,7 +230,7 @@ class GeometricManager:
         return vertices
 
     @staticmethod
-    @profile_function
+    #@profile_function
     def generate_visibility_polygon(player_pos: np.ndarray, obstacles: np.ndarray, 
                                   max_view_distance: int = 100,
                                   step_to_gap: int = 1) -> np.ndarray:
@@ -268,9 +279,19 @@ class GeometricManager:
                 ray_angles.extend([angle - epsilon, angle, angle + epsilon])
            
         else:
-            # No obstacles - just add regular rays in all directions
-            additional_angles = np.linspace(0, 2 * np.pi, step_to_gap, endpoint=False)
+            # No obstacles - just add regular rays in all directions            
+            visibility_points = []
+            additional_angles = np.linspace(0, 2 * np.pi, step_to_gap+20, endpoint=False)
             ray_angles.extend(additional_angles)
+            for angle in ray_angles:
+                # Cast rays to max distance in all directions
+                end_point = GeometricManager._cast_ray_to_max_distance(
+                    player_pos, angle, max_view_distance
+                )                
+                visibility_points.append(end_point)
+            visibility_array = np.array(visibility_points)
+            return GeometricManager._sort_points_clockwise(visibility_array, player_pos)
+
         
         # Step 2.4, 2.5, 2.6: Cast rays and find shortest intersections
         visibility_points = []
@@ -297,20 +318,19 @@ class GeometricManager:
                     visibility_points.append(end_point)
                 GeometricManager.angle_gaps = gap_angles_from_mask
             
-
-        if len(visibility_points) == 0:
-            return np.array([]).reshape(0, 2)
+        # for debugging purposes
+        #if len(visibility_points) == 0:
+        #    return np.array([]).reshape(0, 2)
         
         visibility_array = np.array(visibility_points)
         #for test visual
-        
-        GeometricManager.visibility_polygon = visibility_array
-        GeometricManager.ray_angles = ray_angles
+        #GeometricManager.visibility_polygon = visibility_array
+        #GeometricManager.ray_angles = ray_angles
         return GeometricManager._sort_points_clockwise(visibility_array, player_pos)
 
     
     @staticmethod
-    @profile_function
+    #@profile_function
     def _find_arc_gaps_fast(angles_to_endpoints: np.ndarray, step_to_gap: int = 10) -> np.ndarray:
         """
         Simple and fast gap detection using numpy mask operations.
@@ -377,7 +397,7 @@ class GeometricManager:
                 else:
                     #print(f"Angular span is more than pi: {angular_span}")
                     if first_norm_vector < second_norm_vector:
-                        print(f"First norm vector <= second norm vector: {first_norm_vector} <= {second_norm_vector}")
+                        #print(f"First norm vector <= second norm vector: {first_norm_vector} <= {second_norm_vector}")
                         if first_norm_vector < mask_size:
                             if second_norm_vector > 1:
                                 mask[0:first_norm_vector+1] = True
@@ -418,7 +438,7 @@ class GeometricManager:
             
 
     @staticmethod
-    @profile_function
+    #@profile_function
     def _find_arc_gaps_fast_vector(angles_to_endpoints: np.ndarray, step_to_gap: int = 10) -> np.ndarray:
         """
         Simple and fast gap detection using vector operations instead of angle normalization.
@@ -480,7 +500,7 @@ class GeometricManager:
             return cross1 <= 0 or cross2 <= 0
     
     @staticmethod
-    @profile_function
+    #@profile_function
     def _cast_ray_to_max_distance(start: np.ndarray, angle: float, max_distance: int, 
                                     ) -> np.ndarray:
         direction = np.array([np.cos(angle), np.sin(angle)], dtype=np.float64)
@@ -488,7 +508,7 @@ class GeometricManager:
         return ray_end
 
     @staticmethod
-    @profile_function
+    #@profile_function
     def _cast_ray_to_closest_obstacle(start: np.ndarray, angle: float, max_distance: int, 
                                     obstacles: np.ndarray) -> np.ndarray:
         """
@@ -521,7 +541,7 @@ class GeometricManager:
         return intersections[closest_idx]
 
     @staticmethod
-    @profile_function
+    #@profile_function
     def _vectorized_intersections(ray_start: np.ndarray, ray_end: np.ndarray, 
                                 obstacles: np.ndarray) -> np.ndarray:
         """
@@ -573,7 +593,7 @@ class GeometricManager:
         return np.column_stack([x_intersect, y_intersect])
 
     @staticmethod
-    @profile_function
+    #@profile_function
     def _sort_points_clockwise(points: np.ndarray, center: np.ndarray) -> np.ndarray:
         """Sort points clockwise using FAST vectorized numpy operations"""
         if points.shape[0] <= 1:
@@ -589,7 +609,7 @@ class GeometricManager:
         return points[sorted_indices]
 
     @staticmethod
-    @profile_function
+    #@profile_function
     def get_visibility_mask(player_pos: np.ndarray, obstacles: np.ndarray, 
                            grid_shape: Tuple[int, int], 
                            max_view_distance: int = 100) -> np.ndarray:
@@ -784,7 +804,7 @@ class GeometricManager:
         print("FAST Visibility test completed")
 
     @staticmethod
-    @profile_function
+    #@profile_function
     def _render_fast_visibility_test(renderer, player_pos: np.ndarray, obstacles: np.ndarray, 
                                    max_view_distance: float = 200.0, fill_polygon: bool = False,
                                    step_to_gap: int = 1) -> None:
@@ -881,7 +901,7 @@ class GeometricManager:
                             ctypes.c_float(x1), ctypes.c_float(y1),
                             ctypes.c_float(x2), ctypes.c_float(y2))
     @staticmethod
-    @profile_function
+    #@profile_function
     def _render_fps_display(renderer, fps: float, window_width: int, window_height: int):
         """
         Render FPS display as simple geometric shapes (since we don't have text rendering).
@@ -924,7 +944,7 @@ class GeometricManager:
                                   ctypes.c_float(x + width), ctypes.c_float(y + height))
 
     @staticmethod
-    @profile_function
+    #@profile_function
     def _draw_circle_outline(renderer, center: np.ndarray, radius: float, segments: int = 64):
         """
         Draw circle outline using line segments.

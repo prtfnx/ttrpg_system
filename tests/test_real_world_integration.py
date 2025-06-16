@@ -13,7 +13,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import sdl_vertex_converter
-import light_sprites_to_obstacles
+import sprites_to_obstacles
 
 def test_real_world_integration():
     """Test the SDL vertex converter with realistic visibility data"""
@@ -51,7 +51,7 @@ def test_real_world_integration():
     ]
     
     # Convert sprites to obstacles using our optimized function
-    sprite_obstacles = light_sprites_to_obstacles.sprites_to_obstacles_numpy(sprite_data)
+    sprite_obstacles = sprites_to_obstacles.sprites_to_obstacles_numpy(sprite_data)
     
     # Combine obstacles
     all_obstacles = np.vstack([wall_obstacles, sprite_obstacles])

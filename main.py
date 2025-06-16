@@ -184,7 +184,7 @@ def SDL_AppInit_func(args=None):
     test_context.add_sprite(b"resources/woman.png", scale_x=0.5, scale_y=0.5, character=test_character)
     test_context.add_sprite(b"resources/token_1.png", scale_x=0.5, scale_y=0.5, collidable=True)
     test_context.add_sprite(b"resources/test.gif", scale_x=0.5, scale_y=0.5)
-    test_context.add_sprite(b"resources/wall1.png", coord_x=300, coord_y=300,scale_x=0.1, scale_y=0.1, collidable=True,layer='light')
+    test_context.add_sprite(b"resources/wall1.png", coord_x=300, coord_y=300,scale_x=0.1, scale_y=0.1, collidable=True,layer='obstacles')
     # Initialize layout_manager
     test_context.layout_manager = LayoutManager()
     test_context.layout_manager.update_layout(window)

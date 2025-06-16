@@ -67,7 +67,7 @@ def move_sprites(cnt, delta_time):
         player = cnt.current_table.selected_sprite
         player_view_distance= 500
         player_pos = np.array([player.frect.x + player.frect.w / 2, player.frect.y + player.frect.h / 2], dtype=np.float64)
-        obstacles = cnt.GeometryManager.sprites_to_obstacles_numpy(cnt.current_table.dict_of_sprites_list['light'])
+        obstacles = cnt.GeometryManager.sprites_to_obstacles_numpy(cnt.current_table.dict_of_sprites_list['obstacles'])
         #print(f"Player Position: {player_pos}")
         #print(f"Obstacles: {obstacles}")                
         visibility_polygon = cnt.GeometryManager.generate_visibility_polygon(
@@ -89,7 +89,7 @@ def move_sprites(cnt, delta_time):
         sdl3.SDL_RenderClear(cnt.renderer)
     cnt.current_table.draw_grid(cnt.renderer, cnt.window, table_area=cnt.layout['table_area'])  
     for layer, sprite_list in cnt.current_table.dict_of_sprites_list.items():
-        if layer == 'light' and cnt.light_on and sprite_list:
+        if layer == 'obstacles' and cnt.light_on and sprite_list:
             render_texture = cnt.LightingManager.render_texture
             render_texture_light = cnt.LightingManager.render_texture_light
                      

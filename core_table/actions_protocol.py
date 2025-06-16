@@ -152,10 +152,11 @@ class ActionsProtocol(ABC):
 # Constants for layers
 LAYERS = {
     'map': 0,
-    'tokens': 1,
+    'tokens': 1,    
     'dungeon_master': 2,
     'light': 3,
-    'height': 4
+    'height': 4,
+    'obstacles': 5
 }
 
 # Constants for action types (for batch operations)

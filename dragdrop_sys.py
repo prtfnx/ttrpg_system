@@ -4,7 +4,6 @@ import logging
 import os
 
 # Import storage system for file handling
-from storage.file_upload import handle_dropped_files
 
 logger = logging.getLogger(__name__)
 

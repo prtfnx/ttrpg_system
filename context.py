@@ -170,12 +170,13 @@ class Context:
         for layer, sprite_list in table.dict_of_sprites_list.items():
             for sprite_obj in sprite_list:
                 if hasattr(sprite_obj, 'sprite_id') and sprite_obj.sprite_id == sprite_id:
+                    logger.debug(f"Found sprite {sprite_id} in layer {layer}")
                     return sprite_obj
                 # Fallback for alternate id attribute
                 if hasattr(sprite_obj, 'id') and sprite_obj.id == sprite_id:
+                    logger.debug(f"Found sprite {sprite_id} (by id attr) in layer {layer}")
                     return sprite_obj
-        
-        logger.warning(f"Sprite with ID '{sprite_id}' not found in table '{table_identifier}'")
+        logger.warning(f"Sprite with ID '{sprite_id}' not found in table '{table.name if table else 'Unknown'}'")
         return None
     
     def remove_sprite(self, sprite_to_remove, table=None):

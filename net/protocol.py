@@ -9,8 +9,9 @@ class MessageType(enum.Enum):
     PING = "ping"
     PONG = "pong"
     ERROR = "error"
-    TEST = "test"  # Add test message type
-    
+    TEST = "test"  
+    SUCCESS = "success"
+
     # Authentication messages
     AUTH_REGISTER = "auth_register"
     AUTH_LOGIN = "auth_login"
@@ -25,6 +26,8 @@ class MessageType(enum.Enum):
     TABLE_RESPONSE = "table_response"
     TABLE_DATA = "table_data"
     TABLE_UPDATE = "table_update"
+    TABLE_SCALE = "table_scale"
+    TABLE_MOVE = "table_move"
     
  
     # Player actions
@@ -45,6 +48,10 @@ class MessageType(enum.Enum):
     SPRITE_DATA = "sprite_data"
     SPRITE_UPDATE = "sprite_update"
     SPRITE_REMOVE = "sprite_remove"
+    SPRITE_CREATE = "sprite_create"
+    SPRITE_MOVE = "sprite_move"
+    SPRITE_SCALE = "sprite_scale"
+    SPRITE_ROTATE = "sprite_rotate"
     
     # File transfer
     FILE_REQUEST = "file_request"

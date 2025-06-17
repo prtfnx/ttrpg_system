@@ -8,14 +8,33 @@ import Actions
 logger = logging.getLogger(__name__)
 
 class ClientProtocol:
-    def __init__(self, context, send_callback: Callable[[Message], None]):
+    def __init__(self, context, send_callback: Callable[[str], None]):
         self.context = context
         self.send = send_callback
         self.client_id = hashlib.md5(f"{time.time()}_{os.getpid()}".encode()).hexdigest()[:8]
         self.last_ping = time.time()
-        self.handlers: Dict[MessageType, ProtocolHandler] = {}
-    
-    def register_handler(self, msg_type: MessageType, handler: ProtocolHandler):
+        self.handlers: Dict[MessageType, Callable[[Message], None]] = {}
+        self.init_handlers()
+
+    def init_handlers(self):
+        """Initialize built-in message handlers"""
+        self.register_handler(MessageType.TABLE_REQUEST, self.handle_request_table)
+        self.register_handler(MessageType.PING, self.handle_ping)
+        self.register_handler(MessageType.PONG, self.handle_pong)
+        self.register_handler(MessageType.SUCCESS, self.handle_success)
+        self.register_handler(MessageType.NEW_TABLE_RESPONSE, self.handle_new_table_response)
+        self.register_handler(MessageType.TABLE_RESPONSE, self.handle_table_response)
+        self.register_handler(MessageType.TABLE_DATA, self.handle_table_data)
+        self.register_handler(MessageType.FILE_DATA, self.file_data)
+        self.register_handler(MessageType.TABLE_UPDATE, self.apply_table_update)
+        self.register_handler(MessageType.SPRITE_UPDATE, self.apply_sprite_update)
+        self.register_handler(MessageType.ERROR, self.error_handler)
+        # Authentication handlers
+        self.register_handler(MessageType.AUTH_TOKEN, self._handle_auth_token)
+        self.register_handler(MessageType.AUTH_STATUS, self._handle_auth_status)
+
+
+    def register_handler(self, msg_type: MessageType, handler: Callable[[Message], None]):
         """Extension point for custom message handlers"""
         self.handlers[msg_type] = handler
     
@@ -26,106 +45,86 @@ class ClientProtocol:
     def request_file(self, filename: str):
         msg = Message(MessageType.FILE_REQUEST, {'filename': filename}, self.client_id)
         self.send(msg.to_json())
-    
+
     def send_update(self, update_type: str, data: Dict[str, Any]):
         msg = Message(MessageType.TABLE_UPDATE, {
             'type': update_type, 
             'data': data
         }, self.client_id)
         self.send(msg.to_json())
-    
+
     def ping(self):
         if time.time() - self.last_ping > 30:  # 30 second intervals
             msg = Message(MessageType.PING, client_id=self.client_id)
             self.send(msg.to_json())
             self.last_ping = time.time()
-      # Authentication methods
-    def auth_register(self, username: str, password: str, email: Optional[str] = None, full_name: Optional[str] = None):
-        """Send authentication registration request via protocol"""
-        msg = Message(MessageType.AUTH_REGISTER, {
-            'username': username,
-            'password': password,
-            'email': email,
-            'full_name': full_name
-        }, self.client_id)
-        self.send(msg.to_json())
     
-    def auth_login(self, username: str, password: str):
-        """Send authentication login request via protocol"""
-        msg = Message(MessageType.AUTH_LOGIN, {
-            'username': username,
-            'password': password
-        }, self.client_id)
-        self.send(msg.to_json())
+
     
-    def auth_logout(self):
-        """Send authentication logout request via protocol"""
-        msg = Message(MessageType.AUTH_LOGOUT, client_id=self.client_id)
-        self.send(msg.to_json())
-    
-    def request_auth_status(self):
-        """Request current authentication status via protocol"""
-        msg = Message(MessageType.AUTH_STATUS, client_id=self.client_id)
-        self.send(msg.to_json())
-    
-    async def handle_message(self, message_str: str):
+    def handle_message(self, message: str):
         try:
-            msg = Message.from_json(message_str)
-            #logger.debug(f"Received message: {msg}")        
-            #Check for custom handlers first
-            if msg.type in self.handlers:
-                response = await self.handlers[msg.type].handle_message(msg)
-                if response:
-                    self.send(response.to_json())
-                return
-            
-            # Built-in handlers
-            if msg.type == MessageType.PONG:
-                logger.debug("Pong received")
-            elif msg.type == MessageType.NEW_TABLE_RESPONSE:
-                if msg.data:
-                    self._create_table(msg.data)
-            elif msg.type == MessageType.TABLE_RESPONSE:
-                if msg.data:
-                    #TODO another logic for table response
-                    self._create_table(msg.data)
-            elif msg.type == MessageType.TABLE_DATA:
-                if msg.data:
-                    self._update_table(msg.data)
-            elif msg.type == MessageType.FILE_DATA:
-                if msg.data:
-                    self._save_file(msg.data)
-            elif msg.type == MessageType.TABLE_UPDATE:
-                if msg.data:
-                    self._apply_update(msg.data)
-            elif msg.type == MessageType.SPRITE_UPDATE:
-                if msg.data:
-                    self._apply_update(msg.data)
-            elif msg.type == MessageType.COMPENDIUM_SPRITE_ADD:
-                    if msg.data:
-                        self._handle_compendium_sprite_add(msg.data)
-            elif msg.type == MessageType.COMPENDIUM_SPRITE_UPDATE:
-                if msg.data:
-                    self._handle_compendium_sprite_update(msg.data)
-            elif msg.type == MessageType.COMPENDIUM_SPRITE_REMOVE:
-                if msg.data:
-                    self._handle_compendium_sprite_remove(msg.data)
-            elif msg.type == MessageType.ERROR:
-                if msg.data:
-                    logger.error(f"Server error: {msg.data}")
-            # Authentication message handlers
-            elif msg.type == MessageType.AUTH_TOKEN:
-                if msg.data:
-                    self._handle_auth_token(msg.data)
-            elif msg.type == MessageType.AUTH_STATUS:
-                if msg.data:
-                    self._handle_auth_status(msg.data)
+            msg = Message.from_json(message)
+            msg_type = msg.type
+            if msg_type in self.handlers:
+                logger.info(f"Handling message of type: {msg_type} with data: {msg.data}")
+                response =  self.handlers[msg.type](msg)
                 
+                if response:
+                    self.send(response)
+                return
+            else:
+                logger.warning(f"No handler registered for message type: {msg_type}")
+                self.send(Message(MessageType.ERROR, {
+                    'error': f"No handler for message type {msg_type}"
+                }, self.client_id).to_json())
+        
         except Exception as e:
-            logger.error(f"Message handling error: {e}")
+            logger.error(f"Error handling message: {e}")
+            self.send(Message(MessageType.ERROR, {
+                'error': f"Message handling error: {str(e)}"
+            }, self.client_id).to_json())
+
+    def handle_new_table_response(self, msg: Message):
+        data= msg.data
+        if not data or 'name' not in data:
+            logger.error("Received empty new table response data")
+            self.send(Message(MessageType.ERROR, {
+                'error': 'Received empty new table response data'
+            }, self.client_id).to_json())
+            return
+        table_name = data['name']
+        self.context.actions.create_table_from_dict(data)
     
-    def _update_table(self, data: Dict):
+    def handle_table_response(self, msg: Message):
+        data = msg.data
+        logger.info(f"Handling table response with data: {data}")
+        logger.debug(f"Table response data: {data}")
+        if not data or 'name' not in data:
+            logger.error("Received empty new table response data")
+            self.send(Message(MessageType.ERROR, {
+                'error': 'Received empty new table response data'
+            }, self.client_id).to_json())
+            return
+        table_name = data['name']
+        if table_name in self.context.list_of_tables:
+            logger.info(f"Table {table_name} already exists, updating it")
+            self.table_update(msg)
+        else:
+            logger.info(f"Creating new table: {table_name}")
+            self.context.actions.create_table_from_dict(data.get('table_data', {}))
+            # Create table from data
+
+
+    def table_update(self, msg: Message):
         """Update local table from server data"""
+        data = msg.data
+        if data is None:
+            logger.error("Received empty table update data")
+            self.send(Message(MessageType.ERROR, {
+                'error': 'Received empty table update data'
+            }, self.client_id).to_json()) 
+            return
+        
         if not self.context.current_table:
             self.context.add_table(data['name'], data['width'], data['height'])
         
@@ -152,15 +151,77 @@ class ClientProtocol:
         for filename in data.get('files', []):
             if not os.path.exists(filename):
                 self.request_file(filename)
-    def _create_table(self, data: Dict):
-        """Create a new table from the provided data"""        
-        #TODO use Actions 
+    
+    def create_table(self, message: Message):
+        """Create a new table from the provided data"""
+        data = message.data
+        if data is None:
+            logger.error("Received empty table creation data")
+            self.send(Message(MessageType.ERROR, {
+                'error': 'Received empty table creation data'
+            }, self.client_id).to_json())
+            return
+
         self.context.create_table_from_json(data)
         
         
+    def handle_request_table(self, msg: Message):
+        """Handle table request from server"""
+        data = msg.data
+        if not data or 'name' not in data:
+            logger.error("Invalid table request data received")
+            self.send(Message(MessageType.ERROR, {
+                'error': 'Invalid table request data received'
+            }, self.client_id).to_json())
+            return
+        
+        table_name = data['name']
+        logger.info(f"Requesting table: {table_name}")
+        table = self.context.get_table_by_name(table_name)
+        
+        if not table:
+            logger.error(f"Table {table_name} not found in context")
+            self.send(Message(MessageType.ERROR, {
+                'error': f"Table {table_name} not found"
+            }, self.client_id).to_json())
+            return
+        self.send(Message(MessageType.TABLE_DATA, {
+            'name': table_name,
+            'client_id': self.client_id,
+            'data': table.to_dict()
+        }, self.client_id).to_json())
 
-    def _save_file(self, data: Dict):
+     
+    def handle_table_data(self, msg: Message):
+        """Handle table data received from server"""
+        data = msg.data
+        if not data or 'name' not in data or 'data' not in data:
+            logger.error("Invalid table data received")
+            self.send(Message(MessageType.ERROR, {
+                'error': 'Invalid table data received'
+            }, self.client_id).to_json())
+            return
+        
+        table_name = data['table_name']
+       
+
+        logger.info(f"Received table data for {table_name}")
+        if not self.context.current_table or self.context.current_table.name != table_name:
+            # If current table is not set or does not match, create a new one
+            self.context.create_table_from_json(data)
+        self.apply_table_update(msg)        
+        # Notify GUI if available
+        if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
+            self.context.gui_system.gui_state.chat_messages.append(f"Table {table_name} updated")
+    def save_file(self, msg: Message):
         """Save downloaded file"""
+        data = msg.data
+        if not data or 'filename' not in data or 'data' not in data:
+            logger.error("Invalid file data received")
+            self.send(Message(MessageType.ERROR, {
+                'error': 'Invalid file data received'
+            }, self.client_id).to_json())
+            return
         filename = data['filename']
         file_data = bytes.fromhex(data['data'])
         
@@ -178,9 +239,18 @@ class ClientProtocol:
             'data': sprite_data
         }, self.client_id)
         self.send(msg.to_json())
-    
-    def _apply_update(self, data: Dict):
+
+    def apply_table_update(self, msg: Message):
         """Apply table update from server"""
+        #TODO make it thriught actions
+        data = msg.data
+        if not data or 'type' not in data or 'data' not in data:
+            logger.error("Invalid table update data received")
+            self.send(Message(MessageType.ERROR, {
+                'error': 'Invalid table update data received'
+            }, self.client_id).to_json())
+            return
+        
         category = data.get('category', 'table')
         update_type = data['type']
         update_data = data['data']
@@ -189,7 +259,7 @@ class ClientProtocol:
             return
         
         if category == 'sprite':
-            self._apply_sprite_update(update_type, update_data)
+            self.apply_sprite_update(msg)
         else:
             # Handle table updates (existing code)
             table = self.context.current_table
@@ -201,8 +271,16 @@ class ClientProtocol:
             elif update_type == 'grid':
                 table.show_grid = update_data['show_grid']
     
-    def _apply_sprite_update(self, update_type: str, data: Dict):
+    def apply_sprite_update(self, message: Message):
         """Apply sprite updates from server"""
+        data = message.data
+        if not data or 'type' not in data or 'data' not in data:
+            logger.error("Invalid sprite update data received")
+            self.send(Message(MessageType.ERROR, {
+                'error': 'Invalid sprite update data received'
+            }, self.client_id).to_json())
+            return
+        update_type = data.get('category', 'sprite')
         sprite_id = data.get('sprite_id')
         table_id = data.get('table_id', None)
         if not sprite_id:
@@ -418,9 +496,15 @@ class ClientProtocol:
             
         except Exception as e:
             logger.error(f"Error handling compendium sprite remove: {e}")
-    
-    def _handle_auth_token(self, data: Dict):
+
+    def _handle_auth_token(self, msg: Message):
         """Handle authentication token response"""
+        data= msg.data
+        if not data:
+            logger.error("Received empty authentication token data")
+            if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
+                self.context.gui_system.gui_state.chat_messages.append("❌ Authentication failed - no data received")
+            return
         try:
             access_token = data.get('access_token')
             token_type = data.get('token_type', 'bearer')
@@ -443,9 +527,15 @@ class ClientProtocol:
                     
         except Exception as e:
             logger.error(f"Error handling auth token: {e}")
-    
-    def _handle_auth_status(self, data: Dict):
+
+    def _handle_auth_status(self, msg: Message):
         """Handle authentication status response"""
+        data = msg.data
+        if not data:
+            logger.error("Received empty authentication status data")
+            if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
+                self.context.gui_system.gui_state.chat_messages.append("❌ Authentication status check failed - no data received")
+            return
         try:
             is_authenticated = data.get('authenticated', False)
             username = data.get('username')
@@ -467,3 +557,101 @@ class ClientProtocol:
                 
         except Exception as e:
             logger.error(f"Error handling auth status: {e}")
+    def file_data(self, msg: Message):
+        """Handle file data received from server"""
+        # TODO use storage system to save files
+        if not msg or not msg.data:
+            logger.error("Received empty file data message")
+            self.send(Message(MessageType.ERROR, {
+                'error': 'Received empty file data message'
+            }, self.client_id).to_json())
+            return
+        data = msg.data
+        if not data or 'filename' not in data or 'data' not in data:
+            logger.error("Invalid file data received")
+            self.send(Message(MessageType.ERROR, {
+                'error': 'Invalid file data received'
+            }, self.client_id).to_json())
+            return
+        
+        filename = data['filename']
+        file_data = bytes.fromhex(data['data'])
+        
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, 'wb') as f:
+            f.write(file_data)
+        logger.info(f"File saved: {filename}")
+    def error_handler(self, msg: Message):
+        """Handle error messages from server"""
+        if not msg or not msg.data:
+            logger.error("Received empty error message")
+            return
+        error_data = msg.data
+        error_message = error_data.get('error', 'Unknown error')
+        logger.error(f"Server error: {error_message}")
+        
+        # Add to chat if available
+        if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
+            self.context.gui_system.gui_state.chat_messages.append(f"❌ Server error: {error_message}")
+    
+    def handle_ping(self, msg: Message):
+        """Handle ping messages from server"""
+        if not msg or not msg.data:
+            logger.error("Received empty ping message")
+            return
+        # Respond with pong
+        pong_msg = Message(MessageType.PONG, client_id=self.client_id)
+        self.send(pong_msg.to_json())
+        logger.debug("Responded to ping with pong")
+    def handle_pong(self, msg: Message):
+        """Handle pong messages from server"""
+        if not msg or not msg.data:
+            logger.error("Received empty pong message")
+            return
+        # Update last ping time
+        self.last_ping = time.time()
+        logger.debug("Received pong, updated last ping time")
+    
+    def handle_success(self, msg: Message):
+        """Handle success messages from server"""
+        if not msg or not msg.data:
+            logger.error("Received empty success message")
+            return
+        success_data = msg.data
+        logger.info(f"Success message received: {success_data}")
+        # Add to chat if available
+        if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
+            self.context.gui_system.gui_state.chat_messages.append(f"✅ Success: {success_data.get('message', '')}")
+
+    # Authentication methods
+    def auth_register(self, username: str, password: str, email: Optional[str] = None, full_name: Optional[str] = None):
+        """Send authentication registration request via protocol"""
+        msg = Message(MessageType.AUTH_REGISTER, {
+            'username': username,
+            'password': password,
+            'email': email,
+            'full_name': full_name
+        }, self.client_id)
+        self.send(msg.to_json())
+    
+    def auth_login(self, username: str, password: str):
+        """Send authentication login request via protocol"""
+        msg = Message(MessageType.AUTH_LOGIN, {
+            'username': username,
+            'password': password
+        }, self.client_id)
+        self.send(msg.to_json())
+    
+    def auth_logout(self):
+        """Send authentication logout request via protocol"""
+        msg = Message(MessageType.AUTH_LOGOUT, client_id=self.client_id)
+        self.send(msg.to_json())
+    
+    def request_auth_status(self):
+        """Request current authentication status via protocol"""
+        msg = Message(MessageType.AUTH_STATUS, client_id=self.client_id)
+        self.send(msg.to_json())
+    
+    # def send(self, msg: str):
+    #     """Send a message via the protocol"""
+    #     raise NotImplementedError("This should be implemented by the network layer")

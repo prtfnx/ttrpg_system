@@ -1,23 +1,30 @@
 from typing import Dict, Any, List, Optional
-from .actions_protocol import ActionsProtocol, ActionResult, Position, LAYERS
+from .async_actions_protocol import AsyncActionsProtocol
+from .actions_protocol import ActionResult, Position, LAYERS
 from .table import VirtualTable, Entity
 import uuid
 import copy
+import typing
+if typing.TYPE_CHECKING:
+    from .server import TableManager
+import logging
 
-class ActionsCore(ActionsProtocol):
+logger = logging.getLogger(__name__)
+class ActionsCore(AsyncActionsProtocol):
     """
     Server-side implementation of ActionsProtocol for VirtualTable.
     Handles game logic, validation, and state management on the server.
     """
-    
-    def __init__(self):
-        self.tables: Dict[str, VirtualTable] = {}
+
+    def __init__(self, table_manager):
+        self.table_manager = table_manager
         self.action_history: List[Dict[str, Any]] = []
         self.undo_stack: List[Dict[str, Any]] = []
         self.redo_stack: List[Dict[str, Any]] = []
+        self.tables: Dict[str, VirtualTable] = table_manager.tables
         self.max_history = 100
     
-    def _add_to_history(self, action: Dict[str, Any]):
+    async def _add_to_history(self, action: Dict[str, Any]):
         """Add action to history for undo/redo functionality"""
         self.action_history.append(action)
         if len(self.action_history) > self.max_history:
@@ -25,42 +32,34 @@ class ActionsCore(ActionsProtocol):
         self.undo_stack.append(action)
         self.redo_stack.clear()  # Clear redo stack when new action is performed
     
-    def _get_table(self, table_id: str) -> Optional[VirtualTable]:
+    async def _get_table(self, table_id: str) -> Optional[VirtualTable]:
         """Get table by ID"""
         return self.tables.get(table_id)
     
     # Table Actions
-    def create_table(self, table_id: str, name: str, width: int, height: int) -> ActionResult:
-        """Create a new table"""
-        try:
-            if table_id in self.tables:
-                return ActionResult(False, f"Table with ID {table_id} already exists")
-            
-            table = VirtualTable(name, width, height)
-            self.tables[table_id] = table
-            
-            action = {
-                'type': 'create_table',
-                'table_id': table_id,
-                'name': name,
-                'width': width,
-                'height': height
-            }
-            self._add_to_history(action)
-            
-            return ActionResult(True, f"Table {name} created successfully", {
-                'table_id': table_id,
-                'name': name,
-                'width': width,
-                'height': height
-            })
-        except Exception as e:
-            return ActionResult(False, f"Failed to create table: {str(e)}")
+    async def create_table(self, name: str, width: int, height: int) -> ActionResult:
+        """Create a new table"""       
+
+        table = VirtualTable(name, width, height)
+        self.tables[table.table_id] = table
+
+        action = {
+            'type': 'create_table',
+            'table_id': table.table_id,
+            'name': name,
+            'width': width,
+            'height': height
+        }
+        await self._add_to_history(action)
+        
+        return ActionResult(True, f"Table {name} created successfully", {'table': table})
+      
     
-    def delete_table(self, table_id: str) -> ActionResult:
+    async def delete_table(self, table_id: str) -> ActionResult:
+        
         """Delete a table"""
         try:
-            table = self._get_table(table_id)
+            table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
@@ -79,16 +78,26 @@ class ActionsCore(ActionsProtocol):
                 'type': 'delete_table',
                 'table_data': table_data
             }
-            self._add_to_history(action)
+            await self._add_to_history(action)
             
             return ActionResult(True, f"Table {table_id} deleted successfully")
         except Exception as e:
             return ActionResult(False, f"Failed to delete table: {str(e)}")
     
-    def update_table(self, table_id: str, **kwargs) -> ActionResult:
+    async def get_table(self, table_id: str, **kwargs) -> ActionResult:
+        """Get table properties"""
+        try:
+            table = await self._get_table(table_id)
+            if not table:
+                return ActionResult(False, f"Table {table_id} not found")
+            return ActionResult(True, f"Table {table_id} retrieved successfully", {'table': table})
+        except Exception as e:
+            return ActionResult(False, f"Failed to get table: {str(e)}")
+
+    async def update_table(self, table_id: str, **kwargs) -> ActionResult:
         """Update table properties"""
         try:
-            table = self._get_table(table_id)
+            table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
@@ -104,15 +113,25 @@ class ActionsCore(ActionsProtocol):
                 'old_values': old_values,
                 'new_values': kwargs
             }
-            self._add_to_history(action)
+            await self._add_to_history(action)
             
             return ActionResult(True, f"Table {table_id} updated successfully", kwargs)
         except Exception as e:
             return ActionResult(False, f"Failed to update table: {str(e)}")
-    def move_table(self, table_id: str, position: Position) -> ActionResult:
+    
+    async def update_table_from_data(self, data: Dict[str, Any]) -> ActionResult:
+        """Update table properties from data dictionary"""
+        table_id = data.get('table_id')
+        if not table_id:
+            return ActionResult(False, "Table ID is required")
+
+        # Update table properties
+        return await self.update_table(table_id, **data)
+
+    async def move_table(self, table_id: str, position: Position) -> ActionResult:
         """Move table to new position (add position attribute if needed)"""
         try:
-            table = self._get_table(table_id)
+            table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
@@ -129,16 +148,16 @@ class ActionsCore(ActionsProtocol):
                 'old_position': old_pos,
                 'new_position': position
             }
-            self._add_to_history(action)
+            await self._add_to_history(action)
             
             return ActionResult(True, f"Table {table_id} moved to ({position.x}, {position.y})")
         except Exception as e:
             return ActionResult(False, f"Failed to move table: {str(e)}")
     
-    def scale_table(self, table_id: str, scale_x: float, scale_y: float) -> ActionResult:
+    async def scale_table(self, table_id: str, scale_x: float, scale_y: float) -> ActionResult:
         """Scale table by given factors (add scale attribute if needed)"""
         try:
-            table = self._get_table(table_id)
+            table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
@@ -155,18 +174,18 @@ class ActionsCore(ActionsProtocol):
                 'old_scale': old_scale,
                 'new_scale': (scale_x, scale_y)
             }
-            self._add_to_history(action)
+            await self._add_to_history(action)
             
             return ActionResult(True, f"Table {table_id} scaled to ({scale_x}, {scale_y})")
         except Exception as e:
             return ActionResult(False, f"Failed to scale table: {str(e)}")
     
     # Sprite Actions
-    def create_sprite(self, table_id: str, sprite_id: str, position: Position, 
+    async def create_sprite(self, table_id: str, sprite_id: str, position: Position, 
                      image_path: str, layer: str = "tokens") -> ActionResult:
         """Create a new sprite on a table"""
         try:
-            table = self._get_table(table_id)
+            table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
@@ -205,7 +224,7 @@ class ActionsCore(ActionsProtocol):
                 'image_path': image_path,
                 'layer': layer
             }
-            self._add_to_history(action)
+            await self._add_to_history(action)
             
             return ActionResult(True, f"Sprite {sprite_id} created on layer {layer}", {
                 'sprite_id': sprite_id,
@@ -216,10 +235,25 @@ class ActionsCore(ActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to create sprite: {str(e)}")
     
-    def delete_sprite(self, table_id: str, sprite_id: str) -> ActionResult:
+    async def create_sprite_from_data(self, data: Dict[str, Any]) -> ActionResult:
+        """Create a sprite from message data"""
+        try:
+            table_id = data.get('table_id')
+            sprite_id = data.get('sprite_id')
+            position = Position(data['position']['x'], data['position']['y'])
+            image_path = data.get('image_path', '')
+            layer = data.get('layer', 'tokens')
+            
+            return await self.create_sprite(table_id, sprite_id, position, image_path, layer)
+        except KeyError as e:
+            return ActionResult(False, f"Missing required field: {str(e)}")
+        except Exception as e:
+            return ActionResult(False, f"Failed to create sprite from message: {str(e)}")
+        
+    async def delete_sprite(self, table_id: str, sprite_id: str) -> ActionResult:
         """Delete a sprite from a table"""
         try:
-            table = self._get_table(table_id)
+            table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
@@ -246,16 +280,17 @@ class ActionsCore(ActionsProtocol):
                 'sprite_id': sprite_id,
                 'sprite_data': sprite_data
             }
-            self._add_to_history(action)
+            await self._add_to_history(action)
             
             return ActionResult(True, f"Sprite {sprite_id} deleted successfully")
         except Exception as e:
             return ActionResult(False, f"Failed to delete sprite: {str(e)}")
     
-    def move_sprite(self, table_id: str, sprite_id: str, position: Position) -> ActionResult:
+    async def move_sprite(self, table_id: str, sprite_id: str, old_position: Position, new_position: Position) -> ActionResult:
         """Move sprite to new position"""
         try:
-            table = self._get_table(table_id)
+            logger.info(f"Moving sprite {sprite_id} from {old_position} to {new_position} on table {table_id}")
+            table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
@@ -263,30 +298,34 @@ class ActionsCore(ActionsProtocol):
             if not entity:
                 return ActionResult(False, f"Sprite {sprite_id} not found")
             
-            old_position = Position(entity.position[0], entity.position[1])
+            old_position_entity = Position(entity.position[0], entity.position[1])
+            if old_position_entity == old_position:
+                logger.warning(f"Sprite position desynchronization detected for {sprite_id}. Expected {old_position}, found {old_position_entity}.")
+                #TODO implement desync handling
+
             
             # Convert position to grid coordinates
-            grid_x, grid_y = int(position.x), int(position.y)
+            grid_x, grid_y = int(new_position.x), int(new_position.y)
             
             table.move_entity(entity.entity_id, (grid_x, grid_y))
-            
+            logger.info(f"Moved sprite {sprite_id} to new position ({entity.entity_id}, {grid_x}, {grid_y})")
             action = {
                 'type': 'move_sprite',
                 'table_id': table_id,
                 'sprite_id': sprite_id,
                 'old_position': old_position,
-                'new_position': position
+                'new_position': new_position
             }
-            self._add_to_history(action)
+            await self._add_to_history(action)
             
             return ActionResult(True, f"Sprite {sprite_id} moved to ({position.x}, {position.y})")
         except Exception as e:
             return ActionResult(False, f"Failed to move sprite: {str(e)}")
     
-    def scale_sprite(self, table_id: str, sprite_id: str, scale_x: float, scale_y: float) -> ActionResult:
+    async def scale_sprite(self, table_id: str, sprite_id: str, scale_x: float, scale_y: float) -> ActionResult:
         """Scale sprite by given factors"""
         try:
-            table = self._get_table(table_id)
+            table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
@@ -305,16 +344,16 @@ class ActionsCore(ActionsProtocol):
                 'old_scale': old_scale,
                 'new_scale': (scale_x, scale_y)
             }
-            self._add_to_history(action)
+            await self._add_to_history(action)
             
             return ActionResult(True, f"Sprite {sprite_id} scaled to ({scale_x}, {scale_y})")
         except Exception as e:
             return ActionResult(False, f"Failed to scale sprite: {str(e)}")
     
-    def rotate_sprite(self, table_id: str, sprite_id: str, angle: float) -> ActionResult:
+    async def rotate_sprite(self, table_id: str, sprite_id: str, angle: float) -> ActionResult:
         """Rotate sprite by given angle"""
         try:
-            table = self._get_table(table_id)
+            table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
@@ -336,16 +375,16 @@ class ActionsCore(ActionsProtocol):
                 'old_rotation': old_rotation,
                 'new_rotation': angle
             }
-            self._add_to_history(action)
+            await self._add_to_history(action)
             
             return ActionResult(True, f"Sprite {sprite_id} rotated to {angle} degrees")
         except Exception as e:
             return ActionResult(False, f"Failed to rotate sprite: {str(e)}")
     
-    def update_sprite(self, table_id: str, sprite_id: str, **kwargs) -> ActionResult:
+    async def update_sprite(self, table_id: str, sprite_id: str, **kwargs) -> ActionResult:
         """Update sprite properties"""
         try:
-            table = self._get_table(table_id)
+            table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
@@ -366,17 +405,17 @@ class ActionsCore(ActionsProtocol):
                 'old_values': old_values,
                 'new_values': kwargs
             }
-            self._add_to_history(action)
+            await self._add_to_history(action)
             
             return ActionResult(True, f"Sprite {sprite_id} updated successfully", kwargs)
         except Exception as e:
             return ActionResult(False, f"Failed to update sprite: {str(e)}")
     
     # Layer Actions
-    def set_layer_visibility(self, table_id: str, layer: str, visible: bool) -> ActionResult:
+    async def set_layer_visibility(self, table_id: str, layer: str, visible: bool) -> ActionResult:
         """Set layer visibility"""
         try:
-            table = self._get_table(table_id)
+            table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
@@ -397,16 +436,16 @@ class ActionsCore(ActionsProtocol):
                 'old_visibility': old_visibility,
                 'new_visibility': visible
             }
-            self._add_to_history(action)
+            await self._add_to_history(action)
             
             return ActionResult(True, f"Layer {layer} visibility set to {visible}")
         except Exception as e:
             return ActionResult(False, f"Failed to set layer visibility: {str(e)}")
     
-    def get_layer_visibility(self, table_id: str, layer: str) -> ActionResult:
+    async def get_layer_visibility(self, table_id: str, layer: str) -> ActionResult:
         """Get layer visibility status"""
         try:
-            table = self._get_table(table_id)
+            table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
@@ -421,10 +460,10 @@ class ActionsCore(ActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to get layer visibility: {str(e)}")
     
-    def move_sprite_to_layer(self, table_id: str, sprite_id: str, new_layer: str) -> ActionResult:
+    async def move_sprite_to_layer(self, table_id: str, sprite_id: str, new_layer: str) -> ActionResult:
         """Move sprite to different layer"""
         try:
-            table = self._get_table(table_id)
+            table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
@@ -447,16 +486,16 @@ class ActionsCore(ActionsProtocol):
                 'old_layer': old_layer,
                 'new_layer': new_layer
             }
-            self._add_to_history(action)
+            await self._add_to_history(action)
             
             return ActionResult(True, f"Sprite {sprite_id} moved from {old_layer} to {new_layer}")
         except Exception as e:
             return ActionResult(False, f"Failed to move sprite to layer: {str(e)}")
     
-    def get_layer_sprites(self, table_id: str, layer: str) -> ActionResult:
+    async def get_layer_sprites(self, table_id: str, layer: str) -> ActionResult:
         """Get all sprites on a specific layer"""
         try:
-            table = self._get_table(table_id)
+            table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
@@ -479,10 +518,10 @@ class ActionsCore(ActionsProtocol):
             return ActionResult(False, f"Failed to get layer sprites: {str(e)}")
     
     # Query Actions
-    def get_table_info(self, table_id: str) -> ActionResult:
+    async def get_table_info(self, table_id: str) -> ActionResult:
         """Get table information"""
         try:
-            table = self._get_table(table_id)
+            table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
@@ -501,10 +540,10 @@ class ActionsCore(ActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to get table info: {str(e)}")
     
-    def get_sprite_info(self, table_id: str, sprite_id: str) -> ActionResult:
+    async def get_sprite_info(self, table_id: str, sprite_id: str) -> ActionResult:
         """Get sprite information"""
         try:
-            table = self._get_table(table_id)
+            table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
@@ -525,7 +564,7 @@ class ActionsCore(ActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to get sprite info: {str(e)}")
     
-    def get_all_tables(self) -> ActionResult:
+    async def get_all_tables(self) -> ActionResult:
         """Get all tables"""
         try:
             tables_info = {}
@@ -541,10 +580,10 @@ class ActionsCore(ActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to get all tables: {str(e)}")
     
-    def get_table_sprites(self, table_id: str, layer: Optional[str] = None) -> ActionResult:
+    async def get_table_sprites(self, table_id: str, layer: Optional[str] = None) -> ActionResult:
         """Get all sprites on a table, optionally filtered by layer"""
         try:
-            table = self._get_table(table_id)
+            table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
@@ -565,7 +604,7 @@ class ActionsCore(ActionsProtocol):
             return ActionResult(False, f"Failed to get table sprites: {str(e)}")
     
     # Batch Actions
-    def batch_actions(self, actions: List[Dict[str, Any]]) -> ActionResult:
+    async def batch_actions(self, actions: List[Dict[str, Any]]) -> ActionResult:
         """Execute multiple actions in a batch"""
         try:
             results = []
@@ -591,7 +630,7 @@ class ActionsCore(ActionsProtocol):
                 }
                 
                 if action_type in method_map:
-                    result = method_map[action_type](**params)
+                    result = await method_map[action_type](**params)
                     results.append(result)
                 else:
                     results.append(ActionResult(False, f"Unknown action type: {action_type}"))
@@ -603,7 +642,7 @@ class ActionsCore(ActionsProtocol):
             return ActionResult(False, f"Failed to execute batch actions: {str(e)}")
     
     # Undo/Redo Actions
-    def undo_action(self) -> ActionResult:
+    async def undo_action(self) -> ActionResult:
         """Undo the last action"""
         try:
             if not self.undo_stack:
@@ -618,7 +657,7 @@ class ActionsCore(ActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to undo action: {str(e)}")
     
-    def redo_action(self) -> ActionResult:
+    async def redo_action(self) -> ActionResult:
         """Redo the last undone action"""
         try:
             if not self.redo_stack:
@@ -633,10 +672,10 @@ class ActionsCore(ActionsProtocol):
             return ActionResult(False, f"Failed to redo action: {str(e)}")
     
     # Utility Actions
-    def get_sprite_at_position(self, table_id: str, position: Position, layer: Optional[str] = None) -> ActionResult:
+    async def get_sprite_at_position(self, table_id: str, position: Position, layer: Optional[str] = None) -> ActionResult:
         """Get sprite at specific position"""
         try:
-            table = self._get_table(table_id)
+            table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
@@ -666,11 +705,11 @@ class ActionsCore(ActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to get sprite at position: {str(e)}")
     
-    def get_sprites_in_area(self, table_id: str, top_left: Position, bottom_right: Position, 
+    async def get_sprites_in_area(self, table_id: str, top_left: Position, bottom_right: Position, 
                            layer: Optional[str] = None) -> ActionResult:
         """Get all sprites in a rectangular area"""
         try:
-            table = self._get_table(table_id)
+            table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             

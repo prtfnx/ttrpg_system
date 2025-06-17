@@ -35,6 +35,12 @@ class Actions(ActionsProtocol):
     def _get_table_by_id(self, table_id: str) -> Optional['ContextTable']:
         """Get table by ID (using table_id UUID)"""
         return self.context._get_table_by_id(table_id)
+    def _get_table_by_name(self, name: str) -> Optional['ContextTable']:
+        """Get table by name"""
+        for table in self.context.list_of_tables:
+            if table.name == name:
+                return table
+        return None
     
     def _find_sprite_in_table(self, table, sprite_id: str):
         """Find sprite directly in a table object to avoid ID lookup issues"""
@@ -47,13 +53,13 @@ class Actions(ActionsProtocol):
         return None
     
     # Table Actions
-    def create_table(self, table_id: str, name: str, width: int, height: int) -> ActionResult:
+    def create_table(self, name: str, width: int, height: int) -> ActionResult:
         """Create a new table"""
         try:
             
             # Check if table already exists
-            if self._get_table_by_id(table_id):
-                return ActionResult(False, f"Table with ID {table_id} already exists")
+            if self._get_table_by_name(name):
+                return ActionResult(False, f"Table with name {name} already exists")
             # Create new table using Context method - pass table_id to constructor
             table = self.context.add_table(name, width, height, table_id=table_id)
             if not table:
@@ -68,7 +74,7 @@ class Actions(ActionsProtocol):
                 
             action = {
                 'type': 'create_table',
-                'table_id': table_id,
+                'table_name': table.name,
                 'name': name,
                 'width': width,
                 'height': height
@@ -83,6 +89,47 @@ class Actions(ActionsProtocol):
             })
         except Exception as e:
             return ActionResult(False, f"Failed to create table: {str(e)}")
+    
+    def create_table_from_dict(self, table_dict: Dict[str, Any]) -> ActionResult:
+        """Create a table from a dictionary representation"""
+        try:
+            logger.info(f"Creating table from dict: {table_dict}")
+            # Validate required fields
+            required_fields = ['table_name', 'width', 'height' ]
+            logger.debug(f"Creating table from dict: {table_dict}")
+            for field in required_fields:
+                if field not in table_dict:
+                    logger.error(f"Missing required field: {field}")
+                    return ActionResult(False, f"Missing required field: {field}")
+            logger.debug(f"All required fields are present")
+            # Create table using Context method
+            table = self.context.create_table_from_json(table_dict)
+            logger.info(f"Table created: {table}")
+            if not table:
+                return ActionResult(False, f"Failed to create table {table_dict['name']}")          
+
+            
+            action = {
+                'type': 'create_table_from_dict',
+                'table_data': copy.deepcopy(table_dict)
+            }
+            self._add_to_history(action)
+            
+            return ActionResult(True, f"Table {table.name} created successfully", {
+                'table': table
+            })
+        except Exception as e:
+            return ActionResult(False, f"Failed to create table from dict: {str(e)}")
+    def get_table(self, table_id: str) -> ActionResult:
+        """Get a table by ID"""
+        try:
+            table = self._get_table_by_id(table_id)
+            if not table:
+                return ActionResult(False, f"Table {table_id} not found")
+
+            return ActionResult(True, f"Table {table_id} retrieved", {'table': table})
+        except Exception as e:
+            return ActionResult(False, f"Failed to get table: {str(e)}")
     
     def delete_table(self, table_id: str) -> ActionResult:
         """Delete a table"""

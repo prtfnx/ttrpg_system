@@ -22,7 +22,7 @@ class ActionsProtocol(ABC):
     
     # Table Actions
     @abstractmethod
-    def create_table(self, table_id: str, name: str, width: int, height: int) -> ActionResult:
+    def create_table(self, name: str, width: int, height: int) -> ActionResult:
         """Create a new table"""
         pass
     
@@ -30,7 +30,11 @@ class ActionsProtocol(ABC):
     def delete_table(self, table_id: str) -> ActionResult:
         """Delete a table"""
         pass
-    
+    @abstractmethod
+    def get_table(self, table_id: str) -> ActionResult:
+        """Get table"""
+        pass
+
     @abstractmethod
     def update_table(self, table_id: str, **kwargs) -> ActionResult:
         """Update table properties (name, dimensions, etc.)"""
@@ -163,6 +167,7 @@ LAYERS = {
 ACTION_TYPES = {
     'CREATE_TABLE': 'create_table',
     'DELETE_TABLE': 'delete_table',
+    'GET_TABLE:': 'get_table',
     'UPDATE_TABLE': 'update_table',
     'MOVE_TABLE': 'move_table',
     'SCALE_TABLE': 'scale_table',

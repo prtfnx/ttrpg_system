@@ -64,7 +64,7 @@ class Entity:
         return entity
 
 class VirtualTable:
-    def __init__(self, name: str, width: int, height: int):
+    def __init__(self, name: str, width: int, height: int, table_id: Optional[str] = None):
         self.name = name
         self.width = width
         self.height = height
@@ -79,7 +79,11 @@ class VirtualTable:
         self.position = (0.0, 0.0)
         self.scale = (1.0, 1.0)
         self.layer_visibility = {layer: True for layer in self.layers}
-        
+        if not table_id:
+            self.table_id = uuid.uuid4()
+        else:
+            self.table_id = table_id
+
         # Initialize grid
         self.grid = {}
         for layer in self.layers:
@@ -170,7 +174,7 @@ class VirtualTable:
         return 0 <= x < self.width and 0 <= y < self.height
     
     def table_to_layered_dict(self) -> Dict:
-        """Convert table to layered dictionary format (renamed from entities)"""
+        """Convert table to layered dictionary format """
         layers_dict = {}
         
         # Initialize all layers
@@ -187,16 +191,19 @@ class VirtualTable:
         
         return layers_dict
     
-    def to_json(self) -> str:
-        """Convert table to JSON with 'layers' instead of 'entities'"""
-        data = {
-            'name': self.name,
+    def to_dict(self) -> Dict:
+        """Convert table to dictionary '"""
+        return {
+            'table_name': self.name,
+            'table_id': str(self.table_id),
             'width': self.width,
             'height': self.height,
-            'layers': self.table_to_layered_dict()  # Changed from 'entities' to 'layers'
+            'layers': self.table_to_layered_dict()  
         }
-        
-        import json
+    
+    def to_json(self) -> str:
+        """Convert table to JSON """
+        data = self.to_dict()               
         return json.dumps(data, indent=2)
     
     def from_dict(self, data: Dict):

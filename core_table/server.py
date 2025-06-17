@@ -61,6 +61,11 @@ class TableManager:
             # Handle grid changes
             pass
         # Add more general update types as needed
+    def clear_tables(self):
+        """Clear all tables"""
+        self.tables.clear()
+        self.default_table = self._create_default_table()
+        logger.info("Cleared all tables, reset to default")
 
 class GameServer:
     """Main game server that uses ServerProtocol"""

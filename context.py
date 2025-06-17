@@ -261,7 +261,7 @@ class Context:
         try:
             logger.info(f"Creating table from JSON: {json_data}")   
             # Get table info from JSON data
-            table_name = json_data.get('table_name', json_data.get('name', 'Loaded Table'))
+            table_name = json_data.get('table_name')
             table_id = json_data.get('table_id')  # May be None for legacy saves
             
             # Create the table
@@ -284,20 +284,20 @@ class Context:
             table.y_moved = json_data.get('y_moved', 1.0)
             table.show_grid = json_data.get('show_grid', True)
             table.cell_side = json_data.get('cell_side', CELL_SIDE)
-            #print(json_data)
+            print(json_data)
             # Add sprites from layers
             layers_data = json_data.get('layers', {})
-            #print('4')
-            #print(layers_data.items())
+            print('4')
+            print(layers_data.items())
             for layer, sprites_data in layers_data.items():
-                #print(f"sprite data: {sprites_data}, layer: {layer}")
-                #print(f"Processing layer: {layer} with {len(sprites_data)} sprites")
+                print(f"sprite data: {sprites_data}, layer: {layer}")
+                print(f"Processing layer: {layer} with {len(sprites_data)} sprites")
                 if layer in table.layers:  # Only add to valid layers
                     for sprite_data in sprites_data.values():
-                        #print(f"Creating sprite from data: {sprite_data}")
+                        print(f"Creating sprite from data: {sprite_data}")
                         try:
                             # Create sprite with proper parameters
-                            #print(f"Adding sprite with id: {sprite_data.get('sprite_id', None)}")
+                            print(f"Adding sprite with id: {sprite_data.get('sprite_id', None)}")
                             sprite = self.add_sprite(
                                 texture_path=sprite_data.get('texture_path', '').encode(),
                                 scale_x=sprite_data.get('scale_x', 1.0),
@@ -677,10 +677,11 @@ class NetworkedContext:
             'category': 'sprite',
             'type': 'sprite_move',
             'data': {
+                'table_id': self.context.current_table.table_id,
+                'table_name': self.context.current_table.name,
                 'sprite_id': sprite.sprite_id,
                 'from': {'x': old_pos[0], 'y': old_pos[1]},
-                'to': {'x': new_pos[0], 'y': new_pos[1]},
-                'table_id': self.context.current_table.name if self.context.current_table else 'default',
+                'to': {'x': new_pos[0], 'y': new_pos[1]},                
                 'timestamp': __import__('time').time()
             }
         }
@@ -712,10 +713,11 @@ class NetworkedContext:
             'category': 'sprite',
             'type': 'sprite_scale',
             'data': {
+                'table_id': self.context.current_table.table_id,
+                'table_name': self.context.current_table.name,
                 'sprite_id': sprite.sprite_id,
                 'from': {'x': old_scale[0], 'y': old_scale[1]},
-                'to': {'x': new_scale[0], 'y': new_scale[1]},
-                'table_id': self.context.current_table.name if self.context.current_table else 'default',
+                'to': {'x': new_scale[0], 'y': new_scale[1]},               
                 'timestamp': __import__('time').time()
             }
         }

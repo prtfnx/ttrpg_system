@@ -13,7 +13,7 @@ from ..service.game_session import ConnectionManager, get_connection_manager
 from ..routers.users import SECRET_KEY, ALGORITHM
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+
 router = APIRouter()
 
 def get_user_from_token(token: str, db: Session):
@@ -109,15 +109,19 @@ async def websocket_game_endpoint(
             return
         
         # Verify session exists
+        logger.info(f"User {user.username} connecting to session {session_code}")
         game_session = crud.get_game_session_by_code(db, session_code)
+        logger.info(f"Game session found: {game_session}")
+
         if not game_session:
             logger.error(f"Game session {session_code} not found")
             await websocket.close(code=status.WS_1003_UNSUPPORTED_DATA)
             return
             
         # Connect user to session
+        logger.info(f"Connecting user {user.username} to session {session_code}")
         await connection_manager.connect(websocket, session_code, int(user.id), str(user.username))
-        
+        logger.info(f"User {user.username} connected to session {session_code}")
         # Send welcome message
         await connection_manager.send_personal_message({
             "type": "welcome",

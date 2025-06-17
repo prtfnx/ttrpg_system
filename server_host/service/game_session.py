@@ -10,7 +10,7 @@ import hashlib
 import time
 from datetime import datetime
 from net.protocol import Message, MessageType, ProtocolHandler
-
+from .game_session_protocol import GameSessionProtocolService
 logger = logging.getLogger(__name__)
 
 class ConnectionManager:
@@ -21,9 +21,8 @@ class ConnectionManager:
         self.active_connections: Dict[str, List[WebSocket]] = {}
         # websocket -> user_info
         self.connection_info: Dict[WebSocket, dict] = {}
-        # Import here to avoid circular dependency
-        from .game_session_protocol import get_session_protocol_manager, SessionProtocolManager
-        self.protocol_manager: SessionProtocolManager = get_session_protocol_manager()
+        # Import here to avoid circular dependency        
+        self.sessions_protocols: Dict[str, GameSessionProtocolService] = {}
 
     def _generate_client_id(self, user_id: int, username: str) -> str:
         """Generate unique client ID for protocol"""
@@ -31,11 +30,12 @@ class ConnectionManager:
 
     async def connect(self, websocket: WebSocket, session_code: str, user_id: int, username: str):
         """Connect a user to a game session with protocol support"""
+        logger.info(f"User {username} attempting to connect to session {session_code}")
         await websocket.accept()
-        
+        logger.info(f"WebSocket connection accepted for user {username} in session {session_code}")
         if session_code not in self.active_connections:
             self.active_connections[session_code] = []
-        
+        logger.info(f"Adding websocket to session {session_code} connections")
         self.active_connections[session_code].append(websocket)
         self.connection_info[websocket] = {
             "session_code": session_code,
@@ -43,18 +43,21 @@ class ConnectionManager:
             "username": username,
             "connected_at": datetime.now()
         }
-        
+        logger.info(f"Connection info updated for user {username} in session {session_code}")
         # Generate client ID for protocol
         client_id = self._generate_client_id(user_id, username)
         
         # Add to protocol service
-        protocol_service = self.protocol_manager.get_session_service(session_code)
+        logger.info(f"Initializing protocol service for session {session_code} with client_id {client_id}")
+        protocol_service = GameSessionProtocolService(session_code)
+        self.sessions_protocols[session_code] = protocol_service
+        logger.info(f"Adding client {client_id} to protocol service for session {session_code}")
         await protocol_service.add_client(websocket, client_id, {
             "user_id": user_id,
             "username": username,
             "session_code": session_code
         })
-        
+        logger.info(f"Protocol service initialized for session {session_code} with client_id {client_id}")
         logger.info(f"User {username} connected to session {session_code} with client_id {client_id}")
         message = Message(
             MessageType.PLAYER_JOINED,{
@@ -65,6 +68,7 @@ class ConnectionManager:
             }
         )
         # Notify other players
+        logger.info(f"Broadcasting player join message for user {username} in session {session_code}")
         await self.broadcast_to_session(session_code, message,exclude_websocket=websocket)
 
     async def disconnect(self, websocket: WebSocket):
@@ -77,7 +81,7 @@ class ConnectionManager:
         username = info["username"]
         
         # Remove from protocol service first
-        protocol_service = self.protocol_manager.get_session_service(session_code)
+        protocol_service = self.sessions_protocols.get(session_code)
         await protocol_service.remove_client(websocket)
         
         # Remove from connections
@@ -87,8 +91,10 @@ class ConnectionManager:
             if not self.active_connections[session_code]:
                 del self.active_connections[session_code]
                 # Clean up empty session
-                self.protocol_manager.remove_session(session_code)
-        
+                protocol_service = self.sessions_protocols.get(session_code)
+                if protocol_service:
+                    protocol_service.cleanup()
+
         del self.connection_info[websocket]
         
         logger.info(f"User {username} disconnected from session {session_code}")       
@@ -150,8 +156,8 @@ class ConnectionManager:
             # Check if this is a protocol message (contains MessageType fields)
             if self._is_protocol_message(message_data):
                 # Handle as protocol message
-                protocol_service = self.protocol_manager.get_session_service(session_code)
-                
+                protocol_service = self.sessions_protocols.get(session_code)
+
                 # Convert to protocol message format
                 try:
                     protocol_message_str = json.dumps(message_data)

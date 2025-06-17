@@ -1,3 +1,4 @@
+#TODO - proper use of server protocol. Mock for now
 """
 Game Session Protocol Service for TTRPG Web Server
 Integrates table protocol with game session management
@@ -21,47 +22,36 @@ from core_table.server import TableManager
 
 logger = logging.getLogger(__name__)
 
-# Enable debug logging for this module
-logger.setLevel(logging.DEBUG)
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s %(levelname)s:%(name)s: %(message)s')
-console_handler.setFormatter(formatter)
-logger.addHandler(console_handler)
+# # Enable debug logging for this module
+# logger.setLevel(logging.DEBUG)
+# console_handler = logging.StreamHandler()
+# console_handler.setLevel(logging.DEBUG)
+# formatter = logging.Formatter('%(asctime)s %(levelname)s:%(name)s: %(message)s')
+# console_handler.setFormatter(formatter)
+# logger.addHandler(console_handler)
 
 class GameSessionProtocolService:
     """Manages table protocol within a game session"""
     def __init__(self, session_code: str):
+        logger.info(f"Creating GameSessionProtocolService for session {session_code}")
         self.session_code = session_code
         self.table_manager = TableManager()
+        logger.info(f"TableManager initialized for session {session_code}")
         self.server_protocol = ServerProtocol(self.table_manager)
-        
+        logger.info(f"ServerProtocol initialized for session {session_code}")
+        self.server_protocol.send_to_client = self.send_to_client  # For compatibility with server protocol
         # Client connections within this game session
+        logger.info(f"Initializing GameSessionProtocolService for session {session_code}")
         self.clients: Dict[str, WebSocket] = {}  # client_id -> websocket
         self.client_info: Dict[str, dict] = {}   # client_id -> user info
-        self.websocket_to_client: Dict[WebSocket, str] = {}  # websocket -> client_id
-        
-        # Protocol message handlers
-        self.message_handlers = {
-            MessageType.PING: self._handle_ping,
-            MessageType.TABLE_REQUEST: self._handle_table_request,
-            MessageType.NEW_TABLE_REQUEST: self._handle_new_table_request,
-            MessageType.TABLE_UPDATE: self._handle_table_update,
-            MessageType.FILE_REQUEST: self._handle_file_request,
-            MessageType.SPRITE_UPDATE: self._handle_sprite_update,
-            MessageType.COMPENDIUM_SPRITE_ADD: self._handle_compendium_sprite_add,
-            MessageType.COMPENDIUM_SPRITE_UPDATE: self._handle_compendium_sprite_update,
-            MessageType.COMPENDIUM_SPRITE_REMOVE: self._handle_compendium_sprite_remove,
-        }
-        
+        self.websocket_to_client: Dict[WebSocket, str] = {}  # websocket -> client_id     
+       
         # Initialize test tables with entities
         self._create_test_tables()
         
         logger.info(f"GameSessionProtocolService created for session {session_code}")
         
-        # Debug: Log available message handlers
-        #logger.debug(f"Available message handlers: {list(self.message_handlers.keys())}")
-        #logger.debug(f"Handler keys as strings: {[k.value for k in self.message_handlers.keys()]}")
+
     
     def _create_test_tables(self):
         """Create test tables with entities for testing"""
@@ -80,7 +70,7 @@ class GameSessionProtocolService:
             
             logger.info(f"Created test_table with entities:")
             logger.info(f"  Hero (ID: {hero.entity_id}, Sprite: {hero.sprite_id}) at {hero.position}")
-            logger.info(f"  Goblin (ID: {goblin.entity_id}, Sprite: {goblin.sprite_id}) at {goblin.position}")
+            logger.info(f"  Goblin1 (ID: {goblin.entity_id}, Sprite: {goblin.sprite_id}) at {goblin.position}")
             logger.info(f"  Treasure (ID: {treasure.entity_id}, Sprite: {treasure.sprite_id}) at {treasure.position}")
             
             # Create large table for testing with multiple entities in different layers
@@ -88,7 +78,7 @@ class GameSessionProtocolService:
             self.table_manager.add_table(large_table)
             
             # Add entities across different layers
-            map_bg = large_table.add_entity("Map Background", (0, 0), layer='map', path_to_texture='resources/map.jpg')
+            map_bg = large_table.add_entity("Map Background1", (0, 0), layer='map', path_to_texture='resources/map.jpg')
             player1 = large_table.add_entity("Player 1", (10, 10), layer='tokens', path_to_texture='resources/player1.png')
             player2 = large_table.add_entity("Player 2", (12, 10), layer='tokens', path_to_texture='resources/player2.png')
             dm_note = large_table.add_entity("DM Note", (25, 25), layer='dungeon_master', path_to_texture='resources/note.png')
@@ -151,8 +141,8 @@ class GameSessionProtocolService:
         del self.clients[client_id]
         del self.client_info[client_id]
         del self.websocket_to_client[websocket]
-          # Notify server protocol
-        self.server_protocol.disconnect_client(client_id)
+        # Notify server protocol
+        #self.server_protocol.disconnect_client(client_id)
         
         logger.info(f"Client {client_id} ({username}) removed from session {self.session_code}")
 
@@ -161,6 +151,7 @@ class GameSessionProtocolService:
         try:
             message = Message.from_json(message_str)
             logger.debug(f"Handling protocol message in session {self.session_code}: {message}")
+            
             client_id = self.websocket_to_client.get(websocket)
             
             if not client_id:
@@ -175,11 +166,17 @@ class GameSessionProtocolService:
             logger.debug(f"Message type object: {message.type}")
             
             # Handle message by type
-            if message.type in self.message_handlers:
-                await self.message_handlers[message.type](websocket, message, client_id)
+            message_type = MessageType(message.type)
+            if message_type in self.server_protocol.handlers.keys():
+                await self.server_protocol.handle_client(message, client_id)
+                #TODO - implement proper broadcast logic
+                await self.broadcast_to_session(message, exclude_client=client_id)
             else:
-                logger.warning(f"Unknown message type: {message.type.value}")
+                
+                logger.warning(f"Unknown message type: {message_type}, available handlers: {list(self.server_protocol.handlers.keys())}")
+                logger.info(f"message: {message}, client_id: {client_id}")
                 await self._send_error(websocket, f"Unknown message type: {message.type.value}")
+        
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON from WebSocket in session {self.session_code}: {e}")
             await self._send_error(websocket, "Invalid JSON format")
@@ -214,7 +211,7 @@ class GameSessionProtocolService:
         for websocket in disconnected_clients:
             await self.remove_client(websocket)
 
-    async def send_to_client(self, client_id: str, message: Message):
+    async def send_to_client(self, message: Message, client_id: str):
         """Send message to specific client"""
         if client_id in self.clients:
             websocket = self.clients[client_id]
@@ -227,222 +224,7 @@ class GameSessionProtocolService:
             logger.warning(f"Client {client_id} not found in session {self.session_code}")
 
     # Protocol Message Handlers
-    async def _handle_ping(self, websocket: WebSocket, message: Message, client_id: str):
-        """Handle ping message"""
-        await self._send_message(websocket, Message(MessageType.PONG, {
-            "timestamp": time.time(),
-            "session_code": self.session_code
-        }))    
-    async def _handle_table_request(self, websocket: WebSocket, message: Message, client_id: str):
-        """Handle table data request"""
-        try:
-            logger.debug(f"Handling table request from {client_id} with message {message}")
-              # Extract table name from message data  
-            table_name = None
-            if message.data:
-                table_name = message.data.get('name') or message.data.get('table_name')
-            
-            # Use 'default' if no table name specified
-            if not table_name:
-                table_name = 'default'
-                
-            logger.debug(f"Table request for '{table_name}' in session {self.session_code}")
-            logger.debug(f"Available tables: {list(self.table_manager.tables.keys())}")
-            
-            table = self.table_manager.get_table(table_name)
-            logger.debug(f"Table found: {table is not None}")
-            logger.debug(f"Table name returned: {table.name if table else 'None'}")
-            
-            if not table:
-                await self._send_error(websocket, f"Table '{table_name}' not found")
-                return
-
-            # Create table data response
-            table_data = {
-                'name': table.name,
-                'width': table.width,
-                'height': table.height,
-                'scale': 1.0,
-                'x_moved': 0.0,
-                'y_moved': 0.0,
-                'show_grid': True,
-                'layers': table.table_to_layered_dict() if hasattr(table, 'table_to_layered_dict') else {},
-                'session_code': self.session_code
-            }
-            
-            await self._send_message(websocket, Message(MessageType.TABLE_RESPONSE, table_data))
-            
-        except Exception as e:
-            logger.error(f"Error handling table request: {e}")
-            await self._send_error(websocket, "Failed to retrieve table data")
-
-    async def _handle_new_table_request(self, websocket: WebSocket, message: Message, client_id: str):
-        """Handle new table creation request"""
-        try:
-            table_name = message.data.get('table_name', f'table_{int(time.time())}') if message.data else f'table_{int(time.time())}'
-            width = message.data.get('width', 30) if message.data else 30
-            height = message.data.get('height', 30) if message.data else 30
-            
-            # Create new table
-            table = self.table_manager.create_table(table_name, width, height)
-            
-            table_data = {
-                'name': table.name,
-                'width': table.width,
-                'height': table.height,
-                'scale': 1.0,
-                'x_moved': 0.0,
-                'y_moved': 0.0,
-                'show_grid': True,
-                'layers': table.table_to_layered_dict() if hasattr(table, 'table_to_layered_dict') else {},
-                'session_code': self.session_code
-            }
-            
-            await self._send_message(websocket, Message(MessageType.NEW_TABLE_RESPONSE, table_data))
-            
-            # Notify other clients about the new table
-            await self.broadcast_to_session(
-                Message(MessageType.TABLE_UPDATE, {
-                    'type': 'table_created',
-                    'table_name': table_name,
-                    'session_code': self.session_code
-                }),
-                exclude_client=client_id
-            )
-            
-        except Exception as e:
-            logger.error(f"Error handling new table request: {e}")
-            await self._send_error(websocket, "Failed to create table")
-
-    async def _handle_table_update(self, websocket: WebSocket, message: Message, client_id: str):
-        """Handle table update with broadcast"""
-        if not message.data:
-            await self._send_error(websocket, "Missing update data")
-            return
-        
-        try:
-            # Process update through server protocol
-            mock_writer = MockWriter()
-            await self.server_protocol.handle_client(client_id, mock_writer, json.dumps(asdict(message)))
-            
-            # Add session info to the update
-            update_data = message.data.copy()
-            update_data['session_code'] = self.session_code
-            
-            # Broadcast update to other clients in the session
-            await self.broadcast_to_session(
-                Message(message.type, update_data),
-                exclude_client=client_id
-            )
-        except Exception as e:
-            logger.error(f"Error handling table update: {e}")
-            await self._send_error(websocket, "Failed to process table update")
-
-    async def _handle_sprite_update(self, websocket: WebSocket, message: Message, client_id: str):
-        """Handle sprite update"""
-        if not message.data:
-            await self._send_error(websocket, "Missing sprite data")
-            return
-        
-        try:
-            logger.info(f"SPRITE UPDATE: Handling sprite update from {client_id} in session {self.session_code}")
-            logger.info(f"SPRITE UPDATE: Data: {message.data}")
-            logger.info(f"SPRITE UPDATE: Connected clients in session: {list(self.clients.keys())}")
-            
-            # Add session info
-            update_data = message.data.copy()
-            update_data['session_code'] = self.session_code
-            
-            # Broadcast sprite update to other clients in the session
-            logger.info(f"SPRITE UPDATE: About to broadcast to {len(self.clients) - 1} other clients")
-            await self.broadcast_to_session(
-                Message(message.type, update_data),
-                exclude_client=client_id
-            )
-            logger.info(f"SPRITE UPDATE: Broadcast completed for session {self.session_code}")
-            
-        except Exception as e:
-            logger.error(f"SPRITE UPDATE ERROR: {e}")
-            await self._send_error(websocket, "Failed to process sprite update")
-
-    async def _handle_file_request(self, websocket: WebSocket, message: Message, client_id: str):
-        """Handle file request"""
-        if not message.data or 'filename' not in message.data:
-            await self._send_error(websocket, "Missing filename in file request")
-            return
-        
-        filename = message.data['filename']
-        
-        try:
-            if os.path.exists(filename):
-                with open(filename, 'rb') as f:
-                    file_data = f.read()
-                
-                # Convert to hex for JSON transmission
-                hex_data = file_data.hex()
-                
-                await self._send_message(websocket, Message(MessageType.FILE_DATA, {
-                    'filename': filename,
-                    'data': hex_data,
-                    'session_code': self.session_code
-                }))
-            else:
-                await self._send_error(websocket, f"File not found: {filename}")
-                
-        except Exception as e:
-            logger.error(f"Error handling file request: {e}")
-            await self._send_error(websocket, "Failed to read file")
-
-    async def _handle_compendium_sprite_add(self, websocket: WebSocket, message: Message, client_id: str):
-        """Handle compendium sprite addition"""
-        try:
-            # Add session info
-            update_data = message.data.copy() if message.data else {}
-            update_data['session_code'] = self.session_code
-            
-            # Broadcast to other clients in the session
-            await self.broadcast_to_session(
-                Message(message.type, update_data),
-                exclude_client=client_id
-            )
-            
-        except Exception as e:
-            logger.error(f"Error handling compendium sprite add: {e}")
-            await self._send_error(websocket, "Failed to add compendium sprite")
-
-    async def _handle_compendium_sprite_update(self, websocket: WebSocket, message: Message, client_id: str):
-        """Handle compendium sprite update"""
-        try:
-            # Add session info
-            update_data = message.data.copy() if message.data else {}
-            update_data['session_code'] = self.session_code
-            
-            # Broadcast to other clients in the session
-            await self.broadcast_to_session(
-                Message(message.type, update_data),
-                exclude_client=client_id
-            )
-            
-        except Exception as e:
-            logger.error(f"Error handling compendium sprite update: {e}")
-            await self._send_error(websocket, "Failed to update compendium sprite")
-
-    async def _handle_compendium_sprite_remove(self, websocket: WebSocket, message: Message, client_id: str):
-        """Handle compendium sprite removal"""
-        try:
-            # Add session info
-            update_data = message.data.copy() if message.data else {}
-            update_data['session_code'] = self.session_code
-            
-            # Broadcast to other clients in the session
-            await self.broadcast_to_session(
-                Message(message.type, update_data),
-                exclude_client=client_id
-            )
-            
-        except Exception as e:
-            logger.error(f"Error handling compendium sprite remove: {e}")
-            await self._send_error(websocket, "Failed to remove compendium sprite")
+    
 
     # Utility Methods
     
@@ -479,64 +261,12 @@ class GameSessionProtocolService:
     def has_clients(self) -> bool:
         """Check if session has any connected clients"""
         return len(self.clients) > 0
+    def cleanup(self):
+        """Cleanup resources when session is closed"""
+        logger.info(f"Cleaning up GameSessionProtocolService for session {self.session_code}")
+        self.clients.clear()
+        self.client_info.clear()
+        self.websocket_to_client.clear()
+        self.table_manager.clear_tables()
 
 
-class MockWriter:
-    """Mock writer for server protocol compatibility"""
-    
-    def write(self, data: bytes):
-        """Mock write method"""
-        pass
-    
-    async def drain(self):
-        """Mock drain method"""
-        pass
-    
-    def get_extra_info(self, key: str):
-        """Mock get_extra_info method"""
-        if key == 'peername':
-            return ('127.0.0.1', 0)
-        return None
-
-
-# Global session manager
-class SessionProtocolManager:
-    """Manages protocol services for all game sessions"""
-    
-    def __init__(self):
-        self.sessions: Dict[str, GameSessionProtocolService] = {}
-        
-    def get_session_service(self, session_code: str) -> GameSessionProtocolService:
-        """Get or create protocol service for a session"""
-        if session_code not in self.sessions:
-            self.sessions[session_code] = GameSessionProtocolService(session_code)
-            logger.info(f"Created protocol service for session {session_code}")
-        return self.sessions[session_code]
-    
-    def remove_session(self, session_code: str):
-        """Remove a session protocol service"""
-        if session_code in self.sessions:
-            del self.sessions[session_code]
-            logger.info(f"Removed protocol service for session {session_code}")
-    
-    def cleanup_empty_sessions(self):
-        """Remove sessions with no connected clients"""
-        empty_sessions = [
-            session_code for session_code, service in self.sessions.items()
-            if not service.has_clients()
-        ]
-        
-        for session_code in empty_sessions:
-            self.remove_session(session_code)
-    
-    def get_all_sessions_stats(self) -> List[dict]:
-        """Get statistics for all sessions"""
-        return [service.get_session_stats() for service in self.sessions.values()]
-
-
-# Global instance
-_session_protocol_manager = SessionProtocolManager()
-
-def get_session_protocol_manager() -> SessionProtocolManager:
-    """Get the global session protocol manager"""
-    return _session_protocol_manager

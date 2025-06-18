@@ -1,7 +1,7 @@
 """
 WebSocket-based game session manager with integrated table protocol
 """
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from fastapi import WebSocket, WebSocketDisconnect
 import json
 import asyncio
@@ -11,31 +11,38 @@ import time
 from datetime import datetime
 from net.protocol import Message, MessageType, ProtocolHandler
 from .game_session_protocol import GameSessionProtocolService
-logger = logging.getLogger(__name__)
+from server_host.utils.logger import setup_logger
+# Database imports
+from server_host.database.database import SessionLocal
+from server_host.database.session_utils import create_game_session_with_persistence, load_game_session_protocol_from_db, save_game_session_state
+
+logger = setup_logger(__name__)
 
 class ConnectionManager:
     """Manages WebSocket connections for game sessions with protocol support"""
     
     def __init__(self):
         # session_code -> list of websockets
-        self.active_connections: Dict[str, List[WebSocket]] = {}
-        # websocket -> user_info
+        self.active_connections: Dict[str, List[WebSocket]] = {}        # websocket -> user_info
         self.connection_info: Dict[WebSocket, dict] = {}
-        # Import here to avoid circular dependency        
         self.sessions_protocols: Dict[str, GameSessionProtocolService] = {}
+        # Database sessions for persistence
+        self.db_sessions: Dict[str, Any] = {}  # session_code -> db_session
+        self.game_session_db_ids: Dict[str, int] = {}  # session_code -> game_session_db_id
 
     def _generate_client_id(self, user_id: int, username: str) -> str:
         """Generate unique client ID for protocol"""
         return hashlib.md5(f"{user_id}_{username}_{time.time()}".encode()).hexdigest()[:8]
 
-    async def connect(self, websocket: WebSocket, session_code: str, user_id: int, username: str):
+    async def connect(self, websocket: WebSocket, session_code: str, 
+                      user_id: int, username: str):
         """Connect a user to a game session with protocol support"""
-        logger.info(f"User {username} attempting to connect to session {session_code}")
+        
         await websocket.accept()
         logger.info(f"WebSocket connection accepted for user {username} in session {session_code}")
         if session_code not in self.active_connections:
             self.active_connections[session_code] = []
-        logger.info(f"Adding websocket to session {session_code} connections")
+    
         self.active_connections[session_code].append(websocket)
         self.connection_info[websocket] = {
             "session_code": session_code,
@@ -43,14 +50,51 @@ class ConnectionManager:
             "username": username,
             "connected_at": datetime.now()
         }
-        logger.info(f"Connection info updated for user {username} in session {session_code}")
-        # Generate client ID for protocol
         client_id = self._generate_client_id(user_id, username)
         
         # Add to protocol service
-        logger.info(f"Initializing protocol service for session {session_code} with client_id {client_id}")
-        protocol_service = GameSessionProtocolService(session_code)
-        self.sessions_protocols[session_code] = protocol_service
+        logger.debug(f"Initializing protocol service for session {session_code} with client_id {client_id}")
+        
+        # Try to load from database first
+        db_session = None
+        game_session_db_id = None
+        logger.debug(f"Checking if session {session_code} exists in active protocols {self.sessions_protocols.keys()}")
+        if session_code not in self.sessions_protocols:
+            logger.debug(f"Session {session_code} not found in active protocols, initializing new one")
+            try:                # Create database session
+                db_session = SessionLocal()
+                self.db_sessions[session_code] = db_session
+                
+                # Try to load existing session or create new one
+                protocol_service, error = load_game_session_protocol_from_db(
+                    db_session, session_code
+                )
+                logger.debug(f"Loaded protocol service: {protocol_service}, error: {error}")
+                if protocol_service:
+                    logger.info(f"Loaded existing session {session_code} from database")
+                    self.game_session_db_ids[session_code] = protocol_service.game_session_db_id
+                else:
+                    # Create new session with database persistence
+                    logger.info(f"Creating new session {session_code} with database persistence")
+                    protocol_service, error = create_game_session_with_persistence(
+                        db_session, session_code, user_id
+                    )
+                    if protocol_service:
+                        self.game_session_db_ids[session_code] = protocol_service.game_session_db_id
+                    else:
+                        logger.warning(f"Failed to create persistent session: {error}")
+                        # Fallback to non-persistent session
+                        protocol_service = GameSessionProtocolService(session_code)
+                
+                self.sessions_protocols[session_code] = protocol_service
+                
+            except Exception as e:
+                logger.error(f"Database session initialization failed: {e}")
+                # Fallback to non-persistent session
+                protocol_service = GameSessionProtocolService(session_code)
+                self.sessions_protocols[session_code] = protocol_service
+        else:
+            protocol_service = self.sessions_protocols[session_code]
         logger.info(f"Adding client {client_id} to protocol service for session {session_code}")
         await protocol_service.add_client(websocket, client_id, {
             "user_id": user_id,
@@ -83,8 +127,7 @@ class ConnectionManager:
         # Remove from protocol service first
         protocol_service = self.sessions_protocols.get(session_code)
         await protocol_service.remove_client(websocket)
-        
-        # Remove from connections
+          # Remove from connections
         if session_code in self.active_connections:
             if websocket in self.active_connections[session_code]:
                 self.active_connections[session_code].remove(websocket)
@@ -93,7 +136,26 @@ class ConnectionManager:
                 # Clean up empty session
                 protocol_service = self.sessions_protocols.get(session_code)
                 if protocol_service:
+                    # Save to database before cleanup
+                    try:
+                        protocol_service.save_to_database()
+                        logger.info(f"Session {session_code} data saved to database before cleanup")
+                    except Exception as e:
+                        logger.error(f"Error saving session {session_code} to database: {e}")
+                    
                     protocol_service.cleanup()
+                    del self.sessions_protocols[session_code]
+                    
+                    # Clean up database session
+                    if session_code in self.db_sessions:
+                        try:
+                            self.db_sessions[session_code].close()
+                            del self.db_sessions[session_code]
+                        except Exception as e:
+                            logger.error(f"Error closing database session: {e}")
+                    
+                    if session_code in self.game_session_db_ids:
+                        del self.game_session_db_ids[session_code]
 
         del self.connection_info[websocket]
         

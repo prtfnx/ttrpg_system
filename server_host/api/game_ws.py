@@ -11,8 +11,8 @@ from ..database.database import get_db
 from ..database import crud
 from ..service.game_session import ConnectionManager, get_connection_manager
 from ..routers.users import SECRET_KEY, ALGORITHM
-
-logger = logging.getLogger(__name__)
+from ..utils.logger import setup_logger
+logger = setup_logger(__name__)
 
 router = APIRouter()
 
@@ -106,27 +106,29 @@ async def websocket_game_endpoint(
         if not user:
             logger.error("Invalid token")
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return
-        
-        # Verify session exists
+            return        # Check if session exists in database
         logger.info(f"User {user.username} connecting to session {session_code}")
-        game_session = crud.get_game_session_by_code(db, session_code)
-        logger.info(f"Game session found: {game_session}")
-
-        if not game_session:
-            logger.error(f"Game session {session_code} not found")
+        
+        # Verify session exists in database
+        db_game_session = crud.get_game_session_by_code(db, session_code)
+        if not db_game_session:
+            logger.error(f"Game session {session_code} not found in database")
             await websocket.close(code=status.WS_1003_UNSUPPORTED_DATA)
             return
-            
-        # Connect user to session
-        logger.info(f"Connecting user {user.username} to session {session_code}")
-        await connection_manager.connect(websocket, session_code, int(user.id), str(user.username))
+        
+        logger.info(f"Game session found: {db_game_session.name}")        # Connect user to session (ConnectionManager will handle loading protocol service)
+        user_id = user.id
+        username = user.username
+        logger.info(f"Connecting user {username} with ID {user_id} to session {session_code}")
+        await connection_manager.connect(websocket, session_code, user_id, username)
+        
         logger.info(f"User {user.username} connected to session {session_code}")
+        
         # Send welcome message
         await connection_manager.send_personal_message({
             "type": "welcome",
             "data": {
-                "session_name": game_session.name,
+                "session_name": db_game_session.name,
                 "session_code": session_code,
                 "players": connection_manager.get_session_players(session_code)
             }
@@ -143,6 +145,10 @@ async def websocket_game_endpoint(
                     "type": "error",
                     "data": {"message": "Invalid JSON format"}
                 }, websocket)
+            except WebSocketDisconnect:
+                logger.info(f"WebSocket disconnected: {websocket.client}")
+                await connection_manager.disconnect(websocket)
+                break
             except Exception as e:
                 logger.error(f"Error processing message: {e}")
                 break

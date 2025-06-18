@@ -34,6 +34,7 @@ class ActionsCore(AsyncActionsProtocol):
     
     async def _get_table(self, table_id: str) -> Optional[VirtualTable]:
         """Get table by ID"""
+        
         return self.tables.get(table_id)
     
     # Table Actions
@@ -87,7 +88,9 @@ class ActionsCore(AsyncActionsProtocol):
     async def get_table(self, table_id: str, **kwargs) -> ActionResult:
         """Get table properties"""
         try:
+            logger.debug(f"all tables: {self.tables.items()}")
             table = await self._get_table(table_id)
+            logger.debug(f"all entities: {table.to_dict()}")
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             return ActionResult(True, f"Table {table_id} retrieved successfully", {'table': table})
@@ -285,17 +288,20 @@ class ActionsCore(AsyncActionsProtocol):
             return ActionResult(True, f"Sprite {sprite_id} deleted successfully")
         except Exception as e:
             return ActionResult(False, f"Failed to delete sprite: {str(e)}")
-    
-    async def move_sprite(self, table_id: str, sprite_id: str, old_position: Position, new_position: Position) -> ActionResult:
+
+    async def move_sprite(self, table_name: str, sprite_id: str, old_position: Position, new_position: Position) -> ActionResult:
         """Move sprite to new position"""
         try:
-            logger.info(f"Moving sprite {sprite_id} from {old_position} to {new_position} on table {table_id}")
-            table = await self._get_table(table_id)
+            logger.info(f"Moving sprite {sprite_id} from {old_position} to {new_position} on table {table_name}")
+            table = await self._get_table(table_name)
             if not table:
-                return ActionResult(False, f"Table {table_id} not found")
-            
+                logger.error(f"Table {table_name} not found")
+                return ActionResult(False, f"Table {table_name} not found")
+
             entity = table.find_entity_by_sprite_id(sprite_id)
+            logger.debug(f"Entity found: {entity} with position {entity.position}")
             if not entity:
+                logger.error(f"Sprite {sprite_id} not found")
                 return ActionResult(False, f"Sprite {sprite_id} not found")
             
             old_position_entity = Position(entity.position[0], entity.position[1])
@@ -305,13 +311,13 @@ class ActionsCore(AsyncActionsProtocol):
 
             
             # Convert position to grid coordinates
-            grid_x, grid_y = int(new_position.x), int(new_position.y)
-            
+            grid_x, grid_y = int(new_position.get('x')), int(new_position.get('y'))
+
             table.move_entity(entity.entity_id, (grid_x, grid_y))
             logger.info(f"Moved sprite {sprite_id} to new position ({entity.entity_id}, {grid_x}, {grid_y})")
             action = {
                 'type': 'move_sprite',
-                'table_id': table_id,
+                'table_name': table_name,
                 'sprite_id': sprite_id,
                 'old_position': old_position,
                 'new_position': new_position
@@ -320,6 +326,7 @@ class ActionsCore(AsyncActionsProtocol):
             
             return ActionResult(True, f"Sprite {sprite_id} moved to ({position.x}, {position.y})")
         except Exception as e:
+            logger.error(f"Failed to move sprite {sprite_id}: {str(e)}")
             return ActionResult(False, f"Failed to move sprite: {str(e)}")
     
     async def scale_sprite(self, table_id: str, sprite_id: str, scale_x: float, scale_y: float) -> ActionResult:

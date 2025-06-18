@@ -22,37 +22,95 @@ from core_table.server import TableManager
 
 logger = logging.getLogger(__name__)
 
-# # Enable debug logging for this module
-# logger.setLevel(logging.DEBUG)
-# console_handler = logging.StreamHandler()
-# console_handler.setLevel(logging.DEBUG)
-# formatter = logging.Formatter('%(asctime)s %(levelname)s:%(name)s: %(message)s')
-# console_handler.setFormatter(formatter)
-# logger.addHandler(console_handler)
+
 
 class GameSessionProtocolService:
-    """Manages table protocol within a game session"""
-    def __init__(self, session_code: str):
+    """Manages table protocol within a game session with database persistence"""
+    def __init__(self, session_code: str, db_session=None, game_session_db_id: int = None):
         logger.info(f"Creating GameSessionProtocolService for session {session_code}")
         self.session_code = session_code
-        self.table_manager = TableManager()
+        self.db_session = db_session
+        self.game_session_db_id = game_session_db_id
+        
+        self.table_manager = TableManager(db_session)
         logger.info(f"TableManager initialized for session {session_code}")
+        
         self.server_protocol = ServerProtocol(self.table_manager)
         logger.info(f"ServerProtocol initialized for session {session_code}")
         self.server_protocol.send_to_client = self.send_to_client  # For compatibility with server protocol
+        
         # Client connections within this game session
         logger.info(f"Initializing GameSessionProtocolService for session {session_code}")
         self.clients: Dict[str, WebSocket] = {}  # client_id -> websocket
         self.client_info: Dict[str, dict] = {}   # client_id -> user info
         self.websocket_to_client: Dict[WebSocket, str] = {}  # websocket -> client_id     
        
-        # Initialize test tables with entities
-        self._create_test_tables()
+        # Load existing tables from database or create test tables        
+        if db_session and game_session_db_id:
+            self._load_tables_from_database()
+            logger.debug(f"GameSessionProtocolService initialized with existing tables for session {session_code}")
+        else:
+            logger.warning(f"No database session provided for {session_code}, creating test tables")
+            self._create_test_tables()
         
         logger.info(f"GameSessionProtocolService created for session {session_code}")
-        
-
     
+    def _load_tables_from_database(self):
+        """Load tables from database for this game session"""
+        try:
+            if self.table_manager.load_from_database(self.game_session_db_id):
+                logger.info(f"Session {self.session_code} - Loaded tables from database")
+                logger.info(f"Session {self.session_code} - Available tables: {list(self.table_manager.tables.keys())}")
+                  # Ensure test tables exist for client compatibility
+                if 'large_table' not in self.table_manager.tables:
+                    logger.info(f"Session {self.session_code} - large_table not found in database, creating test tables")
+                    self._create_test_tables()
+            else:
+                logger.warning(f"Session {self.session_code} - Failed to load tables, creating test tables")
+                self._create_test_tables()
+        except Exception as e:
+            logger.error(f"Session {self.session_code} - Error loading from database: {e}")
+            self._create_test_tables()
+    
+    def save_to_database(self) -> bool:
+        """Save current state to database - delegates to to_db()"""
+        return self.to_db()
+    
+    def auto_save(self):
+        """Auto-save session data (call this periodically or on important events)"""
+        try:
+            # Check if enough time has passed since last save to avoid excessive database writes
+            current_time = time.time()
+            if not hasattr(self, '_last_save_time'):
+                self._last_save_time = 0
+            
+            # Allow saving if it's been at least 5 seconds since last save, or force save on important events
+            time_since_last_save = current_time - self._last_save_time
+            if time_since_last_save < 5.0:
+                logger.debug(f"Session {self.session_code} - Skipping auto-save, only {time_since_last_save:.1f}s since last save")
+                return
+                
+            success = self.save_to_database()
+            if success:
+                self._last_save_time = current_time
+                logger.info(f"Session {self.session_code} - Auto-save successful")
+            else:
+                logger.warning(f"Session {self.session_code} - Auto-save failed")
+        except Exception as e:
+            logger.error(f"Session {self.session_code} - Auto-save failed: {e}")
+
+    def force_save(self):
+        """Force immediate save to database regardless of timing"""
+        try:
+            success = self.save_to_database()
+            if success:
+                self._last_save_time = time.time()
+                logger.info(f"Session {self.session_code} - Force save successful")
+            return success
+        except Exception as e:
+            logger.error(f"Session {self.session_code} - Force save failed: {e}")
+            return False
+
     def _create_test_tables(self):
         """Create test tables with entities for testing"""
         try:
@@ -79,7 +137,7 @@ class GameSessionProtocolService:
             
             # Add entities across different layers
             map_bg = large_table.add_entity("Map Background1", (0, 0), layer='map', path_to_texture='resources/map.jpg')
-            player1 = large_table.add_entity("Player 1", (10, 10), layer='tokens', path_to_texture='resources/player1.png')
+            player1 = large_table.add_entity("Player 1", (400, 300), layer='tokens', path_to_texture='resources/player1.png')
             player2 = large_table.add_entity("Player 2", (12, 10), layer='tokens', path_to_texture='resources/player2.png')
             dm_note = large_table.add_entity("DM Note", (25, 25), layer='dungeon_master', path_to_texture='resources/note.png')
             light_source = large_table.add_entity("Light Source", (15, 15), layer='light', path_to_texture='resources/torch.png')
@@ -169,6 +227,12 @@ class GameSessionProtocolService:
             message_type = MessageType(message.type)
             if message_type in self.server_protocol.handlers.keys():
                 await self.server_protocol.handle_client(message, client_id)
+                
+                # Auto-save after sprite/entity movement or updates to persist changes immediately
+                if message_type in [MessageType.SPRITE_UPDATE, MessageType.TABLE_UPDATE]:
+                    logger.debug(f"Auto-saving after {message_type.value} in session {self.session_code}")
+                    self.auto_save()
+                
                 #TODO - implement proper broadcast logic
                 await self.broadcast_to_session(message, exclude_client=client_id)
             else:
@@ -253,20 +317,61 @@ class GameSessionProtocolService:
                     "username": info.get('username', 'unknown'),
                     "connected_at": info.get('connected_at', 0),
                     "last_ping": info.get('last_ping', 0)
-                }
-                for client_id, info in self.client_info.items()
+                }                for client_id, info in self.client_info.items()
             ]
         }
 
     def has_clients(self) -> bool:
         """Check if session has any connected clients"""
         return len(self.clients) > 0
+    
     def cleanup(self):
         """Cleanup resources when session is closed"""
         logger.info(f"Cleaning up GameSessionProtocolService for session {self.session_code}")
+          # Save to database before clearing data
+        if self.db_session and self.game_session_db_id:
+            try:
+                success = self.force_save()
+                if success:
+                    logger.info(f"Session {self.session_code} - Data saved to database before cleanup")
+                else:
+                    logger.warning(f"Session {self.session_code} - Failed to save data before cleanup")
+            except Exception as e:
+                logger.error(f"Session {self.session_code} - Error saving to database during cleanup: {e}")
+        else:
+            logger.warning(f"Session {self.session_code} - No database session available for saving during cleanup")
         self.clients.clear()
         self.client_info.clear()
         self.websocket_to_client.clear()
         self.table_manager.clear_tables()
+
+    def to_db(self) -> bool:
+        """Save GameSessionProtocolService state to database"""
+        try:
+            if not self.db_session or not self.game_session_db_id:
+                logger.warning(f"No database session for {self.session_code}")
+                return False
+            
+            # Update GameSession metadata
+            from server_host.database.models import GameSession
+            game_session = self.db_session.query(GameSession).filter_by(id=self.game_session_db_id).first()
+            if game_session:
+                game_session.game_data = json.dumps({
+                    'client_count': len(self.clients),
+                    'table_count': len(self.table_manager.tables)
+                })
+            
+            # Save all tables using table_manager's existing method
+            success = self.table_manager.save_to_database(self.game_session_db_id)
+            if success:
+                self.db_session.commit()
+                logger.info(f"Saved session {self.session_code} to database")
+            
+            return success
+        except Exception as e:
+            logger.error(f"Error saving to database: {e}")
+            if self.db_session:
+                self.db_session.rollback()
+            return False
 
 

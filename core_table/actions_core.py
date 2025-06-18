@@ -299,11 +299,11 @@ class ActionsCore(AsyncActionsProtocol):
                 return ActionResult(False, f"Table {table_name} not found")
 
             entity = table.find_entity_by_sprite_id(sprite_id)
-            logger.debug(f"Entity found: {entity} with position {entity.position}")
+           
             if not entity:
                 logger.error(f"Sprite {sprite_id} not found")
                 return ActionResult(False, f"Sprite {sprite_id} not found")
-            
+            logger.debug(f"Entity found: {entity} with position {entity.position}")
             old_position_entity = Position(entity.position[0], entity.position[1])
             if old_position_entity == old_position:
                 logger.warning(f"Sprite position desynchronization detected for {sprite_id}. Expected {old_position}, found {old_position_entity}.")
@@ -323,8 +323,8 @@ class ActionsCore(AsyncActionsProtocol):
                 'new_position': new_position
             }
             await self._add_to_history(action)
-            
-            return ActionResult(True, f"Sprite {sprite_id} moved to ({position.x}, {position.y})")
+
+            return ActionResult(True, f"Sprite {sprite_id} moved to ({grid_x}, {grid_y})")
         except Exception as e:
             logger.error(f"Failed to move sprite {sprite_id}: {str(e)}")
             return ActionResult(False, f"Failed to move sprite: {str(e)}")

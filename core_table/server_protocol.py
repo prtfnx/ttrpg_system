@@ -11,6 +11,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from net.protocol import Message, MessageType 
 from core_table.actions_core import ActionsCore
 from server_host.utils.logger import setup_logger
+from server_host.service.asset_manager import get_server_asset_manager, AssetRequest
+
 logger = setup_logger(__name__)
 
 class ServerProtocol:
@@ -27,12 +29,10 @@ class ServerProtocol:
         # Track sprite positions for conflict resolution
         #self.sprite_positions: Dict[str, Dict[str, Tuple[float, float]]] = {}
 
-    
     def register_handler(self, msg_type: MessageType, handler: Callable):
         """Extension point for custom message handlers"""
         self.handlers[msg_type] = handler    
 
-    
     def init_handlers(self):
         """Initialize built-in protocol handlers"""
         # Register built-in handlers
@@ -48,6 +48,13 @@ class ServerProtocol:
         self.register_handler(MessageType.COMPENDIUM_SPRITE_REMOVE, self.handle_compendium_sprite_remove)
         self.register_handler(MessageType.ERROR, self.handle_error)
         self.register_handler(MessageType.SUCCESS, self.handle_success)
+        
+        # R2 Asset Management handlers
+        self.register_handler(MessageType.ASSET_UPLOAD_REQUEST, self.handle_asset_upload_request)
+        self.register_handler(MessageType.ASSET_DOWNLOAD_REQUEST, self.handle_asset_download_request)
+        self.register_handler(MessageType.ASSET_LIST_REQUEST, self.handle_asset_list_request)
+        self.register_handler(MessageType.ASSET_UPLOAD_CONFIRM, self.handle_asset_upload_confirm)
+        self.register_handler(MessageType.ASSET_DELETE_REQUEST, self.handle_asset_delete_request)
 
     async def handle_client(self, msg: Message, client_id: str) -> bool:
         """Handle client message"""
@@ -245,6 +252,166 @@ class ServerProtocol:
     async def handle_compendium_sprite_remove(self, msg: Message, client_id: str) -> Message:
         return Message(MessageType.ERROR, {'error': 'Compendium sprite remove not implemented yet'})
   
+    # R2 Asset Management Handlers
+    
+    async def handle_asset_upload_request(self, msg: Message, client_id: str) -> Message:
+        """Handle asset upload request - generate presigned PUT URL"""
+        try:
+            if not msg.data:
+                return Message(MessageType.ERROR, {'error': 'No data provided in asset upload request'})
+            
+            # Get asset manager and client info
+            asset_manager = get_server_asset_manager()
+            
+            # Extract request data
+            filename = msg.data.get('filename')
+            file_size = msg.data.get('file_size')
+            content_type = msg.data.get('content_type')
+            session_code = msg.data.get('session_code', 'default')
+            user_id = msg.data.get('user_id', 0)
+            username = msg.data.get('username', 'unknown')
+            
+            if not filename:
+                return Message(MessageType.ERROR, {'error': 'Filename is required'})
+            
+            # Create asset request
+            request = AssetRequest(
+                user_id=user_id,
+                username=username,
+                session_code=session_code,
+                filename=filename,
+                file_size=file_size,
+                content_type=content_type
+            )
+            
+            # Generate presigned URL
+            response = await asset_manager.request_upload_url(request)
+            
+            if response.success:
+                return Message(MessageType.ASSET_UPLOAD_RESPONSE, {
+                    'success': True,
+                    'upload_url': response.url,
+                    'asset_id': response.asset_id,
+                    'expires_in': response.expires_in,
+                    'instructions': response.instructions
+                })
+            else:
+                return Message(MessageType.ERROR, {'error': response.error})
+                
+        except Exception as e:
+            logger.error(f"Error handling asset upload request: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+    
+    async def handle_asset_download_request(self, msg: Message, client_id: str) -> Message:
+        """Handle asset download request - generate presigned GET URL"""
+        try:
+            if not msg.data:
+                return Message(MessageType.ERROR, {'error': 'No data provided in asset download request'})
+            
+            # Get asset manager
+            asset_manager = get_server_asset_manager()
+            
+            # Extract request data
+            asset_id = msg.data.get('asset_id')
+            session_code = msg.data.get('session_code', 'default')
+            user_id = msg.data.get('user_id', 0)
+            username = msg.data.get('username', 'unknown')
+            
+            if not asset_id:
+                return Message(MessageType.ERROR, {'error': 'Asset ID is required'})
+            
+            # Create asset request
+            request = AssetRequest(
+                user_id=user_id,
+                username=username,
+                session_code=session_code,
+                asset_id=asset_id
+            )
+            
+            # Generate presigned URL
+            response = await asset_manager.request_download_url(request)
+            
+            if response.success:
+                return Message(MessageType.ASSET_DOWNLOAD_RESPONSE, {
+                    'success': True,
+                    'download_url': response.url,
+                    'asset_id': response.asset_id,
+                    'expires_in': response.expires_in,
+                    'instructions': response.instructions
+                })
+            else:
+                return Message(MessageType.ERROR, {'error': response.error})
+                
+        except Exception as e:
+            logger.error(f"Error handling asset download request: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+    
+    async def handle_asset_list_request(self, msg: Message, client_id: str) -> Message:
+        """Handle asset list request - return available session assets"""
+        try:
+            if not msg.data:
+                return Message(MessageType.ERROR, {'error': 'No data provided in asset list request'})
+            
+            # Get asset manager
+            asset_manager = get_server_asset_manager()
+            
+            # Extract session code
+            session_code = msg.data.get('session_code', 'default')
+            
+            # Get session assets
+            assets = asset_manager.get_session_assets(session_code)
+            
+            return Message(MessageType.ASSET_LIST_RESPONSE, {
+                'success': True,
+                'session_code': session_code,
+                'assets': assets,
+                'count': len(assets)
+            })
+            
+        except Exception as e:
+            logger.error(f"Error handling asset list request: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+    
+    async def handle_asset_upload_confirm(self, msg: Message, client_id: str) -> Message:
+        """Handle asset upload confirmation"""
+        try:
+            if not msg.data:
+                return Message(MessageType.ERROR, {'error': 'No data provided in upload confirmation'})
+            
+            # Get asset manager
+            asset_manager = get_server_asset_manager()
+            
+            # Extract data
+            asset_id = msg.data.get('asset_id')
+            user_id = msg.data.get('user_id', 0)
+            
+            if not asset_id:
+                return Message(MessageType.ERROR, {'error': 'Asset ID is required'})            # Confirm upload
+            success = await asset_manager.confirm_upload(asset_id, user_id)
+            
+            if success:
+                logger.info(f"Successfully confirmed upload for asset {asset_id}")
+                return Message(MessageType.SUCCESS, {
+                    'message': 'Upload confirmed successfully',
+                    'asset_id': asset_id
+                })
+            else:
+                return Message(MessageType.ERROR, {'error': 'Upload confirmation failed'})
+                
+        except Exception as e:
+            logger.error(f"Error handling upload confirmation: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+    
+    async def handle_asset_delete_request(self, msg: Message, client_id: str) -> Message:
+        """Handle asset deletion request"""
+        try:
+            # Asset deletion not implemented yet - future feature
+            return Message(MessageType.ERROR, {'error': 'Asset deletion not implemented yet'})
+            
+        except Exception as e:
+            logger.error(f"Error handling asset delete request: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+  
     async def send_to_client(self, message: Message, client_id: str):
         """Send message to specific client"""
         # Overload this method in server implementation to use choosed transport
@@ -269,5 +436,4 @@ if __name__ == "__main__":
 
     protocol = ServerProtocol(MockTableManager())
     print("ServerProtocol initialized successfully")
-    
-    
+

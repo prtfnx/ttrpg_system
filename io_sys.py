@@ -4,33 +4,65 @@ import logging
 import json
 import os
 from storage import get_storage_manager
+from client_asset_manager import get_client_asset_manager
+import settings
 
 logger = logging.getLogger(__name__)
 
-def load_texture(sprite):
-    """Load a texture for the given sprite with proper error handling"""
+def load_texture(sprite, context=None):
+    """Load a texture for the given sprite, supporting R2 asset caching"""
     if not sprite or not sprite.texture_path:
         logger.error("Invalid sprite or texture path")
         return None
-    
+
     surface = None
     texture = None
+
+    # Try to use asset_id if present (for R2 integration)
+    asset_id = getattr(sprite, 'asset_id', None)
+    asset_manager = get_client_asset_manager()
+    texture_path = sprite.texture_path
     
-    try:
-        # Check if file exists
-        try:
-            with open(sprite.texture_path, 'rb'):
-                pass
-        except (OSError, IOError) as e:
-            logger.error(f"Cannot access texture file {sprite.texture_path}: {e}")
-            return None
-        
-        # Load surface
-        surface = sdl3.IMG_Load(sprite.texture_path)
+    if asset_id:
+        cached_path = asset_manager.get_asset_for_sprite(asset_id)
+        if cached_path:
+            texture_path = cached_path
+            logger.debug(f"Using cached R2 asset for sprite {sprite.sprite_id}: {cached_path}")
+        else:
+            # Asset not cached - trigger download request and use original path as placeholder
+            logger.info(f"Asset {asset_id} not cached for sprite {sprite.sprite_id}, requesting download")
+            _trigger_r2_asset_request(sprite, asset_id, context)
+            # Continue with original path as placeholder while download happens
+    
+    # Check if the file exists locally
+    if not os.path.exists(texture_path):
+        # File doesn't exist - try to request R2 asset by filename
+        logger.warning(f"Texture file not found: {texture_path}")
+        if context:
+            # Extract filename from path for R2 request
+            filename = os.path.basename(texture_path)
+            success = _trigger_r2_asset_request_for_missing_file(sprite, filename, context)
+            if success:
+                logger.info(f"Requested R2 download for missing texture: {filename}")
+            else:
+                logger.warning(f"Could not request R2 asset for missing texture: {filename}")
+          # Return None - sprite will render without texture (or with placeholder)
+        return None
+
+    try:        # Load surface
+        # Encode texture_path if it's a string
+        if isinstance(texture_path, str):
+            texture_path_encoded = texture_path.encode('utf-8')
+        else:
+            texture_path_encoded = texture_path
+            
+        surface = sdl3.IMG_Load(texture_path_encoded)
         if not surface:
-            logger.error("Couldn't load bitmap: %s", sdl3.SDL_GetError().decode())
+            error_msg = sdl3.SDL_GetError()
+            # Convert error message to string if needed           
+            logger.error("Couldn't load bitmap: %s", error_msg)
             return None
-        
+
         # Validate surface pointer
         try:
             surface_contents = surface.contents
@@ -40,7 +72,7 @@ def load_texture(sprite):
         except (ValueError, AttributeError) as e:
             logger.error("Error accessing surface: %s", e)
             return None
-        
+
         # Get surface properties safely
         try:
             # Initialize rect properly
@@ -48,35 +80,51 @@ def load_texture(sprite):
             sprite.rect.y = 0
             sprite.rect.w = surface_contents.w
             sprite.rect.h = surface_contents.h
-            
+
             # Convert to frect
             sprite.frect.x = ctypes.c_float(0.0)
             sprite.frect.y = ctypes.c_float(0.0)
             sprite.frect.w = ctypes.c_float(float(surface_contents.w))
             sprite.frect.h = ctypes.c_float(float(surface_contents.h))
-            
+
             logger.debug(f"Surface size: {surface_contents.w}x{surface_contents.h}")
-            
+
         except Exception as e:
             logger.error(f"Error setting sprite dimensions: {e}")
+            return None        # Create texture from surface
+        if not sprite.renderer:
+            logger.error("Sprite renderer is None - cannot create texture")
             return None
+            
+        logger.debug(f"Creating texture with renderer type: {type(sprite.renderer)}")
         
-        # Create texture from surface
-        texture = sdl3.SDL_CreateTextureFromSurface(sprite.renderer, surface)
-        if not texture:
-            logger.error("Failed to create texture: %s", sdl3.SDL_GetError().decode())
+        try:            
+            texture = sdl3.SDL_CreateTextureFromSurface(sprite.renderer, surface)
+            if not texture:
+                error_msg = sdl3.SDL_GetError()
+                if hasattr(error_msg, 'decode'):
+                    error_msg = error_msg.decode('utf-8')
+                elif hasattr(error_msg, 'value'):
+                    error_msg = str(error_msg.value)
+                else:
+                    error_msg = str(error_msg)
+                logger.error("Failed to create texture: %s", error_msg)
+                return None
+        except Exception as e:
+            logger.error(f"Exception during texture creation: {e}")
+            logger.error(f"Renderer: {sprite.renderer}, Surface: {surface}")
             return None
-        
+
         # Set original size after successful texture creation
         sprite.set_original_size()
-        
-        logger.info(f"Successfully loaded texture: {sprite.texture_path}")
+
+        logger.info(f"Successfully loaded texture: {texture_path}")
         return texture
-        
+
     except Exception as e:
-        logger.error(f"Exception loading texture {sprite.texture_path}: {e}")
+        logger.error(f"Exception loading texture {texture_path}: {e}")
         return None
-        
+
     finally:
         # Always clean up surface
         if surface:
@@ -160,8 +208,8 @@ def open_file_browser(file_types=None):
         import subprocess
         import sys
         
-        storage_manager = get_storage_manager()
-        folder_path = storage_manager.config.get_folder_path('other')
+        # Use settings-defined storage path instead of storage manager
+        folder_path = settings.get_storage_path(settings.OTHER_FOLDER)
         
         # Ensure folder exists
         os.makedirs(folder_path, exist_ok=True)
@@ -206,9 +254,17 @@ def upload_files_to_storage(file_paths):
 def get_available_images():
     """Get list of available image files from storage"""
     try:
-        storage_manager = get_storage_manager()
-        images = storage_manager.list_files('images')
-        return [(img, storage_manager.config.get_folder_path('images')) for img in images]
+        images_path = settings.get_storage_path(settings.IMAGES_FOLDER)
+        if not os.path.exists(images_path):
+            return []
+        
+        images = []
+        for filename in os.listdir(images_path):
+            file_ext = os.path.splitext(filename)[1].lower()
+            if file_ext in settings.SUPPORTED_IMAGE_FORMATS:
+                images.append((filename, images_path))
+        
+        return images
     except Exception as e:
         logger.error(f"Failed to get available images: {e}")
         return []
@@ -216,8 +272,24 @@ def get_available_images():
 def get_file_from_storage(filename, file_type='images'):
     """Get full path to file in storage"""
     try:
-        storage_manager = get_storage_manager()
-        return storage_manager.load_file(filename, file_type)
+        # Map file_type to appropriate folder
+        folder_map = {
+            'images': settings.IMAGES_FOLDER,
+            'music': settings.MUSIC_FOLDER,
+            'video': settings.VIDEO_FOLDER,
+            'other': settings.OTHER_FOLDER,
+            'saves': settings.SAVES_FOLDER
+        }
+        
+        folder_name = folder_map.get(file_type, settings.OTHER_FOLDER)
+        folder_path = settings.get_storage_path(folder_name)
+        file_path = os.path.join(folder_path, filename)
+        
+        if os.path.exists(file_path):
+            return file_path
+        else:
+            logger.warning(f"File not found: {file_path}")
+            return None
     except Exception as e:
         logger.error(f"Failed to get file from storage: {e}")
         return None
@@ -266,3 +338,38 @@ def cleanup_storage():
     except Exception as e:
         logger.error(f"Failed to cleanup storage: {e}")
         return False
+
+def _trigger_r2_asset_request(sprite, asset_id, context):
+    """Trigger R2 asset download request for a sprite"""
+    try:
+        if context and hasattr(context, 'request_asset_download'):
+            success = context.request_asset_download(asset_id)
+            if success:
+                logger.info(f"R2 asset download requested for asset {asset_id}")
+            else:
+                logger.warning(f"Failed to request R2 asset download for {asset_id}")
+            return success
+        else:
+            logger.warning(f"No context available to request R2 asset {asset_id}")
+            return False
+    except Exception as e:
+        logger.error(f"Error triggering R2 asset request for {asset_id}: {e}")
+        return False
+
+def _trigger_r2_asset_request_for_missing_file(sprite, file_path, context):
+    """Trigger R2 asset request when a file is missing (try to infer asset_id from filename)"""
+    try:
+        # Extract potential asset_id from filename
+        # This is heuristic - in practice, you'd want a better mapping
+        filename = os.path.basename(file_path)
+        name_without_ext = os.path.splitext(filename)[0]        
+       
+        logger.info(f"Missing file {file_path} might be R2 asset {potential_asset_id}, requesting download")
+        return _trigger_r2_asset_request(sprite, name_without_ext, context)
+
+        
+    except Exception as e:
+        logger.error(f"Error checking missing file for R2 asset: {e}")
+        return False
+
+

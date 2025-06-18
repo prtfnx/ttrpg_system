@@ -7,9 +7,10 @@ import logging
 import time
 import ctypes
 import uuid
+from typing import Optional
 from net.protocol import Message, MessageType
 from Actions import Actions  
-from GeometricManager import GeometricManager  
+from GeometricManager import GeometricManager
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +82,12 @@ class Context:
         # Settings
         self.light_on = True
         self.net= True
-        self.gui= True
+        self.gui= True        # R2 Asset Management
+        self.session_code = None
+        self.user_id = 1  # Default test user ID, will be updated by welcome message
+        self.username = "Player"
+        self.pending_uploads = {}  # {asset_id: upload_info}
+        self.current_upload_files = {}  # {file_path: asset_id} for tracking original files
         
         logger.info("Context initialized with Actions protocol")
 
@@ -425,6 +431,155 @@ class Context:
             if table.table_id == table_id:
                 return table
         return None
+
+    # R2 Asset Management Methods
+    def request_asset_upload(self, file_path: str, filename: Optional[str] = None) -> bool:
+        """Request an upload URL for an asset from the server"""
+        if not hasattr(self, 'queue_to_send'):
+            logger.error("No network connection available for asset upload request")
+            return False
+            
+        if not filename:
+            import os
+            filename = os.path.basename(file_path)
+            
+        # Generate asset ID for this upload
+        import hashlib
+        import time
+        asset_id = hashlib.md5(f"{filename}_{time.time()}".encode()).hexdigest()[:16]
+        
+        upload_request = Message(
+            MessageType.ASSET_UPLOAD_REQUEST,
+            {
+                "filename": filename,
+                "asset_id": asset_id,
+                "session_code": self.session_code or "unknown",
+                "user_id": self.user_id or 0,
+                "username": self.username
+            }        )
+        
+        try:
+            self.queue_to_send.put((1, upload_request))
+            logger.info(f"Requested upload URL for asset {asset_id}: {filename}")
+            
+            # Store file path for when we get the upload URL
+            if not hasattr(self, 'pending_upload_files'):
+                self.pending_upload_files = {}
+            self.pending_upload_files[asset_id] = file_path
+            logger.debug(f"Stored file path for asset {asset_id}: {file_path}")
+            logger.debug(f"Current pending_upload_files: {self.pending_upload_files}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to request asset upload {filename}: {e}")
+            return False
+
+    def request_asset_download(self, asset_id: str) -> bool:
+        """Request download URL for an asset from the server"""
+        if not hasattr(self, 'queue_to_send'):
+            logger.error("No network connection available for asset download request")
+            return False
+            
+        from client_asset_manager import get_client_asset_manager
+        asset_manager = get_client_asset_manager()
+        
+        # Don't request if already cached
+        if asset_manager.is_asset_cached(asset_id):
+            logger.debug(f"Asset {asset_id} already cached, no download needed")
+            return True
+            
+        download_request = Message(
+            MessageType.ASSET_DOWNLOAD_REQUEST,
+            {
+                "asset_id": asset_id,
+                "session_code": self.session_code or "unknown",
+                "user_id": self.user_id or 0,
+                "username": self.username
+            }
+        )
+        
+        try:
+            self.queue_to_send.put((1, download_request))
+            logger.info(f"Requested download for asset {asset_id}")            
+            return True
+        except Exception as e:
+            logger.error(f"Failed to request asset download {asset_id}: {e}")
+            return False
+
+    def request_session_assets(self) -> bool:
+        """Request list of assets available for the current session"""
+        if not hasattr(self, 'queue_to_send'):
+            logger.error("No network connection available for asset list request")
+            return False
+            
+        list_request = Message(
+            MessageType.ASSET_LIST_REQUEST,
+            {
+                "session_code": self.session_code or "unknown",
+                "user_id": self.user_id or 0,
+                "username": self.username
+            }
+        )
+        
+        try:
+            self.queue_to_send.put((1, list_request))
+            logger.info(f"Requested asset list for session {self.session_code}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to request session assets: {e}")
+            return False
+
+    def reload_sprites_from_r2_assets(self):
+        """Reload all sprites that have R2 assets available"""
+        if not self.current_table:
+            return
+            
+        reloaded_count = 0
+        for layer_name, sprites in self.current_table.dict_of_sprites_list.items():
+            for sprite_obj in sprites:
+                if hasattr(sprite_obj, 'reload_texture_from_r2') and sprite_obj.has_r2_asset():
+                    if sprite_obj.is_r2_asset_cached():
+                        success = sprite_obj.reload_texture_from_r2()
+                        if success:
+                            reloaded_count += 1
+                            logger.debug(f"Reloaded sprite {sprite_obj.sprite_id} from R2 asset {sprite_obj.asset_id}")
+                    else:
+                        # Request download if not cached
+                        self.request_asset_download(sprite_obj.asset_id)
+                        
+        if reloaded_count > 0:
+            logger.info(f"Reloaded {reloaded_count} sprites from R2 assets")
+
+    def add_sprite_from_r2_asset(self, asset_id: str, filename: Optional[str] = None, layer: str = 'tokens', 
+                                 coord_x: float = 0.0, coord_y: float = 0.0) -> sprite.Sprite:
+        """Add a sprite using an R2 asset"""
+        if not self.current_table:
+            logger.error("No table selected for sprite creation")
+            return None
+            
+        from client_asset_manager import get_client_asset_manager
+        asset_manager = get_client_asset_manager()
+        
+        # Try to get cached asset path
+        texture_path = asset_manager.get_cached_asset_path(asset_id)
+        if not texture_path:
+            # Use a placeholder texture and request download
+            texture_path = "resources/placeholder.png"  # Fallback texture
+            self.request_asset_download(asset_id)
+            logger.info(f"Asset {asset_id} not cached, using placeholder and requesting download")
+        
+        # Create sprite with asset_id
+        new_sprite = self.add_sprite(
+            texture_path=texture_path,
+            layer=layer,
+            coord_x=coord_x,
+            coord_y=coord_y,
+            asset_id=asset_id
+        )
+        
+        if new_sprite:
+            logger.info(f"Created sprite {new_sprite.sprite_id} from R2 asset {asset_id}")
+        
+        return new_sprite
 
 class ContextTable:
     def __init__(self, table_name: str, width: int, height: int, scale: float = 1.0, table_id: str | None = None):

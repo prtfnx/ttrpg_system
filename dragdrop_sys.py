@@ -2,6 +2,7 @@ import sdl3
 import ctypes
 import logging
 import os
+import hashlib
 
 # Import storage system for file handling
 
@@ -50,32 +51,42 @@ def handle_dropped_file(context, file_path):
         if not os.path.exists(file_path):
             logger.error(f"Dropped file does not exist: {file_path}")
             return False
+            
+        # Check if this asset is already cached
+        from client_asset_manager import get_client_asset_manager
+        asset_manager = get_client_asset_manager()
         
-        # Use new storage system to handle the file
-        upload_results = handle_dropped_files([file_path])
+        # Generate asset ID from file content
+        potential_asset_id = generate_asset_id_from_file(file_path)
+        filename = os.path.basename(file_path)
         
-        if upload_results and len(upload_results) > 0:
-            result = upload_results[0]
-            if result.get('success', False):
-                # File was successfully uploaded to storage
-                local_path = result.get('local_path')
-                file_type = result.get('file_type', 'other')
-                
-                # If it's an image, create a sprite
-                if file_type == 'images' and local_path:
-                    return create_sprite_from_stored_image(context, local_path, result['filename'])
-                
-                # If it's a JSON table file, load it
-                elif file_path.lower().endswith('.json'):
-                    return load_table_from_json_file(context, local_path or file_path)
-                
-                logger.info(f"File successfully stored: {result['filename']}")
-                return True
-            else:
-                logger.error(f"Failed to store dropped file: {result.get('error', 'Unknown error')}")
-                return False
+        # Check if already cached
+        if asset_manager.is_asset_cached(potential_asset_id):
+            logger.info(f"Asset {filename} already cached, using cached version")
+            cached_path = asset_manager.get_cached_asset_path(potential_asset_id)
+            
+            # If it's an image, create sprite from cached asset
+            if is_image_file(file_path):
+                return create_sprite_from_cached_asset(context, potential_asset_id, filename, cached_path)
+            elif file_path.lower().endswith('.json'):
+                return load_table_from_json_file(context, cached_path or file_path)
+        
+        # Not cached, use R2 asset upload workflow
+        logger.info(f"Asset {filename} not cached, uploading to R2")
+        upload_result = upload_file_to_r2(context, file_path)
+        
+        if upload_result and upload_result.get('success', False):
+            # File was successfully uploaded to R2
+            asset_id = upload_result.get('asset_id')
+            filename = upload_result.get('filename')
+              # If it's an image, create a sprite
+            if is_image_file(file_path):
+                return create_sprite_from_r2_asset(context, asset_id, filename, file_path)
+              # If it's a JSON table file, load it  
+            elif file_path.lower().endswith('.json'):
+                return load_table_from_json_file(context, file_path)
         else:
-            logger.error("No results from file upload")
+            logger.error(f"Failed to upload file to R2: {upload_result.get('error', 'Unknown error')}")
             return False
             
     except Exception as e:
@@ -245,3 +256,148 @@ def load_table_from_json_file(context, file_path):
         logger.error(f"Error loading table from JSON file {file_path}: {e}")
         
     return False
+
+def is_image_file(file_path):
+    """Check if a file is an image based on its extension"""
+    image_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg'}
+    _, ext = os.path.splitext(file_path.lower())
+    return ext in image_extensions
+
+def upload_file_to_r2(context, file_path):
+    """Upload a file to R2 storage via the server (async workflow)"""
+    try:
+        if not context or not hasattr(context, 'request_asset_upload'):
+            logger.error("Context missing or doesn't support asset upload")
+            return {'success': False, 'error': 'No context or upload support'}
+        
+        filename = os.path.basename(file_path)
+        logger.info(f"Requesting upload URL for {filename}")
+        
+        # Use the existing async upload request
+        success = context.request_asset_upload(file_path, filename)
+        
+        if success:
+            logger.info(f"Upload request sent for {filename}. Upload URL will be provided asynchronously.")
+            # For now, return success - the actual upload will happen when the server responds
+            return {
+                'success': True,
+                'asset_id': 'pending',  # Will be updated when response arrives
+                'filename': filename,
+                'status': 'upload_requested'
+            }
+        else:
+            logger.error(f"Failed to request upload URL for {filename}")
+            return {'success': False, 'error': 'Failed to request upload URL'}
+        
+    except Exception as e:
+        logger.error(f"Error requesting upload for file: {e}")
+        return {'success': False, 'error': str(e)}
+
+def create_sprite_from_r2_asset(context, asset_id, filename, file_path=None):
+    """Create a sprite from an R2 asset (or pending asset)"""
+    try:
+        if not context:
+            logger.error("No context available to create sprite")
+            return False
+        
+        # Get current mouse position or center of screen
+        # For now, place it at a default position
+        x, y = 400, 300
+        if asset_id == 'pending':
+            logger.info(f"Creating sprite with pending upload for {filename} at position ({x}, {y})")
+            # Create sprite using the original file path so it can load the texture immediately
+            texture_path = file_path if file_path and os.path.exists(file_path) else filename
+            sprite = context.add_sprite(
+                coord_x=x, 
+                coord_y=y,
+                texture_path=texture_path,  # Use original file path if available
+                scale_x=1.0,
+                scale_y=1.0,
+                layer='tokens'
+            )
+              # Mark this sprite as having a pending upload
+            if sprite and hasattr(context, 'pending_upload_files'):
+                # Find the pending upload for this filename
+                for pending_asset_id, file_path in context.pending_upload_files.items():
+                    if os.path.basename(file_path) == filename:
+                        sprite.pending_asset_id = pending_asset_id
+                        logger.info(f"Sprite marked with pending asset ID: {pending_asset_id}")
+                        break
+        else:
+            logger.info(f"Creating sprite from R2 asset {asset_id} ({filename}) at position ({x}, {y})")
+            # Create sprite with confirmed R2 asset reference
+            sprite = context.add_sprite(
+                coord_x=x, 
+                coord_y=y,
+                texture_path=filename,  # Use filename as texture path
+                scale_x=1.0,
+                scale_y=1.0,
+                layer='tokens'
+            )
+            # Store the R2 asset ID for future reference
+            if sprite:
+                sprite.asset_id = asset_id
+        
+        if sprite:
+            logger.info(f"Successfully created sprite from asset: {filename}")
+            return True
+        else:
+            logger.error(f"Failed to create sprite from asset: {filename}")
+            return False
+        
+    except Exception as e:
+        logger.error(f"Error creating sprite from asset: {e}")
+        return False
+
+def create_sprite_from_cached_asset(context, asset_id, filename, cached_path):
+    """Create a sprite from a cached asset"""
+    try:
+        if not context:
+            logger.error("No context available to create sprite")
+            return False
+            
+        if not cached_path or not os.path.exists(cached_path):
+            logger.error(f"Cached asset path doesn't exist: {cached_path}")
+            return False
+        
+        # Get current mouse position or use default
+        x, y = 400, 300
+        
+        logger.info(f"Creating sprite from cached asset {filename} at position ({x}, {y})")
+        sprite = context.add_sprite(
+            coord_x=x, 
+            coord_y=y,
+            texture_path=cached_path,
+            scale_x=1.0,
+            scale_y=1.0,
+            layer='tokens'
+        )
+        
+        if sprite:
+            # Mark sprite with asset ID for future reference
+            sprite.asset_id = asset_id
+            logger.info(f"Successfully created sprite from cached asset: {filename}")
+            return True
+        else:
+            logger.error(f"Failed to create sprite from cached asset: {filename}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error creating sprite from cached asset {filename}: {e}")
+        return False
+
+def generate_asset_id_from_file(file_path: str) -> str:
+    """Generate a consistent asset ID from file content"""
+    try:
+        with open(file_path, 'rb') as f:
+            file_content = f.read()
+        return hashlib.md5(file_content).hexdigest()[:16]
+    except Exception as e:
+        logger.error(f"Error generating asset ID for {file_path}: {e}")
+        # Fallback to filename + size if can't read content
+        try:
+            filename = os.path.basename(file_path)
+            file_size = os.path.getsize(file_path)
+            return hashlib.md5(f"{filename}_{file_size}".encode()).hexdigest()[:16]
+        except:
+            return hashlib.md5(file_path.encode()).hexdigest()[:16]

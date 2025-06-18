@@ -4,6 +4,18 @@ Global settings and constants for the entire application.
 All settings are CAPITAL LETTERS as per Python conventions.
 """
 import os
+from pathlib import Path
+
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    # Get the directory containing this file
+    BASE_DIR = Path(__file__).resolve().parent
+    # Load .env file from the root directory
+    load_dotenv(BASE_DIR / '.env')
+except ImportError:
+    # python-dotenv not installed, will use system environment variables only
+    pass
 
 # ============================================================================
 # APPLICATION SETTINGS
@@ -16,10 +28,8 @@ DEBUG_MODE = True
 # STORAGE SETTINGS
 # ============================================================================
 # Default storage root path (platform-specific)
-if os.name == 'nt':  # Windows
-    DEFAULT_STORAGE_PATH = os.path.join(os.path.expanduser("~"), "Documents", "TTRPG_Storage")
-else:  # Linux/macOS
-    DEFAULT_STORAGE_PATH = os.path.join(os.path.expanduser("~"), ".local", "share", "ttrpg")
+_default_storage_path = os.path.join(os.path.expanduser("~"), "Documents", "TTRPG_Storage") if os.name == 'nt' else os.path.join(os.path.expanduser("~"), ".local", "share", "ttrpg")
+DEFAULT_STORAGE_PATH = os.getenv('DEFAULT_STORAGE_PATH', _default_storage_path)
 
 # Storage folders
 IMAGES_FOLDER = "images"
@@ -33,12 +43,13 @@ COMPENDIUMS_FOLDER = "compendiums"
 # ============================================================================
 # R2 CLOUD STORAGE SETTINGS
 # ============================================================================
-R2_ENABLED = False
-R2_ENDPOINT = ""
-R2_ACCESS_KEY = ""
-R2_SECRET_KEY = ""
-R2_BUCKET_NAME = ""
-R2_PUBLIC_URL = ""
+R2_ENABLED = os.getenv('R2_ENABLED', 'false').lower() in ('true', '1', 'yes', 'on')
+R2_ENDPOINT = os.getenv('R2_ENDPOINT', "")  # Can be left empty if R2_ACCOUNT_ID is provided
+R2_ACCOUNT_ID = os.getenv('R2_ACCOUNT_ID', "")  # Your Cloudflare account ID for R2
+R2_ACCESS_KEY = os.getenv('R2_ACCESS_KEY', "")
+R2_SECRET_KEY = os.getenv('R2_SECRET_KEY', "")
+R2_BUCKET_NAME = os.getenv('R2_BUCKET_NAME', "")
+R2_PUBLIC_URL = os.getenv('R2_PUBLIC_URL', "")  # Optional: Custom domain for public access
 
 # ============================================================================
 # CACHE SETTINGS

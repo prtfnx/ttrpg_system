@@ -6,7 +6,8 @@ import logging
 from typing import Optional, Any
 import sdl3
 import settings
-
+import json
+import ctypes
 logger = logging.getLogger(__name__)
 
 
@@ -34,8 +35,7 @@ class StorageManager:
     def save_data_sdl(self, key: str, data: Any) -> bool:
         """Save data to SDL storage"""
         try:
-            import json
-            import ctypes
+
             json_data = json.dumps(data).encode('utf-8')
             # SDL3 API with proper ctypes
             key_ptr = ctypes.c_char_p(key.encode('utf-8'))

@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s:%(message)s')
 
-LAYER_NAMES = ['map', 'tokens', 'dungeon_master', 'light', 'height']
+LAYER_NAMES = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles']
 
 class Entity:
     def __init__(self, name: str, position: Tuple[int, int], layer: str, 
@@ -22,12 +22,8 @@ class Entity:
         self.texture_path = path_to_texture
         self.scale_x = 1.0
         self.scale_y = 1.0        # Add rotation attribute
-        self.rotation = 0.0
-        
-        # Remove these problematic lines for now
-        # self.get_entity_at_position = get_entity_at_position
-        # self.get_entities_in_area = get_entities_in_area
-          # Add sprite ID for network tracking
+        self.rotation = 0.0      
+
         self.sprite_id = str(uuid.uuid4())
         
     def to_dict(self):
@@ -63,12 +59,16 @@ class Entity:
         entity.rotation = data.get('rotation', 0.0)
         return entity
 
+    def serialize(self) -> dict:
+        """Serialize entity for database storage"""
+        return self.to_dict()
+
 class VirtualTable:
     def __init__(self, name: str, width: int, height: int, table_id: Optional[str] = None):
         self.name = name
         self.width = width
         self.height = height
-        self.layers = ['map', 'tokens', 'dungeon_master', 'light', 'height']
+        self.layers = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles']
         self.entities: Dict[int, Entity] = {}
         self.next_entity_id = 1
         
@@ -123,7 +123,7 @@ class VirtualTable:
         if not self.is_valid_position(new_position):
             logger.error(f"Invalid move to {new_position}")
             raise ValueError("Invalid position")
-            
+        logger.debug(f"Moving entity {entity_id} to {new_position} on layer {new_layer}")  
         entity = self.entities[entity_id]
         old_x, old_y = entity.position
         old_layer = entity.layer
@@ -137,6 +137,7 @@ class VirtualTable:
             entity.layer = new_layer
         
         # Check if new position is free
+        logger.info(f"Moving entity {entity_id} (sprite: {entity.sprite_id}) from {entity.position} to {new_position} on layer {entity.layer}")
         if self.grid[entity.layer][new_position[1]][new_position[0]] is not None:
             # Rollback
             self.grid[old_layer][old_y][old_x] = entity_id
@@ -300,7 +301,7 @@ class VirtualTable:
             logger.error(f"Failed to save table to {file_path}: {e}")
             raise
 
-# Fix any references to id vs entity_id in the rest of the file
+
 def get_entity_at_position(self, position: Tuple[int, int], layer: str = None) -> Optional[Entity]:
     """Get entity at specific position"""
     x, y = position
@@ -346,7 +347,7 @@ def get_entities_in_area(self, top_left: Tuple[int, int], bottom_right: Tuple[in
     
     return entities
 
-# Add these methods to VirtualTable class
+
 
 
 def create_table_from_json(json_data: str) -> VirtualTable:
@@ -359,7 +360,7 @@ def create_table_from_json(json_data: str) -> VirtualTable:
         table.next_entity_id = max(table.next_entity_id, entity.entity_id + 1)
     logger.info(f"Created table from JSON data")
     return table
-# Example usage:
+
 
 
 
@@ -369,7 +370,6 @@ if __name__ == "__main__":
     table.add_entity("Goblin", (5, 6), layer='dungeon_master', path_to_texture='resources/goblin.png')
     table.save_to_disk("table.json")
     
-    # Start server in background
-    # Client fetches table
+
 
     #logging.info(f"Received table data: {table_data}")

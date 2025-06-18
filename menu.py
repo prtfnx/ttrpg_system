@@ -51,7 +51,7 @@ class MenuApp:
         sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_CONTEXT_PROFILE_MASK, sdl3.SDL_GL_CONTEXT_PROFILE_CORE)
         sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_DOUBLEBUFFER, 1)
         self.window = sdl3.SDL_CreateWindow(
-            "TTRPG Menu".encode(), 500, 600,
+            "TTRPG Menu".encode(), 800, 800,
             sdl3.SDL_WINDOW_OPENGL | sdl3.SDL_WINDOW_RESIZABLE
         )
         

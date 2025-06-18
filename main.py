@@ -16,8 +16,6 @@ import asyncio
 import paint
 import gui.gui_imgui as gui_imgui
 from net import client_sdl
-from net import client_webhook
-from net import client_webhook_protocol
 from net.client_websocket import WebSocketClient
 from net import client_websocket_protocol
 from net.protocol import ProtocolHandler, Message, MessageType
@@ -469,69 +467,6 @@ def net_thread_func(context):
 
         time.sleep(NET_SLEEP)
 
-def start_webhook_connection_thread(context, server_url, webhook_port):
-    """Start the webhook connection."""
-    logger.info("Starting webhook connection...")
-    while True:
-        try:
-            logger.info("Creating webhook client...")
-            webhook_client = client_webhook.init_connection(server_url, webhook_port)
-            context.net_socket = webhook_client  # Store webhook client in same attribute
-            webhook_thread_func(context)
-        except Exception as e:
-            logger.error("Error creating webhook connection: %s", e)
-            time.sleep(1)
-
-def webhook_thread_func(context):
-    """Thread for webhook communication."""
-    logger.info("Webhook thread func started.")
-    last_check = time.time()
-    check_interval = CHECK_INTERVAL
-    net_fails = 0
-
-    webhook_client = context.net_socket
-    logger.info("Webhook client ready for communication...")
-
-    while True:
-        current_time = time.time()
-        
-        # Check connection periodically
-        if current_time - last_check > check_interval:
-            try:
-                webhook_client.ping_server()
-                last_check = current_time
-            except Exception as e:
-                logger.error("Webhook ping error: %s", e)
-                net_fails += 1
-                if net_fails > NUMBER_OF_NET_FAILS:
-                    logger.error("Too many webhook failures, reconnecting...")
-                    break
-
-        # Send queued messages
-        try:
-            while not context.queue_to_send.empty():
-                msg = context.queue_to_send.get_nowait()
-                webhook_client.send_data(msg)
-                logger.debug(f"Sent webhook data: {msg[:100]}...")
-        except Exception as e:
-            logger.error("Error sending webhook data: %s", e)
-
-        # Receive messages
-        try:
-            data = client_webhook.receive_data(webhook_client)
-            if data:
-                if data.strip() == "__pong__":
-                    net_fails = max(0, net_fails - 1)
-                    logger.debug(f'Received webhook pong, net_fails={net_fails}.')
-                elif data.strip() == "-1":
-                    pass  # Handle webhook specific errors
-                else:
-                    context.queue_to_read.put(data)
-                    logger.debug(f"Received webhook data: {data[:100]}...")
-        except Exception as e:
-            logger.error("Error receiving webhook data: %s", e)
-            net_fails += 1        
-        time.sleep(NET_SLEEP)
 
 def start_websocket_connection_thread(context, server_url:str, session_code:str, jwt_token:str):
     """Start the WebSocket connection with authentication."""
@@ -579,7 +514,7 @@ def parse_arguments():
     # Authentication parameters for WebSocket connections
     parser.add_argument('--session-code', default='V2ERPCXR',
                        help='Game session code for WebSocket connection')
-    parser.add_argument('--jwt-token', default='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNzUwMjIwOTM4fQ.fGM-v0pFqvYJTdwAKPX2bmQx92MNR4P5ln_gKBuFyRc',
+    parser.add_argument('--jwt-token', default='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNzUwMjYwODU3fQ.5xzIRn8oXzuaRZj2qiMxx4QO5TfjBShwwECTr3BySzg',
                        help='JWT authentication token for WebSocket connection')
     parser.add_argument('--username', default='test',
                        help='Username for authentication')

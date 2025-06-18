@@ -64,4 +64,8 @@
 5. [ ] Implement AI for monsters and automate their actions
 
 
+### New Discovery
+[ ] For action protocol consistenly use or name or id. 
+
+
 

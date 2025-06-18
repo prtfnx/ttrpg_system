@@ -103,3 +103,30 @@ class Entity(Base):
     
     # Relationships
     table = relationship("VirtualTable", back_populates="entities")
+
+class Asset(Base):
+    __tablename__ = "assets"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    asset_name = Column(String(255), unique=True, index=True, nullable=False)  # Original filename
+    r2_asset_id = Column(String(100), unique=True, index=True, nullable=False)  # R2 asset ID
+    content_type = Column(String(100), nullable=False)  # MIME type
+    file_size = Column(Integer, nullable=False)  # Size in bytes
+    checksum = Column(String(64), nullable=False)  # SHA-256 checksum
+    
+    # Metadata
+    uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    session_id = Column(Integer, ForeignKey("game_sessions.id"), nullable=True)  # Optional session association
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_accessed = Column(DateTime, default=datetime.utcnow)
+    
+    # R2 specific metadata
+    r2_key = Column(String(500), nullable=False)  # R2 object key
+    r2_bucket = Column(String(100), nullable=False)  # R2 bucket name
+    
+    # Relationships
+    uploader = relationship("User")
+    session = relationship("GameSession")

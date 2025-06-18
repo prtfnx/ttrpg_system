@@ -4,13 +4,13 @@ from dataclasses import dataclass, asdict, field
 from typing import Dict, List, Any, Optional
 import time
 
-class MessageType(enum.Enum):
-    # Core messages
+class MessageType(enum.Enum):    # Core messages
     PING = "ping"
     PONG = "pong"
     ERROR = "error"
     TEST = "test"  
     SUCCESS = "success"
+    WELCOME = "welcome"
 
     # Authentication messages
     AUTH_REGISTER = "auth_register"
@@ -52,11 +52,20 @@ class MessageType(enum.Enum):
     SPRITE_MOVE = "sprite_move"
     SPRITE_SCALE = "sprite_scale"
     SPRITE_ROTATE = "sprite_rotate"
-    
-    # File transfer
+      # File transfer
     FILE_REQUEST = "file_request"
     FILE_DATA = "file_data"
     
+    # R2 Asset Management
+    ASSET_UPLOAD_REQUEST = "asset_upload_request"
+    ASSET_UPLOAD_RESPONSE = "asset_upload_response"
+    ASSET_DOWNLOAD_REQUEST = "asset_download_request"
+    ASSET_DOWNLOAD_RESPONSE = "asset_download_response"
+    ASSET_LIST_REQUEST = "asset_list_request"
+    ASSET_LIST_RESPONSE = "asset_list_response"
+    ASSET_UPLOAD_CONFIRM = "asset_upload_confirm"
+    ASSET_DELETE_REQUEST = "asset_delete_request"
+    ASSET_DELETE_RESPONSE = "asset_delete_response"
     
     # Compendium operations
     COMPENDIUM_SPRITE_ADD = "compendium_sprite_add"

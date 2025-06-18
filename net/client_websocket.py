@@ -8,6 +8,7 @@ from typing import Any
 from queue import PriorityQueue, Empty
 from .protocol import Message, PrioritizedItem
 import logging
+import json
 logger = logging.getLogger(__name__)
 
 
@@ -141,8 +142,23 @@ class WebSocketClient:
     async def producer_handler(self, websocket):
         while True:
             try:
-                message = await self.server_bridge.get()
-                await websocket.send(message)
+                queue_item = await self.server_bridge.get()
+                # Extract message from priority queue tuple (priority, message)
+                if isinstance(queue_item, tuple) and len(queue_item) == 2:
+                    priority, message = queue_item
+                else:
+                    message = queue_item
+                
+                # Convert message to JSON string if it's a Message object
+                if hasattr(message, 'to_json'):
+                    message_str = message.to_json()
+                elif isinstance(message, str):
+                    message_str = message
+                else:
+                    
+                    message_str = json.dumps(message)
+                
+                await websocket.send(message_str)
             except ConnectionClosed:
                 break
     

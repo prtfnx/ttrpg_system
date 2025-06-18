@@ -276,3 +276,88 @@ class R2AssetManager:
             'uploads': {"count": 0, "bytes": 0, "errors": 0},
             'downloads': {"count": 0, "bytes": 0, "errors": 0}
         }
+    
+    def generate_presigned_url(self, file_key: str, method: str = "GET", expiration: int = 3600) -> Optional[str]:
+        """
+        Generate presigned URL for R2 object following Cloudflare best practices.
+        
+        Args:
+            file_key: Object key in R2 bucket
+            method: HTTP method (GET, PUT, DELETE)
+            expiration: URL expiration in seconds (max 7 days)
+        
+        Returns:
+            Presigned URL string or None if failed
+        """
+        try:
+            # Validate expiration (Cloudflare R2 limit: 7 days)
+            max_expiration = 7 * 24 * 3600  # 7 days in seconds
+            if expiration > max_expiration:
+                logger.warning(f"Expiration {expiration}s exceeds R2 limit, using {max_expiration}s")
+                expiration = max_expiration
+            
+            # Generate presigned URL using boto3
+            if method.upper() == "GET":
+                url = self.s3_client.generate_presigned_url(
+                    'get_object',
+                    Params={
+                        'Bucket': settings.R2_BUCKET_NAME,
+                        'Key': file_key
+                    },
+                    ExpiresIn=expiration
+                )
+            elif method.upper() == "PUT":
+                url = self.s3_client.generate_presigned_url(
+                    'put_object',
+                    Params={
+                        'Bucket': settings.R2_BUCKET_NAME,
+                        'Key': file_key
+                    },
+                    ExpiresIn=expiration
+                )
+            elif method.upper() == "DELETE":
+                url = self.s3_client.generate_presigned_url(
+                    'delete_object',
+                    Params={
+                        'Bucket': settings.R2_BUCKET_NAME,
+                        'Key': file_key
+                    },
+                    ExpiresIn=expiration
+                )
+            else:
+                logger.error(f"Unsupported method for presigned URL: {method}")
+                return None
+            
+            logger.info(f"Generated presigned {method} URL for {file_key} (expires in {expiration}s)")
+            return url
+            
+        except Exception as e:
+            logger.error(f"Failed to generate presigned URL for {file_key}: {e}")
+            return None
+    
+    def object_exists(self, file_key: str) -> bool:
+        """
+        Check if an object exists in R2 bucket.
+        
+        Args:
+            file_key: Object key to check
+            
+        Returns:
+            True if object exists, False otherwise
+        """
+        try:
+            self.s3_client.head_object(
+                Bucket=settings.R2_BUCKET_NAME,
+                Key=file_key
+            )
+            return True
+        except ClientError as e:
+            error_code = e.response['Error']['Code']
+            if error_code == '404':
+                return False
+            else:
+                logger.error(f"Error checking object existence for {file_key}: {e}")
+                return False
+        except Exception as e:
+            logger.error(f"Unexpected error checking object existence for {file_key}: {e}")
+            return False

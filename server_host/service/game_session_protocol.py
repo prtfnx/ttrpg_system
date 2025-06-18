@@ -19,7 +19,7 @@ sys.path.append(parent_dir)
 from net.protocol import Message, MessageType, ProtocolHandler
 from core_table.server_protocol import ServerProtocol
 from core_table.server import TableManager
-
+from .asset_manager import get_server_asset_manager
 logger = logging.getLogger(__name__)
 
 
@@ -52,6 +52,9 @@ class GameSessionProtocolService:
         else:
             logger.warning(f"No database session provided for {session_code}, creating test tables")
             self._create_test_tables()
+        
+        
+        self.asset_manager = get_server_asset_manager()
         
         logger.info(f"GameSessionProtocolService created for session {session_code}")
     
@@ -137,11 +140,11 @@ class GameSessionProtocolService:
             
             # Add entities across different layers
             map_bg = large_table.add_entity("Map Background1", (0, 0), layer='map', path_to_texture='resources/map.jpg')
-            player1 = large_table.add_entity("Player 1", (400, 300), layer='tokens', path_to_texture='resources/player1.png')
-            player2 = large_table.add_entity("Player 2", (12, 10), layer='tokens', path_to_texture='resources/player2.png')
-            dm_note = large_table.add_entity("DM Note", (25, 25), layer='dungeon_master', path_to_texture='resources/note.png')
-            light_source = large_table.add_entity("Light Source", (15, 15), layer='light', path_to_texture='resources/torch.png')
-            
+            player1 = large_table.add_entity("Player 1", (400, 300), layer='tokens', path_to_texture='server_host/res/player1.png')
+            player2 = large_table.add_entity("Player 2", (12, 10), layer='tokens', path_to_texture='server_host/res/player2.png')
+            dm_note = large_table.add_entity("DM Note", (25, 25), layer='dungeon_master', path_to_texture='server_host/res/note.png')
+            light_source = large_table.add_entity("Light Source", (15, 15), layer='light', path_to_texture='server_host/res/torch.png')
+
             # Add some more entities to make it feel populated
             orc1 = large_table.add_entity("Orc Warrior", (20, 15), layer='tokens', path_to_texture='resources/orc.png')
             orc2 = large_table.add_entity("Orc Archer", (22, 17), layer='tokens', path_to_texture='resources/orc_archer.png')
@@ -176,13 +179,15 @@ class GameSessionProtocolService:
         self.websocket_to_client[websocket] = client_id
         
         logger.info(f"Client {client_id} ({user_info.get('username', 'unknown')}) added to session {self.session_code}")
-        
-        # Send welcome message with protocol support
+          # Send welcome message with protocol support
         await self._send_message(websocket, Message(
-            MessageType.PING,
+            MessageType.WELCOME,
             {
                 "message": f"Welcome to game session {self.session_code}",
                 "client_id": client_id,
+                "user_id": user_info.get('user_id', 0),
+                "username": user_info.get('username', 'unknown'),
+                "session_code": self.session_code,
                 "tables": list(self.table_manager.tables.keys())
             }
         ))
@@ -221,11 +226,20 @@ class GameSessionProtocolService:
                 self.client_info[client_id]["last_ping"] = time.time()
             logger.debug(f"Received {message.type.value} from {client_id} in session {self.session_code}")
             #logger.debug(f"Available handlers: {list(self.message_handlers.keys())}")
-            logger.debug(f"Message type object: {message.type}")
+            logger.debug(f"Message type object: {message.type}")            # Handle message by type
+            try:
+                message_type = MessageType(message.type)
+                logger.debug(f"Successfully converted message type: {message_type}")
+            except ValueError as e:
+                logger.error(f"Failed to convert message type '{message.type}': {e}")
+                logger.error(f"Available message types: {[mt.value for mt in MessageType]}")
+                await self._send_error(websocket, f"Invalid message type: {message.type}")
+                return
             
-            # Handle message by type
-            message_type = MessageType(message.type)
-            if message_type in self.server_protocol.handlers.keys():
+            # Handle asset messages separately
+            if message_type in [MessageType.ASSET_UPLOAD_REQUEST, MessageType.ASSET_DOWNLOAD_REQUEST, MessageType.ASSET_LIST_REQUEST]:
+                await self._handle_asset_message(websocket, message, client_id)
+            elif message_type in self.server_protocol.handlers.keys():
                 await self.server_protocol.handle_client(message, client_id)
                 
                 # Auto-save after sprite/entity movement or updates to persist changes immediately
@@ -236,7 +250,6 @@ class GameSessionProtocolService:
                 #TODO - implement proper broadcast logic
                 await self.broadcast_to_session(message, exclude_client=client_id)
             else:
-                
                 logger.warning(f"Unknown message type: {message_type}, available handlers: {list(self.server_protocol.handlers.keys())}")
                 logger.info(f"message: {message}, client_id: {client_id}")
                 await self._send_error(websocket, f"Unknown message type: {message.type.value}")
@@ -373,5 +386,99 @@ class GameSessionProtocolService:
             if self.db_session:
                 self.db_session.rollback()
             return False
+
+    async def _handle_asset_message(self, websocket: WebSocket, message: Message, client_id: str):
+        """Handle asset-related messages"""
+        try:
+            client_info = self.client_info.get(client_id, {})
+            user_id = client_info.get("user_id", 0)
+            username = client_info.get("username", "unknown")
+              # Import asset request classes
+            from .asset_manager import AssetRequest, PresignedUrlResponse
+            
+            if message.type == MessageType.ASSET_UPLOAD_REQUEST:
+                # Client wants to upload an asset (e.g., when loading sprite from PC)
+                request_data = message.data or {}
+                request = AssetRequest(
+                    user_id=user_id,
+                    username=username,
+                    session_code=self.session_code,
+                    filename=request_data.get("filename"),
+                    file_size=request_data.get("file_size"),
+                    content_type=request_data.get("content_type", "image/png")
+                )
+                
+                response = await self.asset_manager.request_upload_url(request)
+                  # Send response back to client
+                response_message = Message(
+                    type=MessageType.ASSET_UPLOAD_RESPONSE,
+                    data={
+                        "success": response.success,
+                        "url": response.url,
+                        "asset_id": response.asset_id,
+                        "filename": request_data.get("filename"),  # Include original filename
+                        "expires_in": response.expires_in,
+                        "error": response.error,
+                        "instructions": response.instructions
+                    }
+                )
+                await websocket.send_text(response_message.to_json())
+                
+            elif message.type == MessageType.ASSET_DOWNLOAD_REQUEST:
+                # Client wants to download an asset
+                request_data = message.data or {}
+                asset_id = request_data.get("asset_id")
+                filename = request_data.get("filename")  # For filename-based requests
+                
+                if filename and not asset_id:
+                    # Request by filename (e.g., when entity has texture_path but no asset_id)
+                    response = await self.asset_manager.request_download_url_by_filename(
+                        filename, self.session_code, user_id
+                    )
+                elif asset_id:
+                    # Request by asset_id
+                    request = AssetRequest(
+                        user_id=user_id,
+                        username=username,
+                        session_code=self.session_code,
+                        asset_id=asset_id
+                    )
+                    response = await self.asset_manager.request_download_url(request)
+                else:
+                    response = PresignedUrlResponse(
+                        success=False,
+                        error="Either asset_id or filename is required"
+                    )
+                
+                # Send response back to client
+                response_message = Message(
+                    type=MessageType.ASSET_DOWNLOAD_RESPONSE,
+                    data={
+                        "success": response.success,
+                        "url": response.url,
+                        "asset_id": response.asset_id,
+                        "expires_in": response.expires_in,
+                        "error": response.error,
+                        "filename": filename if filename else None
+                    }
+                )
+                await websocket.send_text(response_message.to_json())
+                
+            elif message.type == MessageType.ASSET_LIST_REQUEST:
+                # Client wants list of session assets
+                assets = self.asset_manager.get_session_assets(self.session_code)
+                
+                response_message = Message(
+                    type=MessageType.ASSET_LIST_RESPONSE,
+                    data={
+                        "success": True,
+                        "assets": assets
+                    }
+                )
+                await websocket.send_text(response_message.to_json())
+                
+        except Exception as e:
+            logger.error(f"Error handling asset message: {e}")
+            await self._send_error(websocket, f"Asset operation failed: {str(e)}")
 
 

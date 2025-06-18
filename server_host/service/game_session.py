@@ -15,6 +15,7 @@ from server_host.utils.logger import setup_logger
 # Database imports
 from server_host.database.database import SessionLocal
 from server_host.database.session_utils import create_game_session_with_persistence, load_game_session_protocol_from_db, save_game_session_state
+from server_host.service.asset_manager import get_server_asset_manager
 
 logger = setup_logger(__name__)
 
@@ -96,6 +97,17 @@ class ConnectionManager:
         else:
             protocol_service = self.sessions_protocols[session_code]
         logger.info(f"Adding client {client_id} to protocol service for session {session_code}")
+        
+        # Setup R2 asset permissions for this user (default to player role)
+        # TODO: Get actual role from user database or session settings
+        user_role = "player"  # This should come from your user management system
+        if username.lower().startswith("dm") or username.lower().startswith("gm"):
+            user_role = "dm"  # Simple heuristic, replace with proper role management
+        
+        asset_manager = get_server_asset_manager()
+        asset_manager.setup_session_permissions(session_code, user_id, username, user_role)
+        logger.info(f"Setup R2 asset permissions for {username} as {user_role} in session {session_code}")
+        
         await protocol_service.add_client(websocket, client_id, {
             "user_id": user_id,
             "username": username,
@@ -153,6 +165,11 @@ class ConnectionManager:
                             del self.db_sessions[session_code]
                         except Exception as e:
                             logger.error(f"Error closing database session: {e}")
+                    
+                    # Clean up R2 asset session data
+                    asset_manager = get_server_asset_manager()
+                    asset_manager.cleanup_session(session_code)
+                    logger.info(f"Cleaned up R2 assets for session {session_code}")
                     
                     if session_code in self.game_session_db_ids:
                         del self.game_session_db_ids[session_code]
@@ -271,12 +288,19 @@ class ConnectionManager:
 
     def _is_protocol_message(self, message_data: dict) -> bool:
         """Check if message is a protocol message"""
-        # Protocol messages have 'message_type' and 'data' fields
-        return 'message_type' in message_data or ('type' in message_data and 'data' in message_data and 
-                message_data.get('type') in ['ping', 'pong', 'table_request', 'table_data', 'new_table_request', 
-                                            'new_table_response', 'table_update', 'sprite_update', 'file_request', 
-                                            'file_data', 'compendium_sprite_add', 'compendium_sprite_update', 
-                                            'compendium_sprite_remove', 'error'])
+        # Protocol messages have 'type' and 'data' fields       
+        if 'type' in message_data and 'data' in message_data:
+            message_type = message_data.get('type')
+            # Check if the message type is a valid MessageType enum value
+            try:
+                MessageType(message_type)
+                return True
+            except ValueError:
+                return False
+        else:
+            return False
+          
+               
 
     def get_session_players(self, session_code: str) -> List[dict]:
         """Get list of connected players in a session"""

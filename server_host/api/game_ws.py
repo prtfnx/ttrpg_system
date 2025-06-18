@@ -116,9 +116,10 @@ async def websocket_game_endpoint(
             await websocket.close(code=status.WS_1003_UNSUPPORTED_DATA)
             return
         
-        logger.info(f"Game session found: {db_game_session.name}")        # Connect user to session (ConnectionManager will handle loading protocol service)
-        user_id = user.id
-        username = user.username
+        logger.info(f"Game session found: {db_game_session.name}")       
+        user_id = int(user.id)
+        username = str(user.username)
+        logger.debug(f"User ID: {user_id}, Username: {username}, user {user}, user id {user.id}")
         logger.info(f"Connecting user {username} with ID {user_id} to session {session_code}")
         await connection_manager.connect(websocket, session_code, user_id, username)
         
@@ -127,7 +128,10 @@ async def websocket_game_endpoint(
         # Send welcome message
         await connection_manager.send_personal_message({
             "type": "welcome",
+            
+            "username": username,
             "data": {
+                "user_id": user_id,
                 "session_name": db_game_session.name,
                 "session_code": session_code,
                 "players": connection_manager.get_session_players(session_code)

@@ -19,10 +19,15 @@ HOST = '127.0.0.1'
 PORT = 12345
 
 class TableManager:
-    """Manages virtual tables for the server"""
-    def __init__(self):
+    """Manages virtual tables for the server with database persistence"""
+    def __init__(self, db_session=None):
         self.tables: Dict[str, VirtualTable] = {}
+        self.db_session = db_session  # SQLAlchemy session for database operations
         self.default_table = self._create_default_table()
+        
+    def set_db_session(self, db_session):
+        """Set database session for persistence operations"""
+        self.db_session = db_session
         
     def _create_default_table(self) -> VirtualTable:
         """Create a default table"""
@@ -61,11 +66,88 @@ class TableManager:
             # Handle grid changes
             pass
         # Add more general update types as needed
+        
     def clear_tables(self):
         """Clear all tables"""
         self.tables.clear()
         self.default_table = self._create_default_table()
         logger.info("Cleared all tables, reset to default")
+    
+    def save_to_database(self, session_id: int) -> bool:
+        """Save all tables to database"""
+        if not self.db_session:
+            logger.warning("No database session available for saving tables")
+            return False
+        
+        try:
+            from server_host.database import crud
+            
+            for table_name, table in self.tables.items():
+                if table_name != "default":  # Skip default table for now
+                    crud.save_table_to_db(self.db_session, table, session_id)
+                    logger.info(f"Saved table '{table_name}' to database")
+            
+            return True
+        except Exception as e:
+            logger.error(f"Error saving tables to database: {e}")
+            return False
+    
+    def load_from_database(self, session_id: int) -> bool:
+        """Load tables from database for a session"""
+        if not self.db_session:
+            logger.warning("No database session available for loading tables")
+            return False
+        
+        try:
+            from server_host.database import crud
+            
+            # Get all tables for this session
+            db_tables = crud.get_session_tables(self.db_session, session_id)
+            
+            for db_table in db_tables:
+                virtual_table, success = crud.load_table_from_db(self.db_session, db_table.table_id)
+                if success and virtual_table:
+                    self.tables[virtual_table.name] = virtual_table
+                    logger.info(f"Loaded table '{virtual_table.name}' from database")
+                else:
+                    logger.error(f"Failed to load table with ID {db_table.table_id}")
+            
+            return True
+        except Exception as e:
+            logger.error(f"Error loading tables from database: {e}")
+            return False
+    
+    def save_table(self, table_name: str, session_id: int) -> bool:
+        """Save a specific table to database"""
+        if not self.db_session or table_name not in self.tables:
+            return False
+        
+        try:
+            from server_host.database import crud
+            table = self.tables[table_name]
+            crud.save_table_to_db(self.db_session, table, session_id)
+            logger.info(f"Saved table '{table_name}' to database")
+            return True
+        except Exception as e:
+            logger.error(f"Error saving table '{table_name}' to database: {e}")
+            return False
+    
+    def load_table(self, table_id: str) -> bool:
+        """Load a specific table from database"""
+        if not self.db_session:
+            return False
+        
+        try:
+            from server_host.database import crud
+            virtual_table, success = crud.load_table_from_db(self.db_session, table_id)
+            if success and virtual_table:
+                self.tables[virtual_table.name] = virtual_table
+                logger.info(f"Loaded table '{virtual_table.name}' from database")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Error loading table with ID '{table_id}' from database: {e}")
+            return False
 
 class GameServer:
     """Main game server that uses ServerProtocol"""

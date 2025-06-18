@@ -10,7 +10,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from net.protocol import Message, MessageType 
 from core_table.actions_core import ActionsCore
-logger = logging.getLogger(__name__)
+from server_host.utils.logger import setup_logger
+logger = setup_logger(__name__)
 
 class ServerProtocol:
     def __init__(self, table_manager):
@@ -26,6 +27,7 @@ class ServerProtocol:
         # Track sprite positions for conflict resolution
         #self.sprite_positions: Dict[str, Dict[str, Tuple[float, float]]] = {}
 
+    
     def register_handler(self, msg_type: MessageType, handler: Callable):
         """Extension point for custom message handlers"""
         self.handlers[msg_type] = handler    
@@ -104,7 +106,7 @@ class ServerProtocol:
             return Message(MessageType.ERROR, {'error': 'No data provided in table request'})
         table_name = msg.data.get('table_name', 'default')
         table_id = msg.data.get('table_id', table_name)
-
+        logger.info(f"Current tables: {self.table_manager.tables.items()}")
         result = await self.actions.get_table(table_id)
 
         if not result.success or not result.data or result.data.get('table') is None:
@@ -202,16 +204,19 @@ class ServerProtocol:
             logger.error(f"Missing 'type' field in sprite update from {client_id}: {msg.data}")
             return Message(MessageType.ERROR, {'error': 'Missing required field: type'})
         update_data = msg.data.get('data', {})
-        if not update_data or 'table_id' not in update_data or 'sprite_id' not in update_data:
+
+        if not update_data or 'table_name' not in update_data or 'sprite_id' not in update_data:
             logger.error(f"Invalid sprite update data from {client_id}: {update_data}")
             return Message(MessageType.ERROR, {'error': 'Invalid sprite update data'})
         match type:
             case 'sprite_move':
                 # Handle sprite movement
+                
                 if 'from' not in update_data or 'to' not in update_data:
                     logger.error(f"Missing 'from' or 'to' field in sprite move update from {client_id}: {update_data}")
                     return Message(MessageType.ERROR, {'error': 'Missing required fields: from, to'})
-                await self.actions.move_sprite(table_id=update_data['table_id'],
+     
+                await self.actions.move_sprite(table_name=update_data['table_name'],
                                                sprite_id=update_data['sprite_id'],
                                                old_position=update_data['from'],
                                                new_position=update_data['to'])

@@ -1,6 +1,6 @@
 from __future__ import annotations
 import numpy as np
-from skimage import draw
+#from skimage import draw
 from typing import List, Tuple, Set, Optional, Callable, Any
 import time
 import functools
@@ -88,11 +88,11 @@ class GeometricManager:
     - Obstacle collections: numpy array of shape (N, 2, 2) for N line segments
     """
     
-    @staticmethod
-    @profile_function
-    def line(r0: int, c0: int, r1: int, c1: int) -> Tuple[np.ndarray, np.ndarray]:
-        """Using skimage.draw for line coordinates"""
-        return draw.line(r0, c0, r1, c1)
+    # @staticmethod
+    # @profile_function
+    # def line(r0: int, c0: int, r1: int, c1: int) -> Tuple[np.ndarray, np.ndarray]:
+    #     """Using skimage.draw for line coordinates"""
+    #     return draw.line(r0, c0, r1, c1)
 
     def sprites_to_obstacles_numpy(sprite_list : List[sprite]) -> np.ndarray:
         """
@@ -512,12 +512,7 @@ class GeometricManager:
     def _cast_ray_to_closest_obstacle(start: np.ndarray, angle: float, max_distance: int, 
                                     obstacles: np.ndarray) -> np.ndarray:
         """
-        Cast ray and find intersection with SHORTEST distance only.
-        Uses fast line() function for ray direction calculation.
-        
-        Step 2.4: Find intersections between ray and obstacles
-        Step 2.5: Find distances for intersections  
-        Step 2.6: Return point with shortest distance
+        Cast ray and find intersection with SHORTEST distance only. 
         """
         # Calculate ray end point using fast trigonometry
         direction = np.array([np.cos(angle), np.sin(angle)], dtype=np.float64)

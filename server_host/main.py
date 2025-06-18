@@ -18,7 +18,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
+from server_host.utils.logger import setup_logger
 from server_host.routers import users
 from server_host.routers import game
 from server_host.api import game_ws
@@ -29,7 +29,8 @@ from server_host.utils.rate_limiter import registration_limiter, login_limiter
 # Import table manager for WebSocket protocol
 from core_table.server import TableManager
 
-logger = logging.getLogger(__name__)
+
+logger = setup_logger("main.py" ) # set level in logger.py to DEBUG for detailed logs
 
 # Application state
 class AppState:
@@ -170,22 +171,10 @@ async def health_check():
         status_code=200
     )
 
-if __name__ == "__main__":
-    # Configure logging - more verbose for debugging production issues
-    log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
-    logging.basicConfig(
-        level=getattr(logging, log_level),
-        format="%(asctime)s %(levelname)s:%(name)s: %(message)s"
-    )
+if __name__ == "__main__":     
+   
     
-    # Enable debug logging for key modules in production
-    if os.environ.get("ENVIRONMENT") == "production":
-        logging.getLogger("server_host.service.game_session_protocol").setLevel(logging.DEBUG)
-        logging.getLogger("server_host.api.websocket_router").setLevel(logging.DEBUG)
-        logging.getLogger("core_table.server").setLevel(logging.DEBUG)
-        logging.getLogger("core_table.server_protocol").setLevel(logging.DEBUG)
-        logger.info("Enabled debug logging for protocol components")
-    
+       
     # Get port from environment (render.com sets this automatically)
     port = int(os.environ.get("PORT", 12345))
     
@@ -198,10 +187,11 @@ if __name__ == "__main__":
     logger.info(f"ENVIRONMENT: {os.environ.get('ENVIRONMENT', 'test')}")
 
     # Run server
+    logger.debug("Running Uvicorn server...")
     uvicorn.run(
         "main:app",
         host=host,
         port=port,
-        log_level="info",
+        log_level="warning",
         access_log=True
     )

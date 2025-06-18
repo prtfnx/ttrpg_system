@@ -35,17 +35,6 @@ import lighting_sys
 #import profiler
 #from profiler_integration import profile_sdl_operations, profile_imgui_operations, profile_context_operations
 
-# Configure logging with enhanced debug visibility
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s [%(levelname)8s] %(name)s: %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),  # Console output
-        logging.FileHandler('debug.log', mode='w')  # File output for persistence
-    ],    
-)
-
-# Set specific loggers to debug level to ensure they show debug messages
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -327,47 +316,47 @@ def SDL_AppIterate(context):
 def handle_information(msg, context):
     """Handle incoming network messages."""
     try:
-        # Handle WebSocket wrapped messages (old format compatibility)
-        if isinstance(msg, str):
-            try:
-                parsed = json.loads(msg)
-                # Check if this is a wrapped message format from WebSocket server
-                if isinstance(parsed, dict) and "message" in parsed and "server_id" in parsed:
-                    # Extract the actual message from the wrapper
-                    actual_message = parsed["message"]
-                    # If the message is a JSON string, use it directly
-                    if isinstance(actual_message, str):
-                        msg = actual_message
-                    else:
-                        # If it's already parsed, re-serialize it
-                        msg = json.dumps(actual_message)
-                    logger.debug("Unwrapped WebSocket message")
-            except (json.JSONDecodeError, KeyError):
-                # Not a wrapped message, use as-is
-                pass
+        # # Handle WebSocket wrapped messages (old format compatibility)
+        # if isinstance(msg, str):
+        #     try:
+        #         parsed = json.loads(msg)
+        #         # Check if this is a wrapped message format from WebSocket server
+        #         if isinstance(parsed, dict) and "message" in parsed and "server_id" in parsed:
+        #             # Extract the actual message from the wrapper
+        #             actual_message = parsed["message"]
+        #             # If the message is a JSON string, use it directly
+        #             if isinstance(actual_message, str):
+        #                 msg = actual_message
+        #             else:
+        #                 # If it's already parsed, re-serialize it
+        #                 msg = json.dumps(actual_message)
+        #             logger.debug("Unwrapped WebSocket message")
+        #     except (json.JSONDecodeError, KeyError):
+        #         # Not a wrapped message, use as-is
+        #         pass
         #print('context.protocol.handle_message', context.protocol)
         # Process the message through the protocol handler
-        asyncio.run(context.protocol.handle_message(msg))
-
-        if context.waiting_for_table:
-            context.waiting_for_table = False
-            msg_data = json.loads(msg) if isinstance(msg, str) else msg
-            table = context.create_table_from_json(msg_data)
-            context.list_of_tables.append(table)
-            context.current_table = table
-            logger.info("Table created and changed")
-            #gui_sys.add_chat_message(f"Table '{table.name}' loaded from network")
+        #asyncio.run(context.protocol.handle_message(msg))
+        context.protocol.handle_message(msg)
+        # if context.waiting_for_table:
+        #     context.waiting_for_table = False
+        #     msg_data = json.loads(msg) if isinstance(msg, str) else msg
+        #     table = context.create_table_from_json(msg_data)
+        #     context.list_of_tables.append(table)
+        #     context.current_table = table
+        #     logger.info("Table created and changed")
+        #     #gui_sys.add_chat_message(f"Table '{table.name}' loaded from network")
             
-        logger.info("Received message: %s", msg)
-        #gui_sys.add_chat_message(f"Network: {msg}", "Server")
+        # logger.info("Received message: %s", msg)
+        # #gui_sys.add_chat_message(f"Network: {msg}", "Server")
         
-        if msg == "INITIALIZE_TABLE":
-            context.waiting_for_table = True
-            #gui_sys.add_chat_message("Waiting for table data...", "System")
+        # if msg == "INITIALIZE_TABLE":
+        #     context.waiting_for_table = True
+        #     #gui_sys.add_chat_message("Waiting for table data...", "System")
 
-        if msg == "hello":
-            event_sys.handle_key_event(context, sdl3.SDL_SCANCODE_SPACE)
-            #gui_sys.add_chat_message("Hello received from server!", "Server")
+        # if msg == "hello":
+        #     event_sys.handle_key_event(context, sdl3.SDL_SCANCODE_SPACE)
+        #     #gui_sys.add_chat_message("Hello received from server!", "Server")
             
     except Exception as e:
         logger.error(f"Error handling message: {e}")
@@ -590,7 +579,7 @@ def parse_arguments():
     # Authentication parameters for WebSocket connections
     parser.add_argument('--session-code', default='V2ERPCXR',
                        help='Game session code for WebSocket connection')
-    parser.add_argument('--jwt-token', default='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNzQ5Nzc3OTIwfQ.g9sJT_ZRAaIpyp5BGOE0A7OzJ4XHcbgpoi2GJqwNwdQ',
+    parser.add_argument('--jwt-token', default='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNzUwMjIwOTM4fQ.fGM-v0pFqvYJTdwAKPX2bmQx92MNR4P5ln_gKBuFyRc',
                        help='JWT authentication token for WebSocket connection')
     parser.add_argument('--username', default='test',
                        help='Username for authentication')

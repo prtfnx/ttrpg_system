@@ -52,7 +52,7 @@ class AsyncActionsProtocol(ABC):
         pass
     
     @abstractmethod
-    async def move_sprite(self, table_id: str, sprite_id: str, old_position: Position, new_position: Position) -> ActionResult:
+    async def move_sprite(self, table_name: str, sprite_id: str, old_position: Position, new_position: Position) -> ActionResult:
         pass
     
     @abstractmethod

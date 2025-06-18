@@ -280,9 +280,10 @@ class ClientProtocol:
                 'error': 'Invalid sprite update data received'
             }, self.client_id).to_json())
             return
-        update_type = data.get('category', 'sprite')
-        sprite_id = data.get('sprite_id')
-        table_id = data.get('table_id', None)
+        update_type = data.get('type', 'sprite')
+        sprite_data = data.get('data', {})
+        sprite_id = sprite_data.get('sprite_id')
+        table_id = sprite_data.get('table_id', None)
         if not sprite_id:
             return
        
@@ -292,7 +293,8 @@ class ClientProtocol:
             return
         
         if update_type == 'sprite_move':
-            to_pos = data.get('to', {})
+            logger.info(f"Applying sprite move: {sprite_id}")
+            to_pos = sprite_data.get('to', {})
             sprite.coord_x.value = float(to_pos.get('x', sprite.coord_x.value))
             sprite.coord_y.value = float(to_pos.get('y', sprite.coord_y.value))
             

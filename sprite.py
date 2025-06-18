@@ -1,16 +1,19 @@
 import ctypes
 import logging
+import os
 import io_sys
 import sdl3
 import uuid
-
+import os
+from client_asset_manager import get_client_asset_manager
 logger = logging.getLogger(__name__)
 
 class Sprite:
     def __init__(self, renderer, texture_path, scale_x=1, scale_y=1,
                  character=None, moving=False, speed=None, collidable=False,
                  texture=None, layer='tokens', coord_x=0.0, coord_y=0.0,
-                 compendium_entity=None, entity_type=None, sprite_id=None, die_timer=None):
+                 compendium_entity=None, entity_type=None, sprite_id=None, die_timer=None,
+                 asset_id=None, context=None):
         # Initialize all ctypes structures properly
         self.coord_x = ctypes.c_float(coord_x)
         self.coord_y = ctypes.c_float(coord_y)
@@ -33,11 +36,13 @@ class Sprite:
         self.collidable = collidable
         self.layer = layer
         self.texture = None
-        
-        # Compendium entity support
+          # Compendium entity support
         self.compendium_entity = compendium_entity
         self.entity_type = entity_type
         self.sprite_id = sprite_id if sprite_id is not None else str(uuid.uuid4())
+          # R2 Asset support
+        self.asset_id = asset_id
+        self.context = context  # Store context reference for R2 requests
         
         # Add name attribute for identification
         if compendium_entity and hasattr(compendium_entity, 'name'):
@@ -67,8 +72,7 @@ class Sprite:
 
     def __str__(self):
         return (f"Sprite at ({self.coord_x.value}, {self.coord_y.value}) "
-                f"with texture {self.texture_path} and scale {self.scale_x} {self.scale_y}")
-
+                f"with texture {self.texture_path} and scale {self.scale_x} {self.scale_y}")    
     def set_speed(self, dx, dy):
         self.dx = dx
         self.dy = dy
@@ -80,14 +84,17 @@ class Sprite:
 
     def set_die_timer(self, time):
         self.die_timer = time
-
-    def set_texture(self, texture_path):
+    
+    def set_texture(self, texture_path, context=None):
         """Set texture with proper error handling"""
         self.texture_path = texture_path
         logger.info("Setting texture path: %s", texture_path)
         
+        # Use provided context or fall back to instance context
+        ctx = context or self.context
+        
         try:
-            self.texture = io_sys.load_texture(self)
+            self.texture = io_sys.load_texture(self, ctx)
             if not self.texture:
                 logger.error(f"Failed to load texture: {texture_path}")
                 return False
@@ -143,3 +150,44 @@ class Sprite:
                 logger.debug(f"Cleaned up texture for sprite: {self.texture_path}")
         except Exception as e:
             logger.error(f"Error cleaning up sprite texture: {e}")
+
+    def reload_texture_from_r2(self):
+        """Reload texture from R2 asset if available"""
+        if not self.asset_id:
+            logger.debug(f"Sprite {self.sprite_id} has no asset_id, cannot reload from R2")
+            return False
+            
+        
+        asset_manager = get_client_asset_manager()
+        
+        cached_path = asset_manager.get_cached_asset_path(self.asset_id)
+        if cached_path and os.path.exists(cached_path):
+            logger.info(f"Reloading sprite {self.sprite_id} texture from R2 asset {self.asset_id}")
+            old_texture = self.texture
+            self.texture_path = cached_path
+            success = self.set_texture(cached_path)
+            
+            # Clean up old texture if reload was successful
+            if success and old_texture:
+                try:
+                    sdl3.SDL_DestroyTexture(old_texture)
+                except Exception as e:
+                    logger.error(f"Error destroying old texture: {e}")
+            
+            return success
+        else:
+            logger.warning(f"R2 asset {self.asset_id} not cached locally")
+            return False
+
+    def has_r2_asset(self) -> bool:
+        """Check if this sprite has an associated R2 asset"""
+        return self.asset_id is not None
+
+    def is_r2_asset_cached(self) -> bool:
+        """Check if the R2 asset for this sprite is cached locally"""
+        if not self.asset_id:
+            return False
+            
+        from client_asset_manager import get_client_asset_manager
+        asset_manager = get_client_asset_manager()
+        return asset_manager.is_asset_cached(self.asset_id)

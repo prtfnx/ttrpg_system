@@ -1,7 +1,7 @@
 """
 Database models for TTRPG server
 """
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -36,6 +36,7 @@ class GameSession(Base):
     # Relationships
     owner = relationship("User", back_populates="game_sessions")
     players = relationship("GamePlayer", back_populates="session")
+    tables = relationship("VirtualTable", back_populates="session")
 
 class GamePlayer(Base):
     __tablename__ = "game_players"
@@ -50,3 +51,55 @@ class GamePlayer(Base):
     # Relationships
     session = relationship("GameSession", back_populates="players")
     user = relationship("User")
+
+class VirtualTable(Base):
+    __tablename__ = "virtual_tables"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    table_id = Column(String(36), unique=True, index=True, nullable=False)  # UUID
+    name = Column(String(100), nullable=False)
+    width = Column(Integer, nullable=False)
+    height = Column(Integer, nullable=False)
+    session_id = Column(Integer, ForeignKey("game_sessions.id"), nullable=False)
+    
+    # Table properties
+    position_x = Column(Float, default=0.0)
+    position_y = Column(Float, default=0.0)
+    scale_x = Column(Float, default=1.0)
+    scale_y = Column(Float, default=1.0)
+    
+    # Layer visibility (JSON string)
+    layer_visibility = Column(Text)  # JSON: {"map": true, "tokens": true, ...}
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    session = relationship("GameSession", back_populates="tables")
+    entities = relationship("Entity", back_populates="table", cascade="all, delete-orphan")
+
+class Entity(Base):
+    __tablename__ = "entities"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    entity_id = Column(Integer, nullable=False)  # Entity ID within the table
+    sprite_id = Column(String(36), unique=True, index=True, nullable=False)  # UUID
+    table_id = Column(Integer, ForeignKey("virtual_tables.id"), nullable=False)
+    
+    # Entity properties
+    name = Column(String(100), nullable=False)
+    position_x = Column(Integer, nullable=False)
+    position_y = Column(Integer, nullable=False)
+    layer = Column(String(50), nullable=False)
+    texture_path = Column(String(500))
+    
+    # Transform properties
+    scale_x = Column(Float, default=1.0)
+    scale_y = Column(Float, default=1.0)
+    rotation = Column(Float, default=0.0)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    table = relationship("VirtualTable", back_populates="entities")

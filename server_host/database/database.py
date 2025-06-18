@@ -7,7 +7,11 @@ from .models import Base
 import os
 
 # Use SQLite for development, can be changed to PostgreSQL for production
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./ttrpg.db")
+# Ensure we use the correct database file location
+import os
+current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # server_host directory
+DB_PATH = os.path.join(current_dir, "ttrpg.db")
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH}")
 
 # Create engine
 engine = create_engine(

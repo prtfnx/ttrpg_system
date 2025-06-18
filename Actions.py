@@ -3,7 +3,7 @@ from core_table.actions_protocol import ActionsProtocol, ActionResult, Position,
 import uuid
 import copy
 import logging
-
+from net.protocol import Message, MessageType
 if TYPE_CHECKING:
     from context import Context, ContextTable
     from sprite import Sprite

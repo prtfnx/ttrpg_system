@@ -58,6 +58,16 @@ MAX_CACHE_SIZE_MB = 1024  # 1GB
 CACHE_CLEANUP_INTERVAL_HOURS = 24
 AUTO_CLEANUP_CACHE = True
 
+# Asset cache paths
+ASSET_CACHE_DIR = os.path.join(DEFAULT_STORAGE_PATH, CACHE_FOLDER, "assets")
+TEXTURE_CACHE_DIR = os.path.join(DEFAULT_STORAGE_PATH, CACHE_FOLDER, "textures")
+ASSET_REGISTRY_FILE = os.path.join(ASSET_CACHE_DIR, "registry.json")
+
+# Cache size limits
+MAX_ASSET_CACHE_SIZE_MB = 500  # 500MB for R2 assets
+MAX_TEXTURE_CACHE_SIZE_MB = 200  # 200MB for texture cache
+CACHE_CLEANUP_AGE_DAYS = 30  # Delete files older than 30 days
+
 # ============================================================================
 # NETWORK SETTINGS
 # ============================================================================

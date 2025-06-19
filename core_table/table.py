@@ -65,6 +65,14 @@ class Entity:
 
 class VirtualTable:
     def __init__(self, name: str, width: int, height: int, table_id: Optional[str] = None):
+        # Validate parameters
+        if not name or not name.strip():
+            raise ValueError("Table name cannot be empty")
+        if width <= 0:
+            raise ValueError("Table width must be greater than 0")
+        if height <= 0:
+            raise ValueError("Table height must be greater than 0")
+            
         self.name = name
         self.width = width
         self.height = height

@@ -40,8 +40,7 @@ class TableManager:
         if name and name in self.tables:
             return self.tables[name]
         return self.default_table
-    
-    def create_table(self, name: str, width: int, height: int) -> VirtualTable:
+    def create_table(self, name: str, width: int, height: int) -> VirtualTable:        
         """Create a new table"""
         table = VirtualTable(name, width, height)
         self.tables[name] = table
@@ -52,6 +51,14 @@ class TableManager:
         """Add existing table to manager"""
         self.tables[table.name] = table
         logger.info(f"Added table '{table.name}' to manager")
+    
+    def remove_table(self, table_name: str):
+        """Remove table from manager"""
+        if table_name in self.tables and table_name != "default":
+            del self.tables[table_name]
+            logger.info(f"Removed table '{table_name}' from manager")
+            return True
+        return False
     
     def apply_update(self, data: Dict):
         """Apply general table updates"""

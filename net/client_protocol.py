@@ -8,6 +8,7 @@ from .protocol import Message, MessageType, ProtocolHandler
 import logging
 import Actions
 import requests
+
 logger = logging.getLogger(__name__)
 
 class ClientProtocol:
@@ -1014,3 +1015,11 @@ class ClientProtocol:
                 
         except Exception as e:
             logger.error(f"Error handling welcome message: {e}")
+
+    def _check_asset_for_sprite(self, sprite: 'Sprite') -> bool:
+        """Check if the sprite has an associated R2 asset"""
+        if hasattr(sprite, 'asset_id') and sprite.asset_id:
+            
+            asset_manager = get_client_asset_manager()
+            return asset_manager.is_asset_cached(sprite.asset_id)
+        return False

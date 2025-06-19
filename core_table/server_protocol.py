@@ -12,6 +12,8 @@ from net.protocol import Message, MessageType
 from core_table.actions_core import ActionsCore
 from server_host.utils.logger import setup_logger
 from server_host.service.asset_manager import get_server_asset_manager, AssetRequest
+from server_host.database.models import Asset
+from server_host.database.database import SessionLocal
 
 logger = setup_logger(__name__)
 
@@ -68,28 +70,28 @@ class ServerProtocol:
             return True
         else:
             logger.warning(f"No handler registered for message type: {msg.type}")
-            return False
-
+            return False    
     async def handle_ping(self, msg: Message, client_id: str) -> Message:
         """Handle ping message"""
         logger.debug("Received ping message")
         response = Message(MessageType.PONG, {'timestamp': time.time(), 'client_id': client_id})
         return response
+    
     async def handle_success(self, msg: Message, client_id: str) -> Message:
         """Handle success message"""
         logger.debug(f"Received success message from {client_id}: {msg}")
-
-        #return Message(MessageType.SUCCESS, {'message': 'success received', 'client_id': client_id})
+        return None
+    
     async def handle_pong(self, msg: Message, client_id: str) -> Message:
         """Handle pong message"""
         logger.debug(f"Received pong message from {client_id}: {msg}")
+        return None
         
-        #return Message(MessageType.SUCCESS, {'message': 'Pong received', 'client_id': client_id})
     async def handle_error(self, msg: Message, client_id: str) -> Message:
         """Handle error message"""
         logger.warning(f"Error message received from {client_id}: {msg}")
-        
-        #return Message(MessageType.ERROR, {'error': 'An error occurred', 'client_id': client_id})
+        return None
+    
     async def handle_new_table_request(self, msg: Message, client_id: str) -> Message:
         """Handle new table request"""
         logger.debug(f"New table request received: {msg}")
@@ -100,10 +102,15 @@ class ServerProtocol:
         
         if not result.success or not result.data or result.data.get('table') is None:
             return Message(MessageType.ERROR, {'error': 'Failed to create new table'})
-        else:      
+        else:
+            # Get table data and ensure assets are in R2
+            table_data = result.data.get('table').to_dict()
+            await self.ensure_assets_in_r2(table_data, msg.data.get('session_code', 'default'), msg.data.get('user_id', 0))
+            logger.info(f"Processing table {table_name} with {len(table_data.get('layers', {}))} layers")
+            
             # return message that need send to client
             return Message(MessageType.NEW_TABLE_RESPONSE, {'name': table_name, 'client_id': client_id,
-                                                            'table_data': result.data.get('table').to_dict()})
+                                                            'table_data': table_data})
 
    
     async def handle_table_request(self, msg: Message, client_id: str) -> Message:
@@ -113,15 +120,22 @@ class ServerProtocol:
             return Message(MessageType.ERROR, {'error': 'No data provided in table request'})
         table_name = msg.data.get('table_name', 'default')
         table_id = msg.data.get('table_id', table_name)
+        user_id = msg.data.get('user_id', 0)
         logger.info(f"Current tables: {self.table_manager.tables.items()}")
         result = await self.actions.get_table(table_id)
-
+        
         if not result.success or not result.data or result.data.get('table') is None:
             return Message(MessageType.ERROR, {'error': 'Failed to get table'})
         else:
+            # Get table data
+            table_data = result.data.get('table').to_dict()
+            
+            # TODO: Process assets to ensure they're in R2
+            table_data = await self.ensure_assets_in_r2(table_data, session_code=msg.data.get('session_code', 'default'), user_id=user_id)
+
             # return message that need send to client
             return Message(MessageType.TABLE_RESPONSE, {'name': table_name, 'client_id': client_id,
-                                                            'table_data': result.data.get('table').to_dict()})
+                                                            'table_data': table_data})
 
     async def handle_table_update(self, msg: Message, client_id: str) -> Message:
         """Handle and broadcast table update with sprite movement support"""
@@ -386,7 +400,8 @@ class ServerProtocol:
             user_id = msg.data.get('user_id', 0)
             
             if not asset_id:
-                return Message(MessageType.ERROR, {'error': 'Asset ID is required'})            # Confirm upload
+                return Message(MessageType.ERROR, {'error': 'Asset ID is required'})            
+            # Confirm upload
             success = await asset_manager.confirm_upload(asset_id, user_id)
             
             if success:
@@ -411,7 +426,7 @@ class ServerProtocol:
         except Exception as e:
             logger.error(f"Error handling asset delete request: {e}")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
-  
+
     async def send_to_client(self, message: Message, client_id: str):
         """Send message to specific client"""
         # Overload this method in server implementation to use choosed transport
@@ -428,6 +443,88 @@ class ServerProtocol:
         if client_id in self.clients:
             error_msg = Message(MessageType.ERROR, {'error': error_message})
             await self.send_to_client(error_msg, self.clients[client_id])
+    
+    async def ensure_assets_in_r2(self, table_data: dict, session_code: str, user_id: int) -> dict:    
+        """Ensure all entity assets are available in R2 and provide download URLs"""
+        try:
+            asset_manager = get_server_asset_manager()
+            
+            # Get all layers data
+            layers = table_data.get('layers', {})
+            
+            # Process each layer
+            for layer_name, layer_entities in layers.items():
+                if not isinstance(layer_entities, dict):
+                    continue
+                    
+                # Process each entity in the layer
+                for entity_id, entity_data in layer_entities.items():
+                    if not isinstance(entity_data, dict):
+                        continue
+                                       
+                    if hasattr(entity_data, 'r2_asset_url'):
+                        continue
+                    texture_path = entity_data.get('texture_path')   
+                
+                    # Convert local path to asset name
+                    if not texture_path:
+                        logger.warning(f"No texture_path for entity {entity_id}, skipping asset processing.")
+                        continue
+                    asset_name = os.path.basename(texture_path)
+                    logger.debug(f"Processing asset for entity {entity_id}: {asset_name}")
+                    
+                    # Check if asset exists in database
+                    r2_url = await self._get_or_upload_asset(asset_name, texture_path, session_code, user_id)
+                    
+                    if r2_url:                      
+                        
+                        entity_data['r2_asset_url'] = r2_url  
+                        logger.info(f"Updated entity {entity_id} with R2 URL: {r2_url}")
+                    else:
+                        logger.warning(f"Failed to get R2 URL for asset: {asset_name}")
+            
+            return table_data            
+        except Exception as e:
+            logger.error(f"Error ensuring assets in R2: {e}")
+            return table_data  # Return original data if asset processing fails
+    
+    async def _get_or_upload_asset(self, asset_name: str, local_path: str, session_code: str, user_id: int) -> Optional[str]:
+        """Get existing R2 URL or upload asset and return R2 URL"""
+        try:
+            # Check if asset already exists in database
+            db_session = SessionLocal()
+            try:
+                existing_asset = db_session.query(Asset).filter_by(asset_name=asset_name).first()
+                
+                if existing_asset:
+                    # Asset exists, generate download URL
+                    logger.debug(f"Asset {asset_name} exists in database with R2 ID: {existing_asset.r2_asset_id}")
+                    
+                    asset_manager = get_server_asset_manager()
+                    request = AssetRequest(
+                        user_id=user_id,
+                        username="server",
+                        session_code=session_code,
+                        asset_id=str(existing_asset.r2_asset_id)
+                    )
+                    
+                    response = await asset_manager.request_download_url(request)
+                    if response.success:
+                        logger.info(f"Generated download URL for existing asset: {asset_name}")
+                        return response.url
+                    else:
+                        logger.error(f"Failed to generate download URL for existing asset {asset_name}: {response.error}")
+                        return None
+                  # Asset doesn't exist - let the normal asset upload flow handle this
+                logger.info(f"Asset {asset_name} not found in database, will be uploaded via normal client flow")
+                # Return None so the client knows to upload this asset through the normal flow
+                return None
+                
+            finally:
+                db_session.close()                
+        except Exception as e:
+            logger.error(f"Error getting or uploading asset {asset_name}: {e}")
+            return None
 
 if __name__ == "__main__":
     # Example usage

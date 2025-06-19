@@ -6,11 +6,16 @@ All settings are CAPITAL LETTERS as per Python conventions.
 import os
 from pathlib import Path
 
+# ============================================================================
+# PATH SETTINGS
+# ============================================================================
+# Get the directory containing this file (project root)
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = str(BASE_DIR)
+
 # Load environment variables from .env file
 try:
     from dotenv import load_dotenv
-    # Get the directory containing this file
-    BASE_DIR = Path(__file__).resolve().parent
     # Load .env file from the root directory
     load_dotenv(BASE_DIR / '.env')
 except ImportError:
@@ -125,6 +130,10 @@ REFRESH_THROTTLE_MS = 100
 # ============================================================================
 # HELPER FUNCTIONS (minimal)
 # ============================================================================
+def get_project_root() -> str:
+    """Get the project root directory path"""
+    return PROJECT_ROOT
+
 def get_storage_path(folder_name: str) -> str:
     """Get full path for a storage folder"""
     return os.path.join(DEFAULT_STORAGE_PATH, folder_name)

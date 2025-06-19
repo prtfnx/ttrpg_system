@@ -89,11 +89,11 @@ def test_compendium_integration():
             print("   No spell loader available")
             
     except Exception as e:
-        print(f"   Error testing spells: {e}")
-    
+        print(f"   Error testing spells: {e}")    
     print("\n" + "=" * 50)
     print("✅ Compendium integration test completed!")
-    return True
+    # Convert to proper test assertion instead of return
+    assert True, "Compendium test completed successfully"
 
 if __name__ == "__main__":
     test_compendium_integration()

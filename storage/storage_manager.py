@@ -4,10 +4,18 @@ Uses only SDL3 Storage API - no file system operations.
 """
 import logging
 from typing import Optional, Any
-import sdl3
 import settings
 import json
 import ctypes
+
+# SDL3 is only available on client, not on server
+try:
+    import sdl3
+    SDL3_AVAILABLE = True
+except ImportError:
+    SDL3_AVAILABLE = False
+    sdl3 = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,6 +24,9 @@ class StorageManager:
     Minimal storage manager using only SDL3 Storage API.
     """
     def __init__(self):
+        if not SDL3_AVAILABLE:
+            raise RuntimeError("SDL3 is not available. StorageManager can only be used on client side.")
+            
         # Open user storage with correct SDL3 API
         import ctypes
         org = ctypes.c_char_p(b"ttrpg_system")
@@ -151,6 +162,9 @@ _storage_manager = None
 
 def get_storage_manager() -> StorageManager:
     """Get global storage manager instance"""
+    if not SDL3_AVAILABLE:
+        raise RuntimeError("SDL3 is not available. StorageManager can only be used on client side.")
+        
     global _storage_manager
     if _storage_manager is None:
         _storage_manager = StorageManager()

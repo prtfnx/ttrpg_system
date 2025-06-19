@@ -130,9 +130,9 @@ class GameSessionProtocolService:
             treasure = test_table.add_entity("Treasure", (8, 9), layer='tokens', path_to_texture='resources/treasure.png')
             
             logger.info(f"Created test_table with entities:")
-            logger.info(f"  Hero (ID: {hero.entity_id}, Sprite: {hero.sprite_id}) at {hero.position}")
-            logger.info(f"  Goblin1 (ID: {goblin.entity_id}, Sprite: {goblin.sprite_id}) at {goblin.position}")
-            logger.info(f"  Treasure (ID: {treasure.entity_id}, Sprite: {treasure.sprite_id}) at {treasure.position}")
+            logger.info(f"Hero (ID: {hero.entity_id}, Sprite: {hero.sprite_id}) at {hero.position}")
+            logger.info(f"Goblin1 (ID: {goblin.entity_id}, Sprite: {goblin.sprite_id}) at {goblin.position}")
+            logger.info(f" Treasure (ID: {treasure.entity_id}, Sprite: {treasure.sprite_id}) at {treasure.position}")
             
             # Create large table for testing with multiple entities in different layers
             large_table = VirtualTable('large_table', 1080, 1920)

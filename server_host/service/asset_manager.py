@@ -289,11 +289,11 @@ class ServerAssetManager:
                 )
             
             # Check if asset belongs to the session
-            if asset_metadata["session_code"] != request.session_code:
-                return PresignedUrlResponse(
-                    success=False,
-                    error="Asset not available in this session"
-                )
+            # if asset_metadata["session_code"] != request.session_code:
+            #     return PresignedUrlResponse(
+            #         success=False,
+            #         error="Asset not available in this session"
+            #     )
             
             # Generate presigned URL (24 hours for session assets)
             expiry_seconds = 86400
@@ -378,6 +378,7 @@ class ServerAssetManager:
     
     async def confirm_upload(self, asset_id: str, user_id: int) -> bool:
         """Confirm that an upload was completed successfully"""
+        #TODO do we need this?
         try:
             if asset_id not in self.asset_registry:
                 logger.warning(f"Upload confirmation for unknown asset: {asset_id}")
@@ -407,6 +408,7 @@ class ServerAssetManager:
     
     def get_session_assets(self, session_code: str) -> List[dict]:
         """Get list of assets available in a session"""
+        #TODO: do we need this?
         try:
             db = SessionLocal()
             try:

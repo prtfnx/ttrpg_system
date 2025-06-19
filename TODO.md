@@ -67,5 +67,11 @@
 ### New Discovery
 [ ] For action protocol consistenly use or name or id. 
 
+### WORK NOW:
+1) Implement proper client storage manager - client_protocol and storage_manager
+2) Implement flow for assets
+3) Implement render managment for layers
+4) Light objects
+
 
 

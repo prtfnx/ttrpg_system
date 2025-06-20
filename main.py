@@ -2,30 +2,27 @@ import sys
 import logging
 import sdl3
 import ctypes
-import colorsys
 import event_sys
-import context
-import sprite
 import core_table.Character
 import core_table.entities
-import movement_sys
+import MovementManager
 import threading
 import time
-import json
-import asyncio
-import paint
+import PaintManager
 import gui.gui_imgui as gui_imgui
+from Context import Context
 from net import client_sdl
 from net.client_websocket import WebSocketClient
 from net import client_websocket_protocol
 from net.protocol import ProtocolHandler, Message, MessageType
 from net.client_protocol import ClientProtocol
 from imgui_bundle import imgui
-from layout_manager import LayoutManager
+from LayoutManager import LayoutManager
+from typing import Optional
+from ctypes import c_int, c_float, c_char, c_char_p
 import OpenGL.GL as gl
-
 import argparse
-import lighting_sys
+import LightManager
 
 
 
@@ -40,7 +37,8 @@ logger.setLevel(logging.DEBUG)
 
 
 BASE_WIDTH: int = 1920
-BASE_HEIGHT: int = 1080
+BASE_HEIGHT:  int = 1080
+TITLE: c_char_p = c_char_p(b"TTRPG System")
 NET_SLEEP: float = 0.1
 CHECK_INTERVAL: float = 2.0
 NUMBER_OF_NET_FAILS: int = 5
@@ -53,30 +51,25 @@ TABLE_AREA_PERCENT: float = 0.60   # 60% for centered table
 GUI_PANEL_SIZE: int = 200           # Fixed size for GUI panels (pixels)
 MARGIN_SIZE: int = 20               # Margin between table and GUI panels
 
-# Import compendium integration
 if COMPENDIUM_SYSTEM:
-    from compendium_manager import get_compendium_manager, load_compendiums
-    import compendium_sprites
+    from CompendiumManager import CompendiumManager
+    
 
-def SDL_AppInit_func(args=None):
-    """Initialize SDL window, renderer, and network client."""
-    
-    # Set OpenGL attributes BEFORE creating window
-    
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_DOUBLEBUFFER), ctypes.c_int(1))
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_DEPTH_SIZE), ctypes.c_int(24))
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_STENCIL_SIZE), ctypes.c_int(8))
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_ACCELERATED_VISUAL), ctypes.c_int(1))
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_MULTISAMPLEBUFFERS), ctypes.c_int(1))
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_MULTISAMPLESAMPLES), ctypes.c_int(8))
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_CONTEXT_FLAGS), ctypes.c_int(sdl3.SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG))
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_CONTEXT_MAJOR_VERSION), ctypes.c_int(4))
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_CONTEXT_MINOR_VERSION), ctypes.c_int(1))
-    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GLAttr(sdl3.SDL_GL_CONTEXT_PROFILE_MASK), ctypes.c_int(sdl3.SDL_GL_CONTEXT_PROFILE_CORE))
+def sdl3_init() -> tuple[sdl3.SDL_Window, sdl3.SDL_Renderer, sdl3.SDL_GLContext]:
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_DOUBLEBUFFER, ctypes.c_int(1))
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_DEPTH_SIZE, ctypes.c_int(24))
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_STENCIL_SIZE, ctypes.c_int(8))
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_ACCELERATED_VISUAL, ctypes.c_int(1))
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_MULTISAMPLEBUFFERS, ctypes.c_int(1))
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_MULTISAMPLESAMPLES, ctypes.c_int(8))
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_CONTEXT_FLAGS, ctypes.c_int(sdl3.SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG))
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_CONTEXT_MAJOR_VERSION, ctypes.c_int(4))
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_CONTEXT_MINOR_VERSION, ctypes.c_int(1))
+    sdl3.SDL_GL_SetAttribute(sdl3.SDL_GL_CONTEXT_PROFILE_MASK, ctypes.c_int(sdl3.SDL_GL_CONTEXT_PROFILE_CORE))
     
     # Create window with OpenGL support
     window = sdl3.SDL_CreateWindow(
-        b"TTRPG System", BASE_WIDTH, BASE_HEIGHT, 
+        TITLE, c_int(BASE_WIDTH), c_int(BASE_HEIGHT), 
         sdl3.SDL_WINDOW_RESIZABLE | sdl3.SDL_WINDOW_OPENGL
     )
     if not window:
@@ -93,53 +86,53 @@ def SDL_AppInit_func(args=None):
     # Make context current
     sdl3.SDL_GL_MakeCurrent(window, gl_context)
 
-    # Create renderer
+    
     render_drivers = [sdl3.SDL_GetRenderDriver(i).decode() for i in range(sdl3.SDL_GetNumRenderDrivers())]
     #render_driver = next((d for d in ["vulkan", "opengl", "software"] if d in render_drivers), None)
     render_driver = next((d for d in [ "opengl", "software"] if d in render_drivers), None)
     if not render_driver:
         logger.error("No suitable render driver found.")
         sys.exit(1)
-
-    # Create renderer
+    logger.info(f"Renderer {render_driver} initialized.")
+    
     renderer = sdl3.SDL_CreateRenderer(window, render_driver.encode())
     if not renderer:
         logger.critical("Failed to create renderer: %s", sdl3.SDL_GetError().decode())
-        sys.exit(1)    # Create context for the application
-    test_context = context.Context(renderer, window, base_width=BASE_WIDTH, base_height=BASE_HEIGHT)    #Initialize ImGui GUI system
+        sys.exit(1)    
+    return window, renderer, gl_context
+
+    
+def SDL_AppInit_func(args: argparse.Namespace) -> Context:
+    """Initialize SDL window, renderer, and network client."""
+    
+    # if sdl dont init, exit
+    try:
+        window, renderer, gl_context = sdl3_init()
+        
+    except Exception as e:        
+        logger.exception(f'SDL initialization failed: {e}')
+        sdl3.SDL_Quit()
+        sys.exit(1)
+    
+    test_context = Context(renderer, window, base_width=BASE_WIDTH, base_height=BASE_HEIGHT)
+    
+    # Init GUI system
     if GUI_SYS:
-        try:
-            # Initialize the new simplified GUI system
+        try:            
             simplified_gui = gui_imgui.create_gui(test_context)
             logger.info("Simplified GUI system initialized.")
             test_context.imgui = simplified_gui
         except Exception as e:
             logger.error(f"Error initializing Simplified GUI: {e}")
             test_context.imgui = None
-    
-    #Enable VSync for the SDL renderer
-    # vsync_result = sdl3.SDL_SetRenderVSync(renderer, ctypes.c_int(1))  # 1 = enable VSync
-    # #print(('x'))
-    # if vsync_result == 0:
-    #     logger.info(f"VSync enabled for {render_driver} renderer.")
-    # else:
-    #     logger.warning(f"Failed to enable VSync: {sdl3.SDL_GetError().decode()}")
-    #     # Try adaptive VSync as fallback
-    #     adaptive_result = sdl3.SDL_SetRenderVSync(renderer, -1)  # -1 = adaptive VSync
-    #     if adaptive_result == 0:
-    #         logger.info("Adaptive VSync enabled as fallback.")
-    #     else:
-    #         logger.warning("VSync not supported by this renderer.")
-    
-    logger.info(f"Renderer {render_driver} initialized.")
+    # Initialize OpenGL context
+    test_context.gl_context = sdl3.SDL_GL_CreateContext(window)
     
     # Initialize D&D 5e Compendiums
     if COMPENDIUM_SYSTEM:
         logger.info("Loading D&D 5e compendiums...")
         try:
-            compendium_results = load_compendiums()
-            compendium_manager = get_compendium_manager()
-            test_context.compendium_manager = compendium_manager
+            test_context.CompendiumManager = CompendiumManager.CompendiumManager(test_context)
             
             loaded_systems = sum(compendium_results.values())
             logger.info(f"Loaded {loaded_systems}/4 compendium systems: {compendium_results}")
@@ -152,9 +145,7 @@ def SDL_AppInit_func(args=None):
             logger.error(f"Failed to load compendiums: {e}")
             test_context.compendium_manager = None
     
-   
     
-    test_context.gl_context = sdl3.SDL_GL_CreateContext(window)
     logger.info("Context initialized.")
     
     # Initialize table, spell and character
@@ -172,20 +163,17 @@ def SDL_AppInit_func(args=None):
     test_context.add_sprite(b"resources/token_1.png", scale_x=0.5, scale_y=0.5, collidable=True)
     test_context.add_sprite(b"resources/test.gif", scale_x=0.5, scale_y=0.5)
     test_context.add_sprite(b"resources/wall1.png", coord_x=300, coord_y=300,scale_x=0.1, scale_y=0.1, collidable=True,layer='obstacles')
-    # Initialize layout_manager
-    test_context.layout_manager = LayoutManager()
-    test_context.layout_manager.update_layout(window)
+    
+    # Initialize Layout_manager
+    test_context.LayoutManager = LayoutManager()
+    test_context.LayoutManager.update_layout(window)
+    
     # Initialize lighting system
     if LIGHTING_SYS:
         logger.info("Initializing lighting system...")
         try:
-            test_context.LightingManager = lighting_sys.LightManager(test_context, name ="default_lighting_manager") 
-            #print(f"Lighting manager: {test_context.LightingManager}")
-            default_light = lighting_sys.Light('default_light')
-            #test_context.LightingManager.add_light(default_light)
-            #light_sprite = test_context.add_sprite(
-            #    b"resources/light.png", scale_x=0.5, scale_y=0.5,layer='light',)
-            #test_context.LightingManager.add_light_sprite(default_light, light_sprite)
+            test_context.LightingManager = LightManager.LightManager(test_context, name ="default_lighting_manager") 
+            default_light = LightManager.Light('default_light')
             test_context.LightingManager.create_light_texture(default_light, path_to_image=b"resources/light.png")
             test_context.light_on= True
             logger.info("Lighting system initialized.")
@@ -194,7 +182,7 @@ def SDL_AppInit_func(args=None):
             test_context.LightingManager = None
 
     # Initialize paint system
-    paint.init_paint_system(test_context)
+    PaintManager.init_paint_system(test_context)
     logger.info("Paint system initialized.")
     logger.info("Start to initialize network client.")
     # Initialize network client
@@ -261,11 +249,11 @@ def SDL_AppIterate(context):
     window_width = context.window_width.value
     window_height = context.window_height.value
     
-    # Get viewport from layout_manager (updated by ImGui)
-    if hasattr(context, 'layout_manager'):
-        table_x, table_y, table_width, table_height = context.layout_manager.table_area
+    # Get viewport from LayoutManager (updated by ImGui)
+    if hasattr(context, 'LayoutManager'):
+        table_x, table_y, table_width, table_height = context.LayoutManager.table_area
     else:
-        # Fallback to percentage-based layout if layout_manager not available
+        # Fallback to percentage-based layout if LayoutManager not available
         table_width = int(window_width * TABLE_AREA_PERCENT)
         table_height = int(window_height * TABLE_AREA_PERCENT)
         table_x = (window_width - table_width) // 2
@@ -297,12 +285,12 @@ def SDL_AppIterate(context):
         
 
     # Render sprites in table area (they should respect the layout)
-    movement_sys.move_sprites(context, delta_time)
-    movement_sys.test_margin(context)
+    MovementManager.move_sprites(context, delta_time)
+    MovementManager.test_margin(context)
 
     # Render paint system if active (in table area)
-    if paint.is_paint_mode_active():
-        paint.render_paint_system()
+    if PaintManager.is_paint_mode_active():
+        PaintManager.render_paint_system()
 
     # Handle network messages
     if not context.queue_to_read.empty():
@@ -313,49 +301,8 @@ def SDL_AppIterate(context):
 
 def handle_information(msg, context):
     """Handle incoming network messages."""
-    try:
-        # # Handle WebSocket wrapped messages (old format compatibility)
-        # if isinstance(msg, str):
-        #     try:
-        #         parsed = json.loads(msg)
-        #         # Check if this is a wrapped message format from WebSocket server
-        #         if isinstance(parsed, dict) and "message" in parsed and "server_id" in parsed:
-        #             # Extract the actual message from the wrapper
-        #             actual_message = parsed["message"]
-        #             # If the message is a JSON string, use it directly
-        #             if isinstance(actual_message, str):
-        #                 msg = actual_message
-        #             else:
-        #                 # If it's already parsed, re-serialize it
-        #                 msg = json.dumps(actual_message)
-        #             logger.debug("Unwrapped WebSocket message")
-        #     except (json.JSONDecodeError, KeyError):
-        #         # Not a wrapped message, use as-is
-        #         pass
-        #print('context.protocol.handle_message', context.protocol)
-        # Process the message through the protocol handler
-        #asyncio.run(context.protocol.handle_message(msg))
+    try:      
         context.protocol.handle_message(msg)
-        # if context.waiting_for_table:
-        #     context.waiting_for_table = False
-        #     msg_data = json.loads(msg) if isinstance(msg, str) else msg
-        #     table = context.create_table_from_json(msg_data)
-        #     context.list_of_tables.append(table)
-        #     context.current_table = table
-        #     logger.info("Table created and changed")
-        #     #gui_sys.add_chat_message(f"Table '{table.name}' loaded from network")
-            
-        # logger.info("Received message: %s", msg)
-        # #gui_sys.add_chat_message(f"Network: {msg}", "Server")
-        
-        # if msg == "INITIALIZE_TABLE":
-        #     context.waiting_for_table = True
-        #     #gui_sys.add_chat_message("Waiting for table data...", "System")
-
-        # if msg == "hello":
-        #     event_sys.handle_key_event(context, sdl3.SDL_SCANCODE_SPACE)
-        #     #gui_sys.add_chat_message("Hello received from server!", "Server")
-            
     except Exception as e:
         logger.error(f"Error handling message: {e}")
         logger.debug(f"Problematic message: {msg[:200] if isinstance(msg, str) else str(msg)[:200]}...")
@@ -514,7 +461,7 @@ def parse_arguments():
     # Authentication parameters for WebSocket connections
     parser.add_argument('--session-code', default='V2ERPCXR',
                        help='Game session code for WebSocket connection')
-    parser.add_argument('--jwt-token', default='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNzUwMjYwODU3fQ.5xzIRn8oXzuaRZj2qiMxx4QO5TfjBShwwECTr3BySzg',
+    parser.add_argument('--jwt-token', default='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNzUwMjgyNTUyfQ._O7RLa3X6KtZYflColSkzYEPbXTRVt3lOABSkVNWMNc',
                        help='JWT authentication token for WebSocket connection')
     parser.add_argument('--username', default='test',
                        help='Username for authentication')
@@ -574,13 +521,13 @@ def main(args=None):
             if context.gui:
                 if not gui_consumed:
                 # Handle paint events
-                    if paint.handle_paint_events(event):
+                    if PaintManager.handle_paint_events(event):
                         continue  # Paint system consumed the event
                 
                 # Handle normal game events
                     running = event_sys.handle_event(context, event)
             else:
-                if paint.handle_paint_events(event):
+                if PaintManager.handle_paint_events(event):
                         continue 
                 running = event_sys.handle_event(context, event)
         # Render SDL content first (SDL handles its own clearing)

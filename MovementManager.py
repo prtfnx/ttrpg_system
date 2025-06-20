@@ -1,13 +1,85 @@
 import sdl3
-import context
 import ctypes
 import logging
 import numpy as np
+from net.protocol import Message, MessageType
 
-import sdl3.SDL
 logger = logging.getLogger(__name__)
 
 TIME_TO_DIE = 2000
+
+def sync_sprite_move(context, sprite, old_pos, new_pos):
+    """Handle sprite movement with network sync"""
+    if not hasattr(context, 'protocol') or not context.protocol:
+        return  # No network connection
+        
+    # Ensure sprite has an ID
+    if not hasattr(sprite, 'sprite_id') or not sprite.sprite_id:
+        sprite.sprite_id = str(__import__('uuid').uuid4())
+
+    # Send sprite movement update with proper protocol format
+    change = {
+        'category': 'sprite',
+        'type': 'sprite_move',
+        'data': {
+            'table_id': context.current_table.table_id,
+            'table_name': context.current_table.name,
+            'sprite_id': sprite.sprite_id,
+            'from': {'x': old_pos[0], 'y': old_pos[1]},
+            'to': {'x': new_pos[0], 'y': new_pos[1]},                
+            'timestamp': __import__('time').time()
+        }
+    }
+    
+    # Send via protocol using SPRITE_UPDATE message type
+    
+    msg = Message(MessageType.SPRITE_UPDATE, change, 
+                getattr(context.protocol, 'client_id', 'unknown'))
+    
+    #print(f"Sending sprite move: {sprite.sprite_id} from ({old_pos[0]:.1f}, {old_pos[1]:.1f}) to ({new_pos[0]:.1f}, {new_pos[1]:.1f})")
+    #print(f"Sender: {context.protocol.send}")
+    try:
+        # Send the message (adapt based on your protocol's send method)
+        context.protocol.send(msg.to_json())
+        logger.debug(f"Sent sprite move: {sprite.sprite_id} to ({new_pos[0]:.1f}, {new_pos[1]:.1f})")
+
+    except Exception as e:
+        logger.error(f"Failed to send sprite movement: {e}")
+
+def sync_sprite_scale(context, sprite, old_scale, new_scale):
+    """Handle sprite scaling with network sync"""
+    if not hasattr(context, 'protocol') or not context.protocol:
+        return
+          # Ensure sprite has an ID
+    if not hasattr(sprite, 'sprite_id') or not sprite.sprite_id:
+        sprite.sprite_id = str(__import__('uuid').uuid4())
+        
+    change = {
+        'category': 'sprite',
+        'type': 'sprite_scale',
+        'data': {
+            'table_id': context.current_table.table_id,
+            'table_name': context.current_table.name,
+            'sprite_id': sprite.sprite_id,
+            'from': {'x': old_scale[0], 'y': old_scale[1]},
+            'to': {'x': new_scale[0], 'y': new_scale[1]},               
+            'timestamp': __import__('time').time()
+        }
+    }
+    
+    
+    msg = Message(MessageType.TABLE_UPDATE, change,
+                 getattr(context.protocol, 'client_id', 'unknown'))
+    
+    try:
+        if hasattr(context.protocol, 'send'):
+            context.protocol.send(msg.to_json())
+        elif hasattr(context.protocol, 'send_message'):
+            context.protocol.send_message(msg)
+            logger.info(f"Sent sprite scale: {sprite.sprite_id} to ({new_scale[0]:.2f}, {new_scale[1]:.2f})")
+        
+    except Exception as e:
+        logger.error(f"Failed to send sprite scaling: {e}")
 
 def check_collision_with_all_sprites(table, sprite):
     """Check collision of a sprite with all other collidable sprites in the table."""

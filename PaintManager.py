@@ -4,8 +4,6 @@ import logging
 import os
 import time
 from typing import List, Tuple
-import sprite
-import io_sys
 
 logger = logging.getLogger(__name__)
 

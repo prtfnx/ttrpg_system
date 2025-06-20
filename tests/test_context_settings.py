@@ -14,7 +14,8 @@ setup_test_environment()
 
 import context
 import settings
-from context import Context, ContextTable, NetworkedContext
+from Context import Context
+from ContextTable import ContextTable
 
 
 class TestContextManagement(unittest.TestCase):
@@ -44,7 +45,7 @@ class TestContextManagement(unittest.TestCase):
         self.assertIsNotNone(ctx.queue_to_send)
         self.assertIsNotNone(ctx.queue_to_read)
         self.assertIsNotNone(ctx.chat_messages)
-        self.assertIsNotNone(ctx.network_context)
+        self.assertIsNotNone(ctx.actions)
         self.assertIsNotNone(ctx.actions)
         
         # Verify default states
@@ -125,12 +126,12 @@ class TestContextManagement(unittest.TestCase):
             # Verify current table is the last added
             self.assertEqual(ctx.current_table, mock_table2)
     
-    def test_context_network_integration(self):
-        """Test network context integration and message queuing."""
+    def test_context_network_integration(self):        
+        """Test actions integration and message queuing."""
         ctx = Context(self.mock_renderer, self.mock_window, self.base_width, self.base_height)
         
-        # Verify network context is initialized
-        self.assertIsInstance(ctx.network_context, NetworkedContext)
+        # Verify actions is initialized
+        self.assertIsNotNone(ctx.actions)
         
         # Test message queuing
         test_message = {"type": "test", "data": "hello"}
@@ -176,7 +177,8 @@ class TestNetworkedContext(unittest.TestCase):
         
     def test_networked_context_initialization(self):
         """Test NetworkedContext initialization."""
-        net_ctx = NetworkedContext(self.mock_main_context)
+        # NetworkedContext removed - functionality moved to MovementManager and Actions
+        # net_ctx = NetworkedContext(self.mock_main_context)
         
         # Verify parent context reference
         self.assertEqual(net_ctx.main_context, self.mock_main_context)

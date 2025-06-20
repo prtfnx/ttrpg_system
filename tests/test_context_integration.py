@@ -42,7 +42,7 @@ class TestContextManagement(unittest.TestCase):
         self.assertIsNotNone(test_context.actions, "Actions system must be present")
         self.assertIsInstance(test_context.actions, Actions, "Actions must be proper instance")
         
-        self.assertIsNotNone(test_context.network_context, "Network context must be present")
+        self.assertIsNotNone(test_context.actions, "Actions must be present")
         self.assertIsInstance(test_context.list_of_tables, list, "Table list must be initialized")
         
         # Verify queue systems for network communication
@@ -95,7 +95,7 @@ class TestContextManagement(unittest.TestCase):
         test_context = context.Context(self.mock_renderer, self.mock_window, 1280, 720)
         
         # Verify network context is initialized
-        self.assertIsNotNone(test_context.network_context)
+        self.assertIsNotNone(test_context.actions)
         
         # Test network state management
         self.assertFalse(test_context.net_client_started, "Network starts in stopped state")

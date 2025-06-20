@@ -14,7 +14,7 @@ from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 from net.protocol import Message, MessageType
 import settings
-
+import shutil
 logger = logging.getLogger(__name__)
 
 class ClientAssetManager:
@@ -306,7 +306,7 @@ class ClientAssetManager:
             cache_path.parent.mkdir(parents=True, exist_ok=True)
             
             # Copy file to cache
-            import shutil
+            
             shutil.copy2(local_file_path, cache_path)
             
             # Register in asset registry

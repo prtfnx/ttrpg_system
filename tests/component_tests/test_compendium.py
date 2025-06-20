@@ -5,7 +5,7 @@ Tests the compendium manager and data loading
 """
 
 import logging
-from compendium_manager import CompendiumManager, get_compendium_manager, load_compendiums
+from CompendiumManager import CompendiumManager, get_compendium_manager, load_compendiums
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')

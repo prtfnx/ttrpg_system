@@ -12,8 +12,8 @@ from tests.test_utils import setup_test_environment
 setup_test_environment()
 
 try:
-    import paint
-    from paint import PaintSystem, PaintCanvas
+    import PaintManager
+    from PaintManager import PaintSystem, PaintCanvas
     PAINT_AVAILABLE = True
 except ImportError as e:
     print(f"Paint import warning: {e}")
@@ -144,10 +144,10 @@ class TestPaintSystem(unittest.TestCase):
         """Test paint system integration with main application context."""
         # Test global paint system initialization
         with patch('paint.paint_system', None):
-            paint.init_paint_system(self.mock_context)
+            PaintManager.init_paint_system(self.mock_context)
             
             # Verify global paint system was created
-            self.assertIsNotNone(paint.paint_system)
+            self.assertIsNotNone(PaintManager.paint_system)
     
     @unittest.skipUnless(PAINT_AVAILABLE, "Paint system not available")
     def test_paint_event_handling(self):
@@ -165,7 +165,7 @@ class TestPaintSystem(unittest.TestCase):
             mock_paint_system.paint_mode = True
             mock_paint_system.handle_mouse_event = Mock(return_value=True)
             
-            result = paint.handle_paint_events(mock_event)
+            result = PaintManager.handle_paint_events(mock_event)
             # Result depends on implementation, but test that system responds
             self.assertIsNotNone(result)
     

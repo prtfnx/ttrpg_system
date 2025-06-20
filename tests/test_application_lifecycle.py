@@ -209,7 +209,7 @@ class TestApplicationLifecycle(unittest.TestCase):
         
         # Verify architectural components are initialized
         self.assertIsNotNone(test_context.actions, "Actions system must be present")
-        self.assertIsNotNone(test_context.network_context, "Network context must be present")
+        self.assertIsNotNone(test_context.actions, "Actions must be present")
         self.assertIsNotNone(test_context.list_of_tables, "Table management must be initialized")
         self.assertIsNotNone(test_context.queue_to_send, "Send queue must be initialized")
         self.assertIsNotNone(test_context.queue_to_read, "Read queue must be initialized")

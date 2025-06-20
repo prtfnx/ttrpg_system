@@ -5,7 +5,8 @@ import copy
 import logging
 from net.protocol import Message, MessageType
 if TYPE_CHECKING:
-    from context import Context, ContextTable
+    from Context import Context
+    from ContextTable import ContextTable
     from sprite import Sprite
 
 
@@ -51,11 +52,12 @@ class Actions(ActionsProtocol):
                 if hasattr(sprite_obj, 'id') and sprite_obj.id == sprite_id:
                     return sprite_obj
         return None
-    
-    # Table Actions
+      # Table Actions
     def create_table(self, name: str, width: int, height: int) -> ActionResult:
         """Create a new table"""
         try:
+            # Generate table_id
+            table_id = str(uuid.uuid4())
             
             # Check if table already exists
             if self._get_table_by_name(name):
@@ -772,3 +774,22 @@ class Actions(ActionsProtocol):
             })
         except Exception as e:
             return ActionResult(False, f"Failed to get sprites in area: {str(e)}")
+    def ask_for_table(self, table_name):
+        """Request a specific table from the server"""
+        if not hasattr(self.context, 'protocol') or not self.context.protocol:
+            logger.error("No protocol available to request table")
+            return ActionResult(False, "No protocol available to request table")
+            
+        msg = Message(MessageType.TABLE_REQUEST, {'table_name': table_name},
+                     getattr(self.context.protocol, 'client_id', 'unknown'))
+        
+        try:
+            if hasattr(self.context.protocol, 'send'):
+                self.context.protocol.send(msg.to_json())
+                
+            logger.info(f"Requested new table: {table_name}")
+            return ActionResult(True, f"Requested table: {table_name}")
+            
+        except Exception as e:
+            logger.error(f"Failed to request table: {e}")
+            return ActionResult(False, f"Failed to request table: {str(e)}")

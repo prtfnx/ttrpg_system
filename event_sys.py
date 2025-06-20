@@ -2,10 +2,10 @@ import sdl3
 import ctypes
 import json
 import logging
-import paint
+import PaintManager
 import clipboard_sys  # Add clipboard import
 import dragdrop_sys   # Add drag drop import
-
+from MovementManager import sync_sprite_move
 logger = logging.getLogger(__name__)
 
 class Directions:
@@ -63,9 +63,10 @@ def handle_mouse_motion(cnt, event):
                 dy = abs(new_pos[1] - sprite._last_network_y)
                   
             # Only send if moved more than threshold (reduce network spam)
-                if dx > DIFF_POSITION or dy > DIFF_POSITION:
+                if dx > DIFF_POSITION or dy > DIFF_POSITION:                    # sync_sprite_move moved to MovementManager
+                    
                     #print(f"cnt.network_context.sync_sprite_move: {cnt.network_context.sync_sprite_move} ")
-                    cnt.network_context.sync_sprite_move(sprite, old_pos, new_pos)
+                    sync_sprite_move(cnt, sprite, old_pos, new_pos)
                     
                     sprite._last_network_x = new_pos[0]            
                     sprite._last_network_y = new_pos[1]
@@ -347,13 +348,13 @@ def handle_mouse_button_up(cnt, event):
         # Send final position update when releasing sprite
         if cnt.grabing and cnt.current_table and cnt.current_table.selected_sprite:
             sprite = cnt.current_table.selected_sprite
-            
-            # Send final position to ensure sync
+              # Send final position to ensure sync
             final_pos = (sprite.coord_x.value, sprite.coord_y.value)
             old_pos = (getattr(sprite, '_last_network_x', final_pos[0]), 
                       getattr(sprite, '_last_network_y', final_pos[1]))
             
-            cnt.network_context.sync_sprite_move(sprite, old_pos, final_pos)
+            
+            sync_sprite_move(cnt, sprite, old_pos, final_pos)
             
             # Update last network position
             sprite._last_network_x = final_pos[0]
@@ -392,12 +393,13 @@ def handle_resize_end(cnt, sprite):
     """Called when sprite resize operation ends"""
     logger.debug(f"Resize ended for sprite {sprite.name} at scale ({sprite.scale_x}, {sprite.scale_y})")
     cnt.resizing = False
-    if sprite and hasattr(cnt, 'network_context'):
+    if sprite and hasattr(cnt, 'protocol'):
         # Send scale update
         new_scale = (sprite.scale_x, sprite.scale_y)
         old_scale = (getattr(sprite, '_resize_start_scale_x', new_scale[0]),
                     getattr(sprite, '_resize_start_scale_y', new_scale[1]))
-        cnt.network_context.sync_sprite_scale(sprite, old_scale, new_scale)
+        from MovementManager import sync_sprite_scale
+        sync_sprite_scale(cnt, sprite, old_scale, new_scale)
         
 def handle_key_event(cnt, key_code):
     match key_code:
@@ -406,7 +408,7 @@ def handle_key_event(cnt, key_code):
         case sdl3.SDL_SCANCODE_Q:
             return sdl3.SDL_APP_SUCCESS
         case sdl3.SDL_SCANCODE_P:  # Paint mode toggle
-            paint.toggle_paint_mode()
+            PaintManager.toggle_paint_mode()
             logger.info("Toggled paint mode")
         case sdl3.SDL_SCANCODE_V:  # Paste
             logger.info("V key pressed - attempting clipboard paste")
@@ -445,26 +447,26 @@ def handle_key_event(cnt, key_code):
             except Exception as e:
                 logger.error(f"Error during sprite cut: {e}")
         case sdl3.SDL_SCANCODE_TAB:  # Cycle paint colors when in paint mode
-            if paint.is_paint_mode_active():
-                paint.paint_system.cycle_paint_colors()
+            if PaintManager.is_paint_mode_active():
+                PaintManager.paint_system.cycle_paint_colors()
         case sdl3.SDL_SCANCODE_EQUALS:  # Increase brush width
-            if paint.is_paint_mode_active():
-                paint.paint_system.adjust_paint_width(1)        
+            if PaintManager.is_paint_mode_active():
+                PaintManager.paint_system.adjust_paint_width(1)        
         case sdl3.SDL_SCANCODE_MINUS:  # Decrease brush width
-            if paint.is_paint_mode_active():
-                paint.paint_system.adjust_paint_width(-1)
+            if PaintManager.is_paint_mode_active():
+                PaintManager.paint_system.adjust_paint_width(-1)
         case sdl3.SDL_SCANCODE_R:
             pass
         case sdl3.SDL_SCANCODE_RIGHT:
             sprite = cnt.current_table.selected_sprite
             sprite.coord_x.value += min(cnt.step.value, sprite.frect.w)
-            cnt.current_table.constrain_sprite_to_bounds(sprite)
-              # Send final position to ensure sync
+            cnt.current_table.constrain_sprite_to_bounds(sprite)              # Send final position to ensure sync
             final_pos = (sprite.coord_x.value, sprite.coord_y.value)
             old_pos = (getattr(sprite, '_last_network_x', final_pos[0]), 
                       getattr(sprite, '_last_network_y', final_pos[1]))
             
-            cnt.network_context.sync_sprite_move(sprite, old_pos, final_pos)
+            
+            sync_sprite_move(cnt, sprite, old_pos, final_pos)
             
             # Update last network position
             sprite._last_network_x = final_pos[0]
@@ -515,7 +517,7 @@ def handle_key_event(cnt, key_code):
         case sdl3.SDL_SCANCODE_LCTRL:
             logger.info("Control key pressed, asking table")
             
-            cnt.network_context.ask_for_table('large_table')
+            cnt.actions.ask_for_table('large_table')
         case sdl3.SDL_SCANCODE_LALT:
             logger.info("Alt key pressed, make table from json")
             with open('table.json', 'r') as f:
@@ -550,7 +552,7 @@ def handle_mouse_wheel(cnt, event):
 def handle_event(cnt, event):
     # First check if paint system should handle the event
     try:
-        if paint.handle_paint_events(event):
+        if PaintManager.handle_paint_events(event):
             return True
     except Exception as e:
         logger.error(f"Error in paint system event handling: {e}")

@@ -4,7 +4,6 @@ import logging
 import json
 import os
 from storage import get_storage_manager
-from client_asset_manager import get_client_asset_manager
 import settings
 
 logger = logging.getLogger(__name__)
@@ -20,7 +19,7 @@ def load_texture(sprite, context=None):
 
     # Try to use asset_id if present (for R2 integration)
     asset_id = getattr(sprite, 'asset_id', None)
-    asset_manager = get_client_asset_manager()
+    asset_manager = sprite.context.AssetManager
     texture_path = sprite.texture_path
     
     if asset_id:

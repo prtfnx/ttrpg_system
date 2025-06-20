@@ -114,63 +114,7 @@ class ContextTable:
             self.viewport_x = center_x - (center_x - self.viewport_x) * scale_diff
             self.viewport_y = center_y - (center_y - self.viewport_y) * scale_diff
 
-    def draw_grid(self, renderer, window=None, color=(100, 100, 100, 255), table_area=None):
-        """Draw the grid overlay using the new table coordinate system."""
-        if not self.show_grid or not self.screen_area:
-            return
-            
-        area_x, area_y, area_width, area_height = self.screen_area
-        
-        # Grid configuration
-        grid_size = 50.0  # Grid cell size in table coordinates
-        cells_per_row = int(area_width / (grid_size * self.table_scale)) + 2
-        cells_per_col = int(area_height / (grid_size * self.table_scale)) + 2
-        
-        # Set color for grid lines
-        try:
-            sdl3.SDL_SetRenderDrawColor(renderer, ctypes.c_ubyte(color[0]), ctypes.c_ubyte(color[1]), 
-                                       ctypes.c_ubyte(color[2]), ctypes.c_ubyte(color[3]))
-        except:
-            pass
-        
-        # Calculate starting grid position in table coordinates
-        start_x = int(self.viewport_x / grid_size) * grid_size
-        start_y = int(self.viewport_y / grid_size) * grid_size
-          # Draw vertical grid lines
-        for i in range(cells_per_row + 1):
-            table_x = start_x + i * grid_size
-            
-            # Only draw if line is within table bounds
-            if 0 <= table_x <= self.width:
-                screen_x, screen_y1 = self.table_to_screen(table_x, max(0, self.viewport_y))
-                screen_x, screen_y2 = self.table_to_screen(table_x, min(self.height, self.viewport_y + area_height / self.table_scale))
-                
-                # Only draw if line is within screen area
-                if area_x <= screen_x <= area_x + area_width:
-                    try:
-                        sdl3.SDL_RenderLine(renderer, 
-                                           ctypes.c_float(screen_x), ctypes.c_float(max(area_y, screen_y1)), 
-                                           ctypes.c_float(screen_x), ctypes.c_float(min(area_y + area_height, screen_y2)))
-                    except:
-                        pass
-        
-        # Draw horizontal grid lines
-        for i in range(cells_per_col + 1):
-            table_y = start_y + i * grid_size
-            
-            # Only draw if line is within table bounds
-            if 0 <= table_y <= self.height:
-                screen_x1, screen_y = self.table_to_screen(max(0, self.viewport_x), table_y)
-                screen_x2, screen_y = self.table_to_screen(min(self.width, self.viewport_x + area_width / self.table_scale), table_y)
-                
-                # Only draw if line is within screen area
-                if area_y <= screen_y <= area_y + area_height:
-                    try:
-                        sdl3.SDL_RenderLine(renderer, 
-                                           ctypes.c_float(max(area_x, screen_x1)), ctypes.c_float(screen_y),
-                                           ctypes.c_float(min(area_x + area_width, screen_x2)), ctypes.c_float(screen_y))
-                    except:
-                        pass
+   
 
     def toggle_grid(self):
         """Toggle grid visibility."""

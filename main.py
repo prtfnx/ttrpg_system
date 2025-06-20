@@ -10,6 +10,7 @@ import threading
 import time
 import PaintManager
 import gui.gui_imgui as gui_imgui
+from RenderManager import RenderManager
 from Context import Context
 from net import client_sdl
 from net.client_websocket import WebSocketClient
@@ -180,7 +181,18 @@ def SDL_AppInit_func(args: argparse.Namespace) -> Context:
         except Exception as e:
             logger.error(f"Failed to initialize lighting system: {e}")
             test_context.LightingManager = None
-
+    # Initialize RenderManager
+    try:
+        logger.info("Initializing RenderManager...")
+        test_context.RenderManager = RenderManager(renderer, window)
+        test_context.RenderManager.dict_of_sprites_list = test_context.current_table.dict_of_sprites_list
+        test_context.RenderManager.configure_layers()
+        test_context.RenderManager.LightManager= test_context.LightingManager
+        test_context.RenderManager.GeometricManager = test_context.GeometryManager
+        logger.info("RenderManager initialized.")
+    except Exception as e:
+        logger.error(f"Failed to initialize RenderManager: {e}")
+        test_context.RenderManager = None
     # Initialize paint system
     PaintManager.init_paint_system(test_context)
     logger.info("Paint system initialized.")
@@ -238,12 +250,11 @@ def SDL_AppInit_func(args: argparse.Namespace) -> Context:
     return test_context
 
 def SDL_AppIterate(context):
-    """This function runs every frame."""
-    renderer = context.renderer
+    """This function runs every frame."""    
     now = sdl3.SDL_GetTicks()
     delta_time = now - context.last_time
     context.last_time = now
-
+    table = context.current_table
     # Get current window size
     sdl3.SDL_GetWindowSize(context.window, context.window_width, context.window_height)
     window_width = context.window_width.value
@@ -253,40 +264,22 @@ def SDL_AppIterate(context):
     if hasattr(context, 'LayoutManager'):
         table_x, table_y, table_width, table_height = context.LayoutManager.table_area
     else:
-        # Fallback to percentage-based layout if LayoutManager not available
-        table_width = int(window_width * TABLE_AREA_PERCENT)
-        table_height = int(window_height * TABLE_AREA_PERCENT)
-        table_x = (window_width - table_width) // 2
-        table_y = (window_height - table_height) // 2
-    
+        # Fallback to default values if LayoutManager not available
+        table_x, table_y, table_width, table_height = 0, 0, window_width, window_height
     # Store layout info in context for other systems to use
     context.layout = {
         'table_area': (table_x, table_y, table_width, table_height),
         'window_size': (window_width, window_height)
     }
-       
-    sdl3.SDL_SetRenderDrawColorFloat(renderer, ctypes.c_float(0.1), ctypes.c_float(0.1), ctypes.c_float(0.1), ctypes.c_float(1.0))
-    # Fallback for different SDL3 API
-    #sdl3.SDL_SetRenderDrawColor(renderer, 25, 25, 25, 255)
-    sdl3.SDL_RenderClear(renderer)
     
-    # Draw table area with different background color (SDL content viewport)
-    
-    sdl3.SDL_SetRenderDrawColorFloat(renderer, ctypes.c_float(0.25), ctypes.c_float(0.25), ctypes.c_float(0.25), ctypes.c_float(1.0))
-    table_rect = sdl3.SDL_FRect(float(table_x), float(table_y), float(table_width), float(table_height))
-    sdl3.SDL_RenderFillRect(renderer, ctypes.byref(table_rect))
-
-
-    # Store viewport info for other systems
-    context.table_viewport = (table_x, table_y, table_width, table_height)# Render the table and grid only in the table area
-    if context.current_table:
+    if table:
         # Set the table's screen area for coordinate transformation
-        context.current_table.set_screen_area(table_x, table_y, table_width, table_height)
+        table.set_screen_area(table_x, table_y, table_width, table_height)
         
-
-    # Render sprites in table area (they should respect the layout)
+    # Movement 
     MovementManager.move_sprites(context, delta_time)
-    MovementManager.test_margin(context)
+    # Render all sdl content
+    context.RenderManager.iterate_draw(table, context.light_on)
 
     # Render paint system if active (in table area)
     if PaintManager.is_paint_mode_active():

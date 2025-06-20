@@ -5,7 +5,7 @@ import io_sys
 import sdl3
 import uuid
 import os
-from client_asset_manager import get_client_asset_manager
+
 logger = logging.getLogger(__name__)
 
 class Sprite:
@@ -158,7 +158,7 @@ class Sprite:
             return False
             
         
-        asset_manager = get_client_asset_manager()
+        asset_manager = self.context.AssetManager
         
         cached_path = asset_manager.get_cached_asset_path(self.asset_id)
         if cached_path and os.path.exists(cached_path):
@@ -186,8 +186,7 @@ class Sprite:
     def is_r2_asset_cached(self) -> bool:
         """Check if the R2 asset for this sprite is cached locally"""
         if not self.asset_id:
-            return False
-            
-        from client_asset_manager import get_client_asset_manager
-        asset_manager = get_client_asset_manager()
+            return False            
+        
+        asset_manager = self.context.AssetManager
         return asset_manager.is_asset_cached(self.asset_id)

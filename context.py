@@ -1,14 +1,17 @@
 import ctypes
+import os
 import queue
-import sdl3
 import logging
 import time
 import uuid
+import xxhash  # Add xxhash import
 from typing import Optional, Dict, List, Any, Union, TYPE_CHECKING
 from net.protocol import Message, MessageType
 from Actions import Actions  
 from GeometricManager import GeometricManager
 from ContextTable import ContextTable
+from AssetManager import ClientAssetManager
+from RenderManager import RenderManager
 from Sprite import Sprite
 
 # SDL3 type hints using actual SDL3 types
@@ -58,9 +61,6 @@ class Context:
         self.base_height: int = base_height
         self.window_width: ctypes.c_int = ctypes.c_int()
         self.window_height: ctypes.c_int = ctypes.c_int()
-        
-        # Managers: 
-        
        
         # For manage  mouse state:
         self.resizing: bool = False
@@ -90,8 +90,10 @@ class Context:
         self.LayoutManager: Optional['LayoutManager'] = None
         self.LightingManager: Optional['LightManager'] = None        
         self.CompendiumManager: Optional['CompendiumManager'] = None
-        self.GeometryManager = GeometricManager # Net section
-        
+        self.GeometryManager: GeometricManager = GeometricManager() # Net section
+        self.AssetManager: ClientAssetManager = ClientAssetManager()
+        self.RenderManager: Optional[RenderManager] = None
+
         # Network
         self.net_client_started: bool = False
         self.net_socket: Optional[Any] = None
@@ -121,7 +123,7 @@ class Context:
         self.user_id: int = 1  # Default test user ID, will be updated by welcome message
         self.username: str = "Player"
         self.pending_uploads: Dict[str, Any] = {}  # {asset_id: upload_info}
-        self.current_upload_files: Dict[str, str] = {}  # {file_path: asset_id} for tracking original files
+        self.pending_upload_files: Dict[str, str] = {}  # {asset_id: file_path} for tracking files
         
         logger.info("Context initialized with Actions protocol")
 
@@ -154,7 +156,8 @@ class Context:
                 coord_x=coord_x,
                 coord_y=coord_y,
                 sprite_id=sprite_id,
-                layer=layer
+                layer=layer,
+                context=self,  # Pass context for R2 requests
             )
 
             # Check if sprite creation was successful
@@ -468,43 +471,78 @@ class Context:
 
     # R2 Asset Management Methods
     def request_asset_upload(self, file_path: str, filename: Optional[str] = None) -> bool:
-        """Request an upload URL for an asset from the server"""
+        """Request an upload URL for an asset from the server with xxHash-based ID"""
         if not hasattr(self, 'queue_to_send'):
             logger.error("No network connection available for asset upload request")
             return False
             
-        if not filename:
-            import os
-            filename = os.path.basename(file_path)
+        if not os.path.exists(file_path):
+            logger.error(f"File not found: {file_path}")
+            return False
             
-        # Generate asset ID for this upload
-        import hashlib
-        import time
-        asset_id = hashlib.md5(f"{filename}_{time.time()}".encode()).hexdigest()[:16]
-        
-        upload_request = Message(
-            MessageType.ASSET_UPLOAD_REQUEST,
-            {
-                "filename": filename,
-                "asset_id": asset_id,
-                "session_code": self.session_code or "unknown",
-                "user_id": self.user_id or 0,
-                "username": self.username
-            }        )
+        if not filename:
+            filename = os.path.basename(file_path)
         
         try:
-            self.queue_to_send.put((1, upload_request))
-            logger.info(f"Requested upload URL for asset {asset_id}: {filename}")
+            # Calculate xxHash for the file (fast)
+            file_xxhash = self._calculate_file_xxhash(file_path)
+            if not file_xxhash:
+                logger.error(f"Failed to calculate xxHash for {file_path}")
+                return False
             
-            # Store file path for when we get the upload URL
-            if not hasattr(self, 'pending_upload_files'):
-                self.pending_upload_files = {}
+            # Check if file already exists by xxHash (duplicate detection)
+            existing_asset_id = self.AssetManager.find_asset_by_xxhash(file_xxhash)
+            if existing_asset_id:
+                logger.info(f"File {filename} already exists as asset {existing_asset_id} (xxHash: {file_xxhash})")
+                # Register the existing asset in our local cache if not already
+                if not self.AssetManager.is_asset_cached(existing_asset_id):
+                    self.AssetManager.register_uploaded_asset(existing_asset_id, file_path, filename)
+                return True
+            
+            # Generate asset ID based on xxHash (deterministic)
+            asset_id = f"asset_{file_xxhash[:16]}"  # Use first 16 chars of xxHash
+            
+            # Get file size and content type
+            file_size = os.path.getsize(file_path)
+            import mimetypes
+            content_type, _ = mimetypes.guess_type(filename)
+            content_type = content_type or "application/octet-stream"
+            
+            logger.info(f"Requesting upload for {filename} (xxHash: {file_xxhash}, size: {file_size} bytes)")
+            
+            upload_request = Message(
+                MessageType.ASSET_UPLOAD_REQUEST,
+                {
+                    "filename": filename,
+                    "asset_id": asset_id,
+                    "file_size": file_size,
+                    "content_type": content_type,
+                    "xxhash": file_xxhash,  # Include xxHash in request
+                    "session_code": self.session_code or "unknown",
+                    "user_id": self.user_id or 0,
+                    "username": self.username
+                }
+            )
+            
+            self.queue_to_send.put((1, upload_request))
+            logger.info(f"Requested upload URL for asset {asset_id}: {filename} (xxHash: {file_xxhash})")
+            
+            # Store file path and upload info for when we get the upload URL
             self.pending_upload_files[asset_id] = file_path
-            logger.debug(f"Stored file path for asset {asset_id}: {file_path}")
-            logger.debug(f"Current pending_upload_files: {self.pending_upload_files}")
+            self.pending_uploads[asset_id] = {
+                "filename": filename,
+                "file_path": file_path,
+                "file_size": file_size,
+                "content_type": content_type,
+                "xxhash": file_xxhash,
+                "requested_at": time.time()
+            }
+            
+            logger.debug(f"Stored upload info for asset {asset_id}")
             return True
+            
         except Exception as e:
-            logger.error(f"Failed to request asset upload {filename}: {e}")
+            logger.error(f"Failed to request asset upload for {filename}: {e}")
             return False
 
     def request_asset_download(self, asset_id: str) -> bool:
@@ -513,9 +551,7 @@ class Context:
             logger.error("No network connection available for asset download request")
             return False
             
-        from client_asset_manager import get_client_asset_manager
-        asset_manager = get_client_asset_manager()
-        
+        asset_manager= self.AssetManager       
         # Don't request if already cached
         if asset_manager.is_asset_cached(asset_id):
             logger.debug(f"Asset {asset_id} already cached, no download needed")
@@ -590,8 +626,8 @@ class Context:
             logger.error("No table selected for sprite creation")
             return None
             
-        from client_asset_manager import get_client_asset_manager
-        asset_manager = get_client_asset_manager()
+        
+        asset_manager = self.AssetManager
         
         # Try to get cached asset path
         texture_path = asset_manager.get_cached_asset_path(asset_id)
@@ -614,3 +650,177 @@ class Context:
             logger.info(f"Created sprite {new_sprite.sprite_id} from R2 asset {asset_id}")
         
         return new_sprite
+
+    def _calculate_file_xxhash(self, file_path: str) -> str:
+        """Calculate xxHash for a file (fast hash for asset identification)"""
+        try:
+            hasher = xxhash.xxh64()  # xxh64 is fast and has good distribution
+            with open(file_path, 'rb') as f:
+                for chunk in iter(lambda: f.read(65536), b""):  # 64KB chunks for speed
+                    hasher.update(chunk)
+            return hasher.hexdigest()
+        except Exception as e:
+            logger.error(f"Error calculating xxHash for {file_path}: {e}")
+            return ""
+
+    def handle_upload_response(self, message_data: Dict) -> bool:
+        """Handle upload URL response from server"""
+        try:
+            asset_id = message_data.get('asset_id')
+            upload_url = message_data.get('upload_url')
+            success = message_data.get('success', False)
+            error = message_data.get('error')
+            required_xxhash = message_data.get('required_xxhash')
+            
+            if not success:
+                logger.error(f"Upload request failed for asset {asset_id}: {error}")
+                # Clean up pending upload
+                self.pending_uploads.pop(asset_id, None)
+                self.pending_upload_files.pop(asset_id, None)
+                return False
+            
+            if not asset_id or not upload_url:
+                logger.error("Invalid upload response: missing asset_id or upload_url")
+                return False
+            
+            # Get file path from pending uploads
+            file_path = self.pending_upload_files.get(asset_id)
+            if not file_path or not os.path.exists(file_path):
+                logger.error(f"File not found for asset {asset_id}: {file_path}")
+                return False
+            
+            upload_info = self.pending_uploads.get(asset_id)
+            if not upload_info:
+                logger.error(f"No upload info found for asset {asset_id}")
+                return False
+            
+            # Verify xxHash matches
+            if required_xxhash and upload_info['xxhash'] != required_xxhash:
+                logger.error(f"Hash mismatch for asset {asset_id}: expected {required_xxhash}, got {upload_info['xxhash']}")
+                return False
+            
+            logger.info(f"Starting upload for asset {asset_id}: {upload_info['filename']}")
+            
+            # Perform the upload using the AssetManager
+            success = self._perform_upload(
+                file_path, 
+                upload_url, 
+                upload_info['xxhash'],
+                upload_info['content_type']
+            )
+            
+            if success:
+                # Register asset in cache after successful upload
+                self.AssetManager.register_uploaded_asset(
+                    asset_id, 
+                    file_path, 
+                    upload_info['filename']
+                )
+                logger.info(f"Successfully uploaded and registered asset {asset_id}")
+            else:
+                logger.error(f"Failed to upload asset {asset_id}")
+            
+            # Clean up pending upload
+            self.pending_uploads.pop(asset_id, None)
+            self.pending_upload_files.pop(asset_id, None)
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Error handling upload response: {e}")
+            return False
+
+    def _perform_upload(self, file_path: str, upload_url: str, xxhash: str, content_type: str) -> bool:
+        """Perform the actual file upload using the presigned URL"""
+        try:
+            import requests
+            
+            # Verify local file hash before upload
+            local_xxhash = self._calculate_file_xxhash(file_path)
+            if local_xxhash != xxhash:
+                logger.error(f"Local hash mismatch before upload: expected {xxhash}, got {local_xxhash}")
+                return False
+            
+            # Prepare headers
+            headers = {
+                'Content-Type': content_type,
+                'x-amz-meta-xxhash': xxhash,  # Store xxHash in metadata
+                'x-amz-meta-upload-timestamp': str(int(time.time()))
+            }
+            
+            # Upload file
+            with open(file_path, 'rb') as f:
+                response = requests.put(upload_url, data=f, headers=headers, timeout=300)
+                response.raise_for_status()
+            
+            logger.info(f"Successfully uploaded file {file_path} (xxHash: {xxhash})")
+            return True
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Upload request failed: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Upload error: {e}")
+            return False
+
+    def request_asset_upload_by_hash(self, file_path: str, filename: Optional[str] = None) -> Optional[str]:
+        """Request upload and return the asset ID (or existing asset ID if duplicate)"""
+        if not filename:
+            filename = os.path.basename(file_path)
+        
+        # Calculate hash first
+        file_xxhash = self._calculate_file_xxhash(file_path)
+        if not file_xxhash:
+            return None
+        
+        # Check for existing asset
+        existing_asset_id = self.AssetManager.find_asset_by_xxhash(file_xxhash)
+        if existing_asset_id:
+            logger.info(f"File {filename} already exists as asset {existing_asset_id}")
+            return existing_asset_id
+        
+        # Request upload
+        success = self.request_asset_upload(file_path, filename)
+        if success:
+            # Generate the same asset ID that would be created
+            return f"asset_{file_xxhash[:16]}"
+        
+        return None
+
+    def upload_and_create_sprite(self, file_path: str, layer: str = 'tokens', 
+                                coord_x: float = 0.0, coord_y: float = 0.0) -> Optional[Sprite]:
+        """Upload file and create sprite in one operation"""
+        if not self.current_table:
+            logger.error("No table selected for sprite creation")
+            return None
+        
+        # Get or create asset
+        asset_id = self.request_asset_upload_by_hash(file_path)
+        if not asset_id:
+            logger.error(f"Failed to upload asset from {file_path}")
+            return None
+        
+        # Create sprite using the asset
+        sprite = self.add_sprite_from_r2_asset(
+            asset_id=asset_id,
+            filename=os.path.basename(file_path),
+            layer=layer,
+            coord_x=coord_x,
+            coord_y=coord_y
+        )
+        
+        if sprite:
+            logger.info(f"Created sprite from uploaded asset {asset_id}")
+        
+        return sprite
+
+    def get_upload_stats(self) -> Dict[str, Any]:
+        """Get upload statistics"""
+        pending_count = len(self.pending_uploads)
+        pending_files = list(self.pending_uploads.keys())
+        
+        return {
+            'pending_uploads': pending_count,
+            'pending_files': pending_files,
+            'asset_manager_stats': self.AssetManager.get_stats()
+        }

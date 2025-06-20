@@ -1,14 +1,12 @@
-from __future__ import annotations
 import numpy as np
 #from skimage import draw
-from typing import List, Tuple, Set, Optional, Callable, Any
+from typing import List, Tuple, Set, Optional, Callable, Any, TYPE_CHECKING
 import time
 import functools
 import sdl3
 import ctypes
-import sys
 import logging
-
+from Sprite import Sprite  
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -93,20 +91,21 @@ class GeometricManager:
     # def line(r0: int, c0: int, r1: int, c1: int) -> Tuple[np.ndarray, np.ndarray]:
     #     """Using skimage.draw for line coordinates"""
     #     return draw.line(r0, c0, r1, c1)
-
-    def sprites_to_obstacles_numpy(sprite_list : List[sprite]) -> np.ndarray:
+    @staticmethod
+    def sprites_to_obstacles_numpy(sprite_list: Optional[List[Sprite]]) -> np.ndarray:
         """
         numpy-vectorized conversion of sprites to obstacles array.
-        
-        Uses vectorized operations for maximum performance when processing many sprites.
-        Args:
-            include_non_collidable: Whether to include non-collidable sprites (default: True)
+        Uses vectorized operations for maximum performance when processing many sprites.       
 
         Returns:
             numpy array of shape (N*4, 2, 2) representing line segments
             Each sprite contributes 4 line segments (rectangle edges)
-           
-        """        # Pre-filter and extract sprite data in one pass
+
+        """
+        if sprite_list is None or len(sprite_list) == 0:
+            logger.debug("Empty sprite list provided, returning empty obstacles array")
+            return np.empty((0, 2, 2), dtype=np.float64)
+        # Pre-filter and extract sprite data in one pass        
         valid_sprites = []
         for sprite in sprite_list:
             x, y, w, h = float(sprite.frect.x), float(sprite.frect.y), float(sprite.frect.w), float(sprite.frect.h)
@@ -170,6 +169,22 @@ class GeometricManager:
         logger.debug(f"Obstacles array shape: {obstacles.shape}")
         
         return obstacles
+    
+    @staticmethod
+    def center_position_from_frect(frect: sdl3.SDL_FRect) -> np.ndarray:
+
+        """
+        Calculate center position from SDL_FRect.
+        
+        Args:
+            frect: SDL_FRect object with x, y, w, h attributes
+            
+        Returns:
+            numpy array [x, y] representing center position
+        """
+        center_x = frect.x + frect.w / 2.0
+        center_y = frect.y + frect.h / 2.0
+        return np.array([center_x, center_y], dtype=np.float64)
     
     @staticmethod
     def polygon_to_sdl_triangles(polygon_points: np.ndarray, center_point: np.ndarray,

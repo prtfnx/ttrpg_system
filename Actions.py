@@ -7,7 +7,7 @@ from net.protocol import Message, MessageType
 if TYPE_CHECKING:
     from Context import Context
     from ContextTable import ContextTable
-    from sprite import Sprite
+    from Sprite import Sprite
 
 
 logger = logging.getLogger(__name__)

@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 
 class Actions(ActionsProtocol):
     """
-    Client-side implementation of ActionsProtocol for SDL/GUI operations.
-    Handles visual representation, user interface, and client-side validation.
+    Client-side implementation of ActionsProtocol for game logic.
+    Central bus for actions on all entities in game.
     """
     
     def __init__(self, context: 'Context'):
@@ -25,6 +25,7 @@ class Actions(ActionsProtocol):
         self.redo_stack: List[Dict[str, Any]] = []
         self.max_history = 100
         self.layer_visibility = {layer: True for layer in LAYERS.keys()}
+    
     def _add_to_history(self, action: Dict[str, Any]):
         """Add action to history for undo/redo functionality"""
         self.action_history.append(action)
@@ -36,6 +37,7 @@ class Actions(ActionsProtocol):
     def _get_table_by_id(self, table_id: str) -> Optional['ContextTable']:
         """Get table by ID (using table_id UUID)"""
         return self.context._get_table_by_id(table_id)
+    
     def _get_table_by_name(self, name: str) -> Optional['ContextTable']:
         """Get table by name"""
         for table in self.context.list_of_tables:
@@ -44,39 +46,30 @@ class Actions(ActionsProtocol):
         return None
     
     def _find_sprite_in_table(self, table, sprite_id: str):
-        """Find sprite directly in a table object to avoid ID lookup issues"""
+        """Find sprite directly in a table"""
         for layer, sprite_list in table.dict_of_sprites_list.items():
             for sprite_obj in sprite_list:
                 if hasattr(sprite_obj, 'sprite_id') and sprite_obj.sprite_id == sprite_id:
-                    return sprite_obj                # Fallback for alternate id attribute
-                if hasattr(sprite_obj, 'id') and sprite_obj.id == sprite_id:
-                    return sprite_obj
+                    return sprite_obj                
         return None
-      # Table Actions
+      
+    # Table Actions
     def create_table(self, name: str, width: int, height: int) -> ActionResult:
         """Create a new table"""
         try:
-            # Generate table_id
-            table_id = str(uuid.uuid4())
-            
+                     
             # Check if table already exists
             if self._get_table_by_name(name):
-                return ActionResult(False, f"Table with name {name} already exists")
+                return ActionResult(False, f"Table with name {name} already exists")              
             # Create new table using Context method - pass table_id to constructor
             table = self.context.add_table(name, width, height, table_id=table_id)
             if not table:
-                return ActionResult(False, f"Failed to create table {name}")
-            
-            # Add to context list manually to maintain control
-
-            
-            # Set as current table if it's the first one
-            if not self.context.current_table:
-                self.context.current_table = table
-                
+                return ActionResult(False, f"Failed to create table {name}")            
+           
             action = {
                 'type': 'create_table',
                 'table_name': table.name,
+                'table_id': table.table_id,
                 'name': name,
                 'width': width,
                 'height': height
@@ -84,7 +77,7 @@ class Actions(ActionsProtocol):
             self._add_to_history(action)
             
             return ActionResult(True, f"Table {name} created successfully", {
-                'table_id': table_id,
+                'table_id': table.table_id,
                 'name': name,
                 'width': width,
                 'height': height
@@ -95,22 +88,18 @@ class Actions(ActionsProtocol):
     def create_table_from_dict(self, table_dict: Dict[str, Any]) -> ActionResult:
         """Create a table from a dictionary representation"""
         try:
-            logger.info(f"Creating table from dict: {table_dict}")
+            logger.info(f"Creating table from dict")
+            logger.debug(f"Creating table from dict: {table_dict}")
             # Validate required fields
             required_fields = ['table_name', 'width', 'height' ]
-            logger.debug(f"Creating table from dict: {table_dict}")
             for field in required_fields:
                 if field not in table_dict:
                     logger.error(f"Missing required field: {field}")
-                    return ActionResult(False, f"Missing required field: {field}")
-            logger.debug(f"All required fields are present")
-            # Create table using Context method
-            table = self.context.create_table_from_json(table_dict)
-            logger.info(f"Table created: {table}")
+                    return ActionResult(False, f"Missing required field: {field}")              # Create table using Context method
+            table = self.context.create_table_from_dict(table_dict)
             if not table:
                 return ActionResult(False, f"Failed to create table {table_dict['name']}")          
 
-            
             action = {
                 'type': 'create_table_from_dict',
                 'table_data': copy.deepcopy(table_dict)

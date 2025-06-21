@@ -16,7 +16,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from client_asset_manager import get_client_asset_manager, ClientAssetManager
+from AssetManager import ClientAssetManager
 from server_host.service.asset_manager import get_server_asset_manager, AssetRequest
 from net.protocol import Message, MessageType
 import settings
@@ -86,7 +86,7 @@ class TestAssetWorkflows(unittest.TestCase):
         """Test client asset caching using actual API"""
         
         # Step 1: Create asset manager
-        asset_manager = get_client_asset_manager()
+        asset_manager = ClientAssetManager()
         self.assertIsNotNone(asset_manager, "Asset manager should be created")
         
         # Step 2: Test basic cache operations using actual API
@@ -128,7 +128,7 @@ class TestAssetWorkflows(unittest.TestCase):
     def test_asset_manager_stats_and_info(self):
         """Test asset manager statistics and information"""
         
-        asset_manager = get_client_asset_manager()
+        asset_manager =ClientAssetManager()
         
         # Test initial stats
         stats = asset_manager.get_stats()
@@ -162,9 +162,9 @@ class TestAssetWorkflows(unittest.TestCase):
         mock_response.iter_content = Mock(return_value=[b'test_image_data'])
         mock_response.raise_for_status = Mock()
         mock_get.return_value = mock_response
-        
-        asset_manager = get_client_asset_manager()
-        
+
+        asset_manager = ClientAssetManager()
+
         # Test download
         asset_id = "download_test_001"
         download_url = "https://example.com/test_image.png"
@@ -266,11 +266,10 @@ class TestAssetWorkflows(unittest.TestCase):
         """Test asset sharing between multiple clients in same session"""
         
         # Simulate multiple clients
-        dm_asset_manager = get_client_asset_manager()
+        dm_asset_manager = ClientAssetManager()
         
-        # Reset for second client simulation
-        ClientAssetManager._instance = None
-        player_asset_manager = get_client_asset_manager()
+       
+        player_asset_manager = ClientAssetManager()
         
         session_code = "test_session_001"
         
@@ -329,9 +328,9 @@ class TestAssetWorkflows(unittest.TestCase):
 
     def test_asset_error_handling_and_recovery(self):
         """Test error handling and recovery in asset workflows"""
-        
-        asset_manager = get_client_asset_manager()
-        
+
+        asset_manager = ClientAssetManager()
+
         # Test 1: Handle non-existent file
         with self.assertRaises(Exception):
             asset_manager.create_sprite_from_local_file("/non/existent/file.png")
@@ -368,9 +367,9 @@ class TestAssetWorkflows(unittest.TestCase):
 
     def test_asset_performance_and_limits(self):
         """Test asset management performance and limits"""
-        
-        asset_manager = get_client_asset_manager()
-        
+
+        asset_manager = ClientAssetManager()
+
         # Test handling many assets
         num_assets = 50
         large_asset_list = []

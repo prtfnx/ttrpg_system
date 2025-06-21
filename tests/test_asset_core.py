@@ -16,7 +16,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from client_asset_manager import get_client_asset_manager, ClientAssetManager
+from AssetManager import  ClientAssetManager
 from net.protocol import Message, MessageType
 import settings
 
@@ -59,13 +59,13 @@ class TestAssetCore(unittest.TestCase):
 
     def test_asset_manager_creation(self):
         """Test that asset manager can be created"""
-        asset_manager = get_client_asset_manager()
+        asset_manager = ClientAssetManager()
         self.assertIsNotNone(asset_manager, "Asset manager should be created")
         self.assertIsInstance(asset_manager, ClientAssetManager, "Should be ClientAssetManager instance")
 
     def test_asset_caching_basic(self):
         """Test basic asset caching functionality"""
-        asset_manager = get_client_asset_manager()
+        asset_manager = ClientAssetManager()
         
         # Test with non-existent asset
         test_asset_id = "nonexistent_asset"
@@ -78,7 +78,7 @@ class TestAssetCore(unittest.TestCase):
 
     def test_asset_statistics(self):
         """Test asset manager statistics"""
-        asset_manager = get_client_asset_manager()
+        asset_manager = ClientAssetManager()
         
         stats = asset_manager.get_stats()
         self.assertIsInstance(stats, dict, "Stats should be a dictionary")
@@ -92,7 +92,7 @@ class TestAssetCore(unittest.TestCase):
 
     def test_session_assets_management(self):
         """Test session assets management"""
-        asset_manager = get_client_asset_manager()
+        asset_manager = ClientAssetManager()
         
         # Test updating session assets
         test_session = "test_session_001"
@@ -118,7 +118,7 @@ class TestAssetCore(unittest.TestCase):
         mock_response.raise_for_status = Mock()
         mock_get.return_value = mock_response
         
-        asset_manager = get_client_asset_manager()
+        asset_manager = ClientAssetManager()
         
         # Test download
         result = await asset_manager.download_asset(
@@ -134,7 +134,7 @@ class TestAssetCore(unittest.TestCase):
 
     def test_cache_path_generation(self):
         """Test cache path generation"""
-        asset_manager = get_client_asset_manager()
+        asset_manager = ClientAssetManager()
         
         # Test cache path generation
         cache_path = asset_manager._get_cache_path("test_asset_123", "test_file.png")
@@ -143,7 +143,7 @@ class TestAssetCore(unittest.TestCase):
 
     def test_file_hash_calculation(self):
         """Test file hash calculation"""
-        asset_manager = get_client_asset_manager()
+        asset_manager = ClientAssetManager()
         
         # Create test file
         test_file = os.path.join(self.test_cache_dir, "hash_test.png")

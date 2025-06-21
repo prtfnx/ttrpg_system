@@ -93,7 +93,7 @@ class Context:
         self.GeometryManager: GeometricManager = GeometricManager() # Net section
         self.AssetManager: ClientAssetManager = ClientAssetManager()
         self.RenderManager: Optional[RenderManager] = None
-
+        
         # Network
         self.net_client_started: bool = False
         self.net_socket: Optional[Any] = None
@@ -296,22 +296,22 @@ class Context:
             return table
             
         except Exception as e:
-            logger.error(f"Error adding table: {e}")
+            logger.error(f"Error adding table: {e}")            
             return None
     
-    def create_table_from_json(self, json_data):
-        """Create table from JSON data"""
+    def create_table_from_dict(self, dict_data):
+        """Create table from dictionary data"""
         try:
-            logger.info(f"Creating table from JSON: {json_data}")   
-            # Get table info from JSON data
-            table_name = json_data.get('table_name')
-            table_id = json_data.get('table_id')  # May be None for legacy saves
+            logger.info(f"Creating table from dict: {dict_data}")   
+            # Get table info from dict data
+            table_name = dict_data.get('table_name')
+            table_id = dict_data.get('table_id')  # May be None for legacy saves
             
             # Create the table
             table = ContextTable(
                 table_name=table_name,
-                width=json_data.get('width', 1920), 
-                height=json_data.get('height', 1080),
+                width=dict_data.get('width', 1920), 
+                height=dict_data.get('height', 1080),
                 table_id=table_id
             )
             
@@ -320,16 +320,15 @@ class Context:
             # Set as current table if it's the first one
             if not self.current_table:
                 self.current_table = table
-            
-            # Set table properties
-            table.scale = json_data.get('scale', 1.0)
-            table.x_moved = json_data.get('x_moved', 1.0)
-            table.y_moved = json_data.get('y_moved', 1.0)
-            table.show_grid = json_data.get('show_grid', True)
-            table.cell_side = json_data.get('cell_side', CELL_SIDE)
-            print(json_data)
+              # Set table properties
+            table.scale = dict_data.get('scale', 1.0)
+            table.x_moved = dict_data.get('x_moved', 1.0)
+            table.y_moved = dict_data.get('y_moved', 1.0)
+            table.show_grid = dict_data.get('show_grid', True)
+            table.cell_side = dict_data.get('cell_side', CELL_SIDE)
+            print(dict_data)
             # Add sprites from layers
-            layers_data = json_data.get('layers', {})
+            layers_data = dict_data.get('layers', {})
             print('4')
             print(layers_data.items())
             for layer, sprites_data in layers_data.items():
@@ -355,7 +354,6 @@ class Context:
                                 coord_y=sprite_data.get('position', ([0,0]))[1],
                                 sprite_id=sprite_data.get('sprite_id', None)
                             )
-                            
                             if not sprite:
                                 logger.warning(f"Failed to create sprite from {sprite_data.get('texture_path')}")
                                 
@@ -363,11 +361,11 @@ class Context:
                             logger.error(f"Error creating sprite: {e}")
                             continue
             
-            logger.info(f"Successfully created table '{table.name}' from JSON")
+            logger.info(f"Successfully created table '{table.name}' from dict")
             return table
             
         except Exception as e:
-            logger.error(f"Error creating table from JSON: {e}")
+            logger.error(f"Error creating table from dict: {e}")
             return None
 
     def setup_protocol(self, send_callback):
@@ -556,7 +554,8 @@ class Context:
         if asset_manager.is_asset_cached(asset_id):
             logger.debug(f"Asset {asset_id} already cached, no download needed")
             return True
-            
+        if isinstance(asset_id, bytes):
+            asset_id = asset_id.decode('utf-8')    
         download_request = Message(
             MessageType.ASSET_DOWNLOAD_REQUEST,
             {

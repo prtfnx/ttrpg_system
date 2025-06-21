@@ -3,7 +3,7 @@ import ctypes
 import logging
 import os
 import hashlib
-
+import json
 # Import storage system for file handling
 
 logger = logging.getLogger(__name__)
@@ -53,8 +53,7 @@ def handle_dropped_file(context, file_path):
             return False
             
         # Check if this asset is already cached
-        from client_asset_manager import get_client_asset_manager
-        asset_manager = get_client_asset_manager()
+        asset_manager = context.AssetManager
         
         # Generate asset ID from file content
         potential_asset_id = generate_asset_id_from_file(file_path)
@@ -238,13 +237,13 @@ def create_sprite_from_stored_image(context, image_path, filename):
 def load_table_from_json_file(context, file_path):
     """Load a table from a dropped JSON file."""
     try:
-        import json
+        
         
         with open(file_path, 'r') as f:
             data = json.load(f)
             
         logger.info(f"Loading table from JSON file: {file_path}")
-        table = context.create_table_from_json(data)
+        table = context.create_table_from_dict(data)
         
         if table:
             context.list_of_tables.append(table)

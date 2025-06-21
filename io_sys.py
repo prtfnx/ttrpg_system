@@ -363,7 +363,7 @@ def _trigger_r2_asset_request_for_missing_file(sprite, file_path, context):
         filename = os.path.basename(file_path)
         name_without_ext = os.path.splitext(filename)[0]        
        
-        logger.info(f"Missing file {file_path} might be R2 asset {potential_asset_id}, requesting download")
+        logger.info(f"Missing file {file_path} might be R2 asset, requesting download")
         return _trigger_r2_asset_request(sprite, name_without_ext, context)
 
         

@@ -515,15 +515,14 @@ def handle_key_event(cnt, key_code):
                 sprite.set_speed(vx * sprite.speed, vy * sprite.speed)
                 logger.info(f"Projectile dx/dy: {dx} {dy}, speed: {vx} {vy}")
         case sdl3.SDL_SCANCODE_LCTRL:
-            logger.info("Control key pressed, asking table")
-            
+            logger.info("Control key pressed, asking table")            
             cnt.actions.ask_for_table('large_table')
         case sdl3.SDL_SCANCODE_LALT:
             logger.info("Alt key pressed, make table from json")
             with open('table.json', 'r') as f:
                 data = json.load(f)
             logger.info(f"Loaded table data: {data}")
-            table = cnt.create_table_from_json(data)
+            table = cnt.create_table_from_dict(data)
             cnt.list_of_tables.append(table)
             cnt.current_table = table
             logger.info("Table created and changed")

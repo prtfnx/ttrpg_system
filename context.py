@@ -13,7 +13,7 @@ from ContextTable import ContextTable
 from AssetManager import ClientAssetManager
 from RenderManager import RenderManager
 from Sprite import Sprite
-
+from Actions import Actions
 # SDL3 type hints using actual SDL3 types
 if TYPE_CHECKING:  
     from ctypes import c_void_p
@@ -86,10 +86,12 @@ class Context:
         # Tables management
         self.current_table: Optional[ContextTable] = None
         self.list_of_tables: List[ContextTable] = []       
+        # Actions protocol
+        self.Actions: Optional[Actions] = None
         # Managers
-        self.LayoutManager: Optional['LayoutManager'] = None
-        self.LightingManager: Optional['LightManager'] = None        
-        self.CompendiumManager: Optional['CompendiumManager'] = None
+        self.LayoutManager: Optional[LayoutManager] = None
+        self.LightingManager: Optional[LightManager] = None        
+        self.CompendiumManager: Optional[CompendiumManager] = None
         self.GeometryManager: GeometricManager = GeometricManager() # Net section
         self.AssetManager: ClientAssetManager = ClientAssetManager()
         self.RenderManager: Optional[RenderManager] = None
@@ -105,10 +107,8 @@ class Context:
         self.chat_messages: List[str] = []
         
         # Current tool selection
-        self.current_tool: str = "Select"
-          
-        # Actions protocol integration
-        self.actions: Actions = Actions(self)
+        self.current_tool: str = "Select"      
+
         
         # Light
         self.point_of_view_changed: bool = True 
@@ -368,78 +368,11 @@ class Context:
             logger.error(f"Error creating table from dict: {e}")
             return None
 
-    def setup_protocol(self, send_callback):
-        """Initialize protocol handler"""
-        from net.client_protocol import ClientProtocol        
-        self.protocol = ClientProtocol(self, send_callback)
-        return self.protocol
-
     def send_table_update(self, update_type: str, data: dict):
         """Send table update to server"""
         if hasattr(self, 'protocol'):
-            self.protocol.send_update(update_type, data)
-
-    # Actions protocol convenience methods
-    def create_table_via_actions(self, name: str, width: int, height: int):
-        """Create table using Actions protocol"""
-        table_id = name  # Use name as ID for simplicity
-        result = self.actions.create_table(table_id, name, width, height)
-        if result.success:
-            logger.info(f"Table created via actions: {result.message}")
-            return self._get_table_by_name(name)
-        else:
-            logger.error(f"Failed to create table: {result.message}")
-            return None
-    
-    def add_sprite_via_actions(self, sprite_id: str, image_path: str, position_x: float, position_y: float, layer: str = "tokens"):
-        """Add sprite using Actions protocol"""
-        if not self.current_table:
-            logger.error("No current table for sprite creation")
-            return None
-            
-        from core_table.actions_protocol import Position
-        position = Position(position_x, position_y)
-        table_id = self.current_table.name
-        
-        result = self.actions.create_sprite(table_id, sprite_id, position, image_path, layer)
-        if result.success:
-            logger.info(f"Sprite created via actions: {result.message}")
-            return True
-        else:
-            logger.error(f"Failed to create sprite: {result.message}")
-            return False
-    
-    def move_sprite_via_actions(self, sprite_id: str, new_x: float, new_y: float):
-        """Move sprite using Actions protocol"""
-        if not self.current_table:
-            return False
-            
-        from core_table.actions_protocol import Position
-        position = Position(new_x, new_y)
-        table_id = self.current_table.name
-        
-        result = self.actions.move_sprite(table_id, sprite_id, position)
-        return result.success
-    
-    def delete_sprite_via_actions(self, sprite_id: str):
-        """Delete sprite using Actions protocol"""
-        if not self.current_table:
-            return False
-            
-        table_id = self.current_table.name
-        result = self.actions.delete_sprite(table_id, sprite_id)
-        return result.success
-    def get_table_sprites_via_actions(self, layer=None):
-        """Get sprites using Actions protocol"""
-        if not self.current_table:
-            return {}
-            
-        table_id = self.current_table.name
-        result = self.actions.get_table_sprites(table_id, layer)
-        if result.success and result.data:
-            return result.data.get('sprites', {})
-        return {}
-    
+            self.protocol.send_update(update_type, data)    
+  
     def add_chat_message(self, message: str):
         """Add message to chat history"""
         timestamp = time.strftime("%H:%M:%S")

@@ -25,7 +25,8 @@ class Actions(ActionsProtocol):
         self.redo_stack: List[Dict[str, Any]] = []
         self.max_history = 100
         self.layer_visibility = {layer: True for layer in LAYERS.keys()}
-    
+        self.AssetManager = context.AssetManager
+
     def _add_to_history(self, action: Dict[str, Any]):
         """Add action to history for undo/redo functionality"""
         self.action_history.append(action)
@@ -53,13 +54,61 @@ class Actions(ActionsProtocol):
                     return sprite_obj                
         return None
       
+    
     # Table Actions
+    def _process_table_assets(self, table_data: dict):
+        """Process table assets and request downloads for missing assets"""
+        try:
+            layers = table_data.get('layers', {})
+            
+            for layer_name, layer_entities in layers.items():
+                if not isinstance(layer_entities, dict):
+                    continue
+                
+                for entity_id, entity_data in layer_entities.items():
+                    if not isinstance(entity_data, dict):
+                        continue
+                    
+                    asset_xxhash = entity_data.get('asset_xxhash')
+                    asset_id = entity_data.get('asset_id')
+                    texture_path = entity_data.get('texture_path')
+                    
+                    if asset_xxhash and asset_id:
+                        # Check if we have this asset cached by xxHash
+                        cached_path = self.AssetManager.get_asset_for_sprite_by_xxhash(asset_xxhash)
+                        
+                        if cached_path:
+                            logger.debug(f"Asset {asset_id} found in cache by xxHash: {cached_path}")
+                            # Update entity to use cached path
+                            entity_data['texture_path'] = cached_path
+                        else:                     
+                            # Asset not found locally, request download
+                            logger.info(f"Asset {asset_id} not found locally, requesting download (xxHash: {asset_xxhash})")
+                            self._request_asset_download(asset_id)
+                    else:
+                        logger.warning(f"Entity {entity_id} missing asset hash information")
+                        
+        except Exception as e:
+            logger.error(f"Error processing table assets: {e}")
+
+    def process_creating_table(self, table_data: dict) -> ActionResult:
+        """Process creating a table from a dictionary representation"""
+          
+        # Process assets before creating the table
+        self._process_table_assets(table_data)
+        
+        result = self.create_table_from_dict(table_data)
+        if not result.success:
+            logger.error(f"Failed to create table from dict: {table_data}")
+
+
     def create_table(self, name: str, width: int, height: int) -> ActionResult:
         """Create a new table"""
         try:
                      
             # Check if table already exists
             if self._get_table_by_name(name):
+                logger.info(f"Table with name {name} already exists")
                 return ActionResult(False, f"Table with name {name} already exists")              
             # Create new table using Context method - pass table_id to constructor
             table = self.context.add_table(name, width, height, table_id=table_id)
@@ -83,6 +132,7 @@ class Actions(ActionsProtocol):
                 'height': height
             })
         except Exception as e:
+            logger.error(f"Failed to create table: {e}")
             return ActionResult(False, f"Failed to create table: {str(e)}")
     
     def create_table_from_dict(self, table_dict: Dict[str, Any]) -> ActionResult:
@@ -110,6 +160,7 @@ class Actions(ActionsProtocol):
                 'table': table
             })
         except Exception as e:
+            logger.error(f"Failed to create table from dict: {e}")
             return ActionResult(False, f"Failed to create table from dict: {str(e)}")
     def get_table(self, table_id: str) -> ActionResult:
         """Get a table by ID"""
@@ -120,6 +171,7 @@ class Actions(ActionsProtocol):
 
             return ActionResult(True, f"Table {table_id} retrieved", {'table': table})
         except Exception as e:
+            logger.error(f"Failed to get table {table_id}: {e}")
             return ActionResult(False, f"Failed to get table: {str(e)}")
     
     def delete_table(self, table_id: str) -> ActionResult:

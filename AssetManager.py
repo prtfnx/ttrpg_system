@@ -161,7 +161,6 @@ class ClientAssetManager:
             # Download file
             response = requests.get(download_url, stream=True, timeout=60)
             response.raise_for_status()
-            
             # Check content length
             content_length = response.headers.get('content-length')
             if expected_size and content_length:

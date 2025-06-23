@@ -1,171 +1,235 @@
 """
-Minimal SDL3 Storage Manager for TTRPG System.
-Uses only SDL3 Storage API - no file system operations.
+Non-blocking Storage Manager for SDL Applications.
+Thread pool-based file operations that don't block the main thread.
 """
-import logging
-from typing import Optional, Any
-import settings
 import json
-import ctypes
-
-# SDL3 is only available on client, not on server
-try:
-    import sdl3
-    SDL3_AVAILABLE = True
-except ImportError:
-    SDL3_AVAILABLE = False
-    sdl3 = None
-
-logger = logging.getLogger(__name__)
+import queue
+import uuid
+from pathlib import Path
+from typing import Optional, List, Dict, Any, Union, Callable
+from concurrent.futures import ThreadPoolExecutor
 
 
 class StorageManager:
-    """
-    Minimal storage manager using only SDL3 Storage API.
-    """
-    def __init__(self):
-        if not SDL3_AVAILABLE:
-            raise RuntimeError("SDL3 is not available. StorageManager can only be used on client side.")
-            
-        # Open user storage with correct SDL3 API
-        import ctypes
-        org = ctypes.c_char_p(b"ttrpg_system")
-        app = ctypes.c_char_p(b"ttrpg_system")
-        # Create empty properties
-        props = sdl3.SDL_CreateProperties()
-        self._storage = sdl3.SDL_OpenUserStorage(org, app, props)
-        if not self._storage:
-            raise RuntimeError(f"Failed to open SDL3 storage")
-        sdl3.SDL_DestroyProperties(props)
+    """Non-blocking storage manager for SDL apps using thread pool."""
     
-    def __del__(self):
-        """Cleanup SDL storage"""
-        if hasattr(self, '_storage') and self._storage:
-            sdl3.SDL_CloseStorage(self._storage)    
+    def __init__(self, root_path: Union[str, Path] = "storage"):
+        self.root_path = Path(root_path)
+        self._executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="storage")
+        self._completed_operations = queue.Queue()
+        self._pending_operations = {}
+        
+        # Create root directory
+        self.root_path.mkdir(parents=True, exist_ok=True)
     
-    def save_data_sdl(self, key: str, data: Any) -> bool:
-        """Save data to SDL storage"""
-        try:
+    def save_file_async(self, filename: str, data: Union[bytes, str, Dict], 
+                       subdir: str = "") -> str:
+        """Save file asynchronously. Returns operation ID."""
+        operation_id = str(uuid.uuid4())[:8]
+        
+        def _save():
+            try:
+                file_path = self.root_path / subdir / filename
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                
+                if isinstance(data, dict):
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        json.dump(data, f, indent=2)
+                elif isinstance(data, str):
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(data)
+                else:
+                    with open(file_path, 'wb') as f:
+                        f.write(data)
+                
+                self._completed_operations.put({
+                    'id': operation_id,
+                    'type': 'save',
+                    'filename': filename,
+                    'success': True,
+                    'error': None
+                })
+            except Exception as e:
+                self._completed_operations.put({
+                    'id': operation_id,
+                    'type': 'save',
+                    'filename': filename,
+                    'success': False,
+                    'error': str(e)
+                })
+        
+        self._pending_operations[operation_id] = self._executor.submit(_save)
+        return operation_id
+    
+    def load_file_async(self, filename: str, subdir: str = "", 
+                       as_json: bool = False) -> str:
+        """Load file asynchronously. Returns operation ID."""
+        operation_id = str(uuid.uuid4())[:8]
+        
+        def _load():
+            try:
+                file_path = self.root_path / subdir / filename
+                
+                if as_json or filename.endswith('.json'):
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                elif filename.endswith(('.txt', '.log', '.md')):
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        data = f.read()
+                else:
+                    with open(file_path, 'rb') as f:
+                        data = f.read()
+                
+                self._completed_operations.put({
+                    'id': operation_id,
+                    'type': 'load',
+                    'filename': filename,
+                    'success': True,
+                    'data': data,
+                    'error': None
+                })
+            except FileNotFoundError:
+                self._completed_operations.put({
+                    'id': operation_id,
+                    'type': 'load',
+                    'filename': filename,
+                    'success': False,
+                    'data': None,
+                    'error': 'File not found'
+                })
+            except Exception as e:
+                self._completed_operations.put({
+                    'id': operation_id,
+                    'type': 'load',
+                    'filename': filename,
+                    'success': False,
+                    'data': None,
+                    'error': str(e)
+                })
+        
+        self._pending_operations[operation_id] = self._executor.submit(_load)
+        return operation_id
+    
+    def list_files_async(self, pattern: str = "*.json", subdir: str = "") -> str:
+        """List files asynchronously. Returns operation ID."""
+        operation_id = str(uuid.uuid4())[:8]
+        
+        def _list():
+            try:
+                search_path = self.root_path / subdir
+                files = []
+                if search_path.exists():
+                    files = [str(p.relative_to(self.root_path)) 
+                            for p in search_path.glob(pattern) if p.is_file()]
+                
+                self._completed_operations.put({
+                    'id': operation_id,
+                    'type': 'list',
+                    'success': True,
+                    'data': sorted(files),
+                    'error': None
+                })
+            except Exception as e:
+                self._completed_operations.put({
+                    'id': operation_id,
+                    'type': 'list',
+                    'success': False,
+                    'data': [],
+                    'error': str(e)
+                })
+        
+        self._pending_operations[operation_id] = self._executor.submit(_list)
+        return operation_id
+    
+    def delete_file_async(self, filename: str, subdir: str = "") -> str:
+        """Delete file asynchronously. Returns operation ID."""
+        operation_id = str(uuid.uuid4())[:8]
+        
+        def _delete():
+            try:
+                file_path = self.root_path / subdir / filename
+                file_path.unlink()
+                
+                self._completed_operations.put({
+                    'id': operation_id,
+                    'type': 'delete',
+                    'filename': filename,
+                    'success': True,
+                    'error': None
+                })
+            except Exception as e:
+                self._completed_operations.put({
+                    'id': operation_id,
+                    'type': 'delete',
+                    'filename': filename,
+                    'success': False,
+                    'error': str(e)
+                })
+        
+        self._pending_operations[operation_id] = self._executor.submit(_delete)
+        return operation_id
+    
+    def process_completed_operations(self) -> List[Dict[str, Any]]:
+        """Process completed operations. Call this in your SDL main loop."""
+        completed = []
+        while not self._completed_operations.empty():
+            try:
+                operation = self._completed_operations.get_nowait()
+                completed.append(operation)
+                # Clean up pending operations
+                self._pending_operations.pop(operation['id'], None)
+            except queue.Empty:
+                break
+        return completed
+    
+    def is_busy(self) -> bool:
+        """Check if any operations are pending."""
+        return len(self._pending_operations) > 0
+    
+    def close(self):
+        """Shutdown storage manager and wait for pending operations."""
+        # Wait for all pending operations to complete
+        for future in self._pending_operations.values():
+            try:
+                future.result(timeout=5.0)
+            except:
+                pass
+        
+        self._executor.shutdown(wait=True)
 
-            json_data = json.dumps(data).encode('utf-8')
-            # SDL3 API with proper ctypes
-            key_ptr = ctypes.c_char_p(key.encode('utf-8'))
-            data_ptr = ctypes.c_char_p(json_data)
-            length = ctypes.c_uint64(len(json_data))
-            result = sdl3.SDL_WriteStorageFile(self._storage, key_ptr, data_ptr, length)
-            return bool(result)
-        except Exception as e:
-            logger.error(f"Failed to save data '{key}': {e}")
-            return False
+
+def main():
+    """Example usage in SDL main loop."""
+    storage = StorageManager("test_storage")
     
-    def load_data_sdl(self, key: str) -> Optional[Any]:
-        """Load data from SDL storage"""
-        try:
-            import json
-            data = sdl3.SDL_ReadStorageFile(self._storage, key)
-            if data:
-                return json.loads(data.decode('utf-8'))
-            return None
-        except Exception as e:
-            logger.error(f"Failed to load data '{key}': {e}")
-            return None
+    # Start some async operations
+    save_id = storage.save_file_async("config.json", {"app": "ttrpg", "version": "1.0"})
+    load_id = storage.load_file_async("config.json")
+    list_id = storage.list_files_async()
     
-    def delete_data_sdl(self, key: str) -> bool:
-        """Delete data from SDL storage"""
-        try:
-            result = sdl3.SDL_RemoveStoragePath(self._storage, key)
-            return result != 0
-        except Exception as e:
-            logger.error(f"Failed to delete data '{key}': {e}")
-            return False
+    print(f"Started operations: save={save_id}, load={load_id}, list={list_id}")
     
-    def list_storage_keys(self) -> list[str]:
-        """List all keys in SDL storage"""
-        try:
-            files = []
-            def enum_callback(userdata, dirname, filename):
-                if filename:
-                    files.append(filename)
-                return 1
-            
-            sdl3.SDL_EnumerateStorageDirectory(self._storage, "", enum_callback, None)
-            return files
-        except Exception as e:
-            logger.error(f"Failed to list storage keys: {e}")
-            return []
-    
-    def get_storage_info(self) -> dict:
-        """Get basic storage information"""
-        try:
-            info = sdl3.SDL_GetStorageSpaceRemaining(self._storage)
-            return {
-                "space_remaining": info if info >= 0 else "unknown",
-                "keys_count": len(self.list_storage_keys())
-            }
-        except Exception as e:
-            logger.error(f"Failed to get storage info: {e}")
-            return {"space_remaining": "unknown", "keys_count": 0}
-      # Minimal compatibility methods
-    def detect_file_type(self, file_path: str) -> str:
-        """Detect file type based on extension"""
-        return settings.get_folder_for_file_type(file_path)
-    
-    def save_file(self, source_path: str, filename: str, file_type: Optional[str] = None) -> Optional[str]:
-        """Save file metadata to SDL storage"""
-        import os
-        if not os.path.exists(source_path):
-            return None
+    # SDL main loop simulation
+    while storage.is_busy():
+        # Process completed operations
+        completed = storage.process_completed_operations()
         
-        file_info = {
-            "filename": filename,
-            "file_type": file_type or self.detect_file_type(source_path),
-            "original_path": source_path,
-            "size": os.path.getsize(source_path)
-        }
+        for op in completed:
+            print(f"Operation {op['id']} completed:")
+            print(f"  Type: {op['type']}")
+            print(f"  Success: {op['success']}")
+            if 'data' in op and op['data'] is not None:
+                print(f"  Data: {op['data']}")
+            if op['error']:
+                print(f"  Error: {op['error']}")
         
-        key = f"file_{filename}"
-        if self.save_data_sdl(key, file_info):
-            return source_path
-        return None
+        # Simulate SDL event processing
+        import time
+        time.sleep(0.1)
     
-    def list_files(self, file_type: str) -> list[str]:
-        """List files of specific type"""
-        files = []
-        for key in self.list_storage_keys():
-            if key.startswith("file_"):
-                data = self.load_data_sdl(key)
-                if data and data.get("file_type") == file_type:
-                    files.append(data["filename"])
-        return files
-    
-    def get_storage_stats(self) -> dict:
-        """Get storage statistics"""
-        info = self.get_storage_info()
-        files_by_type = {"images": 0, "video": 0, "music": 0, "other": 0}
-        
-        for key in self.list_storage_keys():
-            if key.startswith("file_"):
-                data = self.load_data_sdl(key)
-                if data and data.get("file_type") in files_by_type:
-                    files_by_type[data["file_type"]] += 1
-        
-        return {
-            "total_files": sum(files_by_type.values()),
-            "files_by_type": files_by_type,
-            "space_remaining": info["space_remaining"],
-            "root_path": "SDL3_Storage"
-        }
+    storage.close()
+    print("Storage manager closed.")
 
 
-# Global instance
-_storage_manager = None
-
-def get_storage_manager() -> StorageManager:
-    """Get global storage manager instance"""
-    if not SDL3_AVAILABLE:
-        raise RuntimeError("SDL3 is not available. StorageManager can only be used on client side.")
-        
-    global _storage_manager
-    if _storage_manager is None:
-        _storage_manager = StorageManager()
-    return _storage_manager
+if __name__ == "__main__":
+    main()

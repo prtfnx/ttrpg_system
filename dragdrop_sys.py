@@ -152,13 +152,14 @@ def create_sprite_from_dropped_image(context, file_path):
     try:
         if not context.current_table:
             logger.warning("No current table to add sprite to")
-            return False        # Get mouse position to place the sprite where it was dropped
-        # Using fallback position due to SDL3 API compatibility issues
-        mouse_pos_x = 100.0  # Default position
-        mouse_pos_y = 100.0  # Default position
+            return False        
+        # Get mouse position to place the sprite where it was dropped        
+        mouse_pos_x = ctypes.c_float(0.0)
+        mouse_pos_y = ctypes.c_float(0.0)
+        sdl3.SDL_GetMouseState(ctypes.byref(mouse_pos_x), ctypes.byref(mouse_pos_y))
         
         # TODO: Replace with proper SDL3 mouse state API when available
-        # The current PySDL3 version has type issues with SDL_GetMouseState
+        
         logger.debug("Using default mouse position for sprite placement")
         
         # Create sprite
@@ -195,6 +196,7 @@ def create_sprite_from_stored_image(context, image_path, filename):
             logger.warning("No current table to add sprite to")
             return False        # Get mouse position for sprite placement
         # Using fallback position due to SDL3 API compatibility issues
+        sdl3.SDL_GetMouseState
         mouse_pos_x = 100.0  # Default position
         mouse_pos_y = 100.0  # Default position
         

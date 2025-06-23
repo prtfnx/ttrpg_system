@@ -111,8 +111,7 @@ class Sprite:
         self.set_frect()
 
     def set_frect(self):
-        """Fix logic for setting frect - avoid memory corruption"""
-        # Don't reassign the same values repeatedly - this causes memory issues
+        """Fix logic for setting frect - avoid memory corruption"""   
         self.frect.x = ctypes.c_float(self.coord_x.value)
         self.frect.y = ctypes.c_float(self.coord_y.value)
         
@@ -151,42 +150,19 @@ class Sprite:
         except Exception as e:
             logger.error(f"Error cleaning up sprite texture: {e}")
 
-    def reload_texture_from_r2(self):
-        """Reload texture from R2 asset if available"""
-        if not self.asset_id:
-            logger.debug(f"Sprite {self.sprite_id} has no asset_id, cannot reload from R2")
-            return False
+    def reload_texture(self, path_to_texture: str):
+        """Reload texture"""     
+        old_texture = self.texture        
+        success = self.set_texture(path_to_texture)
+        if success and old_texture:
+            try:
+                sdl3.SDL_DestroyTexture(old_texture)
+            except Exception as e:
+                logger.error(f"Error destroying old texture: {e}")
             
-        
-        asset_manager = self.context.AssetManager
-        
-        cached_path = asset_manager.get_cached_asset_path(self.asset_id)
-        if cached_path and os.path.exists(cached_path):
-            logger.info(f"Reloading sprite {self.sprite_id} texture from R2 asset {self.asset_id}")
-            old_texture = self.texture
-            self.texture_path = cached_path
-            success = self.set_texture(cached_path)
-            
-            # Clean up old texture if reload was successful
-            if success and old_texture:
-                try:
-                    sdl3.SDL_DestroyTexture(old_texture)
-                except Exception as e:
-                    logger.error(f"Error destroying old texture: {e}")
-            
-            return success
-        else:
-            logger.warning(f"R2 asset {self.asset_id} not cached locally")
-            return False
+        return success
+       
 
     def has_r2_asset(self) -> bool:
         """Check if this sprite has an associated R2 asset"""
         return self.asset_id is not None
-
-    def is_r2_asset_cached(self) -> bool:
-        """Check if the R2 asset for this sprite is cached locally"""
-        if not self.asset_id:
-            return False            
-        
-        asset_manager = self.context.AssetManager
-        return asset_manager.is_asset_cached(self.asset_id)

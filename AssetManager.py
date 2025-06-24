@@ -9,14 +9,16 @@ import json
 import logging
 import time
 import asyncio
-import xxhash  # 
+import ctypes
+import xxhash   
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 from net.protocol import Message, MessageType
 import settings
 import shutil
-
+import sdl3
+from Sprite import Sprite  
 logger = logging.getLogger(__name__)
 
 class ClientAssetManager:
@@ -48,7 +50,7 @@ class ClientAssetManager:
         
         # Hash lookup cache for fast duplicate detection
         self.hash_to_asset: Dict[str, str] = {}  # xxhash -> asset_id
-        
+        self.dict_of_sprites: Dict[str, Sprite] = {}  # operation ID -> sprite object
         self._load_registry()
         self._build_hash_lookup()
         logger.info(f"ClientAssetManager initialized with cache dir: {self.cache_dir}")
@@ -570,4 +572,76 @@ class ClientAssetManager:
         except Exception as e:
             logger.error(f"Error registering uploaded asset {asset_id}: {e}")
             raise
+    
+    def handle_load_asset(self, operation_id: str, filename: str, data: bytes) -> Optional[bool]:
+        """Handle loading an asset by filename or asset ID"""
+        if not filename and not operation_id:
+            logger.error("No filename or operation ID provided for loading asset")
+            return None
+        
+        # Check by operation ID
+        if operation_id:
+            sprite = self.dict_of_sprites.get(operation_id)
+            if sprite:
+                surface = self.surface_from_bytes(data, filename)
+                if not surface:
+                    logger.error(f"Failed to create surface from bytes for operation ID {operation_id}")
+                    return None                
+                texture_with_w_h = self.create_texture_from_surface(sprite.renderer, surface)
+                if not texture_with_w_h:
+                    logger.error(f"Failed to create texture from surface for operation ID {operation_id}")
+                    return None
+                texture, w, h = texture_with_w_h
+                sprite.reload_texture(texture, w, h)
+                logger.info(f"Loaded asset for operation ID {operation_id} with texture {filename}")
+                return True
+            else:
+                logger.warning(f"Sprite with operation id {operation_id} not finded")
+        
+        # TODO: Then check by filename
+           
+        logger.warning(f"Filename {filename} or {operation_id} not found in cache")
+        return None
+    
+    def surface_from_bytes(self, data: bytes, filename: str,) -> Optional[sdl3.SDL_Surface]:
+        """Make Surface from raw bytes data"""
+        if not data:
+            logger.error("No data provided for creating sprite")
+            return None           
+            
+        try:            
+            sdl_io_stream = sdl3.SDL_IOFromConstMem(data, len(data))
+            if not sdl_io_stream:
+                logger.error("Failed to create sdl io stream from bytes data")
+                return None            
+            # Load surface from stream using SDL_image
+            surface = sdl3.IMG_Load_IO(sdl_io_stream, 1)  # 1 = automatically close stream
+            if not surface:
+                error_msg = sdl3.SDL_GetError()
+                logger.error(f"Failed to load surface from bytes: {error_msg}")
+                return None
+            return surface
+            
+        except Exception as e:
+            logger.error(f"Error creating surface from bytes data for {filename}: {e}")
+            return None
+    
+    def create_texture_from_surface(self, renderer: sdl3.SDL_Renderer, surface: sdl3.SDL_Surface) -> Optional[tuple[sdl3.SDL_Texture,int, int]]: 
+            """Create texture from surface"""
+            texture = sdl3.SDL_CreateTextureFromSurface(renderer, surface)
+            if not texture:
+                error_msg = sdl3.SDL_GetError()
+                logger.error(f"Failed to create texture from surface: {error_msg}")
+                sdl3.SDL_DestroySurface(surface)
+                return None
+            
+            # Get surface dimensions            
+            width = surface.contents.w
+            height = surface.contents.h
+            # Clean up surface (texture now owns the pixel data)
+            sdl3.SDL_DestroySurface(surface)
+            return texture, width, height
+    
+           
+     
 

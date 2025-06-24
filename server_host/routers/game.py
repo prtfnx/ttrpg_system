@@ -6,7 +6,8 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from typing import Annotated, List
-
+import secrets
+import string
 from ..database.database import get_db
 from ..database import crud, schemas
 from ..models import game as game_models
@@ -15,6 +16,23 @@ from .users import get_current_active_user
 router = APIRouter(prefix="/game", tags=["game"])
 templates = Jinja2Templates(directory="templates")
 
+def generate_session_code(length: int = 6) -> str:
+    """Generate a short, unique session code"""
+    # Use uppercase letters and digits for clarity
+    characters = string.ascii_uppercase + string.digits
+    # Exclude confusing characters: 0, O, 1, I, L
+    characters = characters.replace('0', '').replace('O', '').replace('1', '').replace('I', '').replace('L', '')
+    return ''.join(secrets.choice(characters) for _ in range(length))
+
+def generate_unique_session_code(db: Session, length: int = 6, max_attempts: int = 10) -> str:
+    """Generate a unique session code that doesn't exist in database"""
+    for _ in range(max_attempts):
+        code = generate_session_code(length)
+        # Check if code already exists
+        existing = crud.get_game_session_by_code(db, code)
+        if not existing:
+            return code
+        
 @router.get("/")
 async def game_lobby(
     request: Request,
@@ -38,7 +56,8 @@ async def create_game_session(
 ):
     """Create a new game session"""
     session_data = game_models.GameSessionCreate(name=game_name)
-    game_session = crud.create_game_session(db, session_data, current_user.id)
+    session_code = generate_unique_session_code(db)
+    game_session = crud.create_game_session(db, session_data, current_user.id, session_code)
     
     return RedirectResponse(
         url=f"/game/session/{game_session.session_code}",

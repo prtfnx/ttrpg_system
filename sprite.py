@@ -150,17 +150,24 @@ class Sprite:
         except Exception as e:
             logger.error(f"Error cleaning up sprite texture: {e}")
 
-    def reload_texture(self, path_to_texture: str):
+    def reload_texture(self, texture: sdl3.SDL_Texture,w: int ,h: int) -> bool:
         """Reload texture"""     
         old_texture = self.texture        
-        success = self.set_texture(path_to_texture)
-        if success and old_texture:
+        self.texture = texture
+        if old_texture and self.texture:
             try:
                 sdl3.SDL_DestroyTexture(old_texture)
             except Exception as e:
                 logger.error(f"Error destroying old texture: {e}")
             
-        return success
+        if self.texture:            
+            self.rect.w = w
+            self.rect.h = h           
+            self.frect.w = ctypes.c_float(float(surface_contents.w))
+            self.frect.h = ctypes.c_float(float(surface_contents.h))
+            self.original_w = float(w)
+            self.original_h = float(h)
+        return True
        
 
     def has_r2_asset(self) -> bool:

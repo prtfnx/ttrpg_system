@@ -834,3 +834,44 @@ class Actions(ActionsProtocol):
         except Exception as e:
             logger.error(f"Failed to request table: {e}")
             return ActionResult(False, f"Failed to request table: {str(e)}")
+    
+    def handle_completed_io_operations(self, operations: list[Dict[str, Any]]) -> ActionResult:
+        """Handle a completed I/O operation"""
+        try:
+            for operation in operations:
+                type = operation.get('type')
+                filename = operation.get('filename')
+                operation_id = operation.get('operation_id')
+                data = operation.get('data')
+                filetype = filename.split('.')[-1] if filename else None
+                if not type or not filename or not operation_id or not data:
+                    logger.warning("Incomplete operation data, skipping")
+                    continue
+                match type:
+                    case 'load':
+                        # Process loaded data
+                        if filetype and filetype.lower() in {'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff'}:
+                            self.AssetManager.handle_load_asset(operation_id, filename, data)
+                        elif filetype and filetype.lower() in {'json', 'txt', 'csv'}:
+                            #TODO Process loaded text data                            
+                            logger.warning("Text file loading not implemented yet")
+                            #self.AssetManager.handle_load_text(operation_id, filename, data)
+                        # TODO Process saved data
+                    case 'save':
+                        logger.info(f"Saved data to {operation['filename']}")
+                    case 'list':
+                        # TODO Process listed files
+                        logger.info(f"Listed files in {operation['directory']}")
+                    case _:
+                        logger.warning(f"Unknown operation type: {operation['type']}")
+                action = {
+                    'type': 'handle completed io operations',
+                    'io_operation': type,                
+                }
+                self._add_to_history(action)           
+            return ActionResult(True, f"Handled completed io operations")
+        
+        except Exception as e:
+            logger.error(f"Error handling completed io operation: {str(e)}")
+            return ActionResult(False, f"Error handling completed io operation: {str(e)}")
+    

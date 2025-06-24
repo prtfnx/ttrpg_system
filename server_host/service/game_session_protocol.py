@@ -234,12 +234,9 @@ class GameSessionProtocolService:
                 logger.error(f"Failed to convert message type '{message.type}': {e}")
                 logger.error(f"Available message types: {[mt.value for mt in MessageType]}")
                 await self._send_error(websocket, f"Invalid message type: {message.type}")
-                return
+                return                 
             
-            # Handle asset messages separately
-            if message_type in [MessageType.ASSET_UPLOAD_REQUEST, MessageType.ASSET_DOWNLOAD_REQUEST, MessageType.ASSET_LIST_REQUEST]:
-                await self._handle_asset_message(websocket, message, client_id)
-            elif message_type in self.server_protocol.handlers.keys():
+            if message_type in self.server_protocol.handlers.keys():
                 await self.server_protocol.handle_client(message, client_id)
                 
                 # Auto-save after sprite/entity movement or updates to persist changes immediately
@@ -387,98 +384,5 @@ class GameSessionProtocolService:
                 self.db_session.rollback()
             return False
 
-    async def _handle_asset_message(self, websocket: WebSocket, message: Message, client_id: str):
-        """Handle asset-related messages"""
-        try:
-            client_info = self.client_info.get(client_id, {})
-            user_id = client_info.get("user_id", 0)
-            username = client_info.get("username", "unknown")
-              # Import asset request classes
-            from .asset_manager import AssetRequest, PresignedUrlResponse
-            
-            if message.type == MessageType.ASSET_UPLOAD_REQUEST:
-                # Client wants to upload an asset (e.g., when loading sprite from PC)
-                request_data = message.data or {}
-                request = AssetRequest(
-                    user_id=user_id,
-                    username=username,
-                    session_code=self.session_code,
-                    filename=request_data.get("filename"),
-                    file_size=request_data.get("file_size"),
-                    content_type=request_data.get("content_type", "image/png")
-                )
-                
-                response = await self.asset_manager.request_upload_url(request)
-                  # Send response back to client
-                response_message = Message(
-                    type=MessageType.ASSET_UPLOAD_RESPONSE,
-                    data={
-                        "success": response.success,
-                        "url": response.url,
-                        "asset_id": response.asset_id,
-                        "filename": request_data.get("filename"),  # Include original filename
-                        "expires_in": response.expires_in,
-                        "error": response.error,
-                        "instructions": response.instructions
-                    }
-                )
-                await websocket.send_text(response_message.to_json())
-                
-            elif message.type == MessageType.ASSET_DOWNLOAD_REQUEST:
-                # Client wants to download an asset
-                request_data = message.data or {}
-                asset_id = request_data.get("asset_id")
-                filename = request_data.get("filename")  # For filename-based requests
-                
-                if filename and not asset_id:
-                    # Request by filename (e.g., when entity has texture_path but no asset_id)
-                    response = await self.asset_manager.request_download_url_by_filename(
-                        filename, self.session_code, user_id
-                    )
-                elif asset_id:
-                    # Request by asset_id
-                    request = AssetRequest(
-                        user_id=user_id,
-                        username=username,
-                        session_code=self.session_code,
-                        asset_id=asset_id
-                    )
-                    response = await self.asset_manager.request_download_url(request)
-                else:
-                    response = PresignedUrlResponse(
-                        success=False,
-                        error="Either asset_id or filename is required"
-                    )
-                
-                # Send response back to client
-                response_message = Message(
-                    type=MessageType.ASSET_DOWNLOAD_RESPONSE,
-                    data={
-                        "success": response.success,
-                        "url": response.url,
-                        "asset_id": response.asset_id,
-                        "expires_in": response.expires_in,
-                        "error": response.error,
-                        "filename": filename if filename else None
-                    }
-                )
-                await websocket.send_text(response_message.to_json())
-                
-            elif message.type == MessageType.ASSET_LIST_REQUEST:
-                # Client wants list of session assets
-                assets = self.asset_manager.get_session_assets(self.session_code)
-                
-                response_message = Message(
-                    type=MessageType.ASSET_LIST_RESPONSE,
-                    data={
-                        "success": True,
-                        "assets": assets
-                    }
-                )
-                await websocket.send_text(response_message.to_json())
-                
-        except Exception as e:
-            logger.error(f"Error handling asset message: {e}")
-            await self._send_error(websocket, f"Asset operation failed: {str(e)}")
 
 

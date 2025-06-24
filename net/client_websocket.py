@@ -148,7 +148,7 @@ class WebSocketClient:
                     priority, message = queue_item
                 else:
                     message = queue_item
-                
+                logger.info(f"Sending message: {message}")
                 # Convert message to JSON string if it's a Message object
                 if hasattr(message, 'to_json'):
                     message_str = message.to_json()

@@ -6,14 +6,14 @@ import threading
 from typing import Callable, Optional, Dict, Any
 from .protocol import Message, MessageType, ProtocolHandler
 import logging
-import Actions
+from Actions import Actions
 import requests
 
 logger = logging.getLogger(__name__)
 
 class ClientProtocol:
-    def __init__(self, context, send_callback: Callable[[str], None]):
-        self.context = context
+    def __init__(self, Actions: Actions, send_callback: Callable[[str], None]):
+        self.Actions = Actions
         self.send = send_callback
         self.client_id = hashlib.md5(f"{time.time()}_{os.getpid()}".encode()).hexdigest()[:8]
         self.last_ping = time.time()
@@ -114,16 +114,34 @@ class ClientProtocol:
                 'error': 'Received empty new table response data'
             }, self.client_id).to_json())
             return
-        table_name = data['name']
-        if table_name in self.context.list_of_tables:
-            logger.info(f"Table {table_name} already exists, updating it")
-            self.table_update(msg)
-        else:
-            logger.info(f"Creating new table: {table_name}")
-            self.context.actions.create_table_from_dict(data.get('table_data', {}))
-            # Create table from data
+        table_name = data['name']        
+        logger.info(f"Creating new table: {table_name}")
+        table_data = data.get('table_data', {})
+        
+        self.Actions.process_creating_table(table_data)
+        # Create table from data
 
+    
 
+    def _request_asset_download(self, asset_id: str):
+        """Request asset download from server"""
+        try:
+            download_request = Message(
+                MessageType.ASSET_DOWNLOAD_REQUEST,
+                {
+                    "asset_id": asset_id,
+                    "session_code": getattr(self.context, 'session_code', 'unknown'),
+                    "user_id": getattr(self.context, 'user_id', 0),
+                    "username": getattr(self.context, 'username', 'unknown')
+                }
+            )
+            
+            self.context.queue_to_send.put((1, download_request))
+            logger.info(f"Requested download for asset {asset_id}")
+            
+        except Exception as e:
+            logger.error(f"Error requesting asset download for {asset_id}: {e}")
+    
     def table_update(self, msg: Message):
         """Update local table from server data"""
         data = msg.data
@@ -167,11 +185,11 @@ class ClientProtocol:
         if data is None:
             logger.error("Received empty table creation data")
             self.send(Message(MessageType.ERROR, {
-                'error': 'Received empty table creation data'
-            }, self.client_id).to_json())
+                'error': 'Received empty table creation data'            }, 
+                self.client_id).to_json())
             return
 
-        self.context.create_table_from_json(data)
+        self.context.create_table_from_dict(data)
         
         
     def handle_request_table(self, msg: Message):
@@ -212,12 +230,10 @@ class ClientProtocol:
             return
         
         table_name = data['table_name']
-       
-
         logger.info(f"Received table data for {table_name}")
         if not self.context.current_table or self.context.current_table.name != table_name:
             # If current table is not set or does not match, create a new one
-            self.context.create_table_from_json(data)
+            self.context.create_table_from_dict(data)
         self.apply_table_update(msg)        
         # Notify GUI if available
         if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
@@ -717,7 +733,9 @@ class ClientProtocol:
             if not msg.data:
                 logger.error("Empty asset download response received")
                 return
-
+            if msg.data.get('success') is False:
+                logger.warning(f"Asset download failed: {msg.data.get('instructions')}")
+                return
             asset_id = msg.data.get('asset_id')
             download_url = msg.data.get('download_url')
             
@@ -726,8 +744,8 @@ class ClientProtocol:
                 return
 
             # Forward to asset manager
-            from client_asset_manager import get_client_asset_manager
-            asset_manager = get_client_asset_manager()
+            
+            asset_manager = self.context.AssetManager
             success = asset_manager.handle_download_response(msg.data)
             
             if success:
@@ -753,8 +771,8 @@ class ClientProtocol:
             logger.info(f"Received asset list for session {session_code}: {len(assets)} assets")
             
             # Forward to asset manager
-            from client_asset_manager import get_client_asset_manager
-            asset_manager = get_client_asset_manager()
+            
+            asset_manager = self.context.AssetManager
             asset_manager.update_session_assets(assets)            
             # Trigger download of any missing assets for current sprites
             self._check_and_download_missing_assets()
@@ -777,8 +795,8 @@ class ClientProtocol:
             if not upload_url or not asset_id:
                 logger.error("Invalid asset upload response: missing upload_url/url or asset_id")
                 logger.error(f"Received data: {msg.data}")
-                return            logger.info(f"Received upload URL for asset {asset_id}: {upload_url}")
-            logger.debug(f"Upload response filename: {filename}")
+                return            
+            logger.info(f"Received upload URL for asset {asset_id}: {upload_url}")        
             
             # Store upload info for reference
             if not hasattr(self.context, 'pending_uploads'):
@@ -811,6 +829,7 @@ class ClientProtocol:
 
     def _find_original_file_for_asset(self, asset_id: str, filename: Optional[str]) -> Optional[str]:
         """Find the original file path for an asset being uploaded"""
+        #TODO need to rewrite full for storage system. For now it look to path in pending_upload_files but it has url
         try:
             # Debug: Log what we're looking for
             logger.debug(f"Looking for original file for asset {asset_id}, filename: {filename}")
@@ -893,8 +912,8 @@ class ClientProtocol:
                     
                     # Cache the uploaded file locally
                     try:
-                        from client_asset_manager import get_client_asset_manager
-                        asset_manager = get_client_asset_manager()
+                        
+                        asset_manager = self.context.AssetManager
                         filename = os.path.basename(file_path)
                         
                         # Register the asset in local cache
@@ -957,8 +976,8 @@ class ClientProtocol:
             if not self.context.current_table:
                 return
                 
-            from client_asset_manager import get_client_asset_manager
-            asset_manager = get_client_asset_manager()
+            
+            asset_manager = self.context.AssetManager
             
             # Check all sprites in all layers
             for layer_name, sprites in self.context.current_table.dict_of_sprites_list.items():
@@ -1016,10 +1035,10 @@ class ClientProtocol:
         except Exception as e:
             logger.error(f"Error handling welcome message: {e}")
 
-    def _check_asset_for_sprite(self, sprite: 'Sprite') -> bool:
+    def _check_asset_for_sprite(self, sprite) -> bool:
         """Check if the sprite has an associated R2 asset"""
         if hasattr(sprite, 'asset_id') and sprite.asset_id:
-            
-            asset_manager = get_client_asset_manager()
+
+            asset_manager = self.context.AssetManager
             return asset_manager.is_asset_cached(sprite.asset_id)
         return False

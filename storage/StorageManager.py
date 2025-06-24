@@ -81,7 +81,7 @@ class StorageManager:
                         data = f.read()
                 
                 self._completed_operations.put({
-                    'id': operation_id,
+                    'operation_id': operation_id,
                     'type': 'load',
                     'filename': filename,
                     'success': True,
@@ -90,7 +90,7 @@ class StorageManager:
                 })
             except FileNotFoundError:
                 self._completed_operations.put({
-                    'id': operation_id,
+                    'operation_id': operation_id,
                     'type': 'load',
                     'filename': filename,
                     'success': False,
@@ -99,7 +99,7 @@ class StorageManager:
                 })
             except Exception as e:
                 self._completed_operations.put({
-                    'id': operation_id,
+                    'operation_id': operation_id,
                     'type': 'load',
                     'filename': filename,
                     'success': False,
@@ -123,7 +123,7 @@ class StorageManager:
                             for p in search_path.glob(pattern) if p.is_file()]
                 
                 self._completed_operations.put({
-                    'id': operation_id,
+                    'operation_id': operation_id,
                     'type': 'list',
                     'success': True,
                     'data': sorted(files),
@@ -131,7 +131,7 @@ class StorageManager:
                 })
             except Exception as e:
                 self._completed_operations.put({
-                    'id': operation_id,
+                    'operation_id': operation_id,
                     'type': 'list',
                     'success': False,
                     'data': [],
@@ -151,7 +151,7 @@ class StorageManager:
                 file_path.unlink()
                 
                 self._completed_operations.put({
-                    'id': operation_id,
+                    'operation_id': operation_id,
                     'type': 'delete',
                     'filename': filename,
                     'success': True,
@@ -159,7 +159,7 @@ class StorageManager:
                 })
             except Exception as e:
                 self._completed_operations.put({
-                    'id': operation_id,
+                    'operation_id': operation_id,
                     'type': 'delete',
                     'filename': filename,
                     'success': False,
@@ -212,10 +212,11 @@ def main():
     # SDL main loop simulation
     while storage.is_busy():
         # Process completed operations
+        print('1')
         completed = storage.process_completed_operations()
         
         for op in completed:
-            print(f"Operation {op['id']} completed:")
+            print(f"Operation {op['operation_id']} completed:")
             print(f"  Type: {op['type']}")
             print(f"  Success: {op['success']}")
             if 'data' in op and op['data'] is not None:
@@ -224,8 +225,8 @@ def main():
                 print(f"  Error: {op['error']}")
         
         # Simulate SDL event processing
-        import time
-        time.sleep(0.1)
+        # import time
+        #time.sleep(0.1)
     
     storage.close()
     print("Storage manager closed.")

@@ -52,7 +52,8 @@ class MessageType(enum.Enum):    # Core messages
     SPRITE_MOVE = "sprite_move"
     SPRITE_SCALE = "sprite_scale"
     SPRITE_ROTATE = "sprite_rotate"
-      # File transfer
+    
+    # File transfer
     FILE_REQUEST = "file_request"
     FILE_DATA = "file_data"
     
@@ -66,7 +67,8 @@ class MessageType(enum.Enum):    # Core messages
     ASSET_UPLOAD_CONFIRM = "asset_upload_confirm"
     ASSET_DELETE_REQUEST = "asset_delete_request"
     ASSET_DELETE_RESPONSE = "asset_delete_response"
-    
+    ASSET_HASH_CHECK = "asset_hash_check"
+
     # Compendium operations
     COMPENDIUM_SPRITE_ADD = "compendium_sprite_add"
     COMPENDIUM_SPRITE_UPDATE = "compendium_sprite_update"

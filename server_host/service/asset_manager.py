@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 import mimetypes
 import os
+import xxhash
 
 from storage.r2_manager import R2AssetManager
 from ..database.database import SessionLocal
@@ -46,6 +47,7 @@ class PresignedUrlResponse:
     expires_in: int = 0
     error: Optional[str] = None
     instructions: Optional[str] = None
+    required_xxhash: Optional[str] = None  # xxHash that client must provide
 
 class ServerAssetManager:
     """Server-side asset management with R2 integration"""
@@ -467,11 +469,128 @@ class ServerAssetManager:
             "active_sessions": len(self.session_permissions)
         }
     
+    def calculate_file_xxhash(self, file_path: str) -> str:
+        """Calculate xxHash for a file"""
+        try:
+            hasher = xxhash.xxh64()
+            with open(file_path, 'rb') as f:
+                for chunk in iter(lambda: f.read(65536), b""):
+                    hasher.update(chunk)
+            return hasher.hexdigest()
+        except Exception as e:
+            logger.error(f"Error calculating xxHash: {e}")
+            return ""
+    
+    async def request_upload_url_with_hash(self, request: AssetRequest, file_xxhash: str) -> PresignedUrlResponse:
+        """Generate presigned URL for file upload with pre-calculated hash"""
+        try:
+            # Check if R2 is configured
+            if not self.r2_manager.is_r2_configured():
+                return PresignedUrlResponse(
+                    success=False,
+                    error="Cloud storage not configured"
+                )
+            
+            # Check permissions
+            permissions = self._get_permissions(request.session_code, request.user_id)
+            if not permissions.can_upload:
+                return PresignedUrlResponse(
+                    success=False,
+                    error="Upload permission denied"
+                )
+            
+            # Check rate limits
+            if not self._check_rate_limit(request.user_id, "upload", 50):
+                return PresignedUrlResponse(
+                    success=False,
+                    error="Upload rate limit exceeded. Please try again later."
+                )
+            
+            # Validate file request
+            valid, error_msg = self._validate_file_request(request)
+            if not valid:
+                return PresignedUrlResponse(
+                    success=False,
+                    error=error_msg
+                )
+            
+            # Check for duplicate files by xxHash
+            existing_asset = self._get_asset_by_xxhash_from_db(file_xxhash)
+            if existing_asset:
+                logger.info(f"Duplicate file detected by xxHash: {file_xxhash}, returning existing asset")
+                return PresignedUrlResponse(
+                    success=True,
+                    asset_id=existing_asset["asset_id"],
+                    error="File already exists",
+                    instructions="This file has already been uploaded. Using existing asset."
+                )
+            
+            # Generate asset ID and R2 key
+            asset_id = self._generate_asset_id(request.filename, request.user_id)
+            r2_key = self._generate_r2_key(asset_id, request.filename, request.session_code)
+            
+            # Generate presigned URL with xxHash metadata (1 hour expiry)
+            expiry_seconds = 3600
+            presigned_url = self.r2_manager.generate_presigned_upload_url(
+                r2_key,
+                file_xxhash,
+                expiration=expiry_seconds
+            )
+            
+            if not presigned_url:
+                return PresignedUrlResponse(
+                    success=False,
+                    error="Failed to generate upload URL"
+                )
+            
+            # Store asset metadata with xxHash
+            self.asset_registry[asset_id] = {
+                "asset_id": asset_id,
+                "filename": request.filename,
+                "r2_key": r2_key,
+                "session_code": request.session_code,
+                "uploaded_by": request.user_id,
+                "username": request.username,
+                "file_size": request.file_size,
+                "content_type": request.content_type,
+                "xxhash": file_xxhash,
+                "created_at": datetime.now().isoformat(),
+                "status": "pending_upload"
+            }
+            
+            # Save asset metadata to database
+            self._save_asset_to_db(self.asset_registry[asset_id])
+            
+            logger.info(f"Generated upload URL for {request.username}: {request.filename} -> {asset_id} (xxHash: {file_xxhash})")
+            
+            return PresignedUrlResponse(
+                success=True,
+                url=presigned_url,
+                asset_id=asset_id,
+                expires_in=expiry_seconds,
+                required_xxhash=file_xxhash,
+                instructions="PUT the file with x-amz-meta-xxhash header containing the xxHash"
+            )
+            
+        except Exception as e:
+            logger.error(f"Error generating upload URL with hash: {e}")
+            return PresignedUrlResponse(
+                success=False,
+                error="Internal server error"
+            )
+    
     def _save_asset_to_db(self, asset_data: dict) -> bool:
-        """Save asset metadata to database"""
+        """Save asset metadata to database including xxHash"""
         try:
             db = SessionLocal()
             try:
+                # Check if asset already exists by xxHash (duplicate detection)
+                if asset_data.get("xxhash"):
+                    existing_asset = db.query(Asset).filter(Asset.xxhash == asset_data["xxhash"]).first()
+                    if existing_asset:
+                        logger.warning(f"Asset with xxHash {asset_data['xxhash']} already exists")
+                        return True
+                
                 # Check if asset already exists by name
                 existing_asset = db.query(Asset).filter(Asset.asset_name == asset_data["filename"]).first()
                 if existing_asset:
@@ -490,7 +609,8 @@ class ServerAssetManager:
                     r2_asset_id=asset_data["asset_id"],
                     content_type=asset_data["content_type"],
                     file_size=asset_data["file_size"] or 0,
-                    checksum=asset_data.get("checksum", ""),
+                 
+                    xxhash=asset_data.get("xxhash", ""),      
                     uploaded_by=asset_data["uploaded_by"],
                     session_id=session_id,
                     r2_key=asset_data["r2_key"],
@@ -501,7 +621,7 @@ class ServerAssetManager:
                 
                 db.add(new_asset)
                 db.commit()
-                logger.info(f"Saved asset {asset_data['filename']} to database with ID {asset_data['asset_id']}")
+                logger.info(f"Saved asset {asset_data['filename']} to database with xxHash {asset_data.get('xxhash', 'N/A')}")
                 return True
                 
             finally:
@@ -579,6 +699,33 @@ class ServerAssetManager:
                 
         except Exception as e:
             logger.error(f"Error getting asset by ID from database: {e}")
+            return None
+
+    def _get_asset_by_xxhash_from_db(self, xxhash: str) -> Optional[dict]:
+        """Get asset metadata from database by xxHash (for duplicate detection)"""
+        try:
+            db = SessionLocal()
+            try:
+                asset = db.query(Asset).filter(Asset.xxhash == xxhash).first()
+                if asset:
+                    return {
+                        "asset_id": asset.r2_asset_id,
+                        "filename": asset.asset_name,
+                        "r2_key": asset.r2_key,
+                        "content_type": asset.content_type,
+                        "file_size": asset.file_size,
+                        "xxhash": asset.xxhash,
+                        "uploaded_by": asset.uploaded_by,
+                        "session_id": asset.session_id,
+                        "created_at": asset.created_at.isoformat()
+                    }
+                return None
+                
+            finally:
+                db.close()
+                
+        except Exception as e:
+            logger.error(f"Error getting asset by xxHash from database: {e}")
             return None
 
 # Global instance

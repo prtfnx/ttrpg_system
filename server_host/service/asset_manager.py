@@ -157,10 +157,12 @@ class ServerAssetManager:
         return True, None
     
     def _generate_asset_id(self, filename: str, user_id: int) -> str:
-        """Generate unique asset ID"""
+        """Generate unique asset ID using xxHash"""
         timestamp = str(int(time.time()))
-        content = f"{filename}_{user_id}_{timestamp}"
-        return hashlib.sha256(content.encode()).hexdigest()[:16]
+        content = f"{filename}_{user_id}_{timestamp}"        
+        hasher = xxhash.xxh64()
+        hasher.update(content.encode())
+        return hasher.hexdigest()[:16]
     
     def _generate_r2_key(self, asset_id: str, filename: str, session_code: str) -> str:
         """Generate R2 object key with proper organization"""

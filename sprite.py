@@ -59,9 +59,10 @@ class Sprite:
         self._last_network_y = coord_y
         
         # Load texture last, after everything is initialized
-        logger.info(f"created sprite {self.sprite_id} at ({coord_x}, {coord_y}) with texture {texture_path}")
+        logger.info(f"created sprite {self.sprite_id} at ({coord_x}, {coord_y}) with texture path {texture_path}")
         try:
-            self.set_texture(texture_path)
+            io_sys.load_texture(self, context)
+            #self.set_texture(texture_path)
         except Exception as e:
             logger.error(f"Failed to load texture {texture_path}: {e}")
             self.texture = None
@@ -163,8 +164,8 @@ class Sprite:
         if self.texture:            
             self.rect.w = w
             self.rect.h = h           
-            self.frect.w = ctypes.c_float(float(surface_contents.w))
-            self.frect.h = ctypes.c_float(float(surface_contents.h))
+            self.frect.w = ctypes.c_float(w)
+            self.frect.h = ctypes.c_float(h)
             self.original_w = float(w)
             self.original_h = float(h)
         return True

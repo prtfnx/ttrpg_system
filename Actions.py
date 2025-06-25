@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from Context import Context
     from ContextTable import ContextTable
     from Sprite import Sprite
+    from AssetManager import ClientAssetManager
 
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ class Actions(ActionsProtocol):
         self.redo_stack: List[Dict[str, Any]] = []
         self.max_history = 100
         self.layer_visibility = {layer: True for layer in LAYERS.keys()}
-        self.AssetManager = context.AssetManager
+        self.AssetManager: Optional[ClientAssetManager] = None
 
     def _add_to_history(self, action: Dict[str, Any]):
         """Add action to history for undo/redo functionality"""
@@ -282,8 +283,8 @@ class Actions(ActionsProtocol):
             return ActionResult(False, f"Failed to scale table: {str(e)}")
     
     # Sprite Actions
-    def create_sprite(self, table_id: str, sprite_id: str, position: Position, 
-                     image_path: str, layer: str = "tokens") -> ActionResult:
+    def create_sprite(self, table_id: str,  position: Position, 
+                     image_path: str, layer: str = "tokens", **kwargs) -> ActionResult:
         """Create a new sprite on a table"""
         try:
             table = self._get_table_by_id(table_id)
@@ -292,30 +293,28 @@ class Actions(ActionsProtocol):
             if layer not in LAYERS:
                 return ActionResult(False, f"Invalid layer: {layer}")
             
-            # Check if sprite already exists
-            existing_sprite = self._find_sprite_in_table(table, sprite_id)
-            if existing_sprite:
-                return ActionResult(False, f"Sprite {sprite_id} already exists")
-            
+            sprite_id = str(uuid.uuid4())[:8]  # Generate unique sprite ID
             # Create sprite using Context method
             sprite = self.context.add_sprite(
                 texture_path=image_path.encode() if isinstance(image_path, str) else image_path,
-                scale_x=1,
-                scale_y=1,
                 layer=layer,
                 table=table,
                 coord_x=position.x,
-                coord_y=position.y,
-                sprite_id=sprite_id
+                coord_y=position.y,                
+                sprite_id=sprite_id,
+                **kwargs
             )
-            
+            # Start io operations to load asset texture
+            if self.AssetManager and sprite:
+                logger.info(f"Loading asset for sprite {sprite_id} from {image_path}")    
+                self.AssetManager.load_asset_for_sprite(sprite, image_path)
             if not sprite:
-                return ActionResult(False, f"Failed to create sprite {sprite_id}")
+                return ActionResult(False, f"Failed to create sprite {sprite_id} with path {image_path}")
             
             action = {
-                'type': 'create_sprite',
-                'table_id': table_id,
                 'sprite_id': sprite_id,
+                'type': 'create_sprite',
+                'table_id': table_id,                
                 'position': position,
                 'image_path': image_path,
                 'layer': layer
@@ -835,43 +834,256 @@ class Actions(ActionsProtocol):
             logger.error(f"Failed to request table: {e}")
             return ActionResult(False, f"Failed to request table: {str(e)}")
     
+    def handle_file_loaded(self, operation_id: str, filename: str, data: Any) -> ActionResult:
+        """Handle successful file load operation"""
+        try:
+            filetype = filename.split('.')[-1].lower() if filename and '.' in filename else None
+            
+            if filetype in {'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff'}:
+                # Handle image file loading
+                if not self.AssetManager:
+                    logger.error("AssetManager not initialized, cannot handle image load operation")
+                    return ActionResult(False, "AssetManager not initialized")
+                
+                logger.info(f"Loading image file: {filename}")
+                self.AssetManager.handle_load_file(operation_id, filename, data)
+                logger.info(f"Image file loaded: {filename}")
+                
+            elif filetype in {'json', 'txt', 'csv', 'yaml', 'yml'}:
+                # Handle text/data file loading
+                self._handle_text_file_loaded(operation_id, filename, data, filetype)
+                logger.info(f"Text file loaded: {filename}")
+                
+            else:
+                # Handle binary/unknown file types
+                logger.info(f"Binary file loaded: {filename} ({len(data) if data else 0} bytes)")
+            
+            action = {
+                'type': 'file_loaded',
+                'operation_id': operation_id,
+                'filename': filename,
+                'filetype': filetype
+            }
+            self._add_to_history(action)
+            
+            return ActionResult(True, f"File loaded successfully: {filename}")
+            
+        except Exception as e:
+            logger.error(f"Error handling file load for {filename}: {e}")
+            return ActionResult(False, f"Error handling file load: {str(e)}")
+    
+    def handle_file_saved(self, operation_id: str, filename: str) -> ActionResult:
+        """Handle successful file save operation"""
+        try:
+            logger.info(f"File saved successfully: {filename}")
+            
+            # Update any UI elements or caches that depend on this file
+            if filename.endswith('.json'):
+                # Handle config or save file updates
+                self._handle_config_file_saved(filename)
+            
+            action = {
+                'type': 'file_saved',
+                'operation_id': operation_id,
+                'filename': filename
+            }
+            self._add_to_history(action)
+            
+            return ActionResult(True, f"File saved successfully: {filename}")
+            
+        except Exception as e:
+            logger.error(f"Error handling file save for {filename}: {e}")
+            return ActionResult(False, f"Error handling file save: {str(e)}")
+    
+    def handle_file_list(self, operation_id: str, file_list: List[str]) -> ActionResult:
+        """Handle successful file list operation"""
+        try:
+            logger.info(f"File list retrieved: {len(file_list)} files")
+            
+            # Process file list for UI or cache updates
+            if hasattr(self.context, 'file_browser'):
+                self.context.file_browser.update_file_list(file_list)
+            
+            action = {
+                'type': 'file_list',
+                'operation_id': operation_id,
+                'file_count': len(file_list)
+            }
+            self._add_to_history(action)
+            
+            return ActionResult(True, f"File list retrieved: {len(file_list)} files")
+            
+        except Exception as e:
+            logger.error(f"Error handling file list: {e}")
+            return ActionResult(False, f"Error handling file list: {str(e)}")
+    
+    def handle_file_operation_error(self, operation_id: str, operation_type: str, error_msg: str) -> ActionResult:
+        """Handle failed file operation"""
+        try:
+            logger.error(f"File operation failed - Type: {operation_type}, ID: {operation_id}, Error: {error_msg}")
+            
+            # Handle specific error types
+            if "not found" in error_msg.lower():
+                self._handle_file_not_found_error(operation_id, operation_type, error_msg)
+            elif "permission" in error_msg.lower():
+                self._handle_permission_error(operation_id, operation_type, error_msg)
+            else:
+                self._handle_generic_file_error(operation_id, operation_type, error_msg)
+            
+            action = {
+                'type': 'file_operation_error',
+                'operation_id': operation_id,
+                'operation_type': operation_type,
+                'error': error_msg
+            }
+            self._add_to_history(action)
+            
+            return ActionResult(False, f"File operation failed: {error_msg}")
+            
+        except Exception as e:
+            logger.error(f"Error handling file operation error: {e}")
+            return ActionResult(False, f"Error handling file operation error: {str(e)}")
+    
+    def _handle_text_file_loaded(self, operation_id: str, filename: str, data: Any, filetype: str):
+        """Handle loaded text files (JSON, TXT, CSV, etc.)"""
+        try:
+            if filetype == 'json':
+                # Handle JSON configuration or save files
+                if 'config' in filename.lower():
+                    self._apply_config_data(data)
+                elif 'save' in filename.lower():
+                    self._apply_save_data(data)
+                elif 'table' in filename.lower():
+                    self._load_table_data(data)
+                    
+            elif filetype in {'txt', 'log'}:
+                # Handle text/log files
+                if hasattr(self.context, 'log_viewer'):
+                    self.context.log_viewer.display_content(data)
+                    
+            elif filetype == 'csv':
+                # Handle CSV data files
+                self._process_csv_data(filename, data)
+                
+        except Exception as e:
+            logger.error(f"Error processing text file {filename}: {e}")
+    
+    def _handle_config_file_saved(self, filename: str):
+        """Handle configuration file save completion"""
+        try:
+            if 'settings' in filename.lower() or 'config' in filename.lower():
+                logger.info("Configuration saved - applying any pending changes")
+                # Trigger any configuration reload if needed
+                if hasattr(self.context, 'reload_config'):
+                    self.context.reload_config()
+                    
+        except Exception as e:
+            logger.error(f"Error handling config file save: {e}")
+    
+    def _handle_file_not_found_error(self, operation_id: str, operation_type: str, error_msg: str):
+        """Handle file not found errors"""
+        try:
+            if operation_type == 'load':
+                # Try to create default file or prompt user
+                logger.warning(f"File not found for operation {operation_id} - consider creating default")
+                
+        except Exception as e:
+            logger.error(f"Error handling file not found: {e}")
+    
+    def _handle_permission_error(self, operation_id: str, operation_type: str, error_msg: str):
+        """Handle permission errors"""
+        try:
+            logger.error(f"Permission denied for {operation_type} operation {operation_id}")
+            # Could trigger permission request or fallback location
+            
+        except Exception as e:
+            logger.error(f"Error handling permission error: {e}")
+    
+    def _handle_generic_file_error(self, operation_id: str, operation_type: str, error_msg: str):
+        """Handle other file operation errors"""
+        try:
+            logger.error(f"Generic file error for {operation_type} operation {operation_id}: {error_msg}")
+            # Could trigger retry mechanism or user notification
+            
+        except Exception as e:
+            logger.error(f"Error handling generic file error: {e}")
+    
+    def _apply_config_data(self, config_data: Dict[str, Any]):
+        """Apply loaded configuration data"""
+        try:
+            if hasattr(self.context, 'apply_settings'):
+                self.context.apply_settings(config_data)
+            logger.info("Configuration data applied")
+            
+        except Exception as e:
+            logger.error(f"Error applying config data: {e}")
+    
+    def _apply_save_data(self, save_data: Dict[str, Any]):
+        """Apply loaded save game data"""
+        try:
+            # Process save game data
+            logger.info("Save data loaded - applying to game state")
+            
+        except Exception as e:
+            logger.error(f"Error applying save data: {e}")
+    
+    def _load_table_data(self, table_data: Dict[str, Any]):
+        """Load table data from file"""
+        try:
+            result = self.create_table_from_dict(table_data)
+            if result.success:
+                logger.info(f"Table loaded from file: {table_data.get('table_name', 'unknown')}")
+            else:
+                logger.error(f"Failed to load table from file: {result.message}")
+                
+        except Exception as e:
+            logger.error(f"Error loading table data: {e}")
+    
+    def _process_csv_data(self, filename: str, csv_data: str):
+        """Process CSV data"""
+        try:
+            # Handle CSV data processing
+            logger.info(f"Processing CSV data from {filename}")
+            
+        except Exception as e:
+            logger.error(f"Error processing CSV data: {e}")
+    
     def handle_completed_io_operations(self, operations: list[Dict[str, Any]]) -> ActionResult:
-        """Handle a completed I/O operation"""
+        """Legacy handler - delegates to specific handlers"""
         try:
             for operation in operations:
-                type = operation.get('type')
-                filename = operation.get('filename')
-                operation_id = operation.get('operation_id')
-                data = operation.get('data')
-                filetype = filename.split('.')[-1] if filename else None
-                if not type or not filename or not operation_id or not data:
-                    logger.warning("Incomplete operation data, skipping")
-                    continue
-                match type:
-                    case 'load':
-                        # Process loaded data
-                        if filetype and filetype.lower() in {'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff'}:
-                            self.AssetManager.handle_load_asset(operation_id, filename, data)
-                        elif filetype and filetype.lower() in {'json', 'txt', 'csv'}:
-                            #TODO Process loaded text data                            
-                            logger.warning("Text file loading not implemented yet")
-                            #self.AssetManager.handle_load_text(operation_id, filename, data)
-                        # TODO Process saved data
-                    case 'save':
-                        logger.info(f"Saved data to {operation['filename']}")
-                    case 'list':
-                        # TODO Process listed files
-                        logger.info(f"Listed files in {operation['directory']}")
-                    case _:
-                        logger.warning(f"Unknown operation type: {operation['type']}")
-                action = {
-                    'type': 'handle completed io operations',
-                    'io_operation': type,                
-                }
-                self._add_to_history(action)           
-            return ActionResult(True, f"Handled completed io operations")
-        
+                op_type = operation.get('type')
+                operation_id = operation.get('operation_id', 'unknown')
+                success = operation.get('success', False)
+                
+                if success:
+                    if op_type == 'load':
+                        filename = operation.get('filename', '')
+                        data = operation.get('data')
+                        if filename and data is not None:
+                            self.handle_file_loaded(operation_id, filename, data)
+                        else:
+                            logger.warning(f"Incomplete load operation data: {operation}")
+                            
+                    elif op_type == 'save':
+                        filename = operation.get('filename', '')
+                        if filename:
+                            self.handle_file_saved(operation_id, filename)
+                        else:
+                            logger.warning(f"Incomplete save operation data: {operation}")
+                            
+                    elif op_type == 'list':
+                        file_list = operation.get('data', [])
+                        self.handle_file_list(operation_id, file_list)
+                        
+                else:
+                    # Handle failed operations
+                    error_msg = operation.get('error', 'Unknown error')
+                    self.handle_file_operation_error(operation_id, op_type, error_msg)
+            
+            return ActionResult(True, f"Processed {len(operations)} I/O operations")
+            
         except Exception as e:
-            logger.error(f"Error handling completed io operation: {str(e)}")
-            return ActionResult(False, f"Error handling completed io operation: {str(e)}")
+            logger.error(f"Error in handle_completed_io_operations: {e}")
+            return ActionResult(False, f"Error processing I/O operations: {str(e)}")
     

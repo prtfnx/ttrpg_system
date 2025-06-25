@@ -19,12 +19,18 @@ from net.protocol import ProtocolHandler, Message, MessageType
 from net.client_protocol import ClientProtocol
 from imgui_bundle import imgui
 from LayoutManager import LayoutManager
+from Actions import Actions
 from typing import Optional
 from ctypes import c_int, c_float, c_char, c_char_p
+from LightManager import LightManager, Light
+from storage.StorageManager import StorageManager
+from AssetManager import ClientAssetManager
+from GeometricManager import GeometricManager
+from core_table.actions_protocol import Position
 import OpenGL.GL as gl
 import argparse
-import LightManager
 
+import settings
 
 
 #Import profiling system
@@ -116,18 +122,8 @@ def SDL_AppInit_func(args: argparse.Namespace) -> Context:
         sys.exit(1)
     
     test_context = Context(renderer, window, base_width=BASE_WIDTH, base_height=BASE_HEIGHT)
-    
-    # Init GUI system
-    if GUI_SYS:
-        try:            
-            simplified_gui = gui_imgui.create_gui(test_context)
-            logger.info("Simplified GUI system initialized.")
-            test_context.imgui = simplified_gui
-        except Exception as e:
-            logger.error(f"Error initializing Simplified GUI: {e}")
-            test_context.imgui = None
-    # Initialize OpenGL context
-    test_context.gl_context = sdl3.SDL_GL_CreateContext(window)
+    test_context.gl_context = gl_context
+
     
     # Initialize D&D 5e Compendiums
     if COMPENDIUM_SYSTEM:
@@ -148,51 +144,78 @@ def SDL_AppInit_func(args: argparse.Namespace) -> Context:
     
     
     logger.info("Context initialized.")
+    # Initialize OpenGL context
+    #test_context.gl_context = sdl3.SDL_GL_CreateContext(window)
     
-    # Initialize table, spell and character
-    test_spell = core_table.entities.Spell(
-        name="test", description="test", level=1, sprite=b"resources/magic_projectile.gif"
-    )
-    test_table = test_context.add_table("test_table", BASE_WIDTH, BASE_HEIGHT)
-    test_character = core_table.Character.Character(
-        name="test_name", race="test_race", char_class=None, hp=10, level=1, stats=None
-    )
-    test_character.add_spell(test_spell)
-
-    test_context.add_sprite(b"resources/map.jpg", scale_x=0.5, scale_y=0.5)
-    test_context.add_sprite(b"resources/woman.png", scale_x=0.5, scale_y=0.5, character=test_character)
-    test_context.add_sprite(b"resources/token_1.png", scale_x=0.5, scale_y=0.5, collidable=True)
-    test_context.add_sprite(b"resources/test.gif", scale_x=0.5, scale_y=0.5)
-    test_context.add_sprite(b"resources/wall1.png", coord_x=300, coord_y=300,scale_x=0.1, scale_y=0.1, collidable=True,layer='obstacles')
     
     # Initialize Layout_manager
-    test_context.LayoutManager = LayoutManager()
-    test_context.LayoutManager.update_layout(window)
-    
-    # Initialize lighting system
+    try:
+        logger.info("Initializing LayoutManager...")
+        test_context.LayoutManager = LayoutManager()
+        test_context.LayoutManager.update_layout(window)
+        logger.info("LayoutManager initialized.")
+    except Exception as e:
+        logger.error(f"Failed to initialize LayoutManager: {e}")
+        test_context.LayoutManager = None
+
+    # Initialize storage manager
+    try:
+        logger.info("Initializing StorageManager...")
+        root_path = settings.DEFAULT_STORAGE_PATH        
+        test_context.StorageManager = StorageManager(root_path)
+        logger.info("StorageManager initialized.")
+    except Exception as e:
+        logger.error(f"Failed to initialize StorageManager: {e}")
+        test_context.StorageManager = None
+    # Initialize AssetManager
+    try:
+        logger.info("Initializing AssetManager...")
+        test_context.AssetManager = ClientAssetManager()
+        test_context.AssetManager.StorageManager = test_context.StorageManager
+        logger.info("AssetManager initialized.")
+    except Exception as e:
+        logger.error(f"Failed to initialize AssetManager: {e}")
+        test_context.AssetManager = None
+    # Initialize GeometryManager
+    try:
+        logger.info("Initializing GeometryManager...")
+        test_context.GeometryManager = GeometricManager()       
+        logger.info("GeometryManager initialized.")
+    except Exception as e:
+        logger.error(f"Failed to initialize GeometryManager: {e}")
+        test_context.GeometryManager = None
+    # Initialize Actions
+    try:
+        logger.info("Initializing Actions system...")
+        test_context.Actions = Actions(test_context)
+        test_context.Actions.AssetManager = test_context.AssetManager
+        logger.info("Actions system initialized.")
+    except Exception as e:
+        logger.error(f"Failed to initialize Actions system: {e}")
+        test_context.Actions = None
+    # Init GUI system
+    if GUI_SYS:
+        try:            
+            simplified_gui = gui_imgui.create_gui(test_context)
+            logger.info("Simplified GUI system initialized.")
+            test_context.imgui = simplified_gui
+        except Exception as e:
+            logger.exception(f"Error initializing Simplified GUI: {e}")
+            test_context.imgui = None
+
+    # Initialie lighting system
     if LIGHTING_SYS:
         logger.info("Initializing lighting system...")
         try:
-            test_context.LightingManager = LightManager.LightManager(test_context, name ="default_lighting_manager") 
-            default_light = LightManager.Light('default_light')
+            test_context.LightingManager = LightManager(test_context, name ="default_lighting_manager") 
+            default_light = Light('default_light')
             test_context.LightingManager.create_light_texture(default_light, path_to_image=b"resources/light.png")
             test_context.light_on= True
             logger.info("Lighting system initialized.")
         except Exception as e:
             logger.error(f"Failed to initialize lighting system: {e}")
             test_context.LightingManager = None
-    # Initialize RenderManager
-    try:
-        logger.info("Initializing RenderManager...")
-        test_context.RenderManager = RenderManager(renderer, window)
-        test_context.RenderManager.dict_of_sprites_list = test_context.current_table.dict_of_sprites_list
-        test_context.RenderManager.configure_layers()
-        test_context.RenderManager.LightManager= test_context.LightingManager
-        test_context.RenderManager.GeometricManager = test_context.GeometryManager
-        logger.info("RenderManager initialized.")
-    except Exception as e:
-        logger.error(f"Failed to initialize RenderManager: {e}")
-        test_context.RenderManager = None
+   
     # Initialize paint system
     PaintManager.init_paint_system(test_context)
     logger.info("Paint system initialized.")
@@ -243,10 +266,43 @@ def SDL_AppInit_func(args: argparse.Namespace) -> Context:
         #     protocol = test_context.setup_protocol(send_to_server)
         
         # protocol.request_table()  # Request default table
-        def send_message(msg: Message):
-            test_context.queue_to_send.put(msg)
-        protocol = ClientProtocol(test_context, send_message)
-        test_context.protocol = protocol
+        def send_message(msg_str: str):
+            test_context.queue_to_send.put(msg_str)
+        if test_context.Actions:
+            protocol = ClientProtocol(test_context.Actions, send_message)
+            test_context.protocol = protocol
+        else:
+            logger.error("Actions system is not initialized, cannot setup protocol.")            
+        
+    # Setup test table
+    # Initialize table, spell and character
+    test_spell = core_table.entities.Spell(
+        name="test", description="test", level=1, sprite=b"resources/magic_projectile.gif"
+    )
+    test_table = test_context.add_table("test_table", BASE_WIDTH, BASE_HEIGHT)
+    test_character = core_table.Character.Character(
+        name="test_name", race="test_race", char_class=None, hp=10, level=1, stats=None
+    )
+   
+    test_character.add_spell(test_spell)
+    result1=test_context.Actions.create_sprite( test_table.table_id, Position(0, 0), image_path="resources/map.jpg", scale_x=0.5, scale_y=0.5, layer='map')
+    result2=test_context.Actions.create_sprite( test_table.table_id, Position(0, 0), image_path="resources/woman.png", scale_x=0.5, scale_y=0.5, character=test_character)
+    result3=test_context.Actions.create_sprite( test_table.table_id, Position(100, 100), image_path="resources/token_1.png", scale_x=0.5, scale_y=0.5, collidable=True)
+    result4=test_context.Actions.create_sprite( test_table.table_id, Position(200, 200), image_path="resources/test.gif", scale_x=0.5, scale_y=0.5)
+    result5=test_context.Actions.create_sprite( test_table.table_id, Position(300, 300), image_path="resources/wall1.png", scale_x=0.1, scale_y=0.1, collidable=True, layer='obstacles')
+    logger.info(f"Created sprites: {result1}, {result2}, {result3}, {result4}, {result5}")
+     # Initialize RenderManager
+    try:
+        logger.info("Initializing RenderManager...")
+        test_context.RenderManager = RenderManager(renderer, window)
+        test_context.RenderManager.dict_of_sprites_list = test_context.current_table.dict_of_sprites_list
+        test_context.RenderManager.configure_layers()
+        test_context.RenderManager.LightManager= test_context.LightingManager
+        test_context.RenderManager.GeometricManager = test_context.GeometryManager
+        logger.info("RenderManager initialized.")
+    except Exception as e:
+        logger.error(f"Failed to initialize RenderManager: {e}")
+        test_context.RenderManager = None
     return test_context
 
 def SDL_AppIterate(context):
@@ -290,6 +346,31 @@ def SDL_AppIterate(context):
         data = context.queue_to_read.get()
         handle_information(data, context)
     
+      # Handle io messages - Process async storage operations
+    completed = context.StorageManager.process_completed_operations()
+    
+    # Efficiently process completed operations
+    for op in completed:
+        op_id = op.get('operation_id', 'unknown')
+        op_type = op.get('type', 'unknown')
+        success = op.get('success', False)
+        
+        if success:
+            # Handle successful operations
+            if op_type == 'load' and 'data' in op:
+                # File loaded successfully - pass to Actions for processing
+                context.Actions.handle_file_loaded(op_id, op['filename'], op['data'])
+            elif op_type == 'save':
+                # File saved successfully
+                context.Actions.handle_file_saved(op_id, op['filename'])
+            elif op_type == 'list':
+                # File list completed
+                context.Actions.handle_file_list(op_id, op.get('data', []))
+        else:
+            # Handle failed operations
+            error_msg = op.get('error', 'Unknown error')
+            context.Actions.handle_file_operation_error(op_id, op_type, error_msg)
+
     return sdl3.SDL_APP_CONTINUE
 
 def handle_information(msg, context):
@@ -452,9 +533,9 @@ def parse_arguments():
     parser.add_argument('--server-url', default='http://127.0.0.1:12345',
                        help='Server URL for webhook/websocket connection (default: http://127.0.0.1:12345)')
     # Authentication parameters for WebSocket connections
-    parser.add_argument('--session-code', default='V2ERPCXR',
+    parser.add_argument('--session-code', default='WBCHCY',
                        help='Game session code for WebSocket connection')
-    parser.add_argument('--jwt-token', default='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNzUwMjgyNTUyfQ._O7RLa3X6KtZYflColSkzYEPbXTRVt3lOABSkVNWMNc',
+    parser.add_argument('--jwt-token', default='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNzUwNzA1MTI4fQ.WO-IhNzShB53v50hZiP2OGEZhobtLdiR4fHDG7fFmFc',
                        help='JWT authentication token for WebSocket connection')
     parser.add_argument('--username', default='test',
                        help='Username for authentication')

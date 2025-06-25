@@ -18,7 +18,8 @@ from net.protocol import Message, MessageType
 import settings
 import shutil
 import sdl3
-from Sprite import Sprite  
+from Sprite import Sprite
+from storage.StorageManager import StorageManager  
 logger = logging.getLogger(__name__)
 
 class ClientAssetManager:
@@ -27,7 +28,7 @@ class ClientAssetManager:
         # Use settings-defined cache directory if none provided
         if cache_dir is None:
             cache_dir = settings.ASSET_CACHE_DIR
-        
+        self.StorageManager: Optional[StorageManager] = None  
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         
@@ -35,7 +36,7 @@ class ClientAssetManager:
         self.registry_file.parent.mkdir(parents=True, exist_ok=True)
         
         self.asset_registry: Dict[str, Dict] = {}
-        self.session_assets: Dict[str, Dict] = {}
+        self.session_textures: Dict[str, sdl3.SDL_Texture] = {}
         self.download_queue = []
         self.downloading = False
         self.download_stats = {
@@ -47,12 +48,14 @@ class ClientAssetManager:
             'hash_verifications': 0,
             'hash_failures': 0
         }
-        
+        self.path_to_asset: Dict[str, str] = {}  # path -> asset_id
         # Hash lookup cache for fast duplicate detection
         self.hash_to_asset: Dict[str, str] = {}  # xxhash -> asset_id
         self.dict_of_sprites: Dict[str, Sprite] = {}  # operation ID -> sprite object
+        
         self._load_registry()
         self._build_hash_lookup()
+        
         logger.info(f"ClientAssetManager initialized with cache dir: {self.cache_dir}")
 
     def _load_registry(self):
@@ -102,9 +105,30 @@ class ClientAssetManager:
         except Exception as e:
             logger.error(f"Failed to calculate xxHash for {file_path}: {e}")
             return ""
-
+    
+    def _calculate_data_xxhash(self, data: bytes) -> str:
+        """Calculate xxHash for data in memory (fast hash for loaded data)"""
+        try:
+            if not data:
+                logger.warning("No data provided for xxHash calculation")
+                return ""
+                
+            hasher = xxhash.xxh64()  
+            hasher.update(data)
+            return hasher.hexdigest()
+        except Exception as e:
+            logger.error(f"Failed to calculate xxHash for data: {e}")
+            return ""
   
-
+    def _generate_asset_id(self, filename: str) -> str:
+        """Generate unique asset ID using xxHash"""
+        timestamp = str(int(time.time()))
+        content = f"{filename}_{timestamp}"
+        # Use xxHash instead of SHA256 for consistency
+        hasher = xxhash.xxh64()
+        hasher.update(content.encode())
+        return hasher.hexdigest()[:16]
+    
     def calculate_file_xxhash_for_upload(self, file_path: str) -> str:
         """Calculate xxHash for a file before upload (public method)"""
         return self._calculate_file_xxhash(Path(file_path))
@@ -120,12 +144,36 @@ class ClientAssetManager:
             logger.warning(f"Asset {asset_id} in hash lookup but not cached, cleaning up")
             self._remove_from_hash_lookup(asset_id)
         return None
-
+    
+    def find_asset_by_path(self, file_path: str) -> Optional[str]:
+        """Find cached asset by file path"""
+        asset_id = self.path_to_asset.get(file_path)
+        if asset_id and self.is_asset_cached(asset_id):
+            logger.info(f"Found cached asset by path: {file_path} -> {asset_id}")
+            return asset_id
+        elif asset_id:
+            # Asset was in lookup but cache file missing, clean up
+            logger.warning(f"Asset {asset_id} in path lookup but not cached, cleaning up")
+            del self.path_to_asset[file_path]
+        return None
+    
+    def find_texture_by_asset_id(self, asset_id: str) -> Optional[sdl3.SDL_Texture]:
+        """Find texture by asset ID in session textures"""
+        if asset_id in self.session_textures:
+            return self.session_textures[asset_id]
+        logger.warning(f"Texture for asset {asset_id} not found in session textures")
+        return None
+    
     def _add_to_hash_lookup(self, asset_id: str, xxhash_value: str):
         """Add asset to hash lookup table"""
         if xxhash_value:
             self.hash_to_asset[xxhash_value] = asset_id
-
+    def _add_to_path_lookup(self, asset_id: str, file_path: str):
+        """Add asset to path lookup table"""
+        if file_path:
+            self.path_to_asset[file_path] = asset_id
+            logger.debug(f"Added asset {asset_id} to path lookup: {file_path}")
+            
     def _remove_from_hash_lookup(self, asset_id: str):
         """Remove asset from hash lookup table"""
         # Find and remove the hash entry for this asset_id
@@ -137,7 +185,7 @@ class ClientAssetManager:
         
         if hash_to_remove:
             del self.hash_to_asset[hash_to_remove]
-
+    
     def is_asset_cached(self, asset_id: str) -> bool:
         """Check if asset is cached locally"""
         if asset_id not in self.asset_registry:
@@ -231,14 +279,26 @@ class ClientAssetManager:
         finally:
             self.download_stats['total_downloads'] += 1
 
-    def update_session_assets(self, assets: List[Dict]):
+    def update_session_textures(self):
         """Update available session assets"""
-        self.session_assets.clear()
-        for asset in assets:
-            asset_id = asset.get('asset_id')
-            if asset_id:
-                self.session_assets[asset_id] = asset
-        logger.info(f"Updated session assets: {len(self.session_assets)} assets available")
+        self.session_textures.clear()
+        for key, sprite in self.dict_of_sprites.items():
+            texture = sprite.texture
+            if texture:
+                self.session_textures[key] = texture
+        logger.info(f"Updated session textures: {len(self.session_textures)} textures available")
+
+    def register_texture(self, asset_id: str, texture: sdl3.SDL_Texture):
+        """Register a texture for asset"""
+        if not texture:
+            logger.error(f"Cannot register None texture for asset {asset_id}")
+            return
+        
+        if asset_id in self.session_textures:
+            logger.warning(f"Texture for asset {asset_id} already registered, replacing")
+        self.session_textures[asset_id] = texture
+        logger.info(f"Registered texture for asset {asset_id}")
+
 
     def get_asset_for_sprite(self, asset_id: str) -> Optional[str]:
         """Get asset path for sprite, checking cache first"""
@@ -573,28 +633,41 @@ class ClientAssetManager:
             logger.error(f"Error registering uploaded asset {asset_id}: {e}")
             raise
     
-    def handle_load_asset(self, operation_id: str, filename: str, data: bytes) -> Optional[bool]:
-        """Handle loading an asset by filename or asset ID"""
+    def handle_load_file(self, operation_id: str, filename: str, data: bytes) -> Optional[bool]:
+        """Handle loading an asset by filename or operation ID"""
         if not filename and not operation_id:
             logger.error("No filename or operation ID provided for loading asset")
             return None
         
         # Check by operation ID
+        xxhash = self._calculate_data_xxhash(data)
+        asset_id = self._generate_asset_id(filename)
+        self._add_to_hash_lookup(asset_id, xxhash)
+        self._add_to_path_lookup(asset_id, filename)
         if operation_id:
-            sprite = self.dict_of_sprites.get(operation_id)
+            sprite = self.dict_of_sprites.get(operation_id)            
             if sprite:
+                logger.info(f"Found sprite for operation ID {operation_id} with filename {filename}, create surgface")
                 surface = self.surface_from_bytes(data, filename)
                 if not surface:
                     logger.error(f"Failed to create surface from bytes for operation ID {operation_id}")
                     return None                
+                logger.info(f"Creating texture from surface for operation ID {operation_id} and filename {filename}")
                 texture_with_w_h = self.create_texture_from_surface(sprite.renderer, surface)
                 if not texture_with_w_h:
                     logger.error(f"Failed to create texture from surface for operation ID {operation_id}")
                     return None
                 texture, w, h = texture_with_w_h
-                sprite.reload_texture(texture, w, h)
-                logger.info(f"Loaded asset for operation ID {operation_id} with texture {filename}")
-                return True
+                if texture and w and h:
+                    logger.info(f"Reloading texture for sprite with operation ID {operation_id} and filename {filename}")
+                    sprite.reload_texture(texture, w, h)
+                    logger.info(f"Texture reloaded for operation ID {operation_id} with size {w}x{h}")
+                    self.register_texture(asset_id, texture)
+                    logger.info(f"Loaded asset for operation ID {operation_id} with texture {filename}")
+                    return True
+                else:
+                    logger.error(f"Failed to reload texture for operation ID {operation_id}")
+                    return None
             else:
                 logger.warning(f"Sprite with operation id {operation_id} not finded")
         
@@ -603,7 +676,7 @@ class ClientAssetManager:
         logger.warning(f"Filename {filename} or {operation_id} not found in cache")
         return None
     
-    def surface_from_bytes(self, data: bytes, filename: str,) -> Optional[sdl3.SDL_Surface]:
+    def surface_from_bytes(self, data: bytes, filename: str,) -> Optional[sdl3.LP_SDL_Surface]:
         """Make Surface from raw bytes data"""
         if not data:
             logger.error("No data provided for creating sprite")
@@ -626,7 +699,7 @@ class ClientAssetManager:
             logger.error(f"Error creating surface from bytes data for {filename}: {e}")
             return None
     
-    def create_texture_from_surface(self, renderer: sdl3.SDL_Renderer, surface: sdl3.SDL_Surface) -> Optional[tuple[sdl3.SDL_Texture,int, int]]: 
+    def create_texture_from_surface(self, renderer: sdl3.LP_SDL_Renderer, surface: sdl3.LP_SDL_Surface) -> Optional[tuple[sdl3.SDL_Texture,int, int]]: 
             """Create texture from surface"""
             texture = sdl3.SDL_CreateTextureFromSurface(renderer, surface)
             if not texture:
@@ -635,13 +708,57 @@ class ClientAssetManager:
                 sdl3.SDL_DestroySurface(surface)
                 return None
             
-            # Get surface dimensions            
-            width = surface.contents.w
-            height = surface.contents.h
+            # Get surface dimensions
+            surface_contents=surface.contents
+            print(f"Surface contents: {surface_contents.w}")            
+            width = surface_contents.w
+            height = surface_contents.h
             # Clean up surface (texture now owns the pixel data)
             sdl3.SDL_DestroySurface(surface)
             return texture, width, height
     
+    def load_asset_for_sprite(self, sprite: Sprite, file_path: str) -> Optional[bool]:
+        """Load asset for sprite from cache or disk"""
+        logger.debug(f"Loading asset for sprite: {sprite} from file path: {file_path}")
+        if not sprite and not filename:
+            logger.error("No operation ID or filename provided for loading asset")
+            return None           
+        asset_id = self.find_asset_by_path(file_path)
+        if asset_id:
+            # Asset found in cache 
+            logger.info(f"Asset {asset_id} found in cache by xxHash {xxhash}")
+            texture = self.find_texture_by_asset_id(asset_id)
+            if texture:
+                logger.info(f"Using cached texture for asset {asset_id}")
+                #TODO use width and height from texture
+                sprite.reload_texture(texture, sprite.rect.w, sprite.rect.h)
+                return True
+            else:
+                logger.warning(f"Texture for asset {asset_id} not found in session textures, loading from disk")
+                cached_file_path = self.get_cached_asset_path(asset_id)
+                if cached_file_path:
+                    file_path = cached_file_path
+                else:
+                    logger.error(f"Cached asset path not found for asset ID {asset_id}")
+       
+        # Asset not found in cache, load from disk
+        logger.info(f"Asset {file_path} not found in cache, loading from disk")                      
+    
+        if not self.StorageManager:
+            logger.error("StorageManager not initialized, cannot load asset")
+            return None
+        filename = Path(file_path).name
+        subdir = Path(file_path).parent.name
+        print(f"Loading asset for sprite: {filename} from subdir: {subdir}") 
+        operation_id = self.StorageManager.load_file_async(filename, subdir=subdir, as_json=False)
+        self.dict_of_sprites[operation_id] = sprite
+        logger.debug(f"start loading asset for sprite with operation ID {operation_id} and filename {filename}")
+        return True
+        
+       
+        
+        
+        
            
      
 

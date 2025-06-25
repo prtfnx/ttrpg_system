@@ -516,7 +516,7 @@ def handle_key_event(cnt, key_code):
                 logger.info(f"Projectile dx/dy: {dx} {dy}, speed: {vx} {vy}")
         case sdl3.SDL_SCANCODE_LCTRL:
             logger.info("Control key pressed, asking table")            
-            cnt.actions.ask_for_table('large_table')
+            cnt.Actions.ask_for_table('large_table')
         case sdl3.SDL_SCANCODE_LALT:
             logger.info("Alt key pressed, make table from json")
             with open('table.json', 'r') as f:

@@ -12,6 +12,7 @@ from GeometricManager import GeometricManager
 from ContextTable import ContextTable
 from AssetManager import ClientAssetManager
 from RenderManager import RenderManager
+from storage.StorageManager import StorageManager
 from Sprite import Sprite
 from Actions import Actions
 # SDL3 type hints using actual SDL3 types
@@ -92,9 +93,10 @@ class Context:
         self.LayoutManager: Optional[LayoutManager] = None
         self.LightingManager: Optional[LightManager] = None        
         self.CompendiumManager: Optional[CompendiumManager] = None
-        self.GeometryManager: GeometricManager = GeometricManager() # Net section
-        self.AssetManager: ClientAssetManager = ClientAssetManager()
+        self.GeometryManager: Optional[GeometricManager] = None
+        self.AssetManager: Optional[ClientAssetManager] = None
         self.RenderManager: Optional[RenderManager] = None
+        self.StorageManager: Optional[StorageManager] = None  
         
         # Network
         self.net_client_started: bool = False
@@ -128,7 +130,7 @@ class Context:
         logger.info("Context initialized with Actions protocol")
 
 
-    def add_sprite(self, texture_path, scale_x, scale_y, layer='tokens',
+    def add_sprite(self, texture_path, scale_x=1, scale_y=1, layer='tokens',
                    character=None, moving=False, speed=None,
                    collidable=False, table=None, coord_x=0.0, coord_y=0.0,sprite_id=None):
         """Add a sprite to the specified layer in the current table"""
@@ -161,7 +163,7 @@ class Context:
             )
 
             # Check if sprite creation was successful
-            if not new_sprite or not hasattr(new_sprite, 'texture') or not new_sprite.texture:
+            if not new_sprite:
                 logger.error(f"Failed to create sprite from {texture_path}")
                 # Clean up any partially created sprite
                 if new_sprite:

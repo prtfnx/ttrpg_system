@@ -17,8 +17,7 @@ class StorageManager:
         self.root_path = Path(root_path)
         self._executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="storage")
         self._completed_operations = queue.Queue()
-        self._pending_operations = {}
-        
+        self._pending_operations = {}        
         # Create root directory
         self.root_path.mkdir(parents=True, exist_ok=True)
     
@@ -37,13 +36,13 @@ class StorageManager:
                         json.dump(data, f, indent=2)
                 elif isinstance(data, str):
                     with open(file_path, 'w', encoding='utf-8') as f:
-                        f.write(data)
+                        f.write(data)                
                 else:
                     with open(file_path, 'wb') as f:
                         f.write(data)
                 
                 self._completed_operations.put({
-                    'id': operation_id,
+                    'operation_id': operation_id,
                     'type': 'save',
                     'filename': filename,
                     'success': True,
@@ -51,7 +50,7 @@ class StorageManager:
                 })
             except Exception as e:
                 self._completed_operations.put({
-                    'id': operation_id,
+                    'operation_id': operation_id,
                     'type': 'save',
                     'filename': filename,
                     'success': False,
@@ -68,8 +67,8 @@ class StorageManager:
         
         def _load():
             try:
-                file_path = self.root_path / subdir / filename
-                
+                print(f"Loading file: {filename} from {subdir}, root: {self.root_path}")
+                file_path = self.root_path / subdir / filename                
                 if as_json or filename.endswith('.json'):
                     with open(file_path, 'r', encoding='utf-8') as f:
                         data = json.load(f)
@@ -170,14 +169,14 @@ class StorageManager:
         return operation_id
     
     def process_completed_operations(self) -> List[Dict[str, Any]]:
-        """Process completed operations. Call this in your SDL main loop."""
+        """Process completed operations. Call this in SDL main loop."""
         completed = []
         while not self._completed_operations.empty():
             try:
                 operation = self._completed_operations.get_nowait()
                 completed.append(operation)
                 # Clean up pending operations
-                self._pending_operations.pop(operation['id'], None)
+                self._pending_operations.pop(operation['operation_id'], None)
             except queue.Empty:
                 break
         return completed
@@ -212,7 +211,7 @@ def main():
     # SDL main loop simulation
     while storage.is_busy():
         # Process completed operations
-        print('1')
+        
         completed = storage.process_completed_operations()
         
         for op in completed:

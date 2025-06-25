@@ -66,8 +66,7 @@ class StorageManager:
         operation_id = str(uuid.uuid4())[:8]
         
         def _load():
-            try:
-                print(f"Loading file: {filename} from {subdir}, root: {self.root_path}")
+            try:               
                 file_path = self.root_path / subdir / filename                
                 if as_json or filename.endswith('.json'):
                     with open(file_path, 'r', encoding='utf-8') as f:

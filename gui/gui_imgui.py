@@ -438,7 +438,6 @@ class SimplifiedGui:
                     # If ImGui doesn't want the keyboard event, let SDL handle it
                     if not wants_capture_keyboard:
                         return False  # Let SDL process the event
-            
             return imgui_wants_event
             
         except Exception as e:

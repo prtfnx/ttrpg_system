@@ -13,7 +13,7 @@ from imgui_bundle import imgui
 
 
 # Import storage system components
-from storage import get_storage_manager
+
 from storage.r2_manager import R2AssetManager
 import settings
 
@@ -25,8 +25,8 @@ class StoragePanel:
     def __init__(self, context, actions_bridge):
         self.context = context
         self.actions_bridge = actions_bridge
-        
-        # Initialize storage system components        self.storage_manager = get_storage_manager()
+          # Initialize storage system components        
+        self.StorageManager = context.StorageManager  
         self.r2_manager = R2AssetManager()
         self.R2_ENABLED = settings.R2_ENABLED
         # Panel state
@@ -230,7 +230,6 @@ class StoragePanel:
         except Exception as e:
             logger.error(f"Error drawing upload progress: {e}")
             self.show_upload_progress = False
-    
     def get_cached_stats(self):
         """Get cached storage stats to avoid expensive I/O every frame"""
         current_time = time.time()
@@ -238,7 +237,18 @@ class StoragePanel:
         if (self._stats_cache is None or 
             current_time - self._stats_cache_time > self._stats_cache_duration):
             try:
-                self._stats_cache = self.storage_manager.get_storage_stats()
+                # Only get stats if storage manager is available and working
+                if hasattr(self, 'StorageManager') and self.StorageManager:
+                    # Use a simple file count instead of expensive operations
+                    root_path = getattr(settings, 'DEFAULT_STORAGE_PATH', 'storage')
+                    if os.path.exists(root_path):
+                        file_count = len([f for f in os.listdir(root_path) if os.path.isfile(os.path.join(root_path, f))])
+                        self._stats_cache = {'total_files': file_count, 'cache_size_mb': 0.0}
+                    else:
+                        self._stats_cache = {'total_files': 0, 'cache_size_mb': 0.0}
+                else:
+                    self._stats_cache = {'total_files': 0, 'cache_size_mb': 0.0}
+                    
                 self._stats_cache_time = current_time
             except Exception as e:
                 logger.error(f"Failed to get storage stats: {e}")
@@ -290,44 +300,77 @@ class StoragePanel:
                         imgui.text(f"  {folder_name}: {folder_info.get('file_count', 0)} files")
         except Exception as e:
             imgui.text(f"Error loading stats: {e}")
-    
     def _refresh_file_list(self):
         """Refresh the file list for current folder (throttled)"""
         try:
-            self.file_list = self.storage_manager.list_files(self.current_folder)            
+            # Safely handle missing storage manager
+            if hasattr(self, 'StorageManager') and self.StorageManager:
+                # Use simple directory listing instead of storage manager methods
+                root_path = getattr(settings, 'DEFAULT_STORAGE_PATH', 'storage')
+                folder_path = os.path.join(root_path, self.current_folder)
+                
+                if os.path.exists(folder_path):
+                    self.file_list = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
+                else:
+                    self.file_list = []
+            else:
+                self.file_list = []
+                
             self.refresh_needed = False
         except Exception as e:
             logger.error(f"Failed to refresh file list: {e}")
-            self.file_list = []
+            self.file_list = []    
     def _open_file_browser(self):
         """Open folder in system file manager for drag-drop upload"""
         try:
-            folder_path = self.storage_manager.config.get_folder_path(self.current_folder)
+            # Use StorageManager's root_path and build folder path
+            if hasattr(self, 'StorageManager') and self.StorageManager:
+                root_path = self.StorageManager.root_path
+                folder_path = root_path / self.current_folder
+            else:
+                # Fallback to settings
+                root_path = Path(getattr(settings, 'DEFAULT_STORAGE_PATH', 'storage'))
+                folder_path = root_path / self.current_folder
             
             # Ensure folder exists
-            os.makedirs(folder_path, exist_ok=True)
+            folder_path.mkdir(parents=True, exist_ok=True)
             
             # Open folder in system file manager
             if sys.platform == "win32":
-                subprocess.run(['explorer', folder_path], shell=True)
+                subprocess.run(['explorer', str(folder_path)], shell=True)
             elif sys.platform == "darwin":  # macOS
-                subprocess.run(['open', folder_path])
+                subprocess.run(['open', str(folder_path)])
             else:  # Linux
-                subprocess.run(['xdg-open', folder_path])
+                subprocess.run(['xdg-open', str(folder_path)])
             
             logger.info(f"Opened {self.current_folder} folder: {folder_path}")
             logger.info("Drag files into the folder to upload them")
             
         except Exception as e:
             logger.error(f"Failed to open folder: {e}")
-    
     def _open_current_folder(self):
         """Open current folder in system file explorer"""
         try:
-            folder_path = self.storage_manager.config.get_folder_path(self.current_folder)
+            # Use StorageManager's root_path and build folder path
+            if hasattr(self, 'StorageManager') and self.StorageManager:
+                root_path = self.StorageManager.root_path
+                folder_path = root_path / self.current_folder
+            else:
+                # Fallback to settings
+                root_path = Path(getattr(settings, 'DEFAULT_STORAGE_PATH', 'storage'))
+                folder_path = root_path / self.current_folder
+            
+            # Ensure folder exists
+            folder_path.mkdir(parents=True, exist_ok=True)
+            
             if os.path.exists(folder_path):
                 import subprocess
-                subprocess.Popen(f'explorer "{folder_path}"', shell=True)
+                if sys.platform == "win32":
+                    subprocess.Popen(f'explorer "{folder_path}"', shell=True)
+                elif sys.platform == "darwin":  # macOS
+                    subprocess.run(['open', str(folder_path)])
+                else:  # Linux
+                    subprocess.run(['xdg-open', str(folder_path)])
                 logger.info(f"Opened folder: {folder_path}")
             else:
                 logger.warning(f"Folder does not exist: {folder_path}")
@@ -356,7 +399,7 @@ class StoragePanel:
                 filename = os.path.basename(file_path)
                 
                 # Save file to current folder
-                saved_path = self.storage_manager.save_file(file_path, filename, self.current_folder)
+                saved_path = self.StorageManager.save_file(file_path, filename, self.current_folder)
                 
                 if saved_path:
                     uploaded_count += 1

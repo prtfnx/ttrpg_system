@@ -18,7 +18,7 @@ class GuiActionsBridge:
     
     def __init__(self, context):
         self.context = context
-        self.actions = context.actions
+        self.actions = context.Actions
         
     # Table Management
     def get_current_table_info(self) -> Dict[str, Any]:

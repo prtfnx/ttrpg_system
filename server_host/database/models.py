@@ -112,7 +112,7 @@ class Asset(Base):
     r2_asset_id = Column(String(100), unique=True, index=True, nullable=False)  # R2 asset ID
     content_type = Column(String(100), nullable=False)  # MIME type
     file_size = Column(Integer, nullable=False)  # Size in bytes
-    checksum = Column(String(64), nullable=False)  # SHA-256 checksum
+    xxhash = Column(String(32), nullable=True)     # xxHash for fast verification
     
     # Metadata
     uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)

@@ -5,7 +5,8 @@ Production-ready boto3-based implementation following Cloudflare best practices.
 import os
 import logging
 import hashlib
-from typing import Optional, Dict, Any, List
+import xxhash
+from typing import Optional, Dict, Any, List, Tuple
 from datetime import datetime
 from dataclasses import dataclass
 
@@ -13,7 +14,7 @@ import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 from botocore.config import Config
 import settings
-
+import mimetypes
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -24,6 +25,7 @@ class UploadResult:
     error: Optional[str] = None
     file_size: int = 0
     file_key: Optional[str] = None
+    xxhash: Optional[str] = None  # Add xxHash
 
 @dataclass
 class DownloadResult:
@@ -32,6 +34,8 @@ class DownloadResult:
     local_path: Optional[str] = None
     error: Optional[str] = None
     file_size: int = 0
+    xxhash: Optional[str] = None  # Add xxHash
+    hash_verified: bool = False  # Hash verification status
 
 
 class R2AssetManager:
@@ -117,22 +121,56 @@ class R2AssetManager:
         clean_name = "".join(c for c in name if c.isalnum() or c in '-_')[:50]
         return f"{file_type}/{timestamp}_{file_hash}_{clean_name}{ext}"
     
+    def calculate_xxhash(self, file_path: str) -> str:
+        """Calculate xxHash for a file (fast hash for local operations)"""
+        try:
+            hasher = xxhash.xxh64()  # xxh64 is faster and has good distribution
+            
+            with open(file_path, 'rb') as f:
+                for chunk in iter(lambda: f.read(65536), b""):  # 64KB chunks
+                    hasher.update(chunk)
+            
+            return hasher.hexdigest()
+        except Exception as e:
+            logger.error(f"Error calculating xxHash for {file_path}: {e}")
+            return ""
+    
     def upload_file(self, file_path: str, file_type: Optional[str] = None) -> UploadResult:
-        """Upload file to R2 storage"""
+        """Upload file to R2 storage with xxHash metadata"""
         if not os.path.exists(file_path):
             return UploadResult(success=False, error=f"File not found: {file_path}")
         
         file_size = 0
+        file_xxhash = ""
         try:
             filename = os.path.basename(file_path)
             file_key = self.generate_file_key(filename, file_type or "other")
             file_size = os.path.getsize(file_path)
             
-            # Upload to R2
+            # Calculate xxHash before upload
+            file_xxhash = self.calculate_xxhash(file_path)
+            logger.info(f"Calculated xxHash for {filename}: {file_xxhash}")
+            
+            # Upload to R2 with metadata including xxHash
+            extra_args = {
+                'Metadata': {
+                    'xxhash': file_xxhash,
+                    'original-filename': filename,
+                    'upload-timestamp': str(int(datetime.now().timestamp()))
+                }
+            }
+            
+            # Set content type if we can determine it
+            
+            content_type, _ = mimetypes.guess_type(filename)
+            if content_type:
+                extra_args['ContentType'] = content_type
+            
             self.s3_client.upload_file(
                 file_path, 
                 settings.R2_BUCKET_NAME, 
-                file_key
+                file_key,
+                ExtraArgs=extra_args
             )
             
             # Generate URL
@@ -142,19 +180,25 @@ class R2AssetManager:
             self._stats['uploads']['count'] += 1
             self._stats['uploads']['bytes'] += file_size
             
-            logger.info(f"Successfully uploaded: {filename} -> {url}")
-            return UploadResult(success=True, url=url, file_size=file_size, file_key=file_key)
+            logger.info(f"Successfully uploaded: {filename} -> {url} (xxHash: {file_xxhash})")
+            return UploadResult(
+                success=True, 
+                url=url, 
+                file_size=file_size, 
+                file_key=file_key,
+                xxhash=file_xxhash
+            )
             
         except (ClientError, NoCredentialsError) as e:
             error_msg = f"Upload failed: {str(e)}"
             logger.error(error_msg)
             self._stats['uploads']['errors'] += 1
-            return UploadResult(success=False, error=error_msg, file_size=file_size)
+            return UploadResult(success=False, error=error_msg, file_size=file_size, xxhash=file_xxhash)
         except Exception as e:
             error_msg = f"Unexpected error: {str(e)}"
             logger.error(error_msg)
             self._stats['uploads']['errors'] += 1
-            return UploadResult(success=False, error=error_msg, file_size=file_size)
+            return UploadResult(success=False, error=error_msg, file_size=file_size, xxhash=file_xxhash)
     
     def _build_public_url(self, file_key: str) -> str:
         """Build public URL for a file key"""
@@ -361,3 +405,106 @@ class R2AssetManager:
         except Exception as e:
             logger.error(f"Unexpected error checking object existence for {file_key}: {e}")
             return False
+    
+    def download_file_with_verification(self, file_key: str, local_path: str) -> DownloadResult:
+        """Download file from R2 with hash verification"""
+        try:
+            # Ensure local directory exists
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            
+            # Get object metadata first to retrieve stored hash
+            head_response = self.s3_client.head_object(
+                Bucket=settings.R2_BUCKET_NAME,
+                Key=file_key
+            )
+            
+            stored_xxhash = head_response.get('Metadata', {}).get('xxhash')
+            
+            # Download from R2
+            self.s3_client.download_file(
+                settings.R2_BUCKET_NAME, 
+                file_key, 
+                local_path
+            )
+            
+            file_size = os.path.getsize(local_path)
+            
+            # Calculate local file hash
+            local_xxhash = self.calculate_xxhash(local_path)
+            
+            # Verify hash if stored hash exists
+            hash_verified = False
+            if stored_xxhash:
+                hash_verified = (local_xxhash == stored_xxhash)
+                if hash_verified:
+                    logger.info(f"Hash verification successful for {file_key}")
+                else:
+                    logger.warning(f"Hash verification failed for {file_key}: stored={stored_xxhash}, local={local_xxhash}")
+            else:
+                logger.warning(f"No stored hash found for {file_key}")
+            
+            # Update stats
+            self._stats['downloads']['count'] += 1
+            self._stats['downloads']['bytes'] += file_size
+            
+            logger.info(f"Successfully downloaded: {file_key} -> {local_path}")
+            return DownloadResult(
+                success=True, 
+                local_path=local_path, 
+                file_size=file_size,
+                xxhash=local_xxhash,
+                hash_verified=hash_verified
+            )
+            
+        except ClientError as e:
+            error_msg = f"Download failed: {str(e)}"
+            logger.error(error_msg)
+            self._stats['downloads']['errors'] += 1
+            return DownloadResult(success=False, error=error_msg)
+        except Exception as e:
+            error_msg = f"Unexpected error: {str(e)}"
+            logger.error(error_msg)
+            self._stats['downloads']['errors'] += 1
+            return DownloadResult(success=False, error=error_msg)
+    
+    def get_object_hash(self, file_key: str) -> Optional[str]:
+        """Get stored xxHash for an object"""
+        try:
+            response = self.s3_client.head_object(
+                Bucket=settings.R2_BUCKET_NAME,
+                Key=file_key
+            )
+            return response.get('Metadata', {}).get('xxhash')
+        except Exception as e:
+            logger.error(f"Error getting hash for {file_key}: {e}")
+            return None
+    
+    def generate_presigned_upload_url(self, file_key: str, xxhash: str, expiration: int = 3600) -> Optional[str]:
+        """Generate presigned URL for upload with required xxHash metadata"""
+        try:
+            # Validate expiration (Cloudflare R2 limit: 7 days)
+            max_expiration = 7 * 24 * 3600  # 7 days in seconds
+            if expiration > max_expiration:
+                logger.warning(f"Expiration {expiration}s exceeds R2 limit, using {max_expiration}s")
+                expiration = max_expiration
+            
+            # Generate presigned URL for PUT with required metadata
+            url = self.s3_client.generate_presigned_url(
+                'put_object',
+                Params={
+                    'Bucket': settings.R2_BUCKET_NAME,
+                    'Key': file_key,
+                    'Metadata': {
+                        'xxhash': xxhash,
+                        'upload-timestamp': str(int(datetime.now().timestamp()))
+                    }
+                },
+                ExpiresIn=expiration
+            )
+            
+            logger.info(f"Generated presigned upload URL for {file_key} with xxHash: {xxhash}")
+            return url
+            
+        except Exception as e:
+            logger.error(f"Failed to generate presigned upload URL for {file_key}: {e}")
+            return None

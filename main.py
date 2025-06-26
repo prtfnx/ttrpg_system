@@ -17,6 +17,7 @@ from net.client_websocket import WebSocketClient
 from net import client_websocket_protocol
 from net.protocol import ProtocolHandler, Message, MessageType
 from net.client_protocol import ClientProtocol
+from net.DownloadManager import DownloadManager
 from imgui_bundle import imgui
 from LayoutManager import LayoutManager
 from Actions import Actions
@@ -156,23 +157,14 @@ def SDL_AppInit_func(args: argparse.Namespace) -> Context:
         logger.info("LayoutManager initialized.")
     except Exception as e:
         logger.error(f"Failed to initialize LayoutManager: {e}")
-        test_context.LayoutManager = None
-
-    # Initialize storage manager
+        test_context.LayoutManager = None    # Initialize AssetManager (now owns StorageManager and DownloadManager)
     try:
-        logger.info("Initializing StorageManager...")
-        root_path = settings.DEFAULT_STORAGE_PATH        
-        test_context.StorageManager = StorageManager(root_path)
-        logger.info("StorageManager initialized.")
-    except Exception as e:
-        logger.error(f"Failed to initialize StorageManager: {e}")
-        test_context.StorageManager = None
-    # Initialize AssetManager
-    try:
-        logger.info("Initializing AssetManager...")
-        test_context.AssetManager = ClientAssetManager()
-        test_context.AssetManager.StorageManager = test_context.StorageManager
-        logger.info("AssetManager initialized.")
+        logger.info("Initializing AssetManager with owned StorageManager and DownloadManager...")
+        test_context.AssetManager = ClientAssetManager(
+            cache_dir=None,  # Uses settings default
+            storage_root=settings.DEFAULT_STORAGE_PATH
+        )
+        logger.info("AssetManager initialized with owned managers.")
     except Exception as e:
         logger.error(f"Failed to initialize AssetManager: {e}")
         test_context.AssetManager = None
@@ -268,11 +260,13 @@ def SDL_AppInit_func(args: argparse.Namespace) -> Context:
         # protocol.request_table()  # Request default table
         def send_message(msg_str: str):
             test_context.queue_to_send.put(msg_str)
+        
         if test_context.Actions:
             protocol = ClientProtocol(test_context.Actions, send_message)
             test_context.protocol = protocol
+
         else:
-            logger.error("Actions system is not initialized, cannot setup protocol.")            
+            logger.error("Actions system is not initialized, cannot setup protocol.")
         
     # Setup test table
     # Initialize table, spell and character
@@ -285,11 +279,11 @@ def SDL_AppInit_func(args: argparse.Namespace) -> Context:
     )
    
     test_character.add_spell(test_spell)
-    result1=test_context.Actions.create_sprite( test_table.table_id, Position(0, 0), image_path="resources/map.jpg", scale_x=0.5, scale_y=0.5, layer='map')
-    result2=test_context.Actions.create_sprite( test_table.table_id, Position(0, 0), image_path="resources/woman.png", scale_x=0.5, scale_y=0.5, character=test_character)
-    result3=test_context.Actions.create_sprite( test_table.table_id, Position(100, 100), image_path="resources/token_1.png", scale_x=0.5, scale_y=0.5, collidable=True)
-    result4=test_context.Actions.create_sprite( test_table.table_id, Position(200, 200), image_path="resources/test.gif", scale_x=0.5, scale_y=0.5)
-    result5=test_context.Actions.create_sprite( test_table.table_id, Position(300, 300), image_path="resources/wall1.png", scale_x=0.1, scale_y=0.1, collidable=True, layer='obstacles')
+    result1=test_context.Actions.create_sprite( test_table.table_id, "sprite_map", Position(0, 0), image_path="resources/map.jpg", scale_x=0.5, scale_y=0.5, layer='map')
+    result2=test_context.Actions.create_sprite( test_table.table_id, "sprite_woman", Position(0, 0), image_path="resources/woman.png", scale_x=0.5, scale_y=0.5, character=test_character)
+    result3=test_context.Actions.create_sprite( test_table.table_id, "sprite_token1", Position(100, 100), image_path="resources/token_1.png", scale_x=0.5, scale_y=0.5, collidable=True)
+    result4=test_context.Actions.create_sprite( test_table.table_id, "sprite_test", Position(200, 200), image_path="resources/test.gif", scale_x=0.5, scale_y=0.5)
+    result5=test_context.Actions.create_sprite( test_table.table_id, "sprite_wall", Position(300, 300), image_path="resources/wall1.png", scale_x=0.1, scale_y=0.1, collidable=True, layer='obstacles')
     logger.info(f"Created sprites: {result1}, {result2}, {result3}, {result4}, {result5}")
      # Initialize RenderManager
     try:
@@ -339,37 +333,22 @@ def SDL_AppIterate(context):
 
     # Render paint system if active (in table area)
     if PaintManager.is_paint_mode_active():
-        PaintManager.render_paint_system()
-
-    # Handle network messages
+        PaintManager.render_paint_system()    # Handle network messages
     if not context.queue_to_read.empty():
         data = context.queue_to_read.get()
         handle_information(data, context)
-    
-      # Handle io messages - Process async storage operations
-    completed = context.StorageManager.process_completed_operations()
-    
-    # Efficiently process completed operations
-    for op in completed:
-        op_id = op.get('operation_id', 'unknown')
-        op_type = op.get('type', 'unknown')
-        success = op.get('success', False)
+          # Handle unified I/O operations - Process async storage and download operations
+    if context.AssetManager and context.Actions:
+        completed = context.AssetManager.process_all_completed_operations()
         
-        if success:
-            # Handle successful operations
-            if op_type == 'load' and 'data' in op:
-                # File loaded successfully - pass to Actions for processing
-                context.Actions.handle_file_loaded(op_id, op['filename'], op['data'])
-            elif op_type == 'save':
-                # File saved successfully
-                context.Actions.handle_file_saved(op_id, op['filename'])
-            elif op_type == 'list':
-                # File list completed
-                context.Actions.handle_file_list(op_id, op.get('data', []))
-        else:
-            # Handle failed operations
-            error_msg = op.get('error', 'Unknown error')
-            context.Actions.handle_file_operation_error(op_id, op_type, error_msg)
+        # Process completed operations through Actions
+        for op in completed:
+            success = op.get('success', False)
+            
+            if success:
+                context.Actions.handle_completed_operation(op)
+            else:
+                context.Actions.handle_operation_error(op)
 
     return sdl3.SDL_APP_CONTINUE
 

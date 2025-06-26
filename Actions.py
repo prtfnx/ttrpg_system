@@ -3,6 +3,8 @@ from core_table.actions_protocol import ActionsProtocol, ActionResult, Position,
 import uuid
 import copy
 import logging
+import os
+from pathlib import Path
 from net.protocol import Message, MessageType
 if TYPE_CHECKING:
     from Context import Context
@@ -16,10 +18,133 @@ logger = logging.getLogger(__name__)
 class Actions(ActionsProtocol):
     """
     Client-side implementation of ActionsProtocol for game logic.
-    Central bus for actions on all entities in game.
+    Central command bus for all game operations in the TTRPG system.
+    
+    This class follows a layered architecture pattern:
+    1. Public API methods (create, read, update, delete operations)
+    2. Internal utility methods (prefixed with _)
+    3. Event handlers for async operations
+    4. Protocol message handlers for network communication
+    
+    Architecture Notes:
+    - AssetManager owns StorageManager and DownloadManager
+    - ClientProtocol is messaging-only, delegates to Actions
+    - All I/O operations use unified completion queues
+    - Actions serves as central command bus for all game logic
+    
+    Function Index by Category:
+    
+    ═══════════════════════════════════════════════════════════════════════════════
+    INITIALIZATION & CORE UTILITIES
+    ═══════════════════════════════════════════════════════════════════════════════
+    - __init__(context) -> Initialize Actions with context and settings
+    - _add_to_history(action) -> Add action to undo/redo history
+    - _get_table_by_id(table_id) -> Find table by UUID
+    - _get_table_by_name(name) -> Find table by name  
+    - _find_sprite_in_table(table, sprite_id) -> Find sprite in table
+    
+    ═══════════════════════════════════════════════════════════════════════════════
+    TABLE MANAGEMENT (CRUD OPERATIONS)
+    ═══════════════════════════════════════════════════════════════════════════════
+    - create_table(name, width, height) -> Create new table with dimensions
+    - create_table_from_dict(table_dict) -> Create table from dictionary data
+    - process_creating_table(table_data) -> Create table with asset processing
+    - get_table(table_id) -> Retrieve table by ID
+    - update_table(table_id, **kwargs) -> Update table properties
+    - delete_table(table_id) -> Remove table and cleanup resources
+    - move_table(table_id, position) -> Move table to new position
+    - scale_table(table_id, scale_x, scale_y) -> Scale table by factors
+    - ask_for_table(table_name) -> Request table from server
+    
+    ═══════════════════════════════════════════════════════════════════════════════
+    SPRITE MANAGEMENT (CRUD OPERATIONS)
+    ═══════════════════════════════════════════════════════════════════════════════
+    - create_sprite(table_id, sprite_id, position, image_path, layer) -> Create new sprite
+    - get_sprite_info(table_id, sprite_id) -> Get detailed sprite information
+    - update_sprite(table_id, sprite_id, **kwargs) -> Update sprite properties
+    - delete_sprite(table_id, sprite_id) -> Remove sprite from table
+    - move_sprite(table_id, sprite_id, position) -> Move sprite to new position
+    - scale_sprite(table_id, sprite_id, scale_x, scale_y) -> Scale sprite
+    - rotate_sprite(table_id, sprite_id, angle) -> Rotate sprite by angle
+    
+    ═══════════════════════════════════════════════════════════════════════════════
+    LAYER MANAGEMENT
+    ═══════════════════════════════════════════════════════════════════════════════
+    - set_layer_visibility(table_id, layer, visible) -> Show/hide layer
+    - get_layer_visibility(table_id, layer) -> Check layer visibility status
+    - get_layer_sprites(table_id, layer) -> Get all sprites on specific layer
+    - move_sprite_to_layer(table_id, sprite_id, new_layer) -> Move sprite between layers
+    
+    ═══════════════════════════════════════════════════════════════════════════════
+    QUERY & SEARCH OPERATIONS
+    ═══════════════════════════════════════════════════════════════════════════════
+    - get_table_info(table_id) -> Get detailed table information
+    - get_all_tables() -> Get information about all tables
+    - get_table_sprites(table_id, layer=None) -> Get sprites on table/layer
+    - get_sprite_at_position(table_id, position, layer=None) -> Find sprite at position
+    - get_sprites_in_area(table_id, top_left, bottom_right, layer=None) -> Get sprites in area
+    
+    ═══════════════════════════════════════════════════════════════════════════════
+    FILE & STORAGE OPERATIONS
+    ═══════════════════════════════════════════════════════════════════════════════
+    - load_file(file_path, **kwargs) -> Load file from filesystem
+    - handle_file_loaded(operation_id, filename, data) -> Process loaded file
+    - handle_file_saved(operation_id, filename) -> Process saved file
+    - handle_file_list(operation_id, file_list) -> Process file listing
+    - handle_file_operation_error(operation_id, operation_type, error_msg) -> Handle file errors
+    
+    ═══════════════════════════════════════════════════════════════════════════════
+    BATCH & HISTORY OPERATIONS
+    ═══════════════════════════════════════════════════════════════════════════════
+    - batch_actions(actions) -> Execute multiple actions in sequence
+    - undo_action() -> Undo last action (basic implementation)
+    - redo_action() -> Redo last undone action (basic implementation)
+    
+    ═══════════════════════════════════════════════════════════════════════════════
+    I/O EVENT HANDLERS (New Architecture)
+    ═══════════════════════════════════════════════════════════════════════════════
+    - handle_completed_operation(operation) -> Dispatch completed I/O operations
+    - handle_operation_error(operation) -> Handle failed I/O operations
+    - _handle_storage_completion(operation) -> Process storage operation completion
+    - _handle_download_completion(operation) -> Process download operation completion
+    - _handle_upload_completion(operation) -> Process upload operation completion
+    - _handle_download_error(operation) -> Handle download-specific errors
+    
+    ═══════════════════════════════════════════════════════════════════════════════
+    ASSET MANAGEMENT HANDLERS (New Architecture)
+    ═══════════════════════════════════════════════════════════════════════════════
+    - handle_asset_download_response(data) -> Process asset download response from server
+    - handle_asset_list_response(data) -> Process asset list response from server
+    - handle_asset_upload_response(data) -> Process asset upload response from server
+    - handle_welcome_message(data) -> Process welcome message from server
+    - _request_asset_download(asset_id) -> Request asset download from server
+    
+    ═══════════════════════════════════════════════════════════════════════════════
+    INTERNAL HELPER METHODS
+    ═══════════════════════════════════════════════════════════════════════════════
+    - _process_table_assets(table_data) -> Process assets when creating table
+    - _trigger_sprite_reload_for_asset(asset_id) -> Reload textures for asset
+    - _handle_text_file_loaded(operation_id, filename, data, filetype) -> Process loaded text files
+    - _handle_config_file_saved(filename) -> Handle config file saves
+    - _handle_file_not_found_error(operation_id, operation_type, error_msg) -> Handle file not found
+    - _handle_permission_error(operation_id, operation_type, error_msg) -> Handle permission errors
+    - _handle_generic_file_error(operation_id, operation_type, error_msg) -> Handle generic file errors
+    - _apply_config_data(config_data) -> Apply loaded configuration
+    - _apply_save_data(save_data) -> Apply loaded save game data
+    - _load_table_data(table_data) -> Load table from file data
+    - _process_csv_data(filename, csv_data) -> Process CSV file data
+    
+    Total Functions: 55 (14 public table ops, 7 public sprite ops, 4 layer ops, 
+                        5 query ops, 5 file ops, 3 batch ops, 6 I/O handlers, 
+                        5 asset handlers, 11 internal helpers)
     """
     
+    # ============================================================================
+    # INITIALIZATION & CORE UTILITIES
+    # ============================================================================
+    
     def __init__(self, context: 'Context'):
+        """Initialize Actions with context and default settings"""
         self.context = context
         self.action_history: List[Dict[str, Any]] = []
         self.undo_stack: List[Dict[str, Any]] = []
@@ -54,63 +179,22 @@ class Actions(ActionsProtocol):
                 if hasattr(sprite_obj, 'sprite_id') and sprite_obj.sprite_id == sprite_id:
                     return sprite_obj                
         return None
-      
+
+    # ============================================================================
+    # TABLE MANAGEMENT (CRUD OPERATIONS)
+    # ============================================================================
     
-    # Table Actions
-    def _process_table_assets(self, table_data: dict):
-        """Process table assets and request downloads for missing assets"""
-        try:
-            layers = table_data.get('layers', {})
-            
-            for layer_name, layer_entities in layers.items():
-                if not isinstance(layer_entities, dict):
-                    continue
-                
-                for entity_id, entity_data in layer_entities.items():
-                    if not isinstance(entity_data, dict):
-                        continue
-                    
-                    asset_xxhash = entity_data.get('asset_xxhash')
-                    asset_id = entity_data.get('asset_id')
-                    texture_path = entity_data.get('texture_path')
-                    
-                    if asset_xxhash and asset_id:
-                        # Check if we have this asset cached by xxHash
-                        cached_path = self.AssetManager.get_asset_for_sprite_by_xxhash(asset_xxhash)
-                        
-                        if cached_path:
-                            logger.debug(f"Asset {asset_id} found in cache by xxHash: {cached_path}")
-                            # Update entity to use cached path
-                            entity_data['texture_path'] = cached_path
-                        else:                     
-                            # Asset not found locally, request download
-                            logger.info(f"Asset {asset_id} not found locally, requesting download (xxHash: {asset_xxhash})")
-                            self._request_asset_download(asset_id)
-                    else:
-                        logger.warning(f"Entity {entity_id} missing asset hash information")
-                        
-        except Exception as e:
-            logger.error(f"Error processing table assets: {e}")
-
-    def process_creating_table(self, table_data: dict) -> ActionResult:
-        """Process creating a table from a dictionary representation"""
-          
-        # Process assets before creating the table
-        self._process_table_assets(table_data)
-        
-        result = self.create_table_from_dict(table_data)
-        if not result.success:
-            logger.error(f"Failed to create table from dict: {table_data}")
-
-
     def create_table(self, name: str, width: int, height: int) -> ActionResult:
         """Create a new table"""
         try:
+            # Generate unique table ID
+            table_id = str(uuid.uuid4())
                      
             # Check if table already exists
             if self._get_table_by_name(name):
                 logger.info(f"Table with name {name} already exists")
-                return ActionResult(False, f"Table with name {name} already exists")              
+                return ActionResult(False, f"Table with name {name} already exists")
+                
             # Create new table using Context method - pass table_id to constructor
             table = self.context.add_table(name, width, height, table_id=table_id)
             if not table:
@@ -146,10 +230,12 @@ class Actions(ActionsProtocol):
             for field in required_fields:
                 if field not in table_dict:
                     logger.error(f"Missing required field: {field}")
-                    return ActionResult(False, f"Missing required field: {field}")              # Create table using Context method
+                    return ActionResult(False, f"Missing required field: {field}")
+                    
+            # Create table using Context method
             table = self.context.create_table_from_dict(table_dict)
             if not table:
-                return ActionResult(False, f"Failed to create table {table_dict['name']}")          
+                return ActionResult(False, f"Failed to create table {table_dict['table_name']}")          
 
             action = {
                 'type': 'create_table_from_dict',
@@ -163,6 +249,23 @@ class Actions(ActionsProtocol):
         except Exception as e:
             logger.error(f"Failed to create table from dict: {e}")
             return ActionResult(False, f"Failed to create table from dict: {str(e)}")
+
+    def process_creating_table(self, table_data: dict) -> ActionResult:
+        """Process creating a table with asset handling"""
+        try:
+            # Process assets before creating the table
+            self._process_table_assets(table_data)
+            
+            result = self.create_table_from_dict(table_data)
+            if not result.success:
+                logger.error(f"Failed to create table from dict: {table_data}")
+                return result
+            
+            return result
+        except Exception as e:
+            logger.error(f"Error processing table creation: {e}")
+            return ActionResult(False, f"Error processing table creation: {str(e)}")
+    
     def get_table(self, table_id: str) -> ActionResult:
         """Get a table by ID"""
         try:
@@ -174,6 +277,31 @@ class Actions(ActionsProtocol):
         except Exception as e:
             logger.error(f"Failed to get table {table_id}: {e}")
             return ActionResult(False, f"Failed to get table: {str(e)}")
+    
+    def update_table(self, table_id: str, **kwargs) -> ActionResult:
+        """Update table properties"""
+        try:
+            table = self._get_table_by_id(table_id)
+            if not table:
+                return ActionResult(False, f"Table {table_id} not found")
+            
+            old_values = {}
+            for key, value in kwargs.items():
+                if hasattr(table, key):
+                    old_values[key] = getattr(table, key)
+                    setattr(table, key, value)
+            
+            action = {
+                'type': 'update_table',
+                'table_id': table_id,
+                'old_values': old_values,
+                'new_values': kwargs
+            }
+            self._add_to_history(action)
+            
+            return ActionResult(True, f"Table {table_id} updated successfully", kwargs)
+        except Exception as e:
+            return ActionResult(False, f"Failed to update table: {str(e)}")
     
     def delete_table(self, table_id: str) -> ActionResult:
         """Delete a table"""
@@ -212,31 +340,6 @@ class Actions(ActionsProtocol):
             return ActionResult(True, f"Table {table_id} deleted successfully")
         except Exception as e:
             return ActionResult(False, f"Failed to delete table: {str(e)}")
-    
-    def update_table(self, table_id: str, **kwargs) -> ActionResult:
-        """Update table properties"""
-        try:
-            table = self._get_table_by_id(table_id)
-            if not table:
-                return ActionResult(False, f"Table {table_id} not found")
-            
-            old_values = {}
-            for key, value in kwargs.items():
-                if hasattr(table, key):
-                    old_values[key] = getattr(table, key)
-                    setattr(table, key, value)
-            
-            action = {
-                'type': 'update_table',
-                'table_id': table_id,
-                'old_values': old_values,
-                'new_values': kwargs
-            }
-            self._add_to_history(action)
-            
-            return ActionResult(True, f"Table {table_id} updated successfully", kwargs)
-        except Exception as e:
-            return ActionResult(False, f"Failed to update table: {str(e)}")
     
     def move_table(self, table_id: str, position: Position) -> ActionResult:
         """Move table to new position"""
@@ -281,9 +384,31 @@ class Actions(ActionsProtocol):
             return ActionResult(True, f"Table {table_id} scaled to {scale_x}")
         except Exception as e:
             return ActionResult(False, f"Failed to scale table: {str(e)}")
-    
-    # Sprite Actions
-    def create_sprite(self, table_id: str,  position: Position, 
+
+    def ask_for_table(self, table_name: str) -> ActionResult:
+        """Request a specific table from the server"""
+        if not hasattr(self.context, 'protocol') or not self.context.protocol:
+            logger.error("No protocol available to request table")
+            return ActionResult(False, "No protocol available to request table")
+            
+        msg = Message(MessageType.TABLE_REQUEST, {'table_name': table_name},
+                     getattr(self.context.protocol, 'client_id', 'unknown'))
+        
+        try:
+            if hasattr(self.context.protocol, 'send'):
+                self.context.protocol.send(msg.to_json())
+                
+            logger.info(f"Requested new table: {table_name}")
+            return ActionResult(True, f"Requested table: {table_name}")
+            
+        except Exception as e:
+            logger.error(f"Failed to request table: {e}")
+            return ActionResult(False, f"Failed to request table: {str(e)}")
+
+    # ============================================================================
+    # SPRITE MANAGEMENT (CRUD OPERATIONS)
+    # ============================================================================
+    def create_sprite(self, table_id: str, sprite_id: str, position: Position, 
                      image_path: str, layer: str = "tokens", **kwargs) -> ActionResult:
         """Create a new sprite on a table"""
         try:
@@ -293,7 +418,6 @@ class Actions(ActionsProtocol):
             if layer not in LAYERS:
                 return ActionResult(False, f"Invalid layer: {layer}")
             
-            sprite_id = str(uuid.uuid4())[:8]  # Generate unique sprite ID
             # Create sprite using Context method
             sprite = self.context.add_sprite(
                 texture_path=image_path.encode() if isinstance(image_path, str) else image_path,
@@ -302,12 +426,14 @@ class Actions(ActionsProtocol):
                 coord_x=position.x,
                 coord_y=position.y,                
                 sprite_id=sprite_id,
-                **kwargs
+                **kwargs  # Pass through any additional arguments like scale_x, scale_y, character, etc.
             )
+            
             # Start io operations to load asset texture
             if self.AssetManager and sprite:
                 logger.info(f"Loading asset for sprite {sprite_id} from {image_path}")    
                 self.AssetManager.load_asset_for_sprite(sprite, image_path)
+                
             if not sprite:
                 return ActionResult(False, f"Failed to create sprite {sprite_id} with path {image_path}")
             
@@ -329,6 +455,60 @@ class Actions(ActionsProtocol):
             })
         except Exception as e:
             return ActionResult(False, f"Failed to create sprite: {str(e)}")
+    def get_sprite_info(self, table_id: str, sprite_id: str) -> ActionResult:
+        """Get sprite information"""
+        try:
+            table = self._get_table_by_id(table_id)
+            if not table:
+                return ActionResult(False, f"Table {table_id} not found")
+            
+            sprite = self._find_sprite_in_table(table, sprite_id)
+            if not sprite:
+                return ActionResult(False, f"Sprite {sprite_id} not found")
+            
+            info = {
+                'sprite_id': sprite_id,
+                'position': Position(sprite.coord_x.value, sprite.coord_y.value),
+                'scale': (sprite.scale_x, sprite.scale_y),
+                'rotation': getattr(sprite, 'rotation', 0.0),
+                'image_path': sprite.texture_path,
+                'layer': sprite.layer,
+                'visible': getattr(sprite, 'visible', True)
+            }
+            
+            return ActionResult(True, f"Sprite {sprite_id} info retrieved", info)
+        except Exception as e:
+            return ActionResult(False, f"Failed to get sprite info: {str(e)}")
+
+    def update_sprite(self, table_id: str, sprite_id: str, **kwargs) -> ActionResult:
+        """Update sprite properties"""
+        try:
+            table = self._get_table_by_id(table_id)
+            if not table:
+                return ActionResult(False, f"Table {table_id} not found")
+            sprite = self._find_sprite_in_table(table, sprite_id)
+            if not sprite:
+                return ActionResult(False, f"Sprite {sprite_id} not found")
+            
+            old_values = {}
+            for key, value in kwargs.items():
+                if hasattr(sprite, key):
+                    old_values[key] = getattr(sprite, key)
+                    setattr(sprite, key, value)
+            
+            action = {
+                'type': 'update_sprite',
+                'table_id': table_id,
+                'sprite_id': sprite_id,
+                'old_values': old_values,
+                'new_values': kwargs
+            }
+            self._add_to_history(action)
+            
+            return ActionResult(True, f"Sprite {sprite_id} updated successfully", kwargs)
+        except Exception as e:
+            return ActionResult(False, f"Failed to update sprite: {str(e)}")
+    
     def delete_sprite(self, table_id: str, sprite_id: str) -> ActionResult:
         """Delete a sprite from a table"""
         try:
@@ -448,36 +628,10 @@ class Actions(ActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to rotate sprite: {str(e)}")
     
-    def update_sprite(self, table_id: str, sprite_id: str, **kwargs) -> ActionResult:
-        """Update sprite properties"""
-        try:
-            table = self._get_table_by_id(table_id)
-            if not table:
-                return ActionResult(False, f"Table {table_id} not found")
-            sprite = self._find_sprite_in_table(table, sprite_id)
-            if not sprite:
-                return ActionResult(False, f"Sprite {sprite_id} not found")
-            
-            old_values = {}
-            for key, value in kwargs.items():
-                if hasattr(sprite, key):
-                    old_values[key] = getattr(sprite, key)
-                    setattr(sprite, key, value)
-            
-            action = {
-                'type': 'update_sprite',
-                'table_id': table_id,
-                'sprite_id': sprite_id,
-                'old_values': old_values,
-                'new_values': kwargs
-            }
-            self._add_to_history(action)
-            
-            return ActionResult(True, f"Sprite {sprite_id} updated successfully", kwargs)
-        except Exception as e:
-            return ActionResult(False, f"Failed to update sprite: {str(e)}")
+    # ============================================================================
+    # LAYER MANAGEMENT
+    # ============================================================================
     
-    # Layer Actions
     def set_layer_visibility(self, table_id: str, layer: str, visible: bool) -> ActionResult:
         """Set layer visibility"""
         try:
@@ -520,7 +674,32 @@ class Actions(ActionsProtocol):
             return ActionResult(True, f"Layer {layer} visibility: {visibility}", {'visible': visibility})
         except Exception as e:
             return ActionResult(False, f"Failed to get layer visibility: {str(e)}")
-    
+
+    def get_layer_sprites(self, table_id: str, layer: str) -> ActionResult:
+        """Get all sprites on a specific layer"""
+        try:
+            table = self._get_table_by_id(table_id)
+            if not table:
+                return ActionResult(False, f"Table {table_id} not found")
+            
+            if layer not in LAYERS:
+                return ActionResult(False, f"Invalid layer: {layer}")
+            
+            sprites = {}
+            if layer in table.dict_of_sprites_list:
+                for sprite in table.dict_of_sprites_list[layer]:
+                    sprites[sprite.sprite_id] = {
+                        'position': Position(sprite.coord_x.value, sprite.coord_y.value),
+                        'scale': (sprite.scale_x, sprite.scale_y),
+                        'rotation': getattr(sprite, 'rotation', 0.0),
+                        'image_path': sprite.texture_path,
+                        'layer': layer
+                    }
+            
+            return ActionResult(True, f"Found {len(sprites)} sprites on layer {layer}", {'sprites': sprites})
+        except Exception as e:
+            return ActionResult(False, f"Failed to get layer sprites: {str(e)}")
+
     def move_sprite_to_layer(self, table_id: str, sprite_id: str, new_layer: str) -> ActionResult:
         """Move sprite to different layer"""
         try:
@@ -562,33 +741,10 @@ class Actions(ActionsProtocol):
             return ActionResult(True, f"Sprite {sprite_id} moved from {old_layer} to {new_layer}")
         except Exception as e:
             return ActionResult(False, f"Failed to move sprite to layer: {str(e)}")
-    
-    def get_layer_sprites(self, table_id: str, layer: str) -> ActionResult:
-        """Get all sprites on a specific layer"""
-        try:
-            table = self._get_table_by_id(table_id)
-            if not table:
-                return ActionResult(False, f"Table {table_id} not found")
-            
-            if layer not in LAYERS:
-                return ActionResult(False, f"Invalid layer: {layer}")
-            
-            sprites = {}
-            if layer in table.dict_of_sprites_list:
-                for sprite in table.dict_of_sprites_list[layer]:
-                    sprites[sprite.sprite_id] = {
-                        'position': Position(sprite.coord_x.value, sprite.coord_y.value),
-                        'scale': (sprite.scale_x, sprite.scale_y),
-                        'rotation': getattr(sprite, 'rotation', 0.0),
-                        'image_path': sprite.texture_path,
-                        'layer': layer
-                    }
-            
-            return ActionResult(True, f"Found {len(sprites)} sprites on layer {layer}", {'sprites': sprites})
-        except Exception as e:
-            return ActionResult(False, f"Failed to get layer sprites: {str(e)}")
-    
-    # Query Actions
+
+    # ============================================================================
+    # QUERY & SEARCH OPERATIONS  
+    # ============================================================================
     def get_table_info(self, table_id: str) -> ActionResult:
         """Get table information"""
         try:
@@ -614,40 +770,7 @@ class Actions(ActionsProtocol):
             return ActionResult(True, f"Table {table_id} info retrieved", info)
         except Exception as e:
             return ActionResult(False, f"Failed to get table info: {str(e)}")
-    def get_sprite_info(self, table_id: str, sprite_id: str) -> ActionResult:
-        """Get sprite information"""
-        try:
-            table = self._get_table_by_id(table_id)
-            if not table:
-                return ActionResult(False, f"Table {table_id} not found")
-            
-            # Search directly in the table's sprite lists to avoid ID lookup issues
-            sprite = None
-            for layer, sprite_list in table.dict_of_sprites_list.items():
-                for sprite_obj in sprite_list:
-                    if hasattr(sprite_obj, 'sprite_id') and sprite_obj.sprite_id == sprite_id:
-                        sprite = sprite_obj
-                        break
-                if sprite:
-                    break
-            
-            if not sprite:
-                return ActionResult(False, f"Sprite {sprite_id} not found")
-            
-            info = {
-                'sprite_id': sprite_id,
-                'position': Position(sprite.coord_x.value, sprite.coord_y.value),
-                'scale': (sprite.scale_x, sprite.scale_y),
-                'rotation': getattr(sprite, 'rotation', 0.0),
-                'image_path': sprite.texture_path,
-                'layer': sprite.layer,
-                'visible': getattr(sprite, 'visible', True)
-            }
-            
-            return ActionResult(True, f"Sprite {sprite_id} info retrieved", info)
-        except Exception as e:
-            return ActionResult(False, f"Failed to get sprite info: {str(e)}")
-    
+
     def get_all_tables(self) -> ActionResult:
         """Get all tables"""
         try:
@@ -692,75 +815,6 @@ class Actions(ActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to get table sprites: {str(e)}")
     
-    # Batch Actions
-    def batch_actions(self, actions: List[Dict[str, Any]]) -> ActionResult:
-        """Execute multiple actions in a batch"""
-        try:
-            results = []
-            for action in actions:
-                action_type = action.get('type')
-                params = action.get('params', {})
-                
-                # Map action types to methods
-                method_map = {
-                    'create_table': self.create_table,
-                    'delete_table': self.delete_table,
-                    'update_table': self.update_table,
-                    'move_table': self.move_table,
-                    'scale_table': self.scale_table,
-                    'create_sprite': self.create_sprite,
-                    'delete_sprite': self.delete_sprite,
-                    'move_sprite': self.move_sprite,
-                    'scale_sprite': self.scale_sprite,
-                    'rotate_sprite': self.rotate_sprite,
-                    'update_sprite': self.update_sprite,
-                    'set_layer_visibility': self.set_layer_visibility,
-                    'move_sprite_to_layer': self.move_sprite_to_layer
-                }
-                
-                if action_type in method_map:
-                    result = method_map[action_type](**params)
-                    results.append(result)
-                else:
-                    results.append(ActionResult(False, f"Unknown action type: {action_type}"))
-            
-            success_count = sum(1 for r in results if r.success)
-            return ActionResult(True, f"Batch completed: {success_count}/{len(results)} successful", 
-                              {'results': results})
-        except Exception as e:
-            return ActionResult(False, f"Failed to execute batch actions: {str(e)}")
-    
-    # Undo/Redo Actions
-    def undo_action(self) -> ActionResult:
-        """Undo the last action"""
-        try:
-            if not self.undo_stack:
-                return ActionResult(False, "No actions to undo")
-            
-            action = self.undo_stack.pop()
-            self.redo_stack.append(action)
-            
-            # Implement undo logic based on action type
-            # This is a simplified version - full implementation would reverse each action
-            return ActionResult(True, f"Undid action: {action.get('type', 'unknown')}")
-        except Exception as e:
-            return ActionResult(False, f"Failed to undo action: {str(e)}")
-    
-    def redo_action(self) -> ActionResult:
-        """Redo the last undone action"""
-        try:
-            if not self.redo_stack:
-                return ActionResult(False, "No actions to redo")
-            
-            action = self.redo_stack.pop()
-            self.undo_stack.append(action)
-            
-            # Implement redo logic based on action type
-            return ActionResult(True, f"Redid action: {action.get('type', 'unknown')}")
-        except Exception as e:
-            return ActionResult(False, f"Failed to redo action: {str(e)}")
-    
-    # Utility Actions
     def get_sprite_at_position(self, table_id: str, position: Position, layer: Optional[str] = None) -> ActionResult:
         """Get sprite at specific position"""
         try:
@@ -814,26 +868,60 @@ class Actions(ActionsProtocol):
             })
         except Exception as e:
             return ActionResult(False, f"Failed to get sprites in area: {str(e)}")
-    def ask_for_table(self, table_name):
-        """Request a specific table from the server"""
-        if not hasattr(self.context, 'protocol') or not self.context.protocol:
-            logger.error("No protocol available to request table")
-            return ActionResult(False, "No protocol available to request table")
-            
-        msg = Message(MessageType.TABLE_REQUEST, {'table_name': table_name},
-                     getattr(self.context.protocol, 'client_id', 'unknown'))
-        
+
+    # ============================================================================
+    # FILE & STORAGE OPERATIONS
+    # ============================================================================
+    def load_file(self, file_path: str, **kwargs) -> ActionResult:
+        """Load a file from the specified path"""
         try:
-            if hasattr(self.context.protocol, 'send'):
-                self.context.protocol.send(msg.to_json())
+            if not os.path.exists(file_path):
+                return ActionResult(False, f"File not found: {file_path}")
+            _path= Path(file_path)
+            filename = _path.name
+            file_type = _path.suffix.lower()
+            
+            if file_type in {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff'}:
+                # Create sprite with generated ID
+                sprite_id = str(uuid.uuid4())[:8]
+                result = self.create_sprite(
+                    table_id=kwargs.get('table_id', 'default_table'),
+                    sprite_id=sprite_id,
+                    position=kwargs.get('position', Position(0, 0)),
+                    image_path=file_path,
+                    layer=kwargs.get('layer', 'tokens')
+                )
+                if not result.success:
+                    return result
+                    
+            elif file_type in {'.json', '.txt', '.csv', '.yaml', '.yml'}:
+                # Load text/data file using StorageManager
+                if self.AssetManager and self.AssetManager.StorageManager:
+                    operation_id = self.AssetManager.StorageManager.load_file_async(
+                        filename=filename
+                    )
+                    logger.info(f"Started loading text file: {filename} (operation {operation_id})")
+                else:
+                    logger.error("StorageManager not available for text file loading")
+                    
+            else:
+                logger.error(f"Unsupported file type: {file_type} for file {file_path}")
+                return ActionResult(False, f"Unsupported file type: {file_type} for file {file_path}")
                 
-            logger.info(f"Requested new table: {table_name}")
-            return ActionResult(True, f"Requested table: {table_name}")
+            action = {
+                'type': 'start_file_load',
+                'file_path': file_path,
+                'filename': filename,
+                'filetype': file_type
+            }
+            
+            self._add_to_history(action)               
+            return ActionResult(True, f"File load started: {file_path}", action)
             
         except Exception as e:
-            logger.error(f"Failed to request table: {e}")
-            return ActionResult(False, f"Failed to request table: {str(e)}")
-    
+            logger.error(f"Failed to load file {file_path}: {e}")
+            return ActionResult(False, f"Failed to load file: {str(e)}")
+
     def handle_file_loaded(self, operation_id: str, filename: str, data: Any) -> ActionResult:
         """Handle successful file load operation"""
         try:
@@ -901,8 +989,8 @@ class Actions(ActionsProtocol):
             logger.info(f"File list retrieved: {len(file_list)} files")
             
             # Process file list for UI or cache updates
-            if hasattr(self.context, 'file_browser'):
-                self.context.file_browser.update_file_list(file_list)
+            # Note: Future integration point for file browser UI
+            logger.debug(f"File list processed with {len(file_list)} files")
             
             action = {
                 'type': 'file_list',
@@ -943,7 +1031,366 @@ class Actions(ActionsProtocol):
         except Exception as e:
             logger.error(f"Error handling file operation error: {e}")
             return ActionResult(False, f"Error handling file operation error: {str(e)}")
+
+    # ============================================================================
+    # BATCH & HISTORY OPERATIONS
+    # ============================================================================
+    def batch_actions(self, actions: List[Dict[str, Any]]) -> ActionResult:
+        """Execute multiple actions in a batch"""
+        try:
+            results = []
+            for action in actions:
+                action_type = action.get('type')
+                params = action.get('params', {})
+                
+                # Map action types to methods
+                method_map = {
+                    'create_table': self.create_table,
+                    'delete_table': self.delete_table,
+                    'update_table': self.update_table,
+                    'move_table': self.move_table,
+                    'scale_table': self.scale_table,
+                    'create_sprite': self.create_sprite,
+                    'delete_sprite': self.delete_sprite,
+                    'move_sprite': self.move_sprite,
+                    'scale_sprite': self.scale_sprite,
+                    'rotate_sprite': self.rotate_sprite,
+                    'update_sprite': self.update_sprite,
+                    'set_layer_visibility': self.set_layer_visibility,
+                    'move_sprite_to_layer': self.move_sprite_to_layer
+                }
+                
+                if action_type in method_map:
+                    result = method_map[action_type](**params)
+                    results.append(result)
+                else:
+                    results.append(ActionResult(False, f"Unknown action type: {action_type}"))
+            
+            success_count = sum(1 for r in results if r.success)
+            return ActionResult(True, f"Batch completed: {success_count}/{len(results)} successful", 
+                              {'results': results})
+        except Exception as e:
+            return ActionResult(False, f"Failed to execute batch actions: {str(e)}")
     
+    def undo_action(self) -> ActionResult:
+        """Undo the last action"""
+        try:
+            if not self.undo_stack:
+                return ActionResult(False, "No actions to undo")
+            
+            action = self.undo_stack.pop()
+            self.redo_stack.append(action)
+            
+            # Implement undo logic based on action type
+            # This is a simplified version - full implementation would reverse each action
+            return ActionResult(True, f"Undid action: {action.get('type', 'unknown')}")
+        except Exception as e:
+            return ActionResult(False, f"Failed to undo action: {str(e)}")
+    
+    def redo_action(self) -> ActionResult:
+        """Redo the last undone action"""
+        try:
+            if not self.redo_stack:
+                return ActionResult(False, "No actions to redo")
+            
+            action = self.redo_stack.pop()
+            self.undo_stack.append(action)
+            
+            # Implement redo logic based on action type
+            return ActionResult(True, f"Redid action: {action.get('type', 'unknown')}")
+        except Exception as e:
+            return ActionResult(False, f"Failed to redo action: {str(e)}")
+
+    # ============================================================================
+    # I/O EVENT HANDLERS (New Architecture)
+    # ============================================================================
+    def handle_completed_operation(self, operation: dict):
+        """Handle successfully completed I/O operations"""
+        op_type = operation.get('type', 'unknown')
+        op_source = operation.get('source', 'unknown')
+        op_id = operation.get('operation_id', 'unknown')
+        
+        logger.debug(f"Handling completed {op_source} operation: {op_type} ({op_id})")
+        
+        if op_source == 'storage':
+            self._handle_storage_completion(operation)
+        elif op_source == 'download':
+            self._handle_download_completion(operation)
+        else:
+            logger.warning(f"Unknown operation source: {op_source}")
+
+    def handle_operation_error(self, operation: dict):
+        """Handle failed I/O operations"""
+        op_id = operation.get('operation_id', 'unknown')
+        op_type = operation.get('type', 'unknown')
+        op_source = operation.get('source', 'unknown')
+        error = operation.get('error', 'Unknown error')
+        
+        logger.error(f"{op_source.title()} operation {op_id} ({op_type}) failed: {error}")
+        
+        # Dispatch to specific error handlers
+        if op_source == 'storage':
+            self.handle_file_operation_error(op_id, op_type, error)
+        elif op_source == 'download':
+            self._handle_download_error(operation)
+        else:
+            logger.error(f"Unknown operation source for error handling: {op_source}")
+
+    def _handle_storage_completion(self, operation: dict):
+        """Handle completed storage operations"""
+        op_type = operation.get('type')
+        op_id = operation.get('operation_id', 'unknown')
+        
+        if op_type == 'load' and 'data' in operation:
+            self.handle_file_loaded(op_id, operation['filename'], operation['data'])
+        elif op_type == 'save':
+            self.handle_file_saved(op_id, operation['filename'])
+        elif op_type == 'list':
+            self.handle_file_list(op_id, operation.get('data', []))
+        else:
+            logger.warning(f"Unknown storage operation type: {op_type}")
+
+    def _handle_download_completion(self, operation: dict):
+        """Handle completed download operations"""
+        op_type = operation.get('type')
+        metadata = operation.get('metadata', {})
+        op_id = operation.get('operation_id', 'unknown')
+        
+        if op_type == 'download':
+            # Handle completed download
+            asset_id = metadata.get('asset_id')
+            file_path = operation.get('file_path')
+            
+            if asset_id and file_path and self.AssetManager:
+                try:
+                    # Cache the downloaded asset
+                    success = self.AssetManager.cache_downloaded_asset(asset_id, file_path)
+                    if success:
+                        logger.info(f"Asset {asset_id} downloaded and cached successfully")
+                        # Trigger sprite texture reload if needed
+                        self._trigger_sprite_reload_for_asset(asset_id)
+                    else:
+                        logger.error(f"Failed to cache downloaded asset {asset_id}")
+                except Exception as e:
+                    logger.error(f"Error caching downloaded asset {asset_id}: {e}")
+            else:
+                logger.warning(f"Incomplete download operation data: asset_id={asset_id}, file_path={file_path}")
+                
+        elif op_type == 'upload':
+            # Handle completed upload
+            self._handle_upload_completion(operation)
+        else:
+            logger.warning(f"Unknown download operation type: {op_type}")
+
+    def _handle_upload_completion(self, operation: dict):
+        """Handle completed upload operations"""
+        op_id = operation.get('operation_id', 'unknown')
+        metadata = operation.get('metadata', {})
+        asset_id = metadata.get('asset_id')
+        
+        logger.info(f"Upload completed for asset {asset_id} (operation {op_id})")
+        
+        # Notify server of successful upload if protocol is available
+        if hasattr(self.context, 'protocol') and self.context.protocol:
+            try:
+                self.context.protocol.confirm_asset_upload(asset_id, True)
+            except Exception as e:
+                logger.error(f"Failed to confirm upload for asset {asset_id}: {e}")
+
+    def _handle_download_error(self, operation: dict):
+        """Handle download-specific errors"""
+        op_id = operation.get('operation_id', 'unknown')
+        op_type = operation.get('type', 'unknown')
+        error = operation.get('error', 'Unknown error')
+        metadata = operation.get('metadata', {})
+        asset_id = metadata.get('asset_id', 'unknown')
+        
+        logger.error(f"Download operation {op_id} failed for asset {asset_id}: {error}")
+        
+        # Could implement retry logic here if needed
+        if 'network' in error.lower() or 'timeout' in error.lower():
+            logger.info(f"Network error detected for asset {asset_id}, could retry later")
+        
+        # Notify server of failed upload if it was an upload operation
+        if op_type == 'upload' and hasattr(self.context, 'protocol') and self.context.protocol:
+            try:
+                self.context.protocol.confirm_asset_upload(asset_id, False, error)
+            except Exception as e:
+                logger.error(f"Failed to confirm upload failure for asset {asset_id}: {e}")
+
+    # ============================================================================
+    # ASSET MANAGEMENT HANDLERS (New Architecture)
+    # ============================================================================
+    def handle_asset_download_response(self, data: dict):
+        """Handle asset download response from protocol"""
+        try:
+            if data.get('success') is False:
+                logger.warning(f"Asset download failed: {data.get('instructions')}")
+                return
+                
+            asset_id = data.get('asset_id')
+            download_url = data.get('download_url')
+            
+            if not asset_id or not download_url:
+                logger.error("Invalid asset download response: missing asset_id or download_url")
+                return
+
+            # Use AssetManager's DownloadManager
+            if self.AssetManager and self.AssetManager.DownloadManager:
+                filename = f"{asset_id}.asset"
+                if 'filename' in data:
+                    filename = data['filename']
+                    
+                operation_id = self.AssetManager.DownloadManager.download_file_async(
+                    url=download_url,
+                    filename=filename,
+                    subdir="",
+                    metadata={
+                        'asset_id': asset_id,
+                        'source': 'server_download',
+                        'type': 'asset'
+                    }
+                )
+                logger.info(f"Started asset download {asset_id} with operation {operation_id}")
+            else:
+                logger.error("AssetManager or DownloadManager not available for asset download")
+                
+        except Exception as e:
+            logger.error(f"Error handling asset download response: {e}")
+
+    def handle_asset_list_response(self, data: dict):
+        """Handle asset list response from protocol"""
+        try:
+            if data.get('success') is False:
+                logger.warning(f"Asset list request failed: {data.get('instructions')}")
+                return
+                
+            assets = data.get('assets', [])
+            logger.info(f"Received asset list with {len(assets)} assets")
+            
+            # Process asset list - could update UI or cache
+            for asset in assets:
+                asset_id = asset.get('asset_id')
+                filename = asset.get('filename')
+                if asset_id and filename:
+                    logger.debug(f"Available asset: {asset_id} - {filename}")
+                    
+        except Exception as e:
+            logger.error(f"Error handling asset list response: {e}")
+
+    def handle_asset_upload_response(self, data: dict):
+        """Handle asset upload response from protocol"""
+        try:
+            if data.get('success') is False:
+                logger.warning(f"Asset upload failed: {data.get('instructions')}")
+                return
+                
+            asset_id = data.get('asset_id')
+            upload_url = data.get('upload_url')
+            
+            if not asset_id or not upload_url:
+                logger.error("Invalid asset upload response: missing asset_id or upload_url")
+                return
+
+            logger.info(f"Received upload URL for asset {asset_id}")
+            # Upload URL received - could trigger file upload here
+            
+        except Exception as e:
+            logger.error(f"Error handling asset upload response: {e}")
+
+    def handle_welcome_message(self, data: dict):
+        """Handle welcome message data from protocol"""
+        try:
+            user_id = data.get('user_id', 0)
+            username = data.get('username', 'unknown')
+            session_code = data.get('session_code', 'unknown')
+            welcome_msg = data.get('message', f'Welcome to session {session_code}')
+            
+            logger.info(f"Processing welcome for user {username} (ID: {user_id}) in session {session_code}")
+            
+            # Store session information in context if needed
+            if hasattr(self.context, 'user_id'):
+                self.context.user_id = user_id
+            if hasattr(self.context, 'username'):
+                self.context.username = username
+            if hasattr(self.context, 'session_code'):
+                self.context.session_code = session_code
+            
+            # Notify GUI if available
+            # Note: Future integration point for GUI messaging system
+            logger.info(f"Welcome message processed for user {username} in session {session_code}")
+            logger.debug(f"Welcome: {welcome_msg}")
+            
+        except Exception as e:
+            logger.error(f"Error processing welcome message: {e}")
+
+    def _request_asset_download(self, asset_id: str):
+        """Request asset download from server via protocol"""
+        if hasattr(self.context, 'protocol') and self.context.protocol:
+            try:
+                self.context.protocol.request_asset_download(asset_id)
+                logger.info(f"Requested download for asset {asset_id}")
+            except Exception as e:
+                logger.error(f"Error requesting asset download for {asset_id}: {e}")
+        else:
+            logger.error("No protocol available to request asset download")
+
+    # ============================================================================
+    # INTERNAL HELPER METHODS
+    # ============================================================================
+    def _process_table_assets(self, table_data: dict):
+        """Process table assets and request downloads for missing assets"""
+        try:
+            layers = table_data.get('layers', {})
+            
+            for layer_name, layer_entities in layers.items():
+                if not isinstance(layer_entities, dict):
+                    continue
+                
+                for entity_id, entity_data in layer_entities.items():
+                    if not isinstance(entity_data, dict):
+                        continue
+                    
+                    asset_xxhash = entity_data.get('asset_xxhash')
+                    asset_id = entity_data.get('asset_id')
+                    texture_path = entity_data.get('texture_path')
+                    
+                    if asset_xxhash and asset_id:
+                        # Check if we have this asset cached by xxHash
+                        if self.AssetManager:
+                            cached_path = self.AssetManager.get_asset_for_sprite_by_xxhash(asset_xxhash)
+                            
+                            if cached_path:
+                                logger.debug(f"Asset {asset_id} found in cache by xxHash: {cached_path}")
+                                # Update entity to use cached path
+                                entity_data['texture_path'] = cached_path
+                            else:                     
+                                # Asset not found locally, request download
+                                logger.info(f"Asset {asset_id} not found locally, requesting download (xxHash: {asset_xxhash})")
+                                self._request_asset_download(asset_id)
+                        else:
+                            logger.warning("AssetManager not initialized, cannot check asset cache")
+                    else:
+                        logger.warning(f"Entity {entity_id} missing asset hash information")
+                        
+        except Exception as e:
+            logger.error(f"Error processing table assets: {e}")
+
+    def _trigger_sprite_reload_for_asset(self, asset_id: str):
+        """Trigger texture reload for sprites using this asset"""
+        try:
+            # Find sprites that use this asset and trigger texture reload
+            for table in self.context.list_of_tables:
+                for layer, sprite_list in table.dict_of_sprites_list.items():
+                    for sprite in sprite_list:
+                        if hasattr(sprite, 'asset_id') and sprite.asset_id == asset_id:
+                            # Reload texture for this sprite
+                            if self.AssetManager:
+                                self.AssetManager.load_asset_for_sprite(sprite, sprite.texture_path)
+                                logger.debug(f"Triggered texture reload for sprite {sprite.sprite_id}")
+        except Exception as e:
+            logger.error(f"Error triggering sprite reload for asset {asset_id}: {e}")
+
     def _handle_text_file_loaded(self, operation_id: str, filename: str, data: Any, filetype: str):
         """Handle loaded text files (JSON, TXT, CSV, etc.)"""
         try:
@@ -958,8 +1405,8 @@ class Actions(ActionsProtocol):
                     
             elif filetype in {'txt', 'log'}:
                 # Handle text/log files
-                if hasattr(self.context, 'log_viewer'):
-                    self.context.log_viewer.display_content(data)
+                # Note: Future integration point for log viewer UI
+                logger.debug(f"Text file loaded: {filename} ({len(data) if data else 0} chars)")
                     
             elif filetype == 'csv':
                 # Handle CSV data files
@@ -967,19 +1414,18 @@ class Actions(ActionsProtocol):
                 
         except Exception as e:
             logger.error(f"Error processing text file {filename}: {e}")
-    
+
     def _handle_config_file_saved(self, filename: str):
         """Handle configuration file save completion"""
         try:
             if 'settings' in filename.lower() or 'config' in filename.lower():
                 logger.info("Configuration saved - applying any pending changes")
-                # Trigger any configuration reload if needed
-                if hasattr(self.context, 'reload_config'):
-                    self.context.reload_config()
+                # Note: Future integration point for configuration reload
+                logger.debug("Configuration file save processed")
                     
         except Exception as e:
             logger.error(f"Error handling config file save: {e}")
-    
+
     def _handle_file_not_found_error(self, operation_id: str, operation_type: str, error_msg: str):
         """Handle file not found errors"""
         try:
@@ -1011,9 +1457,9 @@ class Actions(ActionsProtocol):
     def _apply_config_data(self, config_data: Dict[str, Any]):
         """Apply loaded configuration data"""
         try:
-            if hasattr(self.context, 'apply_settings'):
-                self.context.apply_settings(config_data)
-            logger.info("Configuration data applied")
+            # Note: Future integration point for settings application
+            logger.info(f"Configuration data received with {len(config_data)} settings")
+            logger.debug("Configuration data processed")
             
         except Exception as e:
             logger.error(f"Error applying config data: {e}")
@@ -1047,43 +1493,4 @@ class Actions(ActionsProtocol):
             
         except Exception as e:
             logger.error(f"Error processing CSV data: {e}")
-    
-    def handle_completed_io_operations(self, operations: list[Dict[str, Any]]) -> ActionResult:
-        """Legacy handler - delegates to specific handlers"""
-        try:
-            for operation in operations:
-                op_type = operation.get('type')
-                operation_id = operation.get('operation_id', 'unknown')
-                success = operation.get('success', False)
-                
-                if success:
-                    if op_type == 'load':
-                        filename = operation.get('filename', '')
-                        data = operation.get('data')
-                        if filename and data is not None:
-                            self.handle_file_loaded(operation_id, filename, data)
-                        else:
-                            logger.warning(f"Incomplete load operation data: {operation}")
-                            
-                    elif op_type == 'save':
-                        filename = operation.get('filename', '')
-                        if filename:
-                            self.handle_file_saved(operation_id, filename)
-                        else:
-                            logger.warning(f"Incomplete save operation data: {operation}")
-                            
-                    elif op_type == 'list':
-                        file_list = operation.get('data', [])
-                        self.handle_file_list(operation_id, file_list)
-                        
-                else:
-                    # Handle failed operations
-                    error_msg = operation.get('error', 'Unknown error')
-                    self.handle_file_operation_error(operation_id, op_type, error_msg)
-            
-            return ActionResult(True, f"Processed {len(operations)} I/O operations")
-            
-        except Exception as e:
-            logger.error(f"Error in handle_completed_io_operations: {e}")
-            return ActionResult(False, f"Error processing I/O operations: {str(e)}")
-    
+

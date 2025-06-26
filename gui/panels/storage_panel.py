@@ -24,9 +24,9 @@ class StoragePanel:
     
     def __init__(self, context, actions_bridge):
         self.context = context
-        self.actions_bridge = actions_bridge
-          # Initialize storage system components        
-        self.StorageManager = context.StorageManager  
+        self.actions_bridge = actions_bridge          
+        # Initialize storage system components        
+        
         self.r2_manager = R2AssetManager()
         self.R2_ENABLED = settings.R2_ENABLED
         # Panel state

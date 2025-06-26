@@ -1,27 +1,14 @@
 """
 Drag and Drop System for TTRPG Application.
-
-Modern, minimal implementation that follows the new architecture:
 - Only handles drag-drop events and validation
 - Delegates all file/storage/network operations to Actions
-- No legacy code, fallbacks, or direct file operations
 """
 
 import logging
 import os
 from typing import Optional
+import sdl3
 
-# Import SDL3 constants - adjust import based on your SDL3 setup
-try:
-    import sdl3
-except ImportError:
-    # Fallback for development environments without SDL3
-    class SDL3Constants:
-        SDL_EVENT_DROP_FILE = 0x1000
-        SDL_EVENT_DROP_TEXT = 0x1001
-        SDL_EVENT_DROP_BEGIN = 0x1002
-        SDL_EVENT_DROP_COMPLETE = 0x1003
-    sdl3 = SDL3Constants()
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +22,7 @@ class Position:
 
 def handle_drag_drop_event(context, event) -> bool:
     """
-    Handle drag and drop events using modern architecture.
+    Handle drag and drop events using new architecture.
     
     Args:
         context: Application context with Actions

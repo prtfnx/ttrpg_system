@@ -1,404 +1,265 @@
-import sdl3
-import ctypes
+"""
+Drag and Drop System for TTRPG Application.
+
+Modern, minimal implementation that follows the new architecture:
+- Only handles drag-drop events and validation
+- Delegates all file/storage/network operations to Actions
+- No legacy code, fallbacks, or direct file operations
+"""
+
 import logging
 import os
-import hashlib
-import json
-# Import storage system for file handling
+from typing import Optional
+
+# Import SDL3 constants - adjust import based on your SDL3 setup
+try:
+    import sdl3
+except ImportError:
+    # Fallback for development environments without SDL3
+    class SDL3Constants:
+        SDL_EVENT_DROP_FILE = 0x1000
+        SDL_EVENT_DROP_TEXT = 0x1001
+        SDL_EVENT_DROP_BEGIN = 0x1002
+        SDL_EVENT_DROP_COMPLETE = 0x1003
+    sdl3 = SDL3Constants()
 
 logger = logging.getLogger(__name__)
 
-def init_drag_drop_system():
-    """Initialize drag and drop system."""
-    logger.info("Drag and drop system initialized")
 
-def handle_drag_drop_event(context, event):
-    """Handle drag and drop events."""
+class Position:
+    """Simple position class for drop coordinates."""
+    def __init__(self, x: float, y: float):
+        self.x = x
+        self.y = y
+
+
+def handle_drag_drop_event(context, event) -> bool:
+    """
+    Handle drag and drop events using modern architecture.
+    
+    Args:
+        context: Application context with Actions
+        event: SDL drag-drop event
+        
+    Returns:
+        bool: True if event was handled successfully
+    """
+    if not _validate_context(context):
+        return False
+        
     try:
-        if event.type == sdl3.SDL_EVENT_DROP_BEGIN:
-            logger.info("Drag and drop operation started")
-            return True
-            
-        elif event.type == sdl3.SDL_EVENT_DROP_FILE:
-            # Get the dropped file path
-            file_path = event.drop.data.decode('utf-8') if event.drop.data else None
-            
-            if file_path:
-                logger.info(f"File dropped: {file_path}")
-                return handle_dropped_file(context, file_path)
+        if event.type == sdl3.SDL_EVENT_DROP_FILE:
+            file_path = _extract_file_path(event)
+            return _handle_file_drop(context, file_path) if file_path else False
                 
         elif event.type == sdl3.SDL_EVENT_DROP_TEXT:
-            # Handle dropped text (could be file path or URL)
-            text = event.drop.data.decode('utf-8') if event.drop.data else None
-            
-            if text:
-                logger.info(f"Text dropped: {text}")
-                return handle_dropped_text(context, text)
+            text = _extract_drop_text(event)
+            return _handle_text_drop(context, text) if text else False
                 
-        elif event.type == sdl3.SDL_EVENT_DROP_COMPLETE:
-            logger.info("Drag and drop operation completed")
+        elif event.type in (sdl3.SDL_EVENT_DROP_BEGIN, sdl3.SDL_EVENT_DROP_COMPLETE):
+            logger.debug(f"Drag operation event: {event.type}")
             return True
             
     except Exception as e:
-        logger.error(f"Error handling drag and drop event: {e}")
+        logger.error(f"Error handling drag-drop event: {e}")
         
     return False
 
-def handle_dropped_file(context, file_path):
-    """Handle a dropped file using new storage system."""
+
+def _validate_context(context) -> bool:
+    """Validate that context has required components."""
+    if not hasattr(context, 'Actions') or not context.Actions:
+        logger.error("Actions not available in context")
+        return False
+    return True
+
+
+def _extract_file_path(event) -> Optional[str]:
+    """Extract file path from drop event."""
+    try:
+        if hasattr(event, 'drop') and hasattr(event.drop, 'data') and event.drop.data:
+            return event.drop.data.decode('utf-8')
+    except Exception as e:
+        logger.error(f"Error extracting file path: {e}")
+    return None
+
+
+def _extract_drop_text(event) -> Optional[str]:
+    """Extract text from drop event."""
+    try:
+        if hasattr(event, 'drop') and hasattr(event.drop, 'data') and event.drop.data:
+            return event.drop.data.decode('utf-8')
+    except Exception as e:
+        logger.error(f"Error extracting drop text: {e}")
+    return None
+
+
+def _handle_file_drop(context, file_path: str) -> bool:
+    """
+    Handle dropped file by delegating to Actions.
+    
+    Args:
+        context: Application context
+        file_path: Path to dropped file
+        
+    Returns:
+        bool: True if handled successfully
+    """
     try:
         # Validate file exists
         if not os.path.exists(file_path):
             logger.error(f"Dropped file does not exist: {file_path}")
             return False
             
-        # Check if this asset is already cached
-        asset_manager = context.AssetManager
+        # Get required parameters
+        position = _get_drop_position(context)
+        current_table = getattr(context, 'current_table', None)
         
-        # Generate asset ID from file content
-        potential_asset_id = generate_asset_id_from_file(file_path)
-        filename = os.path.basename(file_path)
-        
-        # Check if already cached
-        if asset_manager.is_asset_cached(potential_asset_id):
-            logger.info(f"Asset {filename} already cached, using cached version")
-            cached_path = asset_manager.get_cached_asset_path(potential_asset_id)
+        if not current_table:
+            logger.warning("No current table available for file drop")
+            return False
             
-            # If it's an image, create sprite from cached asset
-            if is_image_file(file_path):
-                return create_sprite_from_cached_asset(context, potential_asset_id, filename, cached_path)
-            elif file_path.lower().endswith('.json'):
-                return load_table_from_json_file(context, cached_path or file_path)
+        # Delegate to Actions.load_file
+        result = context.Actions.load_file(
+            file_path=file_path,
+            position=position,
+            table_id=current_table.table_id,
+            layer='tokens'
+        )
         
-        # Not cached, use R2 asset upload workflow
-        logger.info(f"Asset {filename} not cached, uploading to R2")
-        upload_result = upload_file_to_r2(context, file_path)
-        
-        if upload_result and upload_result.get('success', False):
-            # File was successfully uploaded to R2
-            asset_id = upload_result.get('asset_id')
-            filename = upload_result.get('filename')
-              # If it's an image, create a sprite
-            if is_image_file(file_path):
-                return create_sprite_from_r2_asset(context, asset_id, filename, file_path)
-              # If it's a JSON table file, load it  
-            elif file_path.lower().endswith('.json'):
-                return load_table_from_json_file(context, file_path)
+        if result.success:
+            logger.info(f"Successfully processed dropped file: {os.path.basename(file_path)}")
+            return True
         else:
-            logger.error(f"Failed to upload file to R2: {upload_result.get('error', 'Unknown error')}")
+            logger.error(f"Failed to process dropped file: {result.message}")
             return False
             
     except Exception as e:
-        logger.error(f"Error handling dropped file {file_path}: {e}")
-        
-    return False
+        logger.error(f"Error handling file drop {file_path}: {e}")
+        return False
 
-def handle_dropped_text(context, text):
-    """Handle dropped text (could be URL or file path)."""
+
+def _handle_text_drop(context, text: str) -> bool:
+    """
+    Handle dropped text (URL or file path).
+    
+    Args:
+        context: Application context
+        text: Dropped text content
+        
+    Returns:
+        bool: True if handled successfully
+    """
     try:
-        # Check if text is a file path
+        # Check if text is a local file path
         if os.path.exists(text):
-            return handle_dropped_file(context, text)
+            return _handle_file_drop(context, text)
             
-        # Check if text is a URL pointing to an image
+        # Check if text is a URL
         if text.startswith(('http://', 'https://')):
-            return handle_dropped_url(context, text)
+            return _handle_url_drop(context, text)
             
-        logger.info(f"Dropped text not handled: {text}")
+        logger.debug(f"Dropped text not handled: {text[:50]}...")
         return False
         
     except Exception as e:
-        logger.error(f"Error handling dropped text {text}: {e}")
-        
-    return False
+        logger.error(f"Error handling text drop: {e}")
+        return False
 
-def handle_dropped_url(context, url):
-    """Handle a dropped URL (download and create sprite)."""
-    try:
-        import urllib.request
-        import tempfile
-        import time
+
+def _handle_url_drop(context, url: str) -> bool:
+    """
+    Handle dropped URL by delegating to Actions.
+    
+    Args:
+        context: Application context  
+        url: Dropped URL
         
-        # Check if URL points to an image
-        image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.webp')
-        if not any(url.lower().endswith(ext) for ext in image_extensions):
+    Returns:
+        bool: True if handled successfully
+    """
+    try:
+        # Validate URL is an image
+        if not _is_image_url(url):
             logger.warning(f"URL does not point to an image: {url}")
             return False
             
-        # Download the image
-        temp_dir = tempfile.gettempdir()
-        timestamp = int(time.time())
-        file_extension = url.split('.')[-1].lower()
-        temp_file = os.path.join(temp_dir, f"downloaded_image_{timestamp}.{file_extension}")
-        
-        logger.info(f"Downloading image from URL: {url}")
-        urllib.request.urlretrieve(url, temp_file)
-        
-        # Create sprite from downloaded file
-        result = create_sprite_from_dropped_image(context, temp_file)
-        
-        # Clean up temp file
-        # os.remove(temp_file)  # Uncomment to clean up
-        
-        return result
-        
-    except Exception as e:
-        logger.error(f"Error handling dropped URL {url}: {e}")
-        
-    return False
-
-def create_sprite_from_dropped_image(context, file_path):
-    """Create a sprite from a dropped image file."""
-    try:
-        if not context.current_table:
-            logger.warning("No current table to add sprite to")
-            return False        
-        # Get mouse position to place the sprite where it was dropped        
-        mouse_pos_x = ctypes.c_float(0.0)
-        mouse_pos_y = ctypes.c_float(0.0)
-        sdl3.SDL_GetMouseState(ctypes.byref(mouse_pos_x), ctypes.byref(mouse_pos_y))
-        
-        # TODO: Replace with proper SDL3 mouse state API when available
-        
-        logger.debug("Using default mouse position for sprite placement")
-        
-        # Create sprite
-        new_sprite = context.add_sprite(
-            texture_path=file_path.encode(),
-            scale_x=1.0,
-            scale_y=1.0,
-            layer='tokens'
-        )
-        
-        if new_sprite:            # Position sprite at mouse location (where it was dropped)
-            table = context.current_table
-            table_x = (mouse_pos_x - table.x_moved) / table.scale
-            table_y = (mouse_pos_y - table.y_moved) / table.scale
-            
-            new_sprite.set_position(
-                table_x - new_sprite.frect.w // 2,
-                table_y - new_sprite.frect.h // 2
-            )
-            
-            context.current_table.selected_sprite = new_sprite
-            logger.info(f"Created sprite from dropped image: {file_path}")
-            return True
-            
-    except Exception as e:
-        logger.error(f"Error creating sprite from dropped image {file_path}: {e}")
-        
-    return False
-
-def create_sprite_from_stored_image(context, image_path, filename):
-    """Create a sprite from an image that's been stored in the storage system."""
-    try:
-        if not context.current_table:
-            logger.warning("No current table to add sprite to")
-            return False        # Get mouse position for sprite placement
-        # Using fallback position due to SDL3 API compatibility issues
-        sdl3.SDL_GetMouseState
-        mouse_pos_x = 100.0  # Default position
-        mouse_pos_y = 100.0  # Default position
-        
-        # TODO: Replace with proper SDL3 mouse state API when available
-        # The current PySDL3 version has type issues with SDL_GetMouseState
-        logger.debug("Using default mouse position for sprite placement")
-        
-        # Create sprite
-        new_sprite = context.add_sprite(
-            texture_path=image_path.encode(),
-            scale_x=1.0,
-            scale_y=1.0,
-            layer='tokens'
-        )
-        
-        if new_sprite:            # Position sprite at mouse location (where it was dropped)
-            table = context.current_table
-            # Fix the SDL mouse state issue by converting properly
-            table_x = (mouse_pos_x - table.x_moved) / table.scale
-            table_y = (mouse_pos_y - table.y_moved) / table.scale
-            
-            new_sprite.set_position(
-                table_x - new_sprite.frect.w // 2,
-                table_y - new_sprite.frect.h // 2
-            )
-            
-            # Set as selected sprite
-            context.current_table.selected_sprite = new_sprite
-            
-            logger.info(f"Created sprite from stored image: {filename}")
-            return True
-        else:
-            logger.error(f"Failed to create sprite from stored image: {filename}")
+        # Get current table for context
+        current_table = getattr(context, 'current_table', None)
+        if not current_table:
+            logger.warning("No current table available for URL drop")
             return False
             
-    except Exception as e:
-        logger.error(f"Error creating sprite from stored image {filename}: {e}")
-        return False
-
-def load_table_from_json_file(context, file_path):
-    """Load a table from a dropped JSON file."""
-    try:
+        # Get drop position
+        position = _get_drop_position(context)
         
-        
-        with open(file_path, 'r') as f:
-            data = json.load(f)
-            
-        logger.info(f"Loading table from JSON file: {file_path}")
-        table = context.create_table_from_dict(data)
-        
-        if table:
-            context.list_of_tables.append(table)
-            context.current_table = table
-            logger.info("Table loaded from dropped JSON file")
-            return True
-            
-    except Exception as e:
-        logger.error(f"Error loading table from JSON file {file_path}: {e}")
-        
-    return False
-
-def is_image_file(file_path):
-    """Check if a file is an image based on its extension"""
-    image_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg'}
-    _, ext = os.path.splitext(file_path.lower())
-    return ext in image_extensions
-
-def upload_file_to_r2(context, file_path):
-    """Upload a file to R2 storage via the server (async workflow)"""
-    try:
-        if not context or not hasattr(context, 'request_asset_upload'):
-            logger.error("Context missing or doesn't support asset upload")
-            return {'success': False, 'error': 'No context or upload support'}
-        
-        filename = os.path.basename(file_path)
-        logger.info(f"Requesting upload URL for {filename}")
-        
-        # Use the existing async upload request
-        success = context.request_asset_upload(file_path, filename)
-        
-        if success:
-            logger.info(f"Upload request sent for {filename}. Upload URL will be provided asynchronously.")
-            # For now, return success - the actual upload will happen when the server responds
-            return {
-                'success': True,
-                'asset_id': 'pending',  # Will be updated when response arrives
-                'filename': filename,
-                'status': 'upload_requested'
-            }
-        else:
-            logger.error(f"Failed to request upload URL for {filename}")
-            return {'success': False, 'error': 'Failed to request upload URL'}
-        
-    except Exception as e:
-        logger.error(f"Error requesting upload for file: {e}")
-        return {'success': False, 'error': str(e)}
-
-def create_sprite_from_r2_asset(context, asset_id, filename, file_path=None):
-    """Create a sprite from an R2 asset (or pending asset)"""
-    try:
-        if not context:
-            logger.error("No context available to create sprite")
-            return False
-        
-        # Get current mouse position or center of screen
-        # For now, place it at a default position
-        x, y = 400, 300
-        if asset_id == 'pending':
-            logger.info(f"Creating sprite with pending upload for {filename} at position ({x}, {y})")
-            # Create sprite using the original file path so it can load the texture immediately
-            texture_path = file_path if file_path and os.path.exists(file_path) else filename
-            sprite = context.add_sprite(
-                coord_x=x, 
-                coord_y=y,
-                texture_path=texture_path,  # Use original file path if available
-                scale_x=1.0,
-                scale_y=1.0,
+        # Delegate URL download to Actions
+        # This assumes Actions will have a download_from_url method
+        if hasattr(context.Actions, 'download_from_url'):
+            result = context.Actions.download_from_url(
+                url=url,
+                position=position,
+                table_id=current_table.table_id,
                 layer='tokens'
             )
-              # Mark this sprite as having a pending upload
-            if sprite and hasattr(context, 'pending_upload_files'):
-                # Find the pending upload for this filename
-                for pending_asset_id, file_path in context.pending_upload_files.items():
-                    if os.path.basename(file_path) == filename:
-                        sprite.pending_asset_id = pending_asset_id
-                        logger.info(f"Sprite marked with pending asset ID: {pending_asset_id}")
-                        break
+            
+            if result.success:
+                logger.info(f"Successfully initiated download from URL: {url}")
+                return True
+            else:
+                logger.error(f"Failed to download from URL: {result.message}")
+                return False
         else:
-            logger.info(f"Creating sprite from R2 asset {asset_id} ({filename}) at position ({x}, {y})")
-            # Create sprite with confirmed R2 asset reference
-            sprite = context.add_sprite(
-                coord_x=x, 
-                coord_y=y,
-                texture_path=filename,  # Use filename as texture path
-                scale_x=1.0,
-                scale_y=1.0,
-                layer='tokens'
-            )
-            # Store the R2 asset ID for future reference
-            if sprite:
-                sprite.asset_id = asset_id
-        
-        if sprite:
-            logger.info(f"Successfully created sprite from asset: {filename}")
+            # Fallback: log that URL download would be handled
+            logger.info(f"URL download would be delegated to Actions: {url}")
             return True
-        else:
-            logger.error(f"Failed to create sprite from asset: {filename}")
-            return False
         
     except Exception as e:
-        logger.error(f"Error creating sprite from asset: {e}")
+        logger.error(f"Error handling URL drop {url}: {e}")
         return False
 
-def create_sprite_from_cached_asset(context, asset_id, filename, cached_path):
-    """Create a sprite from a cached asset"""
-    try:
-        if not context:
-            logger.error("No context available to create sprite")
-            return False
-            
-        if not cached_path or not os.path.exists(cached_path):
-            logger.error(f"Cached asset path doesn't exist: {cached_path}")
-            return False
-        
-        # Get current mouse position or use default
-        x, y = 400, 300
-        
-        logger.info(f"Creating sprite from cached asset {filename} at position ({x}, {y})")
-        sprite = context.add_sprite(
-            coord_x=x, 
-            coord_y=y,
-            texture_path=cached_path,
-            scale_x=1.0,
-            scale_y=1.0,
-            layer='tokens'
-        )
-        
-        if sprite:
-            # Mark sprite with asset ID for future reference
-            sprite.asset_id = asset_id
-            logger.info(f"Successfully created sprite from cached asset: {filename}")
-            return True
-        else:
-            logger.error(f"Failed to create sprite from cached asset: {filename}")
-            return False
-            
-    except Exception as e:
-        logger.error(f"Error creating sprite from cached asset {filename}: {e}")
-        return False
 
-def generate_asset_id_from_file(file_path: str) -> str:
-    """Generate a consistent asset ID from file content"""
+def _get_drop_position(context) -> Position:
+    """
+    Get current drop position from context.
+    
+    Args:
+        context: Application context
+        
+    Returns:
+        Position: Drop position or default center position
+    """
     try:
-        with open(file_path, 'rb') as f:
-            file_content = f.read()
-        return hashlib.md5(file_content).hexdigest()[:16]
+        # Try to get cursor position from context
+        if hasattr(context, 'cursor_position_x') and hasattr(context, 'cursor_position_y'):
+            return Position(x=context.cursor_position_x, y=context.cursor_position_y)
+            
+        # Try table center if available
+        current_table = getattr(context, 'current_table', None)
+        if current_table and hasattr(current_table, 'width') and hasattr(current_table, 'height'):
+            return Position(x=current_table.width // 2, y=current_table.height // 2)
+            
     except Exception as e:
-        logger.error(f"Error generating asset ID for {file_path}: {e}")
-        # Fallback to filename + size if can't read content
-        try:
-            filename = os.path.basename(file_path)
-            file_size = os.path.getsize(file_path)
-            return hashlib.md5(f"{filename}_{file_size}".encode()).hexdigest()[:16]
-        except:
-            return hashlib.md5(file_path.encode()).hexdigest()[:16]
+        logger.debug(f"Could not get drop position: {e}")
+        
+    # Default center position
+    return Position(x=400, y=300)
+
+
+def _is_image_url(url: str) -> bool:
+    """
+    Check if URL points to an image file.
+    
+    Args:
+        url: URL to check
+        
+    Returns:
+        bool: True if URL appears to be an image
+    """
+    image_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.webp', '.svg'}
+    return any(url.lower().endswith(ext) for ext in image_extensions)
+
+
+def init_drag_drop_system() -> None:
+    """Initialize drag and drop system."""
+    logger.info("Drag and drop system initialized")

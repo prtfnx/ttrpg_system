@@ -8,29 +8,47 @@ import hashlib
 import json
 import logging
 import time
-import asyncio
 import ctypes
 import xxhash   
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-from urllib.parse import urlparse
+from typing import Dict, List, Optional, Tuple, Any
 from net.protocol import Message, MessageType
 import settings
 import shutil
 import sdl3
 from Sprite import Sprite
-from storage.StorageManager import StorageManager  
+from storage.StorageManager import StorageManager
+from net.DownloadManager import DownloadManager  
 logger = logging.getLogger(__name__)
 
 class ClientAssetManager:
     """Manages R2 assets on the client side with local caching"""
-    def __init__(self, cache_dir: Optional[str] = None):
+    def __init__(self, cache_dir: Optional[str] = None, storage_root: Optional[str] = None):
         # Use settings-defined cache directory if none provided
         if cache_dir is None:
             cache_dir = settings.ASSET_CACHE_DIR
-        self.StorageManager: Optional[StorageManager] = None  
+        if storage_root is None:
+            storage_root = settings.DEFAULT_STORAGE_PATH
+            
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+          # Create and own StorageManager
+        try:
+            self.StorageManager = StorageManager(storage_root)
+            logger.info(f"StorageManager initialized with root: {storage_root}")
+        except Exception as e:
+            logger.error(f"Failed to initialize StorageManager: {e}")
+            self.StorageManager = None
+            
+        # Create and own DownloadManager
+        try:
+            download_dir = self.cache_dir / "downloads"
+            download_dir.mkdir(exist_ok=True)
+            self.DownloadManager = DownloadManager(str(download_dir))
+            logger.info(f"DownloadManager initialized with dir: {download_dir}")
+        except Exception as e:
+            logger.error(f"Failed to initialize DownloadManager: {e}")
+            self.DownloadManager = None
         
         self.registry_file = Path(settings.ASSET_REGISTRY_FILE)
         self.registry_file.parent.mkdir(parents=True, exist_ok=True)
@@ -120,7 +138,7 @@ class ClientAssetManager:
             logger.error(f"Failed to calculate xxHash for data: {e}")
             return ""
   
-    def _generate_asset_id(self, filename: str) -> str:
+    def generate_asset_id(self, filename: str) -> str:
         """Generate unique asset ID using xxHash"""
         timestamp = str(int(time.time()))
         content = f"{filename}_{timestamp}"
@@ -201,83 +219,7 @@ class ClientAssetManager:
         asset_info = self.asset_registry[asset_id]
         return asset_info.get('local_path')
 
-    async def download_asset(self, asset_id: str, download_url: str, filename: str, 
-                           expected_size: Optional[int] = None, expected_xxhash: Optional[str] = None) -> Tuple[bool, str]:
-        """Download asset with hash verification"""
-        try:
-            cache_path = self._get_cache_path(asset_id, filename)
-            logger.info(f"Downloading asset {asset_id} to {cache_path}")
-            
-            # Download file
-            response = requests.get(download_url, stream=True, timeout=60)
-            response.raise_for_status()
-            # Check content length
-            content_length = response.headers.get('content-length')
-            if expected_size and content_length:
-                if int(content_length) != expected_size:
-                    logger.warning(f"Size mismatch for {asset_id}: expected {expected_size}, got {content_length}")
-            
-            # Write file to disk
-            total_bytes = 0
-            with open(cache_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        f.write(chunk)
-                        total_bytes += len(chunk)
-            
-            # Calculate hashes
-            file_xxhash = self._calculate_file_xxhash(cache_path)
-
-            
-            # Verify xxHash if provided
-            hash_verified = True
-            if expected_xxhash:
-                hash_verified = (file_xxhash == expected_xxhash)
-                if hash_verified:
-                    self.download_stats['hash_verifications'] += 1
-                    logger.info(f"Hash verification successful for {asset_id}: {file_xxhash}")
-                else:
-                    self.download_stats['hash_failures'] += 1
-                    logger.error(f"Hash verification failed for {asset_id}: expected {expected_xxhash}, got {file_xxhash}")
-                    # Delete corrupted file
-                    cache_path.unlink()
-                    return False, f"Hash verification failed"
-            
-            # Register asset in cache
-            self.asset_registry[asset_id] = {
-                'asset_id': asset_id,
-                'filename': filename,
-                'local_path': str(cache_path),
-                'download_time': time.time(),
-                'file_size': total_bytes,
-                'xxhash': file_xxhash,     # Add xxHash
-                'download_url': download_url,
-                'hash_verified': hash_verified
-            }
-            
-            # Add to hash lookup
-            self._add_to_hash_lookup(asset_id, file_xxhash)
-            
-            # Save registry
-            self._save_registry()
-            
-            # Update stats
-            self.download_stats['successful_downloads'] += 1
-            self.download_stats['total_bytes_downloaded'] += total_bytes
-            
-            logger.info(f"Successfully downloaded {filename} ({total_bytes} bytes) for asset {asset_id} (xxHash: {file_xxhash})")
-            return True, str(cache_path)
-            
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Network error downloading asset {asset_id}: {e}")
-            self.download_stats['failed_downloads'] += 1
-            return False, f"Network error: {e}"
-        except Exception as e:
-            logger.error(f"Error downloading asset {asset_id}: {e}")
-            self.download_stats['failed_downloads'] += 1
-            return False, f"Download error: {e}"
-        finally:
-            self.download_stats['total_downloads'] += 1
+   
 
     def update_session_textures(self):
         """Update available session assets"""
@@ -315,106 +257,9 @@ class ClientAssetManager:
         asset_id = self.find_asset_by_xxhash(xxhash_value)
         if asset_id:
             return self.get_asset_for_sprite(asset_id)
-        return None
+        return None  
 
-    async def request_asset_download(self, context, asset_id: str) -> bool:
-        """Request asset download from server"""
-        if not context.net_socket:
-            logger.error("No network connection available for asset download")
-            return False
-        
-        download_request = Message(
-            MessageType.ASSET_DOWNLOAD_REQUEST,
-            {
-                "asset_id": asset_id,
-                "session_code": getattr(context, 'session_code', 'unknown'),
-                "user_id": getattr(context, 'user_id', 0),
-                "username": getattr(context, 'username', 'unknown')
-            }
-        )
-        
-        try:
-            context.queue_to_send.put((1, download_request))
-            logger.info(f"Requested download for asset {asset_id}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to request asset download {asset_id}: {e}")
-            return False
-
-    def handle_download_response(self, message_data: Dict) -> bool:
-        """Handle download response from server"""
-        try:
-            asset_id = message_data.get('asset_id')
-            download_url = message_data.get('download_url')
-            filename = message_data.get('filename', f'{asset_id}.unknown')
-            expires_in = message_data.get('expires_in', 3600)
-            expected_xxhash = message_data.get('xxhash')  # Get expected xxHash from server
-            expected_size = message_data.get('file_size')
-            
-            if not asset_id or not download_url:
-                logger.error("Invalid download response: missing asset_id or download_url")
-                return False
-            
-            download_info = {
-                'asset_id': asset_id,
-                'download_url': download_url,
-                'filename': filename,
-                'expires_in': expires_in,
-                'expected_xxhash': expected_xxhash,
-                'expected_size': expected_size,
-                'queued_time': time.time()
-            }
-            
-            self.download_queue.append(download_info)
-            logger.info(f"Queued download for asset {asset_id}: {filename} (xxHash: {expected_xxhash})")
-            
-            if not self.downloading:
-                asyncio.create_task(self._process_download_queue())
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error handling download response: {e}")
-            return False
-
-    async def _process_download_queue(self):
-        """Process download queue"""
-        if self.downloading:
-            return
-        
-        self.downloading = True
-        try:
-            while self.download_queue:
-                download_info = self.download_queue.pop(0)
-                
-                # Check if URL expired
-                queued_time = download_info['queued_time']
-                expires_in = download_info['expires_in']
-                if time.time() - queued_time > expires_in:
-                    logger.warning(f"Download URL expired for asset {download_info['asset_id']}")
-                    continue
-                
-                # Download with hash verification
-                success, result = await self.download_asset(
-                    download_info['asset_id'],
-                    download_info['download_url'],
-                    download_info['filename'],
-                    expected_size=download_info.get('expected_size'),
-                    expected_xxhash=download_info.get('expected_xxhash')
-                )
-                
-                if success:
-                    logger.info(f"Background download completed: {download_info['filename']}")
-                else:
-                    logger.error(f"Background download failed: {result}")
-                
-                # Small delay between downloads
-                await asyncio.sleep(0.1)
-                
-        except Exception as e:
-            logger.error(f"Error processing download queue: {e}")
-        finally:
-            self.downloading = False
+   
 
     def register_uploaded_asset(self, asset_id: str, local_file_path: str, filename: str):
         """Register an uploaded asset in the local cache"""
@@ -589,11 +434,10 @@ class ClientAssetManager:
         for asset_info in self.asset_registry.values():
             cache_path = Path(asset_info.get('local_path', ''))
             if cache_path.exists():
-                total_cache_size += cache_path.stat().st_size
-        
+                total_cache_size += cache_path.stat().st_size        
         return {
             'cached_assets': cached_count,
-            'session_assets': len(self.session_assets),
+            'session_textures': len(self.session_textures),
             'cache_size_mb': total_cache_size / 1024 / 1024,
             'download_queue_size': len(self.download_queue),
             'downloading': self.downloading,
@@ -601,38 +445,7 @@ class ClientAssetManager:
             **self.download_stats
         }
 
-    def register_uploaded_asset(self, asset_id: str, local_file_path: str, filename: str):
-        """Register an uploaded asset in the local cache"""
-        try:
-            # Copy the file to cache directory
-            cache_path = self._get_cache_path(asset_id, filename)
-            
-            # Create cache directory if it doesn't exist
-            cache_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Copy file to cache
-            
-            shutil.copy2(local_file_path, cache_path)
-            
-            # Register in asset registry
-            self.asset_registry[asset_id] = {
-                'asset_id': asset_id,
-                'filename': filename,
-                'local_path': str(cache_path),
-                'cached_at': time.time(),
-                'source': 'upload',
-                'file_size': cache_path.stat().st_size
-            }
-            
-            # Save registry
-            self._save_registry()
-            
-            logger.info(f"Registered uploaded asset {asset_id} in cache: {cache_path}")
-            
-        except Exception as e:
-            logger.error(f"Error registering uploaded asset {asset_id}: {e}")
-            raise
-    
+       
     def handle_load_file(self, operation_id: str, filename: str, data: bytes) -> Optional[bool]:
         """Handle loading an asset by filename or operation ID"""
         if not filename and not operation_id:
@@ -641,7 +454,7 @@ class ClientAssetManager:
         
         # Check by operation ID
         xxhash = self._calculate_data_xxhash(data)
-        asset_id = self._generate_asset_id(filename)
+        asset_id = self.generate_asset_id(filename)
         self._add_to_hash_lookup(asset_id, xxhash)
         self._add_to_path_lookup(asset_id, filename)
         if operation_id:
@@ -754,11 +567,67 @@ class ClientAssetManager:
         self.dict_of_sprites[operation_id] = sprite
         logger.debug(f"start loading asset for sprite with operation ID {operation_id} and filename {filename}")
         return True
+
+    def cache_downloaded_asset(self, asset_id: str, downloaded_file_path: str) -> bool:
+        """Cache a downloaded asset in the local registry"""
+        try:
+            # Calculate file hash
+            file_path = Path(downloaded_file_path)
+            if not file_path.exists():
+                logger.error(f"Downloaded file not found: {downloaded_file_path}")
+                return False
+            
+            file_hash = self._calculate_file_xxhash(file_path)
+            file_size = file_path.stat().st_size
+            
+            # Get filename
+            filename = file_path.name
+            
+            # Update asset registry
+            self.asset_registry[asset_id] = {
+                'asset_id': asset_id,
+                'filename': filename,
+                'local_path': str(file_path),
+                'file_size': file_size,
+                'xxhash': file_hash,
+                'download_time': int(time.time()),
+                'source': 'downloaded'
+            }
+            
+            # Update lookup tables
+            self._add_to_hash_lookup(asset_id, file_hash)
+            
+            # Save registry
+            self._save_registry()
+            
+            logger.info(f"Cached downloaded asset {asset_id}: {filename} ({file_size} bytes)")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error caching downloaded asset {asset_id}: {e}")
+            return False    
+    def process_all_completed_operations(self) -> List[Dict[str, Any]]:
+        """Single point for processing all async I/O operations"""
+        completed = []
         
-       
+        # Collect from storage operations
+        if self.StorageManager:
+            try:
+                storage_completed = self.StorageManager.process_completed_operations()
+                for op in storage_completed:
+                    op['source'] = 'storage'
+                    completed.append(op)
+            except Exception as e:
+                logger.error(f"Error processing storage completions: {e}")
         
-        
-        
-           
-     
+        # Collect from download operations  
+        if self.DownloadManager:
+            try:
+                download_completed = self.DownloadManager.process_completed_operations()
+                for op in download_completed:
+                    op['source'] = 'download'
+                    completed.append(op)
+            except Exception as e:
+                logger.error(f"Error processing download completions: {e}")                
+        return completed
 

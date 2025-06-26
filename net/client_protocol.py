@@ -3,11 +3,12 @@ import time
 import hashlib
 import asyncio
 import threading
-from typing import Callable, Optional, Dict, Any
+from typing import Callable, Optional, Dict, Any, List
 from .protocol import Message, MessageType, ProtocolHandler
 import logging
 from Actions import Actions
 import requests
+from .DownloadManager import DownloadManager
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,12 @@ class ClientProtocol:
         self.client_id = hashlib.md5(f"{time.time()}_{os.getpid()}".encode()).hexdigest()[:8]
         self.last_ping = time.time()
         self.handlers: Dict[MessageType, Callable[[Message], None]] = {}
+        
+        # User session information for message construction
+        self.user_id: Optional[int] = None
+        self.username: Optional[str] = None
+        self.session_code: Optional[str] = None
+        
         self.init_handlers()
 
     def init_handlers(self):
@@ -179,18 +186,7 @@ class ClientProtocol:
             if not os.path.exists(filename):
                 self.request_file(filename)
     
-    def create_table(self, message: Message):
-        """Create a new table from the provided data"""
-        data = message.data
-        if data is None:
-            logger.error("Received empty table creation data")
-            self.send(Message(MessageType.ERROR, {
-                'error': 'Received empty table creation data'            }, 
-                self.client_id).to_json())
-            return
-
-        self.context.create_table_from_dict(data)
-        
+   
         
     def handle_request_table(self, msg: Message):
         """Handle table request from server"""
@@ -685,9 +681,9 @@ class ClientProtocol:
         """Request download URL for an asset from the server"""
         msg = Message(MessageType.ASSET_DOWNLOAD_REQUEST, {
             'asset_id': asset_id,
-            'session_code': session_code or getattr(self.context, 'session_code', 'unknown'),
-            'user_id': getattr(self.context, 'user_id', 0),
-            'username': getattr(self.context, 'username', 'unknown')
+            'session_code': session_code or self.session_code or 'unknown',
+            'user_id': self.user_id or 0,
+            'username': self.username or 'unknown'
         }, self.client_id)
         self.send(msg.to_json())
         logger.info(f"Requested download for asset {asset_id}")
@@ -698,9 +694,9 @@ class ClientProtocol:
             'filename': filename,
             'file_size': file_size,
             'file_hash': file_hash,
-            'session_code': session_code or getattr(self.context, 'session_code', 'unknown'),
-            'user_id': getattr(self.context, 'user_id', 0),
-            'username': getattr(self.context, 'username', 'unknown')
+            'session_code': session_code or self.session_code or 'unknown',
+            'user_id': self.user_id or 0,
+            'username': self.username or 'unknown'
         }, self.client_id)
         self.send(msg.to_json())
         logger.info(f"Requested upload for file {filename}")
@@ -708,9 +704,9 @@ class ClientProtocol:
     def request_asset_list(self, session_code: Optional[str] = None):
         """Request list of available assets for the session"""
         msg = Message(MessageType.ASSET_LIST_REQUEST, {
-            'session_code': session_code or getattr(self.context, 'session_code', 'unknown'),
-            'user_id': getattr(self.context, 'user_id', 0),
-            'username': getattr(self.context, 'username', 'unknown')
+            'session_code': session_code or self.session_code or 'unknown',
+            'user_id': self.user_id or 0,
+            'username': self.username or 'unknown'
         }, self.client_id)
         self.send(msg.to_json())
         logger.info("Requested asset list")
@@ -721,274 +717,51 @@ class ClientProtocol:
             'asset_id': asset_id,
             'success': upload_success,
             'error': error_message,
-            'user_id': self.context.user_id,
-            'username': getattr(self.context, 'username', 'unknown')
+            'user_id': self.user_id or 0,
+            'username': self.username or 'unknown'
         }, self.client_id)
         self.send(msg.to_json())
-        logger.info(f"Confirmed upload for asset {asset_id}: {'success' if upload_success else 'failed'} (user_id: {getattr(self.context, 'user_id', 0)})")
+        logger.info(f"Confirmed upload for asset {asset_id}: {'success' if upload_success else 'failed'} (user_id: {self.user_id})")
 
     def handle_asset_download_response(self, msg: Message):
-        """Handle asset download response from server"""
+        """Handle asset download response from server - delegate to Actions"""
         try:
             if not msg.data:
                 logger.error("Empty asset download response received")
                 return
-            if msg.data.get('success') is False:
-                logger.warning(f"Asset download failed: {msg.data.get('instructions')}")
-                return
-            asset_id = msg.data.get('asset_id')
-            download_url = msg.data.get('download_url')
-            
-            if not asset_id or not download_url:
-                logger.error("Invalid asset download response: missing asset_id or download_url")
-                return
-
-            # Forward to asset manager
-            
-            asset_manager = self.context.AssetManager
-            success = asset_manager.handle_download_response(msg.data)
-            
-            if success:
-                logger.info(f"Asset download queued: {asset_id}")
-                # Trigger sprite texture reload if needed
-                self._trigger_sprite_reload_for_asset(asset_id)
-            else:
-                logger.error(f"Failed to queue asset download: {asset_id}")
                 
-        except Exception as e:
-            logger.error(f"Error handling asset download response: {e}")
+            # Delegate to Actions instead of handling directly
+            self.Actions.handle_asset_download_response(msg.data)
+            
+        except Exception as e:            logger.error(f"Error handling asset download response: {e}")
 
     def handle_asset_list_response(self, msg: Message):
-        """Handle asset list response from server"""
+        """Handle asset list response from server - delegate to Actions"""
         try:
             if not msg.data:
                 logger.error("Empty asset list response received")
                 return
-
-            assets = msg.data.get('assets', [])
-            session_code = msg.data.get('session_code', 'unknown')
-            
-            logger.info(f"Received asset list for session {session_code}: {len(assets)} assets")
-            
-            # Forward to asset manager
-            
-            asset_manager = self.context.AssetManager
-            asset_manager.update_session_assets(assets)            
-            # Trigger download of any missing assets for current sprites
-            self._check_and_download_missing_assets()
+                
+            # Delegate to Actions instead of handling directly
+            self.Actions.handle_asset_list_response(msg.data)
             
         except Exception as e:
             logger.error(f"Error handling asset list response: {e}")
 
     def handle_asset_upload_response(self, msg: Message):
-        """Handle asset upload response from server"""
+        """Handle asset upload response from server - delegate to Actions"""
         try:
             if not msg.data:
                 logger.error("Empty asset upload response received")
                 return
-
-            # Accept both 'upload_url' and 'url' fields for compatibility
-            upload_url = msg.data.get('upload_url') or msg.data.get('url')
-            asset_id = msg.data.get('asset_id')
-            filename = msg.data.get('filename')
+                
+            # Delegate to Actions instead of handling directly
+            self.Actions.handle_asset_upload_response(msg.data)
             
-            if not upload_url or not asset_id:
-                logger.error("Invalid asset upload response: missing upload_url/url or asset_id")
-                logger.error(f"Received data: {msg.data}")
-                return            
-            logger.info(f"Received upload URL for asset {asset_id}: {upload_url}")        
-            
-            # Store upload info for reference
-            if not hasattr(self.context, 'pending_uploads'):
-                self.context.pending_uploads = {}
-            # Normalize to use 'upload_url' internally
-            normalized_data = dict(msg.data)
-            normalized_data['upload_url'] = upload_url
-            self.context.pending_uploads[asset_id] = normalized_data
-            
-            # Debug: Check what files we have tracked
-            if hasattr(self.context, 'pending_upload_files'):
-                logger.debug(f"Currently tracked upload files: {self.context.pending_upload_files}")
-            else:
-                logger.warning("No pending_upload_files attribute found in context")
-            
-            # Find the original file to upload
-            original_file_path = self._find_original_file_for_asset(asset_id, filename)
-            if original_file_path and os.path.exists(original_file_path):
-                # Perform the actual upload in a background thread
-                self._perform_background_upload(asset_id, upload_url, original_file_path)
-            else:
-                logger.error(f"Could not find original file for asset {asset_id} (filename: {filename})")
-                self.confirm_asset_upload(asset_id, False, "Original file not found")
-            
-            # Notify GUI if available
-            if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
-                self.context.gui_system.gui_state.chat_messages.append(f"📤 Uploading {filename}...")                
         except Exception as e:
             logger.error(f"Error handling asset upload response: {e}")
-
-    def _find_original_file_for_asset(self, asset_id: str, filename: Optional[str]) -> Optional[str]:
-        """Find the original file path for an asset being uploaded"""
-        #TODO need to rewrite full for storage system. For now it look to path in pending_upload_files but it has url
-        try:
-            # Debug: Log what we're looking for
-            logger.debug(f"Looking for original file for asset {asset_id}, filename: {filename}")
-            
-            # Check if we have the file tracked in pending_upload_files
-            if hasattr(self.context, 'pending_upload_files'):
-                logger.debug(f"Current pending_upload_files: {self.context.pending_upload_files}")
-                file_path = self.context.pending_upload_files.get(asset_id)
-                if file_path and os.path.exists(file_path):
-                    logger.debug(f"Found file path in pending_upload_files: {file_path}")
-                    return file_path
-                else:
-                    logger.debug(f"Asset {asset_id} not found in pending_upload_files or file doesn't exist")
-                    
-                    # Try to find by filename in pending_upload_files (in case asset IDs don't match)
-                    if filename:
-                        for stored_asset_id, file_path in self.context.pending_upload_files.items():
-                            if file_path and os.path.exists(file_path) and os.path.basename(file_path) == filename:
-                                logger.debug(f"Found file by filename match: {file_path} (stored under asset {stored_asset_id})")
-                                return file_path
-            
-            # If filename is provided, check common locations
-            if filename:
-                logger.debug(f"Checking common locations for filename: {filename}")
-                
-                # Check if file exists in current directory
-                if os.path.exists(filename):
-                    logger.debug(f"Found file in current directory: {filename}")
-                    return filename
-                
-                # Check common download/desktop paths (Windows specific)
-                common_paths = [
-                    os.path.join(os.path.expanduser("~"), "Downloads", filename),
-                    os.path.join(os.path.expanduser("~"), "Desktop", filename),
-                    os.path.join(os.getcwd(), filename),
-                    os.path.join(os.getcwd(), "resources", filename)  # Check resources folder
-                ]
-                
-                for path in common_paths:
-                    if os.path.exists(path):
-                        logger.debug(f"Found file at: {path}")
-                        return path
-                    else:
-                        logger.debug(f"File not found at: {path}")
-            
-            logger.warning(f"Could not locate original file for asset {asset_id}, filename: {filename}")
-            return None
-            
-        except Exception as e:
-            logger.error(f"Error finding original file for asset {asset_id}: {e}")
-            return None
-
-    def _perform_background_upload(self, asset_id: str, upload_url: str, file_path: str):
-        """Perform the actual file upload to R2 in a background thread"""
-        def upload_worker():
-            try:
-                logger.info(f"Starting background upload of {file_path} to R2...")
-                
-                # Read the file content
-                with open(file_path, 'rb') as f:
-                    file_content = f.read()
-                
-                # Determine content type based on file extension
-                import mimetypes
-                content_type, _ = mimetypes.guess_type(file_path)
-                if not content_type:
-                    content_type = 'application/octet-stream'
-                  # Perform the HTTP PUT request to the presigned URL
-                response = requests.put(
-                    upload_url,
-                    data=file_content,
-                    headers={
-                        'Content-Type': content_type
-                    },
-                    timeout=30  # 30 second timeout
-                )
-                
-                if response.status_code == 200:
-                    logger.info(f"Successfully uploaded {file_path} to R2")
-                    
-                    # Cache the uploaded file locally
-                    try:
-                        
-                        asset_manager = self.context.AssetManager
-                        filename = os.path.basename(file_path)
-                        
-                        # Register the asset in local cache
-                        asset_manager.register_uploaded_asset(asset_id, file_path, filename)
-                        logger.info(f"Cached uploaded asset {asset_id} locally")
-                    except Exception as cache_error:
-                        logger.warning(f"Failed to cache uploaded asset {asset_id}: {cache_error}")
-                    
-                    # Confirm successful upload to server
-                    self.confirm_asset_upload(asset_id, True)
-                    
-                    # Update GUI if available
-                    if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
-                        filename = os.path.basename(file_path)
-                        self.context.gui_system.gui_state.chat_messages.append(f"✅ Upload completed: {filename}")
-                        
-                else:
-                    error_msg = f"Upload failed with status {response.status_code}: {response.text}"
-                    logger.error(error_msg)
-                    self.confirm_asset_upload(asset_id, False, error_msg)
-                    
-                    # Update GUI if available
-                    if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
-                        filename = os.path.basename(file_path)
-                        self.context.gui_system.gui_state.chat_messages.append(f"❌ Upload failed: {filename}")
-                
-            except Exception as e:
-                error_msg = f"Upload error: {str(e)}"
-                logger.error(f"Error uploading {file_path} to R2: {e}")
-                self.confirm_asset_upload(asset_id, False, error_msg)
-                
-                # Update GUI if available
-                if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
-                    filename = os.path.basename(file_path)
-                    self.context.gui_system.gui_state.chat_messages.append(f"❌ Upload error: {filename}")
-        
-        # Start the upload in a background thread
-        upload_thread = threading.Thread(target=upload_worker, daemon=True)
-        upload_thread.start()
-
-    def _trigger_sprite_reload_for_asset(self, asset_id: str):
-        """Trigger texture reload for sprites using the given asset"""
-        try:
-            if not self.context.current_table:
-                return
-                
-            # Check all sprites in all layers
-            for layer_name, sprites in self.context.current_table.dict_of_sprites_list.items():
-                for sprite in sprites:
-                    if hasattr(sprite, 'asset_id') and sprite.asset_id == asset_id:
-                        logger.info(f"Triggering texture reload for sprite {sprite.sprite_id}")
-                        # Reload texture asynchronously
-                        sprite.set_texture(sprite.texture_path)
-        except Exception as e:
-            logger.error(f"Error triggering sprite reload for asset {asset_id}: {e}")
-
-    def _check_and_download_missing_assets(self):
-        """Check current sprites and download any missing R2 assets"""
-        try:
-            if not self.context.current_table:
-                return
-                
-            
-            asset_manager = self.context.AssetManager
-            
-            # Check all sprites in all layers
-            for layer_name, sprites in self.context.current_table.dict_of_sprites_list.items():
-                for sprite in sprites:
-                    if hasattr(sprite, 'asset_id') and sprite.asset_id:
-                        if not asset_manager.is_asset_cached(sprite.asset_id):
-                            logger.info(f"Requesting missing asset {sprite.asset_id} for sprite {sprite.sprite_id}")
-                            self.request_asset_download(sprite.asset_id)
-        except Exception as e:
-            logger.error(f"Error checking for missing assets: {e}")
-
+   
+   
     def _get_content_type(self, file_path: str) -> str:
         """Get the appropriate content type for a file"""
         try:
@@ -1013,32 +786,22 @@ class ClientProtocol:
                 logger.warning("Empty welcome message received")
                 return
                 
-            # Extract user information from welcome message
-            user_id = msg.data.get('user_id', 0)
-            username = msg.data.get('username', 'unknown')
-            session_code = msg.data.get('session_code', 'unknown')
-            client_id = msg.data.get('client_id', self.client_id)
+            # Store user information in ClientProtocol for message construction
+            self.user_id = msg.data.get('user_id', 0)
+            self.username = msg.data.get('username', 'unknown')
+            self.session_code = msg.data.get('session_code', 'unknown')
             
-            # Save user information to context
-            self.context.user_id = user_id
-            self.context.username = username
-            self.context.session_code = session_code
-            self.client_id = client_id  # Update client ID from server
+            # Update client ID from server if provided
+            server_client_id = msg.data.get('client_id')
+            if server_client_id:
+                self.client_id = server_client_id
             
-            logger.info(f"Welcome message received: user_id={user_id}, username={username}, session={session_code}")
+            logger.info(f"Welcome message received: user_id={self.user_id}, username={self.username}, session={self.session_code}")
             
-            # Notify GUI if available
-            if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
-                welcome_msg = msg.data.get('message', f'Welcome to session {session_code}')
-                self.context.gui_system.gui_state.chat_messages.append(f"🎮 {welcome_msg}")
+            # Delegate welcome handling to Actions for any game logic
+            self.Actions.handle_welcome_message(msg.data)
                 
         except Exception as e:
             logger.error(f"Error handling welcome message: {e}")
 
-    def _check_asset_for_sprite(self, sprite) -> bool:
-        """Check if the sprite has an associated R2 asset"""
-        if hasattr(sprite, 'asset_id') and sprite.asset_id:
-
-            asset_manager = self.context.AssetManager
-            return asset_manager.is_asset_cached(sprite.asset_id)
-        return False
+   

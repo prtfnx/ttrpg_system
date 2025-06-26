@@ -19,6 +19,7 @@ class ContextTable:
         self.layers = ['map','tokens', 'dungeon_master', 'light', 'height', 'obstacles']
         self.dict_of_sprites_list = {layer: [] for layer in self.layers}
         self.selected_sprite: Sprite | None = None
+        self.selected_layer: str = 'tokens'  # Default layer for new sprites
         self.scale= scale
         
         # Table coordinate system - independent of screen

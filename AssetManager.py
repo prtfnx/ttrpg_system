@@ -126,14 +126,25 @@ class ClientAssetManager:
         except Exception as e:
             logger.error(f"Failed to calculate xxHash for data: {e}")
             return ""
+    
+
   
     def generate_asset_id(self, data: bytes) -> str:
         """Generate unique asset ID using xxHash"""        
         return self._calculate_data_xxhash(data)[:16]  # Use first 16 characters for asset ID
     
     def calculate_file_xxhash_for_upload(self, file_path: str) -> str:
-        """Calculate xxHash for a file before upload (public method)"""
-        return self._calculate_file_xxhash(Path(file_path))
+        """Calculate xxHash for a file before upload (public method) - temporarily sync"""
+        # TODO: This should be async via StorageManager
+        try:
+            hasher = xxhash.xxh64()
+            with open(file_path, 'rb') as f:
+                for chunk in iter(lambda: f.read(8192), b""):
+                    hasher.update(chunk)
+            return hasher.hexdigest()
+        except Exception as e:
+            logger.error(f"Failed to calculate xxHash for file {file_path}: {e}")
+            return ""
 
     def find_asset_by_xxhash(self, xxhash_value: str) -> Optional[str]:
         """Find cached asset by xxHash (fast duplicate detection)"""
@@ -274,8 +285,8 @@ class ClientAssetManager:
             shutil.copy2(local_file_path, cache_path)
             
             # Calculate hashes for cached file
-            cached_xxhash = self._calculate_file_xxhash(cache_path)
-            cached_sha256 = self._calculate_file_hash(cache_path)
+            cached_xxhash = self._calculate_data_xxhash(cache_path.read_bytes())
+            cached_sha256 = hashlib.sha256(cache_path.read_bytes()).hexdigest()
             
             # Verify copy was successful
             if original_xxhash != cached_xxhash:
@@ -323,7 +334,7 @@ class ClientAssetManager:
                 return True  # Assume valid if no hash to check
             
             # Calculate current hash
-            current_xxhash = self._calculate_file_xxhash(cache_path)
+            current_xxhash = self._calculate_data_xxhash(cache_path.read_bytes())
             
             # Verify
             if current_xxhash == stored_xxhash:
@@ -515,19 +526,24 @@ class ClientAssetManager:
             return texture, width, height
     
     def load_asset_for_sprite(self, sprite: Sprite, file_path: str) -> Optional[bool]:
-        """Load asset for sprite from cache or disk"""
+        """Load asset for sprite from cache or disk, importing external files if needed"""
         logger.debug(f"Loading asset for sprite: {sprite} from file path: {file_path}")
-        if not sprite and not filename:
-            logger.error("No operation ID or filename provided for loading asset")
-            return None           
+        if not sprite:
+            logger.error("No sprite provided for loading asset")
+            return None
+        
+        if not self.StorageManager:
+            logger.error("StorageManager not initialized, cannot load asset")
+            return None
+            
+        # Check if asset is already cached
         asset_id = self.find_asset_by_path(file_path)
         if asset_id:
             # Asset found in cache 
-            logger.info(f"Asset {asset_id} found in cache by xxHash {xxhash}")
+            logger.info(f"Asset {asset_id} found in cache")
             texture = self.find_texture_by_asset_id(asset_id)
             if texture:
                 logger.info(f"Using cached texture for asset {asset_id}")
-                #TODO use width and height from texture
                 sprite.reload_texture(texture, sprite.rect.w, sprite.rect.h)
                 return True
             else:
@@ -537,19 +553,28 @@ class ClientAssetManager:
                     file_path = cached_file_path
                 else:
                     logger.error(f"Cached asset path not found for asset ID {asset_id}")
-       
-        # Asset not found in cache, load from disk
-        logger.info(f"Asset {file_path} not found in cache, loading from disk")                      
-    
-        if not self.StorageManager:
-            logger.error("StorageManager not initialized, cannot load asset")
-            return None
+        
+        # Check if this is an external file that needs importing
+        if self._is_external_file(file_path):
+            logger.info(f"External file detected: {file_path}, importing to managed storage")
+            filename = Path(file_path).name
+            operation_id = self.StorageManager.import_external_file_async(
+                file_path, 
+                target_filename=filename,
+                subdir="assets"
+            )
+            self.dict_of_sprites[operation_id] = sprite
+            logger.debug(f"Importing external file with operation ID {operation_id}")
+            return True
+        
+        # File is already in managed storage, load it
+        logger.info(f"Loading asset from managed storage: {file_path}")                      
         filename = Path(file_path).name
-        subdir = Path(file_path).parent.name
-        print(f"Loading asset for sprite: {filename} from subdir: {subdir}") 
+        subdir = Path(file_path).parent.name if Path(file_path).parent.name != "." else ""
+        
         operation_id = self.StorageManager.load_file_async(filename, subdir=subdir, as_json=False)
         self.dict_of_sprites[operation_id] = sprite
-        logger.debug(f"start loading asset for sprite with operation ID {operation_id} and filename {filename}")
+        logger.debug(f"Loading asset from storage with operation ID {operation_id} and filename {filename}")
         return True
 
     def cache_downloaded_asset(self, asset_id: str, downloaded_file_path: str) -> bool:
@@ -561,7 +586,7 @@ class ClientAssetManager:
                 logger.error(f"Downloaded file not found: {downloaded_file_path}")
                 return False
             
-            file_hash = self._calculate_file_xxhash(file_path)
+            file_hash = self._calculate_data_xxhash(file_path.read_bytes())
             file_size = file_path.stat().st_size
             
             # Get filename
@@ -614,4 +639,66 @@ class ClientAssetManager:
             except Exception as e:
                 logger.error(f"Error processing download completions: {e}")                
         return completed
+    
+    def cleanup_operation_tracking(self, operation_id: str):
+        """Clean up tracking for completed operation"""
+        self.dict_of_sprites.pop(operation_id, None)
+        logger.debug(f"Cleaned up tracking for operation {operation_id}")
+
+    def _is_external_file(self, file_path: str) -> bool:
+        """Check if a file path is external to the StorageManager's root"""
+        if not self.StorageManager:
+            return True  # If no StorageManager, consider all files external
+        
+        try:
+            file_path_obj = Path(file_path).resolve()
+            storage_root = self.StorageManager.root_path.resolve()
+            
+            # Check if file_path is under storage_root
+            return not str(file_path_obj).startswith(str(storage_root))
+        except Exception as e:
+            logger.error(f"Error checking if file is external: {e}")
+            return True  # Assume external on error
+    
+    def upload_asset_async(self, file_path: str, upload_url: str, asset_id: str, 
+                          required_xxhash: str) -> Optional[str]:
+        """Upload asset to server using presigned URL with proper headers"""
+        if not self.DownloadManager:
+            logger.error("DownloadManager not initialized, cannot upload asset")
+            return None
+        
+        try:
+            file_path_obj = Path(file_path)
+            if not file_path_obj.exists():
+                logger.error(f"File to upload does not exist: {file_path}")
+                return None
+            
+            # Prepare metadata with required headers
+            metadata = {
+                'asset_id': asset_id,
+                'required_xxhash': required_xxhash,
+                'original_file_path': str(file_path_obj),
+                'headers': {
+                    'x-amz-meta-xxhash': required_xxhash,
+                    'x-amz-meta-upload-timestamp': str(int(time.time()))
+                }
+            }
+            
+            logger.info(f"Starting async upload of {file_path} to {upload_url} with xxHash {required_xxhash}")
+            
+            # Use DownloadManager's upload functionality  
+            operation_id = self.DownloadManager.upload_file_async(
+                file_path=file_path_obj,
+                upload_url=upload_url,
+                metadata=metadata
+            )
+            
+            logger.debug(f"Upload started with operation ID {operation_id} for asset {asset_id}")
+            return operation_id
+            
+        except Exception as e:
+            logger.error(f"Error starting upload for asset {asset_id}: {e}")
+            return None
+    
+    # File path is now provided by StorageManager completion data
 

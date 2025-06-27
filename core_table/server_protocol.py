@@ -384,44 +384,51 @@ class ServerProtocol:
         pass
     
     async def handle_asset_upload_confirm(self, msg: Message, client_id: str) -> Message:
-        """Handle asset upload confirmation - verify xxHash and update database"""
+        """Handle asset upload confirmation - verify and update database"""
         try:
             if not msg.data:
                 return Message(MessageType.ERROR, {'error': 'No data provided in asset upload confirmation'})
             
             # Extract data
             asset_id = msg.data.get('asset_id')
-            file_xxhash = msg.data.get('xxhash')
-            session_code = msg.data.get('session_code', 'default')
+            upload_success = msg.data.get('success', True)
+            error_message = msg.data.get('error')
             user_id = msg.data.get('user_id', 0)
             username = msg.data.get('username', 'unknown')
             
-            if not asset_id or not file_xxhash:
-                return Message(MessageType.ERROR, {'error': 'Asset ID and xxHash are required'})
+            if not asset_id:
+                return Message(MessageType.ERROR, {'error': 'Asset ID is required'})
             
-            # Verify xxHash in database
-            db_session = SessionLocal()
-            try:
-                asset = db_session.query(Asset).filter_by(r2_asset_id=asset_id).first()
-                if not asset:
-                    return Message(MessageType.ERROR, {'error': 'Asset not found'})
-                
-                if asset.xxhash != file_xxhash:
-                    return Message(MessageType.ERROR, {'error': 'xxHash mismatch'})
-                
-                # Update asset metadata if needed
-                asset.last_uploaded_by = username
-                asset.last_uploaded_at = time.time()
-                db_session.commit()
-                
-                return Message(MessageType.SUCCESS, {'message': 'Asset upload confirmed successfully'})
-                
-            finally:
-                db_session.close()
+            logger.info(f"Processing upload confirmation for asset {asset_id}: {'success' if upload_success else 'failed'}")
+            
+            # Get asset manager and confirm upload
+            from server_host.service.asset_manager import get_server_asset_manager
+            asset_manager = get_server_asset_manager()
+            
+            confirmed = await asset_manager.confirm_upload(
+                asset_id=asset_id,
+                user_id=user_id,
+                upload_success=upload_success,
+                error_message=error_message
+            )
+            
+            if confirmed:
+                status_msg = "Upload confirmed successfully" if upload_success else f"Upload failure recorded: {error_message}"
+                logger.info(f"Asset {asset_id} confirmation completed: {status_msg}")
+                return Message(MessageType.SUCCESS, {
+                    'message': status_msg,
+                    'asset_id': asset_id,
+                    'status': 'uploaded' if upload_success else 'failed'
+                })
+            else:
+                error_msg = f"Failed to confirm upload for asset {asset_id}"
+                logger.error(error_msg)
+                return Message(MessageType.ERROR, {'error': error_msg})
                 
         except Exception as e:
-            logger.error(f"Error handling asset upload confirmation: {e}")
-            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+            error_msg = f"Error processing upload confirmation: {e}"
+            logger.error(error_msg)
+            return Message(MessageType.ERROR, {'error': error_msg})
 
     async def add_asset_hashes_to_table(self, table_data: dict, session_code: str, user_id: int) -> dict:    
         """Add xxHash information to all entity assets in table data"""

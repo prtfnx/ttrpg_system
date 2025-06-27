@@ -8,7 +8,9 @@ import uuid
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Union, Callable
 from concurrent.futures import ThreadPoolExecutor
+import logger
 
+logger = logger.setup_logger(__name__)
 
 class StorageManager:
     """Non-blocking storage manager for SDL apps using thread pool."""
@@ -59,12 +61,69 @@ class StorageManager:
         
         self._pending_operations[operation_id] = self._executor.submit(_save)
         return operation_id
+
+    def import_external_file_async(self, external_file_path: str, target_filename: Optional[str] = None, 
+                                   subdir: str = "assets") -> str:
+        """Import external file into managed storage asynchronously. Returns operation ID."""
+        operation_id = str(uuid.uuid4())[:8]
+        
+        def _import():
+            try:
+                external_path = Path(external_file_path)
+                if not external_path.exists():
+                    raise FileNotFoundError(f"External file does not exist: {external_file_path}")
+                
+                # Use original filename if no target specified
+                if target_filename is None:
+                    target_name = external_path.name
+                else:
+                    target_name = target_filename
+                
+                target_path = self.root_path / subdir / target_name
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                
+                # Copy file data
+                with open(external_path, 'rb') as src:
+                    file_data = src.read()
+                
+                with open(target_path, 'wb') as dst:
+                    dst.write(file_data)
+                
+                # Calculate hash for verification
+                import xxhash
+                xxhash_value = xxhash.xxh64(file_data).hexdigest()
+                
+                self._completed_operations.put({
+                    'operation_id': operation_id,
+                    'type': 'import',
+                    'external_path': str(external_path),
+                    'target_path': str(target_path),
+                    'filename': target_name,
+                    'subdir': subdir,
+                    'xxhash': xxhash_value,
+                    'file_size': len(file_data),
+                    'success': True,
+                    'error': None
+                })
+            except Exception as e:
+                self._completed_operations.put({
+                    'operation_id': operation_id,
+                    'type': 'import',
+                    'external_path': external_file_path,
+                    'target_path': None,
+                    'filename': target_filename,
+                    'success': False,
+                    'error': str(e)
+                })
+        
+        self._pending_operations[operation_id] = self._executor.submit(_import)
+        return operation_id
     
     def load_file_async(self, filename: str, subdir: str = "", 
                        as_json: bool = False) -> str:
         """Load file asynchronously. Returns operation ID."""
         operation_id = str(uuid.uuid4())[:8]
-        
+        logger.debug(f"Loading file {filename} from {subdir} with as_json={as_json}")
         def _load():
             try:               
                 file_path = self.root_path / subdir / filename                
@@ -82,6 +141,8 @@ class StorageManager:
                     'operation_id': operation_id,
                     'type': 'load',
                     'filename': filename,
+                    'file_path': str(file_path),  # Add file path to completion data
+                    'subdir': subdir,
                     'success': True,
                     'data': data,
                     'error': None
@@ -91,6 +152,8 @@ class StorageManager:
                     'operation_id': operation_id,
                     'type': 'load',
                     'filename': filename,
+                    'file_path': str(self.root_path / subdir / filename),
+                    'subdir': subdir,
                     'success': False,
                     'data': None,
                     'error': 'File not found'
@@ -100,6 +163,8 @@ class StorageManager:
                     'operation_id': operation_id,
                     'type': 'load',
                     'filename': filename,
+                    'file_path': str(self.root_path / subdir / filename),
+                    'subdir': subdir,
                     'success': False,
                     'data': None,
                     'error': str(e)

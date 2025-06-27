@@ -145,8 +145,11 @@ class DownloadManager:
                     hash_obj.update(data)
                     f.seek(0)  # Reset for upload
                     
-                    # Perform upload
-                    response = requests.put(upload_url, data=data, timeout=60)
+                    # Extract custom headers from metadata
+                    headers = metadata.get('headers', {}) if metadata else {}
+                    
+                    # Perform upload with custom headers
+                    response = requests.put(upload_url, data=data, headers=headers, timeout=60)
                     response.raise_for_status()
                 
                 file_hash = hash_obj.hexdigest()

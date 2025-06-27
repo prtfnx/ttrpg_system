@@ -6,20 +6,20 @@ import os
 import requests
 import hashlib
 import json
-import logging
 import time
 import ctypes
 import xxhash   
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 from net.protocol import Message, MessageType
+from logger import setup_logger
 import settings
 import shutil
 import sdl3
 from Sprite import Sprite
 from storage.StorageManager import StorageManager
 from net.DownloadManager import DownloadManager  
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 class ClientAssetManager:
     """Manages R2 assets on the client side with local caching"""
@@ -112,17 +112,6 @@ class ClientAssetManager:
         cache_subdir.mkdir(exist_ok=True)
         return cache_subdir / f"{asset_id}_{filename}"
 
-    def _calculate_file_xxhash(self, file_path: Path) -> str:
-        """Calculate xxHash for a file (fast hash for local operations)"""
-        try:
-            hasher = xxhash.xxh64()  # xxh64 is faster and has good distribution
-            with open(file_path, "rb") as f:
-                for chunk in iter(lambda: f.read(65536), b""):  # 64KB chunks for speed
-                    hasher.update(chunk)
-            return hasher.hexdigest()
-        except Exception as e:
-            logger.error(f"Failed to calculate xxHash for {file_path}: {e}")
-            return ""
     
     def _calculate_data_xxhash(self, data: bytes) -> str:
         """Calculate xxHash for data in memory (fast hash for loaded data)"""
@@ -138,14 +127,9 @@ class ClientAssetManager:
             logger.error(f"Failed to calculate xxHash for data: {e}")
             return ""
   
-    def generate_asset_id(self, filename: str) -> str:
-        """Generate unique asset ID using xxHash"""
-        timestamp = str(int(time.time()))
-        content = f"{filename}_{timestamp}"
-        # Use xxHash instead of SHA256 for consistency
-        hasher = xxhash.xxh64()
-        hasher.update(content.encode())
-        return hasher.hexdigest()[:16]
+    def generate_asset_id(self, data: bytes) -> str:
+        """Generate unique asset ID using xxHash"""        
+        return self._calculate_data_xxhash(data)[:16]  # Use first 16 characters for asset ID
     
     def calculate_file_xxhash_for_upload(self, file_path: str) -> str:
         """Calculate xxHash for a file before upload (public method)"""
@@ -445,8 +429,8 @@ class ClientAssetManager:
             **self.download_stats
         }
 
-       
-    def handle_load_file(self, operation_id: str, filename: str, data: bytes) -> Optional[bool]:
+
+    def handle_file_loaded(self, operation_id: str, filename: str, data: bytes) -> Optional[Tuple[str,str]]:
         """Handle loading an asset by filename or operation ID"""
         if not filename and not operation_id:
             logger.error("No filename or operation ID provided for loading asset")
@@ -454,7 +438,7 @@ class ClientAssetManager:
         
         # Check by operation ID
         xxhash = self._calculate_data_xxhash(data)
-        asset_id = self.generate_asset_id(filename)
+        asset_id = xxhash[:16]
         self._add_to_hash_lookup(asset_id, xxhash)
         self._add_to_path_lookup(asset_id, filename)
         if operation_id:
@@ -477,7 +461,7 @@ class ClientAssetManager:
                     logger.info(f"Texture reloaded for operation ID {operation_id} with size {w}x{h}")
                     self.register_texture(asset_id, texture)
                     logger.info(f"Loaded asset for operation ID {operation_id} with texture {filename}")
-                    return True
+                    return asset_id, xxhash
                 else:
                     logger.error(f"Failed to reload texture for operation ID {operation_id}")
                     return None

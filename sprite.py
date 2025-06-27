@@ -1,12 +1,12 @@
 import ctypes
-import logging
+from logger import setup_logger
 import os
 import io_sys
 import sdl3
 import uuid
 import os
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 class Sprite:
     def __init__(self, renderer, texture_path, scale_x=1, scale_y=1,

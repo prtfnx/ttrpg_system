@@ -714,13 +714,15 @@ class ClientProtocol:
         self.send(msg.to_json())
         logger.info("Requested asset list")
 
-    def confirm_asset_upload(self, asset_id: str, upload_success: bool, error_message: Optional[str] = None):
+    def confirm_asset_upload(self, asset_id: str, file_xxhash: str, upload_success: bool, error_message: Optional[str] = None):
         """Confirm completion of asset upload to server"""
         msg = Message(MessageType.ASSET_UPLOAD_CONFIRM, {
             'asset_id': asset_id,
             'success': upload_success,
             'error': error_message,
             'user_id': self.user_id or 0,
+            'session_code': self.session_code or 'unknown',
+            'xxhash': file_xxhash,
             'username': self.username or 'unknown'
         }, self.client_id)
         self.send(msg.to_json())

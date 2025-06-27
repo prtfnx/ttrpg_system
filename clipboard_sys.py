@@ -1,13 +1,13 @@
 import sdl3
 import ctypes
-import logging
 import os
 import json
 import tempfile
 import time
 import uuid
 from core_table.actions_protocol import Position
-logger = logging.getLogger(__name__)
+from logger import setup_logger
+logger = setup_logger(__name__)
 
 # Global variable to store copied sprite data
 _copied_sprite_data = None

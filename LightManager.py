@@ -1,8 +1,8 @@
-import logging
+from logger import setup_logger
 import ctypes
 import sdl3
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 class LightManager:
     def __init__(self, context, name="Default Light Manager"):

@@ -11,9 +11,9 @@ import requests
 from pathlib import Path
 from typing import Optional, Dict, Any, Union, List
 from concurrent.futures import ThreadPoolExecutor
-import logging
+from logger import setup_logger
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 
 class DownloadManager:

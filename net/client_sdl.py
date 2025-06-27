@@ -1,11 +1,11 @@
 import sys
-import logging
+from logger import setup_logger
 import sdl3
 import sdl3.SDL_net
 import ctypes
 import json
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 SERVER_IP = ctypes.c_char_p(b"127.0.0.1")
 SERVER_PORT = ctypes.c_uint16(12345)

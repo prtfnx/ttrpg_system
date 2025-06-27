@@ -7,9 +7,9 @@ import copy
 import typing
 if typing.TYPE_CHECKING:
     from .server import TableManager
-import logging
+from logger import setup_logger
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 class ActionsCore(AsyncActionsProtocol):
     """
     Server-side implementation of ActionsProtocol for VirtualTable.

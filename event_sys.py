@@ -1,12 +1,12 @@
 import sdl3
 import ctypes
 import json
-import logging
 import PaintManager
 import clipboard_sys  # Add clipboard import
 import dragdrop_sys   # Add drag drop import
 from MovementManager import sync_sprite_move
-logger = logging.getLogger(__name__)
+from logger import setup_logger
+logger = setup_logger(__name__)
 
 class Directions:
     EAST=1

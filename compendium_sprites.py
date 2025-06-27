@@ -4,12 +4,12 @@ Compendium Sprite Helper
 Utilities for creating sprites from compendium entities
 """
 
-import logging
 from pathlib import Path
 from typing import Optional, Dict, Any
 import uuid
+from logger import setup_logger
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 class CompendiumSpriteHelper:
     """Helper class for creating sprites from compendium entities"""

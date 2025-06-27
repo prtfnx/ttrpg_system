@@ -3,9 +3,9 @@
 
 import ctypes
 import sdl3
-import logging
+from logger import setup_logger
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 # Layout configuration
 TABLE_AREA_PERCENT = 0.70  # 70% for SDL tables

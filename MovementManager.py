@@ -1,10 +1,10 @@
 import sdl3
 import ctypes
-import logging
+from logger import setup_logger
 import numpy as np
 from net.protocol import Message, MessageType
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 TIME_TO_DIE = 2000
 

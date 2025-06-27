@@ -3,7 +3,7 @@ Cloudflare R2 Asset Manager for TTRPG System.
 Production-ready boto3-based implementation following Cloudflare best practices.
 """
 import os
-import logging
+from logger import setup_logger
 import hashlib
 import xxhash
 from typing import Optional, Dict, Any, List, Tuple
@@ -15,7 +15,7 @@ from botocore.exceptions import ClientError, NoCredentialsError
 from botocore.config import Config
 import settings
 import mimetypes
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 @dataclass
 class UploadResult:

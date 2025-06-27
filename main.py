@@ -1,5 +1,5 @@
 import sys
-import logging
+from logger import setup_logger
 import sdl3
 import ctypes
 import event_sys
@@ -39,10 +39,7 @@ import settings
 #from profiler_integration import profile_sdl_operations, profile_imgui_operations, profile_context_operations
 
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
-
+logger = setup_logger(__name__)
 
 BASE_WIDTH: int = 1920
 BASE_HEIGHT:  int = 1080
@@ -514,7 +511,7 @@ def parse_arguments():
     # Authentication parameters for WebSocket connections
     parser.add_argument('--session-code', default='WBCHCY',
                        help='Game session code for WebSocket connection')
-    parser.add_argument('--jwt-token', default='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNzUwNzA1MTI4fQ.WO-IhNzShB53v50hZiP2OGEZhobtLdiR4fHDG7fFmFc',
+    parser.add_argument('--jwt-token', default='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNzUxMDQyNDA4fQ.O1F_KYYYiqN7CohTgkoanBsxQW_ti6Wlr6qNyy-fveQ',
                        help='JWT authentication token for WebSocket connection')
     parser.add_argument('--username', default='test',
                        help='Username for authentication')

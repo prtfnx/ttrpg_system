@@ -1,7 +1,6 @@
 import ctypes
 import os
 import queue
-import logging
 import time
 import uuid
 from typing import Optional, Dict, List, Any, Union, TYPE_CHECKING
@@ -12,6 +11,7 @@ from ContextTable import ContextTable
 from AssetManager import ClientAssetManager
 from RenderManager import RenderManager
 from Sprite import Sprite
+from logger import setup_logger
 
 # SDL3 type hints using actual SDL3 types
 if TYPE_CHECKING:  
@@ -31,7 +31,7 @@ else:
     SDL_GLContext = Any
 
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 CELL_SIDE: int = 20
 MIN_SCALE: float = 0.1
@@ -86,7 +86,8 @@ class Context:
         self.current_table: Optional[ContextTable] = None
         self.list_of_tables: List[ContextTable] = []       
         # Actions protocol
-        self.Actions: Optional[Actions] = None        # Managers
+        self.Actions: Optional[Actions] = None        
+        # Managers
         self.LayoutManager: Optional[LayoutManager] = None
         self.LightingManager: Optional[LightManager] = None
         self.CompendiumManager: Optional[CompendiumManager] = None
@@ -94,7 +95,7 @@ class Context:
         self.AssetManager: Optional[ClientAssetManager] = None
         self.RenderManager: Optional[RenderManager] = None
         # Note: StorageManager and DownloadManager are now owned by AssetManager
-          # Network
+        # Network
         self.net_client_started: bool = False
         self.net_socket: Optional[Any] = None
         self.queue_to_send: queue.PriorityQueue[Any] = queue.PriorityQueue(0)

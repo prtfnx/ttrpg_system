@@ -1,5 +1,5 @@
 import asyncio
-import logging
+from logger import setup_logger
 import time
 import hashlib
 import os
@@ -7,7 +7,7 @@ from typing import Callable, Optional, Dict, Any
 from .protocol import Message, MessageType, ProtocolHandler
 from .client_protocol import ClientProtocol
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 class WebSocketClientProtocol(ClientProtocol):
     pass

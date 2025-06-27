@@ -1,11 +1,11 @@
 import sdl3
 import ctypes
-import logging
+from logger import setup_logger
 import os
 import time
 from typing import List, Tuple
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 class DrawPoint:
     """Represents a single point in a drawing stroke."""

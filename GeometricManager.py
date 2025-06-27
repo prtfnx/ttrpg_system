@@ -6,9 +6,10 @@ import functools
 import sdl3
 import ctypes
 import logging
+from logger import setup_logger
 from Sprite import Sprite  
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+
+logger = setup_logger(__name__, level=logging.INFO)
 
 # Profiling utilities
 class ProfilerStats:

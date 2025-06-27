@@ -20,7 +20,8 @@ from net.protocol import Message, MessageType, ProtocolHandler
 from core_table.server_protocol import ServerProtocol
 from core_table.server import TableManager
 from .asset_manager import get_server_asset_manager
-logger = logging.getLogger(__name__)
+from server_host.utils.logger import setup_logger
+logger = setup_logger(__name__)
 
 
 
@@ -245,7 +246,10 @@ class GameSessionProtocolService:
                     self.auto_save()
                 
                 #TODO - implement proper broadcast logic
-                await self.broadcast_to_session(message, exclude_client=client_id)
+                if message_type in [MessageType.SPRITE_UPDATE, MessageType.TABLE_UPDATE]:
+                    # Broadcast to all clients except the sender
+                    logger.debug(f"Broadcasting {message_type.value} to session {self.session_code} excluding client {client_id}")
+                    await self.broadcast_to_session(message, exclude_client=client_id)
             else:
                 logger.warning(f"Unknown message type: {message_type}, available handlers: {list(self.server_protocol.handlers.keys())}")
                 logger.info(f"message: {message}, client_id: {client_id}")

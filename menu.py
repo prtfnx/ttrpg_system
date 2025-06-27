@@ -1,15 +1,15 @@
 # Fix menu.py - ensure proper ImGui begin/end pairing
-import logging
+from logger import setup_logger
 import sys
 import subprocess
-import os
+
 import sdl3
 import ctypes
 from imgui_bundle import imgui
 from imgui_bundle.python_backends.sdl3_backend import SDL3Renderer
 import OpenGL.GL as gl
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 class MenuApp:
     def __init__(self):

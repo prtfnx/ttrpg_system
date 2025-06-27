@@ -1,6 +1,7 @@
 import sdl3
 import ctypes
 import logging
+from logger import setup_logger
 from typing import Optional, Dict, List, Any, Union, TYPE_CHECKING
 from Sprite import Sprite
 from dataclasses import dataclass
@@ -10,10 +11,10 @@ if TYPE_CHECKING:
     from LightManager import LightManager
     from GeometricManager import GeometricManager
     from ContextTable import ContextTable
-logger= logging.getLogger(__name__)
-#logger.setLevel(logging.DEBUG)
-@dataclass
+logger = setup_logger(__name__, level=logging.INFO)
 
+
+@dataclass
 class LayerSettings:
     color: tuple[int, int, int] = (255, 255, 255)
     opacity: float = 1.0

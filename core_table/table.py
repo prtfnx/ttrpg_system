@@ -1,12 +1,12 @@
 import json
 import os
-import logging
+from logger import setup_logger
 from typing import Dict, Tuple, List, Optional
 import uuid
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s:%(message)s')
+# logging.basicConfig removed - using central logger setup
 
 LAYER_NAMES = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles']
 

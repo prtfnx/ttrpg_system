@@ -1,5 +1,5 @@
 import asyncio
-import logging
+from logger import setup_logger
 import json
 import uuid
 import os
@@ -13,7 +13,7 @@ from core_table.server_protocol import ServerProtocol
 from core_table.table import VirtualTable
 from net.protocol import Message, MessageType
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 HOST = '127.0.0.1'
 PORT = 12345

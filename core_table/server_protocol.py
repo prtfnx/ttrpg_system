@@ -3,7 +3,7 @@ import sys
 import time
 import xxhash  # Add xxhash import
 from typing import Dict, Set, Optional, Tuple, Any, Callable
-import logging
+
 
 
 # Add parent directory to path to import protocol
@@ -299,7 +299,8 @@ class ServerProtocol:
                 asset_id=asset_id,
                 filename=filename,
                 file_size=file_size,
-                content_type=content_type
+                content_type=content_type,
+                file_xxhash=file_xxhash
             )
             
             # Generate presigned URL with xxHash
@@ -449,7 +450,7 @@ class ServerProtocol:
                     if asset_xxhash:
                         entity_data['asset_xxhash'] = asset_xxhash
                         # Generate asset_id from xxHash (same as client logic)
-                        entity_data['asset_id'] = f"asset_{asset_xxhash[:16]}"
+                        entity_data['asset_id'] = asset_xxhash[:16]
                         logger.debug(f"Added xxHash {asset_xxhash} to entity {entity_id}")
                     else:
                         logger.warning(f"Could not get xxHash for asset: {texture_path}")
@@ -481,6 +482,8 @@ class ServerProtocol:
         # If it's a local file, calculate xxHash
         logger.debug(f"Getting xxHash for texture path: {texture_path}")            
         file_path = None
+        calculated_hash = None
+        
         if os.path.exists(texture_path):
             file_path = texture_path
         #TODO: remove hardcoded path
@@ -503,10 +506,11 @@ class ServerProtocol:
                     asset.xxhash = calculated_hash
                     logger.debug(f"Updated existing asset {asset_name} with xxHash: {calculated_hash}")
                 else:
-                    r2_asset_id = f"local_{calculated_hash[:16]}"
+                    # Use content-based asset_id (first 16 chars of xxhash)
+                    asset_id = calculated_hash[:16]
                     new_asset = Asset(
                         asset_name=asset_name,
-                        r2_asset_id=r2_asset_id,                         
+                        r2_asset_id=asset_id,  # Content-based, consistent with client                        
                         content_type=asset_type,  
                         file_size=os.path.getsize(file_path),
                         xxhash=calculated_hash,
@@ -514,13 +518,13 @@ class ServerProtocol:
                         r2_key=f"local/{asset_name}",  
                         r2_bucket="local"  
                     )                    
-                db_session.add(new_asset)
-                logger.debug(f"Created new asset entry for {asset_name} with xxHash: {calculated_hash}")
+                    db_session.add(new_asset)
+                    logger.debug(f"Created new asset entry for {asset_name} with xxHash: {calculated_hash}")
                 db_session.commit()
                 return calculated_hash
             else:
                 asset = db_session.query(Asset).filter_by(asset_name=asset_name).first()
-                if asset and asset.xxhash:
+                if asset and hasattr(asset, 'xxhash') and asset.xxhash:
                     return asset.xxhash
                 return None
         except Exception as e:

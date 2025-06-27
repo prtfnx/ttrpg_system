@@ -5,12 +5,12 @@ import asyncio
 import threading
 from typing import Callable, Optional, Dict, Any, List
 from .protocol import Message, MessageType, ProtocolHandler
-import logging
+from logger import setup_logger
 from Actions import Actions
 import requests
 from .DownloadManager import DownloadManager
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 class ClientProtocol:
     def __init__(self, Actions: Actions, send_callback: Callable[[str], None]):
@@ -101,7 +101,7 @@ class ClientProtocol:
             }, self.client_id).to_json())
 
     def handle_new_table_response(self, msg: Message):
-        data= msg.data
+        data = msg.data
         if not data or 'name' not in data:
             logger.error("Received empty new table response data")
             self.send(Message(MessageType.ERROR, {
@@ -109,7 +109,7 @@ class ClientProtocol:
             }, self.client_id).to_json())
             return
         table_name = data['name']
-        self.context.actions.create_table_from_dict(data)
+        self.Actions.create_table_from_dict(data)
     
     def handle_table_response(self, msg: Message):
         data = msg.data
@@ -137,13 +137,13 @@ class ClientProtocol:
                 MessageType.ASSET_DOWNLOAD_REQUEST,
                 {
                     "asset_id": asset_id,
-                    "session_code": getattr(self.context, 'session_code', 'unknown'),
-                    "user_id": getattr(self.context, 'user_id', 0),
-                    "username": getattr(self.context, 'username', 'unknown')
+                    "session_code": self.session_code or 'unknown',
+                    "user_id": self.user_id or 0,
+                    "username": self.username or 'unknown'
                 }
             )
             
-            self.context.queue_to_send.put((1, download_request))
+            self.send(download_request.to_json)
             logger.info(f"Requested download for asset {asset_id}")
             
         except Exception as e:
@@ -200,7 +200,7 @@ class ClientProtocol:
         
         table_name = data['name']
         logger.info(f"Requesting table: {table_name}")
-        table = self.context.get_table_by_name(table_name)
+        table = self.Actions.get_table(table_name)
         
         if not table:
             logger.error(f"Table {table_name} not found in context")
@@ -643,8 +643,7 @@ class ClientProtocol:
         success_data = msg.data
         logger.info(f"Success message received: {success_data}")
         # Add to chat if available
-        if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
-            self.context.gui_system.gui_state.chat_messages.append(f"✅ Success: {success_data.get('message', '')}")
+        self.Actions.add_chat_message(f"✅ Success: {success_data.get('message', 'Operation completed successfully')}")
 
     # Authentication methods
     def auth_register(self, username: str, password: str, email: Optional[str] = None, full_name: Optional[str] = None):
@@ -688,13 +687,17 @@ class ClientProtocol:
         self.send(msg.to_json())
         logger.info(f"Requested download for asset {asset_id}")
 
-    def request_asset_upload(self, filename: str, file_size: int, file_hash: str, session_code: Optional[str] = None):
+    def request_asset_upload(self, filename: str, file_size: int, file_hash: str, asset_id: str, content_type: Optional[str] = None, session_code: Optional[str] = None):
         """Request upload URL for an asset to the server"""
+        if asset_id != file_hash[:16]:
+            raise ValueError("asset_id must match first 16 chars of file_hash")
         msg = Message(MessageType.ASSET_UPLOAD_REQUEST, {
             'filename': filename,
             'file_size': file_size,
-            'file_hash': file_hash,
+            'xxhash': file_hash,
+            'asset_id': asset_id,
             'session_code': session_code or self.session_code or 'unknown',
+            'content_type': self._get_content_type(filename),
             'user_id': self.user_id or 0,
             'username': self.username or 'unknown'
         }, self.client_id)
@@ -788,7 +791,8 @@ class ClientProtocol:
                 
             # Store user information in ClientProtocol for message construction
             self.user_id = msg.data.get('user_id', 0)
-            self.username = msg.data.get('username', 'unknown')
+            if msg.data.get('username') is not None:
+                self.username = msg.data.get('username', 'unknown')
             self.session_code = msg.data.get('session_code', 'unknown')
             
             # Update client ID from server if provided

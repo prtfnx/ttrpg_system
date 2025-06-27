@@ -7,9 +7,9 @@ from dataclasses import dataclass, field
 from typing import Any 
 from queue import PriorityQueue, Empty
 from .protocol import Message, PrioritizedItem
-import logging
+from logger import setup_logger
 import json
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 
 class QueueBridge:

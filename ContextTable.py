@@ -1,10 +1,10 @@
 import ctypes
 from Sprite import Sprite
-import logging
 import uuid
 import sdl3
+from logger import setup_logger
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 CELL_SIDE: int = 20
 

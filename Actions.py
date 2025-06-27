@@ -3,6 +3,7 @@ from core_table.actions_protocol import ActionsProtocol, ActionResult, Position,
 import uuid
 import copy
 import os
+import time
 from pathlib import Path
 from net.protocol import Message, MessageType
 from logger import setup_logger
@@ -92,7 +93,7 @@ class Actions(ActionsProtocol):
     - handle_file_saved(operation_id, filename) -> Process saved file
     - handle_file_list(operation_id, file_list) -> Process file listing
     - handle_file_operation_error(operation_id, operation_type, error_msg) -> Handle file errors
-    
+    - handle_file_imported(self, operation_id: str, operation: dict) -> Handle imported file operation
     ═══════════════════════════════════════════════════════════════════════════════
     NETWORK & PROTOCOL OPERATIONS
     ═══════════════════════════════════════════════════════════════════════════════
@@ -123,7 +124,7 @@ class Actions(ActionsProtocol):
     - handle_asset_list_response(data) -> Process asset list response from server
     - handle_asset_upload_response(data) -> Process asset upload response from server
     - handle_welcome_message(data) -> Process welcome message from server
-    - _request_asset_download(asset_id) -> Request asset download from server
+    - _request_asset_download(asset_id) -> Request asset download from server    
     ═══════════════════════════════════════════════════════════════════════════════
     GUI & UI EVENT HANDLERS 
     ═══════════════════════════════════════════════════════════════════════════════
@@ -161,6 +162,7 @@ class Actions(ActionsProtocol):
         self.max_history = 100
         self.layer_visibility = {layer: True for layer in LAYERS.keys()}
         self.AssetManager: Optional[ClientAssetManager] = None
+        self.pending_upload_operations: Dict[str, str] = {}  # asset_id -> file_path
 
     def _add_to_history(self, action: Dict[str, Any]):
         """Add action to history for undo/redo functionality"""
@@ -934,7 +936,7 @@ class Actions(ActionsProtocol):
             logger.error(f"Failed to load file {file_path}: {e}")
             return ActionResult(False, f"Failed to load file: {str(e)}")
 
-    def handle_file_loaded(self, operation_id: str, filename: str, data: Any) -> ActionResult:
+    def handle_file_loaded(self, operation_id: str, filename: str, data: Any, file_path: Optional[str] = None) -> ActionResult:
         """Handle successful file load operation"""
         try:
             if data is None:
@@ -951,12 +953,14 @@ class Actions(ActionsProtocol):
                 logger.info(f"Loading image file: {filename}")
                 result = self.AssetManager.handle_file_loaded(operation_id, filename, data)
                 if result:
-                    asset_id, xxhash = result              
+                    asset_id, xxhash = result
+                    
                     self.ask_for_upload_file(
                         filename=filename,
                         file_size=len(data),
                         file_hash=xxhash,
                         asset_id=asset_id,
+                        file_path=file_path,  
                         file_type=filetype
                     )
                 else:
@@ -1059,13 +1063,80 @@ class Actions(ActionsProtocol):
             logger.error(f"Error handling file operation error: {e}")
             return ActionResult(False, f"Error handling file operation error: {str(e)}")
     
+    def handle_file_imported(self, operation_id: str, operation: dict) -> ActionResult:
+        """Handle successful file import operation"""
+        try:
+            external_path = operation.get('external_path', 'unknown')
+            target_path = operation.get('target_path', 'unknown')
+            filename = operation.get('filename', 'unknown')
+            xxhash_value = operation.get('xxhash', '')
+            
+            logger.info(f"File imported successfully: {external_path} -> {target_path}")
+            
+            # Register the imported file in AssetManager
+            if self.AssetManager and xxhash_value:
+                asset_id = xxhash_value[:16]
+                
+                # Update registry with imported file info
+                self.AssetManager.asset_registry[asset_id] = {
+                    'asset_id': asset_id,
+                    'filename': filename,
+                    'local_path': target_path,
+                    'cached_at': time.time(),
+                    'source': 'imported',
+                    'original_path': external_path,
+                    'file_size': operation.get('file_size', 0),
+                    'xxhash': xxhash_value,
+                    'hash_verified': True
+                }
+                
+                # Add to lookup tables
+                self.AssetManager._add_to_hash_lookup(asset_id, xxhash_value)
+                self.AssetManager._add_to_path_lookup(asset_id, external_path)
+                
+                # Save registry
+                self.AssetManager._save_registry()
+                
+                # Check if there's a sprite waiting for this import
+                sprite = self.AssetManager.dict_of_sprites.get(operation_id)
+                if sprite and self.AssetManager.StorageManager:
+                    # Load the imported file to create texture
+                    subdir = operation.get('subdir', 'assets')
+                    load_operation_id = self.AssetManager.StorageManager.load_file_async(
+                        filename, subdir=subdir, as_json=False
+                    )
+                    # Transfer sprite association to the load operation
+                    self.AssetManager.dict_of_sprites[load_operation_id] = sprite
+                    del self.AssetManager.dict_of_sprites[operation_id]
+                    logger.info(f"Initiated load for imported file, operation_id: {load_operation_id}")
+            
+            action = {
+                'type': 'file_imported',
+                'operation_id': operation_id,
+                'external_path': external_path,
+                'target_path': target_path,
+                'filename': filename
+            }
+            self._add_to_history(action)
+            
+            return ActionResult(True, f"File imported successfully: {filename}")
+            
+        except Exception as e:
+            logger.error(f"Error handling file import for operation {operation_id}: {e}")
+            return ActionResult(False, f"Failed to handle file import: {str(e)}")
     # ═══════════════════════════════════════════════════════════════════════════════
     # NETWORK & PROTOCOL OPERATIONS
     # ═══════════════════════════════════════════════════════════════════════════════
-    def ask_for_upload_file(self, filename: str, file_size: int, file_hash: str, asset_id: str, file_type: Optional[str] = None) -> ActionResult:
+    def ask_for_upload_file(self, filename: str, file_size: int, file_hash: str, asset_id: str, 
+                           file_path: Optional[str] = None, file_type: Optional[str] = None) -> ActionResult:
 
         try:
             logger.info(f"Requesting upload for file: {filename}")
+            
+            # Store file path for later upload
+            if file_path:
+                self.pending_upload_operations[asset_id] = file_path
+                logger.debug(f"Stored file path {file_path} for asset {asset_id}")
 
             self.context.protocol.request_asset_upload(filename, file_size, file_hash, asset_id=asset_id, content_type=file_type)
             action = {
@@ -1074,7 +1145,8 @@ class Actions(ActionsProtocol):
                 'file_size': file_size,
                 'file_hash': file_hash,
                 'file_type': file_type,
-                'asset_id': asset_id
+                'asset_id': asset_id,
+                'file_path': file_path
             }
             self._add_to_history(action)
             return ActionResult(True, f"Upload requested for file: {filename}")
@@ -1192,9 +1264,13 @@ class Actions(ActionsProtocol):
         op_id = operation.get('operation_id', 'unknown')
         
         if op_type == 'load' and 'data' in operation:
-            self.handle_file_loaded(op_id, operation['filename'], operation['data'])
+            # Pass the file path from storage completion data
+            file_path = operation.get('file_path', '')
+            self.handle_file_loaded(op_id, operation['filename'], operation['data'], file_path)
         elif op_type == 'save':
             self.handle_file_saved(op_id, operation['filename'])
+        elif op_type == 'import':
+            self.handle_file_imported(op_id, operation)
         elif op_type == 'list':
             self.handle_file_list(op_id, operation.get('data', []))
         else:
@@ -1237,13 +1313,15 @@ class Actions(ActionsProtocol):
         op_id = operation.get('operation_id', 'unknown')
         metadata = operation.get('metadata', {})
         asset_id = metadata.get('asset_id')
-        
+        file_xxhash = metadata.get('required_xxhash', '')
+        original_file_path = metadata.get('original_file_path', '')
         logger.info(f"Upload completed for asset {asset_id} (operation {op_id})")
+        logger.debug(f"Upload metadata: {metadata}")
         
         # Notify server of successful upload if protocol is available
         if hasattr(self.context, 'protocol') and self.context.protocol:
             try:
-                self.context.protocol.confirm_asset_upload(asset_id, True)
+                self.context.protocol.confirm_asset_upload(asset_id,file_xxhash, True)
             except Exception as e:
                 logger.error(f"Failed to confirm upload for asset {asset_id}: {e}")
 
@@ -1337,13 +1415,39 @@ class Actions(ActionsProtocol):
                 
             asset_id = data.get('asset_id')
             upload_url = data.get('upload_url')
+            required_xxhash = data.get('required_xxhash')
             
-            if not asset_id or not upload_url:
-                logger.error("Invalid asset upload response: missing asset_id or upload_url")
+            if not asset_id or not upload_url or not required_xxhash:
+                logger.error("Invalid asset upload response: missing asset_id, upload_url, or required_xxhash")
                 return
 
-            logger.info(f"Received upload URL for asset {asset_id}")
-            # Upload URL received - could trigger file upload here
+            logger.info(f"Received upload URL for asset {asset_id}, required xxHash: {required_xxhash}")
+            
+            # Find the file path to upload (should be stored in pending operations)
+            file_path = self.pending_upload_operations.get(asset_id)
+            if not file_path:
+                logger.error(f"No pending file path found for asset {asset_id}")
+                return
+            
+            # Start upload via AssetManager
+            if not self.AssetManager:
+                logger.error("AssetManager not initialized, cannot start upload")
+                return
+            
+            operation_id = self.AssetManager.upload_asset_async(
+                file_path=file_path,
+                upload_url=upload_url,
+                asset_id=asset_id,
+                required_xxhash=required_xxhash
+            )
+            
+            if operation_id:
+                logger.info(f"Started upload operation {operation_id} for asset {asset_id}")
+                # Clean up pending operation and file path tracking
+                self.pending_upload_operations.pop(asset_id, None)
+                # Note: operation_file_paths in AssetManager will be cleaned up when upload completes
+            else:
+                logger.error(f"Failed to start upload for asset {asset_id}")
             
         except Exception as e:
             logger.error(f"Error handling asset upload response: {e}")
@@ -1555,4 +1659,6 @@ class Actions(ActionsProtocol):
             
         except Exception as e:
             logger.error(f"Error processing CSV data: {e}")
+
+
 

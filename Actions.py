@@ -2,10 +2,10 @@ from typing import Dict, Any, List, Optional, TYPE_CHECKING
 from core_table.actions_protocol import ActionsProtocol, ActionResult, Position, LAYERS
 import uuid
 import copy
-import logging
 import os
 from pathlib import Path
 from net.protocol import Message, MessageType
+from logger import setup_logger
 if TYPE_CHECKING:
     from Context import Context
     from ContextTable import ContextTable
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from AssetManager import ClientAssetManager
 
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 class Actions(ActionsProtocol):
     """
@@ -94,6 +94,12 @@ class Actions(ActionsProtocol):
     - handle_file_operation_error(operation_id, operation_type, error_msg) -> Handle file errors
     
     ═══════════════════════════════════════════════════════════════════════════════
+    NETWORK & PROTOCOL OPERATIONS
+    ═══════════════════════════════════════════════════════════════════════════════
+    #TODO- ask_for_asset_download(asset_id) -> Request asset download from server
+    #TODO- ask_for_asset_list() -> Request asset list from server
+    - ask_for_upload_file(file_path, filename, file_type) -> Request file upload to server
+    ═══════════════════════════════════════════════════════════════════════════════
     BATCH & HISTORY OPERATIONS
     ═══════════════════════════════════════════════════════════════════════════════
     - batch_actions(actions) -> Execute multiple actions in sequence
@@ -118,7 +124,10 @@ class Actions(ActionsProtocol):
     - handle_asset_upload_response(data) -> Process asset upload response from server
     - handle_welcome_message(data) -> Process welcome message from server
     - _request_asset_download(asset_id) -> Request asset download from server
-    
+    ═══════════════════════════════════════════════════════════════════════════════
+    GUI & UI EVENT HANDLERS 
+    ═══════════════════════════════════════════════════════════════════════════════
+    add_chat_message(message: str) -> Add message to chat log
     ═══════════════════════════════════════════════════════════════════════════════
     INTERNAL HELPER METHODS
     ═══════════════════════════════════════════════════════════════════════════════
@@ -265,15 +274,18 @@ class Actions(ActionsProtocol):
         except Exception as e:
             logger.error(f"Error processing table creation: {e}")
             return ActionResult(False, f"Error processing table creation: {str(e)}")
-    
-    def get_table(self, table_id: str) -> ActionResult:
-        """Get a table by ID"""
+
+    def get_table(self, table_id: Optional[str] = None, table_name: Optional[str] = None) -> ActionResult:
+        """Get a table by ID or name"""
         try:
             table = self._get_table_by_id(table_id)
             if not table:
-                return ActionResult(False, f"Table {table_id} not found")
+                table = self._get_table_by_name(table_name) if table_name else None
+                if not table:
+                    logger.error(f"Table {table_id or table_name} not found")
+                    return ActionResult(False, f"Table {table_id} not found")
 
-            return ActionResult(True, f"Table {table_id} retrieved", {'table': table})
+            return ActionResult(True, f"Table {table_id} with name {table_name} retrieved", {'table': table})
         except Exception as e:
             logger.error(f"Failed to get table {table_id}: {e}")
             return ActionResult(False, f"Failed to get table: {str(e)}")
@@ -914,7 +926,7 @@ class Actions(ActionsProtocol):
                 'filename': filename,
                 'filetype': file_type
             }
-            
+
             self._add_to_history(action)               
             return ActionResult(True, f"File load started: {file_path}", action)
             
@@ -925,6 +937,9 @@ class Actions(ActionsProtocol):
     def handle_file_loaded(self, operation_id: str, filename: str, data: Any) -> ActionResult:
         """Handle successful file load operation"""
         try:
+            if data is None:
+                logger.error(f"No data received for file load operation {operation_id} for file {filename}")
+                return ActionResult(False, f"No data received for file load operation {operation_id}")
             filetype = filename.split('.')[-1].lower() if filename and '.' in filename else None
             
             if filetype in {'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff'}:
@@ -934,7 +949,19 @@ class Actions(ActionsProtocol):
                     return ActionResult(False, "AssetManager not initialized")
                 
                 logger.info(f"Loading image file: {filename}")
-                self.AssetManager.handle_load_file(operation_id, filename, data)
+                result = self.AssetManager.handle_file_loaded(operation_id, filename, data)
+                if result:
+                    asset_id, xxhash = result              
+                    self.ask_for_upload_file(
+                        filename=filename,
+                        file_size=len(data),
+                        file_hash=xxhash,
+                        asset_id=asset_id,
+                        file_type=filetype
+                    )
+                else:
+                    logger.error(f"Failed to handle image file load for {filename}")
+                    return ActionResult(False, f"Failed to handle image file load for {filename}")
                 logger.info(f"Image file loaded: {filename}")
                 
             elif filetype in {'json', 'txt', 'csv', 'yaml', 'yml'}:
@@ -1031,6 +1058,29 @@ class Actions(ActionsProtocol):
         except Exception as e:
             logger.error(f"Error handling file operation error: {e}")
             return ActionResult(False, f"Error handling file operation error: {str(e)}")
+    
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # NETWORK & PROTOCOL OPERATIONS
+    # ═══════════════════════════════════════════════════════════════════════════════
+    def ask_for_upload_file(self, filename: str, file_size: int, file_hash: str, asset_id: str, file_type: Optional[str] = None) -> ActionResult:
+
+        try:
+            logger.info(f"Requesting upload for file: {filename}")
+
+            self.context.protocol.request_asset_upload(filename, file_size, file_hash, asset_id=asset_id, content_type=file_type)
+            action = {
+                'type': 'request_upload',
+                'filename': filename,
+                'file_size': file_size,
+                'file_hash': file_hash,
+                'file_type': file_type,
+                'asset_id': asset_id
+            }
+            self._add_to_history(action)
+            return ActionResult(True, f"Upload requested for file: {filename}")
+        except Exception as e:
+            logger.error(f"Error requesting upload for file {filename}: {e}")
+            return ActionResult(False, f"Error requesting upload for file: {str(e)}")
 
     # ============================================================================
     # BATCH & HISTORY OPERATIONS
@@ -1336,6 +1386,15 @@ class Actions(ActionsProtocol):
             logger.error("No protocol available to request asset download")
 
     # ============================================================================
+    # GUI & UI EVENT HANDLERS 
+    # ============================================================================
+    def add_chat_message(self, message: str):
+        """Add a message to the chat log"""
+        if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
+            self.context.gui_system.gui_state.chat_messages.append(message)
+            logger.info(f"Chat message added: {message}")
+
+    # ============================================================================
     # INTERNAL HELPER METHODS
     # ============================================================================
     def _process_table_assets(self, table_data: dict):
@@ -1370,6 +1429,9 @@ class Actions(ActionsProtocol):
                                 self._request_asset_download(asset_id)
                         else:
                             logger.warning("AssetManager not initialized, cannot check asset cache")
+                    elif asset_id:
+                        self._request_asset_download(asset_id)
+                        logger.info(f"Asset {asset_id} requested for download (no xxHash available)")
                     else:
                         logger.warning(f"Entity {entity_id} missing asset hash information")
                         

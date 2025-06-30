@@ -85,12 +85,10 @@ class Context:
         # Tables management
         self.current_table: Optional[ContextTable] = None
         self.list_of_tables: List[ContextTable] = []       
-        # Actions protocol
-        self.Actions: Optional[Actions] = None        
         # Managers
-        self.LayoutManager: Optional[LayoutManager] = None
-        self.LightingManager: Optional[LightManager] = None
-        self.CompendiumManager: Optional[CompendiumManager] = None
+        self.LayoutManager: Optional['LayoutManager'] = None
+        self.LightingManager: Optional['LightManager'] = None        
+        self.CompendiumManager: Optional['CompendiumManager'] = None
         self.GeometryManager: Optional[GeometricManager] = None
         self.AssetManager: Optional[ClientAssetManager] = None
         self.RenderManager: Optional[RenderManager] = None
@@ -109,8 +107,10 @@ class Context:
         self.chat_messages: List[str] = []
         
         # Current tool selection
-        self.current_tool: str = "Select"      
-
+        self.current_tool: str = "Select"
+          
+        # Actions protocol integration
+        self.Actions: Actions = Actions(self)
         
         # Light
         self.point_of_view_changed: bool = True 
@@ -341,6 +341,7 @@ class Context:
                         try:
                                    
                             sprite_action = self.Actions.create_sprite(
+                                to_server = dict_data.get('to_server', False),
                                 image_path=sprite_data.get('texture_path', ''),
                                 scale_x=sprite_data.get('scale_x', 1.0),
                                 scale_y=sprite_data.get('scale_y', 1.0),
@@ -399,9 +400,248 @@ class Context:
             if table.table_id == table_id:
                 return table
         return None
-   
-     
+    
+    # ============================================================================
+    # NETWORK INTEGRATION METHODS
+    # ============================================================================
+    
+    def get_network_status(self) -> Dict[str, Any]:
+        """Get current network status for GUI panels"""
+        status = {
+            'is_connected': False,
+            'is_hosting': False,
+            'connection_quality': 'Unknown',
+            'ping_ms': 0,
+            'player_count': 0,
+            'max_players': 6,
+            'server_ip': '',
+            'server_port': 0,
+            'session_name': '',
+            'has_password': False
+        }
+        
+        try:
+            if hasattr(self, 'protocol') and self.protocol:
+                # Get status from protocol if available
+                if hasattr(self.protocol, 'is_connected'):
+                    status['is_connected'] = getattr(self.protocol, 'is_connected', False)
+                if hasattr(self.protocol, 'is_hosting'):
+                    status['is_hosting'] = getattr(self.protocol, 'is_hosting', False)
+                if hasattr(self.protocol, 'ping_ms'):
+                    status['ping_ms'] = getattr(self.protocol, 'ping_ms', 0)
+                if hasattr(self.protocol, 'connected_players'):
+                    connected_players = getattr(self.protocol, 'connected_players', [])
+                    status['player_count'] = len(connected_players)
+                
+            return status
+        except Exception as e:
+            logger.error(f"Error getting network status: {e}")
+            return status
+    
+    def is_network_host(self) -> bool:
+        """Check if this client is hosting a session"""
+        try:
+            if hasattr(self, 'protocol') and self.protocol:
+                return getattr(self.protocol, 'is_hosting', False)
+            return False
+        except Exception as e:
+            logger.error(f"Error checking host status: {e}")
+            return False
+    
+    def is_network_connected(self) -> bool:
+        """Check if connected to a network session"""
+        try:
+            if hasattr(self, 'protocol') and self.protocol:
+                return getattr(self.protocol, 'is_connected', False)
+            return False
+        except Exception as e:
+            logger.error(f"Error checking connection status: {e}")
+            return False
+    
+    def get_connected_players(self) -> List[Dict[str, Any]]:
+        """Get list of connected players"""
+        try:
+            if hasattr(self, 'protocol') and self.protocol:
+                if hasattr(self.protocol, 'connected_players'):
+                    return getattr(self.protocol, 'connected_players', [])
+            return []
+        except Exception as e:
+            logger.error(f"Error getting connected players: {e}")
+            return []
+    
+    def broadcast_table_change(self, table_id: str, change_type: str, change_data: Optional[Dict[str, Any]] = None):
+        """Broadcast table changes to connected players"""
+        try:
+            if not self.is_network_connected() and not self.is_network_host():
+                return
+                
+            if hasattr(self, 'protocol') and self.protocol:
+                broadcast_data = {
+                    'table_id': table_id,
+                    'change_type': change_type,
+                    'data': change_data or {},
+                    'timestamp': time.time()
+                }
+                
+                # Use protocol to broadcast the change
+                if hasattr(self.protocol, 'send_update'):
+                    self.protocol.send_update('table_broadcast', broadcast_data)
+                    logger.debug(f"Broadcasted table change: {change_type} for table {table_id}")
+                else:
+                    logger.warning("Protocol does not support send_update method")
+            else:
+                logger.warning("No protocol available for broadcasting table change")
+                
+        except Exception as e:
+            logger.error(f"Error broadcasting table change: {e}")
+    
+    def notify_network_players(self, message: str, message_type: str = "info"):
+        """Send notification to all connected players"""
+        try:
+            if not self.is_network_connected() and not self.is_network_host():
+                return
+                
+            if hasattr(self, 'protocol') and self.protocol:
+                notification_data = {
+                    'message': message,
+                    'type': message_type,
+                    'timestamp': time.time()
+                }
+                
+                if hasattr(self.protocol, 'send_update'):
+                    self.protocol.send_update('notification', notification_data)
+                    logger.debug(f"Sent notification to network: {message}")
+                else:
+                    logger.warning("Protocol does not support send_update method")
+            else:
+                logger.warning("No protocol available for network notification")
+                
+        except Exception as e:
+            logger.error(f"Error sending network notification: {e}")
+    
+    def validate_network_permission(self, action: str) -> bool:
+        """Validate if current user has permission for network action"""
+        try:
+            # If not connected to network, allow all actions
+            if not self.is_network_connected() and not self.is_network_host():
+                return True
+            
+            # Host-only actions
+            host_only_actions = [
+                'delete_table', 'load_table', 'clear_table', 
+                'create_table', 'modify_session', 'kick_player'
+            ]
+            
+            if action in host_only_actions:
+                return self.is_network_host()
+            
+            # Actions allowed for all connected players
+            player_actions = [
+                'save_table', 'create_sprite', 'move_sprite', 
+                'delete_sprite', 'chat_message', 'view_change'
+            ]
+            
+            if action in player_actions:
+                return True
+            
+            # Default: allow if host, deny if just connected
+            return self.is_network_host()
+            
+        except Exception as e:
+            logger.error(f"Error validating network permission for {action}: {e}")
+            return True  # Default to allowing action if error occurs
+    
+    def sync_table_with_network(self, table_id: str):
+        """Synchronize table state with network"""
+        try:
+            if not self.is_network_connected() and not self.is_network_host():
+                return
+                
+            table = self._get_table_by_id(table_id)
+            if not table:
+                logger.warning(f"Cannot sync table {table_id}: table not found")
+                return
+            
+            # Get table data for synchronization
+            table_data = {
+                'table_id': table_id,
+                'name': table.name,
+                'width': table.width,
+                'height': table.height,
+                'position': {'x': table.x_moved, 'y': table.y_moved},
+                'scale': table.scale,
+                'show_grid': table.show_grid,
+                'sprites': {}
+            }
+            
+            # Include sprite data
+            for layer, sprites in table.dict_of_sprites_list.items():
+                for sprite in sprites:
+                    if hasattr(sprite, 'sprite_id'):
+                        table_data['sprites'][sprite.sprite_id] = {
+                            'layer': layer,
+                            'position': {'x': sprite.coord_x.value, 'y': sprite.coord_y.value},
+                            'scale': {'x': sprite.scale_x, 'y': sprite.scale_y},
+                            'rotation': getattr(sprite, 'rotation', 0.0),
+                            'texture_path': sprite.texture_path,
+                            'visible': getattr(sprite, 'visible', True)
+                        }
+            
+            # Send sync data
+            if hasattr(self, 'protocol') and self.protocol:
+                if hasattr(self.protocol, 'send_update'):
+                    self.protocol.send_update('table_sync', table_data)
+                    logger.debug(f"Synchronized table {table_id} with network")
+                else:
+                    logger.warning("Protocol does not support send_update method")
+            else:
+                logger.warning("No protocol available for table sync")
+                
+        except Exception as e:
+            logger.error(f"Error syncing table with network: {e}")
+    
+    def handle_network_disconnect(self):
+        """Handle network disconnection cleanup"""
+        try:
+            logger.info("Handling network disconnection")
+            
+            # Reset network state
+            self.net_client_started = False
+            if hasattr(self, 'protocol') and self.protocol:
+                if hasattr(self.protocol, 'is_connected'):
+                    self.protocol.is_connected = False
+                if hasattr(self.protocol, 'is_hosting'):
+                    self.protocol.is_hosting = False
+            
+            # Clear network-related UI state
+            if hasattr(self, 'imgui') and self.imgui:
+                # Could add GUI notification here
+                pass
+            
+            # Add to chat log
+            self.chat_messages.append("[System] Disconnected from network session")
+            
+            logger.info("Network disconnection handled")
+            
+        except Exception as e:
+            logger.error(f"Error handling network disconnect: {e}")
+    
+    def request_network_reconnection(self):
+        """Request reconnection to last network session"""
+        try:
+            if hasattr(self, 'protocol') and self.protocol:
+                if hasattr(self.protocol, 'reconnect'):
+                    self.protocol.reconnect()
+                    logger.info("Requested network reconnection")
+                else:
+                    logger.warning("Protocol does not support reconnection")
+            else:
+                logger.warning("No protocol available for reconnection")
+                
+        except Exception as e:
+            logger.error(f"Error requesting network reconnection: {e}")
 
-  
 
-   
+
+
+

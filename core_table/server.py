@@ -24,7 +24,7 @@ class TableManager:
         self.tables: Dict[str, VirtualTable] = {}
         self.db_session = db_session  # SQLAlchemy session for database operations
         self.default_table = self._create_default_table()
-        
+        self.tables_id: dict[str, VirtualTable]= {}
     def set_db_session(self, db_session):
         """Set database session for persistence operations"""
         self.db_session = db_session
@@ -106,6 +106,7 @@ class TableManager:
             return False
         
         try:
+            #TODO change this to use the crud module
             from server_host.database import crud
             
             # Get all tables for this session
@@ -115,6 +116,7 @@ class TableManager:
                 virtual_table, success = crud.load_table_from_db(self.db_session, db_table.table_id)
                 if success and virtual_table:
                     self.tables[virtual_table.name] = virtual_table
+                    self.tables_id[str(virtual_table.table_id)] = virtual_table
                     logger.info(f"Loaded table '{virtual_table.name}' from database")
                 else:
                     logger.error(f"Failed to load table with ID {db_table.table_id}")

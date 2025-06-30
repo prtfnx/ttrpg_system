@@ -1,7 +1,7 @@
 import json
 import os
-from logger import setup_logger
-from typing import Dict, Tuple, List, Optional
+from server_host.utils.logger import setup_logger
+from typing import Dict, Tuple, List, Optional, Any
 import uuid
 
 logger = setup_logger(__name__)
@@ -96,17 +96,27 @@ class VirtualTable:
         self.grid = {}
         for layer in self.layers:
             self.grid[layer] = [[None for _ in range(width)] for _ in range(height)]
-    
-    def add_entity(self, name: str, position: Tuple[int, int], layer: str = 'tokens', 
-                   path_to_texture: str = None) -> Optional[Entity]:
+
+    def add_entity(self, entity_data: Dict[str, Any]) -> Optional[Entity]:
         """Add entity and return it"""
-        if not self.is_valid_position(position):
-            raise ValueError("Invalid position")
+        position = entity_data.get('position')
+        if position:
+            position = tuple(int(position[0]), int(position[1])) 
+        else:
+            position = (int(entity_data.get('coord_x', 0)), int(entity_data.get('coord_y', 0)))
+        layer = entity_data.get('layer', 'tokens')
+        name = entity_data.get('name', 'Unnamed Entity')
+        path_to_texture = entity_data.get('texture_path', None)
+        asset_id = entity_data.get('asset_id', None)
+
+        #TODO validate position 
+        #if not self.is_valid_position(position):
+        #    raise ValueError("Invalid position")
         if layer not in self.layers:
             raise ValueError("Invalid layer")
-        if self.grid[layer][position[1]][position[0]] is not None:
-            raise ValueError("Position already occupied")
-        
+        #if self.grid[layer][position[1]][position[0]] is not None:
+        #    raise ValueError("Position already occupied")
+        logger.debug(f"Adding entity {name} at {position} on layer {layer} with texture {path_to_texture}")
         entity = Entity(name, position, layer, path_to_texture, self.next_entity_id)
         self.entities[self.next_entity_id] = entity
         self.sprite_to_entity[entity.sprite_id] = self.next_entity_id

@@ -5,6 +5,8 @@ from .table import VirtualTable, Entity
 import uuid
 import copy
 import typing
+import asyncio
+import time
 if typing.TYPE_CHECKING:
     from .server import TableManager
 from logger import setup_logger
@@ -21,8 +23,12 @@ class ActionsCore(AsyncActionsProtocol):
         self.action_history: List[Dict[str, Any]] = []
         self.undo_stack: List[Dict[str, Any]] = []
         self.redo_stack: List[Dict[str, Any]] = []
-        self.tables: Dict[str, VirtualTable] = table_manager.tables
         self.max_history = 100
+        
+        # Persistence optimization: batch and debounce saves
+        self._dirty_tables: Dict[str, int] = {}  # table_id -> session_id
+        self._save_tasks: Dict[str, asyncio.Task] = {}  # table_id -> save task
+        self._save_delay = 2.0  # seconds to wait before saving
     
     async def _add_to_history(self, action: Dict[str, Any]):
         """Add action to history for undo/redo functionality"""
@@ -34,15 +40,138 @@ class ActionsCore(AsyncActionsProtocol):
     
     async def _get_table(self, table_id: str) -> Optional[VirtualTable]:
         """Get table by ID"""
-        
-        return self.tables.get(table_id)
+        logger.debug(f"Getting table with ID: {table_id}, all table_manager.tables: {self.table_manager.tables_id.keys()}")
+        table = self.table_manager.tables_id.get(table_id)
+        if not table:
+            # Try to get from name if ID not found
+            table = self.table_manager.tables.get(table_id)
+        logger.debug(f"Found table: {table}")
+        return table
+    
+    async def _persist_table_state(self, table: VirtualTable, operation_name: str, session_id: Optional[int] = None):
+        """
+        Mark table as dirty for batched persistence after an operation.
+        This prevents excessive saves when multiple operations happen quickly.
+        """
+        try:
+            if hasattr(self.table_manager, 'save_table') and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
+                if session_id is None:
+                    logger.warning(f"No session_id provided for {operation_name}, skipping database persistence")
+                    return
+                
+                table_id = table.name
+                logger.debug(f"Marking table dirty for batched save after {operation_name}: table_id={table_id}, session_id={session_id}")
+                
+                # Mark table as dirty and schedule a delayed save
+                self._dirty_tables[table_id] = session_id
+                
+                # Cancel any existing save task for this table
+                if table_id in self._save_tasks:
+                    if not self._save_tasks[table_id].done():
+                        self._save_tasks[table_id].cancel()
+                
+                # Schedule a new delayed save
+                self._save_tasks[table_id] = asyncio.create_task(self._delayed_save(table_id, operation_name))
+                
+            else:
+                logger.warning(f"Database persistence not available - {operation_name} only applied to in-memory state")
+        except Exception as persist_error:
+            logger.error(f"Failed to schedule batched persistence for {operation_name}: {persist_error}")
+    
+    async def _delayed_save(self, table_id: str, last_operation: str = "unknown"):
+        """
+        Perform a delayed save of a table after a debounce period.
+        This prevents excessive saves when multiple operations happen quickly.
+        """
+        try:
+            # Wait for the debounce period
+            await asyncio.sleep(self._save_delay)
+            
+            # Check if table is still dirty (may have been saved by another operation)
+            if table_id in self._dirty_tables:
+                session_id = self._dirty_tables.pop(table_id)
+                
+                # Perform the actual save
+                logger.debug(f"Performing delayed save for table_id={table_id}, session_id={session_id}, last_operation={last_operation}")
+                self.table_manager.save_table(table_id, session_id=session_id)
+                logger.info(f"Saved table '{table_id}' to database (delayed after {last_operation})")
+                
+        except asyncio.CancelledError:
+            logger.debug(f"Delayed save cancelled for table_id={table_id}")
+        except Exception as e:
+            logger.error(f"Failed during delayed save for table_id={table_id}: {e}")
+        finally:
+            # Clean up the task reference
+            if table_id in self._save_tasks:
+                del self._save_tasks[table_id]
+    
+    async def _force_persist_table_state(self, table: VirtualTable, operation_name: str, session_id: Optional[int] = None):
+        """
+        Immediately persist table state to database, bypassing the debounce mechanism.
+        Use this for critical operations that must be saved immediately.
+        """
+        try:
+            if hasattr(self.table_manager, 'save_table') and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
+                if session_id is None:
+                    logger.warning(f"No session_id provided for {operation_name}, skipping database persistence")
+                    return
+                
+                table_id = table.name
+                logger.debug(f"Force persisting table state for {operation_name}: table_id={table_id}, session_id={session_id}")
+                
+                # Cancel any pending delayed save
+                if table_id in self._save_tasks:
+                    if not self._save_tasks[table_id].done():
+                        self._save_tasks[table_id].cancel()
+                    del self._save_tasks[table_id]
+                
+                # Remove from dirty list
+                self._dirty_tables.pop(table_id, None)
+                
+                # Save table state to database immediately
+                self.table_manager.save_table(table_id, session_id=session_id)
+                logger.info(f"Force saved table '{table_id}' to database for {operation_name}")
+            else:
+                logger.warning(f"Database persistence not available - {operation_name} only applied to in-memory state")
+        except Exception as persist_error:
+            logger.error(f"Failed to force persist {operation_name} to database: {persist_error}")
+            # Continue anyway - the operation was successful in memory
+    
+    async def flush_all_pending_saves(self):
+        """
+        Force save all dirty tables immediately.
+        Call this when the server is shutting down or a critical event requires all data to be persisted.
+        """
+        try:
+            logger.info(f"Flushing all pending saves for {len(self._dirty_tables)} dirty tables")
+            
+            # Cancel all delayed save tasks
+            for table_id, task in list(self._save_tasks.items()):
+                if not task.done():
+                    task.cancel()
+                
+            # Save all dirty tables immediately
+            for table_id, session_id in list(self._dirty_tables.items()):
+                try:
+                    logger.debug(f"Force saving dirty table: {table_id}, session_id: {session_id}")
+                    self.table_manager.save_table(table_id, session_id=session_id)
+                    logger.info(f"Flushed table '{table_id}' to database")
+                except Exception as e:
+                    logger.error(f"Failed to flush table {table_id}: {e}")
+            
+            # Clear all tracking
+            self._dirty_tables.clear()
+            self._save_tasks.clear()
+            
+        except Exception as e:
+            logger.error(f"Failed to flush pending saves: {e}")
     
     # Table Actions
-    async def create_table(self, name: str, width: int, height: int) -> ActionResult:
+    async def create_table(self, name: str, width: int, height: int, session_id: Optional[int] = None) -> ActionResult:
         """Create a new table"""       
 
         table = VirtualTable(name, width, height)
-        self.tables[table.table_id] = table
+        self.table_manager.tables_id[str(table.table_id)] = table
 
         action = {
             'type': 'create_table',
@@ -53,10 +182,13 @@ class ActionsCore(AsyncActionsProtocol):
         }
         await self._add_to_history(action)
         
+        # Force immediate save for table creation (critical operation)
+        await self._force_persist_table_state(table, "table creation", session_id)
+        
         return ActionResult(True, f"Table {name} created successfully", {'table': table})
       
     
-    async def delete_table(self, table_id: str) -> ActionResult:
+    async def delete_table(self, table_id: str, session_id: Optional[int] = None) -> ActionResult:
         
         """Delete a table"""
         try:
@@ -73,7 +205,10 @@ class ActionsCore(AsyncActionsProtocol):
                 'entities': copy.deepcopy(table.entities)
             }
             
-            del self.tables[table_id]
+            # Force immediate save for table deletion (critical operation)
+            await self._force_persist_table_state(table, "table deletion", session_id)
+            
+            del self.table_manager.tables[table_id]
             
             action = {
                 'type': 'delete_table',
@@ -88,7 +223,7 @@ class ActionsCore(AsyncActionsProtocol):
     async def get_table(self, table_id: str, **kwargs) -> ActionResult:
         """Get table properties"""
         try:
-            logger.debug(f"all tables: {self.tables.items()}")
+            logger.debug(f"all table_manager.tables: {self.table_manager.tables.items()}")
             table = await self._get_table(table_id)
             logger.debug(f"all entities: {table.to_dict()}")
             if not table:
@@ -184,84 +319,58 @@ class ActionsCore(AsyncActionsProtocol):
             return ActionResult(False, f"Failed to scale table: {str(e)}")
     
     # Sprite Actions
-    async def create_sprite(self, table_id: str, sprite_id: str, position: Position, 
-                     image_path: str, layer: str = "tokens") -> ActionResult:
+    async def create_sprite(self, table_id: str, sprite_data: Dict[str, Any], session_id: Optional[int] = None) -> ActionResult:
         """Create a new sprite on a table"""
         try:
             table = await self._get_table(table_id)
+            sprite_id = sprite_data.get('sprite_id', 'none id')
+            layer= sprite_data.get('layer', 'tokens')
+            logger.debug(f"Creating sprite {sprite_id} on table {table_id} with data: {sprite_data}")
             if not table:
-                return ActionResult(False, f"Table {table_id} not found")
-            
-            if layer not in LAYERS:
-                return ActionResult(False, f"Invalid layer: {layer}")
-            
-            # Check if sprite already exists by sprite_id
-            existing_entity = table.find_entity_by_sprite_id(sprite_id)
-            if existing_entity:
-                return ActionResult(False, f"Sprite {sprite_id} already exists")
-            
-            # Convert position to grid coordinates
-            grid_x, grid_y = int(position.x), int(position.y)
-            
+                return ActionResult(False, f"Table {table_id} not found")                       
+   
             # Create entity using VirtualTable method
             entity = table.add_entity(
-                name=f"sprite_{sprite_id}",
-                position=(grid_x, grid_y),
-                layer=layer,
-                path_to_texture=image_path
+                sprite_data
             )
-            
             if not entity:
-                return ActionResult(False, f"Failed to create sprite {sprite_id}")
-            
-            # Override the auto-generated sprite_id with our provided one
-            del table.sprite_to_entity[entity.sprite_id]  # Remove old mapping
-            entity.sprite_id = sprite_id
-            table.sprite_to_entity[sprite_id] = entity.entity_id  # Add new mapping
-            
+                return ActionResult(False, f"Failed to create sprite {sprite_id}")           
+
+            # Persist the creation to database
+            await self._persist_table_state(table, "sprite creation", session_id)
+             
             action = {
                 'type': 'create_sprite',
                 'table_id': table_id,
-                'sprite_id': sprite_id,
-                'position': position,
-                'image_path': image_path,
-                'layer': layer
+                'sprite_data': sprite_data
             }
             await self._add_to_history(action)
             
             return ActionResult(True, f"Sprite {sprite_id} created on layer {layer}", {
-                'sprite_id': sprite_id,
-                'position': position,
-                'image_path': image_path,
+                'sprite_data': sprite_data,
                 'layer': layer
             })
         except Exception as e:
-            return ActionResult(False, f"Failed to create sprite: {str(e)}")
-    
+            return ActionResult(False, f"Failed to create sprite: {str(e)}")     
     async def create_sprite_from_data(self, data: Dict[str, Any]) -> ActionResult:
-        """Create a sprite from message data"""
-        try:
-            table_id = data.get('table_id')
-            sprite_id = data.get('sprite_id')
-            position = Position(data['position']['x'], data['position']['y'])
-            image_path = data.get('image_path', '')
-            layer = data.get('layer', 'tokens')
-            
-            return await self.create_sprite(table_id, sprite_id, position, image_path, layer)
-        except KeyError as e:
-            return ActionResult(False, f"Missing required field: {str(e)}")
-        except Exception as e:
-            return ActionResult(False, f"Failed to create sprite from message: {str(e)}")
+        """Create a sprite from data dictionary"""
+        table_id = data.get('table_id')
+        if not table_id:
+            return ActionResult(False, "Table ID is required")
         
-    async def delete_sprite(self, table_id: str, sprite_id: str) -> ActionResult:
+        # Create sprite using the provided data
+        return await self.create_sprite(table_id, data)     
+    async def delete_sprite(self, table_id: str, sprite_id: str, session_id: Optional[int] = None) -> ActionResult:
         """Delete a sprite from a table"""
         try:
             table = await self._get_table(table_id)
             if not table:
+                logger.error(f"Table {table_id} not found")
                 return ActionResult(False, f"Table {table_id} not found")
             
             entity = table.find_entity_by_sprite_id(sprite_id)
             if not entity:
+                logger.error(f"Sprite {sprite_id} not found")
                 return ActionResult(False, f"Sprite {sprite_id} not found")
             
             sprite_data = {
@@ -277,6 +386,9 @@ class ActionsCore(AsyncActionsProtocol):
             }
             table.remove_entity(entity.entity_id)
             
+            # Persist the deletion to database
+            await self._persist_table_state(table, "sprite deletion", session_id)
+            
             action = {
                 'type': 'delete_sprite',
                 'table_id': table_id,
@@ -287,9 +399,11 @@ class ActionsCore(AsyncActionsProtocol):
             
             return ActionResult(True, f"Sprite {sprite_id} deleted successfully")
         except Exception as e:
+            logger.error(f"Failed to delete sprite {sprite_id}: {str(e)}")
             return ActionResult(False, f"Failed to delete sprite: {str(e)}")
 
-    async def move_sprite(self, table_name: str, sprite_id: str, old_position: Position, new_position: Position) -> ActionResult:
+
+    async def move_sprite(self, table_name: str, sprite_id: str, old_position: Position, new_position: Position, session_id: Optional[int] = None) -> ActionResult:
         """Move sprite to new position"""
         try:
             logger.info(f"Moving sprite {sprite_id} from {old_position} to {new_position} on table {table_name}")
@@ -311,10 +425,17 @@ class ActionsCore(AsyncActionsProtocol):
 
             
             # Convert position to grid coordinates
+            if isinstance(new_position, (list, tuple)):
+                new_position = Position(new_position[0], new_position[1])
+
             grid_x, grid_y = int(new_position.get('x')), int(new_position.get('y'))
 
             table.move_entity(entity.entity_id, (grid_x, grid_y))
             logger.info(f"Moved sprite {sprite_id} to new position ({entity.entity_id}, {grid_x}, {grid_y})")
+            
+            # Persist the move to database
+            await self._persist_table_state(table, "sprite move", session_id)
+            
             action = {
                 'type': 'move_sprite',
                 'table_name': table_name,
@@ -329,7 +450,7 @@ class ActionsCore(AsyncActionsProtocol):
             logger.error(f"Failed to move sprite {sprite_id}: {str(e)}")
             return ActionResult(False, f"Failed to move sprite: {str(e)}")
     
-    async def scale_sprite(self, table_id: str, sprite_id: str, scale_x: float, scale_y: float) -> ActionResult:
+    async def scale_sprite(self, table_id: str, sprite_id: str, scale_x: float, scale_y: float, session_id: Optional[int] = None) -> ActionResult:
         """Scale sprite by given factors"""
         try:
             table = await self._get_table(table_id)
@@ -344,6 +465,9 @@ class ActionsCore(AsyncActionsProtocol):
             entity.scale_x = scale_x
             entity.scale_y = scale_y
             
+            # Persist the scaling to database
+            await self._persist_table_state(table, "sprite scaling", session_id)
+            
             action = {
                 'type': 'scale_sprite',
                 'table_id': table_id,
@@ -357,7 +481,7 @@ class ActionsCore(AsyncActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to scale sprite: {str(e)}")
     
-    async def rotate_sprite(self, table_id: str, sprite_id: str, angle: float) -> ActionResult:
+    async def rotate_sprite(self, table_id: str, sprite_id: str, angle: float, session_id: Optional[int] = None) -> ActionResult:
         """Rotate sprite by given angle"""
         try:
             table = await self._get_table(table_id)
@@ -374,6 +498,9 @@ class ActionsCore(AsyncActionsProtocol):
             
             old_rotation = entity.rotation
             entity.rotation = angle
+            
+            # Persist the rotation to database
+            await self._persist_table_state(table, "sprite rotation", session_id)
             
             action = {
                 'type': 'rotate_sprite',
@@ -467,7 +594,7 @@ class ActionsCore(AsyncActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to get layer visibility: {str(e)}")
     
-    async def move_sprite_to_layer(self, table_id: str, sprite_id: str, new_layer: str) -> ActionResult:
+    async def move_sprite_to_layer(self, table_id: str, sprite_id: str, new_layer: str, session_id: Optional[int] = None) -> ActionResult:
         """Move sprite to different layer"""
         try:
             table = await self._get_table(table_id)
@@ -485,6 +612,9 @@ class ActionsCore(AsyncActionsProtocol):
             
             # Use VirtualTable's move_entity method to change layer
             table.move_entity(entity.entity_id, entity.position, new_layer)
+            
+            # Persist the layer move to database
+            await self._persist_table_state(table, "sprite layer move", session_id)
             
             action = {
                 'type': 'move_sprite_to_layer',
@@ -574,18 +704,18 @@ class ActionsCore(AsyncActionsProtocol):
     async def get_all_tables(self) -> ActionResult:
         """Get all tables"""
         try:
-            tables_info = {}
-            for table_id, table in self.tables.items():
-                tables_info[table_id] = {
+            self.table_manager.tables_info = {}
+            for table_id, table in self.table_manager.tables.items():
+                self.table_manager.tables_info[table_id] = {
                     'name': table.name,
                     'width': table.width,
                     'height': table.height,
                     'entity_count': len(table.entities)
                 }
-            
-            return ActionResult(True, f"Retrieved {len(tables_info)} tables", {'tables': tables_info})
+
+            return ActionResult(True, f"Retrieved {len(self.table_manager.tables_info)} tables", {'tables': self.table_manager.tables_info})
         except Exception as e:
-            return ActionResult(False, f"Failed to get all tables: {str(e)}")
+            return ActionResult(False, f"Failed to get all table_manager.tables: {str(e)}")
     
     async def get_table_sprites(self, table_id: str, layer: Optional[str] = None) -> ActionResult:
         """Get all sprites on a table, optionally filtered by layer"""

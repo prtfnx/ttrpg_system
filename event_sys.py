@@ -2,6 +2,7 @@ import sdl3
 import ctypes
 import json
 import PaintManager
+import math
 import clipboard_sys  # Add clipboard import
 import dragdrop_sys   # Add drag drop import
 from MovementManager import sync_sprite_move
@@ -163,6 +164,40 @@ def handle_mouse_motion(cnt, event):
             
             logger.debug(f"Resize: scale_x={sprite.scale_x:.3f}, scale_y={sprite.scale_y:.3f}")
     
+    if cnt.rotating:
+        # Handle rotation - similar to resizing but for rotation
+        sprite = cnt.current_table.selected_sprite
+        if sprite is not None and hasattr(sprite, '_rotation_start_angle') and hasattr(sprite, '_rotation_start_mouse_angle'):
+            # Use sprite center in screen coordinates (from frect which is already in screen space)
+            sprite_center_x = sprite.frect.x + sprite.frect.w / 2
+            sprite_center_y = sprite.frect.y + sprite.frect.h / 2
+            
+            # Current mouse position is already in screen coordinates
+            mouse_x = event.motion.x
+            mouse_y = event.motion.y
+            
+            # Calculate current angle from sprite center to mouse position
+            dx = mouse_x - sprite_center_x
+            dy = mouse_y - sprite_center_y
+            
+            # Calculate current angle in radians, then convert to degrees
+            current_angle_radians = math.atan2(dy, dx)
+            current_angle_degrees = math.degrees(current_angle_radians) % 360
+            
+            # Calculate the angle difference from when rotation started
+            angle_diff = current_angle_degrees - sprite._rotation_start_mouse_angle
+            
+            # Handle angle wrapping (e.g., -10 degrees to 350 degrees should be -20 degrees difference)
+            if angle_diff > 180:
+                angle_diff -= 360
+            elif angle_diff < -180:
+                angle_diff += 360
+            
+            # Apply the angle difference to the starting sprite rotation
+            sprite.rotation = (sprite._rotation_start_angle + angle_diff) % 360
+            
+            logger.debug(f"Rotating sprite to {sprite.rotation:.1f} degrees (diff: {angle_diff:.1f})")
+    
     else:
         # Determine intersect with sprites
         # Get position
@@ -227,6 +262,42 @@ def handle_mouse_motion(cnt, event):
 def handle_resize(cnt, direction):
     cnt.resizing = True
     cnt.resize_direction = direction
+
+def handle_rotate(cnt):
+    """Start rotation mode for the selected sprite"""
+    cnt.rotating = True
+    sprite = cnt.current_table.selected_sprite
+    if sprite is not None:
+        # Store initial rotation angle
+        sprite._rotation_start_angle = getattr(sprite, 'rotation', 0.0)
+        logger.debug(f"Started rotation for sprite at angle {sprite._rotation_start_angle}")
+
+def handle_rotate_end(cnt, sprite):
+    """Called when sprite rotation operation ends"""
+    if sprite and hasattr(cnt, 'actions'):
+        # Send rotation update via Actions
+        new_rotation = getattr(sprite, 'rotation', 0.0)
+        old_rotation = getattr(sprite, '_rotation_start_angle', 0.0)
+        
+        table_id = cnt.current_table.table_id if hasattr(cnt.current_table, 'table_id') else cnt.current_table.name
+        result = cnt.actions.rotate_sprite(table_id, sprite.sprite_id, new_rotation)
+        
+        if result.success:
+            logger.debug(f"Rotation sent to server: {sprite.sprite_id} to {new_rotation} degrees")
+        else:
+            logger.error(f"Failed to send rotation to server: {result.message}")
+        
+        # Also sync via MovementManager for network consistency
+        try:
+            from MovementManager import sync_sprite_rotation
+            sync_sprite_rotation(cnt, sprite, old_rotation, new_rotation)
+        except ImportError:
+            logger.warning("MovementManager not available for rotation sync")
+        except Exception as e:
+            logger.error(f"Error syncing rotation via MovementManager: {e}")
+    
+    cnt.rotating = False
+    logger.debug(f"Rotation ended for sprite at angle {getattr(sprite, 'rotation', 0.0)}")
 
 # Fix the handle_mouse_button_down function:
 
@@ -305,7 +376,40 @@ def handle_mouse_button_down(cnt, event):
                 logger.debug(f"Starting resize in direction {resize_direction}")
                 return  # Don't process as grab or table move
             
-            # If not resizing, prepare for grabbing
+            # Check if we clicked on the rotation handle (circle at the top margin of selection rectangle)
+            circle_radius = max(4, min(sprite.frect.w / 20, sprite.frect.h / 20))
+            margin_h = sprite.frect.h / 40
+            center_x = sprite.frect.x + sprite.frect.w / 2
+            center_y = sprite.frect.y - margin_h - circle_radius
+            
+            # Calculate distance from mouse to circle center
+            dx = point.x - center_x
+            dy = point.y - center_y
+            distance_squared = dx * dx + dy * dy
+            
+            # If clicked within the rotation handle circle, start rotation mode
+            if distance_squared <= (circle_radius * circle_radius):
+                handle_rotate(cnt)
+                
+                # Store rotation start values
+                sprite._rotation_start_angle = getattr(sprite, 'rotation', 0.0)
+                sprite._rotation_start_mouse_x = event.button.x
+                sprite._rotation_start_mouse_y = event.button.y
+                sprite_center_x = sprite.frect.x + sprite.frect.w / 2
+                sprite_center_y = sprite.frect.y + sprite.frect.h / 2
+                sprite._rotation_center_x = sprite_center_x
+                sprite._rotation_center_y = sprite_center_y
+                
+                # Calculate initial angle from sprite center to mouse position
+                initial_dx = event.button.x - sprite_center_x
+                initial_dy = event.button.y - sprite_center_y
+                initial_angle_radians = math.atan2(initial_dy, initial_dx)
+                sprite._rotation_start_mouse_angle = math.degrees(initial_angle_radians) % 360
+                
+                logger.debug(f"Starting rotation mode from rotation handle at angle {sprite._rotation_start_mouse_angle:.1f}")
+                return  # Don't process as grab or table move
+            
+            # If not resizing or rotating, prepare for grabbing
             table_scale = cnt.current_table.scale
             
             # Calculate where the mouse clicked relative to sprite position
@@ -336,6 +440,38 @@ def handle_mouse_button_down(cnt, event):
             logger.debug("Not grabbed, moving table")
         
         logger.debug(f"Button down at {event.button.x}, {event.button.y}")
+    
+    elif event.button.button == 3:  # Right mouse button
+        # Handle right-click for context menu
+        point = sdl3.SDL_FPoint()
+        point.x, point.y = event.button.x, event.button.y
+        
+        # Check if we right-clicked on a sprite
+        clicked_sprite = None
+        if cnt.current_table:
+            for sprites in cnt.current_table.dict_of_sprites_list.values():
+                for sprite in sprites:
+                    if sdl3.SDL_PointInRectFloat(ctypes.byref(point), ctypes.byref(sprite.frect)):
+                        clicked_sprite = sprite
+                        break
+                if clicked_sprite:
+                    break
+        
+        # Show context menu if we have a sprite and context menu system
+        if clicked_sprite:
+            try:
+                import context_menu
+                context_menu.show_sprite_context_menu(
+                    clicked_sprite, 
+                    cnt.current_table, 
+                    event.button.x, 
+                    event.button.y
+                )
+                logger.debug(f"Showed context menu for sprite at ({event.button.x}, {event.button.y})")
+            except ImportError:
+                logger.warning("Context menu system not available")
+            except Exception as e:
+                logger.error(f"Error showing context menu: {e}")
 
 # Fix the handle_mouse_button_up to clean up stored values:
 
@@ -344,6 +480,10 @@ def handle_mouse_button_up(cnt, event):
         # Handle resize end
         if cnt.resizing and cnt.current_table and cnt.current_table.selected_sprite:
             handle_resize_end(cnt, cnt.current_table.selected_sprite)
+        
+        # Handle rotation end
+        if getattr(cnt, 'rotating', False) and cnt.current_table and cnt.current_table.selected_sprite:
+            handle_rotate_end(cnt, cnt.current_table.selected_sprite)
         
         # Send final position update when releasing sprite
         if cnt.grabing and cnt.current_table and cnt.current_table.selected_sprite:
@@ -382,6 +522,8 @@ def handle_mouse_button_up(cnt, event):
         cnt.grabing = False
         cnt.moving_table = False
         cnt.resize_direction = None
+        if hasattr(cnt, 'rotating'):
+            cnt.rotating = False
         
         # Reset cursor
         sdl3.SDL_SetCursor(sdl3.SDL_CreateSystemCursor(sdl3.SDL_SYSTEM_CURSOR_DEFAULT))
@@ -456,7 +598,10 @@ def handle_key_event(cnt, key_code):
             if PaintManager.is_paint_mode_active():
                 PaintManager.paint_system.adjust_paint_width(-1)
         case sdl3.SDL_SCANCODE_R:
-            pass
+            # Start rotation mode for selected sprite
+            if cnt.current_table and cnt.current_table.selected_sprite:
+                handle_rotate(cnt)
+                logger.info("Started rotation mode with R key")
         case sdl3.SDL_SCANCODE_RIGHT:
             sprite = cnt.current_table.selected_sprite
             sprite.coord_x.value += min(cnt.step.value, sprite.frect.w)

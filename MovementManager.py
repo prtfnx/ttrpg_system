@@ -81,6 +81,41 @@ def sync_sprite_scale(context, sprite, old_scale, new_scale):
     except Exception as e:
         logger.error(f"Failed to send sprite scaling: {e}")
 
+def sync_sprite_rotation(context, sprite, old_rotation, new_rotation):
+    """Handle sprite rotation with network sync"""
+    if not hasattr(context, 'protocol') or not context.protocol:
+        return
+        
+    # Ensure sprite has an ID
+    if not hasattr(sprite, 'sprite_id') or not sprite.sprite_id:
+        sprite.sprite_id = str(__import__('uuid').uuid4())
+        
+    change = {
+        'category': 'sprite',
+        'type': 'sprite_rotate',
+        'data': {
+            'table_id': context.current_table.table_id,
+            'table_name': context.current_table.name,
+            'sprite_id': sprite.sprite_id,
+            'from': old_rotation,
+            'to': new_rotation,
+            'timestamp': __import__('time').time()
+        }
+    }
+    
+    msg = Message(MessageType.SPRITE_UPDATE, change,
+                 getattr(context.protocol, 'client_id', 'unknown'))
+    
+    try:
+        if hasattr(context.protocol, 'send'):
+            context.protocol.send(msg.to_json())
+        elif hasattr(context.protocol, 'send_message'):
+            context.protocol.send_message(msg)
+        logger.debug(f"Sent sprite rotation: {sprite.sprite_id} to {new_rotation:.1f} degrees")
+        
+    except Exception as e:
+        logger.error(f"Failed to send sprite rotation: {e}")
+
 def check_collision_with_all_sprites(table, sprite):
     """Check collision of a sprite with all other collidable sprites in the table."""
     #TODO: make anothet function for checking collision in the same layer
@@ -144,5 +179,5 @@ def move_sprites(cnt, delta_time):
                 sprite.frect.w = ctypes.c_float(sprite.original_w * sprite.scale_x * cnt.current_table.table_scale)
                 sprite.frect.h = ctypes.c_float(sprite.original_h * sprite.scale_y * cnt.current_table.table_scale)
             
-            cnt.step.value = max(float(sprite.frect.w), float(sprite.frect.h))            
+            cnt.step.value = max(float(sprite.frect.w), float(sprite.frect.h))
 

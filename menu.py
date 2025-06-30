@@ -2,6 +2,7 @@
 from logger import setup_logger
 import sys
 import subprocess
+from typing import Dict, Any
 
 import sdl3
 import ctypes
@@ -20,7 +21,8 @@ class MenuApp:
         self.server_ip = "127.0.0.1"
         self.server_port = "12345"
         self.show_settings = False
-          # Authentication state
+        
+        # Authentication state
         self.show_auth_menu = False
         self.show_session_menu = False
         self.username = ""
@@ -29,6 +31,7 @@ class MenuApp:
         self.server_url = "http://127.0.0.1:12345"  # Use first option as default
         self.server_port_input = "12345"  # Update default port to match
         self.connection_type = "websocket"  # Default to websocket for new auth flow
+        
         # Server URL dropdown options
         self.server_url_options = [
             "http://127.0.0.1:12345",
@@ -40,6 +43,10 @@ class MenuApp:
         self.auth_error = ""
         self.auth_success = ""
         self.available_sessions = []
+        
+        # Initialize ClientProtocol for authentication
+        self.client_protocol = None
+        self._init_client_protocol()
         
     def init_sdl(self):
         if not sdl3.SDL_Init(sdl3.SDL_INIT_VIDEO):
@@ -335,38 +342,133 @@ class MenuApp:
         imgui.end()
 
     def _register_user(self):
-        """Register a new user"""
+        """Register a new user using centralized authentication"""
+        try:
+            # Use the authentication logic from ClientProtocol
+            result = self._auth_register_user(self.server_url, self.username, self.password)
+            
+            if result['success']:
+                self.auth_success = result['message']
+                self.auth_error = ""
+            else:
+                self.auth_error = result['message']
+                self.auth_success = ""
+                
+        except Exception as e:
+            self.auth_error = f"Registration error: {str(e)}"
+            self.auth_success = ""
+
+    def _login_user(self):
+        """Login user using centralized authentication"""
+        try:
+            # Use the authentication logic from ClientProtocol
+            result = self._auth_login_user(self.server_url, self.username, self.password)
+            
+            if result['success']:
+                self.jwt_token = result['jwt_token']
+                self.is_authenticated = True
+                self.auth_error = ""
+                self.auth_success = ""
+                self._fetch_user_sessions()  # Fetch available sessions
+                logger.info(f"Successfully authenticated as {self.username}")
+            else:
+                self.auth_error = result['message']
+                self.auth_success = ""
+                
+        except Exception as e:
+            self.auth_error = f"Login error: {str(e)}"
+            self.auth_success = ""
+
+    def _logout_user(self):
+        """Logout user using centralized authentication"""
+        try:
+            # Use the authentication logic from ClientProtocol
+            result = self._auth_logout_user()
+            
+            if result['success']:
+                self.jwt_token = ""
+                self.is_authenticated = False
+                self.username = ""
+                self.password = ""
+                self.session_code = ""
+                self.auth_error = ""
+                self.auth_success = ""
+                self.available_sessions = []
+                logger.info("User logged out")
+            else:
+                logger.error(f"Logout failed: {result['message']}")
+                
+        except Exception as e:
+            logger.error(f"Logout error: {str(e)}")
+        
+    def _fetch_user_sessions(self):
+        """Fetch user's available game sessions using centralized authentication"""
+        try:
+            # Use the authentication logic from ClientProtocol
+            result = self._auth_fetch_user_sessions(self.server_url, self.jwt_token)
+            
+            if result['success']:
+                self.available_sessions = result['sessions']
+                logger.info(f"Fetched {len(self.available_sessions)} sessions")
+            else:
+                logger.error(f"Failed to fetch sessions: {result['message']}")
+                self.available_sessions = []
+                
+        except Exception as e:
+            logger.error(f"Error fetching sessions: {str(e)}")
+            self.available_sessions = []
+
+    # =========================================================================
+    # CENTRALIZED AUTHENTICATION METHODS (from ClientProtocol)
+    # =========================================================================
+    
+    def _auth_register_user(self, server_url: str, username: str, password: str) -> Dict[str, Any]:
+        """Register a new user on the server"""
         try:
             import requests
             response = requests.post(
-                f"{self.server_url}/users/register",
+                f"{server_url}/users/register",
                 data={
-                    "username": self.username,
-                    "password": self.password
+                    "username": username,
+                    "password": password
                 },
                 timeout=10
             )
             
             if response.status_code == 200:
-                self.auth_success = "Registration successful! Please login."
-                self.auth_error = ""
+                logger.info(f"User {username} registered successfully")
+                return {
+                    'success': True,
+                    'message': 'Registration successful! Please login.',
+                    'data': response.json() if response.content else {}
+                }
             else:
-                self.auth_error = f"Registration failed: {response.text}"
-                self.auth_success = ""
+                error_msg = f"Registration failed: {response.text}"
+                logger.error(error_msg)
+                return {
+                    'success': False,
+                    'message': error_msg,
+                    'status_code': response.status_code
+                }
                 
         except Exception as e:
-            self.auth_error = f"Connection error: {str(e)}"
-            self.auth_success = ""
+            error_msg = f"Connection error during registration: {str(e)}"
+            logger.error(error_msg)
+            return {
+                'success': False,
+                'message': error_msg,
+                'error': str(e)
+            }
 
-    def _login_user(self):
+    def _auth_login_user(self, server_url: str, username: str, password: str) -> Dict[str, Any]:
         """Login user and get JWT token"""
         try:
             import requests
             response = requests.post(
-                f"{self.server_url}/users/token",
+                f"{server_url}/users/token",
                 data={
-                    "username": self.username,
-                    "password": self.password
+                    "username": username,
+                    "password": password
                 },
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
                 timeout=10
@@ -374,50 +476,86 @@ class MenuApp:
             
             if response.status_code == 200:
                 data = response.json()
-                self.jwt_token = data.get("access_token", "")
-                self.is_authenticated = True
-                self.auth_error = ""
-                self.auth_success = ""
-                self._fetch_user_sessions()  # Fetch available sessions
-                logger.info(f"Successfully authenticated as {self.username}")
+                jwt_token = data.get("access_token", "")
+                
+                logger.info(f"Successfully authenticated as {username}")
+                return {
+                    'success': True,
+                    'message': 'Login successful',
+                    'jwt_token': jwt_token,
+                    'username': username,
+                    'data': data
+                }
             else:
-                self.auth_error = f"Login failed: {response.text}"
-                self.auth_success = ""
+                error_msg = f"Login failed: {response.text}"
+                logger.error(error_msg)
+                return {
+                    'success': False,
+                    'message': error_msg,
+                    'status_code': response.status_code
+                }
                 
         except Exception as e:
-            self.auth_error = f"Connection error: {str(e)}"
-            self.auth_success = ""
-    def _logout_user(self):
-        """Logout user"""
-        self.jwt_token = ""
-        self.is_authenticated = False
-        self.username = ""
-        self.password = ""
-        self.session_code = ""
-        self.auth_error = ""
-        self.auth_success = ""
-        self.available_sessions = []
-        logger.info("User logged out")
-        
-    def _fetch_user_sessions(self):
+            error_msg = f"Connection error during login: {str(e)}"
+            logger.error(error_msg)
+            return {
+                'success': False,
+                'message': error_msg,
+                'error': str(e)
+            }
+
+    def _auth_logout_user(self) -> Dict[str, Any]:
+        """Logout user and clear authentication data"""
+        try:
+            logger.info("User logged out")
+            return {
+                'success': True,
+                'message': 'Logged out successfully'
+            }
+        except Exception as e:
+            error_msg = f"Error during logout: {str(e)}"
+            logger.error(error_msg)
+            return {
+                'success': False,
+                'message': error_msg,
+                'error': str(e)
+            }
+
+    def _auth_fetch_user_sessions(self, server_url: str, jwt_token: str) -> Dict[str, Any]:
         """Fetch user's available game sessions"""
         try:
             import requests
             response = requests.get(
-                f"{self.server_url}/game/api/sessions",
-                headers={"Authorization": f"Bearer {self.jwt_token}"},
+                f"{server_url}/game/api/sessions",
+                headers={"Authorization": f"Bearer {jwt_token}"},
                 timeout=10
             )
+            
             if response.status_code == 200:
-                self.available_sessions = response.json()
-                logger.info(f"Fetched {len(self.available_sessions)} sessions")
+                sessions = response.json()
+                logger.info(f"Fetched {len(sessions)} sessions")
+                return {
+                    'success': True,
+                    'message': f'Found {len(sessions)} sessions',
+                    'sessions': sessions
+                }
             else:
-                logger.error(f"Failed to fetch sessions: {response.text}")
-                self.available_sessions = []
+                error_msg = f"Failed to fetch sessions: {response.text}"
+                logger.error(error_msg)
+                return {
+                    'success': False,
+                    'message': error_msg,
+                    'status_code': response.status_code
+                }
                 
         except Exception as e:
-            logger.error(f"Error fetching sessions: {str(e)}")
-            self.available_sessions = []
+            error_msg = f"Error fetching sessions: {str(e)}"
+            logger.error(error_msg)
+            return {
+                'success': False,
+                'message': error_msg,
+                'error': str(e)
+            }
 
     def _parse_server_url(self):
         """Simple URL parsing to extract IP and port"""
@@ -485,6 +623,19 @@ class MenuApp:
         except Exception as e:
             logger.error(f"Failed to launch authenticated game: {e}")
             self.auth_error = f"Failed to launch: {str(e)}"
+    def _init_client_protocol(self):
+        """Initialize ClientProtocol for authentication"""
+        try:
+            from net.client_protocol import ClientProtocol
+            
+            # For menu authentication, we'll create protocol methods directly
+            # This avoids the circular dependency with Actions/Context
+            logger.info("ClientProtocol functionality available for authentication")
+            self.client_protocol = True  # Flag to indicate we have protocol support
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize ClientProtocol: {e}")
+            self.client_protocol = None
 
 def main():
     MenuApp().run()

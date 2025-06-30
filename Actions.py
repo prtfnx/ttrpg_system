@@ -14,6 +14,8 @@ if TYPE_CHECKING:
     from AssetManager import ClientAssetManager
 
 
+
+
 logger = setup_logger(__name__)
 
 class Actions(ActionsProtocol):
@@ -1948,5 +1950,204 @@ class Actions(ActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to broadcast table action: {str(e)}")
 
+    #═══════════════════════════════════════════════════════════════════════════════
+    # NETWORK & PLAYER MANAGEMENT FUNCTIONS
+    # ═══════════════════════════════════════════════════════════════════════════════
+
+    def handle_player_list(self, players: List[Dict[str, Any]]) -> ActionResult:
+        """Handle player list received from server"""
+        try:
+            # Store player list in context for GUI access
+            if not hasattr(self.context, 'network_state'):
+                self.context.network_state = {}
+            
+            self.context.network_state['players'] = players
+            self.context.network_state['player_count'] = len(players)
+            self.context.network_state['last_updated'] = time.time()
+            
+            # Log player list
+            player_names = [p.get('username', 'unknown') for p in players]
+            logger.info(f"Updated player list: {player_names}")
+            
+            # Add chat message for UI feedback
+            self.add_chat_message(f"👥 {len(players)} players connected: {', '.join(player_names)}")
+            
+            return ActionResult(True, f"Updated player list with {len(players)} players")
+            
+        except Exception as e:
+            logger.error(f"Error handling player list: {e}")
+            return ActionResult(False, f"Failed to handle player list: {str(e)}")
+
+
+    def update_connection_status(self, status: Dict[str, Any]) -> ActionResult:
+        """Update connection status from server"""
+        try:
+            # Store connection status in context
+            if not hasattr(self.context, 'network_state'):
+                self.context.network_state = {}
+            
+            self.context.network_state['connection_status'] = status
+            self.context.network_state['connected'] = status.get('connected', False)
+            self.context.network_state['last_ping'] = time.time()
+            
+            # Log status change
+            connected = status.get('connected', False)
+            logger.info(f"Connection status updated: {'connected' if connected else 'disconnected'}")
+            
+            return ActionResult(True, "Connection status updated")
+            
+        except Exception as e:
+            logger.error(f"Error updating connection status: {e}")
+            return ActionResult(False, f"Failed to update connection status: {str(e)}")
+
+
+    def player_joined(self, user_id: int, username: Optional[str] = None) -> ActionResult:
+        """Handle player joined notification"""
+        try:
+            # Update player list if available
+            if hasattr(self.context, 'network_state') and 'players' in self.context.network_state:
+                players = self.context.network_state['players']
+                # Check if player already in list
+                existing_player = next((p for p in players if p.get('user_id') == user_id), None)
+                if not existing_player:
+                    new_player = {
+                        'user_id': user_id,
+                        'username': username or f'Player {user_id}',
+                        'connected_at': time.time()
+                    }
+                    players.append(new_player)
+                    self.context.network_state['player_count'] = len(players)
+            
+            # Add chat message
+            player_name = username or f"Player {user_id}"
+            self.add_chat_message(f"✅ {player_name} joined the session")
+            
+            logger.info(f"Player {player_name} (ID: {user_id}) joined")
+            return ActionResult(True, f"Player {player_name} joined")
+            
+        except Exception as e:
+            logger.error(f"Error handling player joined: {e}")
+            return ActionResult(False, f"Failed to handle player joined: {str(e)}")
+
+
+    def player_left(self, username: str, user_id: Optional[int] = None) -> ActionResult:
+        """Handle player left notification"""
+        try:
+            # Update player list if available
+            if hasattr(self.context, 'network_state') and 'players' in self.context.network_state:
+                players = self.context.network_state['players']
+                # Remove player from list
+                if user_id:
+                    self.context.network_state['players'] = [p for p in players if p.get('user_id') != user_id]
+                else:
+                    self.context.network_state['players'] = [p for p in players if p.get('username') != username]
+                self.context.network_state['player_count'] = len(self.context.network_state['players'])
+            
+            # Add chat message
+            self.add_chat_message(f"❌ {username} left the session")
+            
+            logger.info(f"Player {username} left")
+            return ActionResult(True, f"Player {username} left")
+            
+        except Exception as e:
+            logger.error(f"Error handling player left: {e}")
+            return ActionResult(False, f"Failed to handle player left: {str(e)}")
+
+
+    def request_player_list(self) -> ActionResult:
+        """Request current player list from server"""
+        try:
+            if hasattr(self.context, 'protocol') and self.context.protocol:
+                self.context.protocol.request_player_list()
+                logger.debug("Requested player list from server")
+                return ActionResult(True, "Requested player list from server")
+            else:
+                return ActionResult(False, "No protocol available for player list request")
+                
+        except Exception as e:
+            logger.error(f"Error requesting player list: {e}")
+            return ActionResult(False, f"Failed to request player list: {str(e)}")
+
+
+    def kick_player(self, player_id: str, username: str, reason: str = "No reason provided") -> ActionResult:
+        """Request to kick a player from the session"""
+        try:
+            if hasattr(self.context, 'protocol') and self.context.protocol:
+                self.context.protocol.kick_player(player_id, username, reason)
+                logger.info(f"Requested to kick player {username} (ID: {player_id}): {reason}")
+                return ActionResult(True, f"Kick request sent for {username}")
+            else:
+                return ActionResult(False, "No protocol available for kick request")
+                
+        except Exception as e:
+            logger.error(f"Error requesting player kick: {e}")
+            return ActionResult(False, f"Failed to request player kick: {str(e)}")
+
+
+    def ban_player(self, player_id: str, username: str, reason: str = "No reason provided", duration: str = "permanent") -> ActionResult:
+        """Request to ban a player from the session"""
+        try:
+            if hasattr(self.context, 'protocol') and self.context.protocol:
+                self.context.protocol.ban_player(player_id, username, reason, duration)
+                logger.info(f"Requested to ban player {username} (ID: {player_id}) for {duration}: {reason}")
+                return ActionResult(True, f"Ban request sent for {username}")
+            else:
+                return ActionResult(False, "No protocol available for ban request")
+                
+        except Exception as e:
+            logger.error(f"Error requesting player ban: {e}")
+            return ActionResult(False, f"Failed to request player ban: {str(e)}")
+
+
+    def get_network_state(self) -> Dict[str, Any]:
+        """Get current network state for GUI"""
+        try:
+            if hasattr(self.context, 'network_state'):
+                return self.context.network_state.copy()
+            else:
+                return {
+                    'connected': False,
+                    'players': [],
+                    'player_count': 0,
+                    'connection_status': {},
+                    'last_updated': 0
+                }
+        except Exception as e:
+            logger.error(f"Error getting network state: {e}")
+            return {'error': str(e)}
+
+
+    def request_connection_status(self) -> ActionResult:
+        """Request current connection status from server"""
+        try:
+            if hasattr(self.context, 'protocol') and self.context.protocol:
+                self.context.protocol.request_connection_status()
+                logger.debug("Requested connection status from server")
+                return ActionResult(True, "Requested connection status from server")
+            else:
+                return ActionResult(False, "No protocol available for status request")
+                
+        except Exception as e:
+            logger.error(f"Error requesting connection status: {e}")
+            return ActionResult(False, f"Failed to request connection status: {str(e)}")
+
+
+    def add_chat_message(self, message: str) -> ActionResult:
+        """Add message to chat log"""
+        try:
+            if hasattr(self.context, 'chat_messages'):
+                self.context.chat_messages.append({
+                    'message': message,
+                    'timestamp': time.time()
+                })
+                logger.debug(f"Added chat message: {message}")
+                return ActionResult(True, "Chat message added")
+            else:
+                logger.warning(f"No chat system available, message: {message}")
+                return ActionResult(False, "No chat system available")
+                
+        except Exception as e:
+            logger.error(f"Error adding chat message: {e}")
+            return ActionResult(False, f"Failed to add chat message: {str(e)}")
 
 

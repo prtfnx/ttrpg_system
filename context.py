@@ -100,6 +100,16 @@ class Context:
         self.queue_to_read: queue.PriorityQueue[Any] = queue.PriorityQueue(0)
         self.waiting_for_table: bool = False
         
+        # Network state for player management
+        self.network_state: Dict[str, Any] = {
+            'connected': False,
+            'players': [],
+            'player_count': 0,
+            'connection_status': {},
+            'last_updated': 0,
+            'last_ping': 0
+        }
+        
         # Protocol handlers
         self.protocol: Optional[Any] = None  # protocol handler
           # GUI system

@@ -132,20 +132,24 @@ class Context:
 
     def add_sprite(self, texture_path, scale_x=1, scale_y=1, layer='tokens',
                    character=None, moving=False, speed=None,
-                   collidable=False, table=None, coord_x=0.0, coord_y=0.0,sprite_id=None):
+                   collidable=False, table=None, coord_x=0.0, coord_y=0.0,sprite_id=None,table_id=None, **kwargs):
         """Add a sprite to the specified layer in the current table"""
-        table = table if table else self.current_table
-        if not table:
-            logger.error("No table selected for sprite creation")
-            return None
+        #TODO refactor to use sprite data dict to unify sprite creation
         
+        if not table:
+            table = self.Actions.get_table(table_id=table_id).data["table"]
+        table = table if table else self.current_table
+        logger.debug(f"Adding, table: {table}, texture_path: {texture_path}, layer: {layer}")
         # Validate layer exists
         if layer not in table.dict_of_sprites_list:
             logger.error(f"Invalid layer: {layer}")
             return None
-        
+        if  isinstance(texture_path, str):
+            texture_path = texture_path.encode()            
+        logger.debug(f"Adding sprite to layer {layer} with texture {texture_path}")
         try:
             # Create sprite with error handling
+            logger.info(f"Creating sprite from {texture_path} in layer {layer}")
             new_sprite = Sprite(
                 self.renderer, 
                 texture_path,
@@ -159,9 +163,10 @@ class Context:
                 coord_y=coord_y,
                 sprite_id=sprite_id,
                 layer=layer,
-                context=self,  # Pass context for R2 requests
+                context=self,
+                
             )
-
+            
             # Check if sprite creation was successful
             if not new_sprite:
                 logger.error(f"Failed to create sprite from {texture_path}")
@@ -328,22 +333,15 @@ class Context:
             table.y_moved = dict_data.get('y_moved', 1.0)
             table.show_grid = dict_data.get('show_grid', True)
             table.cell_side = dict_data.get('cell_side', CELL_SIDE)
-            print(dict_data)
-            # Add sprites from layers
+                        # Add sprites from layers
             layers_data = dict_data.get('layers', {})
-            print('4')
-            print(layers_data.items())
             for layer, sprites_data in layers_data.items():
-                print(f"sprite data: {sprites_data}, layer: {layer}")
-                print(f"Processing layer: {layer} with {len(sprites_data)} sprites")
                 if layer in table.layers:  # Only add to valid layers
-                    for sprite_data in sprites_data.values():
-                        print(f"Creating sprite from data: {sprite_data}")
+                    for sprite_data in sprites_data.values():      
                         try:
-                            # Create sprite with proper parameters
-                            print(f"Adding sprite with id: {sprite_data.get('sprite_id', None)}")
-                            sprite = self.add_sprite(
-                                texture_path=sprite_data.get('texture_path', '').encode(),
+                                   
+                            sprite_action = self.Actions.create_sprite(
+                                image_path=sprite_data.get('texture_path', ''),
                                 scale_x=sprite_data.get('scale_x', 1.0),
                                 scale_y=sprite_data.get('scale_y', 1.0),
                                 layer=layer,
@@ -351,12 +349,12 @@ class Context:
                                 moving=sprite_data.get('moving', False),
                                 speed=sprite_data.get('speed'),
                                 collidable=sprite_data.get('collidable', False),
-                                table=table,
-                                coord_x=sprite_data.get('position', ([0,0]))[0],
-                                coord_y=sprite_data.get('position', ([0,0]))[1],
-                                sprite_id=sprite_data.get('sprite_id', None)
+                                table_id=table.table_id,
+                                position=sprite_data.get('position', None),
+                                sprite_id=sprite_data.get('sprite_id', None),                                
                             )
-                            if not sprite:
+                            logger.debug(f"Result of creating sprite: {sprite_action}")
+                            if not sprite_action.success:
                                 logger.warning(f"Failed to create sprite from {sprite_data.get('texture_path')}")
                                 
                         except Exception as e:

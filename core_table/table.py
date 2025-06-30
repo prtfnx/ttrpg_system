@@ -101,7 +101,7 @@ class VirtualTable:
         """Add entity and return it"""
         position = entity_data.get('position')
         if position:
-            position = tuple(int(position[0]), int(position[1])) 
+            position = (int(position[0]), int(position[1])) 
         else:
             position = (int(entity_data.get('coord_x', 0)), int(entity_data.get('coord_y', 0)))
         layer = entity_data.get('layer', 'tokens')

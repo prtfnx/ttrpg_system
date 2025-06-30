@@ -13,15 +13,16 @@ from net.protocol import Message, MessageType
 from core_table.actions_core import ActionsCore
 from server_host.utils.logger import setup_logger
 from server_host.service.asset_manager import get_server_asset_manager, AssetRequest
-from server_host.database.models import Asset
+from server_host.database.models import Asset, GameSession
 from server_host.database.database import SessionLocal
 
 logger = setup_logger(__name__)
 
 class ServerProtocol:
-    def __init__(self, table_manager):
+    def __init__(self, table_manager, session_manager=None):
         logger.info("Initializing ServerProtocol")
         self.table_manager = table_manager # for compatibility, tables manage actions protocol now
+        self.session_manager = session_manager  # Reference to session manager for getting session_id
         self.clients: Dict[str, Any] = {}
         logger.debug(f"ServerProtocol initialized with table manager: {self.table_manager}")
         self.handlers: Dict[MessageType, Callable] = {}
@@ -58,6 +59,13 @@ class ServerProtocol:
         self.register_handler(MessageType.SUCCESS, self.handle_success)
         # sprite managment
         self.register_handler(MessageType.SPRITE_CREATE, self.handle_create_sprite)
+        self.register_handler(MessageType.SPRITE_REMOVE, self.handle_delete_sprite)
+        self.register_handler(MessageType.SPRITE_MOVE, self.handle_move_sprite)
+        self.register_handler(MessageType.SPRITE_SCALE, self.handle_scale_sprite)
+        self.register_handler(MessageType.SPRITE_ROTATE, self.handle_rotate_sprite)
+        # table management
+        self.register_handler(MessageType.TABLE_DELETE, self.handle_delete_table)
+        self.register_handler(MessageType.TABLE_LIST_REQUEST, self.handle_table_list_request)
         
         # R2 Asset Management handlers
         self.register_handler(MessageType.ASSET_UPLOAD_REQUEST, self.handle_asset_upload_request)
@@ -111,12 +119,174 @@ class ServerProtocol:
         if not sprite_data:
             return Message(MessageType.ERROR, {'error': 'No sprite data provided'})
         table_id = msg.data.get('table_id', 'default')
-        result = await self.actions.create_sprite(table_id=table_id, sprite_data=sprite_data)
+        
+        # Get session_id for database persistence
+        session_id = self._get_session_id(msg)
+        
+        result = await self.actions.create_sprite(table_id=table_id, sprite_data=sprite_data, session_id=session_id)
         logger.debug(f"Create sprite result: {result}")
         if not result.success or not result.data or result.data.get('sprite_data') is None:
             return Message(MessageType.ERROR, {'error': 'Failed to create sprite'})
         else:
             return Message(MessageType.SPRITE_RESPONSE, {'sprite_id': result.data.get('sprite_data').get('sprite_id', None)})
+
+    async def handle_delete_sprite(self, msg: Message, client_id: str) -> Message:
+        """Handle delete sprite request"""
+        logger.debug(f"Delete sprite request received: {msg}")
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data provided in delete sprite request'})
+        
+        table_id = msg.data.get('table_id', 'default')
+        sprite_id = msg.data.get('sprite_id')
+        
+        if not sprite_id:
+            return Message(MessageType.ERROR, {'error': 'Sprite ID is required'})
+        
+        # Get session_id for database persistence
+        session_id = self._get_session_id(msg)
+        
+        result = await self.actions.delete_sprite(table_id=table_id, sprite_id=sprite_id, session_id=session_id)
+        if result.success:
+            return Message(MessageType.SPRITE_RESPONSE, {
+                'sprite_id': sprite_id,
+                'operation': 'delete',
+                'success': True
+            })
+        else:
+            return Message(MessageType.ERROR, {'error': f'Failed to delete sprite: {result.message}'})
+
+    async def handle_move_sprite(self, msg: Message, client_id: str) -> Message:
+        """Handle move sprite request"""
+        logger.debug(f"Move sprite request received: {msg}")
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data provided in move sprite request'})
+        
+        table_id = msg.data.get('table_id', 'default')
+        sprite_id = msg.data.get('sprite_id')
+        from_pos = msg.data.get('from')
+        to_pos = msg.data.get('to')
+        
+        if not sprite_id or not from_pos or not to_pos:
+            return Message(MessageType.ERROR, {'error': 'Sprite ID, from position, and to position are required'})
+        
+        # Get session_id for database persistence
+        session_id = self._get_session_id(msg)
+        
+        # Use the existing move_sprite method from actions
+        result = await self.actions.move_sprite(
+            table_name=table_id,  # Note: this might need to be table_name instead
+            sprite_id=sprite_id,
+            old_position=from_pos,
+            new_position=to_pos,
+            session_id=session_id
+        )
+        
+        if result.success:
+            return Message(MessageType.SPRITE_RESPONSE, {
+                'sprite_id': sprite_id,
+                'operation': 'move',
+                'success': True
+            })
+        else:
+            return Message(MessageType.ERROR, {'error': f'Failed to move sprite: {result.message}'})
+
+    async def handle_scale_sprite(self, msg: Message, client_id: str) -> Message:
+        """Handle scale sprite request"""
+        logger.debug(f"Scale sprite request received: {msg}")
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data provided in scale sprite request'})
+        
+        table_id = msg.data.get('table_id', 'default')
+        sprite_id = msg.data.get('sprite_id')
+        scale_x = msg.data.get('scale_x')
+        scale_y = msg.data.get('scale_y')
+        
+        if not sprite_id or scale_x is None or scale_y is None:
+            return Message(MessageType.ERROR, {'error': 'Sprite ID, scale_x, and scale_y are required'})
+        
+        # Update sprite scale using the actions interface
+        update_data = {
+            'sprite_id': sprite_id,
+            'scale_x': scale_x,
+            'scale_y': scale_y
+        }
+        
+        result = await self.actions.update_sprite(table_id, sprite_id, data=update_data)
+        if result.success:
+            return Message(MessageType.SPRITE_RESPONSE, {
+                'sprite_id': sprite_id,
+                'operation': 'scale',
+                'success': True
+            })
+        else:
+            return Message(MessageType.ERROR, {'error': f'Failed to scale sprite: {result.message}'})
+
+    async def handle_rotate_sprite(self, msg: Message, client_id: str) -> Message:
+        """Handle rotate sprite request"""
+        logger.debug(f"Rotate sprite request received: {msg}")
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data provided in rotate sprite request'})
+        
+        table_id = msg.data.get('table_id', 'default')
+        sprite_id = msg.data.get('sprite_id')
+        rotation = msg.data.get('rotation')
+        
+        if not sprite_id or rotation is None:
+            return Message(MessageType.ERROR, {'error': 'Sprite ID and rotation are required'})
+        
+        # Update sprite rotation using the actions interface
+        update_data = {
+            'sprite_id': sprite_id,
+            'rotation': rotation
+        }
+        
+        result = await self.actions.update_sprite(table_id, sprite_id, data=update_data)
+        if result.success:
+            return Message(MessageType.SPRITE_RESPONSE, {
+                'sprite_id': sprite_id,
+                'operation': 'rotate',
+                'success': True
+            })
+        else:
+            return Message(MessageType.ERROR, {'error': f'Failed to rotate sprite: {result.message}'})
+
+    async def handle_delete_table(self, msg: Message, client_id: str) -> Message:
+        """Handle delete table request"""
+        logger.debug(f"Delete table request received: {msg}")
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data provided in delete table request'})
+        
+        table_id = msg.data.get('table_id')
+        if not table_id:
+            return Message(MessageType.ERROR, {'error': 'Table ID is required'})
+        
+        result = await self.actions.delete_table(table_id)
+        if result.success:
+            return Message(MessageType.SUCCESS, {
+                'table_id': table_id,
+                'message': 'Table deleted successfully'
+            })
+        else:
+            return Message(MessageType.ERROR, {'error': f'Failed to delete table: {result.message}'})
+
+    async def handle_table_list_request(self, msg: Message, client_id: str) -> Message:
+        """Handle table list request"""
+        logger.debug(f"Table list request received: {msg}")
+        
+        try:
+            result = await self.actions.get_all_tables()
+            if result.success:
+                tables = result.data.get('tables', []) if result.data else []
+                return Message(MessageType.TABLE_LIST_RESPONSE, {
+                    'tables': tables,
+                    'count': len(tables)
+                })
+            else:
+                error_msg = getattr(result, 'message', 'Unknown error')
+                return Message(MessageType.ERROR, {'error': f'Failed to get table list: {error_msg}'})
+        except Exception as e:
+            logger.error(f"Error handling table list request: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def handle_new_table_request(self, msg: Message, client_id: str) -> Message:
         """Handle new table request"""
@@ -138,9 +308,8 @@ class ServerProtocol:
             return Message(MessageType.NEW_TABLE_RESPONSE, {'name': table_name, 'client_id': client_id,
                                                             'table_data': table_data})
 
-   
     async def handle_table_request(self, msg: Message, client_id: str) -> Message:
-        """Handle  table request"""
+        """Handle table request"""
         logger.debug(f"Table request received: {msg}")
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in table request'})
@@ -244,6 +413,10 @@ class ServerProtocol:
     async def handle_sprite_update(self, msg: Message, client_id: str) -> Message:
         """Handle sprite update message"""
         logger.info(f"Handling sprite update from {client_id}: {msg}")
+        if not msg.data:
+            logger.error(f"No data provided in sprite update from {client_id}")
+            return Message(MessageType.ERROR, {'error': 'No data provided in sprite update'})
+            
         type = msg.data.get('type')
         if not type:
             logger.error(f"Missing 'type' field in sprite update from {client_id}: {msg.data}")
@@ -402,9 +575,18 @@ class ServerProtocol:
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
     
     async def handle_asset_list_request(self, msg: Message, client_id: str) -> Message:
-        logger.debug(f"Handling asset list request from {client_id}: {msg}")
         """Handle asset list request - return list of assets in R2"""
-        pass
+        logger.debug(f"Handling asset list request from {client_id}: {msg}")
+        try:
+            # For now, return empty list - this can be implemented later
+            return Message(MessageType.ASSET_LIST_RESPONSE, {
+                'assets': [],
+                'count': 0,
+                'message': 'Asset listing not fully implemented yet'
+            })
+        except Exception as e:
+            logger.error(f"Error handling asset list request: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
     
     async def handle_asset_upload_confirm(self, msg: Message, client_id: str) -> Message:
         """Handle asset upload confirmation - verify and update database"""
@@ -684,6 +866,37 @@ class ServerProtocol:
                 db_session.close()                
         except Exception as e:
             logger.error(f"Error getting or uploading asset {asset_name}: {e}")
+            return None
+
+    def _get_session_id(self, msg: Message) -> Optional[int]:
+        """Get session_id for database persistence from message data or session manager"""
+        try:
+            # Primary method: Get from session manager (most reliable)
+            if self.session_manager and hasattr(self.session_manager, 'game_session_db_id') and self.session_manager.game_session_db_id:
+                return self.session_manager.game_session_db_id
+            
+            # Secondary method: Extract from message data
+            if msg.data:
+                session_code = msg.data.get('session_code')
+                if session_code:
+                    # Convert session_code to session_id by looking it up in database
+                    db_session = SessionLocal()
+                    try:
+                        game_session = db_session.query(GameSession).filter_by(session_code=session_code).first()
+                        if game_session:
+                            session_id = getattr(game_session, 'id')  # Safely get the id attribute
+                            return session_id if session_id is not None else None
+                        else:
+                            logger.error(f"No game session found for session_code: {session_code}")
+                            return None
+                    finally:
+                        db_session.close()
+            
+            # No valid session_id found - this is an error condition
+            logger.error("No valid session_id available for persistence - request missing session context")
+            return None
+        except Exception as e:
+            logger.error(f"Error getting session_id: {e}")
             return None
 
 if __name__ == "__main__":

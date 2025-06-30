@@ -235,18 +235,18 @@ class SimplifiedGui:
             available_height = imgui.get_content_region_avail()[1]
             
             # Tools section (top 70%)
-            if imgui.begin_child("ToolsSection", (0, available_height * 0.7)):
-                if GuiPanel.TOOLS in self.panel_instances:
-                    self.panel_instances[GuiPanel.TOOLS].render()
-                imgui.end_child()
+            imgui.begin_child("ToolsSection", (0, available_height * 0.7))
+            if GuiPanel.TOOLS in self.panel_instances:
+                self.panel_instances[GuiPanel.TOOLS].render()
+            imgui.end_child()
             
             imgui.separator()
             
             # Layers section (bottom 30%)
-            if imgui.begin_child("LayersSection", (0, available_height * 0.3)):
-                if GuiPanel.LAYERS in self.panel_instances:
-                    self.panel_instances[GuiPanel.LAYERS].render()
-                imgui.end_child()
+            imgui.begin_child("LayersSection", (0, available_height * 0.3))
+            if GuiPanel.LAYERS in self.panel_instances:
+                self.panel_instances[GuiPanel.LAYERS].render()
+            imgui.end_child()
         
         imgui.end()
     
@@ -280,7 +280,11 @@ class SimplifiedGui:
                                  GuiPanel.NETWORK, GuiPanel.COMPENDIUM, GuiPanel.STORAGE,
                                  GuiPanel.CHARACTER_SHEET]:
                     panel_name = panel_type.value.replace('_', ' ').title()
-                    if imgui.begin_tab_item(panel_name)[0]:
+                    # begin_tab_item returns a tuple (visible, open) - we need the first value
+                    tab_result = imgui.begin_tab_item(panel_name)
+                    tab_visible = tab_result[0] if isinstance(tab_result, tuple) else tab_result
+                    
+                    if tab_visible:
                         if panel_type in self.panel_instances:
                             self.panel_instances[panel_type].render()
                         imgui.end_tab_item()

@@ -91,9 +91,9 @@ class ToolsPanel:
         if self.dice_history:
             imgui.separator()
             imgui.text("Recent Rolls:")
-            if imgui.begin_child("dice_history", (0, 80)):
-                for roll in self.dice_history[-5:]:  # Show last 5 rolls
-                    imgui.text(f"{roll['dice']}: {roll['result']}")
+            imgui.begin_child("dice_history", (0, 80))
+            for roll in self.dice_history[-5:]:  # Show last 5 rolls
+                imgui.text(f"{roll['dice']}: {roll['result']}")
             imgui.end_child()
         
         imgui.separator()

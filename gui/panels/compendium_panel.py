@@ -69,14 +69,15 @@ class CompendiumPanel:
         imgui.text(f"{self.selected_category}:")
         
         # Use simple child window sizing without negative heights to avoid viewport issues
-        if imgui.begin_child("content_list", (0, 0)):
-            content_items = self._get_content_items()
-            
-            if not content_items:
-                imgui.text_colored((0.7, 0.7, 0.7, 1.0), f"No {self.selected_category.lower()} found")
-            else:
-                for item in content_items:
-                    self._render_content_item(item)
+        imgui.begin_child("content_list", (0, 0))
+        
+        content_items = self._get_content_items()
+        
+        if not content_items:
+            imgui.text_colored((0.7, 0.7, 0.7, 1.0), f"No {self.selected_category.lower()} found")
+        else:
+            for item in content_items:
+                self._render_content_item(item)
         
         imgui.end_child()
     

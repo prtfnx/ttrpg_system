@@ -25,7 +25,9 @@ class ChatPanel:
             self.chat_messages.clear()
         
         # Chat history with scrolling
-        if imgui.begin_child("chat_history", (0, -35)):
+        imgui.begin_child("chat_history", (0, -35))
+        
+        try:
             # Get chat messages from context if available, otherwise use local
             messages = getattr(self.context, 'chat_messages', self.chat_messages)
             
@@ -34,16 +36,19 @@ class ChatPanel:
             else:
                 for i, message in enumerate(messages):
                     # Alternate colors for readability
+                    if isinstance(message, dict):
+                        message = message.get('message', str(message))
                     if i % 2 == 0:
-                        imgui.text(message)
+                        
+                        imgui.text(str(message))
                     else:
-                        imgui.text_colored((0.9, 0.9, 0.9, 1.0), message)
+                        imgui.text_colored((0.9, 0.9, 0.9, 1.0), str(message))
                 
                 # Auto-scroll to bottom
                 if imgui.get_scroll_y() >= imgui.get_scroll_max_y():
                     imgui.set_scroll_here_y(1.0)
-        
-        imgui.end_child()
+        finally:
+            imgui.end_child()
         
         # Chat input area
         imgui.separator()

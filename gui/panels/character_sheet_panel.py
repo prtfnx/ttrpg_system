@@ -756,23 +756,22 @@ class CharacterSheetPanel:
             imgui.separator()
               # Tab bar for different sections
             if imgui.begin_tab_bar("CharacterSheetTabs"):
-                try:
-                    # Character tab
-                    if imgui.begin_tab_item("Character")[0]:
-                        self.render_main_character_sheet()
-                        imgui.end_tab_item()
-                    
-                    # Spells tab
-                    if imgui.begin_tab_item("Spells")[0]:
-                        self.render_tab_spells()
-                        imgui.end_tab_item()
-                    
-                    # Equipment tab
-                    if imgui.begin_tab_item("Equipment")[0]:
-                        self.render_tab_equipment()
-                        imgui.end_tab_item()
-                finally:
-                    imgui.end_tab_bar()
+                # Character tab
+                if imgui.begin_tab_item("Character")[0]:
+                    self.render_main_character_sheet()
+                    imgui.end_tab_item()
+                
+                # Spells tab
+                if imgui.begin_tab_item("Spells")[0]:
+                    self.render_tab_spells()
+                    imgui.end_tab_item()
+                
+                # Equipment tab
+                if imgui.begin_tab_item("Equipment")[0]:
+                    self.render_tab_equipment()
+                    imgui.end_tab_item()
+                
+                imgui.end_tab_bar()
         
         imgui.end()
     
@@ -785,32 +784,30 @@ class CharacterSheetPanel:
             table_begun = imgui.begin_table("CharacterSheetTable", 3, 
                                 imgui.TableFlags_.borders_inner_v.value)
             if table_begun:
-                try:
-                    # Setup columns with fixed sizes to prevent resize conflicts
-                    imgui.table_setup_column("Left", imgui.TableColumnFlags_.width_fixed.value, 300.0)
-                    imgui.table_setup_column("Center", imgui.TableColumnFlags_.width_fixed.value, 350.0)
-                    imgui.table_setup_column("Right", imgui.TableColumnFlags_.width_fixed.value, 300.0)
-                    imgui.table_next_row()                  # Left column - Ability Scores alongside Inspiration/Proficiency/Saves/Skills
-                    imgui.table_next_column()
-                    # Render content directly without child windows to avoid resize conflicts
-                    self.render_ability_scores()
-                    imgui.separator()
-                    self.render_inspiration_proficiency()
-                    self.render_saving_throws()
-                    self.render_skills()
-                    self.render_passive_perception()                  # Center column - Combat Stats, Attacks & Equipment
-                    imgui.table_next_column()
-                    # Render content directly without child windows
-                    self.render_combat_stats()
-                    self.render_attacks_equipment()
-                    
-                    # Right column - Features & Traits
-                    imgui.table_next_column()
-                    # Render content directly without child windows
-                    self.render_features_traits()
-                finally:
-                    if table_begun:
-                        imgui.end_table()
+                # Setup columns with fixed sizes to prevent resize conflicts
+                imgui.table_setup_column("Left", imgui.TableColumnFlags_.width_fixed.value, 300.0)
+                imgui.table_setup_column("Center", imgui.TableColumnFlags_.width_fixed.value, 350.0)
+                imgui.table_setup_column("Right", imgui.TableColumnFlags_.width_fixed.value, 300.0)
+                imgui.table_next_row()                  # Left column - Ability Scores alongside Inspiration/Proficiency/Saves/Skills
+                imgui.table_next_column()
+                # Render content directly without child windows to avoid resize conflicts
+                self.render_ability_scores()
+                imgui.separator()
+                self.render_inspiration_proficiency()
+                self.render_saving_throws()
+                self.render_skills()
+                self.render_passive_perception()                  # Center column - Combat Stats, Attacks & Equipment
+                imgui.table_next_column()
+                # Render content directly without child windows
+                self.render_combat_stats()
+                self.render_attacks_equipment()
+                
+                # Right column - Features & Traits
+                imgui.table_next_column()
+                # Render content directly without child windows
+                self.render_features_traits()
+                
+                imgui.end_table()
             
         except Exception as e:
             # Mark window for position reset on next render
@@ -899,98 +896,98 @@ class CharacterSheetPanel:
                 
                 # Left column: Spells
                 imgui.table_next_column()
-                if imgui.begin_child("SpellsColumn", imgui.ImVec2(0, 0)):
-                    imgui.text("SPELLCASTING")
-                    imgui.separator()
-                    
-                    # Spellcasting class
-                    imgui.text("Spellcasting Class:")
-                    imgui.set_next_item_width(-1)
-                    changed, new_spell_class = imgui.input_text("##spell_class", getattr(self, 'spellcasting_class', ''))
-                    if changed:
-                        self.spellcasting_class = new_spell_class
-                    
-                    imgui.spacing()
-                    
-                    # Spell save DC and attack bonus
-                    imgui.text("Spell Save DC:")
-                    imgui.same_line(120)
-                    imgui.set_next_item_width(80)
-                    changed, new_dc = imgui.input_int("##spell_dc", getattr(self, 'spell_save_dc', 13), 0, 0)
-                    if changed:
-                        self.spell_save_dc = max(8, new_dc)
-                    
-                    imgui.text("Spell Attack Bonus:")
-                    imgui.same_line(120)
-                    imgui.set_next_item_width(80)
-                    changed, new_attack = imgui.input_int("##spell_attack", getattr(self, 'spell_attack_bonus', 5), 0, 0)
-                    if changed:
-                        self.spell_attack_bonus = new_attack
-                    
-                    imgui.separator()
-                    
-                    # Spell slots
-                    imgui.text("SPELL SLOTS")
-                    for level in range(1, 10):
-                        if hasattr(self, f'spell_slots_level_{level}'):
-                            slots = getattr(self, f'spell_slots_level_{level}', 0)
-                            if slots > 0:
-                                imgui.text(f"Level {level}:")
-                                imgui.same_line(80)
-                                imgui.set_next_item_width(60)
-                                changed, new_slots = imgui.input_int(f"##slots_{level}", slots, 0, 0)
-                                if changed:
-                                    setattr(self, f'spell_slots_level_{level}', max(0, new_slots))
-                    
-                    imgui.separator()
-                    
-                    # Known spells
-                    imgui.text("KNOWN SPELLS")
-                    imgui.set_next_item_width(-1)
-                    changed, new_spells = imgui.input_text_multiline("##known_spells", 
-                                                                    getattr(self, 'known_spells', ''), 
-                                                                    imgui.ImVec2(-1, 300))
-                    if changed:
-                        self.known_spells = new_spells
+                imgui.begin_child("SpellsColumn", imgui.ImVec2(0, 0))
+                imgui.text("SPELLCASTING")
+                imgui.separator()
+                
+                # Spellcasting class
+                imgui.text("Spellcasting Class:")
+                imgui.set_next_item_width(-1)
+                changed, new_spell_class = imgui.input_text("##spell_class", getattr(self, 'spellcasting_class', ''))
+                if changed:
+                    self.spellcasting_class = new_spell_class
+                
+                imgui.spacing()
+                
+                # Spell save DC and attack bonus
+                imgui.text("Spell Save DC:")
+                imgui.same_line(120)
+                imgui.set_next_item_width(80)
+                changed, new_dc = imgui.input_int("##spell_dc", getattr(self, 'spell_save_dc', 13), 0, 0)
+                if changed:
+                    self.spell_save_dc = max(8, new_dc)
+                
+                imgui.text("Spell Attack Bonus:")
+                imgui.same_line(120)
+                imgui.set_next_item_width(80)
+                changed, new_attack = imgui.input_int("##spell_attack", getattr(self, 'spell_attack_bonus', 5), 0, 0)
+                if changed:
+                    self.spell_attack_bonus = new_attack
+                
+                imgui.separator()
+                
+                # Spell slots
+                imgui.text("SPELL SLOTS")
+                for level in range(1, 10):
+                    if hasattr(self, f'spell_slots_level_{level}'):
+                        slots = getattr(self, f'spell_slots_level_{level}', 0)
+                        if slots > 0:
+                            imgui.text(f"Level {level}:")
+                            imgui.same_line(80)
+                            imgui.set_next_item_width(60)
+                            changed, new_slots = imgui.input_int(f"##slots_{level}", slots, 0, 0)
+                            if changed:
+                                setattr(self, f'spell_slots_level_{level}', max(0, new_slots))
+                
+                imgui.separator()
+                
+                # Known spells
+                imgui.text("KNOWN SPELLS")
+                imgui.set_next_item_width(-1)
+                changed, new_spells = imgui.input_text_multiline("##known_spells", 
+                                                                getattr(self, 'known_spells', ''), 
+                                                                imgui.ImVec2(-1, 300))
+                if changed:
+                    self.known_spells = new_spells
                 
                 imgui.end_child()
                 
                 # Right column: Features & Traits
                 imgui.table_next_column()
-                if imgui.begin_child("FeaturesColumn", imgui.ImVec2(0, 0)):
-                    imgui.text("FEATURES & TRAITS")
-                    imgui.separator()
-                    
-                    # Class features
-                    imgui.text("Class Features:")
-                    imgui.set_next_item_width(-1)
-                    changed, new_class_features = imgui.input_text_multiline("##class_features", 
-                                                                           getattr(self, 'class_features', ''), 
-                                                                           imgui.ImVec2(-1, 200))
-                    if changed:
-                        self.class_features = new_class_features
-                    
-                    imgui.spacing()
-                    
-                    # Racial traits
-                    imgui.text("Racial Traits:")
-                    imgui.set_next_item_width(-1)
-                    changed, new_racial_traits = imgui.input_text_multiline("##racial_traits", 
-                                                                          getattr(self, 'racial_traits', ''), 
-                                                                          imgui.ImVec2(-1, 150))
-                    if changed:
-                        self.racial_traits = new_racial_traits
-                    
-                    imgui.spacing()
-                    
-                    # Feats
-                    imgui.text("Feats:")
-                    imgui.set_next_item_width(-1)
-                    changed, new_feats = imgui.input_text_multiline("##feats", 
-                                                                   getattr(self, 'feats', ''), 
-                                                                   imgui.ImVec2(-1, 150))
-                    if changed:
-                        self.feats = new_feats
+                imgui.begin_child("FeaturesColumn", imgui.ImVec2(0, 0))
+                imgui.text("FEATURES & TRAITS")
+                imgui.separator()
+                
+                # Class features
+                imgui.text("Class Features:")
+                imgui.set_next_item_width(-1)
+                changed, new_class_features = imgui.input_text_multiline("##class_features", 
+                                                                       getattr(self, 'class_features', ''), 
+                                                                       imgui.ImVec2(-1, 200))
+                if changed:
+                    self.class_features = new_class_features
+                
+                imgui.spacing()
+                
+                # Racial traits
+                imgui.text("Racial Traits:")
+                imgui.set_next_item_width(-1)
+                changed, new_racial_traits = imgui.input_text_multiline("##racial_traits", 
+                                                                      getattr(self, 'racial_traits', ''), 
+                                                                      imgui.ImVec2(-1, 150))
+                if changed:
+                    self.racial_traits = new_racial_traits
+                
+                imgui.spacing()
+                
+                # Feats
+                imgui.text("Feats:")
+                imgui.set_next_item_width(-1)
+                changed, new_feats = imgui.input_text_multiline("##feats", 
+                                                               getattr(self, 'feats', ''), 
+                                                               imgui.ImVec2(-1, 150))
+                if changed:
+                    self.feats = new_feats
                 
                 imgui.end_child()
                 
@@ -1013,118 +1010,118 @@ class CharacterSheetPanel:
                 
                 # Left column: Equipment
                 imgui.table_next_column()
-                if imgui.begin_child("EquipmentColumn", imgui.ImVec2(0, 0)):
-                    imgui.text("EQUIPMENT & INVENTORY")
-                    imgui.separator()
-                    
-                    # Currency
-                    imgui.text("Currency:")
-                    
-                    currencies = [("Copper", "cp"), ("Silver", "sp"), ("Electrum", "ep"), 
-                                ("Gold", "gp"), ("Platinum", "pp")]
-                    
-                    for name, code in currencies:
-                        imgui.text(f"{name}:")
-                        imgui.same_line(80)
-                        imgui.set_next_item_width(80)
-                        current_value = getattr(self, f'currency_{code}', 0)
-                        changed, new_value = imgui.input_int(f"##{code}", current_value, 0, 0)
-                        if changed:
-                            setattr(self, f'currency_{code}', max(0, new_value))
-                    
-                    imgui.separator()
-                    
-                    # Equipment list
-                    imgui.text("Equipment List:")
-                    imgui.set_next_item_width(-1)
-                    changed, new_equipment_list = imgui.input_text_multiline("##equipment_list", 
-                                                                           getattr(self, 'equipment_list', ''), 
-                                                                           imgui.ImVec2(-1, 300))
+                imgui.begin_child("EquipmentColumn", imgui.ImVec2(0, 0))
+                imgui.text("EQUIPMENT & INVENTORY")
+                imgui.separator()
+                
+                # Currency
+                imgui.text("Currency:")
+                
+                currencies = [("Copper", "cp"), ("Silver", "sp"), ("Electrum", "ep"), 
+                            ("Gold", "gp"), ("Platinum", "pp")]
+                
+                for name, code in currencies:
+                    imgui.text(f"{name}:")
+                    imgui.same_line(80)
+                    imgui.set_next_item_width(80)
+                    current_value = getattr(self, f'currency_{code}', 0)
+                    changed, new_value = imgui.input_int(f"##{code}", current_value, 0, 0)
                     if changed:
-                        self.equipment_list = new_equipment_list
-                    
-                    imgui.spacing()
-                    
-                    # Weapons
-                    imgui.text("Weapons:")
-                    imgui.set_next_item_width(-1)
-                    changed, new_weapons = imgui.input_text_multiline("##weapons", 
-                                                                     getattr(self, 'weapons', ''), 
-                                                                     imgui.ImVec2(-1, 150))
-                    if changed:
-                        self.weapons = new_weapons
+                        setattr(self, f'currency_{code}', max(0, new_value))
+                
+                imgui.separator()
+                
+                # Equipment list
+                imgui.text("Equipment List:")
+                imgui.set_next_item_width(-1)
+                changed, new_equipment_list = imgui.input_text_multiline("##equipment_list", 
+                                                                       getattr(self, 'equipment_list', ''), 
+                                                                       imgui.ImVec2(-1, 300))
+                if changed:
+                    self.equipment_list = new_equipment_list
+                
+                imgui.spacing()
+                
+                # Weapons
+                imgui.text("Weapons:")
+                imgui.set_next_item_width(-1)
+                changed, new_weapons = imgui.input_text_multiline("##weapons", 
+                                                                 getattr(self, 'weapons', ''), 
+                                                                 imgui.ImVec2(-1, 150))
+                if changed:
+                    self.weapons = new_weapons
                 
                 imgui.end_child()
                 
                 # Right column: Notes
                 imgui.table_next_column()
-                if imgui.begin_child("NotesColumn", imgui.ImVec2(0, 0)):
-                    imgui.text("CHARACTER NOTES")
-                    imgui.separator()
-                    
-                    # Backstory
-                    imgui.text("Backstory:")
-                    imgui.set_next_item_width(-1)
-                    changed, new_backstory = imgui.input_text_multiline("##backstory", 
-                                                                       getattr(self, 'backstory', ''), 
-                                                                       imgui.ImVec2(-1, 200))
-                    if changed:
-                        self.backstory = new_backstory
-                    
-                    imgui.spacing()
-                    
-                    # Personality traits
-                    imgui.text("Personality Traits:")
-                    imgui.set_next_item_width(-1)
-                    changed, new_personality = imgui.input_text_multiline("##personality", 
-                                                                         getattr(self, 'personality_traits', ''), 
-                                                                         imgui.ImVec2(-1, 100))
-                    if changed:
-                        self.personality_traits = new_personality
-                    
-                    imgui.spacing()
-                    
-                    # Ideals
-                    imgui.text("Ideals:")
-                    imgui.set_next_item_width(-1)
-                    changed, new_ideals = imgui.input_text_multiline("##ideals", 
-                                                                    getattr(self, 'ideals', ''), 
-                                                                    imgui.ImVec2(-1, 100))
-                    if changed:
-                        self.ideals = new_ideals
-                    
-                    imgui.spacing()
-                    
-                    # Bonds
-                    imgui.text("Bonds:")
-                    imgui.set_next_item_width(-1)
-                    changed, new_bonds = imgui.input_text_multiline("##bonds", 
-                                                                   getattr(self, 'bonds', ''), 
-                                                                   imgui.ImVec2(-1, 100))
-                    if changed:
-                        self.bonds = new_bonds
-                    
-                    imgui.spacing()
-                    
-                    # Flaws
-                    imgui.text("Flaws:")
-                    imgui.set_next_item_width(-1)
-                    changed, new_flaws = imgui.input_text_multiline("##flaws", 
-                                                                   getattr(self, 'flaws', ''), 
-                                                                   imgui.ImVec2(-1, 100))
-                    if changed:
-                        self.flaws = new_flaws
-                    
-                    imgui.spacing()
-                    
-                    # General notes
-                    imgui.text("General Notes:")
-                    imgui.set_next_item_width(-1)
-                    changed, new_notes = imgui.input_text_multiline("##general_notes", 
-                                                                   getattr(self, 'general_notes', ''), 
-                                                                   imgui.ImVec2(-1, 150))
-                    if changed:
-                        self.general_notes = new_notes
+                imgui.begin_child("NotesColumn", imgui.ImVec2(0, 0))
+                imgui.text("CHARACTER NOTES")
+                imgui.separator()
+                
+                # Backstory
+                imgui.text("Backstory:")
+                imgui.set_next_item_width(-1)
+                changed, new_backstory = imgui.input_text_multiline("##backstory", 
+                                                                   getattr(self, 'backstory', ''), 
+                                                                   imgui.ImVec2(-1, 200))
+                if changed:
+                    self.backstory = new_backstory
+                
+                imgui.spacing()
+                
+                # Personality traits
+                imgui.text("Personality Traits:")
+                imgui.set_next_item_width(-1)
+                changed, new_personality = imgui.input_text_multiline("##personality", 
+                                                                     getattr(self, 'personality_traits', ''), 
+                                                                     imgui.ImVec2(-1, 100))
+                if changed:
+                    self.personality_traits = new_personality
+                
+                imgui.spacing()
+                
+                # Ideals
+                imgui.text("Ideals:")
+                imgui.set_next_item_width(-1)
+                changed, new_ideals = imgui.input_text_multiline("##ideals", 
+                                                                getattr(self, 'ideals', ''), 
+                                                                imgui.ImVec2(-1, 100))
+                if changed:
+                    self.ideals = new_ideals
+                
+                imgui.spacing()
+                
+                # Bonds
+                imgui.text("Bonds:")
+                imgui.set_next_item_width(-1)
+                changed, new_bonds = imgui.input_text_multiline("##bonds", 
+                                                               getattr(self, 'bonds', ''), 
+                                                               imgui.ImVec2(-1, 100))
+                if changed:
+                    self.bonds = new_bonds
+                
+                imgui.spacing()
+                
+                # Flaws
+                imgui.text("Flaws:")
+                imgui.set_next_item_width(-1)
+                changed, new_flaws = imgui.input_text_multiline("##flaws", 
+                                                               getattr(self, 'flaws', ''), 
+                                                               imgui.ImVec2(-1, 100))
+                if changed:
+                    self.flaws = new_flaws
+                
+                imgui.spacing()
+                
+                # General notes
+                imgui.text("General Notes:")
+                imgui.set_next_item_width(-1)
+                changed, new_notes = imgui.input_text_multiline("##general_notes", 
+                                                               getattr(self, 'general_notes', ''), 
+                                                               imgui.ImVec2(-1, 150))
+                if changed:
+                    self.general_notes = new_notes
                 
                 imgui.end_child()
                 

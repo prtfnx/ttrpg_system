@@ -65,14 +65,15 @@ class EntitiesPanel:
         changed, self.entity_filter = imgui.input_text("##filter", self.entity_filter, 64)
         
         imgui.separator()        # Entity list
-        if imgui.begin_child("entity_list", (0, -150)):
-            entities = self._get_filtered_entities() or {}
-            
-            if not entities:
-                imgui.text_colored((0.7, 0.7, 0.7, 1.0), f"No sprites found on layer '{self.selected_layer}'")
-            else:
-                for entity_id, entity_data in entities.items():
-                    self._render_entity_item(entity_id, entity_data)
+        imgui.begin_child("entity_list", (0, -150))
+        
+        entities = self._get_filtered_entities() or {}
+        
+        if not entities:
+            imgui.text_colored((0.7, 0.7, 0.7, 1.0), f"No sprites found on layer '{self.selected_layer}'")
+        else:
+            for entity_id, entity_data in entities.items():
+                self._render_entity_item(entity_id, entity_data)
         
         imgui.end_child()
         

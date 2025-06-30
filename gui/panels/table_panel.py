@@ -113,13 +113,22 @@ class TablePanel:
             else:
                 self._cached_table_info = None
         
-        # Cache connection status every few frames to avoid constant getattr calls
+        # Cache connection status every few frames to avoid constant method calls
         if (self._cached_connection_status is None or 
             getattr(self, '_connection_cache_frame', 0) % 30 == 0):  # Update every 30 frames (~0.5 seconds)
-            self._cached_connection_status = {
-                'is_hosting': getattr(self.context, 'is_hosting', False),
-                'is_connected': getattr(self.context, 'is_connected', False)
-            }
+            
+            # Get network status directly from context
+            if hasattr(self.context, 'get_network_status'):
+                self._cached_connection_status = self.context.get_network_status()
+            else:
+                # No network status available
+                self._cached_connection_status = {
+                    'is_connected': False,
+                    'is_hosting': False,
+                    'connection_quality': 'Unknown',
+                    'ping_ms': 0,
+                    'player_count': 0
+                }
             self._connection_cache_frame = getattr(self, '_connection_cache_frame', 0) + 1
         else:
             self._connection_cache_frame = getattr(self, '_connection_cache_frame', 0) + 1
@@ -135,15 +144,32 @@ class TablePanel:
         else:
             imgui.text_colored((0.8, 0.4, 0.4, 1.0), "None Selected")
         
-        # Sync status indicator
+        # Sync status indicator with enhanced network info
         imgui.same_line()
         imgui.text(" | Status:")
         imgui.same_line()
         
         if self._cached_connection_status['is_hosting']:
             imgui.text_colored((0.2, 0.8, 0.2, 1.0), "Hosting")
+            if self._cached_connection_status['player_count'] > 0:
+                imgui.same_line()
+                imgui.text_colored((0.6, 0.6, 0.6, 1.0), f"({self._cached_connection_status['player_count']} players)")
         elif self._cached_connection_status['is_connected']:
-            imgui.text_colored((0.2, 0.8, 0.2, 1.0), "Connected")
+            # Color code by connection quality
+            quality = self._cached_connection_status['connection_quality']
+            if quality == "Good":
+                color = (0.2, 0.8, 0.2, 1.0)  # Green
+            elif quality == "Fair":
+                color = (0.8, 0.8, 0.2, 1.0)  # Yellow
+            elif quality == "Poor":
+                color = (0.8, 0.4, 0.2, 1.0)  # Orange
+            else:
+                color = (0.6, 0.6, 0.6, 1.0)  # Gray
+            
+            imgui.text_colored(color, f"Connected ({quality})")
+            if self._cached_connection_status['ping_ms'] > 0:
+                imgui.same_line()
+                imgui.text_colored((0.6, 0.6, 0.6, 1.0), f"{self._cached_connection_status['ping_ms']}ms")
         else:
             imgui.text_colored((0.8, 0.8, 0.2, 1.0), "Local")
 
@@ -231,9 +257,10 @@ class TablePanel:
                         self._tab_selected_once = True
                     
                     # Render tab item - only switch on user click
-                    tab_selected = imgui.begin_tab_item(tab_id, None, tab_flags)
+                    # Fix: ImGui Bundle returns tuple for begin_tab_item
+                    tab_visible, tab_open = imgui.begin_tab_item(tab_id, None, tab_flags)
                     
-                    if tab_selected[0]:  # If tab is visible/active
+                    if tab_visible:  # If tab is visible/active
                         try:
                             # Only switch tables if this tab was actually clicked (not just visible)
                             # We detect clicks by checking if tab was not already current
@@ -259,7 +286,40 @@ class TablePanel:
         changed, self.session_name = imgui.input_text("##session_name", self.session_name, 64)
         
         imgui.same_line()
-        imgui.text(f"Players: {self.player_count}")
+        # Show actual connected players if hosting, or configured player count otherwise
+        if self._cached_connection_status and self._cached_connection_status['is_hosting']:
+            actual_players = self._cached_connection_status['player_count']
+            imgui.text_colored((0.2, 0.8, 0.2, 1.0), f"Players: {actual_players} (Hosting)")
+        elif self._cached_connection_status and self._cached_connection_status['is_connected']:
+            imgui.text_colored((0.2, 0.8, 0.2, 1.0), f"Players: Connected")
+            if 'ping_ms' in self._cached_connection_status:
+                imgui.same_line()
+                imgui.text_colored((0.6, 0.6, 0.6, 1.0), f"({self._cached_connection_status['ping_ms']}ms)")
+        else:
+            imgui.text(f"Players: {self.player_count} (Local)")
+        
+        imgui.same_line()
+        imgui.text("|")
+        imgui.same_line()
+        
+        # Network status indicator
+        if self._cached_connection_status:
+            if self._cached_connection_status['is_hosting']:
+                imgui.text_colored((0.2, 0.8, 0.2, 1.0), "🌐 HOST")
+            elif self._cached_connection_status['is_connected']:
+                quality = self._cached_connection_status.get('connection_quality', 'Unknown')
+                quality_colors = {
+                    "Good": (0.2, 0.8, 0.2, 1.0),
+                    "Fair": (0.8, 0.8, 0.2, 1.0), 
+                    "Poor": (0.8, 0.3, 0.2, 1.0),
+                    "Unknown": (0.6, 0.6, 0.6, 1.0)
+                }
+                color = quality_colors.get(quality, quality_colors["Unknown"])
+                imgui.text_colored(color, f"🌐 {quality}")
+            else:
+                imgui.text_colored((0.6, 0.6, 0.6, 1.0), "🏠 LOCAL")
+        else:
+            imgui.text_colored((0.6, 0.6, 0.6, 1.0), "🏠 LOCAL")
         
         imgui.same_line()
         imgui.text("|")
@@ -433,13 +493,21 @@ class TablePanel:
                 self.context.add_chat_message(f"Switched to table: {table_name}")
 
     def _handle_create_table(self):
-        """Handle creating a new table"""
+        """Handle creating a new table with network validation"""
         try:
             if not self.new_table_name.strip():
                 logger.warning("Cannot create table with empty name")
                 if hasattr(self.context, 'add_chat_message'):
                     self.context.add_chat_message("Error: Table name cannot be empty")
                 return
+            
+            # Network validation - check permissions for networked sessions
+            if hasattr(self.context, 'validate_network_permission'):
+                if not self.context.validate_network_permission('create_table'):
+                    logger.warning("Cannot create table - insufficient network permissions")
+                    if hasattr(self.context, 'add_chat_message'):
+                        self.context.add_chat_message("Cannot create table - only host can create tables in networked session")
+                    return
                 
             logger.info(f"Creating new table: {self.new_table_name}")
             
@@ -452,6 +520,18 @@ class TablePanel:
                 )
                 
                 if success:
+                    # Notify network about table creation
+                    if hasattr(self.context, 'broadcast_table_change'):
+                        self.context.broadcast_table_change(
+                            self.new_table_name.strip(),
+                            'table_created',
+                            {
+                                'name': self.new_table_name.strip(),
+                                'width': self.new_table_width,
+                                'height': self.new_table_height
+                            }
+                        )
+                    
                     if hasattr(self.context, 'add_chat_message'):
                         self.context.add_chat_message(f"Created table: {self.new_table_name}")
                     logger.info(f"Successfully created table: {self.new_table_name}")
@@ -470,12 +550,20 @@ class TablePanel:
                 self.context.add_chat_message(f"Error creating table: {str(e)}")
 
     def _handle_delete_table(self):
-        """Handle deleting the current table"""
+        """Handle deleting the current table with network validation"""
         current_table = self.context.current_table
         if not current_table:
             return
         
         table_name = getattr(current_table, 'name', 'Unknown')
+        
+        # Network validation - only host or local user can delete tables
+        if self._cached_connection_status and self._cached_connection_status['is_connected'] and not self._cached_connection_status['is_hosting']:
+            logger.warning("Cannot delete table - not host in networked session")
+            if hasattr(self.context, 'add_chat_message'):
+                self.context.add_chat_message("Cannot delete table - only host can delete tables in networked session")
+            return
+        
         logger.info(f"Deleting table: {table_name}")
         
         try:
@@ -500,13 +588,18 @@ class TablePanel:
                 self.context.add_chat_message(f"Error deleting table: {str(e)}")
 
     def _handle_save_table(self):
-        """Handle saving the current table"""
+        """Handle saving the current table with network considerations"""
         if not self.save_filename.strip():
             logger.warning("Cannot save with empty filename")
             if hasattr(self.context, 'add_chat_message'):
                 self.context.add_chat_message("Error: Filename cannot be empty")
             return
             
+        # Network notification - inform about save in networked sessions
+        if self._cached_connection_status and (self._cached_connection_status['is_hosting'] or self._cached_connection_status['is_connected']):
+            if hasattr(self.context, 'add_chat_message'):
+                self.context.add_chat_message(f"Saving table locally: {self.save_filename}")
+        
         logger.info(f"Saving table to: {self.save_filename}")
         
         try:
@@ -521,9 +614,9 @@ class TablePanel:
                     if hasattr(self.context, 'add_chat_message'):
                         self.context.add_chat_message(f"Failed to save table: {self.save_filename}")
             else:
-                logger.info("Save table functionality not implemented yet")
+                logger.warning("Save table action not available")
                 if hasattr(self.context, 'add_chat_message'):
-                    self.context.add_chat_message("Save functionality not implemented yet")
+                    self.context.add_chat_message("Table saving not available")
                     
         except Exception as e:
             logger.error(f"Exception while saving table: {e}")
@@ -531,16 +624,33 @@ class TablePanel:
                 self.context.add_chat_message(f"Error saving table: {str(e)}")
 
     def _handle_load_table(self):
-        """Handle loading a saved table"""
+        """Handle loading a saved table with network broadcasting"""
         logger.info("Loading table requested")
+        
+        # Network validation - only host can load tables in networked session
+        if self._cached_connection_status and self._cached_connection_status['is_connected'] and not self._cached_connection_status['is_hosting']:
+            logger.warning("Cannot load table - not host in networked session")
+            if hasattr(self.context, 'add_chat_message'):
+                self.context.add_chat_message("Cannot load table - only host can load tables in networked session")
+            return
         
         try:
             if hasattr(self.actions_bridge, 'load_table'):
                 success = self.actions_bridge.load_table()
                 
                 if success:
+                    # Broadcast table change to all connected players
+                    if self._cached_connection_status and self._cached_connection_status['is_hosting']:
+                        if hasattr(self.context, 'broadcast_table_change'):
+                            self.context.broadcast_table_change("Table loaded by host")
+                    
                     if hasattr(self.context, 'add_chat_message'):
                         self.context.add_chat_message("Table loaded successfully")
+                        
+                    # Notify players in networked session
+                    if self._cached_connection_status and (self._cached_connection_status['is_hosting'] or self._cached_connection_status['is_connected']):
+                        if hasattr(self.context, 'add_chat_message'):
+                            self.context.add_chat_message("Table updated - all players will see the changes")
                 else:
                     logger.error("Failed to load table")
                     if hasattr(self.context, 'add_chat_message'):
@@ -609,8 +719,24 @@ class TablePanel:
                 self.context.add_chat_message("Failed to load session")
 
     def _handle_new_session(self):
-        """Handle creating a new session"""
+        """Handle creating a new session with network disconnection"""
         logger.info("New session requested")
+        
+        # Network validation - warn if in networked session
+        if self._cached_connection_status and (self._cached_connection_status['is_hosting'] or self._cached_connection_status['is_connected']):
+            logger.warning("Creating new session will disconnect from network")
+            if hasattr(self.context, 'add_chat_message'):
+                self.context.add_chat_message("Warning: Starting new session will disconnect from network")
+            
+            # Disconnect from network session
+            if hasattr(self.context, 'disconnect_from_network'):
+                self.context.disconnect_from_network()
+            elif hasattr(self.context, 'network_panel'):
+                network_panel = self.context.network_panel
+                if network_panel.is_hosting:
+                    network_panel._stop_hosting()
+                elif network_panel.is_connected:
+                    network_panel._disconnect_from_server()
         
         self.session_name = "New Session"
         
@@ -627,14 +753,25 @@ class TablePanel:
                 self.context.add_chat_message("Failed to create new session")
 
     def _handle_reset_view(self):
-        """Handle resetting the table view"""
+        """Handle resetting the table view with network sync"""
         logger.info("Reset view requested")
         
         try:
             if hasattr(self.context, 'reset_view'):
                 self.context.reset_view()
-                if hasattr(self.context, 'add_chat_message'):
-                    self.context.add_chat_message("View reset to center")
+                
+                # Broadcast view reset to connected players
+                if self._cached_connection_status and self._cached_connection_status['is_hosting']:
+                    if hasattr(self.context, 'broadcast_view_change'):
+                        self.context.broadcast_view_change("view_reset")
+                    if hasattr(self.context, 'add_chat_message'):
+                        self.context.add_chat_message("View reset - synchronized with all players")
+                elif self._cached_connection_status and self._cached_connection_status['is_connected']:
+                    if hasattr(self.context, 'add_chat_message'):
+                        self.context.add_chat_message("View reset locally")
+                else:
+                    if hasattr(self.context, 'add_chat_message'):
+                        self.context.add_chat_message("View reset to center")
             else:
                 logger.info("Reset view functionality not available")
                 if hasattr(self.context, 'add_chat_message'):
@@ -646,14 +783,36 @@ class TablePanel:
                 self.context.add_chat_message("Failed to reset view")
 
     def _handle_clear_table(self):
-        """Handle clearing the table"""
+        """Handle clearing the table with network confirmation"""
         logger.info("Clear table requested")
+        
+        # Network validation - require confirmation in networked sessions
+        if self._cached_connection_status and (self._cached_connection_status['is_hosting'] or self._cached_connection_status['is_connected']):
+            if self._cached_connection_status['is_connected'] and not self._cached_connection_status['is_hosting']:
+                logger.warning("Cannot clear table - not host in networked session")
+                if hasattr(self.context, 'add_chat_message'):
+                    self.context.add_chat_message("Cannot clear table - only host can clear table in networked session")
+                return
+            
+            # Host clearing - warn about network implications
+            if self._cached_connection_status['is_hosting']:
+                if hasattr(self.context, 'add_chat_message'):
+                    self.context.add_chat_message("Clearing table for all connected players...")
         
         try:
             if hasattr(self.context, 'clear_table'):
                 self.context.clear_table()
-                if hasattr(self.context, 'add_chat_message'):
-                    self.context.add_chat_message("Table cleared")
+                
+                # Broadcast table clear to all players
+                if self._cached_connection_status and self._cached_connection_status['is_hosting']:
+                    if hasattr(self.context, 'broadcast_table_change'):
+                        self.context.broadcast_table_change("table_cleared")
+                    if hasattr(self.context, 'add_chat_message'):
+                        self.context.add_chat_message("Table cleared for all players")
+                else:
+                    if hasattr(self.context, 'add_chat_message'):
+                        self.context.add_chat_message("Table cleared")
+                        
             elif hasattr(self.context, 'entities') and isinstance(self.context.entities, list):
                 # Fallback: clear entities list
                 self.context.entities.clear()
@@ -661,13 +820,53 @@ class TablePanel:
                     self.context.add_chat_message("Entities cleared")
             else:
                 logger.info("Clear table functionality not available")
-                if hasattr(self.context, 'add_chat_message'):                    self.context.add_chat_message("Clear table not available")
+                if hasattr(self.context, 'add_chat_message'):
+                    self.context.add_chat_message("Clear table not available")
                     
         except Exception as e:
             logger.error(f"Failed to clear table: {e}")
             if hasattr(self.context, 'add_chat_message'):
                 self.context.add_chat_message("Failed to clear table")
                 
+    def _render_network_status_widget(self):
+        """Render a compact network status widget that can be embedded anywhere"""
+        if not self._cached_connection_status:
+            imgui.text_colored((0.6, 0.6, 0.6, 1.0), "🏠 Local")
+            return
+            
+        if self._cached_connection_status['is_hosting']:
+            player_count = self._cached_connection_status.get('player_count', 0)
+            imgui.text_colored((0.2, 0.8, 0.2, 1.0), f"🌐 Hosting ({player_count})")
+        elif self._cached_connection_status['is_connected']:
+            quality = self._cached_connection_status.get('connection_quality', 'Unknown')
+            ping = self._cached_connection_status.get('ping_ms', 0)
+            
+            quality_colors = {
+                "Good": (0.2, 0.8, 0.2, 1.0),
+                "Fair": (0.8, 0.8, 0.2, 1.0), 
+                "Poor": (0.8, 0.3, 0.2, 1.0),
+                "Bad": (0.8, 0.2, 0.2, 1.0),
+                "Unknown": (0.6, 0.6, 0.6, 1.0)
+            }
+            color = quality_colors.get(quality, quality_colors["Unknown"])
+            imgui.text_colored(color, f"🌐 {quality} ({ping}ms)")
+        else:
+            imgui.text_colored((0.6, 0.6, 0.6, 1.0), "🏠 Local")
+
+    def _get_network_status_tooltip(self):
+        """Get detailed network status for tooltips"""
+        if not self._cached_connection_status:
+            return "Local session - no network connection"
+            
+        if self._cached_connection_status['is_hosting']:
+            player_count = self._cached_connection_status.get('player_count', 0)
+            return f"Hosting session with {player_count} connected players"
+        elif self._cached_connection_status['is_connected']:
+            quality = self._cached_connection_status.get('connection_quality', 'Unknown')
+            ping = self._cached_connection_status.get('ping_ms', 0)
+            return f"Connected to session\nConnection: {quality}\nPing: {ping}ms"
+        else:
+            return "Local session - not connected to any network session"
     def _apply_style(self, style_name):
         """Apply the selected global style theme to ImGui with comprehensive color coverage"""
         try:

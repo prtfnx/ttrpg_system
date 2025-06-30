@@ -168,9 +168,32 @@ def paste_copied_sprite(context):
             else:
                 logger.error(f"Failed to paste sprite using Actions: {result.message}")
                 # Fall back to old method
-          # Fallback to old context.add_sprite method    
-        
-
+                new_sprite = context.add_sprite(
+                    texture_path=_copied_sprite_data['texture_path'].encode(),
+                    scale_x=_copied_sprite_data['scale_x'],
+                    scale_y=_copied_sprite_data['scale_y'],
+                    layer=_copied_sprite_data['layer'],
+                    coord_x=new_x,
+                    coord_y=new_y
+                )
+                
+                if not new_sprite:
+                    logger.error("Fallback sprite creation also failed")
+                    return False
+        else:
+            # No Actions available, use old method directly
+            new_sprite = context.add_sprite(
+                texture_path=_copied_sprite_data['texture_path'].encode(),
+                scale_x=_copied_sprite_data['scale_x'],
+                scale_y=_copied_sprite_data['scale_y'],
+                layer=_copied_sprite_data['layer'],
+                coord_x=new_x,
+                coord_y=new_y
+            )
+            
+            if not new_sprite:
+                logger.error("Sprite creation failed")
+                return False
         
         # Verify the layer was set correctly
         actual_layer = getattr(new_sprite, 'layer', 'UNKNOWN')

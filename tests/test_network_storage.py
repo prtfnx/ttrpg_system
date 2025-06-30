@@ -292,7 +292,7 @@ class TestStorageSystem(unittest.TestCase):
     def test_storage_manager_initialization(self, mock_sdl3):
         """Test storage manager initialization with SDL3."""
         try:
-            from storage.storage_manager import StorageManager
+            from storage.StorageManager import StorageManager
             
             # Mock SDL3 storage creation
             mock_storage = Mock()

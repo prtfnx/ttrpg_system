@@ -140,8 +140,8 @@ class GameSessionProtocolService:
             self.table_manager.add_table(large_table)
             
             # Add entities across different layers
-            map_bg = large_table.add_entity("Map Background1", (0, 0), layer='map', path_to_texture='resources/map.jpg')
-            player1 = large_table.add_entity("Player 1", (400, 300), layer='tokens', path_to_texture='server_host/res/player1.png')
+            map_bg = large_table.add_entity("Map Background1", (0, 0), layer='map', path_to_texture='resources/map.jpg', asset_id='1aeb5857b9cd3b50')
+            player1 = large_table.add_entity("Player 1", (400, 300), layer='tokens', path_to_texture='server_host/res/player1.png', asset_id='e7f80bafaaf67027')
             player2 = large_table.add_entity("Player 2", (12, 10), layer='tokens', path_to_texture='server_host/res/player2.png')
             dm_note = large_table.add_entity("DM Note", (25, 25), layer='dungeon_master', path_to_texture='server_host/res/note.png')
             light_source = large_table.add_entity("Light Source", (15, 15), layer='light', path_to_texture='server_host/res/torch.png')

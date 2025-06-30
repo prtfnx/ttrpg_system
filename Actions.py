@@ -32,6 +32,7 @@ class Actions(ActionsProtocol):
     - ClientProtocol is messaging-only, delegates to Actions
     - All I/O operations use unified completion queues
     - Actions serves as central command bus for all game logic
+    - Enhanced with server communication support for all sprite and table operations
     
     Function Index by Category:
     
@@ -51,8 +52,8 @@ class Actions(ActionsProtocol):
     - create_table_from_dict(table_dict) -> Create table from dictionary data
     - process_creating_table(table_data) -> Create table with asset processing
     - get_table(table_id) -> Retrieve table by ID
-    - update_table(table_id, **kwargs) -> Update table properties
-    - delete_table(table_id) -> Remove table and cleanup resources
+    - update_table(table_id, to_server=True, **kwargs) -> Update table properties [WITH SERVER SYNC]
+    - delete_table(table_id, to_server=True) -> Remove table and cleanup resources [WITH SERVER SYNC]
     - move_table(table_id, position) -> Move table to new position
     - scale_table(table_id, scale_x, scale_y) -> Scale table by factors
     - ask_for_table(table_name) -> Request table from server
@@ -60,13 +61,28 @@ class Actions(ActionsProtocol):
     ═══════════════════════════════════════════════════════════════════════════════
     SPRITE MANAGEMENT (CRUD OPERATIONS)
     ═══════════════════════════════════════════════════════════════════════════════
-    - create_sprite(table_id, sprite_id, position, image_path, layer) -> Create new sprite
+    - create_sprite(table_id, sprite_id, position, image_path, layer, to_server=True) -> Create new sprite [WITH SERVER SYNC]
     - get_sprite_info(table_id, sprite_id) -> Get detailed sprite information
-    - update_sprite(table_id, sprite_id, **kwargs) -> Update sprite properties
-    - delete_sprite(table_id, sprite_id) -> Remove sprite from table
-    - move_sprite(table_id, sprite_id, position) -> Move sprite to new position
-    - scale_sprite(table_id, sprite_id, scale_x, scale_y) -> Scale sprite
-    - rotate_sprite(table_id, sprite_id, angle) -> Rotate sprite by angle
+    - update_sprite(table_id, sprite_id, to_server=True, **kwargs) -> Update sprite properties [WITH SERVER SYNC]
+    - delete_sprite(table_id, sprite_id, to_server=True) -> Remove sprite from table [WITH SERVER SYNC]
+    - move_sprite(table_id, sprite_id, position, to_server=True) -> Move sprite to new position [WITH SERVER SYNC]
+    - scale_sprite(table_id, sprite_id, scale_x, scale_y, to_server=True) -> Scale sprite [WITH SERVER SYNC]
+    - rotate_sprite(table_id, sprite_id, angle, to_server=True) -> Rotate sprite by angle [WITH SERVER SYNC]
+    
+    ═══════════════════════════════════════════════════════════════════════════════
+    ADVANCED SPRITE SERVER OPERATIONS
+    ═══════════════════════════════════════════════════════════════════════════════
+    - batch_sprite_update(table_id, sprite_updates, to_server=True) -> Update multiple sprites in batch
+    - sync_sprite_with_server(table_id, sprite_id) -> Force sync sprite with server
+    - request_sprite_from_server(table_id, sprite_id) -> Request specific sprite from server
+    - broadcast_sprite_action(action_type, table_id, sprite_id, action_data) -> Broadcast sprite action
+    
+    ═══════════════════════════════════════════════════════════════════════════════
+    ADVANCED TABLE SERVER OPERATIONS
+    ═══════════════════════════════════════════════════════════════════════════════
+    - sync_table_with_server(table_id) -> Force sync table with server
+    - request_table_list_from_server() -> Request list of available tables from server
+    - broadcast_table_action(action_type, table_id, action_data) -> Broadcast table action
     
     ═══════════════════════════════════════════════════════════════════════════════
     LAYER MANAGEMENT
@@ -144,9 +160,17 @@ class Actions(ActionsProtocol):
     - _load_table_data(table_data) -> Load table from file data
     - _process_csv_data(filename, csv_data) -> Process CSV file data
     
-    Total Functions: 55 (14 public table ops, 7 public sprite ops, 4 layer ops, 
-                        5 query ops, 5 file ops, 3 batch ops, 6 I/O handlers, 
+    Total Functions: 69 (14 public table ops + 7 advanced table ops, 7 public sprite ops + 4 advanced sprite ops, 
+                        4 layer ops, 5 query ops, 5 file ops, 3 batch ops, 6 I/O handlers, 
                         5 asset handlers, 11 internal helpers)
+    
+    SERVER COMMUNICATION FEATURES:
+    - All sprite operations (create, update, delete, move, scale, rotate) support server sync
+    - All table operations (update, delete) support server sync
+    - Batch operations for efficient sprite updates
+    - Force sync methods for manual server synchronization
+    - Broadcasting capabilities for real-time multiplayer updates
+    - Request methods for pulling data from server
     """
     
     # ============================================================================
@@ -291,7 +315,7 @@ class Actions(ActionsProtocol):
             logger.error(f"Failed to get table {table_id}: {e}")
             return ActionResult(False, f"Failed to get table: {str(e)}")
     
-    def update_table(self, table_id: str, **kwargs) -> ActionResult:
+    def update_table(self, table_id: str, to_server: bool = True, **kwargs) -> ActionResult:
         """Update table properties"""
         try:
             table = self._get_table_by_id(table_id)
@@ -303,6 +327,18 @@ class Actions(ActionsProtocol):
                 if hasattr(table, key):
                     old_values[key] = getattr(table, key)
                     setattr(table, key, value)
+            
+            # Send update to server if requested and protocol available
+            if to_server and hasattr(self.context, 'protocol') and self.context.protocol:
+                try:
+                    update_data = {
+                        'table_id': table_id,
+                        **kwargs
+                    }
+                    self.context.protocol.send_update('table_update', update_data)
+                    logger.debug(f"Sent table update to server for {table_id}")
+                except Exception as e:
+                    logger.error(f"Failed to send table update to server: {e}")
             
             action = {
                 'type': 'update_table',
@@ -316,7 +352,7 @@ class Actions(ActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to update table: {str(e)}")
     
-    def delete_table(self, table_id: str) -> ActionResult:
+    def delete_table(self, table_id: str, to_server: bool = True) -> ActionResult:
         """Delete a table"""
         try:
             table = self._get_table_by_id(table_id)
@@ -332,6 +368,14 @@ class Actions(ActionsProtocol):
                 'x_moved': table.x_moved,
                 'y_moved': table.y_moved
             }
+            
+            # Send delete to server if requested and protocol available
+            if to_server and hasattr(self.context, 'protocol') and self.context.protocol:
+                try:
+                    self.context.protocol.table_delete(table_id)
+                    logger.debug(f"Sent table delete to server for {table_id}")
+                except Exception as e:
+                    logger.error(f"Failed to send table delete to server: {e}")
             
             # Clean up table resources
             self.context.cleanup_table(table)
@@ -441,7 +485,7 @@ class Actions(ActionsProtocol):
                 'table_id': table.table_id,
                 'coord_x': position.x,
                 'coord_y': position.y,
-                'table_id': table.table_id,
+                'sprite_id': sprite_id,               
                 **kwargs
             }
             logger.debug(f"Creating sprite with data: {sprite_data}")
@@ -453,7 +497,7 @@ class Actions(ActionsProtocol):
             # Start io operations to load asset texture
             if self.AssetManager and sprite:
                 logger.info(f"Loading asset for sprite {sprite_id} from {image_path}")    
-                self.AssetManager.load_asset_for_sprite(sprite, image_path)
+                self.AssetManager.load_asset_for_sprite(sprite, image_path, to_server=to_server)
             if to_server:
                 logger.debug(f"Creating sprite {sprite_id} on server for table {table_id}")
                 self.context.protocol.sprite_create(table_id=table.table_id,
@@ -504,7 +548,7 @@ class Actions(ActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to get sprite info: {str(e)}")
 
-    def update_sprite(self, table_id: str, sprite_id: str, **kwargs) -> ActionResult:
+    def update_sprite(self, table_id: str, sprite_id: str, to_server: bool = True, **kwargs) -> ActionResult:
         """Update sprite properties"""
         try:
             table = self._get_table_by_id(table_id)
@@ -520,6 +564,19 @@ class Actions(ActionsProtocol):
                     old_values[key] = getattr(sprite, key)
                     setattr(sprite, key, value)
             
+            # Send update to server if requested and protocol available
+            if to_server and hasattr(self.context, 'protocol') and self.context.protocol:
+                try:
+                    sprite_data = {
+                        'sprite_id': sprite_id,
+                        'table_id': table_id,
+                        **kwargs
+                    }
+                    self.context.protocol.send_sprite_update('update', sprite_data)
+                    logger.debug(f"Sent sprite update to server for {sprite_id}")
+                except Exception as e:
+                    logger.error(f"Failed to send sprite update to server: {e}")
+            
             action = {
                 'type': 'update_sprite',
                 'table_id': table_id,
@@ -533,7 +590,7 @@ class Actions(ActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to update sprite: {str(e)}")
     
-    def delete_sprite(self, table_id: str, sprite_id: str) -> ActionResult:
+    def delete_sprite(self, table_id: str, sprite_id: str, to_server: bool = True) -> ActionResult:
         """Delete a sprite from a table"""
         try:
             table = self._get_table_by_id(table_id)
@@ -559,6 +616,14 @@ class Actions(ActionsProtocol):
             if not success:
                 return ActionResult(False, f"Failed to remove sprite {sprite_id}")
             
+            # Send delete to server if requested and protocol available
+            if to_server and hasattr(self.context, 'protocol') and self.context.protocol:
+                try:
+                    self.context.protocol.sprite_delete(table_id, sprite_id)
+                    logger.debug(f"Sent sprite delete to server for {sprite_id}")
+                except Exception as e:
+                    logger.error(f"Failed to send sprite delete to server: {e}")
+            
             action = {
                 'type': 'delete_sprite',
                 'table_id': table_id,
@@ -571,7 +636,7 @@ class Actions(ActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to delete sprite: {str(e)}")
     
-    def move_sprite(self, table_id: str, sprite_id: str, position: Position) -> ActionResult:
+    def move_sprite(self, table_id: str, sprite_id: str, position: Position, to_server: bool = True) -> ActionResult:
         """Move sprite to new position"""
         try:
             table = self._get_table_by_id(table_id)
@@ -584,6 +649,16 @@ class Actions(ActionsProtocol):
             old_position = (sprite.coord_x.value, sprite.coord_y.value)
             sprite.coord_x.value = position.x
             sprite.coord_y.value = position.y
+            
+            # Send move to server if requested and protocol available
+            if to_server and hasattr(self.context, 'protocol') and self.context.protocol:
+                try:
+                    from_pos = {'x': old_position[0], 'y': old_position[1]}
+                    to_pos = {'x': position.x, 'y': position.y}
+                    self.context.protocol.sprite_move(table_id, sprite_id, from_pos, to_pos)
+                    logger.debug(f"Sent sprite move to server for {sprite_id}")
+                except Exception as e:
+                    logger.error(f"Failed to send sprite move to server: {e}")
             
             action = {
                 'type': 'move_sprite',
@@ -598,7 +673,7 @@ class Actions(ActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to move sprite: {str(e)}")
     
-    def scale_sprite(self, table_id: str, sprite_id: str, scale_x: float, scale_y: float) -> ActionResult:
+    def scale_sprite(self, table_id: str, sprite_id: str, scale_x: float, scale_y: float, to_server: bool = True) -> ActionResult:
         """Scale sprite by given factors"""
         try:
             table = self._get_table_by_id(table_id)
@@ -611,6 +686,14 @@ class Actions(ActionsProtocol):
             old_scale = (sprite.scale_x, sprite.scale_y)
             sprite.scale_x = scale_x
             sprite.scale_y = scale_y
+            
+            # Send scale to server if requested and protocol available
+            if to_server and hasattr(self.context, 'protocol') and self.context.protocol:
+                try:
+                    self.context.protocol.sprite_scale(table_id, sprite_id, scale_x, scale_y)
+                    logger.debug(f"Sent sprite scale to server for {sprite_id}")
+                except Exception as e:
+                    logger.error(f"Failed to send sprite scale to server: {e}")
             
             action = {
                 'type': 'scale_sprite',
@@ -625,7 +708,7 @@ class Actions(ActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to scale sprite: {str(e)}")
     
-    def rotate_sprite(self, table_id: str, sprite_id: str, angle: float) -> ActionResult:
+    def rotate_sprite(self, table_id: str, sprite_id: str, angle: float, to_server: bool = True) -> ActionResult:
         """Rotate sprite by given angle"""
         try:
             table = self._get_table_by_id(table_id)
@@ -638,6 +721,14 @@ class Actions(ActionsProtocol):
             # Note: Sprite class doesn't have rotation attribute, so we'll add it
             old_rotation = getattr(sprite, 'rotation', 0.0)
             sprite.rotation = angle
+            
+            # Send rotation to server if requested and protocol available
+            if to_server and hasattr(self.context, 'protocol') and self.context.protocol:
+                try:
+                    self.context.protocol.sprite_rotate(table_id, sprite_id, angle)
+                    logger.debug(f"Sent sprite rotation to server for {sprite_id}")
+                except Exception as e:
+                    logger.error(f"Failed to send sprite rotation to server: {e}")
             
             action = {
                 'type': 'rotate_sprite',
@@ -946,7 +1037,7 @@ class Actions(ActionsProtocol):
             logger.error(f"Failed to load file {file_path}: {e}")
             return ActionResult(False, f"Failed to load file: {str(e)}")
 
-    def handle_file_loaded(self, operation_id: str, filename: str, data: Any, file_path: Optional[str] = None) -> ActionResult:
+    def handle_file_loaded(self, operation_id: str, filename: str, data: Any,to_server: bool, file_path: Optional[str] = None) -> ActionResult:
         """Handle successful file load operation"""
         try:
             if data is None:
@@ -963,16 +1054,17 @@ class Actions(ActionsProtocol):
                 logger.info(f"Loading image file: {filename}")
                 result = self.AssetManager.handle_file_loaded(operation_id, filename, data)
                 if result:
-                    asset_id, xxhash = result
+                    if to_server:
+                        asset_id, xxhash = result
                     
-                    self.ask_for_upload_file(
-                        filename=filename,
-                        file_size=len(data),
-                        file_hash=xxhash,
-                        asset_id=asset_id,
-                        file_path=file_path,  
-                        file_type=filetype
-                    )
+                        self.ask_for_upload_file(
+                            filename=filename,
+                            file_size=len(data),
+                            file_hash=xxhash,
+                            asset_id=asset_id,
+                            file_path=file_path,  
+                            file_type=filetype
+                        )
                 else:
                     logger.error(f"Failed to handle image file load for {filename}")
                     return ActionResult(False, f"Failed to handle image file load for {filename}")
@@ -1276,7 +1368,7 @@ class Actions(ActionsProtocol):
         if op_type == 'load' and 'data' in operation:
             # Pass the file path from storage completion data
             file_path = operation.get('file_path', '')
-            self.handle_file_loaded(op_id, operation['filename'], operation['data'], file_path)
+            self.handle_file_loaded(op_id, operation['filename'], operation['data'], to_server=operation.get('to_server', False), file_path=file_path)
         elif op_type == 'save':
             self.handle_file_saved(op_id, operation['filename'])
         elif op_type == 'import':
@@ -1670,6 +1762,191 @@ class Actions(ActionsProtocol):
             
         except Exception as e:
             logger.error(f"Error processing CSV data: {e}")
+
+    # ============================================================================
+    # ADVANCED SPRITE SERVER OPERATIONS
+    # ============================================================================
+    
+    def batch_sprite_update(self, table_id: str, sprite_updates: List[Dict[str, Any]], to_server: bool = True) -> ActionResult:
+        """Update multiple sprites in a batch operation"""
+        try:
+            results = []
+            for update in sprite_updates:
+                sprite_id = update.pop('sprite_id', None)
+                if not sprite_id:
+                    results.append(ActionResult(False, "Missing sprite_id in update"))
+                    continue
+                
+                result = self.update_sprite(table_id, sprite_id, to_server=to_server, **update)
+                results.append(result)
+            
+            success_count = sum(1 for r in results if r.success)
+            return ActionResult(True, f"Batch sprite update: {success_count}/{len(results)} successful", 
+                              {'results': results})
+        except Exception as e:
+            return ActionResult(False, f"Failed to batch update sprites: {str(e)}")
+    
+    def sync_sprite_with_server(self, table_id: str, sprite_id: str) -> ActionResult:
+        """Force sync a sprite with the server"""
+        try:
+            table = self._get_table_by_id(table_id)
+            if not table:
+                return ActionResult(False, f"Table {table_id} not found")
+            
+            sprite = self._find_sprite_in_table(table, sprite_id)
+            if not sprite:
+                return ActionResult(False, f"Sprite {sprite_id} not found")
+            
+            # Send complete sprite data to server
+            if hasattr(self.context, 'protocol') and self.context.protocol:
+                try:
+                    sprite_data = {
+                        'sprite_id': sprite_id,
+                        'table_id': table_id,
+                        'position': {'x': sprite.coord_x.value, 'y': sprite.coord_y.value},
+                        'scale': {'x': sprite.scale_x, 'y': sprite.scale_y},
+                        'rotation': getattr(sprite, 'rotation', 0.0),
+                        'layer': sprite.layer,
+                        'visible': getattr(sprite, 'visible', True),
+                        'texture_path': sprite.texture_path
+                    }
+                    self.context.protocol.send_sprite_update('sync', sprite_data)
+                    logger.debug(f"Synced sprite {sprite_id} with server")
+                    return ActionResult(True, f"Sprite {sprite_id} synced with server")
+                except Exception as e:
+                    logger.error(f"Failed to sync sprite with server: {e}")
+                    return ActionResult(False, f"Failed to sync sprite with server: {str(e)}")
+            else:
+                return ActionResult(False, "No protocol available for server sync")
+                
+        except Exception as e:
+            return ActionResult(False, f"Failed to sync sprite: {str(e)}")
+    
+    def request_sprite_from_server(self, table_id: str, sprite_id: str) -> ActionResult:
+        """Request a specific sprite from the server"""
+        try:
+            if hasattr(self.context, 'protocol') and self.context.protocol:
+                try:
+                    # Use protocol to request sprite data
+                    msg = Message(MessageType.SPRITE_REQUEST, {
+                        'table_id': table_id,
+                        'sprite_id': sprite_id
+                    }, getattr(self.context.protocol, 'client_id', 'unknown'))
+                    
+                    if hasattr(self.context.protocol, 'send'):
+                        self.context.protocol.send(msg.to_json())
+                        logger.debug(f"Requested sprite {sprite_id} from server")
+                        return ActionResult(True, f"Requested sprite {sprite_id} from server")
+                    else:
+                        return ActionResult(False, "Protocol send method not available")
+                except Exception as e:
+                    logger.error(f"Failed to request sprite from server: {e}")
+                    return ActionResult(False, f"Failed to request sprite: {str(e)}")
+            else:
+                return ActionResult(False, "No protocol available for server communication")
+                
+        except Exception as e:
+            return ActionResult(False, f"Failed to request sprite: {str(e)}")
+    
+    def broadcast_sprite_action(self, action_type: str, table_id: str, sprite_id: str, action_data: Dict[str, Any]) -> ActionResult:
+        """Broadcast a sprite action to all connected clients"""
+        try:
+            if hasattr(self.context, 'protocol') and self.context.protocol:
+                try:
+                    broadcast_data = {
+                        'action': action_type,
+                        'table_id': table_id,
+                        'sprite_id': sprite_id,
+                        'data': action_data,
+                        'timestamp': time.time()
+                    }
+                    self.context.protocol.send_sprite_update('broadcast', broadcast_data)
+                    logger.debug(f"Broadcasted sprite action {action_type} for {sprite_id}")
+                    return ActionResult(True, f"Broadcasted sprite action {action_type}")
+                except Exception as e:
+                    logger.error(f"Failed to broadcast sprite action: {e}")
+                    return ActionResult(False, f"Failed to broadcast action: {str(e)}")
+            else:
+                return ActionResult(False, "No protocol available for broadcasting")
+                
+        except Exception as e:
+            return ActionResult(False, f"Failed to broadcast sprite action: {str(e)}")
+
+    # ============================================================================
+    # ADVANCED TABLE SERVER OPERATIONS
+    # ============================================================================
+    
+    def sync_table_with_server(self, table_id: str) -> ActionResult:
+        """Force sync a table with the server"""
+        try:
+            table = self._get_table_by_id(table_id)
+            if not table:
+                return ActionResult(False, f"Table {table_id} not found")
+            
+            if hasattr(self.context, 'protocol') and self.context.protocol:
+                try:
+                    # Send complete table data to server
+                    table_data = {
+                        'table_id': table_id,
+                        'name': table.name,
+                        'width': table.width,
+                        'height': table.height,
+                        'position': {'x': table.x_moved, 'y': table.y_moved},
+                        'scale': table.scale,
+                        'show_grid': table.show_grid,
+                        'cell_side': table.cell_side
+                    }
+                    self.context.protocol.send_update('table_sync', table_data)
+                    logger.debug(f"Synced table {table_id} with server")
+                    return ActionResult(True, f"Table {table_id} synced with server")
+                except Exception as e:
+                    logger.error(f"Failed to sync table with server: {e}")
+                    return ActionResult(False, f"Failed to sync table: {str(e)}")
+            else:
+                return ActionResult(False, "No protocol available for server sync")
+                
+        except Exception as e:
+            return ActionResult(False, f"Failed to sync table: {str(e)}")
+    
+    def request_table_list_from_server(self) -> ActionResult:
+        """Request the list of available tables from server"""
+        try:
+            if hasattr(self.context, 'protocol') and self.context.protocol:
+                try:
+                    self.context.protocol.request_table_list()
+                    logger.debug("Requested table list from server")
+                    return ActionResult(True, "Requested table list from server")
+                except Exception as e:
+                    logger.error(f"Failed to request table list: {e}")
+                    return ActionResult(False, f"Failed to request table list: {str(e)}")
+            else:
+                return ActionResult(False, "No protocol available for server communication")
+                
+        except Exception as e:
+            return ActionResult(False, f"Failed to request table list: {str(e)}")
+    
+    def broadcast_table_action(self, action_type: str, table_id: str, action_data: Dict[str, Any]) -> ActionResult:
+        """Broadcast a table action to all connected clients"""
+        try:
+            if hasattr(self.context, 'protocol') and self.context.protocol:
+                try:
+                    broadcast_data = {
+                        'action': action_type,
+                        'table_id': table_id,
+                        'data': action_data,
+                        'timestamp': time.time()
+                    }
+                    self.context.protocol.send_update('table_broadcast', broadcast_data)
+                    logger.debug(f"Broadcasted table action {action_type} for {table_id}")
+                    return ActionResult(True, f"Broadcasted table action {action_type}")
+                except Exception as e:
+                    logger.error(f"Failed to broadcast table action: {e}")
+                    return ActionResult(False, f"Failed to broadcast action: {str(e)}")
+            else:
+                return ActionResult(False, "No protocol available for broadcasting")
+                
+        except Exception as e:
+            return ActionResult(False, f"Failed to broadcast table action: {str(e)}")
 
 
 

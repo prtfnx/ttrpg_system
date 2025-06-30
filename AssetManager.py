@@ -525,7 +525,7 @@ class ClientAssetManager:
             sdl3.SDL_DestroySurface(surface)
             return texture, width, height
     
-    def load_asset_for_sprite(self, sprite: Sprite, file_path: str) -> Optional[bool]:
+    def load_asset_for_sprite(self, sprite: Sprite, file_path: str, to_server:bool=False) -> Optional[bool]:
         """Load asset for sprite from cache or disk, importing external files if needed"""
         logger.debug(f"Loading asset for sprite: {sprite} from file path: {file_path}")
         if not sprite:
@@ -572,7 +572,7 @@ class ClientAssetManager:
         filename = Path(file_path).name
         subdir = Path(file_path).parent.name if Path(file_path).parent.name != "." else ""
         
-        operation_id = self.StorageManager.load_file_async(filename, subdir=subdir, as_json=False)
+        operation_id = self.StorageManager.load_file_async(filename, subdir=subdir, as_json=False, to_server=to_server)
         self.dict_of_sprites[operation_id] = sprite
         logger.debug(f"Loading asset from storage with operation ID {operation_id} and filename {filename}")
         return True

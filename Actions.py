@@ -234,7 +234,6 @@ class Actions(ActionsProtocol):
     def create_table_from_dict(self, table_dict: Dict[str, Any]) -> ActionResult:
         """Create a table from a dictionary representation"""
         try:
-            logger.info(f"Creating table from dict")
             logger.debug(f"Creating table from dict: {table_dict}")
             # Validate required fields
             required_fields = ['table_name', 'width', 'height' ]
@@ -422,9 +421,12 @@ class Actions(ActionsProtocol):
     # ============================================================================
     # SPRITE MANAGEMENT (CRUD OPERATIONS)
     # ============================================================================
-    def create_sprite(self, table_id: str, sprite_id: str, position: Position, 
-                     image_path: str, layer: str = "tokens", **kwargs) -> ActionResult:
+    def create_sprite(self, table_id: str, sprite_id: str, position: Position , 
+                     image_path: str, layer: str = "tokens", to_server: bool = True, **kwargs) -> ActionResult:
         """Create a new sprite on a table"""
+        #TODO refactor to use sprite data dict
+        if not isinstance(position, Position):
+            position = Position(position[0], position[1]) if isinstance(position, (list, tuple)) else Position(0, 0)
         try:
             table = self._get_table_by_id(table_id)
             if not table:
@@ -433,21 +435,29 @@ class Actions(ActionsProtocol):
                 return ActionResult(False, f"Invalid layer: {layer}")
             
             # Create sprite using Context method
+            sprite_data = {
+                'texture_path': image_path,
+                'layer': layer,
+                'table_id': table.table_id,
+                'coord_x': position.x,
+                'coord_y': position.y,
+                'table_id': table.table_id,
+                **kwargs
+            }
+            logger.debug(f"Creating sprite with data: {sprite_data}")
             sprite = self.context.add_sprite(
-                texture_path=image_path.encode() if isinstance(image_path, str) else image_path,
-                layer=layer,
-                table=table,
-                coord_x=position.x,
-                coord_y=position.y,                
-                sprite_id=sprite_id,
-                **kwargs  # Pass through any additional arguments like scale_x, scale_y, character, etc.
+                **sprite_data
             )
+           
             
             # Start io operations to load asset texture
             if self.AssetManager and sprite:
                 logger.info(f"Loading asset for sprite {sprite_id} from {image_path}")    
                 self.AssetManager.load_asset_for_sprite(sprite, image_path)
-                
+            if to_server:
+                logger.debug(f"Creating sprite {sprite_id} on server for table {table_id}")
+                self.context.protocol.sprite_create(table_id=table.table_id,
+                                            sprite_data=sprite.to_dict())
             if not sprite:
                 return ActionResult(False, f"Failed to create sprite {sprite_id} with path {image_path}")
             
@@ -1505,7 +1515,7 @@ class Actions(ActionsProtocol):
         """Process table assets and request downloads for missing assets"""
         try:
             layers = table_data.get('layers', {})
-            
+            logger.debug(f"start processing table assets for layers: {list(layers.keys())}")
             for layer_name, layer_entities in layers.items():
                 if not isinstance(layer_entities, dict):
                     continue
@@ -1521,8 +1531,9 @@ class Actions(ActionsProtocol):
                     if asset_xxhash and asset_id:
                         # Check if we have this asset cached by xxHash
                         if self.AssetManager:
+                            logger.debug(f"Checking asset cache for xxHash {asset_xxhash} for entity {entity_id}")
                             cached_path = self.AssetManager.get_asset_for_sprite_by_xxhash(asset_xxhash)
-                            
+                            logger.debug(f"Asset cache lookup for {asset_xxhash} returned: {cached_path}")
                             if cached_path:
                                 logger.debug(f"Asset {asset_id} found in cache by xxHash: {cached_path}")
                                 # Update entity to use cached path

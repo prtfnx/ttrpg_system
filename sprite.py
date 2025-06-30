@@ -1,24 +1,47 @@
 import ctypes
 from logger import setup_logger
+from typing import Optional, Union, Dict, Any, TYPE_CHECKING
 import os
 import io_sys
 import sdl3
 import uuid
-import os
+
+# Import types for type checking
+if TYPE_CHECKING:
+    from core_table.Character import Character
+    from core_table.entities import Spell
+    from Context import Context
+    from ContextTable import ContextTable
 
 logger = setup_logger(__name__)
 
 class Sprite:
-    def __init__(self, renderer, texture_path, scale_x=1, scale_y=1,
-                 character=None, moving=False, speed=None, collidable=False,
-                 texture=None, layer='tokens', coord_x=0.0, coord_y=0.0,
-                 compendium_entity=None, entity_type=None, sprite_id=None, die_timer=None,
-                 asset_id=None, context=None):
+    """A sprite represents a visual entity on the game table with position, texture, and game logic."""
+    
+    def __init__(self, 
+                 renderer: Any,  # SDL_Renderer 
+                 texture_path: Union[str, bytes], 
+                 scale_x: float = 1, 
+                 scale_y: float = 1,
+                 character: Optional['Character'] = None, 
+                 moving: bool = False, 
+                 speed: Optional[float] = None, 
+                 collidable: bool = False,
+                 texture: Optional[Any] = None,  # SDL_Texture
+                 layer: str = 'tokens', 
+                 coord_x: float = 0.0, 
+                 coord_y: float = 0.0,
+                 compendium_entity: Optional[Any] = None, 
+                 entity_type: Optional[str] = None, 
+                 sprite_id: Optional[str] = None, 
+                 die_timer: Optional[float] = None,
+                 asset_id: Optional[str] = None, 
+                 context: Optional['Context'] = None) -> None:
         # Initialize all ctypes structures properly
-        self.coord_x = ctypes.c_float(coord_x)
-        self.coord_y = ctypes.c_float(coord_y)
-        self.rect = sdl3.SDL_Rect()
-        self.frect = sdl3.SDL_FRect()
+        self.coord_x: Any = ctypes.c_float(coord_x)  # ctypes.c_float
+        self.coord_y: Any = ctypes.c_float(coord_y)  # ctypes.c_float
+        self.rect: Any = sdl3.SDL_Rect()  # SDL_Rect
+        self.frect: Any = sdl3.SDL_FRect()  # SDL_FRect
         
         # Initialize dimensions to prevent access violations
         self.original_w = 0.0
@@ -67,26 +90,27 @@ class Sprite:
             logger.error(f"Failed to load texture {texture_path}: {e}")
             self.texture = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (f"Sprite(coord_x={self.coord_x}, coord_y={self.coord_y}, rect={self.rect}, "
                 f"frect={self.frect}, texture_path={self.texture_path}, scale_x={self.scale_x}, scale_y={self.scale_y})")
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (f"Sprite at ({self.coord_x.value}, {self.coord_y.value}) "
                 f"with texture {self.texture_path} and scale {self.scale_x} {self.scale_y}")    
-    def set_speed(self, dx, dy):
+    
+    def set_speed(self, dx: float, dy: float) -> None:
         self.dx = dx
         self.dy = dy
 
-    def move(self, delta_time):
+    def move(self, delta_time: float) -> None:
         if self.moving:
             self.coord_x.value += self.dx * delta_time
             self.coord_y.value += self.dy * delta_time
 
-    def set_die_timer(self, time):
+    def set_die_timer(self, time: float) -> None:
         self.die_timer = time
     
-    def set_texture(self, texture_path, context=None):
+    def set_texture(self, texture_path: Union[str, bytes], context: Optional['Context'] = None) -> bool:
         """Set texture with proper error handling"""
         self.texture_path = texture_path
         logger.info("Setting texture path: %s", texture_path)
@@ -105,13 +129,13 @@ class Sprite:
             self.texture = None
             return False
 
-    def set_position(self, x, y):
+    def set_position(self, x: float, y: float) -> None:
         #TODO: fix logic for setting frect
         self.coord_x.value = x
         self.coord_y.value = y
         self.set_frect()
 
-    def set_frect(self):
+    def set_frect(self) -> None:
         """Fix logic for setting frect - avoid memory corruption"""   
         self.frect.x = ctypes.c_float(self.coord_x.value)
         self.frect.y = ctypes.c_float(self.coord_y.value)
@@ -121,13 +145,13 @@ class Sprite:
             self.frect.w = ctypes.c_float(self.original_w * self.scale_x)
             self.frect.h = ctypes.c_float(self.original_h * self.scale_y)
 
-    def set_rect(self):
+    def set_rect(self) -> None:
         self.rect.x = int(self.coord_x)
         self.rect.y = int(self.coord_y)
         self.rect.w = int(self.frect.w * self.scale_x)
         self.rect.h = int(self.frect.h * self.scale_y)
         
-    def set_original_size(self):
+    def set_original_size(self) -> None:
         """Set original size with validation"""
         if self.frect.w > 0 and self.frect.h > 0:
             self.original_w = float(self.frect.w)
@@ -137,11 +161,11 @@ class Sprite:
             self.original_w = 32.0  # Default fallback
             self.original_h = 32.0
             
-    def die(self):
+    def die(self) -> None:
         #TODO: remove
         self.cleanup()
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up sprite resources"""
         try:
             if hasattr(self, 'texture') and self.texture:
@@ -151,7 +175,7 @@ class Sprite:
         except Exception as e:
             logger.error(f"Error cleaning up sprite texture: {e}")
 
-    def reload_texture(self, texture: sdl3.SDL_Texture,w: int ,h: int) -> bool:
+    def reload_texture(self, texture: Any, w: int, h: int) -> bool:  # texture: SDL_Texture
         """Reload texture"""     
         old_texture = self.texture        
         self.texture = texture
@@ -174,3 +198,22 @@ class Sprite:
     def has_r2_asset(self) -> bool:
         """Check if this sprite has an associated R2 asset"""
         return self.asset_id is not None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert sprite to dictionary representation"""
+        return {
+            'sprite_id': self.sprite_id,
+            'texture_path': self.texture_path,
+            'coord_x': self.coord_x.value,
+            'coord_y': self.coord_y.value,
+            'scale_x': self.scale_x,
+            'scale_y': self.scale_y,
+            'character': self.character,
+            'moving': self.moving,
+            'speed': self.speed,
+            'collidable': self.collidable,
+            'layer': self.layer,
+            'compendium_entity': self.compendium_entity.to_dict() if self.compendium_entity else None,
+            'entity_type': self.entity_type,
+            'asset_id': self.asset_id
+        }

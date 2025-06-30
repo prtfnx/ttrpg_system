@@ -12,7 +12,9 @@ import string
 import re
 import json
 import uuid
+from server_host.utils.logger import setup_logger
 
+logger = setup_logger(__name__)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def get_password_hash(password: str) -> str:
@@ -410,9 +412,30 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> models.
         )
         db_table = create_virtual_table(db, table_data)
     
-    # Save entities
+    # Synchronize entities: First get current entities in database for this table
+    current_db_entities = db.query(models.Entity).filter(models.Entity.table_id == db_table.id).all()
+    current_db_sprite_ids = {entity.sprite_id for entity in current_db_entities}
+    
+    # Get current in-memory sprite IDs
+    current_memory_sprite_ids = {entity.sprite_id for entity in virtual_table_obj.entities.values()}
+    
+    # Delete entities that are in database but not in memory (these were deleted)
+    entities_to_delete = current_db_sprite_ids - current_memory_sprite_ids
+    if entities_to_delete:
+        logger.info(f"Deleting {len(entities_to_delete)} entities from database that were removed from memory")
+        for sprite_id in entities_to_delete:
+            entity_to_delete = db.query(models.Entity).filter(models.Entity.sprite_id == sprite_id).first()
+            if entity_to_delete:
+                db.delete(entity_to_delete)
+                logger.debug(f"Deleted entity from database: {sprite_id}")
+    
+    # Save/update entities that are in memory
     for entity in virtual_table_obj.entities.values():
         save_entity_to_db(db, entity, db_table.id)
+    
+    # Commit all changes
+    db.commit()
+    logger.info(f"Synchronized table {virtual_table_obj.name}: {len(entities_to_delete)} deleted, {len(virtual_table_obj.entities)} saved/updated")
     
     return db_table
 

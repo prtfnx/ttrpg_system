@@ -1,6 +1,7 @@
 import sdl3
 import ctypes
 import logging
+import math
 from logger import setup_logger
 from typing import Optional, Dict, List, Any, Union, TYPE_CHECKING
 from Sprite import Sprite
@@ -130,8 +131,24 @@ class RenderManager():
         # Render sprites in the layer
         for sprite in layer:
             if sprite.texture and hasattr(sprite, 'frect'):
-                sdl3.SDL_RenderTexture(self.renderer, sprite.texture, None, 
-                                       ctypes.byref(sprite.frect))   
+                # Check if sprite has rotation
+                rotation = getattr(sprite, 'rotation', 0.0)
+                if rotation != 0.0:
+                    # Render with rotation - center point should be relative to dstrect
+                    # According to SDL3 docs: center is relative to dstrect, not absolute
+                    center_point = sdl3.SDL_FPoint()
+                    center_point.x = ctypes.c_float(sprite.frect.w / 2)  # Relative to sprite rect
+                    center_point.y = ctypes.c_float(sprite.frect.h / 2)  # Relative to sprite rect
+                    
+                    sdl3.SDL_RenderTextureRotated(self.renderer, sprite.texture, None, 
+                                                ctypes.byref(sprite.frect),
+                                                ctypes.c_double(rotation),
+                                                ctypes.byref(center_point),
+                                                sdl3.SDL_FLIP_NONE)
+                else:
+                    # Render without rotation
+                    sdl3.SDL_RenderTexture(self.renderer, sprite.texture, None, 
+                                           ctypes.byref(sprite.frect))   
 
     def render_texture(self, texture: sdl3.SDL_Texture, 
                        sfrect: Optional[sdl3.SDL_FRect] = None,
@@ -268,12 +285,12 @@ class RenderManager():
                         logger.error(f"Failed to draw horizontal grid line: {e}")
 
     def draw_margin(self, sprite: Sprite):
-        """Draw margin rectangles around the selected sprite for visual debugging."""
+        """Draw margin rectangles around the selected sprite for resizing and rotation handle."""
         if not sprite:
             return  
         frect = sprite.frect
         renderer = self.renderer
-        # Make 4 rectangles for 4 sides
+        # Make 4 rectangles for 4 sides (resize handles)
         rec1, rec2, rec3, rec4 = sdl3.SDL_FRect(), sdl3.SDL_FRect(), sdl3.SDL_FRect(), sdl3.SDL_FRect()
 
         # rec1: left edge
@@ -299,13 +316,81 @@ class RenderManager():
         rec4.w = ctypes.c_float(margin_w * 2)
         rec4.h = ctypes.c_float(sprite.frect.h + margin_h * 2)
 
+        # Draw resize handles in green
         sdl3.SDL_SetRenderDrawColor(renderer, 0, 255, 0, sdl3.SDL_ALPHA_OPAQUE)
         sdl3.SDL_RenderRect(renderer, ctypes.byref(rec1))
         sdl3.SDL_RenderRect(renderer, ctypes.byref(rec2))
         sdl3.SDL_RenderRect(renderer, ctypes.byref(rec3))
         sdl3.SDL_RenderRect(renderer, ctypes.byref(rec4))
         sdl3.SDL_RenderRect(renderer, ctypes.byref(sprite.frect))
-   
+        
+        # Draw rotation handle as a circle above the sprite
+        self._draw_rotation_handle(sprite)
+    
+    def _draw_rotation_handle(self, sprite: Sprite):
+        """Draw a circular rotation handle at the margin of the selected rectangle"""
+        if not sprite:
+            return
+            
+        # Calculate circle position (at the top margin of the selection rectangle)
+        circle_radius = max(4, min(sprite.frect.w / 20, sprite.frect.h / 20))  # Smaller handle
+        margin_h = sprite.frect.h / 40  # Same margin as selection handles
+        
+        # Position at top center of the selection rectangle margin
+        center_x = sprite.frect.x + sprite.frect.w / 2
+        center_y = sprite.frect.y - margin_h - circle_radius
+        
+        # Draw circle using SDL line drawing (approximating a circle)
+        self._draw_circle(center_x, center_y, circle_radius, (0, 255, 0, 255))  # Green color
+        
+        # Draw a line connecting the circle to the top edge of the sprite rectangle
+        sprite_top_x = sprite.frect.x + sprite.frect.w / 2
+        sprite_top_y = sprite.frect.y
+        
+        # Set line color to green
+        sdl3.SDL_SetRenderDrawColor(self.renderer, 
+                                   ctypes.c_ubyte(0), ctypes.c_ubyte(255), 
+                                   ctypes.c_ubyte(0), ctypes.c_ubyte(255))
+        
+        # Draw connection line from circle to sprite top edge
+        sdl3.SDL_RenderLine(self.renderer,
+                           ctypes.c_float(center_x), ctypes.c_float(center_y + circle_radius),
+                           ctypes.c_float(sprite_top_x), ctypes.c_float(sprite_top_y))
+    
+    def _draw_circle(self, x: float, y: float, radius: float, color: tuple[int, int, int, int]):
+        """Draw a circle using line segments (SDL3 doesn't have native circle drawing)"""
+        
+        
+        # Set circle color
+        sdl3.SDL_SetRenderDrawColor(self.renderer, 
+                                   ctypes.c_ubyte(color[0]), ctypes.c_ubyte(color[1]), 
+                                   ctypes.c_ubyte(color[2]), ctypes.c_ubyte(color[3]))
+        
+        # Draw circle using line segments
+        segments = max(16, int(radius))  # More segments for larger circles
+        angle_step = 2 * math.pi / segments
+        
+        for i in range(segments):
+            angle1 = i * angle_step
+            angle2 = (i + 1) * angle_step
+            
+            x1 = x + radius * math.cos(angle1)
+            y1 = y + radius * math.sin(angle1)
+            x2 = x + radius * math.cos(angle2)
+            y2 = y + radius * math.sin(angle2)
+            
+            sdl3.SDL_RenderLine(self.renderer,
+                               ctypes.c_float(x1), ctypes.c_float(y1),
+                               ctypes.c_float(x2), ctypes.c_float(y2))
+        
+        # Fill the circle with a cross pattern for better visibility
+        sdl3.SDL_RenderLine(self.renderer,
+                           ctypes.c_float(x - radius), ctypes.c_float(y),
+                           ctypes.c_float(x + radius), ctypes.c_float(y))
+        sdl3.SDL_RenderLine(self.renderer,
+                           ctypes.c_float(x), ctypes.c_float(y - radius),
+                           ctypes.c_float(x), ctypes.c_float(y + radius))
+
     def iterate_draw(self, table, light_on: bool = True):
         """Manage all rendering operations for a table for the current frame"""
         
@@ -345,4 +430,3 @@ class RenderManager():
             #logger.info("no light")
             self.render_all_layers()
         self.draw_margin(table.selected_sprite)  # Draw margin around selected sprite if any
-        

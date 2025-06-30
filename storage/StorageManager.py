@@ -120,7 +120,7 @@ class StorageManager:
         return operation_id
     
     def load_file_async(self, filename: str, subdir: str = "", 
-                       as_json: bool = False) -> str:
+                       as_json: bool = False, to_server:bool = False) -> str:
         """Load file asynchronously. Returns operation ID."""
         operation_id = str(uuid.uuid4())[:8]
         logger.debug(f"Loading file {filename} from {subdir} with as_json={as_json}")
@@ -145,7 +145,8 @@ class StorageManager:
                     'subdir': subdir,
                     'success': True,
                     'data': data,
-                    'error': None
+                    'error': None,
+                    'to_server': to_server
                 })
             except FileNotFoundError:
                 self._completed_operations.put({
@@ -156,7 +157,8 @@ class StorageManager:
                     'subdir': subdir,
                     'success': False,
                     'data': None,
-                    'error': 'File not found'
+                    'error': 'File not found',
+                    'to_server': to_server
                 })
             except Exception as e:
                 self._completed_operations.put({

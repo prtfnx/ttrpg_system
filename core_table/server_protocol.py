@@ -29,6 +29,11 @@ class ServerProtocol:
         self.init_handlers()
         self.actions = ActionsCore(self.table_manager)
         logger.debug("ActionsCore initialized")
+        # insure that tables have id and names
+        #TODO make proper name -> id mapping
+        if not self.table_manager.tables_id:
+            self.table_manager.tables_id = {str(table.table_id): table for table in self.table_manager.tables.values()}
+            logger.debug(f"Initialized tables_id with {len(self.table_manager.tables_id)} tables id: {self.table_manager.tables_id}")
         # Track sprite positions for conflict resolution
         #self.sprite_positions: Dict[str, Dict[str, Tuple[float, float]]] = {}
 
@@ -51,6 +56,8 @@ class ServerProtocol:
         self.register_handler(MessageType.COMPENDIUM_SPRITE_REMOVE, self.handle_compendium_sprite_remove)
         self.register_handler(MessageType.ERROR, self.handle_error)
         self.register_handler(MessageType.SUCCESS, self.handle_success)
+        # sprite managment
+        self.register_handler(MessageType.SPRITE_CREATE, self.handle_create_sprite)
         
         # R2 Asset Management handlers
         self.register_handler(MessageType.ASSET_UPLOAD_REQUEST, self.handle_asset_upload_request)
@@ -95,6 +102,22 @@ class ServerProtocol:
         logger.warning(f"Error message received from {client_id}: {msg}")
         return None
     
+    async def handle_create_sprite(self, msg: Message, client_id: str) -> Message:
+        """Handle create sprite request"""
+        logger.debug(f"Create sprite request received: {msg}")
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data provided in create sprite request'})
+        sprite_data = msg.data.get('sprite_data')
+        if not sprite_data:
+            return Message(MessageType.ERROR, {'error': 'No sprite data provided'})
+        table_id = msg.data.get('table_id', 'default')
+        result = await self.actions.create_sprite(table_id=table_id, sprite_data=sprite_data)
+        logger.debug(f"Create sprite result: {result}")
+        if not result.success or not result.data or result.data.get('sprite_data') is None:
+            return Message(MessageType.ERROR, {'error': 'Failed to create sprite'})
+        else:
+            return Message(MessageType.SPRITE_RESPONSE, {'sprite_id': result.data.get('sprite_data').get('sprite_id', None)})
+
     async def handle_new_table_request(self, msg: Message, client_id: str) -> Message:
         """Handle new table request"""
         logger.debug(f"New table request received: {msg}")

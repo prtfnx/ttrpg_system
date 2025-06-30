@@ -75,6 +75,20 @@ class ClientProtocol:
             self.send(msg.to_json())
             self.last_ping = time.time()
     
+    def sprite_create(self, table_id: str, sprite_data: Dict[str, Any]):
+        """Create a new sprite on the server"""
+        logger.debug(f"Creating sprite on server on table {table_id} with data: {sprite_data}")
+        if not sprite_data or 'texture_path' not in sprite_data:
+            logger.error("Invalid sprite data for creation")
+            return
+        #TODO proper manage of texture_path
+        if isinstance(sprite_data['texture_path'], bytes):
+            sprite_data['texture_path'] = sprite_data['texture_path'].decode()
+        msg = Message(MessageType.SPRITE_CREATE, {
+            'table_id': table_id,
+            'sprite_data': sprite_data
+        }, self.client_id)
+        self.send(msg.to_json())
 
     
     def handle_message(self, message: str):
@@ -113,7 +127,6 @@ class ClientProtocol:
     
     def handle_table_response(self, msg: Message):
         data = msg.data
-        logger.info(f"Handling table response with data: {data}")
         logger.debug(f"Table response data: {data}")
         if not data or 'name' not in data:
             logger.error("Received empty new table response data")
@@ -614,9 +627,8 @@ class ClientProtocol:
         logger.error(f"Server error: {error_message}")
         
         # Add to chat if available
-        if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
-            self.context.gui_system.gui_state.chat_messages.append(f"❌ Server error: {error_message}")
-    
+        self.Actions.add_chat_message(f"Server error: {error_message}")
+
     def handle_ping(self, msg: Message):
         """Handle ping messages from server"""
         if not msg or not msg.data:
@@ -759,7 +771,9 @@ class ClientProtocol:
             if not msg.data:
                 logger.error("Empty asset upload response received")
                 return
-                
+            if msg.data.get('success') and not msg.data.get('upload_url'):
+                logger.debug("Asset upload response indicates success but no upload URL provided")
+                return    
             # Delegate to Actions instead of handling directly
             self.Actions.handle_asset_upload_response(msg.data)
             

@@ -64,6 +64,7 @@ class Context:
         # For manage  mouse state:
         self.resizing: bool = False
         self.grabing: bool = False
+        self.rotating: bool = False
         self.mouse_state: Optional[int] = None  # SDL mouse state flags
         self.cursor: Optional[Any] = None  # SDL cursor - could be typed more specifically
         self.moving_table: bool = False

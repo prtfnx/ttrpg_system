@@ -17,7 +17,7 @@ import time
 from typing import Dict, Any, Optional, Tuple, List
 from dataclasses import dataclass
 from enum import Enum
-
+import context_menu
 # Import panel classes
 from .panels import (
     ToolsPanel,
@@ -121,6 +121,14 @@ class SimplifiedGui:
             # Create SDL3 renderer backend
             self.impl = SDL3Renderer(self.window)
             
+            # Initialize context menu system
+            try:
+                
+                context_menu.init_context_menu(context, self.actions_bridge)
+                logger.info("Context menu system initialized")
+            except Exception as e:
+                logger.warning(f"Failed to initialize context menu: {e}")
+            
             logger.info("Simplified GUI system initialized successfully")
             
         except Exception as e:
@@ -173,6 +181,13 @@ class SimplifiedGui:
             
             # Update layout manager
             self._update_layout_manager()
+            
+            # Render context menu
+            try:
+                import context_menu
+                context_menu.render_context_menu()
+            except Exception as e:
+                logger.error(f"Context menu render error: {e}")
             
             # Render external windows AFTER all panels (so they appear on top)
             self._render_external_windows()

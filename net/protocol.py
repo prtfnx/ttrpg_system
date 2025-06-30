@@ -28,6 +28,9 @@ class MessageType(enum.Enum):    # Core messages
     TABLE_UPDATE = "table_update"
     TABLE_SCALE = "table_scale"
     TABLE_MOVE = "table_move"
+    TABLE_LIST_REQUEST = "table_list_request"
+    TABLE_LIST_RESPONSE = "table_list_response"
+    TABLE_DELETE = "table_delete"
     
  
     # Player actions

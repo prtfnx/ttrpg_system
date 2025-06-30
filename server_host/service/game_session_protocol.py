@@ -6,11 +6,13 @@ Integrates table protocol with game session management
 import json
 import logging
 import time
+from datetime import datetime
 from typing import Dict, Set, Optional, Any, List
 from fastapi import WebSocket, WebSocketDisconnect
 from dataclasses import asdict
 import os
 import sys
+from datetime import datetime
 
 # Add parent directory to path to import protocol
 parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -36,7 +38,7 @@ class GameSessionProtocolService:
         self.table_manager = TableManager(db_session)
         logger.info(f"TableManager initialized for session {session_code}")
         
-        self.server_protocol = ServerProtocol(self.table_manager)
+        self.server_protocol = ServerProtocol(self.table_manager, session_manager=self)
         logger.info(f"ServerProtocol initialized for session {session_code}")
         self.server_protocol.send_to_client = self.send_to_client  # For compatibility with server protocol
         
@@ -246,7 +248,9 @@ class GameSessionProtocolService:
                     self.auto_save()
                 
                 #TODO - implement proper broadcast logic
-                if message_type in [MessageType.SPRITE_UPDATE, MessageType.TABLE_UPDATE]:
+                if message_type in [MessageType.SPRITE_UPDATE, MessageType.TABLE_UPDATE, MessageType.SPRITE_CREATE, 
+                                    MessageType.SPRITE_REMOVE, MessageType.SPRITE_MOVE, MessageType.SPRITE_SCALE,
+                                    MessageType.SPRITE_ROTATE, MessageType.SPRITE_UPDATE]:
                     # Broadcast to all clients except the sender
                     logger.debug(f"Broadcasting {message_type.value} to session {self.session_code} excluding client {client_id}")
                     await self.broadcast_to_session(message, exclude_client=client_id)
@@ -387,6 +391,120 @@ class GameSessionProtocolService:
             if self.db_session:
                 self.db_session.rollback()
             return False
+
+    async def kick_player(self, target_player_id: str, target_username: str, reason: str, kicked_by_client_id: str) -> bool:
+        """Kick a player from the session"""
+        try:
+            target_client_id = None
+            target_websocket = None
+            
+            # Find target client by player_id or username
+            for client_id, info in self.client_info.items():
+                if (str(info.get('user_id')) == str(target_player_id) or 
+                    info.get('username') == target_username):
+                    target_client_id = client_id
+                    target_websocket = self.clients.get(client_id)
+                    break
+            
+            if not target_client_id or not target_websocket:
+                logger.warning(f"Player not found for kick: {target_username}/{target_player_id}")
+                return False
+            
+            kicked_username = self.client_info[target_client_id].get('username', 'unknown')
+            kicker_username = self.client_info.get(kicked_by_client_id, {}).get('username', 'unknown')
+            
+            # Notify the kicked player
+            kick_message = Message(MessageType.ERROR, {
+                'error': f'You have been kicked from the session',
+                'reason': reason,
+                'kicked_by': kicker_username
+            })
+            await self._send_message(target_websocket, kick_message)
+            
+            # Broadcast kick notification to other players
+            kick_notification = Message(MessageType.PLAYER_LEFT, {
+                'username': kicked_username,
+                'reason': f'Kicked by {kicker_username}: {reason}',
+                'timestamp': datetime.now().isoformat(),
+                'kicked': True
+            })
+            await self.broadcast_to_session(kick_notification, exclude_client=target_client_id)
+            
+            # Remove the player
+            await self.remove_client(target_websocket)
+            
+            # Close the WebSocket connection
+            try:
+                await target_websocket.close()
+            except Exception as e:
+                logger.error(f"Error closing WebSocket for kicked player: {e}")
+            
+            logger.info(f"Player {kicked_username} kicked by {kicker_username}: {reason}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error kicking player: {e}")
+            return False
+
+    async def ban_player(self, target_player_id: str, target_username: str, reason: str, duration: str, banned_by_client_id: str) -> bool:
+        """Ban a player from the session"""
+        try:
+            # First kick the player
+            kick_success = await self.kick_player(target_player_id, target_username, f"Banned: {reason}", banned_by_client_id)
+            
+            if kick_success:
+                # TODO: Implement ban list storage in database
+                # For now, just log the ban
+                banner_username = self.client_info.get(banned_by_client_id, {}).get('username', 'unknown')
+                logger.info(f"Player {target_username} banned by {banner_username} for {duration}: {reason}")
+                
+                # Broadcast ban notification
+                ban_notification = Message(MessageType.PLAYER_LEFT, {
+                    'username': target_username,
+                    'reason': f'Banned by {banner_username} for {duration}: {reason}',
+                    'timestamp': datetime.now().isoformat(),
+                    'banned': True,
+                    'duration': duration
+                })
+                await self.broadcast_to_session(ban_notification)
+                
+                return True
+            else:
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error banning player: {e}")
+            return False
+
+    def get_connection_status(self, client_id: str) -> dict:
+        """Get connection status for a client"""
+        if client_id in self.client_info:
+            info = self.client_info[client_id]
+            return {
+                'connected': True,
+                'username': info.get('username', 'unknown'),
+                'connected_at': info.get('connected_at', 0),
+                'last_ping': info.get('last_ping', 0),
+                'session_code': self.session_code
+            }
+        else:
+            return {
+                'connected': False,
+                'session_code': self.session_code
+            }
+
+    def get_session_players(self) -> List[dict]:
+        """Get list of connected players in this session"""
+        players = []
+        for client_id, info in self.client_info.items():
+            players.append({
+                'client_id': client_id,
+                'username': info.get('username', 'unknown'),
+                'user_id': info.get('user_id', 0),
+                'connected_at': info.get('connected_at', 0),
+                'last_ping': info.get('last_ping', 0)
+            })
+        return players
 
 
 

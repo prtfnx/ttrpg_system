@@ -7,6 +7,7 @@ from typing import Callable, Optional, Dict, Any, List
 from .protocol import Message, MessageType, ProtocolHandler
 from logger import setup_logger
 from Actions import Actions
+from core_table.actions_protocol import Position
 import requests
 from .DownloadManager import DownloadManager
 
@@ -48,6 +49,10 @@ class ClientProtocol:
         self.register_handler(MessageType.ASSET_DOWNLOAD_RESPONSE, self.handle_asset_download_response)
         self.register_handler(MessageType.ASSET_LIST_RESPONSE, self.handle_asset_list_response)
         self.register_handler(MessageType.ASSET_UPLOAD_RESPONSE, self.handle_asset_upload_response)
+        # Sprite operation handlers
+        self.register_handler(MessageType.SPRITE_RESPONSE, self.handle_sprite_response)
+        # Table operation handlers
+        self.register_handler(MessageType.TABLE_LIST_RESPONSE, self.handle_table_list_response)
 
 
     def register_handler(self, msg_type: MessageType, handler: Callable[[Message], None]):
@@ -55,13 +60,14 @@ class ClientProtocol:
         self.handlers[msg_type] = handler
     
     def request_table(self, table_name: Optional[str] = None):
-        msg = Message(MessageType.TABLE_REQUEST, {'name': table_name}, self.client_id)
+        msg = Message(MessageType.TABLE_REQUEST, {
+            'name': table_name,
+            'session_code': self.session_code,
+            'user_id': self.user_id,
+            'username': self.username
+        }, self.client_id)
         self.send(msg.to_json())
     
-    def request_file(self, filename: str):
-        msg = Message(MessageType.FILE_REQUEST, {'filename': filename}, self.client_id)
-        self.send(msg.to_json())
-
     def send_update(self, update_type: str, data: Dict[str, Any]):
         msg = Message(MessageType.TABLE_UPDATE, {
             'type': update_type, 
@@ -69,12 +75,6 @@ class ClientProtocol:
         }, self.client_id)
         self.send(msg.to_json())
 
-    def ping(self):
-        if time.time() - self.last_ping > 30:  # 30 second intervals
-            msg = Message(MessageType.PING, client_id=self.client_id)
-            self.send(msg.to_json())
-            self.last_ping = time.time()
-    
     def sprite_create(self, table_id: str, sprite_data: Dict[str, Any]):
         """Create a new sprite on the server"""
         logger.debug(f"Creating sprite on server on table {table_id} with data: {sprite_data}")
@@ -86,11 +86,80 @@ class ClientProtocol:
             sprite_data['texture_path'] = sprite_data['texture_path'].decode()
         msg = Message(MessageType.SPRITE_CREATE, {
             'table_id': table_id,
-            'sprite_data': sprite_data
+            'sprite_data': sprite_data,
+            'session_code': self.session_code,
+            'user_id': self.user_id,
+            'username': self.username
         }, self.client_id)
         self.send(msg.to_json())
 
-    
+    def sprite_delete(self, table_id: str, sprite_id: str):
+        """Delete a sprite on the server"""
+        logger.debug(f"Deleting sprite {sprite_id} on server from table {table_id}")
+        msg = Message(MessageType.SPRITE_REMOVE, {
+            'table_id': table_id,
+            'sprite_id': sprite_id,
+            'session_code': self.session_code,
+            'user_id': self.user_id,
+            'username': self.username
+        }, self.client_id)
+        self.send(msg.to_json())
+
+    def sprite_move(self, table_id: str, sprite_id: str, from_pos: Dict[str, float], to_pos: Dict[str, float]):
+        """Move a sprite on the server"""
+        logger.debug(f"Moving sprite {sprite_id} on server from {from_pos} to {to_pos}")
+        msg = Message(MessageType.SPRITE_MOVE, {
+            'table_id': table_id,
+            'sprite_id': sprite_id,
+            'from': from_pos,
+            'to': to_pos,
+            'session_code': self.session_code,
+            'user_id': self.user_id,
+            'username': self.username
+        }, self.client_id)
+        self.send(msg.to_json())
+
+    def sprite_scale(self, table_id: str, sprite_id: str, scale_x: float, scale_y: float):
+        """Scale a sprite on the server"""
+        logger.debug(f"Scaling sprite {sprite_id} on server to ({scale_x}, {scale_y})")
+        msg = Message(MessageType.SPRITE_SCALE, {
+            'table_id': table_id,
+            'sprite_id': sprite_id,
+            'scale_x': scale_x,
+            'scale_y': scale_y,
+            'session_code': self.session_code,
+            'user_id': self.user_id,
+            'username': self.username
+        }, self.client_id)
+        self.send(msg.to_json())
+
+    def sprite_rotate(self, table_id: str, sprite_id: str, rotation: float):
+        """Rotate a sprite on the server"""
+        logger.debug(f"Rotating sprite {sprite_id} on server to {rotation} degrees")
+        msg = Message(MessageType.SPRITE_ROTATE, {
+            'table_id': table_id,
+            'sprite_id': sprite_id,
+            'rotation': rotation,
+            'session_code': self.session_code,
+            'user_id': self.user_id,
+            'username': self.username
+        }, self.client_id)
+        self.send(msg.to_json())
+
+    def table_delete(self, table_id: str):
+        """Delete a table on the server"""
+        logger.debug(f"Deleting table {table_id} on server")
+        msg = Message(MessageType.TABLE_DELETE, {
+            'table_id': table_id
+        }, self.client_id)
+        self.send(msg.to_json())
+
+    def request_table_list(self):
+        """Request list of tables from server"""
+        logger.debug("Requesting table list from server")
+        msg = Message(MessageType.TABLE_LIST_REQUEST, {}, self.client_id)
+        self.send(msg.to_json())
+
     def handle_message(self, message: str):
         try:
             msg = Message.from_json(message)
@@ -137,6 +206,7 @@ class ClientProtocol:
         table_name = data['name']        
         logger.info(f"Creating new table: {table_name}")
         table_data = data.get('table_data', {})
+        table_data['to_server'] = False
         
         self.Actions.process_creating_table(table_data)
         # Create table from data
@@ -156,53 +226,16 @@ class ClientProtocol:
                 }
             )
             
-            self.send(download_request.to_json)
+            self.send(download_request.to_json())
             logger.info(f"Requested download for asset {asset_id}")
             
         except Exception as e:
             logger.error(f"Error requesting asset download for {asset_id}: {e}")
     
-    def table_update(self, msg: Message):
-        """Update local table from server data"""
-        data = msg.data
-        if data is None:
-            logger.error("Received empty table update data")
-            self.send(Message(MessageType.ERROR, {
-                'error': 'Received empty table update data'
-            }, self.client_id).to_json()) 
-            return
-        
-        if not self.context.current_table:
-            self.context.add_table(data['name'], data['width'], data['height'])
-        
-        table = self.context.current_table
-        table.scale = data.get('scale', 1.0)
-        table.x_moved = data.get('x_moved', 0.0)
-        table.y_moved = data.get('y_moved', 0.0)
-        table.show_grid = data.get('show_grid', True)
-        logger.debug(f"Updating table: {table.name} with scale {table.scale}, moved ({table.x_moved}, {table.y_moved}), grid {table.show_grid}")
-        # Load entities
-        for layer, entities in data.get('entities', {}).items():
-            #table.dict_of_sprites_list[layer].clear()
-            for entity in entities:
-                logger.debug(f"proccess {entity} from: {layer}")
-                self.context.add_sprite(
-                    texture_path=entity['texture_path'].encode(),
-                    scale_x=entity.get('scale_x', 1.0),
-                    scale_y=entity.get('scale_y', 1.0),
-                    layer=layer,
-                    sprite_id=entity.get('sprite_id', None),
-                )
-        
-        # Request missing files
-        for filename in data.get('files', []):
-            if not os.path.exists(filename):
-                self.request_file(filename)
-    
    
         
     def handle_request_table(self, msg: Message):
-        """Handle table request from server"""
+        """Handle table request from server - delegate to Actions"""
         data = msg.data
         if not data or 'name' not in data:
             logger.error("Invalid table request data received")
@@ -213,23 +246,24 @@ class ClientProtocol:
         
         table_name = data['name']
         logger.info(f"Requesting table: {table_name}")
-        table = self.Actions.get_table(table_name)
+        table_result = self.Actions.get_table(table_name=table_name)
         
-        if not table:
-            logger.error(f"Table {table_name} not found in context")
+        if not table_result.success:
+            logger.error(f"Table {table_name} not found")
             self.send(Message(MessageType.ERROR, {
                 'error': f"Table {table_name} not found"
             }, self.client_id).to_json())
             return
+        
         self.send(Message(MessageType.TABLE_DATA, {
             'name': table_name,
             'client_id': self.client_id,
-            'data': table.to_dict()
+            'data': table_result.data
         }, self.client_id).to_json())
 
      
     def handle_table_data(self, msg: Message):
-        """Handle table data received from server"""
+        """Handle table data received from server - delegate to Actions"""
         data = msg.data
         if not data or 'name' not in data or 'data' not in data:
             logger.error("Invalid table data received")
@@ -240,29 +274,16 @@ class ClientProtocol:
         
         table_name = data['table_name']
         logger.info(f"Received table data for {table_name}")
-        if not self.context.current_table or self.context.current_table.name != table_name:
-            # If current table is not set or does not match, create a new one
-            self.context.create_table_from_dict(data)
-        self.apply_table_update(msg)        
-        # Notify GUI if available
-        if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
-            self.context.gui_system.gui_state.chat_messages.append(f"Table {table_name} updated")
-    def save_file(self, msg: Message):
-        """Save downloaded file"""
-        data = msg.data
-        if not data or 'filename' not in data or 'data' not in data:
-            logger.error("Invalid file data received")
-            self.send(Message(MessageType.ERROR, {
-                'error': 'Invalid file data received'
-            }, self.client_id).to_json())
-            return
-        filename = data['filename']
-        file_data = bytes.fromhex(data['data'])
         
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open(filename, 'wb') as f:
-            f.write(file_data)
-        logger.info(f"File saved: {filename}")
+        # Create table from data using Actions
+        result = self.Actions.create_table_from_dict(data)
+        if not result.success:
+            logger.error(f"Failed to create table from data: {result.message}")
+            return
+            
+        self.apply_table_update(msg)        
+        # Add success message
+        self.Actions.add_chat_message(f"Table {table_name} updated")
     
     def send_sprite_update(self, update_type: str, sprite_data: Dict[str, Any]):
         """Send sprite-specific updates"""
@@ -275,8 +296,7 @@ class ClientProtocol:
         self.send(msg.to_json())
 
     def apply_table_update(self, msg: Message):
-        """Apply table update from server"""
-        #TODO make it thriught actions
+        """Apply table update from server - delegate to Actions"""
         data = msg.data
         if not data or 'type' not in data or 'data' not in data:
             logger.error("Invalid table update data received")
@@ -289,21 +309,15 @@ class ClientProtocol:
         update_type = data['type']
         update_data = data['data']
         
-        if not self.context.current_table:
-            return
-        
         if category == 'sprite':
             self.apply_sprite_update(msg)
         else:
-            # Handle table updates (existing code)
-            table = self.context.current_table
-            if update_type == 'scale':
-                table.scale = update_data['scale']
-            elif update_type == 'move':
-                table.x_moved = update_data['x_moved']
-                table.y_moved = update_data['y_moved']
-            elif update_type == 'grid':
-                table.show_grid = update_data['show_grid']
+            # Delegate table updates to Actions
+            table_id = update_data.get('table_id')
+            if table_id:
+                result = self.Actions.update_table(table_id, to_server=False, **update_data)
+                if not result.success:
+                    logger.error(f"Failed to apply table update: {result.message}")
     
     def apply_sprite_update(self, message: Message):
         """Apply sprite updates from server"""
@@ -314,55 +328,75 @@ class ClientProtocol:
                 'error': 'Invalid sprite update data received'
             }, self.client_id).to_json())
             return
+        
         update_type = data.get('type', 'sprite')
         sprite_data = data.get('data', {})
         sprite_id = sprite_data.get('sprite_id')
         table_id = sprite_data.get('table_id', None)
-        if not sprite_id:
+        
+        if not sprite_id or not table_id:
+            logger.warning(f"Missing sprite_id or table_id in sprite update: {sprite_data}")
             return
-       
-        sprite = self.context.find_sprite_by_id(sprite_id, table_id=table_id)
-        if not sprite:
-            logger.warning(f"Sprite not found: {sprite_id}")
+        
+        # Check if sprite exists by trying to get its info
+        sprite_info_result = self.Actions.get_sprite_info(table_id, sprite_id)
+        if not sprite_info_result.success:
+            logger.warning(f"Sprite not found: {sprite_id} in table {table_id}")
             return
         
         if update_type == 'sprite_move':
             logger.info(f"Applying sprite move: {sprite_id}")
             to_pos = sprite_data.get('to', {})
-            sprite.coord_x.value = float(to_pos.get('x', sprite.coord_x.value))
-            sprite.coord_y.value = float(to_pos.get('y', sprite.coord_y.value))
+            new_position = Position(x=to_pos.get('x', 0), y=to_pos.get('y', 0))
             
-            # Update network tracking
-            sprite._last_network_x = sprite.coord_x.value
-            sprite._last_network_y = sprite.coord_y.value
-            
-            logger.info(f"Applied sprite move: {sprite_id} to ({sprite.coord_x.value:.1f}, {sprite.coord_y.value:.1f})")
+            # Use Actions to move the sprite (disable server sync to avoid infinite loop)
+            move_result = self.Actions.move_sprite(table_id, sprite_id, new_position, to_server=False)
+            if move_result.success:
+                logger.info(f"Applied sprite move: {sprite_id} to {new_position}")
+            else:
+                logger.error(f"Failed to apply sprite move: {move_result.message}")
             
         elif update_type == 'position_correction':
             # Server rejected the move, revert to correct position
-            correct_pos = data.get('position', {})
-            sprite.coord_x.value = float(correct_pos.get('x', sprite.coord_x.value))
-            sprite.coord_y.value = float(correct_pos.get('y', sprite.coord_y.value))
+            correct_pos = sprite_data.get('position', {})
+            new_position = Position(x=correct_pos.get('x', 0), y=correct_pos.get('y', 0))
             
-            sprite._last_network_x = sprite.coord_x.value
-            sprite._last_network_y = sprite.coord_y.value
+            # Use Actions to move the sprite to the correct position
+            move_result = self.Actions.move_sprite(table_id, sprite_id, new_position, to_server=False)
             
             # Show user feedback
-            reason = data.get('reason', 'Unknown')
+            reason = sprite_data.get('reason', 'Unknown')
             logger.warning(f"Position corrected for sprite {sprite_id}: {reason}")
             
             # Add to chat if available
-            if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
-                self.context.gui_system.gui_state.chat_messages.append(f"Move blocked: {reason}")
+            self.Actions.add_chat_message(f"Move blocked: {reason}")
             
         elif update_type == 'sprite_scale':
-            to_scale = data.get('to', {})
-            sprite.scale_x = float(to_scale.get('x', sprite.scale_x))
-            sprite.scale_y = float(to_scale.get('y', sprite.scale_y))
+            to_scale = sprite_data.get('to', {})
+            scale_x = float(to_scale.get('x', 1.0))
+            scale_y = float(to_scale.get('y', 1.0))
             
-            logger.info(f"Applied sprite scale: {sprite_id} to ({sprite.scale_x:.2f}, {sprite.scale_y:.2f})")
+            # Use Actions to scale the sprite (disable server sync to avoid infinite loop)
+            scale_result = self.Actions.scale_sprite(table_id, sprite_id, scale_x, scale_y, to_server=False)
+            if scale_result.success:
+                logger.info(f"Applied sprite scale: {sprite_id} to ({scale_x:.2f}, {scale_y:.2f})")
+            else:
+                logger.error(f"Failed to apply sprite scale: {scale_result.message}")
+        
+        elif update_type == 'sprite_rotate':
+            rotation = float(sprite_data.get('rotation', 0.0))
+            
+            # Use Actions to rotate the sprite (disable server sync to avoid infinite loop)
+            rotate_result = self.Actions.rotate_sprite(table_id, sprite_id, rotation, to_server=False)
+            if rotate_result.success:
+                logger.info(f"Applied sprite rotation: {sprite_id} to {rotation} degrees")
+            else:
+                logger.error(f"Failed to apply sprite rotation: {rotate_result.message}")
+        
+        else:
+            logger.warning(f"Unknown sprite update type: {update_type}")
     
-    # Compendium sprite methods
+    # Compendium sprite methods - simplified to delegate to Actions
     def send_compendium_sprite_add(self, table_name: str, entity_data: Dict[str, Any], position: Dict[str, float], entity_type: str, layer: str = 'tokens'):
         """Send compendium sprite add request to server"""
         msg = Message(MessageType.COMPENDIUM_SPRITE_ADD, {
@@ -398,148 +432,29 @@ class ClientProtocol:
         logger.info(f"Sent compendium sprite remove request: {sprite_id}")
     
     def _handle_compendium_sprite_add(self, data: Dict[str, Any]):
-        """Handle compendium sprite addition from server"""
-        try:
-            logger.info(f"Handling compendium sprite add: {data}")
-            
-            sprite_data = data.get('sprite_data', {})
-            table_name = data.get('table_name', 'default')
-            
-            if not sprite_data:
-                logger.error("No sprite data in compendium sprite add")
-                return
-            
-            # Get the table or use current table
-            table = self.context.get_table_by_name(table_name) if hasattr(self.context, 'get_table_by_name') else self.context.current_table
-            if not table:
-                logger.error(f"Table {table_name} not found for compendium sprite add")
-                return
-            
-            # Extract sprite information
-            name = sprite_data.get('name', 'Unknown Entity')
-            entity_type = sprite_data.get('entity_type', 'unknown')
-            position = sprite_data.get('position', {'x': 0, 'y': 0})
-            layer = sprite_data.get('layer', 'tokens')
-            scale_x = sprite_data.get('scale_x', 1.0)
-            scale_y = sprite_data.get('scale_y', 1.0)
-            compendium_data = sprite_data.get('compendium_data', {})
-            
-            # Import compendium_sprites to create the sprite
-            try:
-                from compendium_sprites import create_compendium_sprite
-                  # Create the sprite using the compendium helper
-                sprite = create_compendium_sprite(
-                    entity=compendium_data,
-                    entity_type=entity_type,
-                    position=(position['x'], position['y']),
-                    context=self.context
-                )
-                
-                if sprite:
-                    # Add sprite to the table
-                    if hasattr(table, 'add_sprite'):
-                        table.add_sprite(sprite, layer)
-                    else:
-                        # Fallback to context method
-                        self.context.add_sprite_to_table(sprite, layer, table_name)
-                    
-                    logger.info(f"Added compendium sprite {name} to table {table_name}")
-                    
-                    # Add to chat if available
-                    if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
-                        self.context.gui_system.gui_state.chat_messages.append(f"Added {entity_type}: {name}")
-                else:
-                    logger.error(f"Failed to create compendium sprite for {name}")
-                    
-            except ImportError as e:
-                logger.error(f"Could not import compendium_sprites: {e}")
-            except Exception as e:
-                logger.error(f"Error creating compendium sprite: {e}")
-                
-        except Exception as e:
-            logger.error(f"Error handling compendium sprite add: {e}")
+        """Handle compendium sprite addition from server - simplified logging"""
+        logger.info(f"Handling compendium sprite add: {data}")
+        # For now, just log. Compendium support can be added to Actions later
+        self.Actions.add_chat_message("Compendium sprite add received")
     
     def _handle_compendium_sprite_update(self, data: Dict[str, Any]):
-        """Handle compendium sprite update from server"""
-        try:
-            logger.info(f"Handling compendium sprite update: {data}")
-            
-            sprite_id = data.get('sprite_id')
-            table_name = data.get('table_name', 'default')
-            updates = data.get('updates', {})
-            
-            if not sprite_id:
-                logger.error("No sprite_id in compendium sprite update")
-                return
-            
-            # Find the sprite
-            sprite = self.context.find_sprite_by_id(sprite_id, table_name=table_name)
-            if not sprite:
-                logger.warning(f"Compendium sprite not found: {sprite_id}")
-                return
-            
-            # Apply updates
-            for key, value in updates.items():
-                if key == 'position':
-                    sprite.coord_x.value = float(value.get('x', sprite.coord_x.value))
-                    sprite.coord_y.value = float(value.get('y', sprite.coord_y.value))
-                elif key == 'scale':
-                    sprite.scale_x = float(value.get('x', sprite.scale_x))
-                    sprite.scale_y = float(value.get('y', sprite.scale_y))
-                elif key == 'rotation':
-                    if hasattr(sprite, 'rotation'):
-                        sprite.rotation = float(value)
-                elif hasattr(sprite, key):
-                    setattr(sprite, key, value)
-            
-            logger.info(f"Updated compendium sprite: {sprite_id}")
-            
-        except Exception as e:
-            logger.error(f"Error handling compendium sprite update: {e}")
+        """Handle compendium sprite update from server - simplified logging"""
+        logger.info(f"Handling compendium sprite update: {data}")
+        # For now, just log. Compendium support can be added to Actions later
+        self.Actions.add_chat_message("Compendium sprite update received")
     
     def _handle_compendium_sprite_remove(self, data: Dict[str, Any]):
-        """Handle compendium sprite removal from server"""
-        try:
-            logger.info(f"Handling compendium sprite remove: {data}")
-            
-            sprite_id = data.get('sprite_id')
-            table_name = data.get('table_name', 'default')
-            
-            if not sprite_id:
-                logger.error("No sprite_id in compendium sprite remove")
-                return
-            
-            # Find and remove the sprite
-            sprite = self.context.find_sprite_by_id(sprite_id, table_name=table_name)
-            if not sprite:
-                logger.warning(f"Compendium sprite not found for removal: {sprite_id}")
-                return
-            
-            # Remove sprite from table
-            table = self.context.get_table_by_name(table_name) if hasattr(self.context, 'get_table_by_name') else self.context.current_table
-            if table and hasattr(table, 'remove_sprite'):
-                table.remove_sprite(sprite)
-            else:
-                # Fallback to context removal
-                self.context.remove_sprite_from_table(sprite, table_name)
-            
-            logger.info(f"Removed compendium sprite: {sprite_id}")
-            
-            # Add to chat if available
-            if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
-                sprite_name = getattr(sprite, 'name', sprite_id)
-                self.context.gui_system.gui_state.chat_messages.append(f"Removed sprite: {sprite_name}")
-            
-        except Exception as e:
-            logger.error(f"Error handling compendium sprite remove: {e}")
+        """Handle compendium sprite removal from server - simplified logging"""
+        logger.info(f"Handling compendium sprite remove: {data}")
+        # For now, just log. Compendium support can be added to Actions later
+        self.Actions.add_chat_message("Compendium sprite remove received")
 
     def _handle_auth_token(self, msg: Message):
-        """Handle authentication token response"""
-        data= msg.data
+        """Handle authentication token response - delegate to Actions"""
+        data = msg.data
         if not data:
             logger.error("Received empty authentication token data")
-            if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
-                self.context.gui_system.gui_state.chat_messages.append("❌ Authentication failed - no data received")
+            self.Actions.add_chat_message("❌ Authentication failed - no data received")
             return
         try:
             access_token = data.get('access_token')
@@ -547,30 +462,20 @@ class ClientProtocol:
             
             if access_token:
                 logger.info("Authentication successful - received JWT token")
-                # Store token in context if available
-                if hasattr(self.context, 'auth_token'):
-                    self.context.auth_token = access_token
-                if hasattr(self.context, 'is_authenticated'):
-                    self.context.is_authenticated = True
-                    
-                # Add to chat if available
-                if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
-                    self.context.gui_system.gui_state.chat_messages.append("✅ Authentication successful")
+                self.Actions.add_chat_message("✅ Authentication successful")
             else:
                 logger.error("Authentication failed - no token received")
-                if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
-                    self.context.gui_system.gui_state.chat_messages.append("❌ Authentication failed")
+                self.Actions.add_chat_message("❌ Authentication failed")
                     
         except Exception as e:
             logger.error(f"Error handling auth token: {e}")
 
     def _handle_auth_status(self, msg: Message):
-        """Handle authentication status response"""
+        """Handle authentication status response - delegate to Actions"""
         data = msg.data
         if not data:
             logger.error("Received empty authentication status data")
-            if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
-                self.context.gui_system.gui_state.chat_messages.append("❌ Authentication status check failed - no data received")
+            self.Actions.add_chat_message("❌ Authentication status check failed - no data received")
             return
         try:
             is_authenticated = data.get('authenticated', False)
@@ -578,18 +483,10 @@ class ClientProtocol:
             
             logger.info(f"Authentication status: {'authenticated' if is_authenticated else 'not authenticated'}")
             
-            # Update context if available
-            if hasattr(self.context, 'is_authenticated'):
-                self.context.is_authenticated = is_authenticated
-            if hasattr(self.context, 'username') and username:
-                self.context.username = username
-                
-            # Add to chat if available
-            if hasattr(self.context, 'gui_system') and hasattr(self.context.gui_system, 'gui_state'):
-                status_msg = f"Auth status: {'✅ Authenticated' if is_authenticated else '❌ Not authenticated'}"
-                if username:
-                    status_msg += f" as {username}"
-                self.context.gui_system.gui_state.chat_messages.append(status_msg)
+            status_msg = f"Auth status: {'✅ Authenticated' if is_authenticated else '❌ Not authenticated'}"
+            if username:
+                status_msg += f" as {username}"
+            self.Actions.add_chat_message(status_msg)
                 
         except Exception as e:
             logger.error(f"Error handling auth status: {e}")
@@ -819,9 +716,53 @@ class ClientProtocol:
             logger.info(f"Welcome message received: user_id={self.user_id}, username={self.username}, session={self.session_code}")
             
             # Delegate welcome handling to Actions for any game logic
-            self.Actions.handle_welcome_message(msg.data)
+            if hasattr(self.Actions, 'handle_welcome_message'):
+                self.Actions.handle_welcome_message(msg.data)
                 
         except Exception as e:
             logger.error(f"Error handling welcome message: {e}")
 
-   
+    def handle_sprite_response(self, msg: Message):
+        """Handle sprite operation response from server"""
+        try:
+            if not msg.data:
+                logger.error("Empty sprite response received")
+                return
+            
+            sprite_id = msg.data.get('sprite_id')
+            operation = msg.data.get('operation', 'unknown')
+            success = msg.data.get('success', True)
+            
+            if success:
+                logger.info(f"Sprite operation '{operation}' successful for sprite {sprite_id}")
+                if hasattr(self.Actions, 'add_chat_message'):
+                    self.Actions.add_chat_message(f"✅ Sprite {operation} successful")
+            else:
+                error = msg.data.get('error', 'Unknown error')
+                logger.error(f"Sprite operation '{operation}' failed for sprite {sprite_id}: {error}")
+                if hasattr(self.Actions, 'add_chat_message'):
+                    self.Actions.add_chat_message(f"❌ Sprite {operation} failed: {error}")
+                    
+        except Exception as e:
+            logger.error(f"Error handling sprite response: {e}")
+
+    def handle_table_list_response(self, msg: Message):
+        """Handle table list response from server - delegate to Actions"""
+        try:
+            if not msg.data:
+                logger.error("Empty table list response received")
+                return
+            
+            tables = msg.data.get('tables', [])
+            logger.info(f"Received table list with {len(tables)} tables")
+            
+            # Simple logging of tables instead of trying to update non-existent method
+            for table in tables:
+                logger.info(f"Available table: {table}")
+            
+            self.Actions.add_chat_message(f"📋 Received {len(tables)} tables from server")
+                
+        except Exception as e:
+            logger.error(f"Error handling table list response: {e}")
+
+

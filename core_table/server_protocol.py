@@ -73,6 +73,12 @@ class ServerProtocol:
         self.register_handler(MessageType.ASSET_LIST_REQUEST, self.handle_asset_list_request)
         self.register_handler(MessageType.ASSET_UPLOAD_CONFIRM, self.handle_asset_upload_confirm)
         self.register_handler(MessageType.ASSET_DELETE_REQUEST, self.handle_asset_delete_request)
+        
+        # Player management handlers
+        self.register_handler(MessageType.PLAYER_LIST_REQUEST, self.handle_player_list_request)
+        self.register_handler(MessageType.PLAYER_KICK_REQUEST, self.handle_player_kick_request)
+        self.register_handler(MessageType.PLAYER_BAN_REQUEST, self.handle_player_ban_request)
+        self.register_handler(MessageType.CONNECTION_STATUS_REQUEST, self.handle_connection_status_request)
 
     async def handle_client(self, msg: Message, client_id: str) -> bool:
         """Handle client message"""
@@ -899,11 +905,174 @@ class ServerProtocol:
             logger.error(f"Error getting session_id: {e}")
             return None
 
-if __name__ == "__main__":
-    # Example usage
-    class MockTableManager:
-        pass  # Replace with actual table manager implementation
+    # Player Management Handlers
+    
+    async def handle_player_list_request(self, msg: Message, client_id: str) -> Message:
+        """Handle player list request"""
+        logger.debug(f"Player list request received from {client_id}: {msg}")
+        
+        try:
+            # Get session_code from message data
+            session_code = msg.data.get('session_code') if msg.data else None
+            
+            # Get player list from session manager (this will be set by GameSessionProtocolService)
+            if hasattr(self, 'session_manager') and self.session_manager:
+                players = self.session_manager.get_session_players(session_code)
+                return Message(MessageType.PLAYER_LIST_RESPONSE, {
+                    'players': players,
+                    'count': len(players),
+                    'session_code': session_code
+                })
+            else:
+                # Fallback - return empty list if no session manager
+                return Message(MessageType.PLAYER_LIST_RESPONSE, {
+                    'players': [],
+                    'count': 0,
+                    'session_code': session_code,
+                    'error': 'Session manager not available'
+                })
+        except Exception as e:
+            logger.error(f"Error handling player list request: {e}")
+            return Message(MessageType.ERROR, {'error': 'Failed to get player list'})
 
-    protocol = ServerProtocol(MockTableManager())
-    print("ServerProtocol initialized successfully")
+    async def handle_player_kick_request(self, msg: Message, client_id: str) -> Message:
+        """Handle player kick request"""
+        logger.debug(f"Player kick request received from {client_id}: {msg}")
+        
+        try:
+            if not msg.data:
+                return Message(MessageType.ERROR, {'error': 'No data provided in kick request'})
+            
+            target_player_id = msg.data.get('player_id')
+            target_username = msg.data.get('username')
+            reason = msg.data.get('reason', 'No reason provided')
+            session_code = msg.data.get('session_code')
+            
+            if not target_player_id and not target_username:
+                return Message(MessageType.ERROR, {'error': 'Player ID or username is required'})
+            
+            # Check if requesting client has kick permissions
+            # This should be enhanced with proper permission system
+            requesting_client_info = getattr(self, 'client_info', {}).get(client_id, {})
+            if not self._has_kick_permission(requesting_client_info):
+                return Message(MessageType.ERROR, {'error': 'Insufficient permissions to kick players'})
+            
+            # Perform kick through session manager
+            if hasattr(self, 'session_manager') and self.session_manager:
+                success = await self.session_manager.kick_player(
+                    session_code, target_player_id, target_username, reason, client_id
+                )
+                
+                if success:
+                    return Message(MessageType.PLAYER_KICK_RESPONSE, {
+                        'success': True,
+                        'kicked_player': target_username or target_player_id,
+                        'reason': reason,
+                        'kicked_by': requesting_client_info.get('username', 'unknown')
+                    })
+                else:
+                    return Message(MessageType.ERROR, {'error': 'Failed to kick player'})
+            else:
+                return Message(MessageType.ERROR, {'error': 'Session manager not available'})
+                
+        except Exception as e:
+            logger.error(f"Error handling player kick request: {e}")
+            return Message(MessageType.ERROR, {'error': 'Failed to kick player'})
+
+    async def handle_player_ban_request(self, msg: Message, client_id: str) -> Message:
+        """Handle player ban request"""
+        logger.debug(f"Player ban request received from {client_id}: {msg}")
+        
+        try:
+            if not msg.data:
+                return Message(MessageType.ERROR, {'error': 'No data provided in ban request'})
+            
+            target_player_id = msg.data.get('player_id')
+            target_username = msg.data.get('username')
+            reason = msg.data.get('reason', 'No reason provided')
+            session_code = msg.data.get('session_code')
+            duration = msg.data.get('duration', 'permanent')  # Duration in minutes or 'permanent'
+            
+            if not target_player_id and not target_username:
+                return Message(MessageType.ERROR, {'error': 'Player ID or username is required'})
+            
+            # Check if requesting client has ban permissions
+            requesting_client_info = getattr(self, 'client_info', {}).get(client_id, {})
+            if not self._has_ban_permission(requesting_client_info):
+                return Message(MessageType.ERROR, {'error': 'Insufficient permissions to ban players'})
+            
+            # Perform ban through session manager
+            if hasattr(self, 'session_manager') and self.session_manager:
+                success = await self.session_manager.ban_player(
+                    session_code, target_player_id, target_username, reason, duration, client_id
+                )
+                
+                if success:
+                    return Message(MessageType.PLAYER_BAN_RESPONSE, {
+                        'success': True,
+                        'banned_player': target_username or target_player_id,
+                        'reason': reason,
+                        'duration': duration,
+                        'banned_by': requesting_client_info.get('username', 'unknown')
+                    })
+                else:
+                    return Message(MessageType.ERROR, {'error': 'Failed to ban player'})
+            else:
+                return Message(MessageType.ERROR, {'error': 'Session manager not available'})
+                
+        except Exception as e:
+            logger.error(f"Error handling player ban request: {e}")
+            return Message(MessageType.ERROR, {'error': 'Failed to ban player'})
+
+    async def handle_connection_status_request(self, msg: Message, client_id: str) -> Message:
+        """Handle connection status request"""
+        logger.debug(f"Connection status request received from {client_id}: {msg}")
+        
+        try:
+            session_code = msg.data.get('session_code') if msg.data else None
+            
+            # Get connection status from session manager
+            if hasattr(self, 'session_manager') and self.session_manager:
+                status = self.session_manager.get_connection_status(session_code, client_id)
+                return Message(MessageType.CONNECTION_STATUS_RESPONSE, {
+                    'connected': True,
+                    'session_code': session_code,
+                    'client_id': client_id,
+                    'status': status
+                })
+            else:
+                return Message(MessageType.CONNECTION_STATUS_RESPONSE, {
+                    'connected': False,
+                    'session_code': session_code,
+                    'client_id': client_id,
+                    'error': 'Session manager not available'
+                })
+                
+        except Exception as e:
+            logger.error(f"Error handling connection status request: {e}")
+            return Message(MessageType.ERROR, {'error': 'Failed to get connection status'})
+
+    def _has_kick_permission(self, client_info: dict) -> bool:
+        """Check if client has permission to kick players"""
+        # Simple permission check - in production this should be more sophisticated
+        username = client_info.get('username', '').lower()
+        user_role = client_info.get('role', 'player')
+        
+        # DM/GM or admin can kick
+        return (user_role in ['dm', 'gm', 'admin'] or 
+                username.startswith('dm') or 
+                username.startswith('gm') or
+                username.startswith('admin'))
+
+    def _has_ban_permission(self, client_info: dict) -> bool:
+        """Check if client has permission to ban players"""
+        # Ban permissions are more restrictive than kick
+        username = client_info.get('username', '').lower()
+        user_role = client_info.get('role', 'player')
+        
+        # Only DM/GM or admin can ban
+        return (user_role in ['dm', 'gm', 'admin'] or 
+                username.startswith('dm') or 
+                username.startswith('gm') or
+                username.startswith('admin'))
 

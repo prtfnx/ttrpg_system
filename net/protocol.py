@@ -43,6 +43,14 @@ class MessageType(enum.Enum):    # Core messages
     PLAYER_READY = "player_ready"
     PLAYER_UNREADY = "player_unready"
     PLAYER_STATUS = "player_status"
+    PLAYER_LIST_REQUEST = "player_list_request"
+    PLAYER_LIST_RESPONSE = "player_list_response"
+    PLAYER_KICK_REQUEST = "player_kick_request"
+    PLAYER_BAN_REQUEST = "player_ban_request"
+    PLAYER_KICK_RESPONSE = "player_kick_response"
+    PLAYER_BAN_RESPONSE = "player_ban_response"
+    CONNECTION_STATUS_REQUEST = "connection_status_request"
+    CONNECTION_STATUS_RESPONSE = "connection_status_response"
     
 
     # Sprite sync

@@ -4,6 +4,8 @@ import hashlib
 import asyncio
 import threading
 from typing import Callable, Optional, Dict, Any, List
+
+from networkx import to_dict_of_dicts
 from .protocol import Message, MessageType, ProtocolHandler
 from logger import setup_logger
 from Actions import Actions
@@ -25,6 +27,7 @@ class ClientProtocol:
         self.user_id: Optional[int] = None
         self.username: Optional[str] = None
         self.session_code: Optional[str] = None
+        self.jwt_token: Optional[str] = None
         
         self.init_handlers()
 
@@ -50,9 +53,18 @@ class ClientProtocol:
         self.register_handler(MessageType.ASSET_LIST_RESPONSE, self.handle_asset_list_response)
         self.register_handler(MessageType.ASSET_UPLOAD_RESPONSE, self.handle_asset_upload_response)
         # Sprite operation handlers
+        self.register_handler(MessageType.SPRITE_CREATE, self.handle_sprite_create)
         self.register_handler(MessageType.SPRITE_RESPONSE, self.handle_sprite_response)
+        self.register_handler(MessageType.SPRITE_REMOVE, self.handle_sprite_remove)
         # Table operation handlers
         self.register_handler(MessageType.TABLE_LIST_RESPONSE, self.handle_table_list_response)
+        # Player management handlers
+        self.register_handler(MessageType.PLAYER_LIST_RESPONSE, self.handle_player_list_response)
+        self.register_handler(MessageType.PLAYER_KICK_RESPONSE, self.handle_player_kick_response)
+        self.register_handler(MessageType.PLAYER_BAN_RESPONSE, self.handle_player_ban_response)
+        self.register_handler(MessageType.CONNECTION_STATUS_RESPONSE, self.handle_connection_status_response)
+        self.register_handler(MessageType.PLAYER_JOINED, self.handle_player_joined)
+        self.register_handler(MessageType.PLAYER_LEFT, self.handle_player_left)
 
 
     def register_handler(self, msg_type: MessageType, handler: Callable[[Message], None]):
@@ -722,6 +734,56 @@ class ClientProtocol:
         except Exception as e:
             logger.error(f"Error handling welcome message: {e}")
 
+    def handle_sprite_create(self, msg: Message):
+        """Handle sprite creation request from server"""
+        try:
+            if not msg.data:
+                logger.error("Empty sprite creation request received")
+                return
+            
+            sprite_data = msg.data.get('sprite_data')
+            table_id = msg.data.get('table_id')
+            if not sprite_data:
+                logger.error("Sprite creation request missing sprite_data")
+                return
+            coord_x= sprite_data.get('coord_x', 0)
+            coord_y = sprite_data.get('coord_y', 0)
+            position = Position(x=coord_x, y=coord_y)
+            image_path = sprite_data.get('texture_path', '')
+
+            self.Actions.create_sprite(table_id, position=position, image_path=image_path, **sprite_data, to_server=False)
+
+            logger.info(f"Sprite created successfully with ID: {sprite_data.get('sprite_id')}")
+            if hasattr(self.Actions, 'add_chat_message'):
+                self.Actions.add_chat_message(f"Sprite created with ID: {sprite_data.get('sprite_id')}")
+        except Exception as e:
+            logger.error(f"Error handling sprite creation: {e}")
+            if hasattr(self.Actions, 'add_chat_message'):
+                self.Actions.add_chat_message(f"Error creating sprite: {str(e)}")
+
+    def handle_sprite_remove(self, msg: Message):
+        """Handle sprite removal request from server"""
+        try:
+            if not msg.data:
+                logger.error("Empty sprite removal request received")
+                return
+            
+
+            sprite_id = msg.data.get('sprite_id')
+            table_id = msg.data.get('table_id')
+            if not sprite_id or not table_id:
+                logger.error("Sprite removal request missing sprite_id or table_id")
+                return
+            
+            self.Actions.delete_sprite(table_id, sprite_id, to_server=False)
+            logger.info(f"Sprite {sprite_id} removed successfully from table {table_id}")
+            if hasattr(self.Actions, 'add_chat_message'):
+                self.Actions.add_chat_message(f"Sprite {sprite_id} removed successfully")
+                
+        except Exception as e:
+            logger.error(f"Error handling sprite removal: {e}")
+            if hasattr(self.Actions, 'add_chat_message'):
+                self.Actions.add_chat_message(f"Error removing sprite: {str(e)}")
     def handle_sprite_response(self, msg: Message):
         """Handle sprite operation response from server"""
         try:
@@ -764,5 +826,415 @@ class ClientProtocol:
                 
         except Exception as e:
             logger.error(f"Error handling table list response: {e}")
+    
+    # Network Management Methods
+    
+    def request_player_list(self, session_code: Optional[str] = None):
+        """Request list of players in the current session"""
+        msg = Message(MessageType.PLAYER_LIST_REQUEST, {
+            'session_code': session_code or self.session_code or 'unknown',
+            'user_id': self.user_id or 0,
+            'username': self.username or 'unknown'
+        }, self.client_id)
+        self.send(msg.to_json())
+        logger.info(f"Requested player list for session {session_code or self.session_code}")
+
+    def kick_player(self, player_id: str, username: str, reason: str = "No reason provided", session_code: Optional[str] = None):
+        """Request to kick a player from the session"""
+        msg = Message(MessageType.PLAYER_KICK_REQUEST, {
+            'player_id': player_id,
+            'username': username,
+            'reason': reason,
+            'session_code': session_code or self.session_code or 'unknown',
+            'user_id': self.user_id or 0,
+            'username': self.username or 'unknown'
+        }, self.client_id)
+        self.send(msg.to_json())
+        logger.info(f"Requested to kick player {username} (ID: {player_id}): {reason}")
+
+    def ban_player(self, player_id: str, username: str, reason: str = "No reason provided", duration: str = "permanent", session_code: Optional[str] = None):
+        """Request to ban a player from the session"""
+        msg = Message(MessageType.PLAYER_BAN_REQUEST, {
+            'player_id': player_id,
+            'username': username,
+            'reason': reason,
+            'duration': duration,
+            'session_code': session_code or self.session_code or 'unknown',
+            'user_id': self.user_id or 0,
+            'username': self.username or 'unknown'
+        }, self.client_id)
+        self.send(msg.to_json())
+        logger.info(f"Requested to ban player {username} (ID: {player_id}) for {duration}: {reason}")
+
+    def request_connection_status(self, session_code: Optional[str] = None):
+        """Request current connection status"""
+        msg = Message(MessageType.CONNECTION_STATUS_REQUEST, {
+            'session_code': session_code or self.session_code or 'unknown',
+            'user_id': self.user_id or 0,
+            'username': self.username or 'unknown'
+        }, self.client_id)
+        self.send(msg.to_json())
+        logger.info(f"Requested connection status for session {session_code or self.session_code}")
+
+    # Network Management Response Handlers
+    
+    def handle_player_list_response(self, msg: Message):
+        """Handle player list response from server"""
+        try:
+            if not msg.data:
+                logger.warning("Player list response has no data")
+                return
+            
+            players = msg.data.get('players', [])
+            count = msg.data.get('count', 0)
+            session_code = msg.data.get('session_code', 'unknown')
+            
+            logger.info(f"Received player list for session {session_code}: {count} players")
+            
+            # Delegate to Actions for state management
+            self.Actions.handle_player_list(players)
+            
+        except Exception as e:
+            logger.error(f"Error handling player list response: {e}")
+
+    def handle_player_kick_response(self, msg: Message):
+        """Handle player kick response from server"""
+        try:
+            if not msg.data:
+                logger.warning("Player kick response has no data")
+                return
+            
+            success = msg.data.get('success', False)
+            kicked_player = msg.data.get('kicked_player', 'unknown')
+            reason = msg.data.get('reason', 'No reason provided')
+            kicked_by = msg.data.get('kicked_by', 'unknown')
+            
+            if success:
+                logger.info(f"Player {kicked_player} was kicked by {kicked_by}: {reason}")
+            else:
+                logger.warning(f"Failed to kick player {kicked_player}")
+            
+            # Delegate to Actions for UI updates
+            # self.Actions.handle_player_kick_result(success, kicked_player, reason)
+            
+        except Exception as e:
+            logger.error(f"Error handling player kick response: {e}")
+
+    def handle_player_ban_response(self, msg: Message):
+        """Handle player ban response from server"""
+        try:
+            if not msg.data:
+                logger.warning("Player ban response has no data")
+                return
+            
+            success = msg.data.get('success', False)
+            banned_player = msg.data.get('banned_player', 'unknown')
+            reason = msg.data.get('reason', 'No reason provided')
+            duration = msg.data.get('duration', 'permanent')
+            banned_by = msg.data.get('banned_by', 'unknown')
+            
+            if success:
+                logger.info(f"Player {banned_player} was banned by {banned_by} for {duration}: {reason}")
+            else:
+                logger.warning(f"Failed to ban player {banned_player}")
+            
+            # Delegate to Actions for UI updates
+            # self.Actions.handle_player_ban_result(success, banned_player, reason, duration)
+            
+        except Exception as e:
+            logger.error(f"Error handling player ban response: {e}")
+
+    def handle_connection_status_response(self, msg: Message):
+        """Handle connection status response from server"""
+        try:
+            if not msg.data:
+                logger.warning("Connection status response has no data")
+                return
+            
+            connected = msg.data.get('connected', False)
+            session_code = msg.data.get('session_code', 'unknown')
+            status = msg.data.get('status', {})
+            
+            logger.info(f"Connection status for session {session_code}: {'connected' if connected else 'disconnected'}")
+            
+            # Delegate to Actions for state management
+            self.Actions.update_connection_status(status)
+            
+        except Exception as e:
+            logger.error(f"Error handling connection status response: {e}")
+
+    def handle_player_joined(self, msg: Message):
+        """Handle player joined notification from server"""
+        try:
+            if not msg.data:
+                logger.warning("Player joined message has no data")
+                return
+            
+            username = msg.data.get('username', 'unknown')
+            user_id = msg.data.get('user_id', 0)
+            client_id = msg.data.get('client_id', 'unknown')
+            timestamp = msg.data.get('timestamp', 'unknown')
+            
+            logger.info(f"Player {username} (ID: {user_id}) joined the session at {timestamp}")
+            
+            # Delegate to Actions for UI updates
+            self.Actions.player_joined(user_id)
+            
+        except Exception as e:
+            logger.error(f"Error handling player joined notification: {e}")
+
+    def handle_player_left(self, msg: Message):
+        """Handle player left notification from server"""
+        try:
+            if not msg.data:
+                logger.warning("Player left message has no data")
+                return
+            
+            username = msg.data.get('username', 'unknown')
+            reason = msg.data.get('reason', 'Left the session')
+            timestamp = msg.data.get('timestamp', 'unknown')
+            kicked = msg.data.get('kicked', False)
+            banned = msg.data.get('banned', False)
+            
+            if kicked:
+                logger.info(f"Player {username} was kicked: {reason}")
+            elif banned:
+                logger.info(f"Player {username} was banned: {reason}")
+            else:
+                logger.info(f"Player {username} left the session at {timestamp}")
+            
+            # Delegate to Actions for UI updates
+            self.Actions.player_left(username)
+            
+        except Exception as e:
+            logger.error(f"Error handling player left notification: {e}")
+
+    # =========================================================================
+    # AUTHENTICATION & SESSION MANAGEMENT
+    # =========================================================================
+    
+    def register_user(self, server_url: str, username: str, password: str) -> Dict[str, Any]:
+        """Register a new user on the server"""
+        try:
+            import requests
+            response = requests.post(
+                f"{server_url}/users/register",
+                data={
+                    "username": username,
+                    "password": password
+                },
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"User {username} registered successfully")
+                return {
+                    'success': True,
+                    'message': 'Registration successful! Please login.',
+                    'data': response.json() if response.content else {}
+                }
+            else:
+                error_msg = f"Registration failed: {response.text}"
+                logger.error(error_msg)
+                return {
+                    'success': False,
+                    'message': error_msg,
+                    'status_code': response.status_code
+                }
+                
+        except Exception as e:
+            error_msg = f"Connection error during registration: {str(e)}"
+            logger.error(error_msg)
+            return {
+                'success': False,
+                'message': error_msg,
+                'error': str(e)
+            }
+
+    def login_user(self, server_url: str, username: str, password: str) -> Dict[str, Any]:
+        """Login user and get JWT token"""
+        try:
+            import requests
+            response = requests.post(
+                f"{server_url}/users/token",
+                data={
+                    "username": username,
+                    "password": password
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                jwt_token = data.get("access_token", "")
+                
+                # Store authentication info
+                self.username = username
+                self.jwt_token = jwt_token
+                
+                logger.info(f"Successfully authenticated as {username}")
+                return {
+                    'success': True,
+                    'message': 'Login successful',
+                    'jwt_token': jwt_token,
+                    'username': username,
+                    'data': data
+                }
+            else:
+                error_msg = f"Login failed: {response.text}"
+                logger.error(error_msg)
+                return {
+                    'success': False,
+                    'message': error_msg,
+                    'status_code': response.status_code
+                }
+                
+        except Exception as e:
+            error_msg = f"Connection error during login: {str(e)}"
+            logger.error(error_msg)
+            return {
+                'success': False,
+                'message': error_msg,
+                'error': str(e)
+            }
+
+    def logout_user(self) -> Dict[str, Any]:
+        """Logout user and clear authentication data"""
+        try:
+            # Clear stored authentication info
+            self.username = None
+            self.user_id = None
+            self.session_code = None
+            self.jwt_token = None
+            
+            logger.info("User logged out")
+            return {
+                'success': True,
+                'message': 'Logged out successfully'
+            }
+        except Exception as e:
+            error_msg = f"Error during logout: {str(e)}"
+            logger.error(error_msg)
+            return {
+                'success': False,
+                'message': error_msg,
+                'error': str(e)
+            }
+
+    def fetch_user_sessions(self, server_url: str, jwt_token: str) -> Dict[str, Any]:
+        """Fetch user's available game sessions"""
+        try:
+            import requests
+            response = requests.get(
+                f"{server_url}/game/api/sessions",
+                headers={"Authorization": f"Bearer {jwt_token}"},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                sessions = response.json()
+                logger.info(f"Fetched {len(sessions)} sessions")
+                return {
+                    'success': True,
+                    'message': f'Found {len(sessions)} sessions',
+                    'sessions': sessions
+                }
+            else:
+                error_msg = f"Failed to fetch sessions: {response.text}"
+                logger.error(error_msg)
+                return {
+                    'success': False,
+                    'message': error_msg,
+                    'status_code': response.status_code
+                }
+                
+        except Exception as e:
+            error_msg = f"Error fetching sessions: {str(e)}"
+            logger.error(error_msg)
+            return {
+                'success': False,
+                'message': error_msg,
+                'error': str(e)
+            }
+
+    def test_server_connection(self, server_url: str) -> Dict[str, Any]:
+        """Test if the server URL is reachable"""
+        try:
+            import requests
+            response = requests.get(f"{server_url}/health", timeout=5)
+            success = response.status_code in [200, 404, 405]
+            return {
+                'success': success,
+                'message': 'Server reachable' if success else f'Server returned {response.status_code}',
+                'status_code': response.status_code,
+                'reachable': success
+            }
+        except Exception as e:
+            error_msg = f"Server connection test failed: {str(e)}"
+            logger.debug(error_msg)
+            return {
+                'success': False,
+                'message': error_msg,
+                'reachable': False,
+                'error': str(e)
+            }
+
+    def parse_server_url(self, server_url: str, fallback_port: str = "12345") -> Dict[str, str]:
+        """Parse server URL to extract hostname and port"""
+        try:
+            from urllib.parse import urlparse
+            
+            # Handle URLs without scheme
+            url_to_parse = server_url
+            if not url_to_parse.startswith(('http://', 'https://')):
+                url_to_parse = 'http://' + url_to_parse
+            
+            parsed = urlparse(url_to_parse)
+            
+            # Extract hostname (IP or domain)
+            hostname = parsed.hostname or "127.0.0.1"
+            
+            # Use explicit port from URL, or default to fallback
+            port = str(parsed.port) if parsed.port else fallback_port
+            
+            logger.info(f"Parsed server: {hostname}:{port}")
+            return {
+                'hostname': hostname,
+                'port': port,
+                'full_url': server_url
+            }
+            
+        except Exception as e:
+            error_msg = f"Error parsing server URL '{server_url}': {e}"
+            logger.error(error_msg)
+            return {
+                'hostname': "127.0.0.1",
+                'port': fallback_port,
+                'full_url': server_url,
+                'error': error_msg
+            }
+
+    def set_authentication_info(self, username: str, jwt_token: str, session_code: str = "", user_id: Optional[int] = None):
+        """Set authentication information for this client"""
+        self.username = username
+        self.jwt_token = jwt_token
+        self.session_code = session_code
+        self.user_id = user_id
+        logger.info(f"Authentication info set for user: {username}")
+
+    def get_authentication_info(self) -> Dict[str, Any]:
+        """Get current authentication information"""
+        return {
+            'username': self.username,
+            'jwt_token': getattr(self, 'jwt_token', None),
+            'session_code': self.session_code,
+            'user_id': self.user_id,
+            'is_authenticated': bool(getattr(self, 'jwt_token', None))
+        }
+
+    def is_authenticated(self) -> bool:
+        """Check if user is currently authenticated"""
+        return bool(getattr(self, 'jwt_token', None) and self.username)
 
 

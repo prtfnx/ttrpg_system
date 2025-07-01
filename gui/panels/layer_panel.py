@@ -14,7 +14,8 @@ class LayerPanel:
     def __init__(self, context, actions_bridge):
         self.context = context
         self.actions_bridge = actions_bridge
-        self.selected_layer = "tokens"
+        # Get initial selected layer from context
+        self.selected_layer = self.actions_bridge.get_selected_layer()
 
     def render(self):
         """Render the layer panel content"""
@@ -32,8 +33,13 @@ class LayerPanel:
         
         # Layer selection and visibility
         layers = self.actions_bridge.get_available_layers()
+        visible_layers = self.actions_bridge.get_visible_layers_for_mode()
         
         for layer in layers:
+            # Skip layers not accessible in current mode
+            if layer not in visible_layers:
+                continue
+                
             # Layer visibility checkbox
             visible = self.actions_bridge.get_layer_visibility(layer)
             clicked, new_visible = imgui.checkbox(f"##vis_{layer}", visible)
@@ -45,7 +51,15 @@ class LayerPanel:
             imgui.same_line()
             if imgui.radio_button(f"{layer.title()}##sel_{layer}", self.selected_layer == layer):
                 self.selected_layer = layer
+                # Update selected layer in context through actions bridge
+                self.actions_bridge.set_selected_layer(layer)
                 logger.info(f"Selected layer: {layer}")
+        
+        # Show mode restrictions if in player mode
+        if not self.actions_bridge.is_gm_mode():
+            imgui.separator()
+            imgui.text_colored((0.8, 0.8, 0.4, 1.0), "Player Mode:")
+            imgui.text_colored((0.7, 0.7, 0.7, 1.0), "Limited layer access")
         
         imgui.separator()
         
@@ -107,4 +121,6 @@ class LayerPanel:
         """Set the selected layer"""
         if layer in self.actions_bridge.get_available_layers():
             self.selected_layer = layer
+            # Update selected layer in context through actions bridge
+            self.actions_bridge.set_selected_layer(layer)
             logger.info(f"Layer changed to: {layer}")

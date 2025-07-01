@@ -40,5 +40,9 @@ xxhash  >=3.4.0
 # Web Scraping 
 beautifulsoup4>=4.12.0
 
-# Testing
+# Testing & Code Quality
 pytest>=7.4.0
+pylint>=3.0.0
+
+# Clipboard support for GUI
+pyperclip>=1.8.0

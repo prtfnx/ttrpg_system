@@ -36,8 +36,7 @@ def sync_sprite_move(context, sprite, old_pos, new_pos):
     msg = Message(MessageType.SPRITE_UPDATE, change, 
                 getattr(context.protocol, 'client_id', 'unknown'))
     
-    #print(f"Sending sprite move: {sprite.sprite_id} from ({old_pos[0]:.1f}, {old_pos[1]:.1f}) to ({new_pos[0]:.1f}, {new_pos[1]:.1f})")
-    #print(f"Sender: {context.protocol.send}")
+
     try:
         # Send the message 
         context.protocol.send(msg.to_json())

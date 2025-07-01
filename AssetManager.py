@@ -469,6 +469,7 @@ class ClientAssetManager:
                 if texture and w and h:
                     logger.info(f"Reloading texture for sprite with operation ID {operation_id} and filename {filename}")
                     sprite.reload_texture(texture, w, h)
+                    sprite.asset_id = asset_id                    
                     logger.info(f"Texture reloaded for operation ID {operation_id} with size {w}x{h}")
                     self.register_texture(asset_id, texture)
                     logger.info(f"Loaded asset for operation ID {operation_id} with texture {filename}")

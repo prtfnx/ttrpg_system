@@ -1,3 +1,4 @@
+import ctypes
 from typing import Dict, Any, List, Optional, TYPE_CHECKING
 from core_table.actions_protocol import ActionsProtocol, ActionResult, Position, LAYERS
 import uuid
@@ -498,8 +499,24 @@ class Actions(ActionsProtocol):
             
             # Start io operations to load asset texture
             if self.AssetManager and sprite:
-                logger.info(f"Loading asset for sprite {sprite_id} from {image_path}")    
-                self.AssetManager.load_asset_for_sprite(sprite, image_path, to_server=to_server)
+                # Check if we already have an asset_id (e.g., from copy/paste)
+                provided_asset_id = kwargs.get('asset_id')
+                if provided_asset_id:
+                    logger.info(f"Using existing asset_id {provided_asset_id} for sprite {sprite_id}")
+                    # Set the asset_id on the sprite before loading
+                    sprite.asset_id = provided_asset_id
+                    # Try to get cached texture directly
+                    texture = self.AssetManager.find_texture_by_asset_id(provided_asset_id)
+                    if texture:
+                        logger.info(f"Found cached texture for asset {provided_asset_id}")                        
+                        sprite.reload_texture(texture, int(sprite.frect.w), int(sprite.frect.h))
+                        logger.debug(f"Sprite frect: {sprite.frect.w}x{sprite.frect.h}")
+                    else:
+                        logger.warning(f"Texture not found for asset {provided_asset_id}, loading from path")
+                        self.AssetManager.load_asset_for_sprite(sprite, image_path, to_server=to_server)
+                else:
+                    logger.info(f"Loading asset for sprite {sprite_id} from {image_path}")    
+                    self.AssetManager.load_asset_for_sprite(sprite, image_path, to_server=to_server)
             if to_server:
                 logger.debug(f"Creating sprite {sprite_id} on server for table {table_id}")
                 self.context.protocol.sprite_create(table_id=table.table_id,

@@ -12,8 +12,7 @@ if TYPE_CHECKING:
     from LightManager import LightManager
     from GeometricManager import GeometricManager
     from ContextTable import ContextTable
-logger = setup_logger(__name__, level=logging.INFO)
-
+logger = setup_logger(__name__,level=logging.INFO )
 
 @dataclass
 class LayerSettings:
@@ -107,8 +106,8 @@ class RenderManager():
         if layer_name in self.layer_settings:
             self.layer_settings[layer_name].is_visible = visible
 
-    def render_all_layers(self):
-        """Render all layers in z_order"""
+    def render_all_layers(self, selected_layer: Optional[str] = None):
+        """Render all layers in z_order with transparency for non-selected layers"""
         #TODO: may use batch rendering for performance if neeeded
        
         
@@ -123,14 +122,24 @@ class RenderManager():
                 self._apply_layer_settings()
                 logger.debug(f"Applying settings for layer: {layer_name} - {settings}")
             if layer_name in self.dict_of_sprites_list:  
-                logger.debug(f"Rendering layer: {layer_name} with {len(self.dict_of_sprites_list[layer_name])} sprites")              
-                self.render_layer(self.dict_of_sprites_list[layer_name])
+                logger.debug(f"Rendering layer: {layer_name} with {len(self.dict_of_sprites_list[layer_name])} sprites")
+                # Determine if this is the selected layer
+                is_selected = (selected_layer is None) or (layer_name == selected_layer)
+                self.render_layer(self.dict_of_sprites_list[layer_name], layer_name, is_selected)
 
-    def render_layer(self, layer: List[Sprite]):
-        """Render a single layer of sprites"""
+    def render_layer(self, layer: List[Sprite], layer_name: Optional[str] = None, is_selected_layer: bool = True):
+        """Render a single layer of sprites with optional transparency for non-selected layers"""
         # Render sprites in the layer
         for sprite in layer:
             if sprite.texture and hasattr(sprite, 'frect'):
+                # Apply transparency for non-selected layers
+                if not is_selected_layer:
+                    # Set sprite to semi-transparent (50% alpha)
+                    sdl3.SDL_SetTextureAlphaMod(sprite.texture, ctypes.c_ubyte(128))
+                else:
+                    # Ensure sprite is fully opaque for selected layer
+                    sdl3.SDL_SetTextureAlphaMod(sprite.texture, ctypes.c_ubyte(255))
+                
                 # Check if sprite has rotation
                 rotation = getattr(sprite, 'rotation', 0.0)
                 if rotation != 0.0:
@@ -147,7 +156,11 @@ class RenderManager():
                                                 sdl3.SDL_FLIP_NONE)
                 else:
                     # Render without rotation
-                    sdl3.SDL_RenderTexture(self.renderer, sprite.texture, None, 
+                   logger.debug(f"Rendering sprite {sprite.name} in layer {layer_name} at "
+                                f"position {sprite.frect.x}, {sprite.frect.y} "
+                                f"w and h {sprite.frect.w}, {sprite.frect.h} "
+                                f"exc_info=with texture {sprite.texture}")
+                   sdl3.SDL_RenderTexture(self.renderer, sprite.texture, None, 
                                            ctypes.byref(sprite.frect))   
 
     def render_texture(self, texture: sdl3.SDL_Texture, 
@@ -391,7 +404,7 @@ class RenderManager():
                            ctypes.c_float(x), ctypes.c_float(y - radius),
                            ctypes.c_float(x), ctypes.c_float(y + radius))
 
-    def iterate_draw(self, table, light_on: bool = True):
+    def iterate_draw(self, table, light_on: bool = True, context=None):
         """Manage all rendering operations for a table for the current frame"""
         
         renderer = self.renderer               
@@ -423,10 +436,29 @@ class RenderManager():
             table.player =  table.selected_sprite
             self.prepare_lighting(table.player)
             # Render all layers with lighting
-            self.render_all_layers()
+            selected_layer = context.selected_layer if context else None
+            self.render_all_layers(selected_layer)
             # Finish lighting effects rendering
             self.finish_lighting()
         else:
             #logger.info("no light")
-            self.render_all_layers()
+            selected_layer = context.selected_layer if context else None
+            self.render_all_layers(selected_layer)
         self.draw_margin(table.selected_sprite)  # Draw margin around selected sprite if any
+        
+        # Render measurement tool overlay if active
+        # Check for measurement tool in the provided context first, then table.context
+        measurement_tool = None
+        if context and hasattr(context, 'measurement_tool'):
+            measurement_tool = context.measurement_tool
+            
+        if measurement_tool and measurement_tool.active:
+            measurement_tool.render(self.renderer)
+        
+        # Render drawing tool overlay if active
+        drawing_tool = None
+        if context and hasattr(context, 'drawing_tool'):
+            drawing_tool = context.drawing_tool
+            
+        if drawing_tool and drawing_tool.active:
+            drawing_tool.render(self.renderer)

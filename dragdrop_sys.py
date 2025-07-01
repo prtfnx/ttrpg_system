@@ -8,15 +8,10 @@ import os
 from typing import Optional
 import sdl3
 import ctypes
+from core_table.actions_protocol import Position
 from logger import setup_logger
 
 logger = setup_logger(__name__)
-
-class Position:
-    """Simple position class for drop coordinates."""
-    def __init__(self, x: float, y: float):
-        self.x = x
-        self.y = y
 
 
 def handle_drag_drop_event(context, event) -> bool:
@@ -254,13 +249,7 @@ def _get_drop_position(context) -> Position:
             if hasattr(current_table, 'screen_to_table'):
                 table_x, table_y = current_table.screen_to_table(screen_x, screen_y)
                 logger.debug(f"Converted screen position ({screen_x}, {screen_y}) to table position ({table_x}, {table_y}) using screen_to_table")
-            else:
-                # Fallback to legacy coordinate conversion
-                table_x = (screen_x - getattr(current_table, 'x_moved', 0)) / getattr(current_table, 'scale', 1.0)
-                table_y = (screen_y - getattr(current_table, 'y_moved', 0)) / getattr(current_table, 'scale', 1.0)
-                logger.debug(f"Converted screen position ({screen_x}, {screen_y}) to table position ({table_x}, {table_y}) using legacy conversion")
-                logger.debug(f"Legacy table offset: ({getattr(current_table, 'x_moved', 0)}, {getattr(current_table, 'y_moved', 0)}), scale: {getattr(current_table, 'scale', 1.0)}")
-            
+                       
             return Position(x=table_x, y=table_y)
         elif screen_x is not None and screen_y is not None:
             # No table available, use screen coordinates as-is

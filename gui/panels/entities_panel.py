@@ -4,11 +4,12 @@ Updated to use Actions protocol bridge
 """
 
 from imgui_bundle import imgui
-import logging
+
 import os
 from core_table.actions_protocol import Position
 
-logger = logging.getLogger(__name__)
+from logger import setup_logger
+logger = setup_logger(__name__)
 
 
 class EntitiesPanel:
@@ -27,8 +28,7 @@ class EntitiesPanel:
     def render(self):
         """Render the entities panel content"""
         # Sync table selection to panel selection
-        self._sync_table_selection_to_panel()
-        
+        self._sync_table_selection_to_panel()        
         imgui.text("Entities & Sprites")
         imgui.separator()
         

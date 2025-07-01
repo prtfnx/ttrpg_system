@@ -3,9 +3,8 @@ Compendium Panel - Panel for managing game content and references
 """
 
 from imgui_bundle import imgui
-import logging
-
-logger = logging.getLogger(__name__)
+from logger import setup_logger
+logger = setup_logger(__name__)
 
 
 class CompendiumPanel:

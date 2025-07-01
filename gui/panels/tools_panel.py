@@ -3,10 +3,10 @@ Tools Panel - Left sidebar panel for DM tools and actions
 """
 
 from imgui_bundle import imgui
-import logging
-import random
 
-logger = logging.getLogger(__name__)
+import random
+from logger import setup_logger
+logger = setup_logger(__name__)
 
 
 class ToolsPanel:

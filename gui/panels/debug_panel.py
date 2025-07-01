@@ -3,12 +3,13 @@ Debug Panel - Debug information and developer tools
 """
 
 from imgui_bundle import imgui
-import logging
+
 import time
 import psutil
-import threading
 
-logger = logging.getLogger(__name__)
+
+from logger import setup_logger
+logger = setup_logger(__name__)
 
 
 class DebugPanel:
@@ -24,6 +25,7 @@ class DebugPanel:
         self.last_update = time.time()
     def render(self):
         """Render the debug panel content"""
+        
         if not imgui.collapsing_header("Debug Information"):
             return
             

@@ -4,11 +4,12 @@ Network Panel - Network connectivity and multiplayer features
 
 from imgui_bundle import imgui
 from typing import Dict, Any, List
-import logging
-import socket
-import threading
 
-logger = logging.getLogger(__name__)
+import socket
+
+
+from logger import setup_logger
+logger = setup_logger(__name__)
 
 
 class NetworkPanel:

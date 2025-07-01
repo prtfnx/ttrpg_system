@@ -11,6 +11,7 @@ from .layer_panel import LayerPanel
 from .storage_panel import StoragePanel
 from .character_sheet_panel import CharacterSheetPanel
 
+
 __all__ = [
     'ToolsPanel',
     'ChatPanel', 

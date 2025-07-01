@@ -3,7 +3,7 @@ Storage Panel for TTRPG GUI System
 Provides file management interface as part of the main GUI panels.
 """
 import os
-import logging
+
 import time
 import subprocess
 import sys
@@ -17,7 +17,8 @@ from imgui_bundle import imgui
 from storage.r2_manager import R2AssetManager
 import settings
 
-logger = logging.getLogger(__name__)
+from logger import setup_logger
+logger = setup_logger(__name__)
 
 class StoragePanel:
     """Storage management panel for the TTRPG GUI system"""

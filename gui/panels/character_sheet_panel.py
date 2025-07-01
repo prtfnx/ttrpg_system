@@ -6,14 +6,15 @@ Matches the official D&D 5E character sheet PDF with fantasy styling
 
 from imgui_bundle import imgui
 import math
-import logging
+
 from typing import Dict, List, Optional, Tuple
 from core_table.compendiums.characters.character import (
     Character, AbilityScore, Skill, Race, CharacterClass, Background, Feat,
     AbilityScoreIncrease, Size
 )
 
-logger = logging.getLogger(__name__)
+from logger import setup_logger
+logger = setup_logger(__name__)
 
 
 class CharacterSheetPanel:

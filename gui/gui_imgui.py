@@ -10,7 +10,7 @@ from imgui_bundle.python_backends.sdl3_backend import SDL3Renderer
 import OpenGL.GL as gl
 import sdl3
 import ctypes
-import logging
+
 import os
 import platform
 import time
@@ -29,14 +29,18 @@ from .panels import (
     CompendiumPanel,
     LayerPanel,
     StoragePanel,
-    CharacterSheetPanel
-)
-from .panels.settings_panel import SettingsPanel
+    CharacterSheetPanel,    
+)    
+
+# Import external windows
+from .windows.settings_window import SettingsWindow
+
 
 # Import GUI actions bridge
 from .gui_actions_bridge import GuiActionsBridge
 
-logger = logging.getLogger(__name__)
+from logger import setup_logger
+logger = setup_logger(__name__)
 
 
 class GuiPanel(Enum):
@@ -51,7 +55,7 @@ class GuiPanel(Enum):
     LAYERS = "layers"
     STORAGE = "storage"
     CHARACTER_SHEET = "character_sheet"
-    SETTINGS = "settings"
+    
 
 
 @dataclass
@@ -104,9 +108,15 @@ class SimplifiedGui:
             GuiPanel.COMPENDIUM: CompendiumPanel(context, self.actions_bridge),
             GuiPanel.LAYERS: LayerPanel(context, self.actions_bridge),
             GuiPanel.STORAGE: StoragePanel(context, self.actions_bridge),
-            GuiPanel.CHARACTER_SHEET: CharacterSheetPanel(context, self.actions_bridge),
-            GuiPanel.SETTINGS: SettingsPanel(context),
+            GuiPanel.CHARACTER_SHEET: CharacterSheetPanel(context, self.actions_bridge),            
         }
+        
+        # Initialize external windows
+        self.external_windows = []
+        self.settings_window = SettingsWindow(context)
+        logger.info(f"Settings window initialized {self.settings_window}")
+        self.external_windows.append(self.settings_window)        
+
         
         # Initialize state
         self.fps = 0.0          # Initialize ImGui
@@ -190,7 +200,7 @@ class SimplifiedGui:
             
             # Render context menu
             try:
-                import context_menu
+                
                 context_menu.render_context_menu()
             except Exception as e:
                 logger.error(f"Context menu render error: {e}")
@@ -199,18 +209,15 @@ class SimplifiedGui:
             self._render_external_windows()
             
         except Exception as e:
-            logger.error(f"GUI render error: {e}")
-    
+            logger.error(f"GUI render error: {e}")  
+
     def _render_external_windows(self):
-        """Render all external windows from panels"""
-        # Render character sheet fullscreen window if it exists
-        if hasattr(self.panel_instances[GuiPanel.CHARACTER_SHEET], 'render_external_window'):
-            self.panel_instances[GuiPanel.CHARACTER_SHEET].render_external_window()
-            
-        # Render settings panel as external window
-        if GuiPanel.SETTINGS in self.panel_instances:
-            self.panel_instances[GuiPanel.SETTINGS].render()
-    
+        """Render external windows (e.g. dialogs, popups)"""
+        for window in self.external_windows:
+            if hasattr(window, 'render') and callable(window.render):
+                window.render()
+   
+
     def _render_layout(self):
         """Render the 4-sided fixed layout with resizable panels"""
         # Calculate layout dimensions
@@ -268,10 +275,11 @@ class SimplifiedGui:
             imgui.separator()
             
             # Layers section (bottom 30%)
-            imgui.begin_child("LayersSection", (0, available_height * 0.3))
-            if GuiPanel.LAYERS in self.panel_instances:
-                self.panel_instances[GuiPanel.LAYERS].render()
-            imgui.end_child()
+            if self.actions_bridge.can_access_panel(GuiPanel.LAYERS.value):
+                imgui.begin_child("LayersSection", (0, available_height * 0.3))
+                if GuiPanel.LAYERS in self.panel_instances:
+                    self.panel_instances[GuiPanel.LAYERS].render()
+                imgui.end_child()
         
         imgui.end()
     
@@ -300,6 +308,7 @@ class SimplifiedGui:
                     self._update_layout_manager()
             
             # Panel tabs - filter based on user mode
+            #TODO make proper logic for role, for now mockup
             available_panels = []
             for panel_type in [GuiPanel.CHAT, GuiPanel.ENTITIES, GuiPanel.DEBUG, 
                              GuiPanel.NETWORK, GuiPanel.COMPENDIUM, GuiPanel.STORAGE,
@@ -308,12 +317,12 @@ class SimplifiedGui:
                 if self.actions_bridge.can_access_panel(panel_name):
                     available_panels.append(panel_type)
             
-            if imgui.begin_tab_bar("RightTabs"):
-                for panel_type in available_panels:
+            if imgui.begin_tab_bar("RightTabs"):                
+                for panel_type in available_panels:                    
                     panel_name = panel_type.value.replace('_', ' ').title()
                     # begin_tab_item returns a tuple (visible, open) - we need the first value
                     tab_result = imgui.begin_tab_item(panel_name)
-                    tab_visible = tab_result[0] if isinstance(tab_result, tuple) else tab_result
+                    tab_visible = tab_result[0] 
                     
                     if tab_visible:
                         if panel_type in self.panel_instances:
@@ -341,6 +350,7 @@ class SimplifiedGui:
             imgui.WindowFlags_.no_title_bar.value
         )
           # Create resizable window
+        
         if imgui.begin("Top Panel", None, window_flags):
             # Check if window was resized
             current_height = imgui.get_window_height()
@@ -352,6 +362,7 @@ class SimplifiedGui:
                     self._update_layout_manager()
             
             # Render active panel
+            
             if self.active_top_panel in self.panel_instances:
                 self.panel_instances[self.active_top_panel].render()
         

@@ -4,14 +4,15 @@ Provides a clean interface for GUI panels to interact with game logic
 """
 
 from typing import Dict, Any, Optional, List
-import logging
+
 import uuid
 import sys
 import os
 from gui.tools.measurement_tool import MeasurementTool
 from core_table.actions_protocol import ActionResult, Position
 
-logger = logging.getLogger(__name__)
+from logger import setup_logger
+logger = setup_logger(__name__)
 
 class GuiActionsBridge:
     """
@@ -569,15 +570,16 @@ class GuiActionsBridge:
     
     def can_access_panel(self, panel_name: str) -> bool:
         """Check if current user can access a specific panel based on mode"""
+        
         if self.is_gm_mode():
             return True  # GM has access to all panels
         
         # Player mode restrictions - hide specific panels
         restricted_panels = [
-            'entity_panel',      # Entities panel must be hidden
-            'compendium_panel',  # Compendium panel must be hidden
-            'layers_panel',      # Layers panel must be hidden full
-            'tables_panel'       # Table panel must be full hidden
+            'entities',      # Entities panel must be hidden
+            'compendium',  # Compendium panel must be hidden
+            'layers',      # Layers panel must be hidden full
+            'table'       # Table panel must be full hidden
         ]
         
         # Allow access if not in restricted list

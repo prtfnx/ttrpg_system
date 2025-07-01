@@ -4,9 +4,8 @@ Rewritten from scratch using ImGui best practices
 """
 
 from imgui_bundle import imgui
-import logging
-
-logger = logging.getLogger(__name__)
+from logger import setup_logger
+logger = setup_logger(__name__)
 
 
 class TablePanel:
@@ -19,7 +18,7 @@ class TablePanel:
         # Session state
         self.session_name = "New Session"
         self.player_count = 4
-        # Note: User mode (DM/Player) is determined by server context, not local UI
+        
         
         # Table creation state
         self.new_table_name = "New Table"
@@ -69,17 +68,22 @@ class TablePanel:
             imgui.separator()
             
             # === ROW 2: Table Management Tabs and Actions ===
-            self._render_table_management()
+            if self.actions_bridge.can_access_panel('table'):
+                imgui.text("Table Management:")
+                imgui.same_line()
+                    
+                    # Render table management section
+                self._render_table_management()
+                
+                imgui.separator()
+                
+                # === ROW 3: Session Controls ===
+                self._render_session_controls()
             
-            imgui.separator()
-            
-            # === ROW 3: Session Controls ===
-            self._render_session_controls()
-            
-            # Handle modal popups
-            self._render_table_creation_popup()
-            self._render_save_dialog()
-            self._render_load_dialog()
+                # Handle modal popups
+                self._render_table_creation_popup()
+                self._render_save_dialog()
+                self._render_load_dialog()
             
         except Exception as e:            
             logger.error(f"Error rendering table panel: {e}")            
@@ -96,6 +100,11 @@ class TablePanel:
             self.current_style_index = new_style_index
             self.current_style = self.available_styles[new_style_index]
             self._apply_style(self.current_style)
+        
+        # Settings button
+        imgui.same_line()
+        if imgui.button("Settings"):
+            self._open_settings_window()
 
     def _render_table_status(self):
         """Render current table status and sync indicator - OPTIMIZED"""
@@ -1205,3 +1214,26 @@ class TablePanel:
         style.window_padding = imgui.ImVec2(12, 12)
         style.grab_rounding = 2.0
         style.tab_rounding = 2.0
+
+    def _open_settings_window(self):
+        """Open the settings window through the GUI system"""
+        try:
+            
+            settings_window = None            
+            
+            if hasattr(self.context, 'imgui') and hasattr(self.context.imgui, 'settings_window'):
+                settings_window = self.context.imgui.settings_window                
+            
+            if settings_window and hasattr(settings_window, 'open'):
+                settings_window.open()
+                logger.info("Settings window opened successfully")
+            else:
+                logger.warning("Settings window not available - no valid settings window found")
+                logger.debug(f"Context has gui: {hasattr(self.context, 'gui')}")
+                if hasattr(self.context, 'imgui'):
+                    logger.debug(f"GUI has settings_window: {hasattr(self.context.imgui, 'settings_window')}")
+                    
+        except Exception as e:
+            logger.error(f"Error opening settings window: {e}")
+            import traceback
+            logger.debug(f"Full traceback: {traceback.format_exc()}")

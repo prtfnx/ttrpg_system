@@ -9,11 +9,11 @@ import importlib
 from typing import Dict, Any, List
 from logger import setup_logger
 from imgui_bundle import imgui
-
+import settings
 logger = setup_logger(__name__)
 
-class SettingsPanel:
-    """Panel for editing application settings"""
+class SettingsWindow:
+    """Window for editing application settings"""
     
     def __init__(self, context):
         self.context = context
@@ -23,6 +23,9 @@ class SettingsPanel:
         self.dirty = False
         self.error_message = ""
         self.success_message = ""
+        
+        # Dialog states
+        self.show_cancel_confirmation = False
         
         # Categories for organization
         self.categories = {
@@ -43,7 +46,7 @@ class SettingsPanel:
     def load_settings(self):
         """Load current settings from settings.py"""
         try:
-            import settings
+            
             importlib.reload(settings)  # Reload to get fresh values
             
             self.settings_data = {}
@@ -123,21 +126,23 @@ class SettingsPanel:
         self.error_message = ""
     
     def open(self):
-        """Open the settings panel"""
+        """Open the settings window"""
         self.show = True
+        self.show_cancel_confirmation = False  # Reset dialog state
         self.load_settings()  # Refresh settings when opening
         
     def close(self):
-        """Close the settings panel"""
+        """Close the settings window"""
         self.show = False
+        self.show_cancel_confirmation = False  # Reset dialog state
         self.success_message = ""
         self.error_message = ""
     
     def render(self):
-        """Render the settings panel"""
+        """Render the settings window"""
+        
         if not self.show:
-            return
-            
+            return         
         imgui.set_next_window_size((800, 600), imgui.Cond_.first_use_ever.value)
         
         opened = imgui.begin("Settings", True)
@@ -147,61 +152,96 @@ class SettingsPanel:
             return
             
         try:
-            # Left panel - Categories
-            if imgui.begin_child("Categories", (200, 0), True):
-                for category in self.categories.keys():
-                    if imgui.selectable(category, self.selected_category == category)[0]:
-                        self.selected_category = category
+            # Left panel - Categories (also needs to reserve space for buttons)
+            imgui.begin_child("Categories", (200, -100), True)
+            for category in self.categories.keys():
+                clicked, selected = imgui.selectable(category, self.selected_category == category)
+                if clicked:
+                    self.selected_category = category
             imgui.end_child()
             
             imgui.same_line()
             
-            # Right panel - Settings for selected category
-            if imgui.begin_child("Settings", (0, -40), True):
-                imgui.text(f"Settings - {self.selected_category}")
-                imgui.separator()
-                
-                if self.selected_category in self.categories:
-                    for setting_name in self.categories[self.selected_category]:
-                        if setting_name in self.settings_data:
-                            self._render_setting_control(setting_name)
-                            
+            # Right panel - Settings for selected category  
+            # Use fixed height for settings area to ensure buttons are always visible
+            # This leaves exactly 100px at the bottom for buttons
+            imgui.begin_child("Settings", (0, -100), True)
+            imgui.text(f"Settings - {self.selected_category}")
+            imgui.separator()
+            
+            if self.selected_category in self.categories:
+                for setting_name in self.categories[self.selected_category]:
+                    if setting_name in self.settings_data:
+                        self._render_setting_control(setting_name)
+                        
             imgui.end_child()
             
             # Bottom panel - Buttons and messages
             imgui.separator()
             
-            # Messages
+            # Add some spacing
+            imgui.spacing()
+            
+            # Messages (full width)
             if self.error_message:
                 imgui.text_colored((1.0, 0.2, 0.2, 1.0), self.error_message)
+                imgui.spacing()
             elif self.success_message:
                 imgui.text_colored((0.2, 1.0, 0.2, 1.0), self.success_message)
-            
-            # Buttons
-            if imgui.button("Save"):
-                self.save_settings()
-            
-            imgui.same_line()
-            if imgui.button("Reset"):
-                self.reset_settings()
-            
-            imgui.same_line()
-            if imgui.button("Reload"):
-                self.load_settings()
-            
-            imgui.same_line()
-            if imgui.button("Close"):
-                self.close()
+                imgui.spacing()
             
             # Show dirty indicator
             if self.dirty:
-                imgui.same_line()
                 imgui.text_colored((1.0, 1.0, 0.2, 1.0), "* Unsaved changes")
+                imgui.spacing()
+            
+            # Button area - right-aligned with Save first, then Cancel
+            available_width = imgui.get_content_region_avail()[0]
+            button_width = 100  # Bigger buttons
+            button_spacing = 8  # imgui default spacing
+            button_gap = 16  # Extra space between Save and Cancel
+            
+            # Additional utility buttons (Reset + Reload) on the left
+            if imgui.button("Reset", (button_width, 0)):
+                self.reset_settings()
+            
+            imgui.same_line()
+            if imgui.button("Reload", (button_width, 0)):
+                self.load_settings()
+            
+            # Push primary buttons to the right
+            imgui.same_line()
+            # Calculate space needed: 2 utility buttons + 2 primary buttons + spacing + gap
+            total_buttons_width = (button_width * 4) + (button_spacing * 3) + button_gap
+            remaining_width = available_width - total_buttons_width
+            if remaining_width > 0:
+                imgui.dummy((remaining_width, 0))
+                imgui.same_line()
+            
+            # Primary buttons - Save first, then Cancel with extra spacing
+            # Make Save button highlighted (primary button style)
+            imgui.push_style_color(imgui.Col_.button.value, imgui.ImVec4(0.2, 0.6, 0.2, 1.0))  # Green tint
+            if imgui.button("Save", (button_width, 0)):
+                self.save_settings()
+            imgui.pop_style_color()
+            
+            imgui.same_line()
+            imgui.dummy((button_gap, 0))  # Extra space between Save and Cancel
+            imgui.same_line()
+            
+            if imgui.button("Cancel", (button_width, 0)):
+                if self.dirty:
+                    self.show_cancel_confirmation = True
+                else:
+                    self.close()
                 
         except Exception as e:
             logger.error(f"Error rendering settings panel: {e}")
             
         imgui.end()
+        
+        # Render cancel confirmation dialog
+        self._render_cancel_confirmation()
     
     def _render_setting_control(self, setting_name: str):
         """Render a control for a specific setting"""
@@ -209,8 +249,14 @@ class SettingsPanel:
             current_value = self.settings_data[setting_name]
             original_value = current_value
             
+            # Calculate proper spacing based on longest setting name
+            label_width = 250  # Fixed width for labels to prevent overlap
+            
             imgui.text(setting_name)
-            imgui.same_line(200)  # Align input controls
+            imgui.same_line(label_width)  # Use fixed width instead of 200
+            
+            # Set a consistent width for input controls
+            imgui.set_next_item_width(200)
             
             # Determine control type based on value type
             if isinstance(current_value, bool):
@@ -254,6 +300,9 @@ class SettingsPanel:
                 imgui.text_disabled("(?)")
                 if imgui.is_item_hovered():
                     imgui.set_tooltip(self._get_setting_help(setting_name))
+            
+            # Add spacing between settings
+            imgui.spacing()
                     
         except Exception as e:
             logger.error(f"Error rendering control for {setting_name}: {e}")
@@ -272,3 +321,46 @@ class SettingsPanel:
             "LOG_LEVEL": "Logging verbosity level"
         }
         return help_texts.get(setting_name, "No help available")
+    
+    def _render_cancel_confirmation(self):
+        """Render confirmation dialog for cancel with unsaved changes"""
+        if self.show_cancel_confirmation:
+            imgui.open_popup("Unsaved Changes")
+            
+        # Center the popup
+        viewport = imgui.get_main_viewport()
+        center_x = viewport.work_pos.x + viewport.work_size.x * 0.5
+        center_y = viewport.work_pos.y + viewport.work_size.y * 0.5
+        imgui.set_next_window_pos((center_x, center_y), imgui.Cond_.appearing.value, (0.5, 0.5))
+        
+        # Check if popup modal is open
+        popup_opened, popup_should_close = imgui.begin_popup_modal("Unsaved Changes", True, imgui.WindowFlags_.always_auto_resize.value)
+        if popup_opened:
+            imgui.text("You have unsaved changes.")
+            imgui.text("What would you like to do?")
+            imgui.separator()
+            
+            if imgui.button("Save and Close"):
+                self.save_settings()
+                if not self.error_message:  # Only close if save was successful
+                    self.show_cancel_confirmation = False
+                    self.close()
+                imgui.close_current_popup()
+            
+            imgui.same_line()
+            if imgui.button("Discard Changes"):
+                self.reset_settings()
+                self.show_cancel_confirmation = False
+                self.close()
+                imgui.close_current_popup()
+            
+            imgui.same_line()
+            if imgui.button("Continue Editing"):
+                self.show_cancel_confirmation = False
+                imgui.close_current_popup()
+            
+            # Handle X button or ESC key
+            if not popup_should_close:
+                self.show_cancel_confirmation = False
+            
+            imgui.end_popup()

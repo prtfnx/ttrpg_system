@@ -31,6 +31,7 @@ from .panels import (
     StoragePanel,
     CharacterSheetPanel
 )
+from .panels.settings_panel import SettingsPanel
 
 # Import GUI actions bridge
 from .gui_actions_bridge import GuiActionsBridge
@@ -50,6 +51,7 @@ class GuiPanel(Enum):
     LAYERS = "layers"
     STORAGE = "storage"
     CHARACTER_SHEET = "character_sheet"
+    SETTINGS = "settings"
 
 
 @dataclass
@@ -75,6 +77,9 @@ class SimplifiedGui:
         # Initialize GUI actions bridge
         self.actions_bridge = GuiActionsBridge(context)
         
+        # Initialize user mode based on context settings
+        self.actions_bridge.initialize_user_mode()
+        
         # Panel states
         self.panels: Dict[GuiPanel, PanelState] = {
             panel: PanelState() for panel in GuiPanel
@@ -88,7 +93,7 @@ class SimplifiedGui:
         self.active_left_panel = GuiPanel.TOOLS
         self.active_right_panel = GuiPanel.CHARACTER_SHEET
         self.active_top_panel = GuiPanel.TABLE
-        self.active_bottom_panel = GuiPanel.CHAT# Initialize panel instances with actions bridge
+        self.active_bottom_panel = GuiPanel.CHAT        # Initialize panel instances with actions bridge
         self.panel_instances = {
             GuiPanel.TOOLS: ToolsPanel(context, self.actions_bridge),
             GuiPanel.CHAT: ChatPanel(context, self.actions_bridge),
@@ -100,6 +105,7 @@ class SimplifiedGui:
             GuiPanel.LAYERS: LayerPanel(context, self.actions_bridge),
             GuiPanel.STORAGE: StoragePanel(context, self.actions_bridge),
             GuiPanel.CHARACTER_SHEET: CharacterSheetPanel(context, self.actions_bridge),
+            GuiPanel.SETTINGS: SettingsPanel(context),
         }
         
         # Initialize state
@@ -200,6 +206,10 @@ class SimplifiedGui:
         # Render character sheet fullscreen window if it exists
         if hasattr(self.panel_instances[GuiPanel.CHARACTER_SHEET], 'render_external_window'):
             self.panel_instances[GuiPanel.CHARACTER_SHEET].render_external_window()
+            
+        # Render settings panel as external window
+        if GuiPanel.SETTINGS in self.panel_instances:
+            self.panel_instances[GuiPanel.SETTINGS].render()
     
     def _render_layout(self):
         """Render the 4-sided fixed layout with resizable panels"""
@@ -289,11 +299,17 @@ class SimplifiedGui:
                 if abs(old_width - self.right_sidebar_width) > 1.0:
                     self._update_layout_manager()
             
-            # Panel tabs
+            # Panel tabs - filter based on user mode
+            available_panels = []
+            for panel_type in [GuiPanel.CHAT, GuiPanel.ENTITIES, GuiPanel.DEBUG, 
+                             GuiPanel.NETWORK, GuiPanel.COMPENDIUM, GuiPanel.STORAGE,
+                             GuiPanel.CHARACTER_SHEET]:
+                panel_name = panel_type.value
+                if self.actions_bridge.can_access_panel(panel_name):
+                    available_panels.append(panel_type)
+            
             if imgui.begin_tab_bar("RightTabs"):
-                for panel_type in [GuiPanel.CHAT, GuiPanel.ENTITIES, GuiPanel.DEBUG, 
-                                 GuiPanel.NETWORK, GuiPanel.COMPENDIUM, GuiPanel.STORAGE,
-                                 GuiPanel.CHARACTER_SHEET]:
+                for panel_type in available_panels:
                     panel_name = panel_type.value.replace('_', ' ').title()
                     # begin_tab_item returns a tuple (visible, open) - we need the first value
                     tab_result = imgui.begin_tab_item(panel_name)

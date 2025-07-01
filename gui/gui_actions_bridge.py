@@ -6,6 +6,9 @@ Provides a clean interface for GUI panels to interact with game logic
 from typing import Dict, Any, Optional, List
 import logging
 import uuid
+import sys
+import os
+from gui.tools.measurement_tool import MeasurementTool
 from core_table.actions_protocol import ActionResult, Position
 
 logger = logging.getLogger(__name__)
@@ -222,10 +225,13 @@ class GuiActionsBridge:
             logger.error("No current table for layer visibility")
             return False
             
-        table_id = self.context.current_table.table_id  # Use table_id instead of name
+        table_id = self.context.current_table.table_id
         result = self.actions.set_layer_visibility(table_id, layer, visible)
         
         if result.success:
+            # Also update RenderManager for immediate effect
+            if hasattr(self.context, 'RenderManager'):
+                self.context.RenderManager.set_layer_visibility(layer, visible)
             logger.info(f"Layer visibility set: {result.message}")
             return True
         else:
@@ -236,18 +242,120 @@ class GuiActionsBridge:
         """Get layer visibility status"""
         if not self.context.current_table:
             logger.error("No current table for layer visibility check")
-            return True  # Default to visible
+            return True
             
-        table_id = self.context.current_table.table_id  # Use table_id instead of name
+        table_id = self.context.current_table.table_id
         result = self.actions.get_layer_visibility(table_id, layer)
         
         if result.success:
             return result.data.get('visible', True)
         else:
             logger.error(f"Failed to get layer visibility: {result.message}")
-            return True  # Default to visible
+            return True
     
-    # Utility Methods
+    def set_layer_opacity(self, layer: str, opacity: float) -> bool:
+        """Set layer opacity (0.0 to 1.0)"""
+        if not self.context.current_table:
+            logger.error("No current table for layer opacity")
+            return False
+            
+        try:
+            # Update RenderManager for immediate visual effect
+            if hasattr(self.context, 'RenderManager'):
+                render_manager = self.context.RenderManager
+                settings = render_manager.get_layer_settings(layer)
+                settings.opacity = max(0.0, min(1.0, opacity))  # Clamp to 0-1 range
+                render_manager.set_layer_settings(layer, settings)
+                
+            # Try to update via Actions protocol for persistence/network sync
+            table_id = self.context.current_table.table_id
+            if hasattr(self.actions, 'set_layer_opacity'):
+                result = self.actions.set_layer_opacity(table_id, layer, opacity)
+                if not result.success:
+                    logger.warning(f"Actions protocol layer opacity update failed: {result.message}")
+            
+            logger.info(f"Layer {layer} opacity set to {opacity}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to set layer opacity: {e}")
+            return False
+    
+    def get_layer_opacity(self, layer: str) -> float:
+        """Get layer opacity"""
+        try:
+            if hasattr(self.context, 'RenderManager'):
+                render_manager = self.context.RenderManager
+                settings = render_manager.get_layer_settings(layer)
+                return settings.opacity
+            else:
+                logger.error("RenderManager not available for layer opacity")
+                return 1.0
+        except Exception as e:
+            logger.error(f"Failed to get layer opacity: {e}")
+            return 1.0
+    
+    def set_layer_z_order(self, layer: str, z_order: int) -> bool:
+        """Set layer z-order (rendering order)"""
+        if not self.context.current_table:
+            logger.error("No current table for layer z-order")
+            return False
+            
+        try:
+            # Update RenderManager for immediate visual effect
+            if hasattr(self.context, 'RenderManager'):
+                render_manager = self.context.RenderManager
+                settings = render_manager.get_layer_settings(layer)
+                settings.z_order = z_order
+                render_manager.set_layer_settings(layer, settings)
+                
+            # Try to update via Actions protocol for persistence/network sync
+            table_id = self.context.current_table.table_id
+            if hasattr(self.actions, 'set_layer_z_order'):
+                result = self.actions.set_layer_z_order(table_id, layer, z_order)
+                if not result.success:
+                    logger.warning(f"Actions protocol layer z-order update failed: {result.message}")
+            
+            logger.info(f"Layer {layer} z-order set to {z_order}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to set layer z-order: {e}")
+            return False
+    
+    def get_layer_z_order(self, layer: str) -> int:
+        """Get layer z-order"""
+        try:
+            if hasattr(self.context, 'RenderManager'):
+                render_manager = self.context.RenderManager
+                settings = render_manager.get_layer_settings(layer)
+                return settings.z_order
+            else:
+                logger.error("RenderManager not available for layer z-order")
+                return 0
+        except Exception as e:
+            logger.error(f"Failed to get layer z-order: {e}")
+            return 0
+
+    # Selected Layer Management
+    def get_selected_layer(self) -> str:
+        """Get the currently selected layer"""
+        return self.context.selected_layer
+    
+    def set_selected_layer(self, layer: str) -> bool:
+        """Set the currently selected layer"""
+        try:
+            # Validate layer exists
+            if layer not in self.get_available_layers():
+                logger.error(f"Invalid layer: {layer}")
+                return False
+                
+            self.context.selected_layer = layer
+            logger.info(f"Selected layer changed to: {layer}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to set selected layer: {e}")
+            return False
+
+    # Sprite and Layer Management
     def get_sprite_at_position(self, x: float, y: float, layer: Optional[str] = None) -> Optional[str]:
         """Get sprite ID at position"""
         if not self.context.current_table:
@@ -278,30 +386,41 @@ class GuiActionsBridge:
     
     # Additional utility methods for GUI integration
     def has_current_table(self) -> bool:
-        """Check if there is a current table"""
+        """Check if there's a current table"""
         return self.context.current_table is not None
     
     def get_available_layers(self) -> List[str]:
         """Get list of available layers"""
-        if not self.context.current_table:
-            return []
-        return self.context.current_table.layers
-    def add_chat_message(self, message: str) -> bool:
-        """Add a chat message (placeholder for future implementation)"""
-        # This is a placeholder - actual chat system would be implemented separately
-        logger.info(f"Chat message: {message}")
-        return True
+        try:
+            if self.context.current_table and hasattr(self.context.current_table, 'dict_of_sprites_list'):
+                # Get actual layers from current table
+                return list(self.context.current_table.dict_of_sprites_list.keys())
+            else:
+                # Get from Actions protocol
+                from core_table.actions_protocol import LAYERS
+                return list(LAYERS.keys())
+        except ImportError as e:
+            logger.error(f"Failed to import LAYERS from actions_protocol: {e}")
+            raise RuntimeError("Cannot determine available layers - actions_protocol not available")
     
     def get_chat_messages(self) -> List[str]:
-        """Get chat messages (placeholder for future implementation)"""
-        # This is a placeholder - actual chat system would be implemented separately
-        return []
+        """Get chat messages from the system"""
+        try:
+            result = self.actions.get_chat_messages()
+            if result.success:
+                return result.data.get('messages', [])
+            else:
+                logger.error(f"Failed to get chat messages: {result.message}")
+                return []
+        except Exception as e:
+            logger.error(f"Failed to get chat messages: {e}")
+            return []
     
     def get_current_table_name(self) -> str:
         """Get current table name"""
-        if not self.context.current_table:
-            return ""
-        return self.context.current_table.table_name
+        if self.context.current_table:
+            return self.context.current_table.name
+        return "No table"
     
     def set_current_tool(self, tool: str) -> bool:
         """Set current tool"""
@@ -316,13 +435,171 @@ class GuiActionsBridge:
         """Get current tool"""
         return getattr(self.context, 'current_tool', 'Move')
     
-    def get_table_by_name(self, name: str):
-        """Get table by name (helper method)"""
-        return self.context._get_table_by_name(name)
+    # Utility Methods
+    def start_measurement_tool(self) -> bool:
+        """Start the measurement/liner tool"""
+        try:
+            # Check if measurement_tool exists and is not None
+            if hasattr(self.context, 'measurement_tool') and self.context.measurement_tool is not None:
+                self.context.measurement_tool.start()
+                self.context.current_tool = 'Measure'
+                logger.info("Measurement tool started")
+                return True
+            else:
+                # Initialize measurement tool if it doesn't exist or is None
+
+                sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+                
+                self.context.measurement_tool = MeasurementTool(self.context)
+                self.context.measurement_tool.start()
+                self.context.current_tool = 'Measure'
+                logger.info("Measurement tool initialized and started")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to start measurement tool: {e}")
+            return False
     
-    def get_table_by_id(self, table_id: str):
-        """Get table by ID (helper method)"""
-        return self.context._get_table_by_id(table_id)
+    def get_measurement_distance(self) -> Optional[float]:
+        """Get current measurement distance"""
+        try:
+            if hasattr(self.context, 'measurement_tool') and self.context.measurement_tool is not None:
+                return self.context.measurement_tool.get_distance()
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get measurement distance: {e}")
+            return None
+    
+    def clear_measurement(self) -> bool:
+        """Clear current measurement"""
+        try:
+            if hasattr(self.context, 'measurement_tool') and self.context.measurement_tool is not None:
+                self.context.measurement_tool.clear()
+                logger.info("Measurement cleared")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Failed to clear measurement: {e}")
+            return False
+    
+    def enable_paint_mode(self, enabled: bool = True) -> bool:
+        """Enable or disable paint mode"""
+        try:
+            import PaintManager
+            current_state = PaintManager.is_paint_mode_active()
+            
+            if enabled and not current_state:
+                # Enable paint mode
+                PaintManager.toggle_paint_mode()
+                self.context.current_tool = 'Draw'
+                logger.info("Paint mode enabled")
+            elif not enabled and current_state:
+                # Disable paint mode
+                PaintManager.toggle_paint_mode()
+                self.context.current_tool = 'Move'
+                logger.info("Paint mode disabled")
+            
+            return True
+        except Exception as e:
+            logger.error(f"Failed to set paint mode: {e}")
+            return False
+    
+    def is_paint_mode_active(self) -> bool:
+        """Check if paint mode is active"""
+        try:
+            import PaintManager
+            return PaintManager.is_paint_mode_active()
+        except Exception as e:
+            logger.error(f"Failed to check paint mode: {e}")
+            return False
+    
+    def set_user_mode(self, is_gm: bool) -> bool:
+        """Set user mode (GM or Player)"""
+        try:
+            self.context.is_gm = is_gm
+            
+            if is_gm:
+                # GM mode - show all layers and panels
+                logger.info("Switched to GM mode - full access enabled")
+            else:
+                # Player mode - restrict to tokens and light layers only
+                if hasattr(self.context, 'RenderManager') and self.context.RenderManager:
+                    render_manager = self.context.RenderManager
+                    # Hide all layers except tokens and light
+                    for layer_name in self.get_available_layers():
+                        if layer_name not in ['tokens', 'light']:
+                            render_manager.set_layer_visibility(layer_name, False)
+                        else:
+                            render_manager.set_layer_visibility(layer_name, True)
+                
+                logger.info("Switched to Player mode - restricted access")
+            
+            return True
+        except Exception as e:
+            logger.error(f"Failed to set user mode: {e}")
+            return False
+    
+    def is_gm_mode(self) -> bool:
+        """Check if current user is in GM mode"""
+        if not hasattr(self.context, 'is_gm'):
+            logger.error("User mode not initialized in context")
+            raise RuntimeError("User mode not properly initialized")
+        return self.context.is_gm
+    
+    def get_visible_layers_for_mode(self) -> List[str]:
+        """Get layers that should be visible based on current mode"""
+        if self.is_gm_mode():
+            return self.get_available_layers()  # GM sees all layers
+        else:
+            return ['tokens', 'light']  # Player only sees tokens and light
+    
+    def get_accessible_tables_for_mode(self) -> List[str]:
+        """Get tables that are accessible based on current mode"""
+        try:
+            all_tables = list(self.get_all_tables().keys())
+            
+            if self.is_gm_mode():
+                return all_tables  # GM has access to all tables
+            else:
+                # Player only has access to current table
+                current_table_name = self.get_current_table_name()
+                return [current_table_name] if current_table_name != "No table" else []
+        except Exception as e:
+            logger.error(f"Failed to get accessible tables: {e}")
+            return []
+    
+    def can_access_panel(self, panel_name: str) -> bool:
+        """Check if current user can access a specific panel based on mode"""
+        if self.is_gm_mode():
+            return True  # GM has access to all panels
+        
+        # Player mode restrictions - hide specific panels
+        restricted_panels = [
+            'entity_panel',      # Entities panel must be hidden
+            'compendium_panel',  # Compendium panel must be hidden
+            'layers_panel',      # Layers panel must be hidden full
+            'tables_panel'       # Table panel must be full hidden
+        ]
+        
+        # Allow access if not in restricted list
+        return panel_name not in restricted_panels
+    
+    def can_access_dm_tools(self) -> bool:
+        """Check if current user can access DM tools"""
+        return self.is_gm_mode()  # Only GM can access DM tools
+    
+    def get_allowed_tools_for_mode(self) -> List[str]:
+        """Get list of allowed tools based on user mode"""
+        if self.is_gm_mode():
+            return ["Select", "Move", "Rotate", "Scale", "Measure", "Draw", "Erase"]  # GM has all tools
+        else:
+            return ["Select", "Measure", "Draw"]  # Player only has basic tools
+    
+    def get_default_right_panel_for_mode(self) -> str:
+        """Get the default right panel based on user mode"""
+        if self.is_gm_mode():
+            return 'entity_panel'  # GM default
+        else:
+            return 'character_panel'  # Player default
     
     # =========================================================================
     # NETWORK-AWARE OPERATIONS
@@ -450,22 +727,11 @@ class GuiActionsBridge:
             if hasattr(self.context, 'get_network_status'):
                 return self.context.get_network_status()
             else:
-                # Fallback if context doesn't have network status
-                return {
-                    'is_connected': False,
-                    'is_hosting': False,
-                    'connection_quality': 'Unknown',
-                    'ping_ms': 0,
-                    'player_count': 0,
-                    'max_players': 6,
-                    'server_ip': '',
-                    'server_port': 0,
-                    'session_name': '',
-                    'has_password': False
-                }
+                logger.error("Context does not have network status capability")
+                raise RuntimeError("Network status not available - context not properly initialized")
         except Exception as e:
             logger.error(f"Failed to get network status: {e}")
-            return {}
+            raise
     
     def broadcast_message(self, message: str, message_type: str = "info") -> bool:
         """Broadcast a message to all connected players"""
@@ -475,11 +741,11 @@ class GuiActionsBridge:
                 logger.info(f"Broadcasted message: {message}")
                 return True
             else:
-                logger.warning("Context does not support network messaging")
-                return False
+                logger.error("Context does not support network messaging")
+                raise RuntimeError("Network messaging not available - context not properly initialized")
         except Exception as e:
             logger.error(f"Failed to broadcast message: {e}")
-            return False
+            raise
     
     # =========================================================================
     # NETWORK & PLAYER MANAGEMENT
@@ -637,49 +903,25 @@ class GuiActionsBridge:
     # SESSION MANAGEMENT
     # =========================================================================
     
-    def host_session(self, port: int, max_players: int = 6, password: Optional[str] = None) -> ActionResult:
-        """Start hosting a multiplayer session"""
-        try:
-            # Get ClientProtocol instance from context
-            client_protocol = getattr(self.context, 'protocol', None)
-            if not client_protocol:
-                return ActionResult(False, "No network protocol available")
-            
-            # For now, return a placeholder - this would connect to the actual hosting system
-            # In the full implementation, this would:
-            # 1. Start the server/hosting process
-            # 2. Update network state
-            # 3. Set up player management
-            
-            logger.info(f"Host session requested on port {port} with max {max_players} players")
-            
-            # Placeholder implementation - return success for now
-            return ActionResult(True, f"Hosting started on port {port}")
-            
-        except Exception as e:
-            logger.error(f"Failed to start hosting: {e}")
-            return ActionResult(False, f"Failed to start hosting: {str(e)}")
-
     def join_session(self, server_ip: str, port: int, username: str, password: Optional[str] = None) -> ActionResult:
-        """Join a multiplayer session"""
+        """Join a multiplayer session on dedicated server"""
         try:
             # Get ClientProtocol instance from context
             client_protocol = getattr(self.context, 'protocol', None)
             if not client_protocol:
                 return ActionResult(False, "No network protocol available")
             
-            # For now, return a placeholder - this would connect to the actual join system
-            # In the full implementation, this would:
-            # 1. Connect to the specified server
-            # 2. Authenticate with username/password
-            # 3. Update network state
-            # 4. Initialize player list
+            # Use actual join implementation
+            result = client_protocol.join_session(server_ip, port, username, password)
             
-            logger.info(f"Join session requested: {username}@{server_ip}:{port}")
-            
-            # Placeholder implementation - return success for now
-            return ActionResult(True, f"Connected to {server_ip}:{port}")
-            
+            if result.get('success', False):
+                logger.info(f"Join session successful: {username}@{server_ip}:{port}")
+                return ActionResult(True, result.get('message', f"Connected to {server_ip}:{port}"))
+            else:
+                error_msg = result.get('message', 'Unknown connection error')
+                logger.error(f"Failed to join session: {error_msg}")
+                return ActionResult(False, error_msg)
+                
         except Exception as e:
             logger.error(f"Failed to join session: {e}")
             return ActionResult(False, f"Failed to join session: {str(e)}")
@@ -692,18 +934,17 @@ class GuiActionsBridge:
             if not client_protocol:
                 return ActionResult(False, "No network protocol available")
             
-            # For now, return a placeholder - this would disconnect from the session
-            # In the full implementation, this would:
-            # 1. Disconnect from server/stop hosting
-            # 2. Clean up network state
-            # 3. Clear player list
-            # 4. Reset connection status
+            # Use actual disconnect implementation
+            result = client_protocol.disconnect_session()
             
-            logger.info("Leave session requested")
-            
-            # Placeholder implementation - return success for now
-            return ActionResult(True, "Disconnected from session")
-            
+            if result.get('success', False):
+                logger.info("Leave session successful")
+                return ActionResult(True, result.get('message', "Disconnected from session"))
+            else:
+                error_msg = result.get('message', 'Unknown disconnect error')
+                logger.error(f"Failed to leave session: {error_msg}")
+                return ActionResult(False, error_msg)
+                
         except Exception as e:
             logger.error(f"Failed to leave session: {e}")
             return ActionResult(False, f"Failed to leave session: {str(e)}")
@@ -833,29 +1074,20 @@ class GuiActionsBridge:
             logger.error(f"Failed to test server connection: {e}")
             return ActionResult(False, f"Failed to test server connection: {str(e)}")
 
-    def parse_server_url(self, server_url: str, fallback_port: str = "12345") -> Dict[str, str]:
+    def parse_server_url(self, server_url: str, default_port: str = "12345") -> Dict[str, str]:
         """Parse server URL to extract hostname and port"""
         try:
             # Get ClientProtocol instance from context
             client_protocol = getattr(self.context, 'protocol', None)
             if not client_protocol:
-                # Fallback to basic parsing
-                return {
-                    'hostname': "127.0.0.1",
-                    'port': fallback_port,
-                    'full_url': server_url
-                }
+                logger.error("No network protocol available for URL parsing")
+                raise RuntimeError("Network protocol not available")
             
-            return client_protocol.parse_server_url(server_url, fallback_port)
+            return client_protocol.parse_server_url(server_url, default_port)
                 
         except Exception as e:
             logger.error(f"Failed to parse server URL: {e}")
-            return {
-                'hostname': "127.0.0.1",
-                'port': fallback_port,
-                'full_url': server_url,
-                'error': str(e)
-            }
+            raise
 
     def get_authentication_state(self) -> Dict[str, Any]:
         """Get current authentication state"""
@@ -930,3 +1162,49 @@ class GuiActionsBridge:
         except Exception as e:
             logger.error(f"Failed to add chat message: {e}")
             return ActionResult(False, f"Failed to add chat message: {str(e)}")
+    
+    def initialize_user_mode(self) -> bool:
+        """Initialize user mode based on context settings"""
+        try:
+            # Context must have is_gm attribute set from command line args
+            if not hasattr(self.context, 'is_gm'):
+                logger.error("Context missing is_gm attribute - command line args not properly processed")
+                raise RuntimeError("User mode not initialized in context")
+            
+            is_gm = self.context.is_gm
+            return self.set_user_mode(is_gm)
+        except Exception as e:
+            logger.error(f"Failed to initialize user mode: {e}")
+            return False
+    
+    def find_sprite_layer(self, sprite) -> Optional[str]:
+        """Find which layer a sprite is on"""
+        if not self.context.current_table:
+            return None
+        
+        for layer_name, layer_sprites in self.context.current_table.dict_of_sprites_list.items():
+            if sprite in layer_sprites:
+                return layer_name
+        return None
+    
+    def select_sprite_and_layer(self, sprite) -> bool:
+        """Select a sprite and automatically switch to its layer"""
+        try:
+            # Find which layer the sprite is on
+            sprite_layer = self.find_sprite_layer(sprite)
+            if sprite_layer is None:
+                logger.warning("Cannot find layer for sprite")
+                return False
+            
+            # Switch to that layer if it's different from current
+            if sprite_layer != self.context.selected_layer:
+                self.set_selected_layer(sprite_layer)
+                logger.info(f"Switched to layer '{sprite_layer}' for sprite selection")
+            
+            # Select the sprite
+            self.context.current_table.selected_sprite = sprite
+            logger.info(f"Selected sprite on layer '{sprite_layer}'")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to select sprite and layer: {e}")
+            return False

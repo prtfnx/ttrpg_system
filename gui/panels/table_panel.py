@@ -19,7 +19,7 @@ class TablePanel:
         # Session state
         self.session_name = "New Session"
         self.player_count = 4
-        self.is_dm_mode = True
+        # Note: User mode (DM/Player) is determined by server context, not local UI
         
         # Table creation state
         self.new_table_name = "New Table"
@@ -320,15 +320,6 @@ class TablePanel:
                 imgui.text_colored((0.6, 0.6, 0.6, 1.0), "🏠 LOCAL")
         else:
             imgui.text_colored((0.6, 0.6, 0.6, 1.0), "🏠 LOCAL")
-        
-        imgui.same_line()
-        imgui.text("|")
-        imgui.same_line()
-        
-        # Mode toggle
-        clicked, self.is_dm_mode = imgui.checkbox("DM Mode", self.is_dm_mode)
-        if clicked:
-            self._handle_mode_change()
         
         imgui.same_line()
         imgui.text("|")
@@ -664,23 +655,6 @@ class TablePanel:
             logger.error(f"Exception while loading table: {e}")
             if hasattr(self.context, 'add_chat_message'):
                 self.context.add_chat_message(f"Error loading table: {str(e)}")
-
-    def _handle_mode_change(self):
-        """Handle DM/Player mode change"""
-        mode = "DM" if self.is_dm_mode else "Player"
-        logger.info(f"Mode changed to: {mode}")
-        
-        try:
-            if hasattr(self.context, 'set_dm_mode'):
-                self.context.set_dm_mode(self.is_dm_mode)
-            
-            if hasattr(self.context, 'add_chat_message'):
-                self.context.add_chat_message(f"Switched to {mode} mode")
-                
-        except Exception as e:
-            logger.error(f"Failed to set mode: {e}")
-            if hasattr(self.context, 'add_chat_message'):
-                self.context.add_chat_message("Failed to change mode")
 
     def _handle_save_session(self):
         """Handle saving the current session"""

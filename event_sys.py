@@ -19,14 +19,10 @@ class Directions:
     SOUTHEAST=7
     SOUTHWEST=8
 DIFF_POSITION = 10  # Minimum position change to trigger network sync
-# Fix the handle_mouse_motion to use the stored offset:
+    
 
 def handle_mouse_motion(cnt, event):
     cnt.cursor_position_x, cnt.cursor_position_y = event.motion.x, event.motion.y
-
-    #print(f"event motion.x y {event.motion.x}, {event.motion.y}")
-    #print(f"cursor: {cnt.cursor_position_x}, {cnt.cursor_position_y}")
-    #print(f"rect: {cnt.LightingManager.rectLight_x}, {cnt.LightingManager.rectLight_y}")    
     if cnt.grabing:
         if cnt.current_table.selected_sprite is not None:
             sprite = cnt.current_table.selected_sprite
@@ -258,6 +254,15 @@ def handle_mouse_motion(cnt, event):
                 sdl3.SDL_SetCursor(sdl3.SDL_CreateSystemCursor(sdl3.SDL_SYSTEM_CURSOR_DEFAULT))
                 cnt.cursor = sdl3.SDL_SYSTEM_CURSOR_DEFAULT
     
+    # Handle tool mouse motion events
+    if hasattr(cnt, 'measurement_tool') and cnt.measurement_tool:
+        if cnt.measurement_tool.handle_mouse_motion(event.motion.x, event.motion.y):
+            logger.debug("Measurement tool consumed mouse motion event")
+            return  # Tool consumed the event
+    
+    if hasattr(cnt, 'drawing_tool') and cnt.drawing_tool:
+        if cnt.drawing_tool.handle_mouse_motion(event.motion.x, event.motion.y):
+            return  # Tool consumed the event
 
 def handle_resize(cnt, direction):
     cnt.resizing = True
@@ -302,11 +307,27 @@ def handle_rotate_end(cnt, sprite):
 # Fix the handle_mouse_button_down function:
 
 def handle_mouse_button_down(cnt, event):
+    # Handle tool mouse button down events first
+    if hasattr(cnt, 'measurement_tool') and cnt.measurement_tool:
+        logger.debug(f"Found measurement tool, active: {cnt.measurement_tool.active}")
+        if cnt.measurement_tool.handle_mouse_down(event.button.x, event.button.y):
+            logger.debug("Measurement tool consumed mouse down event")
+            return  # Tool consumed the event
+    
+    
+    if hasattr(cnt, 'drawing_tool') and cnt.drawing_tool:
+        if cnt.drawing_tool.handle_mouse_down(event.button.x, event.button.y):
+            logger.debug("Drawing tool consumed mouse down event")
+            return  # Tool consumed the event
+    
     if event.button.button == 1:  # Left mouse button
         # Create the point for mouse position
         point = sdl3.SDL_FPoint()
         point.x, point.y = event.button.x, event.button.y
         logger.debug(f"Mouse button down at {point.x}, {point.y}")
+        
+
+        
         # Check if we're clicking on a resize handle first
         if cnt.current_table and cnt.current_table.selected_sprite:
             sprite = cnt.current_table.selected_sprite
@@ -420,19 +441,20 @@ def handle_mouse_button_down(cnt, event):
             sprite._grab_offset_x = event.button.x - sprite_screen_x
             sprite._grab_offset_y = event.button.y - sprite_screen_y
         
-        # Check if we clicked on any sprite
+        # Check if we clicked on any sprite (only on the selected layer)
         clicked_on_sprite = False
-        if cnt.current_table:
-            for sprites in cnt.current_table.dict_of_sprites_list.values():
+        if cnt.current_table and hasattr(cnt, 'selected_layer'):
+            # Only check sprites on the currently selected layer
+            selected_layer = getattr(cnt, 'selected_layer', 'tokens')
+            if selected_layer in cnt.current_table.dict_of_sprites_list:
+                sprites = cnt.current_table.dict_of_sprites_list[selected_layer]
                 for sprite in sprites:
                     if sdl3.SDL_PointInRectFloat(ctypes.byref(point), ctypes.byref(sprite.frect)):
                         cnt.current_table.selected_sprite = sprite
                         cnt.grabing = True
                         clicked_on_sprite = True
-                        logger.debug("Sprite grabbed")
+                        logger.debug(f"Sprite grabbed from layer '{selected_layer}'")
                         break
-                if clicked_on_sprite:
-                    break
         
         # If we didn't click on a sprite and we're not resizing, start moving the table
         if not clicked_on_sprite and not cnt.resizing:
@@ -445,18 +467,18 @@ def handle_mouse_button_down(cnt, event):
         # Handle right-click for context menu
         point = sdl3.SDL_FPoint()
         point.x, point.y = event.button.x, event.button.y
-        
-        # Check if we right-clicked on a sprite
+        # Check if we right-clicked on a sprite (only on the selected layer)
         clicked_sprite = None
-        if cnt.current_table:
-            for sprites in cnt.current_table.dict_of_sprites_list.values():
+        if cnt.current_table and hasattr(cnt, 'selected_layer'):
+            # Only check sprites on the currently selected layer
+            selected_layer = getattr(cnt, 'selected_layer', 'tokens')
+            if selected_layer in cnt.current_table.dict_of_sprites_list:
+                sprites = cnt.current_table.dict_of_sprites_list[selected_layer]
                 for sprite in sprites:
                     if sdl3.SDL_PointInRectFloat(ctypes.byref(point), ctypes.byref(sprite.frect)):
                         clicked_sprite = sprite
+                        logger.debug(f"Right-clicked sprite from layer '{selected_layer}'")
                         break
-                if clicked_sprite:
-                    break
-        
         # Show context menu if we have a sprite and context menu system
         if clicked_sprite:
             try:
@@ -476,7 +498,18 @@ def handle_mouse_button_down(cnt, event):
 # Fix the handle_mouse_button_up to clean up stored values:
 
 def handle_mouse_button_up(cnt, event):
+    # Handle tool mouse button up events first
+    if hasattr(cnt, 'measurement_tool') and cnt.measurement_tool:
+        if cnt.measurement_tool.handle_mouse_up(event.button.x, event.button.y):
+            return  # Tool consumed the event
+    
+    if hasattr(cnt, 'drawing_tool') and cnt.drawing_tool:
+        if cnt.drawing_tool.handle_mouse_up(event.button.x, event.button.y):
+            return  # Tool consumed the event
+    
     if event.button.button == 1:
+
+        
         # Handle resize end
         if cnt.resizing and cnt.current_table and cnt.current_table.selected_sprite:
             handle_resize_end(cnt, cnt.current_table.selected_sprite)

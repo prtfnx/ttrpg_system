@@ -119,6 +119,10 @@ class Context:
         
         # Current tool selection
         self.current_tool: str = "Select"
+        
+        # Tool instances
+        self.measurement_tool = None  # Will be initialized when needed
+        self.drawing_tool = None     # Will be initialized when needed
           
         # Actions protocol integration
         self.Actions: Actions = Actions(self)
@@ -130,6 +134,9 @@ class Context:
         self.light_on: bool = True
         self.net: bool = True
         self.gui: bool = True
+        
+        # Layer management
+        self.selected_layer: str = "tokens"  # Default selected layer
         
         # R2 Asset Management
         self.session_code: Optional[str] = None

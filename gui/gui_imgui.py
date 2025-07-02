@@ -29,7 +29,8 @@ from .panels import (
     CompendiumPanel,
     LayerPanel,
     StoragePanel,
-    CharacterSheetPanel,    
+    CharacterSheetPanel,
+    JournalPanel,
 )    
 
 # Import external windows
@@ -55,6 +56,7 @@ class GuiPanel(Enum):
     LAYERS = "layers"
     STORAGE = "storage"
     CHARACTER_SHEET = "character_sheet"
+    JOURNAL = "journal"
     
 
 
@@ -108,14 +110,26 @@ class SimplifiedGui:
             GuiPanel.COMPENDIUM: CompendiumPanel(context, self.actions_bridge),
             GuiPanel.LAYERS: LayerPanel(context, self.actions_bridge),
             GuiPanel.STORAGE: StoragePanel(context, self.actions_bridge),
-            GuiPanel.CHARACTER_SHEET: CharacterSheetPanel(context, self.actions_bridge),            
+            GuiPanel.CHARACTER_SHEET: CharacterSheetPanel(context, self.actions_bridge),
+            GuiPanel.JOURNAL: JournalPanel(context, self.actions_bridge),
         }
+        
+        # Expose character sheet panel for cross-panel communication
+        self.context.character_sheet_panel = self.panel_instances[GuiPanel.CHARACTER_SHEET]
         
         # Initialize external windows
         self.external_windows = []
         self.settings_window = SettingsWindow(context)
         logger.info(f"Settings window initialized {self.settings_window}")
-        self.external_windows.append(self.settings_window)        
+        self.external_windows.append(self.settings_window)
+        
+        # Initialize character creator window
+        from .windows.character_creator_window import CharacterCreator
+        self.character_creator = CharacterCreator(context, self.actions_bridge)
+        self.external_windows.append(self.character_creator)
+        
+        # Expose character creator to context for cross-panel access
+        self.context.character_creator = self.character_creator        
 
         
         # Initialize state
@@ -312,7 +326,7 @@ class SimplifiedGui:
             available_panels = []
             for panel_type in [GuiPanel.CHAT, GuiPanel.ENTITIES, GuiPanel.DEBUG, 
                              GuiPanel.NETWORK, GuiPanel.COMPENDIUM, GuiPanel.STORAGE,
-                             GuiPanel.CHARACTER_SHEET]:
+                             GuiPanel.CHARACTER_SHEET, GuiPanel.JOURNAL]:
                 panel_name = panel_type.value
                 if self.actions_bridge.can_access_panel(panel_name):
                     available_panels.append(panel_type)

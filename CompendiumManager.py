@@ -283,6 +283,24 @@ class CompendiumManager:
             return None
         return self.character_loader.get_background(name)
     
+    def get_all_races(self) -> Dict:
+        """Get all available races"""
+        if not self.available_systems['characters'] or not self.character_loader:
+            return {}
+        return self.character_loader.races
+    
+    def get_all_classes(self) -> Dict:
+        """Get all available character classes"""
+        if not self.available_systems['characters'] or not self.character_loader:
+            return {}
+        return self.character_loader.classes
+    
+    def get_all_backgrounds(self) -> Dict:
+        """Get all available backgrounds"""
+        if not self.available_systems['characters'] or not self.character_loader:
+            return {}
+        return self.character_loader.backgrounds
+    
     def search_races(self, query: str) -> List:
         """Search races by name or traits"""
         if not self.available_systems['characters'] or not self.character_loader:

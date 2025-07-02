@@ -10,6 +10,7 @@ from .network_panel import NetworkPanel
 from .layer_panel import LayerPanel
 from .storage_panel import StoragePanel
 from .character_sheet_panel import CharacterSheetPanel
+from .journal_panel import JournalPanel
 
 
 __all__ = [
@@ -22,5 +23,6 @@ __all__ = [
     'NetworkPanel',
     'LayerPanel',
     'StoragePanel',
-    'CharacterSheetPanel'
+    'CharacterSheetPanel',
+    'JournalPanel'
 ]

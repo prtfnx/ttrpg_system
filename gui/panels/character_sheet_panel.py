@@ -831,6 +831,13 @@ class CharacterSheetPanel:
                 return False
         return True
     
+    def open_for_entity(self, entity_id: str):
+        """Open character sheet for a specific entity and show full window"""
+        if self.set_selected_entity(entity_id):
+            self.show_full_window = True
+            return True
+        return False
+    
     def _clear_character_data(self):
         """Clear all character data"""
         self.character_name = ""

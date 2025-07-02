@@ -4,11 +4,12 @@ Compendium GUI Components
 Enhanced GUI components for D&D 5e compendium integration
 """
 
-import logging
+
 from typing import List, Dict, Any, Optional
 from imgui_bundle import imgui
 
-logger = logging.getLogger(__name__)
+from logger import setup_logger
+logger = setup_logger(__name__)
 
 class CompendiumPanel:
     """GUI panel for browsing and managing compendium content"""

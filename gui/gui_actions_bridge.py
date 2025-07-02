@@ -1210,3 +1210,35 @@ class GuiActionsBridge:
         except Exception as e:
             logger.error(f"Failed to select sprite and layer: {e}")
             return False
+        
+    def set_selected_entity(self, entity_id: str):
+        """Set selected entity across all panels"""
+        # Store selected entity reference
+        self._selected_entity_id = entity_id
+        
+        # Notify character sheet panel if it exists
+        if hasattr(self, '_gui_reference') and self._gui_reference:
+            character_panel = self._gui_reference.panel_instances.get('character_sheet')
+            if character_panel and hasattr(character_panel, 'set_selected_entity'):
+                character_panel.set_selected_entity(entity_id)
+    
+    def get_selected_entity(self) -> Optional[str]:
+        """Get currently selected entity ID"""
+        return getattr(self, '_selected_entity_id', None)
+    
+    def set_gui_reference(self, gui_instance):
+        """Set reference to GUI instance for panel coordination"""
+        self._gui_reference = gui_instance
+
+    def on_entity_selected(self, entity_id: str):
+        """Called when an entity is selected in the journal panel. Notifies character sheet panel."""
+        if hasattr(self.context, 'character_sheet_panel'):
+            self.context.character_sheet_panel.set_selected_entity(entity_id)
+        elif hasattr(self.context, 'panels') and 'character_sheet_panel' in self.context.panels:
+            self.context.panels['character_sheet_panel'].set_selected_entity(entity_id)
+    
+    def open_character_sheet(self, entity_id: str):
+        """Open the character sheet full window for the given entity"""
+        if hasattr(self.context, 'character_sheet_panel'):
+            self.context.character_sheet_panel.open_for_entity(entity_id)
+            self.context.character_sheet_panel.show_full_window = True

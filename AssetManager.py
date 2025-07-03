@@ -19,6 +19,7 @@ import sdl3
 from Sprite import Sprite
 from storage.StorageManager import StorageManager
 from net.DownloadManager import DownloadManager  
+
 logger = setup_logger(__name__)
 
 class ClientAssetManager:

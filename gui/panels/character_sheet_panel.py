@@ -6,13 +6,13 @@ Matches the official D&D 5E character sheet PDF with fantasy styling
 
 from imgui_bundle import imgui
 import math
-
+import random
 from typing import Dict, List, Optional, Tuple
 from core_table.compendiums.characters.character import (
     Character, AbilityScore, Skill, Race, CharacterClass, Background, Feat,
     AbilityScoreIncrease, Size
 )
-
+from gui.windows.character_sheet_window import CharacterSheetWindow
 from logger import setup_logger
 logger = setup_logger(__name__)
 
@@ -26,6 +26,7 @@ class CharacterSheetPanel:
         # Window state
         self.show_full_window = False
         self.selected_entity_id = None
+        self.CharacterWindow = None
           # Error handling and crash prevention
         self._error_count = 0
         self._max_errors = 5
@@ -122,27 +123,7 @@ class CharacterSheetPanel:
         """Format modifier with + or - sign"""
         return f"+{modifier}" if modifier >= 0 else str(modifier)
         
-    def update_derived_stats(self):
-        """Update stats that depend on ability scores"""
-        # Update saving throws
-        for ability in self.saving_throws:
-            modifier = self.calculate_modifier(self.ability_scores[ability])
-            if self.saving_throws[ability]["proficient"]:
-                self.saving_throws[ability]["value"] = modifier + self.proficiency_bonus
-            else:
-                self.saving_throws[ability]["value"] = modifier
-                
-        # Update skills
-        for skill_name, skill_data in self.skills.items():
-            ability = skill_data["ability"]
-            modifier = self.calculate_modifier(self.ability_scores[ability])
-            if skill_data["proficient"]:
-                skill_data["value"] = modifier + self.proficiency_bonus
-            else:
-                skill_data["value"] = modifier
-                  # Update passive perception
-        perception_modifier = self.skills["Perception"]["value"]
-        self.passive_perception = 10 + perception_modifier
+
         
     def render_text_field(self, label: str, value: str, width: float = 200) -> str:
         """Render a labeled text input field"""
@@ -169,321 +150,9 @@ class CharacterSheetPanel:
         changed, new_value = imgui.checkbox(label, value)
         return new_value if changed else value
         
-    def render_header_section(self):
-        """Render the character header information"""
-        imgui.text("CHARACTER NAME")
-        imgui.same_line(200)
-        imgui.text("CLASS & LEVEL")
-        imgui.same_line(400)
-        imgui.text("BACKGROUND")
-        imgui.same_line(600)
-        imgui.text("PLAYER NAME")
-        
-        # First row inputs
-        imgui.set_next_item_width(180)
-        changed, new_name = imgui.input_text("##char_name", self.character_name)
-        if changed:
-            self.character_name = new_name
-            
-        imgui.same_line()
-        imgui.set_next_item_width(180)
-        changed, new_class = imgui.input_text("##class_level", self.class_level)
-        if changed:
-            self.class_level = new_class
-            
-        imgui.same_line()
-        imgui.set_next_item_width(180)
-        changed, new_bg = imgui.input_text("##background", self.background)
-        if changed:
-            self.background = new_bg
-            
-        imgui.same_line()
-        imgui.set_next_item_width(180)
-        changed, new_player = imgui.input_text("##player_name", self.player_name)
-        if changed:
-            self.player_name = new_player
-            
-        imgui.spacing()
-        
-        # Second row labels
-        imgui.text("RACE")
-        imgui.same_line(200)
-        imgui.text("ALIGNMENT")
-        imgui.same_line(400)
-        imgui.text("EXPERIENCE POINTS")
-        
-        # Second row inputs
-        imgui.set_next_item_width(180)
-        changed, new_race = imgui.input_text("##race", self.race)
-        if changed:
-            self.race = new_race
-            
-        imgui.same_line()
-        imgui.set_next_item_width(180)
-        changed, new_align = imgui.input_text("##alignment", self.alignment)
-        if changed:
-            self.alignment = new_align
-            
-        imgui.same_line()
-        imgui.set_next_item_width(180)
-        changed, new_xp = imgui.input_int("##experience", self.experience_points, 0, 0)
-        if changed:
-            self.experience_points = max(0, new_xp)
-            
-        imgui.separator()
-        
-    def render_ability_scores(self):
-        """Render the ability scores section"""
-        imgui.text("ABILITY SCORES")
-        imgui.spacing()
-        
-        abilities = ["STR", "DEX", "CON", "INT", "WIS", "CHA"]
-        ability_names = ["STRENGTH", "DEXTERITY", "CONSTITUTION", "INTELLIGENCE", "WISDOM", "CHARISMA"]
-        
-        # Create ability score boxes vertically (one per row)
-        for ability, full_name in zip(abilities, ability_names):
-            # Create a group for each ability score
-            imgui.begin_group()            # Ability name (centered) - clickable
-            name_size = imgui.calc_text_size(ability)
-            imgui.set_cursor_pos_x(imgui.get_cursor_pos_x() + (120 - name_size.x) * 0.5)
-            
-            # Make ability name clickable for ability check
-            imgui.text(ability)
-            if imgui.is_item_clicked():
-                modifier = self.calculate_modifier(self.ability_scores[ability])
-                self._make_roll("check", ability, modifier)
-            
-            # Modifier (large circle)
-            modifier = self.calculate_modifier(self.ability_scores[ability])
-            modifier_text = self.format_modifier(modifier)
-            
-            # Draw modifier circle
-            draw_list = imgui.get_window_draw_list()
-            pos = imgui.get_cursor_screen_pos()
-            center = imgui.ImVec2(pos.x + 60, pos.y + 25)
-            draw_list.add_circle(center, 25, imgui.color_convert_float4_to_u32(imgui.ImVec4(0.63, 0.47, 0.31, 1.0)), 0, 2.0)
-            
-            # Center the modifier text
-            text_size = imgui.calc_text_size(modifier_text)
-            text_pos = imgui.ImVec2(center.x - text_size.x * 0.5, center.y - text_size.y * 0.5)
-            draw_list.add_text(text_pos, imgui.color_convert_float4_to_u32(imgui.ImVec4(0.35, 0.27, 0.13, 1.0)), modifier_text)
-            
-            # Move cursor down past the circle
-            imgui.dummy(imgui.ImVec2(120, 50))            # Score input (centered)
-            imgui.set_next_item_width(60)
-            imgui.set_cursor_pos_x(imgui.get_cursor_pos_x() + 30)
-            changed, new_score = imgui.input_int(f"##{ability}", self.ability_scores[ability], 0, 0)
-            if changed:
-                self.ability_scores[ability] = max(1, min(30, new_score))
-                self.update_derived_stats()
-                
-            imgui.end_group()
-            imgui.spacing()
-            
-        imgui.separator()
-        
-    def render_inspiration_proficiency(self):
-        """Render inspiration and proficiency bonus"""
-        imgui.text("INSPIRATION")
-        imgui.same_line(150)
-        imgui.text("PROFICIENCY BONUS")
-        
-        # Inspiration checkbox (styled as circle)
-        imgui.set_next_item_width(30)
-        changed, new_inspiration = imgui.checkbox("##inspiration", self.inspiration)
-        if changed:
-            self.inspiration = new_inspiration
-            
-        imgui.same_line(150)
-        # Proficiency bonus input (editable)
-        imgui.set_next_item_width(80)
-        changed, new_prof_bonus = imgui.input_int("##prof_bonus", self.proficiency_bonus, 0, 0)
-        if changed:
-            self.proficiency_bonus = max(0, min(10, new_prof_bonus))
-            self.update_derived_stats()
-            
-        imgui.separator()
-        
-    def render_saving_throws(self):
-        """Render saving throws section"""
-        imgui.text("SAVING THROWS")
-        imgui.spacing()
-        
-        for ability in ["STR", "DEX", "CON", "INT", "WIS", "CHA"]:
-            # Proficiency checkbox
-            changed, new_prof = imgui.checkbox(f"##save_{ability}", self.saving_throws[ability]["proficient"])
-            if changed:
-                self.saving_throws[ability]["proficient"] = new_prof
-                self.update_derived_stats()
-                
-            imgui.same_line()
-              # Bonus display - clickable for rolling
-            bonus = self.saving_throws[ability]["value"]
-            bonus_text = self.format_modifier(bonus)
-            
-            imgui.text(f"{bonus_text} {ability} Save")
-            if imgui.is_item_clicked():
-                self._make_roll("saving throw", f"{ability} Save", bonus)
-            
-        imgui.separator()
-        
-    def render_skills(self):
-        """Render skills section"""
-        imgui.text("SKILLS")
-        imgui.spacing()
-        
-        for skill_name, skill_data in self.skills.items():
-            # Proficiency checkbox
-            changed, new_prof = imgui.checkbox(f"##skill_{skill_name}", skill_data["proficient"])
-            if changed:
-                skill_data["proficient"] = new_prof
-                self.update_derived_stats()
-                
-            imgui.same_line()
-              # Skill bonus display - clickable for rolling
-            bonus = skill_data["value"]
-            bonus_text = self.format_modifier(bonus)
-            ability = skill_data["ability"]
-            
-            imgui.text(f"{bonus_text} {skill_name} ({ability})")
-            if imgui.is_item_clicked():
-                self._make_roll("skill check", skill_name, bonus)
-            
-        imgui.separator()
-        
-    def render_combat_stats(self):
-        """Render combat statistics"""
-        imgui.text("COMBAT")
-        imgui.spacing()
-        
-        # First row: AC, Initiative, Speed
-        imgui.text("Armor Class")
-        imgui.same_line(120)
-        imgui.text("Initiative")
-        imgui.same_line(240)
-        imgui.text("Speed")
-        
-        imgui.set_next_item_width(80)
-        changed, new_ac = imgui.input_int("##ac", self.armor_class, 0, 0)
-        if changed:
-            self.armor_class = max(0, new_ac)
-            
-        imgui.same_line(120)
-        imgui.set_next_item_width(80)
-        changed, new_init = imgui.input_int("##initiative", self.initiative, 0, 0)
-        if changed:
-            self.initiative = new_init
-        
-        imgui.same_line(240)
-        imgui.set_next_item_width(80)
-        changed, new_speed = imgui.input_int("##speed", self.speed, 0, 0)
-        if changed:
-            self.speed = max(0, new_speed)
-            
-        imgui.spacing()
-        
-        # Hit Points section
-        imgui.text("Hit Point Maximum")
-        imgui.same_line(180)
-        imgui.text("Current Hit Points")
-        imgui.same_line(360)
-        imgui.text("Temporary Hit Points")
-        
-        imgui.set_next_item_width(80)
-        changed, new_max_hp = imgui.input_int("##max_hp", self.hit_point_maximum, 0, 0)
-        if changed:
-            self.hit_point_maximum = max(1, new_max_hp)
-            
-        imgui.same_line(180)
-        imgui.set_next_item_width(80)
-        changed, new_curr_hp = imgui.input_int("##curr_hp", self.current_hit_points, 0, 0)
-        if changed:
-            self.current_hit_points = max(0, min(self.hit_point_maximum, new_curr_hp))
-            
-        imgui.same_line(360)
-        imgui.set_next_item_width(80)
-        changed, new_temp_hp = imgui.input_int("##temp_hp", self.temporary_hit_points, 0, 0)
-        if changed:
-            self.temporary_hit_points = max(0, new_temp_hp)
-            
-        imgui.spacing()
-        
-        # Hit Dice and Death Saves
-        imgui.text("Hit Dice")
-        imgui.same_line(150)
-        imgui.text("Death Saves")
-        
-        imgui.set_next_item_width(100)
-        changed, new_hit_dice = imgui.input_text("##hit_dice", self.hit_dice)
-        if changed:
-            self.hit_dice = new_hit_dice
-            
-        imgui.same_line(150)
-        imgui.text("Successes:")
-        for i in range(3):
-            imgui.same_line()
-            changed, new_success = imgui.checkbox(f"##death_success_{i}", self.death_save_successes[i])
-            if changed:
-                self.death_save_successes[i] = new_success
-                
-        # Move to next line for failures
-        imgui.text("")  # Empty text to move to next line
-        imgui.same_line(150)
-        imgui.text("Failures:")
-        for i in range(3):
-            imgui.same_line()
-            changed, new_failure = imgui.checkbox(f"##death_failure_{i}", self.death_save_failures[i])
-            if changed:
-                self.death_save_failures[i] = new_failure
-                
-        imgui.separator()
-        
-    def render_attacks_equipment(self):
-        """Render attacks and equipment section"""
-        imgui.text("ATTACKS & SPELLCASTING")
-        imgui.set_next_item_width(-1)
-        changed, new_attacks = imgui.input_text_multiline("##attacks", self.attacks_spellcasting, imgui.ImVec2(-1, 100))
-        if changed:
-            self.attacks_spellcasting = new_attacks
-            
-        imgui.spacing()
-        
-        imgui.text("EQUIPMENT")
-        imgui.set_next_item_width(-1)
-        changed, new_equipment = imgui.input_text_multiline("##equipment", self.equipment, imgui.ImVec2(-1, 150))
-        if changed:
-            self.equipment = new_equipment
-            
-        imgui.spacing()
-        
-        imgui.text("OTHER PROFICIENCIES & LANGUAGES")
-        imgui.set_next_item_width(-1)
-        changed, new_prof = imgui.input_text_multiline("##other_prof", self.other_proficiencies_languages, imgui.ImVec2(-1, 80))
-        if changed:
-            self.other_proficiencies_languages = new_prof
-            
-        imgui.separator()
-    def render_features_traits(self):
-        """Render features and traits section"""
-        imgui.text("FEATURES & TRAITS")
-        imgui.set_next_item_width(-1)
-        # Use simple sizing without negative values to avoid viewport issues
-        changed, new_features = imgui.input_text_multiline("##features", self.features_traits, imgui.ImVec2(0, 200))        
-        if changed:
-            self.features_traits = new_features
-            
-        imgui.separator()
-        
-    def render_passive_perception(self):
-        """Render passive perception"""
-        imgui.text(f"Passive Wisdom (Perception): {self.passive_perception}")
-        imgui.separator()
-        
-    def render(self):
-        """Main render method for the character sheet"""
-        self._safe_render_with_error_limit(self._render_internal, "main_render")
     
-    def _render_internal(self):
+   
+    def render(self):
         """Internal render method wrapped by error handling"""
         # Check for entity selection updates
         self._check_entity_selection()
@@ -493,7 +162,7 @@ class CharacterSheetPanel:
         
         # Render full window if open
         if self.show_full_window:
-            self.render_full_window()
+            self.CharacterWindow.render_full_window()
     
     def _check_entity_selection(self):
         """Check if a new entity is selected and load its character data"""
@@ -628,7 +297,8 @@ class CharacterSheetPanel:
         
         # Full window button
         if imgui.button("Open Full Sheet", (-1, 30)):
-            self.show_full_window = True
+            self._create_window()
+            
             
         imgui.separator()
         
@@ -723,6 +393,15 @@ class CharacterSheetPanel:
                 proficient = "●" if self.skills[skill]["proficient"] else "○"
                 imgui.text(f"{proficient} {skill}: {bonus_text}")
     
+    def _create_window(self):
+        """Create and show the full character sheet window"""
+        if not self.CharacterWindow:
+            self.show_full_window = True
+            self.CharacterWindow = CharacterSheetWindow(context=self.context, actions_bridge=self.actions_bridge)
+            logger.info("Character sheet window created.")
+        else:
+            logger.warning("Character sheet window is already open.")
+    
     def _handle_attack_action(self):
         """Handle attack action"""
         if self.actions_bridge:
@@ -737,86 +416,7 @@ class CharacterSheetPanel:
         if self.actions_bridge:              
             self.actions_bridge.add_chat_message(f"{self.character_name} takes a short rest.")
     
-    def render_full_window(self):
-        """Render full character sheet in separate window"""
-        if not self.show_full_window:
-            return
-              # Simple window setup without viewport complications
-        flags = imgui.WindowFlags_.no_collapse.value
-        imgui.set_next_window_size((1200, 800), imgui.Cond_.first_use_ever.value)
-        imgui.set_next_window_pos((100, 100), imgui.Cond_.first_use_ever.value)
-        
-        expanded, self.show_full_window = imgui.begin("Character Sheet - Full View", self.show_full_window, flags)
-        if expanded:
-            # Close button and character info
-            if imgui.button("Close", (100, 30)):
-                self.show_full_window = False
-                
-            imgui.same_line()
-            imgui.text(f"Character: {self.character_name or 'Unnamed'}")
-            imgui.separator()
-              # Tab bar for different sections
-            if imgui.begin_tab_bar("CharacterSheetTabs"):
-                # Character tab
-                if imgui.begin_tab_item("Character")[0]:
-                    self.render_main_character_sheet()
-                    imgui.end_tab_item()
-                
-                # Spells tab
-                if imgui.begin_tab_item("Spells")[0]:
-                    self.render_tab_spells()
-                    imgui.end_tab_item()
-                
-                # Equipment tab
-                if imgui.begin_tab_item("Equipment")[0]:
-                    self.render_tab_equipment()
-                    imgui.end_tab_item()
-                
-                imgui.end_tab_bar()
-        
-        imgui.end()
-    
-    def render_main_character_sheet(self):
-        """Render the main character sheet content (Tab 1)"""
-        try:
-            # Header section (spans full width)
-            self.render_header_section()
-              # Create main content table with 3 columns - disable resizing to prevent child window conflicts
-            table_begun = imgui.begin_table("CharacterSheetTable", 3, 
-                                imgui.TableFlags_.borders_inner_v.value)
-            if table_begun:
-                # Setup columns with fixed sizes to prevent resize conflicts
-                imgui.table_setup_column("Left", imgui.TableColumnFlags_.width_fixed.value, 300.0)
-                imgui.table_setup_column("Center", imgui.TableColumnFlags_.width_fixed.value, 350.0)
-                imgui.table_setup_column("Right", imgui.TableColumnFlags_.width_fixed.value, 300.0)
-                imgui.table_next_row()                  # Left column - Ability Scores alongside Inspiration/Proficiency/Saves/Skills
-                imgui.table_next_column()
-                # Render content directly without child windows to avoid resize conflicts
-                self.render_ability_scores()
-                imgui.separator()
-                self.render_inspiration_proficiency()
-                self.render_saving_throws()
-                self.render_skills()
-                self.render_passive_perception()                  # Center column - Combat Stats, Attacks & Equipment
-                imgui.table_next_column()
-                # Render content directly without child windows
-                self.render_combat_stats()
-                self.render_attacks_equipment()
-                
-                # Right column - Features & Traits
-                imgui.table_next_column()
-                # Render content directly without child windows
-                self.render_features_traits()
-                
-                imgui.end_table()
-            
-        except Exception as e:
-            # Mark window for position reset on next render
-            self._window_error_occurred = True
-            logger.error(f"Character Sheet Error: {e}")
-            imgui.text(f"Character Sheet Error: {str(e)}")
-            imgui.text("Please check the console for details.")
-            imgui.text("Window will reset position on next open.")
+   
     
     def set_selected_entity(self, entity_id: str):
         """Set the selected entity and try to load its character data"""
@@ -866,7 +466,7 @@ class CharacterSheetPanel:
             return
             
         # Roll d20
-        import random
+        
         roll1 = random.randint(1, 20)
         roll2 = random.randint(1, 20) if advantage or disadvantage else roll1
         
@@ -1138,202 +738,26 @@ class CharacterSheetPanel:
         except Exception as e:
             imgui.text(f"Equipment & Notes Error: {str(e)}")
     
-    def render_tab_spells(self):
-        """Render the spells tab content"""
-        imgui.text("SPELLCASTING")
-        imgui.separator()
-        
-        # Spellcasting ability
-        imgui.text("Spellcasting Ability:")
-        imgui.same_line()
-        imgui.set_next_item_width(100)
-        spellcasting_ability = getattr(self, 'spellcasting_ability', 'INT')
-        abilities = ["INT", "WIS", "CHA"]
-        if imgui.begin_combo("##spell_ability", spellcasting_ability):
-            for ability in abilities:
-                is_selected = spellcasting_ability == ability
-                if imgui.selectable(ability, is_selected):
-                    self.spellcasting_ability = ability
-                if is_selected:
-                    imgui.set_item_default_focus()
-            imgui.end_combo()
-        
-        imgui.separator()
-        
-        # Spell attack bonus and save DC
-        if hasattr(self, 'spellcasting_ability'):
-            spell_mod = self.calculate_modifier(self.ability_scores.get(self.spellcasting_ability, 10))
-            spell_attack = spell_mod + self.proficiency_bonus
-            spell_save_dc = 8 + spell_mod + self.proficiency_bonus
-            
-            imgui.text(f"Spell Attack Bonus: {self.format_modifier(spell_attack)}")
-            imgui.text(f"Spell Save DC: {spell_save_dc}")
-            
-        imgui.separator()
-        
-        # Spell slots
-        imgui.text("SPELL SLOTS")
-        for level in range(1, 10):
-            imgui.text(f"Level {level}:")
-            imgui.same_line()
-            
-            # Current slots
-            current_slots = getattr(self, f'spell_slots_{level}_current', 0)
-            imgui.set_next_item_width(50)
-            changed, new_current = imgui.input_int(f"##slots_{level}_current", current_slots, 0, 0)
-            if changed:
-                setattr(self, f'spell_slots_{level}_current', max(0, new_current))
-            
-            imgui.same_line()
-            imgui.text("/")
-            imgui.same_line()
-            
-            # Max slots
-            max_slots = getattr(self, f'spell_slots_{level}_max', 0)
-            imgui.set_next_item_width(50)
-            changed, new_max = imgui.input_int(f"##slots_{level}_max", max_slots, 0, 0)
-            if changed:
-                setattr(self, f'spell_slots_{level}_max', max(0, new_max))
-        
-        imgui.separator()
-        
-        # Spells known/prepared
-        imgui.text("SPELLS")
-        spell_text = getattr(self, 'spells_text', '')
-        imgui.set_next_item_width(-1)
-        changed, new_spells = imgui.input_text_multiline("##spells", spell_text, imgui.ImVec2(-1, 300))
-        if changed:
-            self.spells_text = new_spells
-    
-    def render_tab_equipment(self):
-        """Render the equipment tab content"""
-        imgui.text("EQUIPMENT & INVENTORY")
-        imgui.separator()
-        
-        # Currency
-        imgui.text("CURRENCY")
-        currencies = [("Copper", "cp"), ("Silver", "sp"), ("Electrum", "ep"), ("Gold", "gp"), ("Platinum", "pp")]
-        
-        for name, abbrev in currencies:
-            imgui.text(f"{name} ({abbrev}):")
-            imgui.same_line()
-            imgui.set_next_item_width(80)
-            current_amount = getattr(self, f'currency_{abbrev}', 0)
-            changed, new_amount = imgui.input_int(f"##{abbrev}", current_amount, 0, 0)
-            if changed:
-                setattr(self, f'currency_{abbrev}', max(0, new_amount))
-        
-        imgui.separator()
-        
-        # Equipment list
-        imgui.text("EQUIPMENT LIST")
-        equipment_text = getattr(self, 'equipment_detailed', self.equipment)
-        imgui.set_next_item_width(-1)
-        changed, new_equipment = imgui.input_text_multiline("##equipment_detailed", equipment_text, imgui.ImVec2(-1, 200))
-        if changed:
-            self.equipment_detailed = new_equipment
-            
-        imgui.separator()
-        
-        # Carrying capacity
-        str_score = self.ability_scores["STR"]
-        carrying_capacity = str_score * 15
-        imgui.text(f"Carrying Capacity: {carrying_capacity} lbs")
-        
-        # Current weight
-        current_weight = getattr(self, 'current_weight', 0)
-        imgui.text("Current Weight:")
-        imgui.same_line()
-        imgui.set_next_item_width(80)
-        changed, new_weight = imgui.input_int("##current_weight", current_weight, 0, 0)
-        if changed:
-            self.current_weight = max(0, new_weight)
-            
-        # Weight status
-        if hasattr(self, 'current_weight'):
-            if self.current_weight > carrying_capacity:
-                imgui.text_colored((1.0, 0.0, 0.0, 1.0), "OVERLOADED!")
-            elif self.current_weight > carrying_capacity * 0.8:
-                imgui.text_colored((1.0, 0.8, 0.0, 1.0), "Heavy Load")
+    def update_derived_stats(self):
+        """Update stats that depend on ability scores"""
+        # Update saving throws
+        for ability in self.saving_throws:
+            modifier = self.calculate_modifier(self.ability_scores[ability])
+            if self.saving_throws[ability]["proficient"]:
+                self.saving_throws[ability]["value"] = modifier + self.proficiency_bonus
             else:
-                imgui.text_colored((0.0, 1.0, 0.0, 1.0), "Normal Load")
-        
-        imgui.separator()
-        
-        # Treasure
-        imgui.text("TREASURE & VALUABLES")
-        treasure_text = getattr(self, 'treasure_text', '')
-        imgui.set_next_item_width(-1)
-        changed, new_treasure = imgui.input_text_multiline("##treasure", treasure_text, imgui.ImVec2(-1, 150))
-        if changed:
-            self.treasure_text = new_treasure
-    
-    def _safe_render_with_error_limit(self, render_func, context_name="render"):
-        """Safely execute a render function with error limiting"""
-        import time
-        
-        current_time = time.time()
-        
-        # If we're in crash prevention mode, just show a message
-        if self._crash_prevention_mode:
-            imgui.text(f"Character Sheet in crash prevention mode.")
-            imgui.text("Click 'Reset' to try again.")
-            if imgui.button("Reset Character Sheet"):
-                self._reset_error_state()
-            return
-        
-        # Check if we've had too many errors recently
-        if current_time - self._last_error_time > 10.0:  # Reset error count after 10 seconds
-            self._error_count = 0
-        
-        try:
-            render_func()
-        except Exception as e:
-            self._error_count += 1
-            self._last_error_time = current_time
-            
-            # Log error only once per type to prevent flooding
-            error_msg = f"Error in {context_name}: {str(e)[:100]}"
-            if self._error_count <= 3:  # Only log first 3 errors
-                logger.error(error_msg)
-            
-            # Enter crash prevention mode if too many errors
-            if self._error_count >= self._max_errors:
-                self._crash_prevention_mode = True
-                logger.error(f"Character Sheet entering crash prevention mode after {self._error_count} errors")
-                self.show_full_window = False
-            
-            # Show user-friendly error message
-            imgui.text_colored((1.0, 0.3, 0.3, 1.0), f"Render Error #{self._error_count}")
-            imgui.text(f"Context: {context_name}")
-            if self._error_count < self._max_errors:
-                imgui.text("Attempting to continue...")
+                self.saving_throws[ability]["value"] = modifier
+                
+        # Update skills
+        for skill_name, skill_data in self.skills.items():
+            ability = skill_data["ability"]
+            modifier = self.calculate_modifier(self.ability_scores[ability])
+            if skill_data["proficient"]:
+                skill_data["value"] = modifier + self.proficiency_bonus
             else:
-                imgui.text("Too many errors - entering safe mode")
+                skill_data["value"] = modifier
+                  # Update passive perception
+        perception_modifier = self.skills["Perception"]["value"]
+        self.passive_perception = 10 + perception_modifier
     
-    def _reset_error_state(self):
-        """Reset error tracking state"""
-        self._error_count = 0
-        self._last_error_time = 0
-        self._window_error_occurred = False
-        self._crash_prevention_mode = False
-        logger.info("Character Sheet error state reset")
-        
-    def _check_for_imgui_flood(self):
-        """Detect if ImGui is flooding with errors and force emergency close"""
-        import time
-        current_time = time.time()
-        
-        # Check if we've seen this specific error pattern
-        if hasattr(self, '_flood_detection_start'):
-            time_since_start = current_time - self._flood_detection_start
-            if time_since_start > 2.0:  # If flooding for more than 2 seconds
-                self._imgui_flood_detected = True
-                self._emergency_close = True
-                self.show_full_window = False
-                logger.error("EMERGENCY: ImGui flooding detected - forcing window close")
-                return True
-        else:
-            self._flood_detection_start = current_time
-        
-        return False
+  

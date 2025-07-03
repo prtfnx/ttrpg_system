@@ -48,7 +48,7 @@ NET_SLEEP: float = 0.1
 CHECK_INTERVAL: float = 2.0
 NUMBER_OF_NET_FAILS: int = 5
 TIME_TO_CONNECT: int = 4000  # 4 seconds
-COMPENDIUM_SYSTEM: bool = False
+COMPENDIUM_SYSTEM: bool = True
 LIGHTING_SYS: bool = True
 GUI_SYS: bool = True
 # Layout configuration - centered table with GUI panels on all sides
@@ -121,24 +121,29 @@ def SDL_AppInit_func(args: argparse.Namespace) -> Context:
     
     test_context = Context(renderer, window, base_width=BASE_WIDTH, base_height=BASE_HEIGHT)
     test_context.gl_context = gl_context
+    
+    # Set user mode based on command line arguments
+    test_context.is_gm = (args.mode == "master")
+    logger.info(f"User mode set: {'GM' if test_context.is_gm else 'Player'}")
 
     
     # Initialize D&D 5e Compendiums
     if COMPENDIUM_SYSTEM:
         logger.info("Loading D&D 5e compendiums...")
         try:
-            test_context.CompendiumManager = CompendiumManager.CompendiumManager(test_context)
+            test_context.CompendiumManager = CompendiumManager()
+            compendium_results = test_context.CompendiumManager.load_all_systems()
             
             loaded_systems = sum(compendium_results.values())
             logger.info(f"Loaded {loaded_systems}/4 compendium systems: {compendium_results}")
             
             # Log system status
-            status = compendium_manager.get_system_status()
+            status = test_context.CompendiumManager.get_system_status()
             if status['data_counts']:
                 logger.info(f"Compendium data loaded: {status['data_counts']}")
         except Exception as e:
             logger.error(f"Failed to load compendiums: {e}")
-            test_context.compendium_manager = None
+            test_context.CompendiumManager = None
     
     
     logger.info("Context initialized.")
@@ -326,7 +331,7 @@ def SDL_AppIterate(context):
     # Movement 
     MovementManager.move_sprites(context, delta_time)
     # Render all sdl content
-    context.RenderManager.iterate_draw(table, context.light_on)
+    context.RenderManager.iterate_draw(table, context.light_on, context)
 
     # Render paint system if active (in table area)
     if PaintManager.is_paint_mode_active():
@@ -511,7 +516,7 @@ def parse_arguments():
     # Authentication parameters for WebSocket connections
     parser.add_argument('--session-code', default='WBCHCY',
                        help='Game session code for WebSocket connection')
-    parser.add_argument('--jwt-token', default='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNzUxMDQyNDA4fQ.O1F_KYYYiqN7CohTgkoanBsxQW_ti6Wlr6qNyy-fveQ',
+    parser.add_argument('--jwt-token', default='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNzUxMzE5Nzk0fQ.wc7q5rJul7LoELCO0B9H-KPobRA4KQDoxZqB3UIP0KI',
                        help='JWT authentication token for WebSocket connection')
     parser.add_argument('--username', default='test',
                        help='Username for authentication')

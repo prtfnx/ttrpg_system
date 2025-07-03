@@ -1210,7 +1210,7 @@ class GuiActionsBridge:
         except Exception as e:
             logger.error(f"Failed to select sprite and layer: {e}")
             return False
-        
+    #TODO: use existing structer to get selected entity    
     def set_selected_entity(self, entity_id: str):
         """Set selected entity across all panels"""
         # Store selected entity reference

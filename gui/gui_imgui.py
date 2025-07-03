@@ -35,7 +35,7 @@ from .panels import (
 
 # Import external windows
 from .windows.settings_window import SettingsWindow
-
+from .windows.character_creator_window import CharacterCreator
 
 # Import GUI actions bridge
 from .gui_actions_bridge import GuiActionsBridge
@@ -123,8 +123,7 @@ class SimplifiedGui:
         logger.info(f"Settings window initialized {self.settings_window}")
         self.external_windows.append(self.settings_window)
         
-        # Initialize character creator window
-        from .windows.character_creator_window import CharacterCreator
+        # Initialize character creator window        
         self.character_creator = CharacterCreator(context, self.actions_bridge)
         self.external_windows.append(self.character_creator)
         

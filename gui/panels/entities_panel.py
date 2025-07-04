@@ -275,6 +275,12 @@ class EntitiesPanel:
                     self.context.current_table.selected_sprite = sprite_obj
                     logger.debug(f"Synced entities panel selection to table: {sprite_id} -> {sprite_obj}")
                     logger.debug(f"Selected sprite has ID: {getattr(sprite_obj, 'sprite_id', 'NO_ID')}")
+                    
+                    # Notify character sheet panel about the entity selection
+                    if self.actions_bridge and hasattr(self.actions_bridge, 'on_entity_selected'):
+                        self.actions_bridge.on_entity_selected(sprite_id)
+                        logger.debug(f"Notified character sheet panel about entity selection: {sprite_id}")
+                    
                 else:
                     logger.warning(f"Could not find sprite object for ID: {sprite_id}")
                     # Let's see what sprites are actually available

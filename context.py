@@ -155,8 +155,21 @@ class Context:
         #TODO refactor to use sprite data dict to unify sprite creation
         
         if not table:
-            table = self.Actions.get_table(table_id=table_id).data["table"]
+            if table_id:
+                table_result = self.Actions.get_table(table_id=table_id)
+                if table_result and table_result.success and table_result.data:
+                    table = table_result.data.get("table")
+                else:
+                    logger.error(f"Failed to get table {table_id}: {table_result.message if table_result else 'No result'}")
+                    table = None
+            else:
+                table = None
         table = table if table else self.current_table
+        
+        # Ensure we have a valid table
+        if not table:
+            logger.error("No valid table available for sprite creation")
+            return None
         logger.debug(f"Adding, table: {table}, texture_path: {texture_path}, layer: {layer}")
         # Validate layer exists
         if layer not in table.dict_of_sprites_list:

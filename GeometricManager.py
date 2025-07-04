@@ -3,6 +3,8 @@ import numpy as np
 from typing import List, Tuple, Set, Optional, Callable, Any, TYPE_CHECKING
 import time
 import functools
+
+from sqlalchemy import func
 import sdl3
 import ctypes
 import logging
@@ -186,6 +188,23 @@ class GeometricManager:
         center_x = frect.x + frect.w / 2.0
         center_y = frect.y + frect.h / 2.0
         return np.array([center_x, center_y], dtype=np.float64)
+   
+    @staticmethod
+    def center_position_from_tuple(tuple: tuple) -> np.ndarray:
+
+        """
+        Calculate center position from tuple.
+        
+        Args:
+            tuple: tuple object with x, y, w, h attributes
+            
+        Returns:
+            numpy array [x, y] representing center position
+        """
+        center_x = tuple[0] + tuple[2] / 2.0
+        center_y = tuple[1] + tuple[3] / 2.0
+        return np.array([center_x, center_y], dtype=np.float64)
+       
     
     @staticmethod
     def polygon_to_sdl_triangles(polygon_points: np.ndarray, center_point: np.ndarray,
@@ -246,7 +265,7 @@ class GeometricManager:
         return vertices
 
     @staticmethod
-    #@profile_function
+    #@profile_function    
     def generate_visibility_polygon(player_pos: np.ndarray, obstacles: np.ndarray, 
                                   max_view_distance: int = 100,
                                   step_to_gap: int = 1) -> np.ndarray:

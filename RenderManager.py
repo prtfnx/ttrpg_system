@@ -7,7 +7,7 @@ from typing import Optional, Dict, List, Any, Union, TYPE_CHECKING
 from Sprite import Sprite
 from dataclasses import dataclass
 from ContextTable import ContextTable
-
+from functools import lru_cache
 if TYPE_CHECKING:
     from LightManager import LightManager
     from GeometricManager import GeometricManager
@@ -211,22 +211,34 @@ class RenderManager():
         sdl3.SDL_RenderClear(self.renderer)
         # Form visibility polygon if the point of view has changed
         if self.point_of_view_changed or self.obstacles_changed:
-            player_pos = self.GeometricManager.center_position_from_frect(player.frect)
-            obstacles = self.GeometricManager.sprites_to_obstacles_numpy(self.dict_of_sprites_list.get("obstacles"))
-            # TODO step_to_gap get from settings 
-            visibility_polygon = self.GeometricManager.generate_visibility_polygon(
-                player_pos, obstacles, max_view_distance=self.view_distance, step_to_gap=5
-            )
-            self.visibility_polygon_vertices = self.GeometricManager.polygon_to_sdl_triangles(visibility_polygon, 
-                                                                                              player_pos, color=(1.0, 1.0, 1.0, 1.0))
+            obstacles_tuple = tuple(self.dict_of_sprites_list.get("obstacles", []))
+            player_position_tuple = tuple((player.frect.x, player.frect.y, player.frect.w, player.frect.h 
+                                          if player.frect else (0, 0, 0, 0)))
+            self.visibility_polygon_vertices = self.get_visibility_polygon(player_position_tuple,
+                                                                           obstacles_tuple)
             # For testing purposes dont use point_of_view_changed
-            #self.point_of_view_changed = False
+            # self.point_of_view_changed = False
         # Draw polygon of visibility
         sdl3.SDL_SetRenderDrawColor(self.renderer, 255, 255, 255, 255)
         sdl3.SDL_RenderGeometry(self.renderer, None, self.visibility_polygon_vertices, len(self.visibility_polygon_vertices), None, 0)
         sdl3.SDL_SetRenderTarget(self.renderer, None)
         sdl3.SDL_RenderClear(self.renderer)
-    
+
+    @lru_cache(maxsize=128)
+    def get_visibility_polygon(self,  player_tuple: tuple, obstacles: Optional[List[Sprite]] ) -> Optional[ctypes.Array]:   
+
+        if not self.GeometricManager:
+            raise ValueError("GeometricManager is not initialized")
+        GM = self.GeometricManager
+        player_pos = GM.center_position_from_tuple(player_tuple)
+        obstacles_np = GM.sprites_to_obstacles_numpy(obstacles)
+        # TODO step_to_gap get from settings 
+        visibility_polygon = GM.generate_visibility_polygon(
+            player_pos, obstacles_np, max_view_distance=self.view_distance, step_to_gap=5
+        )
+        vertices = GM.polygon_to_sdl_triangles(visibility_polygon, player_pos, color=(1.0, 1.0, 1.0, 1.0))
+        return vertices
+
     def finish_lighting(self):
         """Finish lighting effects rendering"""
         if not self.LightManager:

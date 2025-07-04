@@ -1232,6 +1232,11 @@ class GuiActionsBridge:
 
     def on_entity_selected(self, entity_id: str):
         """Called when an entity is selected in the journal panel. Notifies character sheet panel."""
+        # Track the selected entity
+        self._selected_entity_id = entity_id
+        logger.debug(f"Actions bridge tracking selected entity: {entity_id}")
+        
+        # Notify character sheet panel
         if hasattr(self.context, 'character_sheet_panel'):
             self.context.character_sheet_panel.set_selected_entity(entity_id)
         elif hasattr(self.context, 'panels') and 'character_sheet_panel' in self.context.panels:

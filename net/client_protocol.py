@@ -659,7 +659,8 @@ class ClientProtocol:
             # Delegate to Actions instead of handling directly
             self.Actions.handle_asset_download_response(msg.data)
             
-        except Exception as e:            logger.error(f"Error handling asset download response: {e}")
+        except Exception as e:            
+            logger.error(f"Error handling asset download response: {e}")
 
     def handle_asset_list_response(self, msg: Message):
         """Handle asset list response from server - delegate to Actions"""

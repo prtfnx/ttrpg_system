@@ -190,6 +190,7 @@ class Actions(ActionsProtocol):
         self.layer_visibility = {layer: True for layer in LAYERS.keys()}
         self.AssetManager: Optional[ClientAssetManager] = None
         self.pending_upload_operations: Dict[str, str] = {}  # asset_id -> file_path
+        self.actions_bridge = None  # Will be connected to GUI actions bridge later
 
     def _add_to_history(self, action: Dict[str, Any]):
         """Add action to history for undo/redo functionality"""
@@ -538,7 +539,8 @@ class Actions(ActionsProtocol):
                 'sprite_id': sprite_id,
                 'position': position,
                 'image_path': image_path,
-                'layer': layer
+                'layer': layer,
+                'sprite': sprite
             })
         except Exception as e:
             return ActionResult(False, f"Failed to create sprite: {str(e)}")
@@ -560,13 +562,31 @@ class Actions(ActionsProtocol):
                 'rotation': getattr(sprite, 'rotation', 0.0),
                 'image_path': sprite.texture_path,
                 'layer': sprite.layer,
-                'visible': getattr(sprite, 'visible', True)
+                'visible': getattr(sprite, 'visible', True),
+                'character_data': getattr(sprite, 'character', None)  # Include character data
             }
             
             return ActionResult(True, f"Sprite {sprite_id} info retrieved", info)
         except Exception as e:
             return ActionResult(False, f"Failed to get sprite info: {str(e)}")
 
+    def find_sprite(self, table_id: str, sprite_id: str) -> ActionResult:
+        """Find a sprite by ID in a specific table"""
+        try:
+            table = self._get_table_by_id(table_id)
+            if not table:
+                logger.error(f"Table {table_id} not found")
+                return None
+            
+            sprite = self._find_sprite_in_table(table, sprite_id)
+            if not sprite:
+                logger.error(f"Sprite {sprite_id} not found in table {table_id}")
+                return None
+
+            return ActionResult(True, f"Sprite {sprite_id} found", sprite)
+        except Exception as e:
+            logger.error(f"Failed to find sprite {sprite_id}: {str(e)}")
+            return None
     def update_sprite(self, table_id: str, sprite_id: str, to_server: bool = True, **kwargs) -> ActionResult:
         """Update sprite properties"""
         try:

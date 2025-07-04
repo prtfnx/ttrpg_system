@@ -1,3 +1,4 @@
+import uuid
 import sdl3
 import ctypes
 import json
@@ -23,6 +24,20 @@ DIFF_POSITION = 10  # Minimum position change to trigger network sync
 
 def handle_mouse_motion(cnt, event):
     cnt.cursor_position_x, cnt.cursor_position_y = event.motion.x, event.motion.y
+    
+    # Check if we should start dragging from a click
+    if hasattr(cnt, '_potential_drag') and cnt._potential_drag and not cnt.grabing:
+        # Calculate distance moved since click
+        dx = event.motion.x - cnt._click_start_x
+        dy = event.motion.y - cnt._click_start_y
+        drag_distance = (dx * dx + dy * dy) ** 0.5
+        
+        # Start dragging if moved more than threshold (5 pixels)
+        if drag_distance > 5:
+            cnt.grabing = True
+            cnt._potential_drag = False
+            logger.debug(f"Started dragging sprite after moving {drag_distance:.1f} pixels")
+    
     if cnt.grabing:
         if cnt.current_table.selected_sprite is not None:
             sprite = cnt.current_table.selected_sprite
@@ -450,10 +465,56 @@ def handle_mouse_button_down(cnt, event):
                 sprites = cnt.current_table.dict_of_sprites_list[selected_layer]
                 for sprite in sprites:
                     if sdl3.SDL_PointInRectFloat(ctypes.byref(point), ctypes.byref(sprite.frect)):
+                        # Select sprite but don't start grabbing yet
                         cnt.current_table.selected_sprite = sprite
-                        cnt.grabing = True
                         clicked_on_sprite = True
-                        logger.debug(f"Sprite grabbed from layer '{selected_layer}'")
+                        
+                        # Store click position for drag detection
+                        cnt._click_start_x = event.button.x
+                        cnt._click_start_y = event.button.y
+                        cnt._potential_drag = True
+                        cnt.grabing = False  # Don't start grabbing immediately
+                        
+                        logger.debug(f"Sprite selected from layer '{selected_layer}': {sprite}")
+                        
+                        # Notify actions bridge about sprite selection for character panel
+                        sprite_id = getattr(sprite, 'sprite_id', getattr(sprite, 'name', None))
+                        if sprite_id:
+                            # Try multiple ways to notify the character panel
+                            notified = False
+                            
+                            # Method 1: Through Actions bridge
+                            if hasattr(cnt, 'Actions') and cnt.Actions and hasattr(cnt.Actions, 'actions_bridge'):
+                                try:
+                                    cnt.Actions.actions_bridge.on_entity_selected(sprite_id)
+                                    logger.debug(f"Notified actions bridge of sprite selection: {sprite_id}")
+                                    notified = True
+                                except Exception as e:
+                                    logger.error(f"Failed to notify via actions bridge: {e}")
+                            
+                            # Method 2: Through GUI system directly
+                            if hasattr(cnt, 'imgui') and cnt.imgui and hasattr(cnt.imgui, 'actions_bridge'):
+                                try:
+                                    cnt.imgui.actions_bridge.on_entity_selected(sprite_id)
+                                    logger.debug(f"Notified GUI actions bridge of sprite selection: {sprite_id}")
+                                    notified = True
+                                except Exception as e:
+                                    logger.error(f"Failed to notify via GUI actions bridge: {e}")
+                            
+                            # Method 3: Through context if available
+                            if not notified and hasattr(cnt, 'gui') and cnt.gui:
+                                try:
+                                    if hasattr(cnt.gui, 'actions_bridge'):
+                                        cnt.gui.actions_bridge.on_entity_selected(sprite_id)
+                                        logger.debug(f"Notified context GUI actions bridge of sprite selection: {sprite_id}")
+                                        notified = True
+                                except Exception as e:
+                                    logger.error(f"Failed to notify via context GUI actions bridge: {e}")
+                            
+                            if not notified:
+                                logger.warning(f"Could not find any actions bridge to notify of sprite selection: {sprite_id}")
+                                logger.debug(f"Available context attributes: {[attr for attr in dir(cnt) if not attr.startswith('_')]}")
+                        
                         break
         
         # If we didn't click on a sprite and we're not resizing, start moving the table
@@ -555,6 +616,15 @@ def handle_mouse_button_up(cnt, event):
         cnt.grabing = False
         cnt.moving_table = False
         cnt.resize_direction = None
+        
+        # Clear click/drag detection state
+        if hasattr(cnt, '_potential_drag'):
+            cnt._potential_drag = False
+        if hasattr(cnt, '_click_start_x'):
+            delattr(cnt, '_click_start_x')
+        if hasattr(cnt, '_click_start_y'):
+            delattr(cnt, '_click_start_y')
+            
         if hasattr(cnt, 'rotating'):
             cnt.rotating = False
         
@@ -674,24 +744,57 @@ def handle_key_event(cnt, key_code):
         case sdl3.SDL_SCANCODE_KP_MINUS:
             cnt.current_table.selected_sprite.scale_x -= 0.1
             cnt.current_table.selected_sprite.scale_y -= 0.1
+
         case sdl3.SDL_SCANCODE_SPACE:
             x, y = ctypes.c_float(), ctypes.c_float()
             sdl3.SDL_GetMouseState(ctypes.byref(x), ctypes.byref(y))
             logger.info(f"Mouse pos {x.value}, {y.value}")
             if cnt.current_table.selected_sprite.character is not None:
-                table= cnt.current_table
+                table = cnt.current_table
                 spell = table.selected_sprite.character.spells[0]
-                table.selected_sprite.character.spell_attack(x, y, spell)
-                sprite = cnt.add_sprite(spell.sprite, scale_x=0.1, scale_y=0.1, moving=True, speed=1, collidable=True, coord_x=table.selected_sprite.coord_x.value, coord_y=table.selected_sprite.coord_y.value)
+                
+                # Convert mouse screen coordinates to table coordinates
+                if hasattr(table, 'screen_to_table'):
+                    target_table_x, target_table_y = table.screen_to_table(x.value, y.value)
+                else:
+                    # Fallback to legacy conversion
+                    target_table_x = (x.value - table.x_moved) / table.scale
+                    target_table_y = (y.value - table.y_moved) / table.scale          
+                
+                # Call spell attack with table coordinates
+                table.selected_sprite.character.spell_attack(target_table_x, target_table_y, spell)
+                
+                from core_table.actions_protocol import Position
+                spell_position = Position(table.selected_sprite.coord_x.value, table.selected_sprite.coord_y.value)
+                table_id = table.table_id if hasattr(table, 'table_id') else table.name
+                spell_sprite_path = spell.sprite if hasattr(spell, 'sprite') else spell.image_path
+                result = cnt.Actions.create_sprite(
+                        table_id=table_id,
+                        sprite_id=uuid.uuid4().hex,
+                        position=spell_position,
+                        image_path=spell_sprite_path,
+                        scale_x=0.1,
+                        scale_y=0.1,
+                        moving=True,
+                        speed=1,
+                        collidable=True
+                )
+                
+                sprite = result.data['sprite']
                 sprite.set_position(cnt.current_table.selected_sprite.coord_x.value, cnt.current_table.selected_sprite.coord_y.value)
-                #print(f" x.value:{x.value}, cnt.current_table.selected_sprite.coord_x.value: {cnt.current_table.selected_sprite.coord_x.value}, cnt.current_table.x_moved: {cnt.current_table.x_moved}" )
-                dx = x.value - table.selected_sprite.coord_x.value*table.scale - table.x_moved
-                dy = y.value - table.selected_sprite.coord_y.value*table.scale - table.y_moved
+                
+                # Calculate direction using table coordinates
+                dx = target_table_x - table.selected_sprite.coord_x.value
+                dy = target_table_y - table.selected_sprite.coord_y.value
                 length = (dx ** 2 + dy ** 2) ** 0.5
-                vx = dx / length
-                vy = dy / length
-                sprite.set_speed(vx * sprite.speed, vy * sprite.speed)
-                logger.info(f"Projectile dx/dy: {dx} {dy}, speed: {vx} {vy}")
+                
+                if length > 0:
+                    vx = dx / length
+                    vy = dy / length
+                    sprite.set_speed(vx * sprite.speed, vy * sprite.speed)
+                    logger.info(f"Projectile target: ({target_table_x}, {target_table_y}), direction: ({vx}, {vy})")
+                else:
+                    logger.warning("Zero-length projectile vector, sprite will not move")
         case sdl3.SDL_SCANCODE_LCTRL:
             logger.info("Control key pressed, asking table")            
             cnt.Actions.ask_for_table('large_table')

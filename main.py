@@ -193,6 +193,12 @@ def SDL_AppInit_func(args: argparse.Namespace) -> Context:
             simplified_gui = gui_imgui.create_gui(test_context)
             logger.info("Simplified GUI system initialized.")
             test_context.imgui = simplified_gui
+            
+            # Connect Actions system to GUI actions bridge
+            if test_context.Actions and hasattr(simplified_gui, 'actions_bridge'):
+                test_context.Actions.actions_bridge = simplified_gui.actions_bridge
+                logger.info("Connected Actions system to GUI actions bridge.")
+            
         except Exception as e:
             logger.exception(f"Error initializing Simplified GUI: {e}")
             test_context.imgui = None
@@ -273,12 +279,15 @@ def SDL_AppInit_func(args: argparse.Namespace) -> Context:
     # Setup test table
     # Initialize table, spell and character
     test_spell = core_table.entities.Spell(
-        name="test", description="test", level=1, sprite=b"resources/magic_projectile.gif"
+        name="test", description="test", level=1, sprite="resources/magic_projectile.gif"
     )
     test_table = test_context.add_table("test_table", BASE_WIDTH, BASE_HEIGHT)
     test_character = core_table.Character.Character(
-        name="test_name", race="test_race", char_class=None, hp=10, level=1, stats=None
+        name="test_name", level=1
     )
+    # Set hit points manually since we don't have a character class
+    test_character.hit_points = 10
+    test_character.max_hit_points = 10
    
     test_character.add_spell(test_spell)
     result1=test_context.Actions.create_sprite( test_table.table_id, "sprite_map", Position(0, 0), image_path="resources/map.jpg", scale_x=0.5, scale_y=0.5, layer='map')

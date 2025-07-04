@@ -3,11 +3,14 @@
 Character Sheet Window - Standalone character sheet in popup window
 """
 import random
+import re
 from imgui_bundle import imgui
 from typing import Dict, Optional
 from logger import setup_logger
 logger = setup_logger(__name__)
 from core_table.Character import Character
+from core_table.compendiums.characters.character import AbilityScore
+from core_table.compendiums.characters.character import AbilityScore
 
 class CharacterSheetWindow:
     def __init__(self, context=None, actions_bridge=None):
@@ -18,6 +21,7 @@ class CharacterSheetWindow:
         # Window state
         self.show_full_window = True
         self.selected_entity_id = None
+        self.parent_panel = None  # Reference to parent panel for signaling
         
         # Character sheet fields matching official PDF
         self.character_name = ""
@@ -111,7 +115,17 @@ class CharacterSheetWindow:
         if expanded:
             # Close button and character info
             if imgui.button("Close", (100, 30)):
+                self.save_to_character()  # Save changes before closing
                 self.show_full_window = False
+                # Signal parent panel that window is closed
+                if self.parent_panel:
+                    self.parent_panel.show_full_window = False
+                logger.info("Character sheet window closed via Close button")
+                
+            imgui.same_line()
+            if imgui.button("Save", (80, 30)):
+                self.save_to_character()
+                logger.info("Character data manually saved")
                 
             imgui.same_line()
             imgui.text(f"Character: {self.character_name or 'Unnamed'}")
@@ -136,7 +150,12 @@ class CharacterSheetWindow:
                 imgui.end_tab_bar()
         else:
             # Window was closed via X button
-            pass
+            self.save_to_character()  # Save changes before closing
+            self.show_full_window = False
+            # Signal parent panel that window is closed
+            if self.parent_panel:
+                self.parent_panel.show_full_window = False
+            logger.info("Character sheet window closed via X button")
             
         
         imgui.end()
@@ -259,24 +278,28 @@ class CharacterSheetWindow:
         changed, new_name = imgui.input_text("##char_name", self.character_name)
         if changed:
             self.character_name = new_name
+            self.auto_save_changes()
             
         imgui.same_line()
         imgui.set_next_item_width(180)
         changed, new_class = imgui.input_text("##class_level", self.class_level)
         if changed:
             self.class_level = new_class
+            self.auto_save_changes()
             
         imgui.same_line()
         imgui.set_next_item_width(180)
         changed, new_bg = imgui.input_text("##background", self.background)
         if changed:
             self.background = new_bg
+            self.auto_save_changes()
             
         imgui.same_line()
         imgui.set_next_item_width(180)
         changed, new_player = imgui.input_text("##player_name", self.player_name)
         if changed:
             self.player_name = new_player
+            self.auto_save_changes()
             
         imgui.spacing()
         
@@ -292,18 +315,21 @@ class CharacterSheetWindow:
         changed, new_race = imgui.input_text("##race", self.race)
         if changed:
             self.race = new_race
+            self.auto_save_changes()
             
         imgui.same_line()
         imgui.set_next_item_width(180)
         changed, new_align = imgui.input_text("##alignment", self.alignment)
         if changed:
             self.alignment = new_align
+            self.auto_save_changes()
             
         imgui.same_line()
         imgui.set_next_item_width(180)
         changed, new_xp = imgui.input_int("##experience", self.experience_points, 0, 0)
         if changed:
             self.experience_points = max(0, new_xp)
+            self.auto_save_changes()
             
         imgui.separator()
         
@@ -351,6 +377,7 @@ class CharacterSheetWindow:
             if changed:
                 self.ability_scores[ability] = max(1, min(30, new_score))
                 self.update_derived_stats()
+                self.auto_save_changes()
                 
             imgui.end_group()
             imgui.spacing()
@@ -359,6 +386,9 @@ class CharacterSheetWindow:
         
     def render_ability_scores_with_saves_skills(self):
         """Render ability scores with saving throws and skills alongside"""
+        # First render inspiration/proficiency at the top
+        self.render_inspiration_proficiency()
+        
         # Create a horizontal layout with ability scores on left, saves/skills on right
         if imgui.begin_table("AbilityScoresSavesSkills", 2, imgui.TableFlags_.borders_inner_v.value):
             # Setup columns
@@ -366,16 +396,15 @@ class CharacterSheetWindow:
             imgui.table_setup_column("SavesSkills", imgui.TableColumnFlags_.width_fixed.value, 240.0)
             imgui.table_next_row()
             
-            # Left column - Ability Scores
+            # Left column - Ability Scores only
             imgui.table_next_column()
             self.render_ability_scores()
-            self.render_inspiration_proficiency()
-            self.render_passive_perception()
             
-            # Right column - Saving Throws and Skills
+            # Right column - Saving Throws, Skills, and Passive Perception
             imgui.table_next_column()
             self.render_saving_throws()
             self.render_skills()
+            self.render_passive_perception()
             
             imgui.end_table()
         
@@ -412,6 +441,7 @@ class CharacterSheetWindow:
             if changed:
                 self.saving_throws[ability]["proficient"] = new_prof
                 self.update_derived_stats()
+                self.auto_save_changes()
                 
             imgui.same_line()
               # Bonus display - clickable for rolling
@@ -435,6 +465,7 @@ class CharacterSheetWindow:
             if changed:
                 skill_data["proficient"] = new_prof
                 self.update_derived_stats()
+                self.auto_save_changes()
                 
             imgui.same_line()
               # Skill bonus display - clickable for rolling
@@ -490,18 +521,21 @@ class CharacterSheetWindow:
         changed, new_max_hp = imgui.input_int("##max_hp", self.hit_point_maximum, 0, 0)
         if changed:
             self.hit_point_maximum = max(1, new_max_hp)
+            self.auto_save_changes()
             
         imgui.same_line(180)
         imgui.set_next_item_width(80)
         changed, new_curr_hp = imgui.input_int("##curr_hp", self.current_hit_points, 0, 0)
         if changed:
             self.current_hit_points = max(0, min(self.hit_point_maximum, new_curr_hp))
+            self.auto_save_changes()
             
         imgui.same_line(360)
         imgui.set_next_item_width(80)
         changed, new_temp_hp = imgui.input_int("##temp_hp", self.temporary_hit_points, 0, 0)
         if changed:
             self.temporary_hit_points = max(0, new_temp_hp)
+            self.auto_save_changes()
             
         imgui.spacing()
         
@@ -542,6 +576,7 @@ class CharacterSheetWindow:
         changed, new_attacks = imgui.input_text_multiline("##attacks", self.attacks_spellcasting, imgui.ImVec2(-1, 100))
         if changed:
             self.attacks_spellcasting = new_attacks
+            self.auto_save_changes()
             
         imgui.spacing()
         
@@ -550,6 +585,7 @@ class CharacterSheetWindow:
         changed, new_equipment = imgui.input_text_multiline("##equipment", self.equipment, imgui.ImVec2(-1, 150))
         if changed:
             self.equipment = new_equipment
+            self.auto_save_changes()
             
         imgui.spacing()
         
@@ -653,6 +689,7 @@ class CharacterSheetWindow:
         changed, new_equipment = imgui.input_text_multiline("##equipment_detailed", equipment_text, imgui.ImVec2(-1, 200))
         if changed:
             self.equipment_detailed = new_equipment
+            self.auto_save_changes()
             
         imgui.separator()
         
@@ -692,4 +729,156 @@ class CharacterSheetWindow:
     def format_modifier(self, modifier: int) -> str:
         """Format modifier with + or - sign"""
         return f"+{modifier}" if modifier >= 0 else str(modifier)
+    
+    def set_parent_panel(self, parent_panel):
+        """Set reference to parent panel for signaling when window closes"""
+        self.parent_panel = parent_panel
+    
+    def load_from_panel(self, panel):
+        """Load character data from the character sheet panel"""
+        logger.info("Loading character data from panel to window")
+        
+        # Get the character object reference
+        self.character = panel.character
+        
+        # Load current display data from panel
+        self.character_name = panel.character_name
+        self.class_level = panel.class_level
+        self.background = panel.background
+        self.player_name = panel.player_name
+        self.race = panel.race
+        self.alignment = panel.alignment
+        self.experience_points = panel.experience_points
+        
+        # Ability scores
+        self.ability_scores = panel.ability_scores.copy()
+        
+        # Inspiration and Proficiency Bonus
+        self.inspiration = panel.inspiration
+        self.proficiency_bonus = panel.proficiency_bonus
+        
+        # Saving throws
+        self.saving_throws = {}
+        for save, data in panel.saving_throws.items():
+            self.saving_throws[save] = data.copy()
+        
+        # Skills
+        self.skills = {}
+        for skill, data in panel.skills.items():
+            self.skills[skill] = data.copy()
+        
+        # Combat stats
+        self.armor_class = panel.armor_class
+        self.initiative = panel.initiative
+        self.speed = panel.speed
+        self.hit_point_maximum = panel.hit_point_maximum
+        self.current_hit_points = panel.current_hit_points
+        self.temporary_hit_points = panel.temporary_hit_points
+        self.total_hit_dice = panel.total_hit_dice
+        self.hit_dice = panel.hit_dice
+        
+        # Death saves
+        self.death_save_successes = panel.death_save_successes.copy()
+        self.death_save_failures = panel.death_save_failures.copy()
+        
+        # Passive perception
+        self.passive_perception = panel.passive_perception
+        
+        # Text fields
+        self.attacks_spellcasting = panel.attacks_spellcasting
+        self.equipment = panel.equipment
+        self.other_proficiencies_languages = panel.other_proficiencies_languages
+        self.features_traits = panel.features_traits
+        
+        # Set the selected entity
+        self.selected_entity_id = panel.selected_entity_id
+        
+        logger.info(f"Character data loaded: {self.character_name}")
+        
+    def save_to_character(self):
+        """Save character data directly to the Character object"""
+        if not self.character:
+            logger.debug("No character object to save to")
+            return
+            
+        logger.info("Saving window data directly to Character object")
+        
+        try:
+            # Basic character info
+            self.character.name = self.character_name
+            self.character.player_name = self.player_name
+            self.character.experience_points = self.experience_points
+            self.character.alignment = self.alignment
+            
+            # Extract and set level
+            level = self.extract_level_from_class_level()
+            self.character.level = level
+            
+            # Ability scores - map from short names to enum values
+            ability_map = {
+                "STR": AbilityScore.STRENGTH,
+                "DEX": AbilityScore.DEXTERITY,
+                "CON": AbilityScore.CONSTITUTION,
+                "INT": AbilityScore.INTELLIGENCE,
+                "WIS": AbilityScore.WISDOM,
+                "CHA": AbilityScore.CHARISMA
+            }
+            
+            for ability_str, score in self.ability_scores.items():
+                if ability_str in ability_map:
+                    ability_enum = ability_map[ability_str]
+                    self.character.ability_scores[ability_enum] = score
+            
+            # Combat stats - save all combat-related fields
+            self.character.armor_class = self.armor_class
+            self.character.hit_points = self.current_hit_points
+            self.character.max_hit_points = self.hit_point_maximum
+            # Note: proficiency_bonus is calculated automatically, not saved manually
+            
+            # Set additional fields dynamically if possible
+            additional_fields = {
+                'temporary_hit_points': self.temporary_hit_points,
+                'speed': self.speed,
+                'initiative': self.initiative,
+                'inspiration': self.inspiration,
+                'hit_dice': self.hit_dice,
+                'total_hit_dice': self.total_hit_dice,
+                'death_save_successes': self.death_save_successes.copy(),
+                'death_save_failures': self.death_save_failures.copy(),
+                'race': self.race if hasattr(self, 'race') else "",
+                'background': self.background if hasattr(self, 'background') else ""
+            }
+            
+            for field_name, value in additional_fields.items():
+                try:
+                    setattr(self.character, field_name, value)
+                except AttributeError as e:
+                    logger.debug(f"Could not set {field_name}: {e}")
+            
+            # Try to update calculated values if the method exists
+            try:
+                self.character.update_calculated_values()
+            except AttributeError:
+                logger.debug("Character object does not have update_calculated_values method")
+            
+            logger.info(f"Character object updated directly: {self.character.name}")
+        except Exception as e:
+            logger.error(f"Error updating character object: {e}")
+    
+    def extract_level_from_class_level(self):
+        """Extract numeric level from class_level string"""
+        
+        match = re.search(r'\d+', self.class_level)
+        return int(match.group()) if match else 1
+    
+    def extract_class_from_class_level(self):
+        """Extract class name from class_level string"""
+       
+        # Remove numbers and extra whitespace
+        class_name = re.sub(r'\d+', '', self.class_level).strip()
+        return class_name if class_name else self.class_level
+
+    def auto_save_changes(self):
+        """Automatically save changes directly to character object"""
+        self.save_to_character()
 

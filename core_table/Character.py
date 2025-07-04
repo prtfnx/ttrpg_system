@@ -44,6 +44,16 @@ class Character(DnD5eCharacter):
         self.spells: List[Any] = []  # For spell objects
         self.inventory: List[str] = []
         
+        # Combat-specific attributes
+        self.temporary_hit_points: int = 0
+        self.death_save_successes: List[bool] = [False, False, False]
+        self.death_save_failures: List[bool] = [False, False, False]
+        self.inspiration: bool = False
+        self.speed: int = 30  # Base movement speed
+        self.initiative: int = 0  # Initiative modifier
+        self.hit_dice: str = "1d8"  # Hit dice remaining
+        self.total_hit_dice: str = "1d8"  # Total hit dice
+        
         # Initialize calculated values
         self.update_calculated_values()
         
@@ -51,16 +61,49 @@ class Character(DnD5eCharacter):
         if self.character_class and self.hit_points == 0:
             self.hit_points = self.max_hit_points
     
-    def take_damage(self, amount: int) -> int:
-        """Apply damage to the character and return actual damage taken"""
-        actual_damage = min(amount, self.hit_points)
-        self.hit_points = max(0, self.hit_points - amount)
-        return actual_damage
+    def take_damage(self, amount: int) -> Dict[str, Any]:
+        """Apply damage to the character and return damage result"""
+        if amount <= 0:
+            return {'damage_taken': 0, 'temp_damage': 0, 'hp_damage': 0, 'status': 'no_damage'}
+        
+        # Apply damage to temporary HP first
+        temp_damage = min(amount, self.temporary_hit_points)
+        self.temporary_hit_points -= temp_damage
+        remaining_damage = amount - temp_damage
+        
+        # Apply remaining damage to actual HP
+        hp_damage = min(remaining_damage, self.hit_points)
+        self.hit_points -= hp_damage
+        
+        # Check for massive damage (damage >= max HP while at full HP)
+        was_at_full_hp = (self.hit_points + hp_damage) == self.max_hit_points
+        massive_damage = was_at_full_hp and amount >= self.max_hit_points
+        
+        # Reset death saves when taking damage while conscious
+        if self.hit_points > 0:
+            self.reset_death_saves()
+        
+        return {
+            'damage_taken': amount,
+            'temp_damage': temp_damage,
+            'hp_damage': hp_damage,
+            'massive_damage': massive_damage,
+            'status': 'dead' if massive_damage else ('unconscious' if self.hit_points == 0 else 'conscious')
+        }
     
     def heal(self, amount: int) -> int:
         """Heal the character and return actual healing done"""
+        if amount <= 0:
+            return 0
+            
         actual_healing = min(amount, self.max_hit_points - self.hit_points)
+        old_hp = self.hit_points
         self.hit_points = min(self.max_hit_points, self.hit_points + amount)
+        
+        # Reset death saves if character regains consciousness
+        if old_hp == 0 and self.hit_points > 0:
+            self.reset_death_saves()
+            
         return actual_healing
     
     def is_alive(self) -> bool:
@@ -70,6 +113,95 @@ class Character(DnD5eCharacter):
     def is_conscious(self) -> bool:
         """Check if character is conscious (not unconscious or dead)"""
         return self.hit_points > 0
+    
+    def is_dying(self) -> bool:
+        """Check if character is dying (0 HP but not dead)"""
+        return self.hit_points == 0 and not self.is_dead()
+    
+    def is_dead(self) -> bool:
+        """Check if character is dead (3 death save failures or massive damage)"""
+        return sum(self.death_save_failures) >= 3
+    
+    def is_stable(self) -> bool:
+        """Check if character is stable (3 death save successes)"""
+        return sum(self.death_save_successes) >= 3
+    
+    def make_death_save(self, roll: int) -> Dict[str, Any]:
+        """Make a death saving throw and return the result"""
+        if not self.is_dying():
+            return {
+                'success': False,
+                'message': f"{self.name} is not dying and doesn't need death saves.",
+                'result': 'not_applicable'
+            }
+        
+        # Natural 20 restores 1 HP
+        if roll == 20:
+            self.hit_points = 1
+            self.reset_death_saves()
+            return {
+                'success': True,
+                'message': f"{self.name} rolled a natural 20 and recovers with 1 HP!",
+                'result': 'recovered'
+            }
+        
+        # Natural 1 counts as 2 failures
+        if roll == 1:
+            for i in range(2):
+                for j in range(3):
+                    if not self.death_save_failures[j]:
+                        self.death_save_failures[j] = True
+                        break
+            message = f"{self.name} rolled a natural 1 (2 failures)!"
+        # Success (10 or higher)
+        elif roll >= 10:
+            for i in range(3):
+                if not self.death_save_successes[i]:
+                    self.death_save_successes[i] = True
+                    break
+            message = f"{self.name} succeeded on death save (rolled {roll})!"
+        # Failure (2-9)
+        else:
+            for i in range(3):
+                if not self.death_save_failures[i]:
+                    self.death_save_failures[i] = True
+                    break
+            message = f"{self.name} failed death save (rolled {roll})!"
+        
+        # Check results
+        if self.is_dead():
+            return {
+                'success': True,
+                'message': message + f" {self.name} has died.",
+                'result': 'dead'
+            }
+        elif self.is_stable():
+            return {
+                'success': True,
+                'message': message + f" {self.name} is now stable.",
+                'result': 'stable'
+            }
+        else:
+            successes = sum(self.death_save_successes)
+            failures = sum(self.death_save_failures)
+            return {
+                'success': True,
+                'message': message + f" ({successes} successes, {failures} failures)",
+                'result': 'continuing'
+            }
+    
+    def reset_death_saves(self) -> None:
+        """Reset all death saves (called when character regains HP)"""
+        self.death_save_successes = [False, False, False]
+        self.death_save_failures = [False, False, False]
+    
+    def add_temporary_hp(self, amount: int) -> None:
+        """Add temporary hit points (doesn't stack, takes higher value)"""
+        self.temporary_hit_points = max(self.temporary_hit_points, amount)
+    
+    def get_total_hp(self) -> int:
+        """Get total effective hit points including temporary HP"""
+        return self.hit_points + self.temporary_hit_points
     
     def spell_attack(self, x: float, y: float, spell: Any) -> Dict[str, Any]:
         """
@@ -151,8 +283,16 @@ class Character(DnD5eCharacter):
             'level': self.level,
             'hit_points': self.hit_points,
             'max_hit_points': self.max_hit_points,
+            'temporary_hit_points': self.temporary_hit_points,
             'armor_class': self.armor_class,
             'proficiency_bonus': self.proficiency_bonus,
+            'speed': self.speed,
+            'initiative': self.initiative,
+            'inspiration': self.inspiration,
+            'hit_dice': self.hit_dice,
+            'total_hit_dice': self.total_hit_dice,
+            'death_save_successes': self.death_save_successes.copy(),
+            'death_save_failures': self.death_save_failures.copy(),
             'ability_scores': {
                 ability.value: score 
                 for ability, score in self.ability_scores.items()
@@ -192,7 +332,15 @@ class Character(DnD5eCharacter):
         # Restore other attributes
         character.hit_points = data.get('hit_points', 0)
         character.max_hit_points = data.get('max_hit_points', 0)
+        character.temporary_hit_points = data.get('temporary_hit_points', 0)
         character.armor_class = data.get('armor_class', 10)
+        character.speed = data.get('speed', 30)
+        character.initiative = data.get('initiative', 0)
+        character.inspiration = data.get('inspiration', False)
+        character.hit_dice = data.get('hit_dice', '1d8')
+        character.total_hit_dice = data.get('total_hit_dice', '1d8')
+        character.death_save_successes = data.get('death_save_successes', [False, False, False])
+        character.death_save_failures = data.get('death_save_failures', [False, False, False])
         character.alignment = data.get('alignment', '')
         character.experience_points = data.get('experience_points', 0)
         character.backstory = data.get('backstory', '')

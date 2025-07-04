@@ -3,7 +3,7 @@
 D&D 5E Character Sheet Panel - Official Layout Recreation
 Matches the official D&D 5E character sheet PDF with fantasy styling
 """
-
+import re
 from imgui_bundle import imgui
 import math
 import random
@@ -27,6 +27,9 @@ class CharacterSheetPanel:
         self.show_full_window = False
         self.selected_entity_id = None
         self.CharacterWindow = None
+        
+        # Track when character object changes to avoid unnecessary syncing
+        self._last_character_hash = None
           # Error handling and crash prevention
         self._error_count = 0
         self._max_errors = 5
@@ -157,21 +160,44 @@ class CharacterSheetPanel:
         # Check for entity selection updates
         self._check_entity_selection()
         
+        # Only sync panel data from Character object if it has changed
+        if self.character:
+            self._sync_panel_if_character_changed()
+        
         # Render mini character sheet in sidebar
         self.render_mini_character_sheet()
         
         # Render full window if open
-        if self.show_full_window:
+        if self.show_full_window and self.CharacterWindow:
             self.CharacterWindow.render_full_window()
+            # Sync window state - if window was closed, update our flag
+            if not self.CharacterWindow.show_full_window:
+                self.show_full_window = False
     
     def _check_entity_selection(self):
         """Check if a new entity is selected and load its character data"""
         if not self.actions_bridge:
             return
             
-        # This would be called by the entities panel when selection changes
-        # For now, we'll implement a basic check
-        pass
+        # Get currently selected entity from actions bridge
+        current_selected = self.actions_bridge.get_selected_entity()
+        
+        # If selection changed, load new data (but don't save panel data to Character object)
+        if current_selected != self.selected_entity_id:
+            if current_selected:
+                # Try to load character data for the new selection
+                success = self.load_from_entity(current_selected)
+                if success:
+                    logger.info(f"Loaded character data for entity: {current_selected}")
+                else:
+                    logger.debug(f"No character data found for entity: {current_selected}")
+                    # Clear character data if entity has no character
+                    self._clear_character_data()
+                    self.selected_entity_id = current_selected
+            else:
+                # No entity selected, clear data
+                self._clear_character_data()
+                self.selected_entity_id = None
         
     def load_character_from_compendium(self, character_data):
         """Load character from compendium data"""
@@ -232,55 +258,203 @@ class CharacterSheetPanel:
     def load_from_entity(self, entity_id: str):
         """Load character data from selected entity"""
         if not self.actions_bridge or not entity_id:
+            logger.debug(f"Cannot load entity: actions_bridge={self.actions_bridge is not None}, entity_id={entity_id}")
             return False
             
         # Get entity data that might contain character information
         sprite_info = self.actions_bridge.get_sprite_info(entity_id)
+        logger.debug(f"Sprite info for {entity_id}: {sprite_info}")
+        
         if not sprite_info:
+            logger.debug(f"No sprite info found for entity: {entity_id}")
             return False
             
         # Check if entity has character data
         character_data = sprite_info.get('character_data')
+        logger.debug(f"Character data in sprite info: {character_data}")
+        
         if character_data:
             self.selected_entity_id = entity_id
             self._load_character_data(character_data)
+            logger.info(f"Successfully loaded character data for entity: {entity_id}")
             return True
+        else:
+            logger.debug(f"No character_data field in sprite info for entity: {entity_id}")
         return False
     
-    def _load_character_data(self, character_data: dict):
-        """Load character data from dictionary"""
-        self.character_name = character_data.get('name', '')
-        self.class_level = character_data.get('class_level', '')
-        self.race = character_data.get('race', '')
-        self.background = character_data.get('background', '')
-        self.alignment = character_data.get('alignment', '')
-        self.experience_points = character_data.get('experience_points', 0)
+    def _load_character_data(self, character_data):
+        """Load character data from Character object or dictionary"""
+        logger.debug(f"Loading character data: {character_data}")
         
-        # Load ability scores
-        ability_scores = character_data.get('ability_scores', {})
-        for ability, score in ability_scores.items():
-            if ability.upper() in self.ability_scores:
-                self.ability_scores[ability.upper()] = score
-                
-        # Load combat stats
-        combat_stats = character_data.get('combat_stats', {})
-        self.armor_class = combat_stats.get('armor_class', 10)
-        self.current_hit_points = combat_stats.get('current_hit_points', 8)
-        self.hit_point_maximum = combat_stats.get('hit_point_maximum', 8)
-        self.temporary_hit_points = combat_stats.get('temporary_hit_points', 0)
+        # Handle Character objects directly
+        if hasattr(character_data, 'to_dict'):
+            # Store reference to the Character object
+            self.character = character_data
+            
+            # Always load data from Character object to ensure panel displays current state
+            self._sync_panel_from_character()
+            
+            logger.debug(f"Loaded from Character object: {self.character.name}")
+            
+        elif isinstance(character_data, dict):
+            # It's a dictionary - create a new Character object or use existing one
+            char_dict = character_data
+            
+            self.character_name = char_dict.get('name', '')
+            self.class_level = char_dict.get('class_level', '')
+            self.race = char_dict.get('race', '')
+            self.background = char_dict.get('background', '')
+            self.alignment = char_dict.get('alignment', '')
+            self.experience_points = char_dict.get('experience_points', 0)
+            
+            # Load ability scores
+            ability_scores = char_dict.get('ability_scores', {})
+            if isinstance(ability_scores, dict):
+                for ability, score in ability_scores.items():
+                    if ability.upper() in self.ability_scores:
+                        self.ability_scores[ability.upper()] = score
+            else:
+                logger.warning(f"Ability scores data is not a dict: {type(ability_scores)}")
+                    
+            # Load combat stats
+            combat_stats = char_dict.get('combat_stats', {})
+            self.armor_class = combat_stats.get('armor_class', 10)
+            self.current_hit_points = combat_stats.get('current_hit_points', 8)
+            self.hit_point_maximum = combat_stats.get('hit_point_maximum', 8)
+            self.temporary_hit_points = combat_stats.get('temporary_hit_points', 0)
+            
+            # Load skills and saving throws
+            skills = char_dict.get('skills', {})
+            if isinstance(skills, dict):
+                for skill_name, skill_data in skills.items():
+                    if skill_name in self.skills and isinstance(skill_data, dict):
+                        self.skills[skill_name].update(skill_data)
+            else:
+                logger.warning(f"Skills data is not a dict: {type(skills)}")
+                    
+            saving_throws = char_dict.get('saving_throws', {})
+            if isinstance(saving_throws, dict):
+                for ability, save_data in saving_throws.items():
+                    if ability in self.saving_throws and isinstance(save_data, dict):
+                        self.saving_throws[ability].update(save_data)
+            else:
+                logger.warning(f"Saving throws data is not a dict: {type(saving_throws)}")
+            
+            logger.debug(f"Loaded from dictionary: {self.character_name}")
+        else:
+            logger.error(f"Invalid character data type: {type(character_data)}")
+            return
         
-        # Load skills and saving throws
-        skills = character_data.get('skills', {})
-        for skill_name, skill_data in skills.items():
-            if skill_name in self.skills:
-                self.skills[skill_name].update(skill_data)
-                
-        saving_throws = character_data.get('saving_throws', {})
-        for ability, save_data in saving_throws.items():
-            if ability in self.saving_throws:
-                self.saving_throws[ability].update(save_data)
-                
+        logger.debug(f"Set character name: {self.character_name}")
         self.update_derived_stats()
+        
+    def _sync_panel_if_character_changed(self):
+        """Sync panel display fields from Character object only if it has changed"""
+        if not self.character:
+            return
+            
+        # Create a simple hash of key character properties to detect changes
+        try:
+            character_hash = hash((
+                self.character.name,
+                self.character.player_name,
+                self.character.experience_points,
+                self.character.level,
+                self.character.armor_class,
+                self.character.hit_points,
+                self.character.max_hit_points,
+                str(dict(self.character.ability_scores)) if hasattr(self.character, 'ability_scores') else "",
+                getattr(self.character, 'last_modified', 0)  # If Character has a last_modified timestamp
+            ))
+        except Exception as e:
+            logger.debug(f"Error creating character hash: {e}")
+            character_hash = hash(str(self.character))
+        
+        # Only sync if character has actually changed
+        if character_hash != self._last_character_hash:
+            logger.debug("Character object changed, syncing panel display")
+            self._sync_panel_from_character()
+            self._last_character_hash = character_hash
+        
+    def _sync_panel_from_character(self):
+        """Sync panel display fields from Character object"""
+        if not self.character:
+            return
+            
+        logger.debug("Syncing panel display from Character object")
+        
+        # Load basic character data
+        self.character_name = self.character.name or ""
+        self.player_name = self.character.player_name or ""
+        self.experience_points = self.character.experience_points or 0
+        self.alignment = self.character.alignment or ""
+        
+        # Load combat stats - all combat-related fields
+        self.armor_class = self.character.armor_class or 10
+        self.current_hit_points = self.character.hit_points or 8
+        self.hit_point_maximum = self.character.max_hit_points or 8
+        self.temporary_hit_points = getattr(self.character, 'temporary_hit_points', 0)
+        self.proficiency_bonus = self.character.proficiency_bonus or 2
+        self.speed = getattr(self.character, 'speed', 30)
+        self.initiative = getattr(self.character, 'initiative', 0)
+        
+        # Hit dice information
+        self.hit_dice = getattr(self.character, 'hit_dice', '1d8')
+        self.total_hit_dice = getattr(self.character, 'total_hit_dice', '1d8')
+        
+        # Load class and level info
+        if hasattr(self.character, 'character_class') and self.character.character_class:
+            class_name = self.character.character_class.name if hasattr(self.character.character_class, 'name') else str(self.character.character_class)
+            self.class_level = f"{class_name} {self.character.level}"
+        else:
+            self.class_level = f"Level {self.character.level}"
+        
+        # Load race, background if they exist
+        if hasattr(self.character, 'race') and self.character.race:
+            self.race = self.character.race.name if hasattr(self.character.race, 'name') else str(self.character.race)
+        else:
+            self.race = ""
+            
+        if hasattr(self.character, 'background') and self.character.background:
+            self.background = self.character.background.name if hasattr(self.character.background, 'name') else str(self.character.background)
+        else:
+            self.background = ""
+        
+        # Load ability scores if available
+        if hasattr(self.character, 'ability_scores') and self.character.ability_scores:
+            try:
+                # Map from enum keys to string keys
+                ability_map = {
+                    "STRENGTH": "STR",
+                    "DEXTERITY": "DEX", 
+                    "CONSTITUTION": "CON",
+                    "INTELLIGENCE": "INT",
+                    "WISDOM": "WIS",
+                    "CHARISMA": "CHA"
+                }
+                
+                for ability_enum, score in self.character.ability_scores.items():
+                    ability_name = ability_enum.name if hasattr(ability_enum, 'name') else str(ability_enum)
+                    if ability_name in ability_map:
+                        self.ability_scores[ability_map[ability_name]] = score
+                        
+            except Exception as e:
+                logger.debug(f"Error syncing ability scores: {e}")
+        # Load additional combat stats if available
+        self.temporary_hit_points = getattr(self.character, 'temporary_hit_points', 0)
+        self.speed = getattr(self.character, 'speed', 30)
+        self.initiative = getattr(self.character, 'initiative', 0)
+        self.inspiration = getattr(self.character, 'inspiration', False)
+        self.hit_dice = getattr(self.character, 'hit_dice', '1d8')
+        self.total_hit_dice = getattr(self.character, 'total_hit_dice', '1d8')
+        
+        # Load death saves if available
+        death_successes = getattr(self.character, 'death_save_successes', [False, False, False])
+        death_failures = getattr(self.character, 'death_save_failures', [False, False, False])
+        self.death_save_successes = death_successes.copy() if isinstance(death_successes, list) else [False, False, False]
+        self.death_save_failures = death_failures.copy() if isinstance(death_failures, list) else [False, False, False]
+                
+        logger.debug(f"Panel synced from Character object: {self.character_name}")
     
     def render_mini_character_sheet(self):
         """Render mini character sheet for sidebar"""
@@ -330,6 +504,8 @@ class CharacterSheetPanel:
         changed, new_ac = imgui.input_int("##mini_ac", self.armor_class, 0, 0)
         if changed:
             self.armor_class = max(0, new_ac)
+            # Note: Panel edits don't auto-save to Character object anymore
+            # Only the window saves to Character object
             
         imgui.text("HP:")
         imgui.same_line()
@@ -337,6 +513,8 @@ class CharacterSheetPanel:
         changed, new_hp = imgui.input_int("##mini_hp", self.current_hit_points, 0, 0)
         if changed:
             self.current_hit_points = max(0, min(self.hit_point_maximum, new_hp))
+            # Note: Panel edits don't auto-save to Character object anymore
+            # Only the window saves to Character object
             
         imgui.same_line()
         imgui.text(f"/ {self.hit_point_maximum}")
@@ -395,10 +573,23 @@ class CharacterSheetPanel:
     
     def _create_window(self):
         """Create and show the full character sheet window"""
-        if not self.CharacterWindow:
+        # Always create a new window or reactivate existing one
+        if not self.CharacterWindow or not self.CharacterWindow.show_full_window:
             self.show_full_window = True
-            self.CharacterWindow = CharacterSheetWindow(context=self.context, actions_bridge=self.actions_bridge)
-            logger.info("Character sheet window created.")
+            
+            # Create new window if none exists
+            if not self.CharacterWindow:
+                self.CharacterWindow = CharacterSheetWindow(context=self.context, actions_bridge=self.actions_bridge)
+                self.CharacterWindow.set_parent_panel(self)  # Set parent reference for signaling
+                logger.info("Character sheet window created.")
+            else:
+                # Reactivate existing window
+                self.CharacterWindow.show_full_window = True
+                logger.info("Character sheet window reactivated.")
+            
+            # Transfer current character data to window
+            self.CharacterWindow.load_from_panel(self)
+            logger.info("Character data transferred to window.")
         else:
             logger.warning("Character sheet window is already open.")
     
@@ -421,12 +612,12 @@ class CharacterSheetPanel:
     def set_selected_entity(self, entity_id: str):
         """Set the selected entity and try to load its character data"""
         if entity_id != self.selected_entity_id:
+            # Always update the selected entity ID regardless of whether character data is found
+            self.selected_entity_id = entity_id
             if self.load_from_entity(entity_id):
-                self.selected_entity_id = entity_id
                 return True
             else:
                 # Clear character data if entity has no character
-                self.selected_entity_id = None
                 self._clear_character_data()
                 return False
         return True
@@ -490,254 +681,9 @@ class CharacterSheetPanel:
         
         self.actions_bridge.add_chat_message(message)
     
-    def render_spells_features_tab(self):
-        """Render the spells and features tab (Tab 2)"""
-        try:
-            # Create two columns for spells and features
-            if imgui.begin_table("SpellsFeaturesTable", 2, imgui.TableFlags_.resizable.value):
-                
-                # Setup columns
-                imgui.table_setup_column("Spells", imgui.TableColumnFlags_.width_stretch.value)
-                imgui.table_setup_column("Features", imgui.TableColumnFlags_.width_stretch.value)
-                
-                imgui.table_next_row()
-                
-                # Left column: Spells
-                imgui.table_next_column()
-                imgui.begin_child("SpellsColumn", imgui.ImVec2(0, 0))
-                imgui.text("SPELLCASTING")
-                imgui.separator()
-                
-                # Spellcasting class
-                imgui.text("Spellcasting Class:")
-                imgui.set_next_item_width(-1)
-                changed, new_spell_class = imgui.input_text("##spell_class", getattr(self, 'spellcasting_class', ''))
-                if changed:
-                    self.spellcasting_class = new_spell_class
-                
-                imgui.spacing()
-                
-                # Spell save DC and attack bonus
-                imgui.text("Spell Save DC:")
-                imgui.same_line(120)
-                imgui.set_next_item_width(80)
-                changed, new_dc = imgui.input_int("##spell_dc", getattr(self, 'spell_save_dc', 13), 0, 0)
-                if changed:
-                    self.spell_save_dc = max(8, new_dc)
-                
-                imgui.text("Spell Attack Bonus:")
-                imgui.same_line(120)
-                imgui.set_next_item_width(80)
-                changed, new_attack = imgui.input_int("##spell_attack", getattr(self, 'spell_attack_bonus', 5), 0, 0)
-                if changed:
-                    self.spell_attack_bonus = new_attack
-                
-                imgui.separator()
-                
-                # Spell slots
-                imgui.text("SPELL SLOTS")
-                for level in range(1, 10):
-                    if hasattr(self, f'spell_slots_level_{level}'):
-                        slots = getattr(self, f'spell_slots_level_{level}', 0)
-                        if slots > 0:
-                            imgui.text(f"Level {level}:")
-                            imgui.same_line(80)
-                            imgui.set_next_item_width(60)
-                            changed, new_slots = imgui.input_int(f"##slots_{level}", slots, 0, 0)
-                            if changed:
-                                setattr(self, f'spell_slots_level_{level}', max(0, new_slots))
-                
-                imgui.separator()
-                
-                # Known spells
-                imgui.text("KNOWN SPELLS")
-                imgui.set_next_item_width(-1)
-                changed, new_spells = imgui.input_text_multiline("##known_spells", 
-                                                                getattr(self, 'known_spells', ''), 
-                                                                imgui.ImVec2(-1, 300))
-                if changed:
-                    self.known_spells = new_spells
-                
-                imgui.end_child()
-                
-                # Right column: Features & Traits
-                imgui.table_next_column()
-                imgui.begin_child("FeaturesColumn", imgui.ImVec2(0, 0))
-                imgui.text("FEATURES & TRAITS")
-                imgui.separator()
-                
-                # Class features
-                imgui.text("Class Features:")
-                imgui.set_next_item_width(-1)
-                changed, new_class_features = imgui.input_text_multiline("##class_features", 
-                                                                       getattr(self, 'class_features', ''), 
-                                                                       imgui.ImVec2(-1, 200))
-                if changed:
-                    self.class_features = new_class_features
-                
-                imgui.spacing()
-                
-                # Racial traits
-                imgui.text("Racial Traits:")
-                imgui.set_next_item_width(-1)
-                changed, new_racial_traits = imgui.input_text_multiline("##racial_traits", 
-                                                                      getattr(self, 'racial_traits', ''), 
-                                                                      imgui.ImVec2(-1, 150))
-                if changed:
-                    self.racial_traits = new_racial_traits
-                
-                imgui.spacing()
-                
-                # Feats
-                imgui.text("Feats:")
-                imgui.set_next_item_width(-1)
-                changed, new_feats = imgui.input_text_multiline("##feats", 
-                                                               getattr(self, 'feats', ''), 
-                                                               imgui.ImVec2(-1, 150))
-                if changed:
-                    self.feats = new_feats
-                
-                imgui.end_child()
-                
-                imgui.end_table()
-                
-        except Exception as e:
-            imgui.text(f"Spells & Features Error: {str(e)}")
+   
     
-    def render_equipment_notes_tab(self):
-        """Render the equipment and notes tab (Tab 3)"""
-        try:
-            # Create two columns for equipment and notes
-            if imgui.begin_table("EquipmentNotesTable", 2, imgui.TableFlags_.resizable.value):
-                
-                # Setup columns
-                imgui.table_setup_column("Equipment", imgui.TableColumnFlags_.width_stretch.value)
-                imgui.table_setup_column("Notes", imgui.TableColumnFlags_.width_stretch.value)
-                
-                imgui.table_next_row()
-                
-                # Left column: Equipment
-                imgui.table_next_column()
-                imgui.begin_child("EquipmentColumn", imgui.ImVec2(0, 0))
-                imgui.text("EQUIPMENT & INVENTORY")
-                imgui.separator()
-                
-                # Currency
-                imgui.text("Currency:")
-                
-                currencies = [("Copper", "cp"), ("Silver", "sp"), ("Electrum", "ep"), 
-                            ("Gold", "gp"), ("Platinum", "pp")]
-                
-                for name, code in currencies:
-                    imgui.text(f"{name}:")
-                    imgui.same_line(80)
-                    imgui.set_next_item_width(80)
-                    current_value = getattr(self, f'currency_{code}', 0)
-                    changed, new_value = imgui.input_int(f"##{code}", current_value, 0, 0)
-                    if changed:
-                        setattr(self, f'currency_{code}', max(0, new_value))
-                
-                imgui.separator()
-                
-                # Equipment list
-                imgui.text("Equipment List:")
-                imgui.set_next_item_width(-1)
-                changed, new_equipment_list = imgui.input_text_multiline("##equipment_list", 
-                                                                       getattr(self, 'equipment_list', ''), 
-                                                                       imgui.ImVec2(-1, 300))
-                if changed:
-                    self.equipment_list = new_equipment_list
-                
-                imgui.spacing()
-                
-                # Weapons
-                imgui.text("Weapons:")
-                imgui.set_next_item_width(-1)
-                changed, new_weapons = imgui.input_text_multiline("##weapons", 
-                                                                 getattr(self, 'weapons', ''), 
-                                                                 imgui.ImVec2(-1, 150))
-                if changed:
-                    self.weapons = new_weapons
-                
-                imgui.end_child()
-                
-                # Right column: Notes
-                imgui.table_next_column()
-                imgui.begin_child("NotesColumn", imgui.ImVec2(0, 0))
-                imgui.text("CHARACTER NOTES")
-                imgui.separator()
-                
-                # Backstory
-                imgui.text("Backstory:")
-                imgui.set_next_item_width(-1)
-                changed, new_backstory = imgui.input_text_multiline("##backstory", 
-                                                                   getattr(self, 'backstory', ''), 
-                                                                   imgui.ImVec2(-1, 200))
-                if changed:
-                    self.backstory = new_backstory
-                
-                imgui.spacing()
-                
-                # Personality traits
-                imgui.text("Personality Traits:")
-                imgui.set_next_item_width(-1)
-                changed, new_personality = imgui.input_text_multiline("##personality", 
-                                                                     getattr(self, 'personality_traits', ''), 
-                                                                     imgui.ImVec2(-1, 100))
-                if changed:
-                    self.personality_traits = new_personality
-                
-                imgui.spacing()
-                
-                # Ideals
-                imgui.text("Ideals:")
-                imgui.set_next_item_width(-1)
-                changed, new_ideals = imgui.input_text_multiline("##ideals", 
-                                                                getattr(self, 'ideals', ''), 
-                                                                imgui.ImVec2(-1, 100))
-                if changed:
-                    self.ideals = new_ideals
-                
-                imgui.spacing()
-                
-                # Bonds
-                imgui.text("Bonds:")
-                imgui.set_next_item_width(-1)
-                changed, new_bonds = imgui.input_text_multiline("##bonds", 
-                                                               getattr(self, 'bonds', ''), 
-                                                               imgui.ImVec2(-1, 100))
-                if changed:
-                    self.bonds = new_bonds
-                
-                imgui.spacing()
-                
-                # Flaws
-                imgui.text("Flaws:")
-                imgui.set_next_item_width(-1)
-                changed, new_flaws = imgui.input_text_multiline("##flaws", 
-                                                               getattr(self, 'flaws', ''), 
-                                                               imgui.ImVec2(-1, 100))
-                if changed:
-                    self.flaws = new_flaws
-                
-                imgui.spacing()
-                
-                # General notes
-                imgui.text("General Notes:")
-                imgui.set_next_item_width(-1)
-                changed, new_notes = imgui.input_text_multiline("##general_notes", 
-                                                               getattr(self, 'general_notes', ''), 
-                                                               imgui.ImVec2(-1, 150))
-                if changed:
-                    self.general_notes = new_notes
-                
-                imgui.end_child()
-                
-                imgui.end_table()
-                
-        except Exception as e:
-            imgui.text(f"Equipment & Notes Error: {str(e)}")
-    
+   
     def update_derived_stats(self):
         """Update stats that depend on ability scores"""
         # Update saving throws
@@ -756,8 +702,104 @@ class CharacterSheetPanel:
                 skill_data["value"] = modifier + self.proficiency_bonus
             else:
                 skill_data["value"] = modifier
-                  # Update passive perception
+                # Update passive perception
         perception_modifier = self.skills["Perception"]["value"]
         self.passive_perception = 10 + perception_modifier
+        
+        # Note: Panel no longer auto-saves to character object
+        # Only the window should save to the Character object
     
-  
+    def save_to_character_object(self):
+        """Save panel data to the underlying Character object"""
+        if not self.character:
+            logger.debug("No character object to save to")
+            return
+            
+        logger.info("Saving panel data to Character object")
+        
+        try:
+            # Update basic character fields that we know work
+            self.character.name = self.character_name
+            self.character.player_name = self.player_name
+            self.character.experience_points = self.experience_points
+            self.character.alignment = self.alignment
+            
+            # Extract level from class_level field
+            if self.class_level:
+                level_match = re.search(r'\d+', self.class_level)
+                if level_match:
+                    self.character.level = int(level_match.group())
+            
+            # Update ability scores using the enum
+            from core_table.compendiums.characters.character import AbilityScore
+            ability_map = {
+                "STR": AbilityScore.STRENGTH,
+                "DEX": AbilityScore.DEXTERITY,
+                "CON": AbilityScore.CONSTITUTION,
+                "INT": AbilityScore.INTELLIGENCE,
+                "WIS": AbilityScore.WISDOM,
+                "CHA": AbilityScore.CHARISMA
+            }
+            
+            for ability_str, score in self.ability_scores.items():
+                if ability_str in ability_map:
+                    ability_enum = ability_map[ability_str]
+                    self.character.ability_scores[ability_enum] = score
+            
+            # Update combat stats - all combat-related fields
+            self.character.armor_class = self.armor_class
+            self.character.hit_points = self.current_hit_points
+            self.character.max_hit_points = self.hit_point_maximum
+            # Note: proficiency_bonus is calculated automatically, not saved manually
+            
+            # Set additional fields dynamically if possible
+            additional_fields = {
+                'temporary_hit_points': self.temporary_hit_points,
+                'speed': self.speed,
+                'initiative': self.initiative,
+                'inspiration': self.inspiration,
+                'hit_dice': self.hit_dice,
+                'total_hit_dice': self.total_hit_dice,
+                'death_save_successes': self.death_save_successes.copy(),
+                'death_save_failures': self.death_save_failures.copy()
+            }
+            
+            for field_name, value in additional_fields.items():
+                try:
+                    setattr(self.character, field_name, value)
+                except AttributeError as e:
+                    logger.debug(f"Could not set {field_name}: {e}")
+            
+            # Try to update calculated values if the method exists
+            try:
+                self.character.update_calculated_values()
+            except AttributeError:
+                logger.debug("Character object does not have update_calculated_values method")
+            
+            logger.info(f"Character object updated: {self.character.name}")
+        except Exception as e:
+            logger.error(f"Error updating character object: {e}")
+    
+    def save_to_entity(self):
+        """Save character data back to the sprite entity if possible"""
+        if not self.selected_entity_id or not self.actions_bridge:
+            logger.debug("Cannot save to entity: no selected entity or actions bridge")
+            return
+            
+        try:
+            # First save to character object
+            self.save_to_character_object()
+            
+            # For now, just log that we're attempting to save to entity
+            # The actual entity update would require more complex sprite management
+            logger.info(f"Character data saved for entity: {self.selected_entity_id}")
+                
+        except Exception as e:
+            logger.error(f"Failed to save character data to entity: {e}")
+    
+    def auto_save_changes(self):
+        """Panel auto-save - panel should not save to Character object anymore"""
+        # Only the window saves to Character object
+        # Panel just maintains its own display state
+        logger.debug("Panel auto-save called - no action needed (window handles Character object saving)")
+

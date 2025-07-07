@@ -393,9 +393,15 @@ class CharacterCreator:
                 if disabled:
                     imgui.begin_disabled()
                 
-                selected = step == self.current_step
-                if imgui.begin_tab_item(name)[0]:
-                    if not disabled:
+                # Check if this tab is currently selected
+                flags = imgui.TabItemFlags_.none.value
+                if step == self.current_step:
+                    flags = imgui.TabItemFlags_.set_selected.value
+                
+                tab_open, tab_selected = imgui.begin_tab_item(name, None, flags)
+                if tab_open:
+                    if tab_selected and not disabled and step != self.current_step:
+                        logger.info(f"Tab clicked, changing step from {self.current_step.name} to {step.name}")
                         self.current_step = step
                     imgui.end_tab_item()
                 
@@ -475,6 +481,12 @@ class CharacterCreator:
                     self.character_data['race'] = race_data
                     self._apply_racial_traits(race_data)
                     logger.info(f"Race selected: {race_data.get('name', race_id)}")
+                    logger.debug(f"Character data race is now: {self.character_data['race'] is not None}")
+                
+                # Show selected race info
+                if is_selected:
+                    imgui.same_line()
+                    imgui.text_colored((0.0, 1.0, 0.0, 1.0), "✓ Selected")
                 
                 # Right-click context menu for custom races
                 if imgui.is_item_clicked(1) and race_id.startswith('custom_'):  # Right click
@@ -533,6 +545,12 @@ class CharacterCreator:
                     self.character_data['class'] = class_data
                     self._apply_class_features(class_data)
                     logger.info(f"Class selected: {class_data.get('name', class_id)}")
+                    logger.debug(f"Character data class is now: {self.character_data['class'] is not None}")
+                
+                # Show selected class info
+                if is_selected:
+                    imgui.same_line()
+                    imgui.text_colored((0.0, 1.0, 0.0, 1.0), "✓ Selected")
                 
                 # Right-click context menu for custom classes
                 if imgui.is_item_clicked(1) and class_id.startswith('custom_'):  # Right click
@@ -873,6 +891,13 @@ class CharacterCreator:
     
     def _render_navigation_buttons(self):
         """Render step navigation buttons"""
+        # Debug info
+        imgui.text(f"Current step: {self.current_step.name}")
+        imgui.text(f"Race selected: {self.character_data['race'] is not None}")
+        imgui.text(f"Class selected: {self.character_data['class'] is not None}")
+        imgui.text(f"Background selected: {self.character_data['background'] is not None}")
+        imgui.separator()
+        
         # Previous button
         can_go_back = self.current_step.value > 0
         if not can_go_back:
@@ -896,13 +921,34 @@ class CharacterCreator:
         if not can_go_forward:
             imgui.begin_disabled()
         
-        if imgui.button("Next >"):
+        next_button_text = "Next >"
+        if next_step_value < len(CreationStep):
+            next_step = CreationStep(next_step_value)
+            next_button_text = f"Next > ({next_step.name})"
+        
+        if imgui.button(next_button_text):
             if can_go_forward:
                 self.current_step = CreationStep(next_step_value)
                 logger.info(f"Navigated to step: {self.current_step.name}")
+            else:
+                logger.debug(f"Cannot navigate forward. Prerequisites not met for step {next_step_value}")
         
         if not can_go_forward:
             imgui.end_disabled()
+            # Show tooltip explaining why disabled
+            if imgui.is_item_hovered():
+                next_step = CreationStep(next_step_value) if next_step_value < len(CreationStep) else None
+                if next_step:
+                    tooltip_text = f"Complete prerequisites for {next_step.name}"
+                    if next_step == CreationStep.CLASS:
+                        tooltip_text += " (select a race first)"
+                    elif next_step == CreationStep.ABILITIES:
+                        tooltip_text += " (select a class first)"
+                    elif next_step == CreationStep.EQUIPMENT:
+                        tooltip_text += " (select a background first)"
+                    elif next_step == CreationStep.OVERVIEW:
+                        tooltip_text += " (complete race, class, and background)"
+                    imgui.set_tooltip(tooltip_text)
         
         imgui.same_line()
         imgui.dummy((100, 0))  # Spacer

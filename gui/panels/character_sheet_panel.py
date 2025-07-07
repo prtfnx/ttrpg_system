@@ -30,16 +30,8 @@ class CharacterSheetPanel:
         
         # Track when character object changes to avoid unnecessary syncing
         self._last_character_hash = None
-          # Error handling and crash prevention
-        self._error_count = 0
-        self._max_errors = 5
-        self._last_error_time = 0
-        self._window_error_occurred = False
-        self._crash_prevention_mode = False
-        self._imgui_flood_detected = False
-        self._emergency_close = False
         
-        # Character sheet fields matching official PDF
+        # Character sheet fields for performance (panel display cache)
         self.character_name = ""
         self.class_level = ""
         self.background = ""
@@ -112,7 +104,8 @@ class CharacterSheetPanel:
         
         # Equipment
         self.equipment = ""
-          # Other proficiencies and languages
+        
+        # Other proficiencies and languages
         self.other_proficiencies_languages = ""
         
         # Features and traits
@@ -125,6 +118,43 @@ class CharacterSheetPanel:
     def format_modifier(self, modifier: int) -> str:
         """Format modifier with + or - sign"""
         return f"+{modifier}" if modifier >= 0 else str(modifier)
+        
+    def get_ability_score(self, ability_str):
+        """Get ability score from character object"""
+        if not self.character or not hasattr(self.character, 'ability_scores'):
+            return 10
+        
+        ability_map = {
+            "STR": AbilityScore.STRENGTH,
+            "DEX": AbilityScore.DEXTERITY,
+            "CON": AbilityScore.CONSTITUTION,
+            "INT": AbilityScore.INTELLIGENCE,
+            "WIS": AbilityScore.WISDOM,
+            "CHA": AbilityScore.CHARISMA
+        }
+        
+        ability_enum = ability_map.get(ability_str)
+        if ability_enum and ability_enum in self.character.ability_scores:
+            return self.character.ability_scores[ability_enum]
+        return 10
+    
+    def set_ability_score(self, ability_str, value):
+        """Set ability score in character object"""
+        if not self.character:
+            return
+            
+        ability_map = {
+            "STR": AbilityScore.STRENGTH,
+            "DEX": AbilityScore.DEXTERITY,
+            "CON": AbilityScore.CONSTITUTION,
+            "INT": AbilityScore.INTELLIGENCE,
+            "WIS": AbilityScore.WISDOM,
+            "CHA": AbilityScore.CHARISMA
+        }
+        
+        ability_enum = ability_map.get(ability_str)
+        if ability_enum:
+            self.character.ability_scores[ability_enum] = value
         
 
         
@@ -363,7 +393,7 @@ class CharacterSheetPanel:
                 self.character.armor_class,
                 self.character.hit_points,
                 self.character.max_hit_points,
-                str(dict(self.character.ability_scores)) if hasattr(self.character, 'ability_scores') else "",
+                str(self.character.ability_scores) if hasattr(self.character, 'ability_scores') else "",
                 getattr(self.character, 'last_modified', 0)  # If Character has a last_modified timestamp
             ))
         except Exception as e:
@@ -388,6 +418,8 @@ class CharacterSheetPanel:
         self.player_name = self.character.player_name or ""
         self.experience_points = self.character.experience_points or 0
         self.alignment = self.character.alignment or ""
+        
+        logger.debug(f"Panel synced character_name: '{self.character_name}', selected_entity_id: '{self.selected_entity_id}'")
         
         # Load combat stats - all combat-related fields
         self.armor_class = self.character.armor_class or 10
@@ -453,6 +485,32 @@ class CharacterSheetPanel:
         death_failures = getattr(self.character, 'death_save_failures', [False, False, False])
         self.death_save_successes = death_successes.copy() if isinstance(death_successes, list) else [False, False, False]
         self.death_save_failures = death_failures.copy() if isinstance(death_failures, list) else [False, False, False]
+        
+        # Load skills if available
+        character_skills = getattr(self.character, 'skills', {})
+        if isinstance(character_skills, dict):
+            for skill_name, skill_data in character_skills.items():
+                if skill_name in self.skills and isinstance(skill_data, dict):
+                    self.skills[skill_name].update(skill_data)
+        
+        # Load saving throws if available
+        character_saves = getattr(self.character, 'saving_throws', {})
+        if isinstance(character_saves, dict):
+            for ability, save_data in character_saves.items():
+                if ability in self.saving_throws and isinstance(save_data, dict):
+                    self.saving_throws[ability].update(save_data)
+        
+        # Load text fields - ensure they are strings, not lists
+        # Convert lists to newline-separated strings if needed
+        def convert_to_string(value):
+            if isinstance(value, list):
+                return '\n'.join(str(item) for item in value)
+            return str(value) if value is not None else ''
+        
+        self.attacks_spellcasting = convert_to_string(getattr(self.character, 'attacks_spellcasting', ''))
+        self.equipment = convert_to_string(getattr(self.character, 'equipment', ''))
+        self.other_proficiencies_languages = convert_to_string(getattr(self.character, 'other_proficiencies_languages', ''))
+        self.features_traits = convert_to_string(getattr(self.character, 'features_traits', ''))
                 
         logger.debug(f"Panel synced from Character object: {self.character_name}")
     
@@ -469,8 +527,20 @@ class CharacterSheetPanel:
             
         imgui.separator()
         
-        # Full window button
-        if imgui.button("Open Full Sheet", (-1, 30)):
+        # Full window button - only enable if we have a character with data
+        button_enabled = bool(self.character and (self.character_name or self.character.name) and self.selected_entity_id)
+        if not button_enabled:
+            imgui.push_style_color(imgui.Col_.button.value, (0.5, 0.5, 0.5, 0.5))
+            imgui.push_style_color(imgui.Col_.button_hovered.value, (0.5, 0.5, 0.5, 0.5))
+            imgui.push_style_color(imgui.Col_.button_active.value, (0.5, 0.5, 0.5, 0.5))
+        
+        clicked = imgui.button("Open Full Sheet", (-1, 30))
+        
+        if not button_enabled:
+            imgui.pop_style_color(3)
+            if imgui.is_item_hovered():
+                imgui.set_tooltip("Select a character to open the full sheet")
+        elif clicked:
             self._create_window()
             
             
@@ -504,8 +574,7 @@ class CharacterSheetPanel:
         changed, new_ac = imgui.input_int("##mini_ac", self.armor_class, 0, 0)
         if changed:
             self.armor_class = max(0, new_ac)
-            # Note: Panel edits don't auto-save to Character object anymore
-            # Only the window saves to Character object
+            self.save_to_character_object()  # Save changes to Character object
             
         imgui.text("HP:")
         imgui.same_line()
@@ -513,8 +582,7 @@ class CharacterSheetPanel:
         changed, new_hp = imgui.input_int("##mini_hp", self.current_hit_points, 0, 0)
         if changed:
             self.current_hit_points = max(0, min(self.hit_point_maximum, new_hp))
-            # Note: Panel edits don't auto-save to Character object anymore
-            # Only the window saves to Character object
+            self.save_to_character_object()  # Save changes to Character object
             
         imgui.same_line()
         imgui.text(f"/ {self.hit_point_maximum}")
@@ -550,6 +618,7 @@ class CharacterSheetPanel:
                 changed, new_success = imgui.checkbox(f"##death_success_mini_{i}", self.death_save_successes[i])
                 if changed:
                     self.death_save_successes[i] = new_success
+                    self.save_to_character_object()  # Save changes to Character object
                     
             # Failures
             imgui.text("Failures:")
@@ -558,6 +627,7 @@ class CharacterSheetPanel:
                 changed, new_failure = imgui.checkbox(f"##death_failure_mini_{i}", self.death_save_failures[i])
                 if changed:
                     self.death_save_failures[i] = new_failure
+                    self.save_to_character_object()  # Save changes to Character object
                     
         imgui.separator()
           # Most used skills
@@ -573,39 +643,38 @@ class CharacterSheetPanel:
     
     def _create_window(self):
         """Create and show the full character sheet window"""
-        # Always create a new window or reactivate existing one
         if not self.CharacterWindow or not self.CharacterWindow.show_full_window:
             self.show_full_window = True
             
-            # Create new window if none exists
             if not self.CharacterWindow:
                 self.CharacterWindow = CharacterSheetWindow(context=self.context, actions_bridge=self.actions_bridge)
-                self.CharacterWindow.set_parent_panel(self)  # Set parent reference for signaling
                 logger.info("Character sheet window created.")
             else:
-                # Reactivate existing window
                 self.CharacterWindow.show_full_window = True
                 logger.info("Character sheet window reactivated.")
             
-            # Transfer current character data to window
-            self.CharacterWindow.load_from_panel(self)
-            logger.info("Character data transferred to window.")
+            # Pass character object directly to window and load data
+            self.CharacterWindow.character = self.character
+            self.CharacterWindow.parent_panel = self  # Set parent reference
+            self.CharacterWindow.load_from_character()  # Load data into window cache
+            logger.info("Character object passed to window and data loaded.")
         else:
             logger.warning("Character sheet window is already open.")
     
     def _handle_attack_action(self):
         """Handle attack action"""
         if self.actions_bridge:
-            self.actions_bridge.add_chat_message(f"{self.character_name} makes an attack!")
+            self.actions_bridge.add_chat_message(f"{self.character.name or 'Character'} makes an attack!")
     
     def _handle_cast_spell_action(self):
         """Handle cast spell action"""
         if self.actions_bridge:
-            self.actions_bridge.add_chat_message(f"{self.character_name} casts a spell!")
+            self.actions_bridge.add_chat_message(f"{self.character.name or 'Character'} casts a spell!")
+            
     def _handle_short_rest(self):
         """Handle short rest"""
         if self.actions_bridge:              
-            self.actions_bridge.add_chat_message(f"{self.character_name} takes a short rest.")
+            self.actions_bridge.add_chat_message(f"{self.character.name or 'Character'} takes a short rest.")
     
    
     
@@ -702,12 +771,13 @@ class CharacterSheetPanel:
                 skill_data["value"] = modifier + self.proficiency_bonus
             else:
                 skill_data["value"] = modifier
-                # Update passive perception
+                
+        # Update passive perception
         perception_modifier = self.skills["Perception"]["value"]
         self.passive_perception = 10 + perception_modifier
         
-        # Note: Panel no longer auto-saves to character object
-        # Only the window should save to the Character object
+        # Save to Character object
+        self.save_to_character_object()
     
     def save_to_character_object(self):
         """Save panel data to the underlying Character object"""
@@ -761,7 +831,14 @@ class CharacterSheetPanel:
                 'hit_dice': self.hit_dice,
                 'total_hit_dice': self.total_hit_dice,
                 'death_save_successes': self.death_save_successes.copy(),
-                'death_save_failures': self.death_save_failures.copy()
+                'death_save_failures': self.death_save_failures.copy(),
+                'skills': self.skills.copy(),
+                'saving_throws': self.saving_throws.copy(),
+                # Text fields - save as strings or convert to lists if needed
+                'attacks_spellcasting': self.attacks_spellcasting,
+                'equipment': self.equipment,
+                'other_proficiencies_languages': self.other_proficiencies_languages,
+                'features_traits': self.features_traits
             }
             
             for field_name, value in additional_fields.items():
@@ -798,8 +875,6 @@ class CharacterSheetPanel:
             logger.error(f"Failed to save character data to entity: {e}")
     
     def auto_save_changes(self):
-        """Panel auto-save - panel should not save to Character object anymore"""
-        # Only the window saves to Character object
-        # Panel just maintains its own display state
-        logger.debug("Panel auto-save called - no action needed (window handles Character object saving)")
+        """Auto-save panel changes to Character object"""
+        self.save_to_character_object()
 

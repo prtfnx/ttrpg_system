@@ -8,22 +8,20 @@ from imgui_bundle import imgui
 from typing import Dict, Optional
 from logger import setup_logger
 logger = setup_logger(__name__)
-from core_table.Character import Character
-from core_table.compendiums.characters.character import AbilityScore
-from core_table.compendiums.characters.character import AbilityScore
+from core_table.compendiums.characters.character import Character, AbilityScore
 
 class CharacterSheetWindow:
     def __init__(self, context=None, actions_bridge=None):
         self.context = context
         self.actions_bridge = actions_bridge
-        self.character = None
+        self.character: Optional[Character] = None
         
         # Window state
         self.show_full_window = True
         self.selected_entity_id = None
         self.parent_panel = None  # Reference to parent panel for signaling
         
-        # Character sheet fields matching official PDF
+        # Character sheet fields for performance (window display cache)
         self.character_name = ""
         self.class_level = ""
         self.background = ""
@@ -96,11 +94,20 @@ class CharacterSheetWindow:
         
         # Equipment
         self.equipment = ""
-          # Other proficiencies and languages
+        
+        # Other proficiencies and languages
         self.other_proficiencies_languages = ""
         
         # Features and traits
         self.features_traits = ""
+        
+    def calculate_modifier(self, score: int) -> int:
+        """Calculate ability score modifier"""
+        return (score - 10) // 2
+        
+    def format_modifier(self, modifier: int) -> str:
+        """Format modifier with + or - sign"""
+        return f"+{modifier}" if modifier >= 0 else str(modifier)
     
     def render_full_window(self):
         """Render full character sheet in separate window"""
@@ -117,9 +124,11 @@ class CharacterSheetWindow:
             if imgui.button("Close", (100, 30)):
                 self.save_to_character()  # Save changes before closing
                 self.show_full_window = False
-                # Signal parent panel that window is closed
+                # Signal parent panel that window is closed and data updated
                 if self.parent_panel:
                     self.parent_panel.show_full_window = False
+                    # Force panel to reload character data
+                    self.parent_panel._sync_panel_from_character()
                 logger.info("Character sheet window closed via Close button")
                 
             imgui.same_line()
@@ -152,9 +161,11 @@ class CharacterSheetWindow:
             # Window was closed via X button
             self.save_to_character()  # Save changes before closing
             self.show_full_window = False
-            # Signal parent panel that window is closed
+            # Signal parent panel that window is closed and data updated
             if self.parent_panel:
                 self.parent_panel.show_full_window = False
+                # Force panel to reload character data
+                self.parent_panel._sync_panel_from_character()
             logger.info("Character sheet window closed via X button")
             
         
@@ -165,33 +176,34 @@ class CharacterSheetWindow:
         try:
             # Header section (spans full width)
             self.render_header_section()
-              # Create main content table with 2 columns - wider combat section
+            
+            # Create main content table with 2 columns - wider combat section
             table_begun = imgui.begin_table("CharacterSheetTable", 2, 
                                 imgui.TableFlags_.borders_inner_v.value)
             if table_begun:
-                # Setup columns with fixed sizes to prevent resize conflicts
-                imgui.table_setup_column("Left", imgui.TableColumnFlags_.width_fixed.value, 500.0)
-                imgui.table_setup_column("Right", imgui.TableColumnFlags_.width_fixed.value, 750.0)
-                imgui.table_next_row()                  
-                # Left column - Ability Scores with Saves/Skills alongside
-                imgui.table_next_column()
-                self.render_ability_scores_with_saves_skills()
-                
-                # Right column - Combat Stats, Attacks & Equipment, Features & Traits
-                imgui.table_next_column()
-                self.render_combat_stats()
-                self.render_attacks_equipment()
-                self.render_features_traits()
-                
-                imgui.end_table()
+                try:
+                    # Setup columns with fixed sizes to prevent resize conflicts
+                    imgui.table_setup_column("Left", imgui.TableColumnFlags_.width_fixed.value, 500.0)
+                    imgui.table_setup_column("Right", imgui.TableColumnFlags_.width_fixed.value, 750.0)
+                    imgui.table_next_row()
+                    
+                    # Left column - Ability Scores with Saves/Skills alongside
+                    imgui.table_next_column()
+                    self.render_ability_scores_with_saves_skills()
+                    
+                    # Right column - Combat Stats, Attacks & Equipment, Features & Traits
+                    imgui.table_next_column()
+                    self.render_combat_stats()
+                    self.render_attacks_equipment()
+                    self.render_features_traits()
+                finally:
+                    # Always end the table, even if an exception occurs
+                    imgui.end_table()
             
         except Exception as e:
-            # Mark window for position reset on next render
-            self._window_error_occurred = True
             logger.error(f"Character Sheet Error: {e}")
             imgui.text(f"Character Sheet Error: {str(e)}")
             imgui.text("Please check the console for details.")
-            imgui.text("Window will reset position on next open.")
     
     def render_tab_spells(self):
         """Render the spells tab content"""
@@ -260,9 +272,6 @@ class CharacterSheetWindow:
         if changed:
             self.spells_text = new_spells
 
-    def calculate_modifier(self, score: int) -> int:
-        """Calculate ability score modifier"""
-        return (score - 10) // 2
     def render_header_section(self):
         """Render the character header information"""
         imgui.text("CHARACTER NAME")
@@ -611,27 +620,7 @@ class CharacterSheetWindow:
         """Render passive perception"""
         imgui.text(f"Passive Wisdom (Perception): {self.passive_perception}")
         imgui.separator()       
-    def update_derived_stats(self):
-        """Update stats that depend on ability scores"""
-        # Update saving throws
-        for ability in self.saving_throws:
-            modifier = self.calculate_modifier(self.ability_scores[ability])
-            if self.saving_throws[ability]["proficient"]:
-                self.saving_throws[ability]["value"] = modifier + self.proficiency_bonus
-            else:
-                self.saving_throws[ability]["value"] = modifier
-                
-        # Update skills
-        for skill_name, skill_data in self.skills.items():
-            ability = skill_data["ability"]
-            modifier = self.calculate_modifier(self.ability_scores[ability])
-            if skill_data["proficient"]:
-                skill_data["value"] = modifier + self.proficiency_bonus
-            else:
-                skill_data["value"] = modifier
-                  # Update passive perception
-        perception_modifier = self.skills["Perception"]["value"]
-        self.passive_perception = 10 + perception_modifier
+        
     def _make_roll(self, roll_type: str, name: str, modifier: int, advantage: bool = False, disadvantage: bool = False):
         """Make a dice roll and send to chat"""
         if not self.actions_bridge:
@@ -726,75 +715,113 @@ class CharacterSheetWindow:
         if changed:
             self.treasure_text = new_treasure
     
-    def format_modifier(self, modifier: int) -> str:
-        """Format modifier with + or - sign"""
-        return f"+{modifier}" if modifier >= 0 else str(modifier)
-    
+    def load_from_character(self):
+        """Load data from Character object into window cache fields"""
+        if not self.character:
+            return
+            
+        logger.debug("Loading data from Character object to window cache")
+        
+        # Load basic character data - ensure strings
+        self.character_name = str(self.character.name or "")
+        self.player_name = str(self.character.player_name or "")
+        self.experience_points = self.character.experience_points or 0
+        self.alignment = str(self.character.alignment or "")
+        
+        # Load combat stats
+        self.armor_class = self.character.armor_class or 10
+        self.current_hit_points = self.character.hit_points or 8
+        self.hit_point_maximum = self.character.max_hit_points or 8
+        self.temporary_hit_points = getattr(self.character, 'temporary_hit_points', 0)
+        self.proficiency_bonus = self.character.proficiency_bonus or 2
+        self.speed = getattr(self.character, 'speed', 30)
+        self.initiative = getattr(self.character, 'initiative', 0)
+        
+        # Load class and level info - ensure strings
+        if hasattr(self.character, 'character_class') and self.character.character_class:
+            class_name = self.character.character_class.name if hasattr(self.character.character_class, 'name') else str(self.character.character_class)
+            self.class_level = f"{class_name} {self.character.level}"
+        else:
+            self.class_level = f"Level {self.character.level}"
+        
+        # Load race, background if they exist - ensure strings
+        if hasattr(self.character, 'race') and self.character.race:
+            self.race = str(self.character.race.name if hasattr(self.character.race, 'name') else self.character.race)
+        else:
+            self.race = ""
+            
+        if hasattr(self.character, 'background') and self.character.background:
+            self.background = str(self.character.background.name if hasattr(self.character.background, 'name') else self.character.background)
+        else:
+            self.background = ""
+        
+        # Load ability scores if available
+        if hasattr(self.character, 'ability_scores'):
+            try:
+                ability_map = {
+                    "STRENGTH": "STR",
+                    "DEXTERITY": "DEX", 
+                    "CONSTITUTION": "CON",
+                    "INTELLIGENCE": "INT",
+                    "WISDOM": "WIS",
+                    "CHARISMA": "CHA"
+                }
+                
+                ability_scores = getattr(self.character, 'ability_scores', {})
+                if ability_scores and hasattr(ability_scores, 'items'):
+                    for ability_enum, score in ability_scores.items():
+                        ability_name = ability_enum.name if hasattr(ability_enum, 'name') else str(ability_enum)
+                        if ability_name in ability_map:
+                            self.ability_scores[ability_map[ability_name]] = score
+                        
+            except Exception as e:
+                logger.debug(f"Error loading ability scores: {e}")
+        
+        # Load additional combat stats - ensure proper types
+        self.inspiration = getattr(self.character, 'inspiration', False)
+        self.hit_dice = str(getattr(self.character, 'hit_dice', '1d8'))
+        self.total_hit_dice = str(getattr(self.character, 'total_hit_dice', '1d8'))
+        
+        # Load death saves
+        death_successes = getattr(self.character, 'death_save_successes', [False, False, False])
+        death_failures = getattr(self.character, 'death_save_failures', [False, False, False])
+        self.death_save_successes = death_successes.copy() if isinstance(death_successes, list) else [False, False, False]
+        self.death_save_failures = death_failures.copy() if isinstance(death_failures, list) else [False, False, False]
+        
+        # Load skills and saving throws
+        character_skills = getattr(self.character, 'skills', {})
+        if isinstance(character_skills, dict):
+            for skill_name, skill_data in character_skills.items():
+                if skill_name in self.skills and isinstance(skill_data, dict):
+                    self.skills[skill_name].update(skill_data)
+        
+        character_saves = getattr(self.character, 'saving_throws', {})
+        if isinstance(character_saves, dict):
+            for ability, save_data in character_saves.items():
+                if ability in self.saving_throws and isinstance(save_data, dict):
+                    self.saving_throws[ability].update(save_data)
+        
+        # Load text fields - ensure they are strings, not lists
+        # Convert lists to newline-separated strings if needed
+        def convert_to_string(value):
+            if isinstance(value, list):
+                return '\n'.join(str(item) for item in value)
+            return str(value) if value is not None else ''
+        
+        self.attacks_spellcasting = convert_to_string(getattr(self.character, 'attacks_spellcasting', ''))
+        self.equipment = convert_to_string(getattr(self.character, 'equipment', ''))
+        self.other_proficiencies_languages = convert_to_string(getattr(self.character, 'other_proficiencies_languages', ''))
+        self.features_traits = convert_to_string(getattr(self.character, 'features_traits', ''))
+        
+        # Update derived stats
+        self.update_derived_stats()
+        
+        logger.debug(f"Window cache loaded from Character object: {self.character_name}")
+        
     def set_parent_panel(self, parent_panel):
         """Set reference to parent panel for signaling when window closes"""
         self.parent_panel = parent_panel
     
-    def load_from_panel(self, panel):
-        """Load character data from the character sheet panel"""
-        logger.info("Loading character data from panel to window")
-        
-        # Get the character object reference
-        self.character = panel.character
-        
-        # Load current display data from panel
-        self.character_name = panel.character_name
-        self.class_level = panel.class_level
-        self.background = panel.background
-        self.player_name = panel.player_name
-        self.race = panel.race
-        self.alignment = panel.alignment
-        self.experience_points = panel.experience_points
-        
-        # Ability scores
-        self.ability_scores = panel.ability_scores.copy()
-        
-        # Inspiration and Proficiency Bonus
-        self.inspiration = panel.inspiration
-        self.proficiency_bonus = panel.proficiency_bonus
-        
-        # Saving throws
-        self.saving_throws = {}
-        for save, data in panel.saving_throws.items():
-            self.saving_throws[save] = data.copy()
-        
-        # Skills
-        self.skills = {}
-        for skill, data in panel.skills.items():
-            self.skills[skill] = data.copy()
-        
-        # Combat stats
-        self.armor_class = panel.armor_class
-        self.initiative = panel.initiative
-        self.speed = panel.speed
-        self.hit_point_maximum = panel.hit_point_maximum
-        self.current_hit_points = panel.current_hit_points
-        self.temporary_hit_points = panel.temporary_hit_points
-        self.total_hit_dice = panel.total_hit_dice
-        self.hit_dice = panel.hit_dice
-        
-        # Death saves
-        self.death_save_successes = panel.death_save_successes.copy()
-        self.death_save_failures = panel.death_save_failures.copy()
-        
-        # Passive perception
-        self.passive_perception = panel.passive_perception
-        
-        # Text fields
-        self.attacks_spellcasting = panel.attacks_spellcasting
-        self.equipment = panel.equipment
-        self.other_proficiencies_languages = panel.other_proficiencies_languages
-        self.features_traits = panel.features_traits
-        
-        # Set the selected entity
-        self.selected_entity_id = panel.selected_entity_id
-        
-        logger.info(f"Character data loaded: {self.character_name}")
-        
     def save_to_character(self):
         """Save character data directly to the Character object"""
         if not self.character:
@@ -802,6 +829,7 @@ class CharacterSheetWindow:
             return
             
         logger.info("Saving window data directly to Character object")
+        logger.info(f"Character data saved: {self.character.name}")
         
         try:
             # Basic character info
@@ -835,6 +863,7 @@ class CharacterSheetWindow:
             self.character.max_hit_points = self.hit_point_maximum
             # Note: proficiency_bonus is calculated automatically, not saved manually
             
+            # Save skills and saving throws
             # Set additional fields dynamically if possible
             additional_fields = {
                 'temporary_hit_points': self.temporary_hit_points,
@@ -845,8 +874,15 @@ class CharacterSheetWindow:
                 'total_hit_dice': self.total_hit_dice,
                 'death_save_successes': self.death_save_successes.copy(),
                 'death_save_failures': self.death_save_failures.copy(),
+                'skills': self.skills.copy(),
+                'saving_throws': self.saving_throws.copy(),
                 'race': self.race if hasattr(self, 'race') else "",
-                'background': self.background if hasattr(self, 'background') else ""
+                'background': self.background if hasattr(self, 'background') else "",
+                # Text fields - save as strings or convert to lists if needed
+                'attacks_spellcasting': self.attacks_spellcasting,
+                'equipment': self.equipment,
+                'other_proficiencies_languages': self.other_proficiencies_languages,
+                'features_traits': self.features_traits
             }
             
             for field_name, value in additional_fields.items():
@@ -879,6 +915,29 @@ class CharacterSheetWindow:
         return class_name if class_name else self.class_level
 
     def auto_save_changes(self):
-        """Automatically save changes directly to character object"""
+        """Automatically save changes from window cache to Character object"""
         self.save_to_character()
+        
+    def update_derived_stats(self):
+        """Update stats that depend on ability scores"""
+        # Update saving throws
+        for ability in self.saving_throws:
+            modifier = self.calculate_modifier(self.ability_scores[ability])
+            if self.saving_throws[ability]["proficient"]:
+                self.saving_throws[ability]["value"] = modifier + self.proficiency_bonus
+            else:
+                self.saving_throws[ability]["value"] = modifier
+                
+        # Update skills
+        for skill_name, skill_data in self.skills.items():
+            ability = skill_data["ability"]
+            modifier = self.calculate_modifier(self.ability_scores[ability])
+            if skill_data["proficient"]:
+                skill_data["value"] = modifier + self.proficiency_bonus
+            else:
+                skill_data["value"] = modifier
+                
+        # Update passive perception
+        perception_modifier = self.skills["Perception"]["value"]
+        self.passive_perception = 10 + perception_modifier
 

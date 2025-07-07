@@ -6,7 +6,7 @@ Journal Panel - Manages characters, monsters, handouts, and NPCs
 from imgui_bundle import imgui
 from typing import Dict, List, Optional
 from enum import Enum
-
+import uuid
 from logger import setup_logger
 logger = setup_logger(__name__)
 
@@ -198,10 +198,10 @@ class JournalPanel:
             if self.character_windows[entity_id]:
                 entity_data = self.entities.get(entity_id)
                 if entity_data:
-                    window = CharacterSheetWindow(self.context, entity_data.get('character_data', {}))
-                    still_open = window.render()
-                    if not still_open:
-                        to_remove.append(entity_id)
+                    window = CharacterSheetWindow(self.context, self.actions_bridge)
+                    window.render_full_window()  # Use the correct method name
+                    # Note: We need to track window state differently since this doesn't return open/closed
+                    # For now, assume it stays open
                 else:
                     to_remove.append(entity_id)
         
@@ -313,7 +313,7 @@ class JournalPanel:
                     self.actions_bridge.add_chat_message(f"Created new character: {character_data['name']}")
         else:
             # For NPC and manual creation, use the existing method
-            import uuid
+            
             entity_id = str(uuid.uuid4())
             
             character_data = {
@@ -333,7 +333,7 @@ class JournalPanel:
     
     def _add_handout(self):
         """Add a new handout"""
-        import uuid
+        
         entity_id = str(uuid.uuid4())
         
         handout_data = {
@@ -352,7 +352,7 @@ class JournalPanel:
     
     def _add_monster(self):
         """Add a new monster"""
-        import uuid
+        
         entity_id = str(uuid.uuid4())
         
         monster_data = {
@@ -367,7 +367,7 @@ class JournalPanel:
     
     def _add_npc(self):
         """Add a new NPC"""
-        import uuid
+       
         entity_id = str(uuid.uuid4())
         
         npc_data = {
@@ -471,3 +471,26 @@ class JournalPanel:
         """Notify other panels (e.g. character sheet) about entity selection."""
         if self.actions_bridge and hasattr(self.actions_bridge, 'on_entity_selected'):
             self.actions_bridge.on_entity_selected(entity_id)
+    
+    def add_character_from_creator(self, character_obj, character_data: Dict):
+        """Add a character created from the character creator"""
+        import uuid
+        entity_id = str(uuid.uuid4())
+        
+        character_entity = {
+            'id': entity_id,
+            'type': EntityType.CHARACTER.value,
+            'name': character_data.get('name', 'Unnamed Character'),
+            'character_object': character_obj,
+            'character_data': character_data,
+            'creation_type': 'character_manager'
+        }
+        
+        self.entities[entity_id] = character_entity
+        self.selected_entity_id = entity_id
+        
+        if self.actions_bridge:
+            self.actions_bridge.add_chat_message(f"Character '{character_entity['name']}' added to journal")
+        
+        logger.info(f"Character '{character_entity['name']}' added to journal via creator")
+        return entity_id

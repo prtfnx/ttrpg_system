@@ -7,7 +7,8 @@ import sys
 import os
 sys.path.append(os.path.dirname(__file__))
 
-from gui.windows.character_creator_window import CharacterCreator, CreationStep
+from gui.windows.character_creator import CharacterCreator
+from gui.windows.character_creator.enums import CreationStep
 from CompendiumManager import CompendiumManager
 
 class MockContext:

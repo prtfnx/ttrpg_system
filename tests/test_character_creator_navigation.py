@@ -34,7 +34,8 @@ def test_character_creator_navigation():
             def __init__(self):
                 self.CompendiumManager = compendium_manager
         
-        from gui.windows.character_creator_window import CharacterCreator, CreationStep
+        from gui.windows.character_creator import CharacterCreator
+        from gui.windows.character_creator.enums import CreationStep
         
         mock_context = MockContext()
         creator = CharacterCreator(mock_context)

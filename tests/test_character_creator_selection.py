@@ -34,7 +34,7 @@ def test_character_creator_selection():
             def __init__(self):
                 self.CompendiumManager = compendium_manager
         
-        from gui.windows.character_creator_window import CharacterCreator
+        from gui.windows.character_creator import CharacterCreator
         
         mock_context = MockContext()
         creator = CharacterCreator(mock_context)

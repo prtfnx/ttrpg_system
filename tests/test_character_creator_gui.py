@@ -8,7 +8,7 @@ import os
 sys.path.append(os.path.dirname(__file__))
 
 from imgui_bundle import imgui, hello_imgui
-from gui.windows.character_creator_window import CharacterCreator
+from gui.windows.character_creator import CharacterCreator
 from CompendiumManager import CompendiumManager
 
 class MockContext:

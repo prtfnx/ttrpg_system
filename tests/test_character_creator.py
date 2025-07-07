@@ -57,20 +57,20 @@ def test_character_creator():
             def __init__(self):
                 self.CompendiumManager = compendium_manager
         
-        from gui.windows.character_creator_window import CharacterCreator
+        from gui.windows.character_creator import CharacterCreator
         
         logger.info("Testing CharacterCreator initialization...")
         mock_context = MockContext()
         creator = CharacterCreator(mock_context)
         
-        logger.info(f"Creator loaded {len(creator.races)} races")
-        logger.info(f"Creator loaded {len(creator.classes)} classes")
-        logger.info(f"Creator loaded {len(creator.backgrounds)} backgrounds")
+        logger.info(f"Creator loaded {len(creator.compendium_data.get('races', {}))} races")
+        logger.info(f"Creator loaded {len(creator.compendium_data.get('classes', {}))} classes")
+        logger.info(f"Creator loaded {len(creator.compendium_data.get('backgrounds', {}))} backgrounds")
         
         # Test custom race creation
         logger.info("Testing custom race creation...")
-        if hasattr(creator, 'races'):
-            original_count = len(creator.races)
+        if 'races' in creator.compendium_data:
+            original_count = len(creator.compendium_data['races'])
             
             # Simulate custom race creation
             from core_table.compendiums.characters.character import Race, Size
@@ -91,8 +91,8 @@ def test_character_creator():
                 'race_object': custom_race
             }
             
-            creator.races['test_custom'] = race_data
-            logger.info(f"Custom race added. Total races: {len(creator.races)} (was {original_count})")
+            creator.compendium_data['races']['test_custom'] = race_data
+            logger.info(f"Custom race added. Total races: {len(creator.compendium_data['races'])} (was {original_count})")
         
         logger.info("Character creator test completed successfully!")
         return True

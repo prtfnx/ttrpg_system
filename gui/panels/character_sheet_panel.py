@@ -287,29 +287,48 @@ class CharacterSheetPanel:
     
     def load_from_entity(self, entity_id: str):
         """Load character data from selected entity"""
-        if not self.actions_bridge or not entity_id:
-            logger.debug(f"Cannot load entity: actions_bridge={self.actions_bridge is not None}, entity_id={entity_id}")
+        if not entity_id:
+            logger.debug(f"Cannot load entity: no entity_id provided")
             return False
-            
-        # Get entity data that might contain character information
-        sprite_info = self.actions_bridge.get_sprite_info(entity_id)
-        logger.debug(f"Sprite info for {entity_id}: {sprite_info}")
         
-        if not sprite_info:
-            logger.debug(f"No sprite info found for entity: {entity_id}")
-            return False
-            
-        # Check if entity has character data
-        character_data = sprite_info.get('character_data')
-        logger.debug(f"Character data in sprite info: {character_data}")
+        # First try to get character data from journal panel
+        if self.context and hasattr(self.context, 'journal_panel'):
+            entity_data = self.context.journal_panel.get_entity_data(entity_id)
+            if entity_data and entity_data.get('type') == 'character':
+                # Check for character object first
+                character_obj = entity_data.get('character_object')
+                if character_obj:
+                    self.selected_entity_id = entity_id
+                    self._load_character_data(character_obj)
+                    logger.info(f"Successfully loaded character object for entity: {entity_id}")
+                    return True
+                    
+                # Fall back to character data dict
+                character_data = entity_data.get('character_data')
+                if character_data:
+                    self.selected_entity_id = entity_id
+                    self._load_character_data(character_data)
+                    logger.info(f"Successfully loaded character data for entity: {entity_id}")
+                    return True
         
-        if character_data:
-            self.selected_entity_id = entity_id
-            self._load_character_data(character_data)
-            logger.info(f"Successfully loaded character data for entity: {entity_id}")
-            return True
-        else:
-            logger.debug(f"No character_data field in sprite info for entity: {entity_id}")
+        # Fall back to sprite info (for backwards compatibility)
+        if self.actions_bridge:
+            sprite_info = self.actions_bridge.get_sprite_info(entity_id)
+            logger.debug(f"Sprite info for {entity_id}: {sprite_info}")
+            
+            if sprite_info:
+                character_data = sprite_info.get('character_data')
+                if character_data:
+                    self.selected_entity_id = entity_id
+                    self._load_character_data(character_data)
+                    logger.info(f"Successfully loaded character data from sprite for entity: {entity_id}")
+                    return True
+                else:
+                    logger.debug(f"No character_data field in sprite info for entity: {entity_id}")
+            else:
+                logger.debug(f"No sprite info found for entity: {entity_id}")
+        
+        logger.warning(f"No character data found for entity: {entity_id}")
         return False
     
     def _load_character_data(self, character_data):
@@ -324,7 +343,7 @@ class CharacterSheetPanel:
             # Always load data from Character object to ensure panel displays current state
             self._sync_panel_from_character()
             
-            logger.debug(f"Loaded from Character object: {self.character.name}")
+            logger.info(f"Successfully loaded character object for entity: {self.selected_entity_id}")
             
         elif isinstance(character_data, dict):
             # It's a dictionary - create a new Character object or use existing one

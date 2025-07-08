@@ -38,8 +38,8 @@ class JournalPanel:
         self.show_character_creation_popup = False
         self.new_entity_name = ""
         
-        # Windows
-        self.character_windows: Dict[str, bool] = {}
+        # Windows - store actual window instances instead of just boolean flags
+        self.character_windows = {}  # entity_id -> CharacterSheetWindow
         
         # Handout windows
         self.handout_windows: Dict[str, bool] = {}
@@ -127,10 +127,40 @@ class JournalPanel:
                 
                 # Open appropriate window based on entity type
                 if entity_data.get('type') == EntityType.CHARACTER.value:
-                    self.character_windows[entity_id] = True
-                    # Also open full character sheet window via actions bridge
-                    if self.actions_bridge and hasattr(self.actions_bridge, 'open_character_sheet'):
-                        self.actions_bridge.open_character_sheet(entity_id)
+                    # Create and store a persistent window instance
+                    if entity_id not in self.character_windows:
+                        from ..windows.character_sheet_window import CharacterSheetWindow
+                        window = CharacterSheetWindow(self.context, self.actions_bridge)
+                        
+                        # Load the character data into the window
+                        character_obj = entity_data.get('character_object')
+                        
+                        if character_obj:
+                            # If we have a Character object, set it and load from it
+                            window.character = character_obj
+                            window.load_from_character()
+                        else:
+                            # For legacy data or manual characters, set basic info
+                            character_data = entity_data.get('character_data', {})
+                            window.character_name = character_data.get('name', 'Unnamed Character')
+                            window.class_level = character_data.get('class_level', '')
+                            window.race = character_data.get('race', '')
+                            window.background = character_data.get('background', '')
+                            window.alignment = character_data.get('alignment', '')
+                            
+                            # Load ability scores
+                            ability_scores = character_data.get('ability_scores', {})
+                            for ability, score in ability_scores.items():
+                                if ability.upper() in window.ability_scores:
+                                    window.ability_scores[ability.upper()] = score
+                            
+                            window.update_derived_stats()
+                        
+                        self.character_windows[entity_id] = window
+                    
+                    # Show the window
+                    self.character_windows[entity_id].show_full_window = True
+                    # Only open character window, not character sheet panel
                 elif entity_data.get('type') == EntityType.HANDOUT.value:
                     self._open_handout_window(entity_id)
             
@@ -190,18 +220,17 @@ class JournalPanel:
     
     def _render_character_windows(self):
         """Render character sheet windows"""
-        # Import here to avoid circular import
-        from ..windows.character_sheet_window import CharacterSheetWindow
-        
         to_remove = []
-        for entity_id in list(self.character_windows.keys()):
-            if self.character_windows[entity_id]:
+        for entity_id, window in list(self.character_windows.items()):
+            if window and window.show_full_window:
                 entity_data = self.entities.get(entity_id)
                 if entity_data:
-                    window = CharacterSheetWindow(self.context, self.actions_bridge)
-                    window.render_full_window()  # Use the correct method name
-                    # Note: We need to track window state differently since this doesn't return open/closed
-                    # For now, assume it stays open
+                    # Render the window and check if it's still open
+                    is_still_open = window.render_full_window()
+                    
+                    # Update window state - if window was closed, mark for removal
+                    if not window.show_full_window:
+                        to_remove.append(entity_id)
                 else:
                     to_remove.append(entity_id)
         
@@ -307,13 +336,12 @@ class JournalPanel:
                 
                 self.entities[entity_id] = character_data
                 self.selected_entity_id = entity_id
-                self.character_windows[entity_id] = True
                 
                 if self.actions_bridge:
                     self.actions_bridge.add_chat_message(f"Created new character: {character_data['name']}")
         else:
             # For NPC and manual creation, use the existing method
-            
+            import uuid
             entity_id = str(uuid.uuid4())
             
             character_data = {
@@ -326,7 +354,6 @@ class JournalPanel:
             
             self.entities[entity_id] = character_data
             self.selected_entity_id = entity_id
-            self.character_windows[entity_id] = True
             
             if self.actions_bridge:
                 self.actions_bridge.add_chat_message(f"Created new character: {character_data['name']}")
@@ -445,14 +472,15 @@ class JournalPanel:
                 # For now, treat edit as level-up - could be extended for different edit modes
                 self.context.character_creator.open_creator(character_obj)
             else:
-                # Fallback: open character sheet
-                self.character_windows[entity_id] = True
+                # Fallback: trigger window opening through selection
+                self.selected_entity_id = entity_id
+                # Window will be created when character is selected
     
     def _duplicate_character(self, entity_id: str):
         """Duplicate an existing character"""
         entity_data = self.entities.get(entity_id)
         if entity_data and entity_data.get('type') == EntityType.CHARACTER.value:
-            import uuid
+            
             new_entity_id = str(uuid.uuid4())
             
             # Create a copy of the character data
@@ -474,23 +502,22 @@ class JournalPanel:
     
     def add_character_from_creator(self, character_obj, character_data: Dict):
         """Add a character created from the character creator"""
-        import uuid
         entity_id = str(uuid.uuid4())
         
-        character_entity = {
+        entity_data = {
             'id': entity_id,
             'type': EntityType.CHARACTER.value,
-            'name': character_data.get('name', 'Unnamed Character'),
-            'character_object': character_obj,
-            'character_data': character_data,
-            'creation_type': 'character_manager'
+            'name': character_obj.name or 'Unnamed Character',
+            'creation_type': CharacterCreationType.CHARACTER_MANAGER.value,
+            'character_object': character_obj,  # Store the Character object
+            'character_data': character_data  # Store legacy format for compatibility
         }
         
-        self.entities[entity_id] = character_entity
+        self.entities[entity_id] = entity_data
         self.selected_entity_id = entity_id
         
         if self.actions_bridge:
-            self.actions_bridge.add_chat_message(f"Character '{character_entity['name']}' added to journal")
+            self.actions_bridge.add_chat_message(f"Character '{character_obj.name}' added to journal")
         
-        logger.info(f"Character '{character_entity['name']}' added to journal via creator")
+        logger.info(f"Added character '{character_obj.name}' to journal with ID: {entity_id}")
         return entity_id

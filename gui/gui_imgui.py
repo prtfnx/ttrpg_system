@@ -35,7 +35,7 @@ from .panels import (
 
 # Import external windows
 from .windows.settings_window import SettingsWindow
-from .windows.character_creator_window import CharacterCreator
+from .windows.character_creator import CharacterCreator
 
 # Import GUI actions bridge
 from .gui_actions_bridge import GuiActionsBridge
@@ -116,6 +116,9 @@ class SimplifiedGui:
         
         # Expose character sheet panel for cross-panel communication
         self.context.character_sheet_panel = self.panel_instances[GuiPanel.CHARACTER_SHEET]
+        
+        # Expose journal panel for cross-panel communication
+        self.context.journal_panel = self.panel_instances[GuiPanel.JOURNAL]
         
         # Initialize external windows
         self.external_windows = []

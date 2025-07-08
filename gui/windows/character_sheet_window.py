@@ -4,6 +4,7 @@ Character Sheet Window - Standalone character sheet in popup window
 """
 import random
 import re
+from pathlib import Path
 from imgui_bundle import imgui
 from typing import Dict, Optional
 from logger import setup_logger
@@ -154,6 +155,11 @@ class CharacterSheetWindow:
                 # Equipment tab
                 if imgui.begin_tab_item("Equipment")[0]:
                     self.render_tab_equipment()
+                    imgui.end_tab_item()
+                
+                # Images tab
+                if imgui.begin_tab_item("Images")[0]:
+                    self.render_tab_images()
                     imgui.end_tab_item()
                 
                 imgui.end_tab_bar()
@@ -940,4 +946,138 @@ class CharacterSheetWindow:
         # Update passive perception
         perception_modifier = self.skills["Perception"]["value"]
         self.passive_perception = 10 + perception_modifier
+    
+    def render_tab_images(self):
+        """Render the images tab content"""
+        imgui.text("CHARACTER IMAGES")
+        imgui.separator()
+        
+        # Token/Avatar selection
+        imgui.text("Token Image (for table):")
+        if hasattr(self, 'token_image_path'):
+            token_display = f"Selected: {Path(self.token_image_path).name}" if self.token_image_path else "No token selected"
+        else:
+            self.token_image_path = ""
+            token_display = "No token selected"
+        
+        imgui.text(token_display)
+        
+        if imgui.button("Browse for Token Image", (200, 30)):
+            self._open_images_folder()
+        
+        imgui.same_line()
+        if imgui.button("Clear Token", (120, 30)):
+            self.token_image_path = ""
+        
+        imgui.separator()
+        
+        # Avatar image selection  
+        imgui.text("Avatar Image (for character sheet):")
+        if hasattr(self, 'avatar_image_path'):
+            avatar_display = f"Selected: {Path(self.avatar_image_path).name}" if self.avatar_image_path else "No avatar selected"
+        else:
+            self.avatar_image_path = ""
+            avatar_display = "No avatar selected"
+            
+        imgui.text(avatar_display)
+        
+        if imgui.button("Browse for Avatar Image", (200, 30)):
+            self._open_images_folder()
+        
+        imgui.same_line()
+        if imgui.button("Clear Avatar", (120, 30)):
+            self.avatar_image_path = ""
+        
+        imgui.separator()
+        
+        # Manual path input
+        imgui.text("Or enter image paths manually:")
+        
+        imgui.text("Token path:")
+        imgui.set_next_item_width(400)
+        changed, new_token = imgui.input_text("##token_path", self.token_image_path or "")
+        if changed:
+            self.token_image_path = new_token
+        
+        imgui.text("Avatar path:")
+        imgui.set_next_item_width(400)
+        changed, new_avatar = imgui.input_text("##avatar_path", self.avatar_image_path or "")
+        if changed:
+            self.avatar_image_path = new_avatar
+        
+        imgui.separator()
+        
+        # Update sprite button
+        if imgui.button("Update Character Sprite", (200, 40)):
+            self._update_character_sprite()
+    
+    def _open_images_folder(self):
+        """Open the images folder in system file manager"""
+        try:
+            from pathlib import Path
+            import subprocess
+            import sys
+            
+            # Create images folder if it doesn't exist
+            images_folder = Path("resources/images")
+            images_folder.mkdir(parents=True, exist_ok=True)
+            
+            # Open folder in system file manager
+            if sys.platform == "win32":
+                subprocess.run(['explorer', str(images_folder)], shell=True)
+            elif sys.platform == "darwin":
+                subprocess.run(['open', str(images_folder)])
+            else:
+                subprocess.run(['xdg-open', str(images_folder)])
+                
+            logger.info(f"Opened images folder: {images_folder}")
+            
+        except Exception as e:
+            logger.error(f"Error opening images folder: {e}")
+    
+    def _update_character_sprite(self):
+        """Update the character's sprite on the table"""
+        if not hasattr(self, 'selected_entity_id') or not self.selected_entity_id:
+            logger.warning("No character selected for sprite update")
+            return
+            
+        if not hasattr(self, 'token_image_path') or not self.token_image_path:
+            logger.warning("No token image selected")
+            return
+            
+        try:
+            # Get actions bridge from context
+            if hasattr(self, 'context') and self.context and hasattr(self.context, 'gui_bridge'):
+                actions_bridge = self.context.gui_bridge
+            elif hasattr(self, 'actions_bridge') and self.actions_bridge:
+                actions_bridge = self.actions_bridge
+            else:
+                logger.warning("No actions bridge available for sprite update")
+                return
+            
+            # Delete existing sprite if it exists
+            try:
+                actions_bridge.delete_sprite(self.selected_entity_id)
+                logger.debug(f"Deleted existing sprite for {self.selected_entity_id}")
+            except:
+                logger.debug(f"No existing sprite found for {self.selected_entity_id}")
+            
+            # Create new sprite with updated image
+            result = actions_bridge.create_sprite(
+                sprite_id=self.selected_entity_id,
+                image_path=self.token_image_path,
+                x=500.0,
+                y=500.0,
+                layer="tokens"
+            )
+            
+            if result:
+                logger.info(f"Updated sprite for character {self.selected_entity_id}")
+                actions_bridge.add_chat_message("Character sprite updated")
+            else:
+                logger.error(f"Failed to update sprite for character {self.selected_entity_id}")
+                actions_bridge.add_chat_message("Failed to update character sprite")
+                
+        except Exception as e:
+            logger.error(f"Error updating character sprite: {e}")
 

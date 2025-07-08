@@ -12,7 +12,8 @@ class CreationStep(Enum):
     ABILITIES = 2
     BACKGROUND = 3
     EQUIPMENT = 4
-    OVERVIEW = 5
+    IMAGE = 5
+    OVERVIEW = 6
 
 
 class AbilityGenMethod(Enum):

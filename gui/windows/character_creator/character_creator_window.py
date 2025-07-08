@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Any
 import uuid
 
 from core_table.compendiums.characters.character import Character, Race, CharacterClass, Background, AbilityScore, Size
+from core_table.actions_protocol import Position
 from .enums import CreationStep, AbilityGenMethod
 from .utils import CharacterCreatorUtils
 from .race_step import RaceStep
@@ -15,6 +16,7 @@ from .class_step import ClassStep
 from .abilities_step import AbilitiesStep
 from .background_step import BackgroundStep
 from .equipment_step import EquipmentStep
+from .image_step import ImageStep
 from .overview_step import OverviewStep
 
 from logger import setup_logger
@@ -43,6 +45,7 @@ class CharacterCreator:
         self.abilities_step = None
         self.background_step = None
         self.equipment_step = None
+        self.image_step = None
         self.overview_step = None
         
         # Load compendium data
@@ -123,6 +126,7 @@ class CharacterCreator:
         self.abilities_step = AbilitiesStep(self.character_data, self.compendium_data)
         self.background_step = BackgroundStep(self.character_data, self.compendium_data)
         self.equipment_step = EquipmentStep(self.character_data, self.compendium_data)
+        self.image_step = ImageStep(self.character_data, self.compendium_data)
         self.overview_step = OverviewStep(self.character_data, self.compendium_data)
     
     def render(self):
@@ -147,7 +151,7 @@ class CharacterCreator:
             else:
                 self._debug_frame_count = 0
             
-            if self._debug_frame_count % 60 == 0:  # Log every 60 frames (~1 second at 60fps)
+            if self._debug_frame_count % 60000 == 0:  # Log every 60 frames (~1 second at 60fps)
                 logger.debug(f"Character creator current step: {self.current_step.name}")
                 logger.debug(f"Steps initialized: Race={self.race_step is not None}, Class={self.class_step is not None}")
             
@@ -175,6 +179,7 @@ class CharacterCreator:
             (CreationStep.ABILITIES, "Abilities"),
             (CreationStep.BACKGROUND, "Background"),
             (CreationStep.EQUIPMENT, "Equipment"),
+            (CreationStep.IMAGE, "Image"),
             (CreationStep.OVERVIEW, "Overview")
         ]
         
@@ -222,11 +227,19 @@ class CharacterCreator:
                    self.class_step is not None and self.class_step.is_complete() and
                    self.abilities_step is not None and self.abilities_step.is_complete() and
                    self.background_step is not None and self.background_step.is_complete())
+        elif step == CreationStep.IMAGE:
+            return (self.race_step is not None and self.race_step.is_complete() and 
+                   self.class_step is not None and self.class_step.is_complete() and
+                   self.abilities_step is not None and self.abilities_step.is_complete() and
+                   self.background_step is not None and self.background_step.is_complete() and
+                   self.equipment_step is not None and self.equipment_step.is_complete())
         elif step == CreationStep.OVERVIEW:
             return (self.race_step is not None and self.race_step.is_complete() and 
                    self.class_step is not None and self.class_step.is_complete() and
                    self.abilities_step is not None and self.abilities_step.is_complete() and
-                   self.background_step is not None and self.background_step.is_complete())
+                   self.background_step is not None and self.background_step.is_complete() and
+                   self.equipment_step is not None and self.equipment_step.is_complete() and
+                   self.image_step is not None and self.image_step.is_complete())
         return False
     
     def _render_current_step(self):
@@ -244,6 +257,8 @@ class CharacterCreator:
             self.background_step.render()
         elif self.current_step == CreationStep.EQUIPMENT and self.equipment_step:
             self.equipment_step.render()
+        elif self.current_step == CreationStep.IMAGE and self.image_step:
+            self.image_step.render()
         elif self.current_step == CreationStep.OVERVIEW and self.overview_step:
             is_complete, should_create = self.overview_step.render()
             if should_create:
@@ -357,6 +372,10 @@ class CharacterCreator:
                 
                 logger.info(f"Character '{character.name}' added to journal with ID: {entity_id}")
                 
+                # Create sprite if image was selected
+                if self.character_data.get('selected_image'):
+                    self._create_character_sprite(entity_id)
+                
                 if self.actions_bridge:
                     self.actions_bridge.add_chat_message(f"Created character: {character.name}")
             else:
@@ -412,3 +431,40 @@ class CharacterCreator:
             'equipment': '\n'.join(self.character_data.get('equipment', [])),
             'level': self.character_data.get('level', 1)
         }
+    
+    def _create_character_sprite(self, entity_id: str):
+        """Create a sprite for the character if an image was selected"""
+        selected_image = self.character_data.get('selected_image', '')
+        
+        if not selected_image or not self.actions_bridge:
+            logger.debug("No image selected or no actions bridge available for sprite creation")
+            return
+            
+        try:
+            # Check if current table exists
+            if not self.context or not hasattr(self.context, 'current_table') or not self.context.current_table:
+                logger.warning("No current table available for sprite creation")
+                return
+            
+            # Create sprite at center of table - use actions bridge simple method
+            result = self.actions_bridge.create_sprite(
+                sprite_id=entity_id,
+                image_path=selected_image,
+                x=500.0,  # Default center position
+                y=500.0,
+                layer="tokens"
+            )
+            
+            if result:
+                logger.info(f"Created sprite for character {entity_id} with image {selected_image}")
+                if self.actions_bridge:
+                    self.actions_bridge.add_chat_message(f"Character sprite created")
+            else:
+                logger.error(f"Failed to create sprite for character {entity_id}")
+                if self.actions_bridge:
+                    self.actions_bridge.add_chat_message(f"Failed to create character sprite")
+                    
+        except Exception as e:
+            logger.error(f"Error creating character sprite: {e}")
+            if self.actions_bridge:
+                self.actions_bridge.add_chat_message(f"Error creating sprite: {str(e)}")

@@ -27,6 +27,7 @@ from LightManager import LightManager, Light
 from storage.StorageManager import StorageManager
 from AssetManager import ClientAssetManager
 from GeometricManager import GeometricManager
+from CharacterManager import CharacterManager
 from core_table.actions_protocol import Position
 import OpenGL.GL as gl
 import argparse
@@ -58,6 +59,11 @@ MARGIN_SIZE: int = 20               # Margin between table and GUI panels
 
 if COMPENDIUM_SYSTEM:
     from CompendiumManager import CompendiumManager
+
+from CharacterManager import CharacterManager
+
+
+
     
 
 def sdl3_init() -> tuple[sdl3.SDL_Window, sdl3.SDL_Renderer, sdl3.SDL_GLContext]:
@@ -144,6 +150,17 @@ def SDL_AppInit_func(args: argparse.Namespace) -> Context:
         except Exception as e:
             logger.error(f"Failed to load compendiums: {e}")
             test_context.CompendiumManager = None
+    
+    # Initialize Character Manager
+    logger.info("Loading Character Manager...")
+    try:
+        test_context.CharacterManager = CharacterManager()
+        test_context.CharacterManager.set_context(test_context)  # Set context reference for sprite creation
+        char_stats = test_context.CharacterManager.get_stats()
+        logger.info(f"CharacterManager loaded: {char_stats['current_characters']} characters")
+    except Exception as e:
+        logger.error(f"Failed to load CharacterManager: {e}")
+        test_context.CharacterManager = None
     
     
     logger.info("Context initialized.")
@@ -290,6 +307,53 @@ def SDL_AppInit_func(args: argparse.Namespace) -> Context:
     test_character.max_hit_points = 10
    
     test_character.add_spell(test_spell)
+    
+    # Add test character through CharacterManager for testing (delete old and create new)
+    if test_context.CharacterManager:
+        try:
+            existing_chars = test_context.CharacterManager.list_characters()
+            test_char_names = ["Test Character", "Test Warrior"]
+            
+            # Find and delete existing test characters
+            chars_to_delete = []
+            for char_id, char_data in existing_chars.items():
+                if char_data.get('name', '') in test_char_names:
+                    chars_to_delete.append((char_id, char_data.get('name', 'Unknown')))
+            
+            if chars_to_delete:
+                logger.info(f"Deleting existing test characters: {[name for _, name in chars_to_delete]}")
+                for char_id, char_name in chars_to_delete:
+                    success = test_context.CharacterManager.delete_character(char_id)
+                    if success:
+                        logger.info(f"Deleted test character: {char_name} (ID: {char_id})")
+                    else:
+                        logger.warning(f"Failed to delete test character: {char_name} (ID: {char_id})")
+            
+            # Create fresh test characters
+            logger.info("Creating fresh test characters...")
+            
+            # Create Test Character
+            test_char_id = test_context.CharacterManager.create_character(
+                name="Test Character", 
+                is_player=True, 
+                player_name="Test Player"
+            )
+            logger.info(f"Test character created with ID: {test_char_id}")
+            
+            # Create Test Warrior
+            test_char_2 = core_table.Character.Character(name="Test Warrior", level=2)
+            test_char_2.hit_points = 20
+            test_char_2.max_hit_points = 20
+            test_char_2_id = test_context.CharacterManager.add_character(test_char_2)
+            logger.info(f"Test character 2 created with ID: {test_char_2_id}")
+            
+            # Log character manager stats
+            stats = test_context.CharacterManager.get_stats()
+            logger.info(f"CharacterManager stats: {stats}")
+            
+        except Exception as e:
+            logger.error(f"Error managing test characters: {e}")
+    
     result1=test_context.Actions.create_sprite( test_table.table_id, "sprite_map", Position(0, 0), image_path="resources/map.jpg", scale_x=0.5, scale_y=0.5, layer='map')
     result2=test_context.Actions.create_sprite( test_table.table_id, "sprite_woman", Position(0, 0), image_path="resources/woman.png", scale_x=0.5, scale_y=0.5, character=test_character)
     result3=test_context.Actions.create_sprite( test_table.table_id, "sprite_token1", Position(100, 100), image_path="resources/token_1.png", scale_x=0.5, scale_y=0.5, collidable=True)

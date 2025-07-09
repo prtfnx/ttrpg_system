@@ -1231,7 +1231,7 @@ class GuiActionsBridge:
         self._gui_reference = gui_instance
 
     def on_entity_selected(self, entity_id: str):
-        """Called when an entity is selected in the journal panel. Notifies character sheet panel."""
+        """Called when an entity is selected in the journal panel. Notifies character sheet panel and opens character sheet."""
         # Track the selected entity
         self._selected_entity_id = entity_id
         logger.debug(f"Actions bridge tracking selected entity: {entity_id}")
@@ -1241,9 +1241,154 @@ class GuiActionsBridge:
             self.context.character_sheet_panel.set_selected_entity(entity_id)
         elif hasattr(self.context, 'panels') and 'character_sheet_panel' in self.context.panels:
             self.context.panels['character_sheet_panel'].set_selected_entity(entity_id)
+        
+        # Open the character sheet window
+        self.open_character_sheet(entity_id)
     
     def open_character_sheet(self, entity_id: str):
         """Open the character sheet full window for the given entity"""
         if hasattr(self.context, 'character_sheet_panel'):
             self.context.character_sheet_panel.open_for_entity(entity_id)
             self.context.character_sheet_panel.show_full_window = True
+    
+    # =========================================================================
+    # CHARACTER MANAGEMENT
+    # =========================================================================
+    
+    def add_character_from_creator(self, character_obj, legacy_data: Dict) -> Optional[str]:
+        """Add a character created from the character creator"""
+        try:
+            result = self.actions.add_character_from_creator(character_obj, legacy_data)
+            if result:
+                logger.info(f"Character '{character_obj.name}' added via Actions with ID: {result}")
+                return result
+            else:
+                logger.error(f"Failed to add character from creator")
+                return None
+        except Exception as e:
+            logger.error(f"Error adding character from creator: {e}")
+            return None
+    
+    def get_character(self, character_id: str) -> Optional[Dict[str, Any]]:
+        """Get character data by ID"""
+        try:
+            result = self.actions.get_character(character_id)
+            if result.success:
+                return result.data
+            else:
+                logger.error(f"Failed to get character: {result.message}")
+                return None
+        except Exception as e:
+            logger.error(f"Error getting character: {e}")
+            return None
+    
+    def list_characters(self) -> Dict[str, Dict[str, Any]]:
+        """Get all characters for GUI display"""
+        try:
+            result = self.actions.list_characters()
+            if result.success:
+                return result.data.get('characters', {})
+            else:
+                logger.error(f"Failed to list characters: {result.message}")
+                return {}
+        except Exception as e:
+            logger.error(f"Error listing characters: {e}")
+            return {}
+    
+    def update_character(self, character_id: str, character_obj=None, legacy_data: Optional[Dict] = None) -> bool:
+        """Update character data"""
+        try:
+            result = self.actions.update_character(character_id, character_obj, legacy_data)
+            if result.success:
+                logger.info(f"Character {character_id} updated successfully")
+                return True
+            else:
+                logger.error(f"Failed to update character: {result.message}")
+                return False
+        except Exception as e:
+            logger.error(f"Error updating character: {e}")
+            return False
+    
+    def delete_character(self, character_id: str) -> bool:
+        """Delete a character"""
+        try:
+            result = self.actions.delete_character(character_id)
+            if result.success:
+                logger.info(f"Character {character_id} deleted successfully")
+                return True
+            else:
+                logger.error(f"Failed to delete character: {result.message}")
+                return False
+        except Exception as e:
+            logger.error(f"Error deleting character: {e}")
+            return False
+    
+    def save_character(self, character_id: str, character_obj=None, legacy_data: Optional[Dict] = None) -> bool:
+        """Save character data to storage"""
+        try:
+            result = self.actions.save_character(character_id, character_obj, legacy_data)
+            if result.success:
+                logger.info(f"Character {character_id} saved successfully")
+                return True
+            else:
+                logger.error(f"Failed to save character: {result.message}")
+                return False
+        except Exception as e:
+            logger.error(f"Error saving character: {e}")
+            return False
+    
+    def load_character(self, character_id: str) -> Optional[Dict[str, Any]]:
+        """Load character data from storage"""
+        try:
+            result = self.actions.load_character(character_id)
+            if result.success:
+                return result.data
+            else:
+                logger.error(f"Failed to load character: {result.message}")
+                return None
+        except Exception as e:
+            logger.error(f"Error loading character: {e}")
+            return None
+    
+    def duplicate_character(self, character_id: str, new_name: str) -> Optional[str]:
+        """Duplicate an existing character"""
+        try:
+            result = self.actions.duplicate_character(character_id, new_name)
+            if result.success:
+                new_id = result.data.get('entity_id')
+                logger.info(f"Character duplicated with new ID: {new_id}")
+                return new_id
+            else:
+                logger.error(f"Failed to duplicate character: {result.message}")
+                return None
+        except Exception as e:
+            logger.error(f"Error duplicating character: {e}")
+            return None
+
+    def open_character_creator(self) -> bool:
+        """Open the character creator window"""
+        try:
+            result = self.actions.open_character_creator()
+            if result.success:
+                logger.info("Character creator opened successfully")
+                return True
+            else:
+                logger.error(f"Failed to open character creator: {result.message}")
+                return False
+        except Exception as e:
+            logger.error(f"Error opening character creator: {e}")
+            return False
+    
+    def open_character_creator_for_character(self, character_id: str) -> bool:
+        """Open the character creator window for editing an existing character"""
+        try:
+            result = self.actions.open_character_creator_for_character(character_id)
+            if result.success:
+                logger.info(f"Character creator opened for character {character_id}")
+                return True
+            else:
+                logger.error(f"Failed to open character creator for character {character_id}: {result.message}")
+                return False
+        except Exception as e:
+            logger.error(f"Error opening character creator for character {character_id}: {e}")
+            return False

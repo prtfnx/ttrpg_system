@@ -174,6 +174,9 @@ class Actions(ActionsProtocol):
     - Force sync methods for manual server synchronization
     - Broadcasting capabilities for real-time multiplayer updates
     - Request methods for pulling data from server
+    # ============================================================================
+    # CHARACTER MANAGEMENT METHODS
+    # ============================================================================
     """
     
     # ============================================================================
@@ -2186,5 +2189,221 @@ class Actions(ActionsProtocol):
         except Exception as e:
             logger.error(f"Error adding chat message: {e}")
             return ActionResult(False, f"Failed to add chat message: {str(e)}")
+
+    # ============================================================================
+    # CHARACTER MANAGEMENT METHODS
+    # ============================================================================
+    
+    def create_character(self, character_data: Dict[str, Any]) -> ActionResult:
+        """Create a new character through CharacterManager"""
+        try:
+            if not self.context.CharacterManager:
+                return ActionResult(False, "CharacterManager not available")
+            
+            result = self.context.CharacterManager.create_character(character_data)
+            if result['success']:
+                logger.info(f"Character created: {character_data.get('name', 'Unknown')}")
+                return ActionResult(True, "Character created", {"character_id": result['character_id']})
+            else:
+                return ActionResult(False, result.get('message', 'Character creation failed'))
+                logger.error(f"Character creation failed: {result.get('message', 'Unknown error')}")
+                
+        except Exception as e:
+            logger.error(f"Error creating character: {e}")
+            return ActionResult(False, f"Failed to create character: {str(e)}")
+    
+    def add_character(self, character_obj, legacy_data: Optional[Dict] = None) -> ActionResult:
+        """Add a character object through CharacterManager"""
+        try:
+            if not self.context.CharacterManager:
+                return ActionResult(False, "CharacterManager not available")
+            
+            entity_id = self.context.CharacterManager.add_character(character_obj, legacy_data)
+            logger.info(f"Character added: {character_obj.name}")
+            return ActionResult(True, "Character added", {"entity_id": entity_id})
+                
+        except Exception as e:
+            logger.error(f"Error adding character: {e}")
+            return ActionResult(False, f"Failed to add character: {str(e)}")
+    
+    def get_character(self, character_id: str) -> ActionResult:
+        """Get a character by ID through CharacterManager"""
+        try:
+            if not self.context.CharacterManager:
+                return ActionResult(False, "CharacterManager not available")
+            
+            character = self.context.CharacterManager.get_character(character_id)
+            if character:
+                return ActionResult(True, "Character found", {"character": character})
+            else:
+                return ActionResult(False, "Character not found")
+                
+        except Exception as e:
+            logger.error(f"Error getting character: {e}")
+            return ActionResult(False, f"Failed to get character: {str(e)}")
+    
+    def list_characters(self) -> ActionResult:
+        """Get all characters through CharacterManager"""
+        try:
+            if not self.context.CharacterManager:
+                return ActionResult(False, "CharacterManager not available")
+            
+            characters = self.context.CharacterManager.list_characters()
+            return ActionResult(True, f"Found {len(characters)} characters", {"characters": characters})
+                
+        except Exception as e:
+            logger.error(f"Error listing characters: {e}")
+            return ActionResult(False, f"Failed to list characters: {str(e)}")
+    
+    def update_character(self, character_id: str, character_obj=None, legacy_data: Optional[Dict] = None) -> ActionResult:
+        """Update a character through CharacterManager"""
+        try:
+            if not self.context.CharacterManager:
+                return ActionResult(False, "CharacterManager not available")
+            
+            # If we have a character object, update it directly
+            if character_obj:
+                result = self.context.CharacterManager.update_character(character_id, character_obj)
+                if result:
+                    logger.info(f"Character updated: {character_id}")
+                    return ActionResult(True, "Character updated")
+                else:
+                    return ActionResult(False, "Character update failed")
+            else:
+                # If no character object, we can't update
+                return ActionResult(False, "No character object provided for update")
+                
+        except Exception as e:
+            logger.error(f"Error updating character: {e}")
+            return ActionResult(False, f"Failed to update character: {str(e)}")
+    
+    def delete_character(self, character_id: str) -> ActionResult:
+        """Delete a character through CharacterManager"""
+        try:
+            if not self.context.CharacterManager:
+                return ActionResult(False, "CharacterManager not available")
+            
+            result = self.context.CharacterManager.delete_character(character_id)
+            if result:
+                logger.info(f"Character deleted: {character_id}")
+                return ActionResult(True, "Character deleted")
+            else:
+                return ActionResult(False, "Character deletion failed")
+                
+        except Exception as e:
+            logger.error(f"Error deleting character: {e}")
+            return ActionResult(False, f"Failed to delete character: {str(e)}")
+    
+    def save_character(self, character_id: str, character_obj=None, legacy_data: Optional[Dict] = None) -> ActionResult:
+        """Save a character through CharacterManager"""
+        try:
+            if not self.context.CharacterManager:
+                return ActionResult(False, "CharacterManager not available")
+            
+            result = self.context.CharacterManager.save_character(character_id, character_obj, legacy_data)
+            if result:
+                logger.info(f"Character saved: {character_id}")
+                return ActionResult(True, "Character saved")
+            else:
+                return ActionResult(False, "Character save failed")
+                
+        except Exception as e:
+            logger.error(f"Error saving character: {e}")
+            return ActionResult(False, f"Failed to save character: {str(e)}")
+    
+    def load_character(self, character_id: str) -> ActionResult:
+        """Load a character from storage through CharacterManager"""
+        try:
+            if not self.context.CharacterManager:
+                return ActionResult(False, "CharacterManager not available")
+            
+            result = self.context.CharacterManager.load_character(character_id)
+            if result:
+                logger.info(f"Character loaded: {character_id}")
+                return ActionResult(True, "Character loaded", {"character": result})
+            else:
+                return ActionResult(False, "Character load failed")
+                
+        except Exception as e:
+            logger.error(f"Error loading character: {e}")
+            return ActionResult(False, f"Failed to load character: {str(e)}")
+    
+    def open_character_creator(self) -> ActionResult:
+        """Open the character creator window"""
+        try:
+            if hasattr(self.context, 'character_creator') and self.context.character_creator:
+                self.context.character_creator.open_creator()
+                logger.info("Character creator opened successfully")
+                return ActionResult(True, "Character creator opened")
+            else:
+                logger.error("Character creator not available in context")
+                return ActionResult(False, "Character creator not available")
+        except Exception as e:
+            logger.error(f"Error opening character creator: {e}")
+            return ActionResult(False, f"Failed to open character creator: {str(e)}")
+    
+    def open_character_creator_for_character(self, character_id: str) -> ActionResult:
+        """Open the character creator for editing an existing character"""
+        try:
+            if not self.context.CharacterManager:
+                return ActionResult(False, "CharacterManager not available")
+            
+            character = self.context.CharacterManager.get_character(character_id)
+            if not character:
+                return ActionResult(False, "Character not found")
+            
+            if hasattr(self.context, 'character_creator') and self.context.character_creator:
+                self.context.character_creator.open_creator(character)
+                logger.info(f"Character creator opened for character {character_id}")
+                return ActionResult(True, "Character creator opened for editing")
+            else:
+                logger.error("Character creator not available in context")
+                return ActionResult(False, "Character creator not available")
+                
+        except Exception as e:
+            logger.error(f"Error opening character creator for character {character_id}: {e}")
+            return ActionResult(False, f"Failed to open character creator: {str(e)}")
+    
+    def duplicate_character(self, character_id: str, new_name: Optional[str] = None) -> Optional[str]:
+        """Duplicate an existing character"""
+        try:
+            if not self.context.CharacterManager:
+                logger.error("CharacterManager not available")
+                return None
+            
+            result = self.context.CharacterManager.duplicate_character(character_id, new_name)
+            if result:
+                logger.info(f"Character duplicated: {character_id} -> {result}")
+                return result
+            else:
+                logger.error(f"Failed to duplicate character: {character_id}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error duplicating character {character_id}: {e}")
+            return None
+    
+    def add_character_from_creator(self, character_obj, character_data: Dict) -> Optional[str]:
+        """Add a character created from the character creator"""
+        try:
+            if not self.context.CharacterManager:
+                logger.error("CharacterManager not available")
+                return None
+            
+            # Use the character object if available, otherwise use create_character_from_creator_data
+            if character_obj:
+                result = self.context.CharacterManager.add_character(character_obj, character_data)
+                logger.info(f"Character added from creator: {character_obj.name}")
+                return result
+            else:
+                # If no character object, use the creator data
+                result = self.context.CharacterManager.create_character_from_creator_data(character_data)
+                logger.info(f"Character created from creator data: {result}")
+                return result
+                
+        except Exception as e:
+            logger.error(f"Error adding character from creator: {e}")
+            return None
+
 
 

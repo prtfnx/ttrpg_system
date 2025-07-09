@@ -7,7 +7,8 @@ from imgui_bundle import imgui
 from typing import Dict, List, Optional, Any
 import uuid
 
-from core_table.compendiums.characters.character import Character, Race, CharacterClass, Background, AbilityScore, Size
+from core_table.Character import Character
+from core_table.compendiums.characters.character import Race, CharacterClass, Background, AbilityScore, Size
 from core_table.actions_protocol import Position
 from .enums import CreationStep, AbilityGenMethod
 from .utils import CharacterCreatorUtils
@@ -365,23 +366,28 @@ class CharacterCreator:
                 character.ability_scores.get(AbilityScore.DEXTERITY, 10))
             character.armor_class = 10 + dex_modifier
             
-            # Add character to journal via context
-            if self.context and hasattr(self.context, 'journal_panel'):
+            # Add character through Actions
+            if self.actions_bridge and hasattr(self.actions_bridge, 'add_character_from_creator'):
                 legacy_data = self._convert_to_legacy_format()
-                entity_id = self.context.journal_panel.add_character_from_creator(character, legacy_data)
+                entity_id = self.actions_bridge.add_character_from_creator(character, legacy_data)
                 
-                logger.info(f"Character '{character.name}' added to journal with ID: {entity_id}")
-                
-                # Create sprite if image was selected
-                if self.character_data.get('selected_image'):
-                    self._create_character_sprite(entity_id)
-                
-                if self.actions_bridge:
-                    self.actions_bridge.add_chat_message(f"Created character: {character.name}")
+                if entity_id:
+                    logger.info(f"Character '{character.name}' added through Actions with ID: {entity_id}")
+                    
+                    # Create sprite if image was selected
+                    if self.character_data.get('selected_image'):
+                        self._create_character_sprite(entity_id)
+                    
+                    if self.actions_bridge:
+                        self.actions_bridge.add_chat_message(f"Created character: {character.name}")
+                else:
+                    logger.warning("Failed to add character through Actions")
+                    if self.actions_bridge:
+                        self.actions_bridge.add_chat_message(f"Failed to create character: {character.name}")
             else:
-                logger.warning("No journal panel available to add character")
+                logger.warning("Actions bridge not available for character creation")
                 if self.actions_bridge:
-                    self.actions_bridge.add_chat_message(f"Character created but not added to journal: {character.name}")
+                    self.actions_bridge.add_chat_message(f"Character created but not added: {character.name}")
             
             # Close the creator
             self.is_open = False

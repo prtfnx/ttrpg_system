@@ -667,6 +667,13 @@ class CharacterSheetPanel:
             
             if not self.CharacterWindow:
                 self.CharacterWindow = CharacterSheetWindow(context=self.context, actions_bridge=self.actions_bridge)
+                
+                # Add the window to the external_windows list for rendering
+                if hasattr(self.context, 'imgui') and self.context.imgui:
+                    if self.CharacterWindow not in self.context.imgui.external_windows:
+                        self.context.imgui.external_windows.append(self.CharacterWindow)
+                        logger.info("Character sheet window added to external windows for rendering.")
+                
                 logger.info("Character sheet window created.")
             else:
                 self.CharacterWindow.show_full_window = True
@@ -713,7 +720,7 @@ class CharacterSheetPanel:
     def open_for_entity(self, entity_id: str):
         """Open character sheet for a specific entity and show full window"""
         if self.set_selected_entity(entity_id):
-            self.show_full_window = True
+            self._create_window()
             return True
         return False
     

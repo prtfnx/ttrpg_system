@@ -110,79 +110,98 @@ class JournalPanel:
     
     def _render_entity_list(self):
         """Render filtered entity list"""
-        filtered_entities = {k: v for k, v in self.entities.items() 
-                           if v.get('type') == self.entity_filter.value}
-        
-        if not filtered_entities:
-            imgui.text_colored((0.6, 0.6, 0.6, 1.0), f"No {self.entity_filter.value}s found")
-            return
-        
-        for entity_id, entity_data in filtered_entities.items():
-            is_selected = entity_id == self.selected_entity_id
-            
-            clicked, _ = imgui.selectable(entity_data.get('name', 'Unnamed'), is_selected)
-            if clicked:
-                self.selected_entity_id = entity_id
-                self.notify_entity_selected(entity_id)
+        # For characters, get them from CharacterManager via Actions
+        if self.entity_filter == EntityType.CHARACTER:
+            if self.actions_bridge and hasattr(self.actions_bridge, 'list_characters'):
+                characters = self.actions_bridge.list_characters()
+                if not characters:
+                    imgui.text_colored((0.6, 0.6, 0.6, 1.0), "No characters found")
+                    return
                 
-                # Open appropriate window based on entity type
-                if entity_data.get('type') == EntityType.CHARACTER.value:
-                    # Create and store a persistent window instance
-                    if entity_id not in self.character_windows:
-                        from ..windows.character_sheet_window import CharacterSheetWindow
-                        window = CharacterSheetWindow(self.context, self.actions_bridge)
-                        
-                        # Load the character data into the window
-                        character_obj = entity_data.get('character_object')
-                        
-                        if character_obj:
-                            # If we have a Character object, set it and load from it
-                            window.character = character_obj
-                            window.load_from_character()
-                        else:
-                            # For legacy data or manual characters, set basic info
-                            character_data = entity_data.get('character_data', {})
-                            window.character_name = character_data.get('name', 'Unnamed Character')
-                            window.class_level = character_data.get('class_level', '')
-                            window.race = character_data.get('race', '')
-                            window.background = character_data.get('background', '')
-                            window.alignment = character_data.get('alignment', '')
-                            
-                            # Load ability scores
-                            ability_scores = character_data.get('ability_scores', {})
-                            for ability, score in ability_scores.items():
-                                if ability.upper() in window.ability_scores:
-                                    window.ability_scores[ability.upper()] = score
-                            
-                            window.update_derived_stats()
-                        
-                        self.character_windows[entity_id] = window
+                for character_id, character_data in characters.items():
+                    is_selected = character_id == self.selected_entity_id
+                    character_name = character_data.get('name', 'Unnamed Character')
                     
-                    # Show the window
-                    self.character_windows[entity_id].show_full_window = True
-                    # Only open character window, not character sheet panel
-                elif entity_data.get('type') == EntityType.HANDOUT.value:
-                    self._open_handout_window(entity_id)
+                    clicked, _ = imgui.selectable(character_name, is_selected)
+                    if clicked:
+                        self.selected_entity_id = character_id
+                        self.notify_entity_selected(character_id)
+                        
+                        # Create and store a persistent window instance
+                        if character_id not in self.character_windows:
+                            from ..windows.character_sheet_window import CharacterSheetWindow
+                            window = CharacterSheetWindow(self.context, self.actions_bridge)
+                            
+                            # Load the character data into the window
+                            character_obj = character_data.get('character_object')
+                            
+                            if character_obj:
+                                # If we have a Character object, set it and load from it
+                                window.character = character_obj
+                                window.load_from_character()
+                            else:
+                                # For legacy data, set basic info
+                                window.character_name = character_name
+                                window.class_level = character_data.get('class_level', '')
+                                window.race = character_data.get('race', '')
+                                window.background = character_data.get('background', '')
+                                window.alignment = character_data.get('alignment', '')
+                                
+                                # Load ability scores
+                                ability_scores = character_data.get('ability_scores', {})
+                                for ability, score in ability_scores.items():
+                                    if ability.upper() in window.ability_scores:
+                                        window.ability_scores[ability.upper()] = score
+                                
+                                window.update_derived_stats()
+                            
+                            self.character_windows[character_id] = window
+                        
+                        # Show the window
+                        self.character_windows[character_id].show_full_window = True
+                        # Only open character window, not character sheet panel
+                    
+                    # Right-click context menu for characters
+                    if imgui.begin_popup_context_item(f"character_context_{character_id}"):
+                        
+                        if imgui.menu_item("Level Up", "", False)[0]:
+                            self._level_up_character(character_id)
+                        
+                        if imgui.menu_item("Edit Character", "", False)[0]:
+                            self._edit_character(character_id)
+                        
+                        if imgui.menu_item("Duplicate", "", False)[0]:
+                            self._duplicate_character(character_id)
+                        
+                        imgui.separator()
+                        
+                        if imgui.menu_item("Delete", "", False)[0]:
+                            self._delete_character(character_id)
+                        
+                        imgui.end_popup()
+            else:
+                imgui.text_colored((0.6, 0.6, 0.6, 1.0), "Actions bridge not available")
+                return
+        else:
+            # For other entity types, use the existing system
+            filtered_entities = {k: v for k, v in self.entities.items() 
+                               if v.get('type') == self.entity_filter.value}
             
-            # Right-click context menu for characters
-            if (entity_data.get('type') == EntityType.CHARACTER.value and 
-                imgui.begin_popup_context_item(f"character_context_{entity_id}")):
+            if not filtered_entities:
+                imgui.text_colored((0.6, 0.6, 0.6, 1.0), f"No {self.entity_filter.value}s found")
+                return
+            
+            for entity_id, entity_data in filtered_entities.items():
+                is_selected = entity_id == self.selected_entity_id
                 
-                if imgui.menu_item("Level Up", "", False)[0]:
-                    self._level_up_character(entity_id)
-                
-                if imgui.menu_item("Edit Character", "", False)[0]:
-                    self._edit_character(entity_id)
-                
-                if imgui.menu_item("Duplicate", "", False)[0]:
-                    self._duplicate_character(entity_id)
-                
-                imgui.separator()
-                
-                if imgui.menu_item("Delete", "", False)[0]:
-                    self._delete_entity(entity_id)
-                
-                imgui.end_popup()
+                clicked, _ = imgui.selectable(entity_data.get('name', 'Unnamed'), is_selected)
+                if clicked:
+                    self.selected_entity_id = entity_id
+                    self.notify_entity_selected(entity_id)
+                    
+                    # Open appropriate window based on entity type
+                    if entity_data.get('type') == EntityType.HANDOUT.value:
+                        self._open_handout_window(entity_id)
     
     def _render_character_creation_popup(self):
         """Render character creation method popup"""
@@ -223,8 +242,16 @@ class JournalPanel:
         to_remove = []
         for entity_id, window in list(self.character_windows.items()):
             if window and window.show_full_window:
-                entity_data = self.entities.get(entity_id)
-                if entity_data:
+                # Check if character still exists in CharacterManager
+                character_exists = False
+                if self.actions_bridge and hasattr(self.actions_bridge, 'get_character'):
+                    try:
+                        character_data = self.actions_bridge.get_character(entity_id)
+                        character_exists = character_data is not None
+                    except:
+                        character_exists = False
+                
+                if character_exists:
                     # Render the window and check if it's still open
                     is_still_open = window.render_full_window()
                     
@@ -318,45 +345,48 @@ class JournalPanel:
     def _create_character(self, creation_type: CharacterCreationType):
         """Create a new character based on type"""
         if creation_type == CharacterCreationType.CHARACTER_MANAGER:
-            # Launch the character creator window
-            if self.context and hasattr(self.context, 'character_creator'):
-                self.context.character_creator.open_creator()
+            # Launch the character creator window via Actions
+            if self.actions_bridge and hasattr(self.actions_bridge, 'open_character_creator'):
+                self.actions_bridge.open_character_creator()
             else:
-                # Fallback: create a basic character
-                import uuid
-                entity_id = str(uuid.uuid4())
-                
+                logger.warning("Character creator not available via Actions")
+                if self.actions_bridge:
+                    self.actions_bridge.add_chat_message("Character creator not available")
+        else:
+            # For NPC and manual creation, create through CharacterManager via Actions
+            if self.actions_bridge and hasattr(self.actions_bridge, 'create_character'):
+                character_name = f"New {creation_type.value.title()}"
                 character_data = {
-                    'id': entity_id,
-                    'type': EntityType.CHARACTER.value,
-                    'name': f"New Character {len(self.entities) + 1}",
+                    'name': character_name,
                     'creation_type': creation_type.value,
-                    'character_data': self._get_default_character_data()
+                    'class_level': 'Level 1',
+                    'race': '',
+                    'background': '',
+                    'alignment': '',
+                    'ability_scores': {
+                        'STR': 10, 'DEX': 10, 'CON': 10,
+                        'INT': 10, 'WIS': 10, 'CHA': 10
+                    },
+                    'hit_points': {'current': 8, 'maximum': 8, 'temporary': 0},
+                    'armor_class': 10,
+                    'skills': {},
+                    'equipment': '',
+                    'features': ''
                 }
                 
-                self.entities[entity_id] = character_data
-                self.selected_entity_id = entity_id
-                
+                character_id = self.actions_bridge.create_character(character_data)
+                if character_id:
+                    self.selected_entity_id = character_id
+                    if self.actions_bridge:
+                        self.actions_bridge.add_chat_message(f"Created new {creation_type.value}: {character_name}")
+                else:
+                    logger.error("Failed to create character via Actions")
+                    if self.actions_bridge:
+                        self.actions_bridge.add_chat_message("Failed to create character")
+            else:
+                logger.warning("CharacterManager not available via Actions")
                 if self.actions_bridge:
-                    self.actions_bridge.add_chat_message(f"Created new character: {character_data['name']}")
-        else:
-            # For NPC and manual creation, use the existing method
-            import uuid
-            entity_id = str(uuid.uuid4())
-            
-            character_data = {
-                'id': entity_id,
-                'type': EntityType.CHARACTER.value,
-                'name': f"New Character {len(self.entities) + 1}",
-                'creation_type': creation_type.value,
-                'character_data': self._get_default_character_data()
-            }
-            
-            self.entities[entity_id] = character_data
-            self.selected_entity_id = entity_id
-            
-            if self.actions_bridge:
-                self.actions_bridge.add_chat_message(f"Created new character: {character_data['name']}")
+                    self.actions_bridge.add_chat_message("CharacterManager not available")
     
     def _add_handout(self):
         """Add a new handout"""
@@ -409,6 +439,12 @@ class JournalPanel:
     
     def _delete_entity(self, entity_id: str):
         """Delete an entity"""
+        # Check if this is a character (if we're in character filter mode)
+        if self.entity_filter == EntityType.CHARACTER:
+            self._delete_character(entity_id)
+            return
+            
+        # For other entity types, use the old system
         if entity_id in self.entities:
             entity_name = self.entities[entity_id].get('name', 'Unnamed')
             del self.entities[entity_id]
@@ -422,6 +458,30 @@ class JournalPanel:
                 
             if self.actions_bridge:
                 self.actions_bridge.add_chat_message(f"Deleted entity: {entity_name}")
+    
+    def _delete_character(self, character_id: str):
+        """Delete a character through CharacterManager"""
+        if self.context and hasattr(self.context, 'CharacterManager') and self.context.CharacterManager:
+            result = self.context.CharacterManager.delete_character(character_id)
+            if result['success']:
+                # Close character window if open
+                if character_id in self.character_windows:
+                    del self.character_windows[character_id]
+                
+                # Update selection
+                if self.selected_entity_id == character_id:
+                    self.selected_entity_id = None
+                
+                if self.actions_bridge:
+                    self.actions_bridge.add_chat_message(f"Deleted character: {result.get('name', 'Unknown')}")
+                
+                logger.info(f"Character deleted: {character_id}")
+            else:
+                logger.error(f"Failed to delete character: {result.get('message', 'Unknown error')}")
+                if self.actions_bridge:
+                    self.actions_bridge.add_chat_message(f"Failed to delete character: {result.get('message', 'Unknown error')}")
+        else:
+            logger.warning("CharacterManager not available for character deletion")
     
     def _get_default_character_data(self) -> Dict:
         """Get default character data structure"""
@@ -451,49 +511,36 @@ class JournalPanel:
         return self.entities.get(entity_id)
     
     def _level_up_character(self, entity_id: str):
-        """Level up an existing character using the character creator"""
-        entity_data = self.entities.get(entity_id)
-        if entity_data and entity_data.get('type') == EntityType.CHARACTER.value:
-            # Get the character object if available
-            character_obj = entity_data.get('character_object')
-            if character_obj and self.context and hasattr(self.context, 'character_creator'):
-                self.context.character_creator.open_creator(character_obj)
-            else:
-                if self.actions_bridge:
-                    self.actions_bridge.add_chat_message("Character object not available for level up")
+        """Level up an existing character using the character creator via Actions"""
+        if self.actions_bridge and hasattr(self.actions_bridge, 'open_character_creator_for_character'):
+            self.actions_bridge.open_character_creator_for_character(entity_id)
+        else:
+            if self.actions_bridge:
+                self.actions_bridge.add_chat_message("Character level up not available")
     
     def _edit_character(self, entity_id: str):
-        """Edit an existing character"""
-        entity_data = self.entities.get(entity_id)
-        if entity_data and entity_data.get('type') == EntityType.CHARACTER.value:
-            # Open the character creator in edit mode
-            character_obj = entity_data.get('character_object')
-            if character_obj and self.context and hasattr(self.context, 'character_creator'):
-                # For now, treat edit as level-up - could be extended for different edit modes
-                self.context.character_creator.open_creator(character_obj)
-            else:
-                # Fallback: trigger window opening through selection
-                self.selected_entity_id = entity_id
-                # Window will be created when character is selected
+        """Edit an existing character via Actions"""
+        if self.actions_bridge and hasattr(self.actions_bridge, 'open_character_creator_for_character'):
+            # For now, treat edit as level-up - could be extended for different edit modes
+            self.actions_bridge.open_character_creator_for_character(entity_id)
+        else:
+            # Fallback: trigger window opening through selection
+            self.selected_entity_id = entity_id
+            # Window will be created when character is selected
     
     def _duplicate_character(self, entity_id: str):
-        """Duplicate an existing character"""
-        entity_data = self.entities.get(entity_id)
-        if entity_data and entity_data.get('type') == EntityType.CHARACTER.value:
-            
-            new_entity_id = str(uuid.uuid4())
-            
-            # Create a copy of the character data
-            import copy
-            new_character_data = copy.deepcopy(entity_data)
-            new_character_data['id'] = new_entity_id
-            new_character_data['name'] = f"{entity_data['name']} (Copy)"
-            
-            self.entities[new_entity_id] = new_character_data
-            self.selected_entity_id = new_entity_id
-            
-            if self.actions_bridge:
-                self.actions_bridge.add_chat_message(f"Duplicated character: {new_character_data['name']}")
+        """Duplicate an existing character via Actions"""
+        if self.actions_bridge and hasattr(self.actions_bridge, 'duplicate_character'):
+            new_character_id = self.actions_bridge.duplicate_character(entity_id)
+            if new_character_id:
+                self.selected_entity_id = new_character_id
+                if self.actions_bridge:
+                    self.actions_bridge.add_chat_message("Character duplicated successfully")
+            else:
+                if self.actions_bridge:
+                    self.actions_bridge.add_chat_message("Failed to duplicate character")
+        else:
+            logger.warning("Character duplication not available via Actions")
     
     def notify_entity_selected(self, entity_id: str):
         """Notify other panels (e.g. character sheet) about entity selection."""
@@ -501,23 +548,18 @@ class JournalPanel:
             self.actions_bridge.on_entity_selected(entity_id)
     
     def add_character_from_creator(self, character_obj, character_data: Dict):
-        """Add a character created from the character creator"""
-        entity_id = str(uuid.uuid4())
-        
-        entity_data = {
-            'id': entity_id,
-            'type': EntityType.CHARACTER.value,
-            'name': character_obj.name or 'Unnamed Character',
-            'creation_type': CharacterCreationType.CHARACTER_MANAGER.value,
-            'character_object': character_obj,  # Store the Character object
-            'character_data': character_data  # Store legacy format for compatibility
-        }
-        
-        self.entities[entity_id] = entity_data
-        self.selected_entity_id = entity_id
-        
-        if self.actions_bridge:
-            self.actions_bridge.add_chat_message(f"Character '{character_obj.name}' added to journal")
-        
-        logger.info(f"Added character '{character_obj.name}' to journal with ID: {entity_id}")
-        return entity_id
+        """Add a character created from the character creator - now delegates to Actions"""
+        if self.actions_bridge and hasattr(self.actions_bridge, 'add_character_from_creator'):
+            entity_id = self.actions_bridge.add_character_from_creator(character_obj, character_data)
+            if entity_id:
+                self.selected_entity_id = entity_id
+                if self.actions_bridge:
+                    self.actions_bridge.add_chat_message(f"Character '{character_obj.name}' added to journal")
+                logger.info(f"Added character '{character_obj.name}' to journal with ID: {entity_id}")
+                return entity_id
+            else:
+                logger.error("Failed to add character via Actions")
+                return None
+        else:
+            logger.warning("Actions bridge not available for adding character from creator")
+            return None

@@ -3,7 +3,7 @@
 ## Core
 
 ### GUI
-1. [ x] Complete character representation and make gui for character manager
+1. [x] Complete character representation and make gui for character manager
 2. [x] Complete gui to support all operations with sprites, character, character manager. Including:
     - [x] Manage tables
     - [ ] Create characters and npc
@@ -27,11 +27,11 @@
 9. [ ] Audio and video(?) support
 
 ### Virtual Table
-1. [ x] Implement proper DND-like character system with actions, hp, AC, rolls, spells, items
-2. [ x] Connect virtual table characters and sdl table tokens with sync hp and etc
-3. [ x] Actions characters can do to GUI
-4. [ ] Level up system????
-5. [ ] Implement basic DND mechanic like long rest and spell slots
+1. [x] Implement proper DND-like character system with actions, hp, AC, rolls, spells, items
+2. [x] Connect virtual table characters and sdl table tokens with sync hp and etc
+3. [x] Actions characters can do to GUI
+4. [x] Level up system????
+5. [x ] Implement basic DND mechanic like long rest and spell slots
 6. [x] Connection managment on serverside
 7. [x] Log actions and revert system
 
@@ -58,7 +58,7 @@
 
 ### Virtual Table
 1. [ ] Implement complex dnd mechanic like spells effect, auto-attack, show possible movement. Traps and skill usage on map
-2. [ ] Character manager with easy step-by-step creation
+2. [x] Character manager with easy step-by-step creation
 3. [ ] Rewrite in GO
 4. [ ] Implement tools for map building. Use AI to generate maps, encounters, loot
 5. [ ] Implement AI for monsters and automate their actions
@@ -72,6 +72,9 @@
 2) [x] Implement flow for assets
 3) [x] Implement render managment for layers
 4) [x] Light objects
+
+### Issues:
+1) [ ] Proper character window logic
 
 
 

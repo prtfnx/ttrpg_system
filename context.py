@@ -17,10 +17,10 @@ from logger import setup_logger
 if TYPE_CHECKING:  
     from ctypes import c_void_p
     from CompendiumManager import CompendiumManager
+    from CharacterManager import CharacterManager
     from LightManager import LightManager
     from LayoutManager import LayoutManager
     from gui.gui_imgui import SimplifiedGui
-    
     SDL_Renderer = c_void_p
     SDL_Window = c_void_p 
     SDL_GLContext = c_void_p
@@ -90,6 +90,7 @@ class Context:
         self.LayoutManager: Optional['LayoutManager'] = None
         self.LightingManager: Optional['LightManager'] = None        
         self.CompendiumManager: Optional['CompendiumManager'] = None
+        self.CharacterManager: Optional['CharacterManager'] = None
         self.GeometryManager: Optional[GeometricManager] = None
         self.AssetManager: Optional[ClientAssetManager] = None
         self.RenderManager: Optional[RenderManager] = None

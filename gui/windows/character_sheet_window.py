@@ -110,10 +110,14 @@ class CharacterSheetWindow:
         """Format modifier with + or - sign"""
         return f"+{modifier}" if modifier >= 0 else str(modifier)
     
+    def render(self):
+        """Main render method called by the GUI system"""
+        return self.render_full_window()
+    
     def render_full_window(self):
         """Render full character sheet in separate window"""
         if not self.show_full_window:
-            return
+            return False
               # Simple window setup without viewport complications
         flags = imgui.WindowFlags_.no_collapse.value
         imgui.set_next_window_size((1300, 900), imgui.Cond_.first_use_ever.value)
@@ -176,6 +180,7 @@ class CharacterSheetWindow:
             
         
         imgui.end()
+        return self.show_full_window
     
     def render_main_character_sheet(self):
         """Render the main character sheet content (Tab 1)"""

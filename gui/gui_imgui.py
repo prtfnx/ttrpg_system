@@ -229,9 +229,19 @@ class SimplifiedGui:
 
     def _render_external_windows(self):
         """Render external windows (e.g. dialogs, popups)"""
+        windows_to_remove = []
         for window in self.external_windows:
             if hasattr(window, 'render') and callable(window.render):
-                window.render()
+                # Check if window should be closed (for character sheet windows)
+                if hasattr(window, 'show_full_window') and not window.show_full_window:
+                    windows_to_remove.append(window)
+                else:
+                    window.render()
+        
+        # Remove closed windows from the external_windows list
+        for window in windows_to_remove:
+            self.external_windows.remove(window)
+            logger.debug(f"Removed closed window from external_windows: {type(window).__name__}")
    
 
     def _render_layout(self):

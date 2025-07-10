@@ -252,6 +252,8 @@ class CharacterManager:
                 char_data = character.to_dict()
                 char_data['id'] = char_id
                 char_data['character_id'] = char_id
+                # Include the actual Character object for GUI windows
+                char_data['character_object'] = character
                 result[char_id] = char_data
             except Exception as e:
                 logger.error(f"Error serializing character {char_id}: {e}, type {type(character)}")

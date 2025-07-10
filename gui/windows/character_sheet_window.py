@@ -21,6 +21,7 @@ class CharacterSheetWindow:
         self.show_full_window = True
         self.selected_entity_id = None
         self.parent_panel = None  # Reference to parent panel for signaling
+        self.character_id = None  # ID for saving character changes back to CharacterManager
         
         # Character sheet fields for performance (window display cache)
         self.character_name = ""
@@ -909,6 +910,27 @@ class CharacterSheetWindow:
                 logger.debug("Character object does not have update_calculated_values method")
             
             logger.info(f"Character object updated directly: {self.character.name}")
+            
+            # Also save to CharacterManager if available to ensure persistence
+            if hasattr(self, 'actions_bridge') and self.actions_bridge:
+                if hasattr(self.actions_bridge, 'update_character'):
+                    # Get the character ID from the character sheet window or parent panel
+                    character_id = getattr(self, 'character_id', None)
+                    if not character_id and hasattr(self, 'parent_panel') and self.parent_panel:
+                        character_id = getattr(self.parent_panel, 'selected_entity_id', None)
+                    
+                    if character_id:
+                        success = self.actions_bridge.update_character(character_id, self.character)
+                        if success:
+                            logger.info(f"Character data persisted to CharacterManager: {character_id}")
+                        else:
+                            logger.warning(f"Failed to persist character data to CharacterManager: {character_id}")
+                    else:
+                        logger.warning("No character ID available for persisting character data")
+                else:
+                    logger.debug("Actions bridge does not have update_character method")
+            else:
+                logger.debug("No actions bridge available for persisting character data")
         except Exception as e:
             logger.error(f"Error updating character object: {e}")
     

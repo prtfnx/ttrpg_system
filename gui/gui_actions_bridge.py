@@ -1231,7 +1231,7 @@ class GuiActionsBridge:
         self._gui_reference = gui_instance
 
     def on_entity_selected(self, entity_id: str):
-        """Called when an entity is selected in the journal panel. Notifies character sheet panel and opens character sheet."""
+        """Called when an entity is selected in the journal panel. Notifies character sheet panel."""
         # Track the selected entity
         self._selected_entity_id = entity_id
         logger.debug(f"Actions bridge tracking selected entity: {entity_id}")
@@ -1242,8 +1242,8 @@ class GuiActionsBridge:
         elif hasattr(self.context, 'panels') and 'character_sheet_panel' in self.context.panels:
             self.context.panels['character_sheet_panel'].set_selected_entity(entity_id)
         
-        # Open the character sheet window
-        self.open_character_sheet(entity_id)
+        # Note: Window opening is now handled by the journal panel only
+        # The character sheet panel will only open windows when the "Open Full Sheet" button is clicked
     
     def open_character_sheet(self, entity_id: str):
         """Open the character sheet full window for the given entity"""
@@ -1350,9 +1350,19 @@ class GuiActionsBridge:
             logger.error(f"Error loading character: {e}")
             return None
     
-    def duplicate_character(self, character_id: str, new_name: str) -> Optional[str]:
+    def duplicate_character(self, character_id: str, new_name: Optional[str] = None) -> Optional[str]:
         """Duplicate an existing character"""
         try:
+            # If no new name provided, generate one based on the original character
+            if new_name is None:
+                # Get the original character to create a default name
+                original_character = self.get_character(character_id)
+                if original_character and 'name' in original_character:
+                    original_name = original_character['name']
+                    new_name = f"{original_name} (Copy)"
+                else:
+                    new_name = "Character Copy"
+            
             result = self.actions.duplicate_character(character_id, new_name)
             if result.success:
                 new_id = result.data.get('entity_id')

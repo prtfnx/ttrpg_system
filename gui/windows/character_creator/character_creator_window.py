@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Any
 import uuid
 
 from core_table.Character import Character
-from core_table.compendiums.characters.character import Race, CharacterClass, Background, AbilityScore, Size
+from core_table.compendiums.characters.character import Race, CharacterClass, Background, AbilityScore, Size, Skill
 from core_table.actions_protocol import Position
 from .enums import CreationStep, AbilityGenMethod
 from .utils import CharacterCreatorUtils
@@ -34,6 +34,7 @@ class CharacterCreator:
         
         # Creation state
         self.current_step = CreationStep.RACE
+        self.previous_step = None  # Track previous step for detecting changes
         self.is_open = False
         self.existing_character: Optional[Character] = None
         
@@ -207,7 +208,9 @@ class CharacterCreator:
             if self._can_access_step(step):
                 clicked, _ = imgui.selectable(label, step == self.current_step)
                 if clicked:
+                    old_step = self.current_step
                     self.current_step = step
+                    self._on_step_change(old_step, step)
                     logger.debug(f"Switched to step: {step.name}")
             else:
                 imgui.text(label)
@@ -297,7 +300,9 @@ class CharacterCreator:
         
         prev_clicked = imgui.button("< Previous", (100, 30))
         if prev_clicked and can_go_back:
+            old_step = self.current_step
             self.current_step = CreationStep(self.current_step.value - 1)
+            self._on_step_change(old_step, self.current_step)
             logger.debug(f"Moved to previous step: {self.current_step.name}")
         
         if not can_go_back:
@@ -314,7 +319,9 @@ class CharacterCreator:
         
         next_clicked = imgui.button("Next >", (100, 30))
         if next_clicked and can_go_forward:
+            old_step = self.current_step
             self.current_step = CreationStep(self.current_step.value + 1)
+            self._on_step_change(old_step, self.current_step)
             logger.debug(f"Moved to next step: {self.current_step.name}")
         
         if not can_go_forward:
@@ -380,6 +387,36 @@ class CharacterCreator:
             dex_modifier = CharacterCreatorUtils.calculate_modifier(
                 character.ability_scores.get(AbilityScore.DEXTERITY, 10))
             character.armor_class = 10 + dex_modifier
+            
+            # Set skill proficiencies
+            skill_proficiencies = self.character_data.get('skill_proficiencies', [])
+            skill_enum_map = {
+                'Acrobatics': Skill.ACROBATICS,
+                'Animal Handling': Skill.ANIMAL_HANDLING,
+                'Arcana': Skill.ARCANA,
+                'Athletics': Skill.ATHLETICS,
+                'Deception': Skill.DECEPTION,
+                'History': Skill.HISTORY,
+                'Insight': Skill.INSIGHT,
+                'Intimidation': Skill.INTIMIDATION,
+                'Investigation': Skill.INVESTIGATION,
+                'Medicine': Skill.MEDICINE,
+                'Nature': Skill.NATURE,
+                'Perception': Skill.PERCEPTION,
+                'Performance': Skill.PERFORMANCE,
+                'Persuasion': Skill.PERSUASION,
+                'Religion': Skill.RELIGION,
+                'Sleight of Hand': Skill.SLEIGHT_OF_HAND,
+                'Stealth': Skill.STEALTH,
+                'Survival': Skill.SURVIVAL,
+            }
+            
+            for skill_name in skill_proficiencies:
+                if skill_name in skill_enum_map:
+                    skill_enum = skill_enum_map[skill_name]
+                    if skill_enum not in character.skill_proficiencies:
+                        character.skill_proficiencies.append(skill_enum)
+                        logger.debug(f"Added skill proficiency: {skill_name}")
             
             # Add character through Actions
             if self.actions_bridge and hasattr(self.actions_bridge, 'add_character_from_creator'):
@@ -489,3 +526,10 @@ class CharacterCreator:
             logger.error(f"Error creating character sprite: {e}")
             if self.actions_bridge:
                 self.actions_bridge.add_chat_message(f"Error creating sprite: {str(e)}")
+    
+    def _on_step_change(self, old_step: CreationStep, new_step: CreationStep):
+        """Handle step changes - update steps that depend on previous step data"""
+        # Update proficiencies when entering the proficiencies step
+        if new_step == CreationStep.PROFICIENCIES and self.proficiencies_step:
+            self.proficiencies_step.update_available_proficiencies_on_step_change()
+            logger.debug("Updated proficiencies for step change")

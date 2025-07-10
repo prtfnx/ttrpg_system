@@ -58,6 +58,7 @@ class CharacterCreatorUtils:
                         'name': char_class.name,
                         'description': f"Hit Die: d{char_class.hit_die}, Skills: {char_class.num_skills}",
                         'hit_die': char_class.hit_die,
+                        'num_skills': char_class.num_skills,  # Add the missing num_skills field
                         'primary_abilities': [ability.value for ability in char_class.primary_abilities],
                         'saving_throws': [ability.value for ability in char_class.saving_throw_proficiencies],
                         'skill_proficiencies': [skill.value for skill in char_class.skill_proficiencies],
@@ -345,3 +346,37 @@ class CharacterCreatorUtils:
         for score in scores.values():
             total += costs.get(score, 0)
         return total
+    
+    @staticmethod
+    def get_all_skills() -> List[str]:
+        """Get all D&D 5e skills"""
+        return [
+            "Acrobatics", "Animal Handling", "Arcana", "Athletics", "Deception",
+            "History", "Insight", "Intimidation", "Investigation", "Medicine",
+            "Nature", "Perception", "Performance", "Persuasion", "Religion",
+            "Sleight of Hand", "Stealth", "Survival"
+        ]
+    
+    @staticmethod
+    def get_skill_ability_mapping() -> Dict[str, str]:
+        """Get the ability score associated with each skill"""
+        return {
+            "Acrobatics": "DEX",
+            "Animal Handling": "WIS",
+            "Arcana": "INT",
+            "Athletics": "STR",
+            "Deception": "CHA",
+            "History": "INT",
+            "Insight": "WIS",
+            "Intimidation": "CHA",
+            "Investigation": "INT",
+            "Medicine": "WIS",
+            "Nature": "INT",
+            "Perception": "WIS",
+            "Performance": "CHA",
+            "Persuasion": "CHA",
+            "Religion": "INT",
+            "Sleight of Hand": "DEX",
+            "Stealth": "DEX",
+            "Survival": "WIS"
+        }

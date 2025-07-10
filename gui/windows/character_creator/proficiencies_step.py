@@ -34,7 +34,41 @@ class ProficienciesStep:
         self.available_class_skills = []
         self.available_background_skills = []
         
-        self._analyze_available_proficiencies()
+        # Track if we need to update proficiencies
+        self.last_class = ""
+        self.last_background = ""
+    
+    def update_available_proficiencies(self):
+        """Update available proficiencies when entering this step"""
+        selected_class = self.character_data.get('character_class', '')
+        selected_background = self.character_data.get('background', '')
+        
+        # Check if class or background changed
+        class_changed = selected_class != self.last_class
+        background_changed = selected_background != self.last_background
+        
+        if class_changed or background_changed:
+            logger.debug(f"Updating proficiencies - Class: {selected_class}, Background: {selected_background}")
+            
+            # Clear old selections when class/background changes
+            if class_changed:
+                # Remove old class-based selections
+                for skill in list(self.selected_proficiencies):
+                    if skill in self.available_class_skills and skill not in self.available_background_skills:
+                        self.selected_proficiencies.discard(skill)
+                        
+            if background_changed:
+                # Remove old background-based selections
+                for skill in list(self.selected_proficiencies):
+                    if skill in self.available_background_skills:
+                        self.selected_proficiencies.discard(skill)
+            
+            # Update available skills
+            self._analyze_available_proficiencies()
+            
+            # Update tracking
+            self.last_class = selected_class
+            self.last_background = selected_background
     
     def _analyze_available_proficiencies(self):
         """Analyze available skill proficiencies from class and background"""
@@ -42,178 +76,193 @@ class ProficienciesStep:
         selected_class = self.character_data.get('character_class', '')
         if selected_class and selected_class in self.compendium_data.get('classes', {}):
             class_data = self.compendium_data['classes'][selected_class]
-            self.available_class_skills = class_data.get('skills', [])
-            self.class_choices = class_data.get('skill_choices', 0)
-        
-        # Get background proficiencies (usually automatic)
+            
+            # Get available class skills and number of choices
+            self.available_class_skills = class_data.get('skill_proficiencies', [])
+            self.class_choices = class_data.get('num_skills', 0)
+
+        # Get background proficiencies (these are automatically granted)
         selected_background = self.character_data.get('background', '')
         if selected_background and selected_background in self.compendium_data.get('backgrounds', {}):
             background_data = self.compendium_data['backgrounds'][selected_background]
-            background_skills = background_data.get('skills', [])
             
-            # Background skills are usually automatic, add them to selected
-            for skill in background_skills:
-                if skill in self.all_skills:
-                    self.selected_proficiencies.add(skill)
+            # Background skills are automatically granted (no choice)
+            self.available_background_skills = background_data.get('skill_proficiencies', [])
             
-            self.available_background_skills = background_skills
+            # Automatically add background skills to selected proficiencies
+            for skill in self.available_background_skills:
+                self.selected_proficiencies.add(skill)
         
         # Update character data
         self.character_data['skill_proficiencies'] = list(self.selected_proficiencies)
         
         logger.debug(f"Class skills available: {self.available_class_skills}")
         logger.debug(f"Class choices: {self.class_choices}")
-        logger.debug(f"Background skills (auto): {self.available_background_skills}")
+        logger.debug(f"Background skills (automatic): {self.available_background_skills}")
+        logger.debug(f"Total selected proficiencies: {list(self.selected_proficiencies)}")
+    
+    def update_available_proficiencies_on_step_change(self):
+        """Update available proficiencies when class/background changes - called by character creator"""
+        self._analyze_available_proficiencies()
+        logger.debug("Updated available proficiencies after step change")
     
     def render(self) -> bool:
         """Render the proficiencies selection step. Returns True if step is complete."""
-        imgui.text("Select your skill proficiencies:")
+        imgui.text("Character Proficiencies:")
         imgui.separator()
         
-        # Show background proficiencies (automatic)
-        if self.available_background_skills:
-            imgui.text_colored((0.0, 0.8, 0.0, 1.0), "Background Proficiencies (Automatic):")
-            for skill in self.available_background_skills:
-                if skill in self.all_skills:
-                    imgui.bullet_text(skill)
-            imgui.separator()
+        # Check if class and background are selected
+        selected_class = self.character_data.get('character_class', '')
+        selected_background = self.character_data.get('background', '')
+        selected_race = self.character_data.get('race', '')
         
-        # Show class skill choices
-        if self.available_class_skills and self.class_choices > 0:
-            class_selections = len([s for s in self.selected_proficiencies 
-                                  if s in self.available_class_skills and s not in self.available_background_skills])
-            remaining_choices = max(0, self.class_choices - class_selections)
-            
-            imgui.text(f"Class Skill Choices (choose {self.class_choices}):")
-            imgui.text(f"Selected: {class_selections} / {self.class_choices}")
-            if remaining_choices > 0:
-                imgui.text_colored((0.8, 0.8, 0.0, 1.0), f"You need to select {remaining_choices} more skill(s)")
-            else:
-                imgui.text_colored((0.0, 0.8, 0.0, 1.0), "✓ All class skills selected")
-            
-            imgui.separator()
-            
-            # Render class skill selection with comboboxes/checkboxes
-            self._render_class_skill_selection()
+        if not selected_class:
+            imgui.text_colored((0.8, 0.8, 0.0, 1.0), "⚠ Please select a class in the previous step first")
+            return False
         
-        # Show all selected proficiencies summary
+        if not selected_background:
+            imgui.text_colored((0.8, 0.8, 0.0, 1.0), "⚠ Please select a background in the previous step first")
+            return False
+        
+        # Show fixed proficiencies (informational)
+        self._render_fixed_proficiencies(selected_class, selected_background, selected_race)
+        
         imgui.separator()
-        imgui.text("Final Skill Proficiencies:")
-        if self.selected_proficiencies:
-            for skill in sorted(self.selected_proficiencies):
-                source = ""
-                if skill in self.available_background_skills:
-                    source = " (Background)"
-                elif skill in self.available_class_skills:
-                    source = " (Class)"
-                imgui.bullet_text(f"{skill}{source}")
-        else:
-            imgui.text("No skill proficiencies selected")
+        
+        # Show skill selection section
+        self._render_skill_selection_section()
         
         return self.is_complete()
     
-    def _render_class_skill_selection(self):
-        """Render the class skill selection interface"""
-        if not self.available_class_skills:
+    def _render_fixed_proficiencies(self, selected_class: str, selected_background: str, selected_race: str):
+        """Render fixed proficiencies that are automatically granted (informational only)"""
+        imgui.text_colored((0.0, 0.8, 0.0, 1.0), "Fixed Proficiencies (automatically granted):")
+        
+        # Armor proficiencies from class
+        if selected_class and selected_class in self.compendium_data.get('classes', {}):
+            class_data = self.compendium_data['classes'][selected_class]
+            armor_profs = class_data.get('armor_proficiencies', [])
+            if armor_profs:
+                imgui.text("Armor Proficiencies (Class):")
+                for armor in armor_profs:
+                    imgui.bullet_text(armor)
+        
+        # Weapon proficiencies from class
+        if selected_class and selected_class in self.compendium_data.get('classes', {}):
+            class_data = self.compendium_data['classes'][selected_class]
+            weapon_profs = class_data.get('weapon_proficiencies', [])
+            if weapon_profs:
+                imgui.text("Weapon Proficiencies (Class):")
+                for weapon in weapon_profs:
+                    imgui.bullet_text(weapon)
+        
+        # Tool proficiencies from background
+        if selected_background and selected_background in self.compendium_data.get('backgrounds', {}):
+            background_data = self.compendium_data['backgrounds'][selected_background]
+            tool_profs = background_data.get('tool_proficiencies', [])
+            if tool_profs:
+                imgui.text("Tool Proficiencies (Background):")
+                for tool in tool_profs:
+                    imgui.bullet_text(tool)
+        
+        # Proficiencies from race
+        if selected_race and selected_race in self.compendium_data.get('races', {}):
+            race_data = self.compendium_data['races'][selected_race]
+            race_profs = race_data.get('proficiencies', [])
+            if race_profs:
+                imgui.text("Proficiencies (Race):")
+                for prof in race_profs:
+                    imgui.bullet_text(prof)
+    
+    def _render_skill_selection_section(self):
+        """Render the skill selection section with class skills"""
+        imgui.text_colored((0.0, 0.6, 0.8, 1.0), "Skill Proficiencies Selection:")
+        
+        # Get available skills
+        class_skills = self.available_class_skills
+        background_skills = self.available_background_skills
+        
+        # Show automatic background skills first
+        if background_skills:
+            imgui.text_colored((0.0, 0.8, 0.0, 1.0), "Background Skills (automatically granted):")
+            for skill in sorted(background_skills):
+                ability = self.skill_abilities.get(skill, "???")
+                imgui.bullet_text(f"✓ {skill} ({ability})")
+            imgui.separator()
+        
+        # Show class skills available for selection
+        if class_skills:
+            imgui.text("Class Skills Available for Selection:")
+            imgui.text_colored((0.8, 0.8, 0.0, 1.0), f"(Choose {self.class_choices} from the following)")
+            for skill in sorted(class_skills):
+                ability = self.skill_abilities.get(skill, "???")
+                imgui.bullet_text(f"{skill} ({ability})")
+            imgui.separator()
+        
+        # Debug info for troubleshooting
+        if class_skills and self.class_choices == 0:
+            imgui.text_colored((0.8, 0.0, 0.0, 1.0), f"⚠ WARNING: Class has {len(class_skills)} available skills but num_skills=0")
+            imgui.text_colored((0.8, 0.0, 0.0, 1.0), "This may be a data error in the compendium.")
+        
+        # Show selection comboboxes for class skills only
+        if self.class_choices > 0:
+            self._render_skill_selection_comboboxes()
+        else:
+            imgui.text_colored((0.0, 0.8, 0.0, 1.0), "✓ No class skill choices required (or num_skills=0)")
+    
+    def _render_skill_selection_comboboxes(self):
+        """Render comboboxes for class skill selection only"""
+        # Only show class skills for selection (background skills are automatic)
+        available_skills = self.available_class_skills
+        
+        if not available_skills:
             imgui.text("No class skills available for selection")
             return
         
-        # Calculate current selections from class skills only (excluding background)
-        class_selections = [s for s in self.selected_proficiencies 
-                           if s in self.available_class_skills and s not in self.available_background_skills]
-        can_select_more = len(class_selections) < self.class_choices
+        imgui.text(f"Choose {self.class_choices} class skill proficiencies:")
         
-        imgui.text("Available Class Skills:")
-        imgui.begin_child("class_skills", (0, 200), True)
-        
-        for skill in sorted(self.available_class_skills):
-            # Skip if this skill is already granted by background
-            if skill in self.available_background_skills:
-                continue
-            
-            is_selected = skill in self.selected_proficiencies
-            
-            # Disable checkbox if we've reached the limit and this skill isn't selected
-            disabled = not can_select_more and not is_selected
-            if disabled:
-                imgui.push_style_color(imgui.Col_.text.value, (0.5, 0.5, 0.5, 1.0))
-            
-            changed, new_selected = imgui.checkbox(f"##{skill}_checkbox", is_selected)
-            
-            if disabled:
-                imgui.pop_style_color()
-            
-            imgui.same_line()
-            ability = self.skill_abilities.get(skill, "???")
-            imgui.text(f"{skill} ({ability})")
-            
-            # Handle selection change
-            if changed and not disabled:
-                if new_selected:
-                    if can_select_more:
-                        self.selected_proficiencies.add(skill)
-                        logger.debug(f"Added class skill proficiency: {skill}")
-                    else:
-                        logger.debug(f"Cannot add {skill}, limit reached")
-                else:
-                    self.selected_proficiencies.discard(skill)
-                    logger.debug(f"Removed class skill proficiency: {skill}")
-                
-                # Update character data
-                self.character_data['skill_proficiencies'] = list(self.selected_proficiencies)
-        
-        imgui.end_child()
-        
-        # Alternative: Combobox selection method
-        imgui.separator()
-        imgui.text("Alternative: Select using dropdowns")
-        self._render_class_skill_comboboxes()
-    
-    def _render_class_skill_comboboxes(self):
-        """Render class skill selection using comboboxes"""
-        if not self.available_class_skills:
-            return
-        
-        # Get current class-only selections (excluding background skills)
-        class_only_skills = [s for s in self.selected_proficiencies 
-                            if s in self.available_class_skills and s not in self.available_background_skills]
+        # Get current CLASS skill selections (exclude background skills)
+        class_skill_selections = [skill for skill in self.selected_proficiencies 
+                                if skill in self.available_class_skills]
         
         # Ensure we have enough slots
-        while len(class_only_skills) < self.class_choices:
-            class_only_skills.append("")
+        while len(class_skill_selections) < self.class_choices:
+            class_skill_selections.append("")
         
-        # Available skills for selection (excluding already selected and background skills)
-        available_for_selection = [s for s in self.available_class_skills 
-                                 if s not in self.available_background_skills]
-        
+        # Track if any changes were made
         changed = False
         new_selections = []
         
         for i in range(self.class_choices):
-            current_selection = class_only_skills[i] if i < len(class_only_skills) else ""
+            current_selection = class_skill_selections[i] if i < len(class_skill_selections) else ""
             
-            imgui.text(f"Choice {i + 1}:")
+            imgui.text(f"Class Choice {i + 1}:")
             imgui.same_line()
-            imgui.set_next_item_width(200)
+            imgui.set_next_item_width(250)
             
-            if imgui.begin_combo(f"##class_skill_{i}", current_selection):
+            if imgui.begin_combo(f"##class_skill_choice_{i}", current_selection or "Select a skill..."):
                 # Empty option
-                clicked, _ = imgui.selectable("", current_selection == "")
+                clicked, _ = imgui.selectable("(None)", current_selection == "")
                 if clicked:
                     new_selections.append("")
                     changed = True
                 
-                # Available skills
-                for skill in available_for_selection:
+                # Available class skills only
+                for skill in sorted(available_skills):
                     # Don't show skills that are already selected in other comboboxes
-                    if skill in new_selections or (skill in class_only_skills and skill != current_selection):
+                    if skill in new_selections:
                         continue
                     
+                    # Show skill with ability
+                    ability = self.skill_abilities.get(skill, "???")
+                    display_name = f"{skill} ({ability})"
                     is_selected = skill == current_selection
-                    clicked, _ = imgui.selectable(skill, is_selected)
+                    clicked, _ = imgui.selectable(display_name, is_selected)
+                    
                     if clicked:
                         new_selections.append(skill)
                         changed = True
+                    
                     if is_selected:
                         imgui.set_item_default_focus()
                 
@@ -223,19 +272,35 @@ class ProficienciesStep:
         
         # Apply changes if any were made
         if changed:
-            # Remove old class selections
-            for skill in list(self.selected_proficiencies):
-                if skill in self.available_class_skills and skill not in self.available_background_skills:
-                    self.selected_proficiencies.discard(skill)
+            # Keep background skills and update class skill selections
+            self.selected_proficiencies.clear()
             
-            # Add new selections
+            # Re-add background skills (automatic)
+            for skill in self.available_background_skills:
+                self.selected_proficiencies.add(skill)
+            
+            # Add new class skill selections
             for skill in new_selections:
-                if skill and skill in self.available_class_skills:
+                if skill:  # Skip empty selections
                     self.selected_proficiencies.add(skill)
             
             # Update character data
             self.character_data['skill_proficiencies'] = list(self.selected_proficiencies)
             logger.debug(f"Updated class skill selections: {new_selections}")
+            logger.debug(f"Total skills (background + class): {list(self.selected_proficiencies)}")
+        
+        # Show current selection status
+        class_selections_count = len([s for s in new_selections if s])
+        imgui.separator()
+        if class_selections_count < self.class_choices:
+            remaining = self.class_choices - class_selections_count
+            imgui.text_colored((0.8, 0.8, 0.0, 1.0), f"Please select {remaining} more class skill(s)")
+        else:
+            imgui.text_colored((0.0, 0.8, 0.0, 1.0), "✓ All required class skills selected")
+        
+        # Show total summary
+        total_skills = len(self.available_background_skills) + class_selections_count
+        imgui.text(f"Total skill proficiencies: {total_skills} (Background: {len(self.available_background_skills)}, Class: {class_selections_count})")
     
     def get_completion_status(self) -> str:
         """Get a string describing the completion status"""
@@ -244,14 +309,15 @@ class ProficienciesStep:
     
     def is_complete(self) -> bool:
         """Check if this step is complete"""
-        # Check if we have selected the required number of class skills
+        # Background skills are automatic, so we only need to check class skill choices
         if self.class_choices > 0:
-            # Count only class skills that aren't provided by background
-            class_only_selections = [s for s in self.selected_proficiencies 
-                                   if s in self.available_class_skills and s not in self.available_background_skills]
-            return len(class_only_selections) >= self.class_choices
+            # Count how many class skills have been selected
+            class_skill_count = len([skill for skill in self.selected_proficiencies 
+                                   if skill in self.available_class_skills])
+            return class_skill_count >= self.class_choices
         
-        # If no class choices required, always complete
+        # If no class skill choices required, step is complete
+        # (background skills are automatically added)
         return True
     
     def get_selected_proficiencies(self) -> List[str]:

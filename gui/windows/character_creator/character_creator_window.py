@@ -16,6 +16,7 @@ from .race_step import RaceStep
 from .class_step import ClassStep
 from .abilities_step import AbilitiesStep
 from .background_step import BackgroundStep
+from .proficiencies_step import ProficienciesStep
 from .equipment_step import EquipmentStep
 from .image_step import ImageStep
 from .overview_step import OverviewStep
@@ -45,6 +46,7 @@ class CharacterCreator:
         self.class_step = None
         self.abilities_step = None
         self.background_step = None
+        self.proficiencies_step = None
         self.equipment_step = None
         self.image_step = None
         self.overview_step = None
@@ -116,6 +118,7 @@ class CharacterCreator:
                 'INT': 10, 'WIS': 10, 'CHA': 10
             },
             'ability_generation_method': AbilityGenMethod.POINT_BUY,
+            'skill_proficiencies': [],
             'equipment': []
         }
         self.current_step = CreationStep.RACE
@@ -126,6 +129,7 @@ class CharacterCreator:
         self.class_step = ClassStep(self.character_data, self.compendium_data)
         self.abilities_step = AbilitiesStep(self.character_data, self.compendium_data)
         self.background_step = BackgroundStep(self.character_data, self.compendium_data)
+        self.proficiencies_step = ProficienciesStep(self.character_data, self.compendium_data)
         self.equipment_step = EquipmentStep(self.character_data, self.compendium_data)
         self.image_step = ImageStep(self.character_data, self.compendium_data)
         self.overview_step = OverviewStep(self.character_data, self.compendium_data)
@@ -179,6 +183,7 @@ class CharacterCreator:
             (CreationStep.CLASS, "Class"),
             (CreationStep.ABILITIES, "Abilities"),
             (CreationStep.BACKGROUND, "Background"),
+            (CreationStep.PROFICIENCIES, "Proficiencies"),
             (CreationStep.EQUIPMENT, "Equipment"),
             (CreationStep.IMAGE, "Image"),
             (CreationStep.OVERVIEW, "Overview")
@@ -223,22 +228,30 @@ class CharacterCreator:
             return (self.race_step is not None and self.race_step.is_complete() and 
                    self.class_step is not None and self.class_step.is_complete() and
                    self.abilities_step is not None and self.abilities_step.is_complete())
-        elif step == CreationStep.EQUIPMENT:
+        elif step == CreationStep.PROFICIENCIES:
             return (self.race_step is not None and self.race_step.is_complete() and 
                    self.class_step is not None and self.class_step.is_complete() and
                    self.abilities_step is not None and self.abilities_step.is_complete() and
                    self.background_step is not None and self.background_step.is_complete())
+        elif step == CreationStep.EQUIPMENT:
+            return (self.race_step is not None and self.race_step.is_complete() and 
+                   self.class_step is not None and self.class_step.is_complete() and
+                   self.abilities_step is not None and self.abilities_step.is_complete() and
+                   self.background_step is not None and self.background_step.is_complete() and
+                   self.proficiencies_step is not None and self.proficiencies_step.is_complete())
         elif step == CreationStep.IMAGE:
             return (self.race_step is not None and self.race_step.is_complete() and 
                    self.class_step is not None and self.class_step.is_complete() and
                    self.abilities_step is not None and self.abilities_step.is_complete() and
                    self.background_step is not None and self.background_step.is_complete() and
+                   self.proficiencies_step is not None and self.proficiencies_step.is_complete() and
                    self.equipment_step is not None and self.equipment_step.is_complete())
         elif step == CreationStep.OVERVIEW:
             return (self.race_step is not None and self.race_step.is_complete() and 
                    self.class_step is not None and self.class_step.is_complete() and
                    self.abilities_step is not None and self.abilities_step.is_complete() and
                    self.background_step is not None and self.background_step.is_complete() and
+                   self.proficiencies_step is not None and self.proficiencies_step.is_complete() and
                    self.equipment_step is not None and self.equipment_step.is_complete() and
                    self.image_step is not None and self.image_step.is_complete())
         return False
@@ -256,6 +269,8 @@ class CharacterCreator:
             self.abilities_step.render()
         elif self.current_step == CreationStep.BACKGROUND and self.background_step:
             self.background_step.render()
+        elif self.current_step == CreationStep.PROFICIENCIES and self.proficiencies_step:
+            self.proficiencies_step.render()
         elif self.current_step == CreationStep.EQUIPMENT and self.equipment_step:
             self.equipment_step.render()
         elif self.current_step == CreationStep.IMAGE and self.image_step:

@@ -2,7 +2,7 @@
 """
 Journal Panel - Manages characters, monsters, handouts, and NPCs
 """
-
+from ..windows.character_sheet_window import CharacterSheetWindow
 from imgui_bundle import imgui
 from typing import Dict, List, Optional
 from enum import Enum
@@ -129,8 +129,11 @@ class JournalPanel:
                         
                         # Create and store a persistent window instance
                         if character_id not in self.character_windows:
-                            from ..windows.character_sheet_window import CharacterSheetWindow
+                            
                             window = CharacterSheetWindow(self.context, self.actions_bridge)
+                            
+                            # Set the character ID for saving purposes
+                            window.character_id = character_id
                             
                             # Load the character data into the window
                             character_obj = character_data.get('character_object')
@@ -156,9 +159,32 @@ class JournalPanel:
                                 window.update_derived_stats()
                             
                             self.character_windows[character_id] = window
+                            
+                            # Add to external_windows for rendering
+                            if hasattr(self.context, 'imgui') and self.context.imgui:
+                                if window not in self.context.imgui.external_windows:
+                                    self.context.imgui.external_windows.append(window)
+                                    logger.info("Character sheet window added to external windows from journal panel.")
+                        else:
+                            # Window already exists, reload fresh data from CharacterManager
+                            window = self.character_windows[character_id]
+                            character_obj = character_data.get('character_object')
+                            if character_obj:
+                                window.character = character_obj
+                                window.load_from_character()
+                                logger.info(f"Reloaded fresh character data for existing window: {character_id}")
                         
-                        # Show the window
-                        self.character_windows[character_id].show_full_window = True
+                        # Always ensure the window has the latest character data
+                        window = self.character_windows[character_id]
+                        character_obj = character_data.get('character_object')
+                        if character_obj:
+                            window.character = character_obj
+                            window.load_from_character()
+                            logger.debug(f"Ensured character object is set for window: {character_id}")
+                        else:
+                            logger.warning(f"No character object available for window: {character_id}")
+                        
+                        window.show_full_window = True
                         # Only open character window, not character sheet panel
                     
                     # Right-click context menu for characters
@@ -238,10 +264,10 @@ class JournalPanel:
             imgui.end_popup()
     
     def _render_character_windows(self):
-        """Render character sheet windows"""
+        """Manage character sheet windows lifecycle"""
         to_remove = []
         for entity_id, window in list(self.character_windows.items()):
-            if window and window.show_full_window:
+            if window:
                 # Check if character still exists in CharacterManager
                 character_exists = False
                 if self.actions_bridge and hasattr(self.actions_bridge, 'get_character'):
@@ -252,17 +278,22 @@ class JournalPanel:
                         character_exists = False
                 
                 if character_exists:
-                    # Render the window and check if it's still open
-                    is_still_open = window.render_full_window()
-                    
-                    # Update window state - if window was closed, mark for removal
+                    # Window is managed by external_windows rendering system
+                    # Just check if it was closed and mark for removal
                     if not window.show_full_window:
                         to_remove.append(entity_id)
                 else:
+                    # Character no longer exists, remove the window
                     to_remove.append(entity_id)
         
         # Clean up closed windows
         for entity_id in to_remove:
+            window = self.character_windows.get(entity_id)
+            if window and hasattr(self.context, 'imgui') and self.context.imgui:
+                # Remove from external_windows if it's there
+                if window in self.context.imgui.external_windows:
+                    self.context.imgui.external_windows.remove(window)
+                    logger.debug(f"Removed character window from external_windows: {entity_id}")
             del self.character_windows[entity_id]
     
     def _open_handout_window(self, entity_id: str):
@@ -462,10 +493,21 @@ class JournalPanel:
     def _delete_character(self, character_id: str):
         """Delete a character through CharacterManager"""
         if self.context and hasattr(self.context, 'CharacterManager') and self.context.CharacterManager:
-            result = self.context.CharacterManager.delete_character(character_id)
-            if result['success']:
+            # Get character name before deletion for the message
+            character_name = "Unknown"
+            if character_id in self.context.CharacterManager.characters:
+                character_name = self.context.CharacterManager.characters[character_id].name
+            
+            success = self.context.CharacterManager.delete_character(character_id)
+            if success:
                 # Close character window if open
                 if character_id in self.character_windows:
+                    window = self.character_windows[character_id]
+                    # Remove from external_windows if it's there
+                    if window and hasattr(self.context, 'imgui') and self.context.imgui:
+                        if window in self.context.imgui.external_windows:
+                            self.context.imgui.external_windows.remove(window)
+                            logger.debug(f"Removed deleted character window from external_windows: {character_id}")
                     del self.character_windows[character_id]
                 
                 # Update selection
@@ -473,13 +515,13 @@ class JournalPanel:
                     self.selected_entity_id = None
                 
                 if self.actions_bridge:
-                    self.actions_bridge.add_chat_message(f"Deleted character: {result.get('name', 'Unknown')}")
+                    self.actions_bridge.add_chat_message(f"Deleted character: {character_name}")
                 
                 logger.info(f"Character deleted: {character_id}")
             else:
-                logger.error(f"Failed to delete character: {result.get('message', 'Unknown error')}")
+                logger.error(f"Failed to delete character: {character_id}")
                 if self.actions_bridge:
-                    self.actions_bridge.add_chat_message(f"Failed to delete character: {result.get('message', 'Unknown error')}")
+                    self.actions_bridge.add_chat_message(f"Failed to delete character: {character_name}")
         else:
             logger.warning("CharacterManager not available for character deletion")
     
@@ -531,11 +573,21 @@ class JournalPanel:
     def _duplicate_character(self, entity_id: str):
         """Duplicate an existing character via Actions"""
         if self.actions_bridge and hasattr(self.actions_bridge, 'duplicate_character'):
-            new_character_id = self.actions_bridge.duplicate_character(entity_id)
+            # Get the original character name to create a better duplicate name
+            character_name = "Character"
+            if self.actions_bridge and hasattr(self.actions_bridge, 'get_character'):
+                character_data = self.actions_bridge.get_character(entity_id)
+                if character_data and 'name' in character_data:
+                    character_name = character_data['name']
+            
+            # Create new name for the duplicate
+            new_name = f"{character_name} (Copy)"
+            
+            new_character_id = self.actions_bridge.duplicate_character(entity_id, new_name)
             if new_character_id:
                 self.selected_entity_id = new_character_id
                 if self.actions_bridge:
-                    self.actions_bridge.add_chat_message("Character duplicated successfully")
+                    self.actions_bridge.add_chat_message(f"Character '{new_name}' duplicated successfully")
             else:
                 if self.actions_bridge:
                     self.actions_bridge.add_chat_message("Failed to duplicate character")

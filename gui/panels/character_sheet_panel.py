@@ -662,6 +662,22 @@ class CharacterSheetPanel:
     
     def _create_window(self):
         """Create and show the full character sheet window"""
+        # Always check if the journal panel already has a window for this entity
+        if (hasattr(self.context, 'journal_panel') and 
+            self.context.journal_panel and 
+            self.selected_entity_id and
+            self.selected_entity_id in self.context.journal_panel.character_windows):
+            
+            # Use the existing window from journal panel
+            existing_window = self.context.journal_panel.character_windows[self.selected_entity_id]
+            if existing_window and hasattr(existing_window, 'show_full_window'):
+                existing_window.show_full_window = True
+                self.CharacterWindow = existing_window  # Reference the existing window
+                self.show_full_window = True
+                logger.info("Using existing character sheet window from journal panel.")
+                return
+        
+        # Only create a new window if no entity is selected or journal panel doesn't have one
         if not self.CharacterWindow or not self.CharacterWindow.show_full_window:
             self.show_full_window = True
             

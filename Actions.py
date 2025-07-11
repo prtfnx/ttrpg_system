@@ -2405,5 +2405,138 @@ class Actions(ActionsProtocol):
             logger.error(f"Error adding character from creator: {e}")
             return None
 
+    # ============================================================================
+    # SERVER CHARACTER MANAGEMENT METHODS
+    # ============================================================================
+    
+    def save_character_to_server(self, character_data: Dict[str, Any], session_code: Optional[str] = None) -> ActionResult:
+        """Save character to server"""
+        try:
+            if not hasattr(self.context, 'protocol') or not self.context.protocol:
+                return ActionResult(False, "Not connected to server")
+            
+            self.context.protocol.character_save(character_data, session_code)
+            logger.info(f"Character save request sent: {character_data.get('name', 'Unknown')}")
+            return ActionResult(True, "Character save request sent")
+                
+        except Exception as e:
+            logger.error(f"Error saving character to server: {e}")
+            return ActionResult(False, f"Failed to save character: {str(e)}")
+    
+    def load_character_from_server(self, character_id: str, session_code: Optional[str] = None) -> ActionResult:
+        """Load character from server"""
+        try:
+            if not hasattr(self.context, 'protocol') or not self.context.protocol:
+                return ActionResult(False, "Not connected to server")
+            
+            self.context.protocol.character_load(character_id, session_code)
+            logger.info(f"Character load request sent: {character_id}")
+            return ActionResult(True, "Character load request sent")
+                
+        except Exception as e:
+            logger.error(f"Error loading character from server: {e}")
+            return ActionResult(False, f"Failed to load character: {str(e)}")
+    
+    def list_server_characters(self, session_code: Optional[str] = None) -> ActionResult:
+        """Request character list from server"""
+        try:
+            if not hasattr(self.context, 'protocol') or not self.context.protocol:
+                return ActionResult(False, "Not connected to server")
+            
+            self.context.protocol.character_list(session_code)
+            logger.info("Character list request sent")
+            return ActionResult(True, "Character list request sent")
+                
+        except Exception as e:
+            logger.error(f"Error requesting character list: {e}")
+            return ActionResult(False, f"Failed to request character list: {str(e)}")
+    
+    def delete_server_character(self, character_id: str, session_code: Optional[str] = None) -> ActionResult:
+        """Delete character from server"""
+        try:
+            if not hasattr(self.context, 'protocol') or not self.context.protocol:
+                return ActionResult(False, "Not connected to server")
+            
+            self.context.protocol.character_delete(character_id, session_code)
+            logger.info(f"Character delete request sent: {character_id}")
+            return ActionResult(True, "Character delete request sent")
+                
+        except Exception as e:
+            logger.error(f"Error deleting character from server: {e}")
+            return ActionResult(False, f"Failed to delete character: {str(e)}")
+    
+    # Server response handlers
+    def handle_character_save_response(self, data: Dict[str, Any]) -> None:
+        """Handle character save response from server"""
+        try:
+            if data.get('success'):
+                character_name = data.get('character_name', 'Unknown')
+                self.add_chat_message(f"✅ Character saved to server: {character_name}")
+                logger.info(f"Character saved to server: {character_name}")
+            else:
+                error = data.get('error', 'Unknown error')
+                self.add_chat_message(f"❌ Failed to save character: {error}")
+                logger.error(f"Character save failed: {error}")
+        except Exception as e:
+            logger.error(f"Error handling character save response: {e}")
+    
+    def handle_character_load_response(self, data: Dict[str, Any]) -> None:
+        """Handle character load response from server"""
+        try:
+            if data.get('success'):
+                character_data = data.get('character_data')
+                if character_data:
+                    # Add character to local character manager
+                    if self.context.CharacterManager:
+                        result = self.context.CharacterManager.create_character_from_creator_data(character_data)
+                        if result:
+                            character_name = character_data.get('name', 'Unknown')
+                            self.add_chat_message(f"📥 Character loaded from server: {character_name}")
+                            logger.info(f"Character loaded and added locally: {character_name}")
+                        else:
+                            self.add_chat_message("❌ Failed to add loaded character locally")
+                    else:
+                        self.add_chat_message("⚠️ Character loaded but CharacterManager not available")
+                else:
+                    self.add_chat_message("❌ Character load response missing data")
+            else:
+                error = data.get('error', 'Unknown error')
+                self.add_chat_message(f"❌ Failed to load character: {error}")
+                logger.error(f"Character load failed: {error}")
+        except Exception as e:
+            logger.error(f"Error handling character load response: {e}")
+    
+    def handle_character_list_response(self, data: Dict[str, Any]) -> None:
+        """Handle character list response from server"""
+        try:
+            if data.get('success'):
+                characters = data.get('characters', [])
+                if characters:
+                    char_names = [char.get('name', f"ID: {char.get('id', 'Unknown')}") for char in characters]
+                    self.add_chat_message(f"📋 Server characters ({len(characters)}): {', '.join(char_names)}")
+                else:
+                    self.add_chat_message("📋 No characters found on server")
+                logger.info(f"Character list received: {len(characters)} characters")
+            else:
+                error = data.get('error', 'Unknown error')
+                self.add_chat_message(f"❌ Failed to get character list: {error}")
+                logger.error(f"Character list failed: {error}")
+        except Exception as e:
+            logger.error(f"Error handling character list response: {e}")
+    
+    def handle_character_delete_response(self, data: Dict[str, Any]) -> None:
+        """Handle character delete response from server"""
+        try:
+            if data.get('success'):
+                character_name = data.get('character_name', 'Unknown')
+                self.add_chat_message(f"🗑️ Character deleted from server: {character_name}")
+                logger.info(f"Character deleted from server: {character_name}")
+            else:
+                error = data.get('error', 'Unknown error')
+                self.add_chat_message(f"❌ Failed to delete character: {error}")
+                logger.error(f"Character delete failed: {error}")
+        except Exception as e:
+            logger.error(f"Error handling character delete response: {e}")
+
 
 

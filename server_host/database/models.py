@@ -130,3 +130,21 @@ class Asset(Base):
     # Relationships
     uploader = relationship("User")
     session = relationship("GameSession")
+
+class SessionCharacter(Base):
+    __tablename__ = "session_characters"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    character_id = Column(String(36), unique=True, index=True, nullable=False)  # UUID
+    session_id = Column(Integer, ForeignKey("game_sessions.id"), nullable=False)
+    character_name = Column(String(255), nullable=False)
+    character_data = Column(Text, nullable=False)  # JSON blob of character data
+    owner_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    session = relationship("GameSession")
+    owner = relationship("User")

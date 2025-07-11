@@ -65,6 +65,11 @@ class ClientProtocol:
         self.register_handler(MessageType.CONNECTION_STATUS_RESPONSE, self.handle_connection_status_response)
         self.register_handler(MessageType.PLAYER_JOINED, self.handle_player_joined)
         self.register_handler(MessageType.PLAYER_LEFT, self.handle_player_left)
+        # Character management handlers
+        self.register_handler(MessageType.CHARACTER_SAVE_RESPONSE, self.handle_character_save_response)
+        self.register_handler(MessageType.CHARACTER_LOAD_RESPONSE, self.handle_character_load_response)
+        self.register_handler(MessageType.CHARACTER_LIST_RESPONSE, self.handle_character_list_response)
+        self.register_handler(MessageType.CHARACTER_DELETE_RESPONSE, self.handle_character_delete_response)
 
 
     def register_handler(self, msg_type: MessageType, handler: Callable[[Message], None]):
@@ -1235,7 +1240,132 @@ class ClientProtocol:
         }
 
     def is_authenticated(self) -> bool:
-        """Check if user is currently authenticated"""
-        return bool(getattr(self, 'jwt_token', None) and self.username)
+        """Check if user is authenticated"""
+        return self.jwt_token is not None and self.username is not None
+
+    # =========================================================================
+    # CHARACTER MANAGEMENT
+    # =========================================================================
+    
+    def character_save(self, character_data: Dict[str, Any], session_code: Optional[str] = None):
+        """Save character to server"""
+        msg = Message(MessageType.CHARACTER_SAVE_REQUEST, {
+            'character_data': character_data,
+            'session_code': session_code or self.session_code or 'unknown',
+            'user_id': self.user_id or 0,
+            'username': self.username or 'unknown'
+        }, self.client_id)
+        self.send(msg.to_json())
+        logger.info(f"Requested character save: {character_data.get('name', 'Unknown')}")
+
+    def character_load(self, character_id: str, session_code: Optional[str] = None):
+        """Load character from server"""
+        msg = Message(MessageType.CHARACTER_LOAD_REQUEST, {
+            'character_id': character_id,
+            'session_code': session_code or self.session_code or 'unknown',
+            'user_id': self.user_id or 0,
+            'username': self.username or 'unknown'
+        }, self.client_id)
+        self.send(msg.to_json())
+        logger.info(f"Requested character load: {character_id}")
+
+    def character_list(self, session_code: Optional[str] = None):
+        """Request list of characters from server"""
+        msg = Message(MessageType.CHARACTER_LIST_REQUEST, {
+            'session_code': session_code or self.session_code or 'unknown',
+            'user_id': self.user_id or 0,
+            'username': self.username or 'unknown'
+        }, self.client_id)
+        self.send(msg.to_json())
+        logger.info("Requested character list")
+
+    def character_delete(self, character_id: str, session_code: Optional[str] = None):
+        """Delete character from server"""
+        msg = Message(MessageType.CHARACTER_DELETE_REQUEST, {
+            'character_id': character_id,
+            'session_code': session_code or self.session_code or 'unknown',
+            'user_id': self.user_id or 0,
+            'username': self.username or 'unknown'
+        }, self.client_id)
+        self.send(msg.to_json())
+        logger.info(f"Requested character delete: {character_id}")
+
+    def handle_character_save_response(self, msg: Message):
+        """Handle character save response from server - delegate to Actions"""
+        try:
+            if not msg.data:
+                logger.error("Empty character save response received")
+                return
+            
+            # Delegate to Actions
+            if hasattr(self.Actions, 'handle_character_save_response'):
+                self.Actions.handle_character_save_response(msg.data)
+            else:
+                # Fallback to chat message
+                if msg.data.get('success'):
+                    self.Actions.add_chat_message(f"✅ Character saved: {msg.data.get('character_name', 'Unknown')}")
+                else:
+                    self.Actions.add_chat_message(f"❌ Failed to save character: {msg.data.get('error', 'Unknown error')}")
+            
+        except Exception as e:
+            logger.error(f"Error handling character save response: {e}")
+
+    def handle_character_load_response(self, msg: Message):
+        """Handle character load response from server - delegate to Actions"""
+        try:
+            if not msg.data:
+                logger.error("Empty character load response received")
+                return
+            
+            # Delegate to Actions
+            if hasattr(self.Actions, 'handle_character_load_response'):
+                self.Actions.handle_character_load_response(msg.data)
+            else:
+                # Fallback to chat message
+                if msg.data.get('success'):
+                    self.Actions.add_chat_message(f"✅ Character loaded: {msg.data.get('character_name', 'Unknown')}")
+                else:
+                    self.Actions.add_chat_message(f"❌ Failed to load character: {msg.data.get('error', 'Unknown error')}")
+            
+        except Exception as e:
+            logger.error(f"Error handling character load response: {e}")
+
+    def handle_character_list_response(self, msg: Message):
+        """Handle character list response from server - delegate to Actions"""
+        try:
+            if not msg.data:
+                logger.error("Empty character list response received")
+                return
+            
+            # Delegate to Actions
+            if hasattr(self.Actions, 'handle_character_list_response'):
+                self.Actions.handle_character_list_response(msg.data)
+            else:
+                # Fallback to chat message
+                characters = msg.data.get('characters', [])
+                self.Actions.add_chat_message(f"📋 Server characters ({len(characters)}): {', '.join([c.get('name', 'Unknown') for c in characters])}")
+            
+        except Exception as e:
+            logger.error(f"Error handling character list response: {e}")
+
+    def handle_character_delete_response(self, msg: Message):
+        """Handle character delete response from server - delegate to Actions"""
+        try:
+            if not msg.data:
+                logger.error("Empty character delete response received")
+                return
+            
+            # Delegate to Actions
+            if hasattr(self.Actions, 'handle_character_delete_response'):
+                self.Actions.handle_character_delete_response(msg.data)
+            else:
+                # Fallback to chat message
+                if msg.data.get('success'):
+                    self.Actions.add_chat_message(f"🗑️ Character deleted: {msg.data.get('character_name', 'Unknown')}")
+                else:
+                    self.Actions.add_chat_message(f"❌ Failed to delete character: {msg.data.get('error', 'Unknown error')}")
+            
+        except Exception as e:
+            logger.error(f"Error handling character delete response: {e}")
 
 

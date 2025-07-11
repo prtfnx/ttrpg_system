@@ -883,3 +883,127 @@ class ActionsCore(AsyncActionsProtocol):
             })
         except Exception as e:
             return ActionResult(False, f"Failed to get sprites in area: {str(e)}")
+    
+    # =========================================================================
+    # CHARACTER MANAGEMENT METHODS  
+    # =========================================================================
+    
+    async def save_character(self, session_id: int, character_data: Dict[str, Any], 
+                           user_id: int) -> ActionResult:
+        """Save a character to the database"""
+        try:
+            from server_host.managers.character_manager import get_server_character_manager
+            
+            char_manager = get_server_character_manager()
+            result = char_manager.save_character(session_id, character_data, user_id)
+            
+            if result['success']:
+                logger.info(f"Character saved successfully: {result.get('character_id')}")
+                return ActionResult(
+                    success=True,
+                    message=result.get('message', 'Character saved'),
+                    data={'character_id': result.get('character_id')}
+                )
+            else:
+                logger.error(f"Character save failed: {result.get('error')}")
+                return ActionResult(
+                    success=False,
+                    message=result.get('error', 'Character save failed')
+                )
+                
+        except Exception as e:
+            logger.error(f"Error in save_character: {e}")
+            return ActionResult(
+                success=False,
+                message=f"Server error: {str(e)}"
+            )
+    
+    async def load_character(self, session_id: int, character_id: str, 
+                           user_id: int) -> ActionResult:
+        """Load a character from the database"""
+        try:
+            from server_host.managers.character_manager import get_server_character_manager
+            
+            char_manager = get_server_character_manager()
+            result = char_manager.load_character(session_id, character_id, user_id)
+            
+            if result['success']:
+                logger.info(f"Character loaded successfully: {character_id}")
+                return ActionResult(
+                    success=True,
+                    message="Character loaded successfully",
+                    data={'character_data': result.get('character_data')}
+                )
+            else:
+                logger.error(f"Character load failed: {result.get('error')}")
+                return ActionResult(
+                    success=False,
+                    message=result.get('error', 'Character load failed')
+                )
+                
+        except Exception as e:
+            logger.error(f"Error in load_character: {e}")
+            return ActionResult(
+                success=False,
+                message=f"Server error: {str(e)}"
+            )
+    
+    async def list_characters(self, session_id: int, user_id: int) -> ActionResult:
+        """List characters for a session and user"""
+        try:
+            from server_host.managers.character_manager import get_server_character_manager
+            
+            char_manager = get_server_character_manager()
+            result = char_manager.list_characters(session_id, user_id)
+            
+            if result['success']:
+                characters = result.get('characters', [])
+                logger.info(f"Listed {len(characters)} characters for session {session_id}")
+                return ActionResult(
+                    success=True,
+                    message=f"Found {len(characters)} characters",
+                    data={'characters': characters}
+                )
+            else:
+                logger.error(f"Character list failed: {result.get('error')}")
+                return ActionResult(
+                    success=False,
+                    message=result.get('error', 'Character list failed')
+                )
+                
+        except Exception as e:
+            logger.error(f"Error in list_characters: {e}")
+            return ActionResult(
+                success=False,
+                message=f"Server error: {str(e)}"
+            )
+    
+    async def delete_character(self, session_id: int, character_id: str, 
+                             user_id: int) -> ActionResult:
+        """Delete a character from the database"""
+        try:
+            from server_host.managers.character_manager import get_server_character_manager
+            
+            char_manager = get_server_character_manager()
+            result = char_manager.delete_character(session_id, character_id, user_id)
+            
+            if result['success']:
+                logger.info(f"Character deleted successfully: {character_id}")
+                return ActionResult(
+                    success=True,
+                    message=result.get('message', 'Character deleted'),
+                    data={'character_id': character_id}
+                )
+            else:
+                logger.error(f"Character delete failed: {result.get('error')}")
+                return ActionResult(
+                    success=False,
+                    message=result.get('error', 'Character delete failed')
+                )
+                
+        except Exception as e:
+            logger.error(f"Error in delete_character: {e}")
+            return ActionResult(
+                success=False,
+                message=f"Server error: {str(e)}"
+            )

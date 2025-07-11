@@ -79,6 +79,12 @@ class ServerProtocol:
         self.register_handler(MessageType.PLAYER_KICK_REQUEST, self.handle_player_kick_request)
         self.register_handler(MessageType.PLAYER_BAN_REQUEST, self.handle_player_ban_request)
         self.register_handler(MessageType.CONNECTION_STATUS_REQUEST, self.handle_connection_status_request)
+        
+        # Character management handlers
+        self.register_handler(MessageType.CHARACTER_SAVE_REQUEST, self.handle_character_save_request)
+        self.register_handler(MessageType.CHARACTER_LOAD_REQUEST, self.handle_character_load_request)
+        self.register_handler(MessageType.CHARACTER_LIST_REQUEST, self.handle_character_list_request)
+        self.register_handler(MessageType.CHARACTER_DELETE_REQUEST, self.handle_character_delete_request)
 
     async def handle_client(self, msg: Message, client_id: str) -> bool:
         """Handle client message"""
@@ -1075,4 +1081,166 @@ class ServerProtocol:
                 username.startswith('dm') or 
                 username.startswith('gm') or
                 username.startswith('admin'))
+
+    # =========================================================================
+    # CHARACTER MANAGEMENT HANDLERS
+    # =========================================================================
+    
+    async def handle_character_save_request(self, msg: Message, client_id: str) -> Message:
+        """Handle character save request"""
+        logger.debug(f"Character save request received: {msg}")
+        if not msg.data:
+            return Message(MessageType.CHARACTER_SAVE_RESPONSE, {
+                'success': False,
+                'error': 'No character data provided'
+            })
+        
+        character_data = msg.data.get('character_data')
+        session_code = msg.data.get('session_code', 'unknown')
+        user_id = msg.data.get('user_id', 0)
+        
+        if not character_data:
+            return Message(MessageType.CHARACTER_SAVE_RESPONSE, {
+                'success': False,
+                'error': 'Character data is required'
+            })
+        
+        # Get session_id from session_code
+        session_id = self._get_session_id(msg)
+        if not session_id:
+            return Message(MessageType.CHARACTER_SAVE_RESPONSE, {
+                'success': False,
+                'error': f'Session {session_code} not found'
+            })
+        
+        result = await self.actions.save_character(session_id, character_data, user_id)
+        
+        if result.success:
+            return Message(MessageType.CHARACTER_SAVE_RESPONSE, {
+                'success': True,
+                'character_id': result.data.get('character_id'),
+                'message': result.message
+            })
+        else:
+            return Message(MessageType.CHARACTER_SAVE_RESPONSE, {
+                'success': False,
+                'error': result.message
+            })
+
+    async def handle_character_load_request(self, msg: Message, client_id: str) -> Message:
+        """Handle character load request"""
+        logger.debug(f"Character load request received: {msg}")
+        if not msg.data:
+            return Message(MessageType.CHARACTER_LOAD_RESPONSE, {
+                'success': False,
+                'error': 'No character ID provided'
+            })
+        
+        character_id = msg.data.get('character_id')
+        session_code = msg.data.get('session_code', 'unknown')
+        user_id = msg.data.get('user_id', 0)
+        
+        if not character_id:
+            return Message(MessageType.CHARACTER_LOAD_RESPONSE, {
+                'success': False,
+                'error': 'Character ID is required'
+            })
+        
+        # Get session_id from session_code
+        session_id = self._get_session_id(msg)
+        if not session_id:
+            return Message(MessageType.CHARACTER_LOAD_RESPONSE, {
+                'success': False,
+                'error': f'Session {session_code} not found'
+            })
+        
+        result = await self.actions.load_character(session_id, character_id, user_id)
+        
+        if result.success:
+            return Message(MessageType.CHARACTER_LOAD_RESPONSE, {
+                'success': True,
+                'character_data': result.data.get('character_data'),
+                'message': result.message
+            })
+        else:
+            return Message(MessageType.CHARACTER_LOAD_RESPONSE, {
+                'success': False,
+                'error': result.message
+            })
+
+    async def handle_character_list_request(self, msg: Message, client_id: str) -> Message:
+        """Handle character list request"""
+        logger.debug(f"Character list request received: {msg}")
+        if not msg.data:
+            return Message(MessageType.CHARACTER_LIST_RESPONSE, {
+                'success': False,
+                'error': 'No session data provided'
+            })
+        
+        session_code = msg.data.get('session_code', 'unknown')
+        user_id = msg.data.get('user_id', 0)
+        
+        # Get session_id from session_code
+        session_id = self._get_session_id(msg)
+        if not session_id:
+            return Message(MessageType.CHARACTER_LIST_RESPONSE, {
+                'success': False,
+                'error': f'Session {session_code} not found'
+            })
+        
+        result = await self.actions.list_characters(session_id, user_id)
+        
+        if result.success:
+            return Message(MessageType.CHARACTER_LIST_RESPONSE, {
+                'success': True,
+                'characters': result.data.get('characters', []),
+                'session_code': session_code,
+                'message': result.message
+            })
+        else:
+            return Message(MessageType.CHARACTER_LIST_RESPONSE, {
+                'success': False,
+                'error': result.message
+            })
+
+    async def handle_character_delete_request(self, msg: Message, client_id: str) -> Message:
+        """Handle character delete request"""
+        logger.debug(f"Character delete request received: {msg}")
+        if not msg.data:
+            return Message(MessageType.CHARACTER_DELETE_RESPONSE, {
+                'success': False,
+                'error': 'No character ID provided'
+            })
+        
+        character_id = msg.data.get('character_id')
+        session_code = msg.data.get('session_code', 'unknown')
+        user_id = msg.data.get('user_id', 0)
+        
+        if not character_id:
+            return Message(MessageType.CHARACTER_DELETE_RESPONSE, {
+                'success': False,
+                'error': 'Character ID is required'
+            })
+        
+        # Get session_id from session_code
+        session_id = self._get_session_id(msg)
+        if not session_id:
+            return Message(MessageType.CHARACTER_DELETE_RESPONSE, {
+                'success': False,
+                'error': f'Session {session_code} not found'
+            })
+        
+        result = await self.actions.delete_character(session_id, character_id, user_id)
+        
+        if result.success:
+            return Message(MessageType.CHARACTER_DELETE_RESPONSE, {
+                'success': True,
+                'character_id': character_id,
+                'message': result.message
+            })
+        else:
+            return Message(MessageType.CHARACTER_DELETE_RESPONSE, {
+                'success': False,
+                'error': result.message
+            })
 

@@ -84,6 +84,16 @@ class MessageType(enum.Enum):    # Core messages
     COMPENDIUM_SPRITE_ADD = "compendium_sprite_add"
     COMPENDIUM_SPRITE_UPDATE = "compendium_sprite_update"
     COMPENDIUM_SPRITE_REMOVE = "compendium_sprite_remove"
+    
+    # Character management
+    CHARACTER_SAVE_REQUEST = "character_save_request"
+    CHARACTER_SAVE_RESPONSE = "character_save_response"
+    CHARACTER_LOAD_REQUEST = "character_load_request"
+    CHARACTER_LOAD_RESPONSE = "character_load_response"
+    CHARACTER_LIST_REQUEST = "character_list_request"
+    CHARACTER_LIST_RESPONSE = "character_list_response"
+    CHARACTER_DELETE_REQUEST = "character_delete_request"
+    CHARACTER_DELETE_RESPONSE = "character_delete_response"
       
     
     # Extension point for new message types

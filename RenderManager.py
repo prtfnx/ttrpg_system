@@ -61,8 +61,8 @@ class RenderManager():
 
     def configure_layers(self, basic_settings: LayerSettings = LayerSettings(), order: Optional[List[str]] = None):
         """Configure default settings for all layers with proper z_order"""
-        # Default layer order: ['map','tokens', 'dungeon_master', 'light', 'height', 'obstacles']
-        default_layer_order = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles']
+        # Default layer order: ['map','tokens', 'dungeon_master', 'light', 'height', 'obstacles', 'fog_of_war']
+        default_layer_order = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles', 'fog_of_war']
         layer_order = order if order else default_layer_order
         for layer_name in self.dict_of_sprites_list.keys():
             # Create a copy of basic_settings for each layer
@@ -474,3 +474,11 @@ class RenderManager():
             
         if drawing_tool and drawing_tool.active:
             drawing_tool.render(self.renderer)
+
+        # Render fog of war tool overlay if active
+        fog_of_war_tool = None
+        if context and hasattr(context, 'fog_of_war_tool'):
+            fog_of_war_tool = context.fog_of_war_tool
+            
+        if fog_of_war_tool and fog_of_war_tool.active:
+            fog_of_war_tool.render(self.renderer)

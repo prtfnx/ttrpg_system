@@ -160,7 +160,8 @@ LAYERS = {
     'dungeon_master': 2,
     'light': 3,
     'height': 4,
-    'obstacles': 5
+    'obstacles': 5,
+    'fog_of_war': 6
 }
 
 # Constants for action types (for batch operations)

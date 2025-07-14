@@ -8,7 +8,7 @@ logger = setup_logger(__name__)
 
 # logging.basicConfig removed - using central logger setup
 
-LAYER_NAMES = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles']
+LAYER_NAMES = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles', 'fog_of_war']
 
 class Entity:
     def __init__(self, name: str, position: Tuple[int, int], layer: str, 

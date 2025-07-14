@@ -217,6 +217,68 @@ class ToolsPanel:
             else:
                 imgui.text_colored((1.0, 0.4, 0.4, 1.0), "Drawing tool not available")
         
+        # Fog of War tool integration
+        elif self.selected_tool == "Fog of War":
+            imgui.separator()
+            imgui.text("Fog of War Tool")
+            
+            # Initialize fog of war tool if needed
+            if not hasattr(self.context, 'fog_of_war_tool') or self.context.fog_of_war_tool is None:
+                if self.actions_bridge.start_fog_of_war_tool():
+                    imgui.text_colored((0.0, 1.0, 0.0, 1.0), "Fog of War tool initialized")
+                else:
+                    imgui.text_colored((1.0, 0.4, 0.4, 1.0), "Failed to initialize Fog of War tool")
+            
+            fog_tool = getattr(self.context, 'fog_of_war_tool', None)
+            if fog_tool and fog_tool.active:
+                # Mode selection
+                imgui.text("Mode:")
+                if imgui.radio_button("Hide Areas", fog_tool.current_mode == "hide"):
+                    fog_tool.set_mode("hide")
+                imgui.same_line()
+                if imgui.radio_button("Reveal Areas", fog_tool.current_mode == "reveal"):
+                    fog_tool.set_mode("reveal")
+                
+                imgui.separator()
+                
+                # Quick actions
+                imgui.text("Quick Actions:")
+                if imgui.button("Hide All Table", (120, 25)):
+                    fog_tool.hide_all_table()
+                
+                if imgui.button("Reveal All Table", (120, 25)):
+                    fog_tool.reveal_all_table()
+                
+                if imgui.button("Clear All Fog", (120, 25)):
+                    fog_tool.clear_fog_rectangles()
+                
+                imgui.separator()
+                
+                # Tool status
+                if fog_tool.drawing:
+                    imgui.text_colored((1.0, 1.0, 0.0, 1.0), "Drawing fog rectangle...")
+                    imgui.text("Release mouse to apply")
+                else:
+                    imgui.text_colored((0.0, 1.0, 0.0, 1.0), f"Mode: {fog_tool.current_mode.title()}")
+                    imgui.text("Click and drag to draw rectangles")
+                
+                # Fog rectangles count
+                fog_count = len(fog_tool.fog_rectangles)
+                if fog_count > 0:
+                    imgui.text(f"Active fog areas: {fog_count}")
+                
+                # Instructions
+                imgui.separator()
+                imgui.text_colored((0.7, 0.7, 0.7, 1.0), "Instructions:")
+                imgui.text_colored((0.7, 0.7, 0.7, 1.0), "• GM sees fog as gray/transparent")
+                imgui.text_colored((0.7, 0.7, 0.7, 1.0), "• Players see fog as black")
+                imgui.text_colored((0.7, 0.7, 0.7, 1.0), "• Drag to create rectangles")
+                imgui.text_colored((0.7, 0.7, 0.7, 1.0), "• Use reveal to create windows")
+                
+            else:
+                imgui.text_colored((1.0, 0.4, 0.4, 1.0), "Fog of War tool not available")
+                imgui.text_colored((0.7, 0.7, 0.7, 1.0), "Only available in GM mode")
+
         imgui.separator()
         
         # Quick dice section
@@ -270,6 +332,8 @@ class ToolsPanel:
             self.context.measurement_tool.stop()
         if hasattr(self.context, 'drawing_tool') and self.context.drawing_tool:
             self.context.drawing_tool.stop()
+        if hasattr(self.context, 'fog_of_war_tool') and self.context.fog_of_war_tool:
+            self.context.fog_of_war_tool.stop()
         
         # Handle specific tool initialization
         if tool == "Measure":
@@ -280,6 +344,8 @@ class ToolsPanel:
                 self._initialize_drawing_tool()
             if self.context.drawing_tool:
                 self.context.drawing_tool.start()
+        elif tool == "Fog of War":
+            self.actions_bridge.start_fog_of_war_tool()
         
         logger.info(f"Tool selected: {tool}")
     

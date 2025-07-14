@@ -278,6 +278,11 @@ def handle_mouse_motion(cnt, event):
     if hasattr(cnt, 'drawing_tool') and cnt.drawing_tool:
         if cnt.drawing_tool.handle_mouse_motion(event.motion.x, event.motion.y):
             return  # Tool consumed the event
+    # Handle fog of war tool mouse motion events
+    if hasattr(cnt, 'fog_of_war_tool') and cnt.fog_of_war_tool:
+        if cnt.fog_of_war_tool.handle_mouse_motion(event.motion.x, event.motion.y):
+            logger.debug("Fog of war tool consumed mouse motion event")
+            return  # Tool consumed the event
 
 def handle_resize(cnt, direction):
     cnt.resizing = True
@@ -335,6 +340,12 @@ def handle_mouse_button_down(cnt, event):
             logger.debug("Drawing tool consumed mouse down event")
             return  # Tool consumed the event
     
+    # Handle fog of war tool mouse button down events
+    if hasattr(cnt, 'fog_of_war_tool') and cnt.fog_of_war_tool:
+        if cnt.fog_of_war_tool.handle_mouse_down(event.button.x, event.button.y, event.button.button):
+            logger.debug("Fog of war tool consumed mouse down event")
+            return  # Tool consumed the event
+
     if event.button.button == 1:  # Left mouse button
         # Create the point for mouse position
         point = sdl3.SDL_FPoint()
@@ -568,6 +579,12 @@ def handle_mouse_button_up(cnt, event):
         if cnt.drawing_tool.handle_mouse_up(event.button.x, event.button.y):
             return  # Tool consumed the event
     
+    # Handle fog of war tool mouse button up events
+    if hasattr(cnt, 'fog_of_war_tool') and cnt.fog_of_war_tool:
+        if cnt.fog_of_war_tool.handle_mouse_up(event.button.x, event.button.y, event.button.button):
+            logger.debug("Fog of war tool consumed mouse up event")
+            return  # Tool consumed the event
+
     if event.button.button == 1:
 
         

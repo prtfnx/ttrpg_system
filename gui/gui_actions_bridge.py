@@ -460,6 +460,31 @@ class GuiActionsBridge:
             logger.error(f"Failed to start measurement tool: {e}")
             return False
     
+    def start_fog_of_war_tool(self) -> bool:
+        """Start the fog of war tool"""
+        try:
+            # Check if fog_of_war_tool exists and is not None
+            if hasattr(self.context, 'fog_of_war_tool') and self.context.fog_of_war_tool is not None:
+                self.context.fog_of_war_tool.start()
+                self.context.current_tool = 'Fog of War'
+                logger.info("Fog of war tool started")
+                return True
+            else:
+                # Initialize fog of war tool if it doesn't exist or is None
+                import sys
+                import os
+                sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+                
+                from gui.tools.fog_of_war_tool import FogOfWarTool
+                self.context.fog_of_war_tool = FogOfWarTool(self.context)
+                self.context.fog_of_war_tool.start()
+                self.context.current_tool = 'Fog of War'
+                logger.info("Fog of war tool initialized and started")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to start fog of war tool: {e}")
+            return False
+
     def get_measurement_distance(self) -> Optional[float]:
         """Get current measurement distance"""
         try:
@@ -549,9 +574,9 @@ class GuiActionsBridge:
     def get_visible_layers_for_mode(self) -> List[str]:
         """Get layers that should be visible based on current mode"""
         if self.is_gm_mode():
-            return self.get_available_layers()  # GM sees all layers
+            return self.get_available_layers()  # GM sees all layers including fog_of_war
         else:
-            return ['tokens', 'light']  # Player only sees tokens and light
+            return ['tokens', 'light']  # Player only sees tokens and light, not fog_of_war
     
     def get_accessible_tables_for_mode(self) -> List[str]:
         """Get tables that are accessible based on current mode"""
@@ -592,7 +617,7 @@ class GuiActionsBridge:
     def get_allowed_tools_for_mode(self) -> List[str]:
         """Get list of allowed tools based on user mode"""
         if self.is_gm_mode():
-            return ["Select", "Move", "Rotate", "Scale", "Measure", "Draw", "Erase"]  # GM has all tools
+            return ["Select", "Move", "Rotate", "Scale", "Measure", "Draw", "Erase", "Fog of War"]  # GM has all tools including fog of war
         else:
             return ["Select", "Measure", "Draw"]  # Player only has basic tools
     

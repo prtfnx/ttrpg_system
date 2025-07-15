@@ -495,16 +495,25 @@ class RenderManager():
         if fog_of_war_tool and fog_of_war_tool.active:
             fog_of_war_tool.render(self.renderer)
 
-    def invalidate_fog_polygon(self):
-        """Invalidate the fog polygon cache to force recomputation on next render"""
+    def invalidate_fog_polygon(self, force_rebuild: bool = False):
+        """
+        Invalidate the fog polygon cache to force recomputation on next render.
+        
+        Args:
+            force_rebuild: If True, clears cached rectangles (complete rebuild)
+                          If False, keeps cached rectangles (for role switching)
+        """
         self.fog_polygon_dirty = True
-        self._cached_fog_rectangles = None
+        if force_rebuild:
+            self._cached_fog_rectangles = None
+            logger.debug("Fog polygon cache invalidated (force rebuild)")
+        else:
+            logger.debug("Fog polygon cache invalidated (keeping cached rectangles)")
         self.fog_polygon_vertices_list.clear()
-        logger.debug("Fog polygon cache invalidated")
         
     def force_fog_polygon_regeneration(self):
         """Force fog polygon regeneration (e.g., when user role changes)"""
-        self.invalidate_fog_polygon()
+        self.invalidate_fog_polygon(force_rebuild=False)  # Don't clear cached rectangles
         logger.debug("Fog polygon forced regeneration")
 
     def compute_fog_polygon(self, hide_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]], 
@@ -525,34 +534,40 @@ class RenderManager():
         """
         # Check if rectangles changed
         current_rectangles = (hide_rectangles, reveal_rectangles)
-        if not self.fog_polygon_dirty and current_rectangles == self._cached_fog_rectangles:
-            # Even if rectangles didn't change, check if user role changed
-            is_gm = context and hasattr(context, 'is_gm') and context.is_gm
-            current_fog_color = (0.5, 0.5, 0.5, 0.3) if is_gm else (0.0, 0.0, 0.0, 1.0)
+        rectangles_changed = (current_rectangles != self._cached_fog_rectangles)
+        
+        # Determine fog color based on user role
+        is_gm = context and hasattr(context, 'is_gm') and context.is_gm
+        current_fog_color = (0.5, 0.5, 0.5, 0.3) if is_gm else (0.0, 0.0, 0.0, 1.0)
+        
+        # Check if we need to regenerate due to role change
+        role_changed = False
+        if self.fog_polygon_vertices_list and len(self.fog_polygon_vertices_list) > 0:
+            # Check current color of first vertex
+            first_vertex = self.fog_polygon_vertices_list[0][0]
+            cached_color = (first_vertex.color.r, first_vertex.color.g, first_vertex.color.b, first_vertex.color.a)
             
-            # Check if we need to update colors due to role change
-            if self.fog_polygon_vertices_list and len(self.fog_polygon_vertices_list) > 0:
-                # Check current color of first vertex
-                first_vertex = self.fog_polygon_vertices_list[0][0]
-                current_color = (first_vertex.color.r, first_vertex.color.g, first_vertex.color.b, first_vertex.color.a)
-                
-                # If colors don't match, regenerate with new colors
-                if abs(current_color[0] - current_fog_color[0]) > 0.01:
-                    self.fog_polygon_dirty = True
-                else:
-                    return False  # Use cached vertices
-            else:
-                return False  # Use cached vertices
+            # If colors don't match, role changed
+            if abs(cached_color[0] - current_fog_color[0]) > 0.01:
+                role_changed = True
+                logger.debug(f"Role changed detected: cached_color={cached_color}, current_color={current_fog_color}")
+        
+        # Only regenerate if rectangles changed OR role changed OR forced dirty
+        if not self.fog_polygon_dirty and not rectangles_changed and not role_changed:
+            logger.debug("Using cached fog polygons")
+            return False  # Use cached vertices
+        
+        # If only role changed (not rectangles), use cached rectangles
+        if role_changed and not rectangles_changed and self._cached_fog_rectangles:
+            logger.debug("Role changed but rectangles unchanged, using cached rectangles")
+            hide_rectangles, reveal_rectangles = self._cached_fog_rectangles
+            current_rectangles = self._cached_fog_rectangles
         
         # Compute multiple fog polygons
         fog_polygons = self.GeometricManager.compute_fog_polygons(hide_rectangles, reveal_rectangles)
         
         # Clear previous vertices
         self.fog_polygon_vertices_list.clear()
-        
-        # Determine fog color based on user role
-        is_gm = context and hasattr(context, 'is_gm') and context.is_gm
-        fog_color = (0.5, 0.5, 0.5, 0.3) if is_gm else (0.0, 0.0, 0.0, 1.0)
         
         # Convert each polygon to SDL vertices
         for fog_polygon in fog_polygons:
@@ -568,14 +583,14 @@ class RenderManager():
                     screen_polygon = fog_polygon
                 
                 # Convert polygon to SDL vertices
-                vertices = self.GeometricManager.polygon_to_sdl_vertices(screen_polygon, color=fog_color)
+                vertices = self.GeometricManager.polygon_to_sdl_vertices(screen_polygon, color=current_fog_color)
                 self.fog_polygon_vertices_list.append(vertices)
         
         # Cache the rectangles and mark as clean
         self._cached_fog_rectangles = current_rectangles
         self.fog_polygon_dirty = False
         
-        logger.debug(f"Fog polygons computed: {len(fog_polygons)} separate polygons, GM mode: {is_gm}")
+        logger.debug(f"Fog polygons computed: {len(fog_polygons)} separate polygons, GM mode: {is_gm}, role_changed: {role_changed}")
         return True
 
     def render_fog_layer(self, is_selected_layer: bool = True, context=None):

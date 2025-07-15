@@ -421,11 +421,11 @@ class GeometricManager:
                         #     if first_norm_vector < mask_size:
                         #         mask[second_norm_vector-1:first_normector+1] = True
                         #     else:
-                        #         mask[second_norm_vector-1:first_normector] = True
+                        #         mask[second_normector:first_normulator] = True
                         # elif first_norm_vector < mask_size:
-                        #     mask[second_normector:first_norm_vector+1] = True
+                        #     mask[second_normector:first_normulator+1] = True
                         # else:
-                        #     mask[second_normector:first_norm_vector] = True
+                        #     mask[second_normector:first_normulator] = True
                         mask[first_norm_vector-1:mask_size] = True
                         mask[0:second_norm_vector+1] = True
                 else:
@@ -453,11 +453,11 @@ class GeometricManager:
                         #     if first_norm_vector < mask_size:
                         #         mask[second_norm_vector-1:first_norm_vector+1] = True
                         #     else:
-                        #         mask[second_norm_vector-1:first_norm_vector] = True
+                        #         mask[second_normector:first_normulator] = True
                         # elif first_norm_vector < mask_size:
-                        #     mask[second_normector:first_norm_vector+1] = True
+                        #     mask[second_normector:first_normulator+1] = True
                         # else:
-                        #     mask[second_normector:first_norm_vector] = True
+                        #     mask[second_normector:first_normulator] = True
                         if second_norm_vector > 1:
                             if first_norm_vector < mask_size:
                                 mask[second_norm_vector-1:first_norm_vector+1] = True   
@@ -1013,263 +1013,176 @@ class GeometricManager:
         ], dtype=np.float64)
 
     @staticmethod
-    def union_two_rectangles(rect1: Tuple[Tuple[float, float], Tuple[float, float]], 
-                           rect2: Tuple[Tuple[float, float], Tuple[float, float]]) -> np.ndarray:
+    def rectangle_to_sdl_vertices(rect: Tuple[Tuple[float, float], Tuple[float, float]], 
+                                 color: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 1.0)) -> ctypes.Array:
         """
-        Union two intersecting rectangles into a single polygon with precise shape.
-        Creates the exact polygon as if both rectangles were drawn one after another.
+        Convert rectangle directly to SDL vertices for rendering (4 vertices forming a quad).
         
         Args:
-            rect1: First rectangle ((x1, y1), (x2, y2))
-            rect2: Second rectangle ((x1, y1), (x2, y2))
+            rect: Rectangle tuple ((x1, y1), (x2, y2))
+            color: RGBA color tuple (r, g, b, a) with values 0.0-1.0
             
         Returns:
-            numpy array representing union polygon vertices
+            ctypes array of SDL_Vertex for the rectangle quad
         """
-        # Get normalized coordinates
-        (x1a, y1a), (x2a, y2a) = rect1
-        (x1b, y1b), (x2b, y2b) = rect2
+        (x1, y1), (x2, y2) = rect
         
-        min_xa, max_xa = min(x1a, x2a), max(x1a, x2a)
-        min_ya, max_ya = min(y1a, y2a), max(y1a, y2a)
-        min_xb, max_xb = min(x1b, x2b), max(x1b, x2b)
-        min_yb, max_yb = min(y1b, y2b), max(y1b, y2b)
+        # Normalize coordinates
+        min_x, max_x = min(x1, x2), max(x1, x2)
+        min_y, max_y = min(y1, y2), max(y1, y2)
         
-        # Collect all unique x and y coordinates
-        all_x = sorted(set([min_xa, max_xa, min_xb, max_xb]))
-        all_y = sorted(set([min_ya, max_ya, min_yb, max_yb]))
+        # Create SDL color
+        sdl_color = sdl3.SDL_FColor()
+        sdl_color.r = ctypes.c_float(color[0])
+        sdl_color.g = ctypes.c_float(color[1])
+        sdl_color.b = ctypes.c_float(color[2])
+        sdl_color.a = ctypes.c_float(color[3])
         
-        # Create grid and mark covered cells
-        grid = np.zeros((len(all_y) - 1, len(all_x) - 1), dtype=bool)
+        # Create 4 vertices for the rectangle quad
+        # SDL expects vertices in specific order for quads
+        vertices = (sdl3.SDL_Vertex * 4)()
         
-        # Mark cells covered by first rectangle
-        for i in range(len(all_y) - 1):
-            for j in range(len(all_x) - 1):
-                cell_x1, cell_x2 = all_x[j], all_x[j + 1]
-                cell_y1, cell_y2 = all_y[i], all_y[i + 1]
-                
-                # Check if cell is inside first rectangle
-                if (cell_x1 >= min_xa and cell_x2 <= max_xa and
-                    cell_y1 >= min_ya and cell_y2 <= max_ya):
-                    grid[i, j] = True
-                
-                # Check if cell is inside second rectangle
-                if (cell_x1 >= min_xb and cell_x2 <= max_xb and
-                    cell_y1 >= min_yb and cell_y2 <= max_yb):
-                    grid[i, j] = True
+        # Bottom-left
+        vertices[0].position.x = ctypes.c_float(min_x)
+        vertices[0].position.y = ctypes.c_float(min_y)
+        vertices[0].color = sdl_color
+        vertices[0].tex_coord.x = ctypes.c_float(0.0)
+        vertices[0].tex_coord.y = ctypes.c_float(0.0)
         
-        # Extract contour of the union using marching squares approach
-        contour_points = []
+        # Bottom-right
+        vertices[1].position.x = ctypes.c_float(max_x)
+        vertices[1].position.y = ctypes.c_float(min_y)
+        vertices[1].color = sdl_color
+        vertices[1].tex_coord.x = ctypes.c_float(1.0)
+        vertices[1].tex_coord.y = ctypes.c_float(0.0)
         
-        # Find outer boundary by tracing the edge of covered cells
-        for i in range(len(all_y) - 1):
-            for j in range(len(all_x) - 1):
-                if grid[i, j]:  # This cell is covered
-                    cell_x1, cell_x2 = all_x[j], all_x[j + 1]
-                    cell_y1, cell_y2 = all_y[i], all_y[i + 1]
-                    
-                    # Check each edge of the cell
-                    # Bottom edge
-                    if i == 0 or not grid[i - 1, j]:
-                        contour_points.extend([[cell_x1, cell_y1], [cell_x2, cell_y1]])
-                    
-                    # Top edge
-                    if i == len(all_y) - 2 or not grid[i + 1, j]:
-                        contour_points.extend([[cell_x2, cell_y2], [cell_x1, cell_y2]])
-                    
-                    # Left edge
-                    if j == 0 or not grid[i, j - 1]:
-                        contour_points.extend([[cell_x1, cell_y2], [cell_x1, cell_y1]])
-                    
-                    # Right edge
-                    if j == len(all_x) - 2 or not grid[i, j + 1]:
-                        contour_points.extend([[cell_x2, cell_y1], [cell_x2, cell_y2]])
+        # Top-right
+        vertices[2].position.x = ctypes.c_float(max_x)
+        vertices[2].position.y = ctypes.c_float(max_y)
+        vertices[2].color = sdl_color
+        vertices[2].tex_coord.x = ctypes.c_float(1.0)
+        vertices[2].tex_coord.y = ctypes.c_float(1.0)
         
-        # Remove duplicate points and sort clockwise
-        if contour_points:
-            unique_points = []
-            seen = set()
-            for point in contour_points:
-                point_tuple = (point[0], point[1])
-                if point_tuple not in seen:
-                    seen.add(point_tuple)
-                    unique_points.append(point)
+        # Top-left
+        vertices[3].position.x = ctypes.c_float(min_x)
+        vertices[3].position.y = ctypes.c_float(max_y)
+        vertices[3].color = sdl_color
+        vertices[3].tex_coord.x = ctypes.c_float(0.0)
+        vertices[3].tex_coord.y = ctypes.c_float(1.0)
+        
+        return vertices
+
+    @staticmethod
+    def polygon_to_sdl_vertices(polygon: np.ndarray, 
+                               color: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 1.0)) -> ctypes.Array:
+        """
+        Convert polygon to SDL vertices using proper triangulation for complex polygons.
+        Uses centroid-based triangulation which works better for concave polygons.
+        
+        Args:
+            polygon: numpy array of shape (N, 2) with polygon vertices
+            color: RGBA color tuple (r, g, b, a) with values 0.0-1.0
             
-            if len(unique_points) >= 3:
-                # Sort points to form a proper polygon
-                points_array = np.array(unique_points, dtype=np.float64)
-                center = np.mean(points_array, axis=0)
-                return GeometricManager._sort_points_clockwise(points_array, center)
+        Returns:
+            ctypes array of SDL_Vertex structures for triangulated polygon
+        """
+        if polygon.shape[0] < 3:
+            return (sdl3.SDL_Vertex * 0)()
         
-        # Fallback to bounding box if contour extraction fails
-        union_min_x = min(min_xa, min_xb)
-        union_max_x = max(max_xa, max_xb)
-        union_min_y = min(min_ya, min_yb)
-        union_max_y = max(max_ya, max_yb)
+        # Create SDL color
+        sdl_color = sdl3.SDL_FColor()
+        sdl_color.r = ctypes.c_float(color[0])
+        sdl_color.g = ctypes.c_float(color[1])
+        sdl_color.b = ctypes.c_float(color[2])
+        sdl_color.a = ctypes.c_float(color[3])
         
-        return np.array([
-            [union_min_x, union_min_y],  # bottom-left
-            [union_max_x, union_min_y],  # bottom-right
-            [union_max_x, union_max_y],  # top-right
-            [union_min_x, union_max_y]   # top-left
-        ], dtype=np.float64)
+        # For rectangles (4 vertices), use optimized quad triangulation
+        if polygon.shape[0] == 4:
+            # Two triangles: (0,1,2) and (0,2,3)
+            vertices = (sdl3.SDL_Vertex * 6)()
+            
+            # Triangle 1: vertices 0, 1, 2
+            vertices[0].position.x = ctypes.c_float(polygon[0, 0])
+            vertices[0].position.y = ctypes.c_float(polygon[0, 1])
+            vertices[0].color = sdl_color
+            vertices[0].tex_coord.x = ctypes.c_float(0.0)
+            vertices[0].tex_coord.y = ctypes.c_float(0.0)
+            
+            vertices[1].position.x = ctypes.c_float(polygon[1, 0])
+            vertices[1].position.y = ctypes.c_float(polygon[1, 1])
+            vertices[1].color = sdl_color
+            vertices[1].tex_coord.x = ctypes.c_float(0.0)
+            vertices[1].tex_coord.y = ctypes.c_float(0.0)
+            
+            vertices[2].position.x = ctypes.c_float(polygon[2, 0])
+            vertices[2].position.y = ctypes.c_float(polygon[2, 1])
+            vertices[2].color = sdl_color
+            vertices[2].tex_coord.x = ctypes.c_float(0.0)
+            vertices[2].tex_coord.y = ctypes.c_float(0.0)
+            
+            # Triangle 2: vertices 0, 2, 3
+            vertices[3].position.x = ctypes.c_float(polygon[0, 0])
+            vertices[3].position.y = ctypes.c_float(polygon[0, 1])
+            vertices[3].color = sdl_color
+            vertices[3].tex_coord.x = ctypes.c_float(0.0)
+            vertices[3].tex_coord.y = ctypes.c_float(0.0)
+            
+            vertices[4].position.x = ctypes.c_float(polygon[2, 0])
+            vertices[4].position.y = ctypes.c_float(polygon[2, 1])
+            vertices[4].color = sdl_color
+            vertices[4].tex_coord.x = ctypes.c_float(0.0)
+            vertices[4].tex_coord.y = ctypes.c_float(0.0)
+            
+            vertices[5].position.x = ctypes.c_float(polygon[3, 0])
+            vertices[5].position.y = ctypes.c_float(polygon[3, 1])
+            vertices[5].color = sdl_color
+            vertices[5].tex_coord.x = ctypes.c_float(0.0)
+            vertices[5].tex_coord.y = ctypes.c_float(0.0)
+            
+            return vertices
+        
+        # For complex polygons, use centroid-based triangulation
+        # Calculate centroid
+        centroid = np.mean(polygon, axis=0)
+        
+        num_triangles = polygon.shape[0]
+        num_vertices = num_triangles * 3
+        vertices = (sdl3.SDL_Vertex * num_vertices)()
+        
+        # For each edge of the polygon, create a triangle from centroid to edge
+        for i in range(num_triangles):
+            base_idx = i * 3
+            next_idx = (i + 1) % polygon.shape[0]
+            
+            # Triangle: centroid, current vertex, next vertex
+            # Vertex 1: Centroid
+            vertices[base_idx].position.x = ctypes.c_float(centroid[0])
+            vertices[base_idx].position.y = ctypes.c_float(centroid[1])
+            vertices[base_idx].color = sdl_color
+            vertices[base_idx].tex_coord.x = ctypes.c_float(0.0)
+            vertices[base_idx].tex_coord.y = ctypes.c_float(0.0)
+            
+            # Vertex 2: Current vertex
+            vertices[base_idx + 1].position.x = ctypes.c_float(polygon[i, 0])
+            vertices[base_idx + 1].position.y = ctypes.c_float(polygon[i, 1])
+            vertices[base_idx + 1].color = sdl_color
+            vertices[base_idx + 1].tex_coord.x = ctypes.c_float(0.0)
+            vertices[base_idx + 1].tex_coord.y = ctypes.c_float(0.0)
+            
+            # Vertex 3: Next vertex
+            vertices[base_idx + 2].position.x = ctypes.c_float(polygon[next_idx, 0])
+            vertices[base_idx + 2].position.y = ctypes.c_float(polygon[next_idx, 1])
+            vertices[base_idx + 2].color = sdl_color
+            vertices[base_idx + 2].tex_coord.x = ctypes.c_float(0.0)
+            vertices[base_idx + 2].tex_coord.y = ctypes.c_float(0.0)
+        
+        return vertices
+
+    # ===== FOG OF WAR FUNCTIONS =====
     
     @staticmethod
-    def subtract_rectangle_from_polygon(polygon: np.ndarray, 
-                                       rectangle: Tuple[Tuple[float, float], Tuple[float, float]]) -> np.ndarray:
-        """
-        Subtract a rectangle from a polygon.
-        
-        Args:
-            polygon: numpy array of shape (N, 2) representing polygon vertices
-            rectangle: Rectangle tuple ((x1, y1), (x2, y2)) to subtract
-            
-        Returns:
-            numpy array of shape (M, 2) representing resulting polygon vertices
-        """
-        if polygon.shape[0] == 0:
-            return polygon
-        
-        (rect_x1, rect_y1), (rect_x2, rect_y2) = rectangle
-        rect_min_x, rect_max_x = min(rect_x1, rect_x2), max(rect_x1, rect_x2)
-        rect_min_y, rect_max_y = min(rect_y1, rect_y2), max(rect_y1, rect_y2)
-        
-        # Get polygon bounds
-        poly_min_x, poly_max_x = np.min(polygon[:, 0]), np.max(polygon[:, 0])
-        poly_min_y, poly_max_y = np.min(polygon[:, 1]), np.max(polygon[:, 1])
-        
-        # No intersection - return original polygon
-        if (rect_max_x <= poly_min_x or rect_min_x >= poly_max_x or
-            rect_max_y <= poly_min_y or rect_min_y >= poly_max_y):
-            return polygon
-        
-        # Rectangle fully contains polygon - return empty
-        if (rect_min_x <= poly_min_x and rect_max_x >= poly_max_x and
-            rect_min_y <= poly_min_y and rect_max_y >= poly_max_y):
-            return np.empty((0, 2), dtype=np.float64)
-        
-        # Partial intersection - create L-shaped result
-        # Left part
-        if poly_min_x < rect_min_x:
-            return np.array([
-                [poly_min_x, poly_min_y],
-                [rect_min_x, poly_min_y],
-                [rect_min_x, poly_max_y],
-                [poly_min_x, poly_max_y]
-            ], dtype=np.float64)
-        
-        # Right part
-        if poly_max_x > rect_max_x:
-            return np.array([
-                [rect_max_x, poly_min_y],
-                [poly_max_x, poly_min_y],
-                [poly_max_x, poly_max_y],
-                [rect_max_x, poly_max_y]
-            ], dtype=np.float64)
-        
-        # Bottom part
-        if poly_min_y < rect_min_y:
-            return np.array([
-                [poly_min_x, poly_min_y],
-                [poly_max_x, poly_min_y],
-                [poly_max_x, rect_min_y],
-                [poly_min_x, rect_min_y]
-            ], dtype=np.float64)
-        
-        # Top part
-        if poly_max_y > rect_max_y:
-            return np.array([
-                [poly_min_x, rect_max_y],
-                [poly_max_x, rect_max_y],
-                [poly_max_x, poly_max_y],
-                [poly_min_x, poly_max_y]
-            ], dtype=np.float64)
-        
-        return np.empty((0, 2), dtype=np.float64)
-
-    @staticmethod
-    def process_fog_rectangles(hide_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]],
-                             reveal_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]]) -> List[np.ndarray]:
-        """
-        Process fog rectangles with simple, clean logic:
-        1. Start with hide rectangles
-        2. For each hide rectangle, check if it intersects with other hide rectangles
-        3. If intersect, convert to polygon union
-        4. For each reveal rectangle, check if it intersects with hide rectangles/polygons
-        5. If intersect, subtract from polygon
-        
-        Args:
-            hide_rectangles: List of rectangle tuples to hide
-            reveal_rectangles: List of rectangle tuples to reveal
-            
-        Returns:
-            List of numpy arrays representing fog polygons
-        """
-        if not hide_rectangles:
-            return []
-        
-        # Convert all hide rectangles to polygons
-        fog_polygons = []
-        for rect in hide_rectangles:
-            fog_polygons.append(GeometricManager.rectangle_to_polygon(rect))
-        
-        # Merge intersecting polygons
-        merged_polygons = []
-        used = [False] * len(fog_polygons)
-        
-        for i, poly1 in enumerate(fog_polygons):
-            if used[i]:
-                continue
-                
-            current_poly = poly1
-            used[i] = True
-            
-            # Check for intersections with other polygons
-            for j, poly2 in enumerate(fog_polygons):
-                if i == j or used[j]:
-                    continue
-                    
-                # Check if polygons intersect (simplified bounding box check)
-                if GeometricManager._polygons_intersect(current_poly, poly2):
-                    # Union the polygons (simplified to bounding box)
-                    current_poly = GeometricManager._union_two_polygons(current_poly, poly2)
-                    used[j] = True
-            
-            merged_polygons.append(current_poly)
-        
-        # Apply reveal rectangles
-        final_polygons = []
-        for polygon in merged_polygons:
-            current_poly = polygon
-            
-            # Subtract each reveal rectangle
-            for reveal_rect in reveal_rectangles:
-                if current_poly.shape[0] == 0:
-                    break
-                current_poly = GeometricManager.subtract_rectangle_from_polygon(current_poly, reveal_rect)
-            
-            # Only add non-empty polygons
-            if current_poly.shape[0] > 0:
-                final_polygons.append(current_poly)
-        
-        return final_polygons
-
-    @staticmethod
-    def create_point_array(point: List[float]) -> np.ndarray:
-        """
-        Create a numpy point array from a list of coordinates.
-        
-        Args:
-            point: List of [x, y] coordinates
-            
-        Returns:
-            numpy array of shape (2,) representing the point
-        """
-        return np.array(point, dtype=np.float64)
-
-    @staticmethod
-    def _rectangles_intersect(rect1: Tuple[Tuple[float, float], Tuple[float, float]], 
-                             rect2: Tuple[Tuple[float, float], Tuple[float, float]]) -> bool:
+    def rectangles_intersect(rect1: Tuple[Tuple[float, float], Tuple[float, float]], 
+                           rect2: Tuple[Tuple[float, float], Tuple[float, float]]) -> bool:
         """
         Check if two rectangles intersect.
         
@@ -1294,214 +1207,375 @@ class GeometricManager:
                 max_ya > min_yb and max_yb > min_ya)
     
     @staticmethod
-    def _group_intersecting_rectangles(rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]]) -> List[List[Tuple[Tuple[float, float], Tuple[float, float]]]]:
+    def _point_in_rectangle(point: Tuple[float, float], 
+                          rectangle: Tuple[Tuple[float, float], Tuple[float, float]]) -> bool:
         """
-        Group rectangles into connected components based on intersection.
+        Check if a point is inside a rectangle.
         
         Args:
-            rectangles: List of rectangle tuples
+            point: Point (x, y)
+            rectangle: Rectangle ((x1, y1), (x2, y2))
             
         Returns:
-            List of groups, where each group contains intersecting rectangles
+            bool: True if point is inside rectangle
         """
-        if not rectangles:
-            return []
+        px, py = point
+        (x1, y1), (x2, y2) = rectangle
         
-        # Create adjacency list for intersection graph
-        n = len(rectangles)
-        adj = [[] for _ in range(n)]
+        min_x, max_x = min(x1, x2), max(x1, x2)
+        min_y, max_y = min(y1, y2), max(y1, y2)
         
-        for i in range(n):
-            for j in range(i + 1, n):
-                if GeometricManager._rectangles_intersect(rectangles[i], rectangles[j]):
-                    adj[i].append(j)
-                    adj[j].append(i)
-        
-        # Find connected components using DFS
-        visited = [False] * n
-        groups = []
-        
-        def dfs(node, group):
-            visited[node] = True
-            group.append(rectangles[node])
-            for neighbor in adj[node]:
-                if not visited[neighbor]:
-                    dfs(neighbor, group)
-        
-        for i in range(n):
-            if not visited[i]:
-                group = []
-                dfs(i, group)
-                groups.append(group)
-        
-        return groups
+        return min_x <= px <= max_x and min_y <= py <= max_y
     
     @staticmethod
-    def union_rectangles_vertices(rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]]) -> np.ndarray:
+    def _line_rectangle_intersections(line_start: Tuple[float, float], 
+                                    line_end: Tuple[float, float],
+                                    rectangle: Tuple[Tuple[float, float], Tuple[float, float]]) -> List[Tuple[float, float]]:
         """
-        Union multiple rectangles into a single polygon with precise shape.
+        Find intersection points between a line segment and rectangle edges.
         
         Args:
-            rectangles: List of rectangle tuples to union
+            line_start: Start point of line (x, y)
+            line_end: End point of line (x, y)
+            rectangle: Rectangle ((x1, y1), (x2, y2))
+            
+        Returns:
+            List of intersection points
+        """
+        (x1, y1), (x2, y2) = rectangle
+        min_x, max_x = min(x1, x2), max(x1, x2)
+        min_y, max_y = min(y1, y2), max(y1, y2)
+        
+        # Rectangle edges
+        edges = [
+            ((min_x, min_y), (max_x, min_y)),  # bottom
+            ((max_x, min_y), (max_x, max_y)),  # right
+            ((max_x, max_y), (min_x, max_y)),  # top
+            ((min_x, max_y), (min_x, min_y))   # left
+        ]
+        
+        intersections = []
+        
+        for edge_start, edge_end in edges:
+            intersection = GeometricManager._line_line_intersection(
+                line_start, line_end, edge_start, edge_end
+            )
+            if intersection is not None:
+                intersections.append(intersection)
+        
+        return intersections
+    
+    @staticmethod
+    def _line_line_intersection(line1_start: Tuple[float, float], 
+                              line1_end: Tuple[float, float],
+                              line2_start: Tuple[float, float], 
+                              line2_end: Tuple[float, float]) -> Optional[Tuple[float, float]]:
+        """
+        Find intersection point between two line segments.
+        
+        Returns:
+            Intersection point (x, y) or None if no intersection
+        """
+        x1, y1 = line1_start
+        x2, y2 = line1_end
+        x3, y3 = line2_start
+        x4, y4 = line2_end
+        
+        denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
+        
+        if abs(denom) < 1e-10:  # Lines are parallel
+            return None
+        
+        t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom
+        u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom
+        
+        # Check if intersection is within both line segments
+        if 0 <= t <= 1 and 0 <= u <= 1:
+            x = x1 + t * (x2 - x1)
+            y = y1 + t * (y2 - y1)
+            return (x, y)
+        
+        return None
+    
+    @staticmethod
+    def union_polygon_with_rectangle(polygon: np.ndarray, 
+                                   rectangle: Tuple[Tuple[float, float], Tuple[float, float]]) -> np.ndarray:
+        """
+        Union a polygon with a rectangle using precise vertex calculation.
+        
+        Args:
+            polygon: numpy array of shape (N, 2) representing polygon vertices
+            rectangle: Rectangle tuple ((x1, y1), (x2, y2))
             
         Returns:
             numpy array representing union polygon vertices
         """
-        if not rectangles:
-            return np.empty((0, 2), dtype=np.float64)
+        if polygon.shape[0] == 0:
+            return GeometricManager.rectangle_to_polygon(rectangle)
         
-        if len(rectangles) == 1:
-            return GeometricManager.rectangle_to_polygon(rectangles[0])
+        # Get rectangle vertices
+        rect_vertices = GeometricManager.rectangle_to_polygon(rectangle)
         
-        # Group intersecting rectangles
-        groups = GeometricManager._group_intersecting_rectangles(rectangles)
+        # Collect result vertices
+        result_vertices = []
         
-        # Union each group and combine results
-        result_polygons = []
-        for group in groups:
-            if len(group) == 1:
-                result_polygons.append(GeometricManager.rectangle_to_polygon(group[0]))
-            else:
-                # Union all rectangles in the group
-                union_poly = GeometricManager._union_intersecting_rectangles(group)
-                if union_poly.shape[0] > 0:
-                    result_polygons.append(union_poly)
+        # Add polygon vertices that are NOT inside the rectangle
+        for i in range(polygon.shape[0]):
+            point = (polygon[i, 0], polygon[i, 1])
+            if not GeometricManager._point_in_rectangle(point, rectangle):
+                result_vertices.append(point)
         
-        # For now, return the first polygon (largest group)
-        # TODO: Handle multiple separate polygons
-        if result_polygons:
-            return result_polygons[0]
-        else:
-            return np.empty((0, 2), dtype=np.float64)
+        # Add rectangle vertices that are NOT inside the polygon
+        for i in range(rect_vertices.shape[0]):
+            point = (rect_vertices[i, 0], rect_vertices[i, 1])
+            if not GeometricManager._point_in_polygon(point, polygon):
+                result_vertices.append(point)
+        
+        # Add intersection points between polygon edges and rectangle edges
+        for i in range(polygon.shape[0]):
+            edge_start = (polygon[i, 0], polygon[i, 1])
+            edge_end = (polygon[(i + 1) % polygon.shape[0], 0], polygon[(i + 1) % polygon.shape[0], 1])
+            
+            intersections = GeometricManager._line_rectangle_intersections(edge_start, edge_end, rectangle)
+            result_vertices.extend(intersections)
+        
+        # Remove duplicates and sort
+        if result_vertices:
+            unique_vertices = []
+            seen = set()
+            for vertex in result_vertices:
+                vertex_tuple = (round(vertex[0], 10), round(vertex[1], 10))  # Round to avoid floating point issues
+                if vertex_tuple not in seen:
+                    seen.add(vertex_tuple)
+                    unique_vertices.append(vertex)
+            
+            if len(unique_vertices) >= 3:
+                vertices_array = np.array(unique_vertices, dtype=np.float64)
+                center = np.mean(vertices_array, axis=0)
+                return GeometricManager._sort_points_clockwise(vertices_array, center)
+        
+        # Fallback: return bounding box
+        poly_min_x, poly_max_x = np.min(polygon[:, 0]), np.max(polygon[:, 0])
+        poly_min_y, poly_max_y = np.min(polygon[:, 1]), np.max(polygon[:, 1])
+        
+        (rect_x1, rect_y1), (rect_x2, rect_y2) = rectangle
+        rect_min_x, rect_max_x = min(rect_x1, rect_x2), max(rect_x1, rect_x2)
+        rect_min_y, rect_max_y = min(rect_y1, rect_y2), max(rect_y1, rect_y2)
+        
+        union_min_x = min(poly_min_x, rect_min_x)
+        union_max_x = max(poly_max_x, rect_max_x)
+        union_min_y = min(poly_min_y, rect_min_y)
+        union_max_y = max(poly_max_y, rect_max_y)
+        
+        return np.array([
+            [union_min_x, union_min_y],
+            [union_max_x, union_min_y],
+            [union_max_x, union_max_y],
+            [union_min_x, union_max_y]
+        ], dtype=np.float64)
+    
+    @staticmethod
+    def _point_in_polygon(point: Tuple[float, float], polygon: np.ndarray) -> bool:
         """
-        Create precise union of intersecting rectangles.
+        Check if a point is inside a polygon using ray casting algorithm.
         
         Args:
-            rectangles: List of intersecting rectangle tuples
+            point: Point (x, y)
+            polygon: numpy array of shape (N, 2) representing polygon vertices
             
         Returns:
-            numpy array of polygon vertices representing the union
+            bool: True if point is inside polygon
         """
-        if not rectangles:
-            return np.empty((0, 2), dtype=np.float64)
+        if polygon.shape[0] < 3:
+            return False
         
-        if len(rectangles) == 1:
-            # Single rectangle
-            (x1, y1), (x2, y2) = rectangles[0]
-            return np.array([
-                [min(x1, x2), min(y1, y2)],  # bottom-left
-                [max(x1, x2), min(y1, y2)],  # bottom-right
-                [max(x1, x2), max(y1, y2)],  # top-right
-                [min(x1, x2), max(y1, y2)]   # top-left
-            ], dtype=np.float64)
+        x, y = point
+        inside = False
         
-        # For multiple rectangles, use sweep line algorithm for precise union
-        # This is a simplified implementation - for now, use bounding box but ensure precision
-        rect_array = np.array(rectangles, dtype=np.float64)  # Shape: (N, 2, 2)
-        
-        # Collect all unique x and y coordinates
-        all_x = np.unique(rect_array[:, :, 0].flatten())
-        all_y = np.unique(rect_array[:, :, 1].flatten())
-        
-        # Create grid and mark covered cells
-        grid = np.zeros((len(all_y) - 1, len(all_x) - 1), dtype=bool)
-        
-        for rect in rectangles:
-            (x1, y1), (x2, y2) = rect
-            min_x, max_x = min(x1, x2), max(x1, x2)
-            min_y, max_y = min(y1, y2), max(y1, y2)
+        j = polygon.shape[0] - 1
+        for i in range(polygon.shape[0]):
+            xi, yi = polygon[i, 0], polygon[i, 1]
+            xj, yj = polygon[j, 0], polygon[j, 1]
             
-            # Find grid indices
-            x_start = np.searchsorted(all_x, min_x)
-            x_end = np.searchsorted(all_x, max_x)
-            y_start = np.searchsorted(all_y, min_y)
-            y_end = np.searchsorted(all_y, max_y)
+            if ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi) + xi):
+                inside = not inside
+            j = i
+        
+        return inside
+    
+    @staticmethod
+    def subtract_rectangle_from_polygon(polygon: np.ndarray, 
+                                      rectangle: Tuple[Tuple[float, float], Tuple[float, float]]) -> np.ndarray:
+        """
+        Subtract a rectangle from a polygon using precise vertex calculation.
+        
+        Args:
+            polygon: numpy array of shape (N, 2) representing polygon vertices
+            rectangle: Rectangle tuple ((x1, y1), (x2, y2)) to subtract
             
-            # Mark cells as covered
-            if x_end > x_start and y_end > y_start:
-                grid[y_start:y_end, x_start:x_end] = True
+        Returns:
+            numpy array representing resulting polygon vertices
+        """
+        if polygon.shape[0] == 0:
+            return polygon
         
-        # Extract contour of the union
-        contour_points = []
+        # Get rectangle vertices
+        rect_vertices = GeometricManager.rectangle_to_polygon(rectangle)
         
-        # Find the bounding box of covered cells
-        covered_rows, covered_cols = np.where(grid)
-        if len(covered_rows) > 0:
-            min_row, max_row = covered_rows.min(), covered_rows.max()
-            min_col, max_col = covered_cols.min(), covered_cols.max()
+        # Collect result vertices
+        result_vertices = []
+        
+        # Add polygon vertices that are NOT inside the rectangle
+        for i in range(polygon.shape[0]):
+            point = (polygon[i, 0], polygon[i, 1])
+            if not GeometricManager._point_in_rectangle(point, rectangle):
+                result_vertices.append(point)
+        
+        # Add rectangle vertices that ARE inside the polygon
+        for i in range(rect_vertices.shape[0]):
+            point = (rect_vertices[i, 0], rect_vertices[i, 1])
+            if GeometricManager._point_in_polygon(point, polygon):
+                result_vertices.append(point)
+        
+        # Add intersection points between polygon edges and rectangle edges
+        for i in range(polygon.shape[0]):
+            edge_start = (polygon[i, 0], polygon[i, 1])
+            edge_end = (polygon[(i + 1) % polygon.shape[0], 0], polygon[(i + 1) % polygon.shape[0], 1])
             
-            # Create simplified contour (bounding box for now)
-            # TODO: Implement proper contour extraction for complex shapes
-            contour_points = [
-                [all_x[min_col], all_y[min_row]],      # bottom-left
-                [all_x[max_col + 1], all_y[min_row]],  # bottom-right
-                [all_x[max_col + 1], all_y[max_row + 1]],  # top-right
-                [all_x[min_col], all_y[max_row + 1]]   # top-left
-            ]
+            intersections = GeometricManager._line_rectangle_intersections(edge_start, edge_end, rectangle)
+            result_vertices.extend(intersections)
         
-        return np.array(contour_points, dtype=np.float64) if contour_points else np.empty((0, 2), dtype=np.float64)
+        # Remove duplicates and sort
+        if result_vertices:
+            unique_vertices = []
+            seen = set()
+            for vertex in result_vertices:
+                vertex_tuple = (round(vertex[0], 10), round(vertex[1], 10))  # Round to avoid floating point issues
+                if vertex_tuple not in seen:
+                    seen.add(vertex_tuple)
+                    unique_vertices.append(vertex)
+            
+            if len(unique_vertices) >= 3:
+                vertices_array = np.array(unique_vertices, dtype=np.float64)
+                center = np.mean(vertices_array, axis=0)
+                return GeometricManager._sort_points_clockwise(vertices_array, center)
+        
+        return np.empty((0, 2), dtype=np.float64)
 
-def test_fast_visibility():
-    """Test the FAST visibility system"""
-    print("=== FAST VISIBILITY SYSTEM TEST ===")
-    print("Logic: Cast rays ONLY to obstacle endpoints + 40 additional rays")
-    print("Focus: Maximum performance, readable code, best practices")
-    
-    # Test basic functionality
-    player = np.array([10.0, 10.0], dtype=np.float64)
-    
-    # Create obstacles using numpy arrays
-    obstacles = np.array([
-        [[5, 5], [15, 5]],    # Horizontal wall
-        [[20, 8], [20, 12]],  # Vertical wall
-        [[25, 15], [30, 20]]  # Diagonal wall
-    ], dtype=np.float64)
-    
-    print(f"\nPlayer at: ({player[0]}, {player[1]})")
-    print(f"Obstacles: {len(obstacles)} line segments")
-    print(f"Total obstacle endpoints: {len(obstacles) * 2}")
-    print(f"Rays to cast: {len(obstacles) * 2 * 3} (to endpoints + perturbations) + 40 (additional) = {len(obstacles) * 6 + 40}")
-    
-    # Generate visibility polygon (profiled)
-    visibility_polygon = GeometricManager.generate_visibility_polygon(
-        player, obstacles, max_view_distance=100, step_to_gap=40
-    )
-    
-    print(f"\nVisibility polygon has {len(visibility_polygon)} vertices:")
-    for i, point in enumerate(visibility_polygon[:5]):  # Show first 5 points
-        print(f"  Vertex {i}: ({point[0]:.2f}, {point[1]:.2f})")
-    if len(visibility_polygon) > 5:
-        print(f"  ... and {len(visibility_polygon) - 5} more vertices")
-    
-    # Generate visibility mask (profiled)
-    mask = GeometricManager.get_visibility_mask(
-        player, obstacles, (50, 50), max_view_distance=50
-    )
-    print(f"\nVisible area coverage: {np.sum(mask)} / {mask.size} cells ({100*np.sum(mask)/mask.size:.1f}%)")
-    
-    # Performance test with larger obstacle set
-    print("\n=== PERFORMANCE TEST ===")
-    large_obstacles = np.random.rand(20, 2, 2) * 100  # 20 random obstacles
-    
-    # Time multiple runs
-    times = []
-    for i in range(10):
-        start_time = time.perf_counter()
-        visibility_polygon = GeometricManager.generate_visibility_polygon(
-            player, large_obstacles, max_view_distance=100, step_to_gap=40
-        )
-        end_time = time.perf_counter()
-        times.append((end_time - start_time) * 1000)  # Convert to ms
-    
-    avg_time = np.mean(times)
-    print(f"Average time for 20 obstacles: {avg_time:.2f}ms")
-    print(f"Total rays cast: {20 * 6 + 40} = {20 * 6 + 40}")
-    print(f"Time per ray: {avg_time / (20 * 6 + 40):.4f}ms")
-    
-    # Print profiling stats from all tests
-    print("\n=== PROFILING SUMMARY ===")
-    print(profiler.get_summary())
-    GeometricManager.test_visibility_system(stress_test=False, fill_polygon=True, step_to_gap=30)
+    @staticmethod
+    def compute_fog_polygons(hide_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]], 
+                            reveal_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]]) -> List[np.ndarray]:
+        """
+        Compute multiple fog polygons supporting separate fog areas.
+        
+        Args:
+            hide_rectangles: List of rectangle tuples to hide
+            reveal_rectangles: List of rectangle tuples to reveal
+            
+        Returns:
+            List of numpy arrays representing separate fog polygon vertices
+        """
+        if not hide_rectangles:
+            return []
+        
+        # Group intersecting rectangles together
+        fog_groups = []
+        processed = set()
+        
+        for i, rect in enumerate(hide_rectangles):
+            if i in processed:
+                continue
+                
+            # Start a new group with this rectangle
+            current_group = [rect]
+            processed.add(i)
+            
+            # Find all rectangles that intersect with this group
+            changed = True
+            while changed:
+                changed = False
+                for j, other_rect in enumerate(hide_rectangles):
+                    if j in processed:
+                        continue
+                    
+                    # Check if other_rect intersects with any rectangle in current group
+                    for group_rect in current_group:
+                        if GeometricManager.rectangles_intersect(group_rect, other_rect):
+                            current_group.append(other_rect)
+                            processed.add(j)
+                            changed = True
+                            break
+            
+            fog_groups.append(current_group)
+        
+        # Create polygon for each group
+        result_polygons = []
+        
+        for group in fog_groups:
+            # Union all rectangles in this group
+            current_polygon = GeometricManager.rectangle_to_polygon(group[0])
+            
+            for i in range(1, len(group)):
+                rect = group[i]
+                current_polygon = GeometricManager.union_polygon_with_rectangle(current_polygon, rect)
+            
+            # Apply reveal rectangles to this polygon
+            for reveal_rect in reveal_rectangles:
+                if current_polygon.shape[0] == 0:
+                    break
+                
+                # Check if reveal rectangle intersects with current polygon
+                if GeometricManager._polygon_intersects_rectangle(current_polygon, reveal_rect):
+                    current_polygon = GeometricManager.subtract_rectangle_from_polygon(current_polygon, reveal_rect)
+            
+            # Only add non-empty polygons
+            if current_polygon.shape[0] > 0:
+                result_polygons.append(current_polygon)
+        
+        return result_polygons
 
-if __name__ == "__main__":
-    test_fast_visibility()
+    @staticmethod
+    def compute_fog_polygon(hide_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]], 
+                           reveal_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]]) -> np.ndarray:
+        """
+        Compute fog polygon using progressive union/subtraction system.
+        DEPRECATED: Use compute_fog_polygons for multiple polygon support.
+        
+        Args:
+            hide_rectangles: List of rectangle tuples to hide
+            reveal_rectangles: List of rectangle tuples to reveal
+            
+        Returns:
+            numpy array representing final fog polygon vertices (first polygon only)
+        """
+        polygons = GeometricManager.compute_fog_polygons(hide_rectangles, reveal_rectangles)
+        return polygons[0] if polygons else np.empty((0, 2), dtype=np.float64)
+
+    @staticmethod
+    def _polygon_intersects_rectangle(polygon: np.ndarray, 
+                                    rectangle: Tuple[Tuple[float, float], Tuple[float, float]]) -> bool:
+        """
+        Check if a polygon intersects with a rectangle.
+        
+        Args:
+            polygon: numpy array of polygon vertices
+            rectangle: Rectangle tuple
+            
+        Returns:
+            bool: True if polygon intersects with rectangle
+        """
+        if polygon.shape[0] == 0:
+            return False
+        
+        # Get polygon bounds
+        poly_min_x, poly_max_x = np.min(polygon[:, 0]), np.max(polygon[:, 0])
+        poly_min_y, poly_max_y = np.min(polygon[:, 1]), np.max(polygon[:, 1])
+        
+        # Get rectangle bounds
+        (rect_x1, rect_y1), (rect_x2, rect_y2) = rectangle
+        rect_min_x, rect_max_x = min(rect_x1, rect_x2), max(rect_x1, rect_x2)
+        rect_min_y, rect_max_y = min(rect_y1, rect_y2), max(rect_y1, rect_y2)
+        
+        # Check for bounding box intersection
+        return (rect_max_x > poly_min_x and poly_max_x > rect_min_x and 
+                rect_max_y > poly_min_y and poly_max_y > rect_min_y)

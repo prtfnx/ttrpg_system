@@ -2,6 +2,7 @@ import sdl3
 import ctypes
 import logging
 import math
+import numpy as np
 from logger import setup_logger
 from typing import Optional, Dict, List, Any, Union, Tuple, TYPE_CHECKING
 from Sprite import Sprite
@@ -40,10 +41,10 @@ class RenderManager():
         self.view_distance: int = 500  # TODO: take from player
         self.visibility_polygon_vertices: Optional[ctypes.Array] = None
         
-        # Fog of war polygon caching
-        self.fog_polygon_vertices: Optional[ctypes.Array] = None
+        # Fog of war polygon caching - support multiple polygons
+        self.fog_polygon_vertices_list: List[ctypes.Array] = []
         self.fog_polygon_dirty: bool = True
-        self._cached_fog_rectangles: List = []
+        self._cached_fog_rectangles: Optional[Tuple] = None
 
     def _apply_layer_settings(self):
         sdl3.SDL_SetRenderDrawColor(self.renderer, 
@@ -494,16 +495,30 @@ class RenderManager():
         if fog_of_war_tool and fog_of_war_tool.active:
             fog_of_war_tool.render(self.renderer)
 
+    def invalidate_fog_polygon(self):
+        """Invalidate the fog polygon cache to force recomputation on next render"""
+        self.fog_polygon_dirty = True
+        self._cached_fog_rectangles = None
+        self.fog_polygon_vertices_list.clear()
+        logger.debug("Fog polygon cache invalidated")
+        
+    def force_fog_polygon_regeneration(self):
+        """Force fog polygon regeneration (e.g., when user role changes)"""
+        self.invalidate_fog_polygon()
+        logger.debug("Fog polygon forced regeneration")
+
     def compute_fog_polygon(self, hide_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]], 
                            reveal_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]],
-                           table: Optional[ContextTable] = None) -> bool:
+                           table: Optional[ContextTable] = None, context=None) -> bool:
         """
         Compute fog of war polygon vertices using GeometricManager.
-        Only recomputes when rectangles change for performance.
+        Supports multiple separate fog polygons.
         
         Args:
             hide_rectangles: List of rectangle tuples to hide
             reveal_rectangles: List of rectangle tuples to reveal
+            table: Table context for coordinate conversion
+            context: Context for determining user role (GM vs player)
             
         Returns:
             bool: True if polygon was recomputed, False if using cached version
@@ -511,131 +526,70 @@ class RenderManager():
         # Check if rectangles changed
         current_rectangles = (hide_rectangles, reveal_rectangles)
         if not self.fog_polygon_dirty and current_rectangles == self._cached_fog_rectangles:
-            return False  # Use cached vertices
-        
-        # Recompute polygon
-        if not self.GeometricManager:
-            logger.error("GeometricManager not available for fog polygon computation")
-            self.fog_polygon_vertices = None
-            return False
-        
-        try:
-            # Compute fog polygon using GeometricManager
-            fog_polygon = self.GeometricManager.compute_fog_polygon(hide_rectangles, reveal_rectangles)
+            # Even if rectangles didn't change, check if user role changed
+            is_gm = context and hasattr(context, 'is_gm') and context.is_gm
+            current_fog_color = (0.5, 0.5, 0.5, 0.3) if is_gm else (0.0, 0.0, 0.0, 1.0)
             
-            # Convert to SDL vertices if polygon exists
+            # Check if we need to update colors due to role change
+            if self.fog_polygon_vertices_list and len(self.fog_polygon_vertices_list) > 0:
+                # Check current color of first vertex
+                first_vertex = self.fog_polygon_vertices_list[0][0]
+                current_color = (first_vertex.color.r, first_vertex.color.g, first_vertex.color.b, first_vertex.color.a)
+                
+                # If colors don't match, regenerate with new colors
+                if abs(current_color[0] - current_fog_color[0]) > 0.01:
+                    self.fog_polygon_dirty = True
+                else:
+                    return False  # Use cached vertices
+            else:
+                return False  # Use cached vertices
+        
+        # Compute multiple fog polygons
+        fog_polygons = self.GeometricManager.compute_fog_polygons(hide_rectangles, reveal_rectangles)
+        
+        # Clear previous vertices
+        self.fog_polygon_vertices_list.clear()
+        
+        # Determine fog color based on user role
+        is_gm = context and hasattr(context, 'is_gm') and context.is_gm
+        fog_color = (0.5, 0.5, 0.5, 0.3) if is_gm else (0.0, 0.0, 0.0, 1.0)
+        
+        # Convert each polygon to SDL vertices
+        for fog_polygon in fog_polygons:
             if fog_polygon.shape[0] > 0:
                 # Convert polygon vertices from table coordinates to screen coordinates
                 if table and hasattr(table, 'table_to_screen'):
-                    # Convert each vertex to screen coordinates
                     screen_vertices = []
                     for vertex in fog_polygon:
                         screen_x, screen_y = table.table_to_screen(vertex[0], vertex[1])
                         screen_vertices.append([screen_x, screen_y])
-                    
-                    # Convert to numpy array
-                    import numpy as np
                     screen_polygon = np.array(screen_vertices)
-                    
-                    # Convert center point to screen coordinates
-                    table_center_x = table.width / 2.0
-                    table_center_y = table.height / 2.0
-                    screen_center_x, screen_center_y = table.table_to_screen(table_center_x, table_center_y)
-                    center_point = self.GeometricManager.create_point_array([screen_center_x, screen_center_y])
-                    
-                    # Convert to SDL triangles with transparent white color (will be overridden by render color)
-                    self.fog_polygon_vertices = self.GeometricManager.polygon_to_sdl_triangles(
-                        screen_polygon, center_point, color=(1.0, 1.0, 1.0, 1.0)
-                    )
                 else:
-                    # Fallback: use table coordinates directly (for backward compatibility)
-                    center_x = table.width / 2.0 if table else 500.0
-                    center_y = table.height / 2.0 if table else 500.0
-                    center_point = self.GeometricManager.create_point_array([center_x, center_y])
-                    
-                    # Convert to SDL triangles with transparent white color (will be overridden by render color)
-                    self.fog_polygon_vertices = self.GeometricManager.polygon_to_sdl_triangles(
-                        fog_polygon, center_point, color=(1.0, 1.0, 1.0, 1.0)
-                    )
-            else:
-                self.fog_polygon_vertices = None
-            
-            # Cache the rectangles and mark as clean
-            self._cached_fog_rectangles = current_rectangles
-            self.fog_polygon_dirty = False
-            
-            logger.debug(f"Fog polygon computed with {fog_polygon.shape[0]} vertices")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error computing fog polygon: {e}")
-            self.fog_polygon_vertices = None
-            return False
-    
-    def render_fog_polygon(self, context=None):
-        """
-        Render the fog of war polygon using cached vertices.
+                    screen_polygon = fog_polygon
+                
+                # Convert polygon to SDL vertices
+                vertices = self.GeometricManager.polygon_to_sdl_vertices(screen_polygon, color=fog_color)
+                self.fog_polygon_vertices_list.append(vertices)
         
-        Args:
-            context: Context object containing fog of war tool
-        """
-        if not self.fog_polygon_vertices:
-            return
+        # Cache the rectangles and mark as clean
+        self._cached_fog_rectangles = current_rectangles
+        self.fog_polygon_dirty = False
         
-        # Determine color based on user mode
-        is_gm = context and hasattr(context, 'is_gm') and context.is_gm
-        
-        if is_gm:
-            # GM sees semi-transparent gray fog
-            sdl3.SDL_SetRenderDrawColorFloat(self.renderer, 
-                                           ctypes.c_float(0.5), ctypes.c_float(0.5), 
-                                           ctypes.c_float(0.5), ctypes.c_float(0.3))
-        else:
-            # Players see opaque black fog
-            sdl3.SDL_SetRenderDrawColorFloat(self.renderer, 
-                                           ctypes.c_float(0.0), ctypes.c_float(0.0), 
-                                           ctypes.c_float(0.0), ctypes.c_float(1.0))
-        
-        # Set blend mode for proper transparency
-        sdl3.SDL_SetRenderDrawBlendMode(self.renderer, sdl3.SDL_BLENDMODE_BLEND)
-        
-        # Render the fog polygon
-        try:
-            sdl3.SDL_RenderGeometry(self.renderer, None, 
-                                  self.fog_polygon_vertices, 
-                                  len(self.fog_polygon_vertices), 
-                                  None, 0)
-        except Exception as e:
-            logger.error(f"Error rendering fog polygon: {e}")
+        logger.debug(f"Fog polygons computed: {len(fog_polygons)} separate polygons, GM mode: {is_gm}")
+        return True
 
     def render_fog_layer(self, is_selected_layer: bool = True, context=None):
-        """Render fog of war layer with proper color based on user role"""
-        if not self.fog_polygon_vertices:
+        """Render fog of war layer using pre-computed vertices with embedded colors"""
+        if not self.fog_polygon_vertices_list:
             return
-        
-        # Get current context to determine user role
-        is_gm = context and hasattr(context, 'is_gm') and context.is_gm
-        
-        # Set fog color based on user role
-        if is_gm:
-            # GM sees semi-transparent gray fog
-            sdl3.SDL_SetRenderDrawColorFloat(self.renderer, 
-                                           ctypes.c_float(0.5), ctypes.c_float(0.5), 
-                                           ctypes.c_float(0.5), ctypes.c_float(0.3))
-        else:
-            # Players see opaque black fog
-            sdl3.SDL_SetRenderDrawColorFloat(self.renderer, 
-                                           ctypes.c_float(0.0), ctypes.c_float(0.0), 
-                                           ctypes.c_float(0.0), ctypes.c_float(1.0))
         
         # Set blend mode for proper transparency
         sdl3.SDL_SetRenderDrawBlendMode(self.renderer, sdl3.SDL_BLENDMODE_BLEND)
         
-        # Render the fog polygon
-        try:
-            sdl3.SDL_RenderGeometry(self.renderer, None, 
-                                  self.fog_polygon_vertices, 
-                                  len(self.fog_polygon_vertices), 
-                                  None, 0)
-        except Exception as e:
-            logger.error(f"Error rendering fog layer: {e}")
+        # Render each fog polygon
+        for fog_vertices in self.fog_polygon_vertices_list:
+            if fog_vertices:
+                sdl3.SDL_RenderGeometry(self.renderer, None, 
+                                      fog_vertices, 
+                                      len(fog_vertices), 
+                                      None, 0)

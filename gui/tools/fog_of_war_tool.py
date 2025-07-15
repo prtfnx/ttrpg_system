@@ -23,6 +23,10 @@ class FogOfWarTool:
         self.current_mode = "hide"  # hide or reveal
         self.fog_rectangles = []  # List of fog rectangles with their hide/reveal state
         
+        # Separate lists for efficient polygon computation
+        self.hide_rectangles = []  # List of hide rectangle tuples
+        self.reveal_rectangles = []  # List of reveal rectangle tuples
+        
     def start(self):
         """Start the fog of war tool"""
         self.active = True
@@ -59,20 +63,29 @@ class FogOfWarTool:
         table_width = getattr(self.context.current_table, 'width', 1000)
         table_height = getattr(self.context.current_table, 'height', 1000)
         
-        # Create full-table fog rectangle
+        # Create full-table rectangle tuple
+        full_table_rect = ((0, 0), (table_width, table_height))
+        
+        # Clear previous rectangles and add full fog
+        self.fog_rectangles.clear()
+        self.hide_rectangles.clear()
+        self.reveal_rectangles.clear()
+        
+        # Add full table as hide rectangle
+        self.hide_rectangles.append(full_table_rect)
+        
+        # Add to fog_rectangles for compatibility
         fog_rect = {
             'start': (0, 0),
             'end': (table_width, table_height),
             'mode': 'hide',
             'id': f"fog_full_{len(self.fog_rectangles)}"
         }
-        
-        # Clear previous rectangles and add full fog
-        self.fog_rectangles.clear()
         self.fog_rectangles.append(fog_rect)
         
-        # Update fog layer
+        # Update fog layer and polygon
         self._update_fog_layer()
+        self._invalidate_fog_polygon()
         
         logger.info("Hidden entire table with fog of war")
         if hasattr(self.context, 'add_chat_message'):
@@ -81,7 +94,10 @@ class FogOfWarTool:
     def reveal_all_table(self):
         """Reveal the entire table (clear all fog)"""
         self.fog_rectangles.clear()
+        self.hide_rectangles.clear()
+        self.reveal_rectangles.clear()
         self._update_fog_layer()
+        self._invalidate_fog_polygon()
         
         logger.info("Revealed entire table (cleared fog of war)")
         if hasattr(self.context, 'add_chat_message'):
@@ -96,6 +112,15 @@ class FogOfWarTool:
             max_x = max(self.start_point[0], self.end_point[0])
             max_y = max(self.start_point[1], self.end_point[1])
             
+            # Create rectangle tuple for efficient polygon computation
+            rect_tuple = ((min_x, min_y), (max_x, max_y))
+            
+            # Add to appropriate list for efficient polygon computation
+            if self.current_mode == "hide":
+                self.hide_rectangles.append(rect_tuple)
+            else:  # reveal
+                self.reveal_rectangles.append(rect_tuple)
+            
             fog_rect = {
                 'start': (min_x, min_y),
                 'end': (max_x, max_y),
@@ -106,6 +131,9 @@ class FogOfWarTool:
             self.fog_rectangles.append(fog_rect)
             self._update_fog_layer()
             
+            # Invalidate fog polygon cache
+            self._invalidate_fog_polygon()
+            
             logger.info(f"Saved fog rectangle: {self.current_mode} from {fog_rect['start']} to {fog_rect['end']}")
             if hasattr(self.context, 'add_chat_message'):
                 self.context.add_chat_message(f"Fog of war: {self.current_mode} area applied")
@@ -113,7 +141,10 @@ class FogOfWarTool:
     def clear_fog_rectangles(self):
         """Clear all fog rectangles"""
         self.fog_rectangles.clear()
+        self.hide_rectangles.clear()
+        self.reveal_rectangles.clear()
         self._update_fog_layer()
+        self._invalidate_fog_polygon()
         logger.info("Cleared all fog of war rectangles")
     
     def _initialize_fog_layer(self):
@@ -220,26 +251,22 @@ class FogOfWarTool:
             return (table_x, table_y)
     
     def render(self, renderer):
-        """Render fog of war areas"""
+        """Render fog of war using polygon system"""
         if not self.active:
             return
         
-        # Get user mode to determine rendering style
+        # Update fog polygon if needed
+        if hasattr(self.context, 'RenderManager') and self.context.RenderManager:
+            render_manager = self.context.RenderManager
+            
+            # Compute fog polygon if rectangles exist
+            if self.hide_rectangles or self.reveal_rectangles:
+                table = getattr(self.context, 'current_table', None)
+                render_manager.compute_fog_polygon(self.hide_rectangles, self.reveal_rectangles, table)
+                # Note: Fog polygon will be rendered by the layer system, not here
+        
+        # Render current rectangle being drawn (GM preview only)
         is_gm = hasattr(self.context, 'is_gm') and self.context.is_gm
-        
-        # Render saved fog rectangles
-        for fog_rect in self.fog_rectangles:
-            if fog_rect['mode'] == 'hide':
-                if is_gm:
-                    # GM sees grayed/transparent areas
-                    self._render_rectangle(renderer, fog_rect['start'], fog_rect['end'], 
-                                         (0.5, 0.5, 0.5, 0.3))  # Gray, semi-transparent
-                else:
-                    # Players see black areas
-                    self._render_rectangle(renderer, fog_rect['start'], fog_rect['end'], 
-                                         (0.0, 0.0, 0.0, 1.0))  # Black, opaque
-        
-        # Render current rectangle being drawn (GM only)
         if is_gm and self.drawing and self.start_point and self.end_point:
             if self.current_mode == "hide":
                 color = (0.5, 0.5, 0.5, 0.5)  # Gray preview
@@ -303,3 +330,14 @@ class FogOfWarTool:
                     min(start[1], end[1]) <= y <= max(start[1], end[1])):
                     return True
         return False
+    
+    def _invalidate_fog_polygon(self):
+        """Invalidate the fog polygon cache in RenderManager"""
+        if hasattr(self.context, 'RenderManager') and self.context.RenderManager:
+            self.context.RenderManager.invalidate_fog_polygon()
+    
+    def _update_fog_polygon(self):
+        """Update fog polygon in RenderManager using current rectangles"""
+        if hasattr(self.context, 'RenderManager') and self.context.RenderManager:
+            table = getattr(self.context, 'current_table', None)
+            self.context.RenderManager.compute_fog_polygon(self.hide_rectangles, self.reveal_rectangles, table)

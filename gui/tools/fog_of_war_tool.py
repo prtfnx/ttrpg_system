@@ -85,7 +85,7 @@ class FogOfWarTool:
         
         # Update fog layer and polygon
         self._update_fog_layer()
-        self._invalidate_fog_polygon()
+        self._invalidate_fog_polygon(force_rebuild=True)  # Force rebuild since we're clearing and adding new
         
         logger.info("Hidden entire table with fog of war")
         if hasattr(self.context, 'add_chat_message'):
@@ -97,7 +97,7 @@ class FogOfWarTool:
         self.hide_rectangles.clear()
         self.reveal_rectangles.clear()
         self._update_fog_layer()
-        self._invalidate_fog_polygon()
+        self._invalidate_fog_polygon(force_rebuild=True)  # Force rebuild since we're clearing all
         
         logger.info("Revealed entire table (cleared fog of war)")
         if hasattr(self.context, 'add_chat_message'):
@@ -131,8 +131,9 @@ class FogOfWarTool:
             self.fog_rectangles.append(fog_rect)
             self._update_fog_layer()
             
-            # Invalidate fog polygon cache
+            # Invalidate fog polygon cache and force update
             self._invalidate_fog_polygon()
+            self._update_fog_polygon()  # Force immediate update
             
             logger.info(f"Saved fog rectangle: {self.current_mode} from {fog_rect['start']} to {fog_rect['end']}")
             if hasattr(self.context, 'add_chat_message'):
@@ -144,7 +145,7 @@ class FogOfWarTool:
         self.hide_rectangles.clear()
         self.reveal_rectangles.clear()
         self._update_fog_layer()
-        self._invalidate_fog_polygon()
+        self._invalidate_fog_polygon(force_rebuild=True)  # Force rebuild since we're clearing all
         logger.info("Cleared all fog of war rectangles")
     
     def _initialize_fog_layer(self):
@@ -262,7 +263,7 @@ class FogOfWarTool:
             # Compute fog polygon if rectangles exist
             if self.hide_rectangles or self.reveal_rectangles:
                 table = getattr(self.context, 'current_table', None)
-                render_manager.compute_fog_polygon(self.hide_rectangles, self.reveal_rectangles, table)
+                render_manager.compute_fog_polygon(self.hide_rectangles, self.reveal_rectangles, table, self.context)
                 # Note: Fog polygon will be rendered by the layer system, not here
         
         # Render current rectangle being drawn (GM preview only)
@@ -331,13 +332,18 @@ class FogOfWarTool:
                     return True
         return False
     
-    def _invalidate_fog_polygon(self):
-        """Invalidate the fog polygon cache in RenderManager"""
+    def _invalidate_fog_polygon(self, force_rebuild: bool = False):
+        """
+        Invalidate the fog polygon cache in RenderManager.
+        
+        Args:
+            force_rebuild: If True, clears cached rectangles for complete rebuild
+        """
         if hasattr(self.context, 'RenderManager') and self.context.RenderManager:
-            self.context.RenderManager.invalidate_fog_polygon()
+            self.context.RenderManager.invalidate_fog_polygon(force_rebuild=force_rebuild)
     
     def _update_fog_polygon(self):
         """Update fog polygon in RenderManager using current rectangles"""
         if hasattr(self.context, 'RenderManager') and self.context.RenderManager:
             table = getattr(self.context, 'current_table', None)
-            self.context.RenderManager.compute_fog_polygon(self.hide_rectangles, self.reveal_rectangles, table)
+            self.context.RenderManager.compute_fog_polygon(self.hide_rectangles, self.reveal_rectangles, table, self.context)

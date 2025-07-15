@@ -546,18 +546,27 @@ class GuiActionsBridge:
             if is_gm:
                 # GM mode - show all layers and panels
                 logger.info("Switched to GM mode - full access enabled")
-            else:
-                # Player mode - restrict to tokens and light layers only
                 if hasattr(self.context, 'RenderManager') and self.context.RenderManager:
                     render_manager = self.context.RenderManager
-                    # Hide all layers except tokens and light
+                    # Show all layers in GM mode
                     for layer_name in self.get_available_layers():
-                        if layer_name not in ['tokens', 'light']:
-                            render_manager.set_layer_visibility(layer_name, False)
-                        else:
+                        render_manager.set_layer_visibility(layer_name, True)
+            else:
+                # Player mode - restrict to specific layers but keep fog_of_war visible
+                if hasattr(self.context, 'RenderManager') and self.context.RenderManager:
+                    render_manager = self.context.RenderManager
+                    # Hide most layers except tokens, light, and fog_of_war
+                    for layer_name in self.get_available_layers():
+                        if layer_name in ['tokens', 'light', 'fog_of_war']:
                             render_manager.set_layer_visibility(layer_name, True)
+                        else:
+                            render_manager.set_layer_visibility(layer_name, False)
                 
-                logger.info("Switched to Player mode - restricted access")
+                logger.info("Switched to Player mode - restricted access with fog visible")
+            
+            # Force fog polygon regeneration for role change
+            if hasattr(self.context, 'RenderManager') and self.context.RenderManager:
+                self.context.RenderManager.force_fog_polygon_regeneration()
             
             return True
         except Exception as e:

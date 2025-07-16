@@ -41,15 +41,12 @@ class RenderManager():
         self.view_distance: int = 500  # TODO: take from player
         self.visibility_polygon_vertices: Optional[ctypes.Array] = None
         
-        # Fog of war polygon caching - support multiple polygons
-        self.fog_polygon_vertices_list: List[ctypes.Array] = []
-        self.fog_polygon_dirty: bool = True
-        self._cached_fog_rectangles: Optional[Tuple] = None
-        
         # Fog of war texture-based rendering
         self.fog_texture: Optional[sdl3.SDL_Texture] = None
         self.fog_texture_dirty: bool = True
-        self.fog_texture_size: Tuple[int, int] = (0, 0)
+        self.fog_texture_size: Optional[Tuple[int, int]] = None
+        self._cached_fog_rectangles: Optional[Tuple] = None
+        self._cached_viewport_state: Optional[Tuple[float, float, float]] = None
 
     def _apply_layer_settings(self):
         sdl3.SDL_SetRenderDrawColor(self.renderer, 
@@ -147,7 +144,7 @@ class RenderManager():
                 tool = context.fog_of_war_tool
                 if tool.hide_rectangles or tool.reveal_rectangles:
                     table = getattr(context, 'current_table', None)
-                    self.render_fog_layer_stencil(tool.hide_rectangles, tool.reveal_rectangles, table, context)
+                    self.render_fog_layer_texture(tool.hide_rectangles, tool.reveal_rectangles, table, context)
             return
         
         # Render sprites in the layer
@@ -504,121 +501,93 @@ class RenderManager():
         if fog_of_war_tool and fog_of_war_tool.active:
             fog_of_war_tool.render(self.renderer)
 
-    def invalidate_fog_polygon(self, force_rebuild: bool = False):
-        """
-        Invalidate the fog polygon cache to force recomputation on next render.
-        
-        Args:
-            force_rebuild: If True, clears cached rectangles (complete rebuild)
-                          If False, keeps cached rectangles (for role switching)
-        """
-        self.fog_polygon_dirty = True
-        if force_rebuild:
-            self._cached_fog_rectangles = None
-            logger.debug("Fog polygon cache invalidated (force rebuild)")
-        else:
-            logger.debug("Fog polygon cache invalidated (keeping cached rectangles)")
-        self.fog_polygon_vertices_list.clear()
-        
-    def force_fog_polygon_regeneration(self):
-        """Force fog polygon regeneration (e.g., when user role changes)"""
-        self.invalidate_fog_polygon(force_rebuild=False)  # Don't clear cached rectangles
-        logger.debug("Fog polygon forced regeneration")
-
-    def compute_fog_polygon(self, hide_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]], 
-                           reveal_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]],
-                           table: Optional[ContextTable] = None, context=None) -> bool:
-        """
-        Compute fog of war polygon vertices using GeometricManager.
-        Supports multiple separate fog polygons.
-        
-        Args:
-            hide_rectangles: List of rectangle tuples to hide
-            reveal_rectangles: List of rectangle tuples to reveal
-            table: Table context for coordinate conversion
-            context: Context for determining user role (GM vs player)
-            
-        Returns:
-            bool: True if polygon was recomputed, False if using cached version
-        """
-        # Check if rectangles changed
-        current_rectangles = (hide_rectangles, reveal_rectangles)
-        rectangles_changed = (current_rectangles != self._cached_fog_rectangles)
-        
-        # Determine fog color based on user role
-        is_gm = context and hasattr(context, 'is_gm') and context.is_gm
-        current_fog_color = (0.5, 0.5, 0.5, 0.3) if is_gm else (0.0, 0.0, 0.0, 1.0)
-        
-        # Check if we need to regenerate due to role change
-        role_changed = False
-        if self.fog_polygon_vertices_list and len(self.fog_polygon_vertices_list) > 0:
-            # Check current color of first vertex
-            first_vertex = self.fog_polygon_vertices_list[0][0]
-            cached_color = (first_vertex.color.r, first_vertex.color.g, first_vertex.color.b, first_vertex.color.a)
-            
-            # If colors don't match, role changed
-            if abs(cached_color[0] - current_fog_color[0]) > 0.01:
-                role_changed = True
-                logger.debug(f"Role changed detected: cached_color={cached_color}, current_color={current_fog_color}")
-        
-        # Only regenerate if rectangles changed OR role changed OR forced dirty
-        if not self.fog_polygon_dirty and not rectangles_changed and not role_changed:
-            logger.debug("Using cached fog polygons")
-            return False  # Use cached vertices
-        
-        # If only role changed (not rectangles), use cached rectangles
-        if role_changed and not rectangles_changed and self._cached_fog_rectangles:
-            logger.debug("Role changed but rectangles unchanged, using cached rectangles")
-            hide_rectangles, reveal_rectangles = self._cached_fog_rectangles
-            current_rectangles = self._cached_fog_rectangles
-        
-        # Compute multiple fog polygons
-        fog_polygons = self.GeometricManager.compute_fog_polygons(hide_rectangles, reveal_rectangles)
-        
-        # Clear previous vertices
-        self.fog_polygon_vertices_list.clear()
-        
-        # Convert each polygon to SDL vertices
-        for fog_polygon in fog_polygons:
-            if fog_polygon.shape[0] > 0:
-                # Convert polygon vertices from table coordinates to screen coordinates
-                if table and hasattr(table, 'table_to_screen'):
-                    screen_vertices = []
-                    for vertex in fog_polygon:
-                        screen_x, screen_y = table.table_to_screen(vertex[0], vertex[1])
-                        screen_vertices.append([screen_x, screen_y])
-                    screen_polygon = np.array(screen_vertices)
-                else:
-                    screen_polygon = fog_polygon
-                
-                # Convert polygon to SDL vertices
-                vertices = self.GeometricManager.polygon_to_sdl_vertices(screen_polygon, color=current_fog_color)
-                self.fog_polygon_vertices_list.append(vertices)
-        
-        # Cache the rectangles and mark as clean
-        self._cached_fog_rectangles = current_rectangles
-        self.fog_polygon_dirty = False
-        
-        logger.debug(f"Fog polygons computed: {len(fog_polygons)} separate polygons, GM mode: {is_gm}, role_changed: {role_changed}")
-        return True
-
-    def render_fog_layer_stencil(self, hide_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]], 
+    def render_fog_layer_texture(self, hide_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]], 
                                 reveal_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]],
                                 table: Optional[ContextTable] = None, context=None):
         """
-        Render fog of war using simple rectangle rendering - avoiding triangulation issues.
-        This approach renders each rectangle individually without complex polygon operations.
+        Render fog of war using texture-based approach - efficient and supports proper reveal rectangles.
+        Uses render target texture with proper blend modes for hide/reveal operations.
         """
         if not hide_rectangles and not reveal_rectangles:
             return
         
+        # Check if we need to rebuild the fog texture
+        current_rectangles = (hide_rectangles, reveal_rectangles)
+        current_viewport_state = (table.viewport_x, table.viewport_y, table.table_scale) if table else None
+        is_gm = context and hasattr(context, 'is_gm') and context.is_gm
+        
+        if (self.fog_texture_dirty or 
+            current_rectangles != self._cached_fog_rectangles or
+            current_viewport_state != self._cached_viewport_state or
+            self._texture_needs_resize(table)):
+            self._rebuild_fog_texture(hide_rectangles, reveal_rectangles, table, context)
+            
+        # Render the cached fog texture positioned at the table's screen area
+        if self.fog_texture and table and table.screen_area:
+            table_screen_x, table_screen_y, table_width, table_height = table.screen_area
+            
+            # Create destination rectangle for the fog texture at table position
+            dest_rect = sdl3.SDL_FRect(
+                ctypes.c_float(table_screen_x),
+                ctypes.c_float(table_screen_y),
+                ctypes.c_float(table_width),
+                ctypes.c_float(table_height)
+            )
+            
+            # Render fog texture positioned at the table's screen area
+            sdl3.SDL_RenderTexture(self.renderer, self.fog_texture, None, ctypes.byref(dest_rect))
+    
+    def _texture_needs_resize(self, table: Optional[ContextTable]) -> bool:
+        """Check if fog texture needs to be resized based on current screen area"""
+        if not table or not table.screen_area:
+            return False
+            
+        _, _, width, height = table.screen_area
+        return not self.fog_texture_size or (width, height) != self.fog_texture_size
+    
+    def _rebuild_fog_texture(self, hide_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]], 
+                            reveal_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]],
+                            table: Optional[ContextTable], context=None):
+        """Rebuild the fog texture with current rectangles"""
+        if not table or not table.screen_area:
+            return
+            
+        _, _, width, height = table.screen_area
+        
+        # Create texture only if it doesn't exist or size changed
+        texture_size_changed = not self.fog_texture or not self.fog_texture_size or (width, height) != self.fog_texture_size
+        
+        if texture_size_changed:
+            if self.fog_texture:
+                sdl3.SDL_DestroyTexture(self.fog_texture)
+                
+            self.fog_texture = sdl3.SDL_CreateTexture(
+                self.renderer,
+                sdl3.SDL_PIXELFORMAT_RGBA8888,
+                sdl3.SDL_TEXTUREACCESS_TARGET,
+                ctypes.c_int(width),
+                ctypes.c_int(height)
+            )
+            
+            # Enable alpha blending for the texture
+            sdl3.SDL_SetTextureBlendMode(self.fog_texture, sdl3.SDL_BLENDMODE_BLEND)
+            self.fog_texture_size = (width, height)
+            
+        # Set render target to fog texture for drawing
+        sdl3.SDL_SetRenderTarget(self.renderer, self.fog_texture)
+        
+        # Clear texture to fully transparent (this is much faster than recreating)
+        sdl3.SDL_SetRenderDrawColor(self.renderer, 
+                                   ctypes.c_ubyte(0), ctypes.c_ubyte(0), 
+                                   ctypes.c_ubyte(0), ctypes.c_ubyte(0))
+        sdl3.SDL_RenderClear(self.renderer)
+        
         # Determine fog color based on user role
         is_gm = context and hasattr(context, 'is_gm') and context.is_gm
         
-        # Set blend mode for proper alpha blending
+        # Draw hide rectangles with fog color and alpha blending
         sdl3.SDL_SetRenderDrawBlendMode(self.renderer, sdl3.SDL_BLENDMODE_BLEND)
         
-        # First, render all hide rectangles as fog
         if is_gm:
             # GM sees semi-transparent gray fog
             sdl3.SDL_SetRenderDrawColor(self.renderer, 
@@ -630,85 +599,76 @@ class RenderManager():
                                        ctypes.c_ubyte(0), ctypes.c_ubyte(0), 
                                        ctypes.c_ubyte(0), ctypes.c_ubyte(255))
         
-        # Render each hide rectangle individually
+        # Render each hide rectangle
         for rect in hide_rectangles:
             self._render_rectangle_filled(rect, table)
         
-        # For reveal rectangles, we need to "cut holes" in the fog
-        # We'll use a simple approach: render reveal rectangles with background color
+        # Draw reveal rectangles with transparent color to "erase" fog
         if reveal_rectangles:
-            # Set color to match the background (table background)
+            # Use SDL_BLENDMODE_NONE to directly overwrite fog pixels with transparent color
+            sdl3.SDL_SetRenderDrawBlendMode(self.renderer, sdl3.SDL_BLENDMODE_NONE)
             sdl3.SDL_SetRenderDrawColor(self.renderer, 
-                                       ctypes.c_ubyte(64), ctypes.c_ubyte(64), 
-                                       ctypes.c_ubyte(64), ctypes.c_ubyte(255))
+                                       ctypes.c_ubyte(0), ctypes.c_ubyte(0), 
+                                       ctypes.c_ubyte(0), ctypes.c_ubyte(0))  # Fully transparent
             
-            # Render each reveal rectangle to "erase" fog
+            # Render each reveal rectangle to create holes in fog
             for rect in reveal_rectangles:
                 self._render_rectangle_filled(rect, table)
         
-        # Reset blend mode
-        sdl3.SDL_SetRenderDrawBlendMode(self.renderer, sdl3.SDL_BLENDMODE_NONE)
-    
-    def _render_rectangle_to_stencil(self, rect: Tuple[Tuple[float, float], Tuple[float, float]], 
-                                   table: Optional[ContextTable], increment: bool):
-        """Render rectangle to stencil buffer with increment/decrement operation"""
-        (x1, y1), (x2, y2) = rect
+        # Reset render target to screen
+        sdl3.SDL_SetRenderTarget(self.renderer, None)
         
-        # Convert table coordinates to screen coordinates
-        if table and hasattr(table, 'table_to_screen'):
-            screen_x1, screen_y1 = table.table_to_screen(x1, y1)
-            screen_x2, screen_y2 = table.table_to_screen(x2, y2)
-        else:
-            screen_x1, screen_y1, screen_x2, screen_y2 = x1, y1, x2, y2
-        
-        # Create SDL rectangle
-        rect_sdl = sdl3.SDL_FRect(
-            float(min(screen_x1, screen_x2)),
-            float(min(screen_y1, screen_y2)),
-            float(abs(screen_x2 - screen_x1)),
-            float(abs(screen_y2 - screen_y1))
-        )
-        
-        # Render rectangle (stencil operations handled by SDL state)
-        sdl3.SDL_RenderFillRect(self.renderer, ctypes.byref(rect_sdl))
+        # Cache the rectangles, viewport state, and mark texture as clean
+        self._cached_fog_rectangles = (hide_rectangles, reveal_rectangles)
+        self._cached_viewport_state = (table.viewport_x, table.viewport_y, table.table_scale)
+        self.fog_texture_dirty = False
     
     def _render_rectangle_filled(self, rect: Tuple[Tuple[float, float], Tuple[float, float]], 
                                 table: Optional[ContextTable]):
-        """Render a filled rectangle directly to the screen"""
+        """Helper method to render a filled rectangle with proper coordinate transformation for fog texture"""
+        if not table or not table.screen_area:
+            return
+            
         (x1, y1), (x2, y2) = rect
         
         # Convert table coordinates to screen coordinates
-        if table and hasattr(table, 'table_to_screen'):
-            screen_x1, screen_y1 = table.table_to_screen(x1, y1)
-            screen_x2, screen_y2 = table.table_to_screen(x2, y2)
-        else:
-            screen_x1, screen_y1, screen_x2, screen_y2 = x1, y1, x2, y2
+        screen_x1, screen_y1 = table.table_to_screen(x1, y1)
+        screen_x2, screen_y2 = table.table_to_screen(x2, y2)
         
-        # Create SDL rectangle using proper initialization
-        rect_sdl = sdl3.SDL_FRect()
-        rect_sdl.x = ctypes.c_float(min(screen_x1, screen_x2))
-        rect_sdl.y = ctypes.c_float(min(screen_y1, screen_y2))
-        rect_sdl.w = ctypes.c_float(abs(screen_x2 - screen_x1))
-        rect_sdl.h = ctypes.c_float(abs(screen_y2 - screen_y1))
+        # Get table's screen area offset
+        table_screen_x, table_screen_y, _, _ = table.screen_area
+        
+        # Convert to texture-relative coordinates (relative to table's screen area)
+        texture_x1 = screen_x1 - table_screen_x
+        texture_y1 = screen_y1 - table_screen_y
+        texture_x2 = screen_x2 - table_screen_x
+        texture_y2 = screen_y2 - table_screen_y
+        
+        # Ensure proper rectangle bounds
+        left = min(texture_x1, texture_x2)
+        top = min(texture_y1, texture_y2)
+        width = abs(texture_x2 - texture_x1)
+        height = abs(texture_y2 - texture_y1)
+        
+        # Create SDL rectangle
+        rect_sdl = sdl3.SDL_FRect(
+            ctypes.c_float(left),
+            ctypes.c_float(top),
+            ctypes.c_float(width),
+            ctypes.c_float(height)
+        )
         
         # Render filled rectangle
         sdl3.SDL_RenderFillRect(self.renderer, ctypes.byref(rect_sdl))
-
-    def render_fog_layer(self, is_selected_layer: bool = True, context=None):
-        """
-        DEACTIVATED: Old triangulation approach - kept for reference
-        Render fog of war layer using pre-computed vertices with embedded colors
-        """
-        if not self.fog_polygon_vertices_list:
-            return
+    
+    def reset_fog_texture(self):
+        """Reset the cached fog texture to force rebuild on next render"""
+        self.fog_texture_dirty = True
+        self._cached_fog_rectangles = None
+        self._cached_viewport_state = None
         
-        # Set blend mode for proper transparency
-        sdl3.SDL_SetRenderDrawBlendMode(self.renderer, sdl3.SDL_BLENDMODE_BLEND)
-        
-        # Render each fog polygon
-        for fog_vertices in self.fog_polygon_vertices_list:
-            if fog_vertices:
-                sdl3.SDL_RenderGeometry(self.renderer, None, 
-                                      fog_vertices, 
-                                      len(fog_vertices), 
-                                      None, 0)
+        # Optionally destroy the texture to free memory
+        if self.fog_texture:
+            sdl3.SDL_DestroyTexture(self.fog_texture)
+            self.fog_texture = None
+            self.fog_texture_size = None

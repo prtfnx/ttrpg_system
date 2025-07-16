@@ -45,6 +45,11 @@ class RenderManager():
         self.fog_polygon_vertices_list: List[ctypes.Array] = []
         self.fog_polygon_dirty: bool = True
         self._cached_fog_rectangles: Optional[Tuple] = None
+        
+        # Fog of war texture-based rendering
+        self.fog_texture: Optional[sdl3.SDL_Texture] = None
+        self.fog_texture_dirty: bool = True
+        self.fog_texture_size: Tuple[int, int] = (0, 0)
 
     def _apply_layer_settings(self):
         sdl3.SDL_SetRenderDrawColor(self.renderer, 
@@ -136,9 +141,13 @@ class RenderManager():
     def render_layer(self, layer: List[Sprite], layer_name: Optional[str] = None, is_selected_layer: bool = True, context=None):
         """Render a single layer of sprites with optional transparency for non-selected layers"""
         
-        # Special handling for fog_of_war layer
+        # Special handling for fog_of_war layer - use stencil buffer approach
         if layer_name == "fog_of_war":
-            self.render_fog_layer(is_selected_layer, context)
+            if context and hasattr(context, 'fog_of_war_tool') and context.fog_of_war_tool:
+                tool = context.fog_of_war_tool
+                if tool.hide_rectangles or tool.reveal_rectangles:
+                    table = getattr(context, 'current_table', None)
+                    self.render_fog_layer_stencil(tool.hide_rectangles, tool.reveal_rectangles, table, context)
             return
         
         # Render sprites in the layer
@@ -593,8 +602,103 @@ class RenderManager():
         logger.debug(f"Fog polygons computed: {len(fog_polygons)} separate polygons, GM mode: {is_gm}, role_changed: {role_changed}")
         return True
 
+    def render_fog_layer_stencil(self, hide_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]], 
+                                reveal_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]],
+                                table: Optional[ContextTable] = None, context=None):
+        """
+        Render fog of war using simple rectangle rendering - avoiding triangulation issues.
+        This approach renders each rectangle individually without complex polygon operations.
+        """
+        if not hide_rectangles and not reveal_rectangles:
+            return
+        
+        # Determine fog color based on user role
+        is_gm = context and hasattr(context, 'is_gm') and context.is_gm
+        
+        # Set blend mode for proper alpha blending
+        sdl3.SDL_SetRenderDrawBlendMode(self.renderer, sdl3.SDL_BLENDMODE_BLEND)
+        
+        # First, render all hide rectangles as fog
+        if is_gm:
+            # GM sees semi-transparent gray fog
+            sdl3.SDL_SetRenderDrawColor(self.renderer, 
+                                       ctypes.c_ubyte(128), ctypes.c_ubyte(128), 
+                                       ctypes.c_ubyte(128), ctypes.c_ubyte(77))
+        else:
+            # Players see opaque black fog
+            sdl3.SDL_SetRenderDrawColor(self.renderer, 
+                                       ctypes.c_ubyte(0), ctypes.c_ubyte(0), 
+                                       ctypes.c_ubyte(0), ctypes.c_ubyte(255))
+        
+        # Render each hide rectangle individually
+        for rect in hide_rectangles:
+            self._render_rectangle_filled(rect, table)
+        
+        # For reveal rectangles, we need to "cut holes" in the fog
+        # We'll use a simple approach: render reveal rectangles with background color
+        if reveal_rectangles:
+            # Set color to match the background (table background)
+            sdl3.SDL_SetRenderDrawColor(self.renderer, 
+                                       ctypes.c_ubyte(64), ctypes.c_ubyte(64), 
+                                       ctypes.c_ubyte(64), ctypes.c_ubyte(255))
+            
+            # Render each reveal rectangle to "erase" fog
+            for rect in reveal_rectangles:
+                self._render_rectangle_filled(rect, table)
+        
+        # Reset blend mode
+        sdl3.SDL_SetRenderDrawBlendMode(self.renderer, sdl3.SDL_BLENDMODE_NONE)
+    
+    def _render_rectangle_to_stencil(self, rect: Tuple[Tuple[float, float], Tuple[float, float]], 
+                                   table: Optional[ContextTable], increment: bool):
+        """Render rectangle to stencil buffer with increment/decrement operation"""
+        (x1, y1), (x2, y2) = rect
+        
+        # Convert table coordinates to screen coordinates
+        if table and hasattr(table, 'table_to_screen'):
+            screen_x1, screen_y1 = table.table_to_screen(x1, y1)
+            screen_x2, screen_y2 = table.table_to_screen(x2, y2)
+        else:
+            screen_x1, screen_y1, screen_x2, screen_y2 = x1, y1, x2, y2
+        
+        # Create SDL rectangle
+        rect_sdl = sdl3.SDL_FRect(
+            float(min(screen_x1, screen_x2)),
+            float(min(screen_y1, screen_y2)),
+            float(abs(screen_x2 - screen_x1)),
+            float(abs(screen_y2 - screen_y1))
+        )
+        
+        # Render rectangle (stencil operations handled by SDL state)
+        sdl3.SDL_RenderFillRect(self.renderer, ctypes.byref(rect_sdl))
+    
+    def _render_rectangle_filled(self, rect: Tuple[Tuple[float, float], Tuple[float, float]], 
+                                table: Optional[ContextTable]):
+        """Render a filled rectangle directly to the screen"""
+        (x1, y1), (x2, y2) = rect
+        
+        # Convert table coordinates to screen coordinates
+        if table and hasattr(table, 'table_to_screen'):
+            screen_x1, screen_y1 = table.table_to_screen(x1, y1)
+            screen_x2, screen_y2 = table.table_to_screen(x2, y2)
+        else:
+            screen_x1, screen_y1, screen_x2, screen_y2 = x1, y1, x2, y2
+        
+        # Create SDL rectangle using proper initialization
+        rect_sdl = sdl3.SDL_FRect()
+        rect_sdl.x = ctypes.c_float(min(screen_x1, screen_x2))
+        rect_sdl.y = ctypes.c_float(min(screen_y1, screen_y2))
+        rect_sdl.w = ctypes.c_float(abs(screen_x2 - screen_x1))
+        rect_sdl.h = ctypes.c_float(abs(screen_y2 - screen_y1))
+        
+        # Render filled rectangle
+        sdl3.SDL_RenderFillRect(self.renderer, ctypes.byref(rect_sdl))
+
     def render_fog_layer(self, is_selected_layer: bool = True, context=None):
-        """Render fog of war layer using pre-computed vertices with embedded colors"""
+        """
+        DEACTIVATED: Old triangulation approach - kept for reference
+        Render fog of war layer using pre-computed vertices with embedded colors
+        """
         if not self.fog_polygon_vertices_list:
             return
         

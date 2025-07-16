@@ -83,9 +83,9 @@ class FogOfWarTool:
         }
         self.fog_rectangles.append(fog_rect)
         
-        # Update fog layer and polygon
+        # Update fog layer
         self._update_fog_layer()
-        self._invalidate_fog_polygon(force_rebuild=True)  # Force rebuild since we're clearing and adding new
+        self._reset_fog_texture()
         
         logger.info("Hidden entire table with fog of war")
         if hasattr(self.context, 'add_chat_message'):
@@ -97,7 +97,7 @@ class FogOfWarTool:
         self.hide_rectangles.clear()
         self.reveal_rectangles.clear()
         self._update_fog_layer()
-        self._invalidate_fog_polygon(force_rebuild=True)  # Force rebuild since we're clearing all
+        self._reset_fog_texture()
         
         logger.info("Revealed entire table (cleared fog of war)")
         if hasattr(self.context, 'add_chat_message'):
@@ -131,9 +131,8 @@ class FogOfWarTool:
             self.fog_rectangles.append(fog_rect)
             self._update_fog_layer()
             
-            # Invalidate fog polygon cache and force update
-            self._invalidate_fog_polygon()
-            self._update_fog_polygon()  # Force immediate update
+            # Invalidate fog texture for rebuild
+            self._reset_fog_texture()
             
             logger.info(f"Saved fog rectangle: {self.current_mode} from {fog_rect['start']} to {fog_rect['end']}")
             if hasattr(self.context, 'add_chat_message'):
@@ -145,7 +144,7 @@ class FogOfWarTool:
         self.hide_rectangles.clear()
         self.reveal_rectangles.clear()
         self._update_fog_layer()
-        self._invalidate_fog_polygon(force_rebuild=True)  # Force rebuild since we're clearing all
+        self._reset_fog_texture()
         logger.info("Cleared all fog of war rectangles")
     
     def _initialize_fog_layer(self):
@@ -239,32 +238,16 @@ class FogOfWarTool:
     
     def _screen_to_table_coords(self, screen_x: float, screen_y: float) -> Tuple[float, float]:
         """Convert screen coordinates to table coordinates"""
-        # Use the same coordinate conversion as other tools
         if hasattr(self.context.current_table, 'screen_to_table'):
             return self.context.current_table.screen_to_table(screen_x, screen_y)
         else:
-            # Fallback for older coordinate system
-            table_scale = getattr(self.context.current_table, 'scale', 1.0)
-            table_x_offset = getattr(self.context.current_table, 'x_moved', 0)
-            table_y_offset = getattr(self.context.current_table, 'y_moved', 0)
-            table_x = (screen_x - table_x_offset) / table_scale
-            table_y = (screen_y - table_y_offset) / table_scale
-            return (table_x, table_y)
+            logger.error("Table does not have screen_to_table method")
+            return (screen_x, screen_y)
     
     def render(self, renderer):
-        """Render fog of war using polygon system"""
+        """Render fog of war preview for GM"""
         if not self.active:
             return
-        
-        # Update fog polygon if needed
-        if hasattr(self.context, 'RenderManager') and self.context.RenderManager:
-            render_manager = self.context.RenderManager
-            
-            # Compute fog polygon if rectangles exist
-            if self.hide_rectangles or self.reveal_rectangles:
-                table = getattr(self.context, 'current_table', None)
-                render_manager.compute_fog_polygon(self.hide_rectangles, self.reveal_rectangles, table, self.context)
-                # Note: Fog polygon will be rendered by the layer system, not here
         
         # Render current rectangle being drawn (GM preview only)
         is_gm = hasattr(self.context, 'is_gm') and self.context.is_gm
@@ -285,14 +268,8 @@ class FogOfWarTool:
                 start_screen_x, start_screen_y = self.context.current_table.table_to_screen(start[0], start[1])
                 end_screen_x, end_screen_y = self.context.current_table.table_to_screen(end[0], end[1])
             else:
-                # Fallback for older coordinate system
-                table_scale = getattr(self.context.current_table, 'scale', 1.0)
-                table_x_offset = getattr(self.context.current_table, 'x_moved', 0)
-                table_y_offset = getattr(self.context.current_table, 'y_moved', 0)
-                start_screen_x = start[0] * table_scale + table_x_offset
-                start_screen_y = start[1] * table_scale + table_y_offset
-                end_screen_x = end[0] * table_scale + table_x_offset
-                end_screen_y = end[1] * table_scale + table_y_offset
+                logger.error("Table does not have table_to_screen method")
+                return
             
             # Set render color
             sdl3.SDL_SetRenderDrawColorFloat(renderer, 
@@ -332,18 +309,7 @@ class FogOfWarTool:
                     return True
         return False
     
-    def _invalidate_fog_polygon(self, force_rebuild: bool = False):
-        """
-        Invalidate the fog polygon cache in RenderManager.
-        
-        Args:
-            force_rebuild: If True, clears cached rectangles for complete rebuild
-        """
+    def _reset_fog_texture(self):
+        """Reset the fog texture to force rebuild"""
         if hasattr(self.context, 'RenderManager') and self.context.RenderManager:
-            self.context.RenderManager.invalidate_fog_polygon(force_rebuild=force_rebuild)
-    
-    def _update_fog_polygon(self):
-        """Update fog polygon in RenderManager using current rectangles"""
-        if hasattr(self.context, 'RenderManager') and self.context.RenderManager:
-            table = getattr(self.context, 'current_table', None)
-            self.context.RenderManager.compute_fog_polygon(self.hide_rectangles, self.reveal_rectangles, table, self.context)
+            self.context.RenderManager.reset_fog_texture()

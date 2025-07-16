@@ -564,9 +564,9 @@ class GuiActionsBridge:
                 
                 logger.info("Switched to Player mode - restricted access with fog visible")
             
-            # Force fog polygon regeneration for role change
+            # Force fog texture regeneration for role change
             if hasattr(self.context, 'RenderManager') and self.context.RenderManager:
-                self.context.RenderManager.force_fog_polygon_regeneration()
+                self.context.RenderManager.reset_fog_texture()
             
             return True
         except Exception as e:

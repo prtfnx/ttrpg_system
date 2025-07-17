@@ -2538,5 +2538,61 @@ class Actions(ActionsProtocol):
         except Exception as e:
             logger.error(f"Error handling character delete response: {e}")
 
+    # ============================================================================
+    # FOG OF WAR METHODS
+    # ============================================================================
+    
+    def update_fog_rectangles(self, table_id: str, hide_rectangles: List, reveal_rectangles: List) -> ActionResult:
+        """Update fog of war rectangles"""
+        try:
+            if not hasattr(self.context, 'protocol') or not self.context.protocol:
+                return ActionResult(False, "Not connected to server")
+            
+            # Update local state
+            if self.context.current_table and str(self.context.current_table.table_id) == table_id:
+                fog_tool = getattr(self.context, 'fog_tool', None)
+                if fog_tool:
+                    fog_tool.hide_rectangles = hide_rectangles
+                    fog_tool.reveal_rectangles = reveal_rectangles
+                    fog_tool._update_fog_layer()
+                    fog_tool._reset_fog_texture()
+            
+            # Send to server using table update message
+            try:
+                update_data = {
+                    'table_id': table_id,
+                    'hide_rectangles': hide_rectangles,
+                    'reveal_rectangles': reveal_rectangles
+                }
+                self.context.protocol.send_update('fog_update', update_data)
+                logger.debug(f"Sent fog update to server for {table_id}")
+            except Exception as e:
+                logger.error(f"Failed to send fog update to server: {e}")
+                return ActionResult(False, f"Failed to send fog update: {str(e)}")
+            
+            return ActionResult(True, "Fog update sent")
+        except Exception as e:
+            return ActionResult(False, f"Failed to update fog: {str(e)}")
+
+    def handle_fog_update_response(self, data: Dict[str, Any]) -> None:
+        """Handle fog update response from server"""
+        try:
+            table_id = data.get('table_id')
+            fog_rectangles = data.get('fog_rectangles', {})
+            
+            if (self.context.current_table and 
+                str(self.context.current_table.table_id) == table_id):
+                
+                fog_tool = getattr(self.context, 'fog_tool', None)
+                if fog_tool:
+                    fog_tool.hide_rectangles = fog_rectangles.get('hide', [])
+                    fog_tool.reveal_rectangles = fog_rectangles.get('reveal', [])
+                    fog_tool._update_fog_layer()
+                    fog_tool._reset_fog_texture()
+                    
+            self.add_chat_message("🌫️ Fog of war updated")
+        except Exception as e:
+            logger.error(f"Error handling fog update: {e}")
+
 
 

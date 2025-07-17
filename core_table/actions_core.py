@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from .async_actions_protocol import AsyncActionsProtocol
 from .actions_protocol import ActionResult, Position, LAYERS
 from .table import VirtualTable, Entity
@@ -883,6 +883,43 @@ class ActionsCore(AsyncActionsProtocol):
             })
         except Exception as e:
             return ActionResult(False, f"Failed to get sprites in area: {str(e)}")
+    
+    # =========================================================================
+    # FOG OF WAR METHODS
+    # =========================================================================
+    
+    async def update_fog_rectangles(self, table_id: str, hide_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]], 
+                                   reveal_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]], 
+                                   session_id: Optional[int] = None) -> ActionResult:
+        """Update fog of war rectangles"""
+        try:
+            table = await self._get_table(table_id)
+            if not table:
+                return ActionResult(False, "Table not found")
+            
+            table.fog_rectangles = {'hide': hide_rectangles, 'reveal': reveal_rectangles}
+            
+            await self._add_to_history({
+                'type': 'update_fog',
+                'table_id': table_id,
+                'hide_rectangles': hide_rectangles,
+                'reveal_rectangles': reveal_rectangles
+            })
+            
+            await self._persist_table_state(table, "fog update", session_id)
+            return ActionResult(True, "Fog updated", {'fog_rectangles': table.fog_rectangles})
+        except Exception as e:
+            return ActionResult(False, f"Failed to update fog: {str(e)}")
+
+    async def get_fog_rectangles(self, table_id: str) -> ActionResult:
+        """Get current fog of war rectangles"""
+        try:
+            table = await self._get_table(table_id)
+            if not table:
+                return ActionResult(False, "Table not found")
+            return ActionResult(True, "Fog retrieved", {'fog_rectangles': table.fog_rectangles})
+        except Exception as e:
+            return ActionResult(False, f"Failed to get fog: {str(e)}")
     
     # =========================================================================
     # CHARACTER MANAGEMENT METHODS  

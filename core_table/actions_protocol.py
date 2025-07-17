@@ -152,6 +152,18 @@ class ActionsProtocol(ABC):
                            layer: Optional[str] = None) -> ActionResult:
         """Get all sprites in a rectangular area"""
         pass
+    
+    # Fog of War Actions
+    @abstractmethod
+    def update_fog_rectangles(self, table_id: str, hide_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]], 
+                             reveal_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]]) -> ActionResult:
+        """Update fog of war rectangles"""
+        pass
+    
+    @abstractmethod
+    def get_fog_rectangles(self, table_id: str) -> ActionResult:
+        """Get current fog of war rectangles"""
+        pass
 
 # Constants for layers
 LAYERS = {

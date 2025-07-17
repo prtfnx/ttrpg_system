@@ -83,6 +83,11 @@ class FogOfWarTool:
         }
         self.fog_rectangles.append(fog_rect)
         
+        # Send to server if Actions available
+        if hasattr(self.context, 'Actions') and self.context.current_table:
+            table_id = str(self.context.current_table.table_id)
+            self.context.Actions.update_fog_rectangles(table_id, self.hide_rectangles, self.reveal_rectangles)
+        
         # Update fog layer
         self._update_fog_layer()
         self._reset_fog_texture()
@@ -96,6 +101,12 @@ class FogOfWarTool:
         self.fog_rectangles.clear()
         self.hide_rectangles.clear()
         self.reveal_rectangles.clear()
+        
+        # Send clear to server if Actions available
+        if hasattr(self.context, 'Actions') and self.context.current_table:
+            table_id = str(self.context.current_table.table_id)
+            self.context.Actions.update_fog_rectangles(table_id, [], [])
+        
         self._update_fog_layer()
         self._reset_fog_texture()
         
@@ -131,6 +142,11 @@ class FogOfWarTool:
             self.fog_rectangles.append(fog_rect)
             self._update_fog_layer()
             
+            # Send to server if Actions available
+            if hasattr(self.context, 'Actions') and self.context.current_table:
+                table_id = str(self.context.current_table.table_id)
+                self.context.Actions.update_fog_rectangles(table_id, self.hide_rectangles, self.reveal_rectangles)
+            
             # Invalidate fog texture for rebuild
             self._reset_fog_texture()
             
@@ -143,6 +159,12 @@ class FogOfWarTool:
         self.fog_rectangles.clear()
         self.hide_rectangles.clear()
         self.reveal_rectangles.clear()
+        
+        # Send clear to server if Actions available
+        if hasattr(self.context, 'Actions') and self.context.current_table:
+            table_id = str(self.context.current_table.table_id)
+            self.context.Actions.update_fog_rectangles(table_id, [], [])
+        
         self._update_fog_layer()
         self._reset_fog_texture()
         logger.info("Cleared all fog of war rectangles")

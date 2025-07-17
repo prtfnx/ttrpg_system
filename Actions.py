@@ -2550,7 +2550,7 @@ class Actions(ActionsProtocol):
             
             # Update local state
             if self.context.current_table and str(self.context.current_table.table_id) == table_id:
-                fog_tool = getattr(self.context, 'fog_tool', None)
+                fog_tool = getattr(self.context, 'fog_of_war_tool', None)
                 if fog_tool:
                     fog_tool.hide_rectangles = hide_rectangles
                     fog_tool.reveal_rectangles = reveal_rectangles
@@ -2560,7 +2560,7 @@ class Actions(ActionsProtocol):
             # Send to server using table update message
             try:
                 # Use Message format that matches ServerProtocol expectations
-                from net.protocol import Message, MessageType
+                
                 
                 msg = Message(MessageType.TABLE_UPDATE, {
                     'category': 'table',
@@ -2589,17 +2589,34 @@ class Actions(ActionsProtocol):
         """Handle fog update response from server"""
         try:
             table_id = data.get('table_id')
-            fog_rectangles = data.get('fog_rectangles', {})
+            hide_rectangles = data.get('hide_rectangles', [])
+            reveal_rectangles = data.get('reveal_rectangles', [])
+            
+            logger.debug(f"Handling fog update for table {table_id}: {len(hide_rectangles)} hide, {len(reveal_rectangles)} reveal")
             
             if (self.context.current_table and 
                 str(self.context.current_table.table_id) == table_id):
                 
-                fog_tool = getattr(self.context, 'fog_tool', None)
+                # Update the table's fog_rectangles directly for persistence
+                if hasattr(self.context.current_table, 'fog_rectangles'):
+                    self.context.current_table.fog_rectangles = {
+                        'hide': hide_rectangles,
+                        'reveal': reveal_rectangles
+                    }
+                
+                # Update fog tool if available
+                fog_tool = getattr(self.context, 'fog_of_war_tool', None)
                 if fog_tool:
-                    fog_tool.hide_rectangles = fog_rectangles.get('hide', [])
-                    fog_tool.reveal_rectangles = fog_rectangles.get('reveal', [])
+                    fog_tool.hide_rectangles = hide_rectangles
+                    fog_tool.reveal_rectangles = reveal_rectangles
                     fog_tool._update_fog_layer()
                     fog_tool._reset_fog_texture()
+                    logger.debug("Updated fog tool with new rectangles")
+                else:
+                    logger.warning("Fog tool not available to update")
+                    
+                # Also store in fog_of_war layer for consistency
+                self._update_fog_layer_with_rectangles(table_id, hide_rectangles, reveal_rectangles)
                     
             self.add_chat_message("🌫️ Fog of war updated")
         except Exception as e:
@@ -2611,7 +2628,7 @@ class Actions(ActionsProtocol):
             if (self.context.current_table and 
                 str(self.context.current_table.table_id) == table_id):
                 
-                fog_tool = getattr(self.context, 'fog_tool', None)
+                fog_tool = getattr(self.context, 'fog_of_war_tool', None)
                 if fog_tool:
                     fog_data = {
                         'hide': fog_tool.hide_rectangles,
@@ -2622,6 +2639,24 @@ class Actions(ActionsProtocol):
             return ActionResult(True, "No fog data available", {'fog_rectangles': {'hide': [], 'reveal': []}})
         except Exception as e:
             return ActionResult(False, f"Failed to get fog rectangles: {str(e)}")
+
+    def _update_fog_layer_with_rectangles(self, table_id: str, hide_rectangles: List, reveal_rectangles: List):
+        """Update the table's fog rectangle data for persistence"""
+        try:
+            if not (self.context.current_table and 
+                    str(self.context.current_table.table_id) == table_id):
+                return
+            
+            # Store rectangles in the table for persistence AND rendering
+            self.context.current_table.fog_rectangles = {
+                'hide': hide_rectangles,
+                'reveal': reveal_rectangles
+            }
+            
+            logger.debug(f"Updated table fog data: {len(hide_rectangles)} hide, {len(reveal_rectangles)} reveal rectangles")
+            
+        except Exception as e:
+            logger.error(f"Error updating fog data: {e}")
 
 
 

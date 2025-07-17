@@ -2559,13 +2559,24 @@ class Actions(ActionsProtocol):
             
             # Send to server using table update message
             try:
-                update_data = {
-                    'table_id': table_id,
-                    'hide_rectangles': hide_rectangles,
-                    'reveal_rectangles': reveal_rectangles
-                }
-                self.context.protocol.send_update('fog_update', update_data)
-                logger.debug(f"Sent fog update to server for {table_id}")
+                # Use Message format that matches ServerProtocol expectations
+                from net.protocol import Message, MessageType
+                
+                msg = Message(MessageType.TABLE_UPDATE, {
+                    'category': 'table',
+                    'type': 'fog_update',
+                    'data': {
+                        'table_id': table_id,
+                        'hide_rectangles': hide_rectangles,
+                        'reveal_rectangles': reveal_rectangles
+                    }
+                })
+                
+                if hasattr(self.context.protocol, 'send'):
+                    self.context.protocol.send(msg.to_json())
+                    logger.debug(f"Sent fog update to server for {table_id}")
+                else:
+                    return ActionResult(False, "Protocol send method not available")
             except Exception as e:
                 logger.error(f"Failed to send fog update to server: {e}")
                 return ActionResult(False, f"Failed to send fog update: {str(e)}")
@@ -2593,6 +2604,24 @@ class Actions(ActionsProtocol):
             self.add_chat_message("🌫️ Fog of war updated")
         except Exception as e:
             logger.error(f"Error handling fog update: {e}")
+
+    def get_fog_rectangles(self, table_id: str) -> ActionResult:
+        """Get current fog of war rectangles from local context"""
+        try:
+            if (self.context.current_table and 
+                str(self.context.current_table.table_id) == table_id):
+                
+                fog_tool = getattr(self.context, 'fog_tool', None)
+                if fog_tool:
+                    fog_data = {
+                        'hide': fog_tool.hide_rectangles,
+                        'reveal': fog_tool.reveal_rectangles
+                    }
+                    return ActionResult(True, "Fog rectangles retrieved", {'fog_rectangles': fog_data})
+                
+            return ActionResult(True, "No fog data available", {'fog_rectangles': {'hide': [], 'reveal': []}})
+        except Exception as e:
+            return ActionResult(False, f"Failed to get fog rectangles: {str(e)}")
 
 
 

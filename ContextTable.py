@@ -16,8 +16,11 @@ class ContextTable:
         self.name = table_name  # Legacy compatibility
         self.width = width
         self.height = height
-        self.layers = ['map','tokens', 'dungeon_master', 'light', 'height', 'obstacles']
+        self.layers = ['map','tokens', 'dungeon_master', 'light', 'height', 'obstacles', 'fog_of_war']
         self.dict_of_sprites_list = {layer: [] for layer in self.layers}
+        
+        # Fog of war rectangles storage
+        self.fog_rectangles = {'hide': [], 'reveal': []}
         self.selected_sprite: Sprite | None = None
         self.selected_layer: str = 'tokens'  # Default layer for new sprites
         self.scale= scale

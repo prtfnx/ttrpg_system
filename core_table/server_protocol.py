@@ -400,7 +400,23 @@ class ServerProtocol:
                             response = Message(MessageType.SUCCESS, {
                                 'table_id': table_id,
                                 'message': f'Table {update_type} successfully'
-                            })  
+                            })
+                        case 'fog_update':
+                            session_id = self._get_session_id(msg)
+                            hide_rectangles = update_data.get('hide_rectangles', [])
+                            reveal_rectangles = update_data.get('reveal_rectangles', [])
+                            
+                            result = await self.actions.update_fog_rectangles(table_id, hide_rectangles, reveal_rectangles, session_id)
+                            
+                            if result.success:
+                                fog_data = result.data.get('fog_rectangles') if result.data else {}
+                                response = Message(MessageType.SUCCESS, {
+                                    'table_id': table_id,
+                                    'message': 'Fog updated successfully',
+                                    'fog_rectangles': fog_data
+                                })
+                            else:
+                                response_error = Message(MessageType.ERROR, {'error': result.message})
                         case _:
                             logger.error(f"Unknown table update type: {update_type} from {client_id}")
                             response_error = Message(MessageType.ERROR, {

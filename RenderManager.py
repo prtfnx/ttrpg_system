@@ -140,11 +140,23 @@ class RenderManager():
         
         # Special handling for fog_of_war layer - use stencil buffer approach
         if layer_name == "fog_of_war":
-            if context and hasattr(context, 'fog_of_war_tool') and context.fog_of_war_tool:
+            table = getattr(context, 'current_table', None)
+            hide_rectangles = []
+            reveal_rectangles = []
+            
+            # First priority: Use fog data stored in table
+            if table and hasattr(table, 'fog_rectangles') and table.fog_rectangles:
+                hide_rectangles = table.fog_rectangles.get('hide', [])
+                reveal_rectangles = table.fog_rectangles.get('reveal', [])
+            # Fallback: Use fog tool data if no table data exists
+            elif context and hasattr(context, 'fog_of_war_tool') and context.fog_of_war_tool:
                 tool = context.fog_of_war_tool
-                if tool.hide_rectangles or tool.reveal_rectangles:
-                    table = getattr(context, 'current_table', None)
-                    self.render_fog_layer_texture(tool.hide_rectangles, tool.reveal_rectangles, table, context)
+                hide_rectangles = tool.hide_rectangles
+                reveal_rectangles = tool.reveal_rectangles
+            
+            # Render fog if we have any rectangles
+            if hide_rectangles or reveal_rectangles:
+                self.render_fog_layer_texture(hide_rectangles, reveal_rectangles, table, context)
             return
         
         # Render sprites in the layer

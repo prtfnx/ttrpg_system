@@ -223,7 +223,8 @@ class VirtualTable:
             'table_id': str(self.table_id),
             'width': self.width,
             'height': self.height,
-            'layers': self.table_to_layered_dict()  
+            'layers': self.table_to_layered_dict(),
+            'fog_rectangles': self.fog_rectangles
         }
     
     def to_json(self) -> str:
@@ -291,7 +292,15 @@ class VirtualTable:
         
         # Set next entity ID
         self.next_entity_id = max_entity_id + 1
-        logger.info(f"Loaded table '{self.name}' with {len(self.entities)} entities")
+        
+        # Load fog rectangles
+        fog_data = data.get('fog_rectangles', {'hide': [], 'reveal': []})
+        self.fog_rectangles = {
+            'hide': fog_data.get('hide', []),
+            'reveal': fog_data.get('reveal', [])
+        }
+        
+        logger.info(f"Loaded table '{self.name}' with {len(self.entities)} entities and {len(self.fog_rectangles['hide'])} fog rectangles")
     
     def save_to_disk(self, file_path: str):
         """Save table to disk with 'layers' format"""
@@ -307,6 +316,7 @@ class VirtualTable:
                 'width': self.width,
                 'height': self.height,
                 'layers': self.table_to_layered_dict(),  # Changed from 'entities' to 'layers'
+                'fog_rectangles': self.fog_rectangles,  # Include fog rectangles
                 'metadata': {
                     'version': '1.0',
                     'entity_count': len(self.entities),

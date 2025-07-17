@@ -329,12 +329,16 @@ class ClientProtocol:
         if category == 'sprite':
             self.apply_sprite_update(msg)
         else:
-            # Delegate table updates to Actions
-            table_id = update_data.get('table_id')
-            if table_id:
-                result = self.Actions.update_table(table_id, to_server=False, **update_data)
-                if not result.success:
-                    logger.error(f"Failed to apply table update: {result.message}")
+            # Handle fog updates specially
+            if update_type == 'fog_update':
+                self.Actions.handle_fog_update_response(update_data)
+            else:
+                # Delegate table updates to Actions
+                table_id = update_data.get('table_id')
+                if table_id:
+                    result = self.Actions.update_table(table_id, to_server=False, **update_data)
+                    if not result.success:
+                        logger.error(f"Failed to apply table update: {result.message}")
     
     def apply_sprite_update(self, message: Message):
         """Apply sprite updates from server"""

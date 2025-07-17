@@ -83,6 +83,12 @@ class VirtualTable:
         # Sprite ID to entity ID mapping for quick lookup
         self.sprite_to_entity: Dict[str, int] = {}
         
+        # Fog of war rectangles
+        self.fog_rectangles: Dict[str, List[Tuple[Tuple[float, float], Tuple[float, float]]]] = {
+            'hide': [],
+            'reveal': []
+        }
+        
         # Add missing attributes for the protocol
         self.position = (0.0, 0.0)
         self.scale = (1.0, 1.0)

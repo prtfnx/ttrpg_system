@@ -33,7 +33,53 @@ class FogOfWarTool:
         self.clear_current()
         # Initialize fog layer if needed
         self._initialize_fog_layer()
+        # Load existing fog rectangles from table
+        self._load_fog_from_table()
         logger.debug("Fog of war tool started")
+    
+    def _load_fog_from_table(self):
+        """Load existing fog rectangles from the current table"""
+        if not self.context.current_table:
+            return
+        
+        try:
+            # Load from table's fog_rectangles if available
+            if hasattr(self.context.current_table, 'fog_rectangles'):
+                fog_data = self.context.current_table.fog_rectangles
+                self.hide_rectangles = fog_data.get('hide', [])
+                self.reveal_rectangles = fog_data.get('reveal', [])
+                
+                # Rebuild fog_rectangles list from the separate lists
+                self.fog_rectangles.clear()
+                
+                for i, rect in enumerate(self.hide_rectangles):
+                    if len(rect) >= 2:
+                        fog_rect = {
+                            'start': rect[0],
+                            'end': rect[1], 
+                            'mode': 'hide',
+                            'id': f"fog_hide_{i}"
+                        }
+                        self.fog_rectangles.append(fog_rect)
+                
+                for i, rect in enumerate(self.reveal_rectangles):
+                    if len(rect) >= 2:
+                        fog_rect = {
+                            'start': rect[0],
+                            'end': rect[1],
+                            'mode': 'reveal', 
+                            'id': f"fog_reveal_{i}"
+                        }
+                        self.fog_rectangles.append(fog_rect)
+                
+                logger.debug(f"Loaded {len(self.hide_rectangles)} hide and {len(self.reveal_rectangles)} reveal rectangles from table")
+                
+                # Update fog layer and texture
+                self._update_fog_layer()
+                self._reset_fog_texture()
+            
+        except Exception as e:
+            logger.error(f"Error loading fog from table: {e}")
     
     def stop(self):
         """Stop the fog of war tool"""
@@ -140,6 +186,14 @@ class FogOfWarTool:
             }
             
             self.fog_rectangles.append(fog_rect)
+            
+            # Update table's fog_rectangles for persistence
+            if hasattr(self.context.current_table, 'fog_rectangles'):
+                self.context.current_table.fog_rectangles = {
+                    'hide': self.hide_rectangles,
+                    'reveal': self.reveal_rectangles
+                }
+            
             self._update_fog_layer()
             
             # Send to server if Actions available
@@ -160,6 +214,10 @@ class FogOfWarTool:
         self.hide_rectangles.clear()
         self.reveal_rectangles.clear()
         
+        # Update table's fog_rectangles for persistence
+        if hasattr(self.context.current_table, 'fog_rectangles'):
+            self.context.current_table.fog_rectangles = {'hide': [], 'reveal': []}
+        
         # Send clear to server if Actions available
         if hasattr(self.context, 'Actions') and self.context.current_table:
             table_id = str(self.context.current_table.table_id)
@@ -178,6 +236,10 @@ class FogOfWarTool:
         if hasattr(self.context.current_table, 'dict_of_sprites_list'):
             if 'fog_of_war' not in self.context.current_table.dict_of_sprites_list:
                 self.context.current_table.dict_of_sprites_list['fog_of_war'] = []
+            
+            # Ensure fog_rectangles exists 
+            if not hasattr(self.context.current_table, 'fog_rectangles'):
+                self.context.current_table.fog_rectangles = {'hide': [], 'reveal': []}
         
         # Configure fog layer in RenderManager
         if hasattr(self.context, 'RenderManager'):

@@ -1,4 +1,9 @@
 // Types for our TTRPG game state
+export interface Position {
+  x: number;
+  y: number;
+}
+
 export interface Sprite {
   id: string;
   name: string;

@@ -1,5 +1,5 @@
-import { GameClient } from './components/GameClient'
 import './App.css'
+import { GameClient } from './components/GameClient'
 
 function App() {
   return (

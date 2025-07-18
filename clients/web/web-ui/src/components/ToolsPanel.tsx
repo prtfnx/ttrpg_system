@@ -1,4 +1,4 @@
-import { useGameStore } from '../store'
+import { useGameStore } from '../store';
 
 export function ToolsPanel() {
   const { isConnected, sessionId, addSprite, camera } = useGameStore()

@@ -1,0 +1,64 @@
+[package]
+name = "ttrpg-rust-core"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+web-sys = "0.3"
+js-sys = "0.3"
+console_error_panic_hook = "0.1"
+wee_alloc = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde-wasm-bindgen = "0.4"
+gloo-net = "0.4"
+gloo-utils = "0.2"
+wasm-bindgen-futures = "0.4"
+getrandom = { version = "0.2", features = ["js"] }
+
+# Math and graphics
+nalgebra = "0.32"
+image = { version = "0.24", default-features = false, features = ["png", "jpeg"] }
+
+# Async
+futures = "0.3"
+tokio = { version = "1", features = ["macros", "rt"], default-features = false }
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+  "console",
+  "CanvasRenderingContext2d",
+  "HtmlCanvasElement",
+  "HtmlImageElement",
+  "ImageData",
+  "WebSocket",
+  "MessageEvent",
+  "CloseEvent",
+  "ErrorEvent",
+  "WebGl2RenderingContext",
+  "WebGlProgram",
+  "WebGlShader",
+  "WebGlBuffer",
+  "WebGlTexture",
+  "WebGlUniformLocation",
+  "Window",
+  "Document",
+  "Element",
+  "MouseEvent",
+  "KeyboardEvent",
+  "WheelEvent",
+  "TouchEvent",
+  "DragEvent",
+  "Performance",
+  "DomRect",
+  "RequestAnimationFrame",
+]
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"
+lto = true

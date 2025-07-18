@@ -1,0 +1,193 @@
+/* Modern TTRPG Client Styles */
+.app {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  background-color: #0a0a0a;
+  color: #ffffff;
+  overflow: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+/* Game Client Layout */
+.game-client {
+  display: grid;
+  grid-template-columns: 300px 1fr 300px;
+  height: 100vh;
+  gap: 1px;
+  background-color: #1a1a1a;
+}
+
+.game-panel {
+  background-color: #2a2a2a;
+  padding: 1rem;
+  overflow-y: auto;
+  border-right: 1px solid #404040;
+}
+
+.game-panel:last-child {
+  border-right: none;
+  border-left: 1px solid #404040;
+}
+
+.game-panel h2 {
+  margin-top: 0;
+  color: #ffffff;
+  font-size: 1.2rem;
+  font-weight: 600;
+  border-bottom: 1px solid #404040;
+  padding-bottom: 0.5rem;
+}
+
+/* Canvas Container */
+.canvas-container {
+  position: relative;
+  background-color: #1a1a1a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.game-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  cursor: grab;
+}
+
+.game-canvas:active {
+  cursor: grabbing;
+}
+
+/* UI Components */
+.connection-status {
+  padding: 0.5rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.connection-status.connected {
+  background-color: #064e3b;
+  color: #10b981;
+  border: 1px solid #10b981;
+}
+
+.connection-status.disconnected {
+  background-color: #7f1d1d;
+  color: #f87171;
+  border: 1px solid #f87171;
+}
+
+.sprite-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sprite-item {
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  background-color: #3a3a3a;
+  border-radius: 4px;
+  border: 1px solid #404040;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sprite-item:hover {
+  background-color: #4a4a4a;
+  border-color: #606060;
+}
+
+.sprite-item.selected {
+  background-color: #1e40af;
+  border-color: #3b82f6;
+}
+
+.sprite-item h3 {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.9rem;
+  color: #ffffff;
+}
+
+.sprite-item p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #cccccc;
+}
+
+.toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.toolbar button {
+  padding: 0.75rem;
+  background-color: #3a3a3a;
+  border: 1px solid #404040;
+  border-radius: 4px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.toolbar button:hover {
+  background-color: #4a4a4a;
+  border-color: #606060;
+}
+
+.toolbar button:active {
+  background-color: #2a2a2a;
+}
+
+.toolbar button.active {
+  background-color: #1e40af;
+  border-color: #3b82f6;
+}
+
+/* Loading State */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 1.1rem;
+  color: #cccccc;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .game-client {
+    grid-template-columns: 250px 1fr 250px;
+  }
+  
+  .game-panel {
+    padding: 0.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .game-client {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
+  }
+  
+  .game-panel {
+    max-height: 200px;
+  }
+}

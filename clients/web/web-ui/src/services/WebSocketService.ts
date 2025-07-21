@@ -112,7 +112,7 @@ export class WebSocketService {
   // Specific game actions following the protocol
   joinGame(sessionId: string) {
     this.sendMessage({
-      type: 'game_join',
+      type: 'new_table_request',
       data: { session_id: sessionId }
     });
   }
@@ -134,14 +134,14 @@ export class WebSocketService {
 
   deleteSprite(spriteId: string) {
     this.sendMessage({
-      type: 'sprite_delete',
+      type: 'sprite_remove',
       data: { sprite_id: spriteId }
     });
   }
 
   updateCamera(x: number, y: number, zoom: number) {
     this.sendMessage({
-      type: 'camera_update',
+      type: 'table_move',
       data: { x, y, zoom },
       priority: 3 // Medium priority for camera updates
     });

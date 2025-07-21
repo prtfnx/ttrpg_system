@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useGameStore } from '../store';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { useGameStore } from '../store';
 
 export function ToolsPanel() {
   const { isConnected, sessionId, sprites, camera } = useGameStore();

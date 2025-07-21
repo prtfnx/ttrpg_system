@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useGameStore } from '../store';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { useGameStore } from '../store';
 import './GameCanvas.css';
 
 declare global {

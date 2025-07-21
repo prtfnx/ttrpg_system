@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../store';
+import { useWebSocket } from '../hooks/useWebSocket';
 import './GameCanvas.css';
 
 declare global {
@@ -11,7 +12,16 @@ declare global {
 export const GameCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [renderManager, setRenderManager] = useState<any>(null);
-  const { connectionState, updateConnectionState } = useGameStore();
+  const { connectionState, updateConnectionState, sprites } = useGameStore();
+  
+  // WebSocket integration
+  const {
+    connect: connectWebSocket,
+    disconnect: disconnectWebSocket,
+    isConnected: wsConnected,
+    sendSpriteMove,
+    requestTableData
+  } = useWebSocket('ws://localhost:8000/ws');
 
   useEffect(() => {
     const loadWasm = async () => {
@@ -49,6 +59,12 @@ export const GameCanvas: React.FC = () => {
           requestAnimationFrame(renderLoop);
         }
         
+        // Connect to WebSocket after WASM is loaded
+        await connectWebSocket();
+        
+        // Request initial table data
+        requestTableData();
+        
         updateConnectionState('connected');
       } catch (error) {
         console.error('Failed to load WASM module:', error);
@@ -57,11 +73,19 @@ export const GameCanvas: React.FC = () => {
     };
 
     loadWasm();
-  }, [updateConnectionState]);
+
+    // Cleanup on unmount
+    return () => {
+      disconnectWebSocket();
+    };
+  }, [updateConnectionState, connectWebSocket, disconnectWebSocket, requestTableData]);
 
   useEffect(() => {
     if (renderManager && canvasRef.current) {
       const canvas = canvasRef.current;
+      let isDragging = false;
+      let draggedSpriteId: string | null = null;
+      let lastMousePos = { x: 0, y: 0 };
       
       // Handle canvas resize
       const resizeCanvas = () => {
@@ -78,18 +102,60 @@ export const GameCanvas: React.FC = () => {
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
         
-        // Convert to world coordinates and handle sprite selection
-        if (renderManager.screen_to_world) {
-          const worldPos = renderManager.screen_to_world(x, y);
-          console.log('Mouse clicked at world position:', worldPos);
+        lastMousePos = { x, y };
+        
+        // Check if we clicked on a sprite
+        const clickedSprite = sprites.find(sprite => {
+          return x >= sprite.x && x <= sprite.x + sprite.width &&
+                 y >= sprite.y && y <= sprite.y + sprite.height;
+        });
+        
+        if (clickedSprite) {
+          isDragging = true;
+          draggedSpriteId = clickedSprite.id;
+          canvas.style.cursor = 'grabbing';
         }
       };
       
       const handleMouseMove = (event: MouseEvent) => {
-        if (event.buttons === 1 && renderManager.pan_camera) {
-          // Pan camera on drag
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        
+        if (isDragging && draggedSpriteId) {
+          // Calculate sprite movement delta
+          const deltaX = x - lastMousePos.x;
+          const deltaY = y - lastMousePos.y;
+          
+          // Find the sprite and move it
+          const sprite = sprites.find(s => s.id === draggedSpriteId);
+          if (sprite) {
+            const newX = sprite.x + deltaX;
+            const newY = sprite.y + deltaY;
+            
+            // Send sprite move via WebSocket
+            sendSpriteMove(draggedSpriteId, newX, newY);
+          }
+          
+          lastMousePos = { x, y };
+        } else if (event.buttons === 1 && renderManager.pan_camera && !isDragging) {
+          // Pan camera on drag when not dragging sprites
           renderManager.pan_camera(event.movementX, event.movementY);
         }
+        
+        // Update cursor based on hover state
+        const hoveredSprite = sprites.find(sprite => {
+          return x >= sprite.x && x <= sprite.x + sprite.width &&
+                 y >= sprite.y && y <= sprite.y + sprite.height;
+        });
+        
+        canvas.style.cursor = hoveredSprite ? 'grab' : 'crosshair';
+      };
+      
+      const handleMouseUp = () => {
+        isDragging = false;
+        draggedSpriteId = null;
+        canvas.style.cursor = 'crosshair';
       };
       
       const handleWheel = (event: WheelEvent) => {
@@ -103,6 +169,7 @@ export const GameCanvas: React.FC = () => {
       // Add event listeners
       canvas.addEventListener('mousedown', handleMouseDown);
       canvas.addEventListener('mousemove', handleMouseMove);
+      canvas.addEventListener('mouseup', handleMouseUp);
       canvas.addEventListener('wheel', handleWheel);
       window.addEventListener('resize', resizeCanvas);
       
@@ -112,11 +179,12 @@ export const GameCanvas: React.FC = () => {
       return () => {
         canvas.removeEventListener('mousedown', handleMouseDown);
         canvas.removeEventListener('mousemove', handleMouseMove);
+        canvas.removeEventListener('mouseup', handleMouseUp);
         canvas.removeEventListener('wheel', handleWheel);
         window.removeEventListener('resize', resizeCanvas);
       };
     }
-  }, [renderManager]);
+  }, [renderManager, sprites, sendSpriteMove]);
 
   return (
     <div className="game-canvas-container">
@@ -130,10 +198,16 @@ export const GameCanvas: React.FC = () => {
         <div 
           className={`status-indicator status-${connectionState}`}
         >
-          {connectionState === 'connecting' && 'Loading WASM...'}
-          {connectionState === 'connected' && 'Ready'}
-          {connectionState === 'error' && 'Error loading'}
+          {connectionState === 'connecting' && 'Connecting...'}
+          {connectionState === 'connected' && wsConnected && 'Ready'}
+          {connectionState === 'connected' && !wsConnected && 'WASM Ready'}
+          {connectionState === 'error' && 'Connection Error'}
           {connectionState === 'disconnected' && 'Disconnected'}
+        </div>
+        
+        {/* WebSocket status */}
+        <div className={`ws-status ${wsConnected ? 'ws-connected' : 'ws-disconnected'}`}>
+          WebSocket: {wsConnected ? 'Connected' : 'Disconnected'}
         </div>
       </div>
     </div>

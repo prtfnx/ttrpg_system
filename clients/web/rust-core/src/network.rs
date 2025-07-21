@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
 use web_sys::{WebSocket, MessageEvent, CloseEvent, ErrorEvent};
-use wasm_bindgen_futures::spawn_local;
 use crate::types::*;
+use gloo_utils::format::JsValueSerdeExt;
 
 #[wasm_bindgen]
 pub struct NetworkClient {
@@ -34,7 +34,6 @@ impl NetworkClient {
         self.connection_state = ConnectionState::Connecting;
         
         // Set up event handlers
-        let ws_clone = ws.clone();
         
         // onopen handler
         let onopen_callback = Closure::wrap(Box::new(move |_| {

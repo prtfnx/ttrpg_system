@@ -2,7 +2,6 @@ use serde::{Serialize, Deserialize};
 use wasm_bindgen::prelude::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[wasm_bindgen]
 pub struct Sprite {
     pub id: String,
     pub x: f64,
@@ -17,9 +16,7 @@ pub struct Sprite {
     pub color: String,
 }
 
-#[wasm_bindgen]
 impl Sprite {
-    #[wasm_bindgen(constructor)]
     pub fn new(
         id: String,
         x: f64,
@@ -42,34 +39,9 @@ impl Sprite {
             color: "#ffffff".to_string(),
         }
     }
-
-    #[wasm_bindgen(getter)]
-    pub fn id(&self) -> String {
-        self.id.clone()
-    }
-
-    #[wasm_bindgen(getter)]
-    pub fn x(&self) -> f64 {
-        self.x
-    }
-
-    #[wasm_bindgen(setter)]
-    pub fn set_x(&mut self, x: f64) {
-        self.x = x;
-    }
-
-    #[wasm_bindgen(getter)]
-    pub fn y(&self) -> f64 {
-        self.y
-    }
-
-    #[wasm_bindgen(setter)]
-    pub fn set_y(&mut self, y: f64) {
-        self.y = y;
-    }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Camera {
     pub x: f64,
     pub y: f64,
@@ -120,5 +92,5 @@ pub struct TableUpdate {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameMessage {
     pub message_type: String,
-    pub data: serde_json::Value,
+    pub data: String,
 }

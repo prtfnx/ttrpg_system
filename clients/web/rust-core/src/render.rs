@@ -2,6 +2,7 @@ use wasm_bindgen::prelude::*;
 use web_sys::{HtmlCanvasElement, CanvasRenderingContext2d, HtmlImageElement};
 use std::collections::HashMap;
 use crate::types::*;
+use gloo_utils::format::JsValueSerdeExt;
 
 #[wasm_bindgen]
 pub struct RenderManager {
@@ -74,7 +75,7 @@ impl RenderManager {
             self.canvas.height() as f64);
 
         // Set background
-        self.context.set_fill_style(&JsValue::from_str("#1a1a1a"));
+        self.context.set_fill_style(&"#1a1a1a".into());
         self.context.fill_rect(0.0, 0.0, 
             self.canvas.width() as f64, 
             self.canvas.height() as f64);
@@ -125,7 +126,7 @@ impl RenderManager {
             )?;
         } else {
             // Draw placeholder colored rectangle
-            self.context.set_fill_style(&JsValue::from_str(&sprite.color));
+            self.context.set_fill_style(&sprite.color.as_str().into());
             self.context.fill_rect(
                 -sprite.width / 2.0, 
                 -sprite.height / 2.0, 
@@ -135,7 +136,7 @@ impl RenderManager {
         }
         
         // Draw border
-        self.context.set_stroke_style(&JsValue::from_str("#ffffff"));
+        self.context.set_stroke_style(&"#ffffff".into());
         self.context.set_line_width(1.0 / self.camera.zoom);
         self.context.stroke_rect(
             -sprite.width / 2.0, 
@@ -160,7 +161,7 @@ impl RenderManager {
             self.context.scale(sprite.scale_x, sprite.scale_y)?;
             
             // Draw selection highlight
-            self.context.set_stroke_style(&JsValue::from_str("#00ff00"));
+            self.context.set_stroke_style(&"#00ff00".into());
             self.context.set_line_width(3.0);
             self.context.stroke_rect(
                 -sprite.width / 2.0 - 5.0, 

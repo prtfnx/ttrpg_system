@@ -1,6 +1,6 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { useGameStore } from '../store';
-import { getWebSocketService, MessageType, type Message } from '../services/websocket';
+import { webSocketService, GameMessage } from '../services/WebSocketService';
 
 export const useWebSocket = (url: string) => {
   const { 

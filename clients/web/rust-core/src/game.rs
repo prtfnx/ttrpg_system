@@ -20,7 +20,8 @@ impl GameEngine {
     }
 
     #[wasm_bindgen]
-    pub fn add_sprite(&mut self, sprite: Sprite) {
+    pub fn add_sprite_from_data(&mut self, id: &str, x: f64, y: f64, width: f64, height: f64, layer: &str) {
+        let sprite = Sprite::new(id.to_string(), x, y, width, height, layer.to_string());
         self.sprites.push(sprite);
     }
 
@@ -30,8 +31,9 @@ impl GameEngine {
     }
 
     #[wasm_bindgen]
-    pub fn get_sprite(&self, sprite_id: &str) -> Option<Sprite> {
-        self.sprites.iter().find(|s| s.id == sprite_id).cloned()
+    pub fn get_sprite_data(&self, sprite_id: &str) -> Option<String> {
+        self.sprites.iter().find(|s| s.id == sprite_id)
+            .and_then(|sprite| serde_json::to_string(sprite).ok())
     }
 
     #[wasm_bindgen]

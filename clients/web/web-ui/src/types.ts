@@ -4,6 +4,8 @@ export interface Position {
   y: number;
 }
 
+export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
+
 export interface Sprite {
   id: string;
   name: string;
@@ -40,6 +42,7 @@ export interface GameState {
     zoom: number;
   };
   isConnected: boolean;
+  connectionState: ConnectionState;
   sessionId?: string;
 }
 

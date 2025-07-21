@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import type { GameState, Sprite } from './types';
+import type { ConnectionState, GameState, Sprite } from './types';
 
 interface GameStore extends GameState {
   // Actions
@@ -8,6 +8,7 @@ interface GameStore extends GameState {
   selectSprite: (id: string, multiSelect?: boolean) => void;
   updateCamera: (x: number, y: number, zoom?: number) => void;
   setConnection: (connected: boolean, sessionId?: string) => void;
+  updateConnectionState: (state: ConnectionState) => void;
   addSprite: (sprite: Sprite) => void;
   removeSprite: (id: string) => void;
   updateSprite: (id: string, updates: Partial<Sprite>) => void;
@@ -22,6 +23,7 @@ export const useGameStore = create<GameStore>()(
       selectedSprites: [],
       camera: { x: 0, y: 0, zoom: 1 },
       isConnected: false,
+      connectionState: 'disconnected',
       sessionId: undefined,
 
       // Actions
@@ -71,7 +73,15 @@ export const useGameStore = create<GameStore>()(
       setConnection: (connected: boolean, sessionId?: string) => {
         set(() => ({
           isConnected: connected,
+          connectionState: connected ? 'connected' : 'disconnected',
           sessionId,
+        }));
+      },
+
+      updateConnectionState: (state: ConnectionState) => {
+        set(() => ({
+          connectionState: state,
+          isConnected: state === 'connected',
         }));
       },
 

@@ -104,9 +104,8 @@ class Message:
     type: MessageType
     data: Optional[Dict[str, Any]] = None
     client_id: Optional[str] = None
-    timestamp: Optional[float] = None
-    # Enhanced fields for production games
-    version: str = "0.1"  # Protocol version for backward compatibility
+    timestamp: Optional[float] = None    
+    version: str = "0.1"  
     priority: int = 5     # Message priority (5=normal, 2=high, 0=critical)
     sequence_id: Optional[int] = None  # For message ordering and deduplication
     

@@ -1,11 +1,13 @@
 """
 WebSocket endpoints for game sessions
 """
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, Request
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 import json
 import logging
 import jwt
+import time
 
 from ..database.database import get_db
 from ..database import crud
@@ -15,6 +17,7 @@ from ..utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 router = APIRouter()
+templates = Jinja2Templates(directory="templates")
 
 def get_user_from_token(token: str, db: Session):
     """Get user from JWT token for WebSocket authentication"""
@@ -164,3 +167,77 @@ async def websocket_game_endpoint(
         await connection_manager.disconnect(websocket)
     finally:
         db.close()
+
+@router.get("/test")
+async def websocket_test_page(request: Request):
+    """WebSocket test page using template"""
+    return templates.TemplateResponse("websocket_test.html", {"request": request})
+
+@router.websocket("/ws")
+async def websocket_test_endpoint(websocket: WebSocket):
+    """Simple WebSocket endpoint for testing without authentication"""
+    await websocket.accept()
+    logger.info(f"Test WebSocket connection accepted from {websocket.client}")
+    
+    # Send welcome message
+    welcome_msg = {
+        "type": "welcome",
+        "data": {"session_id": "test_session_123"},
+        "timestamp": time.time()
+    }
+    await websocket.send_text(json.dumps(welcome_msg))
+    
+    try:
+        while True:
+            data = await websocket.receive_text()
+            try:
+                message = json.loads(data)
+                logger.info(f"Received test message: {message}")
+                
+                # Echo the message back or handle specific types
+                if message.get("type") == "ping":
+                    response = {
+                        "type": "pong",
+                        "timestamp": time.time()
+                    }
+                elif message.get("type") == "sprite_create":
+                    # Echo sprite creation with an ID
+                    sprite_data = message.get("data", {})
+                    sprite_data["id"] = f"sprite_{int(time.time() * 1000)}"
+                    response = {
+                        "type": "sprite_create",
+                        "data": sprite_data,
+                        "timestamp": time.time()
+                    }
+                elif message.get("type") == "table_request":
+                    # Send back some test sprites
+                    response = {
+                        "type": "table_data",
+                        "data": {
+                            "sprites": [
+                                {"id": "test_1", "name": "Test Hero", "x": 100, "y": 100, "width": 40, "height": 40, "layer": 1},
+                                {"id": "test_2", "name": "Test Enemy", "x": 200, "y": 150, "width": 35, "height": 35, "layer": 1}
+                            ]
+                        },
+                        "timestamp": time.time()
+                    }
+                else:
+                    # Echo back the message
+                    response = message.copy()
+                    response["timestamp"] = time.time()
+                
+                await websocket.send_text(json.dumps(response))
+                
+            except json.JSONDecodeError:
+                error_msg = {
+                    "type": "error",
+                    "data": {"message": "Invalid JSON format"},
+                    "timestamp": time.time()
+                }
+                await websocket.send_text(json.dumps(error_msg))
+                
+    except WebSocketDisconnect:
+        logger.info(f"Test WebSocket disconnected: {websocket.client}")
+    except Exception as e:
+        logger.error(f"Test WebSocket error: {e}")
+        await websocket.close()

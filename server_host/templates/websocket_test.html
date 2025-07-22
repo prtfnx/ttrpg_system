@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTRPG WebSocket Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .test-overlay {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 350px;
+            background: rgba(26, 26, 26, 0.95);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+        
+        .test-overlay h2 {
+            color: #4ade80;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .status-line {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-connecting { background: #fbbf24; }
+        .status-connected { background: #10b981; }
+        .status-disconnected { background: #ef4444; }
+        
+        .test-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .test-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+        
+        .test-btn:hover:not(:disabled) {
+            background: #2563eb;
+        }
+        
+        .test-btn:disabled {
+            background: #444;
+            cursor: not-allowed;
+        }
+        
+        .test-input {
+            width: 100%;
+            padding: 6px;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            color: white;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .log-mini {
+            background: #111;
+            height: 150px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #333;
+        }
+        
+        .log-entry {
+            margin-bottom: 4px;
+            opacity: 0.8;
+        }
+        
+        .log-sent { color: #3b82f6; }
+        .log-received { color: #10b981; }
+        .log-error { color: #ef4444; }
+        .log-info { color: #fbbf24; }
+        
+        .game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #1a1a1a;
+            border: none;
+            outline: none;
+        }
+        
+        .canvas-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #10b981;
+            font-family: monospace;
+            font-size: 14px;
+            z-index: 100;
+        }
+        
+        .toggle-btn {
+            position: fixed;
+            top: 20px;
+            right: 380px;
+            background: rgba(59, 130, 246, 0.8);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 1001;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Full-screen canvas for future game integration -->
+    <canvas id="gameCanvas" class="game-canvas" tabindex="0"></canvas>
+    
+    <!-- Canvas status overlay -->
+    <div class="canvas-overlay">
+        <div>TTRPG Client Ready</div>
+        <div id="canvasStatus">Canvas: Initialized</div>
+    </div>
+    
+    <!-- Toggle button for test panel -->
+    <button class="toggle-btn" onclick="toggleTestPanel()" id="toggleBtn">Hide Panel</button>
+    
+    <!-- Floating test panel -->
+    <div class="test-overlay" id="testPanel">
+        <h2>WebSocket Test</h2>
+        
+        <div class="status-line">
+            <span class="status-dot status-disconnected" id="statusDot"></span>
+            <span id="statusText">Disconnected</span>
+        </div>
+        
+        <div class="test-controls">
+            <button class="test-btn" onclick="connectWS()" id="connectBtn">Connect</button>
+            <button class="test-btn" onclick="disconnectWS()" id="disconnectBtn" disabled>Disconnect</button>
+            <button class="test-btn" onclick="sendPing()" id="pingBtn" disabled>Ping</button>
+            <button class="test-btn" onclick="requestTable()" id="tableBtn" disabled>Table Data</button>
+        </div>
+        
+        <input type="text" class="test-input" id="spriteInput" placeholder="Sprite name" value="Test Sprite">
+        <div class="test-controls">
+            <button class="test-btn" onclick="createSprite()" id="spriteBtn" disabled>Add Sprite</button>
+            <button class="test-btn" onclick="createTestSprites()" id="testBtn" disabled>Test Sprites</button>
+        </div>
+        
+        <button class="test-btn" onclick="clearLog()" style="width: 100%; margin-bottom: 10px;">Clear Log</button>
+        
+        <div class="log-mini" id="logArea">
+            <div class="log-entry log-info">[Ready] WebSocket test ready</div>
+        </div>
+    </div>
+
+    <script>
+        let websocket = null;
+        let isConnected = false;
+        let canvas = document.getElementById('gameCanvas');
+        let ctx = canvas.getContext('2d');
+        
+        // Camera/panning variables
+        let camera = { x: 0, y: 0, zoom: 1 };
+        let isDragging = false;
+        let lastMousePos = { x: 0, y: 0 };
+        let sprites = [];
+        
+        // Initialize canvas
+        function initCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // Draw simple grid
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            
+            // Grid lines
+            for (let x = 0; x < canvas.width; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            
+            for (let y = 0; y < canvas.height; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            
+            // Center text
+            ctx.fillStyle = '#666';
+            ctx.font = '24px system-ui';
+            ctx.textAlign = 'center';
+            ctx.fillText('TTRPG Game Canvas', canvas.width / 2, canvas.height / 2);
+            ctx.font = '16px system-ui';
+            ctx.fillText('Ready for Rust/React integration', canvas.width / 2, canvas.height / 2 + 30);
+        }
+        
+        // WebSocket functions
+        function updateStatus(status, text) {
+            document.getElementById('statusDot').className = `status-dot status-${status}`;
+            document.getElementById('statusText').textContent = text;
+            
+            const buttons = ['disconnectBtn', 'pingBtn', 'tableBtn', 'spriteBtn', 'testBtn'];
+            buttons.forEach(id => {
+                document.getElementById(id).disabled = !isConnected;
+            });
+            document.getElementById('connectBtn').disabled = isConnected;
+        }
+        
+        function addLog(type, message) {
+            const log = document.getElementById('logArea');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${time}] ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        function connectWS() {
+            try {
+                addLog('info', 'Connecting...');
+                updateStatus('connecting', 'Connecting...');
+                
+                websocket = new WebSocket('ws://127.0.0.1:12345/ws');
+                
+                websocket.onopen = () => {
+                    isConnected = true;
+                    updateStatus('connected', 'Connected');
+                    addLog('info', 'Connected to WebSocket');
+                };
+                
+                websocket.onmessage = (event) => {
+                    const msg = JSON.parse(event.data);
+                    addLog('received', `${msg.type}: ${JSON.stringify(msg.data || {})}`);
+                };
+                
+                websocket.onclose = (event) => {
+                    isConnected = false;
+                    updateStatus('disconnected', 'Disconnected');
+                    addLog('info', `Disconnected (${event.code})`);
+                };
+                
+                websocket.onerror = () => {
+                    isConnected = false;
+                    updateStatus('disconnected', 'Error');
+                    addLog('error', 'Connection error');
+                };
+                
+            } catch (error) {
+                addLog('error', `Error: ${error.message}`);
+            }
+        }
+        
+        function disconnectWS() {
+            if (websocket) {
+                websocket.close();
+                websocket = null;
+            }
+        }
+        
+        function sendMessage(msg) {
+            if (websocket && isConnected) {
+                websocket.send(JSON.stringify(msg));
+                addLog('sent', `${msg.type}`);
+            }
+        }
+        
+        function sendPing() {
+            sendMessage({ type: 'ping', timestamp: Date.now() / 1000 });
+        }
+        
+        function requestTable() {
+            sendMessage({ type: 'table_request', timestamp: Date.now() / 1000 });
+        }
+        
+        function createSprite() {
+            const name = document.getElementById('spriteInput').value || 'Test Sprite';
+            sendMessage({
+                type: 'sprite_create',
+                data: {
+                    name: name,
+                    x: Math.random() * 400 + 100,
+                    y: Math.random() * 300 + 100,
+                    width: 40,
+                    height: 40,
+                    layer: 1
+                }
+            });
+        }
+        
+        function createTestSprites() {
+            const sprites = [
+                { name: 'Hero', x: 100, y: 100, width: 40, height: 40, layer: 1 },
+                { name: 'Enemy', x: 200, y: 150, width: 35, height: 35, layer: 1 },
+                { name: 'Chest', x: 300, y: 200, width: 30, height: 25, layer: 0 }
+            ];
+            
+            sprites.forEach((sprite, i) => {
+                setTimeout(() => {
+                    sendMessage({ type: 'sprite_create', data: sprite });
+                }, i * 100);
+            });
+        }
+        
+        function clearLog() {
+            document.getElementById('logArea').innerHTML = '<div class="log-entry log-info">[Cleared] Log cleared</div>';
+        }
+        
+        function toggleTestPanel() {
+            const panel = document.getElementById('testPanel');
+            const btn = document.getElementById('toggleBtn');
+            
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                btn.textContent = 'Hide Panel';
+            } else {
+                panel.style.display = 'none';
+                btn.textContent = 'Show Panel';
+            }
+        }
+        
+        // Initialize
+        window.addEventListener('load', () => {
+            initCanvas();
+            setTimeout(connectWS, 500);
+        });
+        
+        window.addEventListener('resize', initCanvas);
+        
+        // Canvas interaction for future
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Draw a small circle where clicked
+            ctx.fillStyle = '#4ade80';
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            addLog('info', `Canvas clicked at (${Math.floor(x)}, ${Math.floor(y)})`);
+        });
+    </script>
+</body>
+</html>

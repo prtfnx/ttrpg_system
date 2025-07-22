@@ -4,6 +4,18 @@ use std::collections::HashMap;
 use crate::types::*;
 use gloo_utils::format::JsValueSerdeExt;
 
+// Import the `console.log` function from the host environment
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
+
+// Define a macro to make console.log! work like println!
+macro_rules! console_log {
+    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+}
+
 #[wasm_bindgen]
 pub struct RenderManager {
     canvas: HtmlCanvasElement,
@@ -122,20 +134,45 @@ impl RenderManager {
 
     #[wasm_bindgen]
     pub fn add_sprite(&mut self, sprite_data: &JsValue) -> Result<(), JsValue> {
+        console_log!("add_sprite called with data: {:?}", sprite_data);
+        
         let mut sprite: Sprite = sprite_data.into_serde()
-            .map_err(|e| JsValue::from_str(&format!("Failed to parse sprite: {}", e)))?;
+            .map_err(|e| {
+                console_log!("Failed to parse sprite JSON: {}", e);
+                JsValue::from_str(&format!("Failed to parse sprite: {}", e))
+            })?;
+        
+        console_log!("Parsed sprite: id='{}', texture_path='{}', pos=({}, {})", 
+                    sprite.id, sprite.texture_path, sprite.x, sprite.y);
         
         // Generate unique ID if not provided
         if sprite.id.is_empty() {
             sprite.id = format!("sprite_{}", self.sprites.len());
+            console_log!("Generated sprite ID: {}", sprite.id);
+        }
+        
+        // Check if texture exists
+        if !sprite.texture_path.is_empty() {
+            if self.textures.contains_key(&sprite.texture_path) {
+                console_log!("Texture '{}' found in texture map", sprite.texture_path);
+            } else {
+                console_log!("WARNING: Texture '{}' not found! Available textures: {:?}", 
+                            sprite.texture_path, self.textures.keys().collect::<Vec<_>>());
+            }
+        } else {
+            console_log!("Sprite has no texture_path, will render as colored rectangle");
         }
         
         self.sprites.push(sprite);
+        console_log!("Added sprite. Total sprites: {}", self.sprites.len());
         Ok(())
     }
 
     #[wasm_bindgen]
     pub fn load_texture(&mut self, name: &str, image: &HtmlImageElement) -> Result<(), JsValue> {
+        console_log!("Loading texture: {}", name);
+        console_log!("Image size: {}x{}", image.width(), image.height());
+        
         let texture = self.gl.create_texture().ok_or("Failed to create texture")?;
         
         self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(&texture));
@@ -155,6 +192,12 @@ impl RenderManager {
         self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_WRAP_T, WebGlRenderingContext::CLAMP_TO_EDGE as i32);
         
         self.textures.insert(name.to_string(), texture);
+        console_log!("Texture '{}' loaded successfully. Total textures: {}", name, self.textures.len());
+        
+        // List all available textures for debugging
+        let texture_names: Vec<&str> = self.textures.keys().map(|s| s.as_str()).collect();
+        console_log!("Available textures: {:?}", texture_names);
+        
         Ok(())
     }
 
@@ -179,6 +222,7 @@ impl RenderManager {
             }
             
             // Draw sprites
+            console_log!("Rendering {} sprites", self.sprites.len());
             for sprite in &self.sprites {
                 self.draw_sprite(sprite)?;
             }
@@ -220,6 +264,9 @@ impl RenderManager {
     }
 
     fn draw_sprite(&self, sprite: &Sprite) -> Result<(), JsValue> {
+        console_log!("Drawing sprite: '{}' at ({}, {}) with texture: '{}'", 
+                    sprite.id, sprite.x, sprite.y, sprite.texture_path);
+        
         let world_x = sprite.x as f32 - self.camera.x as f32;
         let world_y = sprite.y as f32 - self.camera.y as f32;
         let scaled_width = sprite.width as f32 * self.camera.zoom as f32;
@@ -241,6 +288,12 @@ impl RenderManager {
         
         // Check if sprite has a texture
         let has_texture = !sprite.texture_path.is_empty() && self.textures.contains_key(&sprite.texture_path);
+        
+        // Debug logging
+        if !sprite.texture_path.is_empty() {
+            console_log!("Drawing sprite '{}' with texture '{}', found: {}", sprite.id, sprite.texture_path, has_texture);
+            console_log!("Available textures: {:?}", self.textures.keys().collect::<Vec<_>>());
+        }
         
         if has_texture {
             if let Some(texture) = self.textures.get(&sprite.texture_path) {

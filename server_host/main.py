@@ -103,6 +103,11 @@ app.add_middleware(
 if os.path.exists("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Mount resources directory for game assets
+resources_path = os.path.join(os.path.dirname(__file__), "..", "resources")
+if os.path.exists(resources_path):
+    app.mount("/resources", StaticFiles(directory=resources_path), name="resources")
+
 # Set up templates
 templates = Jinja2Templates(directory="templates")
 

@@ -28,6 +28,15 @@ mod utils;
 pub use render::RenderManager;
 pub use network::NetworkClient;
 pub use game::GameEngine;
+
+use web_sys::HtmlCanvasElement;
+
+// Initialize the WebGL renderer for the canvas
+#[wasm_bindgen]
+pub fn init_game_renderer(canvas: HtmlCanvasElement) -> Result<RenderManager, JsValue> {
+    console_log!("Initializing WebGL game renderer");
+    RenderManager::new(canvas)
+}
 pub use types::*;
 
 #[wasm_bindgen(start)]

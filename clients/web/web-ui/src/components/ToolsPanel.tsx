@@ -4,29 +4,35 @@ import { useGameStore } from '../store';
 
 export function ToolsPanel() {
   const { isConnected, sessionId, sprites, camera } = useGameStore();
-  const { sendSpriteCreate, sendSpriteRemove } = useWebSocket('ws://localhost:8000/ws');
+  const { sendSpriteCreate, sendMessage } = useWebSocket('ws://127.0.0.1:12345/ws');
   const [newSpriteName, setNewSpriteName] = useState('');
 
   const handleAddSprite = () => {
     const sprite = {
-      id: `sprite_${Date.now()}`,
       name: newSpriteName || `Sprite ${Date.now()}`,
       x: camera.x + Math.random() * 200,
       y: camera.y + Math.random() * 200,
       width: 50,
       height: 50,
-      imageUrl: '',
-      layer: 0,
-      isSelected: false,
-      isVisible: true
+      layer: 0
     };
     
     sendSpriteCreate(sprite);
     setNewSpriteName('');
   };
 
+  const addTestSprites = () => {
+    const testSprites = [
+      { name: 'Hero', x: 100, y: 100, width: 40, height: 40, layer: 1 },
+      { name: 'Enemy', x: 200, y: 150, width: 35, height: 35, layer: 1 },
+      { name: 'Chest', x: 300, y: 200, width: 30, height: 25, layer: 0 }
+    ];
+    
+    testSprites.forEach(sprite => sendSpriteCreate(sprite));
+  };
+
   const removeSprite = (spriteId: string) => {
-    sendSpriteRemove(spriteId);
+    sendMessage('sprite_remove', { id: spriteId });
   };
 
   return (
@@ -59,9 +65,22 @@ export function ToolsPanel() {
           color: 'white',
           border: 'none',
           borderRadius: '4px',
-          cursor: 'pointer'
+          cursor: 'pointer',
+          marginBottom: '8px'
         }}>
           Add Sprite
+        </button>
+        
+        <button onClick={addTestSprites} style={{
+          width: '100%',
+          padding: '8px',
+          backgroundColor: '#3b82f6',
+          color: 'white',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer'
+        }}>
+          Add Test Sprites
         </button>
       </div>
 

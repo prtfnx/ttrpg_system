@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useGameStore } from '../store';
 
 interface WebSocketMessage {
@@ -13,7 +13,7 @@ interface WebSocketMessage {
 
 export function useWebSocket(url: string) {
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<number>();
+  const reconnectTimeoutRef = useRef<number | undefined>(undefined);
   const messageQueueRef = useRef<WebSocketMessage[]>([]);
   
   const { 

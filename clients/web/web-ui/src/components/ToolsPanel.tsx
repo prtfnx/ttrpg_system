@@ -2,10 +2,41 @@ import { useState } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useGameStore } from '../store';
 
+// Global type declarations
+declare global {
+  interface Window {
+    gameAPI?: {
+      sendMessage: (type: string, data: any) => void;
+      renderManager: () => any;
+    };
+  }
+}
+
+// Integration mode detection
+const isIntegrationMode = !document.getElementById('root');
+
 export function ToolsPanel() {
   const { isConnected, sessionId, sprites, camera } = useGameStore();
-  const { sendSpriteCreate, sendMessage } = useWebSocket('ws://127.0.0.1:12345/ws');
   const [newSpriteName, setNewSpriteName] = useState('');
+  
+  // Use different WebSocket approaches based on mode
+  let sendSpriteCreate: (sprite: any) => void;
+  let sendMessage: (type: string, data: any) => void;
+  
+  if (isIntegrationMode && window.gameAPI) {
+    // Integration mode - use global gameAPI
+    sendSpriteCreate = (sprite: any) => {
+      window.gameAPI?.sendMessage('sprite_create', sprite);
+    };
+    sendMessage = (type: string, data: any) => {
+      window.gameAPI?.sendMessage(type, data);
+    };
+  } else {
+    // Standalone mode - use useWebSocket hook
+    const webSocket = useWebSocket('ws://127.0.0.1:12345/ws');
+    sendSpriteCreate = webSocket.sendSpriteCreate;
+    sendMessage = webSocket.sendMessage;
+  }
 
   const handleAddSprite = () => {
     const sprite = {
@@ -41,6 +72,7 @@ export function ToolsPanel() {
       
       <div className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
         {isConnected ? `Connected: ${sessionId}` : 'Disconnected'}
+        {isIntegrationMode && <span> (Integration Mode)</span>}
       </div>
 
       <div className="sprite-creation">

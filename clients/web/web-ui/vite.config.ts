@@ -11,6 +11,15 @@ export default defineConfig({
     }
   },
   build: {
-    target: 'esnext'
+    target: 'esnext',
+    rollupOptions: {
+      input: {
+        main: './index.html',
+        integration: './src/integration.tsx'
+      },
+      output: {
+        entryFileNames: '[name]-[hash].js'
+      }
+    }
   }
 })

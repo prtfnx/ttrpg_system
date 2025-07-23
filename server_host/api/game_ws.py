@@ -173,6 +173,11 @@ async def websocket_test_page(request: Request):
     """WebSocket test page using template"""
     return templates.TemplateResponse("websocket_test.html", {"request": request})
 
+@router.get("/client")
+async def game_client_page(request: Request):
+    """Integrated game client with React UI + WASM rendering"""
+    return templates.TemplateResponse("game_client.html", {"request": request})
+
 @router.websocket("/ws")
 async def websocket_test_endpoint(websocket: WebSocket):
     """Simple WebSocket endpoint for testing without authentication"""
@@ -215,8 +220,36 @@ async def websocket_test_endpoint(websocket: WebSocket):
                         "type": "table_data",
                         "data": {
                             "sprites": [
-                                {"id": "test_1", "name": "Test Hero", "x": 100, "y": 100, "width": 40, "height": 40, "layer": 1},
-                                {"id": "test_2", "name": "Test Enemy", "x": 200, "y": 150, "width": 35, "height": 35, "layer": 1}
+                                {
+                                    "id": "test_1", 
+                                    "name": "Test Hero", 
+                                    "x": 100, 
+                                    "y": 100, 
+                                    "width": 40, 
+                                    "height": 40, 
+                                    "layer": "tokens",
+                                    "scale_x": 1.0,
+                                    "scale_y": 1.0,
+                                    "rotation": 0.0,
+                                    "texture_path": "hero.png",
+                                    "visible": True,
+                                    "color": "#00CC33"
+                                },
+                                {
+                                    "id": "test_2", 
+                                    "name": "Test Enemy", 
+                                    "x": 200, 
+                                    "y": 150, 
+                                    "width": 35, 
+                                    "height": 35, 
+                                    "layer": "tokens",
+                                    "scale_x": 1.0,
+                                    "scale_y": 1.0,
+                                    "rotation": 0.0,
+                                    "texture_path": "enemy.png",
+                                    "visible": True,
+                                    "color": "#CC3300"
+                                }
                             ]
                         },
                         "timestamp": time.time()

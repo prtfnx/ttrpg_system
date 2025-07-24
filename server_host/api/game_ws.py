@@ -176,7 +176,16 @@ async def websocket_test_page(request: Request):
 @router.get("/client")
 async def game_client_page(request: Request):
     """Integrated game client with React UI + WASM rendering"""
-    return templates.TemplateResponse("game_client.html", {"request": request})
+    # Read vite_assets.html for asset injection
+    try:
+        with open("templates/vite_assets.html", "r", encoding="utf-8") as f:
+            vite_assets = f.read()
+    except Exception:
+        vite_assets = ""
+    return templates.TemplateResponse(
+        "game_client.html",
+        {"request": request, "vite_assets": vite_assets}
+    )
 
 @router.websocket("/ws")
 async def websocket_test_endpoint(websocket: WebSocket):

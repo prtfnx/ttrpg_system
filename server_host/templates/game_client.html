@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TTRPG Game Client</title>
     
-    <!-- React UI Assets -->
-    <link rel="stylesheet" crossorigin href="/static/ui/assets/main-r1d-J1Q3.css">
+    {# Inject Vite asset tags dynamically #}
+    {% include 'vite_assets.html' %}
     
     <style>
         /* Integration styles - merge React UI with WASM canvas */
@@ -144,7 +144,7 @@
         function startRenderLoop() {
             function render() {
                 if (renderManager) {
-                    renderManager.render_frame();
+                    renderManager.render();
                 }
                 requestAnimationFrame(render);
             }
@@ -241,41 +241,57 @@
             };
         }
         
+        // Sprite creation helper: ensures correct property names/types for Rust
+        function toRustSprite(obj) {
+            return {
+                id: obj.id || `sprite_${Date.now()}`,
+                x: obj.x ?? 0,
+                y: obj.y ?? 0,
+                width: obj.width ?? 32,
+                height: obj.height ?? 32,
+                scale_x: obj.scale_x ?? 1.0,
+                scale_y: obj.scale_y ?? 1.0,
+                rotation: obj.rotation ?? 0.0,
+                layer: typeof obj.layer === 'string' ? obj.layer : String(obj.layer ?? '0'),
+                texture_path: obj.texture_path || obj.name || '',
+                color: obj.color || '#ffffff',
+            };
+        }
+
         // Handle WebSocket messages
         function handleWebSocketMessage(message) {
             switch (message.type) {
                 case 'sprite_create':
                     if (renderManager && message.data) {
-                        console.log('Creating sprite:', message.data);
-                        renderManager.add_sprite(message.data);
+                        const sprite = toRustSprite(message.data);
+                        console.log('Creating sprite:', sprite);
+                        renderManager.add_sprite(sprite);
                     }
                     break;
-                    
+
                 case 'sprite_move':
                     if (renderManager && message.data) {
                         console.log('Moving sprite:', message.data);
-                        // Update sprite position and re-render
-                        renderManager.render_frame();
+                        renderManager.render();
                     }
                     break;
-                    
+
                 case 'table_data':
                     if (renderManager && message.data?.sprites) {
                         console.log('Received table data:', message.data.sprites);
-                        // Add all sprites to the renderer
                         message.data.sprites.forEach(sprite => {
-                            console.log('Adding sprite to renderer:', sprite);
-                            renderManager.add_sprite(sprite);
+                            const rustSprite = toRustSprite(sprite);
+                            console.log('Adding sprite to renderer:', rustSprite);
+                            renderManager.add_sprite(rustSprite);
                         });
-                        // Render the frame
-                        renderManager.render_frame();
+                        renderManager.render();
                     }
                     break;
-                    
+
                 case 'welcome':
                     console.log('Received welcome message:', message.data);
                     break;
-                    
+
                 default:
                     console.log('Unhandled message type:', message.type);
             }
@@ -304,61 +320,40 @@
             statusText.textContent = text;
         }
         
-        // Canvas interaction - pass to Rust WebGL renderer
+        // Canvas interaction - production: select, move, resize, scale sprite or pan/zoom camera
         const canvas = document.getElementById('gameCanvas');
-        
+
         canvas.addEventListener('mousedown', (e) => {
-            if (renderManager) {
-                const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                try {
-                    renderManager.handle_click(x, y);
-                } catch (error) {
-                    console.log('Click handled:', x, y);
-                }
-            }
+            if (!renderManager) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            renderManager.handle_mouse_down(x, y);
         });
-        
+
         canvas.addEventListener('mousemove', (e) => {
-            if (renderManager && e.buttons === 1) { // Left mouse button held
-                const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                
-                // Calculate movement delta if we have previous position
-                if (canvas.lastMouseX !== undefined && canvas.lastMouseY !== undefined) {
-                    const deltaX = x - canvas.lastMouseX;
-                    const deltaY = y - canvas.lastMouseY;
-                    
-                    try {
-                        renderManager.move_camera(-deltaX, -deltaY);
-                    } catch (error) {
-                        console.log('Camera moved:', deltaX, deltaY);
-                    }
-                }
-                
-                canvas.lastMouseX = x;
-                canvas.lastMouseY = y;
-            }
+            if (!renderManager) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            renderManager.handle_mouse_move(x, y);
         });
-        
+
         canvas.addEventListener('mouseup', (e) => {
-            // Reset mouse tracking
-            canvas.lastMouseX = undefined;
-            canvas.lastMouseY = undefined;
+            if (!renderManager) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            renderManager.handle_mouse_up(x, y);
         });
-        
+
         canvas.addEventListener('wheel', (e) => {
-            if (renderManager) {
-                e.preventDefault();
-                const zoomDelta = e.deltaY > 0 ? -0.1 : 0.1; // Reverse for natural zoom
-                try {
-                    renderManager.zoom_camera(zoomDelta);
-                } catch (error) {
-                    console.log('Camera zoomed:', zoomDelta);
-                }
-            }
+            if (!renderManager) return;
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            renderManager.handle_wheel(x, y, e.deltaY);
         });
         
         // Handle window resize

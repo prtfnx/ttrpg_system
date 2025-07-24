@@ -54,9 +54,9 @@ export function ToolsPanel() {
 
   const addTestSprites = () => {
     const testSprites = [
-      { name: 'Hero', x: 100, y: 100, width: 40, height: 40, layer: 1 },
-      { name: 'Enemy', x: 200, y: 150, width: 35, height: 35, layer: 1 },
-      { name: 'Chest', x: 300, y: 200, width: 30, height: 25, layer: 0 }
+      { name: 'hero.png', x: 100, y: 100, width: 40, height: 40, layer: 1 },
+      { name: 'enemy.png', x: 200, y: 150, width: 35, height: 35, layer: 1 },
+      { name: 'chest.png', x: 300, y: 200, width: 30, height: 25, layer: 0 }
     ];
     
     testSprites.forEach(sprite => sendSpriteCreate(sprite));

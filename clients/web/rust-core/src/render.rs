@@ -27,6 +27,24 @@ pub struct RenderManager {
     is_dragging: bool,
     last_mouse_pos: (f32, f32),
     grid_enabled: bool,
+    selected_sprite: Option<String>,
+    drag_mode: DragMode,
+    drag_offset: (f64, f64),
+    resize_handle: Option<ResizeHandle>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DragMode {
+    None,
+    Camera,
+    MoveSprite,
+    ResizeSprite,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ResizeHandle {
+    BottomRight,
+    // Add more handles if needed
 }
 
 #[wasm_bindgen]
@@ -48,6 +66,10 @@ impl RenderManager {
             is_dragging: false,
             last_mouse_pos: (0.0, 0.0),
             grid_enabled: true,
+            selected_sprite: None,
+            drag_mode: DragMode::None,
+            drag_offset: (0.0, 0.0),
+            resize_handle: None,
         };
 
         renderer.init_shaders()?;
@@ -264,45 +286,42 @@ impl RenderManager {
     }
 
     fn draw_sprite(&self, sprite: &Sprite) -> Result<(), JsValue> {
-        console_log!("Drawing sprite: '{}' at ({}, {}) with texture: '{}'", 
-                    sprite.id, sprite.x, sprite.y, sprite.texture_path);
-        
+        let is_selected = self.selected_sprite.as_ref().map_or(false, |id| id == &sprite.id);
+        let border_color = if is_selected { (0.2, 0.8, 0.2, 1.0) } else { (1.0, 1.0, 1.0, 1.0) };
         let world_x = sprite.x as f32 - self.camera.x as f32;
         let world_y = sprite.y as f32 - self.camera.y as f32;
-        let scaled_width = sprite.width as f32 * self.camera.zoom as f32;
-        let scaled_height = sprite.height as f32 * self.camera.zoom as f32;
-        
+        let scaled_width = (sprite.width * sprite.scale_x * self.camera.zoom) as f32;
+        let scaled_height = (sprite.height * sprite.scale_y * self.camera.zoom) as f32;
         let vertices = [
-            world_x, world_y,                           // Bottom-left
-            world_x + scaled_width, world_y,            // Bottom-right
-            world_x, world_y + scaled_height,           // Top-left
-            world_x + scaled_width, world_y + scaled_height, // Top-right
+            world_x, world_y,
+            world_x + scaled_width, world_y,
+            world_x, world_y + scaled_height,
+            world_x + scaled_width, world_y + scaled_height,
         ];
-        
         let tex_coords = [
-            0.0, 1.0,  // Bottom-left
-            1.0, 1.0,  // Bottom-right
-            0.0, 0.0,  // Top-left
-            1.0, 0.0,  // Top-right
+            0.0, 1.0,
+            1.0, 1.0,
+            0.0, 0.0,
+            1.0, 0.0,
         ];
-        
-        // Check if sprite has a texture
         let has_texture = !sprite.texture_path.is_empty() && self.textures.contains_key(&sprite.texture_path);
-        
-        // Debug logging
-        if !sprite.texture_path.is_empty() {
-            console_log!("Drawing sprite '{}' with texture '{}', found: {}", sprite.id, sprite.texture_path, has_texture);
-            console_log!("Available textures: {:?}", self.textures.keys().collect::<Vec<_>>());
-        }
-        
         if has_texture {
             if let Some(texture) = self.textures.get(&sprite.texture_path) {
                 self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(texture));
             }
         }
-        
-        self.draw_quad(&vertices, &tex_coords, (1.0, 1.0, 1.0, 1.0), has_texture)?;
-        
+        self.draw_quad(&vertices, &tex_coords, border_color, has_texture)?;
+        // Draw selection border if selected
+        if is_selected {
+            let border_vertices = [
+                world_x, world_y,
+                world_x + scaled_width, world_y,
+                world_x + scaled_width, world_y + scaled_height,
+                world_x, world_y + scaled_height,
+                world_x, world_y,
+            ];
+            self.draw_lines(&border_vertices, (0.2, 0.8, 0.2, 1.0))?;
+        }
         Ok(())
     }
 
@@ -399,35 +418,109 @@ impl RenderManager {
         Ok(())
     }
 
-    // Camera and input methods
+    // Sprite selection, movement, resize, and scaling
     #[wasm_bindgen]
     pub fn handle_mouse_down(&mut self, x: f32, y: f32) {
-        self.is_dragging = true;
-        self.last_mouse_pos = (x, y);
-    }
-
-    #[wasm_bindgen]
-    pub fn handle_mouse_move(&mut self, x: f32, y: f32) {
-        if self.is_dragging {
-            let dx = x - self.last_mouse_pos.0;
-            let dy = y - self.last_mouse_pos.1;
-            
-            self.camera.x -= dx as f64;
-            self.camera.y -= dy as f64;
-            
+        let world = self.screen_to_world(x as f64, y as f64);
+        let wx = world[0];
+        let wy = world[1];
+        // Check for resize handle first if a sprite is selected
+        if let Some(selected_id) = &self.selected_sprite {
+            if let Some(sprite) = self.sprites.iter().find(|s| &s.id == selected_id) {
+                let handle_size = 12.0 / self.camera.zoom;
+                let handle_x = sprite.x + sprite.width * sprite.scale_x;
+                let handle_y = sprite.y + sprite.height * sprite.scale_y;
+                if (wx - handle_x).abs() < handle_size && (wy - handle_y).abs() < handle_size {
+                    self.drag_mode = DragMode::ResizeSprite;
+                    self.resize_handle = Some(ResizeHandle::BottomRight);
+                    self.last_mouse_pos = (x, y);
+                    return;
+                }
+            }
+        }
+        // Check for sprite under cursor
+        if let Some((idx, sprite)) = self.sprites.iter().enumerate().rev().find(|(_, s)| {
+            wx >= s.x && wx <= s.x + s.width * s.scale_x && wy >= s.y && wy <= s.y + s.height * s.scale_y
+        }) {
+            self.selected_sprite = Some(sprite.id.clone());
+            self.drag_mode = DragMode::MoveSprite;
+            self.drag_offset = (wx - sprite.x, wy - sprite.y);
+            self.last_mouse_pos = (x, y);
+            // Bring selected sprite to front
+            let sprite = self.sprites.remove(idx);
+            self.sprites.push(sprite);
+        } else {
+            self.selected_sprite = None;
+            self.drag_mode = DragMode::Camera;
             self.last_mouse_pos = (x, y);
         }
     }
 
     #[wasm_bindgen]
-    pub fn handle_mouse_up(&mut self, _x: f32, _y: f32) {
-        self.is_dragging = false;
+    pub fn handle_mouse_move(&mut self, x: f32, y: f32) {
+        let world = self.screen_to_world(x as f64, y as f64);
+        let wx = world[0];
+        let wy = world[1];
+        match self.drag_mode {
+            DragMode::MoveSprite => {
+                if let Some(selected_id) = &self.selected_sprite {
+                    if let Some(sprite) = self.sprites.iter_mut().find(|s| &s.id == selected_id) {
+                        sprite.x = wx - self.drag_offset.0;
+                        sprite.y = wy - self.drag_offset.1;
+                    }
+                }
+            }
+            DragMode::ResizeSprite => {
+                if let Some(selected_id) = &self.selected_sprite {
+                    if let Some(sprite) = self.sprites.iter_mut().find(|s| &s.id == selected_id) {
+                        let min_size = 10.0;
+                        let new_width = (wx - sprite.x).max(min_size);
+                        let new_height = (wy - sprite.y).max(min_size);
+                        sprite.width = new_width / sprite.scale_x;
+                        sprite.height = new_height / sprite.scale_y;
+                    }
+                }
+            }
+            DragMode::Camera => {
+                let dx = x - self.last_mouse_pos.0;
+                let dy = y - self.last_mouse_pos.1;
+                self.camera.x -= dx as f64;
+                self.camera.y -= dy as f64;
+                self.last_mouse_pos = (x, y);
+            }
+            _ => {}
+        }
     }
 
     #[wasm_bindgen]
-    pub fn handle_wheel(&mut self, delta_y: f32) {
+    pub fn handle_mouse_up(&mut self, _x: f32, _y: f32) {
+        self.drag_mode = DragMode::None;
+        self.resize_handle = None;
+    }
+
+    #[wasm_bindgen]
+    pub fn handle_wheel(&mut self, x: f32, y: f32, delta_y: f32) {
+        if let Some(selected_id) = &self.selected_sprite {
+            if let Some(sprite) = self.sprites.iter_mut().find(|s| &s.id == selected_id) {
+                let scale_factor = if delta_y > 0.0 { 0.9 } else { 1.1 };
+                sprite.scale_x = (sprite.scale_x * scale_factor).clamp(0.1, 10.0);
+                sprite.scale_y = (sprite.scale_y * scale_factor).clamp(0.1, 10.0);
+                return;
+            }
+        }
+        // Fallback to camera zoom if no sprite selected
         let zoom_factor = if delta_y > 0.0 { 0.9 } else { 1.1 };
         self.camera.zoom = (self.camera.zoom * zoom_factor as f64).clamp(0.1, 5.0);
+    }
+
+    #[wasm_bindgen]
+    pub fn get_selected_sprite(&self) -> JsValue {
+        if let Some(selected_id) = &self.selected_sprite {
+            if let Some(sprite) = self.sprites.iter().find(|s| &s.id == selected_id) {
+                return JsValue::from_serde(sprite).unwrap_or(JsValue::NULL);
+            }
+        }
+        JsValue::NULL
     }
 
     #[wasm_bindgen]

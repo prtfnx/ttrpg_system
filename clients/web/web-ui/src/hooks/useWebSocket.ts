@@ -34,9 +34,12 @@ export function useWebSocket(url: string) {
   }), []);
 
   const sendMessage = useCallback((message: WebSocketMessage) => {
+    console.log('[WebSocket] sendMessage called:', message);
     if (wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('[WebSocket] Sending message over socket:', message);
       wsRef.current.send(JSON.stringify(message));
     } else {
+      console.log('[WebSocket] Socket not open, queueing message:', message);
       messageQueueRef.current.push(message);
     }
   }, []);
@@ -51,7 +54,7 @@ export function useWebSocket(url: string) {
   const handleMessage = useCallback((event: MessageEvent) => {
     try {
       const message: WebSocketMessage = JSON.parse(event.data);
-      
+      console.log('[WebSocket] handleMessage received:', message);
       switch (message.type) {
         case 'sprite_update':
           if (message.data) {
@@ -61,6 +64,7 @@ export function useWebSocket(url: string) {
           
         case 'sprite_create':
           if (message.data) {
+            console.log('[WebSocket] sprite_create received:', message.data);
             addSprite({
               id: message.data.id,
               name: message.data.name || 'Sprite',
@@ -73,6 +77,36 @@ export function useWebSocket(url: string) {
               isVisible: true,
               layer: message.data.layer || 0
             });
+            // WASM integration: also add sprite to RenderManager if available
+            // Ensure all required fields for WASM
+            const spriteForWasm = {
+              id: message.data.id,
+              x: message.data.x || 0,
+              y: message.data.y || 0,
+              width: message.data.width || 32,
+              height: message.data.height || 32,
+              layer: message.data.layer || 'tokens',
+              texture_path: message.data.texture_path || message.data.imageUrl || '',
+              color: message.data.color || '#ffffff',
+              scale_x: message.data.scale_x || 1.0,
+              scale_y: message.data.scale_y || 1.0,
+              rotation: message.data.rotation || 0.0,
+              name: message.data.name || 'Sprite',
+              isSelected: false,
+              isVisible: true
+            };
+            console.log('[WASM] add_sprite payload:', spriteForWasm);
+            if (window.rustRenderManager && typeof window.rustRenderManager.add_sprite === 'function') {
+              try {
+                console.log('[WASM] Calling add_sprite...');
+                window.rustRenderManager.add_sprite(spriteForWasm);
+                console.log('[WASM] add_sprite call completed');
+              } catch (err) {
+                console.error('[WASM] Failed to add sprite to RenderManager:', err);
+              }
+            } else {
+              console.warn('[WASM] RenderManager not available or add_sprite not a function');
+            }
           }
           break;
           

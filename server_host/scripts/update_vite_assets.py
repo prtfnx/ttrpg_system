@@ -17,26 +17,28 @@ if not VITE_INDEX.exists():
 with VITE_INDEX.open("r", encoding="utf-8") as f:
     html = f.read()
 
-# Extract all <script> and <link> tags in <head>
-head = html.split("<head>", 1)[-1].split("</head>", 1)[0]
-tags = TAG_RE.findall(head)
 
-# Actually extract the full tags
-full_tags = TAG_RE.findall(head)
-all_tags = TAG_RE.finditer(head)
+# Extract all <script> and <link> tags from the entire HTML (not just <head>)
+all_tags = TAG_RE.finditer(html)
 
+# Improved asset path rewriting for all Vite assets
 asset_lines = []
 for m in all_tags:
     tag = m.group(0)
-    tag = tag.replace('/main-', '/static/ui/main-').replace('/assets/', '/static/ui/assets/')
+    # Rewrite main-*.js, main-*.css, integration-*.js, and all /assets/ paths
+    tag = re.sub(r'"/main-', '"/static/ui/main-', tag)
+    tag = re.sub(r'"/integration-', '"/static/ui/integration-', tag)
+    tag = re.sub(r'"/assets/', '"/static/ui/assets/', tag)
+    tag = re.sub(r'href="/main-', 'href="/static/ui/main-', tag)
+    tag = re.sub(r'href="/integration-', 'href="/static/ui/integration-', tag)
+    tag = re.sub(r'href="/assets/', 'href="/static/ui/assets/', tag)
+    # Ensure script tag is closed properly
     if tag.startswith('<script'):
-        # Ensure script tag is closed properly
         if not tag.endswith('>'):
             tag += '>'
         if not tag.endswith('</script>'):
             tag = tag.rstrip('>') + '></script>'
     elif tag.startswith('<link'):
-        # Ensure link tag is self-closed, only one '>' at end
         tag = tag.rstrip('>')
         if not tag.endswith('/'):
             tag += ' /'

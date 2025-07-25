@@ -1,8 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { ToolsPanel } from './components/ToolsPanel'
-import { EntitiesPanel } from './components/EntitiesPanel'
 import { CharacterPanel } from './components/CharacterPanel'
+import { EntitiesPanel } from './components/EntitiesPanel'
+import { ToolsPanel } from './components/ToolsPanel'
 import './index.css'
 
 // Modern ES module approach - export mounting functions

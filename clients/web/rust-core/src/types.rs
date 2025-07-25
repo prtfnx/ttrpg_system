@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use wasm_bindgen::prelude::*;
+// use wasm_bindgen::prelude::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Sprite {

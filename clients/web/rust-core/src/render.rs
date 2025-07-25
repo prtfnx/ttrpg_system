@@ -24,7 +24,7 @@ pub struct RenderManager {
     sprites: Vec<Sprite>,
     camera: Camera,
     textures: HashMap<String, WebGlTexture>,
-    is_dragging: bool,
+    // is_dragging: bool,
     last_mouse_pos: (f32, f32),
     grid_enabled: bool,
     selected_sprite: Option<String>,
@@ -49,6 +49,15 @@ enum ResizeHandle {
 
 #[wasm_bindgen]
 impl RenderManager {
+    #[wasm_bindgen]
+    pub fn get_drag_mode(&self) -> String {
+        match self.drag_mode {
+            DragMode::None => "None".to_string(),
+            DragMode::Camera => "Camera".to_string(),
+            DragMode::MoveSprite => "MoveSprite".to_string(),
+            DragMode::ResizeSprite => "ResizeSprite".to_string(),
+        }
+    }
     #[wasm_bindgen(constructor)]
     pub fn new(canvas: HtmlCanvasElement) -> Result<RenderManager, JsValue> {
         let gl = canvas
@@ -63,7 +72,6 @@ impl RenderManager {
             sprites: Vec::new(),
             camera: Camera::default(),
             textures: HashMap::new(),
-            is_dragging: false,
             last_mouse_pos: (0.0, 0.0),
             grid_enabled: true,
             selected_sprite: None,
@@ -268,9 +276,12 @@ impl RenderManager {
                 x, 0.0,
                 x, height,
             ]);
+            // Debug: log world coordinates at grid intersection (x, 0)
+            let world_x = x as f64 / self.camera.zoom + self.camera.x;
+            let world_y = 0.0 / self.camera.zoom + self.camera.y;
+
             x += grid_size;
         }
-        
         // Horizontal lines
         let mut y = start_y;
         while y < height + grid_size {
@@ -278,31 +289,43 @@ impl RenderManager {
                 0.0, y,
                 width, y,
             ]);
+            // Debug: log world coordinates at grid intersection (0, y)
+            let world_x = 0.0 / self.camera.zoom + self.camera.x;
+            let world_y = y as f64 / self.camera.zoom + self.camera.y;
+
             y += grid_size;
         }
-        
         self.draw_lines(&vertices, (0.2, 0.2, 0.2, 1.0))?;
+        // Debug: log world coordinates near cursor
+        let (mx, my) = self.last_mouse_pos;
+        let cursor_world = self.screen_to_world(mx as f64, my as f64);
         Ok(())
     }
 
     fn draw_sprite(&self, sprite: &Sprite) -> Result<(), JsValue> {
         let is_selected = self.selected_sprite.as_ref().map_or(false, |id| id == &sprite.id);
         let border_color = if is_selected { (0.2, 0.8, 0.2, 1.0) } else { (1.0, 1.0, 1.0, 1.0) };
-        let world_x = sprite.x as f32 - self.camera.x as f32;
-        let world_y = sprite.y as f32 - self.camera.y as f32;
+        // Use anchor at center for both sprite and selection overlay
+        let anchor_x = sprite.x + (sprite.width * sprite.scale_x) / 2.0;
+        let anchor_y = sprite.y + (sprite.height * sprite.scale_y) / 2.0;
+        let _half_width = (sprite.width * sprite.scale_x) / 2.0;
+        let _half_height = (sprite.height * sprite.scale_y) / 2.0;
+        let world_cx = ((anchor_x - self.camera.x) * self.camera.zoom) as f32;
+        let world_cy = ((anchor_y - self.camera.y) * self.camera.zoom) as f32;
         let scaled_width = (sprite.width * sprite.scale_x * self.camera.zoom) as f32;
         let scaled_height = (sprite.height * sprite.scale_y * self.camera.zoom) as f32;
         let vertices = [
-            world_x, world_y,
-            world_x + scaled_width, world_y,
-            world_x, world_y + scaled_height,
-            world_x + scaled_width, world_y + scaled_height,
+            world_cx - scaled_width / 2.0, world_cy - scaled_height / 2.0,
+            world_cx + scaled_width / 2.0, world_cy - scaled_height / 2.0,
+            world_cx - scaled_width / 2.0, world_cy + scaled_height / 2.0,
+            world_cx + scaled_width / 2.0, world_cy + scaled_height / 2.0,
         ];
+        // Flip texture vertically for correct orientation
         let tex_coords = [
-            0.0, 1.0,
-            1.0, 1.0,
             0.0, 0.0,
             1.0, 0.0,
+            0.0, 1.0,
+            1.0, 1.0,
         ];
         let has_texture = !sprite.texture_path.is_empty() && self.textures.contains_key(&sprite.texture_path);
         if has_texture {
@@ -311,14 +334,14 @@ impl RenderManager {
             }
         }
         self.draw_quad(&vertices, &tex_coords, border_color, has_texture)?;
-        // Draw selection border if selected
+        // Always draw selection border for selected sprite
         if is_selected {
             let border_vertices = [
-                world_x, world_y,
-                world_x + scaled_width, world_y,
-                world_x + scaled_width, world_y + scaled_height,
-                world_x, world_y + scaled_height,
-                world_x, world_y,
+                world_cx - scaled_width / 2.0, world_cy - scaled_height / 2.0,
+                world_cx + scaled_width / 2.0, world_cy - scaled_height / 2.0,
+                world_cx + scaled_width / 2.0, world_cy + scaled_height / 2.0,
+                world_cx - scaled_width / 2.0, world_cy + scaled_height / 2.0,
+                world_cx - scaled_width / 2.0, world_cy - scaled_height / 2.0,
             ];
             self.draw_lines(&border_vertices, (0.2, 0.8, 0.2, 1.0))?;
         }
@@ -387,7 +410,7 @@ impl RenderManager {
         if let Some(program) = &self.shader_program {
             let position_buffer = self.gl.create_buffer().ok_or("Failed to create position buffer")?;
             self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&position_buffer));
-            
+
             unsafe {
                 let positions_array = js_sys::Float32Array::view(vertices);
                 self.gl.buffer_data_with_array_buffer_view(
@@ -396,41 +419,45 @@ impl RenderManager {
                     WebGlRenderingContext::STATIC_DRAW,
                 );
             }
-            
+
             let position_location = self.gl.get_attrib_location(program, "a_position") as u32;
             self.gl.enable_vertex_attrib_array(position_location);
             self.gl.vertex_attrib_pointer_with_i32(position_location, 2, WebGlRenderingContext::FLOAT, false, 0, 0);
-            
+
             // Set uniforms
             let transform_location = self.gl.get_uniform_location(program, "u_transform");
-            let identity_matrix = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
-            self.gl.uniform_matrix3fv_with_f32_array(transform_location.as_ref(), false, &identity_matrix);
-            
+            let transform_matrix = [
+                self.camera.zoom as f32, 0.0, -self.camera.x as f32,
+                0.0, self.camera.zoom as f32, -self.camera.y as f32,
+                0.0, 0.0, 1.0,
+            ];
+            self.gl.uniform_matrix3fv_with_f32_array(transform_location.as_ref(), false, &transform_matrix);
+
             let color_location = self.gl.get_uniform_location(program, "u_color");
             self.gl.uniform4f(color_location.as_ref(), color.0, color.1, color.2, color.3);
-            
+
             let has_texture_location = self.gl.get_uniform_location(program, "u_hasTexture");
             self.gl.uniform1i(has_texture_location.as_ref(), 0);
-            
+
             self.gl.draw_arrays(WebGlRenderingContext::LINES, 0, (vertices.len() / 2) as i32);
         }
-        
+
         Ok(())
     }
 
     // Sprite selection, movement, resize, and scaling
     #[wasm_bindgen]
     pub fn handle_mouse_down(&mut self, x: f32, y: f32) {
-        let world = self.screen_to_world(x as f64, y as f64);
-        let wx = world[0];
-        let wy = world[1];
+        // Hit test in screen space to match rendering
         // Check for resize handle first if a sprite is selected
         if let Some(selected_id) = &self.selected_sprite {
             if let Some(sprite) = self.sprites.iter().find(|s| &s.id == selected_id) {
                 let handle_size = 12.0 / self.camera.zoom;
                 let handle_x = sprite.x + sprite.width * sprite.scale_x;
                 let handle_y = sprite.y + sprite.height * sprite.scale_y;
-                if (wx - handle_x).abs() < handle_size && (wy - handle_y).abs() < handle_size {
+                let handle_screen_x = ((handle_x - self.camera.x) * self.camera.zoom) as f32;
+                let handle_screen_y = ((handle_y - self.camera.y) * self.camera.zoom) as f32;
+                if (x - handle_screen_x).abs() < handle_size as f32 && (y - handle_screen_y).abs() < handle_size as f32 {
                     self.drag_mode = DragMode::ResizeSprite;
                     self.resize_handle = Some(ResizeHandle::BottomRight);
                     self.last_mouse_pos = (x, y);
@@ -438,13 +465,30 @@ impl RenderManager {
                 }
             }
         }
-        // Check for sprite under cursor
+        // Check for sprite under cursor using anchor and scaled bounds in screen space
         if let Some((idx, sprite)) = self.sprites.iter().enumerate().rev().find(|(_, s)| {
-            wx >= s.x && wx <= s.x + s.width * s.scale_x && wy >= s.y && wy <= s.y + s.height * s.scale_y
+            let anchor_x = s.x + (s.width * s.scale_x) / 2.0;
+            let anchor_y = s.y + (s.height * s.scale_y) / 2.0;
+            let half_width = (s.width * s.scale_x) / 2.0;
+            let half_height = (s.height * s.scale_y) / 2.0;
+            let screen_cx = ((anchor_x - self.camera.x) * self.camera.zoom) as f32;
+            let screen_cy = ((anchor_y - self.camera.y) * self.camera.zoom) as f32;
+            let screen_half_width = (s.width * s.scale_x * self.camera.zoom / 2.0) as f32;
+            let screen_half_height = (s.height * s.scale_y * self.camera.zoom / 2.0) as f32;
+            x >= screen_cx - screen_half_width && x <= screen_cx + screen_half_width &&
+            y >= screen_cy - screen_half_height && y <= screen_cy + screen_half_height
         }) {
+            let sprite = sprite;
             self.selected_sprite = Some(sprite.id.clone());
+            // Calculate drag offset from screen position
+            let anchor_x = sprite.x + (sprite.width * sprite.scale_x) / 2.0;
+            let anchor_y = sprite.y + (sprite.height * sprite.scale_y) / 2.0;
+            let screen_cx = ((anchor_x - self.camera.x) * self.camera.zoom) as f32;
+            let screen_cy = ((anchor_y - self.camera.y) * self.camera.zoom) as f32;
             self.drag_mode = DragMode::MoveSprite;
-            self.drag_offset = (wx - sprite.x, wy - sprite.y);
+            // Store offset in world space for movement
+            let world = self.screen_to_world(x as f64, y as f64);
+            self.drag_offset = (world[0] - sprite.x, world[1] - sprite.y);
             self.last_mouse_pos = (x, y);
             // Bring selected sprite to front
             let sprite = self.sprites.remove(idx);
@@ -499,7 +543,7 @@ impl RenderManager {
     }
 
     #[wasm_bindgen]
-    pub fn handle_wheel(&mut self, x: f32, y: f32, delta_y: f32) {
+    pub fn handle_wheel(&mut self, _x: f32, _y: f32, delta_y: f32) {
         if let Some(selected_id) = &self.selected_sprite {
             if let Some(sprite) = self.sprites.iter_mut().find(|s| &s.id == selected_id) {
                 let scale_factor = if delta_y > 0.0 { 0.9 } else { 1.1 };
@@ -510,7 +554,19 @@ impl RenderManager {
         }
         // Fallback to camera zoom if no sprite selected
         let zoom_factor = if delta_y > 0.0 { 0.9 } else { 1.1 };
-        self.camera.zoom = (self.camera.zoom * zoom_factor as f64).clamp(0.1, 5.0);
+        let old_zoom = self.camera.zoom;
+        let new_zoom = (self.camera.zoom * zoom_factor as f64).clamp(0.1, 5.0);
+        // Mouse position in canvas pixel coordinates
+        let mx = _x as f64;
+        let my = _y as f64;
+        // World coordinates under cursor before zoom
+        let world_x = mx / old_zoom + self.camera.x;
+        let world_y = my / old_zoom + self.camera.y;
+        // Update zoom
+        self.camera.zoom = new_zoom;
+        // Update camera offset so world under cursor stays fixed
+        self.camera.x = world_x - mx / new_zoom;
+        self.camera.y = world_y - my / new_zoom;
     }
 
     #[wasm_bindgen]
@@ -525,9 +581,10 @@ impl RenderManager {
 
     #[wasm_bindgen]
     pub fn screen_to_world(&self, screen_x: f64, screen_y: f64) -> Vec<f64> {
+        // Simple inverse transform: world = (screen / zoom) + camera offset
         vec![
-            screen_x / self.camera.zoom + self.camera.x,
-            screen_y / self.camera.zoom + self.camera.y
+            screen_x as f64 / self.camera.zoom + self.camera.x,
+            screen_y as f64 / self.camera.zoom + self.camera.y
         ]
     }
 

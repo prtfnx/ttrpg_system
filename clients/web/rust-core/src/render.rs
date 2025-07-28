@@ -4,16 +4,9 @@ use std::collections::HashMap;
 use crate::types::*;
 use gloo_utils::format::JsValueSerdeExt;
 
-// Import the `console.log` function from the host environment
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
-}
-
-// Define a macro to make console.log! work like println!
+// Use web_sys::console::log_1 for logging
 macro_rules! console_log {
-    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+    ($($t:tt)*) => (web_sys::console::log_1(&format_args!($($t)*).to_string().into()))
 }
 
 #[wasm_bindgen]
@@ -49,6 +42,18 @@ enum ResizeHandle {
 
 #[wasm_bindgen]
 impl RenderManager {
+    /// Returns the current cursor position in both screen and world coordinates as a JS object
+    #[wasm_bindgen]
+    pub fn get_cursor_coords(&self) -> JsValue {
+        let (screen_x, screen_y) = self.last_mouse_pos;
+        let world = self.screen_to_world(screen_x as f64, screen_y as f64);
+        let world_x = world[0];
+        let world_y = world[1];
+        JsValue::from_serde(&serde_json::json!({
+            "screen": { "x": screen_x, "y": screen_y },
+            "world": { "x": world_x, "y": world_y }
+        })).unwrap_or(JsValue::NULL)
+    }
     #[wasm_bindgen]
     pub fn get_drag_mode(&self) -> String {
         match self.drag_mode {
@@ -530,10 +535,10 @@ impl RenderManager {
                 let dy = y - self.last_mouse_pos.1;
                 self.camera.x -= dx as f64;
                 self.camera.y -= dy as f64;
-                self.last_mouse_pos = (x, y);
             }
             _ => {}
         }
+        self.last_mouse_pos = (x, y);
     }
 
     #[wasm_bindgen]
@@ -556,17 +561,22 @@ impl RenderManager {
         let zoom_factor = if delta_y > 0.0 { 0.9 } else { 1.1 };
         let old_zoom = self.camera.zoom;
         let new_zoom = (self.camera.zoom * zoom_factor as f64).clamp(0.1, 5.0);
-        // Mouse position in canvas pixel coordinates
         let mx = _x as f64;
         let my = _y as f64;
-        // World coordinates under cursor before zoom
         let world_x = mx / old_zoom + self.camera.x;
         let world_y = my / old_zoom + self.camera.y;
+        console_log!("[ZOOM] Before: camera.x = {}, camera.y = {}, zoom = {}", self.camera.x, self.camera.y, old_zoom);
+        console_log!("[ZOOM] Mouse: mx = {}, my = {}", mx, my);
+        console_log!("[ZOOM] World under cursor before zoom: world_x = {}, world_y = {}", world_x, world_y);
         // Update zoom
         self.camera.zoom = new_zoom;
         // Update camera offset so world under cursor stays fixed
         self.camera.x = world_x - mx / new_zoom;
         self.camera.y = world_y - my / new_zoom;
+        console_log!("[ZOOM] After: camera.x = {}, camera.y = {}, zoom = {}", self.camera.x, self.camera.y, new_zoom);
+        let world_x_after = mx / new_zoom + self.camera.x;
+        let world_y_after = my / new_zoom + self.camera.y;
+        console_log!("[ZOOM] World under cursor after zoom: world_x = {}, world_y = {}", world_x_after, world_y_after);
     }
 
     #[wasm_bindgen]
@@ -581,11 +591,9 @@ impl RenderManager {
 
     #[wasm_bindgen]
     pub fn screen_to_world(&self, screen_x: f64, screen_y: f64) -> Vec<f64> {
-        // Simple inverse transform: world = (screen / zoom) + camera offset
-        vec![
-            screen_x as f64 / self.camera.zoom + self.camera.x,
-            screen_y as f64 / self.camera.zoom + self.camera.y
-        ]
+        let world_x = screen_x / self.camera.zoom + self.camera.x;
+        let world_y = screen_y / self.camera.zoom + self.camera.y;
+        vec![world_x, world_y]
     }
 
     #[wasm_bindgen]

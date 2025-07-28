@@ -5,23 +5,30 @@ declare global {
   }
 }
 
-import React, { useEffect, useRef, useState } from 'react';
-import { DebugOverlay } from './DebugOverlay';
 // Persistent debug panel for canvas/mouse/world info
-function useCanvasDebug(canvasRef, rustRenderManagerRef, dprRef) {
+import type { RefObject } from 'react';
+function useCanvasDebug(
+  canvasRef: RefObject<HTMLCanvasElement | null>,
+  rustRenderManagerRef: RefObject<any>,
+  dprRef: RefObject<number>
+): {
+  cssWidth: number; cssHeight: number; deviceWidth: number; deviceHeight: number;
+  mouseCss: { x: number; y: number }; mouseDevice: { x: number; y: number }; world: { x: number; y: number }
+} {
   const [debug, setDebug] = useState({
     cssWidth: 0, cssHeight: 0, deviceWidth: 0, deviceHeight: 0,
     mouseCss: { x: 0, y: 0 }, mouseDevice: { x: 0, y: 0 }, world: { x: 0, y: 0 }
   });
   useEffect(() => {
-    function update(e) {
+    function update(e: MouseEvent | UIEvent | null) {
+      // For resize events, e is UIEvent, so skip mouse calculations
       const canvas = canvasRef.current;
       if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
       const dpr = dprRef.current;
       let mouseCss = { x: 0, y: 0 }, mouseDevice = { x: 0, y: 0 }, world = { x: 0, y: 0 };
-      if (e) {
-        mouseCss = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      if (e && 'clientX' in e && 'clientY' in e) {
+        mouseCss = { x: (e as MouseEvent).clientX - rect.left, y: (e as MouseEvent).clientY - rect.top };
         mouseDevice = { x: mouseCss.x * dpr, y: mouseCss.y * dpr };
         if (rustRenderManagerRef.current && rustRenderManagerRef.current.screen_to_world) {
           const w = rustRenderManagerRef.current.screen_to_world(mouseDevice.x, mouseDevice.y);
@@ -34,31 +41,21 @@ function useCanvasDebug(canvasRef, rustRenderManagerRef, dprRef) {
         mouseCss, mouseDevice, world
       });
     }
-    const move = (e) => update(e);
+    const move = (e: MouseEvent) => update(e);
     window.addEventListener('mousemove', move);
-import React, { useEffect, useRef, useState } from 'react';
-import { DebugOverlay } from './DebugOverlay';
-    window.addEventListener('resize', resize);
-function useCanvasDebug(
-  canvasRef: React.RefObject<HTMLCanvasElement>,
-  rustRenderManagerRef: React.RefObject<any>,
-  dprRef: React.RefObject<number>
-): {
-  cssWidth: number;
-  cssHeight: number;
-  deviceWidth: number;
-  deviceHeight: number;
-  mouseCss: { x: number; y: number };
-  mouseDevice: { x: number; y: number };
-  world: { x: number; y: number };
-} {
+    window.addEventListener('resize', update);
+    // Initial update
+    update(null);
     return () => {
       window.removeEventListener('mousemove', move);
-      window.removeEventListener('resize', resize);
+      window.removeEventListener('resize', update);
     };
   }, [canvasRef, rustRenderManagerRef, dprRef]);
   return debug;
 }
+
+import React, { useEffect, useRef, useState } from 'react';
+import { DebugOverlay } from './DebugOverlay';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useGameStore } from '../store';
 import './GameCanvas.css';
@@ -70,7 +67,7 @@ export const GameCanvas: React.FC = () => {
   const dprRef = useRef<number>(1);
   const { updateConnectionState } = useGameStore();
   const { connect: connectWebSocket, disconnect: disconnectWebSocket, requestTableData } = useWebSocket('ws://127.0.0.1:12345/ws');
-  const debugPanel = useCanvasDebug(canvasRef, rustRenderManagerRef, dprRef);
+  const debugPanel = useCanvasDebug(canvasRef as React.RefObject<HTMLCanvasElement | null>, rustRenderManagerRef, dprRef);
 
   const getRelativeCoords = (e: MouseEvent | WheelEvent) => {
     const canvas = canvasRef.current;
@@ -94,13 +91,13 @@ export const GameCanvas: React.FC = () => {
     }
   };
   const handleMouseMove = (e: MouseEvent) => {
+    const canvas = canvasRef.current;
     if (canvas && rustRenderManagerRef.current && rustRenderManagerRef.current.get_drag_mode) {
       // Use get_drag_mode from WASM for reliable cursor style changes
       const mode = rustRenderManagerRef.current.get_drag_mode();
       let cursor = 'grab';
       if (mode === 'ResizeSprite') {
         cursor = 'nwse-resize';
-  const debugPanel = useCanvasDebug(canvasRef, rustRenderManagerRef, dprRef);
       } else if (mode === 'MoveSprite') {
         cursor = 'grabbing';
       } else if (mode === 'Camera') {

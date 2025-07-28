@@ -267,37 +267,36 @@ impl RenderManager {
     }
 
     fn draw_grid(&self, width: f32, height: f32) -> Result<(), JsValue> {
-        let grid_size = 50.0 * self.camera.zoom as f32;
-        let start_x = (-self.camera.x as f32 % grid_size) - grid_size;
-        let start_y = (-self.camera.y as f32 % grid_size) - grid_size;
-        
-        // Create line vertices for grid
-        let mut vertices = Vec::new();
-        
-        // Vertical lines
-        let mut x = start_x;
-        while x < width + grid_size {
-            vertices.extend_from_slice(&[
-                x, 0.0,
-                x, height,
-            ]);
-            // Debug: log world coordinates at grid intersection (x, 0)
-            let world_x = x as f64 / self.camera.zoom + self.camera.x;
-            let world_y = 0.0 / self.camera.zoom + self.camera.y;
+        let grid_size = 50.0; // world units
+        let left = self.camera.x;
+        let top = self.camera.y;
+        let right = self.camera.x + (width as f64) / self.camera.zoom;
+        let bottom = self.camera.y + (height as f64) / self.camera.zoom;
 
+        // Find first grid line left/top of view
+        let first_x = (left / grid_size).floor() * grid_size;
+        let first_y = (top / grid_size).floor() * grid_size;
+
+        let mut vertices = Vec::new();
+
+        // Vertical lines
+        let mut x = first_x;
+        while x <= right {
+            let sx = ((x - self.camera.x) * self.camera.zoom) as f32;
+            vertices.extend_from_slice(&[
+                sx, 0.0,
+                sx, height,
+            ]);
             x += grid_size;
         }
         // Horizontal lines
-        let mut y = start_y;
-        while y < height + grid_size {
+        let mut y = first_y;
+        while y <= bottom {
+            let sy = ((y - self.camera.y) * self.camera.zoom) as f32;
             vertices.extend_from_slice(&[
-                0.0, y,
-                width, y,
+                0.0, sy,
+                width, sy,
             ]);
-            // Debug: log world coordinates at grid intersection (0, y)
-            let world_x = 0.0 / self.camera.zoom + self.camera.x;
-            let world_y = y as f64 / self.camera.zoom + self.camera.y;
-
             y += grid_size;
         }
         self.draw_lines(&vertices, (0.2, 0.2, 0.2, 1.0))?;
@@ -310,20 +309,20 @@ impl RenderManager {
     fn draw_sprite(&self, sprite: &Sprite) -> Result<(), JsValue> {
         let is_selected = self.selected_sprite.as_ref().map_or(false, |id| id == &sprite.id);
         let border_color = if is_selected { (0.2, 0.8, 0.2, 1.0) } else { (1.0, 1.0, 1.0, 1.0) };
-        // Use anchor at center for both sprite and selection overlay
-        let anchor_x = sprite.x + (sprite.width * sprite.scale_x) / 2.0;
-        let anchor_y = sprite.y + (sprite.height * sprite.scale_y) / 2.0;
-        let _half_width = (sprite.width * sprite.scale_x) / 2.0;
-        let _half_height = (sprite.height * sprite.scale_y) / 2.0;
-        let world_cx = ((anchor_x - self.camera.x) * self.camera.zoom) as f32;
-        let world_cy = ((anchor_y - self.camera.y) * self.camera.zoom) as f32;
+        // Use top-left as anchor for both sprite and selection overlay
+        let anchor_x = sprite.x;
+        let anchor_y = sprite.y;
+        let screen_x = ((anchor_x - self.camera.x) * self.camera.zoom) as f32;
+        let screen_y = ((anchor_y - self.camera.y) * self.camera.zoom) as f32;
         let scaled_width = (sprite.width * sprite.scale_x * self.camera.zoom) as f32;
         let scaled_height = (sprite.height * sprite.scale_y * self.camera.zoom) as f32;
+        // Debug log for sprite rendering
+        console_log!("[DRAW_SPRITE] id='{}' anchor=({}, {}) screen=({}, {}) scaled=({}, {})", sprite.id, anchor_x, anchor_y, screen_x, screen_y, scaled_width, scaled_height);
         let vertices = [
-            world_cx - scaled_width / 2.0, world_cy - scaled_height / 2.0,
-            world_cx + scaled_width / 2.0, world_cy - scaled_height / 2.0,
-            world_cx - scaled_width / 2.0, world_cy + scaled_height / 2.0,
-            world_cx + scaled_width / 2.0, world_cy + scaled_height / 2.0,
+            screen_x, screen_y,
+            screen_x + scaled_width, screen_y,
+            screen_x, screen_y + scaled_height,
+            screen_x + scaled_width, screen_y + scaled_height,
         ];
         // Flip texture vertically for correct orientation
         let tex_coords = [
@@ -453,6 +452,18 @@ impl RenderManager {
     // Sprite selection, movement, resize, and scaling
     #[wasm_bindgen]
     pub fn handle_mouse_down(&mut self, x: f32, y: f32) {
+        // Debug: log mouse, camera, and sprite positions
+        console_log!("[SELECT] Mouse down at screen: ({}, {}), camera: ({}, {}), zoom: {}", x, y, self.camera.x, self.camera.y, self.camera.zoom);
+        for (i, s) in self.sprites.iter().enumerate() {
+            let anchor_x = s.x;
+            let anchor_y = s.y;
+            let screen_x = ((anchor_x - self.camera.x) * self.camera.zoom) as f32;
+            let screen_y = ((anchor_y - self.camera.y) * self.camera.zoom) as f32;
+            let scaled_width = (s.width * s.scale_x * self.camera.zoom) as f32;
+            let scaled_height = (s.height * s.scale_y * self.camera.zoom) as f32;
+            console_log!("[SELECT] Sprite {} '{}': anchor=({}, {}), screen=({}, {}), scaled=({}, {})", i, s.id, anchor_x, anchor_y, screen_x, screen_y, scaled_width, scaled_height);
+        }
+
         // Hit test in screen space to match rendering
         // Check for resize handle first if a sprite is selected
         if let Some(selected_id) = &self.selected_sprite {
@@ -472,24 +483,23 @@ impl RenderManager {
         }
         // Check for sprite under cursor using anchor and scaled bounds in screen space
         if let Some((idx, sprite)) = self.sprites.iter().enumerate().rev().find(|(_, s)| {
-            let anchor_x = s.x + (s.width * s.scale_x) / 2.0;
-            let anchor_y = s.y + (s.height * s.scale_y) / 2.0;
-            let half_width = (s.width * s.scale_x) / 2.0;
-            let half_height = (s.height * s.scale_y) / 2.0;
-            let screen_cx = ((anchor_x - self.camera.x) * self.camera.zoom) as f32;
-            let screen_cy = ((anchor_y - self.camera.y) * self.camera.zoom) as f32;
-            let screen_half_width = (s.width * s.scale_x * self.camera.zoom / 2.0) as f32;
-            let screen_half_height = (s.height * s.scale_y * self.camera.zoom / 2.0) as f32;
-            x >= screen_cx - screen_half_width && x <= screen_cx + screen_half_width &&
-            y >= screen_cy - screen_half_height && y <= screen_cy + screen_half_height
+            let anchor_x = s.x;
+            let anchor_y = s.y;
+            let screen_x = ((anchor_x - self.camera.x) * self.camera.zoom) as f32;
+            let screen_y = ((anchor_y - self.camera.y) * self.camera.zoom) as f32;
+            let scaled_width = (s.width * s.scale_x * self.camera.zoom) as f32;
+            let scaled_height = (s.height * s.scale_y * self.camera.zoom) as f32;
+            console_log!("[HITTEST] Sprite '{}' anchor=({}, {}) screen=({}, {}) scaled=({}, {}) mouse=({}, {})", s.id, anchor_x, anchor_y, screen_x, screen_y, scaled_width, scaled_height, x, y);
+            x >= screen_x && x <= screen_x + scaled_width &&
+            y >= screen_y && y <= screen_y + scaled_height
         }) {
             let sprite = sprite;
             self.selected_sprite = Some(sprite.id.clone());
             // Calculate drag offset from screen position
-            let anchor_x = sprite.x + (sprite.width * sprite.scale_x) / 2.0;
-            let anchor_y = sprite.y + (sprite.height * sprite.scale_y) / 2.0;
-            let screen_cx = ((anchor_x - self.camera.x) * self.camera.zoom) as f32;
-            let screen_cy = ((anchor_y - self.camera.y) * self.camera.zoom) as f32;
+            let anchor_x = sprite.x;
+            let anchor_y = sprite.y;
+            let screen_x = ((anchor_x - self.camera.x) * self.camera.zoom) as f32;
+            let screen_y = ((anchor_y - self.camera.y) * self.camera.zoom) as f32;
             self.drag_mode = DragMode::MoveSprite;
             // Store offset in world space for movement
             let world = self.screen_to_world(x as f64, y as f64);

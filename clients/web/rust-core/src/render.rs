@@ -341,11 +341,11 @@ impl RenderManager {
         // Always draw selection border for selected sprite
         if is_selected {
             let border_vertices = [
-                world_cx - scaled_width / 2.0, world_cy - scaled_height / 2.0,
-                world_cx + scaled_width / 2.0, world_cy - scaled_height / 2.0,
-                world_cx + scaled_width / 2.0, world_cy + scaled_height / 2.0,
-                world_cx - scaled_width / 2.0, world_cy + scaled_height / 2.0,
-                world_cx - scaled_width / 2.0, world_cy - scaled_height / 2.0,
+                screen_x, screen_y,
+                screen_x + scaled_width, screen_y,
+                screen_x + scaled_width, screen_y + scaled_height,
+                screen_x, screen_y + scaled_height,
+                screen_x, screen_y,
             ];
             self.draw_lines(&border_vertices, (0.2, 0.8, 0.2, 1.0))?;
         }

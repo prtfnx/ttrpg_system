@@ -12,6 +12,8 @@ interface GameStore extends GameState {
   addSprite: (sprite: Sprite) => void;
   removeSprite: (id: string) => void;
   updateSprite: (id: string, updates: Partial<Sprite>) => void;
+  addCharacter: (character: import('./types').Character) => void;
+  updateCharacter: (id: string, updates: Partial<import('./types').Character>) => void;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -102,6 +104,20 @@ export const useGameStore = create<GameStore>()(
         set((state) => ({
           sprites: state.sprites.map((sprite) =>
             sprite.id === id ? { ...sprite, ...updates } : sprite
+          ),
+        }));
+      },
+
+      addCharacter: (character) => {
+        set((state) => ({
+          characters: [...state.characters, character],
+        }));
+      },
+
+      updateCharacter: (id, updates) => {
+        set((state) => ({
+          characters: state.characters.map((char) =>
+            char.id === id ? { ...char, ...updates, stats: { ...char.stats, ...(updates.stats || {}) } } : char
           ),
         }));
       },

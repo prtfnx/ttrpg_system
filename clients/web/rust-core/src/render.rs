@@ -42,6 +42,18 @@ enum ResizeHandle {
 
 #[wasm_bindgen]
 impl RenderManager {
+    /// Center the camera on a given world coordinate
+    #[wasm_bindgen]
+    pub fn center_camera_on(&mut self, world_x: f64, world_y: f64) {
+        let width = self.canvas.width() as f64;
+        let height = self.canvas.height() as f64;
+        self.camera.x = world_x - width / (2.0 * self.camera.zoom);
+        self.camera.y = world_y - height / (2.0 * self.camera.zoom);
+        console_log!(
+            "[CENTER_CAMERA] camera.x={}, camera.y={}, zoom={}, center=({}, {})",
+            self.camera.x, self.camera.y, self.camera.zoom, world_x, world_y
+        );
+    }
     /// Returns the current cursor position in both screen and world coordinates as a JS object
     #[wasm_bindgen]
     pub fn get_cursor_coords(&self) -> JsValue {
@@ -240,29 +252,27 @@ impl RenderManager {
     pub fn render(&mut self) -> Result<(), JsValue> {
         let width = self.canvas.width() as f32;
         let height = self.canvas.height() as f32;
-        
+        let dpr = web_sys::window()
+            .map(|w| w.device_pixel_ratio())
+            .unwrap_or(1.0);
+        let (mx, my) = self.last_mouse_pos;
+        let world = self.screen_to_world(mx as f64, my as f64);
         self.gl.viewport(0, 0, width as i32, height as i32);
         self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
-        
         if let Some(program) = &self.shader_program {
             self.gl.use_program(Some(program));
-            
             // Set resolution uniform
             let resolution_location = self.gl.get_uniform_location(program, "u_resolution");
             self.gl.uniform2f(resolution_location.as_ref(), width, height);
-            
             // Draw grid if enabled
             if self.grid_enabled {
                 self.draw_grid(width, height)?;
             }
-            
             // Draw sprites
-            console_log!("Rendering {} sprites", self.sprites.len());
             for sprite in &self.sprites {
                 self.draw_sprite(sprite)?;
             }
         }
-        
         Ok(())
     }
 
@@ -316,8 +326,7 @@ impl RenderManager {
         let screen_y = ((anchor_y - self.camera.y) * self.camera.zoom) as f32;
         let scaled_width = (sprite.width * sprite.scale_x * self.camera.zoom) as f32;
         let scaled_height = (sprite.height * sprite.scale_y * self.camera.zoom) as f32;
-        // Debug log for sprite rendering
-        console_log!("[DRAW_SPRITE] id='{}' anchor=({}, {}) screen=({}, {}) scaled=({}, {})", sprite.id, anchor_x, anchor_y, screen_x, screen_y, scaled_width, scaled_height);
+
         let vertices = [
             screen_x, screen_y,
             screen_x + scaled_width, screen_y,
@@ -452,28 +461,30 @@ impl RenderManager {
     // Sprite selection, movement, resize, and scaling
     #[wasm_bindgen]
     pub fn handle_mouse_down(&mut self, x: f32, y: f32) {
-        // Debug: log mouse, camera, and sprite positions
-        console_log!("[SELECT] Mouse down at screen: ({}, {}), camera: ({}, {}), zoom: {}", x, y, self.camera.x, self.camera.y, self.camera.zoom);
+        // Convert mouse (screen) coordinates to world coordinates for hit-testing
+        let world = self.screen_to_world(x as f64, y as f64);
+        let wx = world[0];
+        let wy = world[1];
+        let dpr = web_sys::window().map(|w| w.device_pixel_ratio()).unwrap_or(1.0);
+        console_log!(
+            "[SELECT] Mouse down at screen: ({}, {}), world: ({}, {}), camera: ({}, {}), zoom: {}, DPR={}",
+            x, y, wx, wy, self.camera.x, self.camera.y, self.camera.zoom, dpr
+        );
         for (i, s) in self.sprites.iter().enumerate() {
             let anchor_x = s.x;
             let anchor_y = s.y;
-            let screen_x = ((anchor_x - self.camera.x) * self.camera.zoom) as f32;
-            let screen_y = ((anchor_y - self.camera.y) * self.camera.zoom) as f32;
-            let scaled_width = (s.width * s.scale_x * self.camera.zoom) as f32;
-            let scaled_height = (s.height * s.scale_y * self.camera.zoom) as f32;
-            console_log!("[SELECT] Sprite {} '{}': anchor=({}, {}), screen=({}, {}), scaled=({}, {})", i, s.id, anchor_x, anchor_y, screen_x, screen_y, scaled_width, scaled_height);
+            let scaled_width = s.width * s.scale_x;
+            let scaled_height = s.height * s.scale_y;
+            console_log!("[SELECT] Sprite {} '{}': anchor=({}, {}), world bounds=({}, {}), size=({}, {})", i, s.id, anchor_x, anchor_y, anchor_x, anchor_y, scaled_width, scaled_height);
         }
 
-        // Hit test in screen space to match rendering
-        // Check for resize handle first if a sprite is selected
+        // Check for resize handle first if a sprite is selected (in world space)
         if let Some(selected_id) = &self.selected_sprite {
             if let Some(sprite) = self.sprites.iter().find(|s| &s.id == selected_id) {
                 let handle_size = 12.0 / self.camera.zoom;
-                let handle_x = sprite.x + sprite.width * sprite.scale_x;
-                let handle_y = sprite.y + sprite.height * sprite.scale_y;
-                let handle_screen_x = ((handle_x - self.camera.x) * self.camera.zoom) as f32;
-                let handle_screen_y = ((handle_y - self.camera.y) * self.camera.zoom) as f32;
-                if (x - handle_screen_x).abs() < handle_size as f32 && (y - handle_screen_y).abs() < handle_size as f32 {
+                let handle_x = sprite.x + (sprite.width * sprite.scale_x);
+                let handle_y = sprite.y + (sprite.height * sprite.scale_y);
+                if (wx - handle_x).abs() < handle_size && (wy - handle_y).abs() < handle_size {
                     self.drag_mode = DragMode::ResizeSprite;
                     self.resize_handle = Some(ResizeHandle::BottomRight);
                     self.last_mouse_pos = (x, y);
@@ -481,29 +492,20 @@ impl RenderManager {
                 }
             }
         }
-        // Check for sprite under cursor using anchor and scaled bounds in screen space
+        // Check for sprite under cursor using world coordinates and world bounds
         if let Some((idx, sprite)) = self.sprites.iter().enumerate().rev().find(|(_, s)| {
             let anchor_x = s.x;
             let anchor_y = s.y;
-            let screen_x = ((anchor_x - self.camera.x) * self.camera.zoom) as f32;
-            let screen_y = ((anchor_y - self.camera.y) * self.camera.zoom) as f32;
-            let scaled_width = (s.width * s.scale_x * self.camera.zoom) as f32;
-            let scaled_height = (s.height * s.scale_y * self.camera.zoom) as f32;
-            console_log!("[HITTEST] Sprite '{}' anchor=({}, {}) screen=({}, {}) scaled=({}, {}) mouse=({}, {})", s.id, anchor_x, anchor_y, screen_x, screen_y, scaled_width, scaled_height, x, y);
-            x >= screen_x && x <= screen_x + scaled_width &&
-            y >= screen_y && y <= screen_y + scaled_height
+            let scaled_width = s.width * s.scale_x;
+            let scaled_height = s.height * s.scale_y;
+            wx >= anchor_x && wx <= anchor_x + scaled_width &&
+            wy >= anchor_y && wy <= anchor_y + scaled_height
         }) {
             let sprite = sprite;
             self.selected_sprite = Some(sprite.id.clone());
-            // Calculate drag offset from screen position
-            let anchor_x = sprite.x;
-            let anchor_y = sprite.y;
-            let screen_x = ((anchor_x - self.camera.x) * self.camera.zoom) as f32;
-            let screen_y = ((anchor_y - self.camera.y) * self.camera.zoom) as f32;
+            // Calculate drag offset from world position
             self.drag_mode = DragMode::MoveSprite;
-            // Store offset in world space for movement
-            let world = self.screen_to_world(x as f64, y as f64);
-            self.drag_offset = (world[0] - sprite.x, world[1] - sprite.y);
+            self.drag_offset = (wx - sprite.x, wy - sprite.y);
             self.last_mouse_pos = (x, y);
             // Bring selected sprite to front
             let sprite = self.sprites.remove(idx);
@@ -543,8 +545,9 @@ impl RenderManager {
             DragMode::Camera => {
                 let dx = x - self.last_mouse_pos.0;
                 let dy = y - self.last_mouse_pos.1;
-                self.camera.x -= dx as f64;
-                self.camera.y -= dy as f64;
+                // Convert dx/dy from device pixels to world units
+                self.camera.x -= dx as f64 / self.camera.zoom;
+                self.camera.y -= dy as f64 / self.camera.zoom;
             }
             _ => {}
         }
@@ -580,7 +583,7 @@ impl RenderManager {
         console_log!("[ZOOM] World under cursor before zoom: world_x = {}, world_y = {}", world_x, world_y);
         // Update zoom
         self.camera.zoom = new_zoom;
-        // Update camera offset so world under cursor stays fixed
+        // Update camera offset so world under cursor stays fixed (restore top-left origin math)
         self.camera.x = world_x - mx / new_zoom;
         self.camera.y = world_y - my / new_zoom;
         console_log!("[ZOOM] After: camera.x = {}, camera.y = {}, zoom = {}", self.camera.x, self.camera.y, new_zoom);
@@ -621,5 +624,6 @@ impl RenderManager {
         self.canvas.set_width(width);
         self.canvas.set_height(height);
         self.gl.viewport(0, 0, width as i32, height as i32);
+        console_log!("[RUST RESIZE] canvas.width={}, canvas.height={}, viewport=({}, {})", width, height, width, height);
     }
 }

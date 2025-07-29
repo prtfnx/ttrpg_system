@@ -55,9 +55,9 @@ function useCanvasDebug(
 }
 
 import React, { useEffect, useRef, useState } from 'react';
-import { DebugOverlay } from './DebugOverlay';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useGameStore } from '../store';
+import { DebugOverlay } from './DebugOverlay';
 import './GameCanvas.css';
 
 export const GameCanvas: React.FC = () => {
@@ -73,9 +73,25 @@ export const GameCanvas: React.FC = () => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
-    const dpr = dprRef.current;
-    const x = (e.clientX - rect.left) * dpr;
-    const y = (e.clientY - rect.top) * dpr;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    let y = (e.clientY - rect.top) * scaleY;
+    // Debug: log all mapping info
+    console.log('[DEBUG] Mouse event:', {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      rect,
+      scaleX,
+      scaleY,
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height,
+      computedX: x,
+      computedY: y,
+    });
+    // Try flipping Y for hit test diagnosis
+    // Uncomment the next line to test Y flip:
+    // y = canvas.height - y;
     return { x, y };
   };
 
@@ -220,6 +236,11 @@ export const GameCanvas: React.FC = () => {
           try {
             rustRenderManager = new RenderManager(canvas);
             console.log('[WASM] RenderManager constructed:', rustRenderManager);
+            // Center camera on a default sprite position (e.g., (200, 150)) at startup
+            if (typeof rustRenderManager.center_camera_on === 'function') {
+              // TODO: Ideally, fetch sprite positions dynamically. For now, use (200, 150) as a likely center.
+              rustRenderManager.center_camera_on(200, 150);
+            }
             rustRenderManagerRef.current = rustRenderManager;
             window.rustRenderManager = rustRenderManager;
           } catch (rmErr) {
@@ -258,6 +279,10 @@ export const GameCanvas: React.FC = () => {
         try {
           const rustRenderManager = new RenderManager(canvas);
           console.log('RenderManager constructed:', rustRenderManager);
+          // Center camera on world origin (0,0) at startup
+          if (typeof rustRenderManager.center_camera_on === 'function') {
+            rustRenderManager.center_camera_on(0, 0);
+          }
           rustRenderManagerRef.current = rustRenderManager;
           window.rustRenderManager = rustRenderManager;
         } catch (rmErr) {

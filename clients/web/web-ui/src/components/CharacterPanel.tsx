@@ -127,6 +127,9 @@ export function CharacterPanel() {
       addCharacter({
         id: 'test-1',
         name: 'Test Character',
+        race: 'Human',
+        class: 'Fighter',
+        level: 1,
         sprite: {
           id: 'sprite-1',
           name: 'Test Character',
@@ -151,6 +154,7 @@ export function CharacterPanel() {
   }, []);
   // Show all characters, highlight selected
   const selectedIds = new Set(selectedSprites);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   return (
     <div className="character-section">
@@ -158,33 +162,74 @@ export function CharacterPanel() {
         [DEBUG] CharacterPanel is mounted and rendering
       </div>
       <h2>Characters</h2>
-      <CharacterCreationForm
-        onCreate={(data) => {
-          const newCharacter = {
-            id: genId(),
-            name: data.name,
-            sprite: {
-              id: genId(),
-              name: data.name,
-              x: 0,
-              y: 0,
-              width: 1,
-              height: 1,
-              isSelected: false,
-              isVisible: true,
-              layer: 0,
-            },
-            stats: {
-              hp: 10,
-              maxHp: 10,
-              ac: 10,
-              speed: 30,
-            },
-            conditions: [],
-          };
-          addCharacter(newCharacter);
-        }}
-      />
+      <button
+        style={{ marginBottom: '1rem', padding: '0.5rem 1rem', fontWeight: 600 }}
+        onClick={() => setShowCreateModal(true)}
+      >
+        + Create Character
+      </button>
+
+      {showCreateModal && (
+        <div className="modal-overlay" style={{
+          position: 'fixed',
+          inset: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+        }}>
+          <div className="modal-content" style={{
+            background: '#fff',
+            color: '#222',
+            borderRadius: 12,
+            padding: 32,
+            minWidth: 340,
+            maxWidth: 420,
+            boxShadow: '0 4px 32px rgba(0,0,0,0.35)',
+            fontSize: 16,
+          }}>
+            <h3 style={{ color: '#222', marginBottom: 16 }}>Create New Character</h3>
+            <CharacterCreationForm
+              onCreate={(data) => {
+                const newCharacter = {
+                  id: genId(),
+                  name: data.name,
+                  race: data.race,
+                  class: data.class,
+                  level: data.level,
+                  sprite: {
+                    id: genId(),
+                    name: data.name,
+                    x: 0,
+                    y: 0,
+                    width: 1,
+                    height: 1,
+                    isSelected: false,
+                    isVisible: true,
+                    layer: 0,
+                  },
+                  stats: {
+                    hp: 10,
+                    maxHp: 10,
+                    ac: 10,
+                    speed: 30,
+                  },
+                  conditions: [],
+                };
+                addCharacter(newCharacter);
+                setShowCreateModal(false);
+              }}
+            />
+            <div style={{ marginTop: 16, textAlign: 'right' }}>
+              <button onClick={() => setShowCreateModal(false)} style={{ padding: '0.5rem 1rem', background: '#eee', color: '#333', border: 'none', borderRadius: 4 }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ marginTop: 24 }}>
         <EditableCharacterList
           characters={characters.map((char) => ({

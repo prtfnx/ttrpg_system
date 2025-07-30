@@ -22,6 +22,9 @@ export interface Sprite {
 export interface Character {
   id: string;
   name: string;
+  race: string;
+  class: string;
+  level: number;
   sprite: Sprite;
   stats: {
     hp: number;

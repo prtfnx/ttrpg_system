@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { CharacterPanel } from './CharacterPanel';
+import CharacterPanel from './CharacterPanel';
 import { EntitiesPanel } from './EntitiesPanel';
 
 export function RightPanel() {

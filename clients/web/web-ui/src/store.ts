@@ -14,6 +14,7 @@ interface GameStore extends GameState {
   updateSprite: (id: string, updates: Partial<Sprite>) => void;
   addCharacter: (character: import('./types').Character) => void;
   updateCharacter: (id: string, updates: Partial<import('./types').Character>) => void;
+  addInventoryItem: (characterId: string, item: string) => void;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -60,6 +61,16 @@ export const useGameStore = create<GameStore>()(
             })),
           };
         });
+      },
+
+      addInventoryItem: (characterId: string, item: string) => {
+        set((state) => ({
+          characters: state.characters.map((char) =>
+            char.id === characterId
+              ? { ...char, inventory: [...(char.inventory || []), item] }
+              : char
+          ),
+        }));
       },
 
       updateCamera: (x: number, y: number, zoom?: number) => {

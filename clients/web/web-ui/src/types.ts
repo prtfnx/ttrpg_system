@@ -33,6 +33,7 @@ export interface Character {
     speed: number;
   };
   conditions: string[];
+  inventory: string[];
 }
 
 export interface GameState {

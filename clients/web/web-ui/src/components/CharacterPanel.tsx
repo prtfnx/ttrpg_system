@@ -1,3 +1,28 @@
+
+// DiceRoller: Simple d20 roller for actions system foundation
+function DiceRoller() {
+  const [result, setResult] = React.useState<number|null>(null);
+  const [rolling, setRolling] = React.useState(false);
+  const rollD20 = () => {
+    setRolling(true);
+    setTimeout(() => {
+      setResult(Math.floor(Math.random() * 20) + 1);
+      setRolling(false);
+    }, 350);
+  };
+  return (
+    <div style={{ marginTop: 20, textAlign: 'center' }}>
+      <button onClick={rollD20} disabled={rolling} style={{ padding: '10px 24px', fontSize: 18, borderRadius: 8, background: '#6366f1', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer', boxShadow: '0 2px 8px #6366f133' }}>
+        {rolling ? 'Rolling...' : 'Roll d20'}
+      </button>
+      {result !== null && !rolling && (
+        <div style={{ marginTop: 12, fontSize: 22, fontWeight: 700, color: result === 20 ? '#16a34a' : result === 1 ? '#dc2626' : '#222' }}>
+          Result: {result}
+        </div>
+      )}
+    </div>
+  );
+}
 import React, { useState } from 'react';
 import { useGameStore } from '../store';
 import { CharacterCreationForm } from './CharacterCreationForm';
@@ -46,6 +71,7 @@ function CharacterPanel() {
           speed: 30,
         },
         conditions: ['Blessed'],
+        inventory: [],
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -130,9 +156,9 @@ function CharacterPanel() {
                     speed: 30,
                   },
                   conditions: [],
+                  inventory: [], // Start with empty inventory
                 };
                 addCharacter(newCharacter);
-                // Optionally, select the new character's sprite immediately
                 selectSprite(spriteId, false);
                 setShowCreateModal(false);
               }}
@@ -212,6 +238,15 @@ function CharacterPanel() {
 // CharacterSheetTabs: Tabs for Social, Exploration, Combat
 function CharacterSheetTabs({ character }: { character: any }) {
   const [tab, setTab] = React.useState<'social' | 'exploration' | 'combat'>('social');
+  const [newItem, setNewItem] = React.useState('');
+  const { addInventoryItem } = useGameStore();
+  // Add item to inventory (if not empty)
+  const handleAddItem = () => {
+    if (newItem.trim() && character && addInventoryItem) {
+      addInventoryItem(character.id, newItem.trim());
+      setNewItem('');
+    }
+  };
   return (
     <div style={{ marginTop: 16 }}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -237,6 +272,17 @@ function CharacterSheetTabs({ character }: { character: any }) {
                 <li key={idx}>{item}</li>
               )) : <li style={{ color: '#aaa' }}>No items</li>}
             </ul>
+            {/* Add item input */}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <input
+                type="text"
+                value={newItem}
+                onChange={e => setNewItem(e.target.value)}
+                placeholder="Add item..."
+                style={{ flex: 1, padding: 6, borderRadius: 4, border: '1px solid #ccc' }}
+              />
+              <button onClick={handleAddItem} style={{ padding: '6px 12px', borderRadius: 4, background: '#6366f1', color: '#fff', border: 'none', fontWeight: 600 }}>Add</button>
+            </div>
             {/* Add more exploration features as needed */}
           </div>
         )}
@@ -251,12 +297,15 @@ function CharacterSheetTabs({ character }: { character: any }) {
             <strong>Actions:</strong>
             <ul style={{ margin: 0, paddingLeft: 20 }}>
               {(character.actions || []).length > 0 ? character.actions.map((act: string, idx: number) => (
-                <li key={idx}>{act}</li>
+                <li key={idx}>{act}</li> 
               )) : <li style={{ color: '#aaa' }}>No actions</li>}
             </ul>
+            {/* Dice Roller */}
+            <DiceRoller />
             {/* Add more combat features as needed */}
           </div>
         )}
+// (removed duplicate DiceRoller)
       </div>
     </div>
   );

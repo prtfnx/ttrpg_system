@@ -1,10 +1,10 @@
-console.log('[CharacterPanel] Component function invoked');
 import React, { useState } from 'react';
-import { CharacterCreationForm } from './CharacterCreationForm';
 import { useGameStore } from '../store';
+import { CharacterCreationForm } from './CharacterCreationForm';
+
 
 // Utility to generate unique IDs
-function genId() {
+function genId(): string {
   return (
     'id-' +
     Date.now().toString(36) +
@@ -13,117 +13,11 @@ function genId() {
   );
 }
 
-// Editable character sheet component for in-place editing
-function EditableCharacterList({ characters }: { characters: any[] }) {
-  const { updateCharacter } = useGameStore();
-  const [editing, setEditing] = useState<{ id: string; field: string } | null>(null);
-  const [editValue, setEditValue] = useState<string>('');
 
-  const handleEdit = (id: string, field: string, currentValue: number) => {
-    setEditing({ id, field });
-    setEditValue(currentValue.toString());
-  };
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEditValue(e.target.value);
-  };
-  const handleSave = (id: string, field: string, stats: any) => {
-    updateCharacter(id, { stats: { ...stats, [field]: Number(editValue) } });
-    setEditing(null);
-  };
-
-  return (
-    <>
-      {characters.map((character: any) => (
-        <div key={character.id} className="character-details">
-          <h3>{character.name}</h3>
-          <div className="character-stats">
-            <div className="stat-group">
-              <label>HP:</label>
-              {editing && editing.id === character.id && editing.field === 'hp' ? (
-                <input
-                  type="number"
-                  value={editValue}
-                  onChange={handleChange}
-                  style={{ width: 50 }}
-                  autoFocus
-                  onBlur={() => handleSave(character.id, 'hp', character.stats)}
-                  onKeyDown={e => e.key === 'Enter' && handleSave(character.id, 'hp', character.stats)}
-                />
-              ) : (
-                <span onClick={() => handleEdit(character.id, 'hp', character.stats.hp)} style={{ cursor: 'pointer' }}>{character.stats.hp}</span>
-              )}
-              <span>/</span>
-              {editing && editing.id === character.id && editing.field === 'maxHp' ? (
-                <input
-                  type="number"
-                  value={editValue}
-                  onChange={handleChange}
-                  style={{ width: 50 }}
-                  autoFocus
-                  onBlur={() => handleSave(character.id, 'maxHp', character.stats)}
-                  onKeyDown={e => e.key === 'Enter' && handleSave(character.id, 'maxHp', character.stats)}
-                />
-              ) : (
-                <span onClick={() => handleEdit(character.id, 'maxHp', character.stats.maxHp)} style={{ cursor: 'pointer' }}>{character.stats.maxHp}</span>
-              )}
-            </div>
-            <div className="stat-group">
-              <label>AC:</label>
-              {editing && editing.id === character.id && editing.field === 'ac' ? (
-                <input
-                  type="number"
-                  value={editValue}
-                  onChange={handleChange}
-                  style={{ width: 50 }}
-                  autoFocus
-                  onBlur={() => handleSave(character.id, 'ac', character.stats)}
-                  onKeyDown={e => e.key === 'Enter' && handleSave(character.id, 'ac', character.stats)}
-                />
-              ) : (
-                <span onClick={() => handleEdit(character.id, 'ac', character.stats.ac)} style={{ cursor: 'pointer' }}>{character.stats.ac}</span>
-              )}
-            </div>
-            <div className="stat-group">
-              <label>Speed:</label>
-              {editing && editing.id === character.id && editing.field === 'speed' ? (
-                <input
-                  type="number"
-                  value={editValue}
-                  onChange={handleChange}
-                  style={{ width: 50 }}
-                  autoFocus
-                  onBlur={() => handleSave(character.id, 'speed', character.stats)}
-                  onKeyDown={e => e.key === 'Enter' && handleSave(character.id, 'speed', character.stats)}
-                />
-              ) : (
-                <span onClick={() => handleEdit(character.id, 'speed', character.stats.speed)} style={{ cursor: 'pointer' }}>{character.stats.speed} ft</span>
-              )}
-            </div>
-          </div>
-          {character.conditions.length > 0 && (
-            <div className="conditions">
-              <h4>Conditions:</h4>
-              <div className="condition-list">
-                {character.conditions.map((condition: string, index: number) => (
-                  <span key={index} className="condition-tag">
-                    {condition}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
-    </>
-  );
-}
-
-export function CharacterPanel() {
-  const { characters, selectedSprites, addCharacter } = useGameStore();
-
-  // DEBUG: Add a test character only once on mount if none exist
+function CharacterPanel() {
+  const { characters, selectedSprites, addCharacter, selectSprite } = useGameStore();
   React.useEffect(() => {
-    if (characters.length === 0) {
+    if (!characters.some(c => c.id === 'test-1')) {
       addCharacter({
         id: 'test-1',
         name: 'Test Character',
@@ -152,15 +46,19 @@ export function CharacterPanel() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // Show all characters, highlight selected
-  const selectedIds = new Set(selectedSprites);
+
+  // Character selection state is now bound to selectedSprites
+  // Find the character whose sprite is selected
+  const selectedCharacter = characters.find(c => selectedSprites.includes(c.sprite.id)) || null;
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // When a character is clicked, select its sprite
+  const handleCharacterClick = (char: any) => {
+    selectSprite(char.sprite.id, false);
+  };
 
   return (
     <div className="character-section">
-      <div style={{ background: '#ffeeba', color: '#856404', padding: 8, marginBottom: 8, borderRadius: 4, fontWeight: 600 }}>
-        [DEBUG] CharacterPanel is mounted and rendering
-      </div>
       <h2>Characters</h2>
       <button
         style={{ marginBottom: '1rem', padding: '0.5rem 1rem', fontWeight: 600 }}
@@ -231,13 +129,71 @@ export function CharacterPanel() {
       )}
 
       <div style={{ marginTop: 24 }}>
-        <EditableCharacterList
-          characters={characters.map((char) => ({
-            ...char,
-            isSelected: selectedIds.has(char.sprite.id),
-          }))}
-        />
+        {/* Character List */}
+        <div>
+          {characters.length === 0 && <div style={{ color: '#888', fontStyle: 'italic' }}>No characters yet.</div>}
+          {characters.map((char) => {
+            const isSelected = selectedCharacter && selectedCharacter.id === char.id;
+            return (
+              <div
+                key={char.id}
+                style={{
+                  border: isSelected ? '2px solid #6366f1' : '1px solid #ddd',
+                  borderRadius: 8,
+                  padding: 12,
+                  marginBottom: 8,
+                  background: isSelected ? '#eef2ff' : '#fff',
+                  cursor: 'pointer',
+                  boxShadow: isSelected ? '0 2px 8px #6366f133' : 'none',
+                }}
+                onClick={() => handleCharacterClick(char)}
+              >
+                <div style={{ fontWeight: 700, fontSize: 18 }}>{char.name}</div>
+                <div style={{ color: '#666', fontSize: 14 }}>{char.race} {char.class} (Level {char.level})</div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Character Sheet */}
+        <div style={{ marginTop: 24 }}>
+          {selectedCharacter ? (
+            <div style={{ background: '#fff', borderRadius: 10, padding: 20, boxShadow: '0 2px 12px #0001' }}>
+              <h3 style={{ marginBottom: 8 }}>{selectedCharacter!.name}</h3>
+              <div style={{ color: '#666', marginBottom: 8 }}>{selectedCharacter!.race} {selectedCharacter!.class} (Level {selectedCharacter!.level})</div>
+              <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
+                <div><strong>HP:</strong> {selectedCharacter!.stats.hp} / {selectedCharacter!.stats.maxHp}</div>
+                <div><strong>AC:</strong> {selectedCharacter!.stats.ac}</div>
+                <div><strong>Speed:</strong> {selectedCharacter!.stats.speed} ft</div>
+              </div>
+              {selectedCharacter!.conditions.length > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  <strong>Conditions:</strong>
+                  <ul style={{ margin: 0, paddingLeft: 20 }}>
+                    {selectedCharacter!.conditions.map((cond: string, idx: number) => (
+                      <li key={idx}>{cond}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {/* TODO: Add abilities, inventory, actions, etc. */}
+            </div>
+          ) : (
+            <div style={{ color: '#888', fontStyle: 'italic', textAlign: 'center' }}>
+              Select a character to view their sheet.
+            </div>
+          )}
+        </div>
       </div>
     </div>
+
   );
 }
+
+export default CharacterPanel;
+
+
+
+
+
+

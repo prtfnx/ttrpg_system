@@ -14,8 +14,12 @@ function genId(): string {
 }
 
 
+
 function CharacterPanel() {
+  // --- Store access ---
   const { characters, selectedSprites, addCharacter, selectSprite } = useGameStore();
+
+  // --- Demo/test character on first load ---
   React.useEffect(() => {
     if (!characters.some(c => c.id === 'test-1')) {
       addCharacter({
@@ -47,15 +51,23 @@ function CharacterPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Character selection state is now bound to selectedSprites
-  // Find the character whose sprite is selected
-  const selectedCharacter = characters.find(c => selectedSprites.includes(c.sprite.id)) || null;
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  // --- Character-sprite binding: always keep selection in sync ---
+  // If a sprite is selected, select the corresponding character
+  const selectedCharacter = React.useMemo(() => {
+    // Find the first character whose sprite is selected
+    return characters.find(c => selectedSprites.includes(c.sprite.id)) || null;
+  }, [characters, selectedSprites]);
 
-  // When a character is clicked, select its sprite
+  // When a character is clicked in the UI, select its sprite (and only its sprite)
   const handleCharacterClick = (char: any) => {
+    // Select only this character's sprite
     selectSprite(char.sprite.id, false);
   };
+
+  // --- Future: If a sprite is selected on the map, this will update selectedSprites and thus selectedCharacter
+
+  // --- Modal state for character creation ---
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   return (
     <div className="character-section">
@@ -92,6 +104,8 @@ function CharacterPanel() {
             <h3 style={{ color: '#222', marginBottom: 16 }}>Create New Character</h3>
             <CharacterCreationForm
               onCreate={(data) => {
+                // --- Character-sprite binding: create sprite and link to character ---
+                const spriteId = genId();
                 const newCharacter = {
                   id: genId(),
                   name: data.name,
@@ -99,7 +113,7 @@ function CharacterPanel() {
                   class: data.class,
                   level: data.level,
                   sprite: {
-                    id: genId(),
+                    id: spriteId,
                     name: data.name,
                     x: 0,
                     y: 0,
@@ -118,6 +132,8 @@ function CharacterPanel() {
                   conditions: [],
                 };
                 addCharacter(newCharacter);
+                // Optionally, select the new character's sprite immediately
+                selectSprite(spriteId, false);
                 setShowCreateModal(false);
               }}
             />
@@ -155,7 +171,7 @@ function CharacterPanel() {
           })}
         </div>
 
-        {/* Character Sheet */}
+        {/* Character Sheet with Tabs */}
         <div style={{ marginTop: 24 }}>
           {selectedCharacter ? (
             <div style={{ background: '#fff', borderRadius: 10, padding: 20, boxShadow: '0 2px 12px #0001' }}>
@@ -176,7 +192,9 @@ function CharacterPanel() {
                   </ul>
                 </div>
               )}
-              {/* TODO: Add abilities, inventory, actions, etc. */}
+
+              {/* Tabs for Social, Exploration, Combat */}
+              <CharacterSheetTabs character={selectedCharacter} />
             </div>
           ) : (
             <div style={{ color: '#888', fontStyle: 'italic', textAlign: 'center' }}>
@@ -187,6 +205,60 @@ function CharacterPanel() {
       </div>
     </div>
 
+  );
+}
+
+
+// CharacterSheetTabs: Tabs for Social, Exploration, Combat
+function CharacterSheetTabs({ character }: { character: any }) {
+  const [tab, setTab] = React.useState<'social' | 'exploration' | 'combat'>('social');
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <button onClick={() => setTab('social')} style={{ flex: 1, padding: 8, background: tab === 'social' ? '#6366f1' : '#f3f4f6', color: tab === 'social' ? '#fff' : '#222', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>Social</button>
+        <button onClick={() => setTab('exploration')} style={{ flex: 1, padding: 8, background: tab === 'exploration' ? '#6366f1' : '#f3f4f6', color: tab === 'exploration' ? '#fff' : '#222', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>Exploration</button>
+        <button onClick={() => setTab('combat')} style={{ flex: 1, padding: 8, background: tab === 'combat' ? '#6366f1' : '#f3f4f6', color: tab === 'combat' ? '#fff' : '#222', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>Combat</button>
+      </div>
+      <div style={{ minHeight: 120 }}>
+        {tab === 'social' && (
+          <div>
+            <strong>Background:</strong> <span style={{ color: '#555' }}>{character.background || '—'}</span><br />
+            <strong>Personality:</strong> <span style={{ color: '#555' }}>{character.personality || '—'}</span><br />
+            <strong>Languages:</strong> <span style={{ color: '#555' }}>{character.languages?.join(', ') || '—'}</span><br />
+            {/* Add more social features as needed */}
+          </div>
+        )}
+        {tab === 'exploration' && (
+          <div>
+            <strong>Skills:</strong> <span style={{ color: '#555' }}>{character.skills?.join(', ') || '—'}</span><br />
+            <strong>Inventory:</strong>
+            <ul style={{ margin: 0, paddingLeft: 20 }}>
+              {(character.inventory || []).length > 0 ? character.inventory.map((item: string, idx: number) => (
+                <li key={idx}>{item}</li>
+              )) : <li style={{ color: '#aaa' }}>No items</li>}
+            </ul>
+            {/* Add more exploration features as needed */}
+          </div>
+        )}
+        {tab === 'combat' && (
+          <div>
+            <strong>Abilities:</strong>
+            <ul style={{ margin: 0, paddingLeft: 20 }}>
+              {(character.abilities || []).length > 0 ? character.abilities.map((ab: string, idx: number) => (
+                <li key={idx}>{ab}</li>
+              )) : <li style={{ color: '#aaa' }}>No abilities</li>}
+            </ul>
+            <strong>Actions:</strong>
+            <ul style={{ margin: 0, paddingLeft: 20 }}>
+              {(character.actions || []).length > 0 ? character.actions.map((act: string, idx: number) => (
+                <li key={idx}>{act}</li>
+              )) : <li style={{ color: '#aaa' }}>No actions</li>}
+            </ul>
+            {/* Add more combat features as needed */}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

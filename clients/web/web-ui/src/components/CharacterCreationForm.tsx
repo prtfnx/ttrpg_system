@@ -1,8 +1,8 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import React from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-
+console.log('CharacterCreationForm.tsx loaded');
 // Define the character schema
 const characterSchema = z.object({
   name: z.string().min(1, "Name is required"),

@@ -1,10 +1,11 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
-import { CharacterPanel } from './components/CharacterPanel'
-import { EntitiesPanel } from './components/EntitiesPanel'
-import { ToolsPanel } from './components/ToolsPanel'
-import './index.css'
+console.log('[DEBUG] main.tsx script loaded');
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App.tsx';
+import CharacterPanel from './components/CharacterPanel';
+import { EntitiesPanel } from './components/EntitiesPanel';
+import { ToolsPanel } from './components/ToolsPanel';
+import './index.css';
 
 // Global type declaration for integration mode
 declare global {
@@ -47,7 +48,7 @@ const rootElement = document.getElementById('root');
 if (rootElement) {
   // Standalone React app mode
   createRoot(rootElement).render(
-    <StrictMode>
+    <StrictMode>    
       <App />
     </StrictMode>,
   )

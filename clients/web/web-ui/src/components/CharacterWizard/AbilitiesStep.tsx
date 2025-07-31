@@ -78,9 +78,8 @@ export function AbilitiesStep({ onNext, onBack }: { onNext: () => void; onBack: 
       return allAssigned && unique && validValues;
     }
     if (method === 'pointbuy') {
-      const allAssigned = assigned.every(v => !isNaN(v) && v >= 8 && v <= 15);
-      const total = assigned.reduce((sum, v) => sum + (POINT_BUY_COSTS[v] ?? 0), 0);
-      return allAssigned && total === POINT_BUY_TOTAL;
+      // Only require all assigned values to be in range, not that all points are spent
+      return assigned.every(v => !isNaN(v) && v >= 8 && v <= 15);
     }
     if (method === 'roll') {
       if (rolledScores.length !== 6) return false;

@@ -1,24 +1,17 @@
 
 import { useState } from 'react';
 import { useGameStore } from '../store';
-import { CharacterCreationForm } from './CharacterCreationForm';
+import CharacterCreationWizard from './CharacterWizard/CharacterCreationWizard';
 
 
 // Utility to generate unique IDs
-function genId(): string {
-  return (
-    'id-' +
-    Date.now().toString(36) +
-    '-' +
-    Math.random().toString(36).substr(2, 9)
-  );
-}
+
 
 
 
 function CharacterPanel() {
-  const { characters, addCharacter, selectSprite } = useGameStore();
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const { characters, selectSprite } = useGameStore();
+  const [showWizard, setShowWizard] = useState(false);
 
   // Minimal character list with fast action buttons
   return (
@@ -26,12 +19,12 @@ function CharacterPanel() {
       <h2>Characters</h2>
       <button
         style={{ marginBottom: '1rem', padding: '0.5rem 1rem', fontWeight: 600 }}
-        onClick={() => setShowCreateModal(true)}
+        onClick={() => setShowWizard(true)}
       >
-        + Create Character
+        + Add Character
       </button>
 
-      {showCreateModal && (
+      {showWizard && (
         <div className="modal-overlay" style={{
           position: 'fixed',
           inset: 0,
@@ -53,48 +46,18 @@ function CharacterPanel() {
             boxShadow: '0 4px 32px rgba(0,0,0,0.35)',
             fontSize: 16,
           }}>
-            <h3 style={{ color: '#222', marginBottom: 16 }}>Create New Character</h3>
-            <CharacterCreationForm
-              onCreate={(data) => {
-                const spriteId = genId();
-                const newCharacter = {
-                  id: genId(),
-                  name: data.name,
-                  race: data.race,
-                  class: data.class,
-                  level: data.level,
-                  sprite: {
-                    id: spriteId,
-                    name: data.name,
-                    x: 0,
-                    y: 0,
-                    width: 1,
-                    height: 1,
-                    isSelected: false,
-                    isVisible: true,
-                    layer: 0,
-                  },
-                  stats: {
-                    hp: 10,
-                    maxHp: 10,
-                    ac: 10,
-                    speed: 30,
-                  },
-                  conditions: [],
-                  inventory: [],
-                };
-                addCharacter(newCharacter);
-                selectSprite(spriteId, false);
-                setShowCreateModal(false);
+            <CharacterCreationWizard
+              onFinish={() => {
+                // TODO: Add character creation logic here
+                setShowWizard(false);
               }}
+              onCancel={() => setShowWizard(false)}
             />
-            <div style={{ marginTop: 16, textAlign: 'right' }}>
-              <button onClick={() => setShowCreateModal(false)} style={{ padding: '0.5rem 1rem', background: '#eee', color: '#333', border: 'none', borderRadius: 4 }}>Cancel</button>
-            </div>
           </div>
         </div>
       )}
 
+      {/* ...existing character list code... */}
       <div style={{ marginTop: 24 }}>
         {characters.length === 0 && <div style={{ color: '#888', fontStyle: 'italic' }}>No characters yet.</div>}
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>

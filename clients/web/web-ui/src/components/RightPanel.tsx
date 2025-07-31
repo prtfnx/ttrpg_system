@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import CharacterPanel from './CharacterPanel';
 import { EntitiesPanel } from './EntitiesPanel';
+import ChatPanel from './ChatPanel';
 
 export function RightPanel() {
   const [activeTab, setActiveTab] = useState<'characters' | 'entities' | 'chat'>('characters');
@@ -16,12 +17,7 @@ export function RightPanel() {
       <div className="tab-content" style={{ flex: 1, padding: '16px', overflowY: 'auto' }}>
         {activeTab === 'characters' && <CharacterPanel />}
         {activeTab === 'entities' && <EntitiesPanel />}
-        {activeTab === 'chat' && (
-          <div>
-            <h3>Chat</h3>
-            <div style={{ color: '#666', fontStyle: 'italic' }}>Chat UI will appear here.</div>
-          </div>
-        )}
+        {activeTab === 'chat' && <ChatPanel />}
       </div>
     </div>
   );

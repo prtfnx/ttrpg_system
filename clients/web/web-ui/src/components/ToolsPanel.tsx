@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import DiceRoller from '../tools/DiceRoller';
 import { useGameStore } from '../store';
 import { useCharacterStore } from '../store/characterStore';
 
@@ -113,7 +114,7 @@ export function ToolsPanel() {
     wisdom: 10,
     charisma: 10,
   });
-  const { characters, addCharacter, removeCharacter } = useCharacterStore();
+  const { addCharacter } = useCharacterStore();
 
   // Use different WebSocket approaches based on mode
   return (
@@ -182,29 +183,8 @@ export function ToolsPanel() {
         </button>
       </div>
 
-      {/* Character List Section */}
-      <div className="character-list">
-        <h3>Characters ({characters.length})</h3>
-        {characters.map(char => (
-          <div key={char.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee' }}>
-            <div>
-              <div style={{ fontWeight: 'bold' }}>{char.name} <span style={{ fontSize: '12px', color: '#666' }}>({char.class})</span></div>
-              <div style={{ fontSize: '12px', color: '#666' }}>
-                STR:{char.stats.strength} DEX:{char.stats.dexterity} CON:{char.stats.constitution} INT:{char.stats.intelligence} WIS:{char.stats.wisdom} CHA:{char.stats.charisma}
-              </div>
-            </div>
-            <button
-              onClick={() => removeCharacter(char.id)}
-              style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer' }}
-            >
-              Remove
-            </button>
-          </div>
-        ))}
-        {characters.length === 0 && (
-          <div style={{ color: '#666', fontStyle: 'italic' }}>No characters created</div>
-        )}
-      </div>
+
+
 
       {/* Toolbar Section */}
       <div className="toolbar">
@@ -212,6 +192,12 @@ export function ToolsPanel() {
         <button>Move Tool</button>
         <button>Measure Tool</button>
         <button>Paint Tool</button>
+      </div>
+
+      {/* Dice Roller Tool */}
+      <div style={{ margin: '24px 0', padding: 16, background: '#f9fafb', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+        <h3 style={{ marginBottom: 8 }}>Dice Roller</h3>
+        <DiceRoller />
       </div>
 
       {/* Controls Help Section */}

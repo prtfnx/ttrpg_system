@@ -1,7 +1,7 @@
-import { useState } from 'react';
+// import { useState } from 'react';
 import DiceRoller from '../tools/DiceRoller';
 import { useGameStore } from '../store';
-import { useCharacterStore } from '../store/characterStore';
+
 
 // Global type declarations
 declare global {
@@ -104,17 +104,7 @@ export function ToolsPanel() {
   };
   const { isConnected, sessionId } = useGameStore();
   // Character creation state
-  const [charName, setCharName] = useState('');
-  const [charClass, setCharClass] = useState('');
-  const [charStats, setCharStats] = useState({
-    strength: 10,
-    dexterity: 10,
-    constitution: 10,
-    intelligence: 10,
-    wisdom: 10,
-    charisma: 10,
-  });
-  const { addCharacter } = useCharacterStore();
+
 
   // Use different WebSocket approaches based on mode
   return (
@@ -131,57 +121,7 @@ export function ToolsPanel() {
         {isIntegrationMode && <span> (Integration Mode)</span>}
       </div>
 
-      {/* Character Creation Section */}
-      <div className="character-creation">
-        <h3>Create Character</h3>
-        <input
-          type="text"
-          placeholder="Name"
-          value={charName}
-          onChange={e => setCharName(e.target.value)}
-          style={{ width: '100%', padding: '8px', marginBottom: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-        />
-        <input
-          type="text"
-          placeholder="Class"
-          value={charClass}
-          onChange={e => setCharClass(e.target.value)}
-          style={{ width: '100%', padding: '8px', marginBottom: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-        />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '8px' }}>
-          {Object.entries(charStats).map(([stat, value]) => (
-            <div key={stat} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <label style={{ fontSize: '12px' }}>{stat.charAt(0).toUpperCase() + stat.slice(1)}</label>
-              <input
-                type="number"
-                min={1}
-                max={20}
-                value={value}
-                onChange={e => setCharStats(s => ({ ...s, [stat]: Number(e.target.value) }))}
-                style={{ width: '40px', textAlign: 'center' }}
-              />
-            </div>
-          ))}
-        </div>
-        <button
-          onClick={() => {
-            if (!charName || !charClass) return;
-            addCharacter({
-              name: charName,
-              class: charClass,
-              stats: charStats,
-              inventory: [],
-              conditions: [],
-            });
-            setCharName('');
-            setCharClass('');
-            setCharStats({ strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10 });
-          }}
-          style={{ width: '100%', padding: '8px', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: '8px' }}
-        >
-          Add Character
-        </button>
-      </div>
+
 
 
 

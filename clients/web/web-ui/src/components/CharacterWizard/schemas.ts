@@ -1,6 +1,8 @@
 
+
 import { z } from 'zod';
 import { classSchema } from './classSchema';
+import { skillsSchema } from './skillsSchema';
 
 export const backgroundSchema = z.object({
   background: z.string().min(1, 'Select a background'),
@@ -23,11 +25,14 @@ export const abilitiesSchema = z.object({
   charisma: z.number().min(1, 'Assign a score'),
 });
 
+
 export type AbilitiesStepData = z.infer<typeof abilitiesSchema>;
+export type SkillsStepData = z.infer<typeof skillsSchema>;
 
 // Compose multi-step schema
 export const characterCreationSchema = raceSchema
   .merge(classSchema)
   .merge(backgroundSchema)
-  .merge(abilitiesSchema);
+  .merge(abilitiesSchema)
+  .merge(skillsSchema);
 export type CharacterFormData = z.infer<typeof characterCreationSchema>;

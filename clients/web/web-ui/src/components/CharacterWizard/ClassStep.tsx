@@ -5,6 +5,7 @@ export function ClassStep({ onNext, onBack }: { onNext: () => void; onBack: () =
   const { register, handleSubmit, formState } = useFormContext<ClassStepData>();
   return (
     <form onSubmit={handleSubmit(() => onNext())} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Choose your character's class</div>
       <label>
         Class:
         <select {...register('class')} style={{ marginLeft: 8 }}>

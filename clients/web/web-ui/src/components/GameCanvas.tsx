@@ -166,7 +166,6 @@ export const GameCanvas: React.FC = () => {
           window.rustRenderManager.resize(canvas.width, canvas.height);
         }
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.error('WASM resize error:', err);
       }
     };
@@ -293,7 +292,6 @@ export const GameCanvas: React.FC = () => {
               rustRenderManagerRef.current.render();
             }
           } catch (error) {
-            // eslint-disable-next-line no-console
             console.error('Rust WASM render error:', error);
           }
           if (mounted) animationFrameId = requestAnimationFrame(renderLoop);
@@ -313,7 +311,6 @@ export const GameCanvas: React.FC = () => {
           updateConnectionState('error');
         }
       } catch (error) {
-        // eslint-disable-next-line no-console
         console.error('Failed to load WASM module:', error);
         updateConnectionState('error');
       }
@@ -326,6 +323,7 @@ export const GameCanvas: React.FC = () => {
       mounted = false;
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
       disconnectWebSocket();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       const canvas = canvasRef.current;
       if (canvas) {
         canvas.removeEventListener('mousedown', handleMouseDown);

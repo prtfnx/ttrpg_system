@@ -46,7 +46,7 @@ export function SkillsStep({ onNext, onBack, classSkills, classSkillChoices, bac
   // Pre-select background and race skills
   useEffect(() => {
     setSelected(alreadyGranted);
-  }, [backgroundSkills, raceSkills]);
+  }, [backgroundSkills, raceSkills, alreadyGranted]);
 
   // Handle skill selection
   function toggleSkill(skill: string) {

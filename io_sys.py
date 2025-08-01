@@ -13,7 +13,7 @@ def load_texture(sprite, context=None):
     if not sprite or not sprite.texture_path:
         logger.error("Invalid sprite or texture path")
         return None
-
+    return None # dont use this function anymore
     surface = None
     texture = None
 

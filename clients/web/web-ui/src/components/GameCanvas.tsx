@@ -1,15 +1,22 @@
+import React, { useEffect, useRef, useState } from 'react';
+import type { RefObject } from 'react';
+import { useWebSocket } from '../hooks/useWebSocket';
+import { useGameStore } from '../store';
+import { DebugOverlay } from './DebugOverlay';
+import type { RenderManager } from '../types';
+import './GameCanvas.css';
+
 declare global {
   interface Window {
-    rustRenderManager?: any;
-    ttrpg_rust_core?: any;
+    rustRenderManager?: RenderManager;
+    ttrpg_rust_core?: Record<string, unknown>;
   }
 }
 
 // Persistent debug panel for canvas/mouse/world info
-import type { RefObject } from 'react';
 function useCanvasDebug(
   canvasRef: RefObject<HTMLCanvasElement | null>,
-  rustRenderManagerRef: RefObject<any>,
+  rustRenderManagerRef: RefObject<RenderManager | null>,
   dprRef: RefObject<number>
 ): {
   cssWidth: number; cssHeight: number; deviceWidth: number; deviceHeight: number;
@@ -54,16 +61,10 @@ function useCanvasDebug(
   return debug;
 }
 
-import React, { useEffect, useRef, useState } from 'react';
-import { useWebSocket } from '../hooks/useWebSocket';
-import { useGameStore } from '../store';
-import { DebugOverlay } from './DebugOverlay';
-import './GameCanvas.css';
-
 export const GameCanvas: React.FC = () => {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rustRenderManagerRef = useRef<any>(null);
+  const rustRenderManagerRef = useRef<RenderManager | null>(null);
   const dprRef = useRef<number>(1);
   const { updateConnectionState } = useGameStore();
   const { connect: connectWebSocket, disconnect: disconnectWebSocket, requestTableData } = useWebSocket('ws://127.0.0.1:12345/ws');
@@ -301,7 +302,9 @@ export const GameCanvas: React.FC = () => {
         // Start render loop
         const renderLoop = () => {
           try {
-            rustRenderManagerRef.current.render();
+            if (rustRenderManagerRef.current) {
+              rustRenderManagerRef.current.render();
+            }
           } catch (error) {
             // eslint-disable-next-line no-console
             console.error('Rust WASM render error:', error);

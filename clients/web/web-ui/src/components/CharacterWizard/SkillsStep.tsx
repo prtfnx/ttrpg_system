@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
+import type { SkillsStepData } from './schemas';
 
 // D&D 5e skills
 const SKILLS = [
@@ -34,7 +35,7 @@ type SkillsStepProps = {
 };
 
 export function SkillsStep({ onNext, onBack, classSkills, classSkillChoices, backgroundSkills, raceSkills = [] }: SkillsStepProps) {
-  const { setValue, formState, setError, clearErrors } = useFormContext<any>();
+  const { setValue, formState, setError, clearErrors } = useFormContext<SkillsStepData>();
   const [selected, setSelected] = useState<string[]>([]);
 
   // Compute already granted skills (background + race)

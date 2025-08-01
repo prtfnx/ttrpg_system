@@ -148,8 +148,8 @@ export const GameCanvas: React.FC = () => {
       console.log('[WHEEL] Mouse event:', {
         clientX: e.clientX,
         clientY: e.clientY,
-        offsetX: (e as any).offsetX,
-        offsetY: (e as any).offsetY,
+        offsetX: (e as unknown as { offsetX?: number }).offsetX,
+        offsetY: (e as unknown as { offsetY?: number }).offsetY,
         canvasRect: canvasRef.current?.getBoundingClientRect(),
         dpr: dprRef.current,
         computed: { x, y }

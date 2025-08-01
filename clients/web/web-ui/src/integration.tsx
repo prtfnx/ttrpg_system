@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // TODO: Add WebSocket bridge if needed
       },
-      renderManager: () => window.rustRenderManager
+      renderManager: () => window.rustRenderManager || null
     };
   }
 

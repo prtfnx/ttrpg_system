@@ -2,16 +2,26 @@ import React from 'react';
 import { GameCanvas } from './GameCanvas';
 import { RightPanel } from './RightPanel';
 import { ToolsPanel } from './ToolsPanel';
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
 // Simple error boundary for debugging
-class DebugErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: any}> {
-  constructor(props: any) {
+class DebugErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
   }
-  static getDerivedStateFromError(error: any) {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
   }
-  componentDidCatch(_error: any, _info: any) {
+  componentDidCatch(_error: Error, _info: React.ErrorInfo) {
     // You can log error info here if needed
     // console.error('ErrorBoundary caught:', error, info);
   }

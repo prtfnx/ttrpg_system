@@ -1,7 +1,8 @@
 import { useFormContext } from 'react-hook-form';
+import type { BackgroundStepData } from './schemas';
 
 export function BackgroundStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
-  const { register, handleSubmit, formState } = useFormContext<any>();
+  const { register, handleSubmit, formState } = useFormContext<BackgroundStepData>();
   return (
     <form onSubmit={handleSubmit(() => onNext())} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Choose your character's background</div>

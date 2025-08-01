@@ -1,6 +1,8 @@
 import type { FormEvent } from 'react';
 import { useEffect, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
+import type { AbilitiesStepData } from './schemas';
+
 const ABILITY_METHODS = [
   { value: 'standard', label: 'Standard Array' },
   { value: 'pointbuy', label: 'Point Buy' },
@@ -20,7 +22,7 @@ const ABILITY_NAMES = [
 const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8];
 
 export function AbilitiesStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
-  const { control, formState, setError, clearErrors, getValues, setValue } = useFormContext<any>();
+  const { control, formState, setError, clearErrors, getValues, setValue } = useFormContext<AbilitiesStepData>();
   const [method, setMethod] = useState<'standard' | 'pointbuy' | 'roll' | 'manual'>('standard');
   // For roll method
   const [rolledScores, setRolledScores] = useState<number[]>([]);

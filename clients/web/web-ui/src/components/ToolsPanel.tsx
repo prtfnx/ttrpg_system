@@ -1,15 +1,12 @@
 // import { useState } from 'react';
 import { useGameStore } from '../store';
 import DiceRoller from '../tools/DiceRoller';
-
+import type { GameAPI } from '../types';
 
 // Global type declarations
 declare global {
   interface Window {
-    gameAPI?: {
-      sendMessage: (type: string, data: any) => void;
-      renderManager: () => any;
-    };
+    gameAPI?: GameAPI;
   }
 }
 

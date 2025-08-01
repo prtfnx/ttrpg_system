@@ -1,8 +1,14 @@
 import { useRef } from 'react';
 import { useFormContext } from 'react-hook-form';
 
+interface IdentityStepData {
+  name: string;
+  bio?: string;
+  image?: string;
+}
+
 export function IdentityStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
-  const { register, setValue, getValues, formState, watch } = useFormContext<any>();
+  const { register, setValue, getValues, formState, watch } = useFormContext<IdentityStepData>();
   const imageInputRef = useRef<HTMLInputElement>(null);
   const imageUrl = watch('image');
 

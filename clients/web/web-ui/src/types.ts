@@ -114,7 +114,10 @@ export interface RenderManager {
   render: () => void;
   center_camera_on: (x: number, y: number) => void;
   load_texture: (name: string, image: HTMLImageElement) => void;
-  get_cursor_coords?: () => number[];
+  get_cursor_coords?: () => {
+    screen: { x: number; y: number };
+    world: { x: number; y: number };
+  };
 }
 
 // Window interface extensions

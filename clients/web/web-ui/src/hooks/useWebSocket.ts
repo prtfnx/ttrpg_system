@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useGameStore } from '../store';
+import type { Sprite } from '../types';
 
 interface WebSocketMessage {
   type: string;
-  data?: Record<string, any>;
+  data?: Record<string, any>; // TODO: Define specific message types
   client_id?: string;
   timestamp?: number;
   version?: string;
@@ -25,7 +26,7 @@ export function useWebSocket(url: string) {
     updateConnectionState 
   } = useGameStore();
 
-  const createMessage = useCallback((type: string, data?: Record<string, any>): WebSocketMessage => ({
+  const createMessage = useCallback((type: string, data?: Record<string, any>): WebSocketMessage => ({ // TODO: Define specific data types
     type,
     data: data || {},
     timestamp: Date.now() / 1000,
@@ -124,9 +125,9 @@ export function useWebSocket(url: string) {
           
         case 'table_data':
           if (message.data?.sprites) {
-            message.data.sprites.forEach((sprite: any) => {
+            message.data.sprites.forEach((sprite: Partial<Sprite>) => {
               addSprite({
-                id: sprite.id,
+                id: sprite.id || '',
                 name: sprite.name || 'Sprite',
                 x: sprite.x || 0,
                 y: sprite.y || 0,
@@ -134,8 +135,8 @@ export function useWebSocket(url: string) {
                 height: sprite.height || 32,
                 imageUrl: sprite.imageUrl,
                 isSelected: false,
-                isVisible: true,
-                layer: sprite.layer || 0
+                isVisible: sprite.isVisible ?? true,
+                layer: sprite.layer || 0,
               });
             });
           }
@@ -244,7 +245,7 @@ export function useWebSocket(url: string) {
     sendSpriteMove,
     sendSpriteCreate,
     requestTableData,
-    sendMessage: (type: string, data?: Record<string, any>) => 
+    sendMessage: (type: string, data?: Record<string, any>) => // TODO: Define specific data types 
       sendMessage(createMessage(type, data))
   };
 }

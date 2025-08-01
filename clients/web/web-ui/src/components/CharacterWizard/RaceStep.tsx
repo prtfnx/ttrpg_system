@@ -4,7 +4,7 @@ import type { RaceStepData } from './schemas';
 
 export function RaceStep({ onNext }: { onNext: () => void }) {
   const { control, handleSubmit, formState } = useFormContext<RaceStepData>();
-  const handleRaceNext = (data: any) => {
+  const handleRaceNext = (data: RaceStepData) => {
     console.log('[RaceStep] onNext called, data:', data);
     onNext();
   };

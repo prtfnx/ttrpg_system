@@ -77,22 +77,7 @@ export const GameCanvas: React.FC = () => {
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     const x = (e.clientX - rect.left) * scaleX;
-    let y = (e.clientY - rect.top) * scaleY;
-    // Debug: log all mapping info
-    console.log('[DEBUG] Mouse event:', {
-      clientX: e.clientX,
-      clientY: e.clientY,
-      rect,
-      scaleX,
-      scaleY,
-      canvasWidth: canvas.width,
-      canvasHeight: canvas.height,
-      computedX: x,
-      computedY: y,
-    });
-    // Try flipping Y for hit test diagnosis
-    // Uncomment the next line to test Y flip:
-    // y = canvas.height - y;
+    const y = (e.clientY - rect.top) * scaleY;
     return { x, y };
   };
 
@@ -383,8 +368,8 @@ export const GameCanvas: React.FC = () => {
             setDebugCursorWorld(coords.world);
             setDebugGrid(getGridCoord(coords.world));
           }
-        } catch (err) {
-          // ignore
+        } catch {
+          // ignore errors when polling cursor coordinates
         }
       }
       rafId = requestAnimationFrame(pollOverlay);

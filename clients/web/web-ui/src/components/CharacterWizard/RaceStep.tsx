@@ -1,5 +1,5 @@
 
-import { useFormContext, Controller } from 'react-hook-form';
+import { Controller, useFormContext } from 'react-hook-form';
 import type { RaceStepData } from './schemas';
 
 export function RaceStep({ onNext }: { onNext: () => void }) {

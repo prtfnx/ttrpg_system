@@ -1,6 +1,6 @@
-import { useFormContext, Controller } from 'react-hook-form';
-import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
+import { useEffect, useState } from 'react';
+import { Controller, useFormContext } from 'react-hook-form';
 const ABILITY_METHODS = [
   { value: 'standard', label: 'Standard Array' },
   { value: 'pointbuy', label: 'Point Buy' },

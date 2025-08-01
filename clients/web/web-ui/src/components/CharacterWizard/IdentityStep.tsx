@@ -1,5 +1,5 @@
-import { useFormContext } from 'react-hook-form';
 import { useRef } from 'react';
+import { useFormContext } from 'react-hook-form';
 
 export function IdentityStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   const { register, setValue, getValues, formState, watch } = useFormContext<any>();

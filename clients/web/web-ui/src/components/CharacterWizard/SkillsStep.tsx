@@ -1,5 +1,5 @@
-import { useFormContext } from 'react-hook-form';
 import { useEffect, useState } from 'react';
+import { useFormContext } from 'react-hook-form';
 
 // D&D 5e skills
 const SKILLS = [

@@ -1,8 +1,8 @@
 
 import { useState } from 'react';
 import CharacterPanel from './CharacterPanel';
-import { EntitiesPanel } from './EntitiesPanel';
 import ChatPanel from './ChatPanel';
+import { EntitiesPanel } from './EntitiesPanel';
 
 export function RightPanel() {
   const [activeTab, setActiveTab] = useState<'characters' | 'entities' | 'chat'>('characters');

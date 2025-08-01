@@ -7,7 +7,7 @@ import { AbilitiesStep } from './AbilitiesStep';
 import { SkillsStep } from './SkillsStep';
 import IdentityStep from './IdentityStep';
 import ReviewStep from './ReviewStep';
-import { raceSchema, abilitiesSchema } from './schemas';
+import { raceSchema, abilitiesSchema, type CharacterFormData } from './schemas';
 import { classSchema } from './classSchema';
 import type { WizardFormData } from './WizardFormData';
 
@@ -118,7 +118,7 @@ export function CharacterCreationWizard({ onFinish, onCancel }: CharacterCreatio
     if (values.background && values.background.length > 0) {
       setStep((s) => s + 1);
     } else {
-      methods.setError('background' as any, { type: 'manual', message: 'Select a background' });
+      methods.setError('background', { type: 'manual', message: 'Select a background' });
     }
   }
 
@@ -129,8 +129,9 @@ export function CharacterCreationWizard({ onFinish, onCancel }: CharacterCreatio
       setStep((s) => s + 1);
     } else {
       const issue = result.error.issues[0];
-      if (issue) {
-        methods.setError(issue.path[0] as any, { type: 'manual', message: issue.message });
+      if (issue && issue.path.length > 0) {
+        const fieldPath = issue.path[0] as keyof CharacterFormData;
+        methods.setError(fieldPath, { type: 'manual', message: issue.message });
       }
     }
   }

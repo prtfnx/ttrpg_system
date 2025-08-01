@@ -21,9 +21,9 @@ class DebugErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBounda
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
   }
-  componentDidCatch(_error: Error, _info: React.ErrorInfo) {
-    // You can log error info here if needed
-    // console.error('ErrorBoundary caught:', error, info);
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    // Log error for debugging
+    console.error('ErrorBoundary caught:', error, info);
   }
   render() {
     if (this.state.hasError) {

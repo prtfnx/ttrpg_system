@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useFormContext } from 'react-hook-form';
 import type { SkillsStepData } from './schemas';
 
@@ -39,14 +39,14 @@ export function SkillsStep({ onNext, onBack, classSkills, classSkillChoices, bac
   const [selected, setSelected] = useState<string[]>([]);
 
   // Compute already granted skills (background + race)
-  const alreadyGranted = [...backgroundSkills, ...raceSkills];
+  const alreadyGranted = useMemo(() => [...backgroundSkills, ...raceSkills], [backgroundSkills, raceSkills]);
   // Filter class skills to only those not already granted
   const availableClassSkills = classSkills.filter(skill => !alreadyGranted.includes(skill));
 
   // Pre-select background and race skills
   useEffect(() => {
     setSelected(alreadyGranted);
-  }, [backgroundSkills, raceSkills, alreadyGranted]);
+  }, [alreadyGranted]);
 
   // Handle skill selection
   function toggleSkill(skill: string) {

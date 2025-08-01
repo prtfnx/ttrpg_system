@@ -1,7 +1,7 @@
 // WebSocket service for connecting to FastAPI backend
 export interface GameMessage {
   type: string;
-  data?: Record<string, any>; // TODO: Define specific message types
+  data?: Record<string, unknown>;
   client_id?: string;
   timestamp?: number;
   version?: string;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useGameStore } from '../store';
 import type { Sprite } from '../types';
-import type { WebSocketMessage, hasMessageData } from '../types/websocket';
+import type { WebSocketMessage } from '../types/websocket';
 
 export function useWebSocket(url: string) {
   const wsRef = useRef<WebSocket | null>(null);
@@ -17,7 +17,7 @@ export function useWebSocket(url: string) {
     updateConnectionState 
   } = useGameStore();
 
-  const createMessage = useCallback((type: string, data?: Record<string, any>): WebSocketMessage => ({ // TODO: Define specific data types
+  const createMessage = useCallback((type: string, data?: Record<string, unknown>): WebSocketMessage => ({
     type,
     data: data || {},
     timestamp: Date.now() / 1000,
@@ -236,7 +236,7 @@ export function useWebSocket(url: string) {
     sendSpriteMove,
     sendSpriteCreate,
     requestTableData,
-    sendMessage: (type: string, data?: Record<string, any>) => // TODO: Define specific data types 
+    sendMessage: (type: string, data?: Record<string, unknown>) =>
       sendMessage(createMessage(type, data))
   };
 }

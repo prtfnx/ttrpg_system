@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useGameStore } from '../store';
@@ -70,7 +70,7 @@ export const GameCanvas: React.FC = () => {
   const { connect: connectWebSocket, disconnect: disconnectWebSocket, requestTableData } = useWebSocket('ws://127.0.0.1:12345/ws');
   const debugPanel = useCanvasDebug(canvasRef as React.RefObject<HTMLCanvasElement | null>, rustRenderManagerRef, dprRef);
 
-  const getRelativeCoords = (e: MouseEvent | WheelEvent) => {
+  const getRelativeCoords = useCallback((e: MouseEvent | WheelEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
@@ -79,9 +79,9 @@ export const GameCanvas: React.FC = () => {
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
     return { x, y };
-  };
+  }, []);
 
-  const handleMouseDown = (e: MouseEvent) => {
+  const handleMouseDown = useCallback((e: MouseEvent) => {
     const canvas = canvasRef.current;
     if (canvas) {
       // Pan/drag mode: set cursor to grabbing
@@ -91,8 +91,9 @@ export const GameCanvas: React.FC = () => {
       const { x, y } = getRelativeCoords(e);
       rustRenderManagerRef.current.handle_mouse_down(x, y);
     }
-  };
-  const handleMouseMove = (e: MouseEvent) => {
+  }, [getRelativeCoords]);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
     const canvas = canvasRef.current;
     if (canvas && rustRenderManagerRef.current && rustRenderManagerRef.current.get_drag_mode) {
       // Use get_drag_mode from WASM for reliable cursor style changes
@@ -113,8 +114,9 @@ export const GameCanvas: React.FC = () => {
       const { x, y } = getRelativeCoords(e);
       rustRenderManagerRef.current.handle_mouse_move(x, y);
     }
-  };
-  const handleMouseUp = (e: MouseEvent) => {
+  }, [getRelativeCoords]);
+
+  const handleMouseUp = useCallback((e: MouseEvent) => {
     const canvas = canvasRef.current;
     if (canvas) {
       // Reset cursor to grab after mouse up
@@ -124,8 +126,8 @@ export const GameCanvas: React.FC = () => {
       const { x, y } = getRelativeCoords(e);
       rustRenderManagerRef.current.handle_mouse_up(x, y);
     }
-  };
-  const handleWheel = (e: WheelEvent) => {
+  }, [getRelativeCoords]);
+  const handleWheel = useCallback((e: WheelEvent) => {
     if (rustRenderManagerRef.current) {
       e.preventDefault();
       const { x, y } = getRelativeCoords(e);
@@ -141,7 +143,7 @@ export const GameCanvas: React.FC = () => {
       });
       rustRenderManagerRef.current.handle_wheel(x, y, e.deltaY);
     }
-  };
+  }, [getRelativeCoords]);
 
   useEffect(() => {
     let animationFrameId: number | null = null;
@@ -334,7 +336,7 @@ export const GameCanvas: React.FC = () => {
       window.removeEventListener('resize', resizeCanvas);
       window.rustRenderManager = undefined;
     };
-  }, [updateConnectionState, connectWebSocket, disconnectWebSocket, requestTableData]);
+  }, [updateConnectionState, connectWebSocket, disconnectWebSocket, requestTableData, handleMouseDown, handleMouseMove, handleMouseUp, handleWheel]);
 
   // Debug overlay state
   const [debugCursorScreen, setDebugCursorScreen] = React.useState({ x: 0, y: 0 });

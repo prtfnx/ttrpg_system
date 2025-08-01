@@ -23,7 +23,7 @@ interface CharacterState {
   updateCharacter: (id: string, updates: Partial<Character>) => void;
 }
 
-export const useCharacterStore = create<CharacterState>((set, _get) => ({
+export const useCharacterStore = create<CharacterState>((set) => ({
   characters: [],
   addCharacter: (character) => {
     const id = `char_${Date.now()}`;

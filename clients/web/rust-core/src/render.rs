@@ -114,8 +114,10 @@ impl RenderManager {
             varying vec2 v_texCoord;
             
             void main() {
-                vec3 position = u_transform * vec3(a_position, 1.0);
-                vec2 clipSpace = ((position.xy / u_resolution) * 2.0) - 1.0;
+                // Apply camera transform (world -> screen)
+                vec3 transformed = u_transform * vec3(a_position, 1.0);
+                // Convert to normalized device coordinates
+                vec2 clipSpace = ((transformed.xy / u_resolution) * 2.0) - 1.0;
                 gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
                 v_texCoord = a_texCoord;
             }
@@ -252,11 +254,7 @@ impl RenderManager {
     pub fn render(&mut self) -> Result<(), JsValue> {
         let width = self.canvas.width() as f32;
         let height = self.canvas.height() as f32;
-        let dpr = web_sys::window()
-            .map(|w| w.device_pixel_ratio())
-            .unwrap_or(1.0);
         let (mx, my) = self.last_mouse_pos;
-        let world = self.screen_to_world(mx as f64, my as f64);
         self.gl.viewport(0, 0, width as i32, height as i32);
         self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
         if let Some(program) = &self.shader_program {
@@ -289,49 +287,43 @@ impl RenderManager {
 
         let mut vertices = Vec::new();
 
-        // Vertical lines
+        // Vertical lines - use world coordinates, let shader transform
         let mut x = first_x;
         while x <= right {
-            let sx = ((x - self.camera.x) * self.camera.zoom) as f32;
             vertices.extend_from_slice(&[
-                sx, 0.0,
-                sx, height,
+                x as f32, top as f32,
+                x as f32, bottom as f32,
             ]);
             x += grid_size;
         }
-        // Horizontal lines
+        // Horizontal lines - use world coordinates, let shader transform
         let mut y = first_y;
         while y <= bottom {
-            let sy = ((y - self.camera.y) * self.camera.zoom) as f32;
             vertices.extend_from_slice(&[
-                0.0, sy,
-                width, sy,
+                left as f32, y as f32,
+                right as f32, y as f32,
             ]);
             y += grid_size;
         }
         self.draw_lines(&vertices, (0.2, 0.2, 0.2, 1.0))?;
-        // Debug: log world coordinates near cursor
-        let (mx, my) = self.last_mouse_pos;
-        let cursor_world = self.screen_to_world(mx as f64, my as f64);
         Ok(())
     }
 
     fn draw_sprite(&self, sprite: &Sprite) -> Result<(), JsValue> {
         let is_selected = self.selected_sprite.as_ref().map_or(false, |id| id == &sprite.id);
         let border_color = if is_selected { (0.2, 0.8, 0.2, 1.0) } else { (1.0, 1.0, 1.0, 1.0) };
-        // Use top-left as anchor for both sprite and selection overlay
+        
+        // Use world coordinates - let the shader handle camera transformation
         let anchor_x = sprite.x;
         let anchor_y = sprite.y;
-        let screen_x = ((anchor_x - self.camera.x) * self.camera.zoom) as f32;
-        let screen_y = ((anchor_y - self.camera.y) * self.camera.zoom) as f32;
-        let scaled_width = (sprite.width * sprite.scale_x * self.camera.zoom) as f32;
-        let scaled_height = (sprite.height * sprite.scale_y * self.camera.zoom) as f32;
+        let scaled_width = sprite.width * sprite.scale_x;
+        let scaled_height = sprite.height * sprite.scale_y;
 
         let vertices = [
-            screen_x, screen_y,
-            screen_x + scaled_width, screen_y,
-            screen_x, screen_y + scaled_height,
-            screen_x + scaled_width, screen_y + scaled_height,
+            anchor_x as f32, anchor_y as f32,
+            (anchor_x + scaled_width) as f32, anchor_y as f32,
+            anchor_x as f32, (anchor_y + scaled_height) as f32,
+            (anchor_x + scaled_width) as f32, (anchor_y + scaled_height) as f32,
         ];
         // Flip texture vertically for correct orientation
         let tex_coords = [
@@ -350,11 +342,11 @@ impl RenderManager {
         // Always draw selection border for selected sprite
         if is_selected {
             let border_vertices = [
-                screen_x, screen_y,
-                screen_x + scaled_width, screen_y,
-                screen_x + scaled_width, screen_y + scaled_height,
-                screen_x, screen_y + scaled_height,
-                screen_x, screen_y,
+                anchor_x as f32, anchor_y as f32,
+                (anchor_x + scaled_width) as f32, anchor_y as f32,
+                (anchor_x + scaled_width) as f32, (anchor_y + scaled_height) as f32,
+                anchor_x as f32, (anchor_y + scaled_height) as f32,
+                anchor_x as f32, anchor_y as f32,
             ];
             self.draw_lines(&border_vertices, (0.2, 0.8, 0.2, 1.0))?;
         }
@@ -397,11 +389,11 @@ impl RenderManager {
             self.gl.enable_vertex_attrib_array(tex_coord_location);
             self.gl.vertex_attrib_pointer_with_i32(tex_coord_location, 2, WebGlRenderingContext::FLOAT, false, 0, 0);
             
-            // Set uniforms
+            // Set uniforms - Camera transform: zoom * (world - camera_position)
             let transform_location = self.gl.get_uniform_location(program, "u_transform");
             let transform_matrix = [
-                self.camera.zoom as f32, 0.0, -self.camera.x as f32,
-                0.0, self.camera.zoom as f32, -self.camera.y as f32,
+                self.camera.zoom as f32, 0.0, (-self.camera.x * self.camera.zoom) as f32,
+                0.0, self.camera.zoom as f32, (-self.camera.y * self.camera.zoom) as f32,
                 0.0, 0.0, 1.0,
             ];
             self.gl.uniform_matrix3fv_with_f32_array(transform_location.as_ref(), false, &transform_matrix);
@@ -437,11 +429,11 @@ impl RenderManager {
             self.gl.enable_vertex_attrib_array(position_location);
             self.gl.vertex_attrib_pointer_with_i32(position_location, 2, WebGlRenderingContext::FLOAT, false, 0, 0);
 
-            // Set uniforms
+            // Set uniforms - Camera transform: zoom * (world - camera_position)
             let transform_location = self.gl.get_uniform_location(program, "u_transform");
             let transform_matrix = [
-                self.camera.zoom as f32, 0.0, -self.camera.x as f32,
-                0.0, self.camera.zoom as f32, -self.camera.y as f32,
+                self.camera.zoom as f32, 0.0, (-self.camera.x * self.camera.zoom) as f32,
+                0.0, self.camera.zoom as f32, (-self.camera.y * self.camera.zoom) as f32,
                 0.0, 0.0, 1.0,
             ];
             self.gl.uniform_matrix3fv_with_f32_array(transform_location.as_ref(), false, &transform_matrix);
@@ -470,12 +462,20 @@ impl RenderManager {
             "[SELECT] Mouse down at screen: ({}, {}), world: ({}, {}), camera: ({}, {}), zoom: {}, DPR={}",
             x, y, wx, wy, self.camera.x, self.camera.y, self.camera.zoom, dpr
         );
+        
+        // Debug: Test coordinate transformation
         for (i, s) in self.sprites.iter().enumerate() {
             let anchor_x = s.x;
             let anchor_y = s.y;
             let scaled_width = s.width * s.scale_x;
             let scaled_height = s.height * s.scale_y;
-            console_log!("[SELECT] Sprite {} '{}': anchor=({}, {}), world bounds=({}, {}), size=({}, {})", i, s.id, anchor_x, anchor_y, anchor_x, anchor_y, scaled_width, scaled_height);
+            
+            // Calculate where this sprite should appear on screen
+            let screen_x = (anchor_x - self.camera.x) * self.camera.zoom;
+            let screen_y = (anchor_y - self.camera.y) * self.camera.zoom;
+            
+            console_log!("[SELECT] Sprite {} '{}': world=({}, {}), calculated_screen=({}, {}), size=({}, {})", 
+                i, s.id, anchor_x, anchor_y, screen_x, screen_y, scaled_width, scaled_height);
         }
 
         // Check for resize handle first if a sprite is selected (in world space)
@@ -492,6 +492,7 @@ impl RenderManager {
                 }
             }
         }
+        
         // Check for sprite under cursor using world coordinates and world bounds
         if let Some((idx, sprite)) = self.sprites.iter().enumerate().rev().find(|(_, s)| {
             let anchor_x = s.x;
@@ -502,14 +503,22 @@ impl RenderManager {
             wy >= anchor_y && wy <= anchor_y + scaled_height
         }) {
             let sprite = sprite;
-            self.selected_sprite = Some(sprite.id.clone());
-            // Calculate drag offset from world position
-            self.drag_mode = DragMode::MoveSprite;
-            self.drag_offset = (wx - sprite.x, wy - sprite.y);
-            self.last_mouse_pos = (x, y);
-            // Bring selected sprite to front
-            let sprite = self.sprites.remove(idx);
-            self.sprites.push(sprite);
+            // Only select sprite if we're clicking exactly on the same position
+            // This prevents accidental sprite moves during camera pan
+            if self.selected_sprite.as_ref() != Some(&sprite.id) {
+                // New sprite selection - don't start drag immediately
+                self.selected_sprite = Some(sprite.id.clone());
+                self.drag_mode = DragMode::None;
+                self.last_mouse_pos = (x, y);
+                // Bring selected sprite to front
+                let sprite = self.sprites.remove(idx);
+                self.sprites.push(sprite);
+            } else {
+                // Same sprite clicked - start dragging
+                self.drag_mode = DragMode::MoveSprite;
+                self.drag_offset = (wx - sprite.x, wy - sprite.y);
+                self.last_mouse_pos = (x, y);
+            }
         } else {
             self.selected_sprite = None;
             self.drag_mode = DragMode::Camera;

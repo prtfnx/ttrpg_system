@@ -1,6 +1,6 @@
-import { useRef, useEffect, useState } from 'react';
-import { useChatStore } from '../store/chatStore';
+import { useEffect, useRef, useState } from 'react';
 import { useChatWebSocket } from '../hooks/useChatWebSocket';
+import { useChatStore } from '../store/chatStore';
 
 const WS_URL = 'ws://localhost:8000/ws'; // TODO: Make dynamic/configurable
 const USER = 'Player'; // TODO: Replace with real user info

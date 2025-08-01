@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import DiceRoller from '../tools/DiceRoller';
 import { useGameStore } from '../store';
+import DiceRoller from '../tools/DiceRoller';
 import CharacterCreationWizard from './CharacterWizard/CharacterCreationWizard';
+import type { DetailedCharacter } from '../types';
 
 // Utility to generate unique IDs
 function genId(): string {
@@ -64,7 +65,7 @@ function CharacterPanel() {
   const [wizardKey, setWizardKey] = useState(0);
 
   // When a character is clicked in the UI, select its sprite (and only its sprite)
-  const handleCharacterClick = (char: any) => {
+  const handleCharacterClick = (char: DetailedCharacter) => {
     // Select only this character's sprite
     selectSprite(char.sprite.id, false);
   };
@@ -212,7 +213,7 @@ function CharacterPanel() {
 
 
 // CharacterSheetTabs: Tabs for Social, Exploration, Combat
-function CharacterSheetTabs({ character }: { character: any }) {
+function CharacterSheetTabs({ character }: { character: DetailedCharacter }) {
   const [tab, setTab] = React.useState<'social' | 'exploration' | 'combat'>('social');
   const [newItem, setNewItem] = React.useState('');
   const { addInventoryItem } = useGameStore();
@@ -266,13 +267,15 @@ function CharacterSheetTabs({ character }: { character: any }) {
           <div>
             <strong>Abilities:</strong>
             <ul style={{ margin: 0, paddingLeft: 20 }}>
-              {(character.abilities || []).length > 0 ? character.abilities.map((ab: string, idx: number) => (
-                <li key={idx}>{ab}</li>
-              )) : <li style={{ color: '#aaa' }}>No abilities</li>}
+              {character.abilities ? (
+                Object.entries(character.abilities).map(([ability, score]) => (
+                  <li key={ability}>{ability.charAt(0).toUpperCase() + ability.slice(1)}: {score}</li>
+                ))
+              ) : <li style={{ color: '#aaa' }}>No abilities</li>}
             </ul>
             <strong>Actions:</strong>
             <ul style={{ margin: 0, paddingLeft: 20 }}>
-              {(character.actions || []).length > 0 ? character.actions.map((act: string, idx: number) => (
+              {character.actions && character.actions.length > 0 ? character.actions.map((act: string, idx: number) => (
                 <li key={idx}>{act}</li> 
               )) : <li style={{ color: '#aaa' }}>No actions</li>}
             </ul>

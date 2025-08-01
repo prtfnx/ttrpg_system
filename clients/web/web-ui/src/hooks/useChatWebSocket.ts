@@ -10,7 +10,9 @@ export function useChatWebSocket(url: string, user: string) {
         if (data.type === 'chat' && data.message) {
           useChatStore.getState().addMessage(data.message);
         }
-      } catch {}
+      } catch {
+        // Ignore JSON parsing errors
+      }
     };
     return () => ws.close();
   }, [url, user]);

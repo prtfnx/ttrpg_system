@@ -1,16 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useGameStore } from '../store';
 import type { Sprite } from '../types';
-
-interface WebSocketMessage {
-  type: string;
-  data?: Record<string, any>; // TODO: Define specific message types
-  client_id?: string;
-  timestamp?: number;
-  version?: string;
-  priority?: number;
-  sequence_id?: number;
-}
+import type { WebSocketMessage, hasMessageData } from '../types/websocket';
 
 export function useWebSocket(url: string) {
   const wsRef = useRef<WebSocket | null>(null);

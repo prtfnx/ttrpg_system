@@ -74,10 +74,18 @@ export const GameCanvas: React.FC = () => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
+    
+    // Calculate mouse position relative to the canvas display area
+    const rawX = e.clientX - rect.left;
+    const rawY = e.clientY - rect.top;
+    
+    // Scale to canvas internal resolution (accounts for DPR scaling)
+    // canvas.width/height are the internal dimensions, rect.width/height are display dimensions
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
+    const x = rawX * scaleX;
+    const y = rawY * scaleY;
+    
     return { x, y };
   }, []);
 

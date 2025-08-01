@@ -49,25 +49,27 @@ export function useWebSocket(url: string) {
       console.log('[WebSocket] handleMessage received:', message);
       switch (message.type) {
         case 'sprite_update':
-          if (message.data) {
-            updateSprite(message.data.id, message.data);
+          if (message.data && typeof message.data === 'object') {
+            const data = message.data as { id: string; [key: string]: unknown };
+            updateSprite(data.id, data);
           }
           break;
           
         case 'sprite_create':
-          if (message.data) {
-            console.log('[WebSocket] sprite_create received:', message.data);
+          if (message.data && typeof message.data === 'object') {
+            const data = message.data as Record<string, unknown>;
+            console.log('[WebSocket] sprite_create received:', data);
             addSprite({
-              id: message.data.id,
-              name: message.data.name || 'Sprite',
-              x: message.data.x || 0,
-              y: message.data.y || 0,
-              width: message.data.width || 32,
-              height: message.data.height || 32,
-              imageUrl: message.data.imageUrl,
+              id: (data.id as string) || '',
+              name: (data.name as string) || 'Sprite',
+              x: (data.x as number) || 0,
+              y: (data.y as number) || 0,
+              width: (data.width as number) || 32,
+              height: (data.height as number) || 32,
+              imageUrl: data.imageUrl as string | undefined,
               isSelected: false,
               isVisible: true,
-              layer: message.data.layer || 0
+              layer: (data.layer as number) || 0
             });
             // WASM integration: also add sprite to RenderManager if available
             // Ensure all required fields for WASM
@@ -103,38 +105,46 @@ export function useWebSocket(url: string) {
           break;
           
         case 'sprite_remove':
-          if (message.data?.id) {
-            removeSprite(message.data.id);
+          if (message.data && typeof message.data === 'object') {
+            const data = message.data as { id: string };
+            removeSprite(data.id);
           }
           break;
           
         case 'sprite_move':
-          if (message.data) {
-            moveSprite(message.data.id, message.data.x, message.data.y);
+          if (message.data && typeof message.data === 'object') {
+            const data = message.data as { id: string; x: number; y: number };
+            moveSprite(data.id, data.x, data.y);
           }
           break;
           
         case 'table_data':
-          if (message.data?.sprites) {
-            message.data.sprites.forEach((sprite: Partial<Sprite>) => {
-              addSprite({
-                id: sprite.id || '',
-                name: sprite.name || 'Sprite',
-                x: sprite.x || 0,
-                y: sprite.y || 0,
-                width: sprite.width || 32,
-                height: sprite.height || 32,
-                imageUrl: sprite.imageUrl,
-                isSelected: false,
-                isVisible: sprite.isVisible ?? true,
-                layer: sprite.layer || 0,
+          if (message.data && typeof message.data === 'object') {
+            const data = message.data as { sprites?: Partial<Sprite>[] };
+            if (data.sprites && Array.isArray(data.sprites)) {
+              data.sprites.forEach((sprite: Partial<Sprite>) => {
+                addSprite({
+                  id: sprite.id || '',
+                  name: sprite.name || 'Sprite',
+                  x: sprite.x || 0,
+                  y: sprite.y || 0,
+                  width: sprite.width || 32,
+                  height: sprite.height || 32,
+                  imageUrl: sprite.imageUrl,
+                  isSelected: false,
+                  isVisible: sprite.isVisible ?? true,
+                  layer: sprite.layer || 0,
+                });
               });
-            });
+            }
           }
           break;
           
         case 'welcome':
-          setConnection(true, message.data?.session_id);
+          if (message.data && typeof message.data === 'object') {
+            const data = message.data as { session_id?: string };
+            setConnection(true, data.session_id);
+          }
           break;
           
         case 'pong':

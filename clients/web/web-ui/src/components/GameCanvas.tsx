@@ -70,6 +70,15 @@ export const GameCanvas: React.FC = () => {
   const { connect: connectWebSocket, disconnect: disconnectWebSocket, requestTableData } = useWebSocket('ws://127.0.0.1:12345/ws');
   const debugPanel = useCanvasDebug(canvasRef as React.RefObject<HTMLCanvasElement | null>, rustRenderManagerRef, dprRef);
 
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    spriteId?: string;
+    copiedSprite?: string;
+  }>({ visible: false, x: 0, y: 0 });
+
   const getRelativeCoords = useCallback((e: MouseEvent | WheelEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
@@ -90,11 +99,6 @@ export const GameCanvas: React.FC = () => {
   }, []);
 
   const handleMouseDown = useCallback((e: MouseEvent) => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      // Pan/drag mode: set cursor to grabbing
-      canvas.style.cursor = 'grabbing';
-    }
     if (rustRenderManagerRef.current) {
       const { x, y } = getRelativeCoords(e);
       rustRenderManagerRef.current.handle_mouse_down(x, y);
@@ -102,26 +106,30 @@ export const GameCanvas: React.FC = () => {
   }, [getRelativeCoords]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      // Simple cursor management - the render engine handles all the logic
-      canvas.style.cursor = 'grab';
-    }
     if (rustRenderManagerRef.current) {
       const { x, y } = getRelativeCoords(e);
       rustRenderManagerRef.current.handle_mouse_move(x, y);
+      
+      // Update cursor based on what's under the mouse
+      const canvas = canvasRef.current;
+      if (canvas && rustRenderManagerRef.current.get_cursor_type) {
+        const cursorType = rustRenderManagerRef.current.get_cursor_type(x, y);
+        canvas.style.cursor = cursorType;
+      }
     }
   }, [getRelativeCoords]);
 
   const handleMouseUp = useCallback((e: MouseEvent) => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      // Reset cursor to grab after mouse up
-      canvas.style.cursor = 'grab';
-    }
     if (rustRenderManagerRef.current) {
       const { x, y } = getRelativeCoords(e);
       rustRenderManagerRef.current.handle_mouse_up(x, y);
+      
+      // Update cursor after mouse up
+      const canvas = canvasRef.current;
+      if (canvas && rustRenderManagerRef.current.get_cursor_type) {
+        const cursorType = rustRenderManagerRef.current.get_cursor_type(x, y);
+        canvas.style.cursor = cursorType;
+      }
     }
   }, [getRelativeCoords]);
   const handleWheel = useCallback((e: WheelEvent) => {
@@ -141,6 +149,89 @@ export const GameCanvas: React.FC = () => {
       rustRenderManagerRef.current.handle_wheel(x, y, e.deltaY);
     }
   }, [getRelativeCoords]);
+
+  const handleRightClick = useCallback((e: MouseEvent) => {
+    e.preventDefault();
+    if (rustRenderManagerRef.current) {
+      const { x, y } = getRelativeCoords(e);
+      const spriteId = rustRenderManagerRef.current.handle_right_click(x, y);
+      
+      setContextMenu({
+        visible: true,
+        x: e.clientX,
+        y: e.clientY,
+        spriteId: spriteId || undefined,
+        copiedSprite: contextMenu.copiedSprite
+      });
+    }
+  }, [getRelativeCoords, contextMenu.copiedSprite]);
+
+  const handleContextMenuAction = useCallback((action: string) => {
+    if (!rustRenderManagerRef.current) return;
+    
+    const { spriteId, x, y } = contextMenu;
+    
+    switch (action) {
+      case 'delete':
+        if (spriteId) {
+          rustRenderManagerRef.current.delete_sprite(spriteId);
+        }
+        break;
+      case 'copy':
+        if (spriteId) {
+          const spriteData = rustRenderManagerRef.current.copy_sprite(spriteId);
+          if (spriteData) {
+            setContextMenu(prev => ({ ...prev, copiedSprite: spriteData }));
+          }
+        }
+        break;
+      case 'paste':
+        if (contextMenu.copiedSprite) {
+          const canvas = canvasRef.current;
+          if (canvas) {
+            const rect = canvas.getBoundingClientRect();
+            const canvasX = (x - rect.left) * (canvas.width / rect.width);
+            const canvasY = (y - rect.top) * (canvas.height / rect.height);
+            const worldCoords = rustRenderManagerRef.current.screen_to_world(canvasX, canvasY);
+            rustRenderManagerRef.current.paste_sprite('tokens', contextMenu.copiedSprite, worldCoords[0], worldCoords[1]);
+          }
+        }
+        break;
+      case 'resize':
+        if (spriteId) {
+          const newSize = prompt('Enter new size (width,height):', '64,64');
+          if (newSize) {
+            const [width, height] = newSize.split(',').map(n => parseFloat(n.trim()));
+            if (!isNaN(width) && !isNaN(height)) {
+              rustRenderManagerRef.current.resize_sprite(spriteId, width, height);
+            }
+          }
+        }
+        break;
+      case 'rotate':
+        if (spriteId) {
+          const angle = prompt('Enter rotation angle (degrees):', '0');
+          if (angle) {
+            const degrees = parseFloat(angle);
+            if (!isNaN(degrees)) {
+              rustRenderManagerRef.current.rotate_sprite(spriteId, degrees);
+            }
+          }
+        }
+        break;
+    }
+    
+    setContextMenu({ visible: false, x: 0, y: 0 });
+  }, [contextMenu]);
+
+  // Close context menu on click outside
+  useEffect(() => {
+    const handleClick = () => setContextMenu({ visible: false, x: 0, y: 0 });
+    if (contextMenu.visible) {
+      document.addEventListener('click', handleClick);
+      return () => document.removeEventListener('click', handleClick);
+    }
+  }, [contextMenu.visible]);
 
   useEffect(() => {
     let animationFrameId: number | null = null;
@@ -224,6 +315,7 @@ export const GameCanvas: React.FC = () => {
         canvas.addEventListener('mousemove', handleMouseMove);
         canvas.addEventListener('mouseup', handleMouseUp);
         canvas.addEventListener('wheel', handleWheel);
+        canvas.addEventListener('contextmenu', handleRightClick);
         // Set default cursor to grab
         canvas.style.cursor = 'grab';
 
@@ -295,11 +387,12 @@ export const GameCanvas: React.FC = () => {
         canvas.removeEventListener('mousemove', handleMouseMove);
         canvas.removeEventListener('mouseup', handleMouseUp);
         canvas.removeEventListener('wheel', handleWheel);
+        canvas.removeEventListener('contextmenu', handleRightClick);
       }
       window.removeEventListener('resize', resizeCanvas);
       window.rustRenderManager = undefined;
     };
-  }, [updateConnectionState, connectWebSocket, disconnectWebSocket, requestTableData, handleMouseDown, handleMouseMove, handleMouseUp, handleWheel]);
+  }, [updateConnectionState, connectWebSocket, disconnectWebSocket, requestTableData, handleMouseDown, handleMouseMove, handleMouseUp, handleWheel, handleRightClick]);
 
   // Debug overlay state
   const [debugCursorScreen, setDebugCursorScreen] = React.useState({ x: 0, y: 0 });
@@ -360,6 +453,134 @@ export const GameCanvas: React.FC = () => {
       <div className="canvas-overlay">
         <div className="status-indicator">WASM Canvas Ready</div>
       </div>
+      
+      {/* Context Menu */}
+      {contextMenu.visible && (
+        <div 
+          style={{
+            position: 'fixed',
+            left: contextMenu.x,
+            top: contextMenu.y,
+            background: 'white',
+            border: '1px solid #ccc',
+            borderRadius: 4,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            zIndex: 1000,
+            minWidth: 120,
+            fontFamily: 'system-ui, -apple-system, sans-serif',
+            fontSize: 14,
+            color: '#333'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {contextMenu.spriteId ? (
+            <>
+              <div 
+                style={{ 
+                  padding: '8px 12px', 
+                  cursor: 'pointer', 
+                  borderBottom: '1px solid #eee',
+                  color: '#333',
+                  background: 'transparent'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#f0f0f0'}
+                onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                onClick={() => handleContextMenuAction('delete')}
+              >
+                Delete Sprite
+              </div>
+              <div 
+                style={{ 
+                  padding: '8px 12px', 
+                  cursor: 'pointer', 
+                  borderBottom: '1px solid #eee',
+                  color: '#333',
+                  background: 'transparent'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#f0f0f0'}
+                onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                onClick={() => handleContextMenuAction('copy')}
+              >
+                Copy Sprite
+              </div>
+              {contextMenu.copiedSprite && (
+                <div 
+                  style={{ 
+                    padding: '8px 12px', 
+                    cursor: 'pointer', 
+                    borderBottom: '1px solid #eee',
+                    color: '#333',
+                    background: 'transparent'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.background = '#f0f0f0'}
+                  onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                  onClick={() => handleContextMenuAction('paste')}
+                >
+                  Paste Sprite
+                </div>
+              )}
+              <div 
+                style={{ 
+                  padding: '8px 12px', 
+                  cursor: 'pointer', 
+                  borderBottom: '1px solid #eee',
+                  color: '#333',
+                  background: 'transparent'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#f0f0f0'}
+                onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                onClick={() => handleContextMenuAction('resize')}
+              >
+                Resize Sprite
+              </div>
+              <div 
+                style={{ 
+                  padding: '8px 12px', 
+                  cursor: 'pointer',
+                  color: '#333',
+                  background: 'transparent'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#f0f0f0'}
+                onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                onClick={() => handleContextMenuAction('rotate')}
+              >
+                Rotate Sprite
+              </div>
+            </>
+          ) : (
+            // Show paste option when clicking on empty space if there's a copied sprite
+            <div>
+              {contextMenu.copiedSprite && (
+                <div 
+                  style={{ 
+                    padding: '8px 12px', 
+                    cursor: 'pointer',
+                    color: '#333',
+                    background: 'transparent'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.background = '#f0f0f0'}
+                  onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                  onClick={() => handleContextMenuAction('paste')}
+                >
+                  Paste Sprite
+                </div>
+              )}
+              {!contextMenu.copiedSprite && (
+                <div 
+                  style={{ 
+                    padding: '8px 12px', 
+                    color: '#999',
+                    background: 'transparent'
+                  }}
+                >
+                  No actions available
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      
       {/* Persistent debug panel */}
       <div style={{
         position: 'absolute', top: 8, left: 8, background: 'rgba(0,0,0,0.8)', color: '#0f0',

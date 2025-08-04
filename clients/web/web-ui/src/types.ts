@@ -113,6 +113,11 @@ export interface RenderEngine {
   
   // Sprite management
   add_sprite_to_layer: (layer: string, sprite_data: Record<string, unknown>) => string;
+  delete_sprite: (sprite_id: string) => boolean;
+  copy_sprite: (sprite_id: string) => string | undefined;
+  paste_sprite: (layer: string, sprite_json: string, offset_x: number, offset_y: number) => string;
+  resize_sprite: (sprite_id: string, new_width: number, new_height: number) => boolean;
+  rotate_sprite: (sprite_id: string, rotation_degrees: number) => boolean;
   load_texture: (name: string, image: HTMLImageElement) => void;
   
   // Layer management
@@ -125,6 +130,10 @@ export interface RenderEngine {
   handle_mouse_move: (screen_x: number, screen_y: number) => void;
   handle_mouse_up: (screen_x: number, screen_y: number) => void;
   handle_wheel: (screen_x: number, screen_y: number, delta: number) => void;
+  handle_right_click: (screen_x: number, screen_y: number) => string | undefined;
+  
+  // Cursor management
+  get_cursor_type: (screen_x: number, screen_y: number) => string;
 }
 
 // Window interface extensions

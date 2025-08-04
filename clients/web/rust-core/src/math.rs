@@ -168,7 +168,7 @@ impl Default for Camera {
 }
 
 impl Camera {
-    pub fn view_matrix(&self, canvas_size: Vec2) -> Mat3 {
+    pub fn view_matrix(&self, _canvas_size: Vec2) -> Mat3 {
         Mat3::from_scale_translation(
             Vec2::splat(self.zoom as f32),
             Vec2::new(-self.world_x as f32 * self.zoom as f32, -self.world_y as f32 * self.zoom as f32)
@@ -177,26 +177,19 @@ impl Camera {
     
     pub fn world_to_screen(&self, world_pos: Vec2) -> Vec2 {
         Vec2::new(
-            (world_pos.x as f64 - self.world_x) * self.zoom,
-            (world_pos.y as f64 - self.world_y) * self.zoom,
-        ) as Vec2
+            ((world_pos.x as f64 - self.world_x) * self.zoom) as f32,
+            ((world_pos.y as f64 - self.world_y) * self.zoom) as f32,
+        )
     }
     
     pub fn screen_to_world(&self, screen_pos: Vec2) -> Vec2 {
         Vec2::new(
-            screen_pos.x as f64 / self.zoom + self.world_x,
-            screen_pos.y as f64 / self.zoom + self.world_y,
-        ) as Vec2
+            (screen_pos.x as f64 / self.zoom + self.world_x) as f32,
+            (screen_pos.y as f64 / self.zoom + self.world_y) as f32,
+        )
     }
 }
 
-impl From<Vec2> for Vec2 {
-    fn from(v: Vec2) -> Self {
-        v
-    }
-}
-
-// Helper trait for f64 Vec2 conversion
 impl From<Vec2> for (f64, f64) {
     fn from(v: Vec2) -> (f64, f64) {
         (v.x as f64, v.y as f64)

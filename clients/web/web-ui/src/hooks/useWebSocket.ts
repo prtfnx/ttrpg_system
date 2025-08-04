@@ -73,28 +73,26 @@ export function useWebSocket(url: string) {
             });
             // WASM integration: also add sprite to RenderManager if available
             // Ensure all required fields for WASM
+            const layer: string = (message.data.layer as string) || 'tokens';
             const spriteForWasm = {
               id: message.data.id,
-              x: message.data.x || 0,
-              y: message.data.y || 0,
+              world_x: message.data.x || 0,
+              world_y: message.data.y || 0,
               width: message.data.width || 32,
               height: message.data.height || 32,
-              layer: message.data.layer || 'tokens',
-              texture_path: message.data.texture_path || message.data.imageUrl || '',
-              color: message.data.color || '#ffffff',
               scale_x: message.data.scale_x || 1.0,
               scale_y: message.data.scale_y || 1.0,
               rotation: message.data.rotation || 0.0,
-              name: message.data.name || 'Sprite',
-              isSelected: false,
-              isVisible: true
+              layer: layer,
+              texture_id: message.data.texture_path || message.data.imageUrl || '',
+              tint_color: [1.0, 1.0, 1.0, 1.0]
             };
-            console.log('[WASM] add_sprite payload:', spriteForWasm);
-            if (window.rustRenderManager && typeof window.rustRenderManager.add_sprite === 'function') {
+            console.log('[WASM] add_sprite_to_layer payload:', spriteForWasm);
+            if (window.rustRenderManager && typeof window.rustRenderManager.add_sprite_to_layer === 'function') {
               try {
-                console.log('[WASM] Calling add_sprite...');
-                window.rustRenderManager.add_sprite(spriteForWasm);
-                console.log('[WASM] add_sprite call completed');
+                console.log('[WASM] Calling add_sprite_to_layer...');
+                window.rustRenderManager.add_sprite_to_layer(layer, spriteForWasm);
+                console.log('[WASM] add_sprite_to_layer call completed');
               } catch (err) {
                 console.error('[WASM] Failed to add sprite to RenderManager:', err);
               }

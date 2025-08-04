@@ -173,102 +173,52 @@ export const GameCanvas: React.FC = () => {
         updateConnectionState('connecting');
         console.log('Starting WASM dynamic import...');
         let initWasm, WasmRenderEngine;
-        try {
-          // Inject the WASM glue file as a <script> tag at runtime
-          // Inject ES module glue file as <script type="module"> at runtime
-          let wasmModule;
-          try {
-            // Use eval to perform dynamic import at runtime, avoiding Vite/Rollup resolution
-            wasmModule = await eval('import("/static/ui/wasm/ttrpg_rust_core.js")');
-            window.ttrpg_rust_core = wasmModule;
-            console.log('[WASM] window.ttrpg_rust_core:', wasmModule);
-          } catch (wasmErr) {
-            console.error('[WASM] dynamic import via eval failed:', wasmErr);
-            updateConnectionState('error');
-            return;
-          }
-          initWasm = wasmModule?.default;
-          WasmRenderEngine = wasmModule?.RenderEngine;
-          if (!initWasm) {
-            console.error('[WASM] initWasm is undefined!', wasmModule);
-            updateConnectionState('error');
-            return;
-          }
-          if (!WasmRenderEngine) {
-            console.error('[WASM] RenderEngine is undefined!', wasmModule);
-            updateConnectionState('error');
-            return;
-          }
-          console.log('[WASM] WASM module loaded, calling initWasm...');
-          try {
-            await initWasm();
-            console.log('[WASM] initWasm completed');
-          } catch (initErr) {
-            console.error('[WASM] initWasm failed:', initErr);
-            updateConnectionState('error');
-            return;
-          }
-          const canvas = canvasRef.current;
-          if (!canvas) {
-            console.error('[WASM] Canvas is null!');
-            updateConnectionState('error');
-            return;
-          }
-          resizeCanvas();
-          console.log('[WASM] Constructing RenderEngine...');
-          let rustRenderEngine;
-          try {
-            rustRenderEngine = new WasmRenderEngine(canvas);
-            console.log('[WASM] RenderEngine constructed:', rustRenderEngine);
-            // Center camera on world origin
-            rustRenderEngine.set_camera(0, 0, 1.0);
-            rustRenderManagerRef.current = rustRenderEngine;
-            window.rustRenderManager = rustRenderEngine;
-          } catch (rmErr) {
-            console.error('[WASM] RenderManager construction failed:', rmErr);
-            updateConnectionState('error');
-            return;
-          }
-        } catch (wasmErr) {
-          console.error('WASM script injection failed:', wasmErr);
+        
+        // Use eval to perform dynamic import at runtime, avoiding Vite/Rollup resolution
+        const wasmModule = await eval('import("/static/ui/wasm/ttrpg_rust_core.js")');
+        window.ttrpg_rust_core = wasmModule;
+        console.log('[WASM] window.ttrpg_rust_core:', wasmModule);
+        
+        initWasm = wasmModule?.default;
+        WasmRenderEngine = wasmModule?.RenderEngine;
+        
+        if (!initWasm) {
+          console.error('[WASM] initWasm is undefined!', wasmModule);
           updateConnectionState('error');
           return;
         }
-
-        try {
-          await initWasm();
-          console.log('WASM initialized!');
-        } catch (initErr) {
-          console.error('initWasm failed:', initErr);
+        if (!WasmRenderEngine) {
+          console.error('[WASM] RenderEngine is undefined!', wasmModule);
           updateConnectionState('error');
           return;
         }
-
+        
+        console.log('[WASM] WASM module loaded, calling initWasm...');
+        await initWasm();
+        console.log('[WASM] initWasm completed');
+        
         if (!mounted) {
           console.warn('Component not mounted, aborting WASM init');
           return;
         }
+        
         const canvas = canvasRef.current;
         if (!canvas) {
-          console.error('Canvas is null!');
+          console.error('[WASM] Canvas is null!');
           updateConnectionState('error');
           return;
         }
+        
         resizeCanvas();
-
-        console.log('Constructing RenderEngine...');
-        try {
-          const rustRenderEngine = new WasmRenderEngine(canvas);
-          console.log('RenderEngine constructed:', rustRenderEngine);
-          // Center camera on world origin (0,0) at startup
-          rustRenderEngine.set_camera(0, 0, 1.0);
-          rustRenderManagerRef.current = rustRenderEngine;
-          window.rustRenderManager = rustRenderEngine;
-        } catch (rmErr) {
-          console.error('RenderEngine construction failed:', rmErr);
-          updateConnectionState('error');
-          return;
-        }
+        
+        console.log('[WASM] Constructing RenderEngine...');
+        const rustRenderEngine = new WasmRenderEngine(canvas);
+        console.log('[WASM] RenderEngine constructed:', rustRenderEngine);
+        
+        // Center camera on world origin
+        rustRenderEngine.set_camera(0, 0, 1.0);
+        rustRenderManagerRef.current = rustRenderEngine;
+        window.rustRenderManager = rustRenderEngine;
 
         canvas.addEventListener('mousedown', handleMouseDown);
         canvas.addEventListener('mousemove', handleMouseMove);
@@ -289,6 +239,29 @@ export const GameCanvas: React.FC = () => {
           if (mounted) animationFrameId = requestAnimationFrame(renderLoop);
         };
         animationFrameId = requestAnimationFrame(renderLoop);
+
+        // Add a test sprite to verify the system works
+        setTimeout(() => {
+          try {
+            const testSprite = {
+              id: 'test_sprite_1',
+              world_x: 100,
+              world_y: 100,
+              width: 64,
+              height: 64,
+              scale_x: 1.0,
+              scale_y: 1.0,
+              rotation: 0.0,
+              layer: 'tokens',
+              texture_id: '',
+              tint_color: [1.0, 0.5, 0.5, 1.0] // Red tint
+            };
+            rustRenderEngine.add_sprite_to_layer('tokens', testSprite);
+            console.log('[WASM] Test sprite added');
+          } catch (err) {
+            console.error('[WASM] Failed to add test sprite:', err);
+          }
+        }, 1000);
 
         // Listen for window resize
         window.addEventListener('resize', resizeCanvas);

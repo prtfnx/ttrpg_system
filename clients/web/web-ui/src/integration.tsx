@@ -44,24 +44,25 @@ document.addEventListener('DOMContentLoaded', () => {
       sendMessage: (type, data) => {
         console.log('[integration] gameAPI.sendMessage called:', type, data);
         // Bridge to WASM RenderManager if available
-        if (type === 'sprite_create' && window.rustRenderManager && typeof window.rustRenderManager.add_sprite === 'function') {
+        if (type === 'sprite_create' && window.rustRenderManager && typeof window.rustRenderManager.add_sprite_to_layer === 'function') {
           try {
+            const layer = (data.layer as string) ?? 'tokens';
             // Fill in all required fields for Rust Sprite struct
             const sprite = {
               id: data.id || `sprite_${Date.now()}`,
-              x: data.x ?? 0,
-              y: data.y ?? 0,
+              world_x: data.x ?? 0,
+              world_y: data.y ?? 0,
               width: data.width ?? 32,
               height: data.height ?? 32,
               scale_x: data.scale_x ?? 1.0,
               scale_y: data.scale_y ?? 1.0,
               rotation: data.rotation ?? 0.0,
-              layer: data.layer ?? 'tokens',
-              texture_path: data.texture_path ?? '',
-              color: data.color ?? '#ffffff',
+              layer: layer,
+              texture_id: data.texture_path ?? '',
+              tint_color: [1.0, 1.0, 1.0, 1.0],
             };
-            console.log('[integration] Forwarding to WASM add_sprite:', sprite);
-            window.rustRenderManager.add_sprite(sprite);
+            console.log('[integration] Forwarding to WASM add_sprite_to_layer:', layer, sprite);
+            window.rustRenderManager.add_sprite_to_layer(layer, sprite);
           } catch (err) {
             console.error('[integration] WASM add_sprite error:', err);
           }

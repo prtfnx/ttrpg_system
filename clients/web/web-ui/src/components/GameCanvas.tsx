@@ -2,13 +2,13 @@ import type { RefObject } from 'react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useGameStore } from '../store';
-import type { RenderManager } from '../types';
+import type { RenderEngine } from '../types';
 import { DebugOverlay } from './DebugOverlay';
 import './GameCanvas.css';
 
 declare global {
   interface Window {
-    rustRenderManager?: RenderManager;
+    rustRenderManager?: RenderEngine;
     ttrpg_rust_core?: Record<string, unknown>;
   }
 }
@@ -16,7 +16,7 @@ declare global {
 // Persistent debug panel for canvas/mouse/world info
 function useCanvasDebug(
   canvasRef: RefObject<HTMLCanvasElement | null>,
-  rustRenderManagerRef: RefObject<RenderManager | null>,
+  rustRenderManagerRef: RefObject<RenderEngine | null>,
   dprRef: RefObject<number>
 ): {
   cssWidth: number; cssHeight: number; deviceWidth: number; deviceHeight: number;
@@ -64,7 +64,7 @@ function useCanvasDebug(
 export const GameCanvas: React.FC = () => {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rustRenderManagerRef = useRef<RenderManager | null>(null);
+  const rustRenderManagerRef = useRef<RenderEngine | null>(null);
   const dprRef = useRef<number>(1);
   const { updateConnectionState } = useGameStore();
   const { connect: connectWebSocket, disconnect: disconnectWebSocket, requestTableData } = useWebSocket('ws://127.0.0.1:12345/ws');
@@ -103,20 +103,9 @@ export const GameCanvas: React.FC = () => {
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     const canvas = canvasRef.current;
-    if (canvas && rustRenderManagerRef.current && rustRenderManagerRef.current.get_drag_mode) {
-      // Use get_drag_mode from WASM for reliable cursor style changes
-      const mode = rustRenderManagerRef.current.get_drag_mode();
-      let cursor = 'grab';
-      if (mode === 'ResizeSprite') {
-        cursor = 'nwse-resize';
-      } else if (mode === 'MoveSprite') {
-        cursor = 'grabbing';
-      } else if (mode === 'Camera') {
-        cursor = 'grabbing';
-      } else {
-        cursor = 'grab';
-      }
-      canvas.style.cursor = cursor;
+    if (canvas) {
+      // Simple cursor management - the render engine handles all the logic
+      canvas.style.cursor = 'grab';
     }
     if (rustRenderManagerRef.current) {
       const { x, y } = getRelativeCoords(e);
@@ -183,7 +172,7 @@ export const GameCanvas: React.FC = () => {
       try {
         updateConnectionState('connecting');
         console.log('Starting WASM dynamic import...');
-        let initWasm, RenderManager;
+        let initWasm, WasmRenderEngine;
         try {
           // Inject the WASM glue file as a <script> tag at runtime
           // Inject ES module glue file as <script type="module"> at runtime
@@ -199,14 +188,14 @@ export const GameCanvas: React.FC = () => {
             return;
           }
           initWasm = wasmModule?.default;
-          RenderManager = wasmModule?.RenderManager;
+          WasmRenderEngine = wasmModule?.RenderEngine;
           if (!initWasm) {
             console.error('[WASM] initWasm is undefined!', wasmModule);
             updateConnectionState('error');
             return;
           }
-          if (!RenderManager) {
-            console.error('[WASM] RenderManager is undefined!', wasmModule);
+          if (!WasmRenderEngine) {
+            console.error('[WASM] RenderEngine is undefined!', wasmModule);
             updateConnectionState('error');
             return;
           }
@@ -226,18 +215,15 @@ export const GameCanvas: React.FC = () => {
             return;
           }
           resizeCanvas();
-          console.log('[WASM] Constructing RenderManager...');
-          let rustRenderManager;
+          console.log('[WASM] Constructing RenderEngine...');
+          let rustRenderEngine;
           try {
-            rustRenderManager = new RenderManager(canvas);
-            console.log('[WASM] RenderManager constructed:', rustRenderManager);
-            // Center camera on a default sprite position (e.g., (200, 150)) at startup
-            if (typeof rustRenderManager.center_camera_on === 'function') {
-              // TODO: Ideally, fetch sprite positions dynamically. For now, use (200, 150) as a likely center.
-              rustRenderManager.center_camera_on(200, 150);
-            }
-            rustRenderManagerRef.current = rustRenderManager;
-            window.rustRenderManager = rustRenderManager;
+            rustRenderEngine = new WasmRenderEngine(canvas);
+            console.log('[WASM] RenderEngine constructed:', rustRenderEngine);
+            // Center camera on world origin
+            rustRenderEngine.set_camera(0, 0, 1.0);
+            rustRenderManagerRef.current = rustRenderEngine;
+            window.rustRenderManager = rustRenderEngine;
           } catch (rmErr) {
             console.error('[WASM] RenderManager construction failed:', rmErr);
             updateConnectionState('error');
@@ -270,18 +256,16 @@ export const GameCanvas: React.FC = () => {
         }
         resizeCanvas();
 
-        console.log('Constructing RenderManager...');
+        console.log('Constructing RenderEngine...');
         try {
-          const rustRenderManager = new RenderManager(canvas);
-          console.log('RenderManager constructed:', rustRenderManager);
+          const rustRenderEngine = new WasmRenderEngine(canvas);
+          console.log('RenderEngine constructed:', rustRenderEngine);
           // Center camera on world origin (0,0) at startup
-          if (typeof rustRenderManager.center_camera_on === 'function') {
-            rustRenderManager.center_camera_on(0, 0);
-          }
-          rustRenderManagerRef.current = rustRenderManager;
-          window.rustRenderManager = rustRenderManager;
+          rustRenderEngine.set_camera(0, 0, 1.0);
+          rustRenderManagerRef.current = rustRenderEngine;
+          window.rustRenderManager = rustRenderEngine;
         } catch (rmErr) {
-          console.error('RenderManager construction failed:', rmErr);
+          console.error('RenderEngine construction failed:', rmErr);
           updateConnectionState('error');
           return;
         }
@@ -364,18 +348,22 @@ export const GameCanvas: React.FC = () => {
     let rafId: number | null = null;
     const pollOverlay = () => {
       const rm = rustRenderManagerRef.current;
-      if (rm && typeof rm.get_cursor_coords === 'function') {
+      const canvas = canvasRef.current;
+      if (rm && canvas) {
         try {
-          const coords = rm.get_cursor_coords();
-          if (coords && coords.screen && coords.world) {
-            setDebugCursorScreen(coords.screen);
-            setDebugCursorWorld(coords.world);
-            setDebugGrid(getGridCoord(coords.world));
-          } else if (typeof coords === 'object' && coords !== null && 'screen' in coords && 'world' in coords) {
-            setDebugCursorScreen(coords.screen);
-            setDebugCursorWorld(coords.world);
-            setDebugGrid(getGridCoord(coords.world));
-          }
+          // Get mouse position relative to canvas and convert to world coordinates
+          const rect = canvas.getBoundingClientRect();
+          const dpr = dprRef.current;
+          // Use last known mouse position or center of canvas
+          const mouseCss = { x: rect.width / 2, y: rect.height / 2 };
+          const mouseDevice = { x: mouseCss.x * dpr, y: mouseCss.y * dpr };
+          
+          const worldCoords = rm.screen_to_world(mouseDevice.x, mouseDevice.y);
+          const world = { x: worldCoords[0], y: worldCoords[1] };
+          
+          setDebugCursorScreen(mouseCss);
+          setDebugCursorWorld(world);
+          setDebugGrid(getGridCoord(world));
         } catch {
           // ignore errors when polling cursor coordinates
         }

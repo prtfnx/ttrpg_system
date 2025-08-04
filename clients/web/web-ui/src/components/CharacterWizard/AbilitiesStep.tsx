@@ -29,11 +29,44 @@ export function AbilitiesStep({ onNext, onBack }: { onNext: () => void; onBack: 
     setRolls(newRolls);
   };
 
+  // Point buy calculation
+  const getPointCost = (score: number): number => {
+    if (score <= 8) return 0;
+    if (score <= 13) return score - 8;
+    if (score === 14) return 7;
+    if (score === 15) return 9;
+    return 999; // Invalid
+  };
+
+  const getTotalPointsUsed = (): number => {
+    const values = getValues();
+    return ABILITIES.reduce((total, ability) => total + getPointCost(values[ability] || 8), 0);
+  };
+
   const isValid = () => {
-    const values = Object.values(getValues());
-    return method === 'standard' 
-      ? values.every(v => STANDARD_ARRAY.includes(v)) && new Set(values).size === 6
-      : values.every(v => v >= 8 && v <= 20);
+    const values = getValues();
+    const allValues = Object.values(values);
+    
+    if (method === 'standard') {
+      // All values must be from standard array and unique
+      return allValues.every(v => STANDARD_ARRAY.includes(v)) && 
+             new Set(allValues).size === 6 &&
+             allValues.every(v => v > 0);
+    } else if (method === 'pointbuy') {
+      // Must use exactly 27 points and all scores 8-15
+      return getTotalPointsUsed() === 27 && 
+             allValues.every(v => v >= 8 && v <= 15);
+    } else if (method === 'roll') {
+      // All values must be assigned from rolls
+      return rolls.length > 0 && 
+             allValues.every(v => rolls.includes(v)) &&
+             new Set(allValues).size === allValues.length &&
+             allValues.every(v => v > 0);
+    } else {
+      // Manual: just check range
+      return allValues.every(v => v >= 8 && v <= 20) &&
+             allValues.every(v => v > 0);
+    }
   };
 
   return (
@@ -69,6 +102,23 @@ export function AbilitiesStep({ onNext, onBack }: { onNext: () => void; onBack: 
         <button type="button" onClick={rollAbilities} style={{ padding: '8px 16px', width: 'fit-content' }}>
           Roll Abilities
         </button>
+      )}
+
+      {method === 'pointbuy' && (
+        <div style={{ 
+          padding: '12px', 
+          background: '#f0f8ff', 
+          border: '1px solid #007acc', 
+          borderRadius: 4,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <span>Point Buy Budget: {getTotalPointsUsed()}/27 points used</span>
+          <small style={{ color: '#666' }}>
+            Costs: 8-13 = face value - 8, 14 = 7pts, 15 = 9pts
+          </small>
+        </div>
       )}
 
       <div style={{ display: 'grid', gap: 12 }}>
@@ -108,11 +158,21 @@ export function AbilitiesStep({ onNext, onBack }: { onNext: () => void; onBack: 
                     type="number"
                     min={method === 'pointbuy' ? 8 : 1}
                     max={method === 'pointbuy' ? 15 : 20}
-                    style={{ padding: 8, width: 80 }}
+                    style={{ 
+                      padding: 8, 
+                      width: 80,
+                      border: method === 'pointbuy' && getTotalPointsUsed() > 27 ? '2px solid red' : '1px solid #ccc'
+                    }}
                     onChange={(e) => field.onChange(Number(e.target.value))}
                   />
                 )}
               />
+            )}
+            
+            {method === 'pointbuy' && (
+              <span style={{ fontSize: 12, color: '#666', minWidth: 60 }}>
+                Cost: {getPointCost(getValues()[ability] || 8)}pts
+              </span>
             )}
             
             {errors[ability] && (

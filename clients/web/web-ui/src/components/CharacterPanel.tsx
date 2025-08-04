@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../store';
 import DiceRoller from '../tools/DiceRoller';
-import CharacterCreationWizard from './CharacterWizard/CharacterCreationWizard';
 import type { DetailedCharacter } from '../types';
+import CharacterCreationWizard from './CharacterWizard/CharacterCreationWizard';
 
 // Utility to generate unique IDs
 function genId(): string {

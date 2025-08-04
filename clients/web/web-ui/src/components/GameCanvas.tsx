@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useGameStore } from '../store';
-import { DebugOverlay } from './DebugOverlay';
 import type { RenderManager } from '../types';
+import { DebugOverlay } from './DebugOverlay';
 import './GameCanvas.css';
 
 declare global {

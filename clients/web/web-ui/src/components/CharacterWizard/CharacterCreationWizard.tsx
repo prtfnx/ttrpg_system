@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
-import { RaceStep } from './RaceStep';
-import { ClassStep } from './ClassStep';
-import { BackgroundStep } from './BackgroundStep';
+import { FormProvider, useForm } from 'react-hook-form';
 import { AbilitiesStep } from './AbilitiesStep';
-import { SkillsStep } from './SkillsStep';
-import IdentityStep from './IdentityStep';
-import ReviewStep from './ReviewStep';
-import { raceSchema, abilitiesSchema, type CharacterFormData } from './schemas';
+import { BackgroundStep } from './BackgroundStep';
 import { classSchema } from './classSchema';
+import { ClassStep } from './ClassStep';
+import IdentityStep from './IdentityStep';
+import { RaceStep } from './RaceStep';
+import ReviewStep from './ReviewStep';
+import { abilitiesSchema, raceSchema, type CharacterFormData } from './schemas';
+import { SkillsStep } from './SkillsStep';
 import type { WizardFormData } from './WizardFormData';
 
 // D&D 5e class skills mapping

@@ -99,32 +99,39 @@ export interface DetailedCharacter extends Character {
 // Game API interface for window object
 export interface GameAPI {
   sendMessage: (type: string, data: Record<string, unknown>) => void;
-  renderManager: () => RenderManager | null;
+  renderManager: () => RenderEngine | null;
 }
 
-export interface RenderManager {
-  resize: (width: number, height: number) => void;
-  handle_mouse_down: (x: number, y: number) => void;
-  handle_mouse_move: (x: number, y: number) => void;
-  handle_mouse_up: (x: number, y: number) => void;
-  handle_wheel: (x: number, y: number, delta: number) => void;
-  screen_to_world: (x: number, y: number) => number[];
-  get_drag_mode: () => string;
-  add_sprite: (data: Record<string, unknown>) => void;
+export interface RenderEngine {
+  // Core rendering
   render: () => void;
-  center_camera_on: (x: number, y: number) => void;
+  resize: (width: number, height: number) => void;
+  
+  // Camera control
+  set_camera: (world_x: number, world_y: number, zoom: number) => void;
+  screen_to_world: (screen_x: number, screen_y: number) => number[];
+  
+  // Sprite management
+  add_sprite_to_layer: (layer: string, sprite_data: Record<string, unknown>) => string;
   load_texture: (name: string, image: HTMLImageElement) => void;
-  get_cursor_coords?: () => {
-    screen: { x: number; y: number };
-    world: { x: number; y: number };
-  };
+  
+  // Layer management
+  set_layer_opacity: (layer: string, opacity: number) => void;
+  set_layer_visible: (layer: string, visible: boolean) => void;
+  toggle_grid: () => void;
+  
+  // Input handling
+  handle_mouse_down: (screen_x: number, screen_y: number) => void;
+  handle_mouse_move: (screen_x: number, screen_y: number) => void;
+  handle_mouse_up: (screen_x: number, screen_y: number) => void;
+  handle_wheel: (screen_x: number, screen_y: number, delta: number) => void;
 }
 
 // Window interface extensions
 declare global {
   interface Window {
     gameAPI?: GameAPI;
-    rustRenderManager?: RenderManager;
+    rustRenderManager?: RenderEngine;
     ttrpg_rust_core?: Record<string, unknown>;
   }
 }

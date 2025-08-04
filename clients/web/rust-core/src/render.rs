@@ -2,637 +2,500 @@ use wasm_bindgen::prelude::*;
 use web_sys::{HtmlCanvasElement, WebGl2RenderingContext as WebGlRenderingContext, WebGlProgram, WebGlShader, WebGlTexture, HtmlImageElement};
 use std::collections::HashMap;
 use crate::types::*;
+use crate::math::*;
 use gloo_utils::format::JsValueSerdeExt;
 
-// Use web_sys::console::log_1 for logging
 macro_rules! console_log {
     ($($t:tt)*) => (web_sys::console::log_1(&format_args!($($t)*).to_string().into()))
 }
 
+const LAYER_NAMES: &[&str] = &["map", "tokens", "dungeon_master", "light", "height", "obstacles", "fog_of_war"];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InputMode {
+    None,
+    CameraPan,
+    SpriteMove,
+    SpriteResize,
+}
+
 #[wasm_bindgen]
-pub struct RenderManager {
+pub struct RenderEngine {
     canvas: HtmlCanvasElement,
     gl: WebGlRenderingContext,
     shader_program: Option<WebGlProgram>,
-    sprites: Vec<Sprite>,
+    
+    // Layer system
+    layers: HashMap<String, Layer>,
+    
+    // Camera and transforms
     camera: Camera,
+    view_matrix: Mat3,
+    canvas_size: Vec2,
+    
+    // Input handling
+    input_mode: InputMode,
+    last_mouse_screen: Vec2,
+    selected_sprite_id: Option<String>,
+    drag_offset: Vec2,
+    
+    // Resources
     textures: HashMap<String, WebGlTexture>,
-    // is_dragging: bool,
-    last_mouse_pos: (f32, f32),
     grid_enabled: bool,
-    selected_sprite: Option<String>,
-    drag_mode: DragMode,
-    drag_offset: (f64, f64),
-    resize_handle: Option<ResizeHandle>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum DragMode {
-    None,
-    Camera,
-    MoveSprite,
-    ResizeSprite,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ResizeHandle {
-    BottomRight,
-    // Add more handles if needed
 }
 
 #[wasm_bindgen]
-impl RenderManager {
-    /// Center the camera on a given world coordinate
-    #[wasm_bindgen]
-    pub fn center_camera_on(&mut self, world_x: f64, world_y: f64) {
-        let width = self.canvas.width() as f64;
-        let height = self.canvas.height() as f64;
-        self.camera.x = world_x - width / (2.0 * self.camera.zoom);
-        self.camera.y = world_y - height / (2.0 * self.camera.zoom);
-        console_log!(
-            "[CENTER_CAMERA] camera.x={}, camera.y={}, zoom={}, center=({}, {})",
-            self.camera.x, self.camera.y, self.camera.zoom, world_x, world_y
-        );
-    }
-    /// Returns the current cursor position in both screen and world coordinates as a JS object
-    #[wasm_bindgen]
-    pub fn get_cursor_coords(&self) -> JsValue {
-        let (screen_x, screen_y) = self.last_mouse_pos;
-        let world = self.screen_to_world(screen_x as f64, screen_y as f64);
-        let world_x = world[0];
-        let world_y = world[1];
-        JsValue::from_serde(&serde_json::json!({
-            "screen": { "x": screen_x, "y": screen_y },
-            "world": { "x": world_x, "y": world_y }
-        })).unwrap_or(JsValue::NULL)
-    }
-    #[wasm_bindgen]
-    pub fn get_drag_mode(&self) -> String {
-        match self.drag_mode {
-            DragMode::None => "None".to_string(),
-            DragMode::Camera => "Camera".to_string(),
-            DragMode::MoveSprite => "MoveSprite".to_string(),
-            DragMode::ResizeSprite => "ResizeSprite".to_string(),
-        }
-    }
+impl RenderEngine {
     #[wasm_bindgen(constructor)]
-    pub fn new(canvas: HtmlCanvasElement) -> Result<RenderManager, JsValue> {
-        let gl = canvas
-            .get_context("webgl2")?
-            .unwrap()
-            .dyn_into::<WebGlRenderingContext>()?;
-
-        let mut renderer = RenderManager {
+    pub fn new(canvas: HtmlCanvasElement) -> Result<RenderEngine, JsValue> {
+        let gl = canvas.get_context("webgl2")?.unwrap().dyn_into::<WebGlRenderingContext>()?;
+        
+        let mut layers = HashMap::new();
+        for (i, &name) in LAYER_NAMES.iter().enumerate() {
+            layers.insert(name.to_string(), Layer::new(i as i32));
+        }
+        
+        let canvas_size = Vec2::new(canvas.width() as f32, canvas.height() as f32);
+        let camera = Camera::default();
+        let view_matrix = camera.view_matrix(canvas_size);
+        
+        let mut engine = Self {
             canvas,
             gl,
             shader_program: None,
-            sprites: Vec::new(),
-            camera: Camera::default(),
+            layers,
+            camera,
+            view_matrix,
+            canvas_size,
+            input_mode: InputMode::None,
+            last_mouse_screen: Vec2::new(0.0, 0.0),
+            selected_sprite_id: None,
+            drag_offset: Vec2::new(0.0, 0.0),
             textures: HashMap::new(),
-            last_mouse_pos: (0.0, 0.0),
             grid_enabled: true,
-            selected_sprite: None,
-            drag_mode: DragMode::None,
-            drag_offset: (0.0, 0.0),
-            resize_handle: None,
         };
-
-        renderer.init_shaders()?;
-        renderer.setup_gl()?;
-
-        Ok(renderer)
+        
+        engine.init_gl()?;
+        Ok(engine)
     }
-
-    fn init_shaders(&mut self) -> Result<(), JsValue> {
-        let vertex_shader_source = r#"
-            attribute vec2 a_position;
-            attribute vec2 a_texCoord;
+    
+    fn init_gl(&mut self) -> Result<(), JsValue> {
+        let vertex_source = r#"#version 300 es
+            precision highp float;
             
-            uniform mat3 u_transform;
-            uniform vec2 u_resolution;
+            in vec2 a_position;
+            in vec2 a_tex_coord;
             
-            varying vec2 v_texCoord;
+            uniform mat3 u_view_matrix;
+            uniform vec2 u_canvas_size;
+            
+            out vec2 v_tex_coord;
             
             void main() {
-                // Apply camera transform (world -> screen)
-                vec3 transformed = u_transform * vec3(a_position, 1.0);
-                // Convert to normalized device coordinates
-                vec2 clipSpace = ((transformed.xy / u_resolution) * 2.0) - 1.0;
-                gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
-                v_texCoord = a_texCoord;
+                vec3 screen_pos = u_view_matrix * vec3(a_position, 1.0);
+                vec2 ndc = (screen_pos.xy / u_canvas_size) * 2.0 - 1.0;
+                ndc.y *= -1.0;
+                gl_Position = vec4(ndc, 0.0, 1.0);
+                v_tex_coord = a_tex_coord;
             }
         "#;
-
-        let fragment_shader_source = r#"
+        
+        let fragment_source = r#"#version 300 es
             precision mediump float;
             
-            varying vec2 v_texCoord;
+            in vec2 v_tex_coord;
             uniform sampler2D u_texture;
             uniform vec4 u_color;
-            uniform bool u_hasTexture;
+            uniform bool u_has_texture;
+            
+            out vec4 fragColor;
             
             void main() {
-                if (u_hasTexture) {
-                    gl_FragColor = texture2D(u_texture, v_texCoord) * u_color;
+                if (u_has_texture) {
+                    fragColor = texture(u_texture, v_tex_coord) * u_color;
                 } else {
-                    gl_FragColor = u_color;
+                    fragColor = u_color;
                 }
             }
         "#;
-
-        let vertex_shader = self.compile_shader(WebGlRenderingContext::VERTEX_SHADER, vertex_shader_source)?;
-        let fragment_shader = self.compile_shader(WebGlRenderingContext::FRAGMENT_SHADER, fragment_shader_source)?;
+        
+        let vertex_shader = self.compile_shader(WebGlRenderingContext::VERTEX_SHADER, vertex_source)?;
+        let fragment_shader = self.compile_shader(WebGlRenderingContext::FRAGMENT_SHADER, fragment_source)?;
         
         let program = self.gl.create_program().ok_or("Failed to create program")?;
         self.gl.attach_shader(&program, &vertex_shader);
         self.gl.attach_shader(&program, &fragment_shader);
         self.gl.link_program(&program);
-
+        
         if !self.gl.get_program_parameter(&program, WebGlRenderingContext::LINK_STATUS).as_bool().unwrap_or(false) {
             return Err(JsValue::from_str(&format!(
-                "Failed to link shader program: {}",
+                "Failed to link shader: {}",
                 self.gl.get_program_info_log(&program).unwrap_or_default()
             )));
         }
-
+        
         self.shader_program = Some(program);
+        
+        self.gl.enable(WebGlRenderingContext::BLEND);
+        self.gl.blend_func(WebGlRenderingContext::SRC_ALPHA, WebGlRenderingContext::ONE_MINUS_SRC_ALPHA);
+        self.gl.clear_color(0.1, 0.1, 0.1, 1.0);
+        
         Ok(())
     }
-
+    
     fn compile_shader(&self, shader_type: u32, source: &str) -> Result<WebGlShader, JsValue> {
         let shader = self.gl.create_shader(shader_type).ok_or("Failed to create shader")?;
         self.gl.shader_source(&shader, source);
         self.gl.compile_shader(&shader);
-
+        
         if !self.gl.get_shader_parameter(&shader, WebGlRenderingContext::COMPILE_STATUS).as_bool().unwrap_or(false) {
             return Err(JsValue::from_str(&format!(
-                "Failed to compile shader: {}",
+                "Shader compile error: {}",
                 self.gl.get_shader_info_log(&shader).unwrap_or_default()
             )));
         }
-
+        
         Ok(shader)
     }
-
-    fn setup_gl(&mut self) -> Result<(), JsValue> {
-        self.gl.enable(WebGlRenderingContext::BLEND);
-        self.gl.blend_func(WebGlRenderingContext::SRC_ALPHA, WebGlRenderingContext::ONE_MINUS_SRC_ALPHA);
-        self.gl.clear_color(0.1, 0.1, 0.1, 1.0);
-        Ok(())
+    
+    fn update_view_matrix(&mut self) {
+        self.view_matrix = self.camera.view_matrix(self.canvas_size);
     }
-
-    #[wasm_bindgen]
-    pub fn add_sprite(&mut self, sprite_data: &JsValue) -> Result<(), JsValue> {
-        console_log!("add_sprite called with data: {:?}", sprite_data);
-        
-        let mut sprite: Sprite = sprite_data.into_serde()
-            .map_err(|e| {
-                console_log!("Failed to parse sprite JSON: {}", e);
-                JsValue::from_str(&format!("Failed to parse sprite: {}", e))
-            })?;
-        
-        console_log!("Parsed sprite: id='{}', texture_path='{}', pos=({}, {})", 
-                    sprite.id, sprite.texture_path, sprite.x, sprite.y);
-        
-        // Generate unique ID if not provided
-        if sprite.id.is_empty() {
-            sprite.id = format!("sprite_{}", self.sprites.len());
-            console_log!("Generated sprite ID: {}", sprite.id);
-        }
-        
-        // Check if texture exists
-        if !sprite.texture_path.is_empty() {
-            if self.textures.contains_key(&sprite.texture_path) {
-                console_log!("Texture '{}' found in texture map", sprite.texture_path);
-            } else {
-                console_log!("WARNING: Texture '{}' not found! Available textures: {:?}", 
-                            sprite.texture_path, self.textures.keys().collect::<Vec<_>>());
-            }
-        } else {
-            console_log!("Sprite has no texture_path, will render as colored rectangle");
-        }
-        
-        self.sprites.push(sprite);
-        console_log!("Added sprite. Total sprites: {}", self.sprites.len());
-        Ok(())
-    }
-
-    #[wasm_bindgen]
-    pub fn load_texture(&mut self, name: &str, image: &HtmlImageElement) -> Result<(), JsValue> {
-        console_log!("Loading texture: {}", name);
-        console_log!("Image size: {}x{}", image.width(), image.height());
-        
-        let texture = self.gl.create_texture().ok_or("Failed to create texture")?;
-        
-        self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(&texture));
-        self.gl.tex_image_2d_with_u32_and_u32_and_html_image_element(
-            WebGlRenderingContext::TEXTURE_2D,
-            0,
-            WebGlRenderingContext::RGBA as i32,
-            WebGlRenderingContext::RGBA,
-            WebGlRenderingContext::UNSIGNED_BYTE,
-            image,
-        )?;
-        
-        // Set texture parameters for pixel art
-        self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_MIN_FILTER, WebGlRenderingContext::NEAREST as i32);
-        self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_MAG_FILTER, WebGlRenderingContext::NEAREST as i32);
-        self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_WRAP_S, WebGlRenderingContext::CLAMP_TO_EDGE as i32);
-        self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_WRAP_T, WebGlRenderingContext::CLAMP_TO_EDGE as i32);
-        
-        self.textures.insert(name.to_string(), texture);
-        console_log!("Texture '{}' loaded successfully. Total textures: {}", name, self.textures.len());
-        
-        // List all available textures for debugging
-        let texture_names: Vec<&str> = self.textures.keys().map(|s| s.as_str()).collect();
-        console_log!("Available textures: {:?}", texture_names);
-        
-        Ok(())
-    }
-
+    
     #[wasm_bindgen]
     pub fn render(&mut self) -> Result<(), JsValue> {
-        let width = self.canvas.width() as f32;
-        let height = self.canvas.height() as f32;
-        let (mx, my) = self.last_mouse_pos;
-        self.gl.viewport(0, 0, width as i32, height as i32);
+        self.gl.viewport(0, 0, self.canvas_size.x as i32, self.canvas_size.y as i32);
         self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
+        
         if let Some(program) = &self.shader_program {
             self.gl.use_program(Some(program));
-            // Set resolution uniform
-            let resolution_location = self.gl.get_uniform_location(program, "u_resolution");
-            self.gl.uniform2f(resolution_location.as_ref(), width, height);
-            // Draw grid if enabled
+            
+            // Set view matrix uniform
+            let view_location = self.gl.get_uniform_location(program, "u_view_matrix");
+            self.gl.uniform_matrix3fv_with_f32_array(view_location.as_ref(), false, &self.view_matrix.to_array());
+            
+            let canvas_location = self.gl.get_uniform_location(program, "u_canvas_size");
+            self.gl.uniform2f(canvas_location.as_ref(), self.canvas_size.x, self.canvas_size.y);
+            
             if self.grid_enabled {
-                self.draw_grid(width, height)?;
+                self.draw_grid()?;
             }
-            // Draw sprites
-            for sprite in &self.sprites {
-                self.draw_sprite(sprite)?;
+            
+            // Draw layers in order
+            let mut sorted_layers: Vec<_> = self.layers.iter().collect();
+            sorted_layers.sort_by_key(|(_, layer)| layer.z_order);
+            
+            for (_, layer) in sorted_layers {
+                if layer.visible {
+                    for sprite in &layer.sprites {
+                        self.draw_sprite(sprite, layer.opacity)?;
+                    }
+                }
             }
         }
+        
         Ok(())
     }
-
-    fn draw_grid(&self, width: f32, height: f32) -> Result<(), JsValue> {
-        let grid_size = 50.0; // world units
-        let left = self.camera.x;
-        let top = self.camera.y;
-        let right = self.camera.x + (width as f64) / self.camera.zoom;
-        let bottom = self.camera.y + (height as f64) / self.camera.zoom;
-
-        // Find first grid line left/top of view
-        let first_x = (left / grid_size).floor() * grid_size;
-        let first_y = (top / grid_size).floor() * grid_size;
-
+    
+    fn draw_grid(&self) -> Result<(), JsValue> {
+        let grid_size = 50.0;
+        let world_bounds = self.get_world_view_bounds();
+        
+        let start_x = (world_bounds.min.x / grid_size).floor() * grid_size;
+        let end_x = (world_bounds.max.x / grid_size).ceil() * grid_size;
+        let start_y = (world_bounds.min.y / grid_size).floor() * grid_size;
+        let end_y = (world_bounds.max.y / grid_size).ceil() * grid_size;
+        
         let mut vertices = Vec::new();
-
-        // Vertical lines - use world coordinates, let shader transform
-        let mut x = first_x;
-        while x <= right {
-            vertices.extend_from_slice(&[
-                x as f32, top as f32,
-                x as f32, bottom as f32,
-            ]);
+        
+        // Vertical lines
+        let mut x = start_x;
+        while x <= end_x {
+            vertices.extend_from_slice(&[x, world_bounds.min.y, x, world_bounds.max.y]);
             x += grid_size;
         }
-        // Horizontal lines - use world coordinates, let shader transform
-        let mut y = first_y;
-        while y <= bottom {
-            vertices.extend_from_slice(&[
-                left as f32, y as f32,
-                right as f32, y as f32,
-            ]);
+        
+        // Horizontal lines
+        let mut y = start_y;
+        while y <= end_y {
+            vertices.extend_from_slice(&[world_bounds.min.x, y, world_bounds.max.x, y]);
             y += grid_size;
         }
-        self.draw_lines(&vertices, (0.2, 0.2, 0.2, 1.0))?;
-        Ok(())
-    }
-
-    fn draw_sprite(&self, sprite: &Sprite) -> Result<(), JsValue> {
-        let is_selected = self.selected_sprite.as_ref().map_or(false, |id| id == &sprite.id);
-        let border_color = if is_selected { (0.2, 0.8, 0.2, 1.0) } else { (1.0, 1.0, 1.0, 1.0) };
         
-        // Use world coordinates - let the shader handle camera transformation
-        let anchor_x = sprite.x;
-        let anchor_y = sprite.y;
-        let scaled_width = sprite.width * sprite.scale_x;
-        let scaled_height = sprite.height * sprite.scale_y;
-
+        self.draw_lines(&vertices, [0.2, 0.2, 0.2, 1.0])
+    }
+    
+    fn draw_sprite(&self, sprite: &Sprite, layer_opacity: f32) -> Result<(), JsValue> {
+        let is_selected = self.selected_sprite_id.as_ref() == Some(&sprite.id);
+        let world_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
+        let size = Vec2::new(
+            (sprite.width * sprite.scale_x) as f32,
+            (sprite.height * sprite.scale_y) as f32
+        );
+        
         let vertices = [
-            anchor_x as f32, anchor_y as f32,
-            (anchor_x + scaled_width) as f32, anchor_y as f32,
-            anchor_x as f32, (anchor_y + scaled_height) as f32,
-            (anchor_x + scaled_width) as f32, (anchor_y + scaled_height) as f32,
+            world_pos.x, world_pos.y,
+            world_pos.x + size.x, world_pos.y,
+            world_pos.x, world_pos.y + size.y,
+            world_pos.x + size.x, world_pos.y + size.y,
         ];
-        // Flip texture vertically for correct orientation
-        let tex_coords = [
-            0.0, 0.0,
-            1.0, 0.0,
-            0.0, 1.0,
-            1.0, 1.0,
-        ];
-        let has_texture = !sprite.texture_path.is_empty() && self.textures.contains_key(&sprite.texture_path);
+        
+        let tex_coords = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+        
+        let mut color = sprite.tint_color;
+        color[3] *= layer_opacity;
+        
+        let has_texture = !sprite.texture_id.is_empty() && self.textures.contains_key(&sprite.texture_id);
         if has_texture {
-            if let Some(texture) = self.textures.get(&sprite.texture_path) {
+            if let Some(texture) = self.textures.get(&sprite.texture_id) {
                 self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(texture));
             }
         }
-        self.draw_quad(&vertices, &tex_coords, border_color, has_texture)?;
-        // Always draw selection border for selected sprite
+        
+        self.draw_quad(&vertices, &tex_coords, color, has_texture)?;
+        
         if is_selected {
-            let border_vertices = [
-                anchor_x as f32, anchor_y as f32,
-                (anchor_x + scaled_width) as f32, anchor_y as f32,
-                (anchor_x + scaled_width) as f32, (anchor_y + scaled_height) as f32,
-                anchor_x as f32, (anchor_y + scaled_height) as f32,
-                anchor_x as f32, anchor_y as f32,
+            let border = [
+                world_pos.x, world_pos.y,
+                world_pos.x + size.x, world_pos.y,
+                world_pos.x + size.x, world_pos.y + size.y,
+                world_pos.x, world_pos.y + size.y,
+                world_pos.x, world_pos.y,
             ];
-            self.draw_lines(&border_vertices, (0.2, 0.8, 0.2, 1.0))?;
+            self.draw_lines(&border, [0.2, 0.8, 0.2, 1.0])?;
         }
+        
         Ok(())
     }
-
-    fn draw_quad(&self, vertices: &[f32], tex_coords: &[f32], color: (f32, f32, f32, f32), has_texture: bool) -> Result<(), JsValue> {
+    
+    fn draw_quad(&self, vertices: &[f32], tex_coords: &[f32], color: [f32; 4], has_texture: bool) -> Result<(), JsValue> {
         if let Some(program) = &self.shader_program {
-            // Create and bind vertex buffer
-            let position_buffer = self.gl.create_buffer().ok_or("Failed to create position buffer")?;
-            self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&position_buffer));
+            let pos_buffer = self.gl.create_buffer().ok_or("Failed to create buffer")?;
+            self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&pos_buffer));
             
             unsafe {
-                let positions_array = js_sys::Float32Array::view(vertices);
-                self.gl.buffer_data_with_array_buffer_view(
-                    WebGlRenderingContext::ARRAY_BUFFER,
-                    &positions_array,
-                    WebGlRenderingContext::STATIC_DRAW,
-                );
+                let array = js_sys::Float32Array::view(vertices);
+                self.gl.buffer_data_with_array_buffer_view(WebGlRenderingContext::ARRAY_BUFFER, &array, WebGlRenderingContext::STATIC_DRAW);
             }
             
-            let position_location = self.gl.get_attrib_location(program, "a_position") as u32;
-            self.gl.enable_vertex_attrib_array(position_location);
-            self.gl.vertex_attrib_pointer_with_i32(position_location, 2, WebGlRenderingContext::FLOAT, false, 0, 0);
+            let pos_loc = self.gl.get_attrib_location(program, "a_position") as u32;
+            self.gl.enable_vertex_attrib_array(pos_loc);
+            self.gl.vertex_attrib_pointer_with_i32(pos_loc, 2, WebGlRenderingContext::FLOAT, false, 0, 0);
             
-            // Create and bind texture coordinate buffer
-            let tex_coord_buffer = self.gl.create_buffer().ok_or("Failed to create tex coord buffer")?;
-            self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&tex_coord_buffer));
+            let tex_buffer = self.gl.create_buffer().ok_or("Failed to create buffer")?;
+            self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&tex_buffer));
             
             unsafe {
-                let tex_coords_array = js_sys::Float32Array::view(tex_coords);
-                self.gl.buffer_data_with_array_buffer_view(
-                    WebGlRenderingContext::ARRAY_BUFFER,
-                    &tex_coords_array,
-                    WebGlRenderingContext::STATIC_DRAW,
-                );
+                let array = js_sys::Float32Array::view(tex_coords);
+                self.gl.buffer_data_with_array_buffer_view(WebGlRenderingContext::ARRAY_BUFFER, &array, WebGlRenderingContext::STATIC_DRAW);
             }
             
-            let tex_coord_location = self.gl.get_attrib_location(program, "a_texCoord") as u32;
-            self.gl.enable_vertex_attrib_array(tex_coord_location);
-            self.gl.vertex_attrib_pointer_with_i32(tex_coord_location, 2, WebGlRenderingContext::FLOAT, false, 0, 0);
+            let tex_loc = self.gl.get_attrib_location(program, "a_tex_coord") as u32;
+            self.gl.enable_vertex_attrib_array(tex_loc);
+            self.gl.vertex_attrib_pointer_with_i32(tex_loc, 2, WebGlRenderingContext::FLOAT, false, 0, 0);
             
-            // Set uniforms - Camera transform: zoom * (world - camera_position)
-            let transform_location = self.gl.get_uniform_location(program, "u_transform");
-            let transform_matrix = [
-                self.camera.zoom as f32, 0.0, (-self.camera.x * self.camera.zoom) as f32,
-                0.0, self.camera.zoom as f32, (-self.camera.y * self.camera.zoom) as f32,
-                0.0, 0.0, 1.0,
-            ];
-            self.gl.uniform_matrix3fv_with_f32_array(transform_location.as_ref(), false, &transform_matrix);
+            let color_loc = self.gl.get_uniform_location(program, "u_color");
+            self.gl.uniform4f(color_loc.as_ref(), color[0], color[1], color[2], color[3]);
             
-            let color_location = self.gl.get_uniform_location(program, "u_color");
-            self.gl.uniform4f(color_location.as_ref(), color.0, color.1, color.2, color.3);
+            let has_tex_loc = self.gl.get_uniform_location(program, "u_has_texture");
+            self.gl.uniform1i(has_tex_loc.as_ref(), if has_texture { 1 } else { 0 });
             
-            let has_texture_location = self.gl.get_uniform_location(program, "u_hasTexture");
-            self.gl.uniform1i(has_texture_location.as_ref(), if has_texture { 1 } else { 0 });
-            
-            // Draw
             self.gl.draw_arrays(WebGlRenderingContext::TRIANGLE_STRIP, 0, 4);
         }
         
         Ok(())
     }
-
-    fn draw_lines(&self, vertices: &[f32], color: (f32, f32, f32, f32)) -> Result<(), JsValue> {
+    
+    fn draw_lines(&self, vertices: &[f32], color: [f32; 4]) -> Result<(), JsValue> {
         if let Some(program) = &self.shader_program {
-            let position_buffer = self.gl.create_buffer().ok_or("Failed to create position buffer")?;
-            self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&position_buffer));
-
+            let buffer = self.gl.create_buffer().ok_or("Failed to create buffer")?;
+            self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&buffer));
+            
             unsafe {
-                let positions_array = js_sys::Float32Array::view(vertices);
-                self.gl.buffer_data_with_array_buffer_view(
-                    WebGlRenderingContext::ARRAY_BUFFER,
-                    &positions_array,
-                    WebGlRenderingContext::STATIC_DRAW,
-                );
+                let array = js_sys::Float32Array::view(vertices);
+                self.gl.buffer_data_with_array_buffer_view(WebGlRenderingContext::ARRAY_BUFFER, &array, WebGlRenderingContext::STATIC_DRAW);
             }
-
-            let position_location = self.gl.get_attrib_location(program, "a_position") as u32;
-            self.gl.enable_vertex_attrib_array(position_location);
-            self.gl.vertex_attrib_pointer_with_i32(position_location, 2, WebGlRenderingContext::FLOAT, false, 0, 0);
-
-            // Set uniforms - Camera transform: zoom * (world - camera_position)
-            let transform_location = self.gl.get_uniform_location(program, "u_transform");
-            let transform_matrix = [
-                self.camera.zoom as f32, 0.0, (-self.camera.x * self.camera.zoom) as f32,
-                0.0, self.camera.zoom as f32, (-self.camera.y * self.camera.zoom) as f32,
-                0.0, 0.0, 1.0,
-            ];
-            self.gl.uniform_matrix3fv_with_f32_array(transform_location.as_ref(), false, &transform_matrix);
-
-            let color_location = self.gl.get_uniform_location(program, "u_color");
-            self.gl.uniform4f(color_location.as_ref(), color.0, color.1, color.2, color.3);
-
-            let has_texture_location = self.gl.get_uniform_location(program, "u_hasTexture");
-            self.gl.uniform1i(has_texture_location.as_ref(), 0);
-
+            
+            let pos_loc = self.gl.get_attrib_location(program, "a_position") as u32;
+            self.gl.enable_vertex_attrib_array(pos_loc);
+            self.gl.vertex_attrib_pointer_with_i32(pos_loc, 2, WebGlRenderingContext::FLOAT, false, 0, 0);
+            
+            let color_loc = self.gl.get_uniform_location(program, "u_color");
+            self.gl.uniform4f(color_loc.as_ref(), color[0], color[1], color[2], color[3]);
+            
+            let has_tex_loc = self.gl.get_uniform_location(program, "u_has_texture");
+            self.gl.uniform1i(has_tex_loc.as_ref(), 0);
+            
             self.gl.draw_arrays(WebGlRenderingContext::LINES, 0, (vertices.len() / 2) as i32);
         }
-
+        
         Ok(())
     }
-
-    // Sprite selection, movement, resize, and scaling
-    #[wasm_bindgen]
-    pub fn handle_mouse_down(&mut self, x: f32, y: f32) {
-        // Convert mouse (screen) coordinates to world coordinates for hit-testing
-        let world = self.screen_to_world(x as f64, y as f64);
-        let wx = world[0];
-        let wy = world[1];
-        let dpr = web_sys::window().map(|w| w.device_pixel_ratio()).unwrap_or(1.0);
-        console_log!(
-            "[SELECT] Mouse down at screen: ({}, {}), world: ({}, {}), camera: ({}, {}), zoom: {}, DPR={}",
-            x, y, wx, wy, self.camera.x, self.camera.y, self.camera.zoom, dpr
-        );
-        
-        // Debug: Test coordinate transformation
-        for (i, s) in self.sprites.iter().enumerate() {
-            let anchor_x = s.x;
-            let anchor_y = s.y;
-            let scaled_width = s.width * s.scale_x;
-            let scaled_height = s.height * s.scale_y;
-            
-            // Calculate where this sprite should appear on screen
-            let screen_x = (anchor_x - self.camera.x) * self.camera.zoom;
-            let screen_y = (anchor_y - self.camera.y) * self.camera.zoom;
-            
-            console_log!("[SELECT] Sprite {} '{}': world=({}, {}), calculated_screen=({}, {}), size=({}, {})", 
-                i, s.id, anchor_x, anchor_y, screen_x, screen_y, scaled_width, scaled_height);
-        }
-
-        // Check for resize handle first if a sprite is selected (in world space)
-        if let Some(selected_id) = &self.selected_sprite {
-            if let Some(sprite) = self.sprites.iter().find(|s| &s.id == selected_id) {
-                let handle_size = 12.0 / self.camera.zoom;
-                let handle_x = sprite.x + (sprite.width * sprite.scale_x);
-                let handle_y = sprite.y + (sprite.height * sprite.scale_y);
-                if (wx - handle_x).abs() < handle_size && (wy - handle_y).abs() < handle_size {
-                    self.drag_mode = DragMode::ResizeSprite;
-                    self.resize_handle = Some(ResizeHandle::BottomRight);
-                    self.last_mouse_pos = (x, y);
-                    return;
-                }
-            }
-        }
-        
-        // Check for sprite under cursor using world coordinates and world bounds
-        if let Some((idx, sprite)) = self.sprites.iter().enumerate().rev().find(|(_, s)| {
-            let anchor_x = s.x;
-            let anchor_y = s.y;
-            let scaled_width = s.width * s.scale_x;
-            let scaled_height = s.height * s.scale_y;
-            wx >= anchor_x && wx <= anchor_x + scaled_width &&
-            wy >= anchor_y && wy <= anchor_y + scaled_height
-        }) {
-            let sprite = sprite;
-            // Only select sprite if we're clicking exactly on the same position
-            // This prevents accidental sprite moves during camera pan
-            if self.selected_sprite.as_ref() != Some(&sprite.id) {
-                // New sprite selection - don't start drag immediately
-                self.selected_sprite = Some(sprite.id.clone());
-                self.drag_mode = DragMode::None;
-                self.last_mouse_pos = (x, y);
-                // Bring selected sprite to front
-                let sprite = self.sprites.remove(idx);
-                self.sprites.push(sprite);
-            } else {
-                // Same sprite clicked - start dragging
-                self.drag_mode = DragMode::MoveSprite;
-                self.drag_offset = (wx - sprite.x, wy - sprite.y);
-                self.last_mouse_pos = (x, y);
-            }
-        } else {
-            self.selected_sprite = None;
-            self.drag_mode = DragMode::Camera;
-            self.last_mouse_pos = (x, y);
-        }
+    
+    fn get_world_view_bounds(&self) -> Rect {
+        let top_left = self.camera.screen_to_world(Vec2::new(0.0, 0.0));
+        let bottom_right = self.camera.screen_to_world(self.canvas_size);
+        Rect { min: top_left, max: bottom_right }
     }
-
-    #[wasm_bindgen]
-    pub fn handle_mouse_move(&mut self, x: f32, y: f32) {
-        let world = self.screen_to_world(x as f64, y as f64);
-        let wx = world[0];
-        let wy = world[1];
-        match self.drag_mode {
-            DragMode::MoveSprite => {
-                if let Some(selected_id) = &self.selected_sprite {
-                    if let Some(sprite) = self.sprites.iter_mut().find(|s| &s.id == selected_id) {
-                        sprite.x = wx - self.drag_offset.0;
-                        sprite.y = wy - self.drag_offset.1;
-                    }
-                }
-            }
-            DragMode::ResizeSprite => {
-                if let Some(selected_id) = &self.selected_sprite {
-                    if let Some(sprite) = self.sprites.iter_mut().find(|s| &s.id == selected_id) {
-                        let min_size = 10.0;
-                        let new_width = (wx - sprite.x).max(min_size);
-                        let new_height = (wy - sprite.y).max(min_size);
-                        sprite.width = new_width / sprite.scale_x;
-                        sprite.height = new_height / sprite.scale_y;
-                    }
-                }
-            }
-            DragMode::Camera => {
-                let dx = x - self.last_mouse_pos.0;
-                let dy = y - self.last_mouse_pos.1;
-                // Convert dx/dy from device pixels to world units
-                self.camera.x -= dx as f64 / self.camera.zoom;
-                self.camera.y -= dy as f64 / self.camera.zoom;
-            }
-            _ => {}
-        }
-        self.last_mouse_pos = (x, y);
-    }
-
-    #[wasm_bindgen]
-    pub fn handle_mouse_up(&mut self, _x: f32, _y: f32) {
-        self.drag_mode = DragMode::None;
-        self.resize_handle = None;
-    }
-
-    #[wasm_bindgen]
-    pub fn handle_wheel(&mut self, _x: f32, _y: f32, delta_y: f32) {
-        if let Some(selected_id) = &self.selected_sprite {
-            if let Some(sprite) = self.sprites.iter_mut().find(|s| &s.id == selected_id) {
-                let scale_factor = if delta_y > 0.0 { 0.9 } else { 1.1 };
-                sprite.scale_x = (sprite.scale_x * scale_factor).clamp(0.1, 10.0);
-                sprite.scale_y = (sprite.scale_y * scale_factor).clamp(0.1, 10.0);
-                return;
-            }
-        }
-        // Fallback to camera zoom if no sprite selected
-        let zoom_factor = if delta_y > 0.0 { 0.9 } else { 1.1 };
-        let old_zoom = self.camera.zoom;
-        let new_zoom = (self.camera.zoom * zoom_factor as f64).clamp(0.1, 5.0);
-        let mx = _x as f64;
-        let my = _y as f64;
-        let world_x = mx / old_zoom + self.camera.x;
-        let world_y = my / old_zoom + self.camera.y;
-        console_log!("[ZOOM] Before: camera.x = {}, camera.y = {}, zoom = {}", self.camera.x, self.camera.y, old_zoom);
-        console_log!("[ZOOM] Mouse: mx = {}, my = {}", mx, my);
-        console_log!("[ZOOM] World under cursor before zoom: world_x = {}, world_y = {}", world_x, world_y);
-        // Update zoom
-        self.camera.zoom = new_zoom;
-        // Update camera offset so world under cursor stays fixed (restore top-left origin math)
-        self.camera.x = world_x - mx / new_zoom;
-        self.camera.y = world_y - my / new_zoom;
-        console_log!("[ZOOM] After: camera.x = {}, camera.y = {}, zoom = {}", self.camera.x, self.camera.y, new_zoom);
-        let world_x_after = mx / new_zoom + self.camera.x;
-        let world_y_after = my / new_zoom + self.camera.y;
-        console_log!("[ZOOM] World under cursor after zoom: world_x = {}, world_y = {}", world_x_after, world_y_after);
-    }
-
-    #[wasm_bindgen]
-    pub fn get_selected_sprite(&self) -> JsValue {
-        if let Some(selected_id) = &self.selected_sprite {
-            if let Some(sprite) = self.sprites.iter().find(|s| &s.id == selected_id) {
-                return JsValue::from_serde(sprite).unwrap_or(JsValue::NULL);
-            }
-        }
-        JsValue::NULL
-    }
-
-    #[wasm_bindgen]
-    pub fn screen_to_world(&self, screen_x: f64, screen_y: f64) -> Vec<f64> {
-        let world_x = screen_x / self.camera.zoom + self.camera.x;
-        let world_y = screen_y / self.camera.zoom + self.camera.y;
-        vec![world_x, world_y]
-    }
-
-    #[wasm_bindgen]
-    pub fn toggle_grid(&mut self) {
-        self.grid_enabled = !self.grid_enabled;
-    }
-
-    #[wasm_bindgen]
-    pub fn clear_sprites(&mut self) {
-        self.sprites.clear();
-    }
-
+    
+    // Public API
     #[wasm_bindgen]
     pub fn resize(&mut self, width: u32, height: u32) {
         self.canvas.set_width(width);
         self.canvas.set_height(height);
+        self.canvas_size = Vec2::new(width as f32, height as f32);
+        self.update_view_matrix();
         self.gl.viewport(0, 0, width as i32, height as i32);
-        console_log!("[RUST RESIZE] canvas.width={}, canvas.height={}, viewport=({}, {})", width, height, width, height);
+    }
+    
+    #[wasm_bindgen]
+    pub fn set_camera(&mut self, world_x: f64, world_y: f64, zoom: f64) {
+        self.camera.world_x = world_x;
+        self.camera.world_y = world_y;
+        self.camera.zoom = zoom.clamp(0.1, 5.0);
+        self.update_view_matrix();
+    }
+    
+    #[wasm_bindgen]
+    pub fn screen_to_world(&self, screen_x: f32, screen_y: f32) -> Vec<f64> {
+        let world = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
+        vec![world.x as f64, world.y as f64]
+    }
+    
+    #[wasm_bindgen]
+    pub fn add_sprite_to_layer(&mut self, layer_name: &str, sprite_data: &JsValue) -> Result<String, JsValue> {
+        let mut sprite: Sprite = sprite_data.into_serde()
+            .map_err(|e| JsValue::from_str(&format!("Failed to parse sprite: {}", e)))?;
+        
+        if sprite.id.is_empty() {
+            sprite.id = format!("sprite_{}", js_sys::Math::random());
+        }
+        
+        let sprite_id = sprite.id.clone();
+        
+        if let Some(layer) = self.layers.get_mut(layer_name) {
+            layer.sprites.push(sprite);
+        } else {
+            return Err(JsValue::from_str("Layer not found"));
+        }
+        
+        Ok(sprite_id)
+    }
+    
+    #[wasm_bindgen]
+    pub fn load_texture(&mut self, name: &str, image: &HtmlImageElement) -> Result<(), JsValue> {
+        let texture = self.gl.create_texture().ok_or("Failed to create texture")?;
+        self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(&texture));
+        self.gl.tex_image_2d_with_u32_and_u32_and_html_image_element(
+            WebGlRenderingContext::TEXTURE_2D, 0, WebGlRenderingContext::RGBA as i32,
+            WebGlRenderingContext::RGBA, WebGlRenderingContext::UNSIGNED_BYTE, image
+        )?;
+        self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_MIN_FILTER, WebGlRenderingContext::NEAREST as i32);
+        self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_MAG_FILTER, WebGlRenderingContext::NEAREST as i32);
+        self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_WRAP_S, WebGlRenderingContext::CLAMP_TO_EDGE as i32);
+        self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_WRAP_T, WebGlRenderingContext::CLAMP_TO_EDGE as i32);
+        self.textures.insert(name.to_string(), texture);
+        Ok(())
+    }
+    
+    #[wasm_bindgen]
+    pub fn handle_mouse_down(&mut self, screen_x: f32, screen_y: f32) {
+        let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
+        self.last_mouse_screen = Vec2::new(screen_x, screen_y);
+        
+        // Find topmost sprite under cursor
+        let mut selected_sprite = None;
+        for (_, layer) in &self.layers {
+            if !layer.selectable { continue; }
+            for sprite in layer.sprites.iter().rev() {
+                if sprite.contains_world_point(world_pos) {
+                    selected_sprite = Some(sprite.id.clone());
+                    self.drag_offset = Vec2::new(
+                        world_pos.x - sprite.world_x as f32,
+                        world_pos.y - sprite.world_y as f32
+                    );
+                    break;
+                }
+            }
+            if selected_sprite.is_some() { break; }
+        }
+        
+        if let Some(sprite_id) = selected_sprite {
+            self.selected_sprite_id = Some(sprite_id);
+            self.input_mode = InputMode::SpriteMove;
+        } else {
+            self.selected_sprite_id = None;
+            self.input_mode = InputMode::CameraPan;
+        }
+    }
+    
+    #[wasm_bindgen]
+    pub fn handle_mouse_move(&mut self, screen_x: f32, screen_y: f32) {
+        let current_screen = Vec2::new(screen_x, screen_y);
+        let world_pos = self.camera.screen_to_world(current_screen);
+        
+        match self.input_mode {
+            InputMode::SpriteMove => {
+                if let Some(sprite_id) = &self.selected_sprite_id {
+                    for layer in self.layers.values_mut() {
+                        if let Some(sprite) = layer.sprites.iter_mut().find(|s| &s.id == sprite_id) {
+                            sprite.world_x = (world_pos.x - self.drag_offset.x) as f64;
+                            sprite.world_y = (world_pos.y - self.drag_offset.y) as f64;
+                            break;
+                        }
+                    }
+                }
+            }
+            InputMode::CameraPan => {
+                let screen_delta = current_screen - self.last_mouse_screen;
+                let world_delta = screen_delta * (1.0 / self.camera.zoom as f32);
+                self.camera.world_x -= world_delta.x as f64;
+                self.camera.world_y -= world_delta.y as f64;
+                self.update_view_matrix();
+            }
+            _ => {}
+        }
+        
+        self.last_mouse_screen = current_screen;
+    }
+    
+    #[wasm_bindgen]
+    pub fn handle_mouse_up(&mut self, _screen_x: f32, _screen_y: f32) {
+        self.input_mode = InputMode::None;
+    }
+    
+    #[wasm_bindgen]
+    pub fn handle_wheel(&mut self, screen_x: f32, screen_y: f32, delta_y: f32) {
+        let zoom_factor = if delta_y > 0.0 { 0.9 } else { 1.1 };
+        let world_point = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
+        
+        self.camera.zoom = (self.camera.zoom * zoom_factor as f64).clamp(0.1, 5.0);
+        
+        let new_screen = self.camera.world_to_screen(world_point);
+        let screen_offset = Vec2::new(screen_x, screen_y) - new_screen;
+        let world_offset = screen_offset * (1.0 / self.camera.zoom as f32);
+        
+        self.camera.world_x += world_offset.x as f64;
+        self.camera.world_y += world_offset.y as f64;
+        self.update_view_matrix();
+    }
+    
+    #[wasm_bindgen]
+    pub fn toggle_grid(&mut self) {
+        self.grid_enabled = !self.grid_enabled;
+    }
+    
+    #[wasm_bindgen]
+    pub fn set_layer_opacity(&mut self, layer_name: &str, opacity: f32) {
+        if let Some(layer) = self.layers.get_mut(layer_name) {
+            layer.opacity = opacity.clamp(0.0, 1.0);
+        }
+    }
+    
+    #[wasm_bindgen]
+    pub fn set_layer_visible(&mut self, layer_name: &str, visible: bool) {
+        if let Some(layer) = self.layers.get_mut(layer_name) {
+            layer.visible = visible;
+        }
     }
 }

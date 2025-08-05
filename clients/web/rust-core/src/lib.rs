@@ -11,6 +11,10 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 mod math;
 mod render;
 mod types;
+mod camera;
+mod input;
+mod sprite_manager;
+mod webgl_renderer;
 
 pub use render::RenderEngine;
 pub use types::*;

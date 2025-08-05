@@ -136,6 +136,13 @@ pub struct Rect {
 }
 
 impl Rect {
+    pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
+        Self {
+            min: Vec2::new(x, y),
+            max: Vec2::new(x + width, y + height),
+        }
+    }
+    
     pub fn from_center_size(center: Vec2, size: Vec2) -> Self {
         let half_size = size * 0.5;
         Self {

@@ -44,7 +44,33 @@ impl Sprite {
     }
     
     pub fn contains_world_point(&self, world_point: Vec2) -> bool {
-        self.world_bounds().contains(world_point)
+        if self.rotation == 0.0 {
+            // Simple bounding box check for non-rotated sprites
+            self.world_bounds().contains(world_point)
+        } else {
+            // For rotated sprites, transform the world point to local sprite space
+            let scaled_width = (self.width * self.scale_x) as f32;
+            let scaled_height = (self.height * self.scale_y) as f32;
+            let center = Vec2::new(
+                (self.world_x + scaled_width as f64 * 0.5) as f32,
+                (self.world_y + scaled_height as f64 * 0.5) as f32
+            );
+            
+            // Translate to sprite center
+            let relative_point = world_point - center;
+            
+            // Rotate the point by negative rotation to undo sprite rotation
+            let cos_rot = (-self.rotation as f32).cos();
+            let sin_rot = (-self.rotation as f32).sin();
+            let local_x = relative_point.x * cos_rot - relative_point.y * sin_rot;
+            let local_y = relative_point.x * sin_rot + relative_point.y * cos_rot;
+            
+            // Check if the rotated point is within the sprite bounds
+            let half_width = scaled_width * 0.5;
+            let half_height = scaled_height * 0.5;
+            local_x >= -half_width && local_x <= half_width &&
+            local_y >= -half_height && local_y <= half_height
+        }
     }
 }
 

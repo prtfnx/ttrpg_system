@@ -78,35 +78,50 @@ const LAYER_CONFIG: LayerInfo[] = [
 ];
 
 export function LayerPanel() {
-  const { sprites, activeLayer, setActiveLayer } = useGameStore();
+  const { 
+    sprites, 
+    activeLayer, 
+    setActiveLayer, 
+    layerVisibility, 
+    layerOpacity,
+    setLayerVisibility,
+    setLayerOpacity 
+  } = useGameStore();
+  
   const [layers, setLayers] = useState<LayerInfo[]>(() => {
     // Calculate sprite counts for each layer
     return LAYER_CONFIG.map(layer => ({
       ...layer,
+      visible: layerVisibility[layer.name] ?? layer.visible,
+      opacity: layerOpacity[layer.name] ?? layer.opacity,
       spriteCount: sprites.filter(sprite => sprite.layer === layer.name).length
     }));
   });
 
   const handleLayerVisibilityToggle = (layerName: string) => {
+    const newVisible = !layerVisibility[layerName];
+    setLayerVisibility(layerName, newVisible);
+    
     setLayers(prevLayers => 
       prevLayers.map(layer => 
         layer.name === layerName 
-          ? { ...layer, visible: !layer.visible }
+          ? { ...layer, visible: newVisible }
           : layer
       )
     );
     
     // Send visibility change to game engine
     if (window.gameAPI?.sendMessage) {
-      const layer = layers.find(l => l.name === layerName);
       window.gameAPI.sendMessage('layer_visibility', {
         layer: layerName,
-        visible: !layer?.visible
+        visible: newVisible
       });
     }
   };
 
   const handleLayerOpacityChange = (layerName: string, opacity: number) => {
+    setLayerOpacity(layerName, opacity);
+    
     setLayers(prevLayers => 
       prevLayers.map(layer => 
         layer.name === layerName 
@@ -133,10 +148,12 @@ export function LayerPanel() {
     setLayers(prevLayers => 
       prevLayers.map(layer => ({
         ...layer,
+        visible: layerVisibility[layer.name] ?? layer.visible,
+        opacity: layerOpacity[layer.name] ?? layer.opacity,
         spriteCount: sprites.filter(sprite => sprite.layer === layer.name).length
       }))
     );
-  }, [sprites]);
+  }, [sprites, layerVisibility, layerOpacity]);
 
   return (
     <div className="layer-panel">

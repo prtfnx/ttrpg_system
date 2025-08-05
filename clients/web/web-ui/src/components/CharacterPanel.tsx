@@ -38,7 +38,7 @@ function CharacterPanel() {
           height: 1,
           isSelected: false,
           isVisible: true,
-          layer: 0,
+          layer: 'tokens',
         },
         stats: {
           hp: 10,
@@ -127,7 +127,7 @@ function CharacterPanel() {
                     height: 1,
                     isSelected: false,
                     isVisible: true,
-                    layer: 0,
+                    layer: 'tokens',
                   },
                   stats: {
                     hp: 10,

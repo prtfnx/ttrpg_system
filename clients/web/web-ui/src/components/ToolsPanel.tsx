@@ -1,6 +1,7 @@
 // import { useState } from 'react';
 import { useGameStore } from '../store';
 import DiceRoller from '../tools/DiceRoller';
+import { LayerPanel } from './LayerPanel';
 import type { GameAPI } from '../types';
 
 // Global type declarations
@@ -15,6 +16,8 @@ const isIntegrationMode = !document.getElementById('root');
 
 export function ToolsPanel() {
   console.log('[ToolsPanel] Component mounted');
+  const { isConnected, sessionId, activeLayer } = useGameStore();
+  
   // Sprite and test handlers (stub implementations)
   const handleAddSprite = () => {
     console.log('[ToolsPanel] Add Sprite button pressed');
@@ -25,7 +28,7 @@ export function ToolsPanel() {
         y: Math.floor(Math.random() * 600),
         width: 40,
         height: 40,
-        layer: 'tokens',
+        layer: activeLayer, // Use the active layer
         texture_path: 'hero.png',
         color: '#00CC33',
       };
@@ -99,7 +102,6 @@ export function ToolsPanel() {
       });
     }
   };
-  const { isConnected, sessionId } = useGameStore();
   // Character creation state
 
 
@@ -129,6 +131,11 @@ export function ToolsPanel() {
         <button>Move Tool</button>
         <button>Measure Tool</button>
         <button>Paint Tool</button>
+      </div>
+
+      {/* Layer Management Panel */}
+      <div style={{ margin: '24px 0' }}>
+        <LayerPanel />
       </div>
 
       {/* Dice Roller Tool */}

@@ -3,6 +3,11 @@ import { devtools } from 'zustand/middleware';
 import type { ConnectionState, GameState, Sprite } from './types';
 
 interface GameStore extends GameState {
+  // Layer management state
+  activeLayer: string;
+  layerVisibility: Record<string, boolean>;
+  layerOpacity: Record<string, number>;
+  
   // Actions
   moveSprite: (id: string, x: number, y: number) => void;
   selectSprite: (id: string, multiSelect?: boolean) => void;
@@ -15,6 +20,11 @@ interface GameStore extends GameState {
   addCharacter: (character: import('./types').Character) => void;
   updateCharacter: (id: string, updates: Partial<import('./types').Character>) => void;
   addInventoryItem: (characterId: string, item: string) => void;
+  
+  // Layer management actions
+  setActiveLayer: (layerName: string) => void;
+  setLayerVisibility: (layerName: string, visible: boolean) => void;
+  setLayerOpacity: (layerName: string, opacity: number) => void;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -28,6 +38,27 @@ export const useGameStore = create<GameStore>()(
       isConnected: false,
       connectionState: 'disconnected',
       sessionId: undefined,
+      
+      // Layer management initial state
+      activeLayer: 'tokens',
+      layerVisibility: {
+        'map': true,
+        'tokens': true,
+        'dungeon_master': true,
+        'light': true,
+        'height': true,
+        'obstacles': true,
+        'fog_of_war': true
+      },
+      layerOpacity: {
+        'map': 1.0,
+        'tokens': 1.0,
+        'dungeon_master': 1.0,
+        'light': 0.6,
+        'height': 0.7,
+        'obstacles': 1.0,
+        'fog_of_war': 0.8
+      },
 
       // Actions
       moveSprite: (id: string, x: number, y: number) => {
@@ -130,6 +161,31 @@ export const useGameStore = create<GameStore>()(
           characters: state.characters.map((char) =>
             char.id === id ? { ...char, ...updates, stats: { ...char.stats, ...(updates.stats || {}) } } : char
           ),
+        }));
+      },
+
+      // Layer management actions
+      setActiveLayer: (layerName: string) => {
+        set(() => ({
+          activeLayer: layerName,
+        }));
+      },
+
+      setLayerVisibility: (layerName: string, visible: boolean) => {
+        set((state) => ({
+          layerVisibility: {
+            ...state.layerVisibility,
+            [layerName]: visible,
+          },
+        }));
+      },
+
+      setLayerOpacity: (layerName: string, opacity: number) => {
+        set((state) => ({
+          layerOpacity: {
+            ...state.layerOpacity,
+            [layerName]: opacity,
+          },
         }));
       },
     }),

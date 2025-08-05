@@ -69,7 +69,7 @@ export function useWebSocket(url: string) {
               imageUrl: data.imageUrl as string | undefined,
               isSelected: false,
               isVisible: true,
-              layer: (data.layer as number) || 0
+              layer: (data.layer as string) || 'tokens'
             });
             // WASM integration: also add sprite to RenderManager if available
             // Ensure all required fields for WASM
@@ -131,7 +131,7 @@ export function useWebSocket(url: string) {
                   imageUrl: sprite.imageUrl,
                   isSelected: false,
                   isVisible: sprite.isVisible ?? true,
-                  layer: sprite.layer || 0,
+                  layer: sprite.layer || 'tokens',
                 });
               });
             }

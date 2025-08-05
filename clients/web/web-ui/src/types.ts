@@ -16,7 +16,7 @@ export interface Sprite {
   imageUrl?: string;
   isSelected: boolean;
   isVisible: boolean;
-  layer: number;
+  layer: string;
 }
 
 export interface Character {

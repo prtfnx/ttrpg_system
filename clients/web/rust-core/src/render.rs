@@ -85,6 +85,11 @@ impl RenderEngine {
             }
         }
         
+        // Draw area selection rectangle if active
+        if let Some((min, max)) = self.input.get_area_selection_rect() {
+            self.draw_area_selection_rect(min, max)?;
+        }
+        
         Ok(())
     }
     
@@ -123,7 +128,8 @@ impl RenderEngine {
     }
     
     fn draw_sprite(&self, sprite: &Sprite, layer_opacity: f32) -> Result<(), JsValue> {
-        let is_selected = self.input.selected_sprite_id.as_ref() == Some(&sprite.id);
+        let is_selected = self.input.is_sprite_selected(&sprite.id);
+        let is_primary_selected = self.input.selected_sprite_id.as_ref() == Some(&sprite.id);
         let world_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
         let size = Vec2::new(
             (sprite.width * sprite.scale_x) as f32,
@@ -135,20 +141,55 @@ impl RenderEngine {
         let tex_coords = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         
         let mut color = sprite.tint_color;
-        color[3] *= layer_opacity;
         
         let has_texture = !sprite.texture_id.is_empty() && self.textures.contains_key(&sprite.texture_id);
         if has_texture {
+            // Activate texture unit 0 and bind the texture
+            self.renderer.gl.active_texture(WebGlRenderingContext::TEXTURE0);
             if let Some(texture) = self.textures.get(&sprite.texture_id) {
                 self.renderer.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(texture));
             }
+            // Apply layer opacity to textured sprites
+            color[3] = if layer_opacity <= 0.01 { 
+                0.0  // Make completely invisible when layer opacity is very low
+            } else {
+                color[3] * layer_opacity  // For textured sprites, use linear opacity
+            };
+            // Render textured sprite normally
+            self.renderer.draw_quad(&vertices, &tex_coords, color, has_texture)?;
+        } else {
+            // For sprites without texture, unbind any texture and apply dramatic opacity effect
+            self.renderer.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, None);
+            
+            let border_opacity = if layer_opacity <= 0.01 { 
+                0.0  // Make completely invisible when layer opacity is very low
+            } else {
+                layer_opacity.powf(0.5)  // Use power curve for more dramatic effect on non-textured sprites
+            };
+            
+            // Create border vertices in proper order for a continuous rectangle
+            // vertices = [top-left-x, top-left-y, top-right-x, top-right-y, bottom-left-x, bottom-left-y, bottom-right-x, bottom-right-y]
+            let border_vertices = vec![
+                vertices[0], vertices[1],   // Top-left to Top-right
+                vertices[2], vertices[3],
+                vertices[2], vertices[3],   // Top-right to Bottom-right  
+                vertices[6], vertices[7],
+                vertices[6], vertices[7],   // Bottom-right to Bottom-left
+                vertices[4], vertices[5],
+                vertices[4], vertices[5],   // Bottom-left to Top-left
+                vertices[0], vertices[1],
+            ];
+            // Use sprite color with dramatic layer opacity effect, but ensure it's visible
+            let border_color = [color[0], color[1], color[2], (color[3] * border_opacity).max(0.2)];
+            self.renderer.draw_lines(&border_vertices, border_color)?;
         }
         
-        self.renderer.draw_quad(&vertices, &tex_coords, color, has_texture)?;
-        
         if is_selected {
-            self.draw_selection_border(sprite, world_pos, size)?;
-            self.draw_handles(sprite, world_pos, size)?;
+            self.draw_selection_border(sprite, world_pos, size, is_primary_selected)?;
+            // Only draw handles for the primary selected sprite
+            if is_primary_selected {
+                self.draw_handles(sprite, world_pos, size)?;
+            }
         }
         
         Ok(())
@@ -191,33 +232,31 @@ impl RenderEngine {
         }
     }
     
-    fn draw_selection_border(&self, sprite: &Sprite, world_pos: Vec2, size: Vec2) -> Result<(), JsValue> {
-        if sprite.rotation != 0.0 {
-            // For rotated sprites, draw border using the same rotation calculation
-            let vertices = self.calculate_sprite_vertices(sprite, world_pos, size);
-            let mut border_vertices = Vec::new();
-            for i in 0..4 {
-                let next_i = (i + 1) % 4;
-                border_vertices.extend_from_slice(&[
-                    vertices[i * 2], vertices[i * 2 + 1],
-                    vertices[next_i * 2], vertices[next_i * 2 + 1],
-                ]);
-            }
-            self.renderer.draw_lines(&border_vertices, [0.2, 0.8, 0.2, 1.0])
+    fn draw_selection_border(&self, sprite: &Sprite, world_pos: Vec2, size: Vec2, is_primary: bool) -> Result<(), JsValue> {
+        // Always use the same vertex calculation as the sprite itself for consistency
+        let vertices = self.calculate_sprite_vertices(sprite, world_pos, size);
+        
+        // Create border from the calculated vertices in proper order
+        // vertices = [top-left-x, top-left-y, top-right-x, top-right-y, bottom-left-x, bottom-left-y, bottom-right-x, bottom-right-y]
+        let border_vertices = vec![
+            vertices[0], vertices[1],   // Top-left to Top-right
+            vertices[2], vertices[3],
+            vertices[2], vertices[3],   // Top-right to Bottom-right  
+            vertices[6], vertices[7],
+            vertices[6], vertices[7],   // Bottom-right to Bottom-left
+            vertices[4], vertices[5],
+            vertices[4], vertices[5],   // Bottom-left to Top-left
+            vertices[0], vertices[1],
+        ];
+        
+        // Different colors for primary vs secondary selection
+        let color = if is_primary {
+            [0.2, 0.8, 0.2, 1.0]  // Bright green for primary selection
         } else {
-            // Non-rotated sprites use simple rectangle border
-            let border_vertices = [
-                world_pos.x, world_pos.y,                    // Top
-                world_pos.x + size.x, world_pos.y,
-                world_pos.x + size.x, world_pos.y,          // Right
-                world_pos.x + size.x, world_pos.y + size.y,
-                world_pos.x + size.x, world_pos.y + size.y, // Bottom
-                world_pos.x, world_pos.y + size.y,
-                world_pos.x, world_pos.y + size.y,          // Left
-                world_pos.x, world_pos.y,
-            ];
-            self.renderer.draw_lines(&border_vertices, [0.2, 0.8, 0.2, 1.0])
-        }
+            [0.8, 0.8, 0.2, 1.0]  // Yellow for secondary selections
+        };
+        
+        self.renderer.draw_lines(&border_vertices, color)
     }
     
     fn draw_handles(&self, sprite: &Sprite, world_pos: Vec2, size: Vec2) -> Result<(), JsValue> {
@@ -290,6 +329,33 @@ impl RenderEngine {
         Rect::new(min.x, min.y, max.x - min.x, max.y - min.y)
     }
     
+    fn draw_area_selection_rect(&self, min: Vec2, max: Vec2) -> Result<(), JsValue> {
+        // Draw selection rectangle outline
+        let border_vertices = vec![
+            min.x, min.y,     // Top-left to Top-right
+            max.x, min.y,
+            max.x, min.y,     // Top-right to Bottom-right
+            max.x, max.y,
+            max.x, max.y,     // Bottom-right to Bottom-left
+            min.x, max.y,
+            min.x, max.y,     // Bottom-left to Top-left
+            min.x, min.y,
+        ];
+        self.renderer.draw_lines(&border_vertices, [0.3, 0.7, 1.0, 0.8])?;
+        
+        // Draw semi-transparent fill
+        let fill_vertices = vec![
+            min.x, min.y,     // Top-left
+            max.x, min.y,     // Top-right
+            min.x, max.y,     // Bottom-left
+            max.x, max.y,     // Bottom-right
+        ];
+        let tex_coords = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+        self.renderer.draw_quad(&fill_vertices, &tex_coords, [0.3, 0.7, 1.0, 0.2], false)?;
+        
+        Ok(())
+    }
+    
     // Public API methods
     #[wasm_bindgen]
     pub fn resize_canvas(&mut self, width: f32, height: f32) {
@@ -312,6 +378,14 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn center_camera(&mut self, world_x: f64, world_y: f64) {
         self.camera.center_on(world_x, world_y);
+        self.update_view_matrix();
+    }
+    
+    #[wasm_bindgen]
+    pub fn set_camera(&mut self, world_x: f64, world_y: f64, zoom: f64) {
+        self.camera.world_x = world_x;
+        self.camera.world_y = world_y;
+        self.camera.zoom = zoom.clamp(0.1, 5.0);
         self.update_view_matrix();
     }
     
@@ -376,40 +450,38 @@ impl RenderEngine {
             let sprite_pos = Vec2::new(world_x as f32, world_y as f32);
             let sprite_size = Vec2::new((width * scale_x) as f32, (height * scale_y) as f32);
             
+            // Create temporary sprite for calculations
+            let temp_sprite = Sprite {
+                id: sprite_id.clone(),
+                world_x, world_y, width, height, scale_x, scale_y, rotation,
+                layer: String::new(), texture_id: String::new(), tint_color: [1.0, 1.0, 1.0, 1.0]
+            };
+            
             // Check rotation handle first
             let rotate_handle_x = sprite_pos.x + sprite_size.x * 0.5;
             let rotate_handle_y = sprite_pos.y - 20.0 / self.camera.zoom as f32;
             let handle_size = 8.0 / self.camera.zoom as f32;
             if HandleDetector::point_in_handle(world_pos, rotate_handle_x, rotate_handle_y, handle_size) {
                 self.input.input_mode = InputMode::SpriteRotate;
+                // Store initial rotation state to prevent jumping
+                let (start_angle, initial_rotation) = SpriteManager::start_rotation(&temp_sprite, world_pos);
+                self.input.rotation_start_angle = start_angle;
+                self.input.sprite_initial_rotation = initial_rotation;
                 return;
             }
             
             // Handle rotated vs non-rotated sprites differently  
             if rotation != 0.0 {
                 // For rotated sprites, only allow rotation and movement (not resizing)
-                // Check if point is in sprite (we'll need to create a temporary sprite for this check)
-                let temp_sprite = Sprite {
-                    id: sprite_id,
-                    world_x, world_y, width, height, scale_x, scale_y, rotation,
-                    layer: String::new(), texture_id: String::new(), tint_color: [1.0, 1.0, 1.0, 1.0]
-                };
                 if temp_sprite.contains_world_point(world_pos) {
                     self.input.input_mode = InputMode::SpriteMove;
-                    let sprite_center = Vec2::new(
-                        world_x as f32 + (width * scale_x) as f32 * 0.5,
-                        world_y as f32 + (height * scale_y) as f32 * 0.5
-                    );
-                    self.input.drag_offset = world_pos - sprite_center;
+                    // Calculate offset from click position to sprite's top-left corner
+                    let sprite_top_left = Vec2::new(world_x as f32, world_y as f32);
+                    self.input.drag_offset = world_pos - sprite_top_left;
                     return;
                 }
             } else {
                 // Non-rotated sprite - check for resize handles
-                let temp_sprite = Sprite {
-                    id: sprite_id,
-                    world_x, world_y, width, height, scale_x, scale_y, rotation,
-                    layer: String::new(), texture_id: String::new(), tint_color: [1.0, 1.0, 1.0, 1.0]
-                };
                 if let Some(handle) = HandleDetector::get_resize_handle_for_non_rotated_sprite(&temp_sprite, world_pos, self.camera.zoom) {
                     self.input.input_mode = InputMode::SpriteResize(handle);
                     return;
@@ -452,7 +524,7 @@ impl RenderEngine {
                 if let Some(sprite_id) = &self.input.selected_sprite_id {
                     for layer in self.layers.values_mut() {
                         if let Some(sprite) = layer.sprites.iter_mut().find(|s| &s.id == sprite_id) {
-                            SpriteManager::rotate_sprite_to_mouse(sprite, world_pos);
+                            SpriteManager::update_rotation(sprite, world_pos, self.input.rotation_start_angle, self.input.sprite_initial_rotation);
                             break;
                         }
                     }
@@ -488,7 +560,9 @@ impl RenderEngine {
                 for sprite in layer.sprites.iter().rev() {
                     if sprite.contains_world_point(world_pos) {
                         selected_sprite = Some(sprite.id.clone());
-                        self.input.drag_offset = world_pos - SpriteManager::get_sprite_center(sprite);
+                        // Calculate offset from click position to sprite's top-left corner
+                        let sprite_top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
+                        self.input.drag_offset = world_pos - sprite_top_left;
                         break;
                     }
                 }
@@ -580,5 +654,98 @@ impl RenderEngine {
         self.renderer.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_WRAP_T, WebGlRenderingContext::CLAMP_TO_EDGE as i32);
         self.textures.insert(name.to_string(), texture);
         Ok(())
+    }
+
+    // Layer management methods
+    #[wasm_bindgen]
+    pub fn set_layer_opacity(&mut self, layer_name: &str, opacity: f32) {
+        if let Some(layer) = self.layers.get_mut(layer_name) {
+            layer.opacity = opacity.clamp(0.0, 1.0);
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn set_layer_visible(&mut self, layer_name: &str, visible: bool) {
+        if let Some(layer) = self.layers.get_mut(layer_name) {
+            layer.visible = visible;
+        }
+    }
+
+    // Right-click handling for context menu
+    #[wasm_bindgen]
+    pub fn handle_right_click(&self, screen_x: f32, screen_y: f32) -> Option<String> {
+        let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
+        
+        // Search for sprite at position (reverse z-order for top-most)
+        let mut sorted_layers: Vec<_> = self.layers.iter().collect();
+        sorted_layers.sort_by_key(|(_, layer)| std::cmp::Reverse(layer.z_order));
+        
+        for (_, layer) in sorted_layers {
+            if layer.visible {
+                for sprite in layer.sprites.iter().rev() {
+                    if sprite.contains_world_point(world_pos) {
+                        return Some(sprite.id.clone());
+                    }
+                }
+            }
+        }
+        
+        None
+    }
+
+    // Additional sprite management methods for frontend compatibility
+    #[wasm_bindgen]
+    pub fn delete_sprite(&mut self, sprite_id: &str) -> bool {
+        self.remove_sprite(sprite_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn copy_sprite(&self, sprite_id: &str) -> Option<String> {
+        if let Some((sprite, _)) = self.find_sprite(sprite_id) {
+            // Convert sprite to JSON for copying
+            if let Ok(json) = serde_json::to_string(sprite) {
+                return Some(json);
+            }
+        }
+        None
+    }
+
+    #[wasm_bindgen]
+    pub fn paste_sprite(&mut self, layer_name: &str, sprite_json: &str, offset_x: f64, offset_y: f64) -> Result<String, JsValue> {
+        let mut sprite: Sprite = serde_json::from_str(sprite_json)
+            .map_err(|e| JsValue::from_str(&format!("Failed to parse sprite JSON: {}", e)))?;
+        
+        // Generate new ID and apply offset
+        sprite.id = format!("sprite_{}", js_sys::Math::random());
+        sprite.world_x += offset_x;
+        sprite.world_y += offset_y;
+        
+        let sprite_id = sprite.id.clone();
+        
+        if let Some(layer) = self.layers.get_mut(layer_name) {
+            layer.sprites.push(sprite);
+        } else {
+            return Err(JsValue::from_str("Layer not found"));
+        }
+        
+        Ok(sprite_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn resize_sprite(&mut self, sprite_id: &str, new_width: f64, new_height: f64) -> bool {
+        for layer in self.layers.values_mut() {
+            if let Some(sprite) = layer.sprites.iter_mut().find(|s| s.id == sprite_id) {
+                sprite.width = new_width;
+                sprite.height = new_height;
+                return true;
+            }
+        }
+        false
+    }
+
+    // Alias for resize_canvas to match frontend expectations
+    #[wasm_bindgen]
+    pub fn resize(&mut self, width: f32, height: f32) {
+        self.resize_canvas(width, height);
     }
 }

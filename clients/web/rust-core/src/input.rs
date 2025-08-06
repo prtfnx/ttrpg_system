@@ -8,6 +8,7 @@ pub enum InputMode {
     SpriteMove,
     SpriteResize(ResizeHandle),
     SpriteRotate,
+    AreaSelect,  // New: Area selection rectangle
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,7 +27,12 @@ pub struct InputHandler {
     pub input_mode: InputMode,
     pub last_mouse_screen: Vec2,
     pub selected_sprite_id: Option<String>,
+    pub selected_sprite_ids: Vec<String>,  // New: Multiple selection support
     pub drag_offset: Vec2,
+    pub rotation_start_angle: f64,
+    pub sprite_initial_rotation: f64,
+    pub area_select_start: Option<Vec2>,   // New: Area selection start position
+    pub area_select_current: Option<Vec2>, // New: Area selection current position
 }
 
 impl Default for InputHandler {
@@ -35,7 +41,12 @@ impl Default for InputHandler {
             input_mode: InputMode::None,
             last_mouse_screen: Vec2::new(0.0, 0.0),
             selected_sprite_id: None,
+            selected_sprite_ids: Vec::new(),
             drag_offset: Vec2::new(0.0, 0.0),
+            rotation_start_angle: 0.0,
+            sprite_initial_rotation: 0.0,
+            area_select_start: None,
+            area_select_current: None,
         }
     }
 }
@@ -44,12 +55,81 @@ impl InputHandler {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     pub fn reset(&mut self) {
         self.input_mode = InputMode::None;
         self.selected_sprite_id = None;
+        self.selected_sprite_ids.clear();
         self.drag_offset = Vec2::new(0.0, 0.0);
+        self.area_select_start = None;
+        self.area_select_current = None;
     }
+    
+    // Multi-select management methods
+    pub fn add_to_selection(&mut self, sprite_id: String) {
+        if !self.selected_sprite_ids.contains(&sprite_id) {
+            self.selected_sprite_ids.push(sprite_id.clone());
+        }
+        self.selected_sprite_id = Some(sprite_id); // Keep primary selection for single operations
+    }
+    
+    pub fn remove_from_selection(&mut self, sprite_id: &str) {
+        self.selected_sprite_ids.retain(|id| id != sprite_id);
+        if self.selected_sprite_id.as_ref() == Some(&sprite_id.to_string()) {
+            self.selected_sprite_id = self.selected_sprite_ids.first().cloned();
+        }
+    }
+    
+    pub fn clear_selection(&mut self) {
+        self.selected_sprite_ids.clear();
+        self.selected_sprite_id = None;
+    }
+    
+    pub fn set_single_selection(&mut self, sprite_id: String) {
+        self.selected_sprite_ids.clear();
+        self.selected_sprite_ids.push(sprite_id.clone());
+        self.selected_sprite_id = Some(sprite_id);
+    }
+    
+    pub fn has_multiple_selected(&self) -> bool {
+        self.selected_sprite_ids.len() > 1
+    }
+    
+    pub fn is_sprite_selected(&self, sprite_id: &str) -> bool {
+        self.selected_sprite_ids.contains(&sprite_id.to_string())
+    }
+    
+    // Area selection methods
+    pub fn start_area_selection(&mut self, world_pos: Vec2) {
+        self.area_select_start = Some(world_pos);
+        self.area_select_current = Some(world_pos);
+        self.input_mode = InputMode::AreaSelect;
+    }
+    
+    pub fn update_area_selection(&mut self, world_pos: Vec2) {
+        if self.input_mode == InputMode::AreaSelect {
+            self.area_select_current = Some(world_pos);
+        }
+    }
+    
+    pub fn get_area_selection_rect(&self) -> Option<(Vec2, Vec2)> {
+        if let (Some(start), Some(current)) = (self.area_select_start, self.area_select_current) {
+            let min_x = start.x.min(current.x);
+            let max_x = start.x.max(current.x);
+            let min_y = start.y.min(current.y);
+            let max_y = start.y.max(current.y);
+            Some((Vec2::new(min_x, min_y), Vec2::new(max_x, max_y)))
+        } else {
+            None
+        }
+    }
+    
+    pub fn finish_area_selection(&mut self) {
+        self.area_select_start = None;
+        self.area_select_current = None;
+        self.input_mode = InputMode::None;
+    }
+}
 }
 
 pub struct HandleDetector;

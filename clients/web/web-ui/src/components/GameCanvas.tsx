@@ -101,7 +101,14 @@ export const GameCanvas: React.FC = () => {
   const handleMouseDown = useCallback((e: MouseEvent) => {
     if (rustRenderManagerRef.current) {
       const { x, y } = getRelativeCoords(e);
-      rustRenderManagerRef.current.handle_mouse_down(x, y);
+      // Check if we have the new Ctrl-aware method
+      const renderManager = rustRenderManagerRef.current as any;
+      if (renderManager.handle_mouse_down_with_ctrl) {
+        renderManager.handle_mouse_down_with_ctrl(x, y, e.ctrlKey);
+      } else {
+        // Fallback to original method
+        renderManager.handle_mouse_down(x, y);
+      }
     }
   }, [getRelativeCoords]);
 

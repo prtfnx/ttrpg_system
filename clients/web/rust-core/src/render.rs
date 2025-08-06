@@ -432,6 +432,15 @@ impl RenderEngine {
     
     #[wasm_bindgen]
     pub fn handle_mouse_down(&mut self, screen_x: f32, screen_y: f32) {
+        self.handle_mouse_down_with_modifiers(screen_x, screen_y, false)
+    }
+    
+    #[wasm_bindgen]
+    pub fn handle_mouse_down_with_ctrl(&mut self, screen_x: f32, screen_y: f32, ctrl_pressed: bool) {
+        self.handle_mouse_down_with_modifiers(screen_x, screen_y, ctrl_pressed)
+    }
+    
+    fn handle_mouse_down_with_modifiers(&mut self, screen_x: f32, screen_y: f32, ctrl_pressed: bool) {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
         self.input.last_mouse_screen = Vec2::new(screen_x, screen_y);
         
@@ -489,8 +498,25 @@ impl RenderEngine {
             }
         }
         
-        // Check for sprite selection
-        self.select_sprite_at_position(world_pos);
+        // Check for sprite selection or start area selection
+        if ctrl_pressed {
+            // If Ctrl is pressed, either add to selection or start area selection
+            let clicked_sprite = self.find_sprite_at_position(world_pos);
+            if let Some(sprite_id) = clicked_sprite {
+                // Ctrl+click on sprite: toggle selection
+                if self.input.is_sprite_selected(&sprite_id) {
+                    self.input.remove_from_selection(&sprite_id);
+                } else {
+                    self.input.add_to_selection(sprite_id);
+                }
+            } else {
+                // Ctrl+click on empty space: start area selection
+                self.input.start_area_selection(world_pos);
+            }
+        } else {
+            // Normal click: single selection or camera pan
+            self.select_sprite_at_position(world_pos);
+        }
     }
     
     #[wasm_bindgen]
@@ -500,7 +526,22 @@ impl RenderEngine {
         
         match self.input.input_mode {
             InputMode::SpriteMove => {
-                if let Some(sprite_id) = &self.input.selected_sprite_id {
+                // Move all selected sprites together
+                if self.input.has_multiple_selected() {
+                    // Multi-sprite movement - move all selected sprites by the same world delta
+                    let last_world_pos = self.camera.screen_to_world(self.input.last_mouse_screen);
+                    let delta = world_pos - last_world_pos;
+                    for sprite_id in &self.input.selected_sprite_ids.clone() {
+                        for layer in self.layers.values_mut() {
+                            if let Some(sprite) = layer.sprites.iter_mut().find(|s| &s.id == sprite_id) {
+                                sprite.world_x += delta.x as f64;
+                                sprite.world_y += delta.y as f64;
+                                break;
+                            }
+                        }
+                    }
+                } else if let Some(sprite_id) = &self.input.selected_sprite_id {
+                    // Single sprite movement
                     for layer in self.layers.values_mut() {
                         if let Some(sprite) = layer.sprites.iter_mut().find(|s| &s.id == sprite_id) {
                             SpriteManager::move_sprite_to_position(sprite, world_pos, self.input.drag_offset);
@@ -537,6 +578,10 @@ impl RenderEngine {
                 self.camera.world_y -= world_delta.y as f64;
                 self.update_view_matrix();
             }
+            InputMode::AreaSelect => {
+                // Update area selection rectangle
+                self.input.update_area_selection(world_pos);
+            }
             _ => {}
         }
         
@@ -544,13 +589,57 @@ impl RenderEngine {
     }
     
     #[wasm_bindgen]
-    pub fn handle_mouse_up(&mut self, _screen_x: f32, _screen_y: f32) {
-        self.input.input_mode = InputMode::None;
+    pub fn handle_mouse_up(&mut self, screen_x: f32, screen_y: f32) {
+        let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
+        
+        if self.input.input_mode == InputMode::AreaSelect {
+            // Complete area selection
+            if let Some((min, max)) = self.input.get_area_selection_rect() {
+                self.select_sprites_in_area(min, max);
+            }
+            self.input.finish_area_selection();
+        } else {
+            self.input.input_mode = InputMode::None;
+        }
     }
     
-    fn select_sprite_at_position(&mut self, world_pos: Vec2) {
-        let mut selected_sprite = None;
+    fn select_sprites_in_area(&mut self, min: Vec2, max: Vec2) {
+        let mut selected_sprites = Vec::new();
         
+        // Find all sprites that intersect with the selection rectangle
+        for (_, layer) in &self.layers {
+            if layer.selectable {
+                for sprite in &layer.sprites {
+                    let sprite_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
+                    let sprite_size = Vec2::new(
+                        (sprite.width * sprite.scale_x) as f32,
+                        (sprite.height * sprite.scale_y) as f32
+                    );
+                    
+                    // Check if sprite rectangle intersects with selection rectangle
+                    let sprite_min = sprite_pos;
+                    let sprite_max = sprite_pos + sprite_size;
+                    
+                    let intersects = sprite_max.x >= min.x && sprite_min.x <= max.x &&
+                                   sprite_max.y >= min.y && sprite_min.y <= max.y;
+                    
+                    if intersects {
+                        selected_sprites.push(sprite.id.clone());
+                    }
+                }
+            }
+        }
+        
+        // Update selection
+        if !selected_sprites.is_empty() {
+            self.input.clear_selection();
+            for sprite_id in selected_sprites {
+                self.input.add_to_selection(sprite_id);
+            }
+        }
+    }
+
+    fn find_sprite_at_position(&self, world_pos: Vec2) -> Option<String> {
         // Search in reverse z-order (top layers first)
         let mut sorted_layers: Vec<_> = self.layers.iter().collect();
         sorted_layers.sort_by_key(|(_, layer)| std::cmp::Reverse(layer.z_order));
@@ -559,22 +648,27 @@ impl RenderEngine {
             if layer.selectable {
                 for sprite in layer.sprites.iter().rev() {
                     if sprite.contains_world_point(world_pos) {
-                        selected_sprite = Some(sprite.id.clone());
-                        // Calculate offset from click position to sprite's top-left corner
-                        let sprite_top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
-                        self.input.drag_offset = world_pos - sprite_top_left;
-                        break;
+                        return Some(sprite.id.clone());
                     }
                 }
             }
-            if selected_sprite.is_some() { break; }
         }
-        
-        if let Some(sprite_id) = selected_sprite {
-            self.input.selected_sprite_id = Some(sprite_id);
+        None
+    }
+
+    fn select_sprite_at_position(&mut self, world_pos: Vec2) {
+        if let Some(sprite_id) = self.find_sprite_at_position(world_pos) {
+            // Single selection - clear others and select this one
+            self.input.set_single_selection(sprite_id);
             self.input.input_mode = InputMode::SpriteMove;
+            // Calculate offset from click position to sprite's top-left corner
+            if let Some((sprite, _)) = self.find_sprite(&self.input.selected_sprite_id.as_ref().unwrap()) {
+                let sprite_top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
+                self.input.drag_offset = world_pos - sprite_top_left;
+            }
         } else {
-            self.input.selected_sprite_id = None;
+            // Clicked on empty space - clear selection and start camera pan
+            self.input.clear_selection();
             self.input.input_mode = InputMode::CameraPan;
         }
     }

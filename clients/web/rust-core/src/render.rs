@@ -444,7 +444,26 @@ impl RenderEngine {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
         self.input.last_mouse_screen = Vec2::new(screen_x, screen_y);
         
-        // Check if we have a selected sprite to interact with
+        // First check for multi-select operations if Ctrl is not pressed
+        if !ctrl_pressed {
+            let clicked_sprite = self.find_sprite_at_position(world_pos);
+            if let Some(sprite_id) = clicked_sprite {
+                if self.input.is_sprite_selected(&sprite_id) && self.input.has_multiple_selected() {
+                    // Clicking on an already selected sprite with multiple selections - start multi-move
+                    let sprite_id_clone = sprite_id.clone();
+                    self.input.selected_sprite_id = Some(sprite_id_clone); // Set as primary for reference
+                    self.input.input_mode = InputMode::SpriteMove;
+                    // Calculate offset from click position to primary sprite's top-left corner
+                    if let Some((sprite, _)) = self.find_sprite(&sprite_id) {
+                        let sprite_top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
+                        self.input.drag_offset = world_pos - sprite_top_left;
+                    }
+                    return; // Early return to skip handle detection
+                }
+            }
+        }
+        
+        // Check if we have a selected sprite to interact with for handles/single operations
         let selected_sprite_info = if let Some(selected_id) = &self.input.selected_sprite_id {
             self.find_sprite(selected_id).map(|(sprite, _)| {
                 (sprite.id.clone(), sprite.rotation, sprite.world_x, sprite.world_y, 
@@ -466,34 +485,38 @@ impl RenderEngine {
                 layer: String::new(), texture_id: String::new(), tint_color: [1.0, 1.0, 1.0, 1.0]
             };
             
-            // Check rotation handle first
-            let rotate_handle_x = sprite_pos.x + sprite_size.x * 0.5;
-            let rotate_handle_y = sprite_pos.y - 20.0 / self.camera.zoom as f32;
-            let handle_size = 8.0 / self.camera.zoom as f32;
-            if HandleDetector::point_in_handle(world_pos, rotate_handle_x, rotate_handle_y, handle_size) {
-                self.input.input_mode = InputMode::SpriteRotate;
-                // Store initial rotation state to prevent jumping
-                let (start_angle, initial_rotation) = SpriteManager::start_rotation(&temp_sprite, world_pos);
-                self.input.rotation_start_angle = start_angle;
-                self.input.sprite_initial_rotation = initial_rotation;
-                return;
-            }
-            
-            // Handle rotated vs non-rotated sprites differently  
-            if rotation != 0.0 {
-                // For rotated sprites, only allow rotation and movement (not resizing)
-                if temp_sprite.contains_world_point(world_pos) {
-                    self.input.input_mode = InputMode::SpriteMove;
-                    // Calculate offset from click position to sprite's top-left corner
-                    let sprite_top_left = Vec2::new(world_x as f32, world_y as f32);
-                    self.input.drag_offset = world_pos - sprite_top_left;
+            // Check rotation handle first (only for single selection or primary selection)
+            if !self.input.has_multiple_selected() || self.input.selected_sprite_id.as_ref() == Some(&sprite_id) {
+                let rotate_handle_x = sprite_pos.x + sprite_size.x * 0.5;
+                let rotate_handle_y = sprite_pos.y - 20.0 / self.camera.zoom as f32;
+                let handle_size = 8.0 / self.camera.zoom as f32;
+                if HandleDetector::point_in_handle(world_pos, rotate_handle_x, rotate_handle_y, handle_size) {
+                    self.input.input_mode = InputMode::SpriteRotate;
+                    // Store initial rotation state to prevent jumping
+                    let (start_angle, initial_rotation) = SpriteManager::start_rotation(&temp_sprite, world_pos);
+                    self.input.rotation_start_angle = start_angle;
+                    self.input.sprite_initial_rotation = initial_rotation;
                     return;
                 }
-            } else {
-                // Non-rotated sprite - check for resize handles
-                if let Some(handle) = HandleDetector::get_resize_handle_for_non_rotated_sprite(&temp_sprite, world_pos, self.camera.zoom) {
-                    self.input.input_mode = InputMode::SpriteResize(handle);
-                    return;
+                
+                // Handle rotated vs non-rotated sprites differently  
+                if rotation != 0.0 {
+                    // For rotated sprites, only allow rotation and movement (not resizing)
+                    if temp_sprite.contains_world_point(world_pos) {
+                        self.input.input_mode = InputMode::SpriteMove;
+                        // Calculate offset from click position to sprite's top-left corner
+                        let sprite_top_left = Vec2::new(world_x as f32, world_y as f32);
+                        self.input.drag_offset = world_pos - sprite_top_left;
+                        return;
+                    }
+                } else {
+                    // Non-rotated sprite - check for resize handles (only for single selection)
+                    if !self.input.has_multiple_selected() {
+                        if let Some(handle) = HandleDetector::get_resize_handle_for_non_rotated_sprite(&temp_sprite, world_pos, self.camera.zoom) {
+                            self.input.input_mode = InputMode::SpriteResize(handle);
+                            return;
+                        }
+                    }
                 }
             }
         }
@@ -519,7 +542,8 @@ impl RenderEngine {
             if let Some(sprite_id) = clicked_sprite {
                 if self.input.is_sprite_selected(&sprite_id) && self.input.has_multiple_selected() {
                     // Clicking on an already selected sprite with multiple selections - start multi-move
-                    self.input.selected_sprite_id = Some(sprite_id); // Set as primary for reference
+                    let sprite_id_clone = sprite_id.clone();
+                    self.input.selected_sprite_id = Some(sprite_id_clone); // Set as primary for reference
                     self.input.input_mode = InputMode::SpriteMove;
                     // Calculate offset from click position to primary sprite's top-left corner
                     if let Some((sprite, _)) = self.find_sprite(&sprite_id) {

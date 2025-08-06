@@ -11,6 +11,10 @@ pub struct WebGLRenderer {
 
 impl WebGLRenderer {
     pub fn new(gl: WebGlRenderingContext) -> Result<Self, JsValue> {
+        // Enable blending for transparency support
+        gl.enable(WebGlRenderingContext::BLEND);
+        gl.blend_func(WebGlRenderingContext::SRC_ALPHA, WebGlRenderingContext::ONE_MINUS_SRC_ALPHA);
+        
         let mut renderer = Self {
             gl,
             shader_program: None,
@@ -146,6 +150,12 @@ impl WebGLRenderer {
             
             let use_texture_location = self.gl.get_uniform_location(program, "u_use_texture");
             self.gl.uniform1i(use_texture_location.as_ref(), if use_texture { 1 } else { 0 });
+            
+            // Set texture sampler to use texture unit 0
+            if use_texture {
+                let texture_location = self.gl.get_uniform_location(program, "u_texture");
+                self.gl.uniform1i(texture_location.as_ref(), 0);
+            }
             
             // Draw
             let indices: [u16; 6] = [0, 1, 2, 1, 3, 2];

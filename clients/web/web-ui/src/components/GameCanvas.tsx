@@ -407,40 +407,44 @@ export const GameCanvas: React.FC = () => {
     };
   };
 
-  // Mouse move handler for debug overlay
+  // Mouse move handler for debug overlay - track actual mouse position
+  const updateDebugOverlay = React.useCallback((event: MouseEvent) => {
+    const rm = rustRenderManagerRef.current;
+    const canvas = canvasRef.current;
+    if (rm && canvas) {
+      try {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = dprRef.current;
+        
+        // Get actual mouse position relative to canvas
+        const mouseCss = { 
+          x: event.clientX - rect.left, 
+          y: event.clientY - rect.top 
+        };
+        const mouseDevice = { x: mouseCss.x * dpr, y: mouseCss.y * dpr };
+        
+        const worldCoords = rm.screen_to_world(mouseDevice.x, mouseDevice.y);
+        const world = { x: worldCoords[0], y: worldCoords[1] };
+        
+        setDebugCursorScreen(mouseCss);
+        setDebugCursorWorld(world);
+        setDebugGrid(getGridCoord(world));
+      } catch {
+        // ignore errors when polling cursor coordinates
+      }
+    }
+  }, []);
 
   // Attach debug mouse handler only after WASM is loaded
   React.useEffect(() => {
-    let rafId: number | null = null;
-    const pollOverlay = () => {
-      const rm = rustRenderManagerRef.current;
-      const canvas = canvasRef.current;
-      if (rm && canvas) {
-        try {
-          // Get mouse position relative to canvas and convert to world coordinates
-          const rect = canvas.getBoundingClientRect();
-          const dpr = dprRef.current;
-          // Use last known mouse position or center of canvas
-          const mouseCss = { x: rect.width / 2, y: rect.height / 2 };
-          const mouseDevice = { x: mouseCss.x * dpr, y: mouseCss.y * dpr };
-          
-          const worldCoords = rm.screen_to_world(mouseDevice.x, mouseDevice.y);
-          const world = { x: worldCoords[0], y: worldCoords[1] };
-          
-          setDebugCursorScreen(mouseCss);
-          setDebugCursorWorld(world);
-          setDebugGrid(getGridCoord(world));
-        } catch {
-          // ignore errors when polling cursor coordinates
-        }
-      }
-      rafId = requestAnimationFrame(pollOverlay);
-    };
-    rafId = requestAnimationFrame(pollOverlay);
-    return () => {
-      if (rafId) cancelAnimationFrame(rafId);
-    };
-  }, []);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.addEventListener('mousemove', updateDebugOverlay);
+      return () => {
+        canvas.removeEventListener('mousemove', updateDebugOverlay);
+      };
+    }
+  }, [updateDebugOverlay]);
 
   return (
     <div className="game-canvas-container" style={{ position: 'relative' }}>

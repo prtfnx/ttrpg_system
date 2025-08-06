@@ -1,8 +1,8 @@
 // import { useState } from 'react';
 import { useGameStore } from '../store';
 import DiceRoller from '../tools/DiceRoller';
-import { LayerPanel } from './LayerPanel';
 import type { GameAPI } from '../types';
+import { LayerPanel } from './LayerPanel';
 
 // Global type declarations
 declare global {

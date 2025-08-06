@@ -514,8 +514,27 @@ impl RenderEngine {
                 self.input.start_area_selection(world_pos);
             }
         } else {
-            // Normal click: single selection or camera pan
-            self.select_sprite_at_position(world_pos);
+            // Normal click: check if clicking on already selected sprite for multi-move
+            let clicked_sprite = self.find_sprite_at_position(world_pos);
+            if let Some(sprite_id) = clicked_sprite {
+                if self.input.is_sprite_selected(&sprite_id) && self.input.has_multiple_selected() {
+                    // Clicking on an already selected sprite with multiple selections - start multi-move
+                    self.input.selected_sprite_id = Some(sprite_id); // Set as primary for reference
+                    self.input.input_mode = InputMode::SpriteMove;
+                    // Calculate offset from click position to primary sprite's top-left corner
+                    if let Some((sprite, _)) = self.find_sprite(&sprite_id) {
+                        let sprite_top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
+                        self.input.drag_offset = world_pos - sprite_top_left;
+                    }
+                } else {
+                    // Normal single selection
+                    self.select_sprite_at_position(world_pos);
+                }
+            } else {
+                // Clicked on empty space - clear selection and start camera pan
+                self.input.clear_selection();
+                self.input.input_mode = InputMode::CameraPan;
+            }
         }
     }
     

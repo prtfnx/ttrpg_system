@@ -125,6 +125,14 @@ export interface RenderEngine {
   set_layer_visible: (layer: string, visible: boolean) => void;
   toggle_grid: () => void;
   
+  // Grid system
+  set_grid_enabled: (enabled: boolean) => void;
+  set_grid_snapping: (enabled: boolean) => void;
+  set_grid_size: (size: number) => void;
+  toggle_grid_snapping: () => void;
+  get_grid_size: () => number;
+  is_grid_snapping_enabled: () => boolean;
+  
   // Input handling
   handle_mouse_down: (screen_x: number, screen_y: number) => void;
   handle_mouse_move: (screen_x: number, screen_y: number) => void;

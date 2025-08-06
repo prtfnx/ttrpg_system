@@ -107,6 +107,11 @@ impl SpriteManager {
         sprite.world_y = (world_pos.y - drag_offset.y) as f64;
     }
     
+    pub fn move_sprite_to_snapped_position(sprite: &mut Sprite, snapped_pos: Vec2, drag_offset: Vec2) {
+        sprite.world_x = (snapped_pos.x - drag_offset.x) as f64;
+        sprite.world_y = (snapped_pos.y - drag_offset.y) as f64;
+    }
+    
     pub fn get_sprite_center(sprite: &Sprite) -> Vec2 {
         let sprite_size = Vec2::new(
             (sprite.width * sprite.scale_x) as f32,

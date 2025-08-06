@@ -31,6 +31,8 @@ pub struct RenderEngine {
     // Resources
     textures: HashMap<String, WebGlTexture>,
     grid_enabled: bool,
+    grid_size: f32,
+    grid_snapping: bool,
 }
 
 #[wasm_bindgen]
@@ -59,6 +61,8 @@ impl RenderEngine {
             input: InputHandler::new(),
             textures: HashMap::new(),
             grid_enabled: true,
+            grid_size: 50.0,
+            grid_snapping: false,
         };
         
         engine.update_view_matrix();
@@ -100,13 +104,12 @@ impl RenderEngine {
     }
     
     fn draw_grid(&self) -> Result<(), JsValue> {
-        let grid_size = 50.0;
         let world_bounds = self.get_world_view_bounds();
         
-        let start_x = (world_bounds.min.x / grid_size).floor() * grid_size;
-        let end_x = (world_bounds.max.x / grid_size).ceil() * grid_size;
-        let start_y = (world_bounds.min.y / grid_size).floor() * grid_size;
-        let end_y = (world_bounds.max.y / grid_size).ceil() * grid_size;
+        let start_x = (world_bounds.min.x / self.grid_size).floor() * self.grid_size;
+        let end_x = (world_bounds.max.x / self.grid_size).ceil() * self.grid_size;
+        let start_y = (world_bounds.min.y / self.grid_size).floor() * self.grid_size;
+        let end_y = (world_bounds.max.y / self.grid_size).ceil() * self.grid_size;
         
         let mut vertices = Vec::new();
         
@@ -114,14 +117,14 @@ impl RenderEngine {
         let mut x = start_x;
         while x <= end_x {
             vertices.extend_from_slice(&[x, world_bounds.min.y, x, world_bounds.max.y]);
-            x += grid_size;
+            x += self.grid_size;
         }
         
         // Horizontal lines
         let mut y = start_y;
         while y <= end_y {
             vertices.extend_from_slice(&[world_bounds.min.x, y, world_bounds.max.x, y]);
-            y += grid_size;
+            y += self.grid_size;
         }
         
         self.renderer.draw_lines(&vertices, [0.2, 0.2, 0.2, 1.0])
@@ -327,6 +330,17 @@ impl RenderEngine {
         let min = self.camera.screen_to_world(Vec2::new(0.0, 0.0));
         let max = self.camera.screen_to_world(self.canvas_size);
         Rect::new(min.x, min.y, max.x - min.x, max.y - min.y)
+    }
+    
+    fn snap_to_grid(&self, world_pos: Vec2) -> Vec2 {
+        if self.grid_snapping {
+            Vec2::new(
+                (world_pos.x / self.grid_size).round() * self.grid_size,
+                (world_pos.y / self.grid_size).round() * self.grid_size
+            )
+        } else {
+            world_pos
+        }
     }
     
     fn draw_area_selection_rect(&self, min: Vec2, max: Vec2) -> Result<(), JsValue> {
@@ -573,7 +587,18 @@ impl RenderEngine {
                 if self.input.has_multiple_selected() {
                     // Multi-sprite movement - move all selected sprites by the same world delta
                     let last_world_pos = self.camera.screen_to_world(self.input.last_mouse_screen);
-                    let delta = world_pos - last_world_pos;
+                    let current_world_pos = if self.grid_snapping {
+                        self.snap_to_grid(world_pos)
+                    } else {
+                        world_pos
+                    };
+                    let last_snapped_pos = if self.grid_snapping {
+                        self.snap_to_grid(last_world_pos)
+                    } else {
+                        last_world_pos
+                    };
+                    let delta = current_world_pos - last_snapped_pos;
+                    
                     for sprite_id in &self.input.selected_sprite_ids.clone() {
                         for layer in self.layers.values_mut() {
                             if let Some(sprite) = layer.sprites.iter_mut().find(|s| &s.id == sprite_id) {
@@ -584,10 +609,15 @@ impl RenderEngine {
                         }
                     }
                 } else if let Some(sprite_id) = &self.input.selected_sprite_id {
-                    // Single sprite movement
+                    // Single sprite movement with grid snapping
+                    let target_pos = if self.grid_snapping {
+                        self.snap_to_grid(world_pos)
+                    } else {
+                        world_pos
+                    };
                     for layer in self.layers.values_mut() {
                         if let Some(sprite) = layer.sprites.iter_mut().find(|s| &s.id == sprite_id) {
-                            SpriteManager::move_sprite_to_position(sprite, world_pos, self.input.drag_offset);
+                            SpriteManager::move_sprite_to_snapped_position(sprite, target_pos, self.input.drag_offset);
                             break;
                         }
                     }
@@ -774,6 +804,36 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn toggle_grid(&mut self) {
         self.grid_enabled = !self.grid_enabled;
+    }
+    
+    #[wasm_bindgen]
+    pub fn set_grid_enabled(&mut self, enabled: bool) {
+        self.grid_enabled = enabled;
+    }
+    
+    #[wasm_bindgen]
+    pub fn toggle_grid_snapping(&mut self) {
+        self.grid_snapping = !self.grid_snapping;
+    }
+    
+    #[wasm_bindgen]
+    pub fn set_grid_snapping(&mut self, enabled: bool) {
+        self.grid_snapping = enabled;
+    }
+    
+    #[wasm_bindgen]
+    pub fn set_grid_size(&mut self, size: f32) {
+        self.grid_size = size.max(10.0).min(200.0); // Reasonable bounds
+    }
+    
+    #[wasm_bindgen]
+    pub fn get_grid_size(&self) -> f32 {
+        self.grid_size
+    }
+    
+    #[wasm_bindgen]
+    pub fn is_grid_snapping_enabled(&self) -> bool {
+        self.grid_snapping
     }
     
     // Texture management

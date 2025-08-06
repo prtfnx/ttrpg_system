@@ -8,6 +8,11 @@ interface GameStore extends GameState {
   layerVisibility: Record<string, boolean>;
   layerOpacity: Record<string, number>;
   
+  // Grid system state
+  gridEnabled: boolean;
+  gridSnapping: boolean;
+  gridSize: number;
+  
   // Actions
   moveSprite: (id: string, x: number, y: number) => void;
   selectSprite: (id: string, multiSelect?: boolean) => void;
@@ -25,6 +30,11 @@ interface GameStore extends GameState {
   setActiveLayer: (layerName: string) => void;
   setLayerVisibility: (layerName: string, visible: boolean) => void;
   setLayerOpacity: (layerName: string, opacity: number) => void;
+  
+  // Grid system actions
+  setGridEnabled: (enabled: boolean) => void;
+  setGridSnapping: (enabled: boolean) => void;
+  setGridSize: (size: number) => void;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -59,6 +69,11 @@ export const useGameStore = create<GameStore>()(
         'obstacles': 1.0,
         'fog_of_war': 0.8
       },
+      
+      // Grid system initial state
+      gridEnabled: true,
+      gridSnapping: false,
+      gridSize: 50,
 
       // Actions
       moveSprite: (id: string, x: number, y: number) => {
@@ -186,6 +201,25 @@ export const useGameStore = create<GameStore>()(
             ...state.layerOpacity,
             [layerName]: opacity,
           },
+        }));
+      },
+      
+      // Grid system actions
+      setGridEnabled: (enabled: boolean) => {
+        set(() => ({
+          gridEnabled: enabled,
+        }));
+      },
+
+      setGridSnapping: (enabled: boolean) => {
+        set(() => ({
+          gridSnapping: enabled,
+        }));
+      },
+
+      setGridSize: (size: number) => {
+        set(() => ({
+          gridSize: size,
         }));
       },
     }),

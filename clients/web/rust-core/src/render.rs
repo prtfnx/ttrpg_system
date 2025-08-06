@@ -127,7 +127,32 @@ impl RenderEngine {
             y += self.grid_size;
         }
         
-        self.renderer.draw_lines(&vertices, [0.2, 0.2, 0.2, 1.0])
+        self.renderer.draw_lines(&vertices, [0.2, 0.2, 0.2, 1.0])?;
+        
+        // Draw grid center dots if grid snapping is enabled (for visual reference)
+        if self.grid_snapping && self.grid_size >= 30.0 {
+            let mut center_vertices = Vec::new();
+            let mut y = start_y + self.grid_size * 0.5;
+            while y <= end_y - self.grid_size * 0.5 {
+                let mut x = start_x + self.grid_size * 0.5;
+                while x <= end_x - self.grid_size * 0.5 {
+                    let dot_size = 2.0;
+                    center_vertices.extend_from_slice(&[
+                        x - dot_size, y,
+                        x + dot_size, y,
+                        x, y - dot_size,
+                        x, y + dot_size,
+                    ]);
+                    x += self.grid_size;
+                }
+                y += self.grid_size;
+            }
+            if !center_vertices.is_empty() {
+                self.renderer.draw_lines(&center_vertices, [0.4, 0.4, 0.4, 0.8])?;
+            }
+        }
+        
+        Ok(())
     }
     
     fn draw_sprite(&self, sprite: &Sprite, layer_opacity: f32) -> Result<(), JsValue> {
@@ -334,12 +359,33 @@ impl RenderEngine {
     
     fn snap_to_grid(&self, world_pos: Vec2) -> Vec2 {
         if self.grid_snapping {
+            // Snap to grid line intersections, then we'll adjust for centering in the sprite positioning
             Vec2::new(
                 (world_pos.x / self.grid_size).round() * self.grid_size,
                 (world_pos.y / self.grid_size).round() * self.grid_size
             )
         } else {
             world_pos
+        }
+    }
+    
+    fn snap_sprite_to_grid_center(&self, sprite_top_left: Vec2) -> Vec2 {
+        if self.grid_snapping {
+            // Calculate which grid cell the sprite should be in based on its top-left corner
+            // Then position it so its center aligns with the grid cell center
+            let grid_x = (sprite_top_left.x / self.grid_size).round();
+            let grid_y = (sprite_top_left.y / self.grid_size).round();
+            
+            // Position sprite so its center is at the grid center
+            // Grid center is at (grid_x * grid_size + grid_size/2, grid_y * grid_size + grid_size/2)
+            // But we need to return the top-left position, so subtract half sprite size... 
+            // Actually, let's keep it simple and snap to grid intersections for now
+            Vec2::new(
+                grid_x * self.grid_size,
+                grid_y * self.grid_size
+            )
+        } else {
+            sprite_top_left
         }
     }
     
@@ -587,37 +633,68 @@ impl RenderEngine {
                 if self.input.has_multiple_selected() {
                     // Multi-sprite movement - move all selected sprites by the same world delta
                     let last_world_pos = self.camera.screen_to_world(self.input.last_mouse_screen);
-                    let current_world_pos = if self.grid_snapping {
-                        self.snap_to_grid(world_pos)
-                    } else {
-                        world_pos
-                    };
-                    let last_snapped_pos = if self.grid_snapping {
-                        self.snap_to_grid(last_world_pos)
-                    } else {
-                        last_world_pos
-                    };
-                    let delta = current_world_pos - last_snapped_pos;
                     
-                    for sprite_id in &self.input.selected_sprite_ids.clone() {
-                        for layer in self.layers.values_mut() {
-                            if let Some(sprite) = layer.sprites.iter_mut().find(|s| &s.id == sprite_id) {
-                                sprite.world_x += delta.x as f64;
-                                sprite.world_y += delta.y as f64;
-                                break;
+                    if self.grid_snapping {
+                        // For grid snapping with multi-select, we need to maintain relative positions
+                        // but snap the group as a whole to the grid
+                        let current_snapped = self.snap_to_grid(world_pos);
+                        let last_snapped = self.snap_to_grid(last_world_pos);
+                        let delta = current_snapped - last_snapped;
+                        
+                        // Only move if there's actually a change in snapped position
+                        if delta.x.abs() > 0.001 || delta.y.abs() > 0.001 {
+                            for sprite_id in &self.input.selected_sprite_ids.clone() {
+                                for layer in self.layers.values_mut() {
+                                    if let Some(sprite) = layer.sprites.iter_mut().find(|s| &s.id == sprite_id) {
+                                        sprite.world_x += delta.x as f64;
+                                        sprite.world_y += delta.y as f64;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // Normal movement without snapping
+                        let delta = world_pos - last_world_pos;
+                        for sprite_id in &self.input.selected_sprite_ids.clone() {
+                            for layer in self.layers.values_mut() {
+                                if let Some(sprite) = layer.sprites.iter_mut().find(|s| &s.id == sprite_id) {
+                                    sprite.world_x += delta.x as f64;
+                                    sprite.world_y += delta.y as f64;
+                                    break;
+                                }
                             }
                         }
                     }
                 } else if let Some(sprite_id) = &self.input.selected_sprite_id {
                     // Single sprite movement with grid snapping
-                    let target_pos = if self.grid_snapping {
-                        self.snap_to_grid(world_pos)
-                    } else {
-                        world_pos
-                    };
+                    let target_pos = world_pos;
+                    let drag_offset = self.input.drag_offset;
+                    let grid_snapping = self.grid_snapping;
+                    let grid_size = self.grid_size;
+                    
                     for layer in self.layers.values_mut() {
                         if let Some(sprite) = layer.sprites.iter_mut().find(|s| &s.id == sprite_id) {
-                            SpriteManager::move_sprite_to_snapped_position(sprite, target_pos, self.input.drag_offset);
+                            if grid_snapping {
+                                // Calculate the intended sprite center position
+                                let intended_center_x = (target_pos.x - drag_offset.x) as f32;
+                                let intended_center_y = (target_pos.y - drag_offset.y) as f32;
+                                
+                                // Find the nearest grid cell center
+                                let grid_cell_center_x = (intended_center_x / grid_size).floor() * grid_size + grid_size * 0.5;
+                                let grid_cell_center_y = (intended_center_y / grid_size).floor() * grid_size + grid_size * 0.5;
+                                
+                                // Calculate sprite's actual size
+                                let sprite_width = (sprite.width * sprite.scale_x) as f32;
+                                let sprite_height = (sprite.height * sprite.scale_y) as f32;
+                                
+                                // Position sprite so its center aligns with grid cell center
+                                // sprite.world_x/y represents the top-left corner, so we need to offset by half the sprite size
+                                sprite.world_x = (grid_cell_center_x - sprite_width * 0.5) as f64;
+                                sprite.world_y = (grid_cell_center_y - sprite_height * 0.5) as f64;
+                            } else {
+                                SpriteManager::move_sprite_to_position(sprite, target_pos, drag_offset);
+                            }
                             break;
                         }
                     }

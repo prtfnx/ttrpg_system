@@ -3,6 +3,7 @@ import { useGameStore } from '../store';
 import DiceRoller from '../tools/DiceRoller';
 import type { GameAPI } from '../types';
 import { LayerPanel } from './LayerPanel';
+import { GridControls } from './GridControls';
 
 // Global type declarations
 declare global {
@@ -137,6 +138,9 @@ export function ToolsPanel() {
       <div style={{ margin: '24px 0' }}>
         <LayerPanel />
       </div>
+
+      {/* Grid Controls */}
+      <GridControls />
 
       {/* Dice Roller Tool */}
       <div style={{ margin: '24px 0', padding: 16, background: '#f9fafb', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>

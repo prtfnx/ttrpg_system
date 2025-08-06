@@ -18,6 +18,15 @@ interface RenderEngine {
   add_sprite_to_layer(layerName: string, spriteData: any): string;
   remove_sprite(spriteId: string): boolean;
   
+  // Grid system
+  set_grid_enabled(enabled: boolean): void;
+  set_grid_snapping(enabled: boolean): void;
+  set_grid_size(size: number): void;
+  toggle_grid(): void;
+  toggle_grid_snapping(): void;
+  get_grid_size(): number;
+  is_grid_snapping_enabled(): boolean;
+  
   // Camera controls
   set_camera(worldX: number, worldY: number, zoom: number): void;
   center_camera(worldX: number, worldY: number): void;

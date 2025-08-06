@@ -130,7 +130,6 @@ impl InputHandler {
         self.input_mode = InputMode::None;
     }
 }
-}
 
 pub struct HandleDetector;
 

@@ -117,6 +117,12 @@ export function LayerPanel() {
         visible: newVisible
       });
     }
+    
+    // Also update the Rust render engine directly for immediate visual feedback
+    const renderManager = window.gameAPI?.renderManager();
+    if (renderManager?.set_layer_visible) {
+      renderManager.set_layer_visible(layerName, newVisible);
+    }
   };
 
   const handleLayerOpacityChange = (layerName: string, opacity: number) => {
@@ -136,6 +142,12 @@ export function LayerPanel() {
         layer: layerName,
         opacity
       });
+    }
+    
+    // Also update the Rust render engine directly for immediate visual feedback
+    const renderManager = window.gameAPI?.renderManager();
+    if (renderManager?.set_layer_opacity) {
+      renderManager.set_layer_opacity(layerName, opacity);
     }
   };
 

@@ -10,6 +10,7 @@ use crate::input::{InputHandler, InputMode, ResizeHandle, HandleDetector};
 use crate::sprite_manager::SpriteManager;
 use crate::webgl_renderer::WebGLRenderer;
 use crate::lighting::LightingSystem;
+use crate::fog::FogOfWarSystem;
 
 const LAYER_NAMES: &[&str] = &["map", "tokens", "dungeon_master", "light", "height", "obstacles", "fog_of_war"];
 
@@ -37,6 +38,9 @@ pub struct RenderEngine {
     
     // Lighting system
     lighting: LightingSystem,
+    
+    // Fog of war system
+    fog: FogOfWarSystem,
 }
 
 #[wasm_bindgen]
@@ -45,7 +49,8 @@ impl RenderEngine {
     pub fn new(canvas: HtmlCanvasElement) -> Result<RenderEngine, JsValue> {
         let gl = canvas.get_context("webgl2")?.unwrap().dyn_into::<WebGlRenderingContext>()?;
         let renderer = WebGLRenderer::new(gl.clone())?;
-        let lighting = LightingSystem::new(gl)?;
+        let lighting = LightingSystem::new(gl.clone())?;
+        let fog = FogOfWarSystem::new(gl)?;
         
         let mut layers = HashMap::new();
         for (i, &name) in LAYER_NAMES.iter().enumerate() {
@@ -69,6 +74,7 @@ impl RenderEngine {
             grid_size: 50.0,
             grid_snapping: false,
             lighting,
+            fog,
         };
         
         engine.update_view_matrix();
@@ -87,9 +93,9 @@ impl RenderEngine {
         let mut sorted_layers: Vec<_> = self.layers.iter().collect();
         sorted_layers.sort_by_key(|(_, layer)| layer.z_order);
 
-        // Render all layers except light layer
+        // Render all layers except light and fog_of_war layers
         for (layer_name, layer) in sorted_layers {
-            if layer.visible && layer_name != "light" {
+            if layer.visible && layer_name != "light" && layer_name != "fog_of_war" {
                 for sprite in &layer.sprites {
                     self.draw_sprite(sprite, layer.opacity)?;
                 }
@@ -98,6 +104,9 @@ impl RenderEngine {
 
         // Render lighting system
         self.lighting.render_lights(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y)?;
+        
+        // Render fog of war system (should be rendered last, on top of everything)
+        self.fog.render_fog(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y)?;
         
         // Draw area selection rectangle if active
         if let Some((min, max)) = self.input.get_area_selection_rect() {
@@ -1096,5 +1105,42 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn clear_lights(&mut self) {
         self.lighting.clear_lights();
+    }
+
+    // ===== FOG OF WAR METHODS =====
+
+    #[wasm_bindgen]
+    pub fn set_gm_mode(&mut self, is_gm: bool) {
+        self.fog.set_gm_mode(is_gm);
+    }
+
+    #[wasm_bindgen]
+    pub fn add_fog_rectangle(&mut self, id: &str, start_x: f32, start_y: f32, end_x: f32, end_y: f32, mode: &str) {
+        self.fog.add_fog_rectangle(id.to_string(), start_x, start_y, end_x, end_y, mode);
+    }
+
+    #[wasm_bindgen]
+    pub fn remove_fog_rectangle(&mut self, id: &str) {
+        self.fog.remove_fog_rectangle(id);
+    }
+
+    #[wasm_bindgen]
+    pub fn clear_fog(&mut self) {
+        self.fog.clear_fog();
+    }
+
+    #[wasm_bindgen]
+    pub fn hide_entire_table(&mut self, table_width: f32, table_height: f32) {
+        self.fog.hide_entire_table(table_width, table_height);
+    }
+
+    #[wasm_bindgen]
+    pub fn is_point_in_fog(&self, x: f32, y: f32) -> bool {
+        self.fog.is_point_in_fog(x, y)
+    }
+
+    #[wasm_bindgen]
+    pub fn get_fog_count(&self) -> usize {
+        self.fog.get_fog_count()
     }
 }

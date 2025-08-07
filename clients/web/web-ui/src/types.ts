@@ -162,6 +162,15 @@ export interface RenderEngine {
   turn_off_all_lights: () => void;
   get_light_count: () => number;
   clear_lights: () => void;
+  
+  // Fog of War system
+  set_gm_mode: (is_gm: boolean) => void;
+  add_fog_rectangle: (id: string, start_x: number, start_y: number, end_x: number, end_y: number, mode: string) => void;
+  remove_fog_rectangle: (id: string) => void;
+  clear_fog: () => void;
+  hide_entire_table: (table_width: number, table_height: number) => void;
+  is_point_in_fog: (x: number, y: number) => boolean;
+  get_fog_count: () => number;
 }
 
 // Window interface extensions

@@ -9,6 +9,7 @@ use crate::camera::Camera;
 use crate::input::{InputHandler, InputMode, ResizeHandle, HandleDetector};
 use crate::sprite_manager::SpriteManager;
 use crate::webgl_renderer::WebGLRenderer;
+use crate::lighting::LightingSystem;
 
 const LAYER_NAMES: &[&str] = &["map", "tokens", "dungeon_master", "light", "height", "obstacles", "fog_of_war"];
 
@@ -33,6 +34,9 @@ pub struct RenderEngine {
     grid_enabled: bool,
     grid_size: f32,
     grid_snapping: bool,
+    
+    // Lighting system
+    lighting: LightingSystem,
 }
 
 #[wasm_bindgen]
@@ -40,7 +44,8 @@ impl RenderEngine {
     #[wasm_bindgen(constructor)]
     pub fn new(canvas: HtmlCanvasElement) -> Result<RenderEngine, JsValue> {
         let gl = canvas.get_context("webgl2")?.unwrap().dyn_into::<WebGlRenderingContext>()?;
-        let renderer = WebGLRenderer::new(gl)?;
+        let renderer = WebGLRenderer::new(gl.clone())?;
+        let lighting = LightingSystem::new(gl)?;
         
         let mut layers = HashMap::new();
         for (i, &name) in LAYER_NAMES.iter().enumerate() {
@@ -63,6 +68,7 @@ impl RenderEngine {
             grid_enabled: true,
             grid_size: 50.0,
             grid_snapping: false,
+            lighting,
         };
         
         engine.update_view_matrix();
@@ -80,14 +86,18 @@ impl RenderEngine {
         // Sort layers by z_order
         let mut sorted_layers: Vec<_> = self.layers.iter().collect();
         sorted_layers.sort_by_key(|(_, layer)| layer.z_order);
-        
-        for (_, layer) in sorted_layers {
-            if layer.visible {
+
+        // Render all layers except light layer
+        for (layer_name, layer) in sorted_layers {
+            if layer.visible && layer_name != "light" {
                 for sprite in &layer.sprites {
                     self.draw_sprite(sprite, layer.opacity)?;
                 }
             }
         }
+
+        // Render lighting system
+        self.lighting.render_lights(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y)?;
         
         // Draw area selection rectangle if active
         if let Some((min, max)) = self.input.get_area_selection_rect() {
@@ -1021,5 +1031,70 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn resize(&mut self, width: f32, height: f32) {
         self.resize_canvas(width, height);
+    }
+
+    // Lighting system methods
+    #[wasm_bindgen]
+    pub fn add_light(&mut self, id: &str, x: f32, y: f32) {
+        let light = crate::lighting::Light::new(id.to_string(), x, y);
+        self.lighting.add_light(light);
+    }
+
+    #[wasm_bindgen]
+    pub fn remove_light(&mut self, id: &str) {
+        self.lighting.remove_light(id);
+    }
+
+    #[wasm_bindgen]
+    pub fn set_light_color(&mut self, id: &str, r: f32, g: f32, b: f32, a: f32) {
+        if let Some(light) = self.lighting.get_light_mut(id) {
+            light.set_color_struct(Color::new(r, g, b, a));
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn set_light_intensity(&mut self, id: &str, intensity: f32) {
+        if let Some(light) = self.lighting.get_light_mut(id) {
+            light.set_intensity(intensity);
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn set_light_radius(&mut self, id: &str, radius: f32) {
+        if let Some(light) = self.lighting.get_light_mut(id) {
+            light.set_radius(radius);
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn toggle_light(&mut self, id: &str) {
+        if let Some(light) = self.lighting.get_light_mut(id) {
+            light.toggle();
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn update_light_position(&mut self, id: &str, x: f32, y: f32) {
+        self.lighting.update_light_position(id, Vec2::new(x, y));
+    }
+
+    #[wasm_bindgen]
+    pub fn turn_on_all_lights(&mut self) {
+        self.lighting.turn_on_all();
+    }
+
+    #[wasm_bindgen]
+    pub fn turn_off_all_lights(&mut self) {
+        self.lighting.turn_off_all();
+    }
+
+    #[wasm_bindgen]
+    pub fn get_light_count(&self) -> usize {
+        self.lighting.get_light_count()
+    }
+
+    #[wasm_bindgen]
+    pub fn clear_lights(&mut self) {
+        self.lighting.clear_lights();
     }
 }

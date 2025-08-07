@@ -2,8 +2,11 @@
 import { useGameStore } from '../store';
 import DiceRoller from '../tools/DiceRoller';
 import type { GameAPI } from '../types';
-import { LayerPanel } from './LayerPanel';
+import { AlignmentHelper } from './AlignmentHelper';
 import { GridControls } from './GridControls';
+import { LayerPanel } from './LayerPanel';
+import { MeasurementTool } from './MeasurementTool';
+import { SpriteCreationTools } from './SpriteCreationTools';
 
 // Global type declarations
 declare global {
@@ -17,7 +20,16 @@ const isIntegrationMode = !document.getElementById('root');
 
 export function ToolsPanel() {
   console.log('[ToolsPanel] Component mounted');
-  const { isConnected, sessionId, activeLayer } = useGameStore();
+  const { 
+    isConnected, 
+    sessionId, 
+    activeLayer, 
+    activeTool, 
+    measurementActive, 
+    alignmentActive, 
+    spriteCreationActive,
+    setActiveTool 
+  } = useGameStore();
   
   // Sprite and test handlers (stub implementations)
   const handleAddSprite = () => {
@@ -126,12 +138,71 @@ export function ToolsPanel() {
 
 
 
-      {/* Toolbar Section */}
+      {/* Enhanced Toolbar Section */}
       <div className="toolbar">
-        <button className="active">Select Tool</button>
-        <button>Move Tool</button>
-        <button>Measure Tool</button>
-        <button>Paint Tool</button>
+        <button 
+          className={activeTool === 'select' ? 'active' : ''} 
+          onClick={() => setActiveTool('select')}
+          title="Select Tool"
+        >
+          🔍 Select
+        </button>
+        <button 
+          className={activeTool === 'move' ? 'active' : ''} 
+          onClick={() => setActiveTool('move')}
+          title="Move Tool"
+        >
+          ✋ Move
+        </button>
+        <button 
+          className={activeTool === 'measure' ? 'active' : ''} 
+          onClick={() => setActiveTool('measure')}
+          title="Measurement Tool"
+        >
+          📏 Measure
+        </button>
+        <button 
+          className={activeTool === 'align' ? 'active' : ''} 
+          onClick={() => setActiveTool('align')}
+          title="Alignment Helper"
+        >
+          📐 Align
+        </button>
+      </div>
+
+      {/* Sprite Creation Tools */}
+      <div className="creation-toolbar">
+        <h4>Create Sprites</h4>
+        <div className="creation-buttons">
+          <button 
+            className={activeTool === 'rectangle' ? 'active' : ''} 
+            onClick={() => setActiveTool('rectangle')}
+            title="Create Rectangle"
+          >
+            ⬛ Rectangle
+          </button>
+          <button 
+            className={activeTool === 'circle' ? 'active' : ''} 
+            onClick={() => setActiveTool('circle')}
+            title="Create Circle"
+          >
+            ⭕ Circle
+          </button>
+          <button 
+            className={activeTool === 'line' ? 'active' : ''} 
+            onClick={() => setActiveTool('line')}
+            title="Create Line"
+          >
+            📏 Line
+          </button>
+          <button 
+            className={activeTool === 'text' ? 'active' : ''} 
+            onClick={() => setActiveTool('text')}
+            title="Create Text"
+          >
+            🔤 Text
+          </button>
+        </div>
       </div>
 
       {/* Layer Management Panel */}
@@ -155,8 +226,15 @@ export function ToolsPanel() {
           <li>Click & drag sprites to move</li>
           <li>Drag empty space to pan camera</li>
           <li>Mouse wheel to zoom in/out</li>
+          <li>Ctrl+click for multi-select</li>
+          <li>Drag rectangle to area select</li>
         </ul>
       </div>
+
+      {/* Tool Overlays */}
+      <MeasurementTool isActive={measurementActive} />
+      <AlignmentHelper isActive={alignmentActive} />
+      <SpriteCreationTools isActive={spriteCreationActive} />
     </div>
   );
 }

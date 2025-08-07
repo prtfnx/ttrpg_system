@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { ConnectionState, GameState, Sprite } from './types';
+import type { ToolType } from './types/tools';
 
 interface GameStore extends GameState {
   // Layer management state
@@ -12,6 +13,12 @@ interface GameStore extends GameState {
   gridEnabled: boolean;
   gridSnapping: boolean;
   gridSize: number;
+  
+  // Tool system state
+  activeTool: ToolType;
+  measurementActive: boolean;
+  alignmentActive: boolean;
+  spriteCreationActive: boolean;
   
   // Actions
   moveSprite: (id: string, x: number, y: number) => void;
@@ -35,6 +42,12 @@ interface GameStore extends GameState {
   setGridEnabled: (enabled: boolean) => void;
   setGridSnapping: (enabled: boolean) => void;
   setGridSize: (size: number) => void;
+  
+  // Tool system actions
+  setActiveTool: (tool: ToolType) => void;
+  setMeasurementActive: (active: boolean) => void;
+  setAlignmentActive: (active: boolean) => void;
+  setSpriteCreationActive: (active: boolean) => void;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -74,6 +87,12 @@ export const useGameStore = create<GameStore>()(
       gridEnabled: true,
       gridSnapping: false,
       gridSize: 50,
+      
+      // Tool system initial state
+      activeTool: 'select',
+      measurementActive: false,
+      alignmentActive: false,
+      spriteCreationActive: false,
 
       // Actions
       moveSprite: (id: string, x: number, y: number) => {
@@ -220,6 +239,34 @@ export const useGameStore = create<GameStore>()(
       setGridSize: (size: number) => {
         set(() => ({
           gridSize: size,
+        }));
+      },
+      
+      // Tool system actions
+      setActiveTool: (tool: ToolType) => {
+        set(() => ({
+          activeTool: tool,
+          measurementActive: tool === 'measure',
+          alignmentActive: tool === 'align',
+          spriteCreationActive: ['rectangle', 'circle', 'line', 'text'].includes(tool),
+        }));
+      },
+
+      setMeasurementActive: (active: boolean) => {
+        set(() => ({
+          measurementActive: active,
+        }));
+      },
+
+      setAlignmentActive: (active: boolean) => {
+        set(() => ({
+          alignmentActive: active,
+        }));
+      },
+
+      setSpriteCreationActive: (active: boolean) => {
+        set(() => ({
+          spriteCreationActive: active,
         }));
       },
     }),

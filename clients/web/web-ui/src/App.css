@@ -160,6 +160,48 @@ body {
   border-color: #3b82f6;
 }
 
+/* Enhanced Toolbar Styles */
+.creation-toolbar {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #404040;
+}
+
+.creation-toolbar h4 {
+  margin: 0 0 0.5rem 0;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.creation-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+}
+
+.creation-buttons button {
+  padding: 0.5rem 0.25rem;
+  background-color: #3a3a3a;
+  border: 1px solid #404040;
+  border-radius: 4px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.creation-buttons button:hover {
+  background-color: #4a4a4a;
+  border-color: #606060;
+}
+
+.creation-buttons button.active {
+  background-color: #059669;
+  border-color: #10b981;
+}
+
 /* Loading State */
 .loading {
   display: flex;

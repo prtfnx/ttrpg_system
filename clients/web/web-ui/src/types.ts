@@ -6,6 +6,13 @@ export interface Position {
 
 export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
 
+export interface Color {
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+}
+
 export interface Sprite {
   id: string;
   name: string;
@@ -142,6 +149,19 @@ export interface RenderEngine {
   
   // Cursor management
   get_cursor_type: (screen_x: number, screen_y: number) => string;
+  
+  // Lighting system
+  add_light: (id: string, x: number, y: number) => void;
+  remove_light: (id: string) => void;
+  set_light_color: (id: string, r: number, g: number, b: number, a: number) => void;
+  set_light_intensity: (id: string, intensity: number) => void;
+  set_light_radius: (id: string, radius: number) => void;
+  toggle_light: (id: string) => void;
+  update_light_position: (id: string, x: number, y: number) => void;
+  turn_on_all_lights: () => void;
+  turn_off_all_lights: () => void;
+  get_light_count: () => number;
+  clear_lights: () => void;
 }
 
 // Window interface extensions

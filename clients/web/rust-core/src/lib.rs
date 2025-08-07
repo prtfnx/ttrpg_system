@@ -16,6 +16,7 @@ mod input;
 mod sprite_manager;
 mod webgl_renderer;
 mod lighting;
+mod fog;
 
 pub use render::RenderEngine;
 pub use types::*;

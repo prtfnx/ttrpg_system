@@ -15,9 +15,11 @@ mod camera;
 mod input;
 mod sprite_manager;
 mod webgl_renderer;
+mod lighting;
 
 pub use render::RenderEngine;
 pub use types::*;
+pub use lighting::{Light, LightingSystem};
 
 use web_sys::HtmlCanvasElement;
 

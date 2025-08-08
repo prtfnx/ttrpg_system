@@ -196,7 +196,7 @@ impl EventSystem {
     // Helper methods
     fn find_sprite_at_position(world_pos: Vec2, layers: &HashMap<String, Layer>) -> Option<String> {
         let mut sorted_layers: Vec<_> = layers.iter().collect();
-        sorted_layers.sort_by_key(|(_, layer)| std::cmp::Reverse(layer.z_order));
+        sorted_layers.sort_by_key(|(_, layer)| std::cmp::Reverse(layer.z_order()));
         
         for (_, layer) in sorted_layers {
             if layer.selectable {

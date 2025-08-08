@@ -1,5 +1,6 @@
 use wasm_bindgen::prelude::*;
 use web_sys::{HtmlCanvasElement, WebGl2RenderingContext as WebGlRenderingContext, HtmlImageElement};
+use serde_wasm_bindgen;
 
 use crate::types::*;
 use crate::math::*;
@@ -92,13 +93,16 @@ impl RenderEngine {
         
         // Sort layers by z_order
         let mut sorted_layers: Vec<_> = self.layer_manager.get_layers().iter().collect();
-        sorted_layers.sort_by_key(|(_, layer)| layer.z_order);
+        sorted_layers.sort_by_key(|(_, layer)| layer.settings.z_order);
 
-        // Render all layers except light and fog_of_war layers
+        // Render all layers except light and fog_of_war layers (they have special handling)
         for (layer_name, layer) in sorted_layers {
-            if layer.visible && layer_name != "light" && layer_name != "fog_of_war" {
+            if layer.settings.visible && layer_name != "light" && layer_name != "fog_of_war" {
+                self.renderer.set_blend_mode(&layer.settings.blend_mode);
+                self.renderer.set_layer_color(&layer.settings.color);
+                
                 for sprite in &layer.sprites {
-                    SpriteRenderer::draw_sprite(sprite, layer.opacity, &self.renderer, &self.texture_manager, &self.input)?;
+                    SpriteRenderer::draw_sprite(sprite, layer.settings.opacity, &self.renderer, &self.texture_manager, &self.input)?;
                 }
             }
         }
@@ -424,17 +428,6 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn load_texture(&mut self, name: &str, image: &HtmlImageElement) -> Result<(), JsValue> {
         self.texture_manager.load_texture(name, image)
-    }
-
-    // Layer management methods
-    #[wasm_bindgen]
-    pub fn set_layer_opacity(&mut self, layer_name: &str, opacity: f32) {
-        self.layer_manager.set_layer_opacity(layer_name, opacity);
-    }
-
-    #[wasm_bindgen]
-    pub fn set_layer_visible(&mut self, layer_name: &str, visible: bool) {
-        self.layer_manager.set_layer_visible(layer_name, visible);
     }
 
     // Right-click handling for context menu
@@ -900,7 +893,7 @@ impl RenderEngine {
         let result = self.actions.set_layer_visibility(layer, visible);
         
         // Also update the layer manager
-        self.layer_manager.set_layer_visible(layer, visible);
+        self.layer_manager.set_layer_visibility(layer, visible);
         
         result
     }
@@ -989,5 +982,48 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn set_actions_auto_sync(&mut self, enabled: bool) {
         self.actions.set_auto_sync(enabled);
+    }
+    
+    // Advanced Layer Management for Rendering Pipeline
+    #[wasm_bindgen]
+    pub fn set_layer_opacity(&mut self, layer_name: &str, opacity: f32) -> bool {
+        self.layer_manager.set_layer_opacity(layer_name, opacity)
+    }
+    
+    #[wasm_bindgen]
+    pub fn set_layer_visibility(&mut self, layer_name: &str, visible: bool) -> bool {
+        self.layer_manager.set_layer_visibility(layer_name, visible)
+    }
+    
+    #[wasm_bindgen]
+    pub fn set_layer_blend_mode(&mut self, layer_name: &str, blend_mode: &str) -> bool {
+        use crate::types::BlendMode;
+        let blend_mode = match blend_mode {
+            "alpha" => BlendMode::Alpha,
+            "additive" => BlendMode::Additive,
+            "modulate" => BlendMode::Modulate,
+            "multiply" => BlendMode::Multiply,
+            _ => return false,
+        };
+        self.layer_manager.set_layer_blend_mode(layer_name, blend_mode)
+    }
+    
+    #[wasm_bindgen]
+    pub fn set_layer_color(&mut self, layer_name: &str, r: f32, g: f32, b: f32) -> bool {
+        self.layer_manager.set_layer_color(layer_name, r, g, b)
+    }
+    
+    #[wasm_bindgen]
+    pub fn get_layer_settings(&self, layer_name: &str) -> JsValue {
+        if let Some(settings) = self.layer_manager.get_layer_settings(layer_name) {
+            serde_wasm_bindgen::to_value(settings).unwrap_or(JsValue::NULL)
+        } else {
+            JsValue::NULL
+        }
+    }
+    
+    #[wasm_bindgen]
+    pub fn get_layer_names(&self) -> Vec<String> {
+        self.layer_manager.get_layers().keys().cloned().collect()
     }
 }

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use gloo_utils::format::JsValueSerdeExt;
-use crate::types::{Sprite, Layer};
+use crate::types::{Sprite, Layer, LayerSettings, BlendMode};
 use crate::math::Vec2;
 
 pub const LAYER_NAMES: &[&str] = &["map", "tokens", "dungeon_master", "light", "height", "obstacles", "fog_of_war"];
@@ -14,7 +14,17 @@ impl LayerManager {
     pub fn new() -> Self {
         let mut layers = HashMap::new();
         for (i, &name) in LAYER_NAMES.iter().enumerate() {
-            layers.insert(name.to_string(), Layer::new(i as i32));
+            let mut settings = LayerSettings::default();
+            settings.z_order = i as i32;
+            
+            // Configure default blend modes for specific layers
+            match name {
+                "light" => settings.blend_mode = BlendMode::Additive,
+                "fog_of_war" => settings.blend_mode = BlendMode::Multiply,
+                _ => settings.blend_mode = BlendMode::Alpha,
+            }
+            
+            layers.insert(name.to_string(), Layer::new_with_settings(settings));
         }
         
         Self { layers }
@@ -34,6 +44,56 @@ impl LayerManager {
     
     pub fn get_layer_mut(&mut self, layer_name: &str) -> Option<&mut Layer> {
         self.layers.get_mut(layer_name)
+    }
+    
+    // Layer settings management methods
+    pub fn set_layer_opacity(&mut self, layer_name: &str, opacity: f32) -> bool {
+        if let Some(layer) = self.layers.get_mut(layer_name) {
+            layer.set_opacity(opacity);
+            true
+        } else {
+            false
+        }
+    }
+    
+    pub fn set_layer_visibility(&mut self, layer_name: &str, visible: bool) -> bool {
+        if let Some(layer) = self.layers.get_mut(layer_name) {
+            layer.set_visibility(visible);
+            true
+        } else {
+            false
+        }
+    }
+    
+    pub fn set_layer_blend_mode(&mut self, layer_name: &str, blend_mode: BlendMode) -> bool {
+        if let Some(layer) = self.layers.get_mut(layer_name) {
+            layer.set_blend_mode(blend_mode);
+            true
+        } else {
+            false
+        }
+    }
+    
+    pub fn set_layer_color(&mut self, layer_name: &str, r: f32, g: f32, b: f32) -> bool {
+        if let Some(layer) = self.layers.get_mut(layer_name) {
+            layer.set_color(r, g, b);
+            true
+        } else {
+            false
+        }
+    }
+    
+    pub fn configure_layer(&mut self, layer_name: &str, settings: LayerSettings) -> bool {
+        if let Some(layer) = self.layers.get_mut(layer_name) {
+            layer.settings = settings;
+            true
+        } else {
+            false
+        }
+    }
+    
+    pub fn get_layer_settings(&self, layer_name: &str) -> Option<&LayerSettings> {
+        self.layers.get(layer_name).map(|layer| &layer.settings)
     }
     
     pub fn add_sprite_to_layer(&mut self, layer_name: &str, sprite_data: &JsValue) -> Result<String, JsValue> {
@@ -104,22 +164,10 @@ impl LayerManager {
         false
     }
     
-    pub fn set_layer_opacity(&mut self, layer_name: &str, opacity: f32) {
-        if let Some(layer) = self.layers.get_mut(layer_name) {
-            layer.opacity = opacity.clamp(0.0, 1.0);
-        }
-    }
-
-    pub fn set_layer_visible(&mut self, layer_name: &str, visible: bool) {
-        if let Some(layer) = self.layers.get_mut(layer_name) {
-            layer.visible = visible;
-        }
-    }
-    
     pub fn find_sprite_at_position(&self, world_pos: Vec2) -> Option<String> {
         // Search in reverse z-order (top layers first)
         let mut sorted_layers: Vec<_> = self.layers.iter().collect();
-        sorted_layers.sort_by_key(|(_, layer)| std::cmp::Reverse(layer.z_order));
+        sorted_layers.sort_by_key(|(_, layer)| std::cmp::Reverse(layer.z_order()));
         
         for (_, layer) in sorted_layers {
             if layer.selectable {
@@ -166,10 +214,10 @@ impl LayerManager {
     pub fn find_sprite_for_right_click(&self, world_pos: Vec2) -> Option<String> {
         // Search for sprite at position (reverse z-order for top-most)
         let mut sorted_layers: Vec<_> = self.layers.iter().collect();
-        sorted_layers.sort_by_key(|(_, layer)| std::cmp::Reverse(layer.z_order));
+        sorted_layers.sort_by_key(|(_, layer)| std::cmp::Reverse(layer.z_order()));
         
         for (_, layer) in sorted_layers {
-            if layer.visible {
+            if layer.visible() {
                 for sprite in layer.sprites.iter().rev() {
                     if sprite.contains_world_point(world_pos) {
                         return Some(sprite.id.clone());

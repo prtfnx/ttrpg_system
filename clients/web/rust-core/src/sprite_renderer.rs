@@ -32,6 +32,9 @@ impl SpriteRenderer {
         
         let mut color = sprite.tint_color;
         
+        // Apply layer color modulation
+        color = renderer.modulate_color(color);
+        
         let has_texture = !sprite.texture_id.is_empty() && texture_manager.has_texture(&sprite.texture_id);
         if has_texture {
             texture_manager.bind_texture(&sprite.texture_id);

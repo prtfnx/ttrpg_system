@@ -112,7 +112,7 @@ impl BlendMode {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LayerSettings {
     pub color: [f32; 3], // RGB color as 0.0-1.0 values
     pub opacity: f32,

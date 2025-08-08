@@ -720,4 +720,98 @@ impl RenderEngine {
             InputMode::FogErase => "fog_erase".to_string(),
         }
     }
+
+    // ============================================================================
+    // NETWORK INTEGRATION - Direct integration with NetworkClient
+    // ============================================================================
+    
+    #[wasm_bindgen]
+    pub fn get_sprite_network_data(&self, sprite_id: &str) -> Result<JsValue, JsValue> {
+        if let Some((sprite, layer_name)) = self.layer_manager.find_sprite(sprite_id) {
+            let network_data = crate::network::SpriteNetworkData {
+                sprite_id: sprite_id.to_string(),
+                layer_name: layer_name.to_string(),
+                world_x: sprite.world_x,
+                world_y: sprite.world_y,
+                width: sprite.width,
+                height: sprite.height,
+                rotation: sprite.rotation,
+                texture_name: sprite.texture_id.clone(),
+            };
+            serde_wasm_bindgen::to_value(&network_data).map_err(|e| JsValue::from_str(&e.to_string()))
+        } else {
+            Err(JsValue::from_str("Sprite not found"))
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn apply_network_sprite_update(&mut self, sprite_data: &JsValue) -> Result<(), JsValue> {
+        let network_data: crate::network::SpriteNetworkData = 
+            serde_wasm_bindgen::from_value(sprite_data.clone())?;
+        
+        // Find the sprite and update it
+        if let Some(sprite) = self.layer_manager.find_sprite_mut(&network_data.sprite_id) {
+            sprite.world_x = network_data.world_x;
+            sprite.world_y = network_data.world_y;
+            sprite.width = network_data.width;
+            sprite.height = network_data.height;
+            sprite.rotation = network_data.rotation;
+            sprite.texture_id = network_data.texture_name;
+            Ok(())
+        } else {
+            Err(JsValue::from_str("Sprite not found for network update"))
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn apply_network_sprite_create(&mut self, sprite_data: &JsValue) -> Result<String, JsValue> {
+        let network_data: crate::network::SpriteNetworkData = 
+            serde_wasm_bindgen::from_value(sprite_data.clone())?;
+        
+        // Create a new sprite from network data
+        let sprite = Sprite {
+            id: network_data.sprite_id.clone(),
+            world_x: network_data.world_x,
+            world_y: network_data.world_y,
+            width: network_data.width,
+            height: network_data.height,
+            scale_x: 1.0,
+            scale_y: 1.0,
+            rotation: network_data.rotation,
+            layer: network_data.layer_name.clone(),
+            texture_id: network_data.texture_name,
+            tint_color: [1.0, 1.0, 1.0, 1.0],
+        };
+        
+        let sprite_js = serde_wasm_bindgen::to_value(&sprite)?;
+        self.layer_manager.add_sprite_to_layer(&network_data.layer_name, &sprite_js)
+    }
+
+    #[wasm_bindgen]
+    pub fn apply_network_sprite_remove(&mut self, sprite_id: &str) -> bool {
+        self.remove_sprite(sprite_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn get_all_sprites_network_data(&self) -> Result<JsValue, JsValue> {
+        let mut all_sprites = Vec::new();
+        
+        for (layer_name, layer) in self.layer_manager.get_layers() {
+            for sprite in &layer.sprites {
+                let network_data = crate::network::SpriteNetworkData {
+                    sprite_id: sprite.id.clone(),
+                    layer_name: layer_name.clone(),
+                    world_x: sprite.world_x,
+                    world_y: sprite.world_y,
+                    width: sprite.width,
+                    height: sprite.height,
+                    rotation: sprite.rotation,
+                    texture_name: sprite.texture_id.clone(),
+                };
+                all_sprites.push(network_data);
+            }
+        }
+        
+        serde_wasm_bindgen::to_value(&all_sprites).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
 }

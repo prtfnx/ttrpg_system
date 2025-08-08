@@ -22,10 +22,12 @@ mod event_system;
 mod layer_manager;
 mod grid_system;
 mod texture_manager;
+mod network;
 
 pub use render::RenderEngine;
 pub use types::*;
 pub use lighting::{Light, LightingSystem};
+pub use network::NetworkClient;
 
 use web_sys::HtmlCanvasElement;
 

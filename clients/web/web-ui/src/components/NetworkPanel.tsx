@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useNetworkClient } from '../hooks/useNetworkClient';
 import styles from './NetworkPanel.module.css';
 

@@ -77,6 +77,52 @@ export class RenderEngine {
   is_in_fog_draw_mode(): boolean;
   is_in_light_drag_mode(): boolean;
   get_current_input_mode(): string;
+
+  // Network integration
+  get_sprite_network_data(sprite_id: string): any;
+  apply_network_sprite_update(sprite_data: any): void;
+  apply_network_sprite_create(sprite_data: any): string;
+  apply_network_sprite_remove(sprite_id: string): boolean;
+  get_all_sprites_network_data(): any[];
+}
+
+export class NetworkClient {
+  free(): void;
+  constructor();
+  
+  // Connection management
+  connect(url: string): void;
+  disconnect(): void;
+  is_connected(): boolean;
+  get_connection_state(): string;
+  get_client_id(): string;
+  get_username(): string | undefined;
+  get_session_code(): string | undefined;
+  set_user_info(user_id: number, username: string, session_code?: string, jwt_token?: string): void;
+  
+  // Event handlers
+  set_message_handler(callback: (messageType: string, data: any) => void): void;
+  set_connection_handler(callback: (state: string, error?: string) => void): void;
+  set_error_handler(callback: (error: string) => void): void;
+  
+  // Message sending
+  send_message(message_type: string, data: any): void;
+  send_sprite_update(sprite_data: any): void;
+  send_sprite_create(sprite_data: any): void;
+  send_sprite_remove(sprite_id: string): void;
+  send_table_update(table_data: any): void;
+  send_ping(): void;
+  
+  // Authentication and session management
+  authenticate(username: string, password: string): void;
+  join_session(session_code: string): void;
+  request_table_list(): void;
+  request_player_list(): void;
+  
+  // Asset management
+  request_asset_upload(filename: string, file_hash: string, file_size: number): void;
+  request_asset_download(asset_id: string): void;
+  confirm_asset_upload(asset_id: string, upload_success: boolean): void;
 }
 
 export function init_game_renderer(canvas: HTMLCanvasElement): RenderEngine;
@@ -84,6 +130,7 @@ export function init_game_renderer(canvas: HTMLCanvasElement): RenderEngine;
 declare global {
   interface Window {
     rustRenderManager?: RenderEngine;
+    rustNetworkClient?: NetworkClient;
     gameAPI?: {
       sendMessage: (type: string, data: any) => void;
     };

@@ -1,7 +1,5 @@
 use wasm_bindgen::prelude::*;
 use web_sys::{HtmlCanvasElement, WebGl2RenderingContext as WebGlRenderingContext, HtmlImageElement};
-use std::collections::HashMap;
-use gloo_utils::format::JsValueSerdeExt;
 
 use crate::types::*;
 use crate::math::*;
@@ -17,13 +15,8 @@ use crate::layer_manager::LayerManager;
 use crate::grid_system::GridSystem;
 use crate::texture_manager::TextureManager;
 
-const LAYER_NAMES: &[&str] = &["map", "tokens", "dungeon_master", "light", "height", "obstacles", "fog_of_war"];
-
 #[wasm_bindgen]
 pub struct RenderEngine {
-    canvas: HtmlCanvasElement,
-    renderer: WebGLRenderer,
-    
     // Systems
     layer_manager: LayerManager,
     grid_system: GridSystem,
@@ -37,6 +30,9 @@ pub struct RenderEngine {
     // Input handling
     input: InputHandler,
     event_system: EventSystem,
+    
+    // Core rendering
+    renderer: WebGLRenderer,
     
     // Lighting system
     lighting: LightingSystem,
@@ -63,8 +59,6 @@ impl RenderEngine {
         let view_matrix = camera.view_matrix(canvas_size);
         
         let mut engine = Self {
-            canvas,
-            renderer,
             layer_manager,
             grid_system,
             texture_manager,
@@ -73,6 +67,7 @@ impl RenderEngine {
             canvas_size,
             input: InputHandler::new(),
             event_system: EventSystem::new(),
+            renderer,
             lighting,
             fog,
         };

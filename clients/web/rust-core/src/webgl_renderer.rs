@@ -1,12 +1,14 @@
 use wasm_bindgen::prelude::*;
 use web_sys::{WebGl2RenderingContext as WebGlRenderingContext, WebGlProgram, WebGlShader, WebGlBuffer};
 use crate::math::Vec2;
+use crate::types::BlendMode;
 
 pub struct WebGLRenderer {
     pub gl: WebGlRenderingContext,
     pub shader_program: Option<WebGlProgram>,
     vertex_buffer: Option<WebGlBuffer>,
     index_buffer: Option<WebGlBuffer>,
+    current_layer_color: [f32; 3],
 }
 
 impl WebGLRenderer {
@@ -20,6 +22,7 @@ impl WebGLRenderer {
             shader_program: None,
             vertex_buffer: None,
             index_buffer: None,
+            current_layer_color: [1.0, 1.0, 1.0], // Default to white
         };
         renderer.init_shaders()?;
         renderer.init_buffers()?;
@@ -238,5 +241,31 @@ impl WebGLRenderer {
             let canvas_size_location = self.gl.get_uniform_location(program, "u_canvas_size");
             self.gl.uniform2f(canvas_size_location.as_ref(), canvas_size.x, canvas_size.y);
         }
+    }
+    
+    /// Set the blend mode for the renderer based on the layer settings
+    pub fn set_blend_mode(&self, blend_mode: &BlendMode) {
+        let (src_factor, dst_factor) = blend_mode.to_webgl_equation();
+        self.gl.blend_func(src_factor, dst_factor);
+    }
+    
+    /// Set the layer color that will be multiplied with textures
+    pub fn set_layer_color(&mut self, color: &[f32; 3]) {
+        self.current_layer_color = *color;
+    }
+    
+    /// Get the current layer color for sprite rendering
+    pub fn get_layer_color(&self) -> [f32; 3] {
+        self.current_layer_color
+    }
+    
+    /// Apply layer color modulation to a sprite color
+    pub fn modulate_color(&self, sprite_color: [f32; 4]) -> [f32; 4] {
+        [
+            sprite_color[0] * self.current_layer_color[0],
+            sprite_color[1] * self.current_layer_color[1], 
+            sprite_color[2] * self.current_layer_color[2],
+            sprite_color[3], // Alpha remains unchanged
+        ]
     }
 }

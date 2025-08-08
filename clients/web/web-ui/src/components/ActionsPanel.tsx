@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { useActions, type ActionResult, type TableInfo, type SpriteInfo, type BatchAction } from '../hooks/useActions';
+import React, { useCallback, useState } from 'react';
+import { useActions, type ActionResult, type BatchAction, type TableInfo } from '../hooks/useActions';
 import type { RenderEngine } from '../types/wasm';
 import './ActionsPanel.css';
 

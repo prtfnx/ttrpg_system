@@ -47,6 +47,13 @@ export class RenderEngine {
   get_light_count(): number;
   clear_lights(): void;
   
+  // Interactive lighting controls
+  get_light_at_position(x: number, y: number): string | undefined;
+  start_light_drag(light_id: string, world_x: number, world_y: number): boolean;
+  update_light_drag(world_x: number, world_y: number): boolean;
+  end_light_drag(): string | undefined;
+  get_light_radius(light_id: string): number;
+  
   // Fog of war system
   set_gm_mode(is_gm: boolean): void;
   add_fog_rectangle(id: string, start_x: number, start_y: number, end_x: number, end_y: number, mode: string): void;
@@ -55,6 +62,21 @@ export class RenderEngine {
   hide_entire_table(table_width: number, table_height: number): void;
   is_point_in_fog(x: number, y: number): boolean;
   get_fog_count(): number;
+  
+  // Interactive fog controls
+  start_fog_draw(world_x: number, world_y: number, mode: string): string;
+  update_fog_draw(rect_id: string, world_x: number, world_y: number): boolean;
+  finish_fog_draw(rect_id: string): boolean;
+  cancel_fog_draw(rect_id: string): void;
+  get_fog_at_position(x: number, y: number): string | undefined;
+  
+  // Tool mode management
+  set_fog_draw_mode(enabled: boolean): void;
+  set_fog_erase_mode(enabled: boolean): void;
+  set_light_drag_mode(enabled: boolean): void;
+  is_in_fog_draw_mode(): boolean;
+  is_in_light_drag_mode(): boolean;
+  get_current_input_mode(): string;
 }
 
 export function init_game_renderer(canvas: HTMLCanvasElement): RenderEngine;

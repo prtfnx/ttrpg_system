@@ -78,6 +78,22 @@ export const FogPanel: React.FC = () => {
     <div className={styles['fog-panel']}>
       <h3>Fog of War</h3>
       
+      {/* Drawing status indicator */}
+      {engine?.is_in_fog_draw_mode() && (
+        <div className={styles['drawing-indicator']}>
+          🖌️ Drawing {engine.get_current_input_mode() === 'fog_draw' ? 'hide' : 'reveal'} areas...
+          <button 
+            onClick={() => {
+              engine?.set_fog_draw_mode(false);
+              engine?.set_fog_erase_mode(false);
+            }} 
+            className={styles['cancel-button']}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+      
       {/* GM Mode Toggle */}
       <div className={styles['gm-mode']}>
         <label>
@@ -90,9 +106,65 @@ export const FogPanel: React.FC = () => {
         </label>
       </div>
 
-      {/* Drawing Mode */}
-      <div className={styles['drawing-mode']}>
-        <h4>Drawing Mode</h4>
+      {/* Interactive Drawing Controls */}
+      {isGmMode && (
+        <div className={styles['interactive-drawing']}>
+          <h4>Interactive Drawing</h4>
+          <div className={styles['drawing-controls']}>
+            <div className={styles['mode-buttons']}>
+              <button
+                className={`${styles['mode-button']} ${engine?.is_in_fog_draw_mode() && engine?.get_current_input_mode() === 'fog_draw' ? styles.active : ''}`}
+                onClick={() => {
+                  if (!engine) return;
+                  const isActive = engine.get_current_input_mode() === 'fog_draw';
+                  engine.set_fog_draw_mode(!isActive);
+                  if (!isActive) {
+                    engine.set_fog_erase_mode(false); // Turn off erase mode
+                  }
+                  setCurrentMode('hide');
+                }}
+              >
+                🌫️ Hide Mode
+              </button>
+              <button
+                className={`${styles['mode-button']} ${engine?.is_in_fog_draw_mode() && engine?.get_current_input_mode() === 'fog_erase' ? styles.active : ''}`}
+                onClick={() => {
+                  if (!engine) return;
+                  const isActive = engine.get_current_input_mode() === 'fog_erase';
+                  engine.set_fog_erase_mode(!isActive);
+                  if (!isActive) {
+                    engine.set_fog_draw_mode(false); // Turn off draw mode
+                  }
+                  setCurrentMode('reveal');
+                }}
+              >
+                👁️ Reveal Mode
+              </button>
+              <button
+                className={`${styles['mode-button']} ${!engine?.is_in_fog_draw_mode() ? styles.active : ''}`}
+                onClick={() => {
+                  if (!engine) return;
+                  engine.set_fog_draw_mode(false);
+                  engine.set_fog_erase_mode(false);
+                }}
+              >
+                �️ Select Mode
+              </button>
+            </div>
+            {engine?.is_in_fog_draw_mode() && (
+              <p className={styles['drawing-hint']}>
+                {engine.get_current_input_mode() === 'fog_draw' ? 
+                  'Click and drag to hide areas' : 
+                  'Click and drag to reveal areas'}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Manual Entry Drawing Mode */}
+      <div className={styles['manual-drawing-mode']}>
+        <h4>Manual Entry</h4>
         <div className={styles['mode-buttons']}>
           <button
             className={`${styles['mode-button']} ${currentMode === 'hide' ? styles.active : ''}`}

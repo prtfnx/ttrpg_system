@@ -84,6 +84,32 @@ export class RenderEngine {
   apply_network_sprite_create(sprite_data: any): string;
   apply_network_sprite_remove(sprite_id: string): boolean;
   get_all_sprites_network_data(): any[];
+
+  // Actions System Integration
+  create_table_action(name: string, width: number, height: number): any;
+  delete_table_action(table_id: string): any;
+  update_table_action(table_id: string, updates: any): any;
+  create_sprite_action(table_id: string, layer: string, position: any, texture_name: string): any;
+  delete_sprite_action(sprite_id: string): any;
+  update_sprite_action(sprite_id: string, updates: any): any;
+  set_layer_visibility_action(layer: string, visible: boolean): any;
+  move_sprite_to_layer_action(sprite_id: string, new_layer: string): any;
+  batch_actions(actions: any): any;
+  undo_action(): any;
+  redo_action(): any;
+  can_undo(): boolean;
+  can_redo(): boolean;
+  get_action_history(): any;
+  get_table_info(table_id: string): any;
+  get_sprite_info(sprite_id: string): any;
+  get_all_tables(): any;
+  get_sprites_by_layer(layer: string): any;
+  
+  // Actions event handlers
+  set_action_handler(callback: (actionType: string, data: any) => void): void;
+  set_state_change_handler(callback: (eventType: string, targetId: string) => void): void;
+  set_actions_error_handler(callback: (error: string) => void): void;
+  set_actions_auto_sync(enabled: boolean): void;
 }
 
 export class NetworkClient {
@@ -123,6 +149,50 @@ export class NetworkClient {
   request_asset_upload(filename: string, file_hash: string, file_size: number): void;
   request_asset_download(asset_id: string): void;
   confirm_asset_upload(asset_id: string, upload_success: boolean): void;
+}
+
+export class ActionsClient {
+  free(): void;
+  constructor();
+  
+  // Event handlers
+  set_action_handler(callback: (actionType: string, data: any) => void): void;
+  set_state_change_handler(callback: (eventType: string, targetId: string) => void): void;
+  set_error_handler(callback: (error: string) => void): void;
+  
+  // Configuration
+  set_auto_sync(enabled: boolean): void;
+  
+  // Table Management
+  create_table(name: string, width: number, height: number): any;
+  delete_table(table_id: string): any;
+  update_table(table_id: string, updates: any): any;
+  
+  // Sprite Management
+  create_sprite(table_id: string, layer: string, position: any, texture_name: string): any;
+  delete_sprite(sprite_id: string): any;
+  update_sprite(sprite_id: string, updates: any): any;
+  
+  // Layer Management
+  set_layer_visibility(layer: string, visible: boolean): any;
+  get_layer_visibility(layer: string): boolean;
+  move_sprite_to_layer(sprite_id: string, new_layer: string): any;
+  
+  // Batch Operations
+  batch_actions(actions: any): any;
+  
+  // Undo/Redo
+  undo(): any;
+  redo(): any;
+  can_undo(): boolean;
+  can_redo(): boolean;
+  
+  // Query Methods
+  get_table_info(table_id: string): any;
+  get_sprite_info(sprite_id: string): any;
+  get_all_tables(): any;
+  get_sprites_by_layer(layer: string): any;
+  get_action_history(): any;
 }
 
 export function init_game_renderer(canvas: HTMLCanvasElement): RenderEngine;

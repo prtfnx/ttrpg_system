@@ -1,5 +1,5 @@
 use wasm_bindgen::prelude::*;
-use web_sys::{HtmlCanvasElement, WebGl2RenderingContext as WebGlRenderingContext, WebGlTexture, HtmlImageElement};
+use web_sys::{HtmlCanvasElement, WebGl2RenderingContext as WebGlRenderingContext, HtmlImageElement};
 use std::collections::HashMap;
 use gloo_utils::format::JsValueSerdeExt;
 
@@ -8,9 +8,14 @@ use crate::math::*;
 use crate::camera::Camera;
 use crate::input::{InputHandler, InputMode, HandleDetector};
 use crate::sprite_manager::SpriteManager;
+use crate::sprite_renderer::SpriteRenderer;
 use crate::webgl_renderer::WebGLRenderer;
 use crate::lighting::LightingSystem;
 use crate::fog::FogOfWarSystem;
+use crate::event_system::{EventSystem, MouseEventResult};
+use crate::layer_manager::LayerManager;
+use crate::grid_system::GridSystem;
+use crate::texture_manager::TextureManager;
 
 const LAYER_NAMES: &[&str] = &["map", "tokens", "dungeon_master", "light", "height", "obstacles", "fog_of_war"];
 
@@ -19,8 +24,10 @@ pub struct RenderEngine {
     canvas: HtmlCanvasElement,
     renderer: WebGLRenderer,
     
-    // Layer system
-    layers: HashMap<String, Layer>,
+    // Systems
+    layer_manager: LayerManager,
+    grid_system: GridSystem,
+    texture_manager: TextureManager,
     
     // Camera and transforms
     camera: Camera,
@@ -29,12 +36,7 @@ pub struct RenderEngine {
     
     // Input handling
     input: InputHandler,
-    
-    // Resources
-    textures: HashMap<String, WebGlTexture>,
-    grid_enabled: bool,
-    grid_size: f32,
-    grid_snapping: bool,
+    event_system: EventSystem,
     
     // Lighting system
     lighting: LightingSystem,
@@ -50,12 +52,11 @@ impl RenderEngine {
         let gl = canvas.get_context("webgl2")?.unwrap().dyn_into::<WebGlRenderingContext>()?;
         let renderer = WebGLRenderer::new(gl.clone())?;
         let lighting = LightingSystem::new(gl.clone())?;
-        let fog = FogOfWarSystem::new(gl)?;
+        let fog = FogOfWarSystem::new(gl.clone())?;
+        let texture_manager = TextureManager::new(gl);
         
-        let mut layers = HashMap::new();
-        for (i, &name) in LAYER_NAMES.iter().enumerate() {
-            layers.insert(name.to_string(), Layer::new(i as i32));
-        }
+        let layer_manager = LayerManager::new();
+        let grid_system = GridSystem::new();
         
         let canvas_size = Vec2::new(canvas.width() as f32, canvas.height() as f32);
         let camera = Camera::default();
@@ -64,15 +65,14 @@ impl RenderEngine {
         let mut engine = Self {
             canvas,
             renderer,
-            layers,
+            layer_manager,
+            grid_system,
+            texture_manager,
             camera,
             view_matrix,
             canvas_size,
             input: InputHandler::new(),
-            textures: HashMap::new(),
-            grid_enabled: true,
-            grid_size: 50.0,
-            grid_snapping: false,
+            event_system: EventSystem::new(),
             lighting,
             fog,
         };
@@ -85,19 +85,19 @@ impl RenderEngine {
     pub fn render(&mut self) -> Result<(), JsValue> {
         self.renderer.clear(0.1, 0.1, 0.1, 1.0);
         
-        if self.grid_enabled {
-            self.draw_grid()?;
-        }
+        // Draw grid
+        let world_bounds = self.get_world_view_bounds();
+        self.grid_system.draw_grid(&self.renderer, world_bounds)?;
         
         // Sort layers by z_order
-        let mut sorted_layers: Vec<_> = self.layers.iter().collect();
+        let mut sorted_layers: Vec<_> = self.layer_manager.get_layers().iter().collect();
         sorted_layers.sort_by_key(|(_, layer)| layer.z_order);
 
         // Render all layers except light and fog_of_war layers
         for (layer_name, layer) in sorted_layers {
             if layer.visible && layer_name != "light" && layer_name != "fog_of_war" {
                 for sprite in &layer.sprites {
-                    self.draw_sprite(sprite, layer.opacity)?;
+                    SpriteRenderer::draw_sprite(sprite, layer.opacity, &self.renderer, &self.texture_manager, &self.input)?;
                 }
             }
         }
@@ -110,7 +110,7 @@ impl RenderEngine {
         
         // Draw area selection rectangle if active
         if let Some((min, max)) = self.input.get_area_selection_rect() {
-            self.draw_area_selection_rect(min, max)?;
+            SpriteRenderer::draw_area_selection_rect(min, max, &self.renderer)?;
         }
         
         Ok(())
@@ -122,317 +122,10 @@ impl RenderEngine {
         self.renderer.set_view_matrix(&matrix_array, self.canvas_size);
     }
     
-    fn draw_grid(&self) -> Result<(), JsValue> {
-        let world_bounds = self.get_world_view_bounds();
-        
-        let start_x = (world_bounds.min.x / self.grid_size).floor() * self.grid_size;
-        let end_x = (world_bounds.max.x / self.grid_size).ceil() * self.grid_size;
-        let start_y = (world_bounds.min.y / self.grid_size).floor() * self.grid_size;
-        let end_y = (world_bounds.max.y / self.grid_size).ceil() * self.grid_size;
-        
-        let mut vertices = Vec::new();
-        
-        // Vertical lines
-        let mut x = start_x;
-        while x <= end_x {
-            vertices.extend_from_slice(&[x, world_bounds.min.y, x, world_bounds.max.y]);
-            x += self.grid_size;
-        }
-        
-        // Horizontal lines
-        let mut y = start_y;
-        while y <= end_y {
-            vertices.extend_from_slice(&[world_bounds.min.x, y, world_bounds.max.x, y]);
-            y += self.grid_size;
-        }
-        
-        self.renderer.draw_lines(&vertices, [0.2, 0.2, 0.2, 1.0])?;
-        
-        // Draw grid center dots if grid snapping is enabled (for visual reference)
-        if self.grid_snapping && self.grid_size >= 30.0 {
-            let mut center_vertices = Vec::new();
-            let mut y = start_y + self.grid_size * 0.5;
-            while y <= end_y - self.grid_size * 0.5 {
-                let mut x = start_x + self.grid_size * 0.5;
-                while x <= end_x - self.grid_size * 0.5 {
-                    let dot_size = 2.0;
-                    center_vertices.extend_from_slice(&[
-                        x - dot_size, y,
-                        x + dot_size, y,
-                        x, y - dot_size,
-                        x, y + dot_size,
-                    ]);
-                    x += self.grid_size;
-                }
-                y += self.grid_size;
-            }
-            if !center_vertices.is_empty() {
-                self.renderer.draw_lines(&center_vertices, [0.4, 0.4, 0.4, 0.8])?;
-            }
-        }
-        
-        Ok(())
-    }
-    
-    fn draw_sprite(&self, sprite: &Sprite, layer_opacity: f32) -> Result<(), JsValue> {
-        let is_selected = self.input.is_sprite_selected(&sprite.id);
-        let is_primary_selected = self.input.selected_sprite_id.as_ref() == Some(&sprite.id);
-        let world_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
-        let size = Vec2::new(
-            (sprite.width * sprite.scale_x) as f32,
-            (sprite.height * sprite.scale_y) as f32
-        );
-        
-        // Calculate sprite vertices with rotation
-        let vertices = self.calculate_sprite_vertices(sprite, world_pos, size);
-        let tex_coords = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        
-        let mut color = sprite.tint_color;
-        
-        let has_texture = !sprite.texture_id.is_empty() && self.textures.contains_key(&sprite.texture_id);
-        if has_texture {
-            // Activate texture unit 0 and bind the texture
-            self.renderer.gl.active_texture(WebGlRenderingContext::TEXTURE0);
-            if let Some(texture) = self.textures.get(&sprite.texture_id) {
-                self.renderer.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(texture));
-            }
-            // Apply layer opacity to textured sprites
-            color[3] = if layer_opacity <= 0.01 { 
-                0.0  // Make completely invisible when layer opacity is very low
-            } else {
-                color[3] * layer_opacity  // For textured sprites, use linear opacity
-            };
-            // Render textured sprite normally
-            self.renderer.draw_quad(&vertices, &tex_coords, color, has_texture)?;
-        } else {
-            // For sprites without texture, unbind any texture and apply dramatic opacity effect
-            self.renderer.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, None);
-            
-            let border_opacity = if layer_opacity <= 0.01 { 
-                0.0  // Make completely invisible when layer opacity is very low
-            } else {
-                layer_opacity.powf(0.5)  // Use power curve for more dramatic effect on non-textured sprites
-            };
-            
-            // Create border vertices in proper order for a continuous rectangle
-            // vertices = [top-left-x, top-left-y, top-right-x, top-right-y, bottom-left-x, bottom-left-y, bottom-right-x, bottom-right-y]
-            let border_vertices = vec![
-                vertices[0], vertices[1],   // Top-left to Top-right
-                vertices[2], vertices[3],
-                vertices[2], vertices[3],   // Top-right to Bottom-right  
-                vertices[6], vertices[7],
-                vertices[6], vertices[7],   // Bottom-right to Bottom-left
-                vertices[4], vertices[5],
-                vertices[4], vertices[5],   // Bottom-left to Top-left
-                vertices[0], vertices[1],
-            ];
-            // Use sprite color with dramatic layer opacity effect, but ensure it's visible
-            let border_color = [color[0], color[1], color[2], (color[3] * border_opacity).max(0.2)];
-            self.renderer.draw_lines(&border_vertices, border_color)?;
-        }
-        
-        if is_selected {
-            self.draw_selection_border(sprite, world_pos, size, is_primary_selected)?;
-            // Only draw handles for the primary selected sprite
-            if is_primary_selected {
-                self.draw_handles(sprite, world_pos, size)?;
-            }
-        }
-        
-        Ok(())
-    }
-    
-    fn calculate_sprite_vertices(&self, sprite: &Sprite, world_pos: Vec2, size: Vec2) -> Vec<f32> {
-        if sprite.rotation != 0.0 {
-            // Apply rotation around the sprite center
-            let center_x = world_pos.x + size.x * 0.5;
-            let center_y = world_pos.y + size.y * 0.5;
-            let cos_rot = (sprite.rotation as f32).cos();
-            let sin_rot = (sprite.rotation as f32).sin();
-            let half_width = size.x * 0.5;
-            let half_height = size.y * 0.5;
-            
-            // Calculate rotated corner positions
-            let corners = [
-                (-half_width, -half_height), // Top-left
-                (half_width, -half_height),  // Top-right
-                (-half_width, half_height),  // Bottom-left
-                (half_width, half_height),   // Bottom-right
-            ];
-            
-            let mut rotated_vertices = Vec::new();
-            for (local_x, local_y) in corners {
-                let rotated_x = local_x * cos_rot - local_y * sin_rot;
-                let rotated_y = local_x * sin_rot + local_y * cos_rot;
-                rotated_vertices.push(center_x + rotated_x);
-                rotated_vertices.push(center_y + rotated_y);
-            }
-            rotated_vertices
-        } else {
-            // No rotation - use simple rectangle
-            vec![
-                world_pos.x, world_pos.y,                    // Top-left
-                world_pos.x + size.x, world_pos.y,          // Top-right
-                world_pos.x, world_pos.y + size.y,          // Bottom-left
-                world_pos.x + size.x, world_pos.y + size.y, // Bottom-right
-            ]
-        }
-    }
-    
-    fn draw_selection_border(&self, sprite: &Sprite, world_pos: Vec2, size: Vec2, is_primary: bool) -> Result<(), JsValue> {
-        // Always use the same vertex calculation as the sprite itself for consistency
-        let vertices = self.calculate_sprite_vertices(sprite, world_pos, size);
-        
-        // Create border from the calculated vertices in proper order
-        // vertices = [top-left-x, top-left-y, top-right-x, top-right-y, bottom-left-x, bottom-left-y, bottom-right-x, bottom-right-y]
-        let border_vertices = vec![
-            vertices[0], vertices[1],   // Top-left to Top-right
-            vertices[2], vertices[3],
-            vertices[2], vertices[3],   // Top-right to Bottom-right  
-            vertices[6], vertices[7],
-            vertices[6], vertices[7],   // Bottom-right to Bottom-left
-            vertices[4], vertices[5],
-            vertices[4], vertices[5],   // Bottom-left to Top-left
-            vertices[0], vertices[1],
-        ];
-        
-        // Different colors for primary vs secondary selection
-        let color = if is_primary {
-            [0.2, 0.8, 0.2, 1.0]  // Bright green for primary selection
-        } else {
-            [0.8, 0.8, 0.2, 1.0]  // Yellow for secondary selections
-        };
-        
-        self.renderer.draw_lines(&border_vertices, color)
-    }
-    
-    fn draw_handles(&self, sprite: &Sprite, world_pos: Vec2, size: Vec2) -> Result<(), JsValue> {
-        // Draw rotation handle (circle above sprite)
-        let rotate_handle_pos = SpriteManager::get_rotation_handle_position(sprite, self.camera.zoom);
-        let handle_size = 8.0 / self.camera.zoom as f32;
-        self.draw_rotate_handle(rotate_handle_pos.x, rotate_handle_pos.y, handle_size)?;
-        
-        // Draw resize handles for non-rotated sprites only
-        if sprite.rotation == 0.0 {
-            let handle_size = 6.0 / self.camera.zoom as f32;
-            
-            // Corner handles
-            self.draw_resize_handle(world_pos.x, world_pos.y, handle_size)?; // TopLeft
-            self.draw_resize_handle(world_pos.x + size.x, world_pos.y, handle_size)?; // TopRight
-            self.draw_resize_handle(world_pos.x, world_pos.y + size.y, handle_size)?; // BottomLeft
-            self.draw_resize_handle(world_pos.x + size.x, world_pos.y + size.y, handle_size)?; // BottomRight
-            
-            // Side handles
-            self.draw_resize_handle(world_pos.x + size.x * 0.5, world_pos.y, handle_size)?; // TopCenter
-            self.draw_resize_handle(world_pos.x + size.x * 0.5, world_pos.y + size.y, handle_size)?; // BottomCenter
-            self.draw_resize_handle(world_pos.x, world_pos.y + size.y * 0.5, handle_size)?; // LeftCenter
-            self.draw_resize_handle(world_pos.x + size.x, world_pos.y + size.y * 0.5, handle_size)?; // RightCenter
-        }
-        
-        Ok(())
-    }
-    
-    fn draw_resize_handle(&self, x: f32, y: f32, size: f32) -> Result<(), JsValue> {
-        let half = size * 0.5;
-        let vertices = [
-            x - half, y - half,
-            x + half, y - half,
-            x - half, y + half,
-            x + half, y + half,
-        ];
-        let tex_coords = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        self.renderer.draw_quad(&vertices, &tex_coords, [1.0, 1.0, 1.0, 1.0], false)?;
-        
-        // Black border
-        let border = [
-            x - half, y - half,
-            x + half, y - half,
-            x + half, y + half,
-            x - half, y + half,
-            x - half, y - half,
-        ];
-        self.renderer.draw_lines(&border, [0.0, 0.0, 0.0, 1.0])
-    }
-    
-    fn draw_rotate_handle(&self, x: f32, y: f32, size: f32) -> Result<(), JsValue> {
-        // Draw a simple circle approximation using lines
-        let radius = size * 0.7;
-        let mut vertices = Vec::new();
-        let segments = 16;
-        for i in 0..segments {
-            let angle1 = (i as f32) * 2.0 * std::f32::consts::PI / (segments as f32);
-            let angle2 = ((i + 1) as f32) * 2.0 * std::f32::consts::PI / (segments as f32);
-            vertices.extend_from_slice(&[
-                x + radius * angle1.cos(), y + radius * angle1.sin(),
-                x + radius * angle2.cos(), y + radius * angle2.sin(),
-            ]);
-        }
-        self.renderer.draw_lines(&vertices, [0.8, 0.8, 0.8, 1.0])
-    }
-    
     fn get_world_view_bounds(&self) -> Rect {
         let min = self.camera.screen_to_world(Vec2::new(0.0, 0.0));
         let max = self.camera.screen_to_world(self.canvas_size);
         Rect::new(min.x, min.y, max.x - min.x, max.y - min.y)
-    }
-    
-    fn snap_to_grid(&self, world_pos: Vec2) -> Vec2 {
-        if self.grid_snapping {
-            // Snap to grid line intersections, then we'll adjust for centering in the sprite positioning
-            Vec2::new(
-                (world_pos.x / self.grid_size).round() * self.grid_size,
-                (world_pos.y / self.grid_size).round() * self.grid_size
-            )
-        } else {
-            world_pos
-        }
-    }
-    
-    fn snap_sprite_to_grid_center(&self, sprite_top_left: Vec2) -> Vec2 {
-        if self.grid_snapping {
-            // Calculate which grid cell the sprite should be in based on its top-left corner
-            // Then position it so its center aligns with the grid cell center
-            let grid_x = (sprite_top_left.x / self.grid_size).round();
-            let grid_y = (sprite_top_left.y / self.grid_size).round();
-            
-            // Position sprite so its center is at the grid center
-            // Grid center is at (grid_x * grid_size + grid_size/2, grid_y * grid_size + grid_size/2)
-            // But we need to return the top-left position, so subtract half sprite size... 
-            // Actually, let's keep it simple and snap to grid intersections for now
-            Vec2::new(
-                grid_x * self.grid_size,
-                grid_y * self.grid_size
-            )
-        } else {
-            sprite_top_left
-        }
-    }
-    
-    fn draw_area_selection_rect(&self, min: Vec2, max: Vec2) -> Result<(), JsValue> {
-        // Draw selection rectangle outline
-        let border_vertices = vec![
-            min.x, min.y,     // Top-left to Top-right
-            max.x, min.y,
-            max.x, min.y,     // Top-right to Bottom-right
-            max.x, max.y,
-            max.x, max.y,     // Bottom-right to Bottom-left
-            min.x, max.y,
-            min.x, max.y,     // Bottom-left to Top-left
-            min.x, min.y,
-        ];
-        self.renderer.draw_lines(&border_vertices, [0.3, 0.7, 1.0, 0.8])?;
-        
-        // Draw semi-transparent fill
-        let fill_vertices = vec![
-            min.x, min.y,     // Top-left
-            max.x, min.y,     // Top-right
-            min.x, max.y,     // Bottom-left
-            max.x, max.y,     // Bottom-right
-        ];
-        let tex_coords = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        self.renderer.draw_quad(&fill_vertices, &tex_coords, [0.3, 0.7, 1.0, 0.2], false)?;
-        
-        Ok(())
     }
     
     // Public API methods
@@ -479,7 +172,7 @@ impl RenderEngine {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
         
         if let Some(selected_id) = &self.input.selected_sprite_id {
-            if let Some((sprite, _)) = self.find_sprite(selected_id) {
+            if let Some((sprite, _)) = self.layer_manager.find_sprite(selected_id) {
                 // Check rotation handle first (not affected by rotation)
                 let rotate_handle_pos = SpriteManager::get_rotation_handle_position(sprite, self.camera.zoom);
                 let handle_size = 8.0 / self.camera.zoom as f32;
@@ -523,153 +216,40 @@ impl RenderEngine {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
         self.input.last_mouse_screen = Vec2::new(screen_x, screen_y);
         
-        // Check if we're in fog drawing mode first
-        if matches!(self.input.input_mode, InputMode::FogDraw | InputMode::FogErase) {
-            // Start drawing a new fog rectangle
-            use crate::input::FogDrawMode;
-            let fog_mode = match self.input.input_mode {
-                InputMode::FogErase => FogDrawMode::Reveal,
-                _ => FogDrawMode::Hide,
-            };
-            
-            let id = format!("interactive_fog_{}", js_sys::Date::now() as u64);
-            self.input.start_fog_draw(world_pos, fog_mode);
-            
-            use crate::fog::FogMode;
-            let fog_system_mode = match fog_mode {
-                FogDrawMode::Reveal => FogMode::Reveal,
-                FogDrawMode::Hide => FogMode::Hide,
-            };
-            
-            self.fog.start_interactive_rectangle(id, world_pos, fog_system_mode);
-            return;
-        }
+        // Use the event system to handle mouse down events
+        let result = self.event_system.handle_mouse_down(
+            world_pos,
+            &mut self.input,
+            self.layer_manager.get_layers_mut(),
+            &mut self.lighting,
+            &mut self.fog,
+            ctrl_pressed
+        );
         
-        // Check if we're in light drag mode
-        if self.input.input_mode == InputMode::LightDrag {
-            // Check if clicking on a light source to start dragging
-            if let Some(light_id) = self.lighting.get_light_at_position(world_pos, 30.0) {
-                if let Some(light_pos) = self.lighting.get_light_position(&light_id) {
-                    self.input.start_light_drag(light_id, world_pos, light_pos);
-                    return;
-                }
+        // Handle event system results that need render engine specific operations
+        match result {
+            MouseEventResult::Handled => {
+                // Event was handled by event system
             }
-        }
-        
-        // First check for multi-select operations if Ctrl is not pressed
-        if !ctrl_pressed {
-            let clicked_sprite = self.find_sprite_at_position(world_pos);
-            if let Some(sprite_id) = clicked_sprite {
-                if self.input.is_sprite_selected(&sprite_id) && self.input.has_multiple_selected() {
-                    // Clicking on an already selected sprite with multiple selections - start multi-move
-                    let sprite_id_clone = sprite_id.clone();
-                    self.input.selected_sprite_id = Some(sprite_id_clone); // Set as primary for reference
-                    self.input.input_mode = InputMode::SpriteMove;
-                    // Calculate offset from click position to primary sprite's top-left corner
-                    if let Some((sprite, _)) = self.find_sprite(&sprite_id) {
-                        let sprite_top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
-                        self.input.drag_offset = world_pos - sprite_top_left;
-                    }
-                    return; // Early return to skip handle detection
-                }
-            }
-        }
-        
-        // Check if we have a selected sprite to interact with for handles/single operations
-        let selected_sprite_info = if let Some(selected_id) = &self.input.selected_sprite_id {
-            self.find_sprite(selected_id).map(|(sprite, _)| {
-                (sprite.id.clone(), sprite.rotation, sprite.world_x, sprite.world_y, 
-                 sprite.width, sprite.scale_x, sprite.height, sprite.scale_y)
-            })
-        } else {
-            None
-        };
-        
-        if let Some((sprite_id, rotation, world_x, world_y, width, scale_x, height, scale_y)) = selected_sprite_info {
-            // Reconstruct sprite info for calculations
-            let sprite_pos = Vec2::new(world_x as f32, world_y as f32);
-            let sprite_size = Vec2::new((width * scale_x) as f32, (height * scale_y) as f32);
-            
-            // Create temporary sprite for calculations
-            let temp_sprite = Sprite {
-                id: sprite_id.clone(),
-                world_x, world_y, width, height, scale_x, scale_y, rotation,
-                layer: String::new(), texture_id: String::new(), tint_color: [1.0, 1.0, 1.0, 1.0]
-            };
-            
-            // Check rotation handle first (only for single selection or primary selection)
-            if !self.input.has_multiple_selected() || self.input.selected_sprite_id.as_ref() == Some(&sprite_id) {
-                let rotate_handle_x = sprite_pos.x + sprite_size.x * 0.5;
-                let rotate_handle_y = sprite_pos.y - 20.0 / self.camera.zoom as f32;
-                let handle_size = 8.0 / self.camera.zoom as f32;
-                if HandleDetector::point_in_handle(world_pos, rotate_handle_x, rotate_handle_y, handle_size) {
-                    self.input.input_mode = InputMode::SpriteRotate;
-                    // Store initial rotation state to prevent jumping
-                    let (start_angle, initial_rotation) = SpriteManager::start_rotation(&temp_sprite, world_pos);
-                    self.input.rotation_start_angle = start_angle;
-                    self.input.sprite_initial_rotation = initial_rotation;
-                    return;
-                }
-                
-                // Handle rotated vs non-rotated sprites differently  
-                if rotation != 0.0 {
-                    // For rotated sprites, only allow rotation and movement (not resizing)
-                    if temp_sprite.contains_world_point(world_pos) {
-                        self.input.input_mode = InputMode::SpriteMove;
-                        // Calculate offset from click position to sprite's top-left corner
-                        let sprite_top_left = Vec2::new(world_x as f32, world_y as f32);
-                        self.input.drag_offset = world_pos - sprite_top_left;
-                        return;
-                    }
-                } else {
-                    // Non-rotated sprite - check for resize handles (only for single selection)
-                    if !self.input.has_multiple_selected() {
-                        if let Some(handle) = HandleDetector::get_resize_handle_for_non_rotated_sprite(&temp_sprite, world_pos, self.camera.zoom) {
-                            self.input.input_mode = InputMode::SpriteResize(handle);
-                            return;
+            MouseEventResult::CameraOperation(cam_op) => {
+                // Handle camera operations if needed
+                match cam_op.as_str() {
+                    "focus_selection" => {
+                        // Focus on the primary selected sprite if available
+                        if let Some(sprite_id) = &self.input.selected_sprite_id {
+                            if let Some((sprite, _)) = self.layer_manager.find_sprite(sprite_id) {
+                                let (pos, size) = SpriteManager::get_sprite_bounds(sprite);
+                                let rect = crate::math::Rect::new(pos.x, pos.y, size.x, size.y);
+                                self.camera.focus_on_rect(rect, self.canvas_size, 50.0);
+                                self.view_matrix = self.camera.view_matrix(self.canvas_size);
+                            }
                         }
                     }
+                    _ => {}
                 }
             }
-        }
-        
-        // Check for sprite selection or start area selection
-        if ctrl_pressed {
-            // If Ctrl is pressed, either add to selection or start area selection
-            let clicked_sprite = self.find_sprite_at_position(world_pos);
-            if let Some(sprite_id) = clicked_sprite {
-                // Ctrl+click on sprite: toggle selection
-                if self.input.is_sprite_selected(&sprite_id) {
-                    self.input.remove_from_selection(&sprite_id);
-                } else {
-                    self.input.add_to_selection(sprite_id);
-                }
-            } else {
-                // Ctrl+click on empty space: start area selection
-                self.input.start_area_selection(world_pos);
-            }
-        } else {
-            // Normal click: check if clicking on already selected sprite for multi-move
-            let clicked_sprite = self.find_sprite_at_position(world_pos);
-            if let Some(sprite_id) = clicked_sprite {
-                if self.input.is_sprite_selected(&sprite_id) && self.input.has_multiple_selected() {
-                    // Clicking on an already selected sprite with multiple selections - start multi-move
-                    let sprite_id_clone = sprite_id.clone();
-                    self.input.selected_sprite_id = Some(sprite_id_clone); // Set as primary for reference
-                    self.input.input_mode = InputMode::SpriteMove;
-                    // Calculate offset from click position to primary sprite's top-left corner
-                    if let Some((sprite, _)) = self.find_sprite(&sprite_id) {
-                        let sprite_top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
-                        self.input.drag_offset = world_pos - sprite_top_left;
-                    }
-                } else {
-                    // Normal single selection
-                    self.select_sprite_at_position(world_pos);
-                }
-            } else {
-                // Clicked on empty space - clear selection and start camera pan
-                self.input.clear_selection();
-                self.input.input_mode = InputMode::CameraPan;
+            MouseEventResult::None => {
+                // Handle legacy fallback if needed
             }
         }
     }
@@ -679,126 +259,37 @@ impl RenderEngine {
         let current_screen = Vec2::new(screen_x, screen_y);
         let world_pos = self.camera.screen_to_world(current_screen);
         
-        match self.input.input_mode {
-            InputMode::SpriteMove => {
-                // Move all selected sprites together
-                if self.input.has_multiple_selected() {
-                    // Multi-sprite movement - move all selected sprites by the same world delta
-                    let last_world_pos = self.camera.screen_to_world(self.input.last_mouse_screen);
-                    
-                    if self.grid_snapping {
-                        // For grid snapping with multi-select, we need to maintain relative positions
-                        // but snap the group as a whole to the grid
-                        let current_snapped = self.snap_to_grid(world_pos);
-                        let last_snapped = self.snap_to_grid(last_world_pos);
-                        let delta = current_snapped - last_snapped;
-                        
-                        // Only move if there's actually a change in snapped position
-                        if delta.x.abs() > 0.001 || delta.y.abs() > 0.001 {
-                            for sprite_id in &self.input.selected_sprite_ids.clone() {
-                                for layer in self.layers.values_mut() {
-                                    if let Some(sprite) = layer.sprites.iter_mut().find(|s| &s.id == sprite_id) {
-                                        sprite.world_x += delta.x as f64;
-                                        sprite.world_y += delta.y as f64;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        // Normal movement without snapping
-                        let delta = world_pos - last_world_pos;
-                        for sprite_id in &self.input.selected_sprite_ids.clone() {
-                            for layer in self.layers.values_mut() {
-                                if let Some(sprite) = layer.sprites.iter_mut().find(|s| &s.id == sprite_id) {
-                                    sprite.world_x += delta.x as f64;
-                                    sprite.world_y += delta.y as f64;
-                                    break;
-                                }
-                            }
-                        }
+        // Use the event system to handle mouse move events
+        let result = self.event_system.handle_mouse_move(
+            world_pos,
+            &mut self.input,
+            self.layer_manager.get_layers_mut(),
+            &mut self.lighting,
+            &mut self.fog,
+            &self.camera
+        );
+        
+        // Handle event system results that need render engine specific operations
+        match result {
+            MouseEventResult::Handled => {
+                // Event was handled by event system, update matrices if needed
+                self.view_matrix = self.camera.view_matrix(self.canvas_size);
+            }
+            MouseEventResult::CameraOperation(cam_op) => {
+                // Handle camera operations
+                match cam_op.as_str() {
+                    "update_view_matrix" => {
+                        self.view_matrix = self.camera.view_matrix(self.canvas_size);
                     }
-                } else if let Some(sprite_id) = &self.input.selected_sprite_id {
-                    // Single sprite movement with grid snapping
-                    let target_pos = world_pos;
-                    let drag_offset = self.input.drag_offset;
-                    let grid_snapping = self.grid_snapping;
-                    let grid_size = self.grid_size;
-                    
-                    for layer in self.layers.values_mut() {
-                        if let Some(sprite) = layer.sprites.iter_mut().find(|s| &s.id == sprite_id) {
-                            if grid_snapping {
-                                // Calculate the intended sprite center position
-                                let intended_center_x = (target_pos.x - drag_offset.x) as f32;
-                                let intended_center_y = (target_pos.y - drag_offset.y) as f32;
-                                
-                                // Find the nearest grid cell center
-                                let grid_cell_center_x = (intended_center_x / grid_size).floor() * grid_size + grid_size * 0.5;
-                                let grid_cell_center_y = (intended_center_y / grid_size).floor() * grid_size + grid_size * 0.5;
-                                
-                                // Calculate sprite's actual size
-                                let sprite_width = (sprite.width * sprite.scale_x) as f32;
-                                let sprite_height = (sprite.height * sprite.scale_y) as f32;
-                                
-                                // Position sprite so its center aligns with grid cell center
-                                // sprite.world_x/y represents the top-left corner, so we need to offset by half the sprite size
-                                sprite.world_x = (grid_cell_center_x - sprite_width * 0.5) as f64;
-                                sprite.world_y = (grid_cell_center_y - sprite_height * 0.5) as f64;
-                            } else {
-                                SpriteManager::move_sprite_to_position(sprite, target_pos, drag_offset);
-                            }
-                            break;
-                        }
-                    }
+                    _ => {}
                 }
             }
-            InputMode::SpriteResize(handle) => {
-                if let Some(sprite_id) = &self.input.selected_sprite_id {
-                    let sprite_id = sprite_id.clone(); // Clone to avoid borrow issues
-                    for layer in self.layers.values_mut() {
-                        if let Some(sprite) = layer.sprites.iter_mut().find(|s| s.id == sprite_id) {
-                            SpriteManager::resize_sprite_with_handle(sprite, handle, world_pos);
-                            break;
-                        }
-                    }
-                }
+            MouseEventResult::None => {
+                // Fallback to legacy handling if needed
             }
-            InputMode::SpriteRotate => {
-                if let Some(sprite_id) = &self.input.selected_sprite_id {
-                    for layer in self.layers.values_mut() {
-                        if let Some(sprite) = layer.sprites.iter_mut().find(|s| &s.id == sprite_id) {
-                            SpriteManager::update_rotation(sprite, world_pos, self.input.rotation_start_angle, self.input.sprite_initial_rotation);
-                            break;
-                        }
-                    }
-                }
-            }
-            InputMode::CameraPan => {
-                let screen_delta = current_screen - self.input.last_mouse_screen;
-                let world_delta = screen_delta * (1.0 / self.camera.zoom as f32);
-                self.camera.world_x -= world_delta.x as f64;
-                self.camera.world_y -= world_delta.y as f64;
-                self.update_view_matrix();
-            }
-            InputMode::AreaSelect => {
-                // Update area selection rectangle
-                self.input.update_area_selection(world_pos);
-            }
-            InputMode::LightDrag => {
-                // Update light drag position
-                if let Some(new_pos) = self.input.update_light_drag(world_pos) {
-                    if let Some(ref light_id) = self.input.selected_light_id {
-                        self.lighting.update_light_position(light_id, new_pos);
-                    }
-                }
-            }
-            InputMode::FogDraw | InputMode::FogErase => {
-                // Update fog rectangle drawing
-                self.input.update_fog_draw(world_pos);
-            }
-            _ => {}
         }
         
+        // Update last mouse position for next frame
         self.input.last_mouse_screen = current_screen;
     }
     
@@ -806,75 +297,37 @@ impl RenderEngine {
     pub fn handle_mouse_up(&mut self, screen_x: f32, screen_y: f32) {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
         
-        match self.input.input_mode {
-            InputMode::AreaSelect => {
-                // Complete area selection
-                if let Some((min, max)) = self.input.get_area_selection_rect() {
-                    self.select_sprites_in_area(min, max);
-                }
-                self.input.finish_area_selection();
+        // Use the event system to handle mouse up events
+        let result = self.event_system.handle_mouse_up(
+            world_pos,
+            &mut self.input,
+            self.layer_manager.get_layers_mut(),
+            &mut self.lighting,
+            &mut self.fog
+        );
+        
+        // Handle event system results that need render engine specific operations
+        match result {
+            MouseEventResult::Handled => {
+                // Event was handled by event system
             }
-            InputMode::LightDrag => {
-                // End light dragging
-                self.input.end_light_drag();
-            }
-            InputMode::FogDraw | InputMode::FogErase => {
-                // Complete fog rectangle drawing
-                if let Some((start, end, mode)) = self.input.end_fog_draw() {
-                    use crate::fog::FogMode;
-                    let fog_mode = match mode {
-                        crate::input::FogDrawMode::Reveal => FogMode::Reveal,
-                        crate::input::FogDrawMode::Hide => FogMode::Hide,
-                    };
-                    
-                    // Create a permanent fog rectangle
-                    let id = format!("fog_rect_{}", js_sys::Date::now() as u64);
-                    let mode_str = match fog_mode {
-                        FogMode::Reveal => "reveal",
-                        FogMode::Hide => "hide",
-                    };
-                    
-                    // Only create if rectangle has minimum size
-                    let min_size = 10.0;
-                    if (end.x - start.x).abs() > min_size && (end.y - start.y).abs() > min_size {
-                        self.fog.add_fog_rectangle(id, start.x, start.y, end.x, end.y, mode_str);
+            MouseEventResult::CameraOperation(cam_op) => {
+                // Handle camera operations if needed
+                match cam_op.as_str() {
+                    "update_view_matrix" => {
+                        self.view_matrix = self.camera.view_matrix(self.canvas_size);
                     }
+                    _ => {}
                 }
-                // Return to None mode after fog drawing
-                self.input.input_mode = InputMode::None;
             }
-            _ => {
-                self.input.input_mode = InputMode::None;
+            MouseEventResult::None => {
+                // Fallback to legacy handling if needed
             }
         }
     }
     
     fn select_sprites_in_area(&mut self, min: Vec2, max: Vec2) {
-        let mut selected_sprites = Vec::new();
-        
-        // Find all sprites that intersect with the selection rectangle
-        for (_, layer) in &self.layers {
-            if layer.selectable {
-                for sprite in &layer.sprites {
-                    let sprite_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
-                    let sprite_size = Vec2::new(
-                        (sprite.width * sprite.scale_x) as f32,
-                        (sprite.height * sprite.scale_y) as f32
-                    );
-                    
-                    // Check if sprite rectangle intersects with selection rectangle
-                    let sprite_min = sprite_pos;
-                    let sprite_max = sprite_pos + sprite_size;
-                    
-                    let intersects = sprite_max.x >= min.x && sprite_min.x <= max.x &&
-                                   sprite_max.y >= min.y && sprite_min.y <= max.y;
-                    
-                    if intersects {
-                        selected_sprites.push(sprite.id.clone());
-                    }
-                }
-            }
-        }
+        let selected_sprites = self.layer_manager.select_sprites_in_area(min, max);
         
         // Update selection
         if !selected_sprites.is_empty() {
@@ -886,20 +339,7 @@ impl RenderEngine {
     }
 
     fn find_sprite_at_position(&self, world_pos: Vec2) -> Option<String> {
-        // Search in reverse z-order (top layers first)
-        let mut sorted_layers: Vec<_> = self.layers.iter().collect();
-        sorted_layers.sort_by_key(|(_, layer)| std::cmp::Reverse(layer.z_order));
-        
-        for (_, layer) in sorted_layers {
-            if layer.selectable {
-                for sprite in layer.sprites.iter().rev() {
-                    if sprite.contains_world_point(world_pos) {
-                        return Some(sprite.id.clone());
-                    }
-                }
-            }
-        }
-        None
+        self.layer_manager.find_sprite_at_position(world_pos)
     }
 
     fn select_sprite_at_position(&mut self, world_pos: Vec2) {
@@ -908,7 +348,7 @@ impl RenderEngine {
             self.input.set_single_selection(sprite_id);
             self.input.input_mode = InputMode::SpriteMove;
             // Calculate offset from click position to sprite's top-left corner
-            if let Some((sprite, _)) = self.find_sprite(&self.input.selected_sprite_id.as_ref().unwrap()) {
+            if let Some((sprite, _)) = self.layer_manager.find_sprite(&self.input.selected_sprite_id.as_ref().unwrap()) {
                 let sprite_top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
                 self.input.drag_offset = world_pos - sprite_top_left;
             }
@@ -920,147 +360,87 @@ impl RenderEngine {
     }
     
     fn find_sprite(&self, sprite_id: &str) -> Option<(&Sprite, &str)> {
-        for (layer_name, layer) in &self.layers {
-            if let Some(sprite) = layer.sprites.iter().find(|s| s.id == sprite_id) {
-                return Some((sprite, layer_name));
-            }
-        }
-        None
+        self.layer_manager.find_sprite(sprite_id)
     }
     
     // Sprite management methods
     #[wasm_bindgen]
     pub fn add_sprite_to_layer(&mut self, layer_name: &str, sprite_data: &JsValue) -> Result<String, JsValue> {
-        let mut sprite: Sprite = sprite_data.into_serde()
-            .map_err(|e| JsValue::from_str(&format!("Failed to parse sprite: {}", e)))?;
-        
-        if sprite.id.is_empty() {
-            sprite.id = format!("sprite_{}", js_sys::Math::random());
-        }
-        
-        let sprite_id = sprite.id.clone();
-        
-        if let Some(layer) = self.layers.get_mut(layer_name) {
-            layer.sprites.push(sprite);
-        } else {
-            return Err(JsValue::from_str("Layer not found"));
-        }
-        
-        Ok(sprite_id)
+        self.layer_manager.add_sprite_to_layer(layer_name, sprite_data)
     }
     
     #[wasm_bindgen]
     pub fn remove_sprite(&mut self, sprite_id: &str) -> bool {
-        for layer in self.layers.values_mut() {
-            if let Some(index) = layer.sprites.iter().position(|s| s.id == sprite_id) {
-                layer.sprites.remove(index);
-                if self.input.selected_sprite_id.as_ref() == Some(&sprite_id.to_string()) {
-                    self.input.selected_sprite_id = None;
-                }
-                return true;
-            }
+        let result = self.layer_manager.remove_sprite(sprite_id);
+        if result && self.input.selected_sprite_id.as_ref() == Some(&sprite_id.to_string()) {
+            self.input.selected_sprite_id = None;
         }
-        false
+        result
     }
     
     #[wasm_bindgen]
     pub fn rotate_sprite(&mut self, sprite_id: &str, rotation_degrees: f64) -> bool {
-        for layer in self.layers.values_mut() {
-            if let Some(sprite) = layer.sprites.iter_mut().find(|s| s.id == sprite_id) {
-                sprite.rotation = rotation_degrees.to_radians();
-                return true;
-            }
-        }
-        false
+        self.layer_manager.rotate_sprite(sprite_id, rotation_degrees)
     }
     
+    // Grid management methods
     #[wasm_bindgen]
     pub fn toggle_grid(&mut self) {
-        self.grid_enabled = !self.grid_enabled;
+        self.grid_system.toggle();
     }
     
     #[wasm_bindgen]
     pub fn set_grid_enabled(&mut self, enabled: bool) {
-        self.grid_enabled = enabled;
+        self.grid_system.set_enabled(enabled);
     }
     
     #[wasm_bindgen]
     pub fn toggle_grid_snapping(&mut self) {
-        self.grid_snapping = !self.grid_snapping;
+        self.grid_system.toggle_snapping();
     }
     
     #[wasm_bindgen]
     pub fn set_grid_snapping(&mut self, enabled: bool) {
-        self.grid_snapping = enabled;
+        self.grid_system.set_snapping(enabled);
     }
     
     #[wasm_bindgen]
     pub fn set_grid_size(&mut self, size: f32) {
-        self.grid_size = size.max(10.0).min(200.0); // Reasonable bounds
+        self.grid_system.set_size(size);
     }
     
     #[wasm_bindgen]
     pub fn get_grid_size(&self) -> f32 {
-        self.grid_size
+        self.grid_system.get_size()
     }
     
     #[wasm_bindgen]
     pub fn is_grid_snapping_enabled(&self) -> bool {
-        self.grid_snapping
+        self.grid_system.is_snapping_enabled()
     }
     
     // Texture management
     #[wasm_bindgen]
     pub fn load_texture(&mut self, name: &str, image: &HtmlImageElement) -> Result<(), JsValue> {
-        let texture = self.renderer.gl.create_texture().ok_or("Failed to create texture")?;
-        self.renderer.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(&texture));
-        self.renderer.gl.tex_image_2d_with_u32_and_u32_and_html_image_element(
-            WebGlRenderingContext::TEXTURE_2D, 0, WebGlRenderingContext::RGBA as i32,
-            WebGlRenderingContext::RGBA, WebGlRenderingContext::UNSIGNED_BYTE, image
-        )?;
-        self.renderer.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_MIN_FILTER, WebGlRenderingContext::NEAREST as i32);
-        self.renderer.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_MAG_FILTER, WebGlRenderingContext::NEAREST as i32);
-        self.renderer.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_WRAP_S, WebGlRenderingContext::CLAMP_TO_EDGE as i32);
-        self.renderer.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_WRAP_T, WebGlRenderingContext::CLAMP_TO_EDGE as i32);
-        self.textures.insert(name.to_string(), texture);
-        Ok(())
+        self.texture_manager.load_texture(name, image)
     }
 
     // Layer management methods
     #[wasm_bindgen]
     pub fn set_layer_opacity(&mut self, layer_name: &str, opacity: f32) {
-        if let Some(layer) = self.layers.get_mut(layer_name) {
-            layer.opacity = opacity.clamp(0.0, 1.0);
-        }
+        self.layer_manager.set_layer_opacity(layer_name, opacity);
     }
 
     #[wasm_bindgen]
     pub fn set_layer_visible(&mut self, layer_name: &str, visible: bool) {
-        if let Some(layer) = self.layers.get_mut(layer_name) {
-            layer.visible = visible;
-        }
+        self.layer_manager.set_layer_visible(layer_name, visible);
     }
 
     // Right-click handling for context menu
     #[wasm_bindgen]
     pub fn handle_right_click(&self, screen_x: f32, screen_y: f32) -> Option<String> {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
-        
-        // Search for sprite at position (reverse z-order for top-most)
-        let mut sorted_layers: Vec<_> = self.layers.iter().collect();
-        sorted_layers.sort_by_key(|(_, layer)| std::cmp::Reverse(layer.z_order));
-        
-        for (_, layer) in sorted_layers {
-            if layer.visible {
-                for sprite in layer.sprites.iter().rev() {
-                    if sprite.contains_world_point(world_pos) {
-                        return Some(sprite.id.clone());
-                    }
-                }
-            }
-        }
-        
-        None
+        self.layer_manager.find_sprite_for_right_click(world_pos)
     }
 
     // Additional sprite management methods for frontend compatibility
@@ -1071,46 +451,17 @@ impl RenderEngine {
 
     #[wasm_bindgen]
     pub fn copy_sprite(&self, sprite_id: &str) -> Option<String> {
-        if let Some((sprite, _)) = self.find_sprite(sprite_id) {
-            // Convert sprite to JSON for copying
-            if let Ok(json) = serde_json::to_string(sprite) {
-                return Some(json);
-            }
-        }
-        None
+        self.layer_manager.copy_sprite(sprite_id)
     }
 
     #[wasm_bindgen]
     pub fn paste_sprite(&mut self, layer_name: &str, sprite_json: &str, offset_x: f64, offset_y: f64) -> Result<String, JsValue> {
-        let mut sprite: Sprite = serde_json::from_str(sprite_json)
-            .map_err(|e| JsValue::from_str(&format!("Failed to parse sprite JSON: {}", e)))?;
-        
-        // Generate new ID and apply offset
-        sprite.id = format!("sprite_{}", js_sys::Math::random());
-        sprite.world_x += offset_x;
-        sprite.world_y += offset_y;
-        
-        let sprite_id = sprite.id.clone();
-        
-        if let Some(layer) = self.layers.get_mut(layer_name) {
-            layer.sprites.push(sprite);
-        } else {
-            return Err(JsValue::from_str("Layer not found"));
-        }
-        
-        Ok(sprite_id)
+        self.layer_manager.paste_sprite(layer_name, sprite_json, offset_x, offset_y)
     }
 
     #[wasm_bindgen]
     pub fn resize_sprite(&mut self, sprite_id: &str, new_width: f64, new_height: f64) -> bool {
-        for layer in self.layers.values_mut() {
-            if let Some(sprite) = layer.sprites.iter_mut().find(|s| s.id == sprite_id) {
-                sprite.width = new_width;
-                sprite.height = new_height;
-                return true;
-            }
-        }
-        false
+        self.layer_manager.resize_sprite(sprite_id, new_width, new_height)
     }
 
     // Alias for resize_canvas to match frontend expectations

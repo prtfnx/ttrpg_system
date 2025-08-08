@@ -14,9 +14,14 @@ mod types;
 mod camera;
 mod input;
 mod sprite_manager;
+mod sprite_renderer;
 mod webgl_renderer;
 mod lighting;
 mod fog;
+mod event_system;
+mod layer_manager;
+mod grid_system;
+mod texture_manager;
 
 pub use render::RenderEngine;
 pub use types::*;

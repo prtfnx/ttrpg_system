@@ -134,4 +134,82 @@ impl SpriteManager {
             sprite_pos.y - 20.0 / zoom as f32
         )
     }
+    
+    // Additional sprite operation methods for better separation of concerns
+    
+    pub fn set_sprite_position(sprite: &mut Sprite, world_pos: Vec2) {
+        sprite.world_x = world_pos.x as f64;
+        sprite.world_y = world_pos.y as f64;
+    }
+    
+    pub fn set_sprite_size(sprite: &mut Sprite, size: Vec2) {
+        sprite.width = size.x as f64 / sprite.scale_x;
+        sprite.height = size.y as f64 / sprite.scale_y;
+    }
+    
+    pub fn set_sprite_scale(sprite: &mut Sprite, scale: Vec2) {
+        sprite.scale_x = scale.x as f64;
+        sprite.scale_y = scale.y as f64;
+    }
+    
+    pub fn set_sprite_rotation(sprite: &mut Sprite, rotation: f64) {
+        sprite.rotation = rotation;
+    }
+    
+    pub fn get_sprite_bounds(sprite: &Sprite) -> (Vec2, Vec2) {
+        let top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
+        let size = Vec2::new(
+            (sprite.width * sprite.scale_x) as f32,
+            (sprite.height * sprite.scale_y) as f32
+        );
+        (top_left, size)
+    }
+    
+    pub fn get_sprite_world_size(sprite: &Sprite) -> Vec2 {
+        Vec2::new(
+            (sprite.width * sprite.scale_x) as f32,
+            (sprite.height * sprite.scale_y) as f32
+        )
+    }
+    
+    pub fn is_point_inside_sprite(sprite: &Sprite, world_pos: Vec2) -> bool {
+        let sprite_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
+        let sprite_size = Vec2::new(
+            (sprite.width * sprite.scale_x) as f32,
+            (sprite.height * sprite.scale_y) as f32
+        );
+        
+        world_pos.x >= sprite_pos.x &&
+        world_pos.x <= sprite_pos.x + sprite_size.x &&
+        world_pos.y >= sprite_pos.y &&
+        world_pos.y <= sprite_pos.y + sprite_size.y
+    }
+    
+    pub fn calculate_drag_offset(sprite: &Sprite, world_pos: Vec2) -> Vec2 {
+        Vec2::new(
+            world_pos.x - sprite.world_x as f32,
+            world_pos.y - sprite.world_y as f32
+        )
+    }
+    
+    pub fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
+        Vec2::new(
+            (position.x / grid_size).round() * grid_size,
+            (position.y / grid_size).round() * grid_size
+        )
+    }
+    
+    pub fn constrain_to_bounds(sprite: &mut Sprite, bounds_min: Vec2, bounds_max: Vec2) {
+        let sprite_size = Self::get_sprite_world_size(sprite);
+        
+        sprite.world_x = (sprite.world_x as f32).clamp(
+            bounds_min.x,
+            bounds_max.x - sprite_size.x
+        ) as f64;
+        
+        sprite.world_y = (sprite.world_y as f32).clamp(
+            bounds_min.y,
+            bounds_max.y - sprite_size.y
+        ) as f64;
+    }
 }

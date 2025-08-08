@@ -23,11 +23,13 @@ mod layer_manager;
 mod grid_system;
 mod texture_manager;
 mod network;
+mod actions;
 
 pub use render::RenderEngine;
 pub use types::*;
 pub use lighting::{Light, LightingSystem};
 pub use network::NetworkClient;
+pub use actions::ActionsClient;
 
 use web_sys::HtmlCanvasElement;
 

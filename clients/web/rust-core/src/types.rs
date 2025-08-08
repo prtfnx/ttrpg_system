@@ -2,6 +2,18 @@ use serde::{Serialize, Deserialize};
 use crate::math::{Vec2, Rect};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Position {
+    pub x: f64,
+    pub y: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Size {
+    pub width: f64,
+    pub height: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Sprite {
     pub id: String,
     pub world_x: f64,
@@ -74,24 +86,107 @@ impl Sprite {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum BlendMode {
+    Alpha,
+    Additive,
+    Modulate,
+    Multiply,
+}
+
+impl Default for BlendMode {
+    fn default() -> Self {
+        BlendMode::Alpha
+    }
+}
+
+impl BlendMode {
+    pub fn to_webgl_equation(&self) -> (u32, u32) {
+        use web_sys::WebGl2RenderingContext as GL;
+        match self {
+            BlendMode::Alpha => (GL::SRC_ALPHA, GL::ONE_MINUS_SRC_ALPHA),
+            BlendMode::Additive => (GL::SRC_ALPHA, GL::ONE),
+            BlendMode::Modulate => (GL::DST_COLOR, GL::ZERO),
+            BlendMode::Multiply => (GL::DST_COLOR, GL::ZERO),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LayerSettings {
+    pub color: [f32; 3], // RGB color as 0.0-1.0 values
+    pub opacity: f32,
+    pub blend_mode: BlendMode,
+    pub visible: bool,
+    pub z_order: i32,
+}
+
+impl Default for LayerSettings {
+    fn default() -> Self {
+        Self {
+            color: [1.0, 1.0, 1.0], // White
+            opacity: 1.0,
+            blend_mode: BlendMode::Alpha,
+            visible: true,
+            z_order: 0,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Layer {
     pub sprites: Vec<Sprite>,
-    pub opacity: f32,
-    pub visible: bool,
+    pub settings: LayerSettings,
     pub selectable: bool,
-    pub z_order: i32,
 }
 
 impl Layer {
     pub fn new(z_order: i32) -> Self {
         Self {
             sprites: Vec::new(),
-            opacity: 1.0,
-            visible: true,
+            settings: LayerSettings {
+                z_order,
+                ..Default::default()
+            },
             selectable: true,
-            z_order,
         }
+    }
+    
+    pub fn new_with_settings(settings: LayerSettings) -> Self {
+        Self {
+            sprites: Vec::new(),
+            settings,
+            selectable: true,
+        }
+    }
+    
+    // Convenience methods for backward compatibility
+    pub fn opacity(&self) -> f32 {
+        self.settings.opacity
+    }
+    
+    pub fn visible(&self) -> bool {
+        self.settings.visible
+    }
+    
+    pub fn z_order(&self) -> i32 {
+        self.settings.z_order
+    }
+    
+    pub fn set_opacity(&mut self, opacity: f32) {
+        self.settings.opacity = opacity.clamp(0.0, 1.0);
+    }
+    
+    pub fn set_visibility(&mut self, visible: bool) {
+        self.settings.visible = visible;
+    }
+    
+    pub fn set_blend_mode(&mut self, blend_mode: BlendMode) {
+        self.settings.blend_mode = blend_mode;
+    }
+    
+    pub fn set_color(&mut self, r: f32, g: f32, b: f32) {
+        self.settings.color = [r.clamp(0.0, 1.0), g.clamp(0.0, 1.0), b.clamp(0.0, 1.0)];
     }
 }
 

@@ -14,6 +14,7 @@ use crate::event_system::{EventSystem, MouseEventResult};
 use crate::layer_manager::LayerManager;
 use crate::grid_system::GridSystem;
 use crate::texture_manager::TextureManager;
+use crate::actions::ActionsClient;
 
 #[wasm_bindgen]
 pub struct RenderEngine {
@@ -39,6 +40,9 @@ pub struct RenderEngine {
     
     // Fog of war system
     fog: FogOfWarSystem,
+    
+    // Actions system
+    actions: ActionsClient,
 }
 
 #[wasm_bindgen]
@@ -53,6 +57,7 @@ impl RenderEngine {
         
         let layer_manager = LayerManager::new();
         let grid_system = GridSystem::new();
+        let actions = ActionsClient::new();
         
         let canvas_size = Vec2::new(canvas.width() as f32, canvas.height() as f32);
         let camera = Camera::default();
@@ -70,6 +75,7 @@ impl RenderEngine {
             renderer,
             lighting,
             fog,
+            actions,
         };
         
         engine.update_view_matrix();
@@ -813,5 +819,175 @@ impl RenderEngine {
         }
         
         serde_wasm_bindgen::to_value(&all_sprites).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    // Actions System Integration
+
+    #[wasm_bindgen]
+    pub fn create_table_action(&mut self, name: &str, width: f64, height: f64) -> JsValue {
+        self.actions.create_table(name, width, height)
+    }
+
+    #[wasm_bindgen]
+    pub fn delete_table_action(&mut self, table_id: &str) -> JsValue {
+        self.actions.delete_table(table_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn update_table_action(&mut self, table_id: &str, updates: &JsValue) -> JsValue {
+        self.actions.update_table(table_id, updates)
+    }
+
+    #[wasm_bindgen]
+    pub fn create_sprite_action(&mut self, table_id: &str, layer: &str, position: &JsValue, texture_name: &str) -> JsValue {
+        let result = self.actions.create_sprite(table_id, layer, position, texture_name);
+        
+        // If successful, also add the sprite to the layer manager
+        if let Ok(action_result) = serde_wasm_bindgen::from_value::<crate::actions::ActionResult>(result.clone()) {
+            if action_result.success {
+                if let Some(sprite_data) = action_result.data {
+                    if let Ok(sprite_info) = serde_json::from_value::<crate::actions::SpriteInfo>(sprite_data) {
+                        let sprite = Sprite::new(
+                            sprite_info.sprite_id.clone(),
+                            sprite_info.position.x,
+                            sprite_info.position.y,
+                            sprite_info.size.width,
+                            sprite_info.size.height,
+                            sprite_info.texture_name.clone(),
+                        );
+                        let sprite_js = serde_wasm_bindgen::to_value(&sprite).unwrap_or(JsValue::NULL);
+                        let _ = self.layer_manager.add_sprite_to_layer(&sprite_info.layer, &sprite_js);
+                    }
+                }
+            }
+        }
+        
+        result
+    }
+
+    #[wasm_bindgen]
+    pub fn delete_sprite_action(&mut self, sprite_id: &str) -> JsValue {
+        let result = self.actions.delete_sprite(sprite_id);
+        
+        // If successful, also remove from layer manager
+        if let Ok(action_result) = serde_wasm_bindgen::from_value::<crate::actions::ActionResult>(result.clone()) {
+            if action_result.success {
+                // Note: LayerManager doesn't have remove_sprite_from_all_layers, so we'll skip this for now
+                web_sys::console::log_1(&format!("Sprite {} deleted from actions", sprite_id).into());
+            }
+        }
+        
+        result
+    }
+
+    #[wasm_bindgen]
+    pub fn update_sprite_action(&mut self, sprite_id: &str, updates: &JsValue) -> JsValue {
+        let result = self.actions.update_sprite(sprite_id, updates);
+        
+        // If successful, also update in layer manager
+        if let Ok(action_result) = serde_wasm_bindgen::from_value::<crate::actions::ActionResult>(result.clone()) {
+            if action_result.success {
+                // Note: LayerManager doesn't have update_sprite_in_layers, so we'll skip this for now
+                web_sys::console::log_1(&format!("Sprite {} updated in actions", sprite_id).into());
+            }
+        }
+        
+        result
+    }
+
+    #[wasm_bindgen]
+    pub fn set_layer_visibility_action(&mut self, layer: &str, visible: bool) -> JsValue {
+        let result = self.actions.set_layer_visibility(layer, visible);
+        
+        // Also update the layer manager
+        self.layer_manager.set_layer_visible(layer, visible);
+        
+        result
+    }
+
+    #[wasm_bindgen]
+    pub fn move_sprite_to_layer_action(&mut self, sprite_id: &str, new_layer: &str) -> JsValue {
+        let result = self.actions.move_sprite_to_layer(sprite_id, new_layer);
+        
+        // If successful, also move in layer manager
+        if let Ok(action_result) = serde_wasm_bindgen::from_value::<crate::actions::ActionResult>(result.clone()) {
+            if action_result.success {
+                // Note: LayerManager doesn't have move_sprite_to_layer, so we'll skip this for now
+                web_sys::console::log_1(&format!("Sprite {} moved to layer {} in actions", sprite_id, new_layer).into());
+            }
+        }
+        
+        result
+    }
+
+    #[wasm_bindgen]
+    pub fn batch_actions(&mut self, actions: &JsValue) -> JsValue {
+        self.actions.batch_actions(actions)
+    }
+
+    #[wasm_bindgen]
+    pub fn undo_action(&mut self) -> JsValue {
+        self.actions.undo()
+    }
+
+    #[wasm_bindgen]
+    pub fn redo_action(&mut self) -> JsValue {
+        self.actions.redo()
+    }
+
+    #[wasm_bindgen]
+    pub fn can_undo(&self) -> bool {
+        self.actions.can_undo()
+    }
+
+    #[wasm_bindgen]
+    pub fn can_redo(&self) -> bool {
+        self.actions.can_redo()
+    }
+
+    #[wasm_bindgen]
+    pub fn get_action_history(&self) -> JsValue {
+        self.actions.get_action_history()
+    }
+
+    #[wasm_bindgen]
+    pub fn get_table_info(&self, table_id: &str) -> JsValue {
+        self.actions.get_table_info(table_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn get_sprite_info(&self, sprite_id: &str) -> JsValue {
+        self.actions.get_sprite_info(sprite_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn get_all_tables(&self) -> JsValue {
+        self.actions.get_all_tables()
+    }
+
+    #[wasm_bindgen]
+    pub fn get_sprites_by_layer(&self, layer: &str) -> JsValue {
+        self.actions.get_sprites_by_layer(layer)
+    }
+
+    // Actions event handlers setup
+    #[wasm_bindgen]
+    pub fn set_action_handler(&mut self, callback: &js_sys::Function) {
+        self.actions.set_action_handler(callback);
+    }
+
+    #[wasm_bindgen]
+    pub fn set_state_change_handler(&mut self, callback: &js_sys::Function) {
+        self.actions.set_state_change_handler(callback);
+    }
+
+    #[wasm_bindgen]
+    pub fn set_actions_error_handler(&mut self, callback: &js_sys::Function) {
+        self.actions.set_error_handler(callback);
+    }
+
+    #[wasm_bindgen]
+    pub fn set_actions_auto_sync(&mut self, enabled: bool) {
+        self.actions.set_auto_sync(enabled);
     }
 }

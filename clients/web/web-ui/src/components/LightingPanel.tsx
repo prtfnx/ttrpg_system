@@ -1,6 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useRenderEngine } from '../hooks/useRenderEngine';
-import { useLightInteraction } from '../hooks/useLightInteraction';
 import type { Color } from '../types';
 import styles from './LightingPanel.module.css';
 
@@ -19,24 +18,6 @@ export const LightingPanel: React.FC = () => {
   const [lights, setLights] = useState<Light[]>([]);
   const [selectedLightId, setSelectedLightId] = useState<string | null>(null);
   const [newLightName, setNewLightName] = useState('');
-  
-  // Canvas ref for mouse interaction (would typically be passed from parent component)
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  
-  // Handle light position updates from mouse interaction
-  const handleLightPositionUpdate = (lightId: string, x: number, y: number) => {
-    setLights(prevLights => 
-      prevLights.map(light => 
-        light.id === lightId ? { ...light, x, y } : light
-      )
-    );
-  };
-  
-  // Use the light interaction hook
-  const { isDragging, draggedLightId } = useLightInteraction(
-    canvasRef,
-    handleLightPositionUpdate
-  );
 
   const addLight = () => {
     if (!engine || !newLightName.trim()) return;
@@ -167,6 +148,16 @@ export const LightingPanel: React.FC = () => {
           </button>
           <button onClick={clearAllLights} disabled={lights.length === 0}>
             Clear All
+          </button>
+          <button 
+            onClick={() => {
+              if (!engine) return;
+              const isActive = engine.is_in_light_drag_mode();
+              engine.set_light_drag_mode(!isActive);
+            }}
+            className={`${styles['mode-button']} ${engine?.is_in_light_drag_mode() ? styles.active : ''}`}
+          >
+            {engine?.is_in_light_drag_mode() ? '🔓 Exit Drag' : '🔒 Drag Mode'}
           </button>
         </div>
       </div>

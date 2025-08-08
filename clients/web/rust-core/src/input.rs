@@ -8,7 +8,10 @@ pub enum InputMode {
     SpriteMove,
     SpriteResize(ResizeHandle),
     SpriteRotate,
-    AreaSelect,  // New: Area selection rectangle
+    AreaSelect,
+    LightDrag,      // New: Dragging light source
+    FogDraw,        // New: Drawing fog rectangles
+    FogErase,       // New: Erasing fog rectangles
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,6 +36,21 @@ pub struct InputHandler {
     pub sprite_initial_rotation: f64,
     pub area_select_start: Option<Vec2>,   // New: Area selection start position
     pub area_select_current: Option<Vec2>, // New: Area selection current position
+    
+    // Lighting interaction state
+    pub selected_light_id: Option<String>,
+    pub light_drag_offset: Vec2,
+    
+    // Fog interaction state
+    pub fog_draw_start: Option<Vec2>,
+    pub fog_draw_current: Option<Vec2>,
+    pub fog_mode: FogDrawMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FogDrawMode {
+    Hide,
+    Reveal,
 }
 
 impl Default for InputHandler {
@@ -47,6 +65,11 @@ impl Default for InputHandler {
             sprite_initial_rotation: 0.0,
             area_select_start: None,
             area_select_current: None,
+            selected_light_id: None,
+            light_drag_offset: Vec2::new(0.0, 0.0),
+            fog_draw_start: None,
+            fog_draw_current: None,
+            fog_mode: FogDrawMode::Hide,
         }
     }
 }
@@ -128,6 +151,83 @@ impl InputHandler {
         self.area_select_start = None;
         self.area_select_current = None;
         self.input_mode = InputMode::None;
+    }
+
+    // Light interaction methods
+    pub fn start_light_drag(&mut self, light_id: String, world_pos: Vec2, light_pos: Vec2) {
+        self.input_mode = InputMode::LightDrag;
+        self.selected_light_id = Some(light_id);
+        self.light_drag_offset = Vec2::new(light_pos.x - world_pos.x, light_pos.y - world_pos.y);
+    }
+
+    pub fn update_light_drag(&mut self, world_pos: Vec2) -> Option<Vec2> {
+        if self.input_mode == InputMode::LightDrag {
+            Some(Vec2::new(
+                world_pos.x + self.light_drag_offset.x,
+                world_pos.y + self.light_drag_offset.y,
+            ))
+        } else {
+            None
+        }
+    }
+
+    pub fn end_light_drag(&mut self) -> Option<String> {
+        if self.input_mode == InputMode::LightDrag {
+            self.input_mode = InputMode::None;
+            let light_id = self.selected_light_id.take();
+            self.light_drag_offset = Vec2::new(0.0, 0.0);
+            light_id
+        } else {
+            None
+        }
+    }
+
+    // Fog interaction methods
+    pub fn start_fog_draw(&mut self, world_pos: Vec2, mode: FogDrawMode) {
+        self.input_mode = match mode {
+            FogDrawMode::Hide => InputMode::FogDraw,
+            FogDrawMode::Reveal => InputMode::FogErase,
+        };
+        self.fog_mode = mode;
+        self.fog_draw_start = Some(world_pos);
+        self.fog_draw_current = Some(world_pos);
+    }
+
+    pub fn update_fog_draw(&mut self, world_pos: Vec2) -> Option<(Vec2, Vec2)> {
+        if matches!(self.input_mode, InputMode::FogDraw | InputMode::FogErase) {
+            self.fog_draw_current = Some(world_pos);
+            if let Some(start) = self.fog_draw_start {
+                Some((start, world_pos))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn end_fog_draw(&mut self) -> Option<(Vec2, Vec2, FogDrawMode)> {
+        if matches!(self.input_mode, InputMode::FogDraw | InputMode::FogErase) {
+            self.input_mode = InputMode::None;
+            if let (Some(start), Some(end)) = (self.fog_draw_start.take(), self.fog_draw_current.take()) {
+                let mode = self.fog_mode;
+                Some((start, end, mode))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    // Check if mouse is over a light source
+    pub fn is_mouse_over_light(&self, world_pos: Vec2, light_pos: Vec2, light_radius: f32) -> bool {
+        let dx = world_pos.x - light_pos.x;
+        let dy = world_pos.y - light_pos.y;
+        let distance_squared = dx * dx + dy * dy;
+        let click_radius = 20.0; // Minimum click radius for lights
+        let actual_radius = light_radius.max(click_radius);
+        distance_squared <= actual_radius * actual_radius
     }
 }
 

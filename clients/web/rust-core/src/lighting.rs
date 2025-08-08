@@ -297,4 +297,29 @@ impl LightingSystem {
     pub fn clear_lights(&mut self) {
         self.lights.clear();
     }
+
+    // Mouse interaction support
+    pub fn get_light_at_position(&self, world_pos: Vec2, tolerance: f32) -> Option<&String> {
+        self.lights.iter()
+            .find(|(_, light)| {
+                let dx = world_pos.x - light.position.x;
+                let dy = world_pos.y - light.position.y;
+                let distance_squared = dx * dx + dy * dy;
+                let click_radius = tolerance.max(20.0); // Minimum click radius
+                distance_squared <= click_radius * click_radius
+            })
+            .map(|(id, _)| id)
+    }
+
+    pub fn get_light_position(&self, light_id: &str) -> Option<Vec2> {
+        self.lights.get(light_id).map(|light| light.position)
+    }
+
+    pub fn get_light_radius(&self, light_id: &str) -> Option<f32> {
+        self.lights.get(light_id).map(|light| light.radius)
+    }
+
+    pub fn get_all_lights(&self) -> Vec<(&String, &Light)> {
+        self.lights.iter().collect()
+    }
 }

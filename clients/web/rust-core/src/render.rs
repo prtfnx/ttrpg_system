@@ -6,7 +6,7 @@ use gloo_utils::format::JsValueSerdeExt;
 use crate::types::*;
 use crate::math::*;
 use crate::camera::Camera;
-use crate::input::{InputHandler, InputMode, ResizeHandle, HandleDetector};
+use crate::input::{InputHandler, InputMode, HandleDetector};
 use crate::sprite_manager::SpriteManager;
 use crate::webgl_renderer::WebGLRenderer;
 use crate::lighting::LightingSystem;
@@ -523,6 +523,39 @@ impl RenderEngine {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
         self.input.last_mouse_screen = Vec2::new(screen_x, screen_y);
         
+        // Check if we're in fog drawing mode first
+        if matches!(self.input.input_mode, InputMode::FogDraw | InputMode::FogErase) {
+            // Start drawing a new fog rectangle
+            use crate::input::FogDrawMode;
+            let fog_mode = match self.input.input_mode {
+                InputMode::FogErase => FogDrawMode::Reveal,
+                _ => FogDrawMode::Hide,
+            };
+            
+            let id = format!("interactive_fog_{}", js_sys::Date::now() as u64);
+            self.input.start_fog_draw(world_pos, fog_mode);
+            
+            use crate::fog::FogMode;
+            let fog_system_mode = match fog_mode {
+                FogDrawMode::Reveal => FogMode::Reveal,
+                FogDrawMode::Hide => FogMode::Hide,
+            };
+            
+            self.fog.start_interactive_rectangle(id, world_pos, fog_system_mode);
+            return;
+        }
+        
+        // Check if we're in light drag mode
+        if self.input.input_mode == InputMode::LightDrag {
+            // Check if clicking on a light source to start dragging
+            if let Some(light_id) = self.lighting.get_light_at_position(world_pos, 30.0) {
+                if let Some(light_pos) = self.lighting.get_light_position(&light_id) {
+                    self.input.start_light_drag(light_id, world_pos, light_pos);
+                    return;
+                }
+            }
+        }
+        
         // First check for multi-select operations if Ctrl is not pressed
         if !ctrl_pressed {
             let clicked_sprite = self.find_sprite_at_position(world_pos);
@@ -751,6 +784,18 @@ impl RenderEngine {
                 // Update area selection rectangle
                 self.input.update_area_selection(world_pos);
             }
+            InputMode::LightDrag => {
+                // Update light drag position
+                if let Some(new_pos) = self.input.update_light_drag(world_pos) {
+                    if let Some(ref light_id) = self.input.selected_light_id {
+                        self.lighting.update_light_position(light_id, new_pos);
+                    }
+                }
+            }
+            InputMode::FogDraw | InputMode::FogErase => {
+                // Update fog rectangle drawing
+                self.input.update_fog_draw(world_pos);
+            }
             _ => {}
         }
         
@@ -761,14 +806,46 @@ impl RenderEngine {
     pub fn handle_mouse_up(&mut self, screen_x: f32, screen_y: f32) {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
         
-        if self.input.input_mode == InputMode::AreaSelect {
-            // Complete area selection
-            if let Some((min, max)) = self.input.get_area_selection_rect() {
-                self.select_sprites_in_area(min, max);
+        match self.input.input_mode {
+            InputMode::AreaSelect => {
+                // Complete area selection
+                if let Some((min, max)) = self.input.get_area_selection_rect() {
+                    self.select_sprites_in_area(min, max);
+                }
+                self.input.finish_area_selection();
             }
-            self.input.finish_area_selection();
-        } else {
-            self.input.input_mode = InputMode::None;
+            InputMode::LightDrag => {
+                // End light dragging
+                self.input.end_light_drag();
+            }
+            InputMode::FogDraw | InputMode::FogErase => {
+                // Complete fog rectangle drawing
+                if let Some((start, end, mode)) = self.input.end_fog_draw() {
+                    use crate::fog::FogMode;
+                    let fog_mode = match mode {
+                        crate::input::FogDrawMode::Reveal => FogMode::Reveal,
+                        crate::input::FogDrawMode::Hide => FogMode::Hide,
+                    };
+                    
+                    // Create a permanent fog rectangle
+                    let id = format!("fog_rect_{}", js_sys::Date::now() as u64);
+                    let mode_str = match fog_mode {
+                        FogMode::Reveal => "reveal",
+                        FogMode::Hide => "hide",
+                    };
+                    
+                    // Only create if rectangle has minimum size
+                    let min_size = 10.0;
+                    if (end.x - start.x).abs() > min_size && (end.y - start.y).abs() > min_size {
+                        self.fog.add_fog_rectangle(id, start.x, start.y, end.x, end.y, mode_str);
+                    }
+                }
+                // Return to None mode after fog drawing
+                self.input.input_mode = InputMode::None;
+            }
+            _ => {
+                self.input.input_mode = InputMode::None;
+            }
         }
     }
     
@@ -1142,5 +1219,159 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn get_fog_count(&self) -> usize {
         self.fog.get_fog_count()
+    }
+
+    // ============================================================================
+    // INTERACTIVE CONTROLS - Mouse-based light positioning and fog drawing
+    // ============================================================================
+    
+    // Light interaction methods
+    #[wasm_bindgen]
+    pub fn get_light_at_position(&self, x: f32, y: f32) -> Option<String> {
+        let world_pos = Vec2::new(x, y);
+        self.lighting.get_light_at_position(world_pos, 30.0).map(|s| s.clone())
+    }
+
+    #[wasm_bindgen]
+    pub fn start_light_drag(&mut self, light_id: &str, world_x: f32, world_y: f32) -> bool {
+        if let Some(light_pos) = self.lighting.get_light_position(light_id) {
+            self.input.start_light_drag(light_id.to_string(), Vec2::new(world_x, world_y), light_pos);
+            true
+        } else {
+            false
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn update_light_drag(&mut self, world_x: f32, world_y: f32) -> bool {
+        if let Some(new_pos) = self.input.update_light_drag(Vec2::new(world_x, world_y)) {
+            if let Some(ref light_id) = self.input.selected_light_id {
+                self.lighting.update_light_position(light_id, new_pos);
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn end_light_drag(&mut self) -> Option<String> {
+        self.input.end_light_drag()
+    }
+
+    #[wasm_bindgen]
+    pub fn get_light_radius(&self, light_id: &str) -> f32 {
+        self.lighting.get_light_radius(light_id).unwrap_or(0.0)
+    }
+
+    // Fog interaction methods
+    #[wasm_bindgen]
+    pub fn start_fog_draw(&mut self, world_x: f32, world_y: f32, mode: &str) -> String {
+        use crate::input::FogDrawMode;
+        let fog_mode = match mode {
+            "reveal" => FogDrawMode::Reveal,
+            _ => FogDrawMode::Hide,
+        };
+        
+        let id = format!("interactive_fog_{}", js_sys::Date::now() as u64);
+        let world_pos = Vec2::new(world_x, world_y);
+        
+        self.input.start_fog_draw(world_pos, fog_mode);
+        
+        use crate::fog::FogMode;
+        let fog_system_mode = match fog_mode {
+            FogDrawMode::Reveal => FogMode::Reveal,
+            FogDrawMode::Hide => FogMode::Hide,
+        };
+        
+        self.fog.start_interactive_rectangle(id.clone(), world_pos, fog_system_mode);
+        id
+    }
+
+    #[wasm_bindgen]
+    pub fn update_fog_draw(&mut self, rect_id: &str, world_x: f32, world_y: f32) -> bool {
+        let world_pos = Vec2::new(world_x, world_y);
+        
+        if self.input.update_fog_draw(world_pos).is_some() {
+            self.fog.update_interactive_rectangle(rect_id, world_pos)
+        } else {
+            false
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn finish_fog_draw(&mut self, rect_id: &str) -> bool {
+        if let Some((_, _, _)) = self.input.end_fog_draw() {
+            self.fog.finish_interactive_rectangle(rect_id)
+        } else {
+            false
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn cancel_fog_draw(&mut self, rect_id: &str) {
+        self.input.end_fog_draw();
+        self.fog.cancel_interactive_rectangle(rect_id);
+    }
+
+    #[wasm_bindgen]
+    pub fn get_fog_at_position(&self, x: f32, y: f32) -> Option<String> {
+        let world_pos = Vec2::new(x, y);
+        self.fog.get_fog_rectangle_at_position(world_pos).map(|s| s.clone())
+    }
+
+    // Tool mode management for fog drawing
+    #[wasm_bindgen]
+    pub fn set_fog_draw_mode(&mut self, enabled: bool) {
+        if enabled {
+            self.input.input_mode = InputMode::FogDraw;
+        } else if matches!(self.input.input_mode, InputMode::FogDraw | InputMode::FogErase) {
+            self.input.input_mode = InputMode::None;
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn set_fog_erase_mode(&mut self, enabled: bool) {
+        if enabled {
+            self.input.input_mode = InputMode::FogErase;
+        } else if matches!(self.input.input_mode, InputMode::FogDraw | InputMode::FogErase) {
+            self.input.input_mode = InputMode::None;
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn set_light_drag_mode(&mut self, enabled: bool) {
+        if enabled {
+            self.input.input_mode = InputMode::LightDrag;
+        } else if self.input.input_mode == InputMode::LightDrag {
+            self.input.input_mode = InputMode::None;
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn is_in_fog_draw_mode(&self) -> bool {
+        matches!(self.input.input_mode, InputMode::FogDraw | InputMode::FogErase)
+    }
+
+    #[wasm_bindgen]
+    pub fn is_in_light_drag_mode(&self) -> bool {
+        self.input.input_mode == InputMode::LightDrag
+    }
+
+    #[wasm_bindgen]
+    pub fn get_current_input_mode(&self) -> String {
+        match self.input.input_mode {
+            InputMode::None => "none".to_string(),
+            InputMode::CameraPan => "camera_pan".to_string(),
+            InputMode::SpriteMove => "sprite_move".to_string(),
+            InputMode::SpriteResize(_) => "sprite_resize".to_string(),
+            InputMode::SpriteRotate => "sprite_rotate".to_string(),
+            InputMode::AreaSelect => "area_select".to_string(),
+            InputMode::LightDrag => "light_drag".to_string(),
+            InputMode::FogDraw => "fog_draw".to_string(),
+            InputMode::FogErase => "fog_erase".to_string(),
+        }
     }
 }

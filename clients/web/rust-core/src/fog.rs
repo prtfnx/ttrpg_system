@@ -2,7 +2,6 @@ use wasm_bindgen::prelude::*;
 use web_sys::{WebGl2RenderingContext as WebGlRenderingContext, WebGlProgram, WebGlShader};
 use std::collections::HashMap;
 use crate::math::Vec2;
-use crate::types::Color;
 
 #[derive(Clone, Debug)]
 pub struct FogRectangle {
@@ -368,5 +367,53 @@ impl FogOfWarSystem {
         }
         
         (hide_rects, reveal_rects)
+    }
+
+    // Mouse interaction support
+    pub fn get_fog_rectangle_at_position(&self, world_pos: Vec2) -> Option<&String> {
+        self.fog_rectangles.iter()
+            .find(|(_, rectangle)| rectangle.contains_point(world_pos))
+            .map(|(id, _)| id)
+    }
+
+    pub fn start_interactive_rectangle(&mut self, id: String, start_pos: Vec2, mode: FogMode) {
+        let rectangle = FogRectangle::new(id, start_pos.x, start_pos.y, start_pos.x, start_pos.y, mode);
+        self.fog_rectangles.insert(rectangle.id.clone(), rectangle);
+    }
+
+    pub fn update_interactive_rectangle(&mut self, id: &str, end_pos: Vec2) -> bool {
+        if let Some(rectangle) = self.fog_rectangles.get_mut(id) {
+            rectangle.end = end_pos;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn finish_interactive_rectangle(&mut self, id: &str) -> bool {
+        if let Some(rectangle) = self.fog_rectangles.get(id) {
+            let normalized = rectangle.normalized();
+            // Only keep rectangle if it has some area
+            let min_size = 5.0; // Minimum rectangle size
+            let width = normalized.end.x - normalized.start.x;
+            let height = normalized.end.y - normalized.start.y;
+            
+            if width < min_size || height < min_size {
+                self.fog_rectangles.remove(id);
+                false
+            } else {
+                true
+            }
+        } else {
+            false
+        }
+    }
+
+    pub fn cancel_interactive_rectangle(&mut self, id: &str) {
+        self.fog_rectangles.remove(id);
+    }
+
+    pub fn get_all_fog_rectangles(&self) -> Vec<(&String, &FogRectangle)> {
+        self.fog_rectangles.iter().collect()
     }
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { RenderEngine, BrushPreset, create_default_brush_presets } from '../types/wasm';
+import { create_default_brush_presets } from '../wasm/ttrpg_rust_core';
+import type { BrushPreset } from '../types/wasm';
 
 export interface PaintState {
   isActive: boolean;
@@ -37,7 +38,7 @@ export interface PaintEvents {
 }
 
 export function usePaintSystem(
-  renderEngine: RenderEngine | null,
+  renderEngine: any,
   events?: PaintEvents
 ): [PaintState, PaintControls] {
   const [paintState, setPaintState] = useState<PaintState>({
@@ -52,58 +53,13 @@ export function usePaintSystem(
   const eventsRef = useRef(events);
   eventsRef.current = events;
 
-  // Setup event listeners
+  // Setup event listeners - DISABLED: paint_on_event function not working
   useEffect(() => {
     if (!renderEngine) return;
 
-    const handleStrokeStarted = () => {
-      setPaintState(prev => ({ ...prev, isDrawing: true }));
-      eventsRef.current?.onStrokeStarted?.();
-    };
-
-    const handleStrokeUpdated = () => {
-      eventsRef.current?.onStrokeUpdated?.();
-    };
-
-    const handleStrokeCompleted = () => {
-      setPaintState(prev => ({ 
-        ...prev, 
-        isDrawing: false, 
-        strokeCount: prev.strokeCount + 1 
-      }));
-      eventsRef.current?.onStrokeCompleted?.();
-    };
-
-    const handleStrokeCancelled = () => {
-      setPaintState(prev => ({ ...prev, isDrawing: false }));
-      eventsRef.current?.onStrokeCancelled?.();
-    };
-
-    const handleStrokeUndone = () => {
-      setPaintState(prev => ({ 
-        ...prev, 
-        strokeCount: Math.max(0, prev.strokeCount - 1) 
-      }));
-      eventsRef.current?.onStrokeUndone?.();
-    };
-
-    const handleCanvasCleared = () => {
-      setPaintState(prev => ({ 
-        ...prev, 
-        strokeCount: 0,
-        isDrawing: false 
-      }));
-      eventsRef.current?.onCanvasCleared?.();
-    };
-
-    // Register event handlers
-    renderEngine.paint_on_event('stroke_started', handleStrokeStarted);
-    renderEngine.paint_on_event('stroke_updated', handleStrokeUpdated);
-    renderEngine.paint_on_event('stroke_completed', handleStrokeCompleted);
-    renderEngine.paint_on_event('stroke_cancelled', handleStrokeCancelled);
-    renderEngine.paint_on_event('stroke_undone', handleStrokeUndone);
-    renderEngine.paint_on_event('canvas_cleared', handleCanvasCleared);
-
+    // Event system disabled due to WASM function issues
+    // Would register paint event handlers here
+    
     return () => {
       // Cleanup would happen here if WASM supported removing event listeners
     };
@@ -263,7 +219,7 @@ export function usePaintSystem(
 
 // Utility hook for mouse-based painting interaction
 export function usePaintInteraction(
-  renderEngine: RenderEngine | null,
+  renderEngine: any,
   paintControls: PaintControls,
   paintState: PaintState
 ) {

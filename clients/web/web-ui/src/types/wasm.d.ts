@@ -267,6 +267,54 @@ export class BrushPreset {
   apply_to_paint_system(paint_system: any): void;
 }
 
+export interface AssetInfo {
+  id: string;
+  name: string;
+  url: string;
+  hash: string;
+  size: number;
+  mime_type: string;
+  cached_at: number;
+  last_accessed: number;
+}
+
+export interface CacheStats {
+  total_assets: number;
+  total_size: number;
+  cache_hits: number;
+  cache_misses: number;
+  last_cleanup: number;
+}
+
+export class AssetManager {
+  free(): void;
+  constructor();
+  set_cache_limits(max_size_mb: bigint, max_age_hours: number): void;
+  is_cached(asset_id: string): boolean;
+  get_asset_info(asset_id: string): string | null;
+  get_asset_data(asset_id: string): Uint8Array | null;
+  cache_asset(asset_info_json: string, data: Uint8Array): Promise<void>;
+  remove_asset(asset_id: string): boolean;
+  cleanup_cache(): Promise<void>;
+  clear_cache(): Promise<void>;
+  get_cache_stats(): string;
+  preload_assets(asset_urls: string[]): Promise<void>;
+  get_asset_list(): string[];
+  export_cache(): string;
+  import_cache(cache_json: string): Promise<void>;
+}
+
+export class AssetUploader {
+  free(): void;
+  constructor();
+  set_max_concurrent_uploads(max: number): void;
+  upload_asset(asset_id: string, url: string, data: Uint8Array): Promise<void>;
+  get_upload_progress(asset_id: string): number;
+  cancel_upload(asset_id: string): boolean;
+  get_active_uploads(): number;
+  get_upload_queue_size(): number;
+}
+
 export function create_default_brush_presets(): BrushPreset[];
 
 export function init_game_renderer(canvas: HTMLCanvasElement): RenderEngine;

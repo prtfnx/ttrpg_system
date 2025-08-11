@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { usePaintSystem, usePaintInteraction, useBrushPresets } from '../hooks/usePaintSystem';
+import React, { useEffect, useRef, useState } from 'react';
+import { useBrushPresets, usePaintInteraction, usePaintSystem } from '../hooks/usePaintSystem';
 import './PaintPanel.css';
 
 interface PaintPanelProps {

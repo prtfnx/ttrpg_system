@@ -4,12 +4,12 @@ import { useGameStore } from '../store';
 import DiceRoller from '../tools/DiceRoller';
 import type { GameAPI } from '../types';
 import { AlignmentHelper } from './AlignmentHelper';
+import { AssetManager } from './AssetManager';
 import { GridControls } from './GridControls';
 import { LayerPanel } from './LayerPanel';
 import { MeasurementTool } from './MeasurementTool';
-import { SpriteCreationTools } from './SpriteCreationTools';
-import { AssetManager } from './AssetManager';
 import { PaintPanel } from './PaintPanel';
+import { SpriteCreationTools } from './SpriteCreationTools';
 
 // Global type declarations
 declare global {

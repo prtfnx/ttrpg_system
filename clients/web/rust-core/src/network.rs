@@ -131,8 +131,6 @@ pub struct TableNetworkData {
 pub enum ConnectionState {
     Disconnected,
     Connecting,
-    Connected,
-    Error(String),
 }
 
 #[wasm_bindgen]
@@ -144,9 +142,6 @@ pub struct NetworkClient {
     username: Option<String>,
     session_code: Option<String>,
     jwt_token: Option<String>,
-    last_ping: f64,
-    reconnect_attempts: u32,
-    max_reconnect_attempts: u32,
     
     // Event handlers
     on_message_callback: Option<Function>,
@@ -168,9 +163,6 @@ impl NetworkClient {
             username: None,
             session_code: None,
             jwt_token: None,
-            last_ping: js_sys::Date::now(),
-            reconnect_attempts: 0,
-            max_reconnect_attempts: 5,
             on_message_callback: None,
             on_connection_change_callback: None,
             on_error_callback: None,
@@ -393,7 +385,7 @@ impl NetworkClient {
     // Connection state getters
     #[wasm_bindgen]
     pub fn is_connected(&self) -> bool {
-        matches!(self.connection_state, ConnectionState::Connected)
+        matches!(self.connection_state, ConnectionState::Connecting)
     }
 
     #[wasm_bindgen]
@@ -401,8 +393,6 @@ impl NetworkClient {
         match &self.connection_state {
             ConnectionState::Disconnected => "disconnected".to_string(),
             ConnectionState::Connecting => "connecting".to_string(),
-            ConnectionState::Connected => "connected".to_string(),
-            ConnectionState::Error(msg) => format!("error: {}", msg),
         }
     }
 

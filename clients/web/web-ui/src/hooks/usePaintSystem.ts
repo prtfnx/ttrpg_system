@@ -4,7 +4,7 @@ import type { BrushPreset } from '../types/wasm';
 // Access WASM functions through the global window object
 declare global {
   interface Window {
-    ttrpg_rust_core?: any;
+    ttrpg_rust_core?: Record<string, any>;
   }
 }
 
@@ -304,8 +304,9 @@ export function useBrushPresets() {
   useEffect(() => {
     const loadPresets = async () => {
       try {
-        const defaultPresets = window.ttrpg_rust_core?.create_default_brush_presets?.();
-        if (defaultPresets) {
+        const wasmModule = window.ttrpg_rust_core;
+        if (wasmModule && typeof wasmModule.create_default_brush_presets === 'function') {
+          const defaultPresets = wasmModule.create_default_brush_presets();
           setPresets(defaultPresets as BrushPreset[]);
         }
       } catch (error) {

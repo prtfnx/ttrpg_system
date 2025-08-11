@@ -12,6 +12,7 @@ use std::collections::HashMap;
 pub enum MouseEventResult {
     Handled,
     CameraOperation(String),
+    CreateSprite(String),
     None,
 }
 
@@ -278,7 +279,8 @@ impl EventSystem {
                     
                     if width > 10.0 && height > 10.0 {  // Minimum size check
                         web_sys::console::log_1(&format!("[RUST EVENT] Creating rectangle at ({:.1}, {:.1}) size {:.1}x{:.1}", min_x, min_y, width, height).into());
-                        // TODO: Actually create the sprite in the layer system
+                        // Return a special result to create the sprite
+                        return MouseEventResult::CreateSprite(format!("rectangle:{}:{}:{}:{}", min_x, min_y, width, height));
                     }
                 }
                 // Keep creation mode active for multiple shapes
@@ -291,7 +293,8 @@ impl EventSystem {
                     
                     if radius > 5.0 {  // Minimum radius check
                         web_sys::console::log_1(&format!("[RUST EVENT] Creating circle at ({:.1}, {:.1}) radius {:.1}", start.x, start.y, radius).into());
-                        // TODO: Actually create the sprite in the layer system
+                        // Return a special result to create the sprite
+                        return MouseEventResult::CreateSprite(format!("circle:{}:{}:{}", start.x, start.y, radius));
                     }
                 }
                 // Keep creation mode active for multiple shapes
@@ -304,7 +307,8 @@ impl EventSystem {
                     
                     if length > 5.0 {  // Minimum length check
                         web_sys::console::log_1(&format!("[RUST EVENT] Creating line from ({:.1}, {:.1}) to ({:.1}, {:.1})", start.x, start.y, end.x, end.y).into());
-                        // TODO: Actually create the sprite in the layer system
+                        // Return a special result to create the sprite
+                        return MouseEventResult::CreateSprite(format!("line:{}:{}:{}:{}", start.x, start.y, end.x, end.y));
                     }
                 }
                 // Keep creation mode active for multiple shapes

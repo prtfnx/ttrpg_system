@@ -129,6 +129,27 @@ impl RenderEngine {
             SpriteRenderer::draw_area_selection_rect(min, max, &self.renderer)?;
         }
         
+        // Draw measurement line if active
+        if let Some((start, end)) = self.input.get_measurement_line() {
+            SpriteRenderer::draw_measurement_line(start, end, &self.renderer)?;
+        }
+        
+        // Draw shape creation preview if active
+        if let Some((start, end)) = self.input.get_shape_creation_rect() {
+            match self.input.input_mode {
+                InputMode::CreateRectangle => {
+                    SpriteRenderer::draw_rectangle_preview(start, end, &self.renderer)?;
+                }
+                InputMode::CreateCircle => {
+                    SpriteRenderer::draw_circle_preview(start, end, &self.renderer)?;
+                }
+                InputMode::CreateLine => {
+                    SpriteRenderer::draw_line_preview(start, end, &self.renderer)?;
+                }
+                _ => {}
+            }
+        }
+        
         Ok(())
     }
     
@@ -235,6 +256,13 @@ impl RenderEngine {
         web_sys::console::log_1(&format!("[RUST] World pos: {}, {}", world_pos.x, world_pos.y).into());
         self.input.last_mouse_screen = Vec2::new(screen_x, screen_y);
         
+        // Check if paint mode is active first
+        if self.paint.is_paint_mode() {
+            web_sys::console::log_1(&"[RUST] Paint mode active, starting paint stroke".into());
+            self.paint.start_stroke(world_pos.x, world_pos.y, 1.0); // Default pressure
+            return;
+        }
+        
         // Use the event system to handle mouse down events
         let result = self.event_system.handle_mouse_down(
             world_pos,
@@ -267,6 +295,9 @@ impl RenderEngine {
                     _ => {}
                 }
             }
+            MouseEventResult::CreateSprite(_) => {
+                // Shape creation is handled in mouse up, not mouse down
+            }
             MouseEventResult::None => {
                 // Handle legacy fallback if needed
             }
@@ -278,6 +309,14 @@ impl RenderEngine {
         let current_screen = Vec2::new(screen_x, screen_y);
         let world_pos = self.camera.screen_to_world(current_screen);
         web_sys::console::log_1(&format!("[RUST] Mouse move at world: {}, {}, mode: {:?}", world_pos.x, world_pos.y, self.input.input_mode).into());
+        
+        // Check if paint mode is active first
+        if self.paint.is_paint_mode() {
+            // Continue paint stroke if mouse is down
+            self.paint.add_stroke_point(world_pos.x, world_pos.y, 1.0); // Default pressure
+            self.input.last_mouse_screen = current_screen;
+            return;
+        }
         
         // Handle camera panning directly here since we have screen coordinates
         if self.input.input_mode == InputMode::CameraPan {
@@ -319,6 +358,9 @@ impl RenderEngine {
                     _ => {}
                 }
             }
+            MouseEventResult::CreateSprite(_) => {
+                // Shape creation is handled in mouse up, not mouse move
+            }
             MouseEventResult::None => {
                 // Fallback to legacy handling if needed
             }
@@ -331,6 +373,13 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn handle_mouse_up(&mut self, screen_x: f32, screen_y: f32) {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
+        
+        // Check if paint mode is active first
+        if self.paint.is_paint_mode() {
+            web_sys::console::log_1(&"[RUST] Paint mode active, ending paint stroke".into());
+            self.paint.end_stroke();
+            return;
+        }
         
         // Use the event system to handle mouse up events
         let result = self.event_system.handle_mouse_up(
@@ -353,6 +402,44 @@ impl RenderEngine {
                         self.view_matrix = self.camera.view_matrix(self.canvas_size);
                     }
                     _ => {}
+                }
+            }
+            MouseEventResult::CreateSprite(sprite_data) => {
+                // Handle sprite creation
+                let parts: Vec<&str> = sprite_data.split(':').collect();
+                if parts.len() >= 4 {
+                    match parts[0] {
+                        "rectangle" => {
+                            if let (Ok(x), Ok(y), Ok(width), Ok(height)) = (
+                                parts[1].parse::<f32>(),
+                                parts[2].parse::<f32>(),
+                                parts[3].parse::<f32>(),
+                                parts[4].parse::<f32>()
+                            ) {
+                                self.create_rectangle_sprite(x, y, width, height, "shapes");
+                            }
+                        }
+                        "circle" => {
+                            if let (Ok(x), Ok(y), Ok(radius)) = (
+                                parts[1].parse::<f32>(),
+                                parts[2].parse::<f32>(),
+                                parts[3].parse::<f32>()
+                            ) {
+                                self.create_circle_sprite(x, y, radius, "shapes");
+                            }
+                        }
+                        "line" => {
+                            if let (Ok(x1), Ok(y1), Ok(x2), Ok(y2)) = (
+                                parts[1].parse::<f32>(),
+                                parts[2].parse::<f32>(),
+                                parts[3].parse::<f32>(),
+                                parts[4].parse::<f32>()
+                            ) {
+                                self.create_line_sprite(x1, y1, x2, y2, "shapes");
+                            }
+                        }
+                        _ => {}
+                    }
                 }
             }
             MouseEventResult::None => {
@@ -793,6 +880,86 @@ impl RenderEngine {
     pub fn set_input_mode_select(&mut self) {
         self.input.input_mode = InputMode::None;
         web_sys::console::log_1(&"[RUST] Input mode set to Select (None)".into());
+    }
+
+    // ============================================================================
+    // SPRITE CREATION METHODS - Create sprites from tools
+    // ============================================================================
+    
+    #[wasm_bindgen]
+    pub fn create_rectangle_sprite(&mut self, x: f32, y: f32, width: f32, height: f32, layer_name: &str) -> String {
+        let sprite_id = format!("rect_{}", js_sys::Date::now() as u64);
+        let sprite = Sprite {
+            id: sprite_id.clone(),
+            world_x: x as f64,
+            world_y: y as f64,
+            width: width as f64,
+            height: height as f64,
+            rotation: 0.0,
+            scale_x: 1.0,
+            scale_y: 1.0,
+            layer: layer_name.to_string(),
+            texture_id: String::new(), // No texture for colored rectangle
+            tint_color: [0.5, 0.8, 0.5, 1.0], // Light green
+        };
+        
+        // Convert to JsValue for layer manager
+        let sprite_data = serde_wasm_bindgen::to_value(&sprite).unwrap();
+        let _ = self.layer_manager.add_sprite_to_layer(layer_name, &sprite_data);
+        web_sys::console::log_1(&format!("[RUST] Created rectangle sprite: {}", sprite_id).into());
+        sprite_id
+    }
+    
+    #[wasm_bindgen]
+    pub fn create_circle_sprite(&mut self, x: f32, y: f32, radius: f32, layer_name: &str) -> String {
+        let sprite_id = format!("circle_{}", js_sys::Date::now() as u64);
+        let diameter = radius * 2.0;
+        let sprite = Sprite {
+            id: sprite_id.clone(),
+            world_x: (x - radius) as f64,
+            world_y: (y - radius) as f64,
+            width: diameter as f64,
+            height: diameter as f64,
+            rotation: 0.0,
+            scale_x: 1.0,
+            scale_y: 1.0,
+            layer: layer_name.to_string(),
+            texture_id: String::new(), // No texture for colored circle
+            tint_color: [0.5, 0.5, 0.8, 1.0], // Light blue
+        };
+        
+        // Convert to JsValue for layer manager
+        let sprite_data = serde_wasm_bindgen::to_value(&sprite).unwrap();
+        let _ = self.layer_manager.add_sprite_to_layer(layer_name, &sprite_data);
+        web_sys::console::log_1(&format!("[RUST] Created circle sprite: {}", sprite_id).into());
+        sprite_id
+    }
+    
+    #[wasm_bindgen]
+    pub fn create_line_sprite(&mut self, start_x: f32, start_y: f32, end_x: f32, end_y: f32, layer_name: &str) -> String {
+        let sprite_id = format!("line_{}", js_sys::Date::now() as u64);
+        let length = ((end_x - start_x).powi(2) + (end_y - start_y).powi(2)).sqrt();
+        let width = 2.0; // Line width
+        
+        let sprite = Sprite {
+            id: sprite_id.clone(),
+            world_x: start_x.min(end_x) as f64,
+            world_y: start_y.min(end_y) as f64,
+            width: length as f64,
+            height: width as f64,
+            rotation: (end_y - start_y).atan2(end_x - start_x) as f64,
+            scale_x: 1.0,
+            scale_y: 1.0,
+            layer: layer_name.to_string(),
+            texture_id: String::new(), // No texture for colored line
+            tint_color: [0.8, 0.5, 0.5, 1.0], // Light red
+        };
+        
+        // Convert to JsValue for layer manager
+        let sprite_data = serde_wasm_bindgen::to_value(&sprite).unwrap();
+        let _ = self.layer_manager.add_sprite_to_layer(layer_name, &sprite_data);
+        web_sys::console::log_1(&format!("[RUST] Created line sprite: {}", sprite_id).into());
+        sprite_id
     }
 
     // ============================================================================

@@ -241,4 +241,88 @@ impl SpriteRenderer {
         
         Ok(())
     }
+    
+    pub fn draw_measurement_line(start: Vec2, end: Vec2, renderer: &WebGLRenderer) -> Result<(), JsValue> {
+        // Draw measurement line
+        let line_vertices = vec![
+            start.x, start.y,
+            end.x, end.y,
+        ];
+        renderer.draw_lines(&line_vertices, [1.0, 1.0, 0.0, 1.0])?; // Yellow line
+        
+        // Draw start and end points
+        let point_size = 5.0;
+        
+        // Start point
+        let start_vertices = vec![
+            start.x - point_size, start.y - point_size,
+            start.x + point_size, start.y - point_size,
+            start.x - point_size, start.y + point_size,
+            start.x + point_size, start.y + point_size,
+        ];
+        let tex_coords = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+        renderer.draw_quad(&start_vertices, &tex_coords, [0.0, 1.0, 0.0, 1.0], false)?; // Green start
+        
+        // End point
+        let end_vertices = vec![
+            end.x - point_size, end.y - point_size,
+            end.x + point_size, end.y - point_size,
+            end.x - point_size, end.y + point_size,
+            end.x + point_size, end.y + point_size,
+        ];
+        renderer.draw_quad(&end_vertices, &tex_coords, [1.0, 0.0, 0.0, 1.0], false)?; // Red end
+        
+        // TODO: Add distance text rendering
+        Ok(())
+    }
+    
+    pub fn draw_rectangle_preview(start: Vec2, end: Vec2, renderer: &WebGLRenderer) -> Result<(), JsValue> {
+        let min_x = start.x.min(end.x);
+        let min_y = start.y.min(end.y);
+        let max_x = start.x.max(end.x);
+        let max_y = start.y.max(end.y);
+        
+        // Draw preview rectangle outline
+        let border_vertices = vec![
+            min_x, min_y,     // Top-left to Top-right
+            max_x, min_y,
+            max_x, min_y,     // Top-right to Bottom-right
+            max_x, max_y,
+            max_x, max_y,     // Bottom-right to Bottom-left
+            min_x, max_y,
+            min_x, max_y,     // Bottom-left to Top-left
+            min_x, min_y,
+        ];
+        renderer.draw_lines(&border_vertices, [0.0, 1.0, 0.0, 0.8])?; // Green preview
+        
+        Ok(())
+    }
+    
+    pub fn draw_circle_preview(start: Vec2, end: Vec2, renderer: &WebGLRenderer) -> Result<(), JsValue> {
+        let radius = ((end.x - start.x).powi(2) + (end.y - start.y).powi(2)).sqrt();
+        let segments = 32;
+        let mut vertices = Vec::new();
+        
+        for i in 0..segments {
+            let angle1 = (i as f32) * 2.0 * std::f32::consts::PI / (segments as f32);
+            let angle2 = ((i + 1) % segments) as f32 * 2.0 * std::f32::consts::PI / (segments as f32);
+            
+            vertices.push(start.x + radius * angle1.cos());
+            vertices.push(start.y + radius * angle1.sin());
+            vertices.push(start.x + radius * angle2.cos());
+            vertices.push(start.y + radius * angle2.sin());
+        }
+        
+        renderer.draw_lines(&vertices, [0.0, 1.0, 0.0, 0.8])?; // Green preview
+        Ok(())
+    }
+    
+    pub fn draw_line_preview(start: Vec2, end: Vec2, renderer: &WebGLRenderer) -> Result<(), JsValue> {
+        let line_vertices = vec![
+            start.x, start.y,
+            end.x, end.y,
+        ];
+        renderer.draw_lines(&line_vertices, [0.0, 1.0, 0.0, 0.8])?; // Green preview
+        Ok(())
+    }
 }

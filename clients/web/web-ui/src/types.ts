@@ -171,6 +171,28 @@ export interface RenderEngine {
   hide_entire_table: (table_width: number, table_height: number) => void;
   is_point_in_fog: (x: number, y: number) => boolean;
   get_fog_count: () => number;
+  
+  // Paint system
+  paint_enter_mode: (width: number, height: number) => void;
+  paint_exit_mode: () => void;
+  paint_is_mode: () => boolean;
+  paint_set_brush_color: (r: number, g: number, b: number, a: number) => void;
+  paint_set_brush_size: (size: number) => void;
+  paint_start_stroke: (x: number, y: number) => void;
+  paint_continue_stroke: (x: number, y: number) => void;
+  paint_end_stroke: () => void;
+  paint_undo: () => void;
+  paint_redo: () => void;
+  paint_clear: () => void;
+  
+  // Input mode control
+  set_input_mode_measurement: () => void;
+  set_input_mode_create_rectangle: () => void;
+  set_input_mode_create_circle: () => void;
+  set_input_mode_create_line: () => void;
+  set_input_mode_create_text: () => void;
+  set_input_mode_select: () => void;
+  get_current_input_mode: () => string;
 }
 
 // Window interface extensions

@@ -1,5 +1,5 @@
 // import { useState } from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGameStore } from '../store';
 import DiceRoller from '../tools/DiceRoller';
 import type { GameAPI } from '../types';
@@ -35,6 +35,52 @@ export function ToolsPanel() {
     spriteCreationActive,
     setActiveTool 
   } = useGameStore();
+  
+  // Handle tool changes and communicate with Rust backend
+  useEffect(() => {
+    if (window.rustRenderManager) {
+      console.log(`[ToolsPanel] Tool changed to: ${activeTool}`);
+      
+      // Exit paint mode when switching to other tools
+      if (activeTool !== 'paint' && window.rustRenderManager.paint_is_mode()) {
+        window.rustRenderManager.paint_exit_mode();
+        console.log('[ToolsPanel] Exited paint mode');
+      }
+      
+      // Handle specific tool activations
+      switch (activeTool) {
+        case 'measure':
+          window.rustRenderManager.set_input_mode_measurement();
+          console.log('[ToolsPanel] Measurement tool activated');
+          break;
+        case 'rectangle':
+          window.rustRenderManager.set_input_mode_create_rectangle();
+          console.log('[ToolsPanel] Rectangle creation tool activated');
+          break;
+        case 'circle':
+          window.rustRenderManager.set_input_mode_create_circle();
+          console.log('[ToolsPanel] Circle creation tool activated');
+          break;
+        case 'line':
+          window.rustRenderManager.set_input_mode_create_line();
+          console.log('[ToolsPanel] Line creation tool activated');
+          break;
+        case 'text':
+          window.rustRenderManager.set_input_mode_create_text();
+          console.log('[ToolsPanel] Text creation tool activated');
+          break;
+        case 'paint':
+          // Paint mode is handled by the paint button click directly
+          break;
+        case 'select':
+        case 'move':
+        default:
+          window.rustRenderManager.set_input_mode_select();
+          console.log(`[ToolsPanel] ${activeTool} tool activated`);
+          break;
+      }
+    }
+  }, [activeTool]);
   
   // Sprite and test handlers (stub implementations)
   const handleAddSprite = () => {
@@ -215,14 +261,32 @@ export function ToolsPanel() {
             📁 Assets
           </button>
           <button
-            className="tool-button"
-            onClick={() => setPaintPanelVisible(true)}
+            className={`tool-button ${activeTool === 'paint' ? 'active' : ''}`}
+            onClick={() => {
+              if (window.rustRenderManager) {
+                console.log('[ToolsPanel] Entering paint mode');
+                window.rustRenderManager.paint_enter_mode(800, 600); // Use canvas dimensions
+                setActiveTool('paint');
+                setPaintPanelVisible(true);
+              } else {
+                console.warn('[ToolsPanel] Cannot enter paint mode: render manager not available');
+              }
+            }}
             title="Paint System"
           >
             🎨 Paint
           </button>
         </div>
       </div>
+
+      {/* Paint Panel */}
+      {paintPanelVisible && (
+        <PaintPanel 
+          renderEngine={window.rustRenderManager as any || null}
+          isVisible={paintPanelVisible} 
+          onClose={() => setPaintPanelVisible(false)} 
+        />
+      )}
 
       {/* Layer Management Panel */}
       <LayerPanel />
@@ -254,13 +318,6 @@ export function ToolsPanel() {
       <AssetManager 
         isVisible={assetManagerVisible} 
         onClose={() => setAssetManagerVisible(false)} 
-      />
-      
-      {/* Paint Panel */}
-      <PaintPanel 
-        renderEngine={window.rustRenderManager as any || null}
-        isVisible={paintPanelVisible} 
-        onClose={() => setPaintPanelVisible(false)} 
       />
     </div>
   );

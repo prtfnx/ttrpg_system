@@ -184,6 +184,7 @@ export interface RenderEngine {
   paint_undo: () => void;
   paint_redo: () => void;
   paint_clear: () => void;
+  paint_save_strokes_as_sprites: (layerName: string) => string[];
   
   // Input mode control
   set_input_mode_measurement: () => void;

@@ -277,6 +277,17 @@ impl PaintSystem {
     pub fn remove_stroke_event(&mut self, event_type: &str) {
         self.stroke_callbacks.remove(event_type);
     }
+    
+    // Get stroke data for sprite conversion
+    pub fn get_all_strokes_data(&self) -> Vec<String> {
+        self.strokes.iter().map(|stroke| {
+            format!("stroke_{}_{}_{}_{}", 
+                stroke.id, 
+                stroke.points.len(), 
+                stroke.color[0], 
+                stroke.width)
+        }).collect()
+    }
 }
 
 impl PaintSystem {

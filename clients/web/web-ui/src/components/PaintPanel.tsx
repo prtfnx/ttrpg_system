@@ -235,6 +235,27 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
               ↶ Undo
             </button>
             <button
+              onClick={() => {
+                if (renderEngine && renderEngine.paint_save_strokes_as_sprites) {
+                  const spriteIds = renderEngine.paint_save_strokes_as_sprites('shapes');
+                  console.log(`[PaintPanel] Saved ${spriteIds.length} paint strokes as sprites`);
+                  if (spriteIds.length > 0) {
+                    alert(`Saved ${spriteIds.length} paint strokes as sprites!`);
+                  } else {
+                    alert('No strokes to save. Draw something first!');
+                  }
+                } else {
+                  console.warn('[PaintPanel] Save strokes method not available');
+                  alert('Save functionality not available');
+                }
+              }}
+              disabled={!paintState.isActive || paintState.strokeCount === 0}
+              className="btn-primary"
+              title="Save current strokes as sprites"
+            >
+              💾 Save Strokes
+            </button>
+            <button
               onClick={paintControls.clearAll}
               disabled={!paintState.isActive || paintState.strokeCount === 0}
               className="btn-danger"
@@ -271,6 +292,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
             <li>Use different brush sizes and colors</li>
             <li>Try different blend modes for effects</li>
             <li>Use presets for quick brush changes</li>
+            <li>Save strokes as sprites to make them permanent</li>
           </ul>
         </div>
       </div>

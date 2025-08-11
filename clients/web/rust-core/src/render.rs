@@ -259,7 +259,11 @@ impl RenderEngine {
         // Check if paint mode is active first
         if self.paint.is_paint_mode() {
             web_sys::console::log_1(&"[RUST] Paint mode active, starting paint stroke".into());
-            self.paint.start_stroke(world_pos.x, world_pos.y, 1.0); // Default pressure
+            if self.paint.start_stroke(world_pos.x, world_pos.y, 1.0) {
+                web_sys::console::log_1(&"[RUST] Paint stroke started successfully".into());
+            } else {
+                web_sys::console::log_1(&"[RUST] Failed to start paint stroke".into());
+            }
             return;
         }
         
@@ -312,8 +316,10 @@ impl RenderEngine {
         
         // Check if paint mode is active first
         if self.paint.is_paint_mode() {
-            // Continue paint stroke if mouse is down
-            self.paint.add_stroke_point(world_pos.x, world_pos.y, 1.0); // Default pressure
+            // Continue paint stroke if we're currently drawing
+            if self.paint.add_stroke_point(world_pos.x, world_pos.y, 1.0) {
+                // Successfully added point
+            }
             self.input.last_mouse_screen = current_screen;
             return;
         }
@@ -1335,6 +1341,51 @@ impl RenderEngine {
         self.paint.clear_all_strokes();
     }
     
+    #[wasm_bindgen]
+    pub fn paint_save_strokes_as_sprites(&mut self, layer_name: &str) -> Vec<String> {
+        let strokes_data = self.paint.get_all_strokes_data();
+        let mut sprite_ids = Vec::new();
+        
+        for stroke_data in strokes_data {
+            if let Ok(sprite_id) = self.create_paint_stroke_sprite(&stroke_data, layer_name) {
+                sprite_ids.push(sprite_id);
+            }
+        }
+        
+        web_sys::console::log_1(&format!("[RUST] Saved {} paint strokes as sprites", sprite_ids.len()).into());
+        sprite_ids
+    }
+    
+    fn create_paint_stroke_sprite(&mut self, stroke_data: &str, layer_name: &str) -> Result<String, String> {
+        // Parse stroke data (simplified for now - could be JSON in future)
+        let sprite_id = format!("paint_stroke_{}", js_sys::Date::now() as u64);
+        
+        // For now, create a simple colored sprite to represent the stroke
+        // In a more advanced implementation, this could be a texture or vector path
+        let sprite = Sprite {
+            id: sprite_id.clone(),
+            world_x: 0.0, // These would be calculated from stroke bounds
+            world_y: 0.0,
+            width: 10.0,  // Placeholder dimensions
+            height: 10.0,
+            rotation: 0.0,
+            scale_x: 1.0,
+            scale_y: 1.0,
+            texture_id: String::new(),
+            tint_color: [1.0, 0.5, 0.5, 1.0], // Paint stroke color
+            layer: layer_name.to_string(),
+        };
+        
+        // Convert sprite to JsValue
+        let sprite_js = serde_wasm_bindgen::to_value(&sprite)
+            .map_err(|e| format!("Failed to serialize sprite: {}", e))?;
+        
+        match self.layer_manager.add_sprite_to_layer(layer_name, &sprite_js) {
+            Ok(id) => Ok(id),
+            Err(e) => Err(format!("Failed to add sprite to layer: {:?}", e))
+        }
+    }
+
     #[wasm_bindgen]
     pub fn paint_undo_stroke(&mut self) -> bool {
         self.paint.undo_last_stroke()

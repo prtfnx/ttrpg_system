@@ -1,5 +1,5 @@
 // import { useState } from 'react';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useGameStore } from '../store';
 import DiceRoller from '../tools/DiceRoller';
 import type { GameAPI } from '../types';

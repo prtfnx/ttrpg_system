@@ -18,6 +18,23 @@ impl Vec2 {
     pub fn extend(self, z: f32) -> Vec3 {
         Vec3::new(self.x, self.y, z)
     }
+    
+    pub fn length(self) -> f32 {
+        (self.x * self.x + self.y * self.y).sqrt()
+    }
+    
+    pub fn length_squared(self) -> f32 {
+        self.x * self.x + self.y * self.y
+    }
+    
+    pub fn normalize(self) -> Self {
+        let len = self.length();
+        if len > 0.0 {
+            self * (1.0 / len)
+        } else {
+            Self::new(0.0, 0.0)
+        }
+    }
 }
 
 impl std::ops::Add for Vec2 {

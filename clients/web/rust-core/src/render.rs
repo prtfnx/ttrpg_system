@@ -16,6 +16,7 @@ use crate::layer_manager::LayerManager;
 use crate::grid_system::GridSystem;
 use crate::texture_manager::TextureManager;
 use crate::actions::ActionsClient;
+use crate::paint::PaintSystem;
 
 #[wasm_bindgen]
 pub struct RenderEngine {
@@ -44,6 +45,9 @@ pub struct RenderEngine {
     
     // Actions system
     actions: ActionsClient,
+    
+    // Paint system
+    paint: PaintSystem,
 }
 
 #[wasm_bindgen]
@@ -59,6 +63,7 @@ impl RenderEngine {
         let layer_manager = LayerManager::new();
         let grid_system = GridSystem::new();
         let actions = ActionsClient::new();
+        let paint = PaintSystem::new();
         
         let canvas_size = Vec2::new(canvas.width() as f32, canvas.height() as f32);
         let camera = Camera::default();
@@ -77,6 +82,7 @@ impl RenderEngine {
             lighting,
             fog,
             actions,
+            paint,
         };
         
         engine.update_view_matrix();
@@ -109,6 +115,11 @@ impl RenderEngine {
 
         // Render lighting system
         self.lighting.render_lights(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y)?;
+        
+        // Render paint strokes (on top of everything except fog)
+        if self.paint.is_paint_mode() {
+            self.paint.render_strokes(&self.renderer)?;
+        }
         
         // Render fog of war system (should be rendered last, on top of everything)
         self.fog.render_fog(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y)?;
@@ -1025,5 +1036,101 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn get_layer_names(&self) -> Vec<String> {
         self.layer_manager.get_layers().keys().cloned().collect()
+    }
+    
+    // Paint System Methods
+    #[wasm_bindgen]
+    pub fn paint_enter_mode(&mut self, width: f32, height: f32) {
+        self.paint.enter_paint_mode(width, height);
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_exit_mode(&mut self) {
+        self.paint.exit_paint_mode();
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_is_mode(&self) -> bool {
+        self.paint.is_paint_mode()
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_set_brush_color(&mut self, r: f32, g: f32, b: f32, a: f32) {
+        self.paint.set_brush_color(r, g, b, a);
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_set_brush_width(&mut self, width: f32) {
+        self.paint.set_brush_width(width);
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_set_blend_mode(&mut self, blend_mode: &str) {
+        self.paint.set_blend_mode(blend_mode);
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_get_brush_color(&self) -> Vec<f32> {
+        self.paint.get_brush_color()
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_get_brush_width(&self) -> f32 {
+        self.paint.get_brush_width()
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_start_stroke(&mut self, world_x: f32, world_y: f32, pressure: f32) -> bool {
+        self.paint.start_stroke(world_x, world_y, pressure)
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_add_point(&mut self, world_x: f32, world_y: f32, pressure: f32) -> bool {
+        self.paint.add_stroke_point(world_x, world_y, pressure)
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_end_stroke(&mut self) -> bool {
+        self.paint.end_stroke()
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_cancel_stroke(&mut self) {
+        self.paint.cancel_stroke();
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_clear_all(&mut self) {
+        self.paint.clear_all_strokes();
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_undo_stroke(&mut self) -> bool {
+        self.paint.undo_last_stroke()
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_get_stroke_count(&self) -> usize {
+        self.paint.get_stroke_count()
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_is_drawing(&self) -> bool {
+        self.paint.is_drawing()
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_get_strokes(&self) -> JsValue {
+        self.paint.get_all_strokes_json()
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_get_current_stroke(&self) -> JsValue {
+        self.paint.get_current_stroke_json()
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_on_event(&mut self, event_type: &str, callback: js_sys::Function) {
+        self.paint.on_stroke_event(event_type, callback);
     }
 }

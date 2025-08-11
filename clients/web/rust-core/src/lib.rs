@@ -24,12 +24,14 @@ mod grid_system;
 mod texture_manager;
 mod network;
 mod actions;
+mod paint;
 
 pub use render::RenderEngine;
 pub use types::*;
 pub use lighting::{Light, LightingSystem};
 pub use network::NetworkClient;
 pub use actions::ActionsClient;
+pub use paint::{PaintSystem, BrushPreset, create_default_brush_presets};
 
 use web_sys::HtmlCanvasElement;
 

@@ -12,6 +12,11 @@ pub enum InputMode {
     LightDrag,      // New: Dragging light source
     FogDraw,        // New: Drawing fog rectangles
     FogErase,       // New: Erasing fog rectangles
+    Measurement,    // New: Measurement tool
+    CreateRectangle, // New: Create rectangle sprite
+    CreateCircle,   // New: Create circle sprite
+    CreateLine,     // New: Create line sprite
+    CreateText,     // New: Create text sprite
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,6 +50,14 @@ pub struct InputHandler {
     pub fog_draw_start: Option<Vec2>,
     pub fog_draw_current: Option<Vec2>,
     pub fog_mode: FogDrawMode,
+    
+    // Measurement tool state
+    pub measurement_start: Option<Vec2>,
+    pub measurement_current: Option<Vec2>,
+    
+    // Shape creation state
+    pub shape_creation_start: Option<Vec2>,
+    pub shape_creation_current: Option<Vec2>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -70,6 +83,10 @@ impl Default for InputHandler {
             fog_draw_start: None,
             fog_draw_current: None,
             fog_mode: FogDrawMode::Hide,
+            measurement_start: None,
+            measurement_current: None,
+            shape_creation_start: None,
+            shape_creation_current: None,
         }
     }
 }
@@ -228,6 +245,72 @@ impl InputHandler {
         let click_radius = 20.0; // Minimum click radius for lights
         let actual_radius = light_radius.max(click_radius);
         distance_squared <= actual_radius * actual_radius
+    }
+
+    // ============================================================================
+    // MEASUREMENT TOOL METHODS
+    // ============================================================================
+    
+    pub fn start_measurement(&mut self, pos: Vec2) {
+        self.measurement_start = Some(pos);
+        self.measurement_current = Some(pos);
+    }
+
+    pub fn update_measurement(&mut self, pos: Vec2) {
+        if self.measurement_start.is_some() {
+            self.measurement_current = Some(pos);
+        }
+    }
+
+    pub fn end_measurement(&mut self) -> Option<(Vec2, Vec2)> {
+        if let (Some(start), Some(end)) = (self.measurement_start, self.measurement_current) {
+            self.measurement_start = None;
+            self.measurement_current = None;
+            Some((start, end))
+        } else {
+            None
+        }
+    }
+
+    pub fn get_measurement_line(&self) -> Option<(Vec2, Vec2)> {
+        if let (Some(start), Some(current)) = (self.measurement_start, self.measurement_current) {
+            Some((start, current))
+        } else {
+            None
+        }
+    }
+
+    // ============================================================================
+    // SHAPE CREATION METHODS
+    // ============================================================================
+    
+    pub fn start_shape_creation(&mut self, pos: Vec2) {
+        self.shape_creation_start = Some(pos);
+        self.shape_creation_current = Some(pos);
+    }
+
+    pub fn update_shape_creation(&mut self, pos: Vec2) {
+        if self.shape_creation_start.is_some() {
+            self.shape_creation_current = Some(pos);
+        }
+    }
+
+    pub fn end_shape_creation(&mut self) -> Option<(Vec2, Vec2)> {
+        if let (Some(start), Some(end)) = (self.shape_creation_start, self.shape_creation_current) {
+            self.shape_creation_start = None;
+            self.shape_creation_current = None;
+            Some((start, end))
+        } else {
+            None
+        }
+    }
+
+    pub fn get_shape_creation_rect(&self) -> Option<(Vec2, Vec2)> {
+        if let (Some(start), Some(current)) = (self.shape_creation_start, self.shape_creation_current) {
+            Some((start, current))
+        } else {
+            None
+        }
     }
 }
 

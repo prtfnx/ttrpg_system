@@ -34,6 +34,44 @@ impl EventSystem {
         ctrl_pressed: bool
     ) -> MouseEventResult {
         web_sys::console::log_1(&format!("[RUST EVENT] Mouse down at world: {}, {}, input_mode: {:?}", world_pos.x, world_pos.y, input.input_mode).into());
+        
+        // Handle tool-specific input modes first
+        match input.input_mode {
+            InputMode::Measurement => {
+                // Start measurement from this point
+                input.start_measurement(world_pos);
+                web_sys::console::log_1(&format!("[RUST EVENT] Started measurement at: {}, {}", world_pos.x, world_pos.y).into());
+                return MouseEventResult::Handled;
+            }
+            InputMode::CreateRectangle => {
+                // Start rectangle creation
+                input.start_shape_creation(world_pos);
+                web_sys::console::log_1(&format!("[RUST EVENT] Started rectangle creation at: {}, {}", world_pos.x, world_pos.y).into());
+                return MouseEventResult::Handled;
+            }
+            InputMode::CreateCircle => {
+                // Start circle creation
+                input.start_shape_creation(world_pos);
+                web_sys::console::log_1(&format!("[RUST EVENT] Started circle creation at: {}, {}", world_pos.x, world_pos.y).into());
+                return MouseEventResult::Handled;
+            }
+            InputMode::CreateLine => {
+                // Start line creation
+                input.start_shape_creation(world_pos);
+                web_sys::console::log_1(&format!("[RUST EVENT] Started line creation at: {}, {}", world_pos.x, world_pos.y).into());
+                return MouseEventResult::Handled;
+            }
+            InputMode::CreateText => {
+                // Start text creation
+                input.start_shape_creation(world_pos);
+                web_sys::console::log_1(&format!("[RUST EVENT] Started text creation at: {}, {}", world_pos.x, world_pos.y).into());
+                return MouseEventResult::Handled;
+            }
+            _ => {
+                // Continue with normal handling for other modes
+            }
+        }
+        
         // Check for fog drawing mode first
         if matches!(input.input_mode, InputMode::FogDraw | InputMode::FogErase) {
             let fog_mode = match input.input_mode {
@@ -155,6 +193,17 @@ impl EventSystem {
                 input.update_fog_draw(world_pos);
                 MouseEventResult::Handled
             }
+            InputMode::Measurement => {
+                // Update measurement line endpoint
+                input.update_measurement(world_pos);
+                MouseEventResult::Handled
+            }
+            InputMode::CreateRectangle | InputMode::CreateCircle | 
+            InputMode::CreateLine | InputMode::CreateText => {
+                // Update shape creation preview
+                input.update_shape_creation(world_pos);
+                MouseEventResult::Handled
+            }
             _ => MouseEventResult::None
         }
     }
@@ -208,6 +257,66 @@ impl EventSystem {
             InputMode::SpriteMove | InputMode::SpriteResize(_) | InputMode::SpriteRotate => {
                 // For sprite operations, reset to None since operation is complete  
                 input.input_mode = InputMode::None;
+                MouseEventResult::Handled
+            }
+            InputMode::Measurement => {
+                // Complete measurement and log the result
+                if let Some((start, end)) = input.end_measurement() {
+                    let distance = ((end.x - start.x).powi(2) + (end.y - start.y).powi(2)).sqrt();
+                    web_sys::console::log_1(&format!("[RUST EVENT] Measurement complete: {:.2} units from ({:.1}, {:.1}) to ({:.1}, {:.1})", distance, start.x, start.y, end.x, end.y).into());
+                }
+                // Keep measurement mode active for multiple measurements
+                MouseEventResult::Handled
+            }
+            InputMode::CreateRectangle => {
+                // Create rectangle sprite
+                if let Some((start, end)) = input.end_shape_creation() {
+                    let min_x = start.x.min(end.x);
+                    let min_y = start.y.min(end.y);
+                    let width = (end.x - start.x).abs();
+                    let height = (end.y - start.y).abs();
+                    
+                    if width > 10.0 && height > 10.0 {  // Minimum size check
+                        web_sys::console::log_1(&format!("[RUST EVENT] Creating rectangle at ({:.1}, {:.1}) size {:.1}x{:.1}", min_x, min_y, width, height).into());
+                        // TODO: Actually create the sprite in the layer system
+                    }
+                }
+                // Keep creation mode active for multiple shapes
+                MouseEventResult::Handled
+            }
+            InputMode::CreateCircle => {
+                // Create circle sprite
+                if let Some((start, end)) = input.end_shape_creation() {
+                    let radius = ((end.x - start.x).powi(2) + (end.y - start.y).powi(2)).sqrt();
+                    
+                    if radius > 5.0 {  // Minimum radius check
+                        web_sys::console::log_1(&format!("[RUST EVENT] Creating circle at ({:.1}, {:.1}) radius {:.1}", start.x, start.y, radius).into());
+                        // TODO: Actually create the sprite in the layer system
+                    }
+                }
+                // Keep creation mode active for multiple shapes
+                MouseEventResult::Handled
+            }
+            InputMode::CreateLine => {
+                // Create line sprite
+                if let Some((start, end)) = input.end_shape_creation() {
+                    let length = ((end.x - start.x).powi(2) + (end.y - start.y).powi(2)).sqrt();
+                    
+                    if length > 5.0 {  // Minimum length check
+                        web_sys::console::log_1(&format!("[RUST EVENT] Creating line from ({:.1}, {:.1}) to ({:.1}, {:.1})", start.x, start.y, end.x, end.y).into());
+                        // TODO: Actually create the sprite in the layer system
+                    }
+                }
+                // Keep creation mode active for multiple shapes
+                MouseEventResult::Handled
+            }
+            InputMode::CreateText => {
+                // Create text sprite
+                if let Some((start, _end)) = input.end_shape_creation() {
+                    web_sys::console::log_1(&format!("[RUST EVENT] Creating text at ({:.1}, {:.1})", start.x, start.y).into());
+                    // TODO: Actually create the text sprite and show text input dialog
+                }
+                // Keep creation mode active for multiple text objects
                 MouseEventResult::Handled
             }
             _ => {

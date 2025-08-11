@@ -747,7 +747,52 @@ impl RenderEngine {
             InputMode::LightDrag => "light_drag".to_string(),
             InputMode::FogDraw => "fog_draw".to_string(),
             InputMode::FogErase => "fog_erase".to_string(),
+            InputMode::Measurement => "measurement".to_string(),
+            InputMode::CreateRectangle => "create_rectangle".to_string(),
+            InputMode::CreateCircle => "create_circle".to_string(),
+            InputMode::CreateLine => "create_line".to_string(),
+            InputMode::CreateText => "create_text".to_string(),
         }
+    }
+
+    // ============================================================================
+    // INPUT MODE CONTROL - Methods to set specific input modes
+    // ============================================================================
+    
+    #[wasm_bindgen]
+    pub fn set_input_mode_measurement(&mut self) {
+        self.input.input_mode = InputMode::Measurement;
+        web_sys::console::log_1(&"[RUST] Input mode set to Measurement".into());
+    }
+
+    #[wasm_bindgen]
+    pub fn set_input_mode_create_rectangle(&mut self) {
+        self.input.input_mode = InputMode::CreateRectangle;
+        web_sys::console::log_1(&"[RUST] Input mode set to CreateRectangle".into());
+    }
+
+    #[wasm_bindgen]
+    pub fn set_input_mode_create_circle(&mut self) {
+        self.input.input_mode = InputMode::CreateCircle;
+        web_sys::console::log_1(&"[RUST] Input mode set to CreateCircle".into());
+    }
+
+    #[wasm_bindgen]
+    pub fn set_input_mode_create_line(&mut self) {
+        self.input.input_mode = InputMode::CreateLine;
+        web_sys::console::log_1(&"[RUST] Input mode set to CreateLine".into());
+    }
+
+    #[wasm_bindgen]
+    pub fn set_input_mode_create_text(&mut self) {
+        self.input.input_mode = InputMode::CreateText;
+        web_sys::console::log_1(&"[RUST] Input mode set to CreateText".into());
+    }
+
+    #[wasm_bindgen]
+    pub fn set_input_mode_select(&mut self) {
+        self.input.input_mode = InputMode::None;
+        web_sys::console::log_1(&"[RUST] Input mode set to Select (None)".into());
     }
 
     // ============================================================================

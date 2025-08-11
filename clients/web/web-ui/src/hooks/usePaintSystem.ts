@@ -304,8 +304,10 @@ export function useBrushPresets() {
   useEffect(() => {
     const loadPresets = async () => {
       try {
-        const defaultPresets = create_default_brush_presets();
-        setPresets(defaultPresets as BrushPreset[]);
+        const defaultPresets = window.ttrpg_rust_core?.create_default_brush_presets?.();
+        if (defaultPresets) {
+          setPresets(defaultPresets as BrushPreset[]);
+        }
       } catch (error) {
         console.error('Error loading brush presets:', error);
       }

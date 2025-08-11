@@ -275,7 +275,6 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
         </div>
       </div>
     </div>
-    </div>
   );
 };
 

@@ -168,9 +168,9 @@ export function LayerPanel() {
   }, [sprites, layerVisibility, layerOpacity]);
 
   return (
-    <div className="layer-panel">
-      <div className="layer-panel-header">
-        <h3>🎨 Layers</h3>
+    <div className="game-panel">
+      <div className="panel-header-compact">
+        <h3 className="panel-title">🎨 Layers</h3>
         <div className="layer-controls">
           <button 
             className="btn-sm"

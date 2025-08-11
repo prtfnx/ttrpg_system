@@ -110,6 +110,35 @@ export class RenderEngine {
   set_state_change_handler(callback: (eventType: string, targetId: string) => void): void;
   set_actions_error_handler(callback: (error: string) => void): void;
   set_actions_auto_sync(enabled: boolean): void;
+  
+  // Advanced Layer Management for Rendering Pipeline
+  set_layer_opacity(layer_name: string, opacity: number): boolean;
+  set_layer_visibility(layer_name: string, visible: boolean): boolean;
+  set_layer_blend_mode(layer_name: string, blend_mode: string): boolean;
+  set_layer_color(layer_name: string, r: number, g: number, b: number): boolean;
+  get_layer_settings(layer_name: string): any;
+  get_layer_names(): string[];
+  
+  // Paint System Methods
+  paint_enter_mode(width: number, height: number): void;
+  paint_exit_mode(): void;
+  paint_is_mode(): boolean;
+  paint_set_brush_color(r: number, g: number, b: number, a: number): void;
+  paint_set_brush_width(width: number): void;
+  paint_set_blend_mode(blend_mode: string): void;
+  paint_get_brush_color(): number[];
+  paint_get_brush_width(): number;
+  paint_start_stroke(world_x: number, world_y: number, pressure: number): boolean;
+  paint_add_point(world_x: number, world_y: number, pressure: number): boolean;
+  paint_end_stroke(): boolean;
+  paint_cancel_stroke(): void;
+  paint_clear_all(): void;
+  paint_undo_stroke(): boolean;
+  paint_get_stroke_count(): number;
+  paint_is_drawing(): boolean;
+  paint_get_strokes(): any;
+  paint_get_current_stroke(): any;
+  paint_on_event(event_type: string, callback: () => void): void;
 }
 
 export class NetworkClient {
@@ -194,6 +223,51 @@ export class ActionsClient {
   get_sprites_by_layer(layer: string): any;
   get_action_history(): any;
 }
+
+export class PaintSystem {
+  free(): void;
+  constructor();
+  
+  // Canvas management
+  enter_paint_mode(width: number, height: number): void;
+  exit_paint_mode(): void;
+  is_paint_mode(): boolean;
+  
+  // Brush settings
+  set_brush_color(r: number, g: number, b: number, a: number): void;
+  set_brush_width(width: number): void;
+  set_blend_mode(blend_mode: string): void;
+  get_brush_color(): number[];
+  get_brush_width(): number;
+  
+  // Drawing operations
+  start_stroke(world_x: number, world_y: number, pressure: number): boolean;
+  add_stroke_point(world_x: number, world_y: number, pressure: number): boolean;
+  end_stroke(): boolean;
+  cancel_stroke(): void;
+  
+  // Stroke management
+  clear_all_strokes(): void;
+  undo_last_stroke(): boolean;
+  get_stroke_count(): number;
+  is_drawing(): boolean;
+  
+  // Data access
+  get_all_strokes_json(): any;
+  get_current_stroke_json(): any;
+  
+  // Events
+  on_stroke_event(event_type: string, callback: () => void): void;
+  remove_stroke_event(event_type: string): void;
+}
+
+export class BrushPreset {
+  free(): void;
+  constructor(r: number, g: number, b: number, a: number, width: number, blend_mode: string);
+  apply_to_paint_system(paint_system: any): void;
+}
+
+export function create_default_brush_presets(): BrushPreset[];
 
 export function init_game_renderer(canvas: HTMLCanvasElement): RenderEngine;
 

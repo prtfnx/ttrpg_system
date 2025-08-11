@@ -178,3 +178,120 @@
 .text-warning { color: var(--accent-warning); }
 .text-error { color: var(--accent-error); }
 .text-info { color: var(--accent-info); }
+
+/* Additional form controls */
+.form-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.form-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.form-select {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-primary);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+}
+
+.form-select option {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.range-input {
+  width: 100%;
+  cursor: pointer;
+}
+
+.range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-top: var(--spacing-xs);
+}
+
+/* Dice roller specific styles */
+.dice-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.dice-count {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.dice-results {
+  margin-top: var(--spacing-xs);
+  min-height: 24px;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.dice-total {
+  color: var(--text-muted);
+  margin-left: var(--spacing-sm);
+}
+
+.chat-sent-message {
+  color: var(--accent-success);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-xs);
+}
+
+/* Controls list styling */
+.controls-list {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin: 0;
+  padding-left: var(--spacing-lg);
+}
+
+.controls-list li {
+  margin-bottom: var(--spacing-xs);
+}
+
+/* Compact panel header */
+.panel-header-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.panel-header-compact .panel-title {
+  margin: 0;
+}

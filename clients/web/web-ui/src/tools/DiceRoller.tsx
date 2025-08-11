@@ -38,25 +38,14 @@ export function DiceRoller({ dice = 20, count = 1, onRoll }: DiceRollerProps) {
   }
 
   return (
-    <div style={{
-      background: '#f3f4f6',
-      borderRadius: 8,
-      boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-      padding: 16,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: 12,
-      border: '1px solid #e5e7eb',
-      minWidth: 220,
-      maxWidth: 320,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontWeight: 600 }}>Roll:</span>
+    <div className="game-panel">
+      <h3 className="panel-title">Dice Roller</h3>
+      <div className="dice-controls">
+        <span className="form-label">Roll:</span>
         <select
           value={selectedDice}
           onChange={e => setSelectedDice(Number(e.target.value) as DiceType)}
-          style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #d1d5db', fontWeight: 600, fontSize: 15 }}
+          className="form-select"
         >
           <option value={4}>d4</option>
           <option value={6}>d6</option>
@@ -66,22 +55,22 @@ export function DiceRoller({ dice = 20, count = 1, onRoll }: DiceRollerProps) {
           <option value={20}>d20</option>
           <option value={100}>d100</option>
         </select>
-        <span style={{ color: '#888', fontSize: 13 }}>(x{count})</span>
+        <span className="dice-count">(x{count})</span>
       </div>
       <button
         onClick={rollDice}
         disabled={rolling}
-        style={{ padding: '8px 24px', borderRadius: 6, fontWeight: 700, fontSize: 15, background: '#6366f1', color: '#fff', border: 'none', cursor: 'pointer', marginTop: 4, marginBottom: 4 }}
+        className="btn-primary"
         aria-label={`Roll ${count}d${selectedDice}`}
       >
         Roll
       </button>
-      <div style={{ marginTop: 4, minHeight: 24, fontSize: 15, color: '#222', fontWeight: 500 }}>
+      <div className="dice-results">
         {results.length > 0 && (
           <span>
             Result: {results.join(', ')}
             {results.length > 1 && (
-              <span style={{ color: '#888', marginLeft: 8 }}>
+              <span className="dice-total">
                 (Total: {results.reduce((a, b) => a + b, 0)})
               </span>
             )}
@@ -89,7 +78,7 @@ export function DiceRoller({ dice = 20, count = 1, onRoll }: DiceRollerProps) {
         )}
       </div>
       {sentToChat && (
-        <div style={{ color: '#22c55e', fontWeight: 600, fontSize: 14, marginTop: 2 }}>Sent to chat!</div>
+        <div className="chat-sent-message">Sent to chat!</div>
       )}
     </div>
   );

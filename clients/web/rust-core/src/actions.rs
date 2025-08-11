@@ -35,26 +35,6 @@ pub struct SpriteInfo {
     pub visible: bool,
 }
 
-#[derive(Debug, Clone)]
-pub enum ActionType {
-    CreateTable,
-    DeleteTable,
-    UpdateTable,
-    MoveTable,
-    ScaleTable,
-    CreateSprite,
-    DeleteSprite,
-    UpdateSprite,
-    MoveSprite,
-    ScaleSprite,
-    RotateSprite,
-    SetLayerVisibility,
-    MoveSpriteToLayer,
-    BatchActions,
-    Undo,
-    Redo,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionHistoryEntry {
     pub action_type: String,

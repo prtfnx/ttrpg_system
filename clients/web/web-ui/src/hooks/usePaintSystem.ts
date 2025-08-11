@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { create_default_brush_presets } from '../wasm/ttrpg_rust_core';
 import type { BrushPreset } from '../types/wasm';
+
+// Access WASM functions through the global window object
+declare global {
+  interface Window {
+    ttrpg_rust_core?: any;
+  }
+}
 
 export interface PaintState {
   isActive: boolean;

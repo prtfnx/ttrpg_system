@@ -40,14 +40,14 @@
 
 .fog-panel h3 {
   margin: 0 0 16px 0;
-  color: #1f2937;
+  color: var(--text-primary);
   font-size: 18px;
   font-weight: 600;
 }
 
 .fog-panel h4 {
   margin: 0 0 8px 0;
-  color: #374151;
+  color: var(--text-secondary);
   font-size: 14px;
   font-weight: 600;
 }

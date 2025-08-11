@@ -225,23 +225,18 @@ export function ToolsPanel() {
       </div>
 
       {/* Layer Management Panel */}
-      <div style={{ margin: '24px 0' }}>
-        <LayerPanel />
-      </div>
+      <LayerPanel />
 
       {/* Grid Controls */}
       <GridControls />
 
       {/* Dice Roller Tool */}
-      <div style={{ margin: '24px 0', padding: 16, background: '#f9fafb', borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-        <h3 style={{ marginBottom: 8 }}>Dice Roller</h3>
-        <DiceRoller />
-      </div>
+      <DiceRoller />
 
       {/* Controls Help Section */}
-      <div className="controls-help">
-        <h3>Controls</h3>
-        <ul style={{ fontSize: '12px', color: '#666' }}>
+      <div className="game-panel">
+        <h3 className="panel-title">Controls</h3>
+        <ul className="controls-list">
           <li>Click & drag sprites to move</li>
           <li>Drag empty space to pan camera</li>
           <li>Mouse wheel to zoom in/out</li>

@@ -88,7 +88,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
   if (!isVisible) return null;
 
   return (
-    <div className="paint-panel">
+    <div className="paint-panel" style={{ position: 'relative' }}>
       <div className="paint-panel-header">
         <h3>🎨 Paint System</h3>
         <div className="header-controls">
@@ -274,6 +274,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
           </ul>
         </div>
       </div>
+    </div>
     </div>
   );
 };

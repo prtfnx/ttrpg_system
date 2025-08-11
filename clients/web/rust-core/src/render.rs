@@ -422,7 +422,9 @@ impl RenderEngine {
                                 parts[3].parse::<f32>(),
                                 parts[4].parse::<f32>()
                             ) {
-                                self.create_rectangle_sprite(x, y, width, height, "shapes");
+                                web_sys::console::log_1(&format!("[RUST] Creating rectangle sprite at {},{} size {}x{}", x, y, width, height).into());
+                                let sprite_id = self.create_rectangle_sprite(x, y, width, height, "background");
+                                web_sys::console::log_1(&format!("[RUST] Created rectangle sprite with ID: {}", sprite_id).into());
                             }
                         }
                         "circle" => {
@@ -431,7 +433,9 @@ impl RenderEngine {
                                 parts[2].parse::<f32>(),
                                 parts[3].parse::<f32>()
                             ) {
-                                self.create_circle_sprite(x, y, radius, "shapes");
+                                web_sys::console::log_1(&format!("[RUST] Creating circle sprite at {},{} radius {}", x, y, radius).into());
+                                let sprite_id = self.create_circle_sprite(x, y, radius, "background");
+                                web_sys::console::log_1(&format!("[RUST] Created circle sprite with ID: {}", sprite_id).into());
                             }
                         }
                         "line" => {
@@ -441,7 +445,9 @@ impl RenderEngine {
                                 parts[3].parse::<f32>(),
                                 parts[4].parse::<f32>()
                             ) {
-                                self.create_line_sprite(x1, y1, x2, y2, "shapes");
+                                web_sys::console::log_1(&format!("[RUST] Creating line sprite from {},{} to {},{}", x1, y1, x2, y2).into());
+                                let sprite_id = self.create_line_sprite(x1, y1, x2, y2, "background");
+                                web_sys::console::log_1(&format!("[RUST] Created line sprite with ID: {}", sprite_id).into());
                             }
                         }
                         _ => {}
@@ -894,6 +900,7 @@ impl RenderEngine {
     
     #[wasm_bindgen]
     pub fn create_rectangle_sprite(&mut self, x: f32, y: f32, width: f32, height: f32, layer_name: &str) -> String {
+        web_sys::console::log_1(&format!("[RUST] create_rectangle_sprite called: {},{} {}x{} on layer '{}'", x, y, width, height, layer_name).into());
         let sprite_id = format!("rect_{}", js_sys::Date::now() as u64);
         let sprite = Sprite {
             id: sprite_id.clone(),
@@ -909,9 +916,11 @@ impl RenderEngine {
             tint_color: [0.5, 0.8, 0.5, 1.0], // Light green
         };
         
+        web_sys::console::log_1(&format!("[RUST] Created sprite {}, adding to layer '{}'", sprite_id, layer_name).into());
         // Convert to JsValue for layer manager
         let sprite_data = serde_wasm_bindgen::to_value(&sprite).unwrap();
-        let _ = self.layer_manager.add_sprite_to_layer(layer_name, &sprite_data);
+        let result = self.layer_manager.add_sprite_to_layer(layer_name, &sprite_data);
+        web_sys::console::log_1(&format!("[RUST] add_sprite_to_layer result: {:?}", result).into());
         web_sys::console::log_1(&format!("[RUST] Created rectangle sprite: {}", sprite_id).into());
         sprite_id
     }

@@ -99,8 +99,10 @@ export const GameCanvas: React.FC = () => {
   }, []);
 
   const handleMouseDown = useCallback((e: MouseEvent) => {
+    console.log('[MOUSE] Mouse down event:', e.clientX, e.clientY);
     if (rustRenderManagerRef.current) {
       const { x, y } = getRelativeCoords(e);
+      console.log('[MOUSE] Relative coords:', x, y);
       // Check if we have the new Ctrl-aware method
       const renderManager = rustRenderManagerRef.current as any;
       if (renderManager.handle_mouse_down_with_ctrl) {
@@ -140,9 +142,11 @@ export const GameCanvas: React.FC = () => {
     }
   }, [getRelativeCoords]);
   const handleWheel = useCallback((e: WheelEvent) => {
+    console.log('[WHEEL] Wheel event:', e.deltaY);
     if (rustRenderManagerRef.current) {
       e.preventDefault();
       const { x, y } = getRelativeCoords(e);
+      console.log('[WHEEL] Wheel at coords:', x, y, 'delta:', e.deltaY);
       // Debug: log mouse coordinates and DPR
       console.log('[WHEEL] Mouse event:', {
         clientX: e.clientX,
@@ -272,8 +276,9 @@ export const GameCanvas: React.FC = () => {
         console.log('Starting WASM dynamic import...');
         let initWasm, WasmRenderEngine;
         
-        // Use eval to perform dynamic import at runtime, avoiding Vite/Rollup resolution
-        const wasmModule = await eval('import("/static/ui/wasm/ttrpg_rust_core.js")');
+        // Use proper dynamic import with runtime path construction
+        const wasmPath = '/static/ui/wasm/ttrpg_rust_core.js';
+        const wasmModule = await import(/* @vite-ignore */ wasmPath);
         window.ttrpg_rust_core = wasmModule;
         console.log('[WASM] window.ttrpg_rust_core:', wasmModule);
         

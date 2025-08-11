@@ -153,6 +153,7 @@ impl RenderEngine {
     
     #[wasm_bindgen]
     pub fn handle_wheel(&mut self, screen_x: f32, screen_y: f32, delta_y: f32) {
+        web_sys::console::log_1(&format!("[RUST] Wheel event at screen: {}, {}, delta: {}", screen_x, screen_y, delta_y).into());
         self.camera.handle_wheel(screen_x, screen_y, delta_y);
         self.update_view_matrix();
     }
@@ -220,6 +221,7 @@ impl RenderEngine {
     
     #[wasm_bindgen]
     pub fn handle_mouse_down(&mut self, screen_x: f32, screen_y: f32) {
+        web_sys::console::log_1(&format!("[RUST] Mouse down at screen: {}, {}", screen_x, screen_y).into());
         self.handle_mouse_down_with_modifiers(screen_x, screen_y, false)
     }
     
@@ -230,6 +232,7 @@ impl RenderEngine {
     
     fn handle_mouse_down_with_modifiers(&mut self, screen_x: f32, screen_y: f32, ctrl_pressed: bool) {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
+        web_sys::console::log_1(&format!("[RUST] World pos: {}, {}", world_pos.x, world_pos.y).into());
         self.input.last_mouse_screen = Vec2::new(screen_x, screen_y);
         
         // Use the event system to handle mouse down events
@@ -274,8 +277,21 @@ impl RenderEngine {
     pub fn handle_mouse_move(&mut self, screen_x: f32, screen_y: f32) {
         let current_screen = Vec2::new(screen_x, screen_y);
         let world_pos = self.camera.screen_to_world(current_screen);
+        web_sys::console::log_1(&format!("[RUST] Mouse move at world: {}, {}, mode: {:?}", world_pos.x, world_pos.y, self.input.input_mode).into());
         
-        // Use the event system to handle mouse move events
+        // Handle camera panning directly here since we have screen coordinates
+        if self.input.input_mode == InputMode::CameraPan {
+            let last_screen = self.input.last_mouse_screen;
+            let screen_delta = current_screen - last_screen;
+            web_sys::console::log_1(&format!("[RUST] Camera panning by screen delta: {}, {}", -screen_delta.x, -screen_delta.y).into());
+            self.camera.pan_by_screen_delta(Vec2::new(-screen_delta.x, -screen_delta.y));
+            self.input.last_mouse_screen = current_screen;
+            self.update_view_matrix(); // This calls renderer.set_view_matrix()
+            web_sys::console::log_1(&format!("[RUST] Camera position now: {}, {}", self.camera.world_x, self.camera.world_y).into());
+            return;
+        }
+        
+        // Use the event system to handle other mouse move events
         let result = self.event_system.handle_mouse_move(
             world_pos,
             &mut self.input,
@@ -284,6 +300,9 @@ impl RenderEngine {
             &mut self.fog,
             &self.camera
         );
+        
+        // Update last mouse position
+        self.input.last_mouse_screen = current_screen;
         
         // Handle event system results that need render engine specific operations
         match result {

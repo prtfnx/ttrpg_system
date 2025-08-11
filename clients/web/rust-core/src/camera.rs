@@ -94,6 +94,12 @@ impl Camera {
         self.world_x += world_delta_x;
         self.world_y += world_delta_y;
     }
+    
+    pub fn pan_by_screen_delta(&mut self, screen_delta: Vec2) {
+        let world_delta_x = screen_delta.x as f64 / self.zoom;
+        let world_delta_y = screen_delta.y as f64 / self.zoom;
+        self.pan(world_delta_x, world_delta_y);
+    }
 
     pub fn get_world_view_bounds(&self, canvas_size: Vec2) -> Rect {
         let top_left = self.screen_to_world(Vec2::new(0.0, 0.0));

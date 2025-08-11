@@ -33,6 +33,7 @@ impl EventSystem {
         fog: &mut FogOfWarSystem,
         ctrl_pressed: bool
     ) -> MouseEventResult {
+        web_sys::console::log_1(&format!("[RUST EVENT] Mouse down at world: {}, {}, input_mode: {:?}", world_pos.x, world_pos.y, input.input_mode).into());
         // Check for fog drawing mode first
         if matches!(input.input_mode, InputMode::FogDraw | InputMode::FogErase) {
             let fog_mode = match input.input_mode {
@@ -123,11 +124,24 @@ impl EventSystem {
         match input.input_mode {
             InputMode::SpriteMove => {
                 // Handle sprite movement logic here
+                if let Some(sprite_id) = &input.selected_sprite_id {
+                    if let Some((sprite, _layer_name)) = Self::find_sprite_mut(sprite_id, layers) {
+                        let new_pos = world_pos - input.drag_offset;
+                        sprite.world_x = new_pos.x as f64;
+                        sprite.world_y = new_pos.y as f64;
+                        web_sys::console::log_1(&format!("[RUST] Moving sprite {} to: {}, {}", sprite_id, sprite.world_x, sprite.world_y).into());
+                    }
+                }
                 MouseEventResult::Handled
             }
             InputMode::CameraPan => {
-                // Handle camera panning logic here  
-                MouseEventResult::CameraOperation("update_view_matrix".to_string())
+                // Handle camera panning by calculating screen delta and applying it
+                let current_screen = Vec2::new(0.0, 0.0); // We need screen coordinates from input
+                let last_screen = input.last_mouse_screen;
+                let screen_delta = current_screen - last_screen;
+                
+                // Return camera operation with screen delta
+                MouseEventResult::CameraOperation(format!("pan:{},{}", -screen_delta.x, -screen_delta.y))
             }
             InputMode::LightDrag => {
                 if let Some(new_pos) = input.update_light_drag(world_pos) {
@@ -186,6 +200,16 @@ impl EventSystem {
                 input.input_mode = InputMode::None;
                 MouseEventResult::Handled
             }
+            InputMode::CameraPan => {
+                // For camera pan, reset to None since panning is complete
+                input.input_mode = InputMode::None;
+                MouseEventResult::Handled
+            }
+            InputMode::SpriteMove | InputMode::SpriteResize(_) | InputMode::SpriteRotate => {
+                // For sprite operations, reset to None since operation is complete  
+                input.input_mode = InputMode::None;
+                MouseEventResult::Handled
+            }
             _ => {
                 input.input_mode = InputMode::None;
                 MouseEventResult::Handled
@@ -213,6 +237,15 @@ impl EventSystem {
     fn find_sprite<'a>(sprite_id: &str, layers: &'a HashMap<String, Layer>) -> Option<(&'a Sprite, &'a str)> {
         for (layer_name, layer) in layers {
             if let Some(sprite) = layer.sprites.iter().find(|s| s.id == sprite_id) {
+                return Some((sprite, layer_name));
+            }
+        }
+        None
+    }
+    
+    fn find_sprite_mut<'a>(sprite_id: &str, layers: &'a mut HashMap<String, Layer>) -> Option<(&'a mut Sprite, &'a str)> {
+        for (layer_name, layer) in layers {
+            if let Some(sprite) = layer.sprites.iter_mut().find(|s| s.id == sprite_id) {
                 return Some((sprite, layer_name));
             }
         }

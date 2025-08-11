@@ -1,4 +1,5 @@
 // import { useState } from 'react';
+import { useState } from 'react';
 import { useGameStore } from '../store';
 import DiceRoller from '../tools/DiceRoller';
 import type { GameAPI } from '../types';
@@ -7,6 +8,8 @@ import { GridControls } from './GridControls';
 import { LayerPanel } from './LayerPanel';
 import { MeasurementTool } from './MeasurementTool';
 import { SpriteCreationTools } from './SpriteCreationTools';
+import { AssetManager } from './AssetManager';
+import { PaintPanel } from './PaintPanel';
 
 // Global type declarations
 declare global {
@@ -20,6 +23,8 @@ const isIntegrationMode = !document.getElementById('root');
 
 export function ToolsPanel() {
   console.log('[ToolsPanel] Component mounted');
+  const [assetManagerVisible, setAssetManagerVisible] = useState(false);
+  const [paintPanelVisible, setPaintPanelVisible] = useState(false);
   const { 
     isConnected, 
     sessionId, 
@@ -202,6 +207,20 @@ export function ToolsPanel() {
           >
             🔤 Text
           </button>
+          <button
+            className="tool-button"
+            onClick={() => setAssetManagerVisible(true)}
+            title="Asset Manager"
+          >
+            📁 Assets
+          </button>
+          <button
+            className="tool-button"
+            onClick={() => setPaintPanelVisible(true)}
+            title="Paint System"
+          >
+            🎨 Paint
+          </button>
         </div>
       </div>
 
@@ -235,6 +254,19 @@ export function ToolsPanel() {
       <MeasurementTool isActive={measurementActive} />
       <AlignmentHelper isActive={alignmentActive} />
       <SpriteCreationTools isActive={spriteCreationActive} />
+      
+      {/* Asset Manager */}
+      <AssetManager 
+        isVisible={assetManagerVisible} 
+        onClose={() => setAssetManagerVisible(false)} 
+      />
+      
+      {/* Paint Panel */}
+      <PaintPanel 
+        renderEngine={window.rustRenderManager as any || null}
+        isVisible={paintPanelVisible} 
+        onClose={() => setPaintPanelVisible(false)} 
+      />
     </div>
   );
 }

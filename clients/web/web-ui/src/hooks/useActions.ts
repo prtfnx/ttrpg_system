@@ -414,7 +414,8 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
     if (!renderEngine) return;
     
     try {
-      const tablesData = renderEngine.get_all_tables();
+      // Get tables data for future use
+      renderEngine.get_all_tables();
       const history = renderEngine.get_action_history();
       
       setState(prev => ({

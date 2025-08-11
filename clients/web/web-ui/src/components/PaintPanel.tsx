@@ -1,18 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { RenderEngine } from '../types/wasm';
 import { usePaintSystem, usePaintInteraction, useBrushPresets } from '../hooks/usePaintSystem';
 import './PaintPanel.css';
 
 interface PaintPanelProps {
-  renderEngine: RenderEngine | null;
+  renderEngine?: any;
   isVisible?: boolean;
   onToggle?: () => void;
+  onClose?: () => void;
 }
 
 export const PaintPanel: React.FC<PaintPanelProps> = ({
-  renderEngine,
+  renderEngine = null,
   isVisible = true,
-  onToggle
+  onToggle,
+  onClose
 }) => {
   const [paintState, paintControls] = usePaintSystem(renderEngine, {
     onStrokeCompleted: () => console.log('Stroke completed'),
@@ -90,11 +91,18 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
     <div className="paint-panel">
       <div className="paint-panel-header">
         <h3>🎨 Paint System</h3>
-        {onToggle && (
-          <button onClick={onToggle} className="panel-toggle">
-            ×
-          </button>
-        )}
+        <div className="header-controls">
+          {onToggle && (
+            <button onClick={onToggle} className="panel-toggle">
+              ⬇
+            </button>
+          )}
+          {onClose && (
+            <button onClick={onClose} className="panel-toggle">
+              ×
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="paint-panel-content">

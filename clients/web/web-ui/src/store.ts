@@ -18,7 +18,6 @@ interface GameStore extends GameState {
   activeTool: ToolType;
   measurementActive: boolean;
   alignmentActive: boolean;
-  spriteCreationActive: boolean;
   
   // Actions
   moveSprite: (id: string, x: number, y: number) => void;
@@ -47,7 +46,6 @@ interface GameStore extends GameState {
   setActiveTool: (tool: ToolType) => void;
   setMeasurementActive: (active: boolean) => void;
   setAlignmentActive: (active: boolean) => void;
-  setSpriteCreationActive: (active: boolean) => void;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -92,7 +90,6 @@ export const useGameStore = create<GameStore>()(
       activeTool: 'select',
       measurementActive: false,
       alignmentActive: false,
-      spriteCreationActive: false,
 
       // Actions
       moveSprite: (id: string, x: number, y: number) => {
@@ -260,7 +257,6 @@ export const useGameStore = create<GameStore>()(
           activeTool: tool,
           measurementActive: tool === 'measure',
           alignmentActive: tool === 'align',
-          spriteCreationActive: ['rectangle', 'circle', 'line', 'text'].includes(tool),
         }));
       },
 
@@ -273,12 +269,6 @@ export const useGameStore = create<GameStore>()(
       setAlignmentActive: (active: boolean) => {
         set(() => ({
           alignmentActive: active,
-        }));
-      },
-
-      setSpriteCreationActive: (active: boolean) => {
-        set(() => ({
-          spriteCreationActive: active,
         }));
       },
     }),

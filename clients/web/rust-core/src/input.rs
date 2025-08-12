@@ -17,6 +17,7 @@ pub enum InputMode {
     CreateCircle,   // New: Create circle sprite
     CreateLine,     // New: Create line sprite
     CreateText,     // New: Create text sprite
+    Paint,          // New: Paint/brush tool
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

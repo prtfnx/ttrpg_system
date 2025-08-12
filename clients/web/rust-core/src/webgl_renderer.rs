@@ -180,6 +180,114 @@ impl WebGLRenderer {
         Ok(())
     }
     
+    pub fn draw_line_strip(&self, vertices: &[f32], color: [f32; 4], line_width: f32) -> Result<(), JsValue> {
+        if vertices.len() < 4 || vertices.len() % 2 != 0 { return Ok(()); }
+        
+        if let Some(program) = &self.shader_program {
+            self.gl.use_program(Some(program));
+            
+            // Set line width using WebGL's built-in lineWidth
+            self.gl.line_width(line_width);
+            
+            // Prepare vertex data with dummy tex coords
+            let mut vertex_data = Vec::new();
+            for i in 0..(vertices.len() / 2) {
+                vertex_data.push(vertices[i * 2]);     // x
+                vertex_data.push(vertices[i * 2 + 1]); // y
+                vertex_data.push(0.0);                 // u
+                vertex_data.push(0.0);                 // v
+            }
+            
+            if let Some(buffer) = &self.vertex_buffer {
+                self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(buffer));
+                unsafe {
+                    let view = js_sys::Float32Array::view(&vertex_data);
+                    self.gl.buffer_data_with_array_buffer_view(
+                        WebGlRenderingContext::ARRAY_BUFFER,
+                        &view,
+                        WebGlRenderingContext::DYNAMIC_DRAW
+                    );
+                }
+            }
+            
+            // Set up vertex attributes
+            let position_location = self.gl.get_attrib_location(program, "a_position") as u32;
+            let tex_coord_location = self.gl.get_attrib_location(program, "a_tex_coord") as u32;
+            
+            self.gl.enable_vertex_attrib_array(position_location);
+            self.gl.vertex_attrib_pointer_with_i32(position_location, 2, WebGlRenderingContext::FLOAT, false, 16, 0);
+            
+            self.gl.enable_vertex_attrib_array(tex_coord_location);
+            self.gl.vertex_attrib_pointer_with_i32(tex_coord_location, 2, WebGlRenderingContext::FLOAT, false, 16, 8);
+            
+            // Set uniforms
+            let color_location = self.gl.get_uniform_location(program, "u_color");
+            self.gl.uniform4f(color_location.as_ref(), color[0], color[1], color[2], color[3]);
+            
+            let use_texture_location = self.gl.get_uniform_location(program, "u_use_texture");
+            self.gl.uniform1i(use_texture_location.as_ref(), 0);
+            
+            // Draw as LINE_STRIP for smooth connected lines
+            self.gl.draw_arrays(WebGlRenderingContext::LINE_STRIP, 0, (vertices.len() / 2) as i32);
+            
+            // Reset line width to default
+            self.gl.line_width(1.0);
+        }
+        
+        Ok(())
+    }
+    
+    pub fn draw_triangles(&self, vertices: &[f32], color: [f32; 4]) -> Result<(), JsValue> {
+        if vertices.len() < 6 || vertices.len() % 2 != 0 { return Ok(()); }
+        
+        if let Some(program) = &self.shader_program {
+            self.gl.use_program(Some(program));
+            
+            // Prepare vertex data with dummy tex coords
+            let mut vertex_data = Vec::new();
+            for i in 0..(vertices.len() / 2) {
+                vertex_data.push(vertices[i * 2]);     // x
+                vertex_data.push(vertices[i * 2 + 1]); // y
+                vertex_data.push(0.0);                 // u
+                vertex_data.push(0.0);                 // v
+            }
+            
+            if let Some(buffer) = &self.vertex_buffer {
+                self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(buffer));
+                unsafe {
+                    let view = js_sys::Float32Array::view(&vertex_data);
+                    self.gl.buffer_data_with_array_buffer_view(
+                        WebGlRenderingContext::ARRAY_BUFFER,
+                        &view,
+                        WebGlRenderingContext::DYNAMIC_DRAW
+                    );
+                }
+            }
+            
+            // Set up vertex attributes
+            let position_location = self.gl.get_attrib_location(program, "a_position") as u32;
+            let tex_coord_location = self.gl.get_attrib_location(program, "a_tex_coord") as u32;
+            
+            self.gl.enable_vertex_attrib_array(position_location);
+            self.gl.vertex_attrib_pointer_with_i32(position_location, 2, WebGlRenderingContext::FLOAT, false, 16, 0);
+            
+            self.gl.enable_vertex_attrib_array(tex_coord_location);
+            self.gl.vertex_attrib_pointer_with_i32(tex_coord_location, 2, WebGlRenderingContext::FLOAT, false, 16, 8);
+            
+            // Set uniforms
+            let color_location = self.gl.get_uniform_location(program, "u_color");
+            self.gl.uniform4f(color_location.as_ref(), color[0], color[1], color[2], color[3]);
+            
+            let use_texture_location = self.gl.get_uniform_location(program, "u_use_texture");
+            self.gl.uniform1i(use_texture_location.as_ref(), 0);
+            
+            // Draw as triangles
+            self.gl.draw_arrays(WebGlRenderingContext::TRIANGLES, 0, (vertices.len() / 2) as i32);
+        }
+        
+        Ok(())
+    }
+    
     pub fn draw_lines(&self, vertices: &[f32], color: [f32; 4]) -> Result<(), JsValue> {
         if vertices.len() < 4 || vertices.len() % 2 != 0 { return Ok(()); }
         

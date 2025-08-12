@@ -257,7 +257,7 @@ impl RenderEngine {
         self.input.last_mouse_screen = Vec2::new(screen_x, screen_y);
         
         // Check if paint mode is active first
-        if self.paint.is_paint_mode() {
+        if self.input.input_mode == InputMode::Paint {
             web_sys::console::log_1(&"[RUST] Paint mode active, starting paint stroke".into());
             if self.paint.start_stroke(world_pos.x, world_pos.y, 1.0) {
                 web_sys::console::log_1(&"[RUST] Paint stroke started successfully".into());
@@ -315,7 +315,7 @@ impl RenderEngine {
         web_sys::console::log_1(&format!("[RUST] Mouse move at world: {}, {}, mode: {:?}", world_pos.x, world_pos.y, self.input.input_mode).into());
         
         // Check if paint mode is active first
-        if self.paint.is_paint_mode() {
+        if self.input.input_mode == InputMode::Paint {
             // Continue paint stroke if we're currently drawing
             if self.paint.add_stroke_point(world_pos.x, world_pos.y, 1.0) {
                 // Successfully added point
@@ -381,7 +381,7 @@ impl RenderEngine {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
         
         // Check if paint mode is active first
-        if self.paint.is_paint_mode() {
+        if self.input.input_mode == InputMode::Paint {
             web_sys::console::log_1(&"[RUST] Paint mode active, ending paint stroke".into());
             self.paint.end_stroke();
             return;
@@ -851,6 +851,7 @@ impl RenderEngine {
             InputMode::CreateCircle => "create_circle".to_string(),
             InputMode::CreateLine => "create_line".to_string(),
             InputMode::CreateText => "create_text".to_string(),
+            InputMode::Paint => "paint".to_string(),
         }
     }
 
@@ -892,6 +893,12 @@ impl RenderEngine {
     pub fn set_input_mode_select(&mut self) {
         self.input.input_mode = InputMode::None;
         web_sys::console::log_1(&"[RUST] Input mode set to Select (None)".into());
+    }
+
+    #[wasm_bindgen]
+    pub fn set_input_mode_paint(&mut self) {
+        self.input.input_mode = InputMode::Paint;
+        web_sys::console::log_1(&"[RUST] Input mode set to Paint".into());
     }
 
     // ============================================================================
@@ -1352,16 +1359,74 @@ impl RenderEngine {
     
     #[wasm_bindgen]
     pub fn paint_save_strokes_as_sprites(&mut self, layer_name: &str) -> Vec<String> {
-        let strokes_data = self.paint.get_all_strokes_data();
+        let strokes_json = self.paint.get_strokes_data_json();
         let mut sprite_ids = Vec::new();
         
-        for stroke_data in strokes_data {
-            if let Ok(sprite_id) = self.create_paint_stroke_sprite(&stroke_data, layer_name) {
-                sprite_ids.push(sprite_id);
+        if let Ok(strokes_data) = serde_wasm_bindgen::from_value::<Vec<serde_json::Value>>(strokes_json) {
+            for stroke_data in strokes_data {
+                if let (Some(id), Some(min_x), Some(min_y), Some(max_x), Some(max_y), Some(color), Some(_width)) = (
+                    stroke_data["id"].as_str(),
+                    stroke_data["min_x"].as_f64(),
+                    stroke_data["min_y"].as_f64(),
+                    stroke_data["max_x"].as_f64(),
+                    stroke_data["max_y"].as_f64(),
+                    stroke_data["color"].as_array(),
+                    stroke_data["width"].as_f64()
+                ) {
+                    let sprite_id = format!("paint_stroke_{}", js_sys::Date::now() as u64);
+                    
+                    // Calculate sprite bounds
+                    let sprite_width = (max_x - min_x).max(10.0);
+                    let sprite_height = (max_y - min_y).max(10.0);
+                    
+                    // Extract color array
+                    let tint_color = if color.len() >= 4 {
+                        [
+                            color[0].as_f64().unwrap_or(1.0) as f32,
+                            color[1].as_f64().unwrap_or(1.0) as f32,
+                            color[2].as_f64().unwrap_or(1.0) as f32,
+                            color[3].as_f64().unwrap_or(1.0) as f32,
+                        ]
+                    } else {
+                        [1.0, 1.0, 1.0, 1.0]
+                    };
+                    
+                    // Create a sprite representing the paint stroke
+                    let sprite = Sprite {
+                        id: sprite_id.clone(),
+                        world_x: min_x,
+                        world_y: min_y,
+                        width: sprite_width,
+                        height: sprite_height,
+                        rotation: 0.0,
+                        scale_x: 1.0,
+                        scale_y: 1.0,
+                        texture_id: format!("paint_stroke_{}", id), // Custom texture ID for paint stroke
+                        tint_color,
+                        layer: layer_name.to_string(),
+                    };
+                    
+                    // Convert sprite to JsValue and add to layer manager
+                    if let Ok(sprite_js) = serde_wasm_bindgen::to_value(&sprite) {
+                        match self.layer_manager.add_sprite_to_layer(layer_name, &sprite_js) {
+                            Ok(sprite_id) => {
+                                sprite_ids.push(sprite_id);
+                            }
+                            Err(e) => {
+                                web_sys::console::log_1(&format!("[RUST] Failed to create sprite from paint stroke: {:?}", e).into());
+                            }
+                        }
+                    }
+                }
             }
         }
         
-        web_sys::console::log_1(&format!("[RUST] Saved {} paint strokes as sprites", sprite_ids.len()).into());
+        // Clear paint strokes after converting to sprites
+        if !sprite_ids.is_empty() {
+            self.paint.clear_all_strokes();
+            web_sys::console::log_1(&format!("[RUST] Saved {} paint strokes as sprites and cleared canvas", sprite_ids.len()).into());
+        }
+        
         sprite_ids
     }
     

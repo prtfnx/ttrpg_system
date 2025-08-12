@@ -68,6 +68,11 @@ impl EventSystem {
                 web_sys::console::log_1(&format!("[RUST EVENT] Started text creation at: {}, {}", world_pos.x, world_pos.y).into());
                 return MouseEventResult::Handled;
             }
+            InputMode::Paint => {
+                // Paint mode is handled directly in render.rs, not here
+                web_sys::console::log_1(&"[RUST EVENT] Paint mode handled in render.rs".into());
+                return MouseEventResult::Handled;
+            }
             _ => {
                 // Continue with normal handling for other modes
             }

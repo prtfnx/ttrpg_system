@@ -52,6 +52,45 @@ pub struct RenderEngine {
 
 #[wasm_bindgen]
 impl RenderEngine {
+    // Helper function to convert hex color to RGBA bytes
+    fn hex_to_rgba(hex: &str, alpha: f32) -> [u8; 4] {
+        let hex = hex.trim_start_matches('#');
+        if hex.len() == 6 {
+            let r = u8::from_str_radix(&hex[0..2], 16).unwrap_or(255);
+            let g = u8::from_str_radix(&hex[2..4], 16).unwrap_or(255);
+            let b = u8::from_str_radix(&hex[4..6], 16).unwrap_or(255);
+            let a = (alpha * 255.0) as u8;
+            [r, g, b, a]
+        } else {
+            [255, 255, 255, (alpha * 255.0) as u8] // Default white
+        }
+    }
+    
+    // Get shape settings from window.shapeSettings
+    fn get_shape_settings(&self) -> (String, f32, bool) {
+        if let Some(window) = web_sys::window() {
+            if let Ok(shape_settings) = js_sys::Reflect::get(&window, &"shapeSettings".into()) {
+                if !shape_settings.is_undefined() {
+                    let color = js_sys::Reflect::get(&shape_settings, &"color".into())
+                        .ok()
+                        .and_then(|v| v.as_string())
+                        .unwrap_or_else(|| "#ffffff".to_string());
+                    let opacity = js_sys::Reflect::get(&shape_settings, &"opacity".into())
+                        .ok()
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(1.0) as f32;
+                    let filled = js_sys::Reflect::get(&shape_settings, &"filled".into())
+                        .ok()
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false);
+                    return (color, opacity, filled);
+                }
+            }
+        }
+        // Default values
+        ("#ffffff".to_string(), 1.0, false)
+    }
+    
     #[wasm_bindgen(constructor)]
     pub fn new(canvas: HtmlCanvasElement) -> Result<RenderEngine, JsValue> {
         let gl = canvas.get_context("webgl2")?.unwrap().dyn_into::<WebGlRenderingContext>()?;
@@ -411,9 +450,9 @@ impl RenderEngine {
             MouseEventResult::CreateSprite(sprite_data) => {
                 // Handle sprite creation
                 let parts: Vec<&str> = sprite_data.split(':').collect();
-                if parts.len() >= 4 {
-                    match parts[0] {
-                        "rectangle" => {
+                match parts[0] {
+                    "rectangle" => {
+                        if parts.len() >= 5 {
                             if let (Ok(x), Ok(y), Ok(width), Ok(height)) = (
                                 parts[1].parse::<f32>(),
                                 parts[2].parse::<f32>(),
@@ -421,22 +460,92 @@ impl RenderEngine {
                                 parts[4].parse::<f32>()
                             ) {
                                 web_sys::console::log_1(&format!("[RUST] Creating rectangle sprite at {},{} size {}x{}", x, y, width, height).into());
-                                let sprite_id = self.create_rectangle_sprite(x, y, width, height, "background");
+                                
+                                // Get shape settings from window
+                                let (color, opacity, filled) = self.get_shape_settings();
+                                
+                                // Create sprite locally in Rust for immediate visibility
+                                let sprite_id = self.create_rectangle_sprite_with_options(x, y, width, height, "tokens", &color, opacity, filled);
                                 web_sys::console::log_1(&format!("[RUST] Created rectangle sprite with ID: {}", sprite_id).into());
+                                
+                                // Send to server via gameAPI for synchronization
+                                if let Some(window) = web_sys::window() {
+                                    if let Ok(game_api) = js_sys::Reflect::get(&window, &"gameAPI".into()) {
+                                        if let Ok(send_message) = js_sys::Reflect::get(&game_api, &"sendMessage".into()) {
+                                            if let Ok(send_fn) = send_message.dyn_into::<js_sys::Function>() {
+                                                let sprite_data = js_sys::Object::new();
+                                                js_sys::Reflect::set(&sprite_data, &"id".into(), &sprite_id.into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"x".into(), &x.into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"y".into(), &y.into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"width".into(), &width.into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"height".into(), &height.into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"layer".into(), &"tokens".into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"texture_path".into(), &"".into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"color".into(), &"#50C878".into()).unwrap(); // Light green
+                                                
+                                                let _ = send_fn.call2(&game_api, &"sprite_create".into(), &sprite_data);
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // Dispatch event to notify UI
+                                if let Some(window) = web_sys::window() {
+                                    let event = web_sys::Event::new("spriteAdded").unwrap();
+                                    let _ = window.dispatch_event(&event);
+                                }
                             }
                         }
-                        "circle" => {
+                    }
+                    "circle" => {
+                        if parts.len() >= 4 {
                             if let (Ok(x), Ok(y), Ok(radius)) = (
                                 parts[1].parse::<f32>(),
                                 parts[2].parse::<f32>(),
                                 parts[3].parse::<f32>()
                             ) {
                                 web_sys::console::log_1(&format!("[RUST] Creating circle sprite at {},{} radius {}", x, y, radius).into());
-                                let sprite_id = self.create_circle_sprite(x, y, radius, "background");
+                                
+                                // Get shape settings from window
+                                let (color, opacity, filled) = self.get_shape_settings();
+                                
+                                // Create sprite locally in Rust for immediate visibility
+                                let sprite_id = self.create_circle_sprite_with_options(x, y, radius, "tokens", &color, opacity, filled);
                                 web_sys::console::log_1(&format!("[RUST] Created circle sprite with ID: {}", sprite_id).into());
+                                
+                                // Send to server via gameAPI for synchronization
+                                let diameter = radius * 2.0;
+                                if let Some(window) = web_sys::window() {
+                                    if let Ok(game_api) = js_sys::Reflect::get(&window, &"gameAPI".into()) {
+                                        if let Ok(send_message) = js_sys::Reflect::get(&game_api, &"sendMessage".into()) {
+                                            if let Ok(send_fn) = send_message.dyn_into::<js_sys::Function>() {
+                                                let sprite_data = js_sys::Object::new();
+                                                js_sys::Reflect::set(&sprite_data, &"id".into(), &sprite_id.into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"x".into(), &(x - radius).into()).unwrap(); // Center to top-left
+                                                js_sys::Reflect::set(&sprite_data, &"y".into(), &(y - radius).into()).unwrap(); // Center to top-left
+                                                js_sys::Reflect::set(&sprite_data, &"width".into(), &diameter.into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"height".into(), &diameter.into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"layer".into(), &"tokens".into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"texture_path".into(), &"".into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"color".into(), &"#4A90E2".into()).unwrap(); // Blue
+                                                js_sys::Reflect::set(&sprite_data, &"shape".into(), &"circle".into()).unwrap(); // Mark as circle
+                                                
+                                                let _ = send_fn.call2(&game_api, &"sprite_create".into(), &sprite_data);
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // Dispatch event to notify UI
+                                if let Some(window) = web_sys::window() {
+                                    let event = web_sys::Event::new("spriteAdded").unwrap();
+                                    let _ = window.dispatch_event(&event);
+                                }
                             }
                         }
-                        "line" => {
+                    }
+                    "line" => {
+                        if parts.len() >= 5 {
                             if let (Ok(x1), Ok(y1), Ok(x2), Ok(y2)) = (
                                 parts[1].parse::<f32>(),
                                 parts[2].parse::<f32>(),
@@ -444,12 +553,54 @@ impl RenderEngine {
                                 parts[4].parse::<f32>()
                             ) {
                                 web_sys::console::log_1(&format!("[RUST] Creating line sprite from {},{} to {},{}", x1, y1, x2, y2).into());
-                                let sprite_id = self.create_line_sprite(x1, y1, x2, y2, "background");
+                                
+                                // Get shape settings from window
+                                let (color, opacity, _) = self.get_shape_settings(); // Lines don't use filled
+                                
+                                // Create sprite locally in Rust for immediate visibility
+                                let sprite_id = self.create_line_sprite_with_options(x1, y1, x2, y2, "tokens", &color, opacity);
                                 web_sys::console::log_1(&format!("[RUST] Created line sprite with ID: {}", sprite_id).into());
+                                
+                                // Send to server via gameAPI for synchronization
+                                let min_x = x1.min(x2);
+                                let min_y = y1.min(y2);
+                                let width = (x2 - x1).abs().max(2.0); // Minimum width for visibility
+                                let height = (y2 - y1).abs().max(2.0); // Minimum height for visibility
+                                
+                                if let Some(window) = web_sys::window() {
+                                    if let Ok(game_api) = js_sys::Reflect::get(&window, &"gameAPI".into()) {
+                                        if let Ok(send_message) = js_sys::Reflect::get(&game_api, &"sendMessage".into()) {
+                                            if let Ok(send_fn) = send_message.dyn_into::<js_sys::Function>() {
+                                                let sprite_data = js_sys::Object::new();
+                                                js_sys::Reflect::set(&sprite_data, &"id".into(), &sprite_id.into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"x".into(), &min_x.into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"y".into(), &min_y.into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"width".into(), &width.into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"height".into(), &height.into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"layer".into(), &"tokens".into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"texture_path".into(), &"".into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"color".into(), &"#E74C3C".into()).unwrap(); // Red
+                                                js_sys::Reflect::set(&sprite_data, &"shape".into(), &"line".into()).unwrap(); // Mark as line
+                                                js_sys::Reflect::set(&sprite_data, &"line_start_x".into(), &x1.into()).unwrap(); // Store original line coordinates
+                                                js_sys::Reflect::set(&sprite_data, &"line_start_y".into(), &y1.into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"line_end_x".into(), &x2.into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"line_end_y".into(), &y2.into()).unwrap();
+                                                
+                                                let _ = send_fn.call2(&game_api, &"sprite_create".into(), &sprite_data);
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // Dispatch event to notify UI
+                                if let Some(window) = web_sys::window() {
+                                    let event = web_sys::Event::new("spriteAdded").unwrap();
+                                    let _ = window.dispatch_event(&event);
+                                }
                             }
                         }
-                        _ => {}
                     }
+                    _ => {}
                 }
             }
             MouseEventResult::None => {
@@ -905,8 +1056,26 @@ impl RenderEngine {
     
     #[wasm_bindgen]
     pub fn create_rectangle_sprite(&mut self, x: f32, y: f32, width: f32, height: f32, layer_name: &str) -> String {
-        web_sys::console::log_1(&format!("[RUST] create_rectangle_sprite called: {},{} {}x{} on layer '{}'", x, y, width, height, layer_name).into());
+        self.create_rectangle_sprite_with_options(x, y, width, height, layer_name, "#50c850", 1.0, false)
+    }
+    
+    #[wasm_bindgen]
+    pub fn create_rectangle_sprite_with_options(&mut self, x: f32, y: f32, width: f32, height: f32, layer_name: &str, color: &str, opacity: f32, filled: bool) -> String {
+        web_sys::console::log_1(&format!("[RUST] create_rectangle_sprite called: {},{} {}x{} on layer '{}' color: {} opacity: {} filled: {}", x, y, width, height, layer_name, color, opacity, filled).into());
         let sprite_id = format!("rect_{}", js_sys::Date::now() as u64);
+        
+        // Convert color and opacity to RGBA bytes
+        let rgba_color = Self::hex_to_rgba(color, opacity);
+        
+        // Create procedural rectangle texture with color and fill
+        let texture_name = format!("rect_texture_{}", sprite_id);
+        let texture_width = width.max(16.0) as u32;
+        let texture_height = height.max(16.0) as u32;
+        let border_width = 2u32; // Border thickness in pixels
+        if let Err(e) = self.texture_manager.create_rectangle_texture_with_color(&texture_name, texture_width, texture_height, border_width, rgba_color, filled) {
+            web_sys::console::log_1(&format!("[RUST] Failed to create rectangle texture: {:?}", e).into());
+        }
+        
         let sprite = Sprite {
             id: sprite_id.clone(),
             world_x: x as f64,
@@ -917,8 +1086,8 @@ impl RenderEngine {
             scale_x: 1.0,
             scale_y: 1.0,
             layer: layer_name.to_string(),
-            texture_id: String::new(), // No texture for colored rectangle
-            tint_color: [0.5, 0.8, 0.5, 1.0], // Light green
+            texture_id: texture_name, // Use procedural rectangle texture
+            tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
         };
         
         web_sys::console::log_1(&format!("[RUST] Created sprite {}, adding to layer '{}'", sprite_id, layer_name).into());
@@ -932,8 +1101,24 @@ impl RenderEngine {
     
     #[wasm_bindgen]
     pub fn create_circle_sprite(&mut self, x: f32, y: f32, radius: f32, layer_name: &str) -> String {
+        self.create_circle_sprite_with_options(x, y, radius, layer_name, "#5080c8", 1.0, false)
+    }
+    
+    #[wasm_bindgen]
+    pub fn create_circle_sprite_with_options(&mut self, x: f32, y: f32, radius: f32, layer_name: &str, color: &str, opacity: f32, filled: bool) -> String {
         let sprite_id = format!("circle_{}", js_sys::Date::now() as u64);
         let diameter = radius * 2.0;
+        
+        // Convert color and opacity to RGBA bytes
+        let rgba_color = Self::hex_to_rgba(color, opacity);
+        
+        // Create procedural circle texture with color and fill
+        let texture_name = format!("circle_texture_{}", sprite_id);
+        let texture_size = (diameter.max(32.0) as u32).min(256); // Reasonable size limits
+        if let Err(e) = self.texture_manager.create_circle_texture_with_color(&texture_name, texture_size, rgba_color, filled) {
+            web_sys::console::log_1(&format!("[RUST] Failed to create circle texture: {:?}", e).into());
+        }
+        
         let sprite = Sprite {
             id: sprite_id.clone(),
             world_x: (x - radius) as f64,
@@ -944,8 +1129,8 @@ impl RenderEngine {
             scale_x: 1.0,
             scale_y: 1.0,
             layer: layer_name.to_string(),
-            texture_id: String::new(), // No texture for colored circle
-            tint_color: [0.5, 0.5, 0.8, 1.0], // Light blue
+            texture_id: texture_name, // Use procedural circle texture
+            tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
         };
         
         // Convert to JsValue for layer manager
@@ -957,28 +1142,53 @@ impl RenderEngine {
     
     #[wasm_bindgen]
     pub fn create_line_sprite(&mut self, start_x: f32, start_y: f32, end_x: f32, end_y: f32, layer_name: &str) -> String {
+        self.create_line_sprite_with_options(start_x, start_y, end_x, end_y, layer_name, "#c85050", 1.0)
+    }
+    
+    pub fn create_line_sprite_with_options(&mut self, start_x: f32, start_y: f32, end_x: f32, end_y: f32, layer_name: &str, color: &str, opacity: f32) -> String {
         let sprite_id = format!("line_{}", js_sys::Date::now() as u64);
-        let length = ((end_x - start_x).powi(2) + (end_y - start_y).powi(2)).sqrt();
-        let width = 2.0; // Line width
+        
+        // Calculate line dimensions
+        let dx = end_x - start_x;
+        let dy = end_y - start_y;
+        let length = (dx * dx + dy * dy).sqrt();
+        let width: f32 = 4.0; // Line thickness
+        
+        // Calculate position and rotation
+        let center_x = (start_x + end_x) / 2.0;
+        let center_y = (start_y + end_y) / 2.0;
+        let angle = dy.atan2(dx);
+        
+        // Convert color and opacity to RGBA bytes
+        let rgba_color = Self::hex_to_rgba(color, opacity);
+        
+        // Create procedural line texture with color
+        let texture_name = format!("line_texture_{}", sprite_id);
+        let texture_width = length.max(8.0) as u32;
+        let texture_height = width.max(4.0) as u32;
+        let line_width = 2u32; // Line width in pixels
+        if let Err(e) = self.texture_manager.create_line_texture_with_color(&texture_name, texture_width, texture_height, line_width, rgba_color) {
+            web_sys::console::log_1(&format!("[RUST] Failed to create line texture: {:?}", e).into());
+        }
         
         let sprite = Sprite {
             id: sprite_id.clone(),
-            world_x: start_x.min(end_x) as f64,
-            world_y: start_y.min(end_y) as f64,
+            world_x: (center_x - length / 2.0) as f64,
+            world_y: (center_y - width / 2.0) as f64,
             width: length as f64,
             height: width as f64,
-            rotation: (end_y - start_y).atan2(end_x - start_x) as f64,
+            rotation: angle as f64,
             scale_x: 1.0,
             scale_y: 1.0,
             layer: layer_name.to_string(),
-            texture_id: String::new(), // No texture for colored line
-            tint_color: [0.8, 0.5, 0.5, 1.0], // Light red
+            texture_id: texture_name, // Use procedural line texture
+            tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
         };
         
         // Convert to JsValue for layer manager
         let sprite_data = serde_wasm_bindgen::to_value(&sprite).unwrap();
         let _ = self.layer_manager.add_sprite_to_layer(layer_name, &sprite_data);
-        web_sys::console::log_1(&format!("[RUST] Created line sprite: {}", sprite_id).into());
+        web_sys::console::log_1(&format!("[RUST] Created line sprite: {} at ({:.1}, {:.1})", sprite_id, center_x, center_y).into());
         sprite_id
     }
 

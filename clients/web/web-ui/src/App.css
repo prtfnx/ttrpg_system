@@ -202,6 +202,87 @@ body {
   border-color: #10b981;
 }
 
+/* Shape Settings Styles */
+.shape-settings {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: #2a2a2a;
+  border-radius: 6px;
+  border: 1px solid #404040;
+}
+
+.shape-settings h5 {
+  margin: 0 0 0.75rem 0;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.setting-row:last-child {
+  margin-bottom: 0;
+}
+
+.setting-row label {
+  color: #cccccc;
+  font-size: 0.75rem;
+  min-width: 60px;
+  flex-shrink: 0;
+}
+
+.setting-row input[type="color"] {
+  width: 40px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: none;
+}
+
+.setting-row input[type="range"] {
+  flex: 1;
+  height: 4px;
+  background: #404040;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.setting-row input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #3b82f6;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.setting-row input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #3b82f6;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.setting-row span {
+  color: #cccccc;
+  font-size: 0.7rem;
+  min-width: 35px;
+  text-align: right;
+}
+
+.setting-row input[type="checkbox"] {
+  margin-right: 0.25rem;
+}
+
 /* Loading State */
 .loading {
   display: flex;

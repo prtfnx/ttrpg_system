@@ -9,7 +9,6 @@ import { GridControls } from './GridControls';
 import { LayerPanel } from './LayerPanel';
 import { MeasurementTool } from './MeasurementTool';
 import { PaintPanel } from './PaintPanel';
-import { SpriteCreationTools } from './SpriteCreationTools';
 
 // Global type declarations
 declare global {
@@ -25,6 +24,12 @@ export function ToolsPanel() {
   console.log('[ToolsPanel] Component mounted');
   const [assetManagerVisible, setAssetManagerVisible] = useState(false);
   const [paintPanelVisible, setPaintPanelVisible] = useState(false);
+  
+  // Shape creation settings
+  const [shapeColor, setShapeColor] = useState('#0080ff'); // Default blue
+  const [shapeOpacity, setShapeOpacity] = useState(1.0); // Default fully opaque
+  const [shapeFilled, setShapeFilled] = useState(false); // Default outline only
+  
   const { 
     isConnected, 
     sessionId, 
@@ -32,7 +37,6 @@ export function ToolsPanel() {
     activeTool, 
     measurementActive, 
     alignmentActive, 
-    spriteCreationActive,
     setActiveTool 
   } = useGameStore();
   
@@ -47,6 +51,13 @@ export function ToolsPanel() {
         setPaintPanelVisible(false); // Hide paint panel
         console.log('[ToolsPanel] Exited paint mode and hid paint panel');
       }
+      
+      // Store shape settings in window for access by shape creation
+      (window as any).shapeSettings = {
+        color: shapeColor,
+        opacity: shapeOpacity,
+        filled: shapeFilled
+      };
       
       // Handle specific tool activations
       switch (activeTool) {
@@ -83,7 +94,7 @@ export function ToolsPanel() {
           break;
       }
     }
-  }, [activeTool]);
+  }, [activeTool, shapeColor, shapeOpacity, shapeFilled]); // Add shape settings as dependencies
   
   // Sprite and test handlers (stub implementations)
   const handleAddSprite = () => {
@@ -266,6 +277,51 @@ export function ToolsPanel() {
           >
             🔤 Text
           </button>
+        </div>
+        
+        {/* Shape Creation Settings */}
+        {(['rectangle', 'circle', 'line'].includes(activeTool)) && (
+          <div className="shape-settings">
+            <h5>Shape Settings</h5>
+            <div className="setting-row">
+              <label htmlFor="shape-color">Color:</label>
+              <input
+                id="shape-color"
+                type="color"
+                value={shapeColor}
+                onChange={(e) => setShapeColor(e.target.value)}
+              />
+            </div>
+            <div className="setting-row">
+              <label htmlFor="shape-opacity">Opacity:</label>
+              <input
+                id="shape-opacity"
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                value={shapeOpacity}
+                onChange={(e) => setShapeOpacity(parseFloat(e.target.value))}
+              />
+              <span>{Math.round(shapeOpacity * 100)}%</span>
+            </div>
+            <div className="setting-row">
+              <label htmlFor="shape-filled">
+                <input
+                  id="shape-filled"
+                  type="checkbox"
+                  checked={shapeFilled}
+                  onChange={(e) => setShapeFilled(e.target.checked)}
+                />
+                Filled
+              </label>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div className="creation-buttons">
           <button
             className="tool-button"
             onClick={() => setAssetManagerVisible(true)}
@@ -325,7 +381,6 @@ export function ToolsPanel() {
       {/* Tool Overlays */}
       <MeasurementTool isActive={measurementActive} />
       <AlignmentHelper isActive={alignmentActive} />
-      <SpriteCreationTools isActive={spriteCreationActive} />
       
       {/* Asset Manager */}
       <AssetManager 

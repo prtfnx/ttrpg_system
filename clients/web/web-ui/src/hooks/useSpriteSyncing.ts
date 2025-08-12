@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useGameStore } from '../store';
 
 export function useSpriteSyncing() {

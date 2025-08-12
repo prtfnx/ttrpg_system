@@ -9,9 +9,8 @@ interface ActionsPanelProps {
 }
 
 export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, className = '' }) => {
-  const [activeTab, setActiveTab] = useState<'tables' | 'sprites' | 'layers' | 'history'>('tables');
+  const [activeTab, setActiveTab] = useState<'tables' | 'layers' | 'history'>('tables');
   const [selectedTable, setSelectedTable] = useState<string>('');
-  const [selectedSprite, setSelectedSprite] = useState<string>('');
   const [logs, setLogs] = useState<string[]>([]);
 
   const actions = useActions(renderEngine, {
@@ -28,13 +27,6 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
 
   // Form states
   const [tableForm, setTableForm] = useState({ name: '', width: 800, height: 600 });
-  const [spriteForm, setSpriteForm] = useState({ 
-    tableId: '', 
-    layer: 'tokens', 
-    x: 0, 
-    y: 0, 
-    texture: 'default' 
-  });
 
   const logResult = useCallback((operation: string, result: ActionResult) => {
     const status = result.success ? '✅' : '❌';
@@ -76,38 +68,6 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
       console.error('Failed to update table:', error);
     }
   }, [actions, logResult]);
-
-  // Sprite Operations
-  const handleCreateSprite = useCallback(async () => {
-    if (!spriteForm.tableId || !spriteForm.texture) return;
-    
-    try {
-      const result = await actions.createSprite(
-        spriteForm.tableId,
-        spriteForm.layer,
-        { x: spriteForm.x, y: spriteForm.y },
-        spriteForm.texture
-      );
-      logResult('Create Sprite', result);
-      if (result.success) {
-        setSpriteForm(prev => ({ ...prev, x: prev.x + 64, y: prev.y + 64 }));
-      }
-    } catch (error) {
-      console.error('Failed to create sprite:', error);
-    }
-  }, [actions, spriteForm, logResult]);
-
-  const handleDeleteSprite = useCallback(async (spriteId: string) => {
-    try {
-      const result = await actions.deleteSprite(spriteId);
-      logResult('Delete Sprite', result);
-      if (result.success && selectedSprite === spriteId) {
-        setSelectedSprite('');
-      }
-    } catch (error) {
-      console.error('Failed to delete sprite:', error);
-    }
-  }, [actions, selectedSprite, logResult]);
 
   // Layer Operations
   const handleToggleLayerVisibility = useCallback(async (layer: string) => {
@@ -196,90 +156,6 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
                     </button>
                     <button 
                       onClick={() => handleDeleteTable(table.table_id)}
-                      className="action-button small danger"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'sprites':
-        return (
-          <div className="actions-tab-content">
-            <div className="actions-form">
-              <h4>Create Sprite</h4>
-              <div className="form-row">
-                <select
-                  value={spriteForm.tableId}
-                  onChange={(e) => setSpriteForm(prev => ({ ...prev, tableId: e.target.value }))}
-                >
-                  <option value="">Select Table</option>
-                  {Array.from(actions.tables.values()).map(table => (
-                    <option key={table.table_id} value={table.table_id}>
-                      {table.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={spriteForm.layer}
-                  onChange={(e) => setSpriteForm(prev => ({ ...prev, layer: e.target.value }))}
-                >
-                  <option value="map">Map</option>
-                  <option value="tokens">Tokens</option>
-                  <option value="dungeon_master">Dungeon Master</option>
-                  <option value="obstacles">Obstacles</option>
-                </select>
-              </div>
-              <div className="form-row">
-                <input
-                  type="number"
-                  placeholder="X"
-                  value={spriteForm.x}
-                  onChange={(e) => setSpriteForm(prev => ({ ...prev, x: parseInt(e.target.value) || 0 }))}
-                />
-                <input
-                  type="number"
-                  placeholder="Y"
-                  value={spriteForm.y}
-                  onChange={(e) => setSpriteForm(prev => ({ ...prev, y: parseInt(e.target.value) || 0 }))}
-                />
-                <input
-                  type="text"
-                  placeholder="Texture"
-                  value={spriteForm.texture}
-                  onChange={(e) => setSpriteForm(prev => ({ ...prev, texture: e.target.value }))}
-                />
-              </div>
-              <button 
-                onClick={handleCreateSprite}
-                disabled={!spriteForm.tableId || !spriteForm.texture || actions.isLoading}
-                className="action-button primary"
-              >
-                Create Sprite
-              </button>
-            </div>
-
-            <div className="actions-list">
-              <h4>Sprites ({actions.sprites.size})</h4>
-              {Array.from(actions.sprites.values()).map(sprite => (
-                <div key={sprite.sprite_id} className={`list-item ${selectedSprite === sprite.sprite_id ? 'selected' : ''}`}>
-                  <div className="item-info" onClick={() => setSelectedSprite(sprite.sprite_id)}>
-                    <strong>{sprite.texture_name}</strong>
-                    <span>{sprite.layer} - ({sprite.position.x}, {sprite.position.y})</span>
-                  </div>
-                  <div className="item-actions">
-                    <button 
-                      onClick={() => actions.moveSpriteToLayer(sprite.sprite_id, sprite.layer === 'tokens' ? 'dungeon_master' : 'tokens')}
-                      className="action-button small"
-                    >
-                      Move
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteSprite(sprite.sprite_id)}
                       className="action-button small danger"
                     >
                       Delete
@@ -382,7 +258,7 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
       </div>
 
       <div className="panel-tabs">
-        {['tables', 'sprites', 'layers', 'history'].map(tab => (
+        {['tables', 'layers', 'history'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab as any)}

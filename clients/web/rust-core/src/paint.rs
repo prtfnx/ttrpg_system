@@ -174,13 +174,25 @@ impl PaintSystem {
         }
         
         if let Some(ref mut stroke) = self.current_stroke {
-            // Add smoothing by checking minimum distance
+            let current = Vec2::new(world_x, world_y);
+            
+            // Always add points for smooth strokes, with minimal distance filtering
             if let Some(last) = self.last_point {
-                let current = Vec2::new(world_x, world_y);
                 let distance = (current - last).length();
                 
-                // Only add point if it's far enough from the last one
-                if distance > 1.0 {
+                // Use much smaller threshold to maintain stroke continuity
+                if distance > 0.2 {
+                    // Add intermediate points if the distance is large to avoid gaps
+                    if distance > 3.0 {
+                        let steps = (distance / 2.0).ceil() as i32;
+                        for i in 1..steps {
+                            let t = i as f32 / steps as f32;
+                            let interp_x = last.x + (current.x - last.x) * t;
+                            let interp_y = last.y + (current.y - last.y) * t;
+                            stroke.add_point(interp_x, interp_y, pressure);
+                        }
+                    }
+                    
                     stroke.add_point(world_x, world_y, pressure);
                     self.last_point = Some(current);
                     self.emit_stroke_updated();
@@ -188,7 +200,7 @@ impl PaintSystem {
                 }
             } else {
                 stroke.add_point(world_x, world_y, pressure);
-                self.last_point = Some(Vec2::new(world_x, world_y));
+                self.last_point = Some(current);
                 self.emit_stroke_updated();
                 return true;
             }
@@ -281,12 +293,68 @@ impl PaintSystem {
     // Get stroke data for sprite conversion
     pub fn get_all_strokes_data(&self) -> Vec<String> {
         self.strokes.iter().map(|stroke| {
-            format!("stroke_{}_{}_{}_{}", 
-                stroke.id, 
-                stroke.points.len(), 
-                stroke.color[0], 
-                stroke.width)
+            serde_json::to_string(stroke).unwrap_or_else(|_| {
+                format!("stroke_{}_{}_{}_{}", 
+                    stroke.id, 
+                    stroke.points.len(), 
+                    stroke.color[0], 
+                    stroke.width)
+            })
         }).collect()
+    }
+    
+    // Get stroke bounds for sprite positioning (internal use only)
+    fn get_stroke_bounds(&self, stroke: &DrawStroke) -> (Vec2, Vec2) {
+        if stroke.points.is_empty() {
+            return (Vec2::new(0.0, 0.0), Vec2::new(0.0, 0.0));
+        }
+        
+        let mut min_x = stroke.points[0].x;
+        let mut min_y = stroke.points[0].y;
+        let mut max_x = stroke.points[0].x;
+        let mut max_y = stroke.points[0].y;
+        
+        for point in &stroke.points {
+            min_x = min_x.min(point.x);
+            min_y = min_y.min(point.y);
+            max_x = max_x.max(point.x);
+            max_y = max_y.max(point.y);
+        }
+        
+        // Add padding for stroke width
+        let padding = stroke.width * 0.5;
+        (
+            Vec2::new(min_x - padding, min_y - padding),
+            Vec2::new(max_x + padding, max_y + padding)
+        )
+    }
+    
+    // Convert strokes to JSON for sprite conversion (internal use only)
+    fn get_strokes_for_sprite_conversion(&self) -> Vec<(String, Vec2, Vec2, [f32; 4], f32)> {
+        self.strokes.iter().map(|stroke| {
+            let (min, max) = self.get_stroke_bounds(stroke);
+            (stroke.id.clone(), min, max, stroke.color, stroke.width)
+        }).collect()
+    }
+    
+    // WASM-safe method to get stroke data for sprite conversion
+    #[wasm_bindgen]
+    pub fn get_strokes_data_json(&self) -> JsValue {
+        let stroke_data: Vec<_> = self.strokes.iter().map(|stroke| {
+            let (min, max) = self.get_stroke_bounds(stroke);
+            serde_json::json!({
+                "id": stroke.id,
+                "min_x": min.x,
+                "min_y": min.y,
+                "max_x": max.x,
+                "max_y": max.y,
+                "color": stroke.color,
+                "width": stroke.width,
+                "points": stroke.points
+            })
+        }).collect();
+        
+        serde_wasm_bindgen::to_value(&stroke_data).unwrap_or(JsValue::NULL)
     }
 }
 
@@ -314,36 +382,16 @@ impl PaintSystem {
         // Set blend mode for this stroke
         renderer.set_blend_mode(&stroke.blend_mode);
         
-        // Generate line segments from stroke points
+        // Simple approach: just extract x,y coordinates for LINE_STRIP
         let mut vertices = Vec::new();
-        
-        for i in 0..stroke.points.len() - 1 {
-            let p1 = &stroke.points[i];
-            let p2 = &stroke.points[i + 1];
-            
-            // Create thick line by generating parallel lines based on stroke width
-            let dx = p2.x - p1.x;
-            let dy = p2.y - p1.y;
-            let length = (dx * dx + dy * dy).sqrt();
-            
-            if length > 0.0 {
-                // Calculate perpendicular offset for line thickness
-                let offset_x = -dy / length * stroke.width * 0.5;
-                let offset_y = dx / length * stroke.width * 0.5;
-                
-                // Add quad vertices for thick line segment
-                vertices.extend_from_slice(&[
-                    p1.x + offset_x, p1.y + offset_y,  // Top-left
-                    p1.x - offset_x, p1.y - offset_y,  // Bottom-left
-                    p2.x + offset_x, p2.y + offset_y,  // Top-right
-                    p2.x - offset_x, p2.y - offset_y,  // Bottom-right
-                ]);
-            }
+        for point in &stroke.points {
+            vertices.push(point.x);
+            vertices.push(point.y);
         }
         
         if !vertices.is_empty() {
-            // No texture used for strokes
-            renderer.draw_lines(&vertices, stroke.color)?;
+            // Use WebGL's built-in line rendering with lineWidth and LINE_STRIP
+            renderer.draw_line_strip(&vertices, stroke.color, stroke.width)?;
         }
         
         Ok(())

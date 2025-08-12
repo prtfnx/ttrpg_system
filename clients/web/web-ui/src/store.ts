@@ -164,9 +164,21 @@ export const useGameStore = create<GameStore>()(
       },
 
       addSprite: (sprite: Sprite) => {
-        set((state) => ({
-          sprites: [...state.sprites, sprite],
-        }));
+        set((state) => {
+          // Check if sprite already exists
+          const existingSprite = state.sprites.find(s => s.id === sprite.id);
+          if (existingSprite) {
+            // If it exists, update it instead of adding
+            return {
+              sprites: state.sprites.map(s => s.id === sprite.id ? sprite : s)
+            };
+          } else {
+            // Add new sprite
+            return {
+              sprites: [...state.sprites, sprite]
+            };
+          }
+        });
       },
 
       removeSprite: (id: string) => {

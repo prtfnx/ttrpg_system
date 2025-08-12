@@ -193,7 +193,13 @@ export interface RenderEngine {
   set_input_mode_create_line: () => void;
   set_input_mode_create_text: () => void;
   set_input_mode_select: () => void;
+  set_input_mode_paint: () => void;
   get_current_input_mode: () => string;
+  
+  // Sprite information
+  get_all_sprites_network_data: () => any[];
+  get_sprites_by_layer: (layer: string) => any;
+  get_sprite_info: (sprite_id: string) => any;
 }
 
 // Window interface extensions

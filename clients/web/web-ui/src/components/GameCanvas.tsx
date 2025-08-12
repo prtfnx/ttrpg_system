@@ -1,6 +1,7 @@
 import type { RefObject } from 'react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
+// import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
 import { useGameStore } from '../store';
 import type { RenderEngine } from '../types';
 import { DebugOverlay } from './DebugOverlay';
@@ -69,6 +70,9 @@ export const GameCanvas: React.FC = () => {
   const { updateConnectionState } = useGameStore();
   const { connect: connectWebSocket, disconnect: disconnectWebSocket, requestTableData } = useWebSocket('ws://127.0.0.1:12345/ws');
   const debugPanel = useCanvasDebug(canvasRef as React.RefObject<HTMLCanvasElement | null>, rustRenderManagerRef, dprRef);
+  
+  // TODO: Re-enable sprite syncing after fixing React error
+  // useSpriteSyncing();
 
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{

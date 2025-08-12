@@ -41,10 +41,11 @@ export function ToolsPanel() {
     if (window.rustRenderManager) {
       console.log(`[ToolsPanel] Tool changed to: ${activeTool}`);
       
-      // Exit paint mode when switching to other tools
+      // Exit paint mode when switching away from paint tool
       if (activeTool !== 'paint' && window.rustRenderManager.paint_is_mode()) {
         window.rustRenderManager.paint_exit_mode();
-        console.log('[ToolsPanel] Exited paint mode');
+        setPaintPanelVisible(false); // Hide paint panel
+        console.log('[ToolsPanel] Exited paint mode and hid paint panel');
       }
       
       // Handle specific tool activations
@@ -70,7 +71,9 @@ export function ToolsPanel() {
           console.log('[ToolsPanel] Text creation tool activated');
           break;
         case 'paint':
-          // Paint mode is handled by the paint button click directly
+          window.rustRenderManager.set_input_mode_paint();
+          window.rustRenderManager.paint_enter_mode(800, 600); // Also enter paint mode
+          console.log('[ToolsPanel] Paint tool activated');
           break;
         case 'select':
         case 'move':
@@ -98,6 +101,11 @@ export function ToolsPanel() {
       };
       console.log('[ToolsPanel] Sending sprite_create:', spriteData);
       window.gameAPI.sendMessage('sprite_create', spriteData);
+      
+      // Trigger sprite sync event
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('spriteAdded'));
+      }, 500);
     } else {
       console.warn('[ToolsPanel] window.gameAPI.sendMessage not available');
     }
@@ -161,6 +169,11 @@ export function ToolsPanel() {
               texture_path: 'treasure.png',
               color: '#CC3300',
             });
+            
+            // Trigger sprite sync event
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent('spriteAdded'));
+            }, 1000); // Wait a bit for sprites to be processed
           }
         });
       });
@@ -264,12 +277,12 @@ export function ToolsPanel() {
             className={`tool-button ${activeTool === 'paint' ? 'active' : ''}`}
             onClick={() => {
               if (window.rustRenderManager) {
-                console.log('[ToolsPanel] Entering paint mode');
-                window.rustRenderManager.paint_enter_mode(800, 600); // Use canvas dimensions
+                console.log('[ToolsPanel] Activating paint tool');
+                window.rustRenderManager.set_input_mode_paint();
                 setActiveTool('paint');
                 setPaintPanelVisible(true);
               } else {
-                console.warn('[ToolsPanel] Cannot enter paint mode: render manager not available');
+                console.warn('[ToolsPanel] Cannot activate paint tool: render manager not available');
               }
             }}
             title="Paint System"

@@ -169,7 +169,7 @@ impl PaintSystem {
     
     #[wasm_bindgen]
     pub fn add_stroke_point(&mut self, world_x: f32, world_y: f32, pressure: f32) -> bool {
-        if !self.is_drawing || !self.paint_mode {
+        if !self.is_drawing {
             return false;
         }
         
@@ -210,7 +210,7 @@ impl PaintSystem {
     
     #[wasm_bindgen]
     pub fn end_stroke(&mut self) -> bool {
-        if !self.is_drawing || !self.paint_mode {
+        if !self.is_drawing {
             return false;
         }
         

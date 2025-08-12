@@ -117,9 +117,7 @@ impl RenderEngine {
         self.lighting.render_lights(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y)?;
         
         // Render paint strokes (on top of everything except fog)
-        if self.paint.is_paint_mode() {
-            self.paint.render_strokes(&self.renderer)?;
-        }
+        self.paint.render_strokes(&self.renderer)?;
         
         // Render fog of war system (should be rendered last, on top of everything)
         self.fog.render_fog(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y)?;

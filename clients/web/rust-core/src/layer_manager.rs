@@ -83,6 +83,15 @@ impl LayerManager {
         }
     }
     
+    pub fn set_layer_z_order(&mut self, layer_name: &str, z_order: i32) -> bool {
+        if let Some(layer) = self.layers.get_mut(layer_name) {
+            layer.settings.z_order = z_order;
+            true
+        } else {
+            false
+        }
+    }
+    
     pub fn configure_layer(&mut self, layer_name: &str, settings: LayerSettings) -> bool {
         if let Some(layer) = self.layers.get_mut(layer_name) {
             layer.settings = settings;

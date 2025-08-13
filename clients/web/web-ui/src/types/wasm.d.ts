@@ -315,6 +315,27 @@ export class AssetUploader {
   get_upload_queue_size(): number;
 }
 
+export class TableManager {
+  free(): void;
+  constructor();
+  set_canvas_size(width: number, height: number): void;
+  create_table(table_id: string, table_name: string, width: number, height: number): void;
+  set_active_table(table_id: string): boolean;
+  get_active_table_id(): string | undefined;
+  set_table_screen_area(table_id: string, x: number, y: number, width: number, height: number): boolean;
+  table_to_screen(table_id: string, table_x: number, table_y: number): number[] | undefined;
+  screen_to_table(table_id: string, screen_x: number, screen_y: number): number[] | undefined;
+  is_point_in_table_area(table_id: string, screen_x: number, screen_y: number): boolean;
+  pan_viewport(table_id: string, dx: number, dy: number): boolean;
+  zoom_table(table_id: string, zoom_factor: number, center_x: number, center_y: number): boolean;
+  set_table_grid(table_id: string, show_grid: boolean, cell_size: number): boolean;
+  get_table_info(table_id: string): string | undefined;
+  get_all_tables(): string;
+  remove_table(table_id: string): boolean;
+  get_visible_bounds(table_id: string): number[] | undefined;
+  snap_to_grid(table_id: string, x: number, y: number): number[] | undefined;
+}
+
 export function create_default_brush_presets(): BrushPreset[];
 
 export function init_game_renderer(canvas: HTMLCanvasElement): RenderEngine;

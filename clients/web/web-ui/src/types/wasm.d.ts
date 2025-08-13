@@ -289,12 +289,13 @@ export interface CacheStats {
 export class AssetManager {
   free(): void;
   constructor();
+  initialize_db(): Promise<void>;
   set_cache_limits(max_size_mb: bigint, max_age_hours: number): void;
   is_cached(asset_id: string): boolean;
   get_asset_info(asset_id: string): string | null;
   get_asset_data(asset_id: string): Uint8Array | null;
   cache_asset(asset_info_json: string, data: Uint8Array): Promise<void>;
-  remove_asset(asset_id: string): boolean;
+  remove_asset(asset_id: string): Promise<boolean>;
   cleanup_cache(): Promise<void>;
   clear_cache(): Promise<void>;
   get_cache_stats(): string;

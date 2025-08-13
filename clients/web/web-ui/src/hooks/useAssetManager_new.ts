@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import init, { AssetManager } from '../wasm/ttrpg_rust_core';
+import init, { AssetManager } from '../../pkg/ttrpg_rust_core';
 
 export interface AssetInfo {
   id: string;
@@ -20,17 +20,9 @@ export interface CacheStats {
   last_cleanup: number;
 }
 
-interface AssetManagerConfig {
-  maxCacheSizeMB?: number;
-  maxAgeHours?: number;
-  autoCleanup?: boolean;
-}
-
-export const useAssetManager = (config: AssetManagerConfig = {}) => {
+export const useAssetManager = () => {
   const [assetManager, setAssetManager] = useState<AssetManager | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [cacheStats, setCacheStats] = useState<CacheStats | null>(null);
   const [assets, setAssets] = useState<string[]>([]);
   const initRef = useRef(false);
@@ -41,19 +33,14 @@ export const useAssetManager = (config: AssetManagerConfig = {}) => {
 
     const initializeAssetManager = async () => {
       try {
-        setIsLoading(true);
         await init();
         const manager = new AssetManager();
+        manager.initialize();
         setAssetManager(manager);
         setIsInitialized(true);
-        setError(null);
         console.log('Asset Manager initialized successfully');
       } catch (error) {
-        const errorMsg = 'Failed to initialize Asset Manager';
-        console.error(errorMsg, error);
-        setError(errorMsg);
-      } finally {
-        setIsLoading(false);
+        console.error('Failed to initialize Asset Manager:', error);
       }
     };
 
@@ -68,7 +55,7 @@ export const useAssetManager = (config: AssetManagerConfig = {}) => {
       const stats = JSON.parse(statsJson) as CacheStats;
       setCacheStats(stats);
       
-      const assetList = (assetManager as any).list_assets?.() || [];
+      const assetList = assetManager.list_assets();
       setAssets(assetList);
     } catch (error) {
       console.error('Failed to refresh asset stats:', error);
@@ -88,7 +75,6 @@ export const useAssetManager = (config: AssetManagerConfig = {}) => {
     if (!assetManager) return false;
 
     try {
-      setIsLoading(true);
       const fullAssetInfo: AssetInfo = {
         ...assetInfo,
         hash: '', // Will be computed by Rust
@@ -98,15 +84,10 @@ export const useAssetManager = (config: AssetManagerConfig = {}) => {
 
       assetManager.cache_asset(JSON.stringify(fullAssetInfo), data);
       refreshStats();
-      setError(null);
       return true;
     } catch (error) {
-      const errorMsg = 'Failed to cache asset';
-      console.error(errorMsg, error);
-      setError(errorMsg);
+      console.error('Failed to cache asset:', error);
       return false;
-    } finally {
-      setIsLoading(false);
     }
   }, [assetManager, refreshStats]);
 
@@ -137,46 +118,34 @@ export const useAssetManager = (config: AssetManagerConfig = {}) => {
 
   const hasAsset = useCallback((assetId: string): boolean => {
     if (!assetManager) return false;
-    return (assetManager as any).has_asset?.(assetId) || false;
+    return assetManager.has_asset(assetId);
   }, [assetManager]);
 
   const removeAsset = useCallback((assetId: string): boolean => {
     if (!assetManager) return false;
 
     try {
-      setIsLoading(true);
       const success = assetManager.remove_asset(assetId);
       if (success) {
         refreshStats();
       }
-      setError(null);
       return success;
     } catch (error) {
-      const errorMsg = 'Failed to remove asset';
-      console.error(errorMsg, error);
-      setError(errorMsg);
+      console.error('Failed to remove asset:', error);
       return false;
-    } finally {
-      setIsLoading(false);
     }
   }, [assetManager, refreshStats]);
 
-  const performCleanup = useCallback((): boolean => {
+  const cleanupCache = useCallback((): boolean => {
     if (!assetManager) return false;
 
     try {
-      setIsLoading(true);
       assetManager.cleanup_cache();
       refreshStats();
-      setError(null);
       return true;
     } catch (error) {
-      const errorMsg = 'Failed to cleanup cache';
-      console.error(errorMsg, error);
-      setError(errorMsg);
+      console.error('Failed to cleanup cache:', error);
       return false;
-    } finally {
-      setIsLoading(false);
     }
   }, [assetManager, refreshStats]);
 
@@ -184,95 +153,18 @@ export const useAssetManager = (config: AssetManagerConfig = {}) => {
     if (!assetManager) return;
 
     try {
-      setIsLoading(true);
       assetManager.clear_cache();
       refreshStats();
-      setError(null);
     } catch (error) {
-      const errorMsg = 'Failed to clear cache';
-      console.error(errorMsg, error);
-      setError(errorMsg);
-    } finally {
-      setIsLoading(false);
+      console.error('Failed to clear cache:', error);
     }
   }, [assetManager, refreshStats]);
-
-  const getAssetList = useCallback((): string[] => {
-    if (!assetManager) return [];
-    
-    try {
-      return (assetManager as any).list_assets?.() || [];
-    } catch (error) {
-      console.error('Failed to get asset list:', error);
-      return [];
-    }
-  }, [assetManager]);
-
-  const formatFileSize = useCallback((bytes: number): string => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  }, []);
-
-  const getCacheUsagePercentage = useCallback((): number => {
-    if (!cacheStats || !config.maxCacheSizeMB) return 0;
-    const maxBytes = config.maxCacheSizeMB * 1024 * 1024;
-    return Math.round((cacheStats.total_size / maxBytes) * 100);
-  }, [cacheStats, config.maxCacheSizeMB]);
-
-  const uploadAsset = useCallback(async (file: File, onProgress?: (progress: number) => void): Promise<boolean> => {
-    if (!assetManager) return false;
-    
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Convert file to Uint8Array
-      const arrayBuffer = await file.arrayBuffer();
-      const data = new Uint8Array(arrayBuffer);
-      
-      const assetInfo = {
-        id: `${Date.now()}_${file.name}`,
-        name: file.name,
-        url: URL.createObjectURL(file),
-        size: file.size,
-        mime_type: file.type || 'application/octet-stream'
-      };
-
-      // Simulate progress if callback provided
-      if (onProgress) {
-        onProgress(0);
-        await new Promise(resolve => setTimeout(resolve, 100));
-        onProgress(50);
-        await new Promise(resolve => setTimeout(resolve, 100));
-        onProgress(100);
-      }
-
-      const result = await cacheAsset(assetInfo, data);
-      return result;
-    } catch (error) {
-      const errorMsg = 'Failed to upload asset';
-      console.error(errorMsg, error);
-      setError(errorMsg);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [assetManager, cacheAsset]);
-
-  const cancelUpload = useCallback((uploadId: string): boolean => {
-    // Implementation for cancelling uploads would go here
-    console.log('Cancel upload:', uploadId);
-    return true;
-  }, []);
 
   const setCacheLimits = useCallback((maxSizeMB: number, maxAgeHours: number) => {
     if (!assetManager) return;
 
     try {
-      (assetManager as any).set_cache_limits?.(BigInt(maxSizeMB), maxAgeHours);
+      assetManager.set_cache_limits(maxSizeMB, maxAgeHours);
     } catch (error) {
       console.error('Failed to set cache limits:', error);
     }
@@ -311,26 +203,17 @@ export const useAssetManager = (config: AssetManagerConfig = {}) => {
 
   return {
     isInitialized,
-    isLoading,
-    error,
     cacheStats,
     assets,
-    stats: cacheStats, // Alias for backward compatibility
     cacheAsset,
     getAsset,
     getAssetInfo,
     hasAsset,
     removeAsset,
-    performCleanup,
-    cleanupCache: performCleanup, // Alias for AssetPanel compatibility
+    cleanupCache,
     clearCache,
     setCacheLimits,
     loadAssetFromUrl,
-    refreshStats,
-    getAssetList,
-    formatFileSize,
-    getCacheUsagePercentage,
-    uploadAsset,
-    cancelUpload
+    refreshStats
   };
 };

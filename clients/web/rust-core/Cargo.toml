@@ -56,6 +56,14 @@ features = [
   "DragEvent",
   "Performance",
   "DomRect",
+  "IdbFactory",
+  "IdbDatabase",
+  "IdbObjectStore",
+  "IdbTransaction",
+  "IdbTransactionMode",
+  "IdbRequest",
+  "IdbOpenDbRequest",
+  "IdbIndex",
 ]
 
 

@@ -34,7 +34,7 @@ pub use lighting::{Light, LightingSystem};
 pub use network::NetworkClient;
 pub use actions::ActionsClient;
 pub use paint::{PaintSystem, BrushPreset, create_default_brush_presets};
-pub use asset_manager::{AssetManager, AssetUploader, AssetInfo, CacheStats};
+pub use asset_manager::{AssetManager, AssetInfo, CacheStats};
 pub use table_manager::TableManager;
 
 use web_sys::HtmlCanvasElement;

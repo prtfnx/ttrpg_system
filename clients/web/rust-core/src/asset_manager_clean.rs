@@ -166,15 +166,12 @@ impl AssetManager {
 
         // If still over cache limit, remove least recently used assets
         if self.stats.total_size > self.max_cache_size {
-            let mut assets_by_access: Vec<(String, f64)> = self.cache
-                .iter()
-                .map(|(id, entry)| (id.clone(), entry.info.last_accessed))
-                .collect();
-            assets_by_access.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            let mut assets_by_access: Vec<_> = self.cache.iter().collect();
+            assets_by_access.sort_by(|a, b| a.1.info.last_accessed.partial_cmp(&b.1.info.last_accessed).unwrap());
 
             while self.stats.total_size > self.max_cache_size && !assets_by_access.is_empty() {
                 if let Some((id, _)) = assets_by_access.first() {
-                    let id = id.clone();
+                    let id = id.to_string();
                     if let Some(entry) = self.cache.remove(&id) {
                         self.stats.total_assets -= 1;
                         self.stats.total_size -= entry.info.size;

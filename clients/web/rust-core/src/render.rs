@@ -1499,6 +1499,35 @@ impl RenderEngine {
         self.layer_manager.get_layers().keys().cloned().collect()
     }
     
+    #[wasm_bindgen]
+    pub fn get_layer_sprite_count(&self, layer_name: &str) -> usize {
+        if let Some(layer) = self.layer_manager.get_layer(layer_name) {
+            layer.sprites.len()
+        } else {
+            0
+        }
+    }
+    
+    #[wasm_bindgen]
+    pub fn set_layer_z_order(&mut self, layer_name: &str, z_order: i32) -> bool {
+        self.layer_manager.set_layer_z_order(layer_name, z_order)
+    }
+    
+    #[wasm_bindgen]
+    pub fn clear_layer(&mut self, layer_name: &str) -> bool {
+        if let Some(layer) = self.layer_manager.get_layer_mut(layer_name) {
+            layer.sprites.clear();
+            true
+        } else {
+            false
+        }
+    }
+    
+    #[wasm_bindgen]
+    pub fn set_layer_visible(&mut self, layer_name: &str, visible: bool) -> bool {
+        self.layer_manager.set_layer_visibility(layer_name, visible)
+    }
+
     // Paint System Methods
     #[wasm_bindgen]
     pub fn paint_enter_mode(&mut self, width: f32, height: f32) {

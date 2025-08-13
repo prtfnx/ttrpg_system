@@ -44,7 +44,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose }
   });
 
   const assetList = getAssetList();
-  const filteredAssets = assetList.filter(id => 
+  const filteredAssets = assetList.filter((id: string) => 
     id.toLowerCase().includes(searchTerm.toLowerCase()) ||
     getAssetInfo(id)?.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -89,7 +89,6 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose }
     if (!fileInfo) return;
 
     const file = fileInfo.file;
-    const assetId = `${file.name}-${Date.now()}`;
 
     // Update status to uploading
     setUploadFiles(prev => new Map(prev.set(fileId, {
@@ -98,12 +97,13 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose }
     })));
 
     try {
-      // Convert file to Uint8Array
-      const arrayBuffer = await file.arrayBuffer();
-      const data = new Uint8Array(arrayBuffer);
-
       // Upload the asset (asset info will be created internally)
-      const success = await uploadAsset(assetId, '', data);
+      const success = await uploadAsset(file, (progress) => {
+        setUploadFiles(prev => new Map(prev.set(fileId, {
+          ...fileInfo,
+          progress,
+        })));
+      });
 
       // Update status
       setUploadFiles(prev => new Map(prev.set(fileId, {
@@ -186,7 +186,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose }
             className={`tab ${activeTab === 'cache' ? 'active' : ''}`}
             onClick={() => setActiveTab('cache')}
           >
-            Cache ({stats.total_assets})
+            Cache ({stats?.total_assets || 0})
           </button>
           <button
             className={`tab ${activeTab === 'upload' ? 'active' : ''}`}
@@ -213,11 +213,11 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose }
             <div className="cache-stats">
               <div className="stat-item">
                 <span className="stat-label">Total Assets:</span>
-                <span className="stat-value">{stats.total_assets}</span>
+                <span className="stat-value">{stats?.total_assets || 0}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-label">Cache Size:</span>
-                <span className="stat-value">{formatFileSize(stats.total_size)}</span>
+                <span className="stat-value">{formatFileSize(stats?.total_size || 0)}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-label">Cache Usage:</span>
@@ -225,11 +225,11 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose }
               </div>
               <div className="stat-item">
                 <span className="stat-label">Cache Hits:</span>
-                <span className="stat-value">{stats.cache_hits}</span>
+                <span className="stat-value">{stats?.cache_hits || 0}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-label">Cache Misses:</span>
-                <span className="stat-value">{stats.cache_misses}</span>
+                <span className="stat-value">{stats?.cache_misses || 0}</span>
               </div>
             </div>
 
@@ -267,7 +267,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose }
             </div>
 
             <div className="asset-list">
-              {filteredAssets.map(assetId => {
+              {filteredAssets.map((assetId: string) => {
                 const assetInfo = getAssetInfo(assetId);
                 if (!assetInfo) return null;
 

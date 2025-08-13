@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useTableManager } from '../hooks/useTableManager';
 import type { TableInfo } from '../hooks/useTableManager';
+import { useTableManager } from '../hooks/useTableManager';
 import './TablePanel.css';
 
 const TablePanel: React.FC = () => {

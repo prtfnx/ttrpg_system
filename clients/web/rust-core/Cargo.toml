@@ -18,6 +18,7 @@ gloo-net = "0.4"
 gloo-utils = "0.2"
 wasm-bindgen-futures = "0.4"
 getrandom = { version = "0.2", features = ["js"] }
+xxhash-rust = { version = "0.8", features = ["xxh64"] }
 
 
 # Math and graphics

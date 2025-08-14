@@ -30,79 +30,22 @@ export interface AssetManagerState {
   stats: CacheStats | null;
   isInitialized: boolean;
   error: string | null;
-  isLoading: boolean;
 }
 
-export interface AssetManagerConfig {
-  maxCacheSizeMB?: number;
-  maxAgeHours?: number;
-  autoCleanup?: boolean;
-}
-
-export interface UploadProgress {
-  [fileId: string]: {
-    progress: number;
-    status: 'uploading' | 'completed' | 'failed';
-  };
-}
-
-export const useAssetManager = (config?: AssetManagerConfig) => {
+export const useAssetManagerEnhanced = () => {
   const assetManagerRef = useRef<AssetManager | null>(null);
   const [state, setState] = useState<AssetManagerState>({
     stats: null,
     isInitialized: false,
     error: null,
-    isLoading: false,
   });
-  const [uploadProgress, setUploadProgress] = useState<UploadProgress>({});
 
   // Initialize the asset manager
   const initialize = useCallback(async () => {
-    // Prevent multiple simultaneous initializations
-    if (assetManagerRef.current || state.isLoading) {
-      return;
-    }
-    
-    setState(prev => ({ ...prev, isLoading: true }));
-    
     try {
-      console.log('Initializing WASM module...');
-      
-      // Wait for the global WASM module to be ready
-      const waitForWasm = () => {
-        return new Promise<void>((resolve, reject) => {
-          const checkWasm = () => {
-            if (window.ttrpg_rust_core && (window.ttrpg_rust_core as any).AssetManager) {
-              resolve();
-            } else if (Date.now() - startTime > 10000) { // 10 second timeout
-              reject(new Error('WASM module not available after timeout'));
-            } else {
-              setTimeout(checkWasm, 100);
-            }
-          };
-          const startTime = Date.now();
-          checkWasm();
-        });
-      };
-
-      await waitForWasm();
-      console.log('Global WASM module is ready');
-      
-      // Small delay to ensure WASM is fully ready
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
       console.log('Initializing Enhanced Asset Manager...');
-      const AssetManagerClass = (window.ttrpg_rust_core as any).AssetManager as typeof AssetManager;
-      const manager = new AssetManagerClass();
+      const manager = new AssetManager();
       await manager.initialize();
-      
-      // Apply configuration if provided
-      if (config?.maxCacheSizeMB) {
-        manager.set_max_cache_size(BigInt(config.maxCacheSizeMB * 1024 * 1024));
-      }
-      if (config?.maxAgeHours) {
-        manager.set_max_age(config.maxAgeHours * 60 * 60 * 1000);
-      }
       
       assetManagerRef.current = manager;
       
@@ -113,27 +56,18 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
         stats,
         isInitialized: true,
         error: null,
-        isLoading: false,
       });
       
       console.log('Enhanced Asset Manager initialized successfully', stats);
-      
-      // Auto cleanup if enabled
-      if (config?.autoCleanup) {
-        await manager.cleanup_cache();
-        const updatedStats = JSON.parse(manager.get_cache_stats()) as CacheStats;
-        setState(prev => ({ ...prev, stats: updatedStats }));
-      }
     } catch (error) {
       console.error('Failed to initialize Enhanced Asset Manager:', error);
       setState(prev => ({
         ...prev,
         isInitialized: false,
-        isLoading: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       }));
     }
-  }, [config]);
+  }, []);
 
   // Download asset with hash verification
   const downloadAsset = useCallback(async (
@@ -340,112 +274,16 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
     } catch (error) {
       console.error('Failed to refresh stats:', error);
     }
-  }, [config]);
+  }, []);
 
   // Auto-initialize on mount
   useEffect(() => {
-    if (!state.isInitialized && !state.isLoading) {
-      initialize();
-    }
-  }, [state.isInitialized, state.isLoading]); // Removed initialize from dependencies to prevent infinite loops
-
-  // Additional methods expected by AssetManager component
-  const performCleanup = useCallback(async (): Promise<void> => {
-    await cleanupCache();
-  }, [cleanupCache]);
-
-  const getAssetList = useCallback((): string[] => {
-    const assets = listAssets();
-    return assets.map(asset => asset.id);
-  }, [listAssets]);
-
-  const formatFileSize = useCallback((bytes: number): string => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  }, []);
-
-  const getCacheUsagePercentage = useCallback((): number => {
-    if (!state.stats || !config?.maxCacheSizeMB) return 0;
-    const maxSize = config.maxCacheSizeMB * 1024 * 1024;
-    return Math.round((state.stats.total_size / maxSize) * 100);
-  }, [state.stats, config?.maxCacheSizeMB]);
-
-  const uploadAsset = useCallback(async (
-    file: File,
-    onProgress?: (progress: number) => void
-  ): Promise<string | null> => {
-    const fileId = `${file.name}-${Date.now()}`;
-    
-    setUploadProgress(prev => ({
-      ...prev,
-      [fileId]: { progress: 0, status: 'uploading' }
-    }));
-
-    try {
-      // Convert file to URL for download
-      const objectUrl = URL.createObjectURL(file);
-      
-      // Update progress callback
-      const progressHandler = (progress: number) => {
-        setUploadProgress(prev => ({
-          ...prev,
-          [fileId]: { progress, status: 'uploading' }
-        }));
-        onProgress?.(progress);
-      };
-
-      // Simulate progress for now (in real implementation this would be handled by download_asset)
-      progressHandler(50);
-      
-      const assetId = await downloadAsset(objectUrl);
-      
-      if (assetId) {
-        setUploadProgress(prev => ({
-          ...prev,
-          [fileId]: { progress: 100, status: 'completed' }
-        }));
-        
-        // Clean up object URL
-        URL.revokeObjectURL(objectUrl);
-        
-        // Remove from upload progress after a delay
-        setTimeout(() => {
-          setUploadProgress(prev => {
-            const newProgress = { ...prev };
-            delete newProgress[fileId];
-            return newProgress;
-          });
-        }, 3000);
-        
-        return assetId;
-      } else {
-        throw new Error('Upload failed');
-      }
-    } catch (error) {
-      setUploadProgress(prev => ({
-        ...prev,
-        [fileId]: { progress: 0, status: 'failed' }
-      }));
-      console.error('Failed to upload asset:', error);
-      return null;
-    }
-  }, [downloadAsset]);
-
-  const cancelUpload = useCallback((fileId: string): void => {
-    setUploadProgress(prev => {
-      const newProgress = { ...prev };
-      delete newProgress[fileId];
-      return newProgress;
-    });
-  }, []);
+    initialize();
+  }, [initialize]);
 
   return {
     // State
     ...state,
-    uploadProgress,
     
     // Methods
     initialize,
@@ -464,17 +302,9 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
     calculateHash,
     refreshStats,
     
-    // Enhanced methods for AssetManager component
-    performCleanup,
-    getAssetList,
-    formatFileSize,
-    getCacheUsagePercentage,
-    uploadAsset,
-    cancelUpload,
-    
     // Direct access to manager (use carefully)
     assetManager: assetManagerRef.current,
   };
 };
 
-export default useAssetManager;
+export default useAssetManagerEnhanced;

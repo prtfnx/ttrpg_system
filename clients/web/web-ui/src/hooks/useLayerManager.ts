@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import init from '../wasm/ttrpg_rust_core';
 
 export interface LayerSettings {
   visible: boolean;
@@ -36,7 +35,26 @@ export const useLayerManager = () => {
   useEffect(() => {
     const initLayerManager = async () => {
       try {
-        await init();
+        // Wait for the global WASM module to be ready
+        const waitForWasm = () => {
+          return new Promise<void>((resolve, reject) => {
+            const checkWasm = () => {
+              if (window.ttrpg_rust_core && (window as any).gameAPI?.renderManager) {
+                resolve();
+              } else if (Date.now() - startTime > 10000) { // 10 second timeout
+                reject(new Error('WASM module not available after timeout'));
+              } else {
+                setTimeout(checkWasm, 100);
+              }
+            };
+            const startTime = Date.now();
+            checkWasm();
+          });
+        };
+
+        await waitForWasm();
+        console.log('Global WASM module is ready for layer manager');
+        
         const manager = (window as any).gameAPI?.renderManager?.();
         if (manager) {
           setRenderManager(manager);

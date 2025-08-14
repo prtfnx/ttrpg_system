@@ -77,9 +77,26 @@ export const useLayerManager = () => {
         const settings = manager.get_layer_settings?.(config.name);
         const spriteCount = manager.get_layer_sprite_count?.(config.name) || 0;
         
+        // Handle settings - might be object or string
+        let parsedSettings;
+        if (settings) {
+          if (typeof settings === 'string') {
+            try {
+              parsedSettings = JSON.parse(settings);
+            } catch (parseError) {
+              console.warn(`Failed to parse settings for layer ${config.name}:`, settings);
+              parsedSettings = null;
+            }
+          } else if (typeof settings === 'object') {
+            parsedSettings = settings;
+          } else {
+            parsedSettings = null;
+          }
+        }
+        
         return {
           ...config,
-          settings: settings ? JSON.parse(settings) : {
+          settings: parsedSettings || {
             visible: true,
             opacity: 1.0,
             color: [1.0, 1.0, 1.0, 1.0],

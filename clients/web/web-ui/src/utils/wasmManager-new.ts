@@ -9,14 +9,19 @@ export interface GlobalWasmModule {
   LayerManager: any;
   ActionsClient: any;
   PaintSystem: any;
-  create_default_brush_presets: () => any; // Add the missing method
+  create_default_brush_presets: () => any;
+  // Add other global functions as needed
+  [key: string]: any; // Allow for additional properties
+}
+  PaintSystem: any;
   // Add other WASM exports as needed
   default: () => Promise<void>; // WASM init function
 }
 
-// Use declaration merging for Window interface
+// Enhanced window interface
 declare global {
   interface Window {
+    ttrpg_rust_core: GlobalWasmModule | null;
     wasmInitialized: boolean;
   }
 }
@@ -70,15 +75,16 @@ class WasmManager {
       } catch (error) {
         console.log('[WASM Manager] DOM detection failed, trying hardcoded paths...', error);
         
-        // Strategy 2: Try common paths (most likely first)
+        // Strategy 2: Try common paths
         const possiblePaths = [
-          // Server static path (most common in production)
+          // Vite build assets (production)
+          '/assets/ttrpg_rust_core-D-72hd6H.js',
+          // Server static path
           '/static/ui/wasm/ttrpg_rust_core.js',
-          // Vite build assets (if assets are served differently)
-          '/assets/ttrpg_rust_core.js',
           // Development paths
           '../wasm/ttrpg_rust_core.js',
           './wasm/ttrpg_rust_core.js',
+          '../../../public/wasm/ttrpg_rust_core.js',
         ];
 
         let loaded = false;
@@ -127,7 +133,7 @@ class WasmManager {
 
       // Set global window reference for backward compatibility
       if (typeof window !== 'undefined') {
-        (window as any).ttrpg_rust_core = this.wasmModule;
+        window.ttrpg_rust_core = this.wasmModule;
         window.wasmInitialized = true;
       }
 
@@ -142,7 +148,7 @@ class WasmManager {
       this.isInitialized = false;
       if (typeof window !== 'undefined') {
         window.wasmInitialized = false;
-        (window as any).ttrpg_rust_core = null;
+        window.ttrpg_rust_core = null;
       }
       throw error;
     }
@@ -183,6 +189,6 @@ export const initializeWasm = () => wasmManager.getWasmModule();
 
 // Initialize window globals
 if (typeof window !== 'undefined') {
-  (window as any).ttrpg_rust_core = null;
+  window.ttrpg_rust_core = null;
   window.wasmInitialized = false;
 }

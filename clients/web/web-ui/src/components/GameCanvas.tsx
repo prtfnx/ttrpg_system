@@ -4,13 +4,15 @@ import { useWebSocket } from '../hooks/useWebSocket';
 // import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
 import { useGameStore } from '../store';
 import type { RenderEngine } from '../types';
+import type { GlobalWasmModule } from '../utils/wasmManager';
 import { DebugOverlay } from './DebugOverlay';
 import './GameCanvas.css';
 
 declare global {
   interface Window {
     rustRenderManager?: RenderEngine;
-    ttrpg_rust_core?: Record<string, unknown>;
+    ttrpg_rust_core: GlobalWasmModule | null;
+    wasmInitialized: boolean;
   }
 }
 

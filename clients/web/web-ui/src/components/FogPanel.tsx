@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useRenderEngine } from '../hooks/useRenderEngine';
-import styles from './FogPanel.module.css';
+import './PanelStyles.css';
 
 interface FogRectangle {
   id: string;
@@ -75,19 +75,21 @@ export const FogPanel: React.FC = () => {
   const selectedRect = fogRectangles.find(rect => rect.id === selectedRectId);
 
   return (
-    <div className={styles['fog-panel']}>
-      <h3>Fog of War</h3>
+    <div className="panel-base">
+      <div className="panel-header">
+        <h3>🌫️ Fog of War</h3>
+      </div>
       
       {/* Drawing status indicator */}
       {engine?.is_in_fog_draw_mode() && (
-        <div className={styles['drawing-indicator']}>
+        <div className="status-indicator active">
           🖌️ Drawing {engine.get_current_input_mode() === 'fog_draw' ? 'hide' : 'reveal'} areas...
           <button 
             onClick={() => {
               engine?.set_fog_draw_mode(false);
               engine?.set_fog_erase_mode(false);
             }} 
-            className={styles['cancel-button']}
+            className="panel-button danger"
           >
             Cancel
           </button>
@@ -95,25 +97,27 @@ export const FogPanel: React.FC = () => {
       )}
       
       {/* GM Mode Toggle */}
-      <div className={styles['gm-mode']}>
-        <label>
-          <input
-            type="checkbox"
-            checked={isGmMode}
-            onChange={toggleGmMode}
-          />
-          GM Mode (see through fog)
-        </label>
+      <div className="panel-section">
+        <div className="control-group">
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={isGmMode}
+              onChange={toggleGmMode}
+            />
+            <span>🎭 GM Mode (see through fog)</span>
+          </label>
+        </div>
       </div>
 
       {/* Interactive Drawing Controls */}
       {isGmMode && (
-        <div className={styles['interactive-drawing']}>
-          <h4>Interactive Drawing</h4>
-          <div className={styles['drawing-controls']}>
-            <div className={styles['mode-buttons']}>
+        <div className="panel-section">
+          <h4>🖌️ Interactive Drawing</h4>
+          <div className="control-group">
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
               <button
-                className={`${styles['mode-button']} ${engine?.is_in_fog_draw_mode() && engine?.get_current_input_mode() === 'fog_draw' ? styles.active : ''}`}
+                className={`panel-button ${engine?.is_in_fog_draw_mode() && engine?.get_current_input_mode() === 'fog_draw' ? 'primary' : ''}`}
                 onClick={() => {
                   if (!engine) return;
                   const isActive = engine.get_current_input_mode() === 'fog_draw';
@@ -127,7 +131,7 @@ export const FogPanel: React.FC = () => {
                 🌫️ Hide Mode
               </button>
               <button
-                className={`${styles['mode-button']} ${engine?.is_in_fog_draw_mode() && engine?.get_current_input_mode() === 'fog_erase' ? styles.active : ''}`}
+                className={`panel-button ${engine?.is_in_fog_draw_mode() && engine?.get_current_input_mode() === 'fog_erase' ? 'primary' : ''}`}
                 onClick={() => {
                   if (!engine) return;
                   const isActive = engine.get_current_input_mode() === 'fog_erase';
@@ -141,19 +145,19 @@ export const FogPanel: React.FC = () => {
                 👁️ Reveal Mode
               </button>
               <button
-                className={`${styles['mode-button']} ${!engine?.is_in_fog_draw_mode() ? styles.active : ''}`}
+                className={`panel-button ${!engine?.is_in_fog_draw_mode() ? 'primary' : ''}`}
                 onClick={() => {
                   if (!engine) return;
                   engine.set_fog_draw_mode(false);
                   engine.set_fog_erase_mode(false);
                 }}
               >
-                �️ Select Mode
+                🎯 Select Mode
               </button>
             </div>
             {engine?.is_in_fog_draw_mode() && (
-              <p className={styles['drawing-hint']}>
-                {engine.get_current_input_mode() === 'fog_draw' ? 
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                💡 {engine.get_current_input_mode() === 'fog_draw' ? 
                   'Click and drag to hide areas' : 
                   'Click and drag to reveal areas'}
               </p>
@@ -163,49 +167,54 @@ export const FogPanel: React.FC = () => {
       )}
 
       {/* Manual Entry Drawing Mode */}
-      <div className={styles['manual-drawing-mode']}>
-        <h4>Manual Entry</h4>
-        <div className={styles['mode-buttons']}>
-          <button
-            className={`${styles['mode-button']} ${currentMode === 'hide' ? styles.active : ''}`}
-            onClick={() => setCurrentMode('hide')}
-          >
-            Hide Areas
-          </button>
-          <button
-            className={`${styles['mode-button']} ${currentMode === 'reveal' ? styles.active : ''}`}
-            onClick={() => setCurrentMode('reveal')}
-          >
-            Reveal Areas
-          </button>
+      <div className="panel-section">
+        <h4>📐 Manual Entry</h4>
+        <div className="control-group">
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+            <button
+              className={`panel-button ${currentMode === 'hide' ? 'primary' : ''}`}
+              onClick={() => setCurrentMode('hide')}
+            >
+              🌫️ Hide Areas
+            </button>
+            <button
+              className={`panel-button ${currentMode === 'reveal' ? 'primary' : ''}`}
+              onClick={() => setCurrentMode('reveal')}
+            >
+              ✨ Reveal Areas
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Manual Rectangle Entry */}
-      <div className={styles['manual-entry']}>
-        <h4>Add Rectangle</h4>
-        <div className={styles['coords-input']}>
-          <input
-            type="number"
-            placeholder="Start X"
-            id="fog-startX"
-          />
-          <input
-            type="number"
-            placeholder="Start Y"
-            id="fog-startY"
-          />
-          <input
-            type="number"
-            placeholder="End X"
-            id="fog-endX"
-          />
-          <input
-            type="number"
-            placeholder="End Y"
-            id="fog-endY"
-          />
+      <div className="panel-section">
+        <h4>📏 Add Rectangle</h4>
+        <div className="control-group">
+          <div className="input-grid">
+            <input
+              type="number"
+              placeholder="Start X"
+              id="fog-startX"
+            />
+            <input
+              type="number"
+              placeholder="Start Y"
+              id="fog-startY"
+            />
+            <input
+              type="number"
+              placeholder="End X"
+              id="fog-endX"
+            />
+            <input
+              type="number"
+              placeholder="End Y"
+              id="fog-endY"
+            />
+          </div>
           <button
+            className="panel-button primary"
             onClick={() => {
               const startX = parseFloat((document.getElementById('fog-startX') as HTMLInputElement).value) || 0;
               const startY = parseFloat((document.getElementById('fog-startY') as HTMLInputElement).value) || 0;
@@ -220,62 +229,72 @@ export const FogPanel: React.FC = () => {
               (document.getElementById('fog-endY') as HTMLInputElement).value = '';
             }}
           >
-            Add {currentMode === 'hide' ? 'Hide' : 'Reveal'} Rectangle
+            {currentMode === 'hide' ? '🌫️ Add Hide Rectangle' : '✨ Add Reveal Rectangle'}
           </button>
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div className={styles['quick-actions']}>
-        <h4>Quick Actions</h4>
-        <div className={styles['action-buttons']}>
-          <button onClick={hideEntireTable}>
-            Hide Entire Table
-          </button>
-          <button onClick={clearAllFog} disabled={fogRectangles.length === 0}>
-            Reveal All (Clear Fog)
-          </button>
+      <div className="panel-section">
+        <h4>⚡ Quick Actions</h4>
+        <div className="control-group">
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="panel-button" onClick={hideEntireTable}>
+              🌫️ Hide Entire Table
+            </button>
+            <button 
+              className="panel-button danger" 
+              onClick={clearAllFog} 
+              disabled={fogRectangles.length === 0}
+            >
+              ✨ Reveal All (Clear Fog)
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Fog Rectangle List */}
-      <div className={styles['fog-list']}>
-        <h4>Fog Rectangles ({fogRectangles.length})</h4>
-        {fogRectangles.map(rect => (
-          <div
-            key={rect.id}
-            className={`${styles['fog-item']} ${selectedRectId === rect.id ? styles.selected : ''}`}
-            onClick={() => setSelectedRectId(rect.id)}
-          >
-            <div className={styles['fog-header']}>
-              <span className={`${styles['fog-mode']} ${styles[rect.mode]}`}>
-                {rect.mode === 'hide' ? '🌫️' : '👁️'} {rect.mode.toUpperCase()}
-              </span>
-              <button
-                className={styles['remove-button']}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeFogRectangle(rect.id);
-                }}
-              >
-                ❌
-              </button>
+      <div className="panel-section">
+        <h4>📋 Fog Rectangles ({fogRectangles.length})</h4>
+        <div className="activity-log">
+          {fogRectangles.map(rect => (
+            <div
+              key={rect.id}
+              className={`activity-item ${selectedRectId === rect.id ? 'selected' : ''}`}
+              onClick={() => setSelectedRectId(rect.id)}
+              style={{ cursor: 'pointer' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span className={`status-indicator ${rect.mode === 'hide' ? 'error' : 'success'}`}>
+                  {rect.mode === 'hide' ? '🌫️' : '👁️'} {rect.mode.toUpperCase()}
+                </span>
+                <button
+                  className="panel-button danger small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeFogRectangle(rect.id);
+                  }}
+                  style={{ padding: '2px 6px', fontSize: '12px' }}
+                >
+                  ❌
+                </button>
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                ({rect.startX.toFixed(0)}, {rect.startY.toFixed(0)}) → 
+                ({rect.endX.toFixed(0)}, {rect.endY.toFixed(0)})
+              </div>
             </div>
-            <div className={styles['fog-coords']}>
-              ({rect.startX.toFixed(0)}, {rect.startY.toFixed(0)}) → 
-              ({rect.endX.toFixed(0)}, {rect.endY.toFixed(0)})
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Selected Rectangle Properties */}
       {selectedRect && (
-        <div className={styles['fog-properties']}>
-          <h4>Properties: {selectedRect.id}</h4>
-          <div className={styles['property-group']}>
+        <div className="panel-section">
+          <h4>⚙️ Properties: {selectedRect.id}</h4>
+          <div className="control-group">
             <label>Start Position</label>
-            <div className={styles['position-controls']}>
+            <div className="input-grid">
               <input
                 type="number"
                 value={selectedRect.startX}
@@ -319,9 +338,9 @@ export const FogPanel: React.FC = () => {
             </div>
           </div>
 
-          <div className={styles['property-group']}>
+          <div className="control-group">
             <label>End Position</label>
-            <div className={styles['position-controls']}>
+            <div className="input-grid">
               <input
                 type="number"
                 value={selectedRect.endX}
@@ -365,7 +384,7 @@ export const FogPanel: React.FC = () => {
             </div>
           </div>
 
-          <div className={styles['property-group']}>
+          <div className="control-group">
             <label>Mode</label>
             <select
               value={selectedRect.mode}
@@ -386,19 +405,32 @@ export const FogPanel: React.FC = () => {
                 }
               }}
             >
-              <option value="hide">Hide</option>
-              <option value="reveal">Reveal</option>
+              <option value="hide">🌫️ Hide</option>
+              <option value="reveal">👁️ Reveal</option>
             </select>
           </div>
         </div>
       )}
 
       {/* Fog Stats */}
-      <div className={styles['fog-stats']}>
-        <p>Total Rectangles: {fogRectangles.length}</p>
-        <p>Hide Areas: {fogRectangles.filter(r => r.mode === 'hide').length}</p>
-        <p>Reveal Areas: {fogRectangles.filter(r => r.mode === 'reveal').length}</p>
-        {engine && <p>Engine Fog Count: {engine.get_fog_count()}</p>}
+      <div className="panel-section">
+        <h4>📊 Statistics</h4>
+        <div className="activity-log">
+          <div className="activity-item">
+            <span>Total Rectangles: <strong>{fogRectangles.length}</strong></span>
+          </div>
+          <div className="activity-item">
+            <span>🌫️ Hide Areas: <strong>{fogRectangles.filter(r => r.mode === 'hide').length}</strong></span>
+          </div>
+          <div className="activity-item">
+            <span>👁️ Reveal Areas: <strong>{fogRectangles.filter(r => r.mode === 'reveal').length}</strong></span>
+          </div>
+          {engine && (
+            <div className="activity-item">
+              <span>Engine Fog Count: <strong>{engine.get_fog_count()}</strong></span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

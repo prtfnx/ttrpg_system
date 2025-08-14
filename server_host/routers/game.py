@@ -104,7 +104,7 @@ async def game_session_page(
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
 ):
-    """Game session page with WebSocket connection"""
+    """Game session page with React web client"""
     game_session = crud.get_game_session_by_code(db, session_code)
     if not game_session:
         raise HTTPException(status_code=404, detail="Game session not found")
@@ -114,14 +114,31 @@ async def game_session_page(
     if not player:
         raise HTTPException(status_code=403, detail="Not authorized to join this session")
     
-    players = crud.get_session_players(db, game_session.id)
+    # Determine user role - DM if they own the session, otherwise player
+    # Debug: Check what we actually have
+    print(f"Debug - game_session: {game_session}")
+    print(f"Debug - game_session type: {type(game_session)}")
+    print(f"Debug - game_session.__dict__: {game_session.__dict__}")
     
-    return templates.TemplateResponse("game_session.html", {
+    # Try accessing using getattr safely
+    session_owner_id = getattr(game_session, 'owner_id', None)
+    current_user_id = getattr(current_user, 'id', None)
+    
+    print(f"Debug - session_owner_id: {session_owner_id}, type: {type(session_owner_id)}")
+    print(f"Debug - current_user_id: {current_user_id}, type: {type(current_user_id)}")
+    
+    user_role = "dm" if session_owner_id == current_user_id else "player"
+    
+    print(f"Debug - user_role determined: {user_role}")
+    
+    # Serve the React web client - user is already authenticated
+    # The existing token cookie from their login will be used by the React client
+    return templates.TemplateResponse("game_client.html", {
         "request": request,
         "user": current_user,
         "session": game_session,
-        "players": players,
-        "session_code": session_code
+        "session_code": session_code,
+        "user_role": user_role
     })
 
 @router.get("/api/sessions", response_model=List[game_models.GameSession])

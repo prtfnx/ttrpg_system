@@ -207,6 +207,6 @@ declare global {
   interface Window {
     gameAPI?: GameAPI;
     rustRenderManager?: RenderEngine;
-    ttrpg_rust_core?: Record<string, unknown>;
+    // ttrpg_rust_core type is defined in wasmManager.ts
   }
 }

@@ -337,6 +337,27 @@ export class TableManager {
   snap_to_grid(table_id: string, x: number, y: number): number[] | undefined;
 }
 
+export class TableSync {
+  free(): void;
+  constructor();
+  set_network_client(network_client: any): void;
+  set_table_received_handler(callback: Function): void;
+  set_sprite_update_handler(callback: Function): void;
+  set_error_handler(callback: Function): void;
+  request_table(table_name: string): void;
+  handle_table_data(table_data: any): void;
+  send_sprite_move(sprite_id: string, x: number, y: number): void;
+  send_sprite_scale(sprite_id: string, scale_x: number, scale_y: number): void;
+  send_sprite_rotate(sprite_id: string, rotation: number): void;
+  send_sprite_create(sprite_data: any): void;
+  send_sprite_delete(sprite_id: string): void;
+  handle_sprite_update(update_data: any): void;
+  get_table_data(): any;
+  get_table_id(): string | undefined;
+  get_sprites(): any;
+  handle_error(error_message: string): void;
+}
+
 export function create_default_brush_presets(): BrushPreset[];
 
 export function init_game_renderer(canvas: HTMLCanvasElement): RenderEngine;
@@ -345,6 +366,9 @@ declare global {
   interface Window {
     rustRenderManager?: RenderEngine;
     rustNetworkClient?: NetworkClient;
+    // Removed wasm declaration - using global wasmManager instead
+    wasmInitialized: boolean;
+    // ttrpg_rust_core type is defined in wasmManager.ts
     gameAPI?: {
       sendMessage: (type: string, data: any) => void;
     };

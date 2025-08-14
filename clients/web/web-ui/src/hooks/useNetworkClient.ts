@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { NetworkClient } from '../types/wasm';
+import type { NetworkClient } from '../types/wasm';
+import { wasmManager } from '../utils/wasmManager';
 
 interface NetworkMessage {
   type: string;
@@ -39,10 +40,9 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
   // Initialize network client
   useEffect(() => {
     if (!clientRef.current) {
-      // Dynamic import to handle WASM loading
-      import('../../../public/wasm/ttrpg_rust_core.js').then(async (wasmModule) => {
-        await wasmModule.default();
-        const client = new (wasmModule as any).NetworkClient();
+      // Use global WASM manager for consistent instance
+      wasmManager.getNetworkClient().then(async (NetworkClientClass) => {
+        const client = new NetworkClientClass();
         
         // Set up event handlers
         client.set_message_handler((messageType: string, data: any) => {

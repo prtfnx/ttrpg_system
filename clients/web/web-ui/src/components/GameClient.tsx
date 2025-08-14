@@ -2,6 +2,8 @@ import React from 'react';
 import { GameCanvas } from './GameCanvas';
 import { RightPanel } from './RightPanel';
 import { ToolsPanel } from './ToolsPanel';
+import { useAuthenticatedWebSocket } from '../hooks/useAuthenticatedWebSocket';
+import type { UserInfo } from '../services/auth.service';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -10,6 +12,13 @@ interface ErrorBoundaryState {
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
+}
+
+interface GameClientProps {
+  sessionCode: string;
+  userInfo: UserInfo;
+  userRole: 'dm' | 'player';
+  onAuthError: () => void;
 }
 
 // Simple error boundary for debugging
@@ -33,10 +42,32 @@ class DebugErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBounda
   }
 }
 
-export function GameClient() {
+export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: GameClientProps) {
+  const { connectionState, error } = useAuthenticatedWebSocket({
+    sessionCode,
+    userInfo
+  });
+
+  // Handle authentication errors
+  if (error?.includes('Authentication failed')) {
+    onAuthError();
+    return null;
+  }
+
   return (
     <DebugErrorBoundary>
       <div className="game-layout">
+        {/* Connection status indicator */}
+        <div className={`connection-status ${connectionState}`}>
+          <span className="status-indicator"></span>
+          <span className="status-text">
+            {connectionState === 'connecting' && 'Connecting...'}
+            {connectionState === 'connected' && `Connected as ${userInfo.username} (${userRole})`}
+            {connectionState === 'disconnected' && 'Disconnected'}
+            {connectionState === 'error' && `Error: ${error}`}
+          </span>
+        </div>
+
         <div className="left-panel">
           <ToolsPanel />
         </div>
@@ -44,7 +75,7 @@ export function GameClient() {
           <GameCanvas />
         </div>
         <div className="right-panel">
-          {<RightPanel />}
+          <RightPanel />
         </div>
       </div>
     </DebugErrorBoundary>

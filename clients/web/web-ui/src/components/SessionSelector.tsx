@@ -23,28 +23,8 @@ export function SessionSelector({ onSessionSelected }: SessionSelectorProps) {
       setLoading(true);
       setError(null);
       
-      // Development mode: provide mock sessions
-      if (import.meta.env.DEV) {
-        console.log('Development mode: using mock sessions');
-        const mockSessions: SessionInfo[] = [
-          {
-            session_code: 'DEV001',
-            session_name: 'Development Session',
-            role: 'dm',
-            created_at: new Date().toISOString()
-          },
-          {
-            session_code: 'TEST001',
-            session_name: 'Test Player Session',
-            role: 'player',
-            created_at: new Date().toISOString()
-          }
-        ];
-        setSessions(mockSessions);
-      } else {
-        const userSessions = await authService.getUserSessions();
-        setSessions(userSessions);
-      }
+      const userSessions = await authService.getUserSessions();
+      setSessions(userSessions);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load sessions';
       setError(errorMessage);

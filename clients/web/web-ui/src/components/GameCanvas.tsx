@@ -5,6 +5,8 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import { useGameStore } from '../store';
 import type { RenderEngine } from '../types';
 import type { GlobalWasmModule } from '../utils/wasmManager';
+import { wasmIntegrationService } from '../services/wasmIntegration.service';
+import { assetIntegrationService } from '../services/assetIntegration.service';
 import { DebugOverlay } from './DebugOverlay';
 import './GameCanvas.css';
 
@@ -329,6 +331,14 @@ export const GameCanvas: React.FC = () => {
         rustRenderManagerRef.current = rustRenderEngine;
         window.rustRenderManager = rustRenderEngine;
 
+        // Initialize WASM integration service for protocol-driven updates
+        wasmIntegrationService.initialize(rustRenderEngine);
+        console.log('[WASM] Integration service initialized');
+
+        // Initialize asset integration service
+        assetIntegrationService.initialize();
+        console.log('[ASSET] Integration service initialized');
+
         canvas.addEventListener('mousedown', handleMouseDown);
         canvas.addEventListener('mousemove', handleMouseMove);
         canvas.addEventListener('mouseup', handleMouseUp);
@@ -398,6 +408,13 @@ export const GameCanvas: React.FC = () => {
       mounted = false;
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
       disconnectWebSocket();
+      
+      // Cleanup WASM integration service
+      wasmIntegrationService.dispose();
+      
+      // Cleanup asset integration service
+      assetIntegrationService.dispose();
+      
       // eslint-disable-next-line react-hooks/exhaustive-deps
       const canvas = canvasRef.current;
       if (canvas) {

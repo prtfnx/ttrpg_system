@@ -42,55 +42,17 @@ function App() {
           loading: false
         }));
       } else {
-        // Development mode: create mock user if no authentication
-        if (import.meta.env.DEV) {
-          console.log('Development mode: using mock authentication');
-          const mockUser: UserInfo = {
-            id: 1,
-            username: 'dev_user',
-            role: 'dm',
-            permissions: ['admin']
-          };
-          
-          setState(prev => ({
-            ...prev,
-            isAuthenticated: true,
-            userInfo: mockUser,
-            loading: false
-          }));
-        } else {
-          // Production: redirect to server login
-          const serverUrl = 'http://127.0.0.1:12345/users/login';
-          window.location.href = serverUrl;
-        }
+        // No authentication token found - redirect to server login
+        const serverUrl = 'http://127.0.0.1:12345/users/login';
+        window.location.href = serverUrl;
       }
     } catch (error) {
       console.error('Authentication initialization failed:', error);
-      
-      // Development fallback
-      if (import.meta.env.DEV) {
-        console.log('Auth failed, using dev mode fallback');
-        const mockUser: UserInfo = {
-          id: 1,
-          username: 'dev_user',
-          role: 'dm',
-          permissions: ['admin']
-        };
-        
-        setState(prev => ({
-          ...prev,
-          isAuthenticated: true,
-          userInfo: mockUser,
-          loading: false,
-          error: null
-        }));
-      } else {
-        setState(prev => ({
-          ...prev,
-          error: 'Authentication failed. Please try again.',
-          loading: false
-        }));
-      }
+      setState(prev => ({
+        ...prev,
+        error: 'Authentication failed. Please try again.',
+        loading: false
+      }));
     }
   };
 

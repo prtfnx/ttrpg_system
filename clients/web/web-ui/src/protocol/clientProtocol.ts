@@ -16,6 +16,23 @@ export class WebClientProtocol {
   constructor(sessionCode: string) {
     this.sessionCode = sessionCode;
     this.registerBuiltInHandlers();
+    this.setupProtocolMessageSender();
+  }
+
+  private setupProtocolMessageSender(): void {
+    // Listen for requests to send protocol messages
+    const handleProtocolSendMessage = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail && customEvent.detail.type && customEvent.detail.data) {
+        this.sendMessage(createMessage(
+          customEvent.detail.type,
+          customEvent.detail.data,
+          5
+        ));
+      }
+    };
+    
+    window.addEventListener('protocol-send-message', handleProtocolSendMessage);
   }
 
   private registerBuiltInHandlers(): void {
@@ -62,18 +79,11 @@ export class WebClientProtocol {
   async connect(): Promise<void> {
     const token = authService.getToken();
     
-    // In development mode, create a mock token if none exists
-    let authToken = token;
-    if (!authToken && import.meta.env.DEV) {
-      console.log('Development mode: using mock token');
-      authToken = 'dev_mock_token';
-    }
-    
-    if (!authToken) {
+    if (!token) {
       throw new Error('No authentication token available');
     }
 
-    const wsUrl = `ws://127.0.0.1:12345/ws/game/${this.sessionCode}?token=${encodeURIComponent(authToken)}`;
+    const wsUrl = `ws://127.0.0.1:12345/ws/game/${this.sessionCode}?token=${encodeURIComponent(token)}`;
 
     return new Promise((resolve, reject) => {
       try {
@@ -93,7 +103,7 @@ export class WebClientProtocol {
         this.websocket.onclose = (event) => {
           console.log('WebSocket connection closed:', event.code, event.reason);
           this.stopPingInterval();
-          if (event.code === 1008 && !import.meta.env.DEV) {
+          if (event.code === 1008) {
             reject(new Error('Authentication failed - invalid token'));
           }
         };

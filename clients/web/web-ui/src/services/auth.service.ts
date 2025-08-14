@@ -137,17 +137,6 @@ class AuthService {
   async initialize(): Promise<boolean> {
     const token = await this.extractToken();
     if (!token) {
-      // Development mode: create mock token
-      if (import.meta.env.DEV) {
-        this.token = 'dev_mock_token';
-        this.userInfo = {
-          id: 1,
-          username: 'dev_user',
-          role: 'dm',
-          permissions: ['admin']
-        };
-        return true;
-      }
       return false;
     }
 

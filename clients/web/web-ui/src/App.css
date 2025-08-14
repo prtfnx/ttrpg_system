@@ -30,7 +30,7 @@ body {
 }
 
 .game-panel {
-  background-color: #2a2a2a;
+  background-color: #111827;  /* Darker background for better text contrast */
   padding: 1rem;
   overflow-y: auto;
   border-right: 1px solid #404040;
@@ -152,7 +152,7 @@ body {
 }
 
 .toolbar button:active {
-  background-color: #2a2a2a;
+  background-color: #1f2937;  /* Darker pressed state */
 }
 
 .toolbar button.active {
@@ -206,7 +206,7 @@ body {
 .shape-settings {
   margin-top: 1rem;
   padding: 0.75rem;
-  background-color: #2a2a2a;
+  background-color: #1f2937;  /* Darker background for better contrast */
   border-radius: 6px;
   border: 1px solid #404040;
 }
@@ -320,7 +320,7 @@ body {
   display: flex;
   justify-content: space-between;
   padding: 0.5rem;
-  background-color: #2a2a2a;
+  background-color: #1f2937;  /* Darker background for better contrast */
   border-radius: 4px;
   border: 1px solid #404040;
 }

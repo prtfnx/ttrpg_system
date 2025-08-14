@@ -58,25 +58,45 @@ pub struct AssetManager {
 impl AssetManager {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        Self {
-            cache: HashMap::new(),
-            hash_lookup: HashMap::new(),
-            download_queue: Vec::new(),
-            stats: CacheStats {
-                total_assets: 0,
-                total_size: 0,
-                cache_hits: 0,
-                cache_misses: 0,
-                last_cleanup: Date::now(),
-                download_queue_size: 0,
-                total_downloads: 0,
-                failed_downloads: 0,
-                hash_verifications: 0,
-                hash_failures: 0,
-            },
+        console::log_1(&"Starting AssetManager constructor...".into());
+        
+        let cache = HashMap::new();
+        console::log_1(&"Created cache HashMap".into());
+        
+        let hash_lookup = HashMap::new();
+        console::log_1(&"Created hash_lookup HashMap".into());
+        
+        let download_queue = Vec::new();
+        console::log_1(&"Created download_queue Vec".into());
+        
+        let current_time = Date::now();
+        console::log_1(&format!("Current time: {}", current_time).into());
+        
+        let stats = CacheStats {
+            total_assets: 0,
+            total_size: 0,
+            cache_hits: 0,
+            cache_misses: 0,
+            last_cleanup: current_time,
+            download_queue_size: 0,
+            total_downloads: 0,
+            failed_downloads: 0,
+            hash_verifications: 0,
+            hash_failures: 0,
+        };
+        console::log_1(&"Created stats".into());
+        
+        let manager = Self {
+            cache,
+            hash_lookup,
+            download_queue,
+            stats,
             max_cache_size: 100 * 1024 * 1024, // 100MB default
             max_age_ms: 24.0 * 60.0 * 60.0 * 1000.0, // 24 hours
-        }
+        };
+        
+        console::log_1(&"AssetManager constructor completed successfully".into());
+        manager
     }
 
     #[wasm_bindgen]

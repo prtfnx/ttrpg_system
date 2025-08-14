@@ -2,11 +2,11 @@ import type { RefObject } from 'react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
 // import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
+import { assetIntegrationService } from '../services/assetIntegration.service';
+import { wasmIntegrationService } from '../services/wasmIntegration.service';
 import { useGameStore } from '../store';
 import type { RenderEngine } from '../types';
 import type { GlobalWasmModule } from '../utils/wasmManager';
-import { wasmIntegrationService } from '../services/wasmIntegration.service';
-import { assetIntegrationService } from '../services/assetIntegration.service';
 import { DebugOverlay } from './DebugOverlay';
 import './GameCanvas.css';
 

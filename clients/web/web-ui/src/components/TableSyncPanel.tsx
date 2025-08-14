@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useTableSync } from '../hooks/useTableSync';
+import { useEffect, useState } from 'react';
 import { useNetworkClient } from '../hooks/useNetworkClient';
+import { useTableSync } from '../hooks/useTableSync';
 import './PanelStyles.css';
 
 interface ActivityLog {

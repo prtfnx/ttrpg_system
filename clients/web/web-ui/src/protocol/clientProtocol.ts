@@ -2,9 +2,9 @@
  * Protocol-compliant WebSocket client that integrates with existing server architecture
  * Handles all message types defined in protocol.py with proper authentication
  */
+import { authService } from '../services/auth.service';
 import type { Message, MessageHandler } from './message';
 import { MessageType, createMessage, parseMessage } from './message';
-import { authService } from '../services/auth.service';
 
 export class WebClientProtocol {
   private handlers = new Map<string, MessageHandler>();

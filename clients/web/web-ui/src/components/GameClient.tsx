@@ -1,9 +1,9 @@
 import React from 'react';
+import { useAuthenticatedWebSocket } from '../hooks/useAuthenticatedWebSocket';
+import type { UserInfo } from '../services/auth.service';
 import { GameCanvas } from './GameCanvas';
 import { RightPanel } from './RightPanel';
 import { ToolsPanel } from './ToolsPanel';
-import { useAuthenticatedWebSocket } from '../hooks/useAuthenticatedWebSocket';
-import type { UserInfo } from '../services/auth.service';
 
 interface ErrorBoundaryState {
   hasError: boolean;

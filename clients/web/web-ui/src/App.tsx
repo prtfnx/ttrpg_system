@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import './App.css'
+import './App.css';
 import { GameClient } from './components/GameClient';
 import { SessionSelector } from './components/SessionSelector';
 import { authService, type UserInfo } from './services/auth.service';

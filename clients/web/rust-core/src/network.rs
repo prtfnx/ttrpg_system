@@ -316,6 +316,18 @@ impl NetworkClient {
     }
 
     #[wasm_bindgen]
+    pub fn send_table_request(&self, request_data: &JsValue) -> Result<(), JsValue> {
+        self.send_message("table_request", request_data)
+    }
+
+    #[wasm_bindgen]
+    pub fn send_new_table_request(&self, table_name: &str) -> Result<(), JsValue> {
+        let data = serde_json::json!({ "table_name": table_name });
+        let js_data = serde_wasm_bindgen::to_value(&data)?;
+        self.send_message("new_table_request", &js_data)
+    }
+
+    #[wasm_bindgen]
     pub fn send_ping(&self) -> Result<(), JsValue> {
         let data = serde_json::json!({ "timestamp": js_sys::Date::now() });
         let js_data = serde_wasm_bindgen::to_value(&data)?;

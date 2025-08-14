@@ -27,6 +27,7 @@ mod actions;
 mod paint;
 mod asset_manager;
 mod table_manager;
+mod table_sync;
 
 pub use render::RenderEngine;
 pub use types::*;
@@ -36,6 +37,7 @@ pub use actions::ActionsClient;
 pub use paint::{PaintSystem, BrushPreset, create_default_brush_presets};
 pub use asset_manager::{AssetManager, AssetInfo, CacheStats};
 pub use table_manager::TableManager;
+pub use table_sync::TableSync;
 
 use web_sys::HtmlCanvasElement;
 

@@ -214,7 +214,7 @@
 .input-group label {
   font-size: 12px;
   font-weight: 500;
-  color: var(--text-secondary, #d1d5db);
+  color: var(--text-secondary, #e5e7eb);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -274,7 +274,7 @@
 .empty-state {
   text-align: center;
   padding: 32px 16px;
-  color: var(--text-secondary, #d1d5db);
+  color: var(--text-secondary, #e5e7eb);
   font-style: italic;
 }
 

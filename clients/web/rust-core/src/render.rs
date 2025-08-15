@@ -349,7 +349,6 @@ impl RenderEngine {
     pub fn handle_mouse_move(&mut self, screen_x: f32, screen_y: f32) {
         let current_screen = Vec2::new(screen_x, screen_y);
         let world_pos = self.camera.screen_to_world(current_screen);
-        web_sys::console::log_1(&format!("[RUST] Mouse move at world: {}, {}, mode: {:?}", world_pos.x, world_pos.y, self.input.input_mode).into());
         
         // Check if paint mode is active first
         if self.input.input_mode == InputMode::Paint {

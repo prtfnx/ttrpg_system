@@ -11,11 +11,14 @@
 .connection-status {
   display: flex;
   align-items: center;
-  padding: 8px 16px;
+  padding: 6px 8px;
   background: #1a1a1a;
   border-bottom: 1px solid #333;
-  font-size: 14px;
-  z-index: 100;
+  font-size: 11px;
+  z-index: 1;
+  flex-shrink: 0;
+  margin: -1rem -1rem 1rem -1rem;
+  border-radius: 0;
 }
 
 .connection-status.connecting {
@@ -77,11 +80,14 @@
 }
 
 .left-panel {
-  flex: 0 0 300px;
+  flex: 0 0 400px;
   background: #111827;
   border-right: 1px solid #374151;
   overflow-y: auto;
   padding: 1rem;
+  resize: horizontal;
+  min-width: 250px;
+  max-width: 600px;
 }
 
 .canvas-container {
@@ -95,11 +101,15 @@
 }
 
 .right-panel {
-  flex: 0 0 300px;
+  flex: 0 0 450px;
   background: #111827;
   border-left: 1px solid #374151;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 1rem;
+  resize: horizontal;
+  min-width: 300px;
+  max-width: 700px;
 }
 
 /* Responsive design for smaller screens */

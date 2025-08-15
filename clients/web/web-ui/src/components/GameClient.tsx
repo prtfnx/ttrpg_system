@@ -58,19 +58,18 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
   return (
     <DebugErrorBoundary>
       <div className="game-layout">
-        {/* Connection status indicator */}
-        <div className={`connection-status ${connectionState}`}>
-          <span className="status-indicator"></span>
-          <span className="status-text">
-            {connectionState === 'connecting' && 'Connecting...'}
-            {connectionState === 'connected' && `Connected as ${userInfo.username} (${userRole})`}
-            {connectionState === 'disconnected' && 'Disconnected'}
-            {connectionState === 'error' && `Error: ${error}`}
-          </span>
-        </div>
-
         <div className="main-content">
           <div className="left-panel">
+            {/* Connection status at top of left panel */}
+            <div className={`connection-status ${connectionState}`}>
+              <span className="status-indicator"></span>
+              <span className="status-text">
+                {connectionState === 'connecting' && 'Connecting...'}
+                {connectionState === 'connected' && `Connected as ${userInfo.username} (${userRole})`}
+                {connectionState === 'disconnected' && 'Disconnected'}
+                {connectionState === 'error' && `Error: ${error}`}
+              </span>
+            </div>
             <ToolsPanel />
           </div>
           <div className="canvas-container">

@@ -91,23 +91,40 @@ async def websocket_game_endpoint(
     db = next(get_db())
     
     try:
-        # Authenticate user via token (from query parameter or passed directly)
-        if not token:
-            # Try to get token from query parameters
-            token = websocket.query_params.get("token")
-        if not token:
-            # Try to get from Authorization header
-            auth_header = dict(websocket.headers).get("Authorization")
-            if auth_header:
-                token = auth_header.replace("Bearer ", "")
-        if not token:
-            logger.error("No token provided")
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return
+        # Authenticate user via token (multiple sources)
+        user = None
+        token_value = None
         
-        user = get_user_from_token(token, db)
+        # Method 1: Query parameter token
+        if not token:
+            token_value = websocket.query_params.get("token")
+        else:
+            token_value = token
+        
+        # Method 2: Authorization header
+        if not token_value:
+            auth_header = dict(websocket.headers).get("authorization")
+            if auth_header:
+                token_value = auth_header.replace("Bearer ", "")
+        
+        # Method 3: HTTP-only cookie (most secure)
+        if not token_value:
+            # Extract token from Cookie header
+            cookie_header = dict(websocket.headers).get("cookie")
+            if cookie_header:
+                # Parse cookies from header
+                cookies = {}
+                for cookie in cookie_header.split(';'):
+                    if '=' in cookie:
+                        key, value = cookie.strip().split('=', 1)
+                        cookies[key] = value
+                token_value = cookies.get('token')
+        
+        if token_value:
+            user = get_user_from_token(token_value, db)
+            
         if not user:
-            logger.error("Invalid token")
+            logger.error("Authentication failed - no valid token or cookie")
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return        # Check if session exists in database
         logger.info(f"User {user.username} connecting to session {session_code}")
@@ -120,9 +137,9 @@ async def websocket_game_endpoint(
             return
         
         logger.info(f"Game session found: {db_game_session.name}")       
-        user_id = int(user.id)
-        username = str(user.username)
-        logger.debug(f"User ID: {user_id}, Username: {username}, user {user}, user id {user.id}")
+        user_id = user.id
+        username = user.username
+        logger.debug(f"User ID: {user_id}, Username: {username}")
         logger.info(f"Connecting user {username} with ID {user_id} to session {session_code}")
         await connection_manager.connect(websocket, session_code, user_id, username)
         

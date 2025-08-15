@@ -16,7 +16,10 @@ from ..database import crud
 from ..database import schemas
 from ..models import auth as auth_models
 from ..utils.rate_limiter import registration_limiter, login_limiter, get_client_ip
+from ..utils.logger import setup_logger
 from functools import lru_cache
+
+logger = setup_logger(__name__)
 
 router = APIRouter(prefix="/users", tags=["users"])
 templates = Jinja2Templates(directory="templates")
@@ -40,32 +43,43 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-async def get_current_user(request: Request, db: Session = Depends(get_db), token: str = Cookie(None, alias="token")):
+async def get_current_user(request: Request, db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     
-    # Try cookie first, then Authorization header
+    # Try to get token from cookie first (manual reading for reliability)
+    token = request.cookies.get("token")
+    logger.debug(f"get_current_user: token from cookie: {token}")
+    
+    # If no token in cookie, try Authorization header
     if not token:
         authorization = request.headers.get("Authorization")
         if authorization and authorization.startswith("Bearer "):
             token = authorization.split(" ")[1]
+            logger.debug(f"get_current_user: token from Authorization header: {token}")
     
     if not token:
+        logger.debug("get_current_user: No token found, raising credentials_exception")
         raise credentials_exception
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
         if username is None:
+            logger.debug("get_current_user: No username in payload")
             raise credentials_exception
-    except InvalidTokenError:
+        logger.debug(f"get_current_user: Successfully decoded token for username: {username}")
+    except InvalidTokenError as e:
+        logger.debug(f"get_current_user: Token validation failed: {e}")
         raise credentials_exception
     
     user = crud.get_user_by_username(db, username=username)
     if user is None:
+        logger.debug(f"get_current_user: User {username} not found in database")
         raise credentials_exception
+    logger.debug(f"get_current_user: User {username} found and authenticated")
     return user
 
 async def get_current_active_user(current_user: Annotated[schemas.User, Depends(get_current_user)]):
@@ -83,8 +97,16 @@ async def users_me(
     # Check if this is an API request (JSON) vs web request (HTML)
     accept_header = request.headers.get("accept", "")
     if "application/json" in accept_header:
-        # Return JSON for API requests
-        return current_user
+        # Return JSON for API requests with additional fields needed by client
+        return {
+            "id": current_user.id,
+            "username": current_user.username,
+            "email": getattr(current_user, 'email', None),
+            "disabled": current_user.disabled,
+            "role": "player",  # Default role, will be determined per session
+            "permissions": [],  # Add permissions if you have a permissions system
+            "created_at": getattr(current_user, 'created_at', None)
+        }
     else:
         # Return HTML page for browser requests
         # Get user stats (you can expand this based on your database schema)
@@ -206,13 +228,30 @@ async def dashboard(
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
 ):
+    # Check if this is an API request (JSON) vs web request (HTML)
+    accept_header = request.headers.get("accept", "")
+    
     # Get user's game sessions
     user_sessions = crud.get_user_game_sessions(db, current_user.id)
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request,
-        "user": current_user,
-        "sessions": user_sessions
-    })
+    
+    if "application/json" in accept_header:
+        # Return JSON for API requests
+        sessions_data = []
+        for session in user_sessions:
+            sessions_data.append({
+                "session_code": session.session_code,
+                "session_name": session.name,
+                "role": "dm" if session.owner_id == current_user.id else "player",
+                "created_at": session.created_at.isoformat() if hasattr(session, 'created_at') else None
+            })
+        return {"sessions": sessions_data}
+    else:
+        # Return HTML page for browser requests
+        return templates.TemplateResponse("dashboard.html", {
+            "request": request,
+            "user": current_user,
+            "sessions": user_sessions
+        })
 
 @router.get("/register")
 def register_page(request: Request):

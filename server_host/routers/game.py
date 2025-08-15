@@ -11,8 +11,10 @@ import string
 from ..database.database import get_db
 from ..database import crud, schemas
 from ..models import game as game_models
+from ..utils.logger import setup_logger
 from .users import get_current_active_user
 
+logger = setup_logger(__name__)
 router = APIRouter(prefix="/game", tags=["game"])
 templates = Jinja2Templates(directory="templates")
 
@@ -105,31 +107,39 @@ async def game_session_page(
     db: Session = Depends(get_db)
 ):
     """Game session page with React web client"""
+    logger.debug(f"game_session_page: Entering with session_code: {session_code}")
+    logger.debug(f"game_session_page: current_user: {current_user.username}")
+    
     game_session = crud.get_game_session_by_code(db, session_code)
     if not game_session:
+        logger.debug(f"game_session_page: Game session {session_code} not found")
         raise HTTPException(status_code=404, detail="Game session not found")
+    
+    logger.debug(f"game_session_page: Game session found: {game_session.name}")
     
     # Check if user is part of this session
     player = crud.join_game_session(db, session_code, current_user.id)
+    logger.debug(f"game_session_page: Player join result: {player}")
     if not player:
+        logger.debug(f"game_session_page: Failed to join session")
         raise HTTPException(status_code=403, detail="Not authorized to join this session")
     
     # Determine user role - DM if they own the session, otherwise player
     # Debug: Check what we actually have
-    print(f"Debug - game_session: {game_session}")
-    print(f"Debug - game_session type: {type(game_session)}")
-    print(f"Debug - game_session.__dict__: {game_session.__dict__}")
+    logger.debug(f"game_session: {game_session}")
+    logger.debug(f"game_session type: {type(game_session)}")
+    logger.debug(f"game_session.__dict__: {game_session.__dict__}")
     
     # Try accessing using getattr safely
     session_owner_id = getattr(game_session, 'owner_id', None)
     current_user_id = getattr(current_user, 'id', None)
     
-    print(f"Debug - session_owner_id: {session_owner_id}, type: {type(session_owner_id)}")
-    print(f"Debug - current_user_id: {current_user_id}, type: {type(current_user_id)}")
+    logger.debug(f"session_owner_id: {session_owner_id}, type: {type(session_owner_id)}")
+    logger.debug(f"current_user_id: {current_user_id}, type: {type(current_user_id)}")
     
     user_role = "dm" if session_owner_id == current_user_id else "player"
     
-    print(f"Debug - user_role determined: {user_role}")
+    logger.debug(f"user_role determined: {user_role}")
     
     # Serve the React web client - user is already authenticated
     # The existing token cookie from their login will be used by the React client

@@ -3,7 +3,21 @@ import { devtools } from 'zustand/middleware';
 import type { ConnectionState, GameState, Sprite } from './types';
 import type { ToolType } from './types/tools';
 
+export interface TableInfo {
+  table_id: string;
+  table_name: string;
+  width: number;
+  height: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 interface GameStore extends GameState {
+  // Table management state
+  tables: TableInfo[];
+  activeTableId: string | null;
+  tablesLoading: boolean;
+  
   // Layer management state
   activeLayer: string;
   layerVisibility: Record<string, boolean>;
@@ -32,6 +46,15 @@ interface GameStore extends GameState {
   updateCharacter: (id: string, updates: Partial<import('./types').Character>) => void;
   addInventoryItem: (characterId: string, item: string) => void;
   
+  // Table management actions
+  setTables: (tables: TableInfo[]) => void;
+  setActiveTableId: (tableId: string | null) => void;
+  setTablesLoading: (loading: boolean) => void;
+  requestTableList: () => void;
+  createNewTable: (name: string, width: number, height: number) => void;
+  deleteTable: (tableId: string) => void;
+  switchToTable: (tableId: string) => void;
+  
   // Layer management actions
   setActiveLayer: (layerName: string) => void;
   setLayerVisibility: (layerName: string, visible: boolean) => void;
@@ -59,6 +82,11 @@ export const useGameStore = create<GameStore>()(
       isConnected: false,
       connectionState: 'disconnected',
       sessionId: undefined,
+      
+      // Table management initial state
+      tables: [],
+      activeTableId: null,
+      tablesLoading: false,
       
       // Layer management initial state
       activeLayer: 'tokens',
@@ -269,6 +297,79 @@ export const useGameStore = create<GameStore>()(
       setAlignmentActive: (active: boolean) => {
         set(() => ({
           alignmentActive: active,
+        }));
+      },
+      
+      // Table management actions
+      setTables: (tables: TableInfo[]) => {
+        set(() => ({
+          tables,
+        }));
+      },
+
+      setActiveTableId: (tableId: string | null) => {
+        set(() => ({
+          activeTableId: tableId,
+        }));
+      },
+
+      setTablesLoading: (loading: boolean) => {
+        set(() => ({
+          tablesLoading: loading,
+        }));
+      },
+
+      requestTableList: () => {
+        // Send message via protocol to request table list
+        window.dispatchEvent(new CustomEvent('protocol-send-message', {
+          detail: {
+            type: 'table_list_request',
+            data: {}
+          }
+        }));
+        set(() => ({
+          tablesLoading: true,
+        }));
+      },
+
+      createNewTable: (name: string, width: number, height: number) => {
+        // Send message via protocol to create new table
+        window.dispatchEvent(new CustomEvent('protocol-send-message', {
+          detail: {
+            type: 'new_table_request',
+            data: {
+              table_name: name,
+              width,
+              height
+            }
+          }
+        }));
+      },
+
+      deleteTable: (tableId: string) => {
+        // Send message via protocol to delete table
+        window.dispatchEvent(new CustomEvent('protocol-send-message', {
+          detail: {
+            type: 'table_delete',
+            data: {
+              table_id: tableId
+            }
+          }
+        }));
+      },
+
+      switchToTable: (tableId: string) => {
+        // Send message via protocol to request table data
+        window.dispatchEvent(new CustomEvent('protocol-send-message', {
+          detail: {
+            type: 'table_request',
+            data: {
+              table_id: tableId
+            }
+          }
+        }));
+        set(() => ({
+          activeTableId: tableId,
         }));
       },
     }),

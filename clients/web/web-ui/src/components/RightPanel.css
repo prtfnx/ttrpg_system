@@ -1,0 +1,38 @@
+.right-panel-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #111827;
+}
+
+.tabs-container {
+  display: flex;
+  border-bottom: 1px solid #374151;
+  flex-shrink: 0;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  background: #1f2937;
+}
+
+.tab-button.active {
+  background: #1f2937;
+  border-bottom: 2px solid #3b82f6;
+}
+
+.tab-content {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}

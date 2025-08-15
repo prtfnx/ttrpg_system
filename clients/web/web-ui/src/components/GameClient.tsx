@@ -2,10 +2,9 @@ import React from 'react';
 import { useAuthenticatedWebSocket } from '../hooks/useAuthenticatedWebSocket';
 import type { UserInfo } from '../services/auth.service';
 import { GameCanvas } from './GameCanvas';
+import './GameClient.css';
 import { RightPanel } from './RightPanel';
 import { ToolsPanel } from './ToolsPanel';
-import { TableManagementPanel } from './TableManagementPanel';
-import './GameClient.css';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -68,11 +67,6 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
             {connectionState === 'disconnected' && 'Disconnected'}
             {connectionState === 'error' && `Error: ${error}`}
           </span>
-        </div>
-
-        {/* Table Management Panel */}
-        <div className="top-panel">
-          <TableManagementPanel />
         </div>
 
         <div className="main-content">

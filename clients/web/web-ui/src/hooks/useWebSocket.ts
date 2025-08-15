@@ -14,7 +14,8 @@ export function useWebSocket(url: string) {
     addSprite, 
     removeSprite, 
     updateSprite,
-    updateConnectionState 
+    updateConnectionState,
+    sprites
   } = useGameStore();
 
   const createMessage = useCallback((type: string, data?: Record<string, unknown>): WebSocketMessage => ({
@@ -118,10 +119,22 @@ export function useWebSocket(url: string) {
           
         case 'table_data':
           if (message.data && typeof message.data === 'object') {
-            const data = message.data as { sprites?: Partial<Sprite>[] };
+            console.log('Received table data:', message.data);
+            const data = message.data as { 
+              table_id?: string;
+              width?: number;
+              height?: number;
+              sprites?: Partial<Sprite>[];
+              background_image?: string;
+            };
+            
+            // Clear existing sprites first
+            sprites.forEach((sprite: any) => removeSprite(sprite.id));
+            
+            // Load sprites and handle asset downloads
             if (data.sprites && Array.isArray(data.sprites)) {
-              data.sprites.forEach((sprite: Partial<Sprite>) => {
-                addSprite({
+              data.sprites.forEach(async (sprite: Partial<Sprite>) => {
+                const newSprite = {
                   id: sprite.id || '',
                   name: sprite.name || 'Sprite',
                   x: sprite.x || 0,
@@ -132,9 +145,71 @@ export function useWebSocket(url: string) {
                   isSelected: false,
                   isVisible: sprite.isVisible ?? true,
                   layer: sprite.layer || 'tokens',
-                });
+                };
+                
+                // Add sprite to store
+                addSprite(newSprite);
+                
+                // Download asset if needed and not in cache
+                if (sprite.imageUrl && sprite.imageUrl !== '') {
+                  try {
+                    // Check if asset is already cached (simple check)
+                    const img = new Image();
+                    img.onload = () => {
+                      console.log('Asset already available:', sprite.imageUrl);
+                    };
+                    img.onerror = () => {
+                      console.log('Asset needs download:', sprite.imageUrl);
+                      // Request asset download from server
+                      const downloadMessage = createMessage('asset_download_request', {
+                        asset_id: sprite.imageUrl,
+                        sprite_id: sprite.id
+                      });
+                      sendMessage(downloadMessage);
+                    };
+                    img.src = sprite.imageUrl;
+                  } catch (error) {
+                    console.error('Error checking asset:', error);
+                  }
+                }
+                
+                // Add sprite to WASM if available
+                if (window.rustRenderManager && typeof window.rustRenderManager.add_sprite_to_layer === 'function') {
+                  try {
+                    const layerName = sprite.layer || 'tokens';
+                    const spriteData = {
+                      id: sprite.id,
+                      world_x: sprite.x || 0,
+                      world_y: sprite.y || 0,
+                      width: sprite.width || 32,
+                      height: sprite.height || 32,
+                      rotation: 'rotation' in sprite ? sprite.rotation ?? 0 : 0,
+                      layer: layerName,
+                      texture_id: sprite.imageUrl || '',
+                      tint_color: [1, 1, 1, 1]
+                    };
+                    
+                    window.rustRenderManager.add_sprite_to_layer(layerName, spriteData);
+                    console.log('Added sprite to WASM layer:', layerName, spriteData);
+                  } catch (error) {
+                    console.error('Failed to add sprite to WASM:', error);
+                  }
+                }
               });
             }
+            
+            // Table dimensions can be handled through the canvas resize mechanism
+            if (data.width && data.height && window.rustRenderManager) {
+              try {
+                console.log('Table dimensions:', data.width, 'x', data.height);
+                // The resize method will handle table size adjustments
+                window.rustRenderManager.resize(data.width, data.height);
+              } catch (error) {
+                console.error('Failed to set table size in WASM:', error);
+              }
+            }
+            
+            console.log('Table data processed successfully');
           }
           break;
           

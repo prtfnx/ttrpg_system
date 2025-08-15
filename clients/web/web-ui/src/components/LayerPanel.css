@@ -1,8 +1,8 @@
 /* Layer Panel Styles */
 .layer-panel {
-  min-height: 300px;
-  max-height: 80vh;
-  overflow-y: auto;
+  min-height: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .layer-global-controls {
@@ -31,14 +31,14 @@
 .layer-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .layer-item {
   background: var(--panel-bg);
   border: 2px solid transparent;
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: 6px;
+  padding: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;

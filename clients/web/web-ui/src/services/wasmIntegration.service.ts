@@ -5,22 +5,6 @@
 
 import type { RenderEngine } from '../types/wasm';
 
-interface SpriteData {
-  id: string;
-  name?: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  rotation?: number;
-  scale_x?: number;
-  scale_y?: number;
-  layer?: string;
-  texture_path?: string;
-  texture_id?: string;
-  tint_color?: [number, number, number, number];
-}
-
 class WasmIntegrationService {
   private renderEngine: RenderEngine | null = null;
   private eventListeners: Array<() => void> = [];

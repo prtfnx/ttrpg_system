@@ -23,17 +23,55 @@ class AuthService {
 
   /**
    * Extract JWT token from HTTP-only cookie set by FastAPI
-   * Fallback to URL parameter for direct session links
+   * Note: HTTP-only cookies cannot be read by JavaScript for security
+   * Instead, we rely on server-side validation of the cookie
    */
   async extractToken(): Promise<string | null> {
-    // Try cookie first (set by /users/login)
-    const cookieToken = this.extractTokenFromCookie();
-    if (cookieToken) {
-      this.token = cookieToken;
-      return cookieToken;
+    // For HTTP-only cookies, we can't read them directly
+    // Instead, we validate authentication by making a request to /users/me
+    console.log('🔍 Attempting to extract token via /users/me...');
+    
+    try {
+      console.log('📡 Making request to /users/me with credentials...');
+      const response = await fetch('/users/me', {
+        credentials: 'include', // Include HTTP-only cookies
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+
+      console.log(`📈 Response status: ${response.status} ${response.statusText}`);
+      console.log('📋 Response headers:', Object.fromEntries(response.headers.entries()));
+
+      if (response.ok) {
+        console.log('✅ Response OK, parsing user data...');
+        const userData = await response.json();
+        console.log('👤 User data received:', userData);
+        
+        this.userInfo = {
+          id: userData.id,
+          username: userData.username,
+          role: userData.role || 'player', // Use role from server response
+          permissions: userData.permissions || []
+        };
+        // We don't have the actual token, but we know authentication works
+        this.token = 'authenticated-via-cookie';
+        console.log('✅ Token extracted successfully via cookie');
+        return this.token;
+      } else if (response.status === 401) {
+        // User is not authenticated - this is expected, not an error
+        console.log('🔐 User not authenticated (401), this is expected for unauthenticated users');
+        return null;
+      } else {
+        console.error('❌ Unexpected response from /users/me:', response.status, response.statusText);
+        return null;
+      }
+    } catch (error) {
+      console.error('💥 Failed to validate authentication:', error);
+      return null;
     }
 
-    // Try URL parameter (for direct session links)
+    // Try URL parameter as fallback (for direct session links with token)
     const urlToken = this.extractTokenFromURL();
     if (urlToken) {
       this.token = urlToken;
@@ -41,13 +79,6 @@ class AuthService {
     }
 
     return null;
-  }
-
-  private extractTokenFromCookie(): string | null {
-    // Read from document.cookie since it's HTTP-only
-    const cookies = document.cookie.split(';');
-    const tokenCookie = cookies.find(c => c.trim().startsWith('token='));
-    return tokenCookie ? tokenCookie.split('=')[1] : null;
   }
 
   private extractTokenFromURL(): string | null {
@@ -60,11 +91,12 @@ class AuthService {
    */
   async validateToken(token: string): Promise<UserInfo | null> {
     try {
-      const response = await fetch('http://127.0.0.1:12345/users/me', {
+      const response = await fetch('/users/me', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        credentials: 'include'
       });
 
       if (response.ok) {
@@ -84,16 +116,14 @@ class AuthService {
   }
 
   /**
-   * Get user's available sessions
+   * Get user's available sessions using cookie-based authentication
    */
   async getUserSessions(): Promise<SessionInfo[]> {
-    if (!this.token) throw new Error('Not authenticated');
-
     try {
-      const response = await fetch('http://127.0.0.1:12345/users/dashboard', {
+      const response = await fetch('/users/dashboard', {
+        credentials: 'include', // Include HTTP-only cookies
         headers: {
-          'Authorization': `Bearer ${this.token}`,
-          'Content-Type': 'application/json'
+          'Accept': 'application/json',
         }
       });
 
@@ -128,20 +158,24 @@ class AuthService {
     this.userInfo = null;
     // Clear cookie by setting it to expire
     document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    window.location.href = 'http://127.0.0.1:12345/users/logout';
+    window.location.href = '/users/logout';
   }
 
   /**
    * Initialize authentication from existing token
    */
   async initialize(): Promise<boolean> {
+    console.log('🔍 Starting authentication initialization...');
     const token = await this.extractToken();
+    
     if (!token) {
+      console.log('❌ No token found, authentication failed');
       return false;
     }
 
-    const userInfo = await this.validateToken(token);
-    return userInfo !== null;
+    console.log('✅ Token found and user info already extracted');
+    console.log('👤 Current user info:', this.userInfo);
+    return true;
   }
 }
 

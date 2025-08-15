@@ -2,7 +2,6 @@
  * Protocol-compliant WebSocket client that integrates with existing server architecture
  * Handles all message types defined in protocol.py with proper authentication
  */
-import { authService } from '../services/auth.service';
 import type { Message, MessageHandler } from './message';
 import { MessageType, createMessage, parseMessage } from './message';
 
@@ -51,7 +50,9 @@ export class WebClientProtocol {
     // Table management
     this.registerHandler(MessageType.TABLE_DATA, this.handleTableData.bind(this));
     this.registerHandler(MessageType.TABLE_UPDATE, this.handleTableUpdate.bind(this));
+    this.registerHandler(MessageType.TABLE_RESPONSE, this.handleTableResponse.bind(this));
     this.registerHandler(MessageType.TABLE_LIST_RESPONSE, this.handleTableListResponse.bind(this));
+    this.registerHandler(MessageType.NEW_TABLE_RESPONSE, this.handleNewTableResponse.bind(this));
 
     // Sprite management
     this.registerHandler(MessageType.SPRITE_CREATE, this.handleSpriteCreate.bind(this));
@@ -77,13 +78,10 @@ export class WebClientProtocol {
   }
 
   async connect(): Promise<void> {
-    const token = authService.getToken();
-    
-    if (!token) {
-      throw new Error('No authentication token available');
-    }
-
-    const wsUrl = `ws://127.0.0.1:12345/ws/game/${this.sessionCode}?token=${encodeURIComponent(token)}`;
+    // Use dynamic WebSocket URL based on current location
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    const wsUrl = `${protocol}//${host}/ws/game/${this.sessionCode}`;
 
     return new Promise((resolve, reject) => {
       try {
@@ -192,6 +190,13 @@ export class WebClientProtocol {
 
   private async handleSuccess(message: Message): Promise<void> {
     console.log('Operation successful:', message.data);
+    
+    // Check if this is a table-related success message
+    if (message.data && message.data.table_id) {
+      window.dispatchEvent(new CustomEvent('table-deleted', { detail: message.data }));
+    }
+    
+    window.dispatchEvent(new CustomEvent('protocol-success', { detail: message.data }));
   }
 
   private async handlePlayerJoined(message: Message): Promise<void> {
@@ -222,6 +227,16 @@ export class WebClientProtocol {
   private async handleTableListResponse(message: Message): Promise<void> {
     console.log('Table list received:', message.data);
     window.dispatchEvent(new CustomEvent('table-list-updated', { detail: message.data }));
+  }
+
+  private async handleNewTableResponse(message: Message): Promise<void> {
+    console.log('New table created:', message.data);
+    window.dispatchEvent(new CustomEvent('new-table-response', { detail: message.data }));
+  }
+
+  private async handleTableResponse(message: Message): Promise<void> {
+    console.log('Table response received:', message.data);
+    window.dispatchEvent(new CustomEvent('table-response', { detail: message.data }));
   }
 
   // Sprite handlers - integrate with existing store/WASM
@@ -290,6 +305,26 @@ export class WebClientProtocol {
   // Public API methods for sending requests
   requestTableList(): void {
     this.sendMessage(createMessage(MessageType.TABLE_LIST_REQUEST));
+  }
+
+  createNewTable(name: string, width: number, height: number): void {
+    this.sendMessage(createMessage(MessageType.NEW_TABLE_REQUEST, {
+      table_name: name,
+      width,
+      height
+    }));
+  }
+
+  deleteTable(tableId: string): void {
+    this.sendMessage(createMessage(MessageType.TABLE_DELETE, {
+      table_id: tableId
+    }));
+  }
+
+  requestTableData(tableId: string): void {
+    this.sendMessage(createMessage(MessageType.TABLE_REQUEST, {
+      table_id: tableId
+    }));
   }
 
   requestPlayerList(): void {

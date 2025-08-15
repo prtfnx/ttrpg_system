@@ -489,9 +489,6 @@ export const GameCanvas: React.FC = () => {
         tabIndex={0}
         style={{ outline: 'none' }}
       />
-      <div className="canvas-overlay">
-        <div className="status-indicator">WASM Canvas Ready</div>
-      </div>
       
       {/* Context Menu */}
       {contextMenu.visible && (

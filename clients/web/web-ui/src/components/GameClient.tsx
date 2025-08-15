@@ -4,6 +4,8 @@ import type { UserInfo } from '../services/auth.service';
 import { GameCanvas } from './GameCanvas';
 import { RightPanel } from './RightPanel';
 import { ToolsPanel } from './ToolsPanel';
+import { TableManagementPanel } from './TableManagementPanel';
+import './GameClient.css';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -68,14 +70,21 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
           </span>
         </div>
 
-        <div className="left-panel">
-          <ToolsPanel />
+        {/* Table Management Panel */}
+        <div className="top-panel">
+          <TableManagementPanel />
         </div>
-        <div className="canvas-container">
-          <GameCanvas />
-        </div>
-        <div className="right-panel">
-          <RightPanel />
+
+        <div className="main-content">
+          <div className="left-panel">
+            <ToolsPanel />
+          </div>
+          <div className="canvas-container">
+            <GameCanvas />
+          </div>
+          <div className="right-panel">
+            <RightPanel />
+          </div>
         </div>
       </div>
     </DebugErrorBoundary>

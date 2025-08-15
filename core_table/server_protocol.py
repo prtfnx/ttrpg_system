@@ -939,7 +939,9 @@ class ServerProtocol:
             
             # Get player list from session manager (this will be set by GameSessionProtocolService)
             if hasattr(self, 'session_manager') and self.session_manager:
-                players = self.session_manager.get_session_players(session_code)
+                # GameSessionProtocolService.get_session_players() doesn't need session_code parameter
+                # because it already knows which session it's managing
+                players = self.session_manager.get_session_players()
                 return Message(MessageType.PLAYER_LIST_RESPONSE, {
                     'players': players,
                     'count': len(players),

@@ -29,12 +29,15 @@ function App() {
 
   const initializeAuth = async () => {
     try {
+      console.log('🚀 App: Starting authentication initialization...');
       setState(prev => ({ ...prev, loading: true, error: null }));
       
       const isInitialized = await authService.initialize();
+      console.log(`🔐 App: Authentication result: ${isInitialized}`);
       
       if (isInitialized) {
         const userInfo = authService.getUserInfo();
+        console.log('✅ App: User authenticated successfully:', userInfo);
         setState(prev => ({
           ...prev,
           isAuthenticated: true,
@@ -42,12 +45,12 @@ function App() {
           loading: false
         }));
       } else {
-        // No authentication token found - redirect to server login
-        const serverUrl = 'http://127.0.0.1:12345/users/login';
-        window.location.href = serverUrl;
+        // No authentication token found - redirect to server login using relative URL
+        console.log('❌ App: Authentication failed, redirecting to login...');
+        window.location.href = '/users/login';
       }
     } catch (error) {
-      console.error('Authentication initialization failed:', error);
+      console.error('💥 App: Authentication initialization failed:', error);
       setState(prev => ({
         ...prev,
         error: 'Authentication failed. Please try again.',

@@ -18,6 +18,9 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils.logger import setup_logger
+logger = setup_logger(__name__)
 from server_host.utils.logger import setup_logger
 from server_host.routers import users
 from server_host.routers import game

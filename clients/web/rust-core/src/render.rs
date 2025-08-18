@@ -112,10 +112,7 @@ impl RenderEngine {
         let actions = ActionsClient::new();
         let paint = PaintSystem::new();
         let table_sync = TableSync::new();
-        let table_manager = TableManager::new();
-        let table_sync = TableSync::new();
-        let table_manager = TableManager::default();
-        
+        let table_manager = TableManager::new();        
         let canvas_size = Vec2::new(canvas.width() as f32, canvas.height() as f32);
         let camera = Camera::default();
         let view_matrix = camera.view_matrix(canvas_size);

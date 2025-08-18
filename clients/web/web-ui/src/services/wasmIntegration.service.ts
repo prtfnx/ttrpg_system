@@ -129,8 +129,11 @@ class WasmIntegrationService {
         console.log('Processing table layers:', Object.keys(tableData.layers));
         
         // Clear existing sprites before loading new table
-        if (this.renderEngine.clear_all_sprites) {
-          this.renderEngine.clear_all_sprites();
+        console.log('Clearing all sprites before loading new table');
+        if ((this.renderEngine as any).clear_all_sprites) {
+          (this.renderEngine as any).clear_all_sprites();
+        } else {
+          console.warn('clear_all_sprites method not available on render engine');
         }
         
         // Process each layer
@@ -287,11 +290,24 @@ class WasmIntegrationService {
     try {
       const layer = spriteData.layer || 'tokens';
       
-      // Create sprite object for WASM - handle server format (coord_x/coord_y) and client format (x/y)
+      // Create sprite object for WASM - handle various position formats
+      let x = 0, y = 0;
+      if (Array.isArray(spriteData.position) && spriteData.position.length >= 2) {
+        // Server format: position: [x, y]
+        x = spriteData.position[0];
+        y = spriteData.position[1];
+        console.log(`Position from array: [${x}, ${y}]`);
+      } else {
+        // Client format: coord_x/coord_y or x/y
+        x = spriteData.coord_x ?? spriteData.x ?? 0;
+        y = spriteData.coord_y ?? spriteData.y ?? 0;
+        console.log(`Position from properties: (${x}, ${y})`);
+      }
+      
       const wasmSprite = {
         id: spriteData.sprite_id || spriteData.id || `sprite_${Date.now()}`,
-        world_x: spriteData.coord_x ?? spriteData.x ?? 0,
-        world_y: spriteData.coord_y ?? spriteData.y ?? 0,
+        world_x: x,
+        world_y: y,
         width: spriteData.width || 50,  // Default size
         height: spriteData.height || 50,
         scale_x: spriteData.scale_x || 1.0,
@@ -307,6 +323,15 @@ class WasmIntegrationService {
       // Add sprite to WASM engine
       const addedSpriteId = this.renderEngine.add_sprite_to_layer(layer, wasmSprite);
       console.log('Successfully added sprite to WASM:', addedSpriteId, wasmSprite);
+
+      // Check if asset needs to be downloaded
+      const assetId = spriteData.asset_id || spriteData.asset_xxhash;
+      if (assetId && (this.renderEngine as any).has_asset && !(this.renderEngine as any).has_asset(assetId)) {
+        console.log('Asset not found, requesting download:', assetId);
+        if ((this.renderEngine as any).request_asset_download) {
+          (this.renderEngine as any).request_asset_download(assetId);
+        }
+      }
 
     } catch (error) {
       console.error('Failed to add sprite to WASM:', error);

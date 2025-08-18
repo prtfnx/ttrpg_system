@@ -30,7 +30,7 @@ export const TableManagementPanel: React.FC = () => {
       if (data.tables) {
         // Convert object format to array format
         const tablesArray = Object.entries(data.tables).map(([id, tableData]: [string, any]) => ({
-          id,
+          table_id: id,  // Use table_id instead of id to match TableInfo interface
           ...tableData
         }));
         console.log('Converting tables object to array:', data.tables, '→', tablesArray);
@@ -94,6 +94,7 @@ export const TableManagementPanel: React.FC = () => {
   };
 
   const handleTableSelect = (tableId: string) => {
+    console.log('Switching to table:', tableId);
     switchToTable(tableId);
   };
 

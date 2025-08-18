@@ -175,6 +175,71 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
     }
   }, [options.onTableReceived, options.onSpriteUpdate, options.onError]);
 
+  // Listen for protocol events and forward to WASM
+  useEffect(() => {
+    const handleTableDataReceived = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (tableSyncRef.current && customEvent.detail.table_data) {
+        console.log('Forwarding table data to WASM:', customEvent.detail.table_data);
+        try {
+          tableSyncRef.current.handle_table_data(customEvent.detail.table_data);
+        } catch (error) {
+          console.error('Failed to handle table data in WASM:', error);
+        }
+      }
+    };
+
+    const handleTableResponse = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (tableSyncRef.current && customEvent.detail.table_data) {
+        console.log('Forwarding table response to WASM:', customEvent.detail.table_data);
+        try {
+          tableSyncRef.current.handle_table_data(customEvent.detail.table_data);
+        } catch (error) {
+          console.error('Failed to handle table response in WASM:', error);
+        }
+      }
+    };
+
+    const handleNewTableResponse = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (tableSyncRef.current && customEvent.detail.table_data) {
+        console.log('Forwarding new table response to WASM:', customEvent.detail.table_data);
+        try {
+          tableSyncRef.current.handle_table_data(customEvent.detail.table_data);
+        } catch (error) {
+          console.error('Failed to handle new table response in WASM:', error);
+        }
+      }
+    };
+
+    const handleSpriteUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (tableSyncRef.current) {
+        console.log('Forwarding sprite update to WASM:', customEvent.detail);
+        try {
+          tableSyncRef.current.handle_sprite_update(customEvent.detail);
+        } catch (error) {
+          console.error('Failed to handle sprite update in WASM:', error);
+        }
+      }
+    };
+
+    // Add event listeners
+    window.addEventListener('table-data-received', handleTableDataReceived);
+    window.addEventListener('table-response', handleTableResponse);
+    window.addEventListener('new-table-response', handleNewTableResponse);
+    window.addEventListener('sprite-updated', handleSpriteUpdate);
+
+    return () => {
+      // Cleanup event listeners
+      window.removeEventListener('table-data-received', handleTableDataReceived);
+      window.removeEventListener('table-response', handleTableResponse);
+      window.removeEventListener('new-table-response', handleNewTableResponse);
+      window.removeEventListener('sprite-updated', handleSpriteUpdate);
+    };
+  }, []);
+
   // Set network client when available
   useEffect(() => {
     if (tableSyncRef.current && networkClient) {

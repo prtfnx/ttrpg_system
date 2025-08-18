@@ -3,7 +3,7 @@ import ctypes
 import logging
 import json
 import os
-from storage import get_storage_manager
+
 import settings
 
 logger = logging.getLogger(__name__)

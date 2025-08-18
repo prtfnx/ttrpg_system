@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuthenticatedWebSocket } from '../hooks/useAuthenticatedWebSocket';
 import type { UserInfo } from '../services/auth.service';
 import { GameCanvas } from './GameCanvas';
@@ -44,10 +44,30 @@ class DebugErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBounda
 }
 
 export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: GameClientProps) {
-  const { connectionState, error } = useAuthenticatedWebSocket({
+  const { connectionState, error, protocol } = useAuthenticatedWebSocket({
     sessionCode,
     userInfo
   });
+
+  // Handle asset download requests from WASM integration service
+  useEffect(() => {
+    const handleAssetDownloadRequest = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { asset_id } = customEvent.detail;
+      
+      if (protocol && protocol.downloadAsset) {
+        console.log('Handling asset download request for:', asset_id);
+        protocol.downloadAsset(asset_id);
+      } else {
+        console.warn('Protocol not available for asset download:', asset_id);
+      }
+    };
+
+    window.addEventListener('request-asset-download', handleAssetDownloadRequest);
+    return () => {
+      window.removeEventListener('request-asset-download', handleAssetDownloadRequest);
+    };
+  }, [protocol]);
 
   // Handle authentication errors
   if (error?.includes('Authentication failed')) {

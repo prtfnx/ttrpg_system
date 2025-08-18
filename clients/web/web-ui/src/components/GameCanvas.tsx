@@ -71,9 +71,14 @@ export const GameCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rustRenderManagerRef = useRef<RenderEngine | null>(null);
   const dprRef = useRef<number>(1);
-  const { updateConnectionState } = useGameStore();
+  const { updateConnectionState, tables, activeTableId } = useGameStore();
+  const activeTable = tables.find(t => t.table_id === activeTableId);
   const { connect: connectWebSocket, disconnect: disconnectWebSocket } = useWebSocket('ws://127.0.0.1:12345/ws');
   const debugPanel = useCanvasDebug(canvasRef as React.RefObject<HTMLCanvasElement | null>, rustRenderManagerRef, dprRef);
+  
+  // FPS Counter
+  const [fps, setFps] = useState(0);
+  const fpsRef = useRef({ frameCount: 0, lastTime: performance.now() });
   
   // TODO: Re-enable sprite syncing after fixing React error
   // useSpriteSyncing();
@@ -353,6 +358,15 @@ export const GameCanvas: React.FC = () => {
             if (rustRenderManagerRef.current) {
               rustRenderManagerRef.current.render();
             }
+            
+            // Calculate FPS
+            fpsRef.current.frameCount++;
+            const currentTime = performance.now();
+            if (currentTime - fpsRef.current.lastTime >= 1000) { // Update every second
+              setFps(Math.round(fpsRef.current.frameCount * 1000 / (currentTime - fpsRef.current.lastTime)));
+              fpsRef.current.frameCount = 0;
+              fpsRef.current.lastTime = currentTime;
+            }
           } catch (error) {
             console.error('Rust WASM render error:', error);
           }
@@ -621,11 +635,20 @@ export const GameCanvas: React.FC = () => {
         position: 'absolute', top: 8, left: 8, background: 'rgba(0,0,0,0.8)', color: '#0f0',
         fontSize: 14, padding: 10, borderRadius: 8, zIndex: 1000, pointerEvents: 'none', fontFamily: 'monospace', minWidth: 220
       }}>
+        <div><b>FPS:</b> <span style={{color: fps > 30 ? '#0f0' : fps > 15 ? '#ff0' : '#f00'}}>{fps}</span></div>
         <div><b>Canvas CSS:</b> {debugPanel.cssWidth} x {debugPanel.cssHeight}</div>
         <div><b>Canvas Device:</b> {debugPanel.deviceWidth} x {debugPanel.deviceHeight}</div>
         <div><b>Mouse CSS:</b> {debugPanel.mouseCss.x.toFixed(1)}, {debugPanel.mouseCss.y.toFixed(1)}</div>
         <div><b>Mouse Device:</b> {debugPanel.mouseDevice.x.toFixed(1)}, {debugPanel.mouseDevice.y.toFixed(1)}</div>
         <div><b>World:</b> {debugPanel.world.x.toFixed(2)}, {debugPanel.world.y.toFixed(2)}</div>
+        {activeTable && (
+          <>
+            <div style={{borderTop: '1px solid #333', marginTop: 8, paddingTop: 8}}>
+              <b>Table:</b> {activeTable.table_name}
+            </div>
+            <div><b>Size:</b> {activeTable.width} x {activeTable.height}</div>
+          </>
+        )}
       </div>
       {/* Debug overlay near cursor */}
       <DebugOverlay

@@ -16,6 +16,7 @@ export class RenderEngine {
   handle_mouse_up(screen_x: number, screen_y: number): void;
   add_sprite_to_layer(layer_name: string, sprite_data: any): string;
   remove_sprite(sprite_id: string): boolean;
+  clear_all_sprites(): void;
   rotate_sprite(sprite_id: string, rotation_degrees: number): boolean;
   toggle_grid(): void;
   set_grid_enabled(enabled: boolean): void;
@@ -139,6 +140,14 @@ export class RenderEngine {
   paint_get_strokes(): any;
   paint_get_current_stroke(): any;
   paint_on_event(event_type: string, callback: () => void): void;
+  
+  // Table sync integration
+  handle_table_data(table_data: any): void;
+  get_table_data(): any;
+  get_table_id(): string | undefined;
+  request_table(table_name: string): void;
+  set_table_received_handler(callback: (data: any) => void): void;
+  set_table_error_handler(callback: (error: string) => void): void;
 }
 
 export class NetworkClient {

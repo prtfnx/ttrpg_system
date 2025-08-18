@@ -72,7 +72,7 @@ export const GameCanvas: React.FC = () => {
   const rustRenderManagerRef = useRef<RenderEngine | null>(null);
   const dprRef = useRef<number>(1);
   const { updateConnectionState } = useGameStore();
-  const { connect: connectWebSocket, disconnect: disconnectWebSocket, requestTableData } = useWebSocket('ws://127.0.0.1:12345/ws');
+  const { connect: connectWebSocket, disconnect: disconnectWebSocket } = useWebSocket('ws://127.0.0.1:12345/ws');
   const debugPanel = useCanvasDebug(canvasRef as React.RefObject<HTMLCanvasElement | null>, rustRenderManagerRef, dprRef);
   
   // TODO: Re-enable sprite syncing after fixing React error
@@ -389,7 +389,6 @@ export const GameCanvas: React.FC = () => {
         // Connect to WebSocket after WASM is loaded
         try {
           await connectWebSocket();
-          requestTableData();
           updateConnectionState('connected');
         } catch (wsErr) {
           console.error('WebSocket connection failed:', wsErr);
@@ -427,7 +426,7 @@ export const GameCanvas: React.FC = () => {
       window.removeEventListener('resize', resizeCanvas);
       window.rustRenderManager = undefined;
     };
-  }, [updateConnectionState, connectWebSocket, disconnectWebSocket, requestTableData, handleMouseDown, handleMouseMove, handleMouseUp, handleWheel, handleRightClick]);
+  }, [updateConnectionState, connectWebSocket, disconnectWebSocket, handleMouseDown, handleMouseMove, handleMouseUp, handleWheel, handleRightClick]);
 
   // Debug overlay state
   const [debugCursorScreen, setDebugCursorScreen] = React.useState({ x: 0, y: 0 });

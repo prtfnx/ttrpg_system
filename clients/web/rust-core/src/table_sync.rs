@@ -1,8 +1,7 @@
 use wasm_bindgen::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use js_sys::Function;
-use crate::types::{Position, Size};
+use std::collections::HashMap;
 
 /// Table synchronization manager for TTRPG web client
 /// Handles table data reception from server and bidirectional sprite updates
@@ -25,31 +24,45 @@ pub struct TableSync {
 pub struct TableData {
     pub table_id: String,
     pub table_name: String,
+    #[serde(default)]
+    pub name: String, // Legacy compatibility
     pub width: f64,
     pub height: f64,
-    pub scale_x: f64,
-    pub scale_y: f64,
-    pub offset_x: f64,
-    pub offset_y: f64,
-    pub sprites: Vec<SpriteData>,
-    pub fog_rectangles: Vec<FogRectangle>,
+    pub scale: f64,
+    #[serde(default)]
+    pub x_moved: f64,
+    #[serde(default)]
+    pub y_moved: f64,
+    #[serde(default)]
+    pub show_grid: bool,
+    #[serde(default)]
+    pub cell_side: f64,
+    pub layers: std::collections::HashMap<String, Vec<SpriteData>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpriteData {
     pub sprite_id: String,
-    pub name: String,
-    pub x: f64,
-    pub y: f64,
-    pub width: f64,
-    pub height: f64,
+    pub texture_path: String,
+    pub coord_x: f64,
+    pub coord_y: f64,
     pub scale_x: f64,
     pub scale_y: f64,
-    pub rotation: f64,
+    #[serde(default)]
+    pub character: Option<serde_json::Value>,
+    #[serde(default)]
+    pub moving: bool,
+    #[serde(default)]
+    pub speed: Option<f64>,
+    #[serde(default)]
+    pub collidable: bool,
     pub layer: String,
-    pub texture_path: String,
-    pub color: String,
-    pub visible: bool,
+    #[serde(default)]
+    pub compendium_entity: Option<serde_json::Value>,
+    #[serde(default)]
+    pub entity_type: Option<String>,
+    #[serde(default)]
+    pub asset_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -112,10 +125,7 @@ impl TableSync {
     pub fn request_table(&self, table_name: &str) -> Result<(), JsValue> {
         if let Some(ref network_client) = self.network_client {
             let request_data = serde_json::json!({
-                "name": table_name,
-                "session_code": null,
-                "user_id": null,
-                "username": null
+                "table_name": table_name
             });
 
             let js_data = serde_wasm_bindgen::to_value(&request_data)?;
@@ -141,8 +151,10 @@ impl TableSync {
         let table_data: TableData = serde_wasm_bindgen::from_value(table_data_js.clone())
             .map_err(|e| JsValue::from_str(&format!("Failed to parse table data: {}", e)))?;
 
-        web_sys::console::log_1(&format!("Received table data: {} with {} sprites", 
-            table_data.table_name, table_data.sprites.len()).into());
+        web_sys::console::log_1(&format!("Received table data: {} with {} total sprites across {} layers", 
+            table_data.table_name, 
+            table_data.layers.values().map(|sprites| sprites.len()).sum::<usize>(),
+            table_data.layers.len()).into());
 
         // Store current table
         self.table_id = Some(table_data.table_id.clone());
@@ -267,32 +279,36 @@ impl TableSync {
 
         // Update local table state if we have it
         if let Some(ref mut table) = self.current_table {
-            if let Some(sprite) = table.sprites.iter_mut().find(|s| s.sprite_id == update_data.sprite_id) {
-                match update_data.update_type.as_str() {
-                    "sprite_move" => {
-                        if let Some(to) = update_data.data.get("to") {
-                            if let (Some(x), Some(y)) = (to.get("x"), to.get("y")) {
-                                sprite.x = x.as_f64().unwrap_or(sprite.x);
-                                sprite.y = y.as_f64().unwrap_or(sprite.y);
+            // Find sprite across all layers
+            let mut sprite_found = false;
+            for sprites in table.layers.values_mut() {
+                if let Some(sprite) = sprites.iter_mut().find(|s| s.sprite_id == update_data.sprite_id) {
+                    sprite_found = true;
+                    match update_data.update_type.as_str() {
+                        "sprite_move" => {
+                            if let Some(to) = update_data.data.get("to") {
+                                if let (Some(x), Some(y)) = (to.get("x"), to.get("y")) {
+                                    sprite.coord_x = x.as_f64().unwrap_or(sprite.coord_x);
+                                    sprite.coord_y = y.as_f64().unwrap_or(sprite.coord_y);
+                                }
                             }
                         }
-                    }
-                    "sprite_scale" => {
-                        if let (Some(scale_x), Some(scale_y)) = (
-                            update_data.data.get("scale_x"), 
-                            update_data.data.get("scale_y")
-                        ) {
-                            sprite.scale_x = scale_x.as_f64().unwrap_or(sprite.scale_x);
-                            sprite.scale_y = scale_y.as_f64().unwrap_or(sprite.scale_y);
+                        "sprite_scale" => {
+                            if let (Some(scale_x), Some(scale_y)) = (
+                                update_data.data.get("scale_x"), 
+                                update_data.data.get("scale_y")
+                            ) {
+                                sprite.scale_x = scale_x.as_f64().unwrap_or(sprite.scale_x);
+                                sprite.scale_y = scale_y.as_f64().unwrap_or(sprite.scale_y);
+                            }
                         }
+                        _ => {}
                     }
-                    "sprite_rotate" => {
-                        if let Some(rotation) = update_data.data.get("rotation") {
-                            sprite.rotation = rotation.as_f64().unwrap_or(sprite.rotation);
-                        }
-                    }
-                    _ => {}
+                    break;
                 }
+            }
+            if !sprite_found {
+                web_sys::console::warn_1(&format!("Sprite {} not found in local table state", update_data.sprite_id).into());
             }
         }
 
@@ -320,11 +336,26 @@ impl TableSync {
         self.table_id.clone()
     }
 
-    /// Get sprites from current table
+    /// Get sprites from current table (flattened from all layers)
     #[wasm_bindgen]
     pub fn get_sprites(&self) -> JsValue {
         if let Some(ref table) = self.current_table {
-            serde_wasm_bindgen::to_value(&table.sprites).unwrap_or(JsValue::NULL)
+            let all_sprites: Vec<&SpriteData> = table.layers.values().flatten().collect();
+            serde_wasm_bindgen::to_value(&all_sprites).unwrap_or(JsValue::NULL)
+        } else {
+            serde_wasm_bindgen::to_value(&Vec::<SpriteData>::new()).unwrap_or(JsValue::NULL)
+        }
+    }
+
+    /// Get sprites by layer
+    #[wasm_bindgen]
+    pub fn get_sprites_by_layer(&self, layer_name: &str) -> JsValue {
+        if let Some(ref table) = self.current_table {
+            if let Some(sprites) = table.layers.get(layer_name) {
+                serde_wasm_bindgen::to_value(sprites).unwrap_or(JsValue::NULL)
+            } else {
+                serde_wasm_bindgen::to_value(&Vec::<SpriteData>::new()).unwrap_or(JsValue::NULL)
+            }
         } else {
             serde_wasm_bindgen::to_value(&Vec::<SpriteData>::new()).unwrap_or(JsValue::NULL)
         }

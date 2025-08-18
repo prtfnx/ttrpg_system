@@ -17,6 +17,8 @@ use crate::grid_system::GridSystem;
 use crate::texture_manager::TextureManager;
 use crate::actions::ActionsClient;
 use crate::paint::PaintSystem;
+use crate::table_sync::TableSync;
+use crate::table_manager::TableManager;
 
 #[wasm_bindgen]
 pub struct RenderEngine {
@@ -48,6 +50,12 @@ pub struct RenderEngine {
     
     // Paint system
     paint: PaintSystem,
+    
+    // Table synchronization
+    table_sync: TableSync,
+    
+    // Table management
+    table_manager: TableManager,
 }
 
 #[wasm_bindgen]
@@ -103,6 +111,10 @@ impl RenderEngine {
         let grid_system = GridSystem::new();
         let actions = ActionsClient::new();
         let paint = PaintSystem::new();
+        let table_sync = TableSync::new();
+        let table_manager = TableManager::new();
+        let table_sync = TableSync::new();
+        let table_manager = TableManager::default();
         
         let canvas_size = Vec2::new(canvas.width() as f32, canvas.height() as f32);
         let camera = Camera::default();
@@ -122,6 +134,8 @@ impl RenderEngine {
             fog,
             actions,
             paint,
+            table_sync,
+            table_manager,
         };
         
         engine.update_view_matrix();
@@ -1523,6 +1537,11 @@ impl RenderEngine {
     }
     
     #[wasm_bindgen]
+    pub fn clear_all_sprites(&mut self) {
+        self.layer_manager.clear_all_layers();
+    }
+    
+    #[wasm_bindgen]
     pub fn set_layer_visible(&mut self, layer_name: &str, visible: bool) -> bool {
         self.layer_manager.set_layer_visibility(layer_name, visible)
     }
@@ -1724,5 +1743,214 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn paint_on_event(&mut self, event_type: &str, callback: js_sys::Function) {
         self.paint.on_stroke_event(event_type, callback);
+    }
+
+    // ========== TABLE SYNC INTEGRATION ==========
+
+    /// Set network client for table synchronization
+    #[wasm_bindgen]
+    pub fn set_network_client(&mut self, network_client: &js_sys::Object) {
+        self.table_sync.set_network_client(network_client);
+    }
+
+    /// Handle table data received from server
+    #[wasm_bindgen]
+    pub fn handle_table_data(&mut self, table_data_js: &JsValue) -> Result<(), JsValue> {
+        // First, parse and store the table data
+        self.table_sync.handle_table_data(table_data_js)?;
+        
+        // Get the parsed table data
+        let table_data = self.table_sync.get_table_data();
+        if table_data.is_null() {
+            return Err(JsValue::from_str("Failed to get table data"));
+        }
+
+        // Parse the table data to sync with render engine
+        let table: crate::table_sync::TableData = serde_wasm_bindgen::from_value(table_data)
+            .map_err(|e| JsValue::from_str(&format!("Failed to parse table data for rendering: {}", e)))?;
+
+        // Update table manager
+        if let Some(table_id) = self.table_sync.get_table_id() {
+            self.table_manager.create_table(&table_id, &table.table_name, table.width, table.height)?;
+            self.table_manager.set_active_table(&table_id);
+        }
+
+        // Clear existing sprites from all layers
+        self.layer_manager.clear_all_layers();
+
+        // Add sprites to appropriate layers
+        for (layer_name, sprites) in &table.layers {
+            for sprite_data in sprites {
+                self.add_sprite_from_table_data(sprite_data)?;
+            }
+        }
+
+        web_sys::console::log_1(&format!("Successfully synced table '{}' with {} layers", 
+            table.table_name, table.layers.len()).into());
+
+        Ok(())
+    }
+
+    /// Add a sprite from table sync data to the render engine
+    fn add_sprite_from_table_data(&mut self, sprite_data: &crate::table_sync::SpriteData) -> Result<(), JsValue> {
+        // Convert table sync sprite data to render engine sprite
+        let sprite = Sprite {
+            id: sprite_data.sprite_id.clone(),
+            world_x: sprite_data.coord_x,
+            world_y: sprite_data.coord_y,
+            width: 50.0, // Default width, will be updated when texture loads
+            height: 50.0, // Default height, will be updated when texture loads
+            scale_x: sprite_data.scale_x,
+            scale_y: sprite_data.scale_y,
+            rotation: 0.0, // Default rotation
+            layer: sprite_data.layer.clone(),
+            texture_id: sprite_data.texture_path.clone(),
+            tint_color: [1.0, 1.0, 1.0, 1.0], // Default white tint
+        };
+
+        // Add sprite to the appropriate layer
+        let sprite_js = serde_wasm_bindgen::to_value(&sprite)?;
+        self.layer_manager.add_sprite_to_layer(&sprite_data.layer, &sprite_js)?;
+
+        // Request asset if texture path is provided and not already cached
+        if !sprite_data.texture_path.is_empty() {
+            self.request_asset_if_needed(&sprite_data.texture_path);
+        }
+
+        Ok(())
+    }
+
+    /// Request asset download if not already available
+    fn request_asset_if_needed(&self, texture_path: &str) {
+        // Check if we already have this asset
+        if !self.texture_manager.has_texture(texture_path) {
+            // Dispatch event to request asset download
+            let detail = js_sys::Object::new();
+            js_sys::Reflect::set(&detail, &"asset_path".into(), &texture_path.into()).unwrap();
+            
+            let event_init = web_sys::CustomEventInit::new();
+            event_init.set_detail(&detail);
+            let event = web_sys::CustomEvent::new_with_event_init_dict(
+                "asset-download-request",
+                &event_init
+            ).unwrap();
+            
+            if let Some(window) = web_sys::window() {
+                let _ = window.dispatch_event(&event);
+            }
+        }
+    }
+
+    /// Handle sprite update from server
+    #[wasm_bindgen]
+    pub fn handle_sprite_update(&mut self, update_data_js: &JsValue) -> Result<(), JsValue> {
+        // First update the table sync state
+        self.table_sync.handle_sprite_update(update_data_js)?;
+
+        // Parse the update data
+        let update_data: crate::table_sync::SpriteUpdateData = serde_wasm_bindgen::from_value(update_data_js.clone())
+            .map_err(|e| JsValue::from_str(&format!("Failed to parse sprite update: {}", e)))?;
+
+        // Apply the update to the render engine
+        match update_data.update_type.as_str() {
+            "sprite_move" => {
+                if let Some(to) = update_data.data.get("to") {
+                    if let (Some(x), Some(y)) = (to.get("x"), to.get("y")) {
+                        let new_pos = Vec2::new(x.as_f64().unwrap_or(0.0) as f32, y.as_f64().unwrap_or(0.0) as f32);
+                        self.layer_manager.update_sprite_position(&update_data.sprite_id, new_pos);
+                    }
+                }
+            }
+            "sprite_scale" => {
+                if let (Some(scale_x), Some(scale_y)) = (
+                    update_data.data.get("scale_x"), 
+                    update_data.data.get("scale_y")
+                ) {
+                    let new_scale = Vec2::new(
+                        scale_x.as_f64().unwrap_or(1.0) as f32, 
+                        scale_y.as_f64().unwrap_or(1.0) as f32
+                    );
+                    self.layer_manager.update_sprite_scale(&update_data.sprite_id, new_scale);
+                }
+            }
+            "sprite_create" => {
+                // Handle new sprite creation
+                if let Some(sprite_data) = update_data.data.get("sprite_data") {
+                    // Convert serde_json::Value to JsValue first
+                    let sprite_js = serde_wasm_bindgen::to_value(sprite_data)
+                        .map_err(|e| JsValue::from_str(&format!("Failed to convert sprite data: {}", e)))?;
+                    let sprite: crate::table_sync::SpriteData = serde_wasm_bindgen::from_value(sprite_js)
+                        .map_err(|e| JsValue::from_str(&format!("Failed to parse new sprite data: {}", e)))?;
+                    self.add_sprite_from_table_data(&sprite)?;
+                }
+            }
+            "sprite_remove" => {
+                // Handle sprite deletion
+                self.layer_manager.remove_sprite(&update_data.sprite_id);
+            }
+            _ => {
+                web_sys::console::warn_1(&format!("Unknown sprite update type: {}", update_data.update_type).into());
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Send sprite move update to server
+    #[wasm_bindgen]
+    pub fn send_sprite_move(&self, sprite_id: &str, x: f64, y: f64) -> Result<(), JsValue> {
+        self.table_sync.send_sprite_move(sprite_id, x, y)
+    }
+
+    /// Send sprite scale update to server
+    #[wasm_bindgen]
+    pub fn send_sprite_scale(&self, sprite_id: &str, scale_x: f64, scale_y: f64) -> Result<(), JsValue> {
+        self.table_sync.send_sprite_scale(sprite_id, scale_x, scale_y)
+    }
+
+    /// Send sprite creation to server
+    #[wasm_bindgen]
+    pub fn send_sprite_create(&self, sprite_data_js: &JsValue) -> Result<(), JsValue> {
+        self.table_sync.send_sprite_create(sprite_data_js)
+    }
+
+    /// Send sprite deletion to server
+    #[wasm_bindgen]
+    pub fn send_sprite_delete(&self, sprite_id: &str) -> Result<(), JsValue> {
+        self.table_sync.send_sprite_delete(sprite_id)
+    }
+
+    /// Request table data from server
+    #[wasm_bindgen]
+    pub fn request_table(&self, table_name: &str) -> Result<(), JsValue> {
+        self.table_sync.request_table(table_name)
+    }
+
+    /// Get current table data
+    #[wasm_bindgen]
+    pub fn get_table_data(&self) -> JsValue {
+        self.table_sync.get_table_data()
+    }
+
+    /// Get current table ID
+    #[wasm_bindgen]
+    pub fn get_table_id(&self) -> Option<String> {
+        self.table_sync.get_table_id()
+    }
+
+    /// Set table sync callbacks
+    #[wasm_bindgen]
+    pub fn set_table_received_handler(&mut self, callback: &js_sys::Function) {
+        self.table_sync.set_table_received_handler(callback);
+    }
+
+    #[wasm_bindgen]
+    pub fn set_sprite_update_handler(&mut self, callback: &js_sys::Function) {
+        self.table_sync.set_sprite_update_handler(callback);
+    }
+
+    #[wasm_bindgen]
+    pub fn set_table_error_handler(&mut self, callback: &js_sys::Function) {
+        self.table_sync.set_error_handler(callback);
     }
 }

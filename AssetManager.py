@@ -486,7 +486,7 @@ class ClientAssetManager:
         logger.warning(f"Filename {filename} or {operation_id} not found in cache")
         return None
     
-    def surface_from_bytes(self, data: bytes, filename: str,) -> Optional[sdl3.LP_SDL_Surface]:
+    def surface_from_bytes(self, data: bytes, filename: str,) -> Optional['sdl3.LP_SDL_Surface']:
         """Make Surface from raw bytes data"""
         if not data:
             logger.error("No data provided for creating sprite")
@@ -508,8 +508,8 @@ class ClientAssetManager:
         except Exception as e:
             logger.error(f"Error creating surface from bytes data for {filename}: {e}")
             return None
-    
-    def create_texture_from_surface(self, renderer: sdl3.LP_SDL_Renderer, surface: sdl3.LP_SDL_Surface) -> Optional[tuple[sdl3.SDL_Texture,int, int]]: 
+
+    def create_texture_from_surface(self, renderer:  'sdl3.LP_SDL_Renderer', surface: 'sdl3.LP_SDL_Surface') -> Optional[tuple['sdl3.SDL_Texture', int, int]]: 
             """Create texture from surface"""
             texture = sdl3.SDL_CreateTextureFromSurface(renderer, surface)
             if not texture:

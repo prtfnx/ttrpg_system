@@ -333,7 +333,49 @@ export const useGameStore = create<GameStore>()(
       },
 
       createNewTable: (name: string, width: number, height: number) => {
-        // Send message via protocol to create new table
+        // Create table locally first
+        const newTable: TableInfo = {
+          table_id: `temp_${Date.now()}`, // Temporary ID until server responds
+          table_name: name,
+          width,
+          height,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        set((state) => ({
+          tables: [...state.tables, newTable],
+          activeTableId: newTable.table_id
+        }));
+        
+        // Create basic table data structure for WASM rendering
+        const tableDataForWasm = {
+          table_data: {
+            table_id: newTable.table_id,
+            table_name: newTable.table_name,
+            width: newTable.width,
+            height: newTable.height,
+            grid_size: 50,
+            grid_enabled: true,
+            grid_snapping: false,
+            layers: {
+              map: [],
+              tokens: [],
+              dungeon_master: [],
+              light: [],
+              height: [],
+              obstacles: [],
+              fog_of_war: []
+            }
+          }
+        };
+        
+        // Emit table data event for WASM integration
+        window.dispatchEvent(new CustomEvent('table-data-received', {
+          detail: tableDataForWasm
+        }));
+        
+        // Send message via protocol to create new table on server
         window.dispatchEvent(new CustomEvent('protocol-send-message', {
           detail: {
             type: 'new_table_request',
@@ -359,7 +401,42 @@ export const useGameStore = create<GameStore>()(
       },
 
       switchToTable: (tableId: string) => {
-        // Send message via protocol to request table data
+        set((state) => {
+          // Find the table info
+          const table = state.tables.find(t => t.table_id === tableId);
+          if (table) {
+            // Create basic table data structure for WASM rendering when switching locally
+            const tableDataForWasm = {
+              table_data: {
+                table_id: table.table_id,
+                table_name: table.table_name,
+                width: table.width,
+                height: table.height,
+                grid_size: 50,
+                grid_enabled: true,
+                grid_snapping: false,
+                layers: {
+                  map: [],
+                  tokens: [],
+                  dungeon_master: [],
+                  light: [],
+                  height: [],
+                  obstacles: [],
+                  fog_of_war: []
+                }
+              }
+            };
+            
+            // Emit table data event for WASM integration
+            window.dispatchEvent(new CustomEvent('table-data-received', {
+              detail: tableDataForWasm
+            }));
+          }
+          
+          return { activeTableId: tableId };
+        });
+        
+        // Send message via protocol to request table data from server
         window.dispatchEvent(new CustomEvent('protocol-send-message', {
           detail: {
             type: 'table_request',
@@ -367,9 +444,6 @@ export const useGameStore = create<GameStore>()(
               table_id: tableId
             }
           }
-        }));
-        set(() => ({
-          activeTableId: tableId,
         }));
       },
     }),

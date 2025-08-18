@@ -35,6 +35,19 @@ class WasmIntegrationService {
     window.addEventListener('table-data-received', handleTableData);
     this.eventListeners.push(() => window.removeEventListener('table-data-received', handleTableData));
 
+    // Also listen for table-response and new-table-response events
+    const handleTableResponse = (event: Event) => {
+      this.handleTableDataReceived((event as CustomEvent).detail);
+    };
+    window.addEventListener('table-response', handleTableResponse);
+    this.eventListeners.push(() => window.removeEventListener('table-response', handleTableResponse));
+
+    const handleNewTableResponse = (event: Event) => {
+      this.handleTableDataReceived((event as CustomEvent).detail);
+    };
+    window.addEventListener('new-table-response', handleNewTableResponse);
+    this.eventListeners.push(() => window.removeEventListener('new-table-response', handleNewTableResponse));
+
     const handleTableUpdate = (event: Event) => {
       this.handleTableUpdate((event as CustomEvent).detail);
     };
@@ -90,30 +103,81 @@ class WasmIntegrationService {
     if (!this.renderEngine) return;
 
     console.log('Processing table data for WASM:', data);
+    console.log('Data keys:', Object.keys(data));
+    console.log('Has table_data:', !!data.table_data);
+    console.log('Has sprites:', !!data.sprites);
 
     try {
+      // Extract table data from the response structure
+      const tableData = data.table_data || data;
+      console.log('Using tableData:', tableData);
+      console.log('TableData keys:', Object.keys(tableData));
+      
       // Handle table configuration
-      if (data.grid_size) {
-        this.renderEngine.set_grid_size(data.grid_size);
+      if (tableData.grid_size) {
+        this.renderEngine.set_grid_size(tableData.grid_size);
       }
-      if (typeof data.grid_enabled === 'boolean') {
-        this.renderEngine.set_grid_enabled(data.grid_enabled);
+      if (typeof tableData.grid_enabled === 'boolean') {
+        this.renderEngine.set_grid_enabled(tableData.grid_enabled);
       }
-      if (typeof data.grid_snapping === 'boolean') {
-        this.renderEngine.set_grid_snapping(data.grid_snapping);
+      if (typeof tableData.grid_snapping === 'boolean') {
+        this.renderEngine.set_grid_snapping(tableData.grid_snapping);
       }
 
-      // Load sprites from table data
+      // Load sprites from layer structure
+      if (tableData.layers) {
+        console.log('Processing table layers:', Object.keys(tableData.layers));
+        
+        // Clear existing sprites before loading new table
+        if (this.renderEngine.clear_all_sprites) {
+          this.renderEngine.clear_all_sprites();
+        }
+        
+        // Process each layer
+        Object.entries(tableData.layers).forEach(([layerName, layerData]: [string, any]) => {
+          console.log(`Processing layer ${layerName}:`, layerData);
+          
+          // Handle different layer data structures
+          if (Array.isArray(layerData)) {
+            // Layer data is an array of sprites
+            layerData.forEach((spriteData: any) => {
+              spriteData.layer = layerName; // Ensure layer is set
+              this.addSpriteToWasm(spriteData);
+            });
+          } else if (layerData && typeof layerData === 'object') {
+            // Layer data is an object, might contain sprites in a sub-property
+            if (layerData.sprites && Array.isArray(layerData.sprites)) {
+              layerData.sprites.forEach((spriteData: any) => {
+                spriteData.layer = layerName;
+                this.addSpriteToWasm(spriteData);
+              });
+            } else {
+              // Maybe the object itself contains sprite properties
+              Object.values(layerData).forEach((spriteData: any) => {
+                if (spriteData && typeof spriteData === 'object' && spriteData.sprite_id) {
+                  spriteData.layer = layerName;
+                  this.addSpriteToWasm(spriteData);
+                }
+              });
+            }
+          }
+        });
+      }
+      
+      // Fallback: Load sprites from flat array (backward compatibility)
       if (data.sprites && Array.isArray(data.sprites)) {
-        data.sprites.forEach((spriteData: any) => {
+        console.log('🔍 Processing fallback sprites array:', data.sprites.length);
+        console.log('🔍 First sprite sample:', JSON.stringify(data.sprites[0], null, 2));
+        data.sprites.forEach((spriteData: any, index: number) => {
+          console.log(`🔍 Processing fallback sprite ${index}:`, JSON.stringify(spriteData, null, 2));
           this.addSpriteToWasm(spriteData);
         });
       }
 
       // Handle background image if present
-      if (data.background_image) {
+      if (tableData.background_image) {
         // Background images need special handling - load as a base layer sprite
-        this.loadBackgroundImage(data.background_image);
+        this.loadBackgroundImage(tableData.background_image);
       }
 
     } catch (error) {
@@ -217,16 +281,19 @@ class WasmIntegrationService {
   private addSpriteToWasm(spriteData: any): void {
     if (!this.renderEngine) return;
 
+    console.log('Adding sprite to WASM:', spriteData);
+    console.log('Sprite data keys:', Object.keys(spriteData));
+
     try {
       const layer = spriteData.layer || 'tokens';
       
-      // Create sprite object for WASM
+      // Create sprite object for WASM - handle server format (coord_x/coord_y) and client format (x/y)
       const wasmSprite = {
-        id: spriteData.id,
-        world_x: spriteData.x || 0,
-        world_y: spriteData.y || 0,
-        width: spriteData.width || 32,
-        height: spriteData.height || 32,
+        id: spriteData.sprite_id || spriteData.id || `sprite_${Date.now()}`,
+        world_x: spriteData.coord_x ?? spriteData.x ?? 0,
+        world_y: spriteData.coord_y ?? spriteData.y ?? 0,
+        width: spriteData.width || 50,  // Default size
+        height: spriteData.height || 50,
         scale_x: spriteData.scale_x || 1.0,
         scale_y: spriteData.scale_y || 1.0,
         rotation: spriteData.rotation || 0.0,
@@ -235,12 +302,16 @@ class WasmIntegrationService {
         tint_color: spriteData.tint_color || [1.0, 1.0, 1.0, 1.0]
       };
 
+      console.log('Converted sprite for WASM:', wasmSprite);
+
       // Add sprite to WASM engine
       const addedSpriteId = this.renderEngine.add_sprite_to_layer(layer, wasmSprite);
-      console.log('Added sprite to WASM:', addedSpriteId, wasmSprite);
+      console.log('Successfully added sprite to WASM:', addedSpriteId, wasmSprite);
 
     } catch (error) {
-      console.error('Failed to add sprite to WASM:', error, spriteData);
+      console.error('Failed to add sprite to WASM:', error);
+      console.error('Failed sprite data:', spriteData);
+      console.error('Available sprite data keys:', Object.keys(spriteData));
     }
   }
 

@@ -136,6 +136,8 @@ class WasmIntegrationService {
           console.warn('clear_all_sprites method not available on render engine');
         }
         
+        // TODO: Table background will be implemented as a core Rust type, not as sprites
+        
         // Process each layer
         Object.entries(tableData.layers).forEach(([layerName, layerData]: [string, any]) => {
           console.log(`Processing layer ${layerName}:`, layerData);
@@ -275,12 +277,6 @@ class WasmIntegrationService {
     }
   }
 
-  private handleAssetDownloaded(data: any): void {
-    console.log('Asset downloaded, need to integrate with asset manager:', data);
-    // This would integrate with existing asset management system
-    // For now, just log the event
-  }
-
   private addSpriteToWasm(spriteData: any): void {
     if (!this.renderEngine) return;
 
@@ -304,6 +300,9 @@ class WasmIntegrationService {
         console.log(`Position from properties: (${x}, ${y})`);
       }
       
+      // Get asset ID for texture loading
+      const assetId = spriteData.asset_id || spriteData.asset_xxhash;
+      
       const wasmSprite = {
         id: spriteData.sprite_id || spriteData.id || `sprite_${Date.now()}`,
         world_x: x,
@@ -314,7 +313,7 @@ class WasmIntegrationService {
         scale_y: spriteData.scale_y || 1.0,
         rotation: spriteData.rotation || 0.0,
         layer: layer,
-        texture_id: spriteData.texture_path || spriteData.texture_id || '',
+        texture_id: assetId || '',  // Use asset_id as texture_id so it matches loaded texture
         tint_color: spriteData.tint_color || [1.0, 1.0, 1.0, 1.0]
       };
 
@@ -323,14 +322,17 @@ class WasmIntegrationService {
       // Add sprite to WASM engine
       const addedSpriteId = this.renderEngine.add_sprite_to_layer(layer, wasmSprite);
       console.log('Successfully added sprite to WASM:', addedSpriteId, wasmSprite);
-
-      // Check if asset needs to be downloaded
-      const assetId = spriteData.asset_id || spriteData.asset_xxhash;
-      if (assetId && (this.renderEngine as any).has_asset && !(this.renderEngine as any).has_asset(assetId)) {
-        console.log('Asset not found, requesting download:', assetId);
-        if ((this.renderEngine as any).request_asset_download) {
-          (this.renderEngine as any).request_asset_download(assetId);
-        }
+      
+      console.log('Asset management for sprite:', {
+        spriteId: wasmSprite.id,
+        assetId: assetId
+      });
+      
+      if (assetId) {
+        console.log('Requesting asset download link for:', assetId);
+        this.requestAssetDownloadLink(assetId, wasmSprite.id);
+      } else {
+        console.warn('No asset_id or asset_xxhash found for sprite:', wasmSprite.id);
       }
 
     } catch (error) {
@@ -376,6 +378,79 @@ class WasmIntegrationService {
 
     } catch (error) {
       console.error('Failed to load background image:', error);
+    }
+  }
+
+  /**
+   * Request asset download link from server using protocol client
+   */
+  private async requestAssetDownloadLink(assetId: string, _spriteId: string): Promise<void> {
+    try {
+      console.log('Requesting asset download link for:', assetId);
+      
+      // Dispatch event that components with protocol access can handle
+      window.dispatchEvent(new CustomEvent('request-asset-download', { 
+        detail: { asset_id: assetId } 
+      }));
+      
+    } catch (error) {
+      console.error('Failed to request asset download link:', error);
+    }
+  }
+
+  /**
+   * Handle asset download response and load texture into WASM
+   */
+  private handleAssetDownloaded(data: any): void {
+    console.log('Asset downloaded:', data);
+    
+    if (data.success && data.download_url && data.asset_id) {
+      console.log('Loading texture from download URL:', data.asset_id, data.download_url);
+      this.loadTextureFromUrl(data.asset_id, data.download_url);
+    } else {
+      console.warn('Asset download response failed or incomplete:', data);
+    }
+  }
+
+  /**
+   * Load texture from URL into WASM
+   */
+  private async loadTextureFromUrl(assetId: string, url: string): Promise<void> {
+    if (!this.renderEngine) {
+      console.warn('Cannot load texture: renderEngine not initialized');
+      return;
+    }
+
+    try {
+      console.log('Loading texture from URL:', url);
+      
+      const image = new Image();
+      image.crossOrigin = 'anonymous';
+      
+      const loadPromise = new Promise<void>((resolve, reject) => {
+        image.onload = () => {
+          try {
+            console.log('Image loaded successfully, calling load_texture with name:', assetId);
+            this.renderEngine!.load_texture(assetId, image);
+            console.log('Texture loaded into WASM successfully:', assetId);
+            resolve();
+          } catch (error) {
+            console.error('Failed to load texture into WASM:', error);
+            reject(error);
+          }
+        };
+        
+        image.onerror = (error) => {
+          console.error('Failed to load image from URL:', url, error);
+          reject(error);
+        };
+      });
+      
+      image.src = url;
+      await loadPromise;
+      
+    } catch (error) {
+      console.error('Failed to load texture from URL:', error);
     }
   }
 

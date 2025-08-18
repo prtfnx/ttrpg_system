@@ -41,6 +41,8 @@ features = [
   "MessageEvent",
   "CloseEvent",
   "ErrorEvent",
+  "CustomEvent",
+  "CustomEventInit",
   "WebGl2RenderingContext",
   "WebGlProgram",
   "WebGlShader",

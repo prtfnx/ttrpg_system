@@ -267,4 +267,35 @@ impl LayerManager {
         
         Ok(sprite_id)
     }
+
+    /// Clear all sprites from all layers
+    pub fn clear_all_layers(&mut self) {
+        for layer in self.layers.values_mut() {
+            layer.sprites.clear();
+        }
+    }
+
+    /// Update sprite position by ID across all layers
+    pub fn update_sprite_position(&mut self, sprite_id: &str, new_position: Vec2) -> bool {
+        for layer in self.layers.values_mut() {
+            if let Some(sprite) = layer.sprites.iter_mut().find(|s| s.id == sprite_id) {
+                sprite.world_x = new_position.x as f64;
+                sprite.world_y = new_position.y as f64;
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Update sprite scale by ID across all layers
+    pub fn update_sprite_scale(&mut self, sprite_id: &str, new_scale: Vec2) -> bool {
+        for layer in self.layers.values_mut() {
+            if let Some(sprite) = layer.sprites.iter_mut().find(|s| s.id == sprite_id) {
+                sprite.scale_x = new_scale.x as f64;
+                sprite.scale_y = new_scale.y as f64;
+                return true;
+            }
+        }
+        false
+    }
 }

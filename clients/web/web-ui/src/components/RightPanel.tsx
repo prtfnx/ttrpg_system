@@ -9,10 +9,11 @@ import { LightingPanel } from './LightingPanel';
 import { PaintPanel } from './PaintPanel';
 import { TableManagementPanel } from './TableManagementPanel';
 import TableSyncPanel from './TableSyncPanel';
+import { ActionQueuePanel } from './ActionQueuePanel';
 
 
 export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
-  const [activeTab, setActiveTab] = useState<'tables' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'paint' | 'sync' | 'players'>('tables');
+  const [activeTab, setActiveTab] = useState<'tables' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'paint' | 'sync' | 'players' | 'actions'>('tables');
 
   return (
     <div className="game-panel right-panel" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#111827', borderLeft: '1px solid #374151' }}>
@@ -32,6 +33,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
         {activeTab === 'sync' && <TableSyncPanel />}
         {activeTab === 'characters' && <CharacterManager sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'players' && <PlayerManager sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
+        {activeTab === 'actions' && <ActionQueuePanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'entities' && <EntitiesPanel />}
         {activeTab === 'chat' && <ChatPanel />}
         {activeTab === 'lighting' && <LightingPanel />}

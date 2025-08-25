@@ -386,6 +386,8 @@ export function ToolsPanel() {
       <AssetManager 
         isVisible={assetManagerVisible} 
         onClose={() => setAssetManagerVisible(false)} 
+        sessionCode={sessionId}
+        userInfo={{ username: window.gameAPI?.user?.username || 'unknown', role: window.gameAPI?.user?.role || 'player' }}
       />
     </div>
   );

@@ -8,8 +8,8 @@ import './AssetManager.css';
 interface AssetManagerProps {
   isVisible: boolean;
   onClose: () => void;
-  sessionCode?: string;
-  userInfo?: any;
+  sessionCode: string;
+  userInfo: any;
 }
 
 interface FileUploadInfo {
@@ -19,16 +19,15 @@ interface FileUploadInfo {
   status: 'pending' | 'uploading' | 'completed' | 'failed';
 }
 
+export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, sessionCode, userInfo }) => {
   const [activeTab, setActiveTab] = useState<'cache' | 'upload' | 'settings'>('cache');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
   const [uploadFiles, setUploadFiles] = useState<Map<string, FileUploadInfo>>(new Map());
-  const [presence, setPresence] = useState<Array<{ username: string; editing: boolean }>>([]);
-  const [assetDelta, setAssetDelta] = useState<Array<{ type: 'add'|'remove'|'update'; assetId: string; payload?: any }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // WebSocket protocol for asset sync
-  const { protocol } = useAuthenticatedWebSocket({ sessionCode: (typeof window !== 'undefined' && window.sessionCode) || '', userInfo: (typeof window !== 'undefined' && window.userInfo) || {} });
+  const { protocol } = useAuthenticatedWebSocket({ sessionCode, userInfo });
 
   const {
     stats,
@@ -61,28 +60,8 @@ interface FileUploadInfo {
   // Event-driven asset sync
   useEffect(() => {
     if (protocol) {
-      protocol.sendMessage(createMessage(MessageType.ASSET_ACTION, { action: "asset_list" }, 1));
+      protocol.sendMessage(createMessage(MessageType.PLAYER_ACTION, { action: "asset_list" }, 1));
     }
-    const handleAssetList = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail?.assets) {
-        // Delta sync: update only changed assets
-        setAssetDelta([]);
-        // Optionally update local cache
-      }
-    };
-    const handleAssetPresence = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail?.presence) {
-        setPresence(customEvent.detail.presence);
-      }
-    };
-    window.addEventListener("asset-list-updated", handleAssetList);
-    window.addEventListener("asset-presence-updated", handleAssetPresence);
-    return () => {
-      window.removeEventListener("asset-list-updated", handleAssetList);
-      window.removeEventListener("asset-presence-updated", handleAssetPresence);
-    };
   }, [protocol]);
 
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,11 +91,9 @@ interface FileUploadInfo {
       }
 
       newUploadFiles.set(fileId, fileInfo);
-      // Batch upload: add to delta
-      setAssetDelta(d => [...d, { type: 'add', assetId: fileId, payload: file }]);
       // Send upload request via protocol
       if (protocol) {
-        protocol.sendMessage(createMessage(MessageType.ASSET_ACTION, { action: "asset_upload", fileId, fileName: file.name }, 1));
+        protocol.sendMessage(createMessage(MessageType.PLAYER_ACTION, { action: "asset_upload", fileId, fileName: file.name }, 1));
       }
     });
 
@@ -493,4 +470,6 @@ interface FileUploadInfo {
       </div>
     </div>
   );
-};
+}
+
+// Removed duplicate export

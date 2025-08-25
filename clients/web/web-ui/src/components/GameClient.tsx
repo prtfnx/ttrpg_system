@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { useAuthenticatedWebSocket } from '../hooks/useAuthenticatedWebSocket';
 import type { UserInfo } from '../services/auth.service';
-import { CharacterManager } from './CharacterManager';
 import { GameCanvas } from './GameCanvas';
 import './GameClient.css';
 import { RightPanel } from './RightPanel';
@@ -97,8 +96,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
             <GameCanvas />
           </div>
           <div className="right-panel">
-            <RightPanel />
-            <CharacterManager sessionCode={sessionCode} userInfo={userInfo} />
+            <RightPanel sessionCode={sessionCode} userInfo={userInfo} />
           </div>
         </div>
       </div>

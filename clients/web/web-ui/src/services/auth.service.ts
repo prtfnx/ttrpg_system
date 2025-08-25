@@ -20,6 +20,10 @@ export interface SessionInfo {
 class AuthService {
   private token: string | null = null;
   private userInfo: UserInfo | null = null;
+  private lastRequestTime: number = 0;
+  private requestCount: number = 0;
+  private static RATE_LIMIT = 10; // max 10 requests per 10 seconds
+  private static RATE_LIMIT_WINDOW = 10000; // 10 seconds
 
   /**
    * Extract JWT token from HTTP-only cookie set by FastAPI
@@ -27,57 +31,46 @@ class AuthService {
    * Instead, we rely on server-side validation of the cookie
    */
   async extractToken(): Promise<string | null> {
+    // Rate limiting
+    const now = Date.now();
+    if (now - this.lastRequestTime > AuthService.RATE_LIMIT_WINDOW) {
+      this.requestCount = 0;
+      this.lastRequestTime = now;
+    }
+    this.requestCount++;
+    if (this.requestCount > AuthService.RATE_LIMIT) {
+      throw new Error('Rate limit exceeded. Please wait before retrying.');
+    }
     // For HTTP-only cookies, we can't read them directly
     // Instead, we validate authentication by making a request to /users/me
-    console.log('🔍 Attempting to extract token via /users/me...');
-    
     try {
-      console.log('📡 Making request to /users/me with credentials...');
       const response = await fetch('/users/me', {
-        credentials: 'include', // Include HTTP-only cookies
-        headers: {
-          'Accept': 'application/json',
-        }
+        credentials: 'include',
+        headers: { 'Accept': 'application/json' }
       });
-
-      console.log(`📈 Response status: ${response.status} ${response.statusText}`);
-      console.log('📋 Response headers:', Object.fromEntries(response.headers.entries()));
-
       if (response.ok) {
-        console.log('✅ Response OK, parsing user data...');
         const userData = await response.json();
-        console.log('👤 User data received:', userData);
-        
         this.userInfo = {
           id: userData.id,
           username: userData.username,
-          role: userData.role || 'player', // Use role from server response
+          role: userData.role || 'player',
           permissions: userData.permissions || []
         };
-        // We don't have the actual token, but we know authentication works
         this.token = 'authenticated-via-cookie';
-        console.log('✅ Token extracted successfully via cookie');
         return this.token;
       } else if (response.status === 401) {
-        // User is not authenticated - this is expected, not an error
-        console.log('🔐 User not authenticated (401), this is expected for unauthenticated users');
         return null;
       } else {
-        console.error('❌ Unexpected response from /users/me:', response.status, response.statusText);
         return null;
       }
     } catch (error) {
-      console.error('💥 Failed to validate authentication:', error);
       return null;
     }
-
-    // Try URL parameter as fallback (for direct session links with token)
     const urlToken = this.extractTokenFromURL();
     if (urlToken) {
       this.token = urlToken;
       return urlToken;
     }
-
     return null;
   }
 
@@ -90,15 +83,34 @@ class AuthService {
    * Validate token with server and extract user info
    */
   async validateToken(token: string): Promise<UserInfo | null> {
+    // Token refresh logic
     try {
-      const response = await fetch('/users/me', {
+      let response = await fetch('/users/me', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         credentials: 'include'
       });
-
+      if (response.status === 401) {
+        // Try to refresh token
+        const refreshResponse = await fetch('/users/refresh', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (refreshResponse.ok) {
+          const refreshData = await refreshResponse.json();
+          this.token = refreshData.token;
+          response = await fetch('/users/me', {
+            headers: {
+              'Authorization': `Bearer ${this.token}`,
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+          });
+        }
+      }
       if (response.ok) {
         const userData = await response.json();
         this.userInfo = {
@@ -110,7 +122,7 @@ class AuthService {
         return this.userInfo;
       }
     } catch (error) {
-      console.error('Token validation failed:', error);
+      return null;
     }
     return null;
   }

@@ -27,6 +27,8 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
+  const [lockedBy, setLockedBy] = useState<string | null>(null);
+  const [presence, setPresence] = useState<Array<{ username: string; editing: boolean }>>([]);
   const [mutationQueue, setMutationQueue] = useState<Array<{ type: 'create'|'update'|'delete'; payload: any; tempId?: string }>>([]);
 
   // Event-driven character list fetch and updates
@@ -45,8 +47,28 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
       }
       setLoading(false);
     };
+    const handleLock = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.lockedBy) {
+        setLockedBy(customEvent.detail.lockedBy);
+      } else {
+        setLockedBy(null);
+      }
+    };
+    const handlePresence = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.presence) {
+        setPresence(customEvent.detail.presence);
+      }
+    };
     window.addEventListener("character-list-updated", handleCharacterList);
-    return () => window.removeEventListener("character-list-updated", handleCharacterList);
+    window.addEventListener("character-sheet-locked", handleLock);
+    window.addEventListener("character-sheet-presence", handlePresence);
+    return () => {
+      window.removeEventListener("character-list-updated", handleCharacterList);
+      window.removeEventListener("character-sheet-locked", handleLock);
+      window.removeEventListener("character-sheet-presence", handlePresence);
+    };
   }, [protocol]);
 
   // Optimistic update helpers
@@ -137,6 +159,25 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
     optimisticDelete(id);
   }, []);
 
+
+  // Collaborative editing handlers
+  const handleRequestLock = useCallback(() => {
+    if (protocol && selectedCharacter) {
+      protocol.sendMessage(createMessage(MessageType.PLAYER_ACTION, { action: "character_lock", id: selectedCharacter.id }, 1));
+    }
+  }, [protocol, selectedCharacter]);
+
+  const handleReleaseLock = useCallback(() => {
+    if (protocol && selectedCharacter) {
+      protocol.sendMessage(createMessage(MessageType.PLAYER_ACTION, { action: "character_unlock", id: selectedCharacter.id }, 1));
+    }
+  }, [protocol, selectedCharacter]);
+
+  const handleSync = useCallback((character: Character) => {
+    // Optionally handle live updates from other users
+    setSelectedCharacter(character);
+  }, []);
+
   if (loading) return <div className="loading">Loading characters...</div>;
   if (error) return <div className="error">{error}</div>;
 
@@ -158,9 +199,22 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
       </ul>
       <button onClick={() => setSelectedCharacter(null)}>Create New Character</button>
       {selectedCharacter ? (
-        <CharacterSheet character={selectedCharacter} onSave={handleUpdate} />
+        <CharacterSheet
+          character={selectedCharacter}
+          onSave={handleUpdate}
+          lockedBy={lockedBy}
+          presence={presence}
+          onRequestLock={handleRequestLock}
+          onReleaseLock={handleReleaseLock}
+          onSync={handleSync}
+        />
       ) : (
-        <CharacterSheet character={null} onSave={handleCreate} />
+        <CharacterSheet
+          character={null}
+          onSave={handleCreate}
+          lockedBy={null}
+          presence={presence}
+        />
       )}
     </div>
   );

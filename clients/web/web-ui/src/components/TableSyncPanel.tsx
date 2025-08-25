@@ -27,6 +27,7 @@ export default function TableSyncPanel() {
     imageUrl: '',
     rotation: 0
   });
+  const [mutationQueue, setMutationQueue] = useState<Array<{ type: 'create'|'update'|'delete'; payload: any; tempId?: string }>>([]);
 
   const addLog = (type: ActivityLog['type'], message: string, emoji: string) => {
     const newLog: ActivityLog = {
@@ -53,19 +54,46 @@ export default function TableSyncPanel() {
     }
   }, [error]);
 
+  // Optimistic update helpers for table CRUD
+  const optimisticCreateTable = (name: string) => {
+    const tempId = `temp-table-${Date.now()}`;
+    addLog('info', `Optimistically creating table: ${name}`, '🆕');
+    setMutationQueue(q => [...q, { type: 'create', payload: { name }, tempId }]);
+  };
+
+  const optimisticRequestTable = (tableId: string) => {
+    addLog('info', `Optimistically requesting table: ${tableId}`, '📡');
+    setMutationQueue(q => [...q, { type: 'update', payload: { tableId } }]);
+  };
+
+  // Reconcile mutations with server responses
+  useEffect(() => {
+    if (!tableSync || mutationQueue.length === 0) return;
+    const processQueue = async () => {
+      for (const mutation of mutationQueue) {
+        try {
+          if (mutation.type === 'create') {
+            await tableSync.request_new_table(mutation.payload.name);
+            addLog('success', `Table created: ${mutation.payload.name}`, '✅');
+          } else if (mutation.type === 'update') {
+            await tableSync.request_table(mutation.payload.tableId);
+            addLog('success', `Table requested: ${mutation.payload.tableId}`, '✅');
+          }
+        } catch (err) {
+          addLog('error', `Failed to ${mutation.type} table: ${err}`, '❌');
+        }
+      }
+      setMutationQueue([]);
+    };
+    processQueue();
+  }, [mutationQueue, tableSync]);
+
   const handleRequestTable = async () => {
     if (!tableSync || !currentTableId.trim()) {
       addLog('warning', 'Please enter a table ID', '⚠️');
       return;
     }
-
-    try {
-      addLog('info', `Requesting table: ${currentTableId}`, '📡');
-      await tableSync.request_table(currentTableId.trim());
-      addLog('success', `Table request sent for: ${currentTableId}`, '✅');
-    } catch (err) {
-      addLog('error', `Failed to request table: ${err}`, '❌');
-    }
+    optimisticRequestTable(currentTableId.trim());
   };
 
   const handleCreateNewTable = async () => {
@@ -73,15 +101,8 @@ export default function TableSyncPanel() {
       addLog('warning', 'Please enter a table name', '⚠️');
       return;
     }
-
-    try {
-      addLog('info', `Creating new table: ${newTableName}`, '🆕');
-      await tableSync.request_new_table(newTableName.trim());
-      addLog('success', `New table request sent: ${newTableName}`, '✅');
-      setNewTableName('');
-    } catch (err) {
-      addLog('error', `Failed to create new table: ${err}`, '❌');
-    }
+    optimisticCreateTable(newTableName.trim());
+    setNewTableName('');
   };
 
   const handleAddSprite = async () => {

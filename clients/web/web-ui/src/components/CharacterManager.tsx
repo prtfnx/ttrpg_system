@@ -19,59 +19,123 @@ interface CharacterManagerProps {
   userInfo: UserInfo;
 }
 
+
+
 export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode, userInfo }) => {
   const { protocol } = useAuthenticatedWebSocket({ sessionCode, userInfo });
   const [characters, setCharacters] = useState<Character[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
+  const [mutationQueue, setMutationQueue] = useState<Array<{ type: 'create'|'update'|'delete'; payload: any; tempId?: string }>>([]);
 
-  // Fetch character list and subscribe to updates
+  // Event-driven character list fetch and updates
   useEffect(() => {
     setLoading(true);
-    protocol?.requestCharacterList();
+    if (protocol) {
+      protocol.sendMessage(createMessage(MessageType.PLAYER_ACTION, { action: "character_list" }, 1));
+    }
     const handleCharacterList = (event: Event) => {
       const customEvent = event as CustomEvent;
-      setCharacters(customEvent.detail.characters || []);
+      if (customEvent.detail?.characters) {
+        setCharacters(customEvent.detail.characters);
+        setError(null);
+      } else {
+        setError("Failed to fetch character list");
+      }
       setLoading(false);
     };
-    window.addEventListener('character-list-updated', handleCharacterList);
-    return () => window.removeEventListener('character-list-updated', handleCharacterList);
+    window.addEventListener("character-list-updated", handleCharacterList);
+    return () => window.removeEventListener("character-list-updated", handleCharacterList);
   }, [protocol]);
 
-  // CRUD operations
-  const handleCreate = useCallback((character: Partial<Character>) => {
-    setLoading(true);
-    try {
-  protocol?.saveCharacter(character as unknown as Record<string, unknown>);
-    } catch {
-      setError("Failed to create character");
-    } finally {
-      setLoading(false);
-    }
-  }, [protocol]);
+  // Optimistic update helpers
+  const optimisticCreate = (character: Partial<Character>) => {
+    const tempId = `temp-${Date.now()}`;
+    setCharacters(prev => [...prev, { ...character, id: tempId, owner: userInfo.username } as Character]);
+    setMutationQueue(q => [...q, { type: 'create', payload: character, tempId }]);
+  };
 
-  const handleUpdate = useCallback((character: Character) => {
-    setLoading(true);
-    try {
-  protocol?.saveCharacter(character as unknown as Record<string, unknown>);
-    } catch {
-      setError("Failed to update character");
-    } finally {
-      setLoading(false);
-    }
-  }, [protocol]);
+  const optimisticUpdate = (character: Character) => {
+    setCharacters(prev => prev.map(c => c.id === character.id ? character : c));
+    setMutationQueue(q => [...q, { type: 'update', payload: character }]);
+  };
 
-  const handleDelete = useCallback((id: string) => {
-    setLoading(true);
-    try {
-  protocol?.sendMessage(createMessage(MessageType.CHARACTER_DELETE_REQUEST, { id }, 1));
-    } catch {
-      setError("Failed to delete character");
-    } finally {
-      setLoading(false);
+  const optimisticDelete = (id: string) => {
+    setCharacters(prev => prev.filter(c => c.id !== id));
+    setMutationQueue(q => [...q, { type: 'delete', payload: { id } }]);
+  };
+
+  // Reconcile mutations with server responses
+  useEffect(() => {
+    if (!protocol || mutationQueue.length === 0) return;
+    const processQueue = async () => {
+      for (const mutation of mutationQueue) {
+        try {
+          if (mutation.type === 'create') {
+            await protocol.sendMessage(createMessage(MessageType.PLAYER_ACTION, { action: "character_create", character: mutation.payload }, 1));
+            // On success, refetch character list to get real ID
+            protocol.sendMessage(createMessage(MessageType.PLAYER_ACTION, { action: "character_list" }, 1));
+          } else if (mutation.type === 'update') {
+            await protocol.sendMessage(createMessage(MessageType.PLAYER_ACTION, { action: "character_update", character: mutation.payload }, 1));
+            protocol.sendMessage(createMessage(MessageType.PLAYER_ACTION, { action: "character_list" }, 1));
+          } else if (mutation.type === 'delete') {
+            await protocol.sendMessage(createMessage(MessageType.PLAYER_ACTION, { action: "character_delete", id: mutation.payload.id }, 1));
+            protocol.sendMessage(createMessage(MessageType.PLAYER_ACTION, { action: "character_list" }, 1));
+          }
+        } catch (err) {
+          setError(`Failed to ${mutation.type} character`);
+          // Rollback optimistic change if server rejects
+          if (mutation.type === 'create' && mutation.tempId) {
+            setCharacters(prev => prev.filter(c => c.id !== mutation.tempId));
+          } else if (mutation.type === 'update') {
+            // Optionally refetch or restore previous state
+            protocol.sendMessage(createMessage(MessageType.PLAYER_ACTION, { action: "character_list" }, 1));
+          } else if (mutation.type === 'delete') {
+            protocol.sendMessage(createMessage(MessageType.PLAYER_ACTION, { action: "character_list" }, 1));
+          }
+        }
+      }
+      setMutationQueue([]);
+    };
+    processQueue();
+  }, [mutationQueue, protocol]);
+
+  // Strictly typed CRUD operations using optimistic updates
+  // Input validation helpers
+  const validateCharacter = (character: Partial<Character>): string | null => {
+    if (!character.name || typeof character.name !== 'string' || character.name.length < 2) return 'Name must be at least 2 characters.';
+    if (!character.class || typeof character.class !== 'string') return 'Class is required.';
+    if (!character.race || typeof character.race !== 'string') return 'Race is required.';
+    if (typeof character.level !== 'number' || character.level < 1) return 'Level must be a positive number.';
+    if (!character.stats || typeof character.stats !== 'object') return 'Stats are required.';
+    return null;
+  };
+
+  const handleCreate = useCallback(async (character: Partial<Character>) => {
+    setError(null);
+    const validationError = validateCharacter(character);
+    if (validationError) {
+      setError(validationError);
+      return;
     }
-  }, [protocol]);
+    optimisticCreate(character);
+  }, [userInfo]);
+
+  const handleUpdate = useCallback(async (character: Character) => {
+    setError(null);
+    const validationError = validateCharacter(character);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    optimisticUpdate(character);
+  }, []);
+
+  const handleDelete = useCallback(async (id: string) => {
+    setError(null);
+    optimisticDelete(id);
+  }, []);
 
   if (loading) return <div className="loading">Loading characters...</div>;
   if (error) return <div className="error">{error}</div>;
@@ -83,12 +147,12 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
         {characters.map((char) => (
           <li key={char.id}>
             <button onClick={() => setSelectedCharacter(char)}>{char.name}</button>
-            {userInfo.role === "dm" || char.owner === userInfo.username ? (
+            {(userInfo.role === "dm" || char.owner === userInfo.username) && (
               <>
-                <button onClick={() => handleUpdate(char)}>Edit</button>
+                <button onClick={() => setSelectedCharacter(char)}>Edit</button>
                 <button onClick={() => handleDelete(char.id)}>Delete</button>
               </>
-            ) : null}
+            )}
           </li>
         ))}
       </ul>

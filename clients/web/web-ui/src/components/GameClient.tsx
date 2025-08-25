@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
 import { useAuthenticatedWebSocket } from '../hooks/useAuthenticatedWebSocket';
 import type { UserInfo } from '../services/auth.service';
+import { CharacterManager } from './CharacterManager';
 import { GameCanvas } from './GameCanvas';
 import './GameClient.css';
 import { RightPanel } from './RightPanel';
-import { CharacterManager } from './CharacterManager';
 import { ToolsPanel } from './ToolsPanel';
 
 interface ErrorBoundaryState {

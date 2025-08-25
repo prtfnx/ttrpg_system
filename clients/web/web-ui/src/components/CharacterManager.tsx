@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useAuthenticatedWebSocket } from "../hooks/useAuthenticatedWebSocket";
+import { MessageType, createMessage } from "../protocol/message";
 import type { UserInfo } from "../services/auth.service";
-import { MessageType } from "../protocol/message";
 import { CharacterSheet } from "./CharacterSheet";
 
 export interface Character {
@@ -26,27 +26,24 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
   const [error, setError] = useState<string | null>(null);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
 
-  // Fetch character list
+  // Fetch character list and subscribe to updates
   useEffect(() => {
     setLoading(true);
-    protocol?.sendMessage({ type: MessageType.CHARACTER_LIST_REQUEST, priority: 1 })
-      .catch(() => setError("Failed to fetch characters"))
-      .finally(() => setLoading(false));
-    // Listen for character list response
-    const handler = (msg: any) => {
-      if (msg.type === MessageType.CHARACTER_LIST_RESPONSE) {
-        setCharacters(msg.data.characters);
-      }
+    protocol?.requestCharacterList();
+    const handleCharacterList = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      setCharacters(customEvent.detail.characters || []);
+      setLoading(false);
     };
-    protocol?.onMessage?.(handler);
-    return () => protocol?.offMessage?.(handler);
+    window.addEventListener('character-list-updated', handleCharacterList);
+    return () => window.removeEventListener('character-list-updated', handleCharacterList);
   }, [protocol]);
 
   // CRUD operations
-  const handleCreate = useCallback(async (character: Partial<Character>) => {
+  const handleCreate = useCallback((character: Partial<Character>) => {
     setLoading(true);
     try {
-      await protocol?.sendMessage({ type: MessageType.CHARACTER_SAVE_REQUEST, data: character, priority: 1 });
+  protocol?.saveCharacter(character as unknown as Record<string, unknown>);
     } catch {
       setError("Failed to create character");
     } finally {
@@ -54,10 +51,10 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
     }
   }, [protocol]);
 
-  const handleUpdate = useCallback(async (character: Character) => {
+  const handleUpdate = useCallback((character: Character) => {
     setLoading(true);
     try {
-      await protocol?.sendMessage({ type: MessageType.CHARACTER_SAVE_REQUEST, data: character, priority: 1 });
+  protocol?.saveCharacter(character as unknown as Record<string, unknown>);
     } catch {
       setError("Failed to update character");
     } finally {
@@ -65,10 +62,10 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
     }
   }, [protocol]);
 
-  const handleDelete = useCallback(async (id: string) => {
+  const handleDelete = useCallback((id: string) => {
     setLoading(true);
     try {
-      await protocol?.sendMessage({ type: MessageType.CHARACTER_DELETE_REQUEST, data: { id }, priority: 1 });
+  protocol?.sendMessage(createMessage(MessageType.CHARACTER_DELETE_REQUEST, { id }, 1));
     } catch {
       setError("Failed to delete character");
     } finally {

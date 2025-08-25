@@ -4,6 +4,7 @@ import type { UserInfo } from '../services/auth.service';
 import { GameCanvas } from './GameCanvas';
 import './GameClient.css';
 import { RightPanel } from './RightPanel';
+import { CharacterManager } from './CharacterManager';
 import { ToolsPanel } from './ToolsPanel';
 
 interface ErrorBoundaryState {
@@ -97,6 +98,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
           </div>
           <div className="right-panel">
             <RightPanel />
+            <CharacterManager sessionCode={sessionCode} userInfo={userInfo} />
           </div>
         </div>
       </div>

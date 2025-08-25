@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import CharacterPanel from './CharacterPanel';
+import { CharacterManager } from './CharacterManager';
 import ChatPanel from './ChatPanel';
 import { EntitiesPanel } from './EntitiesPanel';
 import { FogPanel } from './FogPanel';
@@ -9,7 +9,7 @@ import { PaintPanel } from './PaintPanel';
 import { TableManagementPanel } from './TableManagementPanel';
 import TableSyncPanel from './TableSyncPanel';
 
-export function RightPanel() {
+export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
   const [activeTab, setActiveTab] = useState<'tables' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'paint' | 'sync'>('tables');
 
   return (
@@ -27,7 +27,7 @@ export function RightPanel() {
       <div className="tab-content" style={{ flex: 1, padding: '16px', overflowY: 'auto' }}>
         {activeTab === 'tables' && <TableManagementPanel />}
         {activeTab === 'sync' && <TableSyncPanel />}
-        {activeTab === 'characters' && <CharacterPanel />}
+        {activeTab === 'characters' && <CharacterManager sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'entities' && <EntitiesPanel />}
         {activeTab === 'chat' && <ChatPanel />}
         {activeTab === 'lighting' && <LightingPanel />}

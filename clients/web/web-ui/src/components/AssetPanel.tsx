@@ -22,6 +22,8 @@ export const AssetPanel: React.FC = () => {
 
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const assets = listAssets();
   const selectedAssetInfo = selectedAsset ? getAssetInfo(selectedAsset) : null;
@@ -64,10 +66,61 @@ export const AssetPanel: React.FC = () => {
     return <div className="asset-panel">Initializing Asset Manager...</div>;
   }
 
+  // Drag-and-drop upload handler
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const file = e.dataTransfer.files[0];
+      if (!file) throw new Error('No file dropped');
+
+      // Request presigned upload URL from backend (replace with protocol call)
+      const response = await fetch('/api/assets/presigned-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name, mimeType: file.type })
+      });
+      if (!response.ok) throw new Error('Failed to get presigned URL');
+      const { uploadUrl, assetId } = await response.json();
+
+      // Upload file to R2/S3
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type }
+      });
+      if (!uploadRes.ok) throw new Error('Upload failed');
+
+      // Notify asset manager to cache asset
+      await downloadAsset(uploadUrl);
+      refreshStats();
+      setUploading(false);
+    } catch (err: any) {
+      setUploadError(err.message || 'Upload failed');
+      setUploading(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
+
   return (
     <div className="asset-panel">
       <h3>Asset Manager</h3>
-      
+
+      {/* Drag-and-drop upload */}
+      <div
+        className="upload-dropzone"
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        style={{border:'2px dashed #3b82f6',padding:16,marginBottom:16,textAlign:'center',background:'#18181b',color:'#fff'}}
+      >
+        {uploading ? 'Uploading...' : 'Drag and drop a file here to upload to cloud storage'}
+        {uploadError && <div style={{color:'#f87171',marginTop:8}}>{uploadError}</div>}
+      </div>
+
       {/* Download Section */}
       <div className="download-section">
         <h4>Download Asset</h4>

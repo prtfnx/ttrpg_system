@@ -1,15 +1,15 @@
 
 import { useState } from 'react';
+import { ActionQueuePanel } from './ActionQueuePanel';
 import { CharacterManager } from './CharacterManager';
-import { PlayerManager } from './PlayerManager';
 import ChatPanel from './ChatPanel';
 import { EntitiesPanel } from './EntitiesPanel';
 import { FogPanel } from './FogPanel';
 import { LightingPanel } from './LightingPanel';
 import { PaintPanel } from './PaintPanel';
+import { PlayerManagerPanel } from './PlayerManagerPanel';
 import { TableManagementPanel } from './TableManagementPanel';
 import TableSyncPanel from './TableSyncPanel';
-import { ActionQueuePanel } from './ActionQueuePanel';
 
 
 export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
@@ -32,7 +32,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
         {activeTab === 'tables' && <TableManagementPanel />}
         {activeTab === 'sync' && <TableSyncPanel />}
         {activeTab === 'characters' && <CharacterManager sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
-        {activeTab === 'players' && <PlayerManager sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
+  {activeTab === 'players' && <PlayerManagerPanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'actions' && <ActionQueuePanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'entities' && <EntitiesPanel />}
         {activeTab === 'chat' && <ChatPanel />}

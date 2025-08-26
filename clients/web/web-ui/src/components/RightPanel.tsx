@@ -10,14 +10,16 @@ import { PaintPanel } from './PaintPanel';
 import { PlayerManagerPanel } from './PlayerManagerPanel';
 import { TableManagementPanel } from './TableManagementPanel';
 import TableSyncPanel from './TableSyncPanel';
+import { CompendiumPanel } from './CompendiumPanel';
 
 
 export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
-  const [activeTab, setActiveTab] = useState<'tables' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'paint' | 'sync' | 'players' | 'actions'>('tables');
+  const [activeTab, setActiveTab] = useState<'tables' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'paint' | 'sync' | 'players' | 'actions' | 'compendium'>('tables');
 
   return (
     <div className="game-panel right-panel" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#111827', borderLeft: '1px solid #374151' }}>
-      <div className="tabs" style={{ display: 'flex', borderBottom: '1px solid #374151' }}>
+  <div className="tabs" style={{ display: 'flex', borderBottom: '1px solid #374151' }}>
+  <button className={activeTab === 'compendium' ? 'active' : ''} style={{ flex: 1, padding: '8px', background: activeTab === 'compendium' ? '#1f2937' : 'transparent', border: 'none', borderBottom: activeTab === 'compendium' ? '2px solid #3b82f6' : 'none', cursor: 'pointer', fontSize: '11px', color: '#ffffff' }} onClick={() => setActiveTab('compendium')}>Compendium</button>
         <button className={activeTab === 'tables' ? 'active' : ''} style={{ flex: 1, padding: '8px', background: activeTab === 'tables' ? '#1f2937' : 'transparent', border: 'none', borderBottom: activeTab === 'tables' ? '2px solid #3b82f6' : 'none', cursor: 'pointer', fontSize: '11px', color: '#ffffff' }} onClick={() => setActiveTab('tables')}>Tables</button>
         <button className={activeTab === 'sync' ? 'active' : ''} style={{ flex: 1, padding: '8px', background: activeTab === 'sync' ? '#1f2937' : 'transparent', border: 'none', borderBottom: activeTab === 'sync' ? '2px solid #3b82f6' : 'none', cursor: 'pointer', fontSize: '11px', color: '#ffffff' }} onClick={() => setActiveTab('sync')}>Sync</button>
         <button className={activeTab === 'characters' ? 'active' : ''} style={{ flex: 1, padding: '8px', background: activeTab === 'characters' ? '#1f2937' : 'transparent', border: 'none', borderBottom: activeTab === 'characters' ? '2px solid #3b82f6' : 'none', cursor: 'pointer', fontSize: '11px', color: '#ffffff' }} onClick={() => setActiveTab('characters')}>Characters</button>
@@ -32,13 +34,14 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
         {activeTab === 'tables' && <TableManagementPanel />}
         {activeTab === 'sync' && <TableSyncPanel />}
         {activeTab === 'characters' && <CharacterManager sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
-  {activeTab === 'players' && <PlayerManagerPanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
+        {activeTab === 'players' && <PlayerManagerPanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'actions' && <ActionQueuePanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'entities' && <EntitiesPanel />}
         {activeTab === 'chat' && <ChatPanel />}
         {activeTab === 'lighting' && <LightingPanel />}
         {activeTab === 'fog' && <FogPanel />}
         {activeTab === 'paint' && <PaintPanel renderEngine={window.rustRenderManager as any || null} />}
+        {activeTab === 'compendium' && <CompendiumPanel />}
       </div>
     </div>
   );

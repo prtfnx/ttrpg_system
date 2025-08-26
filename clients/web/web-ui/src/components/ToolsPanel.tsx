@@ -20,7 +20,13 @@ declare global {
 // Integration mode detection
 const isIntegrationMode = !document.getElementById('root');
 
-export function ToolsPanel() {
+import type { UserInfo } from '../services/auth.service';
+
+interface ToolsPanelProps {
+  userInfo: UserInfo;
+}
+
+export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   console.log('[ToolsPanel] Component mounted');
   const [assetManagerVisible, setAssetManagerVisible] = useState(false);
   const [paintPanelVisible, setPaintPanelVisible] = useState(false);
@@ -384,10 +390,10 @@ export function ToolsPanel() {
       
       {/* Asset Manager */}
       <AssetManager 
-        isVisible={assetManagerVisible} 
-        onClose={() => setAssetManagerVisible(false)} 
-        sessionCode={sessionId}
-        userInfo={{ username: window.gameAPI?.user?.username || 'unknown', role: window.gameAPI?.user?.role || 'player' }}
+  isVisible={assetManagerVisible} 
+  onClose={() => setAssetManagerVisible(false)} 
+  sessionCode={sessionId || ""}
+  userInfo={userInfo}
       />
     </div>
   );

@@ -24,7 +24,7 @@ window.ReactGameComponents = {
     root.render(
       <StrictMode>
         <div className="panel-container">
-          <ToolsPanel />
+          <ToolsPanel userInfo={{ id: 0, username: "unknown", role: "player", permissions: [] }} />
         </div>
       </StrictMode>
     );

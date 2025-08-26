@@ -1,9 +1,9 @@
 
 
 import React, { useEffect, useState } from "react";
-import type { UserInfo } from "../services/auth.service";
 import { useAuthenticatedWebSocket } from "../hooks/useAuthenticatedWebSocket";
 import { createMessage, MessageType } from "../protocol/message";
+import type { UserInfo } from "../services/auth.service";
 
 interface Player {
   id: string;
@@ -15,26 +15,52 @@ interface Player {
 export const PlayerManagerPanel: React.FC<{ sessionCode: string; userInfo: UserInfo }> = ({ sessionCode, userInfo }) => {
   const { protocol } = useAuthenticatedWebSocket({ sessionCode, userInfo });
   const [players, setPlayers] = useState<Player[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!protocol) return;
     protocol.sendMessage(createMessage(MessageType.PLAYER_LIST_REQUEST, {}, 1));
-    const handler = (event: Event) => {
+    const listHandler = (event: Event) => {
       const { detail } = event as CustomEvent;
       if (detail && detail.players) setPlayers(detail.players);
     };
-    window.addEventListener("player-list-updated", handler);
-    return () => window.removeEventListener("player-list-updated", handler);
+    const statusHandler = (event: Event) => {
+      const { detail } = event as CustomEvent;
+      if (detail && detail.players) setPlayers(detail.players);
+    };
+    const errorHandler = (event: Event) => {
+      const { detail } = event as CustomEvent;
+      if (detail && detail.error) setError(detail.error);
+    };
+    window.addEventListener("player-list-updated", listHandler);
+    window.addEventListener("player-status-updated", statusHandler);
+    window.addEventListener("player-kicked", statusHandler);
+    window.addEventListener("player-banned", statusHandler);
+    window.addEventListener("player-action-error", errorHandler);
+    return () => {
+      window.removeEventListener("player-list-updated", listHandler);
+      window.removeEventListener("player-status-updated", statusHandler);
+      window.removeEventListener("player-kicked", statusHandler);
+      window.removeEventListener("player-banned", statusHandler);
+      window.removeEventListener("player-action-error", errorHandler);
+    };
   }, [protocol]);
 
-  const kick = (id: string) => protocol?.sendMessage(createMessage(MessageType.PLAYER_KICK_REQUEST, { id }, 1));
-  const ban = (id: string) => protocol?.sendMessage(createMessage(MessageType.PLAYER_BAN_REQUEST, { id }, 1));
+  const kick = (id: string) => {
+    setError(null);
+    protocol?.sendMessage(createMessage(MessageType.PLAYER_KICK_REQUEST, { id }, 1));
+  };
+  const ban = (id: string) => {
+    setError(null);
+    protocol?.sendMessage(createMessage(MessageType.PLAYER_BAN_REQUEST, { id }, 1));
+  };
 
   if (userInfo.role !== "dm") return null;
 
   return (
     <div className="panel">
       <h3>Player Management</h3>
+      {error && <div className="error">{error}</div>}
       <ul>
         {players.map((p) => (
           <li key={p.id}>

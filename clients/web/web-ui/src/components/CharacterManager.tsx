@@ -144,14 +144,19 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
     optimisticCreate(character);
   }, [userInfo]);
 
-  const handleUpdate = useCallback(async (character: Character) => {
+  const handleUpdate = useCallback((character: Partial<Character>) => {
     setError(null);
     const validationError = validateCharacter(character);
     if (validationError) {
       setError(validationError);
       return;
     }
-    optimisticUpdate(character);
+    // Only update if id is present
+    if (character.id) {
+      optimisticUpdate(character as Character);
+    } else {
+      setError("Character ID is required for update.");
+    }
   }, []);
 
   const handleDelete = useCallback(async (id: string) => {

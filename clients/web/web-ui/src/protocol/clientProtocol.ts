@@ -1,9 +1,14 @@
+
+// All member variables and methods are now inside the WebClientProtocol class body below.
 /**
  * Protocol-compliant WebSocket client that integrates with existing server architecture
  * Handles all message types defined in protocol.py with proper authentication
  */
+
 import type { Message, MessageHandler } from './message';
 import { MessageType, createMessage, parseMessage } from './message';
+import { useAssetCharacterCache } from '../assetCharacterCache';
+
 
 export class WebClientProtocol {
   private handlers = new Map<string, MessageHandler>();
@@ -11,6 +16,67 @@ export class WebClientProtocol {
   private messageQueue: Message[] = [];
   private pingInterval: number | null = null;
   private sessionCode: string;
+
+  // --- Performance Optimization: Message Batching & Delta Updates ---
+  private batchQueue: Message[] = [];
+  private batchTimer: number | null = null;
+  private sequenceNumber: number = 0;
+
+  /** Queue message for batching, flush after short delay or if batch is large */
+  queueMessage(msg: Message) {
+    this.batchQueue.push(msg);
+    if (!this.batchTimer) {
+      this.batchTimer = window.setTimeout(() => this.sendBatch(), 20);
+    }
+    if (this.batchQueue.length > 20) this.sendBatch();
+  }
+
+  /** Send all batched messages as a single batch */
+  sendBatch() {
+    if (this.batchQueue.length === 0) return;
+    if (this.websocket?.readyState === WebSocket.OPEN) {
+      this.websocket.send(JSON.stringify({
+        type: 'batch',
+        messages: this.batchQueue,
+        seq: ++this.sequenceNumber
+      }));
+      this.batchQueue = [];
+      if (this.batchTimer) {
+        clearTimeout(this.batchTimer);
+        this.batchTimer = null;
+      }
+    }
+  }
+
+  /** Send only changed fields (delta) for updates */
+  sendDelta(type: MessageType, id: string, changes: Record<string, any>) {
+    const msg: Message = {
+      type,
+      data: { id, changes },
+      priority: 1,
+      version: "1"
+    };
+    this.queueMessage(msg);
+  }
+
+  /** Override sendMessage to use batching for non-critical messages */
+  sendMessage(message: Message): void {
+    // Critical messages (table, actions, player) sent immediately
+    const critical = [
+      'table_data', 'table_update', 'sprite_create', 'sprite_remove',
+      'player_kick_request', 'player_ban_request', 'player_list_request',
+      'character_save', 'character_load', 'asset_upload', 'asset_download'
+    ];
+    if (critical.includes(message.type)) {
+      if (this.websocket?.readyState === WebSocket.OPEN) {
+        this.websocket.send(JSON.stringify(message));
+      } else {
+        this.messageQueue.push(message);
+      }
+    } else {
+      this.queueMessage(message);
+    }
+  }
 
   constructor(sessionCode: string) {
     this.sessionCode = sessionCode;
@@ -133,14 +199,7 @@ export class WebClientProtocol {
     }
   }
 
-  sendMessage(message: Message): void {
-    if (this.websocket?.readyState === WebSocket.OPEN) {
-      this.websocket.send(JSON.stringify(message));
-    } else {
-      // Queue message for later if not connected
-      this.messageQueue.push(message);
-    }
-  }
+  // ...existing code...
 
   private flushMessageQueue(): void {
     while (this.messageQueue.length > 0 && this.websocket?.readyState === WebSocket.OPEN) {
@@ -271,13 +330,38 @@ export class WebClientProtocol {
   }
 
   // Asset management handlers
+
   private async handleAssetDownloadResponse(message: Message): Promise<void> {
     console.log('Asset download response:', message.data);
+    // Upsert asset into cache
+    if (message.data && typeof message.data.id === 'string') {
+      useAssetCharacterCache.getState().upsertAsset({
+        id: String(message.data.id),
+        name: typeof message.data.name === 'string' ? message.data.name : '',
+        url: typeof message.data.url === 'string' ? message.data.url : '',
+        hash: typeof message.data.hash === 'string' ? message.data.hash : undefined,
+        type: typeof message.data.type === 'string' ? message.data.type : undefined,
+      });
+    }
     window.dispatchEvent(new CustomEvent('asset-downloaded', { detail: message.data }));
   }
 
+
   private async handleAssetListResponse(message: Message): Promise<void> {
     console.log('Asset list response:', message.data);
+    // Bulk load assets into cache
+    if (Array.isArray(message.data?.assets)) {
+      const validAssets = message.data.assets.filter(
+        (a: any) => a && typeof a.id === 'string'
+      ).map((a: any) => ({
+        id: String(a.id),
+        name: typeof a.name === 'string' ? a.name : '',
+        url: typeof a.url === 'string' ? a.url : '',
+        hash: typeof a.hash === 'string' ? a.hash : undefined,
+        type: typeof a.type === 'string' ? a.type : undefined,
+      }));
+      useAssetCharacterCache.getState().bulkLoadAssets(validAssets);
+    }
     window.dispatchEvent(new CustomEvent('asset-list-updated', { detail: message.data }));
   }
 
@@ -287,8 +371,17 @@ export class WebClientProtocol {
   }
 
   // Character management handlers
+
   private async handleCharacterLoadResponse(message: Message): Promise<void> {
     console.log('Character loaded:', message.data);
+    // Upsert character into cache
+    if (message.data && typeof message.data.id === 'string') {
+      useAssetCharacterCache.getState().upsertCharacter({
+        id: String(message.data.id),
+        name: typeof message.data.name === 'string' ? message.data.name : '',
+        data: message.data,
+      });
+    }
     window.dispatchEvent(new CustomEvent('character-loaded', { detail: message.data }));
   }
 
@@ -297,8 +390,20 @@ export class WebClientProtocol {
     window.dispatchEvent(new CustomEvent('character-saved', { detail: message.data }));
   }
 
+
   private async handleCharacterListResponse(message: Message): Promise<void> {
     console.log('Character list received:', message.data);
+    // Bulk load characters into cache
+    if (Array.isArray(message.data?.characters)) {
+      const validChars = message.data.characters.filter(
+        (c: any) => c && typeof c.id === 'string'
+      ).map((c: any) => ({
+        id: String(c.id),
+        name: typeof c.name === 'string' ? c.name : '',
+        data: c,
+      }));
+      useAssetCharacterCache.getState().bulkLoadCharacters(validChars);
+    }
     window.dispatchEvent(new CustomEvent('character-list-updated', { detail: message.data }));
   }
 

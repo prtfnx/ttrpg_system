@@ -90,7 +90,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
                 {connectionState === 'error' && `Error: ${error}`}
               </span>
             </div>
-            <ToolsPanel />
+            <ToolsPanel userInfo={userInfo} />
           </div>
           <div className="canvas-container">
             <GameCanvas />

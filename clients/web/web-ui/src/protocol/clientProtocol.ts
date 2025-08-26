@@ -5,9 +5,9 @@
  * Handles all message types defined in protocol.py with proper authentication
  */
 
+import { useAssetCharacterCache } from '../assetCharacterCache';
 import type { Message, MessageHandler } from './message';
 import { MessageType, createMessage, parseMessage } from './message';
-import { useAssetCharacterCache } from '../assetCharacterCache';
 
 
 export class WebClientProtocol {

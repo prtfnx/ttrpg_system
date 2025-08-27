@@ -250,7 +250,8 @@ class GameSessionProtocolService:
                 #TODO - implement proper broadcast logic
                 if message_type in [MessageType.SPRITE_UPDATE, MessageType.TABLE_UPDATE, MessageType.SPRITE_CREATE, 
                                     MessageType.SPRITE_REMOVE, MessageType.SPRITE_MOVE, MessageType.SPRITE_SCALE,
-                                    MessageType.SPRITE_ROTATE, MessageType.SPRITE_UPDATE]:
+                                    MessageType.SPRITE_ROTATE, MessageType.SPRITE_UPDATE,
+                                    MessageType.COMPENDIUM_SPRITE_ADD, MessageType.COMPENDIUM_SPRITE_UPDATE, MessageType.COMPENDIUM_SPRITE_REMOVE]:
                     # Broadcast to all clients except the sender
                     logger.debug(f"Broadcasting {message_type.value} to session {self.session_code} excluding client {client_id}")
                     await self.broadcast_to_session(message, exclude_client=client_id)

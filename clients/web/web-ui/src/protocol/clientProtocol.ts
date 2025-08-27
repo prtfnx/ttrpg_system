@@ -84,6 +84,15 @@ export class WebClientProtocol {
     this.setupProtocolMessageSender();
   }
 
+  // Compendium helpers
+  addCompendiumSprite(tableId: string, spriteData: Record<string, unknown>): void {
+    this.sendMessage(createMessage(MessageType.COMPENDIUM_SPRITE_ADD, {
+      table_id: tableId,
+      sprite_data: spriteData,
+      session_code: this.sessionCode
+    }, 2));
+  }
+
   private setupProtocolMessageSender(): void {
     // Listen for requests to send protocol messages
     const handleProtocolSendMessage = (event: Event) => {
@@ -132,6 +141,11 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.ASSET_DOWNLOAD_RESPONSE, this.handleAssetDownloadResponse.bind(this));
     this.registerHandler(MessageType.ASSET_LIST_RESPONSE, this.handleAssetListResponse.bind(this));
     this.registerHandler(MessageType.ASSET_UPLOAD_RESPONSE, this.handleAssetUploadResponse.bind(this));
+
+  // Compendium handlers
+  this.registerHandler(MessageType.COMPENDIUM_SPRITE_ADD, async (m) => { window.dispatchEvent(new CustomEvent('compendium-sprite-added', { detail: m.data })); });
+  this.registerHandler(MessageType.COMPENDIUM_SPRITE_UPDATE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-sprite-updated', { detail: m.data })); });
+  this.registerHandler(MessageType.COMPENDIUM_SPRITE_REMOVE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-sprite-removed', { detail: m.data })); });
 
     // Character management
     this.registerHandler(MessageType.CHARACTER_LOAD_RESPONSE, this.handleCharacterLoadResponse.bind(this));

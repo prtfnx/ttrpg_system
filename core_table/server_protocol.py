@@ -485,11 +485,107 @@ class ServerProtocol:
     async def handle_file_request(self, msg: Message, client_id: str) -> Message:
         return Message(MessageType.ERROR, {'error': 'File transfer not implemented yet'})  
     async def handle_compendium_sprite_add(self, msg: Message, client_id: str) -> Message:
-        return Message(MessageType.ERROR, {'error': 'Compendium sprite add not implemented yet'})
+        """Create a sprite from compendium data and ensure asset URLs are provided.
+
+        Expected msg.data: {
+            'table_id': str,
+            'sprite_data': { ... entity fields ... },
+            'session_code': str (optional),
+            'user_id': int (optional)
+        }
+        """
+        logger.debug(f"Compendium sprite add received from {client_id}: {msg}")
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data provided in compendium sprite add'})
+
+        table_id = msg.data.get('table_id') or msg.data.get('table_name') or 'default'
+        sprite_data = msg.data.get('sprite_data')
+        session_code = msg.data.get('session_code', msg.data.get('session', 'default'))
+        user_id = msg.data.get('user_id', 0)
+
+        if not sprite_data:
+            return Message(MessageType.ERROR, {'error': 'No sprite_data provided for compendium add'})
+
+        # Ensure the data includes table_id for actions.create_sprite_from_data
+        sprite_data_with_table = dict(sprite_data)
+        sprite_data_with_table['table_id'] = table_id
+
+        try:
+            # Create sprite via actions API
+            result = await self.actions.create_sprite_from_data(sprite_data_with_table)
+            if not result.success:
+                logger.error(f"Failed to create compendium sprite: {result.message}")
+                return Message(MessageType.ERROR, {'error': f'Failed to create sprite: {result.message}'})
+
+            # Prepare a minimal table structure containing the new entity so we can ensure assets in R2
+            try:
+                # The created sprite data may be returned in result.data or be identical to input
+                created_sprite = sprite_data
+                # Build table_data structure compatible with ensure_assets_in_r2
+                table_data = {'layers': {created_sprite.get('layer', 'tokens'): {created_sprite.get('sprite_id', created_sprite.get('entity_id', 'new')): created_sprite}}}
+                table_data_enriched = await self.ensure_assets_in_r2(table_data, session_code=session_code, user_id=user_id)
+                # Extract asset info back to sprite
+                layer = created_sprite.get('layer', 'tokens')
+                entity_map = table_data_enriched.get('layers', {}).get(layer, {})
+                entity_key = next(iter(entity_map.keys())) if entity_map else None
+                enriched_entity = entity_map.get(entity_key, created_sprite) if entity_key else created_sprite
+            except Exception as e:
+                logger.warning(f"Failed to enrich created sprite with asset URLs: {e}")
+                enriched_entity = created_sprite
+
+            # Return the sprite id and any asset download url/xxhash if present
+            response_payload = {
+                'sprite_id': enriched_entity.get('sprite_id', enriched_entity.get('entity_id', None)),
+                'table_id': table_id,
+                'r2_asset_url': enriched_entity.get('r2_asset_url'),
+                'asset_xxhash': enriched_entity.get('asset_xxhash')
+            }
+
+            return Message(MessageType.SPRITE_RESPONSE, response_payload)
+
+        except Exception as e:
+            logger.error(f"Error processing compendium sprite add: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+
     async def handle_compendium_sprite_update(self, msg: Message, client_id: str) -> Message:
-        return Message(MessageType.ERROR, {'error': 'Compendium sprite update not implemented yet'})
+        # Minimal implementation: delegate to generic sprite update flow where possible
+        logger.debug(f"Compendium sprite update received from {client_id}: {msg}")
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data provided in compendium sprite update'})
+        # For now, reuse existing update methods by wrapping into a table_update if appropriate
+        try:
+            # If caller provided full sprite data with table_id, use update_sprite
+            sprite_data = msg.data.get('sprite_data')
+            table_id = msg.data.get('table_id') or sprite_data.get('table_id') if sprite_data else 'default'
+            sprite_id = (sprite_data or {}).get('sprite_id')
+            if not sprite_id:
+                return Message(MessageType.ERROR, {'error': 'sprite_id required for compendium sprite update'})
+            result = await self.actions.update_sprite(table_id, sprite_id, data=sprite_data)
+            if result.success:
+                return Message(MessageType.SUCCESS, {'sprite_id': sprite_id})
+            else:
+                return Message(MessageType.ERROR, {'error': result.message})
+        except Exception as e:
+            logger.error(f"Error in compendium sprite update: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+
     async def handle_compendium_sprite_remove(self, msg: Message, client_id: str) -> Message:
-        return Message(MessageType.ERROR, {'error': 'Compendium sprite remove not implemented yet'})
+        logger.debug(f"Compendium sprite remove received from {client_id}: {msg}")
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data provided in compendium sprite remove'})
+        table_id = msg.data.get('table_id') or 'default'
+        sprite_id = msg.data.get('sprite_id')
+        if not sprite_id:
+            return Message(MessageType.ERROR, {'error': 'sprite_id required to remove compendium sprite'})
+        try:
+            result = await self.actions.delete_sprite(table_id, sprite_id)
+            if result.success:
+                return Message(MessageType.SPRITE_RESPONSE, {'sprite_id': sprite_id, 'operation': 'delete', 'success': True})
+            else:
+                return Message(MessageType.ERROR, {'error': result.message})
+        except Exception as e:
+            logger.error(f"Error removing compendium sprite: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
   
     # R2 Asset Management Handlers
     

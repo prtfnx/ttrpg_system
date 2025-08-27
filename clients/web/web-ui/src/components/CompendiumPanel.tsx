@@ -25,13 +25,18 @@ const fetchCompendium = async (): Promise<CompendiumEntry[]> => {
 export const CompendiumPanel: React.FC = () => {
   const [entries, setEntries] = useState<CompendiumEntry[]>([]);
   const [search, setSearch] = useState('');
+  const [debounced, setDebounced] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'all'|'monster'|'spell'|'equipment'>('all');
   const [dragged, setDragged] = useState<CompendiumEntry | null>(null);
 
-  useEffect(() => {
-    fetchCompendium().then(setEntries);
-  }, []);
+  useEffect(() => { fetchCompendium().then(setEntries); }, []);
+  useEffect(() => { const t = setTimeout(() => setDebounced(search.trim()), 250); return () => clearTimeout(t); }, [search]);
 
-  const filtered = entries.filter(e => e.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = entries.filter(e => {
+    if (typeFilter !== 'all' && e.type !== typeFilter) return false;
+    if (!debounced) return true;
+    return e.name.toLowerCase().includes(debounced.toLowerCase()) || (e.description||'').toLowerCase().includes(debounced.toLowerCase());
+  });
 
   // Drag start handler
   const onDragStart = (entry: CompendiumEntry) => {
@@ -65,16 +70,42 @@ export const CompendiumPanel: React.FC = () => {
     }
   };
 
+  // Insert without dragging: ask protocol to add entry to active table
+  const insertEntry = (entry: CompendiumEntry) => {
+    const protocol = (window as any).protocol as import('../protocol/clientProtocol').WebClientProtocol | undefined;
+    const tableId = (window as any).activeTableId as string | undefined || null;
+    const payload = {
+      compendium_id: entry.id,
+      name: entry.name,
+      type: entry.type,
+      stats: entry.stats || {},
+      description: entry.description || ''
+    };
+    if (protocol && typeof protocol.addCompendiumSprite === 'function') {
+      protocol.addCompendiumSprite(tableId || '', payload);
+    } else {
+      window.dispatchEvent(new CustomEvent('compendium-insert', { detail: { table_id: tableId, entry: payload } }));
+    }
+  };
+
   return (
     <div className="compendium-panel" style={{background:'#18181b',color:'#fff',padding:16}}>
       <h3>D&D 5e Compendium</h3>
-      <input
-        type="text"
-        placeholder="Search..."
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        style={{width:'100%',marginBottom:12,padding:6,fontSize:14}}
-      />
+      <div style={{display:'flex',gap:8,marginBottom:12}}>
+        <input
+          type="text"
+          placeholder="Search..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{flex:1,padding:6,fontSize:14}}
+        />
+        <div style={{display:'flex',gap:6,alignItems:'center'}}>
+          <button onClick={() => setTypeFilter('all')} style={{padding:'6px 8px',background:typeFilter==='all'?'#374151':'#222',border:'none',color:'#fff',borderRadius:4,cursor:'pointer'}}>All</button>
+          <button onClick={() => setTypeFilter('monster')} style={{padding:'6px 8px',background:typeFilter==='monster'?'#374151':'#222',border:'none',color:'#fff',borderRadius:4,cursor:'pointer'}}>Monsters</button>
+          <button onClick={() => setTypeFilter('spell')} style={{padding:'6px 8px',background:typeFilter==='spell'?'#374151':'#222',border:'none',color:'#fff',borderRadius:4,cursor:'pointer'}}>Spells</button>
+          <button onClick={() => setTypeFilter('equipment')} style={{padding:'6px 8px',background:typeFilter==='equipment'?'#374151':'#222',border:'none',color:'#fff',borderRadius:4,cursor:'pointer'}}>Gear</button>
+        </div>
+      </div>
       <div style={{display:'flex',gap:8}}>
         <div style={{flex:1}}>
           <h4>Entries</h4>
@@ -85,9 +116,15 @@ export const CompendiumPanel: React.FC = () => {
                 draggable
                 onDragStart={() => onDragStart(entry)}
                 onDragEnd={onDragEnd}
-                style={{border:'1px solid #374151',borderRadius:4,padding:8,marginBottom:8,background:'#222',cursor:'grab'}}
+                style={{border:'1px solid #374151',borderRadius:4,padding:8,marginBottom:8,background:'#222',cursor:'grab',display:'flex',flexDirection:'column',gap:8}}
               >
-                <strong>{entry.name}</strong> <span style={{fontSize:12,color:'#a3a3a3'}}>[{entry.type}]</span>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <strong>{entry.name}</strong>
+                  <div style={{display:'flex',gap:8}}>
+                    <button onClick={() => insertEntry(entry)} style={{background:'#2563eb',border:'none',color:'#fff',padding:'4px 8px',borderRadius:4,cursor:'pointer',fontSize:12}}>Insert</button>
+                    <span style={{fontSize:12,color:'#a3a3a3'}}>[{entry.type}]</span>
+                  </div>
+                </div>
                 <div style={{fontSize:13}}>{entry.description}</div>
                 {entry.stats && <pre style={{fontSize:12,background:'#18181b',padding:4}}>{JSON.stringify(entry.stats,null,2)}</pre>}
               </div>

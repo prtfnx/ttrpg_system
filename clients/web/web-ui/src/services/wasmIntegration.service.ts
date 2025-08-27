@@ -97,6 +97,19 @@ class WasmIntegrationService {
     };
     window.addEventListener('asset-downloaded', handleAssetDownloaded);
     this.eventListeners.push(() => window.removeEventListener('asset-downloaded', handleAssetDownloaded));
+
+    // Compendium events (user inserted or dropped an entry from compendium)
+    const handleCompendiumInsert = (event: Event) => {
+      this.handleCompendiumInsert((event as CustomEvent).detail);
+    };
+    window.addEventListener('compendium-insert', handleCompendiumInsert);
+    this.eventListeners.push(() => window.removeEventListener('compendium-insert', handleCompendiumInsert));
+
+    const handleCompendiumDrop = (event: Event) => {
+      this.handleCompendiumDrop((event as CustomEvent).detail);
+    };
+    window.addEventListener('compendium-drop', handleCompendiumDrop);
+    this.eventListeners.push(() => window.removeEventListener('compendium-drop', handleCompendiumDrop));
   }
 
   private handleTableDataReceived(data: any): void {
@@ -409,6 +422,62 @@ class WasmIntegrationService {
       this.loadTextureFromUrl(data.asset_id, data.download_url);
     } else {
       console.warn('Asset download response failed or incomplete:', data);
+    }
+  }
+
+  /**
+   * Handle compendium insert (explicit Insert button) - optimistic add to WASM
+   */
+  private handleCompendiumInsert(data: any): void {
+    if (!data) return;
+    try {
+      // Expecting data to contain sprite-like fields or compendium entry info
+      // Normalize to the same shape used elsewhere by addSpriteToWasm
+      const spriteData: any = {
+        id: data.id || `comp_${Date.now()}`,
+        x: data.x ?? data.world_x ?? 0,
+        y: data.y ?? data.world_y ?? 0,
+        width: data.width || data.size_x || 50,
+        height: data.height || data.size_y || 50,
+        asset_id: data.asset_id || data.texture || data.imageUrl || data.texture_id || data.image || data.texture_path || '',
+        layer: data.layer || 'tokens',
+        rotation: data.rotation || 0,
+        scale_x: data.scale_x || 1,
+        scale_y: data.scale_y || 1,
+        tint_color: data.tint_color || [1, 1, 1, 1]
+      };
+
+      this.addSpriteToWasm(spriteData);
+    } catch (err) {
+      console.error('Failed to process compendium-insert in WASM integration:', err);
+    }
+  }
+
+  /**
+   * Handle compendium drop (drag-drop from compendium onto canvas) - optimistic add
+   */
+  private handleCompendiumDrop(data: any): void {
+    if (!data) return;
+    try {
+      // Data coming from drag-drop may include tableId and payload
+      const payload = data.payload || data;
+      const spriteData: any = {
+        id: payload.id || `comp_${Date.now()}`,
+        x: payload.x ?? payload.world_x ?? payload.coord_x ?? payload.position?.[0] ?? 0,
+        y: payload.y ?? payload.world_y ?? payload.coord_y ?? payload.position?.[1] ?? 0,
+        width: payload.width || payload.size_x || 50,
+        height: payload.height || payload.size_y || 50,
+        asset_id: payload.asset_id || payload.texture || payload.imageUrl || payload.texture_id || payload.image || payload.texture_path || '',
+        layer: payload.layer || 'tokens',
+        rotation: payload.rotation || 0,
+        scale_x: payload.scale_x || 1,
+        scale_y: payload.scale_y || 1,
+        tint_color: payload.tint_color || [1, 1, 1, 1]
+      };
+
+      this.addSpriteToWasm(spriteData);
+    } catch (err) {
+      console.error('Failed to process compendium-drop in WASM integration:', err);
     }
   }
 

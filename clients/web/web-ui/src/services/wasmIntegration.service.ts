@@ -8,6 +8,10 @@ import type { RenderEngine } from '../types/wasm';
 class WasmIntegrationService {
   private renderEngine: RenderEngine | null = null;
   private eventListeners: Array<() => void> = [];
+  // Map of optimistic client ids -> timeout id for automatic rollback
+  private optimisticTimers: Map<string, number> = new Map();
+  // Timeout for optimistic inserts (ms)
+  private readonly OPTIMISTIC_TIMEOUT = 10000;
 
   /**
    * Initialize the service with a WASM render engine
@@ -73,6 +77,53 @@ class WasmIntegrationService {
     window.addEventListener('sprite-removed', handleSpriteRemoved);
     this.eventListeners.push(() => window.removeEventListener('sprite-removed', handleSpriteRemoved));
 
+    // Also handle compendium sprite messages emitted by the protocol layer
+    const handleCompendiumSpriteAdded = (event: Event) => {
+      const data = (event as CustomEvent).detail;
+      // If server returned a confirmation with client_temp_id, remove optimistic sprite first
+      try {
+        if (data && data.client_temp_id) {
+          // clear any pending timer for this optimistic id
+          this.clearOptimisticTimer(data.client_temp_id);
+          if (this.renderEngine) {
+            console.log('Removing optimistic sprite (confirmed):', data.client_temp_id);
+            try { this.renderEngine.remove_sprite(data.client_temp_id); } catch(e) { /* best-effort */ }
+          }
+        }
+      } catch (e) {
+        console.warn('Error while removing optimistic sprite:', e);
+      }
+
+      this.handleSpriteCreated(data);
+    };
+    window.addEventListener('compendium-sprite-added', handleCompendiumSpriteAdded);
+    this.eventListeners.push(() => window.removeEventListener('compendium-sprite-added', handleCompendiumSpriteAdded));
+
+    const handleCompendiumSpriteUpdated = (event: Event) => {
+      const data = (event as CustomEvent).detail;
+      // If update corresponds to an optimistic insert, remove the optimistic id first
+      try {
+        if (data && data.client_temp_id) {
+          this.clearOptimisticTimer(data.client_temp_id);
+          if (this.renderEngine) {
+            try { this.renderEngine.remove_sprite(data.client_temp_id); } catch(e) { /* best-effort */ }
+          }
+        }
+      } catch (e) {
+        console.warn('Error while reconciling optimistic sprite on update:', e);
+      }
+
+      this.handleSpriteUpdated(data);
+    };
+    window.addEventListener('compendium-sprite-updated', handleCompendiumSpriteUpdated);
+    this.eventListeners.push(() => window.removeEventListener('compendium-sprite-updated', handleCompendiumSpriteUpdated));
+
+    const handleCompendiumSpriteRemoved = (event: Event) => {
+      this.handleSpriteRemoved((event as CustomEvent).detail);
+    };
+    window.addEventListener('compendium-sprite-removed', handleCompendiumSpriteRemoved);
+    this.eventListeners.push(() => window.removeEventListener('compendium-sprite-removed', handleCompendiumSpriteRemoved));
+
     const handleSpriteMoved = (event: Event) => {
       this.handleSpriteMoved((event as CustomEvent).detail);
     };
@@ -97,6 +148,24 @@ class WasmIntegrationService {
     };
     window.addEventListener('asset-downloaded', handleAssetDownloaded);
     this.eventListeners.push(() => window.removeEventListener('asset-downloaded', handleAssetDownloaded));
+
+    // Protocol-level errors: if server returns an error including a client_temp_id, remove optimistic sprite
+    const handleProtocolError = (event: Event) => {
+      const data = (event as CustomEvent).detail;
+      try {
+        if (data && data.client_temp_id) {
+          console.warn('Protocol error for optimistic insert, removing:', data.client_temp_id, data);
+          this.clearOptimisticTimer(data.client_temp_id);
+          if (this.renderEngine) {
+            try { this.renderEngine.remove_sprite(data.client_temp_id); } catch(e) { /* best-effort */ }
+          }
+        }
+      } catch (e) {
+        console.error('Error handling protocol-error in WASM integration:', e);
+      }
+    };
+    window.addEventListener('protocol-error', handleProtocolError);
+    this.eventListeners.push(() => window.removeEventListener('protocol-error', handleProtocolError));
 
     // Compendium events (user inserted or dropped an entry from compendium)
     const handleCompendiumInsert = (event: Event) => {
@@ -448,6 +517,11 @@ class WasmIntegrationService {
       };
 
       this.addSpriteToWasm(spriteData);
+
+      // Start optimistic rollback timer if this looks like a client-side optimistic id
+      if (spriteData.id && String(spriteData.id).startsWith('opt_')) {
+        this.startOptimisticTimer(spriteData.id);
+      }
     } catch (err) {
       console.error('Failed to process compendium-insert in WASM integration:', err);
     }
@@ -476,8 +550,50 @@ class WasmIntegrationService {
       };
 
       this.addSpriteToWasm(spriteData);
+
+      // Start optimistic rollback timer for drag-drop optimistic ids
+      if (spriteData.id && String(spriteData.id).startsWith('opt_')) {
+        this.startOptimisticTimer(spriteData.id);
+      }
     } catch (err) {
       console.error('Failed to process compendium-drop in WASM integration:', err);
+    }
+  }
+
+  /**
+   * Start a timer for an optimistic insert; on timeout remove the optimistic sprite.
+   */
+  private startOptimisticTimer(tempId: string): void {
+    try {
+      // Clear existing timer if any
+      this.clearOptimisticTimer(tempId);
+      const t = window.setTimeout(() => {
+        try {
+          console.warn('Optimistic insert timed out, removing sprite:', tempId);
+          if (this.renderEngine) {
+            try { this.renderEngine.remove_sprite(tempId); } catch(e) { /* best-effort */ }
+          }
+        } catch (e) {
+          console.error('Error during optimistic timeout cleanup for', tempId, e);
+        } finally {
+          this.optimisticTimers.delete(tempId);
+        }
+      }, this.OPTIMISTIC_TIMEOUT);
+      this.optimisticTimers.set(tempId, t as unknown as number);
+    } catch (e) {
+      console.error('Failed to start optimistic timer for', tempId, e);
+    }
+  }
+
+  private clearOptimisticTimer(tempId: string): void {
+    try {
+      const t = this.optimisticTimers.get(tempId);
+      if (t) {
+        clearTimeout(t);
+        this.optimisticTimers.delete(tempId);
+      }
+    } catch (e) {
+      console.error('Failed to clear optimistic timer for', tempId, e);
     }
   }
 

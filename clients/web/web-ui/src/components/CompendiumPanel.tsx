@@ -51,20 +51,38 @@ export const CompendiumPanel: React.FC = () => {
   // Drop handler (simulate drag-to-table)
   const onDropToTable = () => {
     if (dragged) {
-      // If a protocol instance is available, use it to create a sprite from the compendium entry
+      // Use protocol and show optimistic UI in WASM immediately
       const protocol = (window as any).protocol as import('../protocol/clientProtocol').WebClientProtocol | undefined;
-      if (protocol && typeof protocol.addCompendiumSprite === 'function') {
-        const tableId = (window as any).activeTableId as string | undefined || null;
-        protocol.addCompendiumSprite(tableId || '', {
+      if (!protocol || typeof protocol.addCompendiumSprite !== 'function') {
+        console.error('Compendium insert failed: protocol not available. Connect to server.');
+      } else {
+        const tableId = (window as any).activeTableId as string | undefined || '';
+
+        // Create optimistic id and payload to show immediately
+        const optimisticId = `opt_${Date.now()}`;
+        const optimisticPayload = {
+          id: optimisticId,
           compendium_id: dragged.id,
           name: dragged.name,
           type: dragged.type,
           stats: dragged.stats || {},
           description: dragged.description || '',
-        });
-      } else {
-        // Fallback event for other wiring in the app
-        window.dispatchEvent(new CustomEvent('compendium-drop', { detail: dragged }));
+        };
+
+        // Dispatch optimistic event for WASM integration
+        window.dispatchEvent(new CustomEvent('compendium-insert', { detail: optimisticPayload }));
+
+        // Send to server and attach client_temp_id so server may correlate
+        try {
+          const maybePromise: any = protocol.addCompendiumSprite(tableId, { ...optimisticPayload, client_temp_id: optimisticId });
+          Promise.resolve(maybePromise).catch((err: any) => {
+            console.error('Protocol addCompendiumSprite failed:', err);
+            // If server call failed, removal of optimistic sprite is handled by WASM integration listeners if configured
+          });
+        } catch (err) {
+          console.error('Protocol addCompendiumSprite threw:', err);
+          // If add threw synchronously, rely on WASM integration to reconcile or keep log for debugging
+        }
       }
       setDragged(null);
     }
@@ -74,17 +92,32 @@ export const CompendiumPanel: React.FC = () => {
   const insertEntry = (entry: CompendiumEntry) => {
     const protocol = (window as any).protocol as import('../protocol/clientProtocol').WebClientProtocol | undefined;
     const tableId = (window as any).activeTableId as string | undefined || null;
-    const payload = {
+
+    if (!protocol || typeof protocol.addCompendiumSprite !== 'function') {
+      console.error('Insert failed: protocol not available. Connect to server to insert compendium entries.');
+      return;
+    }
+
+    // Optimistic add
+    const optimisticId = `opt_${Date.now()}`;
+    const optimisticPayload = {
+      id: optimisticId,
       compendium_id: entry.id,
       name: entry.name,
       type: entry.type,
       stats: entry.stats || {},
       description: entry.description || ''
     };
-    if (protocol && typeof protocol.addCompendiumSprite === 'function') {
-      protocol.addCompendiumSprite(tableId || '', payload);
-    } else {
-      window.dispatchEvent(new CustomEvent('compendium-insert', { detail: { table_id: tableId, entry: payload } }));
+    window.dispatchEvent(new CustomEvent('compendium-insert', { detail: optimisticPayload }));
+
+    // Send via protocol, include temp id for server correlation
+    try {
+      const maybePromise: any = protocol.addCompendiumSprite(tableId || '', { ...optimisticPayload, client_temp_id: optimisticId });
+      Promise.resolve(maybePromise).catch((err: any) => {
+        console.error('Protocol addCompendiumSprite failed:', err);
+      });
+    } catch (err) {
+      console.error('Protocol addCompendiumSprite threw:', err);
     }
   };
 
@@ -133,11 +166,13 @@ export const CompendiumPanel: React.FC = () => {
           </div>
         </div>
         <div
-          style={{width:180,minHeight:180,border:'2px dashed #3b82f6',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',background:'#222'}}
+          style={{width:180,minHeight:180,border:`2px dashed ${((window as any).protocol && typeof (window as any).protocol.addCompendiumSprite === 'function') ? '#3b82f6' : '#6b7280'}`,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',background:'#222'}}
           onDragOver={e => e.preventDefault()}
           onDrop={onDropToTable}
         >
-          <span style={{color:'#3b82f6'}}>Drop here to add to table</span>
+          <span style={{color:((window as any).protocol && typeof (window as any).protocol.addCompendiumSprite === 'function') ? '#3b82f6' : '#9ca3af'}}>
+            {((window as any).protocol && typeof (window as any).protocol.addCompendiumSprite === 'function') ? 'Drop here to add to table' : 'Connect to server to enable insert'}
+          </span>
         </div>
       </div>
     </div>

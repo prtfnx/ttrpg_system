@@ -4,6 +4,7 @@ import CharacterPanel from './components/CharacterPanel'
 import { EntitiesPanel } from './components/EntitiesPanel'
 import { ToolsPanel } from './components/ToolsPanel'
 import './index.css'
+import visionService from './services/vision.service'
 
 // Modern ES module approach - export mounting functions
 export function mountToolsPanel(container: HTMLElement) {
@@ -87,5 +88,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (rightPanelBottom) {
     mountCharacterPanel(rightPanelBottom)
+  }
+
+  // Start vision service which will wait for WASM and then run LOS updates
+  try {
+    visionService.initVisionService(150);
+  } catch (err) {
+    console.error('[integration] Failed to init vision service:', err);
   }
 })

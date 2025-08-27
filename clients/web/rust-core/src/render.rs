@@ -11,6 +11,7 @@ use crate::sprite_renderer::SpriteRenderer;
 use crate::webgl_renderer::WebGLRenderer;
 use crate::lighting::LightingSystem;
 use crate::fog::FogOfWarSystem;
+use crate::geometry;
 use crate::event_system::{EventSystem, MouseEventResult};
 use crate::layer_manager::LayerManager;
 use crate::grid_system::GridSystem;
@@ -218,6 +219,23 @@ impl RenderEngine {
     pub fn resize_canvas(&mut self, width: f32, height: f32) {
         self.canvas_size = Vec2::new(width, height);
         self.update_view_matrix();
+    }
+
+    /// Compute visibility polygon given player position and flat obstacle float32 array
+    #[wasm_bindgen]
+    pub fn compute_visibility_polygon(&mut self, player_x: f32, player_y: f32, obstacles: js_sys::Float32Array, max_dist: f32) -> JsValue {
+        geometry::compute_visibility_polygon(player_x, player_y, &obstacles, max_dist)
+    }
+
+    /// Add a fog reveal polygon (array of {x,y}) under given id
+    #[wasm_bindgen]
+    pub fn add_fog_polygon(&mut self, id: &str, points: &JsValue) {
+        self.fog.add_fog_polygon(id.to_string(), points);
+    }
+
+    #[wasm_bindgen]
+    pub fn remove_fog_polygon(&mut self, id: &str) {
+        self.fog.remove_fog_polygon(id);
     }
     
     #[wasm_bindgen]

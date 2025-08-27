@@ -8,14 +8,18 @@ interface CompendiumEntry {
   stats?: Record<string, any>;
 }
 
-// Example: Replace with real backend or static JSON fetch
+// Fetch compendium data from a static JSON file served by the app
 const fetchCompendium = async (): Promise<CompendiumEntry[]> => {
-  // TODO: Replace with protocol/backend call
-  return [
-    { id: 'm1', type: 'monster', name: 'Goblin', description: 'Small humanoid, chaotic evil', stats: { hp: 7, ac: 15 } },
-    { id: 's1', type: 'spell', name: 'Fireball', description: 'A bright streak flashes...', stats: { level: 3, damage: '8d6' } },
-    { id: 'e1', type: 'equipment', name: 'Longsword', description: 'Martial melee weapon', stats: { damage: '1d8', weight: 3 } },
-  ];
+  const url = '/static/compendium/compendium.json';
+  try {
+    const res = await fetch(url, { credentials: 'same-origin' });
+    if (!res.ok) throw new Error(`Failed to load compendium: ${res.status}`);
+    const json = await res.json();
+    return Array.isArray(json) ? json as CompendiumEntry[] : [];
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
 };
 
 export const CompendiumPanel: React.FC = () => {
@@ -42,8 +46,21 @@ export const CompendiumPanel: React.FC = () => {
   // Drop handler (simulate drag-to-table)
   const onDropToTable = () => {
     if (dragged) {
-      // TODO: Integrate with table/sprite creation protocol
-      window.dispatchEvent(new CustomEvent('compendium-drop', { detail: dragged }));
+      // If a protocol instance is available, use it to create a sprite from the compendium entry
+      const protocol = (window as any).protocol as import('../protocol/clientProtocol').WebClientProtocol | undefined;
+      if (protocol && typeof protocol.addCompendiumSprite === 'function') {
+        const tableId = (window as any).activeTableId as string | undefined || null;
+        protocol.addCompendiumSprite(tableId || '', {
+          compendium_id: dragged.id,
+          name: dragged.name,
+          type: dragged.type,
+          stats: dragged.stats || {},
+          description: dragged.description || '',
+        });
+      } else {
+        // Fallback event for other wiring in the app
+        window.dispatchEvent(new CustomEvent('compendium-drop', { detail: dragged }));
+      }
       setDragged(null);
     }
   };

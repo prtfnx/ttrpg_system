@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ActionQueuePanel } from './ActionQueuePanel';
 import { CharacterManager } from './CharacterManager';
 import ChatPanel from './ChatPanel';
+import { CompendiumPanel } from './CompendiumPanel';
 import { EntitiesPanel } from './EntitiesPanel';
 import { FogPanel } from './FogPanel';
 import { LightingPanel } from './LightingPanel';
@@ -10,7 +11,6 @@ import { PaintPanel } from './PaintPanel';
 import { PlayerManagerPanel } from './PlayerManagerPanel';
 import { TableManagementPanel } from './TableManagementPanel';
 import TableSyncPanel from './TableSyncPanel';
-import { CompendiumPanel } from './CompendiumPanel';
 
 
 export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {

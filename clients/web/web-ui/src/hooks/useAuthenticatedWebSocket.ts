@@ -64,20 +64,11 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
   // Handle connection state changes
   useEffect(() => {
     if (connectionState === 'error' && error) {
-      // In development mode, don't retry authentication errors
-      if (import.meta.env.DEV && error.includes('Authentication failed')) {
-        console.log('Development mode: ignoring auth errors');
-        setConnectionState('connected'); // Fake connected state for UI testing
-        return;
-      }
+  // Authentication errors should not be silently ignored; allow retry logic below
+  // Auto-retry connection after 5 seconds for non-authentication errors
       
-      // Auto-retry connection after 5 seconds for other errors
       if (!error.includes('Authentication failed')) {
-        const retryTimer = setTimeout(() => {
-          console.log('Retrying connection...');
-          connect();
-        }, 5000);
-        
+        const retryTimer = setTimeout(() => connect(), 5000);
         return () => clearTimeout(retryTimer);
       }
     }

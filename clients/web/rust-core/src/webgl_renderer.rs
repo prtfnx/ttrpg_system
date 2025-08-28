@@ -342,10 +342,16 @@ impl WebGLRenderer {
     pub fn set_view_matrix(&self, matrix: &[f32; 9], canvas_size: Vec2) {
         if let Some(program) = &self.shader_program {
             self.gl.use_program(Some(program));
-            
+
+            // Ensure WebGL viewport matches the canvas pixel size so coordinates map correctly
+            // canvas_size is in pixels (width, height)
+            let viewport_width = canvas_size.x as i32;
+            let viewport_height = canvas_size.y as i32;
+            self.gl.viewport(0, 0, viewport_width, viewport_height);
+
             let view_location = self.gl.get_uniform_location(program, "u_view_matrix");
             self.gl.uniform_matrix3fv_with_f32_array(view_location.as_ref(), false, matrix);
-            
+
             let canvas_size_location = self.gl.get_uniform_location(program, "u_canvas_size");
             self.gl.uniform2f(canvas_size_location.as_ref(), canvas_size.x, canvas_size.y);
         }

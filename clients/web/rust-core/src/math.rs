@@ -35,6 +35,11 @@ impl Vec2 {
             Self::new(0.0, 0.0)
         }
     }
+
+    /// Return the angle of the vector in radians, using atan2(y, x).
+    pub fn angle(self) -> f32 {
+        self.y.atan2(self.x)
+    }
 }
 
 impl std::ops::Add for Vec2 {

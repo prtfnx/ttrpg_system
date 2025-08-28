@@ -82,7 +82,7 @@ export const AssetPanel: React.FC = () => {
         body: JSON.stringify({ fileName: file.name, mimeType: file.type })
       });
       if (!response.ok) throw new Error('Failed to get presigned URL');
-      const { uploadUrl, assetId } = await response.json();
+  const { uploadUrl } = await response.json();
 
       // Upload file to R2/S3
       const uploadRes = await fetch(uploadUrl, {

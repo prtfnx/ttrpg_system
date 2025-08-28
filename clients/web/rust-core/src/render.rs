@@ -340,6 +340,7 @@ impl RenderEngine {
             self.layer_manager.get_layers_mut(),
             &mut self.lighting,
             &mut self.fog,
+            self.camera.zoom,
             ctrl_pressed
         );
         

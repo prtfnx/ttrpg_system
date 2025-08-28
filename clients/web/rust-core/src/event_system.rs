@@ -32,6 +32,7 @@ impl EventSystem {
         layers: &mut HashMap<String, Layer>,
         lighting: &mut LightingSystem,
         fog: &mut FogOfWarSystem,
+        camera_zoom: f64,
         ctrl_pressed: bool
     ) -> MouseEventResult {
         web_sys::console::log_1(&format!("[RUST EVENT] Mouse down at world: {}, {}, input_mode: {:?}", world_pos.x, world_pos.y, input.input_mode).into());
@@ -111,8 +112,8 @@ impl EventSystem {
         if !ctrl_pressed {
             let clicked_sprite = Self::find_sprite_at_position(world_pos, layers);
             if let Some(sprite_id) = clicked_sprite {
+                // If clicking an already selected sprite and multiple selected, start multi-move
                 if input.is_sprite_selected(&sprite_id) && input.has_multiple_selected() {
-                    // Multi-move start
                     input.selected_sprite_id = Some(sprite_id.clone());
                     input.input_mode = InputMode::SpriteMove;
                     if let Some((sprite, _)) = Self::find_sprite(&sprite_id, layers) {
@@ -120,6 +121,33 @@ impl EventSystem {
                         input.drag_offset = world_pos - sprite_top_left;
                     }
                     return MouseEventResult::Handled;
+                }
+                // If sprite was clicked, check for resize/rotate handle hits first
+                if input.is_sprite_selected(&sprite_id) {
+                    if let Some((sprite, _)) = Self::find_sprite(&sprite_id, layers) {
+                        // Rotation handle detection
+                        let rot_handle_pos = SpriteManager::get_rotation_handle_position(sprite, camera_zoom);
+                        let handle_size = 8.0 / camera_zoom as f32;
+                        if HandleDetector::point_in_handle(world_pos, rot_handle_pos.x, rot_handle_pos.y, handle_size) {
+                            input.input_mode = InputMode::SpriteRotate;
+                            // store starting angles for relative rotation
+                            let center = Vec2::new(sprite.world_x as f32 + (sprite.width * sprite.scale_x) as f32 / 2.0, sprite.world_y as f32 + (sprite.height * sprite.scale_y) as f32 / 2.0);
+                            input.rotation_start_angle = (world_pos - center).angle() as f64;
+                            input.sprite_initial_rotation = sprite.rotation;
+                            input.selected_sprite_id = Some(sprite_id.clone());
+                            return MouseEventResult::Handled;
+                        }
+
+                        // Resize handle detection (non-rotated path)
+                        if let Some(handle) = HandleDetector::get_resize_handle_for_non_rotated_sprite(sprite, world_pos, camera_zoom) {
+                            input.input_mode = InputMode::SpriteResize(handle);
+                            input.selected_sprite_id = Some(sprite_id.clone());
+                            // store drag offset relative to sprite top-left
+                            let sprite_top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
+                            input.drag_offset = world_pos - sprite_top_left;
+                            return MouseEventResult::Handled;
+                        }
+                    }
                 }
             }
         }
@@ -174,6 +202,23 @@ impl EventSystem {
                         sprite.world_x = new_pos.x as f64;
                         sprite.world_y = new_pos.y as f64;
                         web_sys::console::log_1(&format!("[RUST] Moving sprite {} to: {}, {}", sprite_id, sprite.world_x, sprite.world_y).into());
+                    }
+                }
+                MouseEventResult::Handled
+            }
+            InputMode::SpriteResize(handle) => {
+                if let Some(sprite_id) = &input.selected_sprite_id {
+                    if let Some((sprite, _)) = Self::find_sprite_mut(sprite_id, layers) {
+                        // Delegate to SpriteManager which contains robust resize logic
+                        SpriteManager::resize_sprite_with_handle(sprite, handle, world_pos);
+                    }
+                }
+                MouseEventResult::Handled
+            }
+            InputMode::SpriteRotate => {
+                if let Some(sprite_id) = &input.selected_sprite_id {
+                    if let Some((sprite, _)) = Self::find_sprite_mut(sprite_id, layers) {
+                        SpriteManager::update_rotation(sprite, world_pos, input.rotation_start_angle, input.sprite_initial_rotation);
                     }
                 }
                 MouseEventResult::Handled

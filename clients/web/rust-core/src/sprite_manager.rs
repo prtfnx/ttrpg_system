@@ -129,6 +129,7 @@ impl SpriteManager {
             (sprite.width * sprite.scale_x) as f32,
             (sprite.height * sprite.scale_y) as f32
         );
+    web_sys::console::log_1(&format!("[RUST DEBUG] get_rotation_handle_position - sprite_pos=({:.2},{:.2}) size=({:.2},{:.2}) zoom={:.2}", sprite_pos.x, sprite_pos.y, sprite_size.x, sprite_size.y, zoom).into());
         Vec2::new(
             sprite_pos.x + sprite_size.x * 0.5,
             sprite_pos.y - 20.0 / zoom as f32

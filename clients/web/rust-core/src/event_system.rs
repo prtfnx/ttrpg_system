@@ -111,6 +111,33 @@ impl EventSystem {
         // Handle sprite interactions
         if !ctrl_pressed {
             let clicked_sprite = Self::find_sprite_at_position(world_pos, layers);
+            // If no sprite rect was clicked, also check for rotation handles which sit outside the sprite
+            if clicked_sprite.is_none() {
+                // iterate layers in reverse z-order to find top-most handle hit
+                let mut sorted_layers: Vec<_> = layers.iter().collect();
+                sorted_layers.sort_by_key(|(_, layer)| std::cmp::Reverse(layer.z_order()));
+                for (_ln, layer) in sorted_layers {
+                    if !layer.selectable { continue; }
+                    for sprite in layer.sprites.iter().rev() {
+                        let rot_handle_pos = SpriteManager::get_rotation_handle_position(sprite, camera_zoom);
+                        let handle_size = 8.0 / camera_zoom as f32;
+                        web_sys::console::log_1(&format!("[RUST DEBUG] Scanning rotation handle - sprite={} handle=({:.2},{:.2}) mouse=({:.2},{:.2}) size={:.2}", sprite.id, rot_handle_pos.x, rot_handle_pos.y, world_pos.x, world_pos.y, handle_size).into());
+                        if HandleDetector::point_in_handle(world_pos, rot_handle_pos.x, rot_handle_pos.y, handle_size) {
+                            web_sys::console::log_1(&format!("[RUST DEBUG] Scanned rotation handle hit on sprite {}", sprite.id).into());
+                            // select sprite and start rotate
+                            if !input.is_sprite_selected(&sprite.id) {
+                                input.set_single_selection(sprite.id.clone());
+                            }
+                            input.input_mode = InputMode::SpriteRotate;
+                            let center = Vec2::new(sprite.world_x as f32 + (sprite.width * sprite.scale_x) as f32 / 2.0, sprite.world_y as f32 + (sprite.height * sprite.scale_y) as f32 / 2.0);
+                            input.rotation_start_angle = (world_pos - center).angle() as f64;
+                            input.sprite_initial_rotation = sprite.rotation;
+                            input.selected_sprite_id = Some(sprite.id.clone());
+                            return MouseEventResult::Handled;
+                        }
+                    }
+                }
+            }
             if let Some(sprite_id) = clicked_sprite {
                 // If clicking an already selected sprite and multiple selected, start multi-move
                 if input.is_sprite_selected(&sprite_id) && input.has_multiple_selected() {
@@ -123,30 +150,43 @@ impl EventSystem {
                     return MouseEventResult::Handled;
                 }
                 // If sprite was clicked, check for resize/rotate handle hits first
-                if input.is_sprite_selected(&sprite_id) {
-                    if let Some((sprite, _)) = Self::find_sprite(&sprite_id, layers) {
-                        // Rotation handle detection
-                        let rot_handle_pos = SpriteManager::get_rotation_handle_position(sprite, camera_zoom);
-                        let handle_size = 8.0 / camera_zoom as f32;
-                        if HandleDetector::point_in_handle(world_pos, rot_handle_pos.x, rot_handle_pos.y, handle_size) {
-                            input.input_mode = InputMode::SpriteRotate;
-                            // store starting angles for relative rotation
-                            let center = Vec2::new(sprite.world_x as f32 + (sprite.width * sprite.scale_x) as f32 / 2.0, sprite.world_y as f32 + (sprite.height * sprite.scale_y) as f32 / 2.0);
-                            input.rotation_start_angle = (world_pos - center).angle() as f64;
-                            input.sprite_initial_rotation = sprite.rotation;
-                            input.selected_sprite_id = Some(sprite_id.clone());
-                            return MouseEventResult::Handled;
+                // Allow handle clicks to select the sprite and begin the operation in one click
+                if let Some((sprite, _)) = Self::find_sprite(&sprite_id, layers) {
+                    // Rotation handle detection
+                    let rot_handle_pos = SpriteManager::get_rotation_handle_position(sprite, camera_zoom);
+                    let handle_size = 8.0 / camera_zoom as f32;
+                    // Debug logging for handle detection
+                    web_sys::console::log_1(&format!("[RUST DEBUG] Rotation detection - world_pos=({:.2},{:.2}) rot_handle=({:.2},{:.2}) handle_size={:.2}", world_pos.x, world_pos.y, rot_handle_pos.x, rot_handle_pos.y, handle_size).into());
+                    let rot_dist = ((world_pos.x - rot_handle_pos.x).powi(2) + (world_pos.y - rot_handle_pos.y).powi(2)).sqrt();
+                    web_sys::console::log_1(&format!("[RUST DEBUG] Rotation distance = {:.3}", rot_dist).into());
+                    if HandleDetector::point_in_handle(world_pos, rot_handle_pos.x, rot_handle_pos.y, handle_size) {
+                        // Ensure sprite is selected before rotating
+                        if !input.is_sprite_selected(&sprite_id) {
+                            input.set_single_selection(sprite_id.clone());
                         }
+                        input.input_mode = InputMode::SpriteRotate;
+                        // store starting angles for relative rotation
+                        let center = Vec2::new(sprite.world_x as f32 + (sprite.width * sprite.scale_x) as f32 / 2.0, sprite.world_y as f32 + (sprite.height * sprite.scale_y) as f32 / 2.0);
+                        input.rotation_start_angle = (world_pos - center).angle() as f64;
+                        input.sprite_initial_rotation = sprite.rotation;
+                        input.selected_sprite_id = Some(sprite_id.clone());
+                        return MouseEventResult::Handled;
+                    }
 
-                        // Resize handle detection (non-rotated path)
-                        if let Some(handle) = HandleDetector::get_resize_handle_for_non_rotated_sprite(sprite, world_pos, camera_zoom) {
-                            input.input_mode = InputMode::SpriteResize(handle);
-                            input.selected_sprite_id = Some(sprite_id.clone());
-                            // store drag offset relative to sprite top-left
-                            let sprite_top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
-                            input.drag_offset = world_pos - sprite_top_left;
-                            return MouseEventResult::Handled;
+                    // Resize handle detection (non-rotated path)
+                    web_sys::console::log_1(&format!("[RUST DEBUG] Resize detection - sprite_pos=({:.2},{:.2}) size=({}, {}) world_pos=({:.2},{:.2}) zoom={:.2}", sprite.world_x, sprite.world_y, sprite.width * sprite.scale_x, sprite.height * sprite.scale_y, world_pos.x, world_pos.y, camera_zoom).into());
+                    if let Some(handle) = HandleDetector::get_resize_handle_for_non_rotated_sprite(sprite, world_pos, camera_zoom) {
+                        web_sys::console::log_1(&format!("[RUST DEBUG] Resize handle detected: {:?}", handle).into());
+                        // Ensure sprite is selected before resizing
+                        if !input.is_sprite_selected(&sprite_id) {
+                            input.set_single_selection(sprite_id.clone());
                         }
+                        input.input_mode = InputMode::SpriteResize(handle);
+                        input.selected_sprite_id = Some(sprite_id.clone());
+                        // store drag offset relative to sprite top-left
+                        let sprite_top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
+                        input.drag_offset = world_pos - sprite_top_left;
+                        return MouseEventResult::Handled;
                     }
                 }
             }

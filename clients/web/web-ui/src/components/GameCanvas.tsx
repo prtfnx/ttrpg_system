@@ -258,27 +258,87 @@ export const GameCanvas: React.FC = () => {
   }, [contextMenu.visible]);
 
   useEffect(() => {
-    let animationFrameId: number | null = null;
-    let mounted = true;
+  let animationFrameId: number | null = null;
+  let mounted = true;
+  let resizeObserver: ResizeObserver | null = null;
+  // Debounced resize scheduling shared across the effect scope so cleanup can access it
+  let resizeTimeout: number | null = null;
+  const scheduleResize = () => {
+    if (resizeTimeout) {
+      window.clearTimeout(resizeTimeout);
+    }
+    // Debounce final resize until layout is stable (150ms)
+    resizeTimeout = window.setTimeout(() => {
+      try { resizeCanvas(); } catch (e) { console.error('Scheduled resize failed', e); }
+      resizeTimeout = null;
+    }, 150);
+  };
 
-    // Helper to resize canvas and notify WASM
+    // Helper to resize canvas and notify WASM. Preserve the world point
+    // currently at the canvas center so the view doesn't jump on resize.
     const resizeCanvas = () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const dpr = window.devicePixelRatio || 1;
       dprRef.current = dpr;
       const rect = canvas.getBoundingClientRect();
+
+      // Compute world coordinate at canvas center before changing internal size.
+      // Use the canvas' current internal pixel size (canvas.width/height) to avoid
+      // transient layout differences between CSS rect and internal buffer size.
+      let worldCenter: number[] | null = null;
+      try {
+        const rm: any = window.rustRenderManager;
+        if (rm && typeof rm.screen_to_world === 'function') {
+          const deviceCenterX = (canvas.width || (rect.width * dpr)) / 2;
+          const deviceCenterY = (canvas.height || (rect.height * dpr)) / 2;
+          const w = rm.screen_to_world(deviceCenterX, deviceCenterY);
+          if (Array.isArray(w) && w.length >= 2) {
+            worldCenter = w;
+          }
+        }
+      } catch (err) {
+        console.warn('screen_to_world before resize failed:', err);
+      }
+
+      // Update canvas internal resolution
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
       canvas.style.width = rect.width + 'px';
       canvas.style.height = rect.height + 'px';
-      // Notify WASM of resize if method exists
+
+      // Notify WASM of resize if method exists. Try common names exported by wasm-bindgen.
       try {
-        if (window.rustRenderManager && window.rustRenderManager.resize) {
-          window.rustRenderManager.resize(canvas.width, canvas.height);
+        const rm: any = window.rustRenderManager;
+        if (rm) {
+          if (typeof rm.resize_canvas === 'function') {
+            rm.resize_canvas(canvas.width, canvas.height);
+          } else if (typeof rm.resize === 'function') {
+            rm.resize(canvas.width, canvas.height);
+          } else if (typeof rm.resizeCanvas === 'function') {
+            rm.resizeCanvas(canvas.width, canvas.height);
+          }
         }
       } catch (err) {
         console.error('WASM resize error:', err);
+      }
+
+      // Re-center camera so the same world point stays under the canvas center
+      try {
+        const rm: any = window.rustRenderManager;
+        if (worldCenter && rm) {
+          if (typeof rm.center_camera === 'function') {
+            rm.center_camera(worldCenter[0], worldCenter[1]);
+          } else if (typeof rm.centerCamera === 'function') {
+            rm.centerCamera(worldCenter[0], worldCenter[1]);
+          }
+          // Force a render immediately after resize+recenter to avoid visual lag
+          if (typeof rm.render === 'function') {
+            rm.render();
+          }
+        }
+      } catch (err) {
+        console.error('WASM center_camera after resize failed:', err);
       }
     };
 
@@ -352,6 +412,15 @@ export const GameCanvas: React.FC = () => {
         // Set default cursor to grab
         canvas.style.cursor = 'grab';
 
+        // Setup ResizeObserver + window resize hook to schedule debounced canvas resize
+        try {
+          resizeObserver = new ResizeObserver(() => scheduleResize());
+          resizeObserver.observe(canvas);
+        } catch (err) {
+          console.warn('ResizeObserver unavailable or failed to observe canvas:', err);
+        }
+        try { window.addEventListener('resize', scheduleResize); } catch (e) { /* ignore */ }
+
         // Start render loop
         const renderLoop = () => {
           try {
@@ -397,8 +466,7 @@ export const GameCanvas: React.FC = () => {
           }
         }, 1000);
 
-        // Listen for window resize
-        window.addEventListener('resize', resizeCanvas);
+
 
         // Connect to WebSocket after WASM is loaded
         try {
@@ -438,6 +506,15 @@ export const GameCanvas: React.FC = () => {
         canvas.removeEventListener('contextmenu', handleRightClick);
       }
       window.removeEventListener('resize', resizeCanvas);
+      // remove debounced listener (scheduleResize may be bound differently in closure)
+      try { window.removeEventListener('resize', scheduleResize as EventListener); } catch {}
+      if (resizeObserver && canvas) {
+        try { resizeObserver.unobserve(canvas); } catch { /* ignore */ }
+        try { resizeObserver.disconnect(); } catch { /* ignore */ }
+      }
+  // Clear any pending timeout
+  try { if (typeof resizeTimeout !== 'undefined' && resizeTimeout) window.clearTimeout(resizeTimeout); } catch {}
+      resizeObserver = null;
       window.rustRenderManager = undefined;
     };
   }, [updateConnectionState, connectWebSocket, disconnectWebSocket, handleMouseDown, handleMouseMove, handleMouseUp, handleWheel, handleRightClick]);

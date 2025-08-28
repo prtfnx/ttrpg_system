@@ -26,6 +26,7 @@ mod network;
 mod actions;
 mod paint;
 mod asset_manager;
+mod geometry;
 mod table_manager;
 mod table_sync;
 

@@ -414,8 +414,9 @@ impl FogOfWarSystem {
     }
 
     /// Add a polygon (array of [ {x,y}, ... ]) which will be treated as a reveal area
-    pub fn add_fog_polygon(&mut self, id: String, points: &JsValue) {
+    pub fn add_fog_polygon(&mut self, id: String, points: JsValue) {
         let mut vec = Vec::new();
+        // Try to treat points as a JS Array (value). Use JsValue by value to satisfy TryFrom.
         if let Ok(arr) = js_sys::Array::try_from(points) {
             for item in arr.iter() {
                 if let Some(x) = js_sys::Reflect::get(&item, &"x".into()).ok().and_then(|v| v.as_f64()) {

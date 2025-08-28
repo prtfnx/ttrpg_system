@@ -230,7 +230,7 @@ impl RenderEngine {
     /// Add a fog reveal polygon (array of {x,y}) under given id
     #[wasm_bindgen]
     pub fn add_fog_polygon(&mut self, id: &str, points: &JsValue) {
-        self.fog.add_fog_polygon(id.to_string(), points);
+    self.fog.add_fog_polygon(id.to_string(), points.clone());
     }
 
     #[wasm_bindgen]

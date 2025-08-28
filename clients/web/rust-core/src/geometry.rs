@@ -1,6 +1,7 @@
 use wasm_bindgen::prelude::*;
 use js_sys::Array;
 use serde::{Serialize};
+use serde_wasm_bindgen;
 use crate::math::Vec2;
 
 #[derive(Serialize)]
@@ -140,7 +141,7 @@ pub fn compute_visibility_polygon(player_x: f32, player_y: f32, obstacles: &js_s
     let arr = Array::new();
     for (_, p) in points {
         let pt = Point { x: p.x, y: p.y };
-        let js = JsValue::from_serde(&pt).unwrap_or(JsValue::NULL);
+        let js = serde_wasm_bindgen::to_value(&pt).unwrap_or(JsValue::NULL);
         arr.push(&js);
     }
     JsValue::from(arr)

@@ -1,6 +1,7 @@
 .game-layout {
   display: flex;
-  flex-direction: column;
+  /* Default to horizontal layout: left panel, canvas, right panel */
+  flex-direction: row;
   width: 100vw;
   height: 100vh;
   background: #0a0a0a;
@@ -121,6 +122,7 @@
 }
 
 @media (max-width: 900px) {
+  /* On small screens stack vertically */
   .game-layout {
     flex-direction: column;
   }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import './App.css';
 import { GameClient } from './components/GameClient';
+import { ProtocolProvider } from './services/ProtocolContext';
 import { SessionSelector } from './components/SessionSelector';
 import { authService, type UserInfo } from './services/auth.service';
 
@@ -165,12 +166,14 @@ function App() {
 
   return (
     <div className="app">
-      <GameClient 
-        sessionCode={state.selectedSession}
-        userInfo={state.userInfo}
-        userRole={state.userRole!}
-        onAuthError={handleAuthError}
-      />
+      <ProtocolProvider sessionCode={state.selectedSession}>
+        <GameClient 
+          sessionCode={state.selectedSession}
+          userInfo={state.userInfo}
+          userRole={state.userRole!}
+          onAuthError={handleAuthError}
+        />
+      </ProtocolProvider>
     </div>
   );
 }

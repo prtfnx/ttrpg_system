@@ -113,6 +113,23 @@
   max-width: 700px;
 }
 
+/* Resizer gutter between panels: larger hit area and visible on hover */
+.panel-resizer {
+  width: 12px;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 20;
+  transition: background 0.12s ease;
+}
+
+.panel-resizer:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+.panel-resizer:active {
+  background: rgba(255,255,255,0.06);
+}
+
 /* Responsive design for smaller screens */
 @media (max-width: 1200px) {
   .left-panel,

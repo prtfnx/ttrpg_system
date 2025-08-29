@@ -170,7 +170,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
             <button style={{margin:'8px',padding:'4px 8px',fontSize:12,background:'#222',color:'#fff',border:'none',borderRadius:4,cursor:'pointer'}} onClick={toggleLeft}>Collapse Left Panel</button>
           </div>
         )}
-        {leftVisible && <div style={{width:6,cursor:'col-resize',background:'#222',zIndex:10}} onMouseDown={e=>onDragStart('left',e)} />}
+  {leftVisible && <div className="panel-resizer" onMouseDown={e=>onDragStart('left',e)} />}
         <div className="canvas-container" style={{flex:1,background:'#111',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
           <GameCanvas />
           <div style={{position:'absolute',top:8,right:8,zIndex:20}}>
@@ -181,7 +181,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
             )}
           </div>
         </div>
-        {rightVisible && <div style={{width:6,cursor:'col-resize',background:'#222',zIndex:10}} onMouseDown={e=>onDragStart('right',e)} />}
+  {rightVisible && <div className="panel-resizer" onMouseDown={e=>onDragStart('right',e)} />}
         {rightVisible && (
           <div className="right-panel" style={{width:rightWidth,minWidth:250,maxWidth:600,background:'#111827',display:'flex',flexDirection:'column',borderLeft:'1px solid #222'}}>
             <RightPanel sessionCode={sessionCode} userInfo={userInfo} />

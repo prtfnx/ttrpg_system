@@ -17,24 +17,28 @@
 
 .tab-button {
   flex: 0 1 auto;
-  padding: 8px 10px;
-  background: transparent;
-  border: none;
+  padding: 6px 8px; /* smaller buttons */
+  background-color: #0b2740; /* dark blue base for buttons */
+  border: 0; /* reset any default button borders */
   cursor: pointer;
-  font-size: 11px;
-  color: #ffffff;
-  transition: all 0.15s ease;
+  font-size: 12px;
+  color: #bcd7f8; /* light-ish text for inactive buttons */
+  transition: background 0.12s ease, transform 0.12s ease;
   white-space: nowrap;
-  border-radius: 6px;
+  border-radius: 4px;
+  box-sizing: border-box;
+  /* reserve the bottom border so toggling active does not change height */
+  border-bottom: 2px solid transparent;
 }
 
 .tab-button:hover {
-  background: #1f2937;
+  background-color: #0f375e;
 }
 
 .tab-button.active {
-  background: #1f2937;
-  border-bottom: 2px solid #3b82f6;
+  background-color: #0b3b7a; /* active darker blue */
+  border-bottom-color: #1e40af; /* deep blue accent visible on active */
+  color: #ffffff; /* white text when selected */
 }
 
 .tab-content {

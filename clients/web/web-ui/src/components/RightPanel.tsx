@@ -18,19 +18,19 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
 
   return (
     <div className="game-panel right-panel" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#111827', borderLeft: '1px solid #374151' }}>
-  <div className="tabs" style={{ display: 'flex', borderBottom: '1px solid #374151' }}>
-  <button className={activeTab === 'compendium' ? 'active' : ''} style={{ flex: 1, padding: '8px', background: activeTab === 'compendium' ? '#1f2937' : 'transparent', border: 'none', borderBottom: activeTab === 'compendium' ? '2px solid #3b82f6' : 'none', cursor: 'pointer', fontSize: '11px', color: '#ffffff' }} onClick={() => setActiveTab('compendium')}>Compendium</button>
-        <button className={activeTab === 'tables' ? 'active' : ''} style={{ flex: 1, padding: '8px', background: activeTab === 'tables' ? '#1f2937' : 'transparent', border: 'none', borderBottom: activeTab === 'tables' ? '2px solid #3b82f6' : 'none', cursor: 'pointer', fontSize: '11px', color: '#ffffff' }} onClick={() => setActiveTab('tables')}>Tables</button>
-        <button className={activeTab === 'sync' ? 'active' : ''} style={{ flex: 1, padding: '8px', background: activeTab === 'sync' ? '#1f2937' : 'transparent', border: 'none', borderBottom: activeTab === 'sync' ? '2px solid #3b82f6' : 'none', cursor: 'pointer', fontSize: '11px', color: '#ffffff' }} onClick={() => setActiveTab('sync')}>Sync</button>
-        <button className={activeTab === 'characters' ? 'active' : ''} style={{ flex: 1, padding: '8px', background: activeTab === 'characters' ? '#1f2937' : 'transparent', border: 'none', borderBottom: activeTab === 'characters' ? '2px solid #3b82f6' : 'none', cursor: 'pointer', fontSize: '11px', color: '#ffffff' }} onClick={() => setActiveTab('characters')}>Characters</button>
-        <button className={activeTab === 'players' ? 'active' : ''} style={{ flex: 1, padding: '8px', background: activeTab === 'players' ? '#1f2937' : 'transparent', border: 'none', borderBottom: activeTab === 'players' ? '2px solid #3b82f6' : 'none', cursor: 'pointer', fontSize: '11px', color: '#ffffff' }} onClick={() => setActiveTab('players')}>Players</button>
-        <button className={activeTab === 'entities' ? 'active' : ''} style={{ flex: 1, padding: '8px', background: activeTab === 'entities' ? '#1f2937' : 'transparent', border: 'none', borderBottom: activeTab === 'entities' ? '2px solid #3b82f6' : 'none', cursor: 'pointer', fontSize: '11px', color: '#ffffff' }} onClick={() => setActiveTab('entities')}>Entities</button>
-        <button className={activeTab === 'chat' ? 'active' : ''} style={{ flex: 1, padding: '8px', background: activeTab === 'chat' ? '#1f2937' : 'transparent', border: 'none', borderBottom: activeTab === 'chat' ? '2px solid #3b82f6' : 'none', cursor: 'pointer', fontSize: '11px', color: '#ffffff' }} onClick={() => setActiveTab('chat')}>Chat</button>
-        <button className={activeTab === 'lighting' ? 'active' : ''} style={{ flex: 1, padding: '8px', background: activeTab === 'lighting' ? '#1f2937' : 'transparent', border: 'none', borderBottom: activeTab === 'lighting' ? '2px solid #3b82f6' : 'none', cursor: 'pointer', fontSize: '11px', color: '#ffffff' }} onClick={() => setActiveTab('lighting')}>Lighting</button>
-        <button className={activeTab === 'fog' ? 'active' : ''} style={{ flex: 1, padding: '8px', background: activeTab === 'fog' ? '#1f2937' : 'transparent', border: 'none', borderBottom: activeTab === 'fog' ? '2px solid #3b82f6' : 'none', cursor: 'pointer', fontSize: '11px', color: '#ffffff' }} onClick={() => setActiveTab('fog')}>Fog</button>
-        <button className={activeTab === 'paint' ? 'active' : ''} style={{ flex: 1, padding: '8px', background: activeTab === 'paint' ? '#1f2937' : 'transparent', border: 'none', borderBottom: activeTab === 'paint' ? '2px solid #3b82f6' : 'none', cursor: 'pointer', fontSize: '11px', color: '#ffffff' }} onClick={() => setActiveTab('paint')}>Paint</button>
+      <div className="tabs-container">
+        <button className={`tab-button ${activeTab === 'compendium' ? 'active' : ''}`} onClick={() => setActiveTab('compendium')}>Compendium</button>
+        <button className={`tab-button ${activeTab === 'tables' ? 'active' : ''}`} onClick={() => setActiveTab('tables')}>Tables</button>
+        <button className={`tab-button ${activeTab === 'sync' ? 'active' : ''}`} onClick={() => setActiveTab('sync')}>Sync</button>
+        <button className={`tab-button ${activeTab === 'characters' ? 'active' : ''}`} onClick={() => setActiveTab('characters')}>Characters</button>
+        <button className={`tab-button ${activeTab === 'players' ? 'active' : ''}`} onClick={() => setActiveTab('players')}>Players</button>
+        <button className={`tab-button ${activeTab === 'entities' ? 'active' : ''}`} onClick={() => setActiveTab('entities')}>Entities</button>
+        <button className={`tab-button ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => setActiveTab('chat')}>Chat</button>
+        <button className={`tab-button ${activeTab === 'lighting' ? 'active' : ''}`} onClick={() => setActiveTab('lighting')}>Lighting</button>
+        <button className={`tab-button ${activeTab === 'fog' ? 'active' : ''}`} onClick={() => setActiveTab('fog')}>Fog</button>
+        <button className={`tab-button ${activeTab === 'paint' ? 'active' : ''}`} onClick={() => setActiveTab('paint')}>Paint</button>
       </div>
-      <div className="tab-content" style={{ flex: 1, padding: '16px', overflowY: 'auto' }}>
+      <div className="tab-content">
         {activeTab === 'tables' && <TableManagementPanel />}
         {activeTab === 'sync' && <TableSyncPanel />}
         {activeTab === 'characters' && <CharacterManager sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}

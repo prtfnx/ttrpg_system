@@ -7,19 +7,25 @@
 
 .tabs-container {
   display: flex;
+  flex-wrap: wrap; /* allow wrapping into multiple rows */
+  gap: 4px;
+  padding: 6px;
   border-bottom: 1px solid #374151;
-  flex-shrink: 0;
+  max-height: 96px; /* limit vertical space used by tabs */
+  overflow-y: auto; /* make tabs scrollable if they overflow */
 }
 
 .tab-button {
-  flex: 1;
-  padding: 8px;
+  flex: 0 1 auto;
+  padding: 8px 10px;
   background: transparent;
   border: none;
   cursor: pointer;
   font-size: 11px;
   color: #ffffff;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  border-radius: 6px;
 }
 
 .tab-button:hover {
@@ -32,7 +38,7 @@
 }
 
 .tab-content {
-  flex: 1;
+  flex: 1 1 auto;
   padding: 16px;
   overflow-y: auto;
 }

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { WebClientProtocol } from '../protocol/clientProtocol';
 import type { UserInfo } from '../services/auth.service';
 import { authService } from '../services/auth.service';
+import { useProtocol } from '../services/ProtocolContext';
 
 interface UseAuthenticatedWebSocketProps {
   sessionCode: string;
@@ -15,9 +16,25 @@ interface UseAuthenticatedWebSocketProps {
 export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
 
 export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenticatedWebSocketProps) {
+  // Prefer the centralized ProtocolContext if present
+  let ctx: any = null;
+  try { ctx = useProtocol(); } catch (e) { ctx = null; }
+
   const protocolRef = useRef<WebClientProtocol | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const [error, setError] = useState<string | null>(null);
+
+  // If ProtocolContext is available, mirror its values and return early
+  if (ctx) {
+    return {
+      connectionState: ctx.connectionState as ConnectionState,
+      error: null,
+      protocol: ctx.protocol as WebClientProtocol | null,
+      connect: ctx.connect,
+      disconnect: ctx.disconnect,
+      isConnected: ctx.connectionState === 'connected'
+    };
+  }
 
   const connect = useCallback(async () => {
     try {
@@ -42,15 +59,23 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
         console.warn('[useAuthenticatedWebSocket] Failed to resolve sessionCode against user sessions:', e);
       }
 
+      // If already connected, skip creating a new protocol (idempotent)
+      if (protocolRef.current && protocolRef.current.isConnected()) {
+        console.debug('[useAuthenticatedWebSocket] Already connected - skipping new connect for', resolvedCode);
+        setConnectionState('connected');
+        return;
+      }
+
       // Create new protocol instance with the resolved canonical code
       const protocol = new WebClientProtocol(resolvedCode);
       protocolRef.current = protocol;
-      
+
       // Connect to WebSocket with authentication
       await protocol.connect();
-      
+
       setConnectionState('connected');
-      console.log(`Connected to session ${sessionCode} as ${userInfo.username} (${userInfo.role})`);
+      // Log the actual resolved canonical code we connected to (not the injected candidate)
+      console.log(`Connected to session ${resolvedCode} as ${userInfo.username} (${userInfo.role})`);
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Connection failed';

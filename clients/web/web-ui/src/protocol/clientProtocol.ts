@@ -13,6 +13,7 @@ import { MessageType, createMessage, parseMessage } from './message';
 export class WebClientProtocol {
   private handlers = new Map<string, MessageHandler>();
   private websocket: WebSocket | null = null;
+  private connecting: boolean = false;
   private messageQueue: Message[] = [];
   private pingInterval: number | null = null;
   private sessionCode: string;
@@ -157,22 +158,34 @@ export class WebClientProtocol {
     this.handlers.set(type, handler);
   }
 
+  // Allow consumers to unregister handlers when they unmount
+  unregisterHandler(type: string): void {
+    this.handlers.delete(type);
+  }
+
   async connect(): Promise<void> {
     // Use dynamic WebSocket URL based on current location
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-  const wsUrl = `${protocol}//${host}/ws/game/${this.sessionCode}`;
+    console.log('WebSocket URL:', `${protocol}//${host}/ws/game/${this.sessionCode}`);
+    const wsUrl = `${protocol}//${host}/ws/game/${this.sessionCode}`;
   // Debug: report the exact session code the browser will use for the WS connect
   try { console.debug('[WS] Connecting to session code:', this.sessionCode, 'wsUrl:', wsUrl); } catch(e) {}
 
     return new Promise((resolve, reject) => {
       try {
+        if (this.connecting) {
+          console.debug('[WS] connect() called but already connecting for', this.sessionCode);
+          return reject(new Error('Already connecting'));
+        }
+        this.connecting = true;
         this.websocket = new WebSocket(wsUrl);
 
         this.websocket.onopen = () => {
           console.log('WebSocket connected to authenticated session:', this.sessionCode);
           this.flushMessageQueue();
           this.startPingInterval();
+          this.connecting = false;
           resolve();
         };
 
@@ -183,6 +196,7 @@ export class WebClientProtocol {
         this.websocket.onclose = (event) => {
           console.log('WebSocket connection closed:', event.code, event.reason);
           this.stopPingInterval();
+          this.connecting = false;
           if (event.code === 1008) {
             reject(new Error('Authentication failed - invalid token'));
           }
@@ -191,6 +205,7 @@ export class WebClientProtocol {
         this.websocket.onerror = (error) => {
           console.error('WebSocket error:', error);
           this.stopPingInterval();
+          this.connecting = false;
           reject(new Error('WebSocket connection failed'));
         };
 

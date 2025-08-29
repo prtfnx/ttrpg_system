@@ -42,10 +42,50 @@
 <body>
     <!-- React mounts here in standalone mode -->
     <div id="root"></div>
+    
+    <!-- Provide initial server-side data to the React client (session, user, role) -->
+    <script type="text/javascript">
+      // Render a small, serializable payload to avoid JSON-serializing SQLAlchemy internals
+      try {
+        window.__INITIAL_DATA__ = {{ ({
+          'sessionCode': session_code,
+          'userInfo': {
+            'id': (user.id if user else None),
+            'username': (user.username if user else None),
+            'email': (user.email if user else None)
+          },
+          'userRole': user_role
+        }) | tojson | safe }};
+      } catch(e) {
+        console.warn('Initial data injection failed:', e);
+      }
+    </script>
 
-    
     <!-- React Integration Components injected by vite_assets.html -->
-    
-  
+
+    <script>
+      // Debug helpers injected by server to diagnose which code creates WebSocket connections
+      (function(){
+        try{ console.log('[SERVE-INJECT] window.__INITIAL_DATA__ ->', window.__INITIAL_DATA__); }catch(e){}
+        try{ console.log('[SERVE-INJECT] location.href ->', window.location.href); }catch(e){}
+        try{ console.log('[SERVE-INJECT] localStorage keys ->', Object.keys(window.localStorage || {})); }catch(e){}
+
+        // Intercept WebSocket construction to record URL + stack trace
+        try{
+          const NativeWebSocket = window.WebSocket;
+          function DebugWebSocket(url, protocols){
+            try{
+              const stack = (new Error()).stack || '';
+              console.debug('[WS-INTERCEPT] new WebSocket', url, '\nstack:', stack);
+            }catch(e){ console.debug('[WS-INTERCEPT] could not capture stack', e); }
+            return protocols ? new NativeWebSocket(url, protocols) : new NativeWebSocket(url);
+          }
+          DebugWebSocket.prototype = NativeWebSocket.prototype;
+          Object.keys(NativeWebSocket).forEach(k => { try{ DebugWebSocket[k] = NativeWebSocket[k]; }catch(e){} });
+          window.WebSocket = DebugWebSocket;
+        }catch(e){ console.error('[SERVE-INJECT] Failed to install WebSocket interceptor', e); }
+      })();
+    </script>
+
 </body>
 </html>

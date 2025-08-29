@@ -38,6 +38,47 @@ function App() {
       if (isInitialized) {
         const userInfo = authService.getUserInfo();
         console.log('✅ App: User authenticated successfully:', userInfo);
+        // If server injected initial data (page was rendered for a specific
+        // game session), prefer that sessionCode so the client connects by code.
+        // If the injected value is actually a session name (older behavior),
+        // attempt to resolve it to the user's session_code by querying the server.
+        const initData = (window as any).__INITIAL_DATA__;
+        if (initData && initData.sessionCode) {
+          console.log('📦 App: Found server initial data, candidate:', initData.sessionCode);
+          try {
+            // Fetch user's sessions and try to match either by code or by name
+            const sessions = await authService.getUserSessions();
+            const byCode = sessions.find((s: any) => s.session_code === initData.sessionCode);
+            const byName = sessions.find((s: any) => s.session_name === initData.sessionCode);
+            const resolved = byCode ? byCode.session_code : (byName ? byName.session_code : null);
+            if (resolved) {
+              console.log('🔎 App: Resolved initial session to code:', resolved);
+              setState(prev => ({
+                ...prev,
+                isAuthenticated: true,
+                userInfo: userInfo || prev.userInfo,
+                selectedSession: resolved,
+                userRole: initData.userRole || prev.userRole,
+                loading: false
+              }));
+              return;
+            }
+            // If resolution failed, fall back to using the injected value directly
+            console.warn('⚠️ App: Could not resolve injected session value to a known session code; using value as-is');
+          } catch (err) {
+            console.warn('Failed to resolve initial session against user sessions:', err);
+          }
+          setState(prev => ({
+            ...prev,
+            isAuthenticated: true,
+            userInfo: userInfo || prev.userInfo,
+            selectedSession: initData.sessionCode,
+            userRole: initData.userRole || prev.userRole,
+            loading: false
+          }));
+          return;
+        }
+
         setState(prev => ({
           ...prev,
           isAuthenticated: true,

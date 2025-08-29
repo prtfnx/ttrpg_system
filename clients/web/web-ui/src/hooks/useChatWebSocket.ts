@@ -1,10 +1,33 @@
 import React, { useEffect } from 'react';
 import { useChatStore } from '../store/chatStore';
+import { useProtocol } from '../services/ProtocolContext';
 
 export function useChatWebSocket(url: string, user: string) {
+  // Try to use centralized protocol if available
+  let protocol = null;
+  try {
+    protocol = useProtocol().protocol;
+  } catch (e) {
+    // Not inside ProtocolProvider, fall back to local websocket
+  }
+
   const wsRef = React.useRef<WebSocket | null>(null);
 
   useEffect(() => {
+    if (protocol) {
+      // Register a handler for chat messages via protocol
+      const handler = async (m: any) => {
+        if (m.type === 'chat' && m.data?.message) {
+          useChatStore.getState().addMessage(m.data.message);
+        }
+      };
+      protocol.registerHandler('chat', handler);
+      return () => {
+        try { protocol.unregisterHandler('chat'); } catch {}
+      };
+    }
+
+    // Fallback to raw WebSocket
     wsRef.current = new WebSocket(url);
     wsRef.current.onmessage = (event) => {
       try {
@@ -13,43 +36,35 @@ export function useChatWebSocket(url: string, user: string) {
           useChatStore.getState().addMessage(data.message);
         }
       } catch {
-        // Ignore JSON parsing errors
+        // Ignore
       }
     };
     return () => {
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [url, user]);
+  }, [url, user, protocol]);
 
-  // Input validation for chat messages
   const validateMessage = (text: string): string | null => {
     if (!text || typeof text !== 'string' || text.length < 1) return 'Message cannot be empty.';
     if (text.length > 500) return 'Message too long.';
     return null;
   };
 
-  // Optimistic UI: add message locally before server confirmation
   const sendMessage = (text: string) => {
     const validationError = validateMessage(text);
-    if (validationError) {
-      // Optionally show error in UI
-      return;
-    }
+    if (validationError) return;
     const msg = {
       type: 'chat',
-      message: {
-        id: Math.random().toString(36).slice(2),
-        user,
-        text,
-        timestamp: Date.now(),
-      },
+      data: { message: { id: Math.random().toString(36).slice(2), user, text, timestamp: Date.now() } }
     };
-    useChatStore.getState().addMessage(msg.message); // Optimistic add
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    useChatStore.getState().addMessage(msg.data.message);
+    if (protocol && protocol.isConnected()) {
+      protocol.sendMessage(msg as any);
+    } else if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(msg));
     } else {
-      // Optionally queue message for later send
+      // queue or drop
     }
   };
 

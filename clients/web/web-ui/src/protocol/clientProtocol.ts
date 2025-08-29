@@ -161,7 +161,9 @@ export class WebClientProtocol {
     // Use dynamic WebSocket URL based on current location
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/ws/game/${this.sessionCode}`;
+  const wsUrl = `${protocol}//${host}/ws/game/${this.sessionCode}`;
+  // Debug: report the exact session code the browser will use for the WS connect
+  try { console.debug('[WS] Connecting to session code:', this.sessionCode, 'wsUrl:', wsUrl); } catch(e) {}
 
     return new Promise((resolve, reject) => {
       try {

@@ -2,9 +2,12 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useGameStore } from '../store';
 import type { Sprite } from '../types';
 import type { WebSocketMessage } from '../types/websocket';
+import { useProtocol } from '../services/ProtocolContext';
 
 export function useWebSocket(url: string) {
   const wsRef = useRef<WebSocket | null>(null);
+  let protocol: any = null;
+  try { protocol = useProtocol().protocol; } catch (e) { protocol = null; }
   const reconnectTimeoutRef = useRef<number | undefined>(undefined);
   const messageQueueRef = useRef<WebSocketMessage[]>([]);
   
@@ -28,7 +31,10 @@ export function useWebSocket(url: string) {
 
   const sendMessage = useCallback((message: WebSocketMessage) => {
     console.log('[WebSocket] sendMessage called:', message);
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
+    if (protocol && protocol.isConnected && protocol.isConnected()) {
+      console.log('[WebSocket] Sending message via protocol:', message);
+      protocol.sendMessage(message);
+    } else if (wsRef.current?.readyState === WebSocket.OPEN) {
       console.log('[WebSocket] Sending message over socket:', message);
       wsRef.current.send(JSON.stringify(message));
     } else {
@@ -38,15 +44,23 @@ export function useWebSocket(url: string) {
   }, []);
 
   const flushMessageQueue = useCallback(() => {
-    while (messageQueueRef.current.length > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
+    while (messageQueueRef.current.length > 0) {
       const message = messageQueueRef.current.shift()!;
-      wsRef.current.send(JSON.stringify(message));
+      if (protocol && protocol.isConnected && protocol.isConnected()) {
+        protocol.sendMessage(message);
+      } else if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify(message));
+      } else {
+        // cannot send, re-queue and break
+        messageQueueRef.current.unshift(message);
+        break;
+      }
     }
   }, []);
 
-  const handleMessage = useCallback((event: MessageEvent) => {
+  const handleMessage = useCallback((payload: any) => {
     try {
-      const message: WebSocketMessage = JSON.parse(event.data);
+      const message: WebSocketMessage = typeof payload === 'string' ? JSON.parse(payload) : payload;
       console.log('[WebSocket] handleMessage received:', message);
       switch (message.type) {
         case 'sprite_update':
@@ -233,19 +247,35 @@ export function useWebSocket(url: string) {
   }, [moveSprite, addSprite, removeSprite, updateSprite, setConnection]);
 
   const connect = useCallback(async () => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
-    
+    if (protocol && protocol.isConnected && protocol.isConnected()) return;
+
     updateConnectionState('connecting');
-    
+
+    if (protocol) {
+      try {
+        await protocol.connect();
+        // register handler to receive protocol messages
+        const protoHandler = (m: any) => handleMessage(m.data ?? m);
+        protocol.registerHandler('generic', protoHandler);
+        flushMessageQueue();
+        updateConnectionState('connected');
+        setConnection(true);
+      } catch (err) {
+        console.error('Protocol connect failed:', err);
+        updateConnectionState('error');
+        setConnection(false);
+      }
+      return;
+    }
+
     try {
       wsRef.current = new WebSocket(url);
-      
+
       wsRef.current.onopen = () => {
         updateConnectionState('connected');
         setConnection(true);
         flushMessageQueue();
-        
-        // Send ping every 30 seconds
+
         const pingInterval = setInterval(() => {
           if (wsRef.current?.readyState === WebSocket.OPEN) {
             sendMessage(createMessage('ping'));
@@ -254,26 +284,25 @@ export function useWebSocket(url: string) {
           }
         }, 30000);
       };
-      
-      wsRef.current.onmessage = handleMessage;
-      
+
+      wsRef.current.onmessage = (e) => handleMessage(e.data);
+
       wsRef.current.onclose = (event) => {
         updateConnectionState('disconnected');
         setConnection(false);
-        
-        // Auto-reconnect unless it was intentional
+
         if (!event.wasClean) {
-          reconnectTimeoutRef.current = setTimeout(() => {
+          reconnectTimeoutRef.current = window.setTimeout(() => {
             connect();
-          }, 3000);
+          }, 3000) as unknown as number;
         }
       };
-      
+
       wsRef.current.onerror = () => {
         updateConnectionState('error');
         setConnection(false);
       };
-      
+
     } catch (error) {
       updateConnectionState('error');
       console.error('WebSocket connection failed:', error);

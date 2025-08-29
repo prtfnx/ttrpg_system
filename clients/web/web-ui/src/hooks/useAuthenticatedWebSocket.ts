@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { WebClientProtocol } from '../protocol/clientProtocol';
 import type { UserInfo } from '../services/auth.service';
+import { authService } from '../services/auth.service';
 
 interface UseAuthenticatedWebSocketProps {
   sessionCode: string;
@@ -23,8 +24,26 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
       setConnectionState('connecting');
       setError(null);
       
-      // Create new protocol instance
-      const protocol = new WebClientProtocol(sessionCode);
+      // Resolve sessionCode to canonical session_code if needed
+      let resolvedCode = sessionCode;
+      try {
+        // Fetch user's sessions and try to resolve by code first, then by name
+        const sessions = await authService.getUserSessions();
+        const byCode = sessions.find((s: any) => s.session_code === sessionCode);
+        const byName = sessions.find((s: any) => s.session_name === sessionCode);
+        if (byCode) {
+          resolvedCode = byCode.session_code;
+        } else if (byName) {
+          resolvedCode = byName.session_code;
+          console.debug('[useAuthenticatedWebSocket] Resolved injected session name to code:', sessionCode, '->', resolvedCode);
+        }
+      } catch (e) {
+        // If session resolution fails, continue with provided sessionCode but log it
+        console.warn('[useAuthenticatedWebSocket] Failed to resolve sessionCode against user sessions:', e);
+      }
+
+      // Create new protocol instance with the resolved canonical code
+      const protocol = new WebClientProtocol(resolvedCode);
       protocolRef.current = protocol;
       
       // Connect to WebSocket with authentication

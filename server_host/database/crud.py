@@ -194,6 +194,11 @@ def get_game_session_by_code(db: Session, session_code: str):
         models.GameSession.is_active == True
     ).first()
 
+def list_game_sessions(db: Session):
+    """Return a list of (session_code, name, is_active) tuples for debugging."""
+    sessions = db.query(models.GameSession).all()
+    return [(s.session_code, s.name, bool(s.is_active)) for s in sessions]
+
 def get_user_game_sessions(db: Session, user_id: int):
     return db.query(models.GameSession).filter(
         models.GameSession.owner_id == user_id,

@@ -143,6 +143,16 @@ async def game_session_page(
     
     # Serve the React web client - user is already authenticated
     # The existing token cookie from their login will be used by the React client
+    # Log the final injection values for client-side debugging
+    try:
+        safe_session = {
+            'session_code': getattr(game_session, 'session_code', None),
+            'session_name': getattr(game_session, 'name', None),
+            'owner_id': getattr(game_session, 'owner_id', None)
+        }
+        logger.info(f"Rendering game_client.html with session_code={session_code} safe_session={safe_session}")
+    except Exception:
+        logger.exception("Failed to build safe_session debug info")
     return templates.TemplateResponse("game_client.html", {
         "request": request,
         "user": current_user,

@@ -95,17 +95,23 @@ async def websocket_game_endpoint(
         user = None
         token_value = None
         
+        # Track where the token came from for debugging
+        auth_source = None
         # Method 1: Query parameter token
         if not token:
             token_value = websocket.query_params.get("token")
+            if token_value:
+                auth_source = 'query'
         else:
             token_value = token
+            auth_source = 'param'
         
         # Method 2: Authorization header
         if not token_value:
             auth_header = dict(websocket.headers).get("authorization")
             if auth_header:
                 token_value = auth_header.replace("Bearer ", "")
+                auth_source = auth_source or 'header'
         
         # Method 3: HTTP-only cookie (most secure)
         if not token_value:
@@ -119,6 +125,8 @@ async def websocket_game_endpoint(
                         key, value = cookie.strip().split('=', 1)
                         cookies[key] = value
                 token_value = cookies.get('token')
+                if token_value:
+                    auth_source = auth_source or 'cookie'
         
         if token_value:
             user = get_user_from_token(token_value, db)
@@ -129,6 +137,34 @@ async def websocket_game_endpoint(
             return        # Check if session exists in database
         logger.info(f"User {user.username} connecting to session {session_code}")
         
+        # Debug: log detailed info about the session lookup request before querying DB
+        try:
+            headers_keys = list(dict(websocket.headers).keys())
+        except Exception:
+            headers_keys = []
+        try:
+            db_bind = getattr(db, 'bind', None)
+            # Safely stringify bind info without assuming attributes
+            if db_bind is None:
+                db_bind_info = 'None'
+            else:
+                try:
+                    db_bind_info = str(db_bind)
+                except Exception:
+                    db_bind_info = repr(db_bind)
+        except Exception:
+            db_bind_info = 'unknown'
+        # Mask token length instead of printing token itself
+        token_info = f"len={len(token_value)}" if token_value else 'None'
+        logger.debug(f"Session lookup request: session_code={session_code!r}, token_info={token_info}, auth_source={auth_source}, headers={headers_keys}, db_bind={db_bind_info}")
+
+        # Debug: list current sessions to help diagnose missing session issues
+        try:
+            current_sessions = crud.list_game_sessions(db)
+            logger.debug(f"Current DB sessions: {current_sessions}")
+        except Exception as e:
+            logger.debug(f"Failed to list DB sessions: {e}")
+
         # Verify session exists in database
         db_game_session = crud.get_game_session_by_code(db, session_code)
         if not db_game_session:

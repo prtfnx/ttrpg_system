@@ -1,4 +1,6 @@
 // WebSocket service for connecting to FastAPI backend
+import { protocolLogger, logger } from '../utils/logger';
+
 export interface GameMessage {
   type: string;
   data?: Record<string, unknown>;
@@ -33,18 +35,18 @@ export class WebSocketService {
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
   
-  constructor(url: string = 'ws://127.0.0.1:12345/ws/game') {
+  constructor(url: string = 'ws://127.0.0.1:12345/ws/game') { 
     this.url = url;
   }
 
-  connect(): Promise<void> {
+  connect(): Promise<void> { 
     return new Promise((resolve, reject) => {
       try {
         this.notifyConnectionState('connecting');
         this.ws = new WebSocket(this.url);
 
         this.ws.onopen = () => {
-          console.log('WebSocket connected to FastAPI server');
+          protocolLogger.connection('WebSocket connected to FastAPI server');
           this.reconnectAttempts = 0;
           this.notifyConnectionState('connected');
           resolve();
@@ -53,20 +55,21 @@ export class WebSocketService {
         this.ws.onmessage = (event) => {
           try {
             const message: GameMessage = JSON.parse(event.data);
+            protocolLogger.message('received', message);
             this.notifyMessage(message);
           } catch (error) {
-            console.error('Error parsing WebSocket message:', error);
+            protocolLogger.error('Error parsing WebSocket message', error);
           }
         };
 
         this.ws.onclose = (event) => {
-          console.log('WebSocket connection closed:', event.code, event.reason);
+          protocolLogger.connection('WebSocket connection closed', { code: event.code, reason: event.reason });
           this.notifyConnectionState('disconnected');
           
           // Attempt to reconnect
           if (this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
-            console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+            logger.info(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
             setTimeout(() => {
               this.connect();
             }, this.reconnectDelay * this.reconnectAttempts);
@@ -74,7 +77,7 @@ export class WebSocketService {
         };
 
         this.ws.onerror = (error) => {
-          console.error('WebSocket error:', error);
+          protocolLogger.error('WebSocket error', error);
           this.notifyConnectionState('error');
           reject(error);
         };
@@ -103,9 +106,10 @@ export class WebSocketService {
         priority: message.priority || 5,
         type: message.type || 'unknown'
       };
+      protocolLogger.message('sent', fullMessage);
       this.ws.send(JSON.stringify(fullMessage));
     } else {
-      console.warn('WebSocket not connected. Message not sent:', message);
+      logger.warn('WebSocket not connected. Message not sent', message);
     }
   }
 

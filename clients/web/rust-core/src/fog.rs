@@ -2,8 +2,6 @@ use wasm_bindgen::prelude::*;
 use web_sys::{WebGl2RenderingContext as WebGlRenderingContext, WebGlProgram, WebGlShader};
 use std::collections::HashMap;
 use crate::math::Vec2;
-use wasm_bindgen::prelude::*;
-use js_sys::Array;
 
 #[derive(Clone, Debug)]
 pub struct FogRectangle {

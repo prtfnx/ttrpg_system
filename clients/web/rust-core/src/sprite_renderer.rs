@@ -3,10 +3,8 @@ use crate::math::Vec2;
 use crate::webgl_renderer::WebGLRenderer;
 use crate::texture_manager::TextureManager;
 use crate::sprite_manager::SpriteManager;
-use crate::input::{InputHandler, HandleDetector};
-use crate::camera::Camera;
+use crate::input::InputHandler;
 use wasm_bindgen::prelude::*;
-use web_sys::WebGl2RenderingContext as WebGlRenderingContext;
 
 pub struct SpriteRenderer;
 

@@ -123,7 +123,7 @@ impl AssetManager {
         }
         
         // Download the asset
-        let mut request_init = RequestInit::new();
+        let request_init = RequestInit::new();
         request_init.set_method("GET");
         request_init.set_mode(RequestMode::Cors);
         

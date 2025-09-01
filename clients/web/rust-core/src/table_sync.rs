@@ -1,7 +1,6 @@
 use wasm_bindgen::prelude::*;
 use serde::{Deserialize, Serialize};
 use js_sys::Function;
-use std::collections::HashMap;
 
 /// Table synchronization manager for TTRPG web client
 /// Handles table data reception from server and bidirectional sprite updates

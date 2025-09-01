@@ -1,7 +1,6 @@
-use wasm_bindgen::prelude::*;
 use crate::math::Vec2;
 use crate::types::{Sprite, Layer};
-use crate::input::{InputHandler, InputMode, ResizeHandle, HandleDetector, FogDrawMode};
+use crate::input::{InputHandler, InputMode, HandleDetector, FogDrawMode};
 use crate::camera::Camera;
 use crate::sprite_manager::SpriteManager;
 use crate::lighting::LightingSystem;

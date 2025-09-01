@@ -12,6 +12,11 @@ import { PlayerManagerPanel } from './PlayerManagerPanel';
 import { TableManagementPanel } from './TableManagementPanel';
 import TableSyncPanel from './TableSyncPanel';
 
+// Development-only imports
+const isDevelopment = import.meta.env.DEV;
+const NetworkPanel = isDevelopment ? await import('./NetworkPanel').then(m => m.default).catch(() => null) : null;
+const ActionsPanel = isDevelopment ? await import('./ActionsPanel').then(m => m.default).catch(() => null) : null;
+
 
 export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
   const [activeTab, setActiveTab] = useState<'tables' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'paint' | 'sync' | 'players' | 'actions' | 'compendium'>('tables');

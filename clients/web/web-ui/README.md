@@ -67,3 +67,13 @@ export default tseslint.config([
   },
 ])
 ```
+
+## Compendium integration
+
+- Place compendium JSON files under `server_host/static/compendium/compendium.json` or serve at `/static/compendium/compendium.json`.
+- Format: an array of compendium entries: [{ id, type: 'monster'|'spell'|'equipment', name, description, stats }]
+- Drag an entry from the Compendium panel into the drop area to create a sprite on the active table. The client will send a `COMPENDIUM_SPRITE_ADD` message to the server.
+
+Notes:
+- The GameClient exposes the connected `protocol` on `window.protocol` and the last `table_id` on `window.activeTableId` for integration points.
+- No development fallbacks or mock tokens are used; authentication must be functional for WebSocket connections.

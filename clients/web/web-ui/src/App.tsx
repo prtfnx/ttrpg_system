@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import './App.css';
 import { GameClient } from './components/GameClient';
-import { ProtocolProvider } from './services/ProtocolContext';
 import { SessionSelector } from './components/SessionSelector';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { authService, type UserInfo } from './services/auth.service';
+import { ProtocolProvider } from './services/ProtocolContext';
+import { logger } from './utils/logger';
 
 interface AppState {
   isAuthenticated: boolean;
@@ -45,7 +47,7 @@ function App() {
         // attempt to resolve it to the user's session_code by querying the server.
         const initData = (window as any).__INITIAL_DATA__;
         if (initData && initData.sessionCode) {
-          console.log('📦 App: Found server initial data, candidate:', initData.sessionCode);
+          logger.debug('📦 App: Found server initial data, candidate:', initData.sessionCode);
           try {
             // Fetch user's sessions and try to match either by code or by name
             const sessions = await authService.getUserSessions();
@@ -53,7 +55,7 @@ function App() {
             const byName = sessions.find((s: any) => s.session_name === initData.sessionCode);
             const resolved = byCode ? byCode.session_code : (byName ? byName.session_code : null);
             if (resolved) {
-              console.log('🔎 App: Resolved initial session to code:', resolved);
+              logger.debug('🔎 App: Resolved initial session to code:', resolved);
               setState(prev => ({
                 ...prev,
                 isAuthenticated: true,
@@ -65,9 +67,9 @@ function App() {
               return;
             }
             // If resolution failed, fall back to using the injected value directly
-            console.warn('⚠️ App: Could not resolve injected session value to a known session code; using value as-is');
+            logger.warn('⚠️ App: Could not resolve injected session value to a known session code; using value as-is');
           } catch (err) {
-            console.warn('Failed to resolve initial session against user sessions:', err);
+            logger.warn('Failed to resolve initial session against user sessions:', err);
           }
           setState(prev => ({
             ...prev,
@@ -158,23 +160,27 @@ function App() {
 
   if (!state.selectedSession) {
     return (
-      <div className="app">
-        <SessionSelector onSessionSelected={handleSessionSelected} />
-      </div>
+      <ErrorBoundary>
+        <div className="app">
+          <SessionSelector onSessionSelected={handleSessionSelected} />
+        </div>
+      </ErrorBoundary>
     );
   }
 
   return (
-    <div className="app">
-      <ProtocolProvider sessionCode={state.selectedSession}>
-        <GameClient 
-          sessionCode={state.selectedSession}
-          userInfo={state.userInfo}
-          userRole={state.userRole!}
-          onAuthError={handleAuthError}
-        />
-      </ProtocolProvider>
-    </div>
+    <ErrorBoundary>
+      <div className="app">
+        <ProtocolProvider sessionCode={state.selectedSession}>
+          <GameClient 
+            sessionCode={state.selectedSession}
+            userInfo={state.userInfo}
+            userRole={state.userRole!}
+            onAuthError={handleAuthError}
+          />
+        </ProtocolProvider>
+      </div>
+    </ErrorBoundary>
   );
 }
 

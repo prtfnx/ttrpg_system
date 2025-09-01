@@ -1,0 +1,14 @@
+[
+  {
+    "AllowedOrigins": [
+      "http://127.0.0.1:12345",
+      "http://localhost:12345",
+      "http://127.0.0.1:5173",
+      "http://localhost:5173",
+      "https://your-production-domain.com"
+    ],
+    "AllowedMethods": ["GET", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "MaxAgeSeconds": 3600
+  }
+]

@@ -1,5 +1,5 @@
 // WebSocket service for connecting to FastAPI backend
-import { protocolLogger, logger } from '../utils/logger';
+import { logger, protocolLogger } from '../utils/logger';
 
 export interface GameMessage {
   type: string;

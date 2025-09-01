@@ -6,9 +6,9 @@
  */
 
 import { useAssetCharacterCache } from '../assetCharacterCache';
+import { logger, protocolLogger } from '../utils/logger';
 import type { Message, MessageHandler } from './message';
 import { MessageType, createMessage, parseMessage } from './message';
-import { protocolLogger, logger } from '../utils/logger';
 
 
 export class WebClientProtocol {

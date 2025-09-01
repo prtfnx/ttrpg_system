@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import './App.css';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { GameClient } from './components/GameClient';
 import { SessionSelector } from './components/SessionSelector';
-import { ErrorBoundary } from './components/ErrorBoundary';
 import { authService, type UserInfo } from './services/auth.service';
 import { ProtocolProvider } from './services/ProtocolContext';
 import { logger } from './utils/logger';

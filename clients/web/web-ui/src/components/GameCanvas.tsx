@@ -7,7 +7,6 @@ import { wasmIntegrationService } from '../services/wasmIntegration.service';
 import { useGameStore } from '../store';
 import type { RenderEngine } from '../types';
 import type { GlobalWasmModule } from '../utils/wasmManager';
-import { DebugOverlay } from './DebugOverlay';
 import './GameCanvas.css';
 
 declare global {
@@ -532,8 +531,10 @@ export const GameCanvas: React.FC = () => {
     };
   };
 
-  // Mouse move handler for debug overlay - track actual mouse position
+  // Mouse move handler for debug overlay - track actual mouse position (dev only)
   const updateDebugOverlay = React.useCallback((event: MouseEvent) => {
+    if (!import.meta.env.DEV) return;
+    
     const rm = rustRenderManagerRef.current;
     const canvas = canvasRef.current;
     if (rm && canvas) {
@@ -560,8 +561,10 @@ export const GameCanvas: React.FC = () => {
     }
   }, []);
 
-  // Attach debug mouse handler only after WASM is loaded
+  // Attach debug mouse handler only in development after WASM is loaded
   React.useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    
     const canvas = canvasRef.current;
     if (canvas) {
       canvas.addEventListener('mousemove', updateDebugOverlay);
@@ -727,12 +730,14 @@ export const GameCanvas: React.FC = () => {
           </>
         )}
       </div>
-      {/* Debug overlay near cursor */}
-      <DebugOverlay
-        cursorScreen={debugCursorScreen}
-        cursorWorld={debugCursorWorld}
-        grid={debugGrid}
-      />
+      {/* Debug overlay conditionally rendered in development */}
+      {import.meta.env.DEV && (
+        <div className="debug-overlay">
+          <div>Screen: {debugCursorScreen.x.toFixed(2)}, {debugCursorScreen.y.toFixed(2)}</div>
+          <div>World: {debugCursorWorld.x.toFixed(2)}, {debugCursorWorld.y.toFixed(2)}</div>
+          <div>Grid: {debugGrid.x}, {debugGrid.y}</div>
+        </div>
+      )}
     </div>
   );
 }

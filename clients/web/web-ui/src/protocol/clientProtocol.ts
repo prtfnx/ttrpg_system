@@ -8,6 +8,7 @@
 import { useAssetCharacterCache } from '../assetCharacterCache';
 import type { Message, MessageHandler } from './message';
 import { MessageType, createMessage, parseMessage } from './message';
+import { protocolLogger, logger } from '../utils/logger';
 
 
 export class WebClientProtocol {
@@ -167,22 +168,22 @@ export class WebClientProtocol {
     // Use dynamic WebSocket URL based on current location
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    console.log('WebSocket URL:', `${protocol}//${host}/ws/game/${this.sessionCode}`);
+    protocolLogger.connection('WebSocket URL', `${protocol}//${host}/ws/game/${this.sessionCode}`);
     const wsUrl = `${protocol}//${host}/ws/game/${this.sessionCode}`;
-  // Debug: report the exact session code the browser will use for the WS connect
-  try { console.debug('[WS] Connecting to session code:', this.sessionCode, 'wsUrl:', wsUrl); } catch(e) {}
+    // Debug: report the exact session code the browser will use for the WS connect
+    protocolLogger.connection('Connecting to session code', this.sessionCode);
 
     return new Promise((resolve, reject) => {
       try {
         if (this.connecting) {
-          console.debug('[WS] connect() called but already connecting for', this.sessionCode);
+          logger.debug('connect() called but already connecting for', this.sessionCode);
           return reject(new Error('Already connecting'));
         }
         this.connecting = true;
         this.websocket = new WebSocket(wsUrl);
 
         this.websocket.onopen = () => {
-          console.log('WebSocket connected to authenticated session:', this.sessionCode);
+          protocolLogger.connection('WebSocket connected to authenticated session', this.sessionCode);
           this.flushMessageQueue();
           this.startPingInterval();
           this.connecting = false;
@@ -194,7 +195,7 @@ export class WebClientProtocol {
         };
 
         this.websocket.onclose = (event) => {
-          console.log('WebSocket connection closed:', event.code, event.reason);
+          protocolLogger.connection('WebSocket connection closed', { code: event.code, reason: event.reason });
           this.stopPingInterval();
           this.connecting = false;
           if (event.code === 1008) {
@@ -256,7 +257,7 @@ export class WebClientProtocol {
 
   // Message handler implementations
   private async handleWelcome(message: Message): Promise<void> {
-    console.log('Welcome to session:', message.data);
+    protocolLogger.message('received', { type: 'welcome', data: message.data });
     // Request initial data
     this.requestTableList();
     this.requestPlayerList();
@@ -269,17 +270,17 @@ export class WebClientProtocol {
 
   private async handlePong(_message: Message): Promise<void> {
     // Handle pong response - connection alive
-    console.log('Pong received - connection alive');
+    protocolLogger.connection('Pong received - connection alive');
   }
 
   private async handleError(message: Message): Promise<void> {
-    console.error('Server error:', message.data);
+    logger.error('Server error', message.data);
     // Emit error event for UI handling
     window.dispatchEvent(new CustomEvent('protocol-error', { detail: message.data }));
   }
 
   private async handleSuccess(message: Message): Promise<void> {
-    console.log('Operation successful:', message.data);
+    protocolLogger.message('received', { type: 'success', data: message.data });
     
     // Check if this is a table-related success message
     if (message.data && message.data.table_id) {

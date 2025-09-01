@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { useProtocol } from '../services/ProtocolContext';
 import { useGameStore } from '../store';
 import type { Sprite } from '../types';
 import type { WebSocketMessage } from '../types/websocket';
-import { useProtocol } from '../services/ProtocolContext';
 
 export function useWebSocket(url: string) {
   const wsRef = useRef<WebSocket | null>(null);

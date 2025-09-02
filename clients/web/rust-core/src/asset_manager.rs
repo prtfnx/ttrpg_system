@@ -128,7 +128,6 @@ impl AssetManager {
                     self.stats.download_queue_size = self.download_queue.len() as u32;
                     return Ok(asset_id.clone());
                 }
-                }
             }
         }
         

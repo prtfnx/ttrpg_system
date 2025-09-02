@@ -114,10 +114,25 @@ impl ActionsClient {
     }
 
     #[wasm_bindgen]
-    pub fn set_network_client(&mut self, _network_client: &NetworkClient) {
-        // Note: In a real implementation, we'd clone or store a reference
-        // For now, we'll manage network state separately
+    pub fn set_network_client(&mut self, network_client: &NetworkClient) {
+        // Store a clone of the network client for action synchronization
+        self.network_client = Some(network_client.clone());
         self.auto_sync = true;
+        
+        // Log network client connection
+        web_sys::console::log_1(&"ActionsClient: Network client connected for action sync".into());
+    }
+
+    #[wasm_bindgen] 
+    pub fn disconnect_network_client(&mut self) {
+        self.network_client = None;
+        self.auto_sync = false;
+        web_sys::console::log_1(&"ActionsClient: Network client disconnected".into());
+    }
+
+    #[wasm_bindgen]
+    pub fn is_network_connected(&self) -> bool {
+        self.network_client.is_some()
     }
 
     #[wasm_bindgen]
@@ -549,7 +564,18 @@ impl ActionsClient {
                 reversible: true,
             };
 
-            self.add_to_history(action);
+            self.add_to_history(action.clone());
+            
+            // Sync with network if auto_sync is enabled and network client is available
+            if self.auto_sync {
+                if let Some(ref network_client) = self.network_client {
+                    let sync_result = network_client.sync_action(&action);
+                    if sync_result.is_err() {
+                        web_sys::console::warn_1(&format!("Failed to sync sprite layer change to network: {:?}", sync_result.err()).into());
+                    }
+                }
+            }
+            
             self.notify_state_change("sprite_layer_changed", sprite_id);
 
             let result = ActionResult {

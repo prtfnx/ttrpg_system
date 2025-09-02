@@ -31,6 +31,7 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
   const [error, setError] = useState<string | null>(null);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
   const [lockedBy, setLockedBy] = useState<string | null>(null);
+  const [showSimpleForm, setShowSimpleForm] = useState<boolean>(false);
   const [presence, setPresence] = useState<Array<{ username: string; editing: boolean }>>([]);
   const [mutationQueue, setMutationQueue] = useState<Array<{ type: 'create'|'update'|'delete'; payload: any; tempId?: string }>>([]);
 
@@ -192,6 +193,9 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
   return (
     <div className="character-manager">
       <h2>Characters</h2>
+      
+      {/* Network Characters */}
+      <h3>Session Characters</h3>
       <ul>
         {characters.map((char) => (
           <li key={char.id}>
@@ -205,7 +209,46 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
           </li>
         ))}
       </ul>
-      <button onClick={() => setSelectedCharacter(null)}>Create New Character</button>
+      
+      {/* Local Characters from Store */}
+      <h3>Local Characters</h3>
+      <ul>
+        {localCharacters.map((char) => (
+          <li key={char.id}>
+            <button onClick={() => {
+              // Convert local character to network character format for editing
+              const networkChar: Character = {
+                id: char.id,
+                name: char.name,
+                class: char.class,
+                race: 'Unknown', // Store doesn't have race, add default
+                level: 1, // Store doesn't have level, add default
+                stats: {
+                  strength: char.stats.strength,
+                  dexterity: char.stats.dexterity,
+                  constitution: char.stats.constitution,
+                  intelligence: char.stats.intelligence,
+                  wisdom: char.stats.wisdom,
+                  charisma: char.stats.charisma,
+                },
+                owner: userInfo.username
+              };
+              setSelectedCharacter(networkChar);
+            }}>{char.name}</button>
+            <button onClick={() => removeCharacter(char.id)}>Delete</button>
+          </li>
+        ))}
+      </ul>
+      
+      <div style={{ margin: '10px 0' }}>
+        <button onClick={() => { setSelectedCharacter(null); setShowSimpleForm(false); }}>
+          Create New Character (Full Editor)
+        </button>
+        <button onClick={() => { setSelectedCharacter(null); setShowSimpleForm(true); }}>
+          Quick Create Character
+        </button>
+      </div>
+      
       {selectedCharacter ? (
         <CharacterSheet
           character={selectedCharacter}
@@ -216,6 +259,42 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
           onReleaseLock={handleReleaseLock}
           onSync={handleSync}
         />
+      ) : showSimpleForm ? (
+        <CharacterCreationForm onCreate={(data) => {
+          // Add to local store and optionally sync to network
+          addCharacter({
+            name: data.name,
+            class: data.class,
+            stats: {
+              strength: 10,
+              dexterity: 10,
+              constitution: 10,
+              intelligence: 10,
+              wisdom: 10,
+              charisma: 10,
+            },
+            inventory: [],
+            conditions: [],
+          });
+          
+          // Also create on network if needed
+          const networkChar = {
+            name: data.name,
+            class: data.class,
+            race: data.race,
+            level: data.level,
+            stats: {
+              strength: 10,
+              dexterity: 10,
+              constitution: 10,
+              intelligence: 10,
+              wisdom: 10,
+              charisma: 10,
+            },
+          };
+          optimisticCreate(networkChar);
+          setShowSimpleForm(false);
+        }} />
       ) : (
         <CharacterSheet
           character={null}

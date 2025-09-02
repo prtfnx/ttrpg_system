@@ -8,6 +8,7 @@ import ChatPanel from './ChatPanel';
 import { CompendiumPanel } from './CompendiumPanel';
 import { EntitiesPanel } from './EntitiesPanel';
 import { FogPanel } from './FogPanel';
+import InitiativeTracker from './InitiativeTracker';
 import { LightingPanel } from './LightingPanel';
 import { NetworkPanel } from './NetworkPanel';
 import { PaintPanel } from './PaintPanel';
@@ -21,7 +22,7 @@ const isDevelopment = import.meta.env.DEV;
 
 
 export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
-  const [activeTab, setActiveTab] = useState<'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'paint' | 'sync' | 'players' | 'actions' | 'queue' | 'compendium' | 'assets' | 'network'>('tables');
+  const [activeTab, setActiveTab] = useState<'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'paint' | 'sync' | 'players' | 'actions' | 'queue' | 'compendium' | 'assets' | 'network' | 'initiative'>('tables');
 
   return (
     <div className="game-panel right-panel" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#111827', borderLeft: '1px solid #374151' }}>
@@ -32,6 +33,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
         {isDevelopment && <button className={`tab-button ${activeTab === 'sync' ? 'active' : ''}`} onClick={() => setActiveTab('sync')}>Sync</button>}
         <button className={`tab-button ${activeTab === 'characters' ? 'active' : ''}`} onClick={() => setActiveTab('characters')}>Characters</button>
         <button className={`tab-button ${activeTab === 'players' ? 'active' : ''}`} onClick={() => setActiveTab('players')}>Players</button>
+        <button className={`tab-button ${activeTab === 'initiative' ? 'active' : ''}`} onClick={() => setActiveTab('initiative')}>Initiative</button>
         <button className={`tab-button ${activeTab === 'entities' ? 'active' : ''}`} onClick={() => setActiveTab('entities')}>Entities</button>
         <button className={`tab-button ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => setActiveTab('chat')}>Chat</button>
         <button className={`tab-button ${activeTab === 'lighting' ? 'active' : ''}`} onClick={() => setActiveTab('lighting')}>Lighting</button>
@@ -48,6 +50,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
         {isDevelopment && activeTab === 'sync' && <TableSyncPanel />}
         {activeTab === 'characters' && <CharacterManager sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'players' && <PlayerManagerPanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
+        {activeTab === 'initiative' && <InitiativeTracker sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {isDevelopment && activeTab === 'actions' && <ActionsPanel renderEngine={window.rustRenderManager as any || null} />}
         {isDevelopment && activeTab === 'queue' && <ActionQueuePanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'entities' && <EntitiesPanel />}

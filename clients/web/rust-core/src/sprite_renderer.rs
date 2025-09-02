@@ -75,7 +75,7 @@ impl SpriteRenderer {
             Self::draw_selection_border(sprite, world_pos, size, is_primary_selected, renderer)?;
             // Only draw handles for the primary selected sprite
             if is_primary_selected {
-                Self::draw_handles(sprite, world_pos, size, renderer, input)?;
+                Self::draw_handles(sprite, world_pos, size, renderer)?;
             }
         }
         
@@ -146,7 +146,7 @@ impl SpriteRenderer {
         renderer.draw_lines(&border_vertices, color)
     }
     
-    fn draw_handles(sprite: &Sprite, world_pos: Vec2, size: Vec2, renderer: &WebGLRenderer, input: &InputHandler) -> Result<(), JsValue> {
+    fn draw_handles(sprite: &Sprite, world_pos: Vec2, size: Vec2, renderer: &WebGLRenderer) -> Result<(), JsValue> {
         // We need to get camera zoom somehow - for now let's assume it's passed or use a default
         let camera_zoom = 1.0; // TODO: Pass camera zoom as parameter
         

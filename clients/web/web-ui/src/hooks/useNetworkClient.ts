@@ -201,7 +201,7 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
   // Asset management
   const requestAssetUpload = useCallback((filename: string, fileHash: string, fileSize: number) => {
     if (clientRef.current) {
-      clientRef.current.request_asset_upload(filename, fileHash, fileSize);
+      clientRef.current.request_asset_upload(filename, fileHash, BigInt(fileSize));
     }
   }, []);
 

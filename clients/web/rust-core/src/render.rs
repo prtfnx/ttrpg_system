@@ -18,6 +18,7 @@ use crate::grid_system::GridSystem;
 use crate::texture_manager::TextureManager;
 use crate::actions::ActionsClient;
 use crate::paint::PaintSystem;
+use crate::utils;
 use crate::table_sync::TableSync;
 use crate::table_manager::TableManager;
 
@@ -729,6 +730,42 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn is_grid_snapping_enabled(&self) -> bool {
         self.grid_system.is_snapping_enabled()
+    }
+
+    // Additional grid methods for MapPanel compatibility
+    #[wasm_bindgen]
+    pub fn set_snap_to_grid(&mut self, enabled: bool) {
+        self.set_grid_snapping(enabled);
+    }
+
+    #[wasm_bindgen] 
+    pub fn set_grid_color(&mut self, r: f32, g: f32, b: f32, a: f32) {
+        // Store grid color in the renderer for future use
+        // For now, we'll just log it since grid rendering uses fixed colors
+        utils::log(&format!("Setting grid color to rgba({}, {}, {}, {})", r, g, b, a));
+    }
+
+    #[wasm_bindgen]
+    pub fn set_background_color(&mut self, r: f32, g: f32, b: f32, a: f32) {
+        // Store background color and apply it in the next render
+        utils::log(&format!("Setting background color to rgba({}, {}, {}, {})", r, g, b, a));
+        // TODO: Implement background color storage in renderer
+    }
+
+    // Additional camera methods for MapPanel compatibility
+    #[wasm_bindgen]
+    pub fn reset_camera(&mut self) {
+        self.set_camera(0.0, 0.0, 1.0);
+    }
+
+    #[wasm_bindgen]
+    pub fn set_camera_position(&mut self, world_x: f64, world_y: f64) {
+        self.center_camera(world_x, world_y);
+    }
+
+    #[wasm_bindgen]
+    pub fn set_camera_scale(&mut self, scale: f64) {
+        self.set_zoom(scale);
     }
     
     // Texture management

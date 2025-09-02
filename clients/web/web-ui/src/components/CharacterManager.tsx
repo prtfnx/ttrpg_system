@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useAuthenticatedWebSocket } from "../hooks/useAuthenticatedWebSocket";
 import { MessageType, createMessage } from "../protocol/message";
 import type { UserInfo } from "../services/auth.service";
+import { useCharacterStore } from "../store/characterStore";
+import { CharacterCreationForm } from "./CharacterCreationForm";
 import { CharacterSheet } from "./CharacterSheet";
 
 export interface Character {
@@ -23,6 +25,7 @@ interface CharacterManagerProps {
 
 export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode, userInfo }) => {
   const { protocol } = useAuthenticatedWebSocket({ sessionCode, userInfo });
+  const { characters: localCharacters, addCharacter, removeCharacter, updateCharacter } = useCharacterStore();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

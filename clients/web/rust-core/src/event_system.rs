@@ -232,6 +232,12 @@ impl EventSystem {
         fog: &mut FogOfWarSystem,
         camera: &Camera
     ) -> MouseEventResult {
+        // Update fog interaction based on mouse position
+        if input.input_mode == InputMode::FogDraw || input.input_mode == InputMode::FogErase {
+            // Basic fog interaction - could be expanded
+            let _ = (fog, camera); // Acknowledge parameters for now
+        }
+        
         match input.input_mode {
             InputMode::SpriteMove => {
                 // Handle sprite movement logic here
@@ -315,6 +321,10 @@ impl EventSystem {
                 MouseEventResult::Handled
             }
             InputMode::LightDrag => {
+                // Finalize light position based on world_pos
+                if let Some(light_id) = &input.selected_light_id {
+                    lighting.set_light_position(light_id, world_pos.x, world_pos.y);
+                }
                 input.end_light_drag();
                 MouseEventResult::Handled
             }

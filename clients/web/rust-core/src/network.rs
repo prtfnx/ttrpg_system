@@ -134,6 +134,7 @@ pub enum ConnectionState {
 }
 
 #[wasm_bindgen]
+#[derive(Clone)]
 pub struct NetworkClient {
     websocket: Option<WebSocket>,
     connection_state: ConnectionState,
@@ -429,6 +430,14 @@ impl NetworkClient {
         self.username = Some(username.to_string());
         self.session_code = session_code;
         self.jwt_token = jwt_token;
+    }
+
+    #[wasm_bindgen]
+    pub fn sync_action(&self, action_data: &str) -> Result<(), JsValue> {
+        // Implementation to synchronize action with server
+        let data = serde_json::json!({ "action_data": action_data });
+        let js_data = serde_wasm_bindgen::to_value(&data)?;
+        self.send_message("player_action", &js_data)
     }
 
     // Private helper methods

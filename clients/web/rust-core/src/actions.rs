@@ -569,9 +569,11 @@ impl ActionsClient {
             // Sync with network if auto_sync is enabled and network client is available
             if self.auto_sync {
                 if let Some(ref network_client) = self.network_client {
-                    let sync_result = network_client.sync_action(&action);
-                    if sync_result.is_err() {
-                        web_sys::console::warn_1(&format!("Failed to sync sprite layer change to network: {:?}", sync_result.err()).into());
+                    if let Ok(action_json) = serde_json::to_string(&action) {
+                        let sync_result = network_client.sync_action(&action_json);
+                        if sync_result.is_err() {
+                            web_sys::console::warn_1(&format!("Failed to sync sprite layer change to network: {:?}", sync_result.err()).into());
+                        }
                     }
                 }
             }

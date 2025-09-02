@@ -1703,6 +1703,7 @@ impl RenderEngine {
     
     fn create_paint_stroke_sprite(&mut self, stroke_data: &str, layer_name: &str) -> Result<String, String> {
         // Parse stroke data (simplified for now - could be JSON in future)
+        // TODO: Parse stroke_data to extract actual stroke information
         let sprite_id = format!("paint_stroke_{}", js_sys::Date::now() as u64);
         
         // For now, create a simple colored sprite to represent the stroke
@@ -1720,6 +1721,9 @@ impl RenderEngine {
             tint_color: [1.0, 0.5, 0.5, 1.0], // Paint stroke color
             layer: layer_name.to_string(),
         };
+        
+        // Log stroke data for debugging - will be used for actual parsing later
+        web_sys::console::log_1(&format!("Creating paint stroke with data: {}", stroke_data).into());
         
         // Convert sprite to JsValue
         let sprite_js = serde_wasm_bindgen::to_value(&sprite)
@@ -1797,6 +1801,7 @@ impl RenderEngine {
         // Add sprites to appropriate layers
         for (layer_name, sprites) in &table.layers {
             for sprite_data in sprites {
+                // The sprite data already contains layer information
                 self.add_sprite_from_table_data(sprite_data)?;
             }
         }

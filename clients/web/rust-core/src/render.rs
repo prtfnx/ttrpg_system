@@ -1799,7 +1799,8 @@ impl RenderEngine {
         self.layer_manager.clear_all_layers();
 
         // Add sprites to appropriate layers
-        for (layer_name, sprites) in &table.layers {
+        for (_layer_name, sprites) in &table.layers {
+            // Note: layer_name is available if needed for layer-specific logic
             for sprite_data in sprites {
                 // The sprite data already contains layer information
                 self.add_sprite_from_table_data(sprite_data)?;

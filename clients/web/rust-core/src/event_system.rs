@@ -323,7 +323,7 @@ impl EventSystem {
             InputMode::LightDrag => {
                 // Finalize light position based on world_pos
                 if let Some(light_id) = &input.selected_light_id {
-                    lighting.set_light_position(light_id, world_pos.x, world_pos.y);
+                    lighting.update_light_position(light_id, world_pos);
                 }
                 input.end_light_drag();
                 MouseEventResult::Handled

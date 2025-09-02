@@ -25,7 +25,7 @@ interface CharacterManagerProps {
 
 export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode, userInfo }) => {
   const { protocol } = useAuthenticatedWebSocket({ sessionCode, userInfo });
-  const { characters: localCharacters, addCharacter, removeCharacter, updateCharacter } = useCharacterStore();
+  const { characters: localCharacters, addCharacter, removeCharacter } = useCharacterStore();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

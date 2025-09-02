@@ -29,6 +29,7 @@ mod asset_manager;
 mod geometry;
 mod table_manager;
 mod table_sync;
+mod utils;
 
 pub use render::RenderEngine;
 pub use types::*;

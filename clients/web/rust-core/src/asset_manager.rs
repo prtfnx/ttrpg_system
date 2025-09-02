@@ -110,6 +110,12 @@ impl AssetManager {
     pub async fn download_asset(&mut self, url: String, expected_hash: Option<String>) -> Result<String, JsValue> {
         console::log_1(&format!("Downloading asset: {}", url).into());
         
+        // Add to download queue if not already queued
+        if !self.download_queue.contains(&url) {
+            self.download_queue.push(url.clone());
+            self.stats.download_queue_size = self.download_queue.len() as u32;
+        }
+        
         // Check if already cached by hash
         if let Some(ref hash) = expected_hash {
             if let Some(asset_id) = self.hash_lookup.get(hash) {
@@ -117,7 +123,11 @@ impl AssetManager {
                     entry.info.last_accessed = Date::now();
                     self.stats.cache_hits += 1;
                     console::log_1(&format!("Asset found in cache by hash: {}", hash).into());
+                    // Remove from download queue since it's cached
+                    self.download_queue.retain(|queued_url| queued_url != &url);
+                    self.stats.download_queue_size = self.download_queue.len() as u32;
                     return Ok(asset_id.clone());
+                }
                 }
             }
         }
@@ -203,6 +213,10 @@ impl AssetManager {
         
         // Cleanup if cache is too large
         self.cleanup_cache().await;
+        
+        // Remove from download queue when completed
+        self.download_queue.retain(|queued_url| queued_url != &url);
+        self.stats.download_queue_size = self.download_queue.len() as u32;
         
         console::log_1(&format!("Asset downloaded and cached: {}", asset_id).into());
         Ok(asset_id)
@@ -336,5 +350,32 @@ impl AssetManager {
     #[wasm_bindgen]
     pub fn calculate_asset_hash(&self, data: &[u8]) -> String {
         format!("{:016x}", calculate_hash(data))
+    }
+
+    #[wasm_bindgen]
+    pub fn get_download_queue_size(&self) -> u32 {
+        self.download_queue.len() as u32
+    }
+
+    #[wasm_bindgen]
+    pub fn get_queued_downloads(&self) -> Vec<String> {
+        self.download_queue.clone()
+    }
+
+    #[wasm_bindgen]
+    pub fn clear_download_queue(&mut self) {
+        self.download_queue.clear();
+        self.stats.download_queue_size = 0;
+    }
+
+    #[wasm_bindgen]
+    pub fn remove_from_queue(&mut self, url: String) -> bool {
+        let initial_len = self.download_queue.len();
+        self.download_queue.retain(|queued_url| queued_url != &url);
+        let removed = self.download_queue.len() < initial_len;
+        if removed {
+            self.stats.download_queue_size = self.download_queue.len() as u32;
+        }
+        removed
     }
 }

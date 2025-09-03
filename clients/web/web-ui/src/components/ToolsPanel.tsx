@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useGameStore } from '../store';
 import DiceRoller from '../tools/DiceRoller';
 import type { GameAPI } from '../types';
-import { ActionQueuePanel } from './ActionQueuePanel';
 import { AlignmentHelper } from './AlignmentHelper';
 import { AssetManager } from './AssetManager';
 import { GridControls } from './GridControls';
@@ -506,9 +505,6 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
 
       {/* Layer Management Panel */}
       <LayerPanel />
-
-      {/* Action Queue Panel */}
-      <ActionQueuePanel sessionCode={sessionId || ""} userInfo={userInfo} />
 
       {/* Grid Controls */}
       <GridControls />

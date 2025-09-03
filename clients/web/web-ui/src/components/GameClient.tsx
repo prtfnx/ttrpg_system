@@ -156,7 +156,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
       document.removeEventListener('mousemove', onDrag);
       document.removeEventListener('mouseup', onDragEnd);
     };
-  }, [leftWidth, rightWidth]);
+  }, []); // Remove dependency on leftWidth, rightWidth to prevent recreating listeners
 
   // Persist panel visibility
   const toggleLeft = () => {

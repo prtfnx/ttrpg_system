@@ -40,9 +40,13 @@ const LayerItem: React.FC<{
       onDrop={(e) => onDrop(e, index)}
     >
       <div className="layer-row" onClick={() => onSelect(layer.name)}>
-        <span className="layer-icon">{layer.icon}</span>
-        <span className="layer-name">{layer.displayName}</span>
-        <span className="layer-opacity">{Math.round(layer.settings.opacity * 100)}%</span>
+        <div className="layer-info">
+          <span className="layer-name">{layer.displayName}</span>
+          <div className="layer-meta">
+            <span className="layer-icon">{layer.icon}</span>
+            <span className="layer-opacity">{Math.round(layer.settings.opacity * 100)}%</span>
+          </div>
+        </div>
         
         <div className="layer-controls">
           <button

@@ -280,26 +280,21 @@ impl RenderEngine {
             if let Some((sprite, _)) = self.layer_manager.find_sprite(selected_id) {
                 // Check rotation handle first (not affected by rotation)
                 let rotate_handle_pos = SpriteManager::get_rotation_handle_position(sprite, self.camera.zoom);
-                let handle_size = 8.0 / self.camera.zoom as f32;
+                let handle_size = 16.0 / self.camera.zoom as f32; // Match the size used in event_system.rs
                 if HandleDetector::point_in_handle(world_pos, rotate_handle_pos.x, rotate_handle_pos.y, handle_size) {
                     return "crosshair".to_string();
                 }
                 
-                if sprite.rotation != 0.0 {
-                    // For rotated sprites, only show move cursor (no resize handles)
-                    if sprite.contains_world_point(world_pos) {
-                        return "move".to_string();
-                    }
-                } else {
-                    // Non-rotated sprite - check for resize handles
+                // Check for resize handles (only works for non-rotated sprites for now)
+                if sprite.rotation == 0.0 {
                     if let Some(handle) = HandleDetector::get_resize_handle_for_non_rotated_sprite(sprite, world_pos, self.camera.zoom) {
                         return HandleDetector::get_cursor_for_handle(handle).to_string();
                     }
-                    
-                    // Check if over sprite body
-                    if sprite.contains_world_point(world_pos) {
-                        return "move".to_string();
-                    }
+                }
+                
+                // Check if over sprite body
+                if sprite.contains_world_point(world_pos) {
+                    return "move".to_string();
                 }
             }
         }

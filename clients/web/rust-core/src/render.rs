@@ -160,7 +160,7 @@ impl RenderEngine {
                 self.renderer.set_layer_color(&layer.settings.color);
                 
                 for sprite in &layer.sprites {
-                    SpriteRenderer::draw_sprite(sprite, layer.settings.opacity, &self.renderer, &self.texture_manager, &self.input)?;
+                    SpriteRenderer::draw_sprite(sprite, layer.settings.opacity, &self.renderer, &self.texture_manager, &self.input, self.camera.zoom)?;
                 }
             }
         }

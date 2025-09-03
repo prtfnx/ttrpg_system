@@ -590,6 +590,102 @@ body {
   }
 }
 
+/* Minimalist Action Queue Panel */
+.action-queue-panel-minimal {
+  min-height: auto;
+}
+
+.action-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.action-input {
+  padding: 4px 6px;
+  background: var(--panel-bg-darker);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-size: 0.7rem;
+}
+
+.queue-btn {
+  padding: 4px 8px;
+  background: var(--accent-color);
+  border: none;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.queue-btn:hover {
+  background: var(--accent-color-light);
+}
+
+.actions-list {
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.action-item {
+  padding: 4px 6px;
+  background: var(--panel-bg-darker);
+  border-radius: 3px;
+  margin-bottom: 3px;
+  font-size: 0.7rem;
+}
+
+.action-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.action-type {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.action-status {
+  font-size: 0.6rem;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.action-status.pending {
+  background: #fbbf24;
+  color: #000;
+}
+
+.action-status.confirmed {
+  background: #10b981;
+  color: #fff;
+}
+
+.action-status.failed {
+  background: #ef4444;
+  color: #fff;
+}
+
+.action-details {
+  color: var(--text-secondary);
+  font-size: 0.6rem;
+  margin-top: 2px;
+}
+
+.error-message {
+  background: #ef4444;
+  color: #fff;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  margin-bottom: 6px;
+}
+
 @media (max-width: 768px) {
   .game-client {
     grid-template-columns: 1fr;

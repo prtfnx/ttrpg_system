@@ -153,22 +153,20 @@ impl SpriteRenderer {
         let handle_size = 16.0 / camera_zoom as f32; // Match the increased size in event_system.rs
         Self::draw_rotate_handle(rotate_handle_pos.x, rotate_handle_pos.y, handle_size, renderer)?;
         
-        // Draw resize handles for non-rotated sprites only
-        if sprite.rotation == 0.0 {
-            let resize_handle_size = 12.0 / camera_zoom as f32; // Increased from 6.0 to 12.0
-            
-            // Corner handles
-            Self::draw_resize_handle(world_pos.x, world_pos.y, resize_handle_size, renderer)?; // TopLeft
-            Self::draw_resize_handle(world_pos.x + size.x, world_pos.y, resize_handle_size, renderer)?; // TopRight
-            Self::draw_resize_handle(world_pos.x, world_pos.y + size.y, resize_handle_size, renderer)?; // BottomLeft
-            Self::draw_resize_handle(world_pos.x + size.x, world_pos.y + size.y, resize_handle_size, renderer)?; // BottomRight
-            
-            // Side handles
-            Self::draw_resize_handle(world_pos.x + size.x * 0.5, world_pos.y, resize_handle_size, renderer)?; // TopCenter
-            Self::draw_resize_handle(world_pos.x + size.x * 0.5, world_pos.y + size.y, resize_handle_size, renderer)?; // BottomCenter
-            Self::draw_resize_handle(world_pos.x, world_pos.y + size.y * 0.5, resize_handle_size, renderer)?; // LeftCenter
-            Self::draw_resize_handle(world_pos.x + size.x, world_pos.y + size.y * 0.5, resize_handle_size, renderer)?; // RightCenter
-        }
+        // Draw resize handles for all sprites (including rotated ones)
+        let resize_handle_visual_size = 4.0 / camera_zoom as f32; // Smaller visual size
+        
+        // Corner handles
+        Self::draw_resize_handle(world_pos.x, world_pos.y, resize_handle_visual_size, renderer)?; // TopLeft
+        Self::draw_resize_handle(world_pos.x + size.x, world_pos.y, resize_handle_visual_size, renderer)?; // TopRight
+        Self::draw_resize_handle(world_pos.x, world_pos.y + size.y, resize_handle_visual_size, renderer)?; // BottomLeft
+        Self::draw_resize_handle(world_pos.x + size.x, world_pos.y + size.y, resize_handle_visual_size, renderer)?; // BottomRight
+        
+        // Side handles
+        Self::draw_resize_handle(world_pos.x + size.x * 0.5, world_pos.y, resize_handle_visual_size, renderer)?; // TopCenter
+        Self::draw_resize_handle(world_pos.x + size.x * 0.5, world_pos.y + size.y, resize_handle_visual_size, renderer)?; // BottomCenter
+        Self::draw_resize_handle(world_pos.x, world_pos.y + size.y * 0.5, resize_handle_visual_size, renderer)?; // LeftCenter
+        Self::draw_resize_handle(world_pos.x + size.x, world_pos.y + size.y * 0.5, resize_handle_visual_size, renderer)?; // RightCenter
         
         Ok(())
     }

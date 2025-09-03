@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useAuthenticatedWebSocket } from '../hooks/useAuthenticatedWebSocket';
 import { MessageType, createMessage } from '../protocol/message';
 import type { UserInfo } from '../services/auth.service';

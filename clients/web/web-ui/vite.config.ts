@@ -4,6 +4,7 @@ import wasmPack from 'vite-plugin-wasm'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/static/ui/',
   plugins: [react(), wasmPack()],
   server: {
     fs: {

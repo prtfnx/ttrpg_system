@@ -63,37 +63,43 @@ export const ActionQueuePanel: React.FC<ActionQueuePanelProps> = ({ sessionCode,
   }, [actionType, actionPayload, userInfo, protocol]);
 
   return (
-    <div className="action-queue-panel">
-      <h2>Action Queue</h2>
-      {error && <div className="error">{error}</div>}
-      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+    <div className="game-panel action-queue-panel-minimal">
+      <div className="panel-header-compact">
+        <h3 className="panel-title">⚡ Actions</h3>
+      </div>
+      {error && <div className="error-message">{error}</div>}
+      <div className="action-form">
         <input
           type="text"
-          placeholder="Action Type (e.g. move, attack)"
+          placeholder="Action (e.g. move, attack)"
           value={actionType}
           onChange={e => setActionType(e.target.value)}
-          style={{ flex: 1 }}
+          className="action-input"
         />
         <input
           type="text"
-          placeholder='Payload (JSON: {"target":"orc"})'
+          placeholder='Data: {"target":"orc"}'
           value={actionPayload}
           onChange={e => setActionPayload(e.target.value)}
-          style={{ flex: 2 }}
+          className="action-input"
         />
-        <button onClick={queueAction} style={{ padding: "8px 18px", fontWeight: 700 }}>
-          Queue Action
+        <button onClick={queueAction} className="queue-btn">
+          Add
         </button>
       </div>
-      <ul>
+      <div className="actions-list">
         {queue.map(action => (
-          <li key={action.id} style={{ marginBottom: 8 }}>
-            <span style={{ fontWeight: 600 }}>{action.type}</span> by <span>{action.user}</span> at {new Date(action.timestamp).toLocaleTimeString()}<br />
-            <span>Status: {action.status}</span><br />
-            <span>Payload: {JSON.stringify(action.payload)}</span>
-          </li>
+          <div key={action.id} className="action-item">
+            <div className="action-header">
+              <span className="action-type">{action.type}</span>
+              <span className={`action-status ${action.status}`}>{action.status}</span>
+            </div>
+            <div className="action-details">
+              {action.user} - {new Date(action.timestamp).toLocaleTimeString()}
+            </div>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   );
 };

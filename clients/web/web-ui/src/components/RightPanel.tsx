@@ -1,7 +1,7 @@
-
 import { useState } from 'react';
 import { ActionQueuePanel } from './ActionQueuePanel';
 import { ActionsPanel } from './ActionsPanel';
+import { ActionsQuickPanel } from './ActionsQuickPanel';
 import { AssetPanel } from './AssetPanel';
 import { CharacterManager } from './CharacterManager';
 import ChatPanel from './ChatPanel';
@@ -20,15 +20,15 @@ import TableSyncPanel from './TableSyncPanel';
 // Development-only imports
 const isDevelopment = import.meta.env.DEV;
 
-
 export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
-  const [activeTab, setActiveTab] = useState<'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'paint' | 'sync' | 'players' | 'actions' | 'queue' | 'compendium' | 'assets' | 'network' | 'initiative'>('tables');
+  const [activeTab, setActiveTab] = useState<'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'paint' | 'sync' | 'players' | 'actions' | 'quick-actions' | 'queue' | 'compendium' | 'assets' | 'network' | 'initiative'>('tables');
 
   return (
     <div className="game-panel right-panel" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#111827', borderLeft: '1px solid #374151' }}>
       <div className="tabs-container">
         <button className={`tab-button ${activeTab === 'compendium' ? 'active' : ''}`} onClick={() => setActiveTab('compendium')}>Compendium</button>
         <button className={`tab-button ${activeTab === 'tables' ? 'active' : ''}`} onClick={() => setActiveTab('tables')}>Tables</button>
+        <button className={`tab-button ${activeTab === 'quick-actions' ? 'active' : ''}`} onClick={() => setActiveTab('quick-actions')}>Quick Actions</button>
         {isDevelopment && <button className={`tab-button ${activeTab === 'table-tools' ? 'active' : ''}`} onClick={() => setActiveTab('table-tools')}>Table Tools</button>}
         {isDevelopment && <button className={`tab-button ${activeTab === 'sync' ? 'active' : ''}`} onClick={() => setActiveTab('sync')}>Sync</button>}
         <button className={`tab-button ${activeTab === 'characters' ? 'active' : ''}`} onClick={() => setActiveTab('characters')}>Characters</button>
@@ -46,6 +46,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
       </div>
       <div className="tab-content">
         {activeTab === 'tables' && <TableManagementPanel />}
+        {activeTab === 'quick-actions' && <ActionsQuickPanel renderEngine={window.rustRenderManager as any || null} />}
         {isDevelopment && activeTab === 'table-tools' && <TablePanel />}
         {isDevelopment && activeTab === 'sync' && <TableSyncPanel />}
         {activeTab === 'characters' && <CharacterManager sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}

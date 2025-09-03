@@ -154,10 +154,10 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
 
   return (
     <DebugErrorBoundary>
-      <div className="game-layout" style={{display:'flex',height:'100vh',width:'100vw',overflow:'hidden'}}>
+      <div className="game-layout">
         {leftVisible && (
-          <div className="left-panel" style={{width:leftWidth,minWidth:200,maxWidth:600,background:'#18181b',display:'flex',flexDirection:'column',borderRight:'1px solid #222'}}>
-            <div className={`connection-status ${connectionState}`} style={{padding:'8px 12px',borderBottom:'1px solid #222'}}>
+          <div className="left-panel" style={{ width: leftWidth }}>
+            <div className={`connection-status ${connectionState}`}>
               <span className="status-indicator"></span>
               <span className="status-text">
                 {connectionState === 'connecting' && 'Connecting...'}
@@ -167,24 +167,40 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
               </span>
             </div>
             <ToolsPanel userInfo={userInfo} />
-            <button style={{margin:'8px',padding:'4px 8px',fontSize:12,background:'#222',color:'#fff',border:'none',borderRadius:4,cursor:'pointer'}} onClick={toggleLeft}>Collapse Left Panel</button>
+            <button className="collapse-btn" onClick={toggleLeft}>◀</button>
           </div>
         )}
-  {leftVisible && <div className="panel-resizer" onMouseDown={e=>onDragStart('left',e)} />}
-        <div className="canvas-container" style={{flex:1,background:'#111',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
+        
+        {leftVisible && (
+          <div 
+            className="panel-resizer left-resizer" 
+            onMouseDown={e => onDragStart('left', e)}
+          />
+        )}
+        
+        <div className="canvas-container">
           <GameCanvas />
-          <div style={{position:'absolute',top:8,right:8,zIndex:20}}>
-            {rightVisible ? (
-              <button style={{padding:'4px 8px',fontSize:12,background:'#222',color:'#fff',border:'none',borderRadius:4,cursor:'pointer'}} onClick={toggleRight}>Collapse Right Panel</button>
-            ) : (
-              <button style={{padding:'4px 8px',fontSize:12,background:'#222',color:'#fff',border:'none',borderRadius:4,cursor:'pointer'}} onClick={toggleRight}>Expand Right Panel</button>
+          <div className="canvas-controls">
+            {!leftVisible && (
+              <button className="expand-btn left" onClick={toggleLeft}>▶</button>
+            )}
+            {!rightVisible && (
+              <button className="expand-btn right" onClick={toggleRight}>◀</button>
             )}
           </div>
         </div>
-  {rightVisible && <div className="panel-resizer" onMouseDown={e=>onDragStart('right',e)} />}
+        
         {rightVisible && (
-          <div className="right-panel" style={{width:rightWidth,minWidth:250,maxWidth:600,background:'#111827',display:'flex',flexDirection:'column',borderLeft:'1px solid #222'}}>
+          <div 
+            className="panel-resizer right-resizer" 
+            onMouseDown={e => onDragStart('right', e)}
+          />
+        )}
+        
+        {rightVisible && (
+          <div className="right-panel" style={{ width: rightWidth }}>
             <RightPanel sessionCode={sessionCode} userInfo={userInfo} />
+            <button className="collapse-btn" onClick={toggleRight}>▶</button>
           </div>
         )}
       </div>

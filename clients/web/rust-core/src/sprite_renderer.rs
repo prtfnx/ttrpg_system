@@ -15,6 +15,7 @@ impl SpriteRenderer {
         renderer: &WebGLRenderer,
         texture_manager: &TextureManager,
         input: &InputHandler,
+        camera_zoom: f64,
     ) -> Result<(), JsValue> {
         let is_selected = input.is_sprite_selected(&sprite.id);
         let is_primary_selected = input.selected_sprite_id.as_ref() == Some(&sprite.id);
@@ -75,7 +76,7 @@ impl SpriteRenderer {
             Self::draw_selection_border(sprite, world_pos, size, is_primary_selected, renderer)?;
             // Only draw handles for the primary selected sprite
             if is_primary_selected {
-                Self::draw_handles(sprite, world_pos, size, renderer)?;
+                Self::draw_handles(sprite, world_pos, size, renderer, camera_zoom)?;
             }
         }
         
@@ -146,30 +147,27 @@ impl SpriteRenderer {
         renderer.draw_lines(&border_vertices, color)
     }
     
-    fn draw_handles(sprite: &Sprite, world_pos: Vec2, size: Vec2, renderer: &WebGLRenderer) -> Result<(), JsValue> {
-        // We need to get camera zoom somehow - for now let's assume it's passed or use a default
-        let camera_zoom = 1.0; // TODO: Pass camera zoom as parameter
-        
+    fn draw_handles(sprite: &Sprite, world_pos: Vec2, size: Vec2, renderer: &WebGLRenderer, camera_zoom: f64) -> Result<(), JsValue> {
         // Draw rotation handle (circle above sprite)
         let rotate_handle_pos = SpriteManager::get_rotation_handle_position(sprite, camera_zoom);
-        let handle_size = 8.0 / camera_zoom as f32;
+        let handle_size = 16.0 / camera_zoom as f32; // Match the increased size in event_system.rs
         Self::draw_rotate_handle(rotate_handle_pos.x, rotate_handle_pos.y, handle_size, renderer)?;
         
         // Draw resize handles for non-rotated sprites only
         if sprite.rotation == 0.0 {
-            let handle_size = 6.0 / camera_zoom as f32;
+            let resize_handle_size = 12.0 / camera_zoom as f32; // Increased from 6.0 to 12.0
             
             // Corner handles
-            Self::draw_resize_handle(world_pos.x, world_pos.y, handle_size, renderer)?; // TopLeft
-            Self::draw_resize_handle(world_pos.x + size.x, world_pos.y, handle_size, renderer)?; // TopRight
-            Self::draw_resize_handle(world_pos.x, world_pos.y + size.y, handle_size, renderer)?; // BottomLeft
-            Self::draw_resize_handle(world_pos.x + size.x, world_pos.y + size.y, handle_size, renderer)?; // BottomRight
+            Self::draw_resize_handle(world_pos.x, world_pos.y, resize_handle_size, renderer)?; // TopLeft
+            Self::draw_resize_handle(world_pos.x + size.x, world_pos.y, resize_handle_size, renderer)?; // TopRight
+            Self::draw_resize_handle(world_pos.x, world_pos.y + size.y, resize_handle_size, renderer)?; // BottomLeft
+            Self::draw_resize_handle(world_pos.x + size.x, world_pos.y + size.y, resize_handle_size, renderer)?; // BottomRight
             
             // Side handles
-            Self::draw_resize_handle(world_pos.x + size.x * 0.5, world_pos.y, handle_size, renderer)?; // TopCenter
-            Self::draw_resize_handle(world_pos.x + size.x * 0.5, world_pos.y + size.y, handle_size, renderer)?; // BottomCenter
-            Self::draw_resize_handle(world_pos.x, world_pos.y + size.y * 0.5, handle_size, renderer)?; // LeftCenter
-            Self::draw_resize_handle(world_pos.x + size.x, world_pos.y + size.y * 0.5, handle_size, renderer)?; // RightCenter
+            Self::draw_resize_handle(world_pos.x + size.x * 0.5, world_pos.y, resize_handle_size, renderer)?; // TopCenter
+            Self::draw_resize_handle(world_pos.x + size.x * 0.5, world_pos.y + size.y, resize_handle_size, renderer)?; // BottomCenter
+            Self::draw_resize_handle(world_pos.x, world_pos.y + size.y * 0.5, resize_handle_size, renderer)?; // LeftCenter
+            Self::draw_resize_handle(world_pos.x + size.x, world_pos.y + size.y * 0.5, resize_handle_size, renderer)?; // RightCenter
         }
         
         Ok(())

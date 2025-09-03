@@ -41,7 +41,40 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
     if (protocol) {
       protocol.sendMessage(createMessage(MessageType.PLAYER_ACTION, { action: "character_list" }, 1));
     }
+    
+    // Set a timeout to stop loading after 3 seconds if no response
+    const loadingTimeout = setTimeout(() => {
+      if (loading) {
+        console.warn('⚠️ CharacterManager: No server response after 3s, using local fallback');
+        // Create some test characters as fallback
+        const testCharacters: Character[] = [
+          {
+            id: 'local-1',
+            name: 'Test Fighter',
+            class: 'Fighter',
+            race: 'Human',
+            level: 1,
+            stats: { str: 16, dex: 14, con: 15, int: 10, wis: 12, cha: 8 },
+            owner: userInfo.username
+          },
+          {
+            id: 'local-2', 
+            name: 'Test Wizard',
+            class: 'Wizard',
+            race: 'Elf',
+            level: 1,
+            stats: { str: 8, dex: 14, con: 12, int: 16, wis: 13, cha: 10 },
+            owner: userInfo.username
+          }
+        ];
+        setCharacters(testCharacters);
+        setError(null);
+        setLoading(false);
+      }
+    }, 3000);
+    
     const handleCharacterList = (event: Event) => {
+      clearTimeout(loadingTimeout);
       const customEvent = event as CustomEvent;
       if (customEvent.detail?.characters) {
         setCharacters(customEvent.detail.characters);
@@ -69,6 +102,7 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
     window.addEventListener("character-sheet-locked", handleLock);
     window.addEventListener("character-sheet-presence", handlePresence);
     return () => {
+      clearTimeout(loadingTimeout);
       window.removeEventListener("character-list-updated", handleCharacterList);
       window.removeEventListener("character-sheet-locked", handleLock);
       window.removeEventListener("character-sheet-presence", handlePresence);

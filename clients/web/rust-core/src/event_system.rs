@@ -119,7 +119,8 @@ impl EventSystem {
                     if !layer.selectable { continue; }
                     for sprite in layer.sprites.iter().rev() {
                         let rot_handle_pos = SpriteManager::get_rotation_handle_position(sprite, camera_zoom);
-                        let handle_size = 8.0 / camera_zoom as f32;
+                        // Use a larger, zoom-independent handle size for better usability
+                        let handle_size = 16.0 / camera_zoom as f32; // Increased from 8.0 to 16.0
                         web_sys::console::log_1(&format!("[RUST DEBUG] Scanning rotation handle - sprite={} handle=({:.2},{:.2}) mouse=({:.2},{:.2}) size={:.2}", sprite.id, rot_handle_pos.x, rot_handle_pos.y, world_pos.x, world_pos.y, handle_size).into());
                         if HandleDetector::point_in_handle(world_pos, rot_handle_pos.x, rot_handle_pos.y, handle_size) {
                             web_sys::console::log_1(&format!("[RUST DEBUG] Scanned rotation handle hit on sprite {}", sprite.id).into());
@@ -153,7 +154,8 @@ impl EventSystem {
                 if let Some((sprite, _)) = Self::find_sprite(&sprite_id, layers) {
                     // Rotation handle detection
                     let rot_handle_pos = SpriteManager::get_rotation_handle_position(sprite, camera_zoom);
-                    let handle_size = 8.0 / camera_zoom as f32;
+                    // Use a larger, zoom-independent handle size for better usability
+                    let handle_size = 16.0 / camera_zoom as f32; // Increased from 8.0 to 16.0
                     // Debug logging for handle detection
                     web_sys::console::log_1(&format!("[RUST DEBUG] Rotation detection - world_pos=({:.2},{:.2}) rot_handle=({:.2},{:.2}) handle_size={:.2}", world_pos.x, world_pos.y, rot_handle_pos.x, rot_handle_pos.y, handle_size).into());
                     let rot_dist = ((world_pos.x - rot_handle_pos.x).powi(2) + (world_pos.y - rot_handle_pos.y).powi(2)).sqrt();

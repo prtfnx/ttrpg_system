@@ -338,7 +338,7 @@ impl HandleDetector {
             (sprite.width * sprite.scale_x) as f32,
             (sprite.height * sprite.scale_y) as f32
         );
-        let border_threshold = 6.0 / zoom as f32; // Increased from 3.0 to 6.0 to match resize handle size
+        let border_threshold = 8.0 / zoom as f32; // Larger interaction area for better usability
         
         let on_left = (world_pos.x >= sprite_pos.x - border_threshold) && (world_pos.x <= sprite_pos.x + border_threshold);
         let on_right = (world_pos.x >= sprite_pos.x + sprite_size.x - border_threshold) && (world_pos.x <= sprite_pos.x + sprite_size.x + border_threshold);

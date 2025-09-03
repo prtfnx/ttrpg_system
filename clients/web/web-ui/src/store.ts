@@ -320,6 +320,7 @@ export const useGameStore = create<GameStore>()(
       },
 
       requestTableList: () => {
+        console.log('🔄 Store: Requesting table list...');
         // Send message via protocol to request table list
         window.dispatchEvent(new CustomEvent('protocol-send-message', {
           detail: {
@@ -327,8 +328,9 @@ export const useGameStore = create<GameStore>()(
             data: {}
           }
         }));
+        console.log('📤 Store: Dispatched protocol-send-message event');
         set(() => ({
-          tablesLoading: true,
+          tablesLoading: true
         }));
       },
 

@@ -1,188 +1,155 @@
-import React, { useCallback, useRef, useState } from 'react';
-import { useLayerManager, type LayerInfo } from '../hooks/useLayerManager';
+import React, { useEffect, useState } from 'react';
+import { useGameStore } from '../store';
+import './LayerPanel.css';
 
-interface DragItem {
-  index: number;
-  layerName: string;
+interface Layer {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  spriteCount: number;
 }
 
-const LayerItem: React.FC<{
-  layer: LayerInfo;
-  index: number;
-  isActive: boolean;
-  onSelect: (layerName: string) => void;
-  onVisibilityToggle: (layerName: string, visible: boolean) => void;
-  onOpacityChange: (layerName: string, opacity: number) => void;
-  onDragStart: (e: React.DragEvent, index: number, layerName: string) => void;
-  onDragOver: (e: React.DragEvent, index: number) => void;
-  onDrop: (e: React.DragEvent, index: number) => void;
-  settingsVisible: boolean;
-  onToggleSettings: () => void;
-}> = ({
-  layer,
-  index,
-  isActive,
-  onSelect,
-  onVisibilityToggle,
-  onOpacityChange,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  settingsVisible,
-  onToggleSettings
-}) => {
-  return (
-    <div
-      className={`layer-item-minimal ${isActive ? 'active' : ''}`}
-      draggable
-      onDragStart={(e) => onDragStart(e, index, layer.name)}
-      onDragOver={(e) => onDragOver(e, index)}
-      onDrop={(e) => onDrop(e, index)}
-    >
-      <div className="layer-row" onClick={() => onSelect(layer.name)}>
-        <div className="layer-info">
-          <span className="layer-name">{layer.displayName}</span>
-          <div className="layer-meta">
-            <span className="layer-icon">{layer.icon}</span>
-            <span className="layer-opacity">{Math.round(layer.settings.opacity * 100)}%</span>
-          </div>
-        </div>
-        
-        <div className="layer-controls">
-          <button
-            className={`control-btn visibility ${layer.settings.visible ? 'visible' : 'hidden'}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onVisibilityToggle(layer.name, !layer.settings.visible);
-            }}
-            title={layer.settings.visible ? 'Hide Layer' : 'Show Layer'}
-          >
-            {layer.settings.visible ? '👁️' : '🚫'}
-          </button>
-          
-          <button
-            className={`control-btn settings ${settingsVisible ? 'active' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleSettings();
-            }}
-            title="Layer Settings"
-          >
-            ⚙️
-          </button>
-        </div>
-      </div>
-
-      {settingsVisible && (
-        <div className="layer-settings-minimal">
-          <div className="opacity-control">
-            <span>Opacity:</span>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={layer.settings.opacity}
-              onChange={(e) => onOpacityChange(layer.name, parseFloat(e.target.value))}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+const DEFAULT_LAYERS: Layer[] = [
+  { id: 'map', name: 'Map', icon: '🗺️', color: '#8b5cf6', spriteCount: 0 },
+  { id: 'tokens', name: 'Tokens', icon: '⚪', color: '#06b6d4', spriteCount: 0 },
+  { id: 'dungeon_master', name: 'DM Layer', icon: '👁️', color: '#dc2626', spriteCount: 0 },
+  { id: 'light', name: 'Lighting', icon: '💡', color: '#f59e0b', spriteCount: 0 },
+  { id: 'height', name: 'Height', icon: '⛰️', color: '#10b981', spriteCount: 0 },
+  { id: 'obstacles', name: 'Obstacles', icon: '🧱', color: '#ef4444', spriteCount: 0 },
+  { id: 'fog_of_war', name: 'Fog of War', icon: '🌫️', color: '#6b7280', spriteCount: 0 }
+];
 
 export function LayerPanel() {
   const {
-    isInitialized,
-    layers,
     activeLayer,
+    layerVisibility,
+    layerOpacity,
     setActiveLayer,
     setLayerVisibility,
-    setLayerOpacity,
-    reorderLayers,
-  } = useLayerManager();
+    setLayerOpacity
+  } = useGameStore();
 
-  const [draggedItem, setDraggedItem] = useState<DragItem | null>(null);
-  const [expandedSettings, setExpandedSettings] = useState<string | null>(null);
-  const dragOverIndex = useRef<number | null>(null);
+  const [layers, setLayers] = useState<Layer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleDragStart = useCallback((e: React.DragEvent, index: number, layerName: string) => {
-    setDraggedItem({ index, layerName });
-    e.dataTransfer.effectAllowed = 'move';
+  useEffect(() => {
+    // Initialize layers
+    const initLayers = () => {
+      console.log('🔧 LayerPanel: Initializing layers...');
+      setLayers(DEFAULT_LAYERS);
+      setIsLoading(false);
+      console.log('✅ LayerPanel: Layers initialized');
+    };
+
+    // Simulate loading
+    const timer = setTimeout(initLayers, 100);
+    return () => clearTimeout(timer);
   }, []);
 
-  const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    dragOverIndex.current = index;
-  }, []);
+  const handleLayerClick = (layerId: string) => {
+    console.log('🎯 LayerPanel: Setting active layer:', layerId);
+    setActiveLayer(layerId);
+  };
 
-  const handleDrop = useCallback((e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault();
-    
-    if (!draggedItem || draggedItem.index === dropIndex) {
-      setDraggedItem(null);
-      return;
-    }
+  const handleVisibilityToggle = (layerId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    const currentVisibility = layerVisibility[layerId] ?? true;
+    console.log('👁️ LayerPanel: Toggling visibility for', layerId, 'from', currentVisibility, 'to', !currentVisibility);
+    setLayerVisibility(layerId, !currentVisibility);
+  };
 
-    const newOrder = [...layers];
-    const [draggedLayer] = newOrder.splice(draggedItem.index, 1);
-    newOrder.splice(dropIndex, 0, draggedLayer);
-    
-    const layerNames = newOrder.map(l => l.name);
-    reorderLayers(layerNames);
-    setDraggedItem(null);
-  }, [draggedItem, layers, reorderLayers]);
+  const handleOpacityChange = (layerId: string, opacity: number) => {
+    console.log('🌟 LayerPanel: Setting opacity for', layerId, 'to', opacity);
+    setLayerOpacity(layerId, opacity);
+  };
 
-  const handleVisibilityToggle = useCallback((layerName: string, visible: boolean) => {
-    setLayerVisibility(layerName, visible);
-  }, [setLayerVisibility]);
-
-  const toggleSettings = useCallback((layerName: string) => {
-    setExpandedSettings(prev => prev === layerName ? null : layerName);
-  }, []);
-
-  if (!isInitialized) {
+  if (isLoading) {
     return (
-      <div className="game-panel">
-        <div className="panel-header-compact">
-          <h3 className="panel-title">🎨 Layers</h3>
+      <div className="layer-panel loading">
+        <div className="loading-content">
+          <div className="spinner"></div>
+          <span>Initializing layers...</span>
         </div>
-        <div className="loading">Initializing layers...</div>
       </div>
     );
   }
 
   return (
-    <div className="game-panel layer-panel-minimal">
-      <div className="panel-header-compact">
-        <h3 className="panel-title">🎨 Layers</h3>
+    <div className="layer-panel">
+      <div className="layer-panel-header">
+        <h3>Layers</h3>
+        <div className="layer-count">
+          {layers.length} layers
+        </div>
       </div>
 
-      <div className="active-layer-minimal">
-        <span className="active-text">Active: {layers.find(l => l.name === activeLayer)?.displayName || activeLayer}</span>
+      <div className="active-layer-display">
+        <span className="label">Active:</span>
+        <span className="active-layer-name">{activeLayer}</span>
       </div>
 
-      <div className="layer-list-minimal">
-        {layers.map((layer, index) => (
-          <LayerItem
-            key={layer.name}
-            layer={layer}
-            index={index}
-            isActive={activeLayer === layer.name}
-            onSelect={setActiveLayer}
-            onVisibilityToggle={handleVisibilityToggle}
-            onOpacityChange={setLayerOpacity}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-            settingsVisible={expandedSettings === layer.name}
-            onToggleSettings={() => toggleSettings(layer.name)}
-          />
-        ))}
+      <div className="layer-list">
+        {layers.map((layer) => {
+          const isActive = activeLayer === layer.id;
+          const isVisible = layerVisibility[layer.id] ?? true;
+          const opacity = layerOpacity[layer.id] ?? 1;
+
+          return (
+            <div
+              key={layer.id}
+              className={`layer-item ${isActive ? 'active' : ''}`}
+              onClick={() => handleLayerClick(layer.id)}
+            >
+              <div className="layer-main">
+                <div className="layer-info">
+                  <span className="layer-icon">{layer.icon}</span>
+                  <div className="layer-details">
+                    <span className="layer-name">{layer.name}</span>
+                    <span className="sprite-count">{layer.spriteCount} sprites</span>
+                  </div>
+                </div>
+                
+                <div className="layer-controls">
+                  <button
+                    className={`visibility-btn ${!isVisible ? 'hidden' : ''}`}
+                    onClick={(e) => handleVisibilityToggle(layer.id, e)}
+                    title={isVisible ? 'Hide layer' : 'Show layer'}
+                  >
+                    {isVisible ? '👁️' : '🙈'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="layer-opacity">
+                <label className="opacity-label">
+                  Opacity: {Math.round(opacity * 100)}%
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={opacity}
+                  onChange={(e) => handleOpacityChange(layer.id, parseFloat(e.target.value))}
+                  className="opacity-slider"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+
+              <div 
+                className="layer-color-indicator" 
+                style={{ backgroundColor: layer.color }}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="layer-panel-footer">
+        <div className="layer-tips">
+          <small>💡 Click layer to activate • Use icons to toggle visibility</small>
+        </div>
       </div>
     </div>
   );

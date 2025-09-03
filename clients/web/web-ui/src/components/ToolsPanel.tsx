@@ -27,7 +27,7 @@ interface ToolsPanelProps {
 }
 
 export function ToolsPanel({ userInfo }: ToolsPanelProps) {
-  console.log('[ToolsPanel] Component mounted');
+  // console.log('[ToolsPanel] Component mounted'); // Removed to reduce noise
   const [assetManagerVisible, setAssetManagerVisible] = useState(false);
   const [paintPanelVisible, setPaintPanelVisible] = useState(false);
   

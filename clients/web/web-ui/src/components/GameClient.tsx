@@ -112,33 +112,49 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
 
   // Handle drag to resize panels
   const dragRef = React.useRef<{ side: 'left'|'right', startX: number, startWidth: number }|null>(null);
+  
   const onDragStart = (side: 'left'|'right', e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     dragRef.current = { side, startX: e.clientX, startWidth: side === 'left' ? leftWidth : rightWidth };
     document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    console.log(`🔄 GameClient: Starting ${side} panel resize`);
   };
+  
   React.useEffect(() => {
     const onDrag = (e: MouseEvent) => {
       if (!dragRef.current) return;
+      e.preventDefault();
+      
       const dx = e.clientX - dragRef.current.startX;
       if (dragRef.current.side === 'left') {
-        let w = Math.max(200, dragRef.current.startWidth + dx);
+        let w = Math.max(200, Math.min(600, dragRef.current.startWidth + dx));
         setLeftWidth(w);
         localStorage.setItem('panel_left_width', w.toString());
+        console.log(`📏 GameClient: Left panel width: ${w}px`);
       } else {
-        let w = Math.max(250, dragRef.current.startWidth - dx);
+        let w = Math.max(250, Math.min(600, dragRef.current.startWidth - dx));
         setRightWidth(w);
         localStorage.setItem('panel_right_width', w.toString());
+        console.log(`📏 GameClient: Right panel width: ${w}px`);
       }
     };
+    
     const onDragEnd = () => {
+      if (dragRef.current) {
+        console.log(`✅ GameClient: Finished resizing ${dragRef.current.side} panel`);
+      }
       dragRef.current = null;
       document.body.style.cursor = '';
+      document.body.style.userSelect = '';
     };
-    window.addEventListener('mousemove', onDrag);
-    window.addEventListener('mouseup', onDragEnd);
+    
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('mouseup', onDragEnd);
     return () => {
-      window.removeEventListener('mousemove', onDrag);
-      window.removeEventListener('mouseup', onDragEnd);
+      document.removeEventListener('mousemove', onDrag);
+      document.removeEventListener('mouseup', onDragEnd);
     };
   }, [leftWidth, rightWidth]);
 

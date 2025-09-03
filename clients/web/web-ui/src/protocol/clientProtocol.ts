@@ -63,19 +63,25 @@ export class WebClientProtocol {
 
   /** Override sendMessage to use batching for non-critical messages */
   sendMessage(message: Message): void {
+    console.log('📡 Protocol: sendMessage called with:', { type: message.type, websocketState: this.websocket?.readyState });
+    
     // Critical messages (table, actions, player) sent immediately
     const critical = [
-      'table_data', 'table_update', 'sprite_create', 'sprite_remove',
-      'player_kick_request', 'player_ban_request', 'player_list_request',
+      'table_data', 'table_update', 'table_list_request', 'table_request', 'new_table_request', 'table_delete',
+      'sprite_create', 'sprite_remove', 'player_kick_request', 'player_ban_request', 'player_list_request',
       'character_save', 'character_load', 'asset_upload', 'asset_download'
     ];
     if (critical.includes(message.type)) {
+      console.log('🔥 Protocol: Critical message, sending immediately');
       if (this.websocket?.readyState === WebSocket.OPEN) {
+        console.log('✅ Protocol: WebSocket open, sending message');
         this.websocket.send(JSON.stringify(message));
       } else {
+        console.log('⏳ Protocol: WebSocket not open, queueing message');
         this.messageQueue.push(message);
       }
     } else {
+      console.log('📦 Protocol: Non-critical message, using batch queue');
       this.queueMessage(message);
     }
   }
@@ -99,16 +105,25 @@ export class WebClientProtocol {
     // Listen for requests to send protocol messages
     const handleProtocolSendMessage = (event: Event) => {
       const customEvent = event as CustomEvent;
+      console.log('🔧 Protocol: Received protocol-send-message event', customEvent.detail);
       if (customEvent.detail && customEvent.detail.type && customEvent.detail.data) {
+        console.log('🚀 Protocol: Sending message via WebSocket:', {
+          type: customEvent.detail.type,
+          websocketState: this.websocket?.readyState,
+          isConnected: this.websocket?.readyState === WebSocket.OPEN
+        });
         this.sendMessage(createMessage(
           customEvent.detail.type,
           customEvent.detail.data,
           5
         ));
+      } else {
+        console.warn('⚠️ Protocol: Invalid protocol-send-message event detail', customEvent.detail);
       }
     };
     
     window.addEventListener('protocol-send-message', handleProtocolSendMessage);
+    console.log('✅ Protocol: Registered protocol-send-message event listener');
   }
 
   private registerBuiltInHandlers(): void {

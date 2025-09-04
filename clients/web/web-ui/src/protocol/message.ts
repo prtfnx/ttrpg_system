@@ -93,6 +93,9 @@ export const MessageType = {
   CHARACTER_DELETE_REQUEST: "character_delete_request",
   CHARACTER_DELETE_RESPONSE: "character_delete_response",
   
+  // Batch messaging for performance
+  BATCH: "batch",
+  
   // Extension point for new message types
   CUSTOM: "custom"
 } as const;

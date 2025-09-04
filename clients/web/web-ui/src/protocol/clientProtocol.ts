@@ -26,27 +26,40 @@ export class WebClientProtocol {
 
   /** Queue message for batching, flush after short delay or if batch is large */
   queueMessage(msg: Message) {
+    console.log('📦 Protocol: Adding message to batch queue:', { type: msg.type, queueLength: this.batchQueue.length + 1 });
     this.batchQueue.push(msg);
     if (!this.batchTimer) {
+      console.log('⏰ Protocol: Starting batch timer (20ms)');
       this.batchTimer = window.setTimeout(() => this.sendBatch(), 20);
     }
-    if (this.batchQueue.length > 20) this.sendBatch();
+    if (this.batchQueue.length > 20) {
+      console.log('🚀 Protocol: Batch queue full, sending immediately');
+      this.sendBatch();
+    }
   }
 
   /** Send all batched messages as a single batch */
   sendBatch() {
-    if (this.batchQueue.length === 0) return;
+    console.log('📨 Protocol: sendBatch called, queue length:', this.batchQueue.length);
+    if (this.batchQueue.length === 0) {
+      console.log('📭 Protocol: Batch queue empty, nothing to send');
+      return;
+    }
     if (this.websocket?.readyState === WebSocket.OPEN) {
-      this.websocket.send(JSON.stringify({
+      const batchMessage = {
         type: 'batch',
         messages: this.batchQueue,
         seq: ++this.sequenceNumber
-      }));
+      };
+      console.log('🚀 Protocol: Sending batch with', this.batchQueue.length, 'messages:', this.batchQueue.map(m => m.type));
+      this.websocket.send(JSON.stringify(batchMessage));
       this.batchQueue = [];
       if (this.batchTimer) {
         clearTimeout(this.batchTimer);
         this.batchTimer = null;
       }
+    } else {
+      console.log('❌ Protocol: WebSocket not open, cannot send batch. State:', this.websocket?.readyState);
     }
   }
 
@@ -65,12 +78,20 @@ export class WebClientProtocol {
   sendMessage(message: Message): void {
     console.log('📡 Protocol: sendMessage called with:', { type: message.type, websocketState: this.websocket?.readyState });
     
-    // Critical messages (table, actions, player) sent immediately
+    // Critical messages (table, actions, player, assets) sent immediately
     const critical = [
       'table_data', 'table_update', 'table_list_request', 'table_request', 'new_table_request', 'table_delete',
       'sprite_create', 'sprite_remove', 'player_kick_request', 'player_ban_request', 'player_list_request',
-      'character_save', 'character_load', 'asset_upload', 'asset_download'
+      'character_save', 'character_load', 
+      'asset_upload_request', 'asset_download_request', 'asset_list_request', 'asset_delete_request', 'asset_hash_check'
     ];
+    
+    console.log('🔍 Protocol: Checking if message is critical:', { 
+      type: message.type, 
+      isCritical: critical.includes(message.type),
+      criticalList: critical
+    });
+    
     if (critical.includes(message.type)) {
       console.log('🔥 Protocol: Critical message, sending immediately');
       if (this.websocket?.readyState === WebSocket.OPEN) {
@@ -133,6 +154,7 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.PONG, this.handlePong.bind(this));
     this.registerHandler(MessageType.ERROR, this.handleError.bind(this));
     this.registerHandler(MessageType.SUCCESS, this.handleSuccess.bind(this));
+    this.registerHandler(MessageType.BATCH, this.handleBatch.bind(this));
 
     // Player management
     this.registerHandler(MessageType.PLAYER_JOINED, this.handlePlayerJoined.bind(this));
@@ -303,6 +325,27 @@ export class WebClientProtocol {
     }
     
     window.dispatchEvent(new CustomEvent('protocol-success', { detail: message.data }));
+  }
+
+  private async handleBatch(message: Message): Promise<void> {
+    console.log('📦 Protocol: Received batch response:', message.data);
+    
+    if (message.data && Array.isArray(message.data.messages)) {
+      // Process each message in the batch response
+      for (const msgData of message.data.messages) {
+        try {
+          // Handle each message individually
+          const handler = this.handlers.get(msgData.type);
+          if (handler) {
+            await handler(msgData);
+          } else {
+            console.warn('No handler for batched message type:', msgData.type);
+          }
+        } catch (error) {
+          console.error('Error processing batched message:', error);
+        }
+      }
+    }
   }
 
   private async handlePlayerJoined(message: Message): Promise<void> {

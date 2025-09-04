@@ -226,7 +226,8 @@ impl TableSync {
     #[wasm_bindgen]
     pub fn send_sprite_move(&mut self, sprite_id: &str, x: f64, y: f64) -> Result<String, JsValue> {
         let table_id = self.table_id.as_ref()
-            .ok_or_else(|| JsValue::from_str("No active table"))?;
+            .ok_or_else(|| JsValue::from_str("No active table"))?
+            .clone();
 
         // Get current sprite state for potential rollback
         let original_state = self.get_sprite_state(sprite_id)
@@ -288,7 +289,8 @@ impl TableSync {
     #[wasm_bindgen]
     pub fn send_sprite_scale(&mut self, sprite_id: &str, scale_x: f64, scale_y: f64) -> Result<String, JsValue> {
         let table_id = self.table_id.as_ref()
-            .ok_or_else(|| JsValue::from_str("No active table"))?;
+            .ok_or_else(|| JsValue::from_str("No active table"))?
+            .clone();
 
         // Get current sprite state for potential rollback
         let original_state = self.get_sprite_state(sprite_id)
@@ -344,7 +346,8 @@ impl TableSync {
     #[wasm_bindgen]
     pub fn send_sprite_rotate(&mut self, sprite_id: &str, rotation: f64) -> Result<String, JsValue> {
         let table_id = self.table_id.as_ref()
-            .ok_or_else(|| JsValue::from_str("No active table"))?;
+            .ok_or_else(|| JsValue::from_str("No active table"))?
+            .clone();
 
         // Get current sprite state for potential rollback
         let original_state = self.get_sprite_state(sprite_id)
@@ -420,7 +423,8 @@ impl TableSync {
     #[wasm_bindgen]
     pub fn send_sprite_delete(&mut self, sprite_id: &str) -> Result<String, JsValue> {
         let table_id = self.table_id.as_ref()
-            .ok_or_else(|| JsValue::from_str("No active table"))?;
+            .ok_or_else(|| JsValue::from_str("No active table"))?
+            .clone();
 
         // Get current sprite state for potential rollback
         let original_state = self.get_sprite_state(sprite_id)

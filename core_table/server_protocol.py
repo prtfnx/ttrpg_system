@@ -242,6 +242,7 @@ class ServerProtocol:
         sprite_id = msg.data.get('sprite_id')
         from_pos = msg.data.get('from')
         to_pos = msg.data.get('to')
+        action_id = msg.data.get('action_id')  # For confirmation tracking
         
         if not sprite_id or not from_pos or not to_pos:
             return Message(MessageType.ERROR, {'error': 'Sprite ID, from position, and to position are required'})
@@ -259,13 +260,22 @@ class ServerProtocol:
         )
         
         if result.success:
-            return Message(MessageType.SPRITE_RESPONSE, {
+            response_data = {
                 'sprite_id': sprite_id,
                 'operation': 'move',
+                'to': to_pos,
                 'success': True
-            })
+            }
+            # Include action_id for confirmation if provided
+            if action_id:
+                response_data['action_id'] = action_id
+            
+            return Message(MessageType.SPRITE_RESPONSE, response_data)
         else:
-            return Message(MessageType.ERROR, {'error': f'Failed to move sprite: {result.message}'})
+            error_data = {'error': f'Failed to move sprite: {result.message}'}
+            if action_id:
+                error_data['action_id'] = action_id
+            return Message(MessageType.ERROR, error_data)
 
     async def handle_scale_sprite(self, msg: Message, client_id: str) -> Message:
         """Handle scale sprite request"""
@@ -277,6 +287,7 @@ class ServerProtocol:
         sprite_id = msg.data.get('sprite_id')
         scale_x = msg.data.get('scale_x')
         scale_y = msg.data.get('scale_y')
+        action_id = msg.data.get('action_id')  # For confirmation tracking
         
         if not sprite_id or scale_x is None or scale_y is None:
             return Message(MessageType.ERROR, {'error': 'Sprite ID, scale_x, and scale_y are required'})
@@ -290,13 +301,23 @@ class ServerProtocol:
         
         result = await self.actions.update_sprite(table_id, sprite_id, data=update_data)
         if result.success:
-            return Message(MessageType.SPRITE_RESPONSE, {
+            response_data = {
                 'sprite_id': sprite_id,
                 'operation': 'scale',
+                'scale_x': scale_x,
+                'scale_y': scale_y,
                 'success': True
-            })
+            }
+            # Include action_id for confirmation if provided
+            if action_id:
+                response_data['action_id'] = action_id
+            
+            return Message(MessageType.SPRITE_RESPONSE, response_data)
         else:
-            return Message(MessageType.ERROR, {'error': f'Failed to scale sprite: {result.message}'})
+            error_data = {'error': f'Failed to scale sprite: {result.message}'}
+            if action_id:
+                error_data['action_id'] = action_id
+            return Message(MessageType.ERROR, error_data)
 
     async def handle_rotate_sprite(self, msg: Message, client_id: str) -> Message:
         """Handle rotate sprite request"""
@@ -307,6 +328,7 @@ class ServerProtocol:
         table_id = msg.data.get('table_id', 'default')
         sprite_id = msg.data.get('sprite_id')
         rotation = msg.data.get('rotation')
+        action_id = msg.data.get('action_id')  # For confirmation tracking
         
         if not sprite_id or rotation is None:
             return Message(MessageType.ERROR, {'error': 'Sprite ID and rotation are required'})
@@ -319,13 +341,22 @@ class ServerProtocol:
         
         result = await self.actions.update_sprite(table_id, sprite_id, data=update_data)
         if result.success:
-            return Message(MessageType.SPRITE_RESPONSE, {
+            response_data = {
                 'sprite_id': sprite_id,
                 'operation': 'rotate',
+                'rotation': rotation,
                 'success': True
-            })
+            }
+            # Include action_id for confirmation if provided
+            if action_id:
+                response_data['action_id'] = action_id
+            
+            return Message(MessageType.SPRITE_RESPONSE, response_data)
         else:
-            return Message(MessageType.ERROR, {'error': f'Failed to rotate sprite: {result.message}'})
+            error_data = {'error': f'Failed to rotate sprite: {result.message}'}
+            if action_id:
+                error_data['action_id'] = action_id
+            return Message(MessageType.ERROR, error_data)
 
     async def handle_delete_table(self, msg: Message, client_id: str) -> Message:
         """Handle delete table request"""

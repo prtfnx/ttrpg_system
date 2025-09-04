@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import json
 import xxhash  # Add xxhash import
 from typing import Dict, Set, Optional, Tuple, Any, Callable
 
@@ -9,7 +10,7 @@ from typing import Dict, Set, Optional, Tuple, Any, Callable
 # Add parent directory to path to import protocol
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from net.protocol import Message, MessageType 
+from net.protocol import Message, MessageType, BatchMessage 
 from core_table.actions_core import ActionsCore
 from server_host.utils.logger import setup_logger
 from server_host.service.asset_manager import get_server_asset_manager, AssetRequest
@@ -47,6 +48,7 @@ class ServerProtocol:
         # Register built-in handlers
         self.register_handler(MessageType.PING, self.handle_ping)
         self.register_handler(MessageType.PONG, self.handle_pong)
+        self.register_handler(MessageType.BATCH, self.handle_batch)
         self.register_handler(MessageType.NEW_TABLE_REQUEST, self.handle_new_table_request)
         self.register_handler(MessageType.TABLE_REQUEST, self.handle_table_request)
         self.register_handler(MessageType.FILE_REQUEST, self.handle_file_request)
@@ -116,6 +118,69 @@ class ServerProtocol:
         """Handle pong message"""
         logger.debug(f"Received pong message from {client_id}: {msg}")
         return None
+    
+    async def handle_batch(self, msg: Message, client_id: str) -> Message:
+        """Handle batch message - process multiple messages at once"""
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data provided in batch message'})
+            
+        logger.debug(f"Received batch message from {client_id} with {len(msg.data.get('messages', []))} messages")
+        
+        try:
+            # Extract batch data
+            messages_data = msg.data.get('messages', [])
+            sequence_id = msg.data.get('seq', 0)
+            
+            # Process each message in the batch
+            responses = []
+            for msg_data in messages_data:
+                try:
+                    # Reconstruct Message object from the data
+                    individual_msg = Message(
+                        type=MessageType(msg_data.get('type')),
+                        data=msg_data.get('data', {}),
+                        client_id=msg_data.get('client_id'),
+                        timestamp=msg_data.get('timestamp'),
+                        version=msg_data.get('version', '0.1'),
+                        priority=msg_data.get('priority', 5),
+                        sequence_id=msg_data.get('sequence_id')
+                    )
+                    
+                    # Process the individual message
+                    response = await self.handle_client(individual_msg, client_id)
+                    if response:
+                        responses.append(response)
+                        
+                except Exception as e:
+                    logger.error(f"Error processing message in batch: {e}")
+                    error_response = Message(MessageType.ERROR, {
+                        'error': f'Batch message processing error: {str(e)}',
+                        'original_message': msg_data
+                    })
+                    responses.append(error_response)
+            
+            # Return batch response if there are any responses
+            if responses:
+                return Message(MessageType.BATCH, {
+                    'messages': [json.loads(resp.to_json()) for resp in responses],
+                    'seq': sequence_id,
+                    'processed_count': len(messages_data),
+                    'response_count': len(responses)
+                })
+            else:
+                # Return success message for batch processing
+                return Message(MessageType.SUCCESS, {
+                    'message': f'Batch processed successfully: {len(messages_data)} messages',
+                    'seq': sequence_id,
+                    'processed_count': len(messages_data)
+                })
+                
+        except Exception as e:
+            logger.error(f"Error handling batch message: {e}")
+            return Message(MessageType.ERROR, {
+                'error': f'Batch processing failed: {str(e)}',
+                'seq': msg.data.get('seq', 0) if msg.data else 0
+            })
         
     async def handle_error(self, msg: Message, client_id: str) -> Message:
         """Handle error message"""

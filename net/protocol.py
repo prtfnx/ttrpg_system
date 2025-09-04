@@ -96,8 +96,36 @@ class MessageType(enum.Enum):    # Core messages
     CHARACTER_DELETE_RESPONSE = "character_delete_response"
       
     
+    # Batch messaging for performance
+    BATCH = "batch"
+    
     # Extension point for new message types
     CUSTOM = "custom"
+
+@dataclass
+class BatchMessage:
+    """Container for batch message processing"""
+    messages: List['Message']
+    sequence_id: int
+    timestamp: float = field(default_factory=time.time)
+    
+    def to_json(self) -> str:
+        return json.dumps({
+            'type': 'batch',
+            'messages': [json.loads(msg.to_json()) for msg in self.messages],
+            'seq': self.sequence_id,
+            'timestamp': self.timestamp
+        })
+    
+    @classmethod
+    def from_json(cls, json_str: str) -> 'BatchMessage':
+        data = json.loads(json_str)
+        messages = [Message.from_json(json.dumps(msg_data)) for msg_data in data.get('messages', [])]
+        return cls(
+            messages=messages,
+            sequence_id=data.get('seq', 0),
+            timestamp=data.get('timestamp', time.time())
+        )
 
 @dataclass
 class Message:

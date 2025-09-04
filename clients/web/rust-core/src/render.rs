@@ -1952,13 +1952,13 @@ impl RenderEngine {
 
     /// Send sprite move update to server
     #[wasm_bindgen]
-    pub fn send_sprite_move(&self, sprite_id: &str, x: f64, y: f64) -> Result<(), JsValue> {
+    pub fn send_sprite_move(&mut self, sprite_id: &str, x: f64, y: f64) -> Result<String, JsValue> {
         self.table_sync.send_sprite_move(sprite_id, x, y)
     }
 
     /// Send sprite scale update to server
     #[wasm_bindgen]
-    pub fn send_sprite_scale(&self, sprite_id: &str, scale_x: f64, scale_y: f64) -> Result<(), JsValue> {
+    pub fn send_sprite_scale(&mut self, sprite_id: &str, scale_x: f64, scale_y: f64) -> Result<String, JsValue> {
         self.table_sync.send_sprite_scale(sprite_id, scale_x, scale_y)
     }
 
@@ -1970,7 +1970,7 @@ impl RenderEngine {
 
     /// Send sprite deletion to server
     #[wasm_bindgen]
-    pub fn send_sprite_delete(&self, sprite_id: &str) -> Result<(), JsValue> {
+    pub fn send_sprite_delete(&mut self, sprite_id: &str) -> Result<String, JsValue> {
         self.table_sync.send_sprite_delete(sprite_id)
     }
 

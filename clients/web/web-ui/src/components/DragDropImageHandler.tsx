@@ -1,7 +1,6 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { useProtocol } from '../services/ProtocolContext';
 import { createMessage, MessageType } from '../protocol/message';
-import { useTableSync } from '../hooks/useTableSync';
 import { useAssetManager } from '../hooks/useAssetManager';
 import { useGameStore } from '../store';
 
@@ -22,7 +21,6 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
   onSpriteCreated
 }) => {
   const { protocol } = useProtocol();
-  const { createSprite } = useTableSync();
   const { camera, sessionId } = useGameStore();
   const { calculateHash } = useAssetManager();
   

@@ -1,7 +1,8 @@
-import React, { useCallback, useState, useRef } from 'react';
+import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { useProtocol } from '../services/ProtocolContext';
 import { createMessage, MessageType } from '../protocol/message';
 import { useTableSync } from '../hooks/useTableSync';
+import { useAssetManager } from '../hooks/useAssetManager';
 import { useGameStore } from '../store';
 
 interface DragDropImageHandlerProps {
@@ -23,6 +24,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
   const { protocol } = useProtocol();
   const { createSprite } = useTableSync();
   const { camera, sessionId } = useGameStore();
+  const { calculateHash } = useAssetManager();
   
   const [uploadState, setUploadState] = useState<UploadState>({
     status: 'idle',
@@ -261,12 +263,14 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         fileName: file.name
       });
 
-      // Calculate file hash for server verification
+      // Calculate file hash for server verification using AssetManager
       const fileBuffer = await file.arrayBuffer();
-      const hashArray = await crypto.subtle.digest('SHA-256', fileBuffer);
-      const hashHex = Array.from(new Uint8Array(hashArray))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
+      const fileData = new Uint8Array(fileBuffer);
+      const hashHex = calculateHash(fileData);
+      
+      if (!hashHex) {
+        throw new Error('Failed to calculate file hash');
+      }
 
       // Create upload request promise
       const uploadPromise = new Promise<string | null>((resolve) => {
@@ -282,7 +286,8 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
           filename: file.name,
           file_size: file.size,
           content_type: file.type,
-          file_xxhash: hashHex,
+          xxhash: hashHex,
+          asset_id: hashHex, // asset_id is identical to xxhash
           session_code: sessionId || ''
         }, 2));
       });
@@ -305,13 +310,38 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
   }, [protocol, camera, createSprite, onSpriteCreated]);
 
   // Listen for asset upload responses
-  React.useEffect(() => {
+  useEffect(() => {
     window.addEventListener('asset-upload-response', handleAssetUploadResponse as EventListener);
     
     return () => {
       window.removeEventListener('asset-upload-response', handleAssetUploadResponse as EventListener);
     };
   }, [handleAssetUploadResponse]);
+
+  // Prevent default browser drag-and-drop behavior
+  useEffect(() => {
+    const preventDefault = (e: DragEvent) => {
+      e.preventDefault();
+    };
+
+    const preventDefaults = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    // Prevent default drag behaviors on document
+    document.addEventListener('dragenter', preventDefaults, false);
+    document.addEventListener('dragover', preventDefaults, false);
+    document.addEventListener('dragleave', preventDefault, false);
+    document.addEventListener('drop', preventDefaults, false);
+
+    return () => {
+      document.removeEventListener('dragenter', preventDefaults, false);
+      document.removeEventListener('dragover', preventDefaults, false);
+      document.removeEventListener('dragleave', preventDefault, false);
+      document.removeEventListener('drop', preventDefaults, false);
+    };
+  }, []);
 
   return (
     <div

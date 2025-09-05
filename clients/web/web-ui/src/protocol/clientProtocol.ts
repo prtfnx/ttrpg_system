@@ -154,12 +154,22 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.PONG, this.handlePong.bind(this));
     this.registerHandler(MessageType.ERROR, this.handleError.bind(this));
     this.registerHandler(MessageType.SUCCESS, this.handleSuccess.bind(this));
+    this.registerHandler(MessageType.TEST, this.handleTest.bind(this));
     this.registerHandler(MessageType.BATCH, this.handleBatch.bind(this));
 
+    // Authentication handlers
+    this.registerHandler(MessageType.AUTH_STATUS, this.handleAuthStatus.bind(this));
+    
     // Player management
     this.registerHandler(MessageType.PLAYER_JOINED, this.handlePlayerJoined.bind(this));
     this.registerHandler(MessageType.PLAYER_LEFT, this.handlePlayerLeft.bind(this));
     this.registerHandler(MessageType.PLAYER_LIST_RESPONSE, this.handlePlayerListResponse.bind(this));
+    this.registerHandler(MessageType.PLAYER_ACTION_RESPONSE, this.handlePlayerActionResponse.bind(this));
+    this.registerHandler(MessageType.PLAYER_ACTION_UPDATE, this.handlePlayerActionUpdate.bind(this));
+    this.registerHandler(MessageType.PLAYER_STATUS, this.handlePlayerStatus.bind(this));
+    this.registerHandler(MessageType.PLAYER_KICK_RESPONSE, this.handlePlayerKickResponse.bind(this));
+    this.registerHandler(MessageType.PLAYER_BAN_RESPONSE, this.handlePlayerBanResponse.bind(this));
+    this.registerHandler(MessageType.CONNECTION_STATUS_RESPONSE, this.handleConnectionStatusResponse.bind(this));
 
     // Table management
     this.registerHandler(MessageType.TABLE_DATA, this.handleTableData.bind(this));
@@ -175,21 +185,29 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.SPRITE_MOVE, this.handleSpriteMove.bind(this));
     this.registerHandler(MessageType.SPRITE_SCALE, this.handleSpriteScale.bind(this));
     this.registerHandler(MessageType.SPRITE_ROTATE, this.handleSpriteRotate.bind(this));
+    this.registerHandler(MessageType.SPRITE_RESPONSE, this.handleSpriteResponse.bind(this));
+    this.registerHandler(MessageType.SPRITE_DATA, this.handleSpriteData.bind(this));
 
+    // File transfer
+    this.registerHandler(MessageType.FILE_DATA, this.handleFileData.bind(this));
+    
     // Asset management
     this.registerHandler(MessageType.ASSET_DOWNLOAD_RESPONSE, this.handleAssetDownloadResponse.bind(this));
     this.registerHandler(MessageType.ASSET_LIST_RESPONSE, this.handleAssetListResponse.bind(this));
     this.registerHandler(MessageType.ASSET_UPLOAD_RESPONSE, this.handleAssetUploadResponse.bind(this));
+    this.registerHandler(MessageType.ASSET_DELETE_RESPONSE, this.handleAssetDeleteResponse.bind(this));
+    this.registerHandler(MessageType.ASSET_HASH_CHECK, this.handleAssetHashCheck.bind(this));
 
-  // Compendium handlers
-  this.registerHandler(MessageType.COMPENDIUM_SPRITE_ADD, async (m) => { window.dispatchEvent(new CustomEvent('compendium-sprite-added', { detail: m.data })); });
-  this.registerHandler(MessageType.COMPENDIUM_SPRITE_UPDATE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-sprite-updated', { detail: m.data })); });
-  this.registerHandler(MessageType.COMPENDIUM_SPRITE_REMOVE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-sprite-removed', { detail: m.data })); });
+    // Compendium handlers
+    this.registerHandler(MessageType.COMPENDIUM_SPRITE_ADD, async (m) => { window.dispatchEvent(new CustomEvent('compendium-sprite-added', { detail: m.data })); });
+    this.registerHandler(MessageType.COMPENDIUM_SPRITE_UPDATE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-sprite-updated', { detail: m.data })); });
+    this.registerHandler(MessageType.COMPENDIUM_SPRITE_REMOVE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-sprite-removed', { detail: m.data })); });
 
     // Character management
     this.registerHandler(MessageType.CHARACTER_LOAD_RESPONSE, this.handleCharacterLoadResponse.bind(this));
     this.registerHandler(MessageType.CHARACTER_SAVE_RESPONSE, this.handleCharacterSaveResponse.bind(this));
     this.registerHandler(MessageType.CHARACTER_LIST_RESPONSE, this.handleCharacterListResponse.bind(this));
+    this.registerHandler(MessageType.CHARACTER_DELETE_RESPONSE, this.handleCharacterDeleteResponse.bind(this));
   }
 
   registerHandler(type: string, handler: MessageHandler): void {
@@ -578,5 +596,167 @@ export class WebClientProtocol {
 
   isConnected(): boolean {
     return this.websocket?.readyState === WebSocket.OPEN;
+  }
+
+  // =========================================================================
+  // MISSING MESSAGE HANDLERS IMPLEMENTATION
+  // =========================================================================
+
+  private async handleTest(message: Message): Promise<void> {
+    console.log('🧪 Protocol: Test message received:', message.data);
+    window.dispatchEvent(new CustomEvent('protocol-test-received', { detail: message.data }));
+  }
+
+  // Authentication handlers
+  private async handleAuthStatus(message: Message): Promise<void> {
+    console.log('🔐 Protocol: Auth status received:', message.data);
+    window.dispatchEvent(new CustomEvent('auth-status-changed', { detail: message.data }));
+  }
+
+  // Player action handlers
+  private async handlePlayerActionResponse(message: Message): Promise<void> {
+    console.log('👤 Protocol: Player action response:', message.data);
+    window.dispatchEvent(new CustomEvent('player-action-response', { detail: message.data }));
+  }
+
+  private async handlePlayerActionUpdate(message: Message): Promise<void> {
+    console.log('👤 Protocol: Player action update:', message.data);
+    window.dispatchEvent(new CustomEvent('player-action-update', { detail: message.data }));
+  }
+
+  private async handlePlayerStatus(message: Message): Promise<void> {
+    console.log('👤 Protocol: Player status:', message.data);
+    window.dispatchEvent(new CustomEvent('player-status-changed', { detail: message.data }));
+  }
+
+  private async handlePlayerKickResponse(message: Message): Promise<void> {
+    console.log('👤 Protocol: Player kick response:', message.data);
+    window.dispatchEvent(new CustomEvent('player-kick-response', { detail: message.data }));
+  }
+
+  private async handlePlayerBanResponse(message: Message): Promise<void> {
+    console.log('👤 Protocol: Player ban response:', message.data);
+    window.dispatchEvent(new CustomEvent('player-ban-response', { detail: message.data }));
+  }
+
+  private async handleConnectionStatusResponse(message: Message): Promise<void> {
+    console.log('🔗 Protocol: Connection status response:', message.data);
+    window.dispatchEvent(new CustomEvent('connection-status-response', { detail: message.data }));
+  }
+
+  // Sprite data handlers
+  private async handleSpriteResponse(message: Message): Promise<void> {
+    console.log('🎭 Protocol: Sprite response:', message.data);
+    window.dispatchEvent(new CustomEvent('sprite-response', { detail: message.data }));
+  }
+
+  private async handleSpriteData(message: Message): Promise<void> {
+    console.log('🎭 Protocol: Sprite data received:', message.data);
+    window.dispatchEvent(new CustomEvent('sprite-data-received', { detail: message.data }));
+  }
+
+  // File transfer handlers
+  private async handleFileData(message: Message): Promise<void> {
+    console.log('📁 Protocol: File data received:', message.data);
+    window.dispatchEvent(new CustomEvent('file-data-received', { detail: message.data }));
+  }
+
+  // Asset management handlers
+  private async handleAssetDeleteResponse(message: Message): Promise<void> {
+    console.log('💾 Protocol: Asset delete response:', message.data);
+    window.dispatchEvent(new CustomEvent('asset-delete-response', { detail: message.data }));
+  }
+
+  private async handleAssetHashCheck(message: Message): Promise<void> {
+    console.log('💾 Protocol: Asset hash check:', message.data);
+    window.dispatchEvent(new CustomEvent('asset-hash-check', { detail: message.data }));
+  }
+
+  // Character management handlers
+  private async handleCharacterDeleteResponse(message: Message): Promise<void> {
+    console.log('👤 Protocol: Character delete response:', message.data);
+    window.dispatchEvent(new CustomEvent('character-delete-response', { detail: message.data }));
+  }
+
+  // Public API methods for new message types
+  requestPlayerStatus(clientId?: string): void {
+    this.sendMessage(createMessage(MessageType.PLAYER_STATUS, { client_id: clientId }));
+  }
+
+  sendPlayerAction(actionType: string, actionData: Record<string, unknown>): void {
+    this.sendMessage(createMessage(MessageType.PLAYER_ACTION, {
+      action_type: actionType,
+      action_data: actionData
+    }));
+  }
+
+  setPlayerReady(): void {
+    this.sendMessage(createMessage(MessageType.PLAYER_READY));
+  }
+
+  setPlayerUnready(): void {
+    this.sendMessage(createMessage(MessageType.PLAYER_UNREADY));
+  }
+
+  kickPlayer(playerId: string): void {
+    this.sendMessage(createMessage(MessageType.PLAYER_KICK_REQUEST, { player_id: playerId }));
+  }
+
+  banPlayer(playerId: string): void {
+    this.sendMessage(createMessage(MessageType.PLAYER_BAN_REQUEST, { player_id: playerId }));
+  }
+
+  requestConnectionStatus(): void {
+    this.sendMessage(createMessage(MessageType.CONNECTION_STATUS_REQUEST));
+  }
+
+  requestSpriteData(spriteId: string, tableId: string): void {
+    this.sendMessage(createMessage(MessageType.SPRITE_REQUEST, {
+      sprite_id: spriteId,
+      table_id: tableId
+    }));
+  }
+
+  sendFileData(fileId: string, chunkData: string, chunkIndex: number, totalChunks: number): void {
+    this.sendMessage(createMessage(MessageType.FILE_DATA, {
+      file_id: fileId,
+      chunk_data: chunkData,
+      chunk_index: chunkIndex,
+      total_chunks: totalChunks
+    }));
+  }
+
+  checkAssetHash(assetId: string, hash: string): void {
+    this.sendMessage(createMessage(MessageType.ASSET_HASH_CHECK, {
+      asset_id: assetId,
+      hash: hash
+    }));
+  }
+
+  deleteAsset(assetId: string): void {
+    this.sendMessage(createMessage(MessageType.ASSET_DELETE_REQUEST, { asset_id: assetId }));
+  }
+
+  deleteCharacter(characterId: string): void {
+    this.sendMessage(createMessage(MessageType.CHARACTER_DELETE_REQUEST, { character_id: characterId }));
+  }
+
+  scaleTable(tableId: string, scale: number): void {
+    this.sendMessage(createMessage(MessageType.TABLE_SCALE, {
+      table_id: tableId,
+      scale: scale
+    }));
+  }
+
+  moveTable(tableId: string, xMoved: number, yMoved: number): void {
+    this.sendMessage(createMessage(MessageType.TABLE_MOVE, {
+      table_id: tableId,
+      x_moved: xMoved,
+      y_moved: yMoved
+    }));
+  }
+
+  sendTestMessage(data: Record<string, unknown>): void {
+    this.sendMessage(createMessage(MessageType.TEST, data));
   }
 }

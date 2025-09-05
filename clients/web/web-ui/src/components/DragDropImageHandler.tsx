@@ -44,11 +44,9 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
     const data = event.detail;
     console.log('🔄 DragDrop: Asset upload response received:', data);
     
-    if (data.success && data.upload_url) {
-      const fileName = data.instructions?.fileName || uploadState.fileName;
-      const request = Array.from(uploadRequestsRef.current.values()).find(
-        req => req.file.name === fileName
-      );
+    if (data.success && data.upload_url && data.asset_id) {
+      // Look up request by asset_id
+      const request = uploadRequestsRef.current.get(data.asset_id);
       
       if (request) {
         setUploadState({
@@ -69,6 +67,14 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
             request.resolve(null);
             uploadRequestsRef.current.delete(data.asset_id);
           });
+      } else {
+        console.error('🚨 DragDrop: No matching upload request found for asset_id:', data.asset_id);
+        setUploadState({
+          status: 'failed',
+          progress: 0,
+          message: 'Upload request not found',
+          fileName: ''
+        });
       }
     } else {
       setUploadState({
@@ -92,6 +98,15 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
     dropPosition: { x: number; y: number }
   ): Promise<string | null> => {
     try {
+      // Calculate full hash for the required header
+      const fileBuffer = await file.arrayBuffer();
+      const fileData = new Uint8Array(fileBuffer);
+      const fullHash = calculateHash(fileData);
+      
+      if (!fullHash) {
+        throw new Error('Failed to calculate file hash for upload header');
+      }
+      
       // Upload file with progress tracking
       const xhr = new XMLHttpRequest();
       
@@ -155,6 +170,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         
         xhr.open('PUT', uploadUrl);
         xhr.setRequestHeader('Content-Type', file.type);
+        xhr.setRequestHeader('x-amz-meta-xxhash', fullHash);
         xhr.send(file);
       });
       
@@ -181,7 +197,9 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
       const worldX = (dropPosition.x - camera.x) / camera.zoom;
       const worldY = (dropPosition.y - camera.y) / camera.zoom;
 
-      const spriteId = createSprite({
+      const spriteId = `sprite_${Date.now()}`;
+      const spriteData = {
+        id: spriteId,
         name: fileName.replace(/\.[^/.]+$/, ''), // Remove extension
         texture_path: `/assets/${assetId}`, // Server will resolve this
         x: worldX,
@@ -194,9 +212,24 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         layer: 'tokens',
         color: 'white',
         visible: true
-      });
+      };
 
-      return spriteId;
+      console.log('🎭 DragDrop: Creating sprite from asset:', spriteData);
+
+      // Use the same approach as ToolsPanel for sprite creation
+      if (window.gameAPI && window.gameAPI.sendMessage) {
+        window.gameAPI.sendMessage('sprite_create', spriteData);
+        
+        // Trigger sprite sync event
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('spriteAdded'));
+        }, 500);
+        
+        return spriteId;
+      } else {
+        console.error('🚨 DragDrop: window.gameAPI.sendMessage not available');
+        return null;
+      }
     } catch (error) {
       console.error('Error creating sprite:', error);
       return null;
@@ -274,8 +307,8 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
 
       // Create upload request promise
       const uploadPromise = new Promise<string | null>((resolve) => {
-        const requestId = `upload_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        uploadRequestsRef.current.set(requestId, {
+        // Use hashHex (asset_id) as the key for easier lookup in response handler
+        uploadRequestsRef.current.set(hashHex, {
           file,
           dropPosition,
           resolve
@@ -307,7 +340,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         fileName: file.name
       });
     }
-  }, [protocol, camera, createSprite, onSpriteCreated]);
+  }, [protocol, camera, onSpriteCreated]);
 
   // Listen for asset upload responses
   useEffect(() => {

@@ -7,6 +7,7 @@ import { wasmIntegrationService } from '../services/wasmIntegration.service';
 import { useGameStore } from '../store';
 import type { RenderEngine } from '../types';
 import type { GlobalWasmModule } from '../utils/wasmManager';
+import { DragDropImageHandler } from './DragDropImageHandler';
 import './GameCanvas.css';
 
 declare global {
@@ -575,13 +576,14 @@ export const GameCanvas: React.FC = () => {
   }, [updateDebugOverlay]);
 
   return (
-    <div className="game-canvas-container" style={{ position: 'relative' }}>
-      <canvas
-        ref={canvasRef}
-        className="game-canvas"
-        tabIndex={0}
-        style={{ outline: 'none' }}
-      />
+    <DragDropImageHandler onSpriteCreated={(spriteId) => console.log('Created sprite:', spriteId)}>
+      <div className="game-canvas-container" style={{ position: 'relative' }}>
+        <canvas
+          ref={canvasRef}
+          className="game-canvas"
+          tabIndex={0}
+          style={{ outline: 'none' }}
+        />
       
       {/* Context Menu */}
       {contextMenu.visible && (
@@ -739,5 +741,6 @@ export const GameCanvas: React.FC = () => {
         </div>
       )}
     </div>
+    </DragDropImageHandler>
   );
 }

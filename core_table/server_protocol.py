@@ -4,6 +4,7 @@ import time
 import json
 import xxhash  # Add xxhash import
 from typing import Dict, Set, Optional, Tuple, Any, Callable
+import time
 
 
 
@@ -48,36 +49,70 @@ class ServerProtocol:
         # Register built-in handlers
         self.register_handler(MessageType.PING, self.handle_ping)
         self.register_handler(MessageType.PONG, self.handle_pong)
+        self.register_handler(MessageType.TEST, self.handle_test)
         self.register_handler(MessageType.BATCH, self.handle_batch)
+        
+        # Authentication handlers
+        self.register_handler(MessageType.AUTH_REGISTER, self.handle_auth_register)
+        self.register_handler(MessageType.AUTH_LOGIN, self.handle_auth_login)
+        self.register_handler(MessageType.AUTH_LOGOUT, self.handle_auth_logout)
+        self.register_handler(MessageType.AUTH_TOKEN, self.handle_auth_token)
+        self.register_handler(MessageType.AUTH_STATUS, self.handle_auth_status)
+        
+        # Table management
         self.register_handler(MessageType.NEW_TABLE_REQUEST, self.handle_new_table_request)
         self.register_handler(MessageType.TABLE_REQUEST, self.handle_table_request)
-        self.register_handler(MessageType.FILE_REQUEST, self.handle_file_request)
         self.register_handler(MessageType.TABLE_UPDATE, self.handle_table_update)
-        self.register_handler(MessageType.SPRITE_UPDATE, self.handle_sprite_update)
-        self.register_handler(MessageType.COMPENDIUM_SPRITE_ADD, self.handle_compendium_sprite_add)
-        self.register_handler(MessageType.COMPENDIUM_SPRITE_UPDATE, self.handle_compendium_sprite_update)
-        self.register_handler(MessageType.COMPENDIUM_SPRITE_REMOVE, self.handle_compendium_sprite_remove)
-        self.register_handler(MessageType.ERROR, self.handle_error)
-        self.register_handler(MessageType.SUCCESS, self.handle_success)
-        # sprite managment
+        self.register_handler(MessageType.TABLE_SCALE, self.handle_table_scale)
+        self.register_handler(MessageType.TABLE_MOVE, self.handle_table_move)
+        self.register_handler(MessageType.TABLE_DELETE, self.handle_delete_table)
+        self.register_handler(MessageType.TABLE_LIST_REQUEST, self.handle_table_list_request)
+        
+        # Player management
+        self.register_handler(MessageType.PLAYER_ACTION, self.handle_player_action)
+        self.register_handler(MessageType.PLAYER_READY, self.handle_player_ready)
+        self.register_handler(MessageType.PLAYER_UNREADY, self.handle_player_unready)
+        self.register_handler(MessageType.PLAYER_STATUS, self.handle_player_status)
+        self.register_handler(MessageType.PLAYER_LIST_REQUEST, self.handle_player_list_request)
+        self.register_handler(MessageType.PLAYER_KICK_REQUEST, self.handle_player_kick_request)
+        self.register_handler(MessageType.PLAYER_BAN_REQUEST, self.handle_player_ban_request)
+        self.register_handler(MessageType.CONNECTION_STATUS_REQUEST, self.handle_connection_status_request)
+        
+        # Sprite management
+        self.register_handler(MessageType.SPRITE_REQUEST, self.handle_sprite_request)
         self.register_handler(MessageType.SPRITE_CREATE, self.handle_create_sprite)
         self.register_handler(MessageType.SPRITE_REMOVE, self.handle_delete_sprite)
         self.register_handler(MessageType.SPRITE_MOVE, self.handle_move_sprite)
         self.register_handler(MessageType.SPRITE_SCALE, self.handle_scale_sprite)
         self.register_handler(MessageType.SPRITE_ROTATE, self.handle_rotate_sprite)
-        # table management
-        self.register_handler(MessageType.TABLE_DELETE, self.handle_delete_table)
-        self.register_handler(MessageType.TABLE_LIST_REQUEST, self.handle_table_list_request)
+        self.register_handler(MessageType.SPRITE_UPDATE, self.handle_sprite_update)
         
-        # R2 Asset Management handlers
+        # File transfer
+        self.register_handler(MessageType.FILE_REQUEST, self.handle_file_request)
+        self.register_handler(MessageType.FILE_DATA, self.handle_file_data)
+        
+        # Asset management
         self.register_handler(MessageType.ASSET_UPLOAD_REQUEST, self.handle_asset_upload_request)
         self.register_handler(MessageType.ASSET_DOWNLOAD_REQUEST, self.handle_asset_download_request)
         self.register_handler(MessageType.ASSET_LIST_REQUEST, self.handle_asset_list_request)
         self.register_handler(MessageType.ASSET_UPLOAD_CONFIRM, self.handle_asset_upload_confirm)
         self.register_handler(MessageType.ASSET_DELETE_REQUEST, self.handle_asset_delete_request)
+        self.register_handler(MessageType.ASSET_HASH_CHECK, self.handle_asset_hash_check)
         
-        # Player management handlers
-        self.register_handler(MessageType.PLAYER_LIST_REQUEST, self.handle_player_list_request)
+        # Compendium operations
+        self.register_handler(MessageType.COMPENDIUM_SPRITE_ADD, self.handle_compendium_sprite_add)
+        self.register_handler(MessageType.COMPENDIUM_SPRITE_UPDATE, self.handle_compendium_sprite_update)
+        self.register_handler(MessageType.COMPENDIUM_SPRITE_REMOVE, self.handle_compendium_sprite_remove)
+        
+        # Character management
+        self.register_handler(MessageType.CHARACTER_SAVE_REQUEST, self.handle_character_save_request)
+        self.register_handler(MessageType.CHARACTER_LOAD_REQUEST, self.handle_character_load_request)
+        self.register_handler(MessageType.CHARACTER_LIST_REQUEST, self.handle_character_list_request)
+        self.register_handler(MessageType.CHARACTER_DELETE_REQUEST, self.handle_character_delete_request)
+        
+        # Error handling
+        self.register_handler(MessageType.ERROR, self.handle_error)
+        self.register_handler(MessageType.SUCCESS, self.handle_success)
         self.register_handler(MessageType.PLAYER_KICK_REQUEST, self.handle_player_kick_request)
         self.register_handler(MessageType.PLAYER_BAN_REQUEST, self.handle_player_ban_request)
         self.register_handler(MessageType.CONNECTION_STATUS_REQUEST, self.handle_connection_status_request)
@@ -112,12 +147,12 @@ class ServerProtocol:
     async def handle_success(self, msg: Message, client_id: str) -> Message:
         """Handle success message"""
         logger.debug(f"Received success message from {client_id}: {msg}")
-        return None
+        return Message(MessageType.SUCCESS, {'acknowledged': True})
     
     async def handle_pong(self, msg: Message, client_id: str) -> Message:
         """Handle pong message"""
         logger.debug(f"Received pong message from {client_id}: {msg}")
-        return None
+        return Message(MessageType.SUCCESS, {'pong_acknowledged': True})
     
     async def handle_batch(self, msg: Message, client_id: str) -> Message:
         """Handle batch message - process multiple messages at once"""
@@ -185,7 +220,7 @@ class ServerProtocol:
     async def handle_error(self, msg: Message, client_id: str) -> Message:
         """Handle error message"""
         logger.warning(f"Error message received from {client_id}: {msg}")
-        return None
+        return Message(MessageType.SUCCESS, {'error_acknowledged': True})
     
     async def handle_create_sprite(self, msg: Message, client_id: str) -> Message:
         """Handle create sprite request"""
@@ -1453,4 +1488,306 @@ class ServerProtocol:
                 'success': False,
                 'error': result.message
             })
+
+    # =========================================================================
+    # MISSING MESSAGE HANDLERS IMPLEMENTATION
+    # =========================================================================
+    
+    async def handle_test(self, msg: Message, client_id: str) -> Message:
+        """Handle test message - echo back with server info"""
+        return Message(MessageType.SUCCESS, {
+            'message': 'Test message received',
+            'server_time': time.time(),
+            'echo_data': msg.data
+        })
+    
+    # Authentication handlers
+    async def handle_auth_register(self, msg: Message, client_id: str) -> Message:
+        """Handle user registration request"""
+        # TODO: Implement proper authentication
+        return Message(MessageType.AUTH_STATUS, {
+            'authenticated': False,
+            'message': 'Authentication not implemented yet'
+        })
+    
+    async def handle_auth_login(self, msg: Message, client_id: str) -> Message:
+        """Handle user login request"""
+        # TODO: Implement proper authentication
+        return Message(MessageType.AUTH_STATUS, {
+            'authenticated': False,
+            'message': 'Authentication not implemented yet'
+        })
+    
+    async def handle_auth_logout(self, msg: Message, client_id: str) -> Message:
+        """Handle user logout request"""
+        return Message(MessageType.AUTH_STATUS, {
+            'authenticated': False,
+            'message': 'Logged out successfully'
+        })
+    
+    async def handle_auth_token(self, msg: Message, client_id: str) -> Message:
+        """Handle authentication token validation"""
+        # TODO: Implement proper token validation
+        return Message(MessageType.AUTH_STATUS, {
+            'authenticated': False,
+            'message': 'Token validation not implemented yet'
+        })
+    
+    async def handle_auth_status(self, msg: Message, client_id: str) -> Message:
+        """Handle authentication status request"""
+        return Message(MessageType.AUTH_STATUS, {
+            'authenticated': False,
+            'message': 'Not authenticated'
+        })
+    
+    # Table manipulation handlers
+    async def handle_table_scale(self, msg: Message, client_id: str) -> Message:
+        """Handle table scale change"""
+        try:
+            if not msg.data:
+                return Message(MessageType.ERROR, {'error': 'No data provided'})
+                
+            table_id = msg.data.get('table_id')
+            scale = msg.data.get('scale')
+            session_id = self._get_session_id(msg)
+            
+            if not table_id or scale is None:
+                return Message(MessageType.ERROR, {'error': 'table_id and scale are required'})
+            
+            # For now, just broadcast the update since ActionsCore doesn't have update_table_scale
+            # TODO: Implement proper table scale update in ActionsCore
+            await self.broadcast_to_session(Message(MessageType.TABLE_UPDATE, {
+                'table_id': table_id,
+                'scale': scale,
+                'type': 'scale_update'
+            }), client_id)
+            
+            return Message(MessageType.SUCCESS, {'message': 'Table scale updated'})
+                
+        except Exception as e:
+            logger.error(f"Error handling table scale: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+    
+    async def handle_table_move(self, msg: Message, client_id: str) -> Message:
+        """Handle table position change"""
+        try:
+            if not msg.data:
+                return Message(MessageType.ERROR, {'error': 'No data provided'})
+                
+            table_id = msg.data.get('table_id')
+            x_moved = msg.data.get('x_moved')
+            y_moved = msg.data.get('y_moved')
+            session_id = self._get_session_id(msg)
+            
+            if not table_id or x_moved is None or y_moved is None:
+                return Message(MessageType.ERROR, {'error': 'table_id, x_moved, and y_moved are required'})
+            
+            # For now, just broadcast the update since ActionsCore doesn't have update_table_position  
+            # TODO: Implement proper table position update in ActionsCore
+            await self.broadcast_to_session(Message(MessageType.TABLE_UPDATE, {
+                'table_id': table_id,
+                'x_moved': x_moved,
+                'y_moved': y_moved,
+                'type': 'position_update'
+            }), client_id)
+            
+            return Message(MessageType.SUCCESS, {'message': 'Table position updated'})
+                
+        except Exception as e:
+            logger.error(f"Error handling table move: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+    
+    # Player action handlers
+    async def handle_player_action(self, msg: Message, client_id: str) -> Message:
+        """Handle generic player action"""
+        try:
+            if not msg.data:
+                return Message(MessageType.ERROR, {'error': 'No data provided'})
+                
+            action_type = msg.data.get('action_type')
+            action_data = msg.data.get('action_data', {})
+            
+            # Broadcast player action to other clients
+            await self.broadcast_to_session(Message(MessageType.PLAYER_ACTION_UPDATE, {
+                'client_id': client_id,
+                'action_type': action_type,
+                'action_data': action_data,
+                'timestamp': time.time()
+            }), client_id)
+            
+            return Message(MessageType.PLAYER_ACTION_RESPONSE, {
+                'success': True,
+                'action_type': action_type
+            })
+            
+        except Exception as e:
+            logger.error(f"Error handling player action: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+    
+    async def handle_player_ready(self, msg: Message, client_id: str) -> Message:
+        """Handle player ready status"""
+        try:
+            # Update player ready status
+            if client_id not in self.clients:
+                self.clients[client_id] = {}
+            
+            self.clients[client_id]['ready'] = True
+            self.clients[client_id]['last_action'] = time.time()
+            
+            # Broadcast to other clients
+            await self.broadcast_to_session(Message(MessageType.PLAYER_STATUS, {
+                'client_id': client_id,
+                'status': 'ready',
+                'timestamp': time.time()
+            }), client_id)
+            
+            return Message(MessageType.SUCCESS, {'message': 'Player marked as ready'})
+            
+        except Exception as e:
+            logger.error(f"Error handling player ready: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+    
+    async def handle_player_unready(self, msg: Message, client_id: str) -> Message:
+        """Handle player unready status"""
+        try:
+            # Update player ready status
+            if client_id not in self.clients:
+                self.clients[client_id] = {}
+            
+            self.clients[client_id]['ready'] = False
+            self.clients[client_id]['last_action'] = time.time()
+            
+            # Broadcast to other clients
+            await self.broadcast_to_session(Message(MessageType.PLAYER_STATUS, {
+                'client_id': client_id,
+                'status': 'unready',
+                'timestamp': time.time()
+            }), client_id)
+            
+            return Message(MessageType.SUCCESS, {'message': 'Player marked as unready'})
+            
+        except Exception as e:
+            logger.error(f"Error handling player unready: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+    
+    async def handle_player_status(self, msg: Message, client_id: str) -> Message:
+        """Handle player status request"""
+        try:
+            if not msg.data:
+                target_client = client_id
+            else:
+                target_client = msg.data.get('client_id', client_id)
+            
+            if target_client in self.clients:
+                status = self.clients[target_client]
+                return Message(MessageType.PLAYER_STATUS, {
+                    'client_id': target_client,
+                    'status': status
+                })
+            else:
+                return Message(MessageType.ERROR, {'error': 'Client not found'})
+                
+        except Exception as e:
+            logger.error(f"Error handling player status: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+    
+    # Sprite data handlers
+    async def handle_sprite_request(self, msg: Message, client_id: str) -> Message:
+        """Handle sprite data request"""
+        try:
+            if not msg.data:
+                return Message(MessageType.ERROR, {'error': 'No data provided'})
+                
+            sprite_id = msg.data.get('sprite_id')
+            table_id = msg.data.get('table_id')
+            
+            if not sprite_id or not table_id:
+                return Message(MessageType.ERROR, {'error': 'sprite_id and table_id are required'})
+            
+            # Get sprite data from table manager
+            table_data = self.table_manager.get_table(table_id)
+            if not table_data:
+                return Message(MessageType.ERROR, {'error': 'Table not found'})
+            
+            # Find sprite in table layers
+            sprite_data = None
+            for layer_sprites in table_data.layers.values():
+                for sprite in layer_sprites:
+                    if sprite.sprite_id == sprite_id:
+                        sprite_data = sprite.to_dict()
+                        break
+                if sprite_data:
+                    break
+            
+            if sprite_data:
+                return Message(MessageType.SPRITE_DATA, {
+                    'sprite_id': sprite_id,
+                    'table_id': table_id,
+                    'sprite_data': sprite_data
+                })
+            else:
+                return Message(MessageType.ERROR, {'error': 'Sprite not found'})
+                
+        except Exception as e:
+            logger.error(f"Error handling sprite request: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+    
+    # File transfer handlers
+    async def handle_file_data(self, msg: Message, client_id: str) -> Message:
+        """Handle file data transfer"""
+        try:
+            if not msg.data:
+                return Message(MessageType.ERROR, {'error': 'No data provided'})
+                
+            file_id = msg.data.get('file_id')
+            chunk_data = msg.data.get('chunk_data')
+            chunk_index = msg.data.get('chunk_index', 0)
+            total_chunks = msg.data.get('total_chunks', 1)
+            
+            if not file_id or not chunk_data:
+                return Message(MessageType.ERROR, {'error': 'file_id and chunk_data are required'})
+            
+            # TODO: Implement file chunk handling and storage
+            logger.info(f"Received file chunk {chunk_index + 1}/{total_chunks} for file {file_id}")
+            
+            # For now, just acknowledge receipt
+            return Message(MessageType.SUCCESS, {
+                'message': f'File chunk {chunk_index + 1}/{total_chunks} received',
+                'file_id': file_id
+            })
+            
+        except Exception as e:
+            logger.error(f"Error handling file data: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+    
+    # Asset hash check handler
+    async def handle_asset_hash_check(self, msg: Message, client_id: str) -> Message:
+        """Handle asset hash verification request"""
+        try:
+            if not msg.data:
+                return Message(MessageType.ERROR, {'error': 'No data provided'})
+                
+            asset_id = msg.data.get('asset_id')
+            client_hash = msg.data.get('hash')
+            
+            if not asset_id or not client_hash:
+                return Message(MessageType.ERROR, {'error': 'asset_id and hash are required'})
+            
+            # Get server hash for asset
+            server_hash = await self._get_asset_xxhash(asset_id)
+            
+            if server_hash:
+                hash_match = server_hash == client_hash
+                return Message(MessageType.ASSET_HASH_CHECK, {
+                    'asset_id': asset_id,
+                    'hash_match': hash_match,
+                    'server_hash': server_hash,
+                    'client_hash': client_hash
+                })
+            else:
+                return Message(MessageType.ERROR, {'error': 'Asset not found or hash unavailable'})
+                
+        except Exception as e:
+            logger.error(f"Error handling asset hash check: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
 

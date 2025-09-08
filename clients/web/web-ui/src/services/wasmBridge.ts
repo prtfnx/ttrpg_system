@@ -108,9 +108,9 @@ class WasmBridgeService {
   cleanup() {
     if (!this.isInitialized) return;
 
-    window.removeEventListener('wasm-sprite-operation', this.handleWasmOperation);
-    window.removeEventListener('wasm-network-request', this.handleNetworkRequest);
-    window.removeEventListener('wasm-error', this.handleWasmError);
+    window.removeEventListener('wasm-sprite-operation', this.handleWasmOperation as EventListener);
+    window.removeEventListener('wasm-network-request', this.handleNetworkRequest as EventListener);
+    window.removeEventListener('wasm-error', this.handleWasmError as EventListener);
 
     this.isInitialized = false;
     console.log('[WasmBridge] Service cleaned up');

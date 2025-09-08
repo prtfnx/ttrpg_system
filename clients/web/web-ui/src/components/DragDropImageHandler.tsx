@@ -55,7 +55,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         });
         
         // Upload file to the presigned URL
-        uploadFileToPresignedUrl(data.upload_url, request.file, data.asset_id, request.dropPosition)
+        uploadFileToPresignedUrl(data.upload_url, request.file, request.dropPosition)
           .then(spriteId => {
             request.resolve(spriteId);
             uploadRequestsRef.current.delete(data.asset_id);
@@ -92,7 +92,6 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
   const uploadFileToPresignedUrl = async (
     uploadUrl: string,
     file: File,
-    assetId: string,
     dropPosition: { x: number; y: number }
   ): Promise<string | null> => {
     try {
@@ -180,6 +179,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         xhr.open('PUT', uploadUrl);
         xhr.setRequestHeader('Content-Type', file.type);
         xhr.setRequestHeader('x-amz-meta-xxhash', fullHash);
+        xhr.setRequestHeader('x-amz-meta-upload-timestamp', Math.floor(Date.now() / 1000).toString());
         
         console.log('📤 Starting upload to:', uploadUrl);
         console.log('📤 File details:', {
@@ -189,7 +189,8 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         });
         console.log('📤 Headers:', {
           'Content-Type': file.type,
-          'x-amz-meta-xxhash': fullHash
+          'x-amz-meta-xxhash': fullHash,
+          'x-amz-meta-upload-timestamp': Math.floor(Date.now() / 1000).toString()
         });
         
         xhr.send(file);
@@ -238,7 +239,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
 
       // Send sprite creation to server via protocol
       if (protocol) {
-        protocol.sendMessage(createMessage(MessageType.SPRITE_CREATE, spriteData, 2));
+        protocol.sendMessage(createMessage(MessageType.SPRITE_CREATE, { sprite_data: spriteData }, 2));
         console.log('📡 DragDrop: Sent sprite_create to server via protocol');
       }
 

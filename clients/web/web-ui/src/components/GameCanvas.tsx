@@ -8,6 +8,7 @@ import { useGameStore } from '../store';
 import type { RenderEngine } from '../types';
 import type { GlobalWasmModule } from '../utils/wasmManager';
 import { DragDropImageHandler } from './DragDropImageHandler';
+import { useWasmBridge } from '../services/wasmBridge';
 import './GameCanvas.css';
 
 declare global {
@@ -74,6 +75,8 @@ export const GameCanvas: React.FC = () => {
   const { updateConnectionState, tables, activeTableId } = useGameStore();
   const activeTable = tables.find(t => t.table_id === activeTableId);
   const { connect: connectWebSocket, disconnect: disconnectWebSocket } = useWebSocket('ws://127.0.0.1:12345/ws');
+  // Initialize WASM bridge for sprite operation synchronization
+  useWasmBridge();
   const debugPanel = useCanvasDebug(canvasRef as React.RefObject<HTMLCanvasElement | null>, rustRenderManagerRef, dprRef);
   
   // FPS Counter

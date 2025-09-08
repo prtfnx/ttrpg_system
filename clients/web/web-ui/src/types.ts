@@ -109,6 +109,13 @@ export interface GameAPI {
   renderManager: () => RenderEngine | null;
 }
 
+// WASM Bridge interface for bidirectional communication
+export interface WasmBridge {
+  onSpriteOperationComplete: (operation: string, spriteId: string, data: any) => void;
+  sendNetworkUpdate: (updateType: string, data: any) => void;
+  onError: (operation: string, error: string) => void;
+}
+
 export interface RenderEngine {
   // Core rendering
   render: () => void;
@@ -121,11 +128,17 @@ export interface RenderEngine {
   // Sprite management
   add_sprite_to_layer: (layer: string, sprite_data: Record<string, unknown>) => string;
   delete_sprite: (sprite_id: string) => boolean;
+  remove_sprite_from_layer: (layer: string, sprite_id: string) => boolean;
   copy_sprite: (sprite_id: string) => string | undefined;
   paste_sprite: (layer: string, sprite_json: string, offset_x: number, offset_y: number) => string;
   resize_sprite: (sprite_id: string, new_width: number, new_height: number) => boolean;
   rotate_sprite: (sprite_id: string, rotation_degrees: number) => boolean;
   load_texture: (name: string, image: HTMLImageElement) => void;
+  
+  // Network synchronization (table sync)
+  send_sprite_move: (sprite_id: string, x: number, y: number) => string;
+  send_sprite_scale: (sprite_id: string, scale_x: number, scale_y: number) => string;
+  send_sprite_rotate: (sprite_id: string, rotation: number) => string;
   
   // Layer management
   set_layer_opacity: (layer: string, opacity: number) => void;
@@ -207,6 +220,7 @@ declare global {
   interface Window {
     gameAPI?: GameAPI;
     rustRenderManager?: RenderEngine;
+    wasmBridge?: WasmBridge;
     // ttrpg_rust_core type is defined in wasmManager.ts
   }
 }

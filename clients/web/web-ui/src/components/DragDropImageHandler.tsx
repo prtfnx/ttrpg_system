@@ -6,19 +6,24 @@ import { useGameStore } from '../store';
 
 interface DragDropImageHandlerProps {
   children: React.ReactNode;
-  onSpriteCreated?: (spriteId: string) => void;
 }
 
 interface UploadState {
-  status: 'idle' | 'requesting' | 'uploading' | 'creating' | 'completed' | 'failed';
+  status: 'idle' | 'requesting' | 'uploading' | 'processing' | 'completed' | 'failed';
   progress: number;
   message: string;
   fileName?: string;
 }
 
+interface PendingUpload {
+  file: File;
+  dropPosition: { x: number; y: number };
+  assetId: string;
+  fileName: string;
+}
+
 export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
-  children,
-  onSpriteCreated
+  children
 }) => {
   const { protocol } = useProtocol();
   const { camera, sessionId } = useGameStore();
@@ -31,11 +36,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
   });
   
   const [dragOver, setDragOver] = useState(false);
-  const uploadRequestsRef = useRef<Map<string, {
-    file: File;
-    dropPosition: { x: number; y: number };
-    resolve: (spriteId: string | null) => void;
-  }>>(new Map());
+  const pendingUploadsRef = useRef<Map<string, PendingUpload>>(new Map());
 
   // Handle asset upload response from server
   const handleAssetUploadResponse = useCallback((event: CustomEvent) => {
@@ -43,27 +44,50 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
     console.log('🔄 DragDrop: Asset upload response received:', data);
     
     if (data.success && data.upload_url && data.asset_id) {
-      // Look up request by asset_id
-      const request = uploadRequestsRef.current.get(data.asset_id);
+      // Look up pending upload by asset_id
+      const pendingUpload = pendingUploadsRef.current.get(data.asset_id);
       
-      if (request) {
+      if (pendingUpload) {
         setUploadState({
           status: 'uploading',
           progress: 0,
-          message: `Uploading ${request.file.name}...`,
-          fileName: request.file.name
+          message: `Uploading ${pendingUpload.fileName}...`,
+          fileName: pendingUpload.fileName
         });
         
-        // Upload file to the presigned URL
-        uploadFileToPresignedUrl(data.upload_url, request.file, request.dropPosition)
-          .then(spriteId => {
-            request.resolve(spriteId);
-            uploadRequestsRef.current.delete(data.asset_id);
+        // Upload file to R2 and let server handle sprite creation
+        uploadFileToR2(data.upload_url, pendingUpload)
+          .then(() => {
+            // Upload successful - server will create and broadcast sprite
+            setUploadState({
+              status: 'processing',
+              progress: 100,
+              message: `Processing ${pendingUpload.fileName}...`,
+              fileName: pendingUpload.fileName
+            });
+            
+            // Clean up pending upload
+            pendingUploadsRef.current.delete(data.asset_id);
+            
+            // Server will broadcast sprite creation, so we wait for that
+            // Reset UI after a delay
+            setTimeout(() => {
+              setUploadState({
+                status: 'idle',
+                progress: 0,
+                message: ''
+              });
+            }, 3000);
           })
           .catch(error => {
             console.error('Upload failed:', error);
-            request.resolve(null);
-            uploadRequestsRef.current.delete(data.asset_id);
+            setUploadState({
+              status: 'failed',
+              progress: 0,
+              message: `Upload failed: ${error.message}`,
+              fileName: pendingUpload.fileName
+            });
+            pendingUploadsRef.current.delete(data.asset_id);
           });
       } else {
         console.error('🚨 DragDrop: No matching upload request found for asset_id:', data.asset_id);
@@ -79,188 +103,101 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         status: 'failed',
         progress: 0,
         message: `Upload failed: ${data.error || 'Unknown error'}`,
-        fileName: uploadState.fileName
+        fileName: uploadState.fileName || ''
       });
       
-      // Reject all pending requests
-      uploadRequestsRef.current.forEach(request => request.resolve(null));
-      uploadRequestsRef.current.clear();
+      // Clear all pending uploads on error
+      pendingUploadsRef.current.clear();
     }
   }, [uploadState.fileName]);
 
-  // Upload file to presigned URL and create sprite
-  const uploadFileToPresignedUrl = async (
+  // Upload file to R2 (server-first approach - no local sprite creation)
+  const uploadFileToR2 = async (
     uploadUrl: string,
-    file: File,
-    dropPosition: { x: number; y: number }
-  ): Promise<string | null> => {
-    try {
-      // Calculate full hash for the required header
-      const fileBuffer = await file.arrayBuffer();
-      const fileData = new Uint8Array(fileBuffer);
-      const fullHash = calculateHash(fileData);
-      
-      if (!fullHash) {
-        throw new Error('Failed to calculate file hash for upload header');
-      }
-      
-      // Upload file with progress tracking
+    pendingUpload: PendingUpload
+  ): Promise<void> => {
+    const { file, assetId } = pendingUpload;
+    
+    // Calculate file hash for required header
+    const fileBuffer = await file.arrayBuffer();
+    const fileData = new Uint8Array(fileBuffer);
+    const fullHash = calculateHash(fileData);
+    
+    if (!fullHash) {
+      throw new Error('Failed to calculate file hash for upload header');
+    }
+    
+    return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       
-      return new Promise((resolve, reject) => {
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            const progress = Math.round((event.loaded / event.total) * 100);
-            setUploadState(prev => ({
-              ...prev,
-              progress,
-              message: `Uploading ${file.name}... ${progress}%`
-            }));
-          }
-        };
-
-        xhr.onload = async () => {
-          console.log('📤 Upload response status:', xhr.status);
-          console.log('📤 Upload response headers:', xhr.getAllResponseHeaders());
-          console.log('📤 Upload response text:', xhr.responseText);
-          
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              // Upload successful, now create sprite
-              setUploadState({
-                status: 'creating',
-                progress: 100,
-                message: `Creating sprite from ${file.name}...`,
-                fileName: file.name
-              });
-
-              const spriteId = await createSpriteFromAsset(dropPosition, file.name);
-              
-              if (spriteId) {
-                setUploadState({
-                  status: 'completed',
-                  progress: 100,
-                  message: `Sprite created successfully!`,
-                  fileName: file.name
-                });
-                
-                onSpriteCreated?.(spriteId);
-                
-                // Reset after delay
-                setTimeout(() => {
-                  setUploadState({
-                    status: 'idle',
-                    progress: 0,
-                    message: ''
-                  });
-                }, 2000);
-                
-                resolve(spriteId);
-              } else {
-                throw new Error('Failed to create sprite');
-              }
-            } catch (error) {
-              reject(error);
-            }
-          } else {
-            console.error('❌ Upload failed with status:', xhr.status, xhr.statusText);
-            reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.statusText}`));
-          }
-        };
-
-        xhr.onerror = () => {
-          console.error('❌ Upload network error');
-          console.error('❌ Upload URL was:', uploadUrl);
-          console.error('❌ File size:', file.size);
-          console.error('❌ File type:', file.type);
-          reject(new Error('Upload failed due to network error'));
-        };
-        
-        xhr.open('PUT', uploadUrl);
-        xhr.setRequestHeader('Content-Type', file.type);
-        xhr.setRequestHeader('x-amz-meta-xxhash', fullHash);
-        xhr.setRequestHeader('x-amz-meta-upload-timestamp', Math.floor(Date.now() / 1000).toString());
-        
-        console.log('📤 Starting upload to:', uploadUrl);
-        console.log('📤 File details:', {
-          name: file.name,
-          size: file.size,
-          type: file.type
-        });
-        console.log('📤 Headers:', {
-          'Content-Type': file.type,
-          'x-amz-meta-xxhash': fullHash,
-          'x-amz-meta-upload-timestamp': Math.floor(Date.now() / 1000).toString()
-        });
-        
-        xhr.send(file);
-      });
-      
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      setUploadState({
-        status: 'failed',
-        progress: 0,
-        message: `Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        fileName: file.name
-      });
-      return null;
-    }
-  };
-
-  // Create sprite from uploaded asset
-  const createSpriteFromAsset = async (
-    dropPosition: { x: number; y: number },
-    fileName: string
-  ): Promise<string | null> => {
-    try {
-      // Convert screen coordinates to world coordinates
-      const worldX = (dropPosition.x - camera.x) / camera.zoom;
-      const worldY = (dropPosition.y - camera.y) / camera.zoom;
-
-      const spriteId = `sprite_${Date.now()}`;
-      const spriteData = {
-        id: spriteId,
-        name: fileName.replace(/\.[^/.]+$/, ''), // Remove extension
-        texture_path: fileName, // Use original filename for now
-        x: worldX,
-        y: worldY,
-        width: 64,
-        height: 64,
-        scale_x: 1.0,
-        scale_y: 1.0,
-        rotation: 0,
-        layer: 'tokens',
-        color: '#FFFFFF',
-        visible: true
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const progress = Math.round((event.loaded / event.total) * 100);
+          setUploadState(prev => ({
+            ...prev,
+            progress,
+            message: `Uploading ${file.name}... ${progress}%`
+          }));
+        }
       };
 
-      console.log('🎭 DragDrop: Creating sprite from asset:', spriteData);
-
-      // Send sprite creation to server via protocol
-      if (protocol) {
-        protocol.sendMessage(createMessage(MessageType.SPRITE_CREATE, { sprite_data: spriteData }, 2));
-        console.log('📡 DragDrop: Sent sprite_create to server via protocol');
-      }
-
-      // Also create locally via gameAPI for immediate visual feedback
-      if (window.gameAPI && window.gameAPI.sendMessage) {
-        window.gameAPI.sendMessage('sprite_create', spriteData);
-        console.log('🎮 DragDrop: Sent sprite_create to local renderer');
+      xhr.onload = () => {
+        console.log('📤 Upload response status:', xhr.status);
+        console.log('📤 Upload response headers:', xhr.getAllResponseHeaders());
         
-        // Trigger sprite sync event
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('spriteAdded'));
-        }, 500);
-      } else {
-        console.warn('🚨 DragDrop: window.gameAPI.sendMessage not available');
-      }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          console.log('✅ File uploaded successfully to R2');
+          
+          // Send sprite creation request to server with asset reference
+          if (protocol) {
+            const worldX = (pendingUpload.dropPosition.x - camera.x) / camera.zoom;
+            const worldY = (pendingUpload.dropPosition.y - camera.y) / camera.zoom;
+            
+            const spriteData = {
+              asset_id: assetId,  // Use asset_id instead of filename
+              name: pendingUpload.fileName.replace(/\.[^/.]+$/, ''),
+              x: worldX,
+              y: worldY,
+              width: 64,
+              height: 64,
+              scale_x: 1.0,
+              scale_y: 1.0,
+              rotation: 0,
+              layer: 'tokens',
+              color: '#FFFFFF',
+              visible: true
+            };
+            
+            console.log('📡 DragDrop: Requesting server to create sprite:', spriteData);
+            protocol.sendMessage(createMessage(MessageType.SPRITE_CREATE, { sprite_data: spriteData }, 2));
+          }
+          
+          resolve();
+        } else {
+          console.error('❌ Upload failed with status:', xhr.status, xhr.statusText);
+          reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.statusText}`));
+        }
+      };
+
+      xhr.onerror = () => {
+        console.error('❌ Upload network error');
+        reject(new Error('Upload failed due to network error'));
+      };
       
-      return spriteId;
-    } catch (error) {
-      console.error('Error creating sprite:', error);
-      return null;
-    }
+      xhr.open('PUT', uploadUrl);
+      xhr.setRequestHeader('Content-Type', file.type);
+      xhr.setRequestHeader('x-amz-meta-xxhash', fullHash);
+      xhr.setRequestHeader('x-amz-meta-upload-timestamp', Math.floor(Date.now() / 1000).toString());
+      
+      console.log('📤 Starting upload to R2:', {
+        file: file.name,
+        size: file.size,
+        type: file.type,
+        assetId: assetId
+      });
+      
+      xhr.send(file);
+    });
   };
 
   // Handle drag events
@@ -323,40 +260,36 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         fileName: file.name
       });
 
-      // Calculate file hash for server verification using AssetManager
+      // Calculate file hash for server verification
       const fileBuffer = await file.arrayBuffer();
       const fileData = new Uint8Array(fileBuffer);
-      const hashHex = calculateHash(fileData);
+      const assetId = calculateHash(fileData);
       
-      if (!hashHex) {
+      if (!assetId) {
         throw new Error('Failed to calculate file hash');
       }
 
-      // Create upload request promise
-      const uploadPromise = new Promise<string | null>((resolve) => {
-        // Use hashHex (asset_id) as the key for easier lookup in response handler
-        uploadRequestsRef.current.set(hashHex, {
-          file,
-          dropPosition,
-          resolve
-        });
-
-        // Request presigned upload URL from server
-        protocol.sendMessage(createMessage(MessageType.ASSET_UPLOAD_REQUEST, {
-          filename: file.name,
-          file_size: file.size,
-          content_type: file.type,
-          xxhash: hashHex,
-          asset_id: hashHex, // asset_id is identical to xxhash
-          session_code: sessionId || ''
-        }, 2));
-      });
-
-      const spriteId = await uploadPromise;
+      // Store pending upload for later processing
+      const pendingUpload: PendingUpload = {
+        file,
+        dropPosition,
+        assetId,
+        fileName: file.name
+      };
       
-      if (!spriteId) {
-        throw new Error('Upload cancelled or failed');
-      }
+      pendingUploadsRef.current.set(assetId, pendingUpload);
+
+      // Request presigned upload URL from server
+      protocol.sendMessage(createMessage(MessageType.ASSET_UPLOAD_REQUEST, {
+        filename: file.name,
+        file_size: file.size,
+        content_type: file.type,
+        xxhash: assetId,
+        asset_id: assetId,
+        session_code: sessionId || ''
+      }, 2));
+      
+      console.log('📡 DragDrop: Requested upload URL for asset:', assetId);
 
     } catch (error) {
       console.error('Error handling drop:', error);
@@ -367,14 +300,50 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         fileName: file.name
       });
     }
-  }, [protocol, camera, onSpriteCreated]);
+  }, [protocol, camera, sessionId, calculateHash]);
 
-  // Listen for asset upload responses
+  // Listen for asset upload responses and sprite creation broadcasts
   useEffect(() => {
     window.addEventListener('asset-uploaded', handleAssetUploadResponse as EventListener);
     
+    // Listen for sprite creation broadcasts from server
+    const handleSpriteCreated = (event: CustomEvent) => {
+      const spriteData = event.detail;
+      console.log('🎭 DragDrop: Received sprite creation broadcast:', spriteData);
+      
+      // Update UI to show completion
+      setUploadState(prev => {
+        if (prev.status === 'processing') {
+          return {
+            status: 'completed',
+            progress: 100,
+            message: `Sprite "${spriteData.name}" created successfully!`,
+            fileName: prev.fileName
+          };
+        }
+        return prev;
+      });
+      
+      // Reset after delay
+      setTimeout(() => {
+        setUploadState(prev => {
+          if (prev.status === 'completed') {
+            return {
+              status: 'idle',
+              progress: 0,
+              message: ''
+            };
+          }
+          return prev;
+        });
+      }, 2000);
+    };
+    
+    window.addEventListener('sprite-created', handleSpriteCreated as EventListener);
+    
     return () => {
       window.removeEventListener('asset-uploaded', handleAssetUploadResponse as EventListener);
+      window.removeEventListener('sprite-created', handleSpriteCreated as EventListener);
     };
   }, [handleAssetUploadResponse]);
 

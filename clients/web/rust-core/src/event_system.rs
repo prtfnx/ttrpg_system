@@ -357,7 +357,12 @@ impl EventSystem {
                 MouseEventResult::Handled
             }
             InputMode::SpriteMove | InputMode::SpriteResize(_) | InputMode::SpriteRotate => {
-                // For sprite operations, reset to None since operation is complete  
+                // Handle sprite operation completion - send network sync
+                if let Some(sprite_id) = &input.selected_sprite_id {
+                    // Call the bridge to notify operation completion
+                    self.notify_operation_complete(input.input_mode, sprite_id, layers);
+                }
+                // Reset input mode since operation is complete  
                 input.input_mode = InputMode::None;
                 MouseEventResult::Handled
             }
@@ -495,6 +500,73 @@ impl EventSystem {
             input.clear_selection();
             for sprite_id in selected_sprites {
                 input.add_to_selection(sprite_id);
+            }
+        }
+    }
+    
+    fn find_sprite(sprite_id: &str, layers: &HashMap<String, Layer>) -> Option<(&Sprite, &str)> {
+        for (layer_name, layer) in layers {
+            for sprite in &layer.sprites {
+                if sprite.id == sprite_id {
+                    return Some((sprite, layer_name));
+                }
+            }
+        }
+        None
+    }
+    
+    // Helper method to notify operation completion for network sync
+    fn notify_operation_complete(
+        &self,
+        operation_mode: InputMode,
+        sprite_id: &str,
+        layers: &HashMap<String, Layer>
+    ) {
+        // Find the sprite to get its current state
+        if let Some((sprite, _)) = Self::find_sprite(sprite_id, layers) {
+            match operation_mode {
+                InputMode::SpriteMove => {
+                    // Call JavaScript bridge for move operation
+                    let js_code = format!(
+                        "if (window.wasmBridge && window.wasmBridge.onSpriteOperationComplete) {{ 
+                            window.wasmBridge.onSpriteOperationComplete('move', '{}', {{ x: {}, y: {} }}); 
+                        }}",
+                        sprite_id, sprite.world_x, sprite.world_y
+                    );
+                    let _ = js_sys::eval(&js_code);
+                    
+                    web_sys::console::log_1(&format!("[RUST EVENT] Notified move complete for sprite {}: ({}, {})", 
+                        sprite_id, sprite.world_x, sprite.world_y).into());
+                }
+                InputMode::SpriteResize(_) => {
+                    // Call JavaScript bridge for scale operation
+                    let js_code = format!(
+                        "if (window.wasmBridge && window.wasmBridge.onSpriteOperationComplete) {{ 
+                            window.wasmBridge.onSpriteOperationComplete('scale', '{}', {{ scale_x: {}, scale_y: {} }}); 
+                        }}",
+                        sprite_id, sprite.scale_x, sprite.scale_y
+                    );
+                    let _ = js_sys::eval(&js_code);
+                    
+                    web_sys::console::log_1(&format!("[RUST EVENT] Notified scale complete for sprite {}: ({}, {})", 
+                        sprite_id, sprite.scale_x, sprite.scale_y).into());
+                }
+                InputMode::SpriteRotate => {
+                    // Call JavaScript bridge for rotate operation
+                    let js_code = format!(
+                        "if (window.wasmBridge && window.wasmBridge.onSpriteOperationComplete) {{ 
+                            window.wasmBridge.onSpriteOperationComplete('rotate', '{}', {{ rotation: {} }}); 
+                        }}",
+                        sprite_id, sprite.rotation
+                    );
+                    let _ = js_sys::eval(&js_code);
+                    
+                    web_sys::console::log_1(&format!("[RUST EVENT] Notified rotate complete for sprite {}: {}", 
+                        sprite_id, sprite.rotation).into());
+                }
+                _ => {
+                    // No operation to notify
+                }
             }
         }
     }

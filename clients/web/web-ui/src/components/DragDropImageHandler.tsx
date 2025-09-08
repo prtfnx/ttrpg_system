@@ -1,7 +1,7 @@
-import React, { useCallback, useState, useRef, useEffect } from 'react';
-import { useProtocol } from '../services/ProtocolContext';
-import { createMessage, MessageType } from '../protocol/message';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAssetManager } from '../hooks/useAssetManager';
+import { createMessage, MessageType } from '../protocol/message';
+import { useProtocol } from '../services/ProtocolContext';
 import { useGameStore } from '../store';
 
 interface DragDropImageHandlerProps {
@@ -121,6 +121,10 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         };
 
         xhr.onload = async () => {
+          console.log('📤 Upload response status:', xhr.status);
+          console.log('📤 Upload response headers:', xhr.getAllResponseHeaders());
+          console.log('📤 Upload response text:', xhr.responseText);
+          
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               // Upload successful, now create sprite
@@ -131,7 +135,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
                 fileName: file.name
               });
 
-              const spriteId = await createSpriteFromAsset(assetId, dropPosition, file.name);
+              const spriteId = await createSpriteFromAsset(dropPosition, file.name);
               
               if (spriteId) {
                 setUploadState({
@@ -160,15 +164,34 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
               reject(error);
             }
           } else {
-            reject(new Error(`Upload failed with status ${xhr.status}`));
+            console.error('❌ Upload failed with status:', xhr.status, xhr.statusText);
+            reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.statusText}`));
           }
         };
 
-        xhr.onerror = () => reject(new Error('Upload failed'));
+        xhr.onerror = () => {
+          console.error('❌ Upload network error');
+          console.error('❌ Upload URL was:', uploadUrl);
+          console.error('❌ File size:', file.size);
+          console.error('❌ File type:', file.type);
+          reject(new Error('Upload failed due to network error'));
+        };
         
         xhr.open('PUT', uploadUrl);
         xhr.setRequestHeader('Content-Type', file.type);
         xhr.setRequestHeader('x-amz-meta-xxhash', fullHash);
+        
+        console.log('📤 Starting upload to:', uploadUrl);
+        console.log('📤 File details:', {
+          name: file.name,
+          size: file.size,
+          type: file.type
+        });
+        console.log('📤 Headers:', {
+          'Content-Type': file.type,
+          'x-amz-meta-xxhash': fullHash
+        });
+        
         xhr.send(file);
       });
       
@@ -186,7 +209,6 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
 
   // Create sprite from uploaded asset
   const createSpriteFromAsset = async (
-    assetId: string,
     dropPosition: { x: number; y: number },
     fileName: string
   ): Promise<string | null> => {
@@ -199,7 +221,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
       const spriteData = {
         id: spriteId,
         name: fileName.replace(/\.[^/.]+$/, ''), // Remove extension
-        texture_path: `/assets/${assetId}`, // Server will resolve this
+        texture_path: fileName, // Use original filename for now
         x: worldX,
         y: worldY,
         width: 64,
@@ -208,26 +230,32 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         scale_y: 1.0,
         rotation: 0,
         layer: 'tokens',
-        color: 'white',
+        color: '#FFFFFF',
         visible: true
       };
 
       console.log('🎭 DragDrop: Creating sprite from asset:', spriteData);
 
-      // Use the same approach as ToolsPanel for sprite creation
+      // Send sprite creation to server via protocol
+      if (protocol) {
+        protocol.sendMessage(createMessage(MessageType.SPRITE_CREATE, spriteData, 2));
+        console.log('📡 DragDrop: Sent sprite_create to server via protocol');
+      }
+
+      // Also create locally via gameAPI for immediate visual feedback
       if (window.gameAPI && window.gameAPI.sendMessage) {
         window.gameAPI.sendMessage('sprite_create', spriteData);
+        console.log('🎮 DragDrop: Sent sprite_create to local renderer');
         
         // Trigger sprite sync event
         setTimeout(() => {
           window.dispatchEvent(new CustomEvent('spriteAdded'));
         }, 500);
-        
-        return spriteId;
       } else {
-        console.error('🚨 DragDrop: window.gameAPI.sendMessage not available');
-        return null;
+        console.warn('🚨 DragDrop: window.gameAPI.sendMessage not available');
       }
+      
+      return spriteId;
     } catch (error) {
       console.error('Error creating sprite:', error);
       return null;
@@ -342,10 +370,10 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
 
   // Listen for asset upload responses
   useEffect(() => {
-    window.addEventListener('asset-upload-response', handleAssetUploadResponse as EventListener);
+    window.addEventListener('asset-uploaded', handleAssetUploadResponse as EventListener);
     
     return () => {
-      window.removeEventListener('asset-upload-response', handleAssetUploadResponse as EventListener);
+      window.removeEventListener('asset-uploaded', handleAssetUploadResponse as EventListener);
     };
   }, [handleAssetUploadResponse]);
 

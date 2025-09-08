@@ -74,28 +74,28 @@ document.addEventListener('DOMContentLoaded', () => {
               case 'sprite_move':
                 if (typeof window.rustRenderManager.send_sprite_move === 'function') {
                   console.log('[integration] Forwarding sprite_move to WASM:', data);
-                  window.rustRenderManager.send_sprite_move(data.id, data.x, data.y);
+                  window.rustRenderManager.send_sprite_move(data.id as string, data.x as number, data.y as number);
                 }
                 break;
               
               case 'sprite_scale':
                 if (typeof window.rustRenderManager.send_sprite_scale === 'function') {
                   console.log('[integration] Forwarding sprite_scale to WASM:', data);
-                  window.rustRenderManager.send_sprite_scale(data.id, data.scale_x, data.scale_y);
+                  window.rustRenderManager.send_sprite_scale(data.id as string, data.scale_x as number, data.scale_y as number);
                 }
                 break;
               
               case 'sprite_rotate':
                 if (typeof window.rustRenderManager.send_sprite_rotate === 'function') {
                   console.log('[integration] Forwarding sprite_rotate to WASM:', data);
-                  window.rustRenderManager.send_sprite_rotate(data.id, data.rotation);
+                  window.rustRenderManager.send_sprite_rotate(data.id as string, data.rotation as number);
                 }
                 break;
               
               case 'sprite_delete':
                 if (typeof window.rustRenderManager.remove_sprite_from_layer === 'function') {
                   console.log('[integration] Forwarding sprite_delete to WASM:', data);
-                  window.rustRenderManager.remove_sprite_from_layer(data.layer || 'tokens', data.id);
+                  window.rustRenderManager.remove_sprite_from_layer((data.layer as string) || 'tokens', data.id as string);
                 }
                 break;
               

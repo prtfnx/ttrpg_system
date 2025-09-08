@@ -576,7 +576,7 @@ export const GameCanvas: React.FC = () => {
   }, [updateDebugOverlay]);
 
   return (
-    <DragDropImageHandler onSpriteCreated={(spriteId) => console.log('Created sprite:', spriteId)}>
+    <DragDropImageHandler>
       <div className="game-canvas-container" style={{ position: 'relative' }}>
         <canvas
           ref={canvasRef}

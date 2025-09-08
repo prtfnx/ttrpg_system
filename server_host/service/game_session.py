@@ -232,19 +232,27 @@ class ConnectionManager:
             session_code = info["session_code"]
             username = info["username"]
             
+            logger.debug(f"Received message: {message_data}")
+            
             # Check if this is a protocol message (contains MessageType fields)
             if self._is_protocol_message(message_data):
+                logger.debug(f"Processing as protocol message: {message_data.get('type')}")
                 # Handle as protocol message
                 protocol_service = self.sessions_protocols.get(session_code)
 
-                # Convert to protocol message format
-                try:
-                    protocol_message_str = json.dumps(message_data)
-                    await protocol_service.handle_protocol_message(websocket, protocol_message_str)
-                    return
-                except Exception as e:
-                    logger.error(f"Error handling protocol message: {e}")
-                    # Fall through to regular message handling
+                if protocol_service:
+                    # Convert to protocol message format
+                    try:
+                        protocol_message_str = json.dumps(message_data)
+                        await protocol_service.handle_protocol_message(websocket, protocol_message_str)
+                        return
+                    except Exception as e:
+                        logger.error(f"Error handling protocol message: {e}")
+                        # Fall through to regular message handling
+                else:
+                    logger.error(f"No protocol service found for session: {session_code}")
+            else:
+                logger.debug(f"Processing as regular message: {message_data.get('type')}")
             
             # Handle regular game session messages
             # Add sender info
@@ -288,16 +296,19 @@ class ConnectionManager:
 
     def _is_protocol_message(self, message_data: dict) -> bool:
         """Check if message is a protocol message"""
-        # Protocol messages have 'type' and 'data' fields       
-        if 'type' in message_data and 'data' in message_data:
+        # Protocol messages have 'type' field
+        if 'type' in message_data:
             message_type = message_data.get('type')
             # Check if the message type is a valid MessageType enum value
             try:
                 MessageType(message_type)
+                logger.debug(f"Valid protocol message type: {message_type}")
                 return True
             except ValueError:
+                logger.debug(f"Invalid protocol message type: {message_type}")
                 return False
         else:
+            logger.debug(f"Message missing 'type' field: {message_data}")
             return False
           
                

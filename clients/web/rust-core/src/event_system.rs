@@ -504,17 +504,6 @@ impl EventSystem {
         }
     }
     
-    fn find_sprite(sprite_id: &str, layers: &HashMap<String, Layer>) -> Option<(&Sprite, &str)> {
-        for (layer_name, layer) in layers {
-            for sprite in &layer.sprites {
-                if sprite.id == sprite_id {
-                    return Some((sprite, layer_name));
-                }
-            }
-        }
-        None
-    }
-    
     // Helper method to notify operation completion for network sync
     fn notify_operation_complete(
         &self,

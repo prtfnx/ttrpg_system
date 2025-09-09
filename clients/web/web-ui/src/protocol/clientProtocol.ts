@@ -23,16 +23,28 @@ export class WebClientProtocol {
   private batchQueue: Message[] = [];
   private batchTimer: number | null = null;
   private sequenceNumber: number = 0;
+  private readonly BATCH_DELAY_MS = 30; // Optimal delay for responsiveness vs efficiency
+  private readonly MAX_BATCH_SIZE = 15; // Reasonable limit to prevent large payloads
 
   /** Queue message for batching, flush after short delay or if batch is large */
   queueMessage(msg: Message) {
+    // Skip batching if connection is not stable
+    if (this.websocket?.readyState !== WebSocket.OPEN) {
+      console.log('⚠️ Protocol: WebSocket not open, cannot queue message. State:', this.websocket?.readyState);
+      return;
+    }
+
     console.log('📦 Protocol: Adding message to batch queue:', { type: msg.type, queueLength: this.batchQueue.length + 1 });
     this.batchQueue.push(msg);
+    
+    // Start timer if not already running
     if (!this.batchTimer) {
-      console.log('⏰ Protocol: Starting batch timer (20ms)');
-      this.batchTimer = window.setTimeout(() => this.sendBatch(), 20);
+      console.log(`⏰ Protocol: Starting batch timer (${this.BATCH_DELAY_MS}ms)`);
+      this.batchTimer = window.setTimeout(() => this.sendBatch(), this.BATCH_DELAY_MS);
     }
-    if (this.batchQueue.length > 20) {
+    
+    // Send immediately if batch is getting large
+    if (this.batchQueue.length >= this.MAX_BATCH_SIZE) {
       console.log('🚀 Protocol: Batch queue full, sending immediately');
       this.sendBatch();
     }

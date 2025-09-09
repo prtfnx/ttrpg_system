@@ -22,7 +22,6 @@ export class WebClientProtocol {
   // --- Performance Optimization: Message Batching & Delta Updates ---
   private batchQueue: Message[] = [];
   private batchTimer: number | null = null;
-  private sequenceNumber: number = 0;
   private readonly BATCH_DELAY_MS = 30; // Optimal delay for responsiveness vs efficiency
   private readonly MAX_BATCH_SIZE = 15; // Reasonable limit to prevent large payloads
 
@@ -275,6 +274,7 @@ export class WebClientProtocol {
         this.websocket.onopen = () => {
           protocolLogger.connection('WebSocket connected to authenticated session', this.sessionCode);
           this.flushMessageQueue();
+          this.flushPendingBatches(); // Flush any batched messages that were queued during disconnection
           this.startPingInterval();
           this.connecting = false;
           resolve();

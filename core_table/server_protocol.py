@@ -240,7 +240,12 @@ class ServerProtocol:
         if not result.success or not result.data or result.data.get('sprite_data') is None:
             return Message(MessageType.ERROR, {'error': 'Failed to create sprite'})
         else:
-            return Message(MessageType.SPRITE_RESPONSE, {'sprite_id': result.data.get('sprite_data').get('sprite_id', None)})
+            # Include both sprite_id and the full sprite_data for client WASM engine
+            sprite_data = result.data.get('sprite_data')
+            return Message(MessageType.SPRITE_RESPONSE, {
+                'sprite_id': sprite_data.get('sprite_id'),
+                'sprite_data': sprite_data
+            })
 
     async def handle_delete_sprite(self, msg: Message, client_id: str) -> Message:
         """Handle delete sprite request"""

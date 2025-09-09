@@ -6,10 +6,12 @@
 import React from 'react';
 import { useProtocol } from '../services/ProtocolContext';
 import { createMessage, MessageType } from '../protocol/message';
+import { useGameStore } from '../store';
 
 class WasmBridgeService {
   private protocol: any = null;
   private isInitialized = false;
+  private spritePositions: Map<string, {x: number, y: number}> = new Map();
 
   init() {
     if (this.isInitialized) return;
@@ -18,6 +20,9 @@ class WasmBridgeService {
     window.addEventListener('wasm-sprite-operation', this.handleWasmOperation as EventListener);
     window.addEventListener('wasm-network-request', this.handleNetworkRequest as EventListener);
     window.addEventListener('wasm-error', this.handleWasmError as EventListener);
+    
+    // Listen for sprite creation to track initial positions
+    window.addEventListener('sprite-created', this.handleSpriteCreated as EventListener);
 
     this.isInitialized = true;
     console.log('[WasmBridge] Service initialized');
@@ -27,6 +32,20 @@ class WasmBridgeService {
     this.protocol = protocol;
     console.log('[WasmBridge] Protocol connected');
   }
+
+  // Track sprite positions for proper from/to movement messages
+  updateSpritePosition(spriteId: string, x: number, y: number) {
+    this.spritePositions.set(spriteId, { x, y });
+  }
+
+  private handleSpriteCreated = (event: Event) => {
+    const customEvent = event as CustomEvent;
+    const { sprite_id, x, y } = customEvent.detail;
+    if (sprite_id && x !== undefined && y !== undefined) {
+      this.updateSpritePosition(sprite_id, x, y);
+      console.log('[WasmBridge] Tracked initial position for sprite:', sprite_id, { x, y });
+    }
+  };
 
   private handleWasmOperation = (event: Event) => {
     const customEvent = event as CustomEvent;
@@ -71,15 +90,30 @@ class WasmBridgeService {
   };
 
   private sendSpriteMove(spriteId: string, x: number, y: number) {
+    // Get the previous position (or use current position as fallback)
+    const previousPosition = this.spritePositions.get(spriteId) || { x, y };
+    const newPosition = { x, y };
+    
+    // Update our position tracking
+    this.spritePositions.set(spriteId, newPosition);
+
+    // Get the actual table ID from the game store
+    const activeTableId = useGameStore.getState().activeTableId;
+    if (!activeTableId) {
+      console.error('[WasmBridge] No active table ID available for sprite move');
+      return;
+    }
+
     const updateData = {
       sprite_id: spriteId,
-      x: x,
-      y: y
+      from: previousPosition,
+      to: newPosition,
+      table_id: activeTableId
     };
 
     const message = createMessage(MessageType.SPRITE_MOVE, updateData, 2);
     this.protocol.sendMessage(message);
-    console.log('[WasmBridge] Sent sprite move:', spriteId, x, y);
+    console.log('[WasmBridge] Sent sprite move:', spriteId, previousPosition, '->', newPosition);
   }
 
   private sendSpriteScale(spriteId: string, scaleX: number, scaleY: number) {

@@ -77,6 +77,13 @@ class WasmIntegrationService {
     window.addEventListener('sprite-removed', handleSpriteRemoved);
     this.eventListeners.push(() => window.removeEventListener('sprite-removed', handleSpriteRemoved));
 
+    // Handle sprite response from server (for newly created sprites)
+    const handleSpriteResponse = (event: Event) => {
+      this.handleSpriteResponse((event as CustomEvent).detail);
+    };
+    window.addEventListener('sprite-response', handleSpriteResponse);
+    this.eventListeners.push(() => window.removeEventListener('sprite-response', handleSpriteResponse));
+
     // Also handle compendium sprite messages emitted by the protocol layer
     const handleCompendiumSpriteAdded = (event: Event) => {
       const data = (event as CustomEvent).detail;
@@ -295,6 +302,24 @@ class WasmIntegrationService {
   private handleSpriteCreated(data: any): void {
     if (!this.renderEngine) return;
     this.addSpriteToWasm(data);
+  }
+
+  private handleSpriteResponse(data: any): void {
+    console.log('🎭 WasmIntegration: Received sprite response from server:', data);
+    
+    if (!this.renderEngine) return;
+    
+    // Handle successful sprite creation response
+    if (data.sprite_id && data.sprite_data) {
+      console.log('✅ WasmIntegration: Adding sprite to WASM engine:', data.sprite_data);
+      try {
+        this.addSpriteToWasm(data.sprite_data);
+      } catch (error) {
+        console.error('❌ WasmIntegration: Failed to add sprite to WASM:', error);
+      }
+    } else if (data.sprite_id === null) {
+      console.warn('⚠️ WasmIntegration: Sprite creation failed on server');
+    }
   }
 
   private handleSpriteUpdated(data: any): void {

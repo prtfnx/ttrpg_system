@@ -317,8 +317,14 @@ class WasmIntegrationService {
       } catch (error) {
         console.error('❌ WasmIntegration: Failed to add sprite to WASM:', error);
       }
+    } else if (data.sprite_id && !data.sprite_data) {
+      console.warn('⚠️ WasmIntegration: Sprite created but no sprite_data received. Need to wait for sprite-created broadcast.');
+      // The sprite was created on server but we don't have the full data
+      // This might be handled by the sprite-created event instead
     } else if (data.sprite_id === null) {
       console.warn('⚠️ WasmIntegration: Sprite creation failed on server');
+    } else {
+      console.warn('⚠️ WasmIntegration: Invalid sprite response structure:', data);
     }
   }
 

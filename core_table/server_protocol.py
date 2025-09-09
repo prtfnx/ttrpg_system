@@ -182,9 +182,14 @@ class ServerProtocol:
                     )
                     
                     # Process the individual message
-                    response = await self.handle_client(individual_msg, client_id)
-                    if response:
-                        responses.append(response)
+                    # Get the handler for this message type and call it directly
+                    handler = self.handlers.get(individual_msg.type)
+                    if handler:
+                        response = await handler(individual_msg, client_id)
+                        if response and hasattr(response, 'to_json'):
+                            responses.append(response)
+                    else:
+                        logger.warning(f"No handler found for message type: {individual_msg.type}")
                         
                 except Exception as e:
                     logger.error(f"Error processing message in batch: {e}")
@@ -242,10 +247,13 @@ class ServerProtocol:
         else:
             # Include both sprite_id and the full sprite_data for client WASM engine
             sprite_data = result.data.get('sprite_data')
-            return Message(MessageType.SPRITE_RESPONSE, {
+            logger.debug(f"Sprite creation result - sprite_data: {sprite_data}")
+            response_data = {
                 'sprite_id': sprite_data.get('sprite_id'),
                 'sprite_data': sprite_data
-            })
+            }
+            logger.debug(f"Sending sprite response: {response_data}")
+            return Message(MessageType.SPRITE_RESPONSE, response_data)
 
     async def handle_delete_sprite(self, msg: Message, client_id: str) -> Message:
         """Handle delete sprite request"""

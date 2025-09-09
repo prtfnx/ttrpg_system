@@ -90,6 +90,14 @@ export class WebClientProtocol {
     }
   }
 
+  /** Flush any pending batched messages when connection is restored */
+  flushPendingBatches() {
+    if (this.batchQueue.length > 0) {
+      console.log('🔄 Protocol: Flushing pending batch messages on connection restore');
+      this.sendBatch();
+    }
+  }
+
   /** Send only changed fields (delta) for updates */
   sendDelta(type: MessageType, id: string, changes: Record<string, any>) {
     const msg: Message = {

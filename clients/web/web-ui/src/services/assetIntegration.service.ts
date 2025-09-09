@@ -3,10 +3,21 @@
  * Handles asset upload/download requests and integrates with the WASM texture system
  */
 
+import { createMessage, MessageType } from '../protocol/message';
+import type { WebClientProtocol } from '../protocol/clientProtocol';
+
 interface AssetUploadResponse {
   success: boolean;
   asset_id?: string;
   presigned_url?: string;
+  error?: string;
+}
+
+interface AssetUploadCompleted {
+  asset_id: string;
+  success: boolean;
+  file_size?: number;
+  content_type?: string;
   error?: string;
 }
 
@@ -32,6 +43,11 @@ interface AssetListResponse {
 
 class AssetIntegrationService {
   private eventListeners: Array<() => void> = [];
+  private protocol: WebClientProtocol | null = null;
+
+  setProtocol(protocol: WebClientProtocol): void {
+    this.protocol = protocol;
+  }
 
   /**
    * Initialize the service with event listeners
@@ -70,6 +86,13 @@ class AssetIntegrationService {
     };
     window.addEventListener('asset-upload-response', handleAssetUploadResponse);
     this.eventListeners.push(() => window.removeEventListener('asset-upload-response', handleAssetUploadResponse));
+
+    // Asset upload completed (to R2)
+    const handleAssetUploadCompleted = (event: Event) => {
+      this.handleAssetUploadCompleted((event as CustomEvent).detail);
+    };
+    window.addEventListener('asset-upload-completed', handleAssetUploadCompleted);
+    this.eventListeners.push(() => window.removeEventListener('asset-upload-completed', handleAssetUploadCompleted));
   }
 
   private async handleAssetDownloaded(data: AssetDownloadResponse): Promise<void> {
@@ -128,6 +151,28 @@ class AssetIntegrationService {
           upload_url: data.presigned_url 
         } 
       }));
+    }
+  }
+
+  private handleAssetUploadCompleted(data: AssetUploadCompleted): void {
+    console.log('🎯 AssetIntegrationService: Upload completed for asset:', data.asset_id);
+
+    if (!data.success) {
+      console.error('Asset upload to R2 failed:', data.error);
+      return;
+    }
+
+    // Send confirmation to server that upload is complete
+    if (this.protocol) {
+      console.log('📡 AssetIntegrationService: Confirming upload to server for asset:', data.asset_id);
+      this.protocol.sendMessage(createMessage(MessageType.ASSET_UPLOAD_CONFIRM, {
+        asset_id: data.asset_id,
+        success: true,
+        file_size: data.file_size,
+        content_type: data.content_type
+      }, 2));
+    } else {
+      console.error('Protocol service not available for upload confirmation');
     }
   }
 

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAssetManager } from '../hooks/useAssetManager';
 import { createMessage, MessageType } from '../protocol/message';
 import { useProtocol } from '../services/ProtocolContext';
+import { spriteCreationService } from '../services/spriteCreation.service';
 import { useGameStore } from '../store';
 
 interface DragDropImageHandlerProps {
@@ -153,23 +154,15 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
             const worldX = (pendingUpload.dropPosition.x - camera.x) / camera.zoom;
             const worldY = (pendingUpload.dropPosition.y - camera.y) / camera.zoom;
             
-            const spriteData = {
-              asset_id: assetId,  // Use asset_id instead of filename
-              name: pendingUpload.fileName.replace(/\.[^/.]+$/, ''),
-              x: worldX,
-              y: worldY,
-              width: 64,
-              height: 64,
-              scale_x: 1.0,
-              scale_y: 1.0,
-              rotation: 0,
-              layer: 'tokens',
-              color: '#FFFFFF',
-              visible: true
-            };
-            
-            console.log('📡 DragDrop: Requesting server to create sprite:', spriteData);
-            protocol.sendMessage(createMessage(MessageType.SPRITE_CREATE, { sprite_data: spriteData }, 2));
+            spriteCreationService.createSprite({
+              assetId: assetId,
+              fileName: pendingUpload.fileName,
+              worldX: worldX,
+              worldY: worldY,
+              sessionId: sessionId || 'default'
+            }).catch(error => {
+              console.error('❌ DragDrop: Failed to create sprite:', error);
+            });
           }
           
           resolve();
@@ -304,48 +297,17 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
 
   // Listen for asset upload responses and sprite creation broadcasts
   useEffect(() => {
+    // Initialize sprite creation service with protocol
+    if (protocol) {
+      spriteCreationService.setProtocol(protocol);
+    }
+    
     window.addEventListener('asset-uploaded', handleAssetUploadResponse as EventListener);
-    
-    // Listen for sprite creation broadcasts from server
-    const handleSpriteCreated = (event: CustomEvent) => {
-      const spriteData = event.detail;
-      console.log('🎭 DragDrop: Received sprite creation broadcast:', spriteData);
-      
-      // Update UI to show completion
-      setUploadState(prev => {
-        if (prev.status === 'processing') {
-          return {
-            status: 'completed',
-            progress: 100,
-            message: `Sprite "${spriteData.name}" created successfully!`,
-            fileName: prev.fileName
-          };
-        }
-        return prev;
-      });
-      
-      // Reset after delay
-      setTimeout(() => {
-        setUploadState(prev => {
-          if (prev.status === 'completed') {
-            return {
-              status: 'idle',
-              progress: 0,
-              message: ''
-            };
-          }
-          return prev;
-        });
-      }, 2000);
-    };
-    
-    window.addEventListener('sprite-created', handleSpriteCreated as EventListener);
     
     return () => {
       window.removeEventListener('asset-uploaded', handleAssetUploadResponse as EventListener);
-      window.removeEventListener('sprite-created', handleSpriteCreated as EventListener);
     };
-  }, [handleAssetUploadResponse]);
+  }, [handleAssetUploadResponse, protocol]);
 
   // Prevent default browser drag-and-drop behavior
   useEffect(() => {

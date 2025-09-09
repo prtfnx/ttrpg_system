@@ -41,25 +41,40 @@ export class WebClientProtocol {
   /** Send all batched messages as a single batch */
   sendBatch() {
     console.log('📨 Protocol: sendBatch called, queue length:', this.batchQueue.length);
+    
+    // Clear timer first
+    if (this.batchTimer) {
+      clearTimeout(this.batchTimer);
+      this.batchTimer = null;
+    }
+    
     if (this.batchQueue.length === 0) {
       console.log('📭 Protocol: Batch queue empty, nothing to send');
       return;
     }
-    if (this.websocket?.readyState === WebSocket.OPEN) {
-      const batchMessage = {
-        type: 'batch',
-        messages: this.batchQueue,
-        seq: ++this.sequenceNumber
-      };
-      console.log('🚀 Protocol: Sending batch with', this.batchQueue.length, 'messages:', this.batchQueue.map(m => m.type));
-      this.websocket.send(JSON.stringify(batchMessage));
-      this.batchQueue = [];
-      if (this.batchTimer) {
-        clearTimeout(this.batchTimer);
-        this.batchTimer = null;
-      }
-    } else {
+    
+    // Check connection state before attempting to send
+    if (this.websocket?.readyState !== WebSocket.OPEN) {
       console.log('❌ Protocol: WebSocket not open, cannot send batch. State:', this.websocket?.readyState);
+      // Keep messages in queue for retry when connection is restored
+      return;
+    }
+
+    // Create batch message with proper structure
+    const batchMessage = createMessage(MessageType.BATCH, {
+      messages: [...this.batchQueue]  // Copy the array to avoid mutation issues
+    }, 1);
+    
+    console.log('🚀 Protocol: Sending batch with', this.batchQueue.length, 'messages:', this.batchQueue.map(m => m.type));
+    
+    try {
+      this.websocket.send(JSON.stringify(batchMessage));
+      // Only clear queue after successful send
+      this.batchQueue = [];
+      console.log('✅ Protocol: Batch sent successfully');
+    } catch (error) {
+      console.error('❌ Protocol: Failed to send batch:', error);
+      // Keep messages in queue for retry
     }
   }
 

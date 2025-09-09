@@ -3,6 +3,7 @@ import { useAssetManager } from '../hooks/useAssetManager';
 import { createMessage, MessageType } from '../protocol/message';
 import { useProtocol } from '../services/ProtocolContext';
 import { spriteCreationService } from '../services/spriteCreation.service';
+import { assetIntegrationService } from '../services/assetIntegration.service';
 import { useGameStore } from '../store';
 
 interface DragDropImageHandlerProps {
@@ -147,7 +148,17 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         console.log('📤 Upload response headers:', xhr.getAllResponseHeaders());
         
         if (xhr.status >= 200 && xhr.status < 300) {
-          console.log('✅ File uploaded successfully to R2');
+          console.log('✅ File uploaded successfully to R2');        
+         
+          // Dispatch upload completion event for AssetIntegrationService to handle
+          window.dispatchEvent(new CustomEvent('asset-upload-completed', {
+            detail: {
+              asset_id: assetId,
+              success: true,
+              file_size: file.size,
+              content_type: file.type
+            }
+          }));
           
           // Send sprite creation request to server with asset reference
           if (protocol) {
@@ -300,6 +311,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
     // Initialize sprite creation service with protocol
     if (protocol) {
       spriteCreationService.setProtocol(protocol);
+      assetIntegrationService.setProtocol(protocol);
     }
     
     window.addEventListener('asset-uploaded', handleAssetUploadResponse as EventListener);

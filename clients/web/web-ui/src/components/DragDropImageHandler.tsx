@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAssetManager } from '../hooks/useAssetManager';
 import { createMessage, MessageType } from '../protocol/message';
+import { assetIntegrationService } from '../services/assetIntegration.service';
 import { useProtocol } from '../services/ProtocolContext';
 import { spriteCreationService } from '../services/spriteCreation.service';
-import { assetIntegrationService } from '../services/assetIntegration.service';
 import { useGameStore } from '../store';
 
 interface DragDropImageHandlerProps {

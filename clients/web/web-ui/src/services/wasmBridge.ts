@@ -4,8 +4,8 @@
  */
 
 import React from 'react';
-import { useProtocol } from '../services/ProtocolContext';
 import { createMessage, MessageType } from '../protocol/message';
+import { useProtocol } from '../services/ProtocolContext';
 import { useGameStore } from '../store';
 
 class WasmBridgeService {

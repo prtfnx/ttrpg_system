@@ -3,12 +3,12 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
 // import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
 import { assetIntegrationService } from '../services/assetIntegration.service';
+import { useWasmBridge } from '../services/wasmBridge';
 import { wasmIntegrationService } from '../services/wasmIntegration.service';
 import { useGameStore } from '../store';
 import type { RenderEngine } from '../types';
 import type { GlobalWasmModule } from '../utils/wasmManager';
 import { DragDropImageHandler } from './DragDropImageHandler';
-import { useWasmBridge } from '../services/wasmBridge';
 import './GameCanvas.css';
 
 declare global {

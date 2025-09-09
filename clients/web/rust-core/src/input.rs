@@ -320,12 +320,8 @@ pub struct HandleDetector;
 impl HandleDetector {
     pub fn point_in_handle(point: Vec2, handle_x: f32, handle_y: f32, handle_size: f32) -> bool {
         let half = handle_size * 0.5;
-        // Debug log
-        web_sys::console::log_1(&format!("[RUST DEBUG] point_in_handle - point=({:.2},{:.2}) handle=({:.2},{:.2}) size={:.2}", point.x, point.y, handle_x, handle_y, handle_size).into());
-        let inside = point.x >= handle_x - half && point.x <= handle_x + half &&
-            point.y >= handle_y - half && point.y <= handle_y + half;
-        web_sys::console::log_1(&format!("[RUST DEBUG] point_in_handle -> {}", inside).into());
-        inside
+        point.x >= handle_x - half && point.x <= handle_x + half &&
+            point.y >= handle_y - half && point.y <= handle_y + half
     }
     
     pub fn get_resize_handle_for_non_rotated_sprite(

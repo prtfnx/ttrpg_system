@@ -121,9 +121,7 @@ impl EventSystem {
                         let rot_handle_pos = SpriteManager::get_rotation_handle_position(sprite, camera_zoom);
                         // Use a larger, zoom-independent handle size for better usability
                         let handle_size = 16.0 / camera_zoom as f32; // Increased from 8.0 to 16.0
-                        web_sys::console::log_1(&format!("[RUST DEBUG] Scanning rotation handle - sprite={} handle=({:.2},{:.2}) mouse=({:.2},{:.2}) size={:.2}", sprite.id, rot_handle_pos.x, rot_handle_pos.y, world_pos.x, world_pos.y, handle_size).into());
                         if HandleDetector::point_in_handle(world_pos, rot_handle_pos.x, rot_handle_pos.y, handle_size) {
-                            web_sys::console::log_1(&format!("[RUST DEBUG] Scanned rotation handle hit on sprite {}", sprite.id).into());
                             // select sprite and start rotate
                             if !input.is_sprite_selected(&sprite.id) {
                                 input.set_single_selection(sprite.id.clone());
@@ -156,10 +154,6 @@ impl EventSystem {
                     let rot_handle_pos = SpriteManager::get_rotation_handle_position(sprite, camera_zoom);
                     // Use a larger, zoom-independent handle size for better usability
                     let handle_size = 16.0 / camera_zoom as f32; // Increased from 8.0 to 16.0
-                    // Debug logging for handle detection
-                    web_sys::console::log_1(&format!("[RUST DEBUG] Rotation detection - world_pos=({:.2},{:.2}) rot_handle=({:.2},{:.2}) handle_size={:.2}", world_pos.x, world_pos.y, rot_handle_pos.x, rot_handle_pos.y, handle_size).into());
-                    let rot_dist = ((world_pos.x - rot_handle_pos.x).powi(2) + (world_pos.y - rot_handle_pos.y).powi(2)).sqrt();
-                    web_sys::console::log_1(&format!("[RUST DEBUG] Rotation distance = {:.3}", rot_dist).into());
                     if HandleDetector::point_in_handle(world_pos, rot_handle_pos.x, rot_handle_pos.y, handle_size) {
                         // Ensure sprite is selected before rotating
                         if !input.is_sprite_selected(&sprite_id) {
@@ -175,9 +169,7 @@ impl EventSystem {
                     }
 
                     // Resize handle detection (non-rotated path)
-                    web_sys::console::log_1(&format!("[RUST DEBUG] Resize detection - sprite_pos=({:.2},{:.2}) size=({}, {}) world_pos=({:.2},{:.2}) zoom={:.2}", sprite.world_x, sprite.world_y, sprite.width * sprite.scale_x, sprite.height * sprite.scale_y, world_pos.x, world_pos.y, camera_zoom).into());
                     if let Some(handle) = HandleDetector::get_resize_handle_for_non_rotated_sprite(sprite, world_pos, camera_zoom) {
-                        web_sys::console::log_1(&format!("[RUST DEBUG] Resize handle detected: {:?}", handle).into());
                         // Ensure sprite is selected before resizing
                         if !input.is_sprite_selected(&sprite_id) {
                             input.set_single_selection(sprite_id.clone());

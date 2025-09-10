@@ -253,6 +253,16 @@ class ServerProtocol:
                 'sprite_data': sprite_data
             }
             logger.debug(f"Sending sprite response: {response_data}")
+            
+            # Broadcast sprite creation to all other clients in the session
+            update_message = Message(MessageType.SPRITE_UPDATE, {
+                'sprite_id': sprite_data.get('sprite_id'),
+                'operation': 'create',
+                'sprite_data': sprite_data,
+                'table_id': table_id
+            })
+            await self.broadcast_to_session(update_message, client_id)
+            
             return Message(MessageType.SPRITE_RESPONSE, response_data)
 
     async def handle_delete_sprite(self, msg: Message, client_id: str) -> Message:
@@ -272,6 +282,14 @@ class ServerProtocol:
         
         result = await self.actions.delete_sprite(table_id=table_id, sprite_id=sprite_id, session_id=session_id)
         if result.success:
+            # Broadcast sprite deletion to all other clients in the session
+            update_message = Message(MessageType.SPRITE_UPDATE, {
+                'sprite_id': sprite_id,
+                'operation': 'delete',
+                'table_id': table_id
+            })
+            await self.broadcast_to_session(update_message, client_id)
+            
             return Message(MessageType.SPRITE_RESPONSE, {
                 'sprite_id': sprite_id,
                 'operation': 'delete',
@@ -318,6 +336,15 @@ class ServerProtocol:
             if action_id:
                 response_data['action_id'] = action_id
             
+            # Broadcast sprite update to all other clients in the session
+            update_message = Message(MessageType.SPRITE_UPDATE, {
+                'sprite_id': sprite_id,
+                'operation': 'move',
+                'position': to_pos,
+                'table_id': table_id
+            })
+            await self.broadcast_to_session(update_message, client_id)
+            
             return Message(MessageType.SPRITE_RESPONSE, response_data)
         else:
             error_data = {'error': f'Failed to move sprite: {result.message}'}
@@ -360,6 +387,16 @@ class ServerProtocol:
             if action_id:
                 response_data['action_id'] = action_id
             
+            # Broadcast sprite update to all other clients in the session
+            update_message = Message(MessageType.SPRITE_UPDATE, {
+                'sprite_id': sprite_id,
+                'operation': 'scale',
+                'scale_x': scale_x,
+                'scale_y': scale_y,
+                'table_id': table_id
+            })
+            await self.broadcast_to_session(update_message, client_id)
+            
             return Message(MessageType.SPRITE_RESPONSE, response_data)
         else:
             error_data = {'error': f'Failed to scale sprite: {result.message}'}
@@ -399,6 +436,15 @@ class ServerProtocol:
             if action_id:
                 response_data['action_id'] = action_id
             
+            # Broadcast sprite update to all other clients in the session
+            update_message = Message(MessageType.SPRITE_UPDATE, {
+                'sprite_id': sprite_id,
+                'operation': 'rotate',
+                'rotation': rotation,
+                'table_id': table_id
+            })
+            await self.broadcast_to_session(update_message, client_id)
+            
             return Message(MessageType.SPRITE_RESPONSE, response_data)
         else:
             error_data = {'error': f'Failed to rotate sprite: {result.message}'}
@@ -418,6 +464,13 @@ class ServerProtocol:
         
         result = await self.actions.delete_table(table_id)
         if result.success:
+            # Broadcast table deletion to all clients in the session
+            update_message = Message(MessageType.TABLE_UPDATE, {
+                'operation': 'delete',
+                'table_id': table_id
+            })
+            await self.broadcast_to_session(update_message, client_id)
+            
             return Message(MessageType.SUCCESS, {
                 'table_id': table_id,
                 'message': 'Table deleted successfully'
@@ -459,6 +512,15 @@ class ServerProtocol:
             table_data = result.data.get('table').to_dict()
             await self.ensure_assets_in_r2(table_data, msg.data.get('session_code', 'default'), msg.data.get('user_id', 0))
             logger.info(f"Processing table {table_name} with {len(table_data.get('layers', {}))} layers")
+            
+            # Broadcast new table creation to all clients in the session
+            update_message = Message(MessageType.TABLE_UPDATE, {
+                'operation': 'create',
+                'table_id': table_data.get('id'),
+                'table_name': table_name,
+                'table_data': table_data
+            })
+            await self.broadcast_to_session(update_message, client_id)
             
             # return message that need send to client
             return Message(MessageType.NEW_TABLE_RESPONSE, {'name': table_name, 'client_id': client_id,

@@ -6,10 +6,10 @@
  */
 
 import { useAssetCharacterCache } from '../assetCharacterCache';
+import { useGameStore } from '../store';
 import { logger, protocolLogger } from '../utils/logger';
 import type { Message, MessageHandler } from './message';
 import { MessageType, createMessage, parseMessage } from './message';
-import { useGameStore } from '../store';
 
 
 export class WebClientProtocol {

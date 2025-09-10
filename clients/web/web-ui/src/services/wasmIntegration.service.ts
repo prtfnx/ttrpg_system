@@ -341,49 +341,58 @@ class WasmIntegrationService {
         return;
       }
 
+      // Handle specific operations efficiently
       if (data.operation === 'move' && data.position) {
-        // For move operations, we need to get the current sprite from store and update position
-        // Since WASM doesn't have direct position update, we'll remove and re-add
-        // But we need the full sprite data, so get it from the game store
-        this.updateSpritePosition(spriteId, data.position, data.table_id);
-      } else {
-        // For general updates, remove and re-add the sprite
+        this.updateSpritePosition(spriteId, data.position);
+      } else if (data.operation === 'scale' && (data.scale_x !== undefined || data.scale_y !== undefined)) {
+        this.updateSpriteScale(spriteId, data.scale_x, data.scale_y);
+      } else if (data.operation === 'rotate' && data.rotation !== undefined) {
+        this.updateSpriteRotation(spriteId, data.rotation);
+      } else if (this.hasCompleteData(data)) {
+        // Only do full update if we have complete sprite data
         this.renderEngine.remove_sprite(spriteId);
         this.addSpriteToWasm(data);
+      } else {
+        console.warn(`Incomplete sprite update data for operation ${data.operation}:`, data);
+        console.warn('Skipping update to avoid corrupting sprite state');
       }
     } catch (error) {
       console.error('Failed to update sprite in WASM:', error);
     }
   }
 
-  private updateSpritePosition(spriteId: string, position: {x: number, y: number}, tableId: string): void {
+  private updateSpritePosition(spriteId: string, position: {x: number, y: number}): void {
     try {
-      // We need to get the full sprite data from the store and update its position
-      // Then remove and re-add with new position
-      // For now, we'll use the simpler approach of remove/re-add
-      // TODO: Optimize this by maintaining sprite data cache or adding position update to WASM
-      
       console.log(`Updating sprite ${spriteId} position to:`, position);
+      
+      // Try to use the new WASM method if available
+      if (this.renderEngine && typeof (this.renderEngine as any).update_sprite_position === 'function') {
+        const success = (this.renderEngine as any).update_sprite_position(spriteId, position.x, position.y);
+        if (success) {
+          console.log(`Successfully updated sprite ${spriteId} position`);
+          return;
+        }
+      }
+      
+      // Fallback to remove/re-add approach
+      console.warn(`WASM update_sprite_position not available, using fallback for sprite ${spriteId}`);
       
       // Remove the sprite
       this.renderEngine?.remove_sprite(spriteId);
       
-      // We need the full sprite data to re-add it. 
-      // Since we don't have it in the broadcast message, we should trigger a data fetch
-      // or maintain a sprite cache. For now, let's try to reconstruct minimal sprite data
+      // Try to reconstruct minimal sprite data
       const updatedSpriteData = {
         id: spriteId,
         sprite_id: spriteId,
         world_x: position.x,
         world_y: position.y,
-        // These will be default values - not ideal but better than nothing
         width: 64,
         height: 64,
         scale_x: 1.0,
         scale_y: 1.0,
         rotation: 0.0,
         layer: 'tokens',
-        texture_id: spriteId,  // Fallback
+        texture_id: spriteId,
         tint_color: [1.0, 1.0, 1.0, 1.0]
       };
       
@@ -392,6 +401,59 @@ class WasmIntegrationService {
     } catch (error) {
       console.error('Failed to update sprite position:', error);
     }
+  }
+
+  private updateSpriteScale(spriteId: string, scaleX?: number, scaleY?: number): void {
+    try {
+      console.log(`Updating sprite ${spriteId} scale to: x=${scaleX}, y=${scaleY}`);
+      
+      // Try to use the new WASM method if available
+      if (this.renderEngine && typeof (this.renderEngine as any).update_sprite_scale === 'function') {
+        const success = (this.renderEngine as any).update_sprite_scale(spriteId, scaleX || 1.0, scaleY || 1.0);
+        if (success) {
+          console.log(`Successfully updated sprite ${spriteId} scale`);
+          return;
+        }
+      }
+      
+      console.warn(`WASM update_sprite_scale not available or failed for sprite ${spriteId}`);
+      console.warn('Scale update requires complete sprite data - operation will be skipped to prevent sprite corruption');
+      
+    } catch (error) {
+      console.error('Failed to update sprite scale:', error);
+    }
+  }
+
+  private updateSpriteRotation(spriteId: string, rotation: number): void {
+    try {
+      console.log(`Updating sprite ${spriteId} rotation to:`, rotation);
+      
+      // Try to use existing WASM rotation method
+      if (this.renderEngine && typeof this.renderEngine.rotate_sprite === 'function') {
+        this.renderEngine.rotate_sprite(spriteId, rotation);
+        console.log(`Successfully updated sprite ${spriteId} rotation`);
+        return;
+      }
+      
+      console.warn(`WASM rotate_sprite not available for sprite ${spriteId}`);
+      console.warn('Rotation update requires complete sprite data - operation will be skipped to prevent sprite corruption');
+      
+    } catch (error) {
+      console.error('Failed to update sprite rotation:', error);
+    }
+  }
+
+  private hasCompleteData(data: any): boolean {
+    // Check if we have enough data to recreate a complete sprite
+    const hasPosition = (data.position && Array.isArray(data.position) && data.position.length >= 2) ||
+                       (data.x !== undefined && data.y !== undefined) ||
+                       (data.coord_x !== undefined && data.coord_y !== undefined) ||
+                       (data.world_x !== undefined && data.world_y !== undefined);
+    
+    const hasAsset = data.asset_id || data.asset_xxhash || data.texture_id;
+    const hasDimensions = (data.width && data.height) || (data.size_x && data.size_y);
+    
+    return hasPosition && hasAsset && hasDimensions;
   }
 
   private handleSpriteRemoved(data: any): void {
@@ -411,8 +473,20 @@ class WasmIntegrationService {
     if (!this.renderEngine) return;
 
     try {
-      // Movement requires a full sprite update
-      this.updateSpriteInWasm(data);
+      const spriteId = data.sprite_id || data.id;
+      if (!spriteId) {
+        console.warn('No sprite ID found in move data:', data);
+        return;
+      }
+
+      // Use efficient position update if we have position data
+      if (data.position || (data.x !== undefined && data.y !== undefined)) {
+        const position = data.position || { x: data.x, y: data.y };
+        this.updateSpritePosition(spriteId, position);
+      } else {
+        // Fallback to full update
+        this.updateSpriteInWasm(data);
+      }
     } catch (error) {
       console.error('Failed to move sprite in WASM:', error);
     }
@@ -422,8 +496,25 @@ class WasmIntegrationService {
     if (!this.renderEngine) return;
 
     try {
-      // Scaling requires a full sprite update
-      this.updateSpriteInWasm(data);
+      const spriteId = data.sprite_id || data.id;
+      if (!spriteId) {
+        console.warn('No sprite ID found in scale data:', data);
+        return;
+      }
+
+      // Use efficient scale update if we have scale data
+      if (data.scale_x !== undefined && data.scale_y !== undefined) {
+        this.updateSpriteScale(spriteId, data.scale_x, data.scale_y);
+      } else if (data.scale_x !== undefined) {
+        this.updateSpriteScale(spriteId, data.scale_x, undefined);
+      } else if (data.scale_y !== undefined) {
+        this.updateSpriteScale(spriteId, undefined, data.scale_y);
+      } else if (this.hasCompleteData(data)) {
+        // Fallback to full update only if we have complete data
+        this.updateSpriteInWasm(data);
+      } else {
+        console.warn('Scale update requires complete sprite data - operation will be skipped to prevent sprite corruption');
+      }
     } catch (error) {
       console.error('Failed to scale sprite in WASM:', error);
     }

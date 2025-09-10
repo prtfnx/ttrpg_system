@@ -9,6 +9,7 @@ import { useAssetCharacterCache } from '../assetCharacterCache';
 import { logger, protocolLogger } from '../utils/logger';
 import type { Message, MessageHandler } from './message';
 import { MessageType, createMessage, parseMessage } from './message';
+import { useGameStore } from '../store';
 
 
 export class WebClientProtocol {
@@ -580,19 +581,39 @@ export class WebClientProtocol {
   }
 
   createSprite(spriteData: Record<string, unknown>): void {
-    this.sendMessage(createMessage(MessageType.SPRITE_CREATE, { sprite: spriteData }, 2));
+    const activeTableId = useGameStore.getState().activeTableId;
+    if (!activeTableId) {
+      console.error('[Protocol] No active table ID available for sprite create');
+      return;
+    }
+    this.sendMessage(createMessage(MessageType.SPRITE_CREATE, { sprite: spriteData, table_id: activeTableId }, 2));
   }
 
   updateSprite(spriteId: string, updates: Record<string, unknown>): void {
-    this.sendMessage(createMessage(MessageType.SPRITE_UPDATE, { sprite_id: spriteId, ...updates }, 2));
+    const activeTableId = useGameStore.getState().activeTableId;
+    if (!activeTableId) {
+      console.error('[Protocol] No active table ID available for sprite update');
+      return;
+    }
+    this.sendMessage(createMessage(MessageType.SPRITE_UPDATE, { sprite_id: spriteId, table_id: activeTableId, ...updates }, 2));
   }
 
   moveSprite(spriteId: string, x: number, y: number): void {
-    this.sendMessage(createMessage(MessageType.SPRITE_MOVE, { sprite_id: spriteId, x, y }, 1));
+    const activeTableId = useGameStore.getState().activeTableId;
+    if (!activeTableId) {
+      console.error('[Protocol] No active table ID available for sprite move');
+      return;
+    }
+    this.sendMessage(createMessage(MessageType.SPRITE_MOVE, { sprite_id: spriteId, x, y, table_id: activeTableId }, 1));
   }
 
   removeSprite(spriteId: string): void {
-    this.sendMessage(createMessage(MessageType.SPRITE_REMOVE, { sprite_id: spriteId }, 2));
+    const activeTableId = useGameStore.getState().activeTableId;
+    if (!activeTableId) {
+      console.error('[Protocol] No active table ID available for sprite remove');
+      return;
+    }
+    this.sendMessage(createMessage(MessageType.SPRITE_REMOVE, { sprite_id: spriteId, table_id: activeTableId }, 2));
   }
 
   // Asset management methods

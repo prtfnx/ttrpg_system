@@ -332,13 +332,65 @@ class WasmIntegrationService {
     if (!this.renderEngine) return;
 
     try {
-      // For updates, we need to remove and re-add the sprite
-      if (data.id) {
-        this.renderEngine.remove_sprite(data.id);
+      console.log('handleSpriteUpdated called with data:', data);
+      
+      // Handle different types of sprite updates based on operation
+      const spriteId = data.sprite_id || data.id;
+      if (!spriteId) {
+        console.warn('No sprite ID found in update data:', data);
+        return;
+      }
+
+      if (data.operation === 'move' && data.position) {
+        // For move operations, we need to get the current sprite from store and update position
+        // Since WASM doesn't have direct position update, we'll remove and re-add
+        // But we need the full sprite data, so get it from the game store
+        this.updateSpritePosition(spriteId, data.position, data.table_id);
+      } else {
+        // For general updates, remove and re-add the sprite
+        this.renderEngine.remove_sprite(spriteId);
         this.addSpriteToWasm(data);
       }
     } catch (error) {
       console.error('Failed to update sprite in WASM:', error);
+    }
+  }
+
+  private updateSpritePosition(spriteId: string, position: {x: number, y: number}, tableId: string): void {
+    try {
+      // We need to get the full sprite data from the store and update its position
+      // Then remove and re-add with new position
+      // For now, we'll use the simpler approach of remove/re-add
+      // TODO: Optimize this by maintaining sprite data cache or adding position update to WASM
+      
+      console.log(`Updating sprite ${spriteId} position to:`, position);
+      
+      // Remove the sprite
+      this.renderEngine?.remove_sprite(spriteId);
+      
+      // We need the full sprite data to re-add it. 
+      // Since we don't have it in the broadcast message, we should trigger a data fetch
+      // or maintain a sprite cache. For now, let's try to reconstruct minimal sprite data
+      const updatedSpriteData = {
+        id: spriteId,
+        sprite_id: spriteId,
+        world_x: position.x,
+        world_y: position.y,
+        // These will be default values - not ideal but better than nothing
+        width: 64,
+        height: 64,
+        scale_x: 1.0,
+        scale_y: 1.0,
+        rotation: 0.0,
+        layer: 'tokens',
+        texture_id: spriteId,  // Fallback
+        tint_color: [1.0, 1.0, 1.0, 1.0]
+      };
+      
+      this.addSpriteToWasm(updatedSpriteData);
+      
+    } catch (error) {
+      console.error('Failed to update sprite position:', error);
     }
   }
 

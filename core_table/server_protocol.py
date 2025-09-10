@@ -1125,9 +1125,15 @@ class ServerProtocol:
     
     async def broadcast_to_session(self, message: Message, client_id: str):
         """Send message to all clients in the session"""
-        for client in self.clients:
-            if client != client_id:
-                await self.send_to_client(message, client)
+        if self.session_manager and hasattr(self.session_manager, 'broadcast_to_session'):
+            # Delegate to the session manager's broadcast method
+            await self.session_manager.broadcast_to_session(message, exclude_client=client_id)
+        else:
+            # Fallback implementation (should not be used in production)
+            logger.warning("No session manager available for broadcasting, using fallback")
+            for client in self.clients:
+                if client != client_id:
+                    await self.send_to_client(message, client)
 
     async def _broadcast_error(self, client_id: str, error_message: str):
         """Send error message to specific client"""

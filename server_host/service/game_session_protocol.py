@@ -247,14 +247,9 @@ class GameSessionProtocolService:
                     logger.debug(f"Auto-saving after {message_type.value} in session {self.session_code}")
                     self.auto_save()
                 
-                #TODO - implement proper broadcast logic
-                if message_type in [MessageType.SPRITE_UPDATE, MessageType.TABLE_UPDATE, MessageType.SPRITE_CREATE, 
-                                    MessageType.SPRITE_REMOVE, MessageType.SPRITE_MOVE, MessageType.SPRITE_SCALE,
-                                    MessageType.SPRITE_ROTATE, MessageType.SPRITE_UPDATE,
-                                    MessageType.COMPENDIUM_SPRITE_ADD, MessageType.COMPENDIUM_SPRITE_UPDATE, MessageType.COMPENDIUM_SPRITE_REMOVE]:
-                    # Broadcast to all clients except the sender
-                    logger.debug(f"Broadcasting {message_type.value} to session {self.session_code} excluding client {client_id}")
-                    await self.broadcast_to_session(message, exclude_client=client_id)
+                # NOTE: Broadcasting is now handled by individual handlers in ServerProtocol
+                # Each handler (move_sprite, scale_sprite, etc.) broadcasts SPRITE_UPDATE messages
+                # to other clients after successful operations
             else:
                 logger.warning(f"Unknown message type: {message_type}, available handlers: {list(self.server_protocol.handlers.keys())}")
                 logger.info(f"message: {message}, client_id: {client_id}")

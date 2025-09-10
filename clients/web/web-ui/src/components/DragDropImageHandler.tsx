@@ -45,52 +45,101 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
     const data = event.detail;
     console.log('🔄 DragDrop: Asset upload response received:', data);
     
-    if (data.success && data.upload_url && data.asset_id) {
+    if (data.success && data.asset_id) {
       // Look up pending upload by asset_id
       const pendingUpload = pendingUploadsRef.current.get(data.asset_id);
       
       if (pendingUpload) {
-        setUploadState({
-          status: 'uploading',
-          progress: 0,
-          message: `Uploading ${pendingUpload.fileName}...`,
-          fileName: pendingUpload.fileName
-        });
-        
-        // Upload file to R2 and let server handle sprite creation
-        uploadFileToR2(data.upload_url, pendingUpload)
-          .then(() => {
-            // Upload successful - server will create and broadcast sprite
-            setUploadState({
-              status: 'processing',
-              progress: 100,
-              message: `Processing ${pendingUpload.fileName}...`,
-              fileName: pendingUpload.fileName
-            });
-            
-            // Clean up pending upload
-            pendingUploadsRef.current.delete(data.asset_id);
-            
-            // Server will broadcast sprite creation, so we wait for that
-            // Reset UI after a delay
-            setTimeout(() => {
-              setUploadState({
-                status: 'idle',
-                progress: 0,
-                message: ''
-              });
-            }, 3000);
-          })
-          .catch(error => {
-            console.error('Upload failed:', error);
-            setUploadState({
-              status: 'failed',
-              progress: 0,
-              message: `Upload failed: ${error.message}`,
-              fileName: pendingUpload.fileName
-            });
-            pendingUploadsRef.current.delete(data.asset_id);
+        if (data.upload_url) {
+          // Case 1: New asset - need to upload to R2
+          setUploadState({
+            status: 'uploading',
+            progress: 0,
+            message: `Uploading ${pendingUpload.fileName}...`,
+            fileName: pendingUpload.fileName
           });
+          
+          // Upload file to R2 and let server handle sprite creation
+          uploadFileToR2(data.upload_url, pendingUpload)
+            .then(() => {
+              // Upload successful - server will create and broadcast sprite
+              setUploadState({
+                status: 'processing',
+                progress: 100,
+                message: `Processing ${pendingUpload.fileName}...`,
+                fileName: pendingUpload.fileName
+              });
+              
+              // Clean up pending upload
+              pendingUploadsRef.current.delete(data.asset_id);
+              
+              // Server will broadcast sprite creation, so we wait for that
+              // Reset UI after a delay
+              setTimeout(() => {
+                setUploadState({
+                  status: 'idle',
+                  progress: 0,
+                  message: ''
+                });
+              }, 3000);
+            })
+            .catch(error => {
+              console.error('Upload failed:', error);
+              setUploadState({
+                status: 'failed',
+                progress: 0,
+                message: `Upload failed: ${error.message}`,
+                fileName: pendingUpload.fileName
+              });
+              pendingUploadsRef.current.delete(data.asset_id);
+            });
+        } else {
+          // Case 2: Asset already exists - directly create sprite
+          console.log('📦 DragDrop: Asset already exists, creating sprite directly');
+          
+          setUploadState({
+            status: 'processing',
+            progress: 100,
+            message: `Creating sprite from existing asset: ${pendingUpload.fileName}...`,
+            fileName: pendingUpload.fileName
+          });
+
+          // Dispatch upload completion event for AssetIntegrationService to handle
+          window.dispatchEvent(new CustomEvent('asset-upload-completed', {
+            detail: {
+              asset_id: data.asset_id,
+              success: true,
+              file_size: pendingUpload.file.size,
+              content_type: pendingUpload.file.type
+            }
+          }));
+          
+          // Create sprite directly since asset already exists
+          if (protocol) {
+            const worldX = (pendingUpload.dropPosition.x - camera.x) / camera.zoom;
+            const worldY = (pendingUpload.dropPosition.y - camera.y) / camera.zoom;
+            
+            spriteCreationService.createSprite({
+              assetId: data.asset_id,
+              fileName: pendingUpload.fileName,
+              worldX: worldX,
+              worldY: worldY,
+              sessionId: sessionId || ''
+            });
+          }
+          
+          // Clean up pending upload
+          pendingUploadsRef.current.delete(data.asset_id);
+          
+          // Reset UI after a delay
+          setTimeout(() => {
+            setUploadState({
+              status: 'idle',
+              progress: 0,
+              message: ''
+            });
+          }, 2000);
+        }
       } else {
         console.error('🚨 DragDrop: No matching upload request found for asset_id:', data.asset_id);
         setUploadState({

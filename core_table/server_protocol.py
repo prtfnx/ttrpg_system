@@ -739,6 +739,17 @@ class ServerProtocol:
                 logger.warning(f"Failed to enrich created sprite with asset URLs: {e}")
                 enriched_entity = created_sprite
 
+            # Broadcast sprite creation to all clients in session
+            broadcast_data = {
+                'sprite_id': enriched_entity.get('sprite_id', enriched_entity.get('entity_id', None)),
+                'table_id': table_id,
+                'sprite_data': enriched_entity,
+                'operation': 'create'
+            }
+            
+            # Broadcast to other clients in session
+            await self.broadcast_to_session(Message(MessageType.SPRITE_UPDATE, broadcast_data), client_id)
+
             # Return the sprite id and any asset download url/xxhash if present
             response_payload = {
                 'sprite_id': enriched_entity.get('sprite_id', enriched_entity.get('entity_id', None)),
@@ -786,6 +797,14 @@ class ServerProtocol:
         try:
             result = await self.actions.delete_sprite(table_id, sprite_id)
             if result.success:
+                # Broadcast sprite deletion to all clients in session
+                broadcast_data = {
+                    'sprite_id': sprite_id,
+                    'table_id': table_id,
+                    'operation': 'delete'
+                }
+                await self.broadcast_to_session(Message(MessageType.SPRITE_UPDATE, broadcast_data), client_id)
+                
                 return Message(MessageType.SPRITE_RESPONSE, {'sprite_id': sprite_id, 'operation': 'delete', 'success': True})
             else:
                 return Message(MessageType.ERROR, {'error': result.message})
@@ -1436,9 +1455,18 @@ class ServerProtocol:
         result = await self.actions.save_character(session_id, character_data, user_id)
         
         if result.success:
+            # Broadcast character save to other clients in session
+            broadcast_data = {
+                'character_id': result.data.get('character_id') if result.data else None,
+                'session_code': session_code,
+                'operation': 'character_save',
+                'user_id': user_id
+            }
+            await self.broadcast_to_session(Message(MessageType.PLAYER_STATUS, broadcast_data), client_id)
+            
             return Message(MessageType.CHARACTER_SAVE_RESPONSE, {
                 'success': True,
-                'character_id': result.data.get('character_id'),
+                'character_id': result.data.get('character_id') if result.data else None,
                 'message': result.message
             })
         else:
@@ -1553,6 +1581,15 @@ class ServerProtocol:
         result = await self.actions.delete_character(session_id, character_id, user_id)
         
         if result.success:
+            # Broadcast character deletion to other clients in session
+            broadcast_data = {
+                'character_id': character_id,
+                'session_code': session_code,
+                'operation': 'character_delete',
+                'user_id': user_id
+            }
+            await self.broadcast_to_session(Message(MessageType.PLAYER_STATUS, broadcast_data), client_id)
+            
             return Message(MessageType.CHARACTER_DELETE_RESPONSE, {
                 'success': True,
                 'character_id': character_id,

@@ -691,6 +691,18 @@ impl RenderEngine {
         self.layer_manager.rotate_sprite(sprite_id, rotation_degrees)
     }
     
+    #[wasm_bindgen]
+    pub fn update_sprite_position(&mut self, sprite_id: &str, x: f64, y: f64) -> bool {
+        let new_position = crate::math::Vec2::new(x as f32, y as f32);
+        self.layer_manager.update_sprite_position(sprite_id, new_position)
+    }
+    
+    #[wasm_bindgen]
+    pub fn update_sprite_scale(&mut self, sprite_id: &str, scale_x: f64, scale_y: f64) -> bool {
+        let new_scale = crate::math::Vec2::new(scale_x as f32, scale_y as f32);
+        self.layer_manager.update_sprite_scale(sprite_id, new_scale)
+    }
+    
     // Grid management methods
     #[wasm_bindgen]
     pub fn toggle_grid(&mut self) {

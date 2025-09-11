@@ -563,12 +563,16 @@ class WasmIntegrationService {
     if (!this.renderEngine) return;
 
     try {
-      if (data.id) {
-        this.renderEngine.remove_sprite(data.id);
-        console.log('Removed sprite from WASM:', data.id);
+      const spriteId = data.sprite_id || data.id;
+      if (spriteId) {
+        console.log('🗑️ WasmIntegration: Removing sprite from WASM:', spriteId);
+        this.renderEngine.remove_sprite(spriteId);
+        console.log('✅ WasmIntegration: Sprite removed from WASM:', spriteId);
+      } else {
+        console.warn('⚠️ WasmIntegration: No sprite ID found in removal data:', data);
       }
     } catch (error) {
-      console.error('Failed to remove sprite from WASM:', error);
+      console.error('❌ WasmIntegration: Failed to remove sprite from WASM:', error);
     }
   }
 

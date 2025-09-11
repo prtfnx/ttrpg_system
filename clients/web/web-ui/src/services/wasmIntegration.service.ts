@@ -341,19 +341,31 @@ class WasmIntegrationService {
         return;
       }
 
-      // Handle specific operations efficiently
+      // Use efficient direct updates for specific operations
       if (data.operation === 'move' && data.position) {
+        console.log('🎯 Using direct position update for move operation');
         this.updateSpritePosition(spriteId, data.position);
       } else if (data.operation === 'scale' && (data.scale_x !== undefined || data.scale_y !== undefined)) {
+        console.log('🎯 Using direct scale update for scale operation');
         this.updateSpriteScale(spriteId, data.scale_x, data.scale_y);
       } else if (data.operation === 'rotate' && data.rotation !== undefined) {
+        console.log('🎯 Using direct rotation update for rotate operation');
         this.updateSpriteRotation(spriteId, data.rotation);
-      } else if (this.hasCompleteData(data)) {
-        // Only do full update if we have complete sprite data
+      } else if (data.operation && !this.hasCompleteData(data)) {
+        // For partial updates, try to use available direct update methods
+        console.log(`🔧 Attempting partial update for operation: ${data.operation}`);
+        this.handlePartialSpriteUpdate(spriteId, data);
+      } else if (this.hasCompleteData(data) && this.needsFullRecreation(data)) {
+        // Only do full recreate for fundamental changes (layer, texture change, etc.)
+        console.log('🔄 Full sprite recreation needed for fundamental change');
         this.renderEngine.remove_sprite(spriteId);
         this.addSpriteToWasm(data);
+      } else if (this.hasCompleteData(data)) {
+        // For complete data without fundamental changes, use efficient updates
+        console.log('⚡ Using efficient updates for complete data');
+        this.updateSpriteEfficiently(spriteId, data);
       } else {
-        console.warn(`Incomplete sprite update data for operation ${data.operation}:`, data);
+        console.warn(`❌ Incomplete sprite update data for operation ${data.operation}:`, data);
         console.warn('Skipping update to avoid corrupting sprite state');
       }
     } catch (error) {
@@ -365,38 +377,21 @@ class WasmIntegrationService {
     try {
       console.log(`Updating sprite ${spriteId} position to:`, position);
       
-      // Try to use the new WASM method if available
+      // Try to use the WASM method - this should always work since it exists in render.rs
       if (this.renderEngine && typeof (this.renderEngine as any).update_sprite_position === 'function') {
         const success = (this.renderEngine as any).update_sprite_position(spriteId, position.x, position.y);
         if (success) {
-          console.log(`Successfully updated sprite ${spriteId} position`);
+          console.log(`✅ Successfully updated sprite ${spriteId} position using direct WASM method`);
           return;
+        } else {
+          console.error(`❌ WASM update_sprite_position returned false for sprite ${spriteId} - sprite may not exist`);
         }
+      } else {
+        console.error(`❌ WASM update_sprite_position method not available - this should not happen!`);
       }
       
-      // Fallback to remove/re-add approach
-      console.warn(`WASM update_sprite_position not available, using fallback for sprite ${spriteId}`);
-      
-      // Remove the sprite
-      this.renderEngine?.remove_sprite(spriteId);
-      
-      // Try to reconstruct minimal sprite data
-      const updatedSpriteData = {
-        id: spriteId,
-        sprite_id: spriteId,
-        world_x: position.x,
-        world_y: position.y,
-        width: 64,
-        height: 64,
-        scale_x: 1.0,
-        scale_y: 1.0,
-        rotation: 0.0,
-        layer: 'tokens',
-        texture_id: spriteId,
-        tint_color: [1.0, 1.0, 1.0, 1.0]
-      };
-      
-      this.addSpriteToWasm(updatedSpriteData);
+      // If we reach here, something is wrong - log error but don't corrupt sprite state
+      console.error(`💥 Failed to update sprite ${spriteId} position - avoiding remove+re-add to prevent data corruption`);
       
     } catch (error) {
       console.error('Failed to update sprite position:', error);
@@ -407,7 +402,12 @@ class WasmIntegrationService {
     try {
       const finalScaleX = scaleX || 1.0;
       const finalScaleY = scaleY || 1.0;
-      console.log(`Updating sprite ${spriteId} scale to: x=${finalScaleX}, y=${finalScaleY}`);
+      console.log(`🔍 Updating sprite ${spriteId} scale to: x=${finalScaleX}, y=${finalScaleY}`);
+      
+      // Check if this is actually a scale change (not just resetting to 1.0)
+      if (finalScaleX === 1.0 && finalScaleY === 1.0) {
+        console.log('⚠️ Scale values are 1.0, 1.0 - this might be resetting sprite to original size');
+      }
       
       if (!this.renderEngine) {
         console.error('❌ RenderEngine not available for sprite scale update');
@@ -426,7 +426,15 @@ class WasmIntegrationService {
           // Force a render to make sure the visual change is applied
           if (typeof (this.renderEngine as any).render === 'function') {
             (this.renderEngine as any).render();
+            console.log('🎨 Forced render after scale update');
           }
+          // Also try requesting animation frame
+          requestAnimationFrame(() => {
+            if (this.renderEngine && typeof (this.renderEngine as any).render === 'function') {
+              (this.renderEngine as any).render();
+              console.log('🎨 Animation frame render after scale update');
+            }
+          });
           return;
         } else {
           console.error(`❌ WASM update_sprite_scale failed for sprite ${spriteId}`);
@@ -472,6 +480,83 @@ class WasmIntegrationService {
     const hasDimensions = (data.width && data.height) || (data.size_x && data.size_y);
     
     return hasPosition && hasAsset && hasDimensions;
+  }
+
+  private needsFullRecreation(data: any): boolean {
+    // Only recreate sprite if fundamental properties changed that require remove+add
+    return !!(
+      data.layer_changed ||           // Layer change requires removal and re-adding
+      data.texture_changed ||         // Texture change might require rebinding
+      data.fundamental_change ||      // Explicit flag for full recreation
+      // Add more conditions as needed for cases that truly require full recreation
+      false
+    );
+  }
+
+  private handlePartialSpriteUpdate(spriteId: string, data: any): void {
+    // Handle partial updates using available direct methods
+    console.log(`🔧 Handling partial update for ${spriteId}:`, data);
+    
+    let updated = false;
+
+    // Try position update
+    if (data.position || (data.x !== undefined && data.y !== undefined)) {
+      const position = data.position || { x: data.x, y: data.y };
+      this.updateSpritePosition(spriteId, position);
+      updated = true;
+    }
+
+    // Try scale update  
+    if (data.scale_x !== undefined || data.scale_y !== undefined) {
+      this.updateSpriteScale(spriteId, data.scale_x, data.scale_y);
+      updated = true;
+    }
+
+    // Try rotation update
+    if (data.rotation !== undefined) {
+      this.updateSpriteRotation(spriteId, data.rotation);
+      updated = true;
+    }
+
+    if (!updated) {
+      console.warn(`⚠️ No applicable update method found for partial data:`, data);
+    }
+  }
+
+  private updateSpriteEfficiently(spriteId: string, data: any): void {
+    // Use multiple direct updates instead of remove+recreate
+    console.log(`⚡ Efficiently updating sprite ${spriteId} with complete data`);
+    
+    // Update position if available
+    if (data.position || (data.x !== undefined && data.y !== undefined) || (data.world_x !== undefined && data.world_y !== undefined)) {
+      let position;
+      if (data.position) {
+        position = Array.isArray(data.position) ? { x: data.position[0], y: data.position[1] } : data.position;
+      } else {
+        position = {
+          x: data.x ?? data.world_x ?? 0,
+          y: data.y ?? data.world_y ?? 0
+        };
+      }
+      this.updateSpritePosition(spriteId, position);
+    }
+
+    // Update scale if available
+    if (data.scale_x !== undefined || data.scale_y !== undefined) {
+      this.updateSpriteScale(spriteId, data.scale_x, data.scale_y);
+    }
+
+    // Update rotation if available
+    if (data.rotation !== undefined) {
+      this.updateSpriteRotation(spriteId, data.rotation);
+    }
+
+    // TODO: Add other efficient updates as WASM methods become available:
+    // - update_sprite_size (width, height)  
+    // - update_sprite_texture (for texture swaps)
+    // - update_sprite_tint (color changes)
+    
+    console.log(`✅ Efficient update completed for sprite ${spriteId}`);
   }
 
   private handleSpriteRemoved(data: any): void {

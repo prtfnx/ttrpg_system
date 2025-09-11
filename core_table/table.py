@@ -109,7 +109,10 @@ class VirtualTable:
         if position:
             position = (int(position[0]), int(position[1])) 
         else:
-            position = (int(entity_data.get('coord_x', 0)), int(entity_data.get('coord_y', 0)))
+            # Support both coord_x/coord_y (legacy) and x/y (current) formats
+            x = entity_data.get('x', entity_data.get('coord_x', 0))
+            y = entity_data.get('y', entity_data.get('coord_y', 0))
+            position = (int(x), int(y))
         layer = entity_data.get('layer', 'tokens')
         name = entity_data.get('name', 'Unnamed Entity')
         path_to_texture = entity_data.get('texture_path', None)

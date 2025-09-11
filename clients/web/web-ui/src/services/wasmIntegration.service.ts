@@ -10,6 +10,8 @@ class WasmIntegrationService {
   private eventListeners: Array<() => void> = [];
   // Map of optimistic client ids -> timeout id for automatic rollback
   private optimisticTimers: Map<string, number> = new Map();
+  // Track assets that need to be retried after upload confirmation
+  private pendingAssetRetries: Set<string> = new Set();
   // Timeout for optimistic inserts (ms)
   private readonly OPTIMISTIC_TIMEOUT = 10000;
 
@@ -155,6 +157,20 @@ class WasmIntegrationService {
     };
     window.addEventListener('asset-downloaded', handleAssetDownloaded);
     this.eventListeners.push(() => window.removeEventListener('asset-downloaded', handleAssetDownloaded));
+
+    // Handle asset upload confirmations
+    const handleAssetUploaded = (event: Event) => {
+      this.handleAssetUploaded((event as CustomEvent).detail);
+    };
+    window.addEventListener('asset-uploaded', handleAssetUploaded);
+    this.eventListeners.push(() => window.removeEventListener('asset-uploaded', handleAssetUploaded));
+
+    // Also listen for success messages that might contain asset confirmations
+    const handleProtocolSuccess = (event: Event) => {
+      this.handleProtocolSuccess((event as CustomEvent).detail);
+    };
+    window.addEventListener('protocol-success', handleProtocolSuccess);
+    this.eventListeners.push(() => window.removeEventListener('protocol-success', handleProtocolSuccess));
 
     // Protocol-level errors: if server returns an error including a client_temp_id, remove optimistic sprite
     const handleProtocolError = (event: Event) => {
@@ -318,7 +334,7 @@ class WasmIntegrationService {
       } catch (error) {
         console.error('❌ WasmIntegration: Failed to add sprite to WASM:', error);
       }
-    } else if (data.operation === 'move' || data.operation === 'scale' || data.operation === 'rotate') {
+    } else if (data.operation === 'move' || data.operation === 'scale' || data.operation === 'rotate' || data.operation === 'remove') {
       // These operations are handled directly by WASM updates, no fallback needed
       console.log('✅ WasmIntegration: Sprite operation confirmed by server:', data.operation, data.sprite_id);
     } else if (data.sprite_id === null) {
@@ -771,8 +787,43 @@ class WasmIntegrationService {
     if (data.success && data.download_url && data.asset_id) {
       console.log('Loading texture from download URL:', data.asset_id, data.download_url);
       this.loadTextureFromUrl(data.asset_id, data.download_url);
+      // Remove from pending retries if it was there
+      this.pendingAssetRetries.delete(data.asset_id);
     } else {
       console.warn('Asset download response failed or incomplete:', data);
+      // If the failure is because asset needs to be uploaded, track it for retry
+      if (data.instructions && data.instructions.includes('upload') && data.asset_id) {
+        console.log('Asset needs upload, tracking for retry after upload confirmation:', data.asset_id);
+        this.pendingAssetRetries.add(data.asset_id);
+      }
+    }
+  }
+
+  /**
+   * Handle asset upload confirmation and retry pending downloads
+   */
+  private handleAssetUploaded(data: any): void {
+    console.log('Asset uploaded:', data);
+    
+    if (data.asset_id && this.pendingAssetRetries.has(data.asset_id)) {
+      console.log('Retrying asset download after upload confirmation:', data.asset_id);
+      this.pendingAssetRetries.delete(data.asset_id);
+      
+      // Retry the asset download request
+      setTimeout(() => {
+        this.requestAssetDownloadLink(data.asset_id, `sprite_for_${data.asset_id}`);
+      }, 100); // Small delay to ensure upload is fully processed
+    }
+  }
+
+  /**
+   * Handle protocol success messages that might contain asset confirmations
+   */
+  private handleProtocolSuccess(data: any): void {
+    // Check if this is an asset upload confirmation success
+    if (data && data.asset_id && (data.message?.includes('Upload confirmed') || data.status === 'uploaded')) {
+      console.log('Asset upload confirmed via success message:', data.asset_id);
+      this.handleAssetUploaded(data);
     }
   }
 

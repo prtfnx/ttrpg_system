@@ -12,6 +12,8 @@ class WasmIntegrationService {
   private optimisticTimers: Map<string, number> = new Map();
   // Track assets that need to be retried after upload confirmation
   private pendingAssetRetries: Set<string> = new Set();
+  // Track sprites waiting for asset upload confirmation before downloading
+  private pendingSpritesForAssets: Map<string, string[]> = new Map(); // asset_id -> sprite_ids[]
   // Timeout for optimistic inserts (ms)
   private readonly OPTIMISTIC_TIMEOUT = 10000;
 
@@ -709,8 +711,17 @@ class WasmIntegrationService {
       });
       
       if (assetId) {
-        console.log('Requesting asset download link for:', assetId);
-        this.requestAssetDownloadLink(assetId, wasmSprite.id);
+        // Check if this asset is still being uploaded (has pending retries)
+        if (this.pendingAssetRetries.has(assetId)) {
+          console.log('Asset upload still pending, deferring download request:', assetId);
+          // Add sprite to pending list for this asset
+          const existingSprites = this.pendingSpritesForAssets.get(assetId) || [];
+          existingSprites.push(wasmSprite.id);
+          this.pendingSpritesForAssets.set(assetId, existingSprites);
+        } else {
+          console.log('Requesting asset download link for:', assetId);
+          this.requestAssetDownloadLink(assetId, wasmSprite.id);
+        }
       } else {
         console.warn('No asset_id or asset_xxhash found for sprite:', wasmSprite.id);
       }
@@ -813,6 +824,23 @@ class WasmIntegrationService {
       setTimeout(() => {
         this.requestAssetDownloadLink(data.asset_id, `sprite_for_${data.asset_id}`);
       }, 100); // Small delay to ensure upload is fully processed
+    }
+
+    // Check if there are pending sprites waiting for this asset
+    if (data.asset_id && this.pendingSpritesForAssets.has(data.asset_id)) {
+      console.log('Processing pending sprites for confirmed asset:', data.asset_id);
+      const pendingSprites = this.pendingSpritesForAssets.get(data.asset_id) || [];
+      
+      // Request asset download for each pending sprite
+      setTimeout(() => {
+        pendingSprites.forEach(spriteId => {
+          console.log('Requesting deferred asset download for sprite:', spriteId, 'asset:', data.asset_id);
+          this.requestAssetDownloadLink(data.asset_id, spriteId);
+        });
+        
+        // Clear the pending sprites for this asset
+        this.pendingSpritesForAssets.delete(data.asset_id);
+      }, 150); // Small delay to ensure upload confirmation is fully processed
     }
   }
 

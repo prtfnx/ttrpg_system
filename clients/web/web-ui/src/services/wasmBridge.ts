@@ -117,23 +117,8 @@ class WasmBridgeService {
   }
 
   private sendSpriteScale(spriteId: string, scaleX: number, scaleY: number) {
-    // Get the actual table ID from the game store
-    const activeTableId = useGameStore.getState().activeTableId;
-    if (!activeTableId) {
-      console.error('[WasmBridge] No active table ID available for sprite scale');
-      return;
-    }
-
-    const updateData = {
-      sprite_id: spriteId,
-      scale_x: scaleX,
-      scale_y: scaleY,
-      table_id: activeTableId
-    };
-
-    const message = createMessage(MessageType.SPRITE_SCALE, updateData, 2);
-    this.protocol.sendMessage(message);
-    console.log('[WasmBridge] Sent sprite scale:', spriteId, scaleX, scaleY);
+    console.log('[WasmBridge] Sending sprite scale via protocol client:', { spriteId, scaleX, scaleY });
+    this.protocol.scaleSprite(spriteId, scaleX, scaleY);
   }
 
   private sendSpriteRotate(spriteId: string, rotation: number) {

@@ -599,7 +599,8 @@ class WasmIntegrationService {
     if (!this.renderEngine) return;
 
     try {
-      const spriteId = data.sprite_id || data.id;
+      // Handle both snake_case and camelCase sprite ID formats
+      const spriteId = data.sprite_id || data.id || data.spriteId;
       if (!spriteId) {
         console.warn('No sprite ID found in scale data:', data);
         return;

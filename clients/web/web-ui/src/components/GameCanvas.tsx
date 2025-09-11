@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
 // import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
 import { assetIntegrationService } from '../services/assetIntegration.service';
+import { useProtocol } from '../services/ProtocolContext';
 import { useWasmBridge } from '../services/wasmBridge';
 import { wasmIntegrationService } from '../services/wasmIntegration.service';
 import { useGameStore } from '../store';
@@ -72,6 +73,7 @@ export const GameCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rustRenderManagerRef = useRef<RenderEngine | null>(null);
   const dprRef = useRef<number>(1);
+  const { protocol } = useProtocol();
   const { updateConnectionState, tables, activeTableId } = useGameStore();
   const activeTable = tables.find(t => t.table_id === activeTableId);
   const { connect: connectWebSocket, disconnect: disconnectWebSocket } = useWebSocket('ws://127.0.0.1:12345/ws');
@@ -200,7 +202,17 @@ export const GameCanvas: React.FC = () => {
     
     switch (action) {
       case 'delete':
-        if (spriteId) {
+        if (spriteId && protocol) {
+          console.log('🗑️ GameCanvas: Sending sprite delete request to server:', spriteId);
+          try {
+            // Send delete request to server - server will broadcast to all clients if successful
+            protocol.removeSprite(spriteId);
+            console.log('✅ GameCanvas: Sprite delete request sent to server');
+          } catch (error) {
+            console.error('❌ GameCanvas: Failed to send sprite delete request:', error);
+          }
+        } else if (spriteId) {
+          console.warn('⚠️ GameCanvas: Protocol not available, deleting sprite locally only');
           rustRenderManagerRef.current.delete_sprite(spriteId);
         }
         break;
@@ -249,7 +261,7 @@ export const GameCanvas: React.FC = () => {
     }
     
     setContextMenu({ visible: false, x: 0, y: 0 });
-  }, [contextMenu]);
+  }, [contextMenu, protocol]);
 
   // Close context menu on click outside
   useEffect(() => {

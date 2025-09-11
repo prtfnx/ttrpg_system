@@ -607,6 +607,21 @@ export class WebClientProtocol {
     this.sendMessage(createMessage(MessageType.SPRITE_MOVE, { sprite_id: spriteId, x, y, table_id: activeTableId }, 1));
   }
 
+  scaleSprite(spriteId: string, scaleX: number, scaleY: number): void {
+    const activeTableId = useGameStore.getState().activeTableId;
+    if (!activeTableId) {
+      console.error('[Protocol] No active table ID available for sprite scale');
+      return;
+    }
+    console.log('📏 Protocol: Sending sprite scale:', { spriteId, scaleX, scaleY, activeTableId });
+    this.sendMessage(createMessage(MessageType.SPRITE_SCALE, { 
+      sprite_id: spriteId, 
+      scale_x: scaleX, 
+      scale_y: scaleY, 
+      table_id: activeTableId 
+    }, 2));
+  }
+
   removeSprite(spriteId: string): void {
     const activeTableId = useGameStore.getState().activeTableId;
     if (!activeTableId) {

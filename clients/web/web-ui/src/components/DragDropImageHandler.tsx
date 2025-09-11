@@ -334,6 +334,11 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         session_code: sessionId || ''
       }, 2));
       
+      // Notify WasmIntegration service that this asset upload is starting
+      window.dispatchEvent(new CustomEvent('asset-upload-started', {
+        detail: { asset_id: assetId }
+      }));
+      
       console.log('📡 DragDrop: Requested upload URL for asset:', assetId);
 
     } catch (error) {

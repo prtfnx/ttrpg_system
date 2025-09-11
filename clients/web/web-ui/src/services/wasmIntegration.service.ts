@@ -405,18 +405,36 @@ class WasmIntegrationService {
 
   private updateSpriteScale(spriteId: string, scaleX?: number, scaleY?: number): void {
     try {
-      console.log(`Updating sprite ${spriteId} scale to: x=${scaleX}, y=${scaleY}`);
+      const finalScaleX = scaleX || 1.0;
+      const finalScaleY = scaleY || 1.0;
+      console.log(`Updating sprite ${spriteId} scale to: x=${finalScaleX}, y=${finalScaleY}`);
       
-      // Try to use the new WASM method if available
-      if (this.renderEngine && typeof (this.renderEngine as any).update_sprite_scale === 'function') {
-        const success = (this.renderEngine as any).update_sprite_scale(spriteId, scaleX || 1.0, scaleY || 1.0);
-        if (success) {
-          console.log(`Successfully updated sprite ${spriteId} scale`);
-          return;
-        }
+      if (!this.renderEngine) {
+        console.error('❌ RenderEngine not available for sprite scale update');
+        return;
       }
       
-      console.warn(`WASM update_sprite_scale not available or failed for sprite ${spriteId}`);
+      // Check if the method exists and what type it is
+      console.log('🔍 Checking WASM update_sprite_scale method:', typeof (this.renderEngine as any).update_sprite_scale);
+      
+      if (typeof (this.renderEngine as any).update_sprite_scale === 'function') {
+        const success = (this.renderEngine as any).update_sprite_scale(spriteId, finalScaleX, finalScaleY);
+        console.log(`🎯 WASM update_sprite_scale returned:`, success);
+        
+        if (success) {
+          console.log(`✅ Successfully updated sprite ${spriteId} scale - forcing render update`);
+          // Force a render to make sure the visual change is applied
+          if (typeof (this.renderEngine as any).render === 'function') {
+            (this.renderEngine as any).render();
+          }
+          return;
+        } else {
+          console.error(`❌ WASM update_sprite_scale failed for sprite ${spriteId}`);
+        }
+      } else {
+        console.warn(`❌ WASM update_sprite_scale method not available`);
+      }
+      
       console.warn('Scale update requires complete sprite data - operation will be skipped to prevent sprite corruption');
       
     } catch (error) {

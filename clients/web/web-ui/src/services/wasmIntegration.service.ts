@@ -308,23 +308,23 @@ class WasmIntegrationService {
     console.log('🎭 WasmIntegration: Received sprite response from server:', data);
     
     if (!this.renderEngine) return;
-    
-    // Handle successful sprite creation response
-    if (data.sprite_id && data.sprite_data) {
+
+    // Only handle sprite creation responses (which have sprite_data)
+    // Move/Scale/Rotate operations are handled by direct WASM updates and don't need this fallback
+    if (data.operation === 'create' || (data.sprite_id && data.sprite_data)) {
       console.log('✅ WasmIntegration: Adding sprite to WASM engine:', data.sprite_data);
       try {
         this.addSpriteToWasm(data.sprite_data);
       } catch (error) {
         console.error('❌ WasmIntegration: Failed to add sprite to WASM:', error);
       }
-    } else if (data.sprite_id && !data.sprite_data) {
-      console.warn('⚠️ WasmIntegration: Sprite created but no sprite_data received. Need to wait for sprite-created broadcast.');
-      // The sprite was created on server but we don't have the full data
-      // This might be handled by the sprite-created event instead
+    } else if (data.operation === 'move' || data.operation === 'scale' || data.operation === 'rotate') {
+      // These operations are handled directly by WASM updates, no fallback needed
+      console.log('✅ WasmIntegration: Sprite operation confirmed by server:', data.operation, data.sprite_id);
     } else if (data.sprite_id === null) {
-      console.warn('⚠️ WasmIntegration: Sprite creation failed on server');
+      console.warn('⚠️ WasmIntegration: Sprite operation failed on server:', data);
     } else {
-      console.warn('⚠️ WasmIntegration: Invalid sprite response structure:', data);
+      console.warn('⚠️ WasmIntegration: Unknown sprite response type:', data);
     }
   }
 

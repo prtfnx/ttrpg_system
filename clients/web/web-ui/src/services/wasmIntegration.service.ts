@@ -14,6 +14,8 @@ class WasmIntegrationService {
   private pendingAssetRetries: Set<string> = new Set();
   // Track sprites waiting for asset upload confirmation before downloading
   private pendingSpritesForAssets: Map<string, string[]> = new Map(); // asset_id -> sprite_ids[]
+  // Track pending scale operations to prevent recursive calls
+  private pendingScaleOperations: Set<string> = new Set();
   // Timeout for optimistic inserts (ms)
   private readonly OPTIMISTIC_TIMEOUT = 10000;
 
@@ -429,6 +431,14 @@ class WasmIntegrationService {
 
   private updateSpriteScale(spriteId: string, scaleX?: number, scaleY?: number): void {
     try {
+      // Prevent recursive/concurrent scale operations
+      if (this.pendingScaleOperations.has(spriteId)) {
+        console.warn(`⚠️ Scale operation already pending for sprite ${spriteId}, skipping`);
+        return;
+      }
+
+      this.pendingScaleOperations.add(spriteId);
+      
       const finalScaleX = scaleX || 1.0;
       const finalScaleY = scaleY || 1.0;
       console.log(`🔍 Updating sprite ${spriteId} scale to: x=${finalScaleX}, y=${finalScaleY}`);
@@ -447,7 +457,12 @@ class WasmIntegrationService {
       console.log('🔍 Checking WASM update_sprite_scale method:', typeof (this.renderEngine as any).update_sprite_scale);
       
       if (typeof (this.renderEngine as any).update_sprite_scale === 'function') {
-        const success = (this.renderEngine as any).update_sprite_scale(spriteId, finalScaleX, finalScaleY);
+        // Create fresh copies to avoid unsafe aliasing in Rust
+        const spriteIdCopy = String(spriteId);
+        const scaleXCopy = Number(finalScaleX);
+        const scaleYCopy = Number(finalScaleY);
+        
+        const success = (this.renderEngine as any).update_sprite_scale(spriteIdCopy, scaleXCopy, scaleYCopy);
         console.log(`🎯 WASM update_sprite_scale returned:`, success);
         
         if (success) {
@@ -464,6 +479,7 @@ class WasmIntegrationService {
               console.log('🎨 Animation frame render after scale update');
             }
           });
+          this.pendingScaleOperations.delete(spriteId);
           return;
         } else {
           console.error(`❌ WASM update_sprite_scale failed for sprite ${spriteId}`);
@@ -476,6 +492,9 @@ class WasmIntegrationService {
       
     } catch (error) {
       console.error('Failed to update sprite scale:', error);
+    } finally {
+      // Always clean up the pending operation
+      this.pendingScaleOperations.delete(spriteId);
     }
   }
 

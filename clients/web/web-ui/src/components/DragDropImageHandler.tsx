@@ -104,15 +104,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
             fileName: pendingUpload.fileName
           });
 
-          // Dispatch upload completion event for AssetIntegrationService to handle
-          window.dispatchEvent(new CustomEvent('asset-upload-completed', {
-            detail: {
-              asset_id: data.asset_id,
-              success: true,
-              file_size: pendingUpload.file.size,
-              content_type: pendingUpload.file.type
-            }
-          }));
+          // No upload occurred, so don't dispatch upload completion event
           
           // Create sprite directly since asset already exists
           if (protocol) {

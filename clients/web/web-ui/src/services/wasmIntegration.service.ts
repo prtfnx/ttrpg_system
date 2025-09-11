@@ -167,6 +167,17 @@ class WasmIntegrationService {
     window.addEventListener('asset-uploaded', handleAssetUploaded);
     this.eventListeners.push(() => window.removeEventListener('asset-uploaded', handleAssetUploaded));
 
+    // Handle asset upload start notifications
+    const handleAssetUploadStarted = (event: Event) => {
+      const data = (event as CustomEvent).detail;
+      if (data.asset_id) {
+        console.log('Asset upload started, tracking for pending sprites:', data.asset_id);
+        this.pendingAssetRetries.add(data.asset_id);
+      }
+    };
+    window.addEventListener('asset-upload-started', handleAssetUploadStarted);
+    this.eventListeners.push(() => window.removeEventListener('asset-upload-started', handleAssetUploadStarted));
+
     // Also listen for success messages that might contain asset confirmations
     const handleProtocolSuccess = (event: Event) => {
       this.handleProtocolSuccess((event as CustomEvent).detail);

@@ -283,16 +283,16 @@ class ServerProtocol:
         result = await self.actions.delete_sprite(table_id=table_id, sprite_id=sprite_id, session_id=session_id)
         if result.success:
             # Broadcast sprite deletion to all other clients in the session
-            update_message = Message(MessageType.SPRITE_UPDATE, {
+            remove_message = Message(MessageType.SPRITE_REMOVE, {
                 'sprite_id': sprite_id,
-                'operation': 'delete',
+                'operation': 'remove',
                 'table_id': table_id
             })
-            await self.broadcast_to_session(update_message, client_id)
+            await self.broadcast_to_session(remove_message, client_id)
             
             return Message(MessageType.SPRITE_RESPONSE, {
                 'sprite_id': sprite_id,
-                'operation': 'delete',
+                'operation': 'remove',
                 'success': True
             })
         else:
@@ -336,14 +336,14 @@ class ServerProtocol:
             if action_id:
                 response_data['action_id'] = action_id
             
-            # Broadcast sprite update to all other clients in the session
-            update_message = Message(MessageType.SPRITE_UPDATE, {
+            # Broadcast sprite move to all other clients in the session
+            move_message = Message(MessageType.SPRITE_MOVE, {
                 'sprite_id': sprite_id,
-                'operation': 'move',
-                'position': to_pos,
+                'x': to_pos.get('x') if isinstance(to_pos, dict) else to_pos[0],
+                'y': to_pos.get('y') if isinstance(to_pos, dict) else to_pos[1],
                 'table_id': table_id
             })
-            await self.broadcast_to_session(update_message, client_id)
+            await self.broadcast_to_session(move_message, client_id)
             
             return Message(MessageType.SPRITE_RESPONSE, response_data)
         else:
@@ -387,15 +387,14 @@ class ServerProtocol:
             if action_id:
                 response_data['action_id'] = action_id
             
-            # Broadcast sprite update to all other clients in the session
-            update_message = Message(MessageType.SPRITE_UPDATE, {
+            # Broadcast sprite scale to all other clients in the session
+            scale_message = Message(MessageType.SPRITE_SCALE, {
                 'sprite_id': sprite_id,
-                'operation': 'scale',
                 'scale_x': scale_x,
                 'scale_y': scale_y,
                 'table_id': table_id
             })
-            await self.broadcast_to_session(update_message, client_id)
+            await self.broadcast_to_session(scale_message, client_id)
             
             return Message(MessageType.SPRITE_RESPONSE, response_data)
         else:

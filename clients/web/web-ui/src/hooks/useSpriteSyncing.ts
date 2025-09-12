@@ -5,12 +5,14 @@ export function useSpriteSyncing() {
   const addSprite = useGameStore(state => state.addSprite);
   const removeSprite = useGameStore(state => state.removeSprite);
   const updateSprite = useGameStore(state => state.updateSprite);
-  const sprites = useGameStore(state => state.sprites);
 
   const syncSprites = useCallback(() => {
     if (!window.rustRenderManager) return;
 
     try {
+      // Get current sprites from store
+      const sprites = useGameStore.getState().sprites;
+      
       // Get all sprites from the Rust backend
       const rustSprites = window.rustRenderManager.get_all_sprites_network_data();
       
@@ -31,11 +33,11 @@ export function useSpriteSyncing() {
 
       // Update store with current sprites from Rust
       // For now, replace all sprites (can be optimized later for incremental updates)
-      const currentSpriteIds = new Set(sprites.map(s => s.id));
+      const currentSpriteIds = new Set(sprites.map((s: any) => s.id));
       const rustSpriteIds = new Set(convertedSprites.map(s => s.id));
 
       // Remove sprites that no longer exist in Rust
-      sprites.forEach(sprite => {
+      sprites.forEach((sprite: any) => {
         if (!rustSpriteIds.has(sprite.id)) {
           removeSprite(sprite.id);
         }
@@ -53,7 +55,7 @@ export function useSpriteSyncing() {
     } catch (error) {
       console.warn('[SpriteSyncing] Error syncing sprites from Rust:', error);
     }
-  }, [sprites, addSprite, removeSprite, updateSprite]);
+  }, [addSprite, removeSprite, updateSprite]);
 
   // Sync sprites from Rust backend
   useEffect(() => {

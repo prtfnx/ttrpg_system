@@ -634,43 +634,6 @@ impl RenderEngine {
         }
     }
     
-    fn select_sprites_in_area(&mut self, min: Vec2, max: Vec2) {
-        let selected_sprites = self.layer_manager.select_sprites_in_area(min, max);
-        
-        // Update selection
-        if !selected_sprites.is_empty() {
-            self.input.clear_selection();
-            for sprite_id in selected_sprites {
-                self.input.add_to_selection(sprite_id);
-            }
-        }
-    }
-
-    fn find_sprite_at_position(&self, world_pos: Vec2) -> Option<String> {
-        self.layer_manager.find_sprite_at_position(world_pos)
-    }
-
-    fn select_sprite_at_position(&mut self, world_pos: Vec2) {
-        if let Some(sprite_id) = self.find_sprite_at_position(world_pos) {
-            // Single selection - clear others and select this one
-            self.input.set_single_selection(sprite_id);
-            self.input.input_mode = InputMode::SpriteMove;
-            // Calculate offset from click position to sprite's top-left corner
-            if let Some((sprite, _)) = self.layer_manager.find_sprite(&self.input.selected_sprite_id.as_ref().unwrap()) {
-                let sprite_top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
-                self.input.drag_offset = world_pos - sprite_top_left;
-            }
-        } else {
-            // Clicked on empty space - clear selection and start camera pan
-            self.input.clear_selection();
-            self.input.input_mode = InputMode::CameraPan;
-        }
-    }
-    
-    fn find_sprite(&self, sprite_id: &str) -> Option<(&Sprite, &str)> {
-        self.layer_manager.find_sprite(sprite_id)
-    }
-    
     // Sprite management methods
     #[wasm_bindgen]
     pub fn add_sprite_to_layer(&mut self, layer_name: &str, sprite_data: &JsValue) -> Result<String, JsValue> {
@@ -1743,40 +1706,6 @@ impl RenderEngine {
         }
         
         sprite_ids
-    }
-    
-    fn create_paint_stroke_sprite(&mut self, stroke_data: &str, layer_name: &str) -> Result<String, String> {
-        // Parse stroke data (simplified for now - could be JSON in future)
-        // TODO: Parse stroke_data to extract actual stroke information
-        let sprite_id = format!("paint_stroke_{}", js_sys::Date::now() as u64);
-        
-        // For now, create a simple colored sprite to represent the stroke
-        // In a more advanced implementation, this could be a texture or vector path
-        let sprite = Sprite {
-            id: sprite_id.clone(),
-            world_x: 0.0, // These would be calculated from stroke bounds
-            world_y: 0.0,
-            width: 10.0,  // Placeholder dimensions
-            height: 10.0,
-            rotation: 0.0,
-            scale_x: 1.0,
-            scale_y: 1.0,
-            texture_id: String::new(),
-            tint_color: [1.0, 0.5, 0.5, 1.0], // Paint stroke color
-            layer: layer_name.to_string(),
-        };
-        
-        // Log stroke data for debugging - will be used for actual parsing later
-        web_sys::console::log_1(&format!("Creating paint stroke with data: {}", stroke_data).into());
-        
-        // Convert sprite to JsValue
-        let sprite_js = serde_wasm_bindgen::to_value(&sprite)
-            .map_err(|e| format!("Failed to serialize sprite: {}", e))?;
-        
-        match self.layer_manager.add_sprite_to_layer(layer_name, &sprite_js) {
-            Ok(id) => Ok(id),
-            Err(e) => Err(format!("Failed to add sprite to layer: {:?}", e))
-        }
     }
 
     #[wasm_bindgen]

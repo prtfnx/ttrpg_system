@@ -30,10 +30,6 @@ impl TextureManager {
         Ok(())
     }
     
-    pub fn get_texture(&self, name: &str) -> Option<&WebGlTexture> {
-        self.textures.get(name)
-    }
-    
     pub fn has_texture(&self, name: &str) -> bool {
         self.textures.contains_key(name)
     }
@@ -225,17 +221,5 @@ impl TextureManager {
         
         self.textures.insert(name.to_string(), texture);
         Ok(())
-    }
-    
-    pub fn remove_texture(&mut self, name: &str) -> bool {
-        self.textures.remove(name).is_some()
-    }
-    
-    pub fn clear_textures(&mut self) {
-        self.textures.clear();
-    }
-    
-    pub fn get_texture_count(&self) -> usize {
-        self.textures.len()
     }
 }

@@ -46,9 +46,7 @@ impl DrawStroke {
         self.points.is_empty()
     }
     
-    pub fn length(&self) -> usize {
-        self.points.len()
-    }
+
 }
 
 #[wasm_bindgen]
@@ -329,13 +327,7 @@ impl PaintSystem {
         )
     }
     
-    // Convert strokes to JSON for sprite conversion (internal use only)
-    fn get_strokes_for_sprite_conversion(&self) -> Vec<(String, Vec2, Vec2, [f32; 4], f32)> {
-        self.strokes.iter().map(|stroke| {
-            let (min, max) = self.get_stroke_bounds(stroke);
-            (stroke.id.clone(), min, max, stroke.color, stroke.width)
-        }).collect()
-    }
+
     
     // WASM-safe method to get stroke data for sprite conversion
     #[wasm_bindgen]

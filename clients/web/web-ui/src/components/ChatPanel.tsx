@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useChatWebSocket } from '../hooks/useChatWebSocket';
 import { useChatStore } from '../store/chatStore';
+import { config } from '../config/appConfig';
 
-const WS_URL = 'ws://localhost:8000/ws'; // TODO: Make dynamic/configurable
 const USER = 'Player'; // TODO: Replace with real user info
 
 export function ChatPanel() {
   const { messages } = useChatStore();
-  const { sendMessage } = useChatWebSocket(WS_URL, USER);
+  const { sendMessage } = useChatWebSocket(config.getWebSocketUrl(), USER);
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 

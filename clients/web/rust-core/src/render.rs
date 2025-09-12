@@ -58,6 +58,9 @@ pub struct RenderEngine {
     
     // Table management
     table_manager: TableManager,
+    
+    // Rendering settings
+    background_color: [f32; 4], // RGBA background color
 }
 
 #[wasm_bindgen]
@@ -135,6 +138,7 @@ impl RenderEngine {
             paint,
             table_sync,
             table_manager,
+            background_color: [0.1, 0.1, 0.1, 1.0], // Default dark gray background
         };
         
         engine.update_view_matrix();
@@ -143,7 +147,13 @@ impl RenderEngine {
     
     #[wasm_bindgen]
     pub fn render(&mut self) -> Result<(), JsValue> {
-        self.renderer.clear(0.1, 0.1, 0.1, 1.0);
+        // Use stored background color
+        self.renderer.clear(
+            self.background_color[0], 
+            self.background_color[1], 
+            self.background_color[2], 
+            self.background_color[3]
+        );
         
         // Draw grid
         let world_bounds = self.get_world_view_bounds();
@@ -718,8 +728,13 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn set_background_color(&mut self, r: f32, g: f32, b: f32, a: f32) {
         // Store background color and apply it in the next render
+        self.background_color = [r, g, b, a];
         utils::log(&format!("Setting background color to rgba({}, {}, {}, {})", r, g, b, a));
-        // TODO: Implement background color storage in renderer
+    }
+
+    #[wasm_bindgen]
+    pub fn get_background_color(&self) -> Vec<f32> {
+        self.background_color.to_vec()
     }
 
     // Additional camera methods for MapPanel compatibility

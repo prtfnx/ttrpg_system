@@ -41,12 +41,6 @@ impl DrawStroke {
     pub fn add_point(&mut self, x: f32, y: f32, pressure: f32) {
         self.points.push(DrawPoint::new(x, y, pressure));
     }
-    
-    pub fn is_empty(&self) -> bool {
-        self.points.is_empty()
-    }
-    
-
 }
 
 #[wasm_bindgen]

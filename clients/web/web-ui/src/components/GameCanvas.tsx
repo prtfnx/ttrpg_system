@@ -1,7 +1,7 @@
 import type { RefObject } from 'react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
-// import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
+import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
 import { assetIntegrationService } from '../services/assetIntegration.service';
 import { useProtocol } from '../services/ProtocolContext';
 import { useWasmBridge } from '../services/wasmBridge';
@@ -85,8 +85,8 @@ export const GameCanvas: React.FC = () => {
   const [fps, setFps] = useState(0);
   const fpsRef = useRef({ frameCount: 0, lastTime: performance.now() });
   
-  // TODO: Re-enable sprite syncing after fixing React error
-  // useSpriteSyncing();
+  // Re-enabled sprite syncing with fixed React dependency issue
+  useSpriteSyncing();
 
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{

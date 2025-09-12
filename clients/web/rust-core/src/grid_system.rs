@@ -57,25 +57,7 @@ impl GridSystem {
         }
     }
     
-    pub fn snap_sprite_to_grid_center(&self, sprite_top_left: Vec2) -> Vec2 {
-        if self.snapping {
-            // Calculate which grid cell the sprite should be in based on its top-left corner
-            // Then position it so its center aligns with the grid cell center
-            let grid_x = (sprite_top_left.x / self.size).round();
-            let grid_y = (sprite_top_left.y / self.size).round();
-            
-            // Position sprite so its center is at the grid center
-            // Grid center is at (grid_x * grid_size + grid_size/2, grid_y * grid_size + grid_size/2)
-            // But we need to return the top-left position, so subtract half sprite size... 
-            // Actually, let's keep it simple and snap to grid intersections for now
-            Vec2::new(
-                grid_x * self.size,
-                grid_y * self.size
-            )
-        } else {
-            sprite_top_left
-        }
-    }
+
     
     pub fn draw_grid(&self, renderer: &WebGLRenderer, world_bounds: Rect) -> Result<(), JsValue> {
         if !self.enabled {

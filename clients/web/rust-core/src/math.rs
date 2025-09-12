@@ -1,5 +1,3 @@
-use serde::{Serialize, Deserialize};
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vec2 {
     pub x: f32,
@@ -86,38 +84,12 @@ pub struct Mat3 {
 }
 
 impl Mat3 {
-    pub fn identity() -> Self {
-        Self {
-            cols: [
-                Vec3::new(1.0, 0.0, 0.0),
-                Vec3::new(0.0, 1.0, 0.0),
-                Vec3::new(0.0, 0.0, 1.0),
-            ]
-        }
-    }
-    
     pub fn from_scale_translation(scale: Vec2, translation: Vec2) -> Self {
         Self {
             cols: [
                 Vec3::new(scale.x, 0.0, 0.0),
                 Vec3::new(0.0, scale.y, 0.0),
                 Vec3::new(translation.x, translation.y, 1.0),
-            ]
-        }
-    }
-    
-    pub fn inverse(self) -> Self {
-        // For 2D scale+translation matrix, inverse is straightforward
-        let sx = self.cols[0].x;
-        let sy = self.cols[1].y;
-        let tx = self.cols[2].x;
-        let ty = self.cols[2].y;
-        
-        Self {
-            cols: [
-                Vec3::new(1.0 / sx, 0.0, 0.0),
-                Vec3::new(0.0, 1.0 / sy, 0.0),
-                Vec3::new(-tx / sx, -ty / sy, 1.0),
             ]
         }
     }
@@ -176,46 +148,6 @@ impl Rect {
     pub fn contains(&self, point: Vec2) -> bool {
         point.x >= self.min.x && point.x <= self.max.x &&
         point.y >= self.min.y && point.y <= self.max.y
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Camera {
-    pub world_x: f64,
-    pub world_y: f64,
-    pub zoom: f64,
-}
-
-impl Default for Camera {
-    fn default() -> Self {
-        Self {
-            world_x: 0.0,
-            world_y: 0.0,
-            zoom: 1.0,
-        }
-    }
-}
-
-impl Camera {
-    pub fn view_matrix(&self, _canvas_size: Vec2) -> Mat3 {
-        Mat3::from_scale_translation(
-            Vec2::splat(self.zoom as f32),
-            Vec2::new(-self.world_x as f32 * self.zoom as f32, -self.world_y as f32 * self.zoom as f32)
-        )
-    }
-    
-    pub fn world_to_screen(&self, world_pos: Vec2) -> Vec2 {
-        Vec2::new(
-            ((world_pos.x as f64 - self.world_x) * self.zoom) as f32,
-            ((world_pos.y as f64 - self.world_y) * self.zoom) as f32,
-        )
-    }
-    
-    pub fn screen_to_world(&self, screen_pos: Vec2) -> Vec2 {
-        Vec2::new(
-            (screen_pos.x as f64 / self.zoom + self.world_x) as f32,
-            (screen_pos.y as f64 / self.zoom + self.world_y) as f32,
-        )
     }
 }
 

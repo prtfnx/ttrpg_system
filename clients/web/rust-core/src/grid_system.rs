@@ -1,4 +1,4 @@
-use crate::math::{Vec2, Rect};
+use crate::math::Rect;
 use crate::webgl_renderer::WebGLRenderer;
 use wasm_bindgen::prelude::*;
 
@@ -44,21 +44,7 @@ impl GridSystem {
     pub fn is_snapping_enabled(&self) -> bool {
         self.snapping
     }
-    
-    pub fn snap_to_grid(&self, world_pos: Vec2) -> Vec2 {
-        if self.snapping {
-            // Snap to grid line intersections, then we'll adjust for centering in the sprite positioning
-            Vec2::new(
-                (world_pos.x / self.size).round() * self.size,
-                (world_pos.y / self.size).round() * self.size
-            )
-        } else {
-            world_pos
-        }
-    }
-    
 
-    
     pub fn draw_grid(&self, renderer: &WebGLRenderer, world_bounds: Rect) -> Result<(), JsValue> {
         if !self.enabled {
             return Ok(());

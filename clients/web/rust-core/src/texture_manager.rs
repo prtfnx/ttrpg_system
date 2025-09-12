@@ -49,10 +49,7 @@ impl TextureManager {
         self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, None);
     }
     
-    // Create a circle texture programmatically
-    pub fn create_circle_texture(&mut self, name: &str, size: u32) -> Result<(), JsValue> {
-        self.create_circle_texture_with_color(name, size, [255, 255, 255, 255], false)
-    }
+
     
     // Create a circle texture with custom color and fill mode
     pub fn create_circle_texture_with_color(&mut self, name: &str, size: u32, color: [u8; 4], filled: bool) -> Result<(), JsValue> {
@@ -112,10 +109,7 @@ impl TextureManager {
         Ok(())
     }
     
-    // Create a line texture programmatically
-    pub fn create_line_texture(&mut self, name: &str, width: u32, height: u32, line_width: u32) -> Result<(), JsValue> {
-        self.create_line_texture_with_color(name, width, height, line_width, [255, 255, 255, 255])
-    }
+
     
     // Create a line texture with custom color
     pub fn create_line_texture_with_color(&mut self, name: &str, width: u32, height: u32, line_width: u32, color: [u8; 4]) -> Result<(), JsValue> {
@@ -166,10 +160,7 @@ impl TextureManager {
         Ok(())
     }
     
-    // Create a rectangle (outline) texture programmatically  
-    pub fn create_rectangle_texture(&mut self, name: &str, width: u32, height: u32, border_width: u32) -> Result<(), JsValue> {
-        self.create_rectangle_texture_with_color(name, width, height, border_width, [255, 255, 255, 255], false)
-    }
+
     
     // Create a rectangle texture with custom color and fill mode
     pub fn create_rectangle_texture_with_color(&mut self, name: &str, width: u32, height: u32, border_width: u32, color: [u8; 4], filled: bool) -> Result<(), JsValue> {

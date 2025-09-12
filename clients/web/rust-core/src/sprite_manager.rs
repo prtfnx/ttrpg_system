@@ -62,32 +62,6 @@ impl SpriteManager {
         }
     }
     
-    pub fn rotate_sprite_to_mouse(sprite: &mut Sprite, world_pos: Vec2) {
-        let sprite_center = Vec2::new(
-            sprite.world_x as f32 + (sprite.width * sprite.scale_x) as f32 * 0.5,
-            sprite.world_y as f32 + (sprite.height * sprite.scale_y) as f32 * 0.5
-        );
-        let dx = world_pos.x - sprite_center.x;
-        let dy = world_pos.y - sprite_center.y;
-        
-        // Calculate the angle from sprite center to mouse
-        let new_angle = dy.atan2(dx) as f64;
-        
-        // Set rotation directly (the relative rotation logic will be handled in render.rs)
-        sprite.rotation = new_angle;
-    }
-    
-    pub fn start_rotation(sprite: &Sprite, world_pos: Vec2) -> (f64, f64) {
-        let sprite_center = Vec2::new(
-            sprite.world_x as f32 + (sprite.width * sprite.scale_x) as f32 * 0.5,
-            sprite.world_y as f32 + (sprite.height * sprite.scale_y) as f32 * 0.5
-        );
-        let dx = world_pos.x - sprite_center.x;
-        let dy = world_pos.y - sprite_center.y;
-        let start_angle = dy.atan2(dx) as f64;
-        (start_angle, sprite.rotation)
-    }
-    
     pub fn update_rotation(sprite: &mut Sprite, world_pos: Vec2, start_angle: f64, initial_rotation: f64) {
         let sprite_center = Vec2::new(
             sprite.world_x as f32 + (sprite.width * sprite.scale_x) as f32 * 0.5,
@@ -100,27 +74,6 @@ impl SpriteManager {
         // Calculate relative rotation from start position
         let delta_rotation = current_angle - start_angle;
         sprite.rotation = initial_rotation + delta_rotation;
-    }
-    
-    pub fn move_sprite_to_position(sprite: &mut Sprite, world_pos: Vec2, drag_offset: Vec2) {
-        sprite.world_x = (world_pos.x - drag_offset.x) as f64;
-        sprite.world_y = (world_pos.y - drag_offset.y) as f64;
-    }
-    
-    pub fn move_sprite_to_snapped_position(sprite: &mut Sprite, snapped_pos: Vec2, drag_offset: Vec2) {
-        sprite.world_x = (snapped_pos.x - drag_offset.x) as f64;
-        sprite.world_y = (snapped_pos.y - drag_offset.y) as f64;
-    }
-    
-    pub fn get_sprite_center(sprite: &Sprite) -> Vec2 {
-        let sprite_size = Vec2::new(
-            (sprite.width * sprite.scale_x) as f32,
-            (sprite.height * sprite.scale_y) as f32
-        );
-        Vec2::new(
-            sprite.world_x as f32 + sprite_size.x * 0.5,
-            sprite.world_y as f32 + sprite_size.y * 0.5
-        )
     }
     
     pub fn get_rotation_handle_position(sprite: &Sprite, zoom: f64) -> Vec2 {
@@ -137,25 +90,6 @@ impl SpriteManager {
     
     // Additional sprite operation methods for better separation of concerns
     
-    pub fn set_sprite_position(sprite: &mut Sprite, world_pos: Vec2) {
-        sprite.world_x = world_pos.x as f64;
-        sprite.world_y = world_pos.y as f64;
-    }
-    
-    pub fn set_sprite_size(sprite: &mut Sprite, size: Vec2) {
-        sprite.width = size.x as f64 / sprite.scale_x;
-        sprite.height = size.y as f64 / sprite.scale_y;
-    }
-    
-    pub fn set_sprite_scale(sprite: &mut Sprite, scale: Vec2) {
-        sprite.scale_x = scale.x as f64;
-        sprite.scale_y = scale.y as f64;
-    }
-    
-    pub fn set_sprite_rotation(sprite: &mut Sprite, rotation: f64) {
-        sprite.rotation = rotation;
-    }
-    
     pub fn get_sprite_bounds(sprite: &Sprite) -> (Vec2, Vec2) {
         let top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
         let size = Vec2::new(
@@ -163,53 +97,5 @@ impl SpriteManager {
             (sprite.height * sprite.scale_y) as f32
         );
         (top_left, size)
-    }
-    
-    pub fn get_sprite_world_size(sprite: &Sprite) -> Vec2 {
-        Vec2::new(
-            (sprite.width * sprite.scale_x) as f32,
-            (sprite.height * sprite.scale_y) as f32
-        )
-    }
-    
-    pub fn is_point_inside_sprite(sprite: &Sprite, world_pos: Vec2) -> bool {
-        let sprite_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
-        let sprite_size = Vec2::new(
-            (sprite.width * sprite.scale_x) as f32,
-            (sprite.height * sprite.scale_y) as f32
-        );
-        
-        world_pos.x >= sprite_pos.x &&
-        world_pos.x <= sprite_pos.x + sprite_size.x &&
-        world_pos.y >= sprite_pos.y &&
-        world_pos.y <= sprite_pos.y + sprite_size.y
-    }
-    
-    pub fn calculate_drag_offset(sprite: &Sprite, world_pos: Vec2) -> Vec2 {
-        Vec2::new(
-            world_pos.x - sprite.world_x as f32,
-            world_pos.y - sprite.world_y as f32
-        )
-    }
-    
-    pub fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
-        Vec2::new(
-            (position.x / grid_size).round() * grid_size,
-            (position.y / grid_size).round() * grid_size
-        )
-    }
-    
-    pub fn constrain_to_bounds(sprite: &mut Sprite, bounds_min: Vec2, bounds_max: Vec2) {
-        let sprite_size = Self::get_sprite_world_size(sprite);
-        
-        sprite.world_x = (sprite.world_x as f32).clamp(
-            bounds_min.x,
-            bounds_max.x - sprite_size.x
-        ) as f64;
-        
-        sprite.world_y = (sprite.world_y as f32).clamp(
-            bounds_min.y,
-            bounds_max.y - sprite_size.y
-        ) as f64;
     }
 }

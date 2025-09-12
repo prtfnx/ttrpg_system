@@ -394,23 +394,6 @@ impl FogOfWarSystem {
         self.fog_rectangles.len()
     }
 
-    pub fn get_fog_data(&self) -> (Vec<(f32, f32, f32, f32)>, Vec<(f32, f32, f32, f32)>) {
-        let mut hide_rects = Vec::new();
-        let mut reveal_rects = Vec::new();
-        
-        for rectangle in self.fog_rectangles.values() {
-            let normalized = rectangle.normalized();
-            let rect_data = (normalized.start.x, normalized.start.y, normalized.end.x, normalized.end.y);
-            
-            match rectangle.mode {
-                FogMode::Hide => hide_rects.push(rect_data),
-                FogMode::Reveal => reveal_rects.push(rect_data),
-            }
-        }
-        
-        (hide_rects, reveal_rects)
-    }
-
     /// Add a polygon (array of [ {x,y}, ... ]) which will be treated as a reveal area
     pub fn add_fog_polygon(&mut self, id: String, points: JsValue) {
         let mut vec = Vec::new();
@@ -474,9 +457,5 @@ impl FogOfWarSystem {
 
     pub fn cancel_interactive_rectangle(&mut self, id: &str) {
         self.fog_rectangles.remove(id);
-    }
-
-    pub fn get_all_fog_rectangles(&self) -> Vec<(&String, &FogRectangle)> {
-        self.fog_rectangles.iter().collect()
     }
 }

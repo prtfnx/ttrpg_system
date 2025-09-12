@@ -266,7 +266,46 @@ impl SpriteRenderer {
         ];
         renderer.draw_quad(&end_vertices, &tex_coords, [1.0, 0.0, 0.0, 1.0], false)?; // Red end
         
-        // TODO: Add distance text rendering
+        // Calculate distance
+        let distance = ((end.x - start.x).powi(2) + (end.y - start.y).powi(2)).sqrt();
+        
+        // Draw distance label background (small rectangle at midpoint)
+        let mid_point = Vec2::new((start.x + end.x) / 2.0, (start.y + end.y) / 2.0);
+        let label_width = 60.0;
+        let label_height = 20.0;
+        
+        // Background rectangle for text
+        let bg_vertices = vec![
+            mid_point.x - label_width / 2.0, mid_point.y - label_height / 2.0,
+            mid_point.x + label_width / 2.0, mid_point.y - label_height / 2.0,
+            mid_point.x - label_width / 2.0, mid_point.y + label_height / 2.0,
+            mid_point.x + label_width / 2.0, mid_point.y + label_height / 2.0,
+        ];
+        renderer.draw_quad(&bg_vertices, &tex_coords, [0.0, 0.0, 0.0, 0.7], false)?; // Semi-transparent black background
+        
+        // Draw small tick marks on the line to indicate measurement
+        let num_ticks = 5;
+        for i in 1..num_ticks {
+            let t = i as f32 / num_ticks as f32;
+            let tick_pos = Vec2::new(
+                start.x + t * (end.x - start.x),
+                start.y + t * (end.y - start.y)
+            );
+            
+            // Calculate perpendicular direction for tick marks
+            let dir = Vec2::new(end.x - start.x, end.y - start.y);
+            let perp = Vec2::new(-dir.y, dir.x).normalize() * 3.0; // 3 pixel tick marks
+            
+            let tick_vertices = vec![
+                tick_pos.x - perp.x, tick_pos.y - perp.y,
+                tick_pos.x + perp.x, tick_pos.y + perp.y,
+            ];
+            renderer.draw_lines(&tick_vertices, [1.0, 1.0, 1.0, 0.8])?; // White tick marks
+        }
+        
+        // Log distance for debugging (will be visible in browser console)
+        web_sys::console::log_1(&format!("Measurement distance: {:.1} units", distance).into());
+        
         Ok(())
     }
     

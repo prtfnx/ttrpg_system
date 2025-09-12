@@ -96,15 +96,6 @@ impl InputHandler {
     pub fn new() -> Self {
         Self::default()
     }
-
-    pub fn reset(&mut self) {
-        self.input_mode = InputMode::None;
-        self.selected_sprite_id = None;
-        self.selected_sprite_ids.clear();
-        self.drag_offset = Vec2::new(0.0, 0.0);
-        self.area_select_start = None;
-        self.area_select_current = None;
-    }
     
     // Multi-select management methods
     pub fn add_to_selection(&mut self, sprite_id: String) {
@@ -145,12 +136,6 @@ impl InputHandler {
         self.area_select_start = Some(world_pos);
         self.area_select_current = Some(world_pos);
         self.input_mode = InputMode::AreaSelect;
-    }
-    
-    pub fn update_area_selection(&mut self, world_pos: Vec2) {
-        if self.input_mode == InputMode::AreaSelect {
-            self.area_select_current = Some(world_pos);
-        }
     }
     
     pub fn get_area_selection_rect(&self) -> Option<(Vec2, Vec2)> {
@@ -236,16 +221,6 @@ impl InputHandler {
         } else {
             None
         }
-    }
-
-    // Check if mouse is over a light source
-    pub fn is_mouse_over_light(&self, world_pos: Vec2, light_pos: Vec2, light_radius: f32) -> bool {
-        let dx = world_pos.x - light_pos.x;
-        let dy = world_pos.y - light_pos.y;
-        let distance_squared = dx * dx + dy * dy;
-        let click_radius = 20.0; // Minimum click radius for lights
-        let actual_radius = light_radius.max(click_radius);
-        distance_squared <= actual_radius * actual_radius
     }
 
     // ============================================================================

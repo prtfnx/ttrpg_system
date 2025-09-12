@@ -92,15 +92,6 @@ impl LayerManager {
         }
     }
     
-    pub fn configure_layer(&mut self, layer_name: &str, settings: LayerSettings) -> bool {
-        if let Some(layer) = self.layers.get_mut(layer_name) {
-            layer.settings = settings;
-            true
-        } else {
-            false
-        }
-    }
-    
     pub fn get_layer_settings(&self, layer_name: &str) -> Option<&LayerSettings> {
         self.layers.get(layer_name).map(|layer| &layer.settings)
     }
@@ -190,35 +181,7 @@ impl LayerManager {
         None
     }
     
-    pub fn select_sprites_in_area(&self, min: Vec2, max: Vec2) -> Vec<String> {
-        let mut selected_sprites = Vec::new();
-        
-        // Find all sprites that intersect with the selection rectangle
-        for (_, layer) in &self.layers {
-            if layer.selectable {
-                for sprite in &layer.sprites {
-                    let sprite_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
-                    let sprite_size = Vec2::new(
-                        (sprite.width * sprite.scale_x) as f32,
-                        (sprite.height * sprite.scale_y) as f32
-                    );
-                    
-                    // Check if sprite rectangle intersects with selection rectangle
-                    let sprite_min = sprite_pos;
-                    let sprite_max = sprite_pos + sprite_size;
-                    
-                    let intersects = sprite_max.x >= min.x && sprite_min.x <= max.x &&
-                                   sprite_max.y >= min.y && sprite_min.y <= max.y;
-                    
-                    if intersects {
-                        selected_sprites.push(sprite.id.clone());
-                    }
-                }
-            }
-        }
-        
-        selected_sprites
-    }
+
     
     pub fn find_sprite_for_right_click(&self, world_pos: Vec2) -> Option<String> {
         // Search for sprite at position (reverse z-order for top-most)

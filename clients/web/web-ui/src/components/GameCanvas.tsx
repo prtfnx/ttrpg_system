@@ -1,7 +1,7 @@
 import type { RefObject } from 'react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useWebSocket } from '../hooks/useWebSocket';
 import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
+import { useWebSocket } from '../hooks/useWebSocket';
 import { assetIntegrationService } from '../services/assetIntegration.service';
 import { useProtocol } from '../services/ProtocolContext';
 import { useWasmBridge } from '../services/wasmBridge';

@@ -164,23 +164,6 @@ impl LayerManager {
         false
     }
     
-    pub fn find_sprite_at_position(&self, world_pos: Vec2) -> Option<String> {
-        // Search in reverse z-order (top layers first)
-        let mut sorted_layers: Vec<_> = self.layers.iter().collect();
-        sorted_layers.sort_by_key(|(_, layer)| std::cmp::Reverse(layer.z_order()));
-        
-        for (_, layer) in sorted_layers {
-            if layer.selectable {
-                for sprite in layer.sprites.iter().rev() {
-                    if sprite.contains_world_point(world_pos) {
-                        return Some(sprite.id.clone());
-                    }
-                }
-            }
-        }
-        None
-    }
-    
 
     
     pub fn find_sprite_for_right_click(&self, world_pos: Vec2) -> Option<String> {

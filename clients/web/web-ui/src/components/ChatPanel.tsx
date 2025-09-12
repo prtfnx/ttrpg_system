@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { config } from '../config/appConfig';
 import { useChatWebSocket } from '../hooks/useChatWebSocket';
 import { useChatStore } from '../store/chatStore';
-import { config } from '../config/appConfig';
 
 const USER = 'Player'; // TODO: Replace with real user info
 

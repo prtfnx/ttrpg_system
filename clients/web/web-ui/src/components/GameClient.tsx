@@ -155,6 +155,12 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
       dragRef.current = null;
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      
+      // Final resize trigger after drag ends to ensure canvas updates
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+        console.log('🔄 GameClient: Final resize trigger after panel drag end');
+      }, 100);
     };
     
     document.addEventListener('mousemove', onDrag);

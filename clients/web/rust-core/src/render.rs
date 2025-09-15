@@ -297,7 +297,7 @@ impl RenderEngine {
                 
                 // Check for resize handles (only works for non-rotated sprites for now)
                 if sprite.rotation == 0.0 {
-                    if let Some(handle) = HandleDetector::get_resize_handle_for_non_rotated_sprite(sprite, world_pos, self.camera.zoom) {
+                    if let Some(handle) = HandleDetector::get_resize_handle_for_cursor_detection(sprite, world_pos, self.camera.zoom) {
                         return HandleDetector::get_cursor_for_handle(handle).to_string();
                     }
                 }

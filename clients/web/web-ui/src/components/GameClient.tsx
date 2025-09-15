@@ -139,6 +139,9 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
         localStorage.setItem('panel_right_width', w.toString());
         console.log(`📏 GameClient: Right panel width: ${w}px`);
       }
+      
+      // Trigger window resize event to notify canvas
+      window.dispatchEvent(new Event('resize'));
     };
     
     const onDragEnd = () => {

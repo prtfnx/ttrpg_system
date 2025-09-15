@@ -279,11 +279,13 @@ export const GameCanvas: React.FC = () => {
   // Debounced resize scheduling shared across the effect scope so cleanup can access it
   let resizeTimeout: number | null = null;
   const scheduleResize = () => {
+    console.log('🔄 Canvas: Scheduling resize due to layout change');
     if (resizeTimeout) {
       window.clearTimeout(resizeTimeout);
     }
     // Debounce final resize until layout is stable (150ms)
     resizeTimeout = window.setTimeout(() => {
+      console.log('📐 Canvas: Executing resize');
       try { resizeCanvas(); } catch (e) { console.error('Scheduled resize failed', e); }
       resizeTimeout = null;
     }, 150);
@@ -297,6 +299,8 @@ export const GameCanvas: React.FC = () => {
       const dpr = window.devicePixelRatio || 1;
       dprRef.current = dpr;
       const rect = canvas.getBoundingClientRect();
+      
+      console.log('🖼️  Canvas: Resizing canvas to', rect.width, 'x', rect.height, 'CSS pixels');
 
       // Compute world coordinate at canvas center before changing internal size.
       // Use the canvas' current internal pixel size (canvas.width/height) to avoid

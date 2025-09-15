@@ -147,14 +147,15 @@
   min-height: 0;
 }
 
+
 .left-panel {
-  flex: 0 0 400px;
+  display: flex;
+  flex-direction: column;
   background: #111827;
   border-right: 1px solid #374151;
   overflow-y: auto;
   padding: 1rem;
-  min-width: 250px;
-  max-width: 600px;
+  position: relative;
 }
 
 .canvas-container {
@@ -167,15 +168,16 @@
   min-width: 0;
 }
 
+
 .right-panel {
-  flex: 0 0 450px;
+  display: flex;
+  flex-direction: column;
   background: #111827;
   border-left: 1px solid #374151;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 1rem;
-  min-width: 300px;
-  max-width: 700px;
+  position: relative;
 }
 
 /* Resizer gutter between panels: larger hit area and visible styling */

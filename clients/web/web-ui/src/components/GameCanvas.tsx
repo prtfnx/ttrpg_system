@@ -283,12 +283,12 @@ export const GameCanvas: React.FC = () => {
     if (resizeTimeout) {
       window.clearTimeout(resizeTimeout);
     }
-    // Debounce final resize until layout is stable (150ms)
+    // Reduced debounce time for more responsive resizing
     resizeTimeout = window.setTimeout(() => {
       console.log('📐 Canvas: Executing resize');
       try { resizeCanvas(); } catch (e) { console.error('Scheduled resize failed', e); }
       resizeTimeout = null;
-    }, 150);
+    }, 50); // Reduced from 150ms to 50ms
   };
 
     // Helper to resize canvas and notify WASM. Preserve the world point
@@ -433,8 +433,21 @@ export const GameCanvas: React.FC = () => {
 
         // Setup ResizeObserver + window resize hook to schedule debounced canvas resize
         try {
-          resizeObserver = new ResizeObserver(() => scheduleResize());
+          resizeObserver = new ResizeObserver((entries) => {
+            console.log('🔍 Canvas: ResizeObserver triggered, entries:', entries.length);
+            for (const entry of entries) {
+              console.log('  - Element resized:', entry.target.tagName, entry.contentRect.width, 'x', entry.contentRect.height);
+            }
+            scheduleResize();
+          });
           resizeObserver.observe(canvas);
+          
+          // Also observe the canvas container to catch flex layout changes
+          const container = canvas.parentElement;
+          if (container) {
+            console.log('📦 Canvas: Also observing canvas container');
+            resizeObserver.observe(container);
+          }
         } catch (err) {
           console.warn('ResizeObserver unavailable or failed to observe canvas:', err);
         }

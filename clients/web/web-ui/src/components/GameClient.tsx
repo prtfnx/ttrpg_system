@@ -140,8 +140,12 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
         console.log(`📏 GameClient: Right panel width: ${w}px`);
       }
       
-      // Trigger window resize event to notify canvas
+      // Trigger multiple resize notifications for better canvas detection
       window.dispatchEvent(new Event('resize'));
+      // Also trigger a direct request animation frame callback for immediate effect
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new Event('resize'));
+      });
     };
     
     const onDragEnd = () => {

@@ -309,7 +309,54 @@ impl HandleDetector {
             (sprite.width * sprite.scale_x) as f32,
             (sprite.height * sprite.scale_y) as f32
         );
-        let border_threshold = 8.0 / zoom as f32; // Larger interaction area for better usability
+        let border_threshold = 8.0 / zoom as f32; // Precise click detection
+        
+        let on_left = (world_pos.x >= sprite_pos.x - border_threshold) && (world_pos.x <= sprite_pos.x + border_threshold);
+        let on_right = (world_pos.x >= sprite_pos.x + sprite_size.x - border_threshold) && (world_pos.x <= sprite_pos.x + sprite_size.x + border_threshold);
+        let on_top = (world_pos.y >= sprite_pos.y - border_threshold) && (world_pos.y <= sprite_pos.y + border_threshold);
+        let on_bottom = (world_pos.y >= sprite_pos.y + sprite_size.y - border_threshold) && (world_pos.y <= sprite_pos.y + sprite_size.y + border_threshold);
+        
+        let in_x_range = world_pos.x >= sprite_pos.x && world_pos.x <= sprite_pos.x + sprite_size.x;
+        let in_y_range = world_pos.y >= sprite_pos.y && world_pos.y <= sprite_pos.y + sprite_size.y;
+        
+        // Check corners first
+        if on_left && on_top {
+            Some(ResizeHandle::TopLeft)
+        } else if on_right && on_top {
+            Some(ResizeHandle::TopRight)
+        } else if on_left && on_bottom {
+            Some(ResizeHandle::BottomLeft)
+        } else if on_right && on_bottom {
+            Some(ResizeHandle::BottomRight)
+        } else if (on_left || on_right) && in_y_range {
+            if on_left {
+                Some(ResizeHandle::LeftCenter)
+            } else {
+                Some(ResizeHandle::RightCenter)
+            }
+        } else if (on_top || on_bottom) && in_x_range {
+            if on_top {
+                Some(ResizeHandle::TopCenter)
+            } else {
+                Some(ResizeHandle::BottomCenter)
+            }
+        } else {
+            None
+        }
+    }
+    
+    pub fn get_resize_handle_for_cursor_detection(
+        sprite: &Sprite, 
+        world_pos: Vec2, 
+        zoom: f64
+    ) -> Option<ResizeHandle> {
+        let sprite_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
+        let sprite_size = Vec2::new(
+            (sprite.width * sprite.scale_x) as f32,
+            (sprite.height * sprite.scale_y) as f32
+        );
+        // Larger area for cursor feedback - more user-friendly
+        let border_threshold = 16.0 / zoom as f32; // Double the size for better visibility
         
         let on_left = (world_pos.x >= sprite_pos.x - border_threshold) && (world_pos.x <= sprite_pos.x + border_threshold);
         let on_right = (world_pos.x >= sprite_pos.x + sprite_size.x - border_threshold) && (world_pos.x <= sprite_pos.x + sprite_size.x + border_threshold);

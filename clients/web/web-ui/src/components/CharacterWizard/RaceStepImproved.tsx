@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
-import { RACES, type RaceData, getRacialTraits, calculateRacialASI } from './raceData';
+import { RACES, type RaceData, calculateRacialASI, getRacialTraits } from './raceData';
 import type { RaceStepData } from './schemas';
 
 interface ExtendedRaceData extends RaceStepData {

@@ -355,8 +355,8 @@ impl HandleDetector {
             (sprite.width * sprite.scale_x) as f32,
             (sprite.height * sprite.scale_y) as f32
         );
-        // Larger area for cursor feedback - more user-friendly
-        let border_threshold = 16.0 / zoom as f32; // Double the size for better visibility
+        // Very precise cursor detection - only on the border line
+        let border_threshold = 4.0 / zoom as f32; // Much smaller for precise cursor feedback
         
         let on_left = (world_pos.x >= sprite_pos.x - border_threshold) && (world_pos.x <= sprite_pos.x + border_threshold);
         let on_right = (world_pos.x >= sprite_pos.x + sprite_size.x - border_threshold) && (world_pos.x <= sprite_pos.x + sprite_size.x + border_threshold);

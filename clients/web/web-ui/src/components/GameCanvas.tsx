@@ -280,15 +280,22 @@ export const GameCanvas: React.FC = () => {
   let resizeTimeout: number | null = null;
   const scheduleResize = () => {
     console.log('🔄 Canvas: Scheduling resize due to layout change');
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      console.log('📏 Canvas: Current canvas rect when resize scheduled:', rect.width, 'x', rect.height);
+    }
     if (resizeTimeout) {
       window.clearTimeout(resizeTimeout);
     }
-    // Reduced debounce time for more responsive resizing
-    resizeTimeout = window.setTimeout(() => {
-      console.log('📐 Canvas: Executing resize');
-      try { resizeCanvas(); } catch (e) { console.error('Scheduled resize failed', e); }
-      resizeTimeout = null;
-    }, 50); // Reduced from 150ms to 50ms
+    // Use requestAnimationFrame to ensure layout is complete before measuring
+    requestAnimationFrame(() => {
+      resizeTimeout = window.setTimeout(() => {
+        console.log('📐 Canvas: Executing resize after layout complete');
+        try { resizeCanvas(); } catch (e) { console.error('Scheduled resize failed', e); }
+        resizeTimeout = null;
+      }, 10); // Very short delay after layout is complete
+    });
   };
 
     // Helper to resize canvas and notify WASM. Preserve the world point
@@ -296,11 +303,38 @@ export const GameCanvas: React.FC = () => {
     const resizeCanvas = () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
+      
+      // Get size from container instead of canvas element to avoid timing issues
+      const container = canvas.parentElement;
+      if (!container) {
+        console.warn('Canvas has no parent container for sizing');
+        return;
+      }
+      
       const dpr = window.devicePixelRatio || 1;
       dprRef.current = dpr;
-      const rect = canvas.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const canvasRect = canvas.getBoundingClientRect();
       
-      console.log('🖼️  Canvas: Resizing canvas to', rect.width, 'x', rect.height, 'CSS pixels');
+      console.log('🖼️  Canvas: Container size:', containerRect.width, 'x', containerRect.height);
+      console.log('🖼️  Canvas: Canvas element size:', canvasRect.width, 'x', canvasRect.height);
+      
+      // Use container dimensions for the canvas size
+      const targetWidth = containerRect.width;
+      const targetHeight = containerRect.height;
+      
+      // Check if the size has actually changed
+      const newDeviceWidth = Math.round(targetWidth * dpr);
+      const newDeviceHeight = Math.round(targetHeight * dpr);
+      const currentDeviceWidth = canvas.width;
+      const currentDeviceHeight = canvas.height;
+      
+      if (newDeviceWidth === currentDeviceWidth && newDeviceHeight === currentDeviceHeight) {
+        console.log('⚠️  Canvas: Size unchanged, skipping resize');
+        return;
+      }
+      
+      console.log('🎯 Canvas: Actual size change detected:', currentDeviceWidth, 'x', currentDeviceHeight, '->', newDeviceWidth, 'x', newDeviceHeight);
 
       // Compute world coordinate at canvas center before changing internal size.
       // Use the canvas' current internal pixel size (canvas.width/height) to avoid
@@ -309,8 +343,8 @@ export const GameCanvas: React.FC = () => {
       try {
         const rm: any = window.rustRenderManager;
         if (rm && typeof rm.screen_to_world === 'function') {
-          const deviceCenterX = (canvas.width || (rect.width * dpr)) / 2;
-          const deviceCenterY = (canvas.height || (rect.height * dpr)) / 2;
+          const deviceCenterX = currentDeviceWidth / 2;
+          const deviceCenterY = currentDeviceHeight / 2;
           const w = rm.screen_to_world(deviceCenterX, deviceCenterY);
           if (Array.isArray(w) && w.length >= 2) {
             worldCenter = w;
@@ -321,22 +355,39 @@ export const GameCanvas: React.FC = () => {
       }
 
       // Update canvas internal resolution
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      canvas.style.width = rect.width + 'px';
-      canvas.style.height = rect.height + 'px';
+      const oldWidth = canvas.width;
+      const oldHeight = canvas.height;
+      canvas.width = newDeviceWidth;
+      canvas.height = newDeviceHeight;
+      canvas.style.width = targetWidth + 'px';
+      canvas.style.height = targetHeight + 'px';
+      
+      console.log('🎨 Canvas: Updated canvas size from', oldWidth, 'x', oldHeight, 'to', canvas.width, 'x', canvas.height, 'pixels');
+      console.log('🎨 Canvas: Set CSS size to', targetWidth, 'x', targetHeight, 'pixels');
 
       // Notify WASM of resize if method exists. Try common names exported by wasm-bindgen.
       try {
         const rm: any = window.rustRenderManager;
         if (rm) {
+          let resizeSuccess = false;
           if (typeof rm.resize_canvas === 'function') {
+            console.log('🦀 WASM: Calling resize_canvas with', canvas.width, 'x', canvas.height);
             rm.resize_canvas(canvas.width, canvas.height);
+            resizeSuccess = true;
           } else if (typeof rm.resize === 'function') {
+            console.log('🦀 WASM: Calling resize with', canvas.width, 'x', canvas.height);
             rm.resize(canvas.width, canvas.height);
+            resizeSuccess = true;
           } else if (typeof rm.resizeCanvas === 'function') {
+            console.log('🦀 WASM: Calling resizeCanvas with', canvas.width, 'x', canvas.height);
             rm.resizeCanvas(canvas.width, canvas.height);
+            resizeSuccess = true;
           }
+          if (!resizeSuccess) {
+            console.warn('🦀 WASM: No resize method found on render manager');
+          }
+        } else {
+          console.warn('🦀 WASM: No render manager available for resize');
         }
       } catch (err) {
         console.error('WASM resize error:', err);
@@ -436,7 +487,8 @@ export const GameCanvas: React.FC = () => {
           resizeObserver = new ResizeObserver((entries) => {
             console.log('🔍 Canvas: ResizeObserver triggered, entries:', entries.length);
             for (const entry of entries) {
-              console.log('  - Element resized:', entry.target.tagName, entry.contentRect.width, 'x', entry.contentRect.height);
+              console.log('  - Element resized:', entry.target.tagName, entry.target.className, entry.contentRect.width, 'x', entry.contentRect.height);
+              console.log('  - Border box size:', entry.borderBoxSize?.[0]?.inlineSize, 'x', entry.borderBoxSize?.[0]?.blockSize);
             }
             scheduleResize();
           });
@@ -445,7 +497,7 @@ export const GameCanvas: React.FC = () => {
           // Also observe the canvas container to catch flex layout changes
           const container = canvas.parentElement;
           if (container) {
-            console.log('📦 Canvas: Also observing canvas container');
+            console.log('📦 Canvas: Also observing canvas container:', container.className);
             resizeObserver.observe(container);
           }
         } catch (err) {

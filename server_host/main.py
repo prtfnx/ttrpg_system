@@ -24,6 +24,7 @@ logger = setup_logger(__name__)
 from server_host.utils.logger import setup_logger
 from server_host.routers import users
 from server_host.routers import game
+from server_host.routers import compendium
 from server_host.api import game_ws
 from server_host.database.database import create_tables
 from server_host.service.game_session import ConnectionManager
@@ -150,6 +151,7 @@ async def forbidden_handler(request: Request, exc: HTTPException):
 # Include routers
 app.include_router(users.router)
 app.include_router(game.router)
+app.include_router(compendium.router)
 app.include_router(game_ws.router)
 
 @app.get("/")

@@ -5,7 +5,7 @@ import { BackgroundStep } from './BackgroundStep';
 import { classSchema } from './classSchema';
 import { ClassStep } from './ClassStep';
 import IdentityStep from './IdentityStep';
-import { RaceStep } from './RaceStep';
+import { RaceStep } from './RaceStepImproved';
 import ReviewStep from './ReviewStep';
 import { abilitiesSchema, raceSchema, type CharacterFormData } from './schemas';
 import { SkillsStep } from './SkillsStep';

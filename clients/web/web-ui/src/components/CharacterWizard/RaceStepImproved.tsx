@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
-import { RACES, type RaceData, calculateRacialASI, getRacialTraits } from './raceData';
+import { useRacesForCharacterWizard } from '../../hooks/useCompendium';
+import { calculateRacialASI, getRacialTraits } from './raceData';
 import type { RaceStepData } from './schemas';
 
 interface ExtendedRaceData extends RaceStepData {
@@ -11,6 +12,9 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
   const { control, handleSubmit, formState, watch, setValue } = useFormContext<ExtendedRaceData>();
   const [selectedRace, setSelectedRace] = useState<string>('');
   const watchedRace = watch('race');
+  
+  // Load races from compendium
+  const { data: RACES, loading: racesLoading, error: racesError } = useRacesForCharacterWizard();
   
   const handleRaceNext = (data: ExtendedRaceData) => {
     console.log('[RaceStep] onNext called, data:', data);
@@ -24,13 +28,47 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
     setValue('subrace', '');
   };
 
-  const selectedRaceData = RACES[selectedRace] as RaceData | undefined;
+  // Show loading state
+  if (racesLoading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Choose your character's race</div>
+        <div>Loading races from compendium...</div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (racesError) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Choose your character's race</div>
+        <div style={{ color: 'red' }}>
+          Error loading races: {racesError}
+          <br />
+          <small>Falling back to local data would go here</small>
+        </div>
+      </div>
+    );
+  }
+
+  // If no races loaded, show fallback
+  if (!RACES || Object.keys(RACES).length === 0) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Choose your character's race</div>
+        <div>No races available from compendium</div>
+      </div>
+    );
+  }
+
+  const selectedRaceData = RACES[selectedRace];
   const hasSubraces = selectedRaceData?.subraces && Object.keys(selectedRaceData.subraces).length > 0;
   const selectedSubrace = watch('subrace');
   
   // Show racial traits
-  const racialTraits = selectedRace ? getRacialTraits(selectedRace, selectedSubrace) : [];
-  const racialASI = selectedRace ? calculateRacialASI(selectedRace, selectedSubrace) : {};
+  const racialTraits = selectedRace ? getRacialTraits(selectedRace, selectedSubrace, RACES) : [];
+  const racialASI = selectedRace ? calculateRacialASI(selectedRace, selectedSubrace, RACES) : {};
 
   return (
     <form onSubmit={handleSubmit(handleRaceNext)} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

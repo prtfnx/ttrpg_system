@@ -1,10 +1,7 @@
 export { TextSpriteCreator, type TextSpriteConfig } from './TextSpriteCreator';
 export { TextSpriteTool } from './TextSpriteTool';
-export { 
-  createTextSprite, 
-  updateTextSprite, 
-  deleteTextSprite, 
-  renderTextSprite,
-  type TextSpriteData,
-  type RenderResult 
+export { TextSpriteEditor } from './TextSpriteEditor';
+export {
+    createTextSprite, deleteTextSprite,
+    renderTextSprite, updateTextSprite, type RenderResult, type TextSpriteData
 } from './textSpriteUtils';

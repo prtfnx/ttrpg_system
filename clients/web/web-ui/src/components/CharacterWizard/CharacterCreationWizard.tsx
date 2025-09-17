@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { AbilitiesStep } from './AbilitiesStep';
 import { BackgroundStep } from './BackgroundStep';
 import { classSchema } from './classSchema';
@@ -10,6 +12,9 @@ import ReviewStep from './ReviewStep';
 import { abilitiesSchema, raceSchema, type CharacterFormData } from './schemas';
 import { SkillsStep } from './SkillsStep';
 import type { WizardFormData } from './WizardFormData';
+import { Modal } from '../common/Modal';
+import { ErrorBoundary } from '../common/ErrorBoundary';
+import '../common/Modal.css';
 
 // D&D 5e class skills mapping
 const CLASS_SKILLS = {
@@ -65,24 +70,43 @@ function getRaceSkills(race: string): string[] {
 interface CharacterCreationWizardProps {
   onFinish: (data: WizardFormData) => void;
   onCancel: () => void;
+  isOpen: boolean;
 }
 
-export function CharacterCreationWizard({ onFinish, onCancel }: CharacterCreationWizardProps) {
+// Form validation schema
+const wizardSchema = z.object({
+  race: raceSchema.shape.race,
+  class: classSchema.shape.class,
+  background: z.string().min(1, 'Background is required'),
+  strength: z.number().min(8).max(15),
+  dexterity: z.number().min(8).max(15),
+  constitution: z.number().min(8).max(15),
+  intelligence: z.number().min(8).max(15),
+  wisdom: z.number().min(8).max(15),
+  charisma: z.number().min(8).max(15),
+  skills: z.array(z.string()).min(1, 'At least one skill is required'),
+  name: z.string().min(1, 'Character name is required'),
+  bio: z.string().optional(),
+  image: z.string().optional()
+});
+
+export function CharacterCreationWizard({ onFinish, onCancel, isOpen }: CharacterCreationWizardProps) {
   const [step, setStep] = useState(0);
   const stepsCount = 7; // Race, Class, Background, Abilities, Skills, Identity, Review
   
   const methods = useForm<WizardFormData>({
+    resolver: zodResolver(wizardSchema),
     mode: 'onChange',
     defaultValues: {
       race: '',
       class: '',
       background: '',
-      strength: 0,
-      dexterity: 0,
-      constitution: 0,
-      intelligence: 0,
-      wisdom: 0,
-      charisma: 0,
+      strength: 8,
+      dexterity: 8,
+      constitution: 8,
+      intelligence: 8,
+      wisdom: 8,
+      charisma: 8,
       skills: [],
       name: '',
       bio: '',

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { TextSpriteCreator, type TextSpriteConfig } from './TextSpriteCreator';
-import { updateTextSprite, deleteTextSprite } from './textSpriteUtils';
+import { deleteTextSprite, updateTextSprite } from './textSpriteUtils';
 
 interface TextSpriteEditorProps {
   spriteId: string;

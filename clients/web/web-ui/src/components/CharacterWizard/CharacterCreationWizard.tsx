@@ -2,6 +2,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Modal } from '../common/Modal';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 import '../common/Modal.css';
 import { AbilitiesStep } from './AbilitiesStep';
 import { BackgroundStep } from './BackgroundStep';
@@ -114,14 +116,17 @@ export function CharacterCreationWizard({ onFinish, onCancel, isOpen }: Characte
 
   console.log('[CharacterCreationWizard] Render, current step:', step);
 
-  // Step-specific validation
+  // Step-specific validation with proper error handling
   function handleNextRace() {
     const values = methods.getValues();
     const result = raceSchema.safeParse(values);
     if (result.success) {
       setStep((s) => s + 1);
     } else {
-      methods.setError('race', { type: 'manual', message: result.error.issues[0]?.message || 'Select a race' });
+      const errors = result.error.flatten().fieldErrors;
+      if (errors.race) {
+        methods.setError('race', { type: 'manual', message: errors.race[0] });
+      }
     }
   }
 
@@ -131,8 +136,50 @@ export function CharacterCreationWizard({ onFinish, onCancel, isOpen }: Characte
     if (result.success) {
       setStep((s) => s + 1);
     } else {
-      methods.setError('class', { type: 'manual', message: result.error.issues[0]?.message || 'Select a class' });
+      const errors = result.error.flatten().fieldErrors;
+      if (errors.class) {
+        methods.setError('class', { type: 'manual', message: errors.class[0] });
+      }
     }
+  }
+
+  function handleNextAbilities() {
+    const values = methods.getValues();
+    const result = abilitiesSchema.safeParse(values);
+    if (result.success) {
+      setStep((s) => s + 1);
+    } else {
+      const errors = result.error.flatten().fieldErrors;
+      Object.keys(errors).forEach(key => {
+        methods.setError(key as any, { type: 'manual', message: errors[key as keyof typeof errors]?.[0] });
+      });
+    }
+  }
+
+  function handleFinish(data: WizardFormData) {
+    const result = wizardSchema.safeParse(data);
+    if (result.success) {
+      onFinish(data);
+    } else {
+      const errors = result.error.flatten().fieldErrors;
+      Object.keys(errors).forEach(key => {
+        methods.setError(key as any, { type: 'manual', message: errors[key as keyof typeof errors]?.[0] });
+      });
+      // Go to first step with error
+      const firstErrorStep = getFirstErrorStep(errors);
+      setStep(firstErrorStep);
+    }
+  }
+
+  function getFirstErrorStep(errors: Record<string, string[] | undefined>): number {
+    if (errors.race) return 0;
+    if (errors.class) return 1;
+    if (errors.background) return 2;
+    if (errors.strength || errors.dexterity || errors.constitution || 
+        errors.intelligence || errors.wisdom || errors.charisma) return 3;
+    if (errors.skills) return 4;
+    if (errors.name) return 5;
+    return step;
   }
 
   function handleNextBackground() {
@@ -144,26 +191,8 @@ export function CharacterCreationWizard({ onFinish, onCancel, isOpen }: Characte
     }
   }
 
-  function handleNextAbilities() {
-    const values = methods.getValues();
-    const result = abilitiesSchema.safeParse(values);
-    if (result.success) {
-      setStep((s) => s + 1);
-    } else {
-      const issue = result.error.issues[0];
-      if (issue && issue.path.length > 0) {
-        const fieldPath = issue.path[0] as keyof CharacterFormData;
-        methods.setError(fieldPath, { type: 'manual', message: issue.message });
-      }
-    }
-  }
-
   function handleBack() {
     setStep((s) => Math.max(0, s - 1));
-  }
-
-  function handleFinish(data: WizardFormData) {
-    onFinish(data);
   }
 
   const progress = ((step + 1) / stepsCount) * 100;

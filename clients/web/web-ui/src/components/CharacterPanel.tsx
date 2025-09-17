@@ -86,66 +86,44 @@ function CharacterPanel() {
       </button>
 
       {showCreateModal && (
-        <div className="modal-overlay" style={{
-          position: 'fixed',
-          inset: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'rgba(0,0,0,0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-        }}>
-          <div className="modal-content" style={{
-            background: '#fff',
-            color: '#222',
-            borderRadius: 12,
-            padding: 32,
-            minWidth: 340,
-            maxWidth: 420,
-            boxShadow: '0 4px 32px rgba(0,0,0,0.35)',
-            fontSize: 16,
-          }}>
-            <CharacterCreationWizard
-              key={wizardKey}
-              onFinish={(data) => {
-                const spriteId = genId();
-                const defaultName = `${data.race} ${data.class}`;
-                const newCharacter = {
-                  id: genId(),
-                  name: defaultName,
-                  race: data.race,
-                  class: data.class,
-                  level: 1,
-                  sprite: {
-                    id: spriteId,
-                    name: defaultName,
-                    x: 0,
-                    y: 0,
-                    width: 1,
-                    height: 1,
-                    isSelected: false,
-                    isVisible: true,
-                    layer: 'tokens',
-                  },
-                  stats: {
-                    hp: 10,
-                    maxHp: 10,
-                    ac: 10,
-                    speed: 30,
-                  },
-                  conditions: [],
-                  inventory: [],
-                };
-                addCharacter(newCharacter);
-                selectSprite(spriteId, false);
-                setShowCreateModal(false);
-              }}
-              onCancel={() => setShowCreateModal(false)}
-            />
-          </div>
-        </div>
+        <CharacterCreationWizard
+          key={wizardKey}
+          isOpen={showCreateModal}
+          onFinish={(data) => {
+            const spriteId = genId();
+            const defaultName = `${data.race} ${data.class}`;
+            const newCharacter = {
+              id: genId(),
+              name: defaultName,
+              race: data.race,
+              class: data.class,
+              level: 1,
+              sprite: {
+                id: spriteId,
+                name: defaultName,
+                x: 0,
+                y: 0,
+                width: 1,
+                height: 1,
+                isSelected: false,
+                isVisible: true,
+                layer: 'tokens' as const,
+              },
+              stats: {
+                hp: 10,
+                maxHp: 10,
+                ac: 10,
+                speed: 30,
+              },
+              conditions: [],
+              inventory: [],
+            };
+            addCharacter(newCharacter);
+            selectSprite(spriteId, false);
+            setShowCreateModal(false);
+          }}
+          onCancel={() => setShowCreateModal(false)}
+        />
       )}
 
       <div style={{ marginTop: 24 }}>

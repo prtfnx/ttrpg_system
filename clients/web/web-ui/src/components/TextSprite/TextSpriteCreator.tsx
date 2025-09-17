@@ -1,6 +1,6 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { Modal } from '../common/Modal';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from '../common/ErrorBoundary';
+import { Modal } from '../common/Modal';
 import '../common/Modal.css';
 import './TextSpriteCreator.css';
 
@@ -234,7 +234,7 @@ export function TextSpriteCreator({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Create Text Sprite"
+      title={title}
       size="large"
       closeOnEscape={true}
     >

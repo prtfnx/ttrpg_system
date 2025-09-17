@@ -1,6 +1,6 @@
+import type { ReactNode } from 'react';
 import { Component, createRef } from 'react';
 import { createPortal } from 'react-dom';
-import type { ReactNode } from 'react';
 
 interface Props {
   isOpen: boolean;

@@ -8,6 +8,7 @@ import { GridControls } from './GridControls';
 import { LayerPanel } from './LayerPanel';
 import { MeasurementTool } from './MeasurementTool';
 import { PaintPanel } from './PaintPanel';
+import { TextSpriteTool } from './TextSprite';
 
 // Global type declarations
 declare global {
@@ -196,11 +197,6 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
     }
   };
   // Character creation state
-  // Text creation state
-  const [textValue, setTextValue] = useState('');
-  const [textSize, setTextSize] = useState(24);
-  const [textColor, setTextColor] = useState('#ffffff');
-
 
   // Use different WebSocket approaches based on mode
   return (
@@ -366,139 +362,21 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         />
       )}
 
-        {/* Text creation settings */}
+        {/* Text creation - Modern UI */}
         {activeTool === 'text' && (
           <div className="text-settings">
-            <h5>Text</h5>
+            <h5>Text Sprites</h5>
             <div className="setting-row">
-              <label htmlFor="text-value">Text:</label>
-              <input
-                id="text-value"
-                type="text"
-                value={textValue}
-                onChange={(e) => setTextValue(e.target.value)}
-                placeholder="Enter text to create"
-                style={{ width: '160px' }}
-              />
-            </div>
-            <div className="setting-row">
-              <label htmlFor="text-size">Size:</label>
-              <input
-                id="text-size"
-                type="number"
-                min={8}
-                max={144}
-                value={textSize}
-                onChange={(e) => setTextSize(parseInt(e.target.value || '24', 10))}
-                style={{ width: '80px' }}
-              />
-            </div>
-            <div className="setting-row">
-              <label htmlFor="text-color">Color:</label>
-              <input
-                id="text-color"
-                type="color"
-                value={textColor}
-                onChange={(e) => setTextColor(e.target.value)}
-              />
-            </div>
-            <div className="setting-row">
-              <button
-                onClick={() => {
-                  if (!textValue.trim()) return;
-                  const id = `text_${Date.now()}`;
-                  const payload: any = {
-                    id,
-                    x: 100,
-                    y: 100,
-                    layer: activeLayer,
-                    type: 'text',
-                    text: textValue,
-                    font_size: textSize,
-                    color: textColor,
-                  };
-
-                  // Protocol-first authoritative create
-                  console.log('[ToolsPanel] Sending sprite_create (text):', payload);
-                  if (window.gameAPI && window.gameAPI.sendMessage) {
-                    window.gameAPI.sendMessage('sprite_create', payload);
-                  } else {
-                    console.warn('[ToolsPanel] window.gameAPI.sendMessage not available for text create');
-                  }
-
-                  // Optimistic local render: rasterize text to an offscreen canvas,
-                  // load into the WASM texture manager and add a sprite locally.
-                  try {
-                    const font = `${textSize}px sans-serif`;
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    if (ctx) {
-                      ctx.font = font;
-                      const metrics = ctx.measureText(textValue);
-                      // approximate height using font size, add padding
-                      const padding = Math.ceil(textSize * 0.25);
-                      const textWidth = Math.ceil(metrics.width);
-                      const textHeight = Math.ceil(textSize) + padding * 2;
-                      canvas.width = Math.max(1, textWidth + padding * 2);
-                      canvas.height = Math.max(1, textHeight);
-
-                      // clear and draw text
-                      ctx.clearRect(0, 0, canvas.width, canvas.height);
-                      // Optional background: leave transparent
-                      ctx.fillStyle = textColor;
-                      ctx.textBaseline = 'top';
-                      ctx.font = font;
-                      ctx.fillText(textValue, padding, padding / 2);
-
-                      const texName = `text_tex_${id}`;
-                      const img = new Image();
-                      img.onload = () => {
-                        try {
-                          if ((window as any).rustRenderManager && (window as any).rustRenderManager.load_texture) {
-                            (window as any).rustRenderManager.load_texture(texName, img);
-                          }
-
-                          // Build wasm sprite payload and add to layer for optimistic display
-                          const wasmSprite: any = {
-                            id,
-                            world_x: payload.x,
-                            world_y: payload.y,
-                            width: canvas.width,
-                            height: canvas.height,
-                            scale_x: 1,
-                            scale_y: 1,
-                            rotation: 0,
-                            layer: payload.layer,
-                            texture_id: texName,
-                            tint_color: [1, 1, 1, 1],
-                          };
-
-                          if ((window as any).rustRenderManager && typeof (window as any).rustRenderManager.add_sprite_to_layer === 'function') {
-                            try {
-                              (window as any).rustRenderManager.add_sprite_to_layer(payload.layer, wasmSprite);
-                            } catch (err) {
-                              console.debug('[ToolsPanel] Failed to optimistic add sprite to WASM', err);
-                            }
-                          }
-                        } catch (e) {
-                          console.debug('[ToolsPanel] wasm optimistic text render failed', e);
-                        }
-                      };
-                      img.onerror = (e) => {
-                        console.debug('[ToolsPanel] Failed to create image from canvas for text sprite', e);
-                      };
-                      img.src = canvas.toDataURL('image/png');
-                    }
-                  } catch (e) {
-                    console.debug('[ToolsPanel] optimistic text rasterization failed', e);
-                  }
-
-                  // small UX: clear text input after creating
-                  setTextValue('');
+              <TextSpriteTool 
+                activeLayer={activeLayer}
+                onSpriteCreated={(spriteId) => {
+                  console.log('[ToolsPanel] Text sprite created:', spriteId);
                 }}
-              >
-                Add Text
-              </button>
+                onError={(error) => {
+                  console.error('[ToolsPanel] Text sprite creation error:', error);
+                  // Could show a toast notification here
+                }}
+              />
             </div>
           </div>
         )}

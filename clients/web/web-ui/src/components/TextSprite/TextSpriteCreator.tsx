@@ -514,6 +514,28 @@ export function TextSpriteCreator({
 
           {/* Action buttons */}
           <div className="creator-actions">
+            {showDeleteButton && onDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                className="btn-delete"
+                disabled={isDeleting}
+                style={{
+                  background: '#dc3545',
+                  color: 'white',
+                  padding: '0.75rem 1.5rem',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  cursor: isDeleting ? 'wait' : 'pointer',
+                  opacity: isDeleting ? 0.6 : 1
+                }}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Sprite'}
+              </button>
+            )}
+            <div style={{ flex: 1 }} />
             <button
               type="button"
               onClick={onClose}
@@ -527,7 +549,7 @@ export function TextSpriteCreator({
               className="btn-create"
               disabled={!config.text.trim()}
             >
-              Create Text Sprite
+              {createButtonText}
             </button>
           </div>
         </div>

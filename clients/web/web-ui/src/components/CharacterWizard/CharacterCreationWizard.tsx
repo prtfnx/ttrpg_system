@@ -1,7 +1,8 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import '../common/Modal.css';
 import { AbilitiesStep } from './AbilitiesStep';
 import { BackgroundStep } from './BackgroundStep';
 import { classSchema } from './classSchema';
@@ -12,9 +13,6 @@ import ReviewStep from './ReviewStep';
 import { abilitiesSchema, raceSchema, type CharacterFormData } from './schemas';
 import { SkillsStep } from './SkillsStep';
 import type { WizardFormData } from './WizardFormData';
-import { Modal } from '../common/Modal';
-import { ErrorBoundary } from '../common/ErrorBoundary';
-import '../common/Modal.css';
 
 // D&D 5e class skills mapping
 const CLASS_SKILLS = {
@@ -171,86 +169,127 @@ export function CharacterCreationWizard({ onFinish, onCancel, isOpen }: Characte
   const progress = ((step + 1) / stepsCount) * 100;
 
   return (
-    <FormProvider {...methods}>
-      <div style={{ 
-        background: '#fff', 
-        borderRadius: 8, 
-        padding: 24, 
-        minWidth: 340, 
-        maxWidth: 420, 
-        boxShadow: '0 4px 32px rgba(0,0,0,0.15)' 
-      }}>
-        <h2 style={{ marginBottom: 16 }}>Create Character</h2>
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ marginBottom: 4 }}>Step {step + 1} of {stepsCount}</div>
-          <div style={{ height: 8, background: '#e5e7eb', borderRadius: 4, overflow: 'hidden' }}>
-            <div style={{ 
-              width: `${progress}%`, 
-              height: '100%', 
-              background: '#6366f1', 
-              transition: 'width 0.3s' 
-            }} />
-          </div>
-        </div>
-
-        {step === 0 && <RaceStep onNext={handleNextRace} />}
-        {step === 1 && <ClassStep onNext={handleNextClass} onBack={handleBack} />}
-        {step === 2 && <BackgroundStep onNext={handleNextBackground} onBack={handleBack} />}
-        {step === 3 && <AbilitiesStep onNext={handleNextAbilities} onBack={handleBack} />}
-        {step === 4 && (
-          <SkillsStep
-            onNext={() => setStep(5)}
-            onBack={handleBack}
-            classSkills={getClassSkills(methods.getValues().class)}
-            classSkillChoices={getClassSkillChoices(methods.getValues().class)}
-            backgroundSkills={getBackgroundSkills(methods.getValues().background)}
-            raceSkills={getRaceSkills(methods.getValues().race)}
-          />
-        )}
-        {step === 5 && (
-          <IdentityStep
-            onNext={() => setStep(6)}
-            onBack={() => setStep(4)}
-          />
-        )}
-        {step === 6 && (
-          <ReviewStep
-            data={methods.getValues() as WizardFormData}
-            onBack={() => setStep(5)}
-            onConfirm={() => handleFinish(methods.getValues() as WizardFormData)}
-          />
-        )}
-
-        <div style={{ marginTop: 24, display: 'flex', gap: 8 }}>
-          {step > 0 && (
-            <button 
-              onClick={handleBack} 
-              style={{ 
-                background: '#eee', 
-                color: '#333', 
-                border: 'none', 
-                borderRadius: 4, 
-                padding: '8px 16px' 
-              }}
-            >
-              Back
+    <Modal
+      isOpen={isOpen}
+      onClose={onCancel}
+      title="Create New Character"
+      size="large"
+      closeOnEscape={false}
+      closeOnOverlayClick={false}
+    >
+      <ErrorBoundary
+        fallback={
+          <div className="error-content">
+            <h3>Character Creation Error</h3>
+            <p>Something went wrong while creating your character. Please try again.</p>
+            <button onClick={onCancel} className="retry-button">
+              Close Wizard
             </button>
-          )}
-          <button 
-            onClick={onCancel} 
-            style={{ 
-              background: '#ef4444', 
-              color: '#fff', 
-              border: 'none', 
-              borderRadius: 4, 
-              padding: '8px 16px' 
-            }}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </FormProvider>
+          </div>
+        }
+      >
+        <FormProvider {...methods}>
+          <div style={{ maxWidth: 800, margin: '0 auto' }}>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                marginBottom: 16
+              }}>
+                <div style={{ fontSize: '0.9em', color: '#666' }}>
+                  Step {step + 1} of {stepsCount}
+                </div>
+              </div>
+              
+              {/* Progress bar */}
+              <div style={{ 
+                width: '100%', 
+                height: 4, 
+                background: '#e5e7eb', 
+                borderRadius: 2,
+                overflow: 'hidden'
+              }}>
+                <div style={{ 
+                  width: `${progress}%`, 
+                  height: '100%', 
+                  background: '#3b82f6',
+                  transition: 'width 0.3s ease'
+                }} />
+              </div>
+            </div>
+
+            {/* Step content */}
+            {step === 0 && <RaceStep onNext={handleNextRace} />}
+            {step === 1 && <ClassStep onNext={handleNextClass} onBack={handleBack} />}
+            {step === 2 && <BackgroundStep onNext={handleNextBackground} onBack={handleBack} />}
+            {step === 3 && <AbilitiesStep onNext={handleNextAbilities} onBack={handleBack} />}
+            {step === 4 && (
+              <SkillsStep
+                onNext={() => setStep(5)}
+                onBack={handleBack}
+                classSkills={getClassSkills(methods.getValues().class)}
+                classSkillChoices={getClassSkillChoices(methods.getValues().class)}
+                backgroundSkills={getBackgroundSkills(methods.getValues().background)}
+                raceSkills={getRaceSkills(methods.getValues().race)}
+              />
+            )}
+            {step === 5 && (
+              <IdentityStep
+                onNext={() => setStep(6)}
+                onBack={() => setStep(4)}
+              />
+            )}
+            {step === 6 && (
+              <ReviewStep
+                data={methods.getValues() as WizardFormData}
+                onBack={() => setStep(5)}
+                onConfirm={() => handleFinish(methods.getValues() as WizardFormData)}
+              />
+            )}
+
+            <div style={{ marginTop: 24, display: 'flex', gap: 8, justifyContent: 'space-between' }}>
+              <div>
+                {step > 0 && (
+                  <button 
+                    onClick={handleBack} 
+                    type="button"
+                    style={{ 
+                      background: '#f3f4f6', 
+                      color: '#374151', 
+                      border: '1px solid #d1d5db', 
+                      borderRadius: 6, 
+                      padding: '8px 16px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}
+                  >
+                    ← Back
+                  </button>
+                )}
+              </div>
+              <button 
+                onClick={onCancel} 
+                type="button"
+                style={{ 
+                  background: '#ef4444', 
+                  color: '#fff', 
+                  border: 'none', 
+                  borderRadius: 6, 
+                  padding: '8px 16px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </FormProvider>
+      </ErrorBoundary>
+    </Modal>
   );
 }
 

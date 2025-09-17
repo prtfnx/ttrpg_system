@@ -2,8 +2,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { Modal } from '../common/Modal';
 import { ErrorBoundary } from '../common/ErrorBoundary';
+import { Modal } from '../common/Modal';
 import '../common/Modal.css';
 import { AbilitiesStep } from './AbilitiesStep';
 import { BackgroundStep } from './BackgroundStep';
@@ -12,7 +12,7 @@ import { ClassStep } from './ClassStep';
 import IdentityStep from './IdentityStep';
 import { RaceStep } from './RaceStepImproved';
 import ReviewStep from './ReviewStep';
-import { abilitiesSchema, raceSchema, type CharacterFormData } from './schemas';
+import { abilitiesSchema, raceSchema } from './schemas';
 import { SkillsStep } from './SkillsStep';
 import type { WizardFormData } from './WizardFormData';
 

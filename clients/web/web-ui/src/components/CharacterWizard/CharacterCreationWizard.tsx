@@ -14,6 +14,7 @@ import { RaceStep } from './RaceStepImproved';
 import ReviewStep from './ReviewStep';
 import { abilitiesSchema, raceSchema } from './schemas';
 import { SkillsStep } from './SkillsStep';
+import { SpellSelectionStep } from './SpellSelectionStep';
 import type { WizardFormData } from './WizardFormData';
 
 // D&D 5e class skills mapping
@@ -67,6 +68,15 @@ function getRaceSkills(race: string): string[] {
   return RACE_SKILLS[key] || [];
 }
 
+// Spellcasting classes for D&D 5e
+const SPELLCASTING_CLASSES = [
+  'Bard', 'Cleric', 'Druid', 'Paladin', 'Ranger', 'Sorcerer', 'Warlock', 'Wizard'
+];
+
+function isSpellcaster(className: string): boolean {
+  return SPELLCASTING_CLASSES.includes(className);
+}
+
 interface CharacterCreationWizardProps {
   onFinish: (data: WizardFormData) => void;
   onCancel: () => void;
@@ -85,6 +95,11 @@ const wizardSchema = z.object({
   wisdom: z.number().min(8).max(15),
   charisma: z.number().min(8).max(15),
   skills: z.array(z.string()).min(1, 'At least one skill is required'),
+  spells: z.object({
+    cantrips: z.array(z.string()).optional(),
+    knownSpells: z.array(z.string()).optional(),
+    preparedSpells: z.array(z.string()).optional()
+  }).optional(),
   name: z.string().min(1, 'Character name is required'),
   bio: z.string().optional(),
   image: z.string().optional()
@@ -92,7 +107,7 @@ const wizardSchema = z.object({
 
 export function CharacterCreationWizard({ onFinish, onCancel, isOpen }: CharacterCreationWizardProps) {
   const [step, setStep] = useState(0);
-  const stepsCount = 7; // Race, Class, Background, Abilities, Skills, Identity, Review
+  const stepsCount = 8; // Race, Class, Background, Abilities, Skills, Spells, Identity, Review
   
   const methods = useForm<WizardFormData>({
     resolver: zodResolver(wizardSchema),
@@ -108,6 +123,11 @@ export function CharacterCreationWizard({ onFinish, onCancel, isOpen }: Characte
       wisdom: 8,
       charisma: 8,
       skills: [],
+      spells: {
+        cantrips: [],
+        knownSpells: [],
+        preparedSpells: []
+      },
       name: '',
       bio: '',
       image: ''
@@ -178,7 +198,8 @@ export function CharacterCreationWizard({ onFinish, onCancel, isOpen }: Characte
     if (errors.strength || errors.dexterity || errors.constitution || 
         errors.intelligence || errors.wisdom || errors.charisma) return 3;
     if (errors.skills) return 4;
-    if (errors.name) return 5;
+    if (errors.spells) return 5;
+    if (errors.name) return 6;
     return step;
   }
 
@@ -263,16 +284,38 @@ export function CharacterCreationWizard({ onFinish, onCancel, isOpen }: Characte
                 raceSkills={getRaceSkills(methods.getValues().race)}
               />
             )}
-            {step === 5 && (
-              <IdentityStep
+            {step === 5 && isSpellcaster(methods.getValues().class) && (
+              <SpellSelectionStep
                 onNext={() => setStep(6)}
+                onBack={handleBack}
+                characterClass={methods.getValues().class}
+                characterLevel={1}
+                abilityScores={{
+                  Strength: methods.getValues().strength,
+                  Dexterity: methods.getValues().dexterity,
+                  Constitution: methods.getValues().constitution,
+                  Intelligence: methods.getValues().intelligence,
+                  Wisdom: methods.getValues().wisdom,
+                  Charisma: methods.getValues().charisma
+                }}
+              />
+            )}
+            {step === 5 && !isSpellcaster(methods.getValues().class) && (
+              <IdentityStep
+                onNext={() => setStep(7)}
                 onBack={() => setStep(4)}
               />
             )}
             {step === 6 && (
+              <IdentityStep
+                onNext={() => setStep(7)}
+                onBack={() => setStep(isSpellcaster(methods.getValues().class) ? 5 : 4)}
+              />
+            )}
+            {step === 7 && (
               <ReviewStep
                 data={methods.getValues() as WizardFormData}
-                onBack={() => setStep(5)}
+                onBack={() => setStep(6)}
                 onConfirm={() => handleFinish(methods.getValues() as WizardFormData)}
               />
             )}

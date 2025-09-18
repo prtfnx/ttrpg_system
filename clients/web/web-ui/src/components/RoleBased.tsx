@@ -1,6 +1,6 @@
 import React from 'react';
-import { useAuth } from './AuthContext';
 import './Auth.css';
+import { useAuth } from './AuthContext';
 
 interface RoleBasedProps {
   children: React.ReactNode;

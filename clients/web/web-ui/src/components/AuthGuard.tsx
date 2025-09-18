@@ -1,7 +1,7 @@
 import React from 'react';
+import './Auth.css';
 import { useAuth } from './AuthContext';
 import LoginModal from './LoginModal';
-import './Auth.css';
 
 interface AuthGuardProps {
   children: React.ReactNode;

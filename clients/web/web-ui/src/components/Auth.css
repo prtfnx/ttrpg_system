@@ -1,0 +1,253 @@
+/* Authentication UI Styles */
+
+.login-modal .modal-content {
+  max-width: 400px;
+  padding: 2rem;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: var(--text-primary, #333);
+  font-size: 0.9rem;
+}
+
+.form-group input {
+  padding: 0.75rem;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--primary-color, #007bff);
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.form-error {
+  background: #fee;
+  color: #c33;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #fcc;
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
+}
+
+.login-button {
+  background: var(--primary-color, #007bff);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.login-button:hover:not(:disabled) {
+  background: var(--primary-hover, #0056b3);
+  transform: translateY(-1px);
+}
+
+.login-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem;
+  background: var(--surface-color, #f8f9fa);
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #ddd);
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.username {
+  font-weight: 600;
+  color: var(--text-primary, #333);
+  font-size: 0.9rem;
+}
+
+.user-role {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #666);
+  text-transform: uppercase;
+  font-weight: 500;
+  background: var(--role-bg, #e3f2fd);
+  color: var(--role-text, #1976d2);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.user-role.dm {
+  background: #fff3e0;
+  color: #f57c00;
+}
+
+.user-role.player {
+  background: #e8f5e8;
+  color: #2e7d32;
+}
+
+.logout-button {
+  background: var(--danger-color, #dc3545);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.logout-button:hover {
+  background: var(--danger-hover, #c82333);
+}
+
+.auth-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: var(--text-secondary, #666);
+}
+
+.auth-loading::before {
+  content: '';
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  margin-right: 0.5rem;
+  border: 2px solid var(--primary-color, #007bff);
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.auth-provider {
+  position: relative;
+}
+
+.auth-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.protected-content {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.protected-content.authenticated {
+  opacity: 1;
+}
+
+/* Role-based styling */
+.role-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.role-indicator.dm {
+  background: linear-gradient(135deg, #ff9800, #f57c00);
+  color: white;
+  box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+}
+
+.role-indicator.dm::before {
+  content: '👑';
+  font-size: 0.8rem;
+}
+
+.role-indicator.player {
+  background: linear-gradient(135deg, #4caf50, #2e7d32);
+  color: white;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.role-indicator.player::before {
+  content: '🎲';
+  font-size: 0.8rem;
+}
+
+/* Permission-based visibility */
+.dm-only {
+  display: none;
+}
+
+.player-only {
+  display: none;
+}
+
+[data-user-role="dm"] .dm-only {
+  display: initial;
+}
+
+[data-user-role="player"] .player-only {
+  display: initial;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .login-modal .modal-content {
+    max-width: 90vw;
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+  
+  .user-menu {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  
+  .user-info {
+    align-items: center;
+    text-align: center;
+  }
+}

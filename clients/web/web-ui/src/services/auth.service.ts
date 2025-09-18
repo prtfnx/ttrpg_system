@@ -26,6 +26,71 @@ class AuthService {
   private static RATE_LIMIT_WINDOW = 10000; // 10 seconds
 
   /**
+   * Login user with username and password
+   */
+  async login(username: string, password: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await fetch('/users/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          username,
+          password
+        }),
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        // Re-initialize to get user info from cookie
+        await this.initialize();
+        return { success: true };
+      } else {
+        const errorText = await response.text();
+        // Try to extract error message from HTML response
+        const errorMatch = errorText.match(/error[\"']: [\"']([^\"']+)[\"']/i);
+        const errorMessage = errorMatch ? errorMatch[1] : 'Login failed';
+        return { success: false, message: errorMessage };
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  }
+
+  /**
+   * Register a new user
+   */
+  async register(username: string, password: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await fetch('/users/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          username,
+          password
+        }),
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        return { success: true, message: 'Registration successful. Please log in.' };
+      } else {
+        const errorText = await response.text();
+        const errorMatch = errorText.match(/error[\"']: [\"']([^\"']+)[\"']/i);
+        const errorMessage = errorMatch ? errorMatch[1] : 'Registration failed';
+        return { success: false, message: errorMessage };
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      return { success: false, message: 'Network error occurred' };
+    }
+  }
+
+  /**
    * Extract JWT token from HTTP-only cookie set by FastAPI
    * Note: HTTP-only cookies cannot be read by JavaScript for security
    * Instead, we rely on server-side validation of the cookie

@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import { equipmentManagementService, type Equipment, EquipmentCategory, type InventoryItem, type CharacterInventory } from '../../services/equipmentManagement.service';
+import { EquipmentCategory, equipmentManagementService, type Equipment, type InventoryItem } from '../../services/equipmentManagement.service';
 import { ErrorBoundary } from '../common/ErrorBoundary';
-import type { WizardFormData } from './WizardFormData';
 import './EquipmentSelectionStep.css';
+import type { WizardFormData } from './WizardFormData';
 
 interface EquipmentSelectionStepProps {
   characterClass: string;

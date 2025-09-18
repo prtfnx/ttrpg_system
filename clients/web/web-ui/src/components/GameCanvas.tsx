@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { assetIntegrationService } from '../services/assetIntegration.service';
+import { performanceService } from '../services/performance.service';
 import { useProtocol } from '../services/ProtocolContext';
 import { useWasmBridge } from '../services/wasmBridge';
 import { wasmIntegrationService } from '../services/wasmIntegration.service';
@@ -11,6 +12,7 @@ import type { RenderEngine } from '../types';
 import type { GlobalWasmModule } from '../utils/wasmManager';
 import { DragDropImageHandler } from './DragDropImageHandler';
 import './GameCanvas.css';
+import PerformanceMonitor from './PerformanceMonitor';
 
 declare global {
   interface Window {
@@ -84,6 +86,9 @@ export const GameCanvas: React.FC = () => {
   // FPS Counter
   const [fps, setFps] = useState(0);
   const fpsRef = useRef({ frameCount: 0, lastTime: performance.now() });
+  
+  // Performance Monitor
+  const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false);
   
   // Re-enabled sprite syncing with fixed React dependency issue
   useSpriteSyncing();
@@ -194,6 +199,19 @@ export const GameCanvas: React.FC = () => {
       });
     }
   }, [getRelativeCoords, contextMenu.copiedSprite]);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    // Toggle performance monitor with F3 key
+    if (e.key === 'F3') {
+      e.preventDefault();
+      setShowPerformanceMonitor(!showPerformanceMonitor);
+    }
+    // Toggle performance monitor with Ctrl+Shift+P
+    else if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+      e.preventDefault();
+      setShowPerformanceMonitor(!showPerformanceMonitor);
+    }
+  }, [showPerformanceMonitor]);
 
   const handleContextMenuAction = useCallback((action: string) => {
     if (!rustRenderManagerRef.current) return;
@@ -466,6 +484,10 @@ export const GameCanvas: React.FC = () => {
         rustRenderManagerRef.current = rustRenderEngine;
         window.rustRenderManager = rustRenderEngine;
 
+        // Initialize performance monitoring
+        performanceService.initialize(rustRenderEngine);
+        console.log('[PERFORMANCE] Service initialized');
+
         // Initialize WASM integration service for protocol-driven updates
         wasmIntegrationService.initialize(rustRenderEngine);
         console.log('[WASM] Integration service initialized');
@@ -479,6 +501,7 @@ export const GameCanvas: React.FC = () => {
         canvas.addEventListener('mouseup', handleMouseUp);
         canvas.addEventListener('wheel', handleWheel);
         canvas.addEventListener('contextmenu', handleRightClick);
+        document.addEventListener('keydown', handleKeyDown);
         // Set default cursor to grab
         canvas.style.cursor = 'grab';
 
@@ -589,6 +612,7 @@ export const GameCanvas: React.FC = () => {
         canvas.removeEventListener('wheel', handleWheel);
         canvas.removeEventListener('contextmenu', handleRightClick);
       }
+      document.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('resize', resizeCanvas);
       // remove debounced listener (scheduleResize may be bound differently in closure)
       try { window.removeEventListener('resize', scheduleResize as EventListener); } catch {}
@@ -816,6 +840,14 @@ export const GameCanvas: React.FC = () => {
           </>
         )}
       </div>
+      
+      {/* Performance Monitor */}
+      <PerformanceMonitor 
+        isVisible={showPerformanceMonitor}
+        onToggle={() => setShowPerformanceMonitor(!showPerformanceMonitor)}
+        position="top-right"
+      />
+      
       {/* Debug overlay conditionally rendered in development */}
       {import.meta.env.DEV && (
         <div className="debug-overlay">

@@ -9,6 +9,11 @@ export type WizardFormData = {
   wisdom: number;
   charisma: number;
   skills: string[];
+  spells?: {
+    cantrips: string[];
+    knownSpells: string[];
+    preparedSpells: string[];
+  };
   name: string;
   bio?: string;
   image?: string;

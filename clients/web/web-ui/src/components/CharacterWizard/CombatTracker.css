@@ -1,0 +1,579 @@
+/* Combat Tracker Styles */
+
+.combat-tracker {
+  max-width: 1400px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.combat-tracker.setup {
+  max-width: 800px;
+}
+
+/* Header */
+.combat-header {
+  background: linear-gradient(135deg, #8b0000 0%, #a00000 100%);
+  color: white;
+  padding: 20px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.combat-info h2 {
+  margin: 0 0 8px 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.round-info {
+  display: flex;
+  gap: 16px;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.combat-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.next-turn-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.next-turn-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.reset-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reset-btn:hover {
+  background: #c82333;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.close-button:hover {
+  opacity: 1;
+}
+
+/* Setup Content */
+.setup-content {
+  padding: 32px;
+}
+
+.participants-setup {
+  margin-bottom: 32px;
+}
+
+.setup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.setup-header h3 {
+  color: #8b0000;
+  margin: 0;
+  font-size: 20px;
+}
+
+.add-participant-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.add-participant-btn:hover {
+  background: #218838;
+}
+
+.participants-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.participant-setup {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+}
+
+.participant-info {
+  flex: 1;
+}
+
+.participant-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.participant-name .player {
+  color: #007bff;
+}
+
+.participant-name .npc {
+  color: #dc3545;
+}
+
+.participant-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 14px;
+  color: #666;
+}
+
+.participant-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.initiative-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.initiative-display {
+  font-size: 14px;
+  font-weight: 600;
+  color: #28a745;
+}
+
+.remove-participant {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: #dc3545;
+  padding: 4px;
+  transition: transform 0.2s ease;
+}
+
+.remove-participant:hover {
+  transform: scale(1.2);
+}
+
+/* Add Participant Form */
+.add-participant-form {
+  background: white;
+  border: 2px solid #8b0000;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 16px;
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.form-header h4 {
+  color: #8b0000;
+  margin: 0;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.form-row input {
+  padding: 8px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.form-row input:focus {
+  outline: none;
+  border-color: #8b0000;
+  box-shadow: 0 0 0 2px rgba(139, 0, 0, 0.1);
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.add-btn {
+  background: #8b0000;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.add-btn:hover {
+  background: #a00000;
+}
+
+/* Setup Actions */
+.setup-actions {
+  text-align: center;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.start-combat-btn {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  color: white;
+  border: none;
+  padding: 16px 32px;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.start-combat-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(220, 53, 69, 0.3);
+}
+
+.start-combat-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.setup-note {
+  margin-top: 12px;
+  color: #666;
+  font-size: 14px;
+}
+
+/* Active Combat */
+.combat-content {
+  padding: 24px;
+}
+
+.initiative-order h3 {
+  color: #8b0000;
+  margin-bottom: 20px;
+  font-size: 18px;
+}
+
+.participants-active {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.participant-active {
+  background: #f8f9fa;
+  border: 2px solid #dee2e6;
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.participant-active.current-turn {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+  border-color: #ffc107;
+  box-shadow: 0 4px 20px rgba(255, 193, 7, 0.3);
+  transform: scale(1.02);
+}
+
+.participant-active.unconscious {
+  background: #f8d7da;
+  border-color: #dc3545;
+  opacity: 0.8;
+}
+
+.participant-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.participant-basic {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.player-icon {
+  font-size: 20px;
+  color: #007bff;
+}
+
+.npc-icon {
+  font-size: 20px;
+  color: #dc3545;
+}
+
+.participant-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.participant-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.initiative-display {
+  font-size: 14px;
+  color: #666;
+}
+
+.participant-vital-stats {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.stat-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.stat-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-group span {
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+}
+
+.hp-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hp-input,
+.temp-hp-input {
+  width: 60px;
+  padding: 4px 8px;
+  text-align: center;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.hp-input:focus,
+.temp-hp-input:focus {
+  outline: none;
+  border-color: #8b0000;
+}
+
+.hp-max {
+  font-size: 16px;
+  font-weight: 600;
+  color: #666;
+}
+
+.temp-hp {
+  color: #17a2b8;
+}
+
+/* Participant Status */
+.participant-status {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.conditions-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.conditions-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.condition-tag {
+  background: #6f42c1;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.condition-tag button {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 0 2px;
+  font-weight: 700;
+}
+
+.add-condition {
+  flex: 1;
+  min-width: 200px;
+}
+
+.condition-input {
+  width: 100%;
+  padding: 6px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.condition-input:focus {
+  outline: none;
+  border-color: #6f42c1;
+}
+
+.hp-bar {
+  width: 100%;
+  height: 8px;
+  background: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.hp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #dc3545 0%, #28a745 50%, #28a745 100%);
+  transition: width 0.3s ease;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .combat-tracker {
+    margin: 0;
+    border-radius: 0;
+  }
+  
+  .combat-header {
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+  }
+  
+  .combat-info {
+    text-align: center;
+  }
+  
+  .setup-content,
+  .combat-content {
+    padding: 16px;
+  }
+  
+  .participant-setup {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .participant-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .participant-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .participant-vital-stats {
+    gap: 16px;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .conditions-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .add-condition {
+    min-width: auto;
+  }
+}
+
+/* Animations */
+@keyframes turnHighlight {
+  0% { box-shadow: 0 4px 20px rgba(255, 193, 7, 0.3); }
+  50% { box-shadow: 0 6px 25px rgba(255, 193, 7, 0.5); }
+  100% { box-shadow: 0 4px 20px rgba(255, 193, 7, 0.3); }
+}
+
+.participant-active.current-turn {
+  animation: turnHighlight 2s ease-in-out infinite;
+}

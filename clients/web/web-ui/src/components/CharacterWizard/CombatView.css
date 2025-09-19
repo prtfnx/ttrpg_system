@@ -1,0 +1,320 @@
+.combat-view {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+.combat-view.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  background: var(--bg-primary);
+}
+
+/* Header */
+.combat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, #8B0000, #A52A2A);
+  color: white;
+  border-bottom: 2px solid #654321;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.combat-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.combat-title h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.character-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.character-name {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.character-details {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.combat-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fullscreen-toggle,
+.close-combat {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: background 0.2s;
+}
+
+.fullscreen-toggle:hover,
+.close-combat:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.close-combat {
+  font-size: 1.5rem;
+}
+
+/* Navigation Tabs */
+.combat-tabs {
+  display: flex;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.combat-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.combat-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 80px;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+}
+
+.combat-tab:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.combat-tab.active {
+  background: var(--bg-primary);
+  color: #8B0000;
+  border-bottom-color: #8B0000;
+}
+
+.tab-icon {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.tab-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Content */
+.combat-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.combat-content > * {
+  flex: 1;
+  overflow: auto;
+}
+
+/* Component Integration Styles */
+.combat-content .character-sheet {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  height: 100%;
+}
+
+.combat-content .attack-manager {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  height: 100%;
+}
+
+.combat-content .spell-manager {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  height: 100%;
+}
+
+.combat-content .combat-tracker {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  height: 100%;
+}
+
+.combat-content .dice-roller {
+  padding: 1.5rem;
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* Override component headers to avoid duplication */
+.combat-content .manager-header,
+.combat-content .sheet-header,
+.combat-content .tracker-header {
+  display: none;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .combat-header {
+    padding: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .combat-actions {
+    align-self: flex-end;
+    margin-top: -2rem;
+  }
+
+  .character-summary {
+    flex-direction: row;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .combat-tabs {
+    justify-content: flex-start;
+  }
+
+  .combat-tab {
+    min-width: 70px;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .tab-icon {
+    font-size: 1rem;
+  }
+
+  .tab-label {
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .combat-title h2 {
+    font-size: 1.3rem;
+  }
+
+  .character-name {
+    font-size: 0.9rem;
+  }
+
+  .character-details {
+    font-size: 0.75rem;
+  }
+
+  .combat-tab {
+    min-width: 60px;
+    padding: 0.5rem;
+  }
+
+  .tab-label {
+    display: none;
+  }
+
+  .tab-icon {
+    font-size: 1.1rem;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .combat-view {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --bg-tertiary: #404040;
+    --text-primary: #ffffff;
+    --text-secondary: #b0b0b0;
+    --border: #555555;
+    --accent-primary: #8B0000;
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .combat-header {
+    background: #000000;
+    border-bottom-color: #ffffff;
+  }
+
+  .combat-tab.active {
+    background: #ffffff;
+    color: #000000;
+    border-bottom-color: #000000;
+  }
+
+  .fullscreen-toggle,
+  .close-combat {
+    background: rgba(255, 255, 255, 0.9);
+    color: #000000;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .combat-view {
+    height: auto;
+    overflow: visible;
+  }
+
+  .combat-header,
+  .combat-tabs {
+    display: none;
+  }
+
+  .combat-content {
+    overflow: visible;
+    height: auto;
+  }
+
+  .combat-content > * {
+    height: auto;
+    overflow: visible;
+  }
+}

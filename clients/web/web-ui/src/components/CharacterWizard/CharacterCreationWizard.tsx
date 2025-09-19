@@ -110,7 +110,6 @@ const wizardSchema = z.object({
 
 export function CharacterCreationWizard({ onFinish, onCancel, isOpen }: CharacterCreationWizardProps) {
   const [step, setStep] = useState(0);
-  const [showCombat, setShowCombat] = useState(false);
   const stepsCount = 10; // Race, Class, Background, Abilities, Skills, Spells, Identity, Export/Import, Advancement, Review
   
   const methods = useForm<WizardFormData>({
@@ -336,32 +335,7 @@ export function CharacterCreationWizard({ onFinish, onCancel, isOpen }: Characte
                 data={methods.getValues() as WizardFormData}
                 onBack={() => setStep(8)}
                 onConfirm={() => handleFinish(methods.getValues() as WizardFormData)}
-                onOpenCombat={() => setShowCombat(true)}
               />
-            )}
-
-            {/* Combat View Overlay */}
-            {showCombat && (
-              <div style={{ 
-                position: 'fixed', 
-                top: 0, 
-                left: 0, 
-                right: 0, 
-                bottom: 0, 
-                zIndex: 1000,
-                background: 'rgba(0, 0, 0, 0.5)' 
-              }}>
-                <CombatView 
-                  character={methods.getValues() as WizardFormData}
-                  onClose={() => setShowCombat(false)}
-                  onUpdateCharacter={(updatedCharacter) => {
-                    // Update the form with combat changes
-                    Object.keys(updatedCharacter).forEach(key => {
-                      methods.setValue(key as any, (updatedCharacter as any)[key]);
-                    });
-                  }}
-                />
-              </div>
             )}
 
             <div style={{ marginTop: 24, display: 'flex', gap: 8, justifyContent: 'space-between' }}>

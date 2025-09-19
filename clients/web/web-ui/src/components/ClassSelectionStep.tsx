@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import { classProgressionService } from '../services/classProgression.service';
 import type { ExtendedCharacterClass } from '../services/classProgression.service';
+import { classProgressionService } from '../services/classProgression.service';
 import './ClassSelectionStep.css';
 
 // Character form data interface

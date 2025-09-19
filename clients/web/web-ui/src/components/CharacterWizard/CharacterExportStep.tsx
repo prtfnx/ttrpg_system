@@ -3,13 +3,13 @@
  * Provides UI for exporting and importing character data
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import type { WizardFormData } from './WizardFormData';
 import { CharacterExportService } from '../../services/characterExport.service';
 import { CharacterImportService, type ImportResult } from '../../services/characterImport.service';
 import { PDFGenerationService, type PDFGenerationOptions } from '../../services/pdfGeneration.service';
 import './CharacterExportStep.css';
+import type { WizardFormData } from './WizardFormData';
 
 interface CharacterExportStepProps {
   onNext: () => void;

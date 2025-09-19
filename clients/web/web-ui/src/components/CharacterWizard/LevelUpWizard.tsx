@@ -3,7 +3,7 @@
  * Handles character level progression with automatic feature/spell advancement
  */
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AdvancementSystemService, type AdvancedCharacter, type LevelProgression, type MulticlassRequirements } from '../../services/advancementSystem.service';
 import './LevelUpWizard.css';
 

@@ -1,10 +1,9 @@
 import React from 'react';
-import type { WizardFormData } from './WizardFormData';
 import type { AdvancedCharacter } from '../../services/advancementSystem.service';
+import './CharacterAdvancementStep.css';
 import { LevelUpWizard } from './LevelUpWizard';
+import type { WizardFormData } from './WizardFormData';
 import { XPTracker } from './XPTracker';
-import './CharacterAdvancementStep.css';
-import './CharacterAdvancementStep.css';
 
 interface CharacterAdvancementStepProps {
   data: WizardFormData;

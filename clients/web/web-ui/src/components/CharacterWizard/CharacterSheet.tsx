@@ -1,19 +1,16 @@
 import React, { useMemo, useState } from 'react';
-import { CombatSystemService } from '../../services/combatSystem.service';
-import './Charac          }) || []}
-          
-          {(!character.equipment?.items || character.equipment.items.filter(item => 
-            item.equipment.name.toLowerCase().includes('sword') ||
-            item.equipment.name.toLowerCase().includes('bow') ||
-            item.equipment.name.toLowerCase().includes('dagger') ||
-            item.equipment.name.toLowerCase().includes('weapon')
-          ).length === 0) && (
-            <div className="attack-item">
-              <div className="attack-name">Unarmed Strike</div>
-              <div className="attack-bonus">{formatBonus(combatStats.proficiencyBonus + Math.floor(((character.strength || 10) - 10) / 2))} to hit</div>
-              <div className="attack-damage">1{formatBonus(Math.floor(((character.strength || 10) - 10) / 2))} bludgeoning</div>
-            </div>
-          )}css';
+import { CombatSystemService } from './combatSystem.service';
+import './CharacterSheet.css';
+import type { WizardFormData } from './WizardFormData';
+
+interface CharacterSheetProps {
+  character: WizardFormData;
+  onClose?: () => void;
+}
+
+import React, { useMemo, useState } from 'react';
+import { CombatSystemService } from './combatSystem.service';
+import './CharacterSheet.css';
 import type { WizardFormData } from './WizardFormData';
 
 interface CharacterSheetProps {
@@ -47,8 +44,8 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onClo
           {(['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const).map(ability => (
             <div key={ability} className="ability-card">
               <div className="ability-name">{ability.toUpperCase()}</div>
-              <div className="ability-score">{character.abilityScores?.[ability] || 10}</div>
-              <div className="ability-modifier">{formatModifier(character.abilityScores?.[ability] || 10)}</div>
+              <div className="ability-score">{character[ability] || 10}</div>
+              <div className="ability-modifier">{formatModifier(character[ability] || 10)}</div>
             </div>
           ))}
         </div>

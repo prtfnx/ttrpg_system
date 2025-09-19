@@ -43,12 +43,9 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onConfirm }) => {
         <p style={{ margin: '0 0 12px 0', fontSize: '0.9em', color: '#666' }}>
           Test your character's combat abilities, spells, and attacks before finalizing.
         </p>
-        <CombatLauncher 
-          character={data}
-          buttonText="🎯 Open Combat Manager"
-          buttonStyle="combat"
-          size="medium"
-        />
+        <div style={{ fontSize: '0.9em', color: '#8B0000', fontStyle: 'italic' }}>
+          Combat Manager will be available after character creation is complete.
+        </div>
       </div>
       
       <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>

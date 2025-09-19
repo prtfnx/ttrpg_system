@@ -1,0 +1,527 @@
+/* Character Export Step Styles */
+
+.character-export-step {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.step-header {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.step-header h3 {
+  font-size: 24px;
+  color: #8b0000;
+  margin-bottom: 8px;
+}
+
+.step-header p {
+  color: #666;
+  font-size: 16px;
+}
+
+.export-import-tabs {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 0;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tab-navigation {
+  display: flex;
+  border-bottom: 1px solid #dee2e6;
+  background: #fff;
+  border-radius: 8px 8px 0 0;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 15px 20px;
+  border: none;
+  background: none;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 8px 8px 0 0;
+  color: #666;
+}
+
+.tab-button:hover {
+  background: #f8f9fa;
+  color: #333;
+}
+
+.tab-button.active {
+  background: #8b0000;
+  color: white;
+}
+
+.tab-content {
+  padding: 30px;
+  background: white;
+  border-radius: 0 0 8px 8px;
+}
+
+/* Export Tab Styles */
+.export-tab h4,
+.import-tab h4,
+.pdf-tab h4 {
+  color: #8b0000;
+  font-size: 20px;
+  margin-bottom: 10px;
+}
+
+.tab-description {
+  color: #666;
+  margin-bottom: 25px;
+  line-height: 1.5;
+}
+
+.export-format-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.export-format-selection label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 15px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.export-format-selection label:hover {
+  border-color: #8b0000;
+  background: #fefefe;
+}
+
+.export-format-selection input[type="radio"] {
+  margin-top: 2px;
+}
+
+.export-format-selection input[type="radio"]:checked + .format-option {
+  color: #8b0000;
+}
+
+.format-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.format-option strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.format-option span {
+  font-size: 14px;
+  color: #666;
+}
+
+.export-preview {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 25px;
+  border: 1px solid #dee2e6;
+}
+
+.export-preview h5 {
+  color: #8b0000;
+  margin-bottom: 15px;
+  font-size: 16px;
+}
+
+.character-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 8px;
+  font-size: 14px;
+}
+
+.character-summary div {
+  padding: 4px 0;
+}
+
+.character-summary strong {
+  color: #333;
+}
+
+.export-actions {
+  text-align: center;
+}
+
+.export-button.primary {
+  background: #8b0000;
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.export-button.primary:hover:not(:disabled) {
+  background: #a00000;
+}
+
+.export-button.primary:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+/* Import Tab Styles */
+.import-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  margin-bottom: 25px;
+}
+
+.import-method {
+  padding: 20px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background: #f8f9fa;
+}
+
+.import-method h5 {
+  color: #8b0000;
+  margin-bottom: 15px;
+  font-size: 16px;
+}
+
+.import-method input[type="file"] {
+  display: none;
+}
+
+.import-method button.secondary {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.import-method button.secondary:hover {
+  background: #5a6268;
+}
+
+.url-import {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.url-input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.import-status {
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.import-status.loading {
+  background: #e3f2fd;
+  border: 1px solid #2196f3;
+  color: #1976d2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.import-status.error {
+  background: #ffebee;
+  border: 1px solid #f44336;
+  color: #c62828;
+}
+
+.import-status h5 {
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+.error-message {
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e3f2fd;
+  border-top: 2px solid #2196f3;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.import-preview {
+  background: #e8f5e8;
+  border: 1px solid #4caf50;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.import-preview h5 {
+  color: #2e7d2e;
+  margin-bottom: 15px;
+  font-size: 16px;
+}
+
+.preview-character {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  margin-bottom: 15px;
+}
+
+.preview-character strong {
+  color: #2e7d2e;
+}
+
+.import-warnings {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+.import-warnings h6 {
+  color: #856404;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.warning-message {
+  color: #856404;
+  font-size: 13px;
+  margin: 3px 0;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.apply-import.primary {
+  background: #4caf50;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+
+.apply-import.primary:hover {
+  background: #45a049;
+}
+
+.cancel-import.secondary {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.cancel-import.secondary:hover {
+  background: #5a6268;
+}
+
+/* PDF Tab Styles */
+.pdf-options {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  margin-bottom: 30px;
+}
+
+.option-group h5 {
+  color: #8b0000;
+  font-size: 16px;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #dee2e6;
+  padding-bottom: 5px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.checkbox-label input[type="checkbox"] {
+  margin: 0;
+}
+
+.radio-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+
+.radio-label input[type="radio"] {
+  margin-top: 2px;
+}
+
+.theme-option,
+.radio-label .format-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.theme-option strong,
+.radio-label .format-option strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.theme-option span,
+.radio-label .format-option span {
+  font-size: 13px;
+  color: #666;
+}
+
+.pdf-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.pdf-button.primary {
+  background: #8b0000;
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.pdf-button.primary:hover {
+  background: #a00000;
+}
+
+.pdf-button.secondary {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.pdf-button.secondary:hover {
+  background: #5a6268;
+}
+
+/* Navigation */
+.step-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 20px;
+  border-top: 1px solid #dee2e6;
+}
+
+.nav-button {
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-button.secondary {
+  background: #6c757d;
+  color: white;
+  border: none;
+}
+
+.nav-button.secondary:hover {
+  background: #5a6268;
+}
+
+.nav-button.primary {
+  background: #8b0000;
+  color: white;
+  border: none;
+}
+
+.nav-button.primary:hover {
+  background: #a00000;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .character-export-step {
+    padding: 0 15px;
+  }
+  
+  .tab-content {
+    padding: 20px 15px;
+  }
+  
+  .character-summary {
+    grid-template-columns: 1fr;
+  }
+  
+  .url-import {
+    flex-direction: column;
+  }
+  
+  .pdf-actions {
+    flex-direction: column;
+  }
+  
+  .preview-actions {
+    justify-content: center;
+  }
+}

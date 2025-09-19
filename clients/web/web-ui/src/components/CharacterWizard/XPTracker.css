@@ -1,0 +1,459 @@
+/* XP Tracker Component Styles */
+
+.xp-tracker {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e9ecef;
+}
+
+.xp-tracker.compact {
+  padding: 16px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+}
+
+/* Header Styles */
+.xp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.xp-header h3 {
+  margin: 0;
+  color: #8b0000;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.level-up-badge {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* Input Section Styles */
+.xp-input-section {
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.xp-input-section label {
+  display: block;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.xp-input-container {
+  display: flex;
+  gap: 8px;
+  position: relative;
+}
+
+.xp-input {
+  flex: 1;
+  padding: 12px;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  transition: border-color 0.2s ease;
+}
+
+.xp-input:focus {
+  outline: none;
+  border-color: #8b0000;
+  box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.1);
+}
+
+.quick-add-toggle {
+  width: 48px;
+  height: 48px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quick-add-toggle:hover {
+  background: #0056b3;
+  transform: scale(1.05);
+}
+
+.quick-add-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 10;
+  background: white;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 16px;
+  margin-top: 8px;
+  min-width: 280px;
+}
+
+.quick-add-header {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.quick-add-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.quick-add-btn {
+  padding: 8px 12px;
+  border: 2px solid;
+  background: white;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quick-add-btn.small {
+  border-color: #28a745;
+  color: #28a745;
+}
+
+.quick-add-btn.small:hover {
+  background: #28a745;
+  color: white;
+}
+
+.quick-add-btn.medium {
+  border-color: #007bff;
+  color: #007bff;
+}
+
+.quick-add-btn.medium:hover {
+  background: #007bff;
+  color: white;
+}
+
+.quick-add-btn.large {
+  border-color: #dc3545;
+  color: #dc3545;
+}
+
+.quick-add-btn.large:hover {
+  background: #dc3545;
+  color: white;
+}
+
+/* Level Info Styles */
+.level-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.current-level,
+.next-level {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.level-number {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #8b0000 0%, #a00000 100%);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(139, 0, 0, 0.3);
+}
+
+.next-level .level-number {
+  background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+  box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+}
+
+.level-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.level-arrow {
+  font-size: 24px;
+  color: #8b0000;
+  font-weight: 700;
+}
+
+/* Progress Styles */
+.xp-progress {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #dee2e6;
+  margin-bottom: 24px;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: #333;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 24px;
+  background: #e9ecef;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #007bff 0%, #0056b3 100%);
+  transition: width 0.5s ease;
+  border-radius: 12px;
+  position: relative;
+}
+
+.progress-fill.ready {
+  background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+  animation: ready-glow 2s infinite alternate;
+}
+
+@keyframes ready-glow {
+  0% { box-shadow: 0 0 10px rgba(40, 167, 69, 0.5); }
+  100% { box-shadow: 0 0 20px rgba(40, 167, 69, 0.8); }
+}
+
+.progress-footer {
+  margin-top: 8px;
+  text-align: center;
+}
+
+.xp-remaining {
+  color: #666;
+  font-size: 14px;
+}
+
+.xp-ready {
+  color: #28a745;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+/* Max Level Indicator */
+.max-level-indicator {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  border-radius: 8px;
+  border: 2px solid #f1c40f;
+  margin-bottom: 24px;
+}
+
+.max-level-icon {
+  font-size: 32px;
+}
+
+.max-level-text strong {
+  display: block;
+  font-size: 18px;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.max-level-text p {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+/* Milestones Styles */
+.xp-milestones {
+  border-top: 2px solid #dee2e6;
+  padding-top: 16px;
+}
+
+.milestone-header {
+  font-weight: 600;
+  color: #8b0000;
+  margin-bottom: 16px;
+  text-align: center;
+  font-size: 16px;
+}
+
+.milestone-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 12px;
+}
+
+.milestone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px;
+  background: #f8f9fa;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.milestone.reached {
+  background: #e8f5e8;
+  border-color: #28a745;
+}
+
+.milestone.current {
+  background: #fff3cd;
+  border-color: #ffc107;
+  transform: scale(1.05);
+}
+
+.milestone-level {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+}
+
+.milestone.reached .milestone-level,
+.milestone.current .milestone-level {
+  color: #333;
+}
+
+.milestone-xp {
+  font-size: 11px;
+  color: #999;
+}
+
+.milestone.reached .milestone-xp,
+.milestone.current .milestone-xp {
+  color: #666;
+}
+
+/* Compact Styles */
+.xp-tracker.compact .xp-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.xp-tracker.compact .current-xp {
+  font-size: 18px;
+  font-weight: 700;
+  color: #007bff;
+}
+
+.xp-tracker.compact .level-display {
+  background: #8b0000;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.xp-progress-compact {
+  margin-bottom: 8px;
+}
+
+.xp-progress-compact .progress-bar {
+  height: 8px;
+  margin-bottom: 4px;
+}
+
+.xp-progress-compact .progress-text {
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+}
+
+.level-up-indicator {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  text-align: center;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  animation: pulse 2s infinite;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .xp-tracker {
+    padding: 16px;
+  }
+  
+  .level-info {
+    gap: 16px;
+  }
+  
+  .level-number {
+    width: 60px;
+    height: 60px;
+    font-size: 20px;
+  }
+  
+  .quick-add-panel {
+    left: 0;
+    right: 0;
+    min-width: auto;
+  }
+  
+  .quick-add-buttons {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .milestone-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .progress-header {
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+  }
+}

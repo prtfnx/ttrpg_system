@@ -7,6 +7,7 @@ import { Modal } from '../common/Modal';
 import '../common/Modal.css';
 import { AbilitiesStep } from './AbilitiesStep';
 import { BackgroundStep } from './BackgroundStep';
+import { CharacterAdvancementStep } from './CharacterAdvancementStep';
 import CharacterExportStep from './CharacterExportStep';
 import { classSchema } from './classSchema';
 import { ClassStep } from './ClassStep';
@@ -108,7 +109,7 @@ const wizardSchema = z.object({
 
 export function CharacterCreationWizard({ onFinish, onCancel, isOpen }: CharacterCreationWizardProps) {
   const [step, setStep] = useState(0);
-  const stepsCount = 9; // Race, Class, Background, Abilities, Skills, Spells, Identity, Export/Import, Review
+  const stepsCount = 10; // Race, Class, Background, Abilities, Skills, Spells, Identity, Export/Import, Advancement, Review
   
   const methods = useForm<WizardFormData>({
     resolver: zodResolver(wizardSchema),
@@ -320,9 +321,18 @@ export function CharacterCreationWizard({ onFinish, onCancel, isOpen }: Characte
               />
             )}
             {step === 8 && (
+              <CharacterAdvancementStep
+                data={methods.getValues() as WizardFormData}
+                onChange={(field, value) => {
+                  methods.setValue(field, value);
+                }}
+                onComplete={() => setStep(9)}
+              />
+            )}
+            {step === 9 && (
               <ReviewStep
                 data={methods.getValues() as WizardFormData}
-                onBack={() => setStep(7)}
+                onBack={() => setStep(8)}
                 onConfirm={() => handleFinish(methods.getValues() as WizardFormData)}
               />
             )}

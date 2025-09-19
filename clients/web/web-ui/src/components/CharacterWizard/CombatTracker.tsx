@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { CombatSystemService, type CombatStats, type DiceResult } from '../../services/combatSystem.service';
+import './CombatTracker.css';
 import { InitiativeRoll } from './DiceRoller';
 import type { WizardFormData } from './WizardFormData';
-import './CombatTracker.css';
 
 interface CombatParticipant {
   id: string;

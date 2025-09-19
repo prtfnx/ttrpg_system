@@ -1,6 +1,19 @@
 import React, { useMemo, useState } from 'react';
 import { CombatSystemService } from '../../services/combatSystem.service';
-import './CharacterSheet.css';
+import './Charac          }) || []}
+          
+          {(!character.equipment?.items || character.equipment.items.filter(item => 
+            item.equipment.name.toLowerCase().includes('sword') ||
+            item.equipment.name.toLowerCase().includes('bow') ||
+            item.equipment.name.toLowerCase().includes('dagger') ||
+            item.equipment.name.toLowerCase().includes('weapon')
+          ).length === 0) && (
+            <div className="attack-item">
+              <div className="attack-name">Unarmed Strike</div>
+              <div className="attack-bonus">{formatBonus(combatStats.proficiencyBonus + Math.floor(((character.strength || 10) - 10) / 2))} to hit</div>
+              <div className="attack-damage">1{formatBonus(Math.floor(((character.strength || 10) - 10) / 2))} bludgeoning</div>
+            </div>
+          )}css';
 import type { WizardFormData } from './WizardFormData';
 
 interface CharacterSheetProps {

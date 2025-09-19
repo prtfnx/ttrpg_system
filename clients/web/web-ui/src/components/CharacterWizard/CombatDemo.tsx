@@ -1,7 +1,7 @@
 import React from 'react';
 import './CombatDemo.css';
-import type { WizardFormData } from './WizardFormData';
 import { CombatLauncher } from './CombatLauncher';
+import type { WizardFormData } from './WizardFormData';
 
 // Demo character data for testing combat components
 const demoCharacter: WizardFormData = {

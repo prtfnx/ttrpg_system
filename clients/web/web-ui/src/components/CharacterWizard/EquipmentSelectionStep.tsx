@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import { EquipmentCategory, equipmentManagementService, type Equipment, type InventoryItem } from '../../services/equipmentManagement.service';
+import { EquipmentCategory, equipmentManagementService, type Equipment, type EquipmentCategoryType, type InventoryItem } from '../../services/equipmentManagement.service';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import './EquipmentSelectionStep.css';
 import type { WizardFormData } from './WizardFormData';
@@ -91,6 +91,23 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
     });
   }, [availableEquipment, filters]);
 
+  // Helper function to convert Equipment to WizardFormData format
+  const convertEquipmentToWizardFormat = (equipment: Equipment) => ({
+    name: equipment.name,
+    weight: equipment.weight,
+    cost: {
+      amount: equipment.cost.quantity,
+      unit: equipment.cost.unit
+    }
+  });
+
+  // Helper function to convert InventoryItem to WizardFormData format
+  const convertInventoryItemToWizardFormat = (item: InventoryItem) => ({
+    equipment: convertEquipmentToWizardFormat(item.equipment),
+    quantity: item.quantity,
+    equipped: item.equipped
+  });
+
   // Group equipment by category for display
   const equipmentByCategory = useMemo(() => {
     const groups: Record<string, Equipment[]> = {};
@@ -112,8 +129,11 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
     // Add starting gold (simplified - using average starting wealth)
     const startingGold = characterClass === 'Fighter' ? 125 : characterClass === 'Wizard' ? 100 : 80;
 
+    // Convert starting items to WizardFormData format
+    const convertedItems = startingItems.map(convertInventoryItemToWizardFormat);
+
     setValue('equipment', {
-      items: startingItems,
+      items: convertedItems,
       currency: { cp: 0, sp: 0, ep: 0, gp: startingGold, pp: 0 },
       carrying_capacity: {
         ...carryingCapacity,
@@ -128,15 +148,45 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
     
     let newItems: InventoryItem[];
     if (existingItem) {
+      // Convert current items back to InventoryItem format for processing
+      const currentInventoryItems: InventoryItem[] = currentEquipment.items.map(item => ({
+        equipment: {
+          ...equipment, // Use the full equipment data for calculations
+          name: item.equipment.name,
+          weight: item.equipment.weight,
+          cost: {
+            quantity: item.equipment.cost.amount,
+            unit: item.equipment.cost.unit as 'cp' | 'sp' | 'ep' | 'gp' | 'pp'
+          }
+        },
+        quantity: item.quantity,
+        equipped: item.equipped
+      }));
+      
       // Increase quantity
-      newItems = currentEquipment.items.map(item =>
+      newItems = currentInventoryItems.map(item =>
         item.equipment.name === equipment.name
           ? { ...item, quantity: item.quantity + 1 }
           : item
       );
     } else {
+      // Convert current items and add new item
+      const currentInventoryItems: InventoryItem[] = currentEquipment.items.map(item => ({
+        equipment: {
+          ...equipment, // Use the full equipment data for calculations
+          name: item.equipment.name,
+          weight: item.equipment.weight,
+          cost: {
+            quantity: item.equipment.cost.amount,
+            unit: item.equipment.cost.unit as 'cp' | 'sp' | 'ep' | 'gp' | 'pp'
+          }
+        },
+        quantity: item.quantity,
+        equipped: item.equipped
+      }));
+      
       // Add new item
-      newItems = [...currentEquipment.items, {
+      newItems = [...currentInventoryItems, {
         equipment,
         quantity: 1,
         equipped: false
@@ -147,7 +197,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
 
     setValue('equipment', {
       ...currentEquipment,
-      items: newItems,
+      items: newItems.map(convertInventoryItemToWizardFormat),
       carrying_capacity: {
         ...carryingCapacity,
         current_weight: totalWeight
@@ -157,7 +207,23 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
 
   // Handle removing equipment from inventory
   const handleRemoveEquipment = useCallback((equipmentName: string) => {
-    const newItems = currentEquipment.items.reduce((acc: InventoryItem[], item) => {
+    // Convert current items back to InventoryItem format for processing
+    const currentInventoryItems: InventoryItem[] = currentEquipment.items.map(item => ({
+      equipment: {
+        name: item.equipment.name,
+        weight: item.equipment.weight,
+        cost: {
+          quantity: item.equipment.cost.amount,
+          unit: item.equipment.cost.unit as 'cp' | 'sp' | 'ep' | 'gp' | 'pp'
+        },
+        category: 'gear' as EquipmentCategoryType, // Default category for calculation purposes
+        description: '' // Default description
+      } as Equipment,
+      quantity: item.quantity,
+      equipped: item.equipped
+    }));
+
+    const newItems = currentInventoryItems.reduce((acc: InventoryItem[], item) => {
       if (item.equipment.name === equipmentName) {
         if (item.quantity > 1) {
           acc.push({ ...item, quantity: item.quantity - 1 });
@@ -173,7 +239,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
 
     setValue('equipment', {
       ...currentEquipment,
-      items: newItems,
+      items: newItems.map(convertInventoryItemToWizardFormat),
       carrying_capacity: {
         ...carryingCapacity,
         current_weight: totalWeight

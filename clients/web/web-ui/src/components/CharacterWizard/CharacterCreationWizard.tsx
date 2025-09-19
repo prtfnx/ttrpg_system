@@ -11,7 +11,6 @@ import { CharacterAdvancementStep } from './CharacterAdvancementStep';
 import CharacterExportStep from './CharacterExportStep';
 import { classSchema } from './classSchema';
 import { ClassStep } from './ClassStep';
-import { CombatView } from './CombatView';
 import IdentityStep from './IdentityStep';
 import { RaceStep } from './RaceStepImproved';
 import ReviewStep from './ReviewStep';

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import './SpellManager.css';
 import type { WizardFormData } from './WizardFormData';
 

@@ -6,10 +6,9 @@ interface ReviewStepProps {
   data: WizardFormData;
   onBack: () => void;
   onConfirm: () => void;
-  onOpenCombat?: () => void;
 }
 
-const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onConfirm, onOpenCombat }) => {
+const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onConfirm }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <h3 style={{ marginBottom: 8 }}>Review Your Character</h3>
@@ -44,22 +43,12 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onConfirm, onOpen
         <p style={{ margin: '0 0 12px 0', fontSize: '0.9em', color: '#666' }}>
           Test your character's combat abilities, spells, and attacks before finalizing.
         </p>
-        {onOpenCombat && (
-          <button 
-            onClick={onOpenCombat}
-            style={{ 
-              background: 'linear-gradient(135deg, #8B0000, #A52A2A)',
-              color: '#fff', 
-              border: 'none', 
-              borderRadius: 4, 
-              padding: '8px 16px',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-          >
-            🎯 Open Combat Manager
-          </button>
-        )}
+        <CombatLauncher 
+          character={data}
+          buttonText="🎯 Open Combat Manager"
+          buttonStyle="combat"
+          size="medium"
+        />
       </div>
       
       <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>

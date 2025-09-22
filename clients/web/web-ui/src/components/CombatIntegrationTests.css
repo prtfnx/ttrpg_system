@@ -1,0 +1,344 @@
+/* Combat Integration Tests Styles */
+.combat-integration-tests {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.combat-integration-tests h2 {
+  color: #333;
+  margin-bottom: 10px;
+  font-size: 28px;
+}
+
+.combat-integration-tests p {
+  color: #666;
+  margin-bottom: 30px;
+  font-size: 16px;
+}
+
+/* Character Selection */
+.test-character-selection {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 25px;
+}
+
+.test-character-selection h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.character-tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.character-tabs button {
+  background-color: #fff;
+  border: 2px solid #dee2e6;
+  border-radius: 6px;
+  padding: 12px 20px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+  transition: all 0.2s ease;
+}
+
+.character-tabs button:hover {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.character-tabs button.active {
+  background-color: #007bff;
+  border-color: #007bff;
+  color: white;
+}
+
+/* Test Controls */
+.test-controls {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.run-tests-btn {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 15px 30px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
+}
+
+.run-tests-btn:hover:not(:disabled) {
+  background-color: #218838;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}
+
+.run-tests-btn:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Test Results */
+.test-results {
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.test-results h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 20px;
+}
+
+.results-grid {
+  display: grid;
+  gap: 15px;
+}
+
+.test-result {
+  border: 2px solid;
+  border-radius: 8px;
+  padding: 15px;
+  transition: all 0.2s ease;
+}
+
+.test-result.pass {
+  border-color: #28a745;
+  background-color: #d4edda;
+}
+
+.test-result.fail {
+  border-color: #dc3545;
+  background-color: #f8d7da;
+}
+
+.test-result.pending {
+  border-color: #ffc107;
+  background-color: #fff3cd;
+}
+
+.test-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.status-icon {
+  font-size: 18px;
+}
+
+.test-name {
+  font-weight: 600;
+  font-size: 16px;
+  color: #333;
+}
+
+.component-tag {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: #495057;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+  margin-left: auto;
+}
+
+.test-details {
+  color: #495057;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Live Components Test */
+.live-components-test {
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.live-components-test h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 20px;
+}
+
+.component-demo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 25px;
+}
+
+.demo-section {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 20px;
+}
+
+.demo-section h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 16px;
+}
+
+/* Character Summary */
+.character-summary {
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 15px;
+  font-size: 14px;
+}
+
+.character-summary p {
+  margin: 0 0 8px 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+.character-summary strong {
+  color: #495057;
+  font-weight: 600;
+}
+
+/* Combat Launcher in Tests */
+.combat-integration-tests .combat-launcher-btn {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
+}
+
+.combat-integration-tests .combat-launcher-btn:hover {
+  background-color: #c82333;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(220, 53, 69, 0.3);
+}
+
+.btn-icon {
+  font-size: 16px;
+}
+
+.btn-text {
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .combat-integration-tests {
+    padding: 15px;
+  }
+  
+  .character-tabs {
+    flex-direction: column;
+  }
+  
+  .character-tabs button {
+    width: 100%;
+  }
+  
+  .component-demo-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .test-result {
+    padding: 12px;
+  }
+  
+  .test-header {
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  
+  .component-tag {
+    margin-left: 0;
+  }
+}
+
+/* Animation for running tests */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.run-tests-btn:disabled {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Success/Error Indicators */
+.test-result.pass .test-header {
+  color: #155724;
+}
+
+.test-result.fail .test-header {
+  color: #721c24;
+}
+
+.test-result.pending .test-header {
+  color: #856404;
+}
+
+/* Hover Effects */
+.test-result:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.demo-section:hover {
+  background-color: #e9ecef;
+}
+
+/* Focus States for Accessibility */
+.character-tabs button:focus,
+.run-tests-btn:focus,
+.combat-launcher-btn:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+.character-tabs button:focus {
+  z-index: 1;
+  position: relative;
+}

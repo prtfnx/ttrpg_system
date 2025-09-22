@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { combatOptimizer, performanceUtils } from '../services/performanceOptimization.service';
 import type { WizardFormData } from './CharacterWizard/WizardFormData';
 import './PerformanceOptimizationDemo.css';

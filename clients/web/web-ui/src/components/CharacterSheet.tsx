@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import type { Character } from "./CharacterManager";
-import type { WizardFormData } from "./CharacterWizard/WizardFormData";
 import "./CharacterSheet.css";
+import type { WizardFormData } from "./CharacterWizard/WizardFormData";
 
 interface CharacterSheetProps {
   character: Character | null;

@@ -1,3 +1,56 @@
+// Type-safe conversion utilities for equipment <-> wizard item <-> inventory item
+// Wizard equipment item type
+export type WizardEquipmentItem = {
+  equipment: {
+    name: string;
+    weight: number;
+    cost: {
+      amount: number;
+      unit: string;
+    };
+  };
+  quantity: number;
+  equipped?: boolean;
+};
+
+/**
+ * Convert Equipment to Wizard equipment item
+ */
+export function equipmentToWizardItem(equipment: Equipment, quantity: number, equipped?: boolean): WizardEquipmentItem {
+  return {
+    equipment: {
+      name: equipment.name,
+      weight: equipment.weight,
+      cost: {
+        amount: equipment.cost.quantity,
+        unit: equipment.cost.unit
+      }
+    },
+    quantity,
+    ...(equipped !== undefined ? { equipped } : {})
+  };
+}
+
+/**
+ * Convert Wizard equipment item to InventoryItem (using a lookup for full Equipment if needed)
+ */
+export function wizardItemToInventoryItem(
+  item: WizardEquipmentItem,
+  equipmentLookup: (name: string) => Equipment
+): InventoryItem {
+  return {
+    equipment: equipmentLookup(item.equipment.name),
+    quantity: item.quantity,
+    equipped: item.equipped
+  };
+}
+
+/**
+ * Convert InventoryItem to Wizard equipment item
+ */
+export function inventoryItemToWizardItem(item: InventoryItem): WizardEquipmentItem {
+  return equipmentToWizardItem(item.equipment, item.quantity, item.equipped);
+}
 /**
  * D&D 5e Equipment Management Service
  * Handles equipment selection, inventory management, and starting equipment

@@ -4,11 +4,11 @@
  * and comprehensive error handling
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import type { LoginCredentials, OAuthProvider, RegisterCredentials } from '../services/enhancedAuth.service';
 import { enhancedAuthService } from '../services/enhancedAuth.service';
-import type { OAuthProvider, LoginCredentials, RegisterCredentials } from '../services/enhancedAuth.service';
-import { LoadingSpinner } from './common/LoadingSpinner';
 import { ErrorBoundary } from './common/ErrorBoundary';
+import { LoadingSpinner } from './common/LoadingSpinner';
 import './EnhancedLogin.css';
 
 interface PasswordStrength {

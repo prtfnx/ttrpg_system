@@ -20,6 +20,7 @@ import { BackgroundStep } from './BackgroundStep';
 import { CharacterAdvancementStep } from './CharacterAdvancementStep';
 import { CharacterExportStep } from './CharacterExportStep';
 import { ClassStep } from './ClassStep';
+import './EnhancedCharacterWizard.css';
 import { EquipmentSelectionStep } from './EquipmentSelectionStep';
 import { IdentityStep } from './IdentityStep';
 import { RaceStep } from './RaceStepImproved';
@@ -27,7 +28,6 @@ import ReviewStep from './ReviewStep';
 import { SkillsStep } from './SkillsStep';
 import { SpellSelectionStep } from './SpellSelectionStep';
 import { enhancedWizardSchema, type WizardFormData } from './WizardFormData';
-import './EnhancedCharacterWizard.css';
 
 // Step definitions with metadata
 interface WizardStep {

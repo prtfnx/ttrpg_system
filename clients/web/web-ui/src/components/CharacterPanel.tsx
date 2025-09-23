@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useGameStore } from '../store';
 import DiceRoller from '../tools/DiceRoller';
 import type { DetailedCharacter } from '../types';
-import CharacterCreationWizard from './CharacterWizard/CharacterCreationWizard';
+import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 
 // Utility to generate unique IDs
 function genId(): string {
@@ -86,7 +86,7 @@ function CharacterPanel() {
       </button>
 
       {showCreateModal && (
-        <CharacterCreationWizard
+        <EnhancedCharacterWizard
           key={wizardKey}
           isOpen={showCreateModal}
           onFinish={(data) => {

@@ -5,6 +5,7 @@
  */
 
 import { EventSystem } from './eventSystem.service';
+import type { EventHandler } from './eventSystem.service';
 
 // === Core Types ===
 
@@ -406,8 +407,8 @@ export class FogOfWarService extends EventSystem {
   /**
    * Subscribe to fog of war events
    */
-  subscribe<T = any>(key: string, event: string, handler: (event: string, data: T) => void): void {
-    super.subscribe(key, event, (data: T) => handler(event, data));
+  subscribe<T = any>(key: string, event: string, handler: EventHandler<T>, once?: boolean): void {
+    super.subscribe(key, event, handler, once);
   }
 
   /**

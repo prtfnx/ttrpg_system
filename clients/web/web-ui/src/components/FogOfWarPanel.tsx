@@ -6,10 +6,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-    fogOfWarSystem,
-    type AnyFogOfWarRegion,
-    type FogOfWarSettings,
-    type FogOfWarViewport
+  fogOfWarSystem,
+  type AnyFogOfWarRegion,
+  type FogOfWarSettings,
+  type FogOfWarViewport
 } from '../services/fogOfWar.service';
 import '../styles/FogOfWarPanel.css';
 

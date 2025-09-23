@@ -18,8 +18,7 @@ interface CharacterSheetProps {
 export const CharacterSheet: React.FC<CharacterSheetProps> = ({ 
   character, 
   fullCharacterData,
-  onSave, 
-  onSaveFullData,
+  onSave,
   lockedBy, 
   presence, 
   onRequestLock, 

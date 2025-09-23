@@ -80,30 +80,12 @@ export const FogOfWarPanel: React.FC<FogOfWarPanelProps> = ({
 
   // === Event Handlers ===
 
-  const handleSystemEvent = useCallback((event: string, data: any) => {
-    switch (event) {
-      case 'regionCreated':
-      case 'regionUpdated':
-      case 'regionRemoved':
-      case 'regionsCleared':
-        setRegions(fogOfWarSystem.getRegions());
-        break;
-      case 'settingsUpdated':
-        setSettings(data.newSettings);
-        break;
-      case 'viewportUpdated':
-        setViewport(data.newViewport);
-        break;
-      case 'toolChanged':
-        setCurrentTool(data.newTool);
-        break;
-      case 'fogOfWarToggled':
-        setIsEnabled(data.enabled);
-        break;
-      case 'regionSelected':
-        setSelectedRegion(data.region.id);
-        break;
-    }
+  const handleSystemEvent = useCallback(() => {
+    // Update UI state based on system events
+    setRegions(fogOfWarSystem.getRegions());
+    setSettings(fogOfWarSystem.getSettings());
+    setViewport(fogOfWarSystem.getViewport());
+    setCurrentTool(fogOfWarSystem.getCurrentTool());
   }, []);
 
   // === Effects ===

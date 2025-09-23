@@ -1,0 +1,717 @@
+/**
+ * Fog of War Panel Styles
+ * Professional styling with dark theme, animations, and responsive design
+ */
+
+/* === Base Panel Styles === */
+.fog-panel-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fog-fade-in 0.2s ease-out;
+}
+
+.fog-panel {
+  background: linear-gradient(145deg, #2a2a2a, #1e1e1e);
+  border: 1px solid #444;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  width: min(90vw, 900px);
+  height: min(85vh, 700px);
+  display: flex;
+  flex-direction: column;
+  color: #ffffff;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  animation: fog-slide-up 0.3s ease-out;
+}
+
+.fog-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #444;
+  background: linear-gradient(90deg, #3a3a3a, #2a2a2a);
+  border-radius: 12px 12px 0 0;
+}
+
+.fog-panel-header h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #4fc3f7, #29b6f6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.fog-panel-close {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 2rem;
+  cursor: pointer;
+  padding: 0;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.fog-panel-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  transform: scale(1.1);
+}
+
+/* === Tab Navigation === */
+.fog-panel-tabs {
+  display: flex;
+  border-bottom: 1px solid #444;
+  background: #1a1a1a;
+}
+
+.fog-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  color: #999;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  position: relative;
+  border-bottom: 3px solid transparent;
+}
+
+.fog-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.fog-tab.active {
+  color: #4fc3f7;
+  border-bottom-color: #4fc3f7;
+  background: rgba(79, 195, 247, 0.1);
+}
+
+.fog-tab-icon {
+  font-size: 1rem;
+}
+
+.fog-tab-label {
+  font-weight: 500;
+}
+
+.fog-tab-count {
+  background: #4fc3f7;
+  color: #000;
+  border-radius: 12px;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-width: 1.5rem;
+  text-align: center;
+}
+
+/* === Panel Content === */
+.fog-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.fog-panel-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.fog-panel-content::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.fog-panel-content::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 4px;
+}
+
+.fog-panel-content::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* === Tools Tab Styles === */
+.fog-tools-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.fog-enable-section {
+  text-align: center;
+  padding: 1rem;
+  background: rgba(79, 195, 247, 0.1);
+  border: 1px solid #4fc3f7;
+  border-radius: 8px;
+}
+
+.fog-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.fog-checkbox input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: #4fc3f7;
+}
+
+.fog-checkbox-label {
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.fog-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1rem;
+}
+
+.fog-tool-button {
+  background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
+  border: 1px solid #555;
+  border-radius: 8px;
+  color: #ffffff;
+  padding: 1rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  min-height: 80px;
+}
+
+.fog-tool-button:hover:not(.disabled) {
+  background: linear-gradient(145deg, #4a4a4a, #3a3a3a);
+  border-color: #4fc3f7;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(79, 195, 247, 0.3);
+}
+
+.fog-tool-button.active {
+  background: linear-gradient(145deg, #4fc3f7, #29b6f6);
+  border-color: #4fc3f7;
+  color: #000;
+  box-shadow: 0 4px 12px rgba(79, 195, 247, 0.4);
+}
+
+.fog-tool-button.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fog-tool-icon {
+  width: 2rem;
+  height: 2rem;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* Tool icons */
+.fog-tool-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M13.64 21.97a1 1 0 0 1-.64-.23L8.52 18.5a1 1 0 0 1-.52-.87V6.91a1 1 0 0 1 .31-.71L11.4 3.08a1 1 0 0 1 1.2 0l3.09 3.12a1 1 0 0 1 .31.71v10.72a1 1 0 0 1-.52.87l-4.48 3.24a1 1 0 0 1-.36.23z'/%3E%3C/svg%3E"); }
+.fog-tool-reveal { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z'/%3E%3C/svg%3E"); }
+.fog-tool-hide { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z'/%3E%3C/svg%3E"); }
+.fog-tool-polygon { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M17 15.7V13l4-2-4-2v-2.7L22 9v2l-5 2.7zM12 20.9l-5-2.7V16l-4 2-4-2v-2l5-2.7V9.3L2 7V5l5 2.7V5.1L12 2.9l5 2.7v2.6L22 5v2l-5 2.7v2.6l4 2v2l-4 2v2.7l-5 2.7z'/%3E%3C/svg%3E"); }
+.fog-tool-circle { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Ccircle cx='12' cy='12' r='10' fill='none' stroke='currentColor' stroke-width='2'/%3E%3C/svg%3E"); }
+.fog-tool-rectangle { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Crect x='3' y='5' width='18' height='14' fill='none' stroke='currentColor' stroke-width='2' rx='2'/%3E%3C/svg%3E"); }
+
+.fog-tool-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.fog-instructions {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.fog-instructions h4 {
+  margin-top: 0;
+  color: #4fc3f7;
+  font-size: 1.1rem;
+}
+
+.fog-instructions p {
+  margin: 0.5rem 0;
+  line-height: 1.5;
+  color: #ccc;
+}
+
+.fog-shortcuts h5 {
+  margin: 1rem 0 0.5rem 0;
+  color: #4fc3f7;
+  font-size: 1rem;
+}
+
+.fog-shortcuts ul {
+  margin: 0;
+  padding-left: 1rem;
+  list-style: none;
+}
+
+.fog-shortcuts li {
+  margin: 0.25rem 0;
+  color: #ccc;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fog-shortcuts kbd {
+  background: #333;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 0.125rem 0.5rem;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #4fc3f7;
+}
+
+/* === Regions Tab Styles === */
+.fog-regions-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.fog-regions-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.fog-search-bar {
+  flex: 1;
+  min-width: 200px;
+}
+
+.fog-search-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid #555;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  color: #ffffff;
+  font-size: 0.9rem;
+}
+
+.fog-search-input:focus {
+  outline: none;
+  border-color: #4fc3f7;
+  box-shadow: 0 0 0 2px rgba(79, 195, 247, 0.2);
+}
+
+.fog-regions-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.fog-regions-stats {
+  display: flex;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #ccc;
+}
+
+.fog-regions-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 400px;
+  padding-right: 0.5rem;
+}
+
+.fog-empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #999;
+}
+
+.fog-empty-state p {
+  margin: 0.5rem 0;
+}
+
+.fog-region-item {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #444;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.fog-region-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #4fc3f7;
+}
+
+.fog-region-item.selected {
+  background: rgba(79, 195, 247, 0.1);
+  border-color: #4fc3f7;
+}
+
+.fog-region-item.revealed {
+  opacity: 0.7;
+}
+
+.fog-region-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.fog-region-type {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  min-width: 60px;
+  text-align: center;
+}
+
+.fog-region-polygon { background: #4caf50; color: #000; }
+.fog-region-circle { background: #2196f3; color: #fff; }
+.fog-region-rectangle { background: #ff9800; color: #000; }
+
+.fog-region-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.fog-region-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.fog-region-details {
+  padding: 0 0.75rem 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: #ccc;
+}
+
+.fog-region-property {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* === Settings Tab Styles === */
+.fog-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.fog-setting-group {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.fog-setting-group h4 {
+  margin: 0 0 1rem 0;
+  color: #4fc3f7;
+  font-size: 1.1rem;
+  border-bottom: 1px solid #444;
+  padding-bottom: 0.5rem;
+}
+
+.fog-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.fog-setting:last-child {
+  margin-bottom: 0;
+}
+
+.fog-setting label {
+  font-weight: 500;
+  min-width: 120px;
+  color: #ffffff;
+}
+
+.fog-setting-control {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 200px;
+}
+
+.fog-setting input[type="range"] {
+  flex: 1;
+  accent-color: #4fc3f7;
+}
+
+.fog-setting input[type="color"] {
+  width: 3rem;
+  height: 2rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.fog-setting select {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 0.5rem;
+  color: #ffffff;
+}
+
+.fog-setting select:focus {
+  outline: none;
+  border-color: #4fc3f7;
+}
+
+.fog-data-actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.fog-file-input {
+  position: relative;
+  overflow: hidden;
+  display: inline-block;
+  cursor: pointer;
+}
+
+/* === Performance Tab Styles === */
+.fog-performance-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.fog-performance-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.fog-metric-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.fog-metric-label {
+  font-size: 0.85rem;
+  color: #999;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.fog-metric-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.fog-metric-value.good { color: #4caf50; }
+.fog-metric-value.caution { color: #ff9800; }
+.fog-metric-value.warning { color: #f44336; }
+.fog-metric-value.neutral { color: #2196f3; }
+
+.fog-performance-info {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.fog-performance-info h4 {
+  margin: 0 0 1rem 0;
+  color: #4fc3f7;
+  font-size: 1.1rem;
+}
+
+.fog-performance-info ul {
+  margin: 0 0 1.5rem 0;
+  padding-left: 1.5rem;
+  color: #ccc;
+  line-height: 1.6;
+}
+
+.fog-performance-info li {
+  margin-bottom: 0.5rem;
+}
+
+.fog-system-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-family: monospace;
+  font-size: 0.9rem;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1rem;
+  border-radius: 6px;
+  color: #ccc;
+}
+
+/* === Button Styles === */
+.fog-btn {
+  background: linear-gradient(145deg, #4fc3f7, #29b6f6);
+  border: none;
+  border-radius: 6px;
+  color: #000;
+  cursor: pointer;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.fog-btn:hover:not(:disabled) {
+  background: linear-gradient(145deg, #29b6f6, #0288d1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 195, 247, 0.3);
+}
+
+.fog-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fog-btn-small {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.fog-btn-secondary {
+  background: linear-gradient(145deg, #666, #444);
+  color: #ffffff;
+}
+
+.fog-btn-secondary:hover:not(:disabled) {
+  background: linear-gradient(145deg, #777, #555);
+}
+
+.fog-btn-danger {
+  background: linear-gradient(145deg, #f44336, #d32f2f);
+  color: #ffffff;
+}
+
+.fog-btn-danger:hover:not(:disabled) {
+  background: linear-gradient(145deg, #d32f2f, #b71c1c);
+}
+
+.fog-btn-primary {
+  background: linear-gradient(145deg, #4fc3f7, #29b6f6);
+  color: #000;
+}
+
+/* === Animations === */
+@keyframes fog-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fog-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* === Responsive Design === */
+@media (max-width: 768px) {
+  .fog-panel {
+    width: 95vw;
+    height: 90vh;
+    margin: 0;
+  }
+  
+  .fog-panel-header {
+    padding: 1rem;
+  }
+  
+  .fog-panel-content {
+    padding: 1rem;
+  }
+  
+  .fog-tools-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .fog-performance-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .fog-regions-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .fog-setting {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  
+  .fog-data-actions {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .fog-tools-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .fog-performance-metrics {
+    grid-template-columns: 1fr;
+  }
+}

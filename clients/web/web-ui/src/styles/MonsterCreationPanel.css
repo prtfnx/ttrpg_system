@@ -1,0 +1,985 @@
+/**
+ * Monster Creation Panel Styles
+ * Production-ready styling for comprehensive monster management system
+ * with professional design, accessibility, and responsive layouts
+ */
+
+/* === Main Panel Structure === */
+.monster-panel-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(2px);
+}
+
+.monster-panel {
+  background: var(--panel-bg, #2a2a2a);
+  border-radius: 12px;
+  width: 95vw;
+  max-width: 1400px;
+  height: 90vh;
+  max-height: 900px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border-color, #444);
+  overflow: hidden;
+}
+
+.monster-panel-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-color, #444);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--header-bg, #333);
+}
+
+.monster-panel-header h3 {
+  margin: 0;
+  color: var(--text-primary, #ffffff);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.monster-panel-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary, #cccccc);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.monster-panel-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary, #ffffff);
+}
+
+/* === Tab System === */
+.monster-panel-tabs {
+  display: flex;
+  background: var(--tab-bg, #333);
+  border-bottom: 1px solid var(--border-color, #444);
+  overflow-x: auto;
+}
+
+.monster-tab {
+  background: none;
+  border: none;
+  padding: 12px 20px;
+  color: var(--text-secondary, #cccccc);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  position: relative;
+  border-bottom: 2px solid transparent;
+}
+
+.monster-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary, #ffffff);
+}
+
+.monster-tab.active {
+  color: var(--accent-color, #4a90e2);
+  border-bottom-color: var(--accent-color, #4a90e2);
+  background: rgba(74, 144, 226, 0.1);
+}
+
+.monster-tab-icon {
+  font-size: 1rem;
+}
+
+.monster-tab-label {
+  font-weight: 500;
+}
+
+.monster-tab-count {
+  background: var(--accent-color, #4a90e2);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* === Content Area === */
+.monster-panel-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.monster-main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* === Browse Tab Styles === */
+.monster-browse-tab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.monster-search-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color, #444);
+  background: var(--content-bg, #2a2a2a);
+}
+
+.monster-search-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.monster-search-input {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid var(--border-color, #444);
+  border-radius: 6px;
+  background: var(--input-bg, #333);
+  color: var(--text-primary, #ffffff);
+  font-size: 0.9rem;
+  transition: border-color 0.2s ease;
+}
+
+.monster-search-input:focus {
+  outline: none;
+  border-color: var(--accent-color, #4a90e2);
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+.monster-search-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.monster-sort-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.monster-sort-controls select {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color, #444);
+  border-radius: 4px;
+  background: var(--input-bg, #333);
+  color: var(--text-primary, #ffffff);
+  font-size: 0.85rem;
+}
+
+.monster-view-controls {
+  display: flex;
+  gap: 4px;
+}
+
+/* === Button Styles === */
+.monster-btn {
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.monster-btn-primary {
+  background: var(--accent-color, #4a90e2);
+  color: white;
+  padding: 8px 16px;
+}
+
+.monster-btn-primary:hover {
+  background: var(--accent-hover, #357abd);
+  transform: translateY(-1px);
+}
+
+.monster-btn-secondary {
+  background: var(--secondary-bg, #444);
+  color: var(--text-primary, #ffffff);
+  padding: 8px 16px;
+  border: 1px solid var(--border-color, #555);
+}
+
+.monster-btn-secondary:hover {
+  background: var(--secondary-hover, #555);
+  border-color: var(--border-hover, #666);
+}
+
+.monster-btn-secondary.active {
+  background: var(--accent-color, #4a90e2);
+  color: white;
+  border-color: var(--accent-color, #4a90e2);
+}
+
+.monster-btn-danger {
+  background: var(--danger-color, #dc3545);
+  color: white;
+  padding: 8px 16px;
+}
+
+.monster-btn-danger:hover {
+  background: var(--danger-hover, #c82333);
+}
+
+.monster-btn-small {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+}
+
+/* === Filters Panel === */
+.monster-filters-panel {
+  background: var(--filter-bg, #333);
+  border-bottom: 1px solid var(--border-color, #444);
+  padding: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.monster-filters-panel.visible {
+  max-height: 400px;
+  padding: 16px;
+}
+
+.monster-filter-group {
+  margin-bottom: 16px;
+}
+
+.monster-filter-group label {
+  display: block;
+  color: var(--text-primary, #ffffff);
+  font-weight: 500;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+}
+
+.monster-filter-group select,
+.monster-filter-group input[type="number"] {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color, #444);
+  border-radius: 4px;
+  background: var(--input-bg, #2a2a2a);
+  color: var(--text-primary, #ffffff);
+  font-size: 0.85rem;
+}
+
+.monster-filter-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.monster-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.monster-checkbox input[type="checkbox"] {
+  margin: 0;
+}
+
+.monster-filter-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.monster-filter-range input {
+  flex: 1;
+}
+
+.monster-filter-range span {
+  color: var(--text-secondary, #cccccc);
+  font-size: 0.85rem;
+}
+
+.monster-filter-actions {
+  text-align: right;
+  margin-top: 16px;
+}
+
+/* === Search Results === */
+.monster-search-results {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.monster-results-info {
+  padding: 12px 16px;
+  background: var(--info-bg, #333);
+  color: var(--text-secondary, #cccccc);
+  font-size: 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color, #444);
+}
+
+.monster-loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary, #cccccc);
+  font-size: 1rem;
+}
+
+.monster-results-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.monster-results-grid.card-view {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.monster-results-grid.list-view {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* === Monster Cards === */
+.monster-card {
+  background: var(--card-bg, #333);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.monster-card:hover {
+  border-color: var(--accent-color, #4a90e2);
+  background: var(--card-hover-bg, #363636);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.monster-card.selected {
+  border-color: var(--accent-color, #4a90e2);
+  background: rgba(74, 144, 226, 0.1);
+}
+
+.monster-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.monster-name {
+  color: var(--text-primary, #ffffff);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+  flex: 1;
+  line-height: 1.2;
+}
+
+.monster-cr {
+  background: var(--accent-color, #4a90e2);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.monster-basic-info {
+  color: var(--text-secondary, #cccccc);
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.monster-type {
+  text-transform: capitalize;
+}
+
+.monster-subtype {
+  font-style: italic;
+}
+
+.monster-vital-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.monster-vital-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 60px;
+}
+
+.monster-vital-stat .label {
+  color: var(--text-secondary, #cccccc);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.monster-vital-stat .value {
+  color: var(--text-primary, #ffffff);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.monster-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.monster-tag {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary, #cccccc);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.monster-tag-more {
+  background: rgba(74, 144, 226, 0.2);
+  color: var(--accent-color, #4a90e2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.monster-card-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.monster-feature-icon {
+  font-size: 1rem;
+  opacity: 0.7;
+  cursor: help;
+}
+
+/* === Monster Instance Cards === */
+.monster-instances-tab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.monster-instances-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color, #444);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.monster-instances-header h4 {
+  color: var(--text-primary, #ffffff);
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.monster-instances-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.monster-instance-card {
+  background: var(--card-bg, #333);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.monster-instance-card:hover {
+  border-color: var(--accent-color, #4a90e2);
+  background: var(--card-hover-bg, #363636);
+}
+
+.monster-instance-card.selected {
+  border-color: var(--accent-color, #4a90e2);
+  background: rgba(74, 144, 226, 0.1);
+}
+
+.monster-instance-card.defeated {
+  opacity: 0.6;
+  background: var(--defeated-bg, #2a1a1a);
+  border-color: var(--danger-color, #dc3545);
+}
+
+.monster-instance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.monster-instance-name {
+  color: var(--text-primary, #ffffff);
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  flex: 1;
+}
+
+.monster-instance-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.monster-instance-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.monster-instance-template {
+  color: var(--text-secondary, #cccccc);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.monster-instance-cr {
+  background: var(--accent-color, #4a90e2);
+  color: white;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.monster-instance-health {
+  margin-bottom: 8px;
+}
+
+.monster-health-bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.monster-health-fill {
+  height: 100%;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.monster-health-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.monster-hp-input {
+  width: 60px;
+  padding: 2px 6px;
+  border: 1px solid var(--border-color, #444);
+  border-radius: 3px;
+  background: var(--input-bg, #2a2a2a);
+  color: var(--text-primary, #ffffff);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.monster-conditions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.monster-condition {
+  background: var(--warning-color, #ffc107);
+  color: #000;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+/* === Monster Details Panel === */
+.monster-details-panel {
+  width: 400px;
+  border-left: 1px solid var(--border-color, #444);
+  background: var(--details-bg, #2a2a2a);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.monster-details-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color, #444);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.monster-details-header h3 {
+  color: var(--text-primary, #ffffff);
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.monster-details-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.monster-details-basic {
+  margin-bottom: 20px;
+}
+
+.monster-details-basic p {
+  color: var(--text-secondary, #cccccc);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.monster-details-basic strong {
+  color: var(--text-primary, #ffffff);
+  font-weight: 600;
+}
+
+.monster-stat-block {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.monster-stat {
+  text-align: center;
+}
+
+.monster-stat-name {
+  display: block;
+  color: var(--text-secondary, #cccccc);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.monster-stat-value {
+  display: block;
+  color: var(--text-primary, #ffffff);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.monster-stat-modifier {
+  display: block;
+  color: var(--accent-color, #4a90e2);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.monster-abilities {
+  margin-bottom: 20px;
+}
+
+.monster-abilities h4 {
+  color: var(--text-primary, #ffffff);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border-color, #444);
+  padding-bottom: 6px;
+}
+
+.monster-ability {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  border-left: 3px solid var(--accent-color, #4a90e2);
+}
+
+.monster-ability h5 {
+  color: var(--text-primary, #ffffff);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 6px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ability-type {
+  background: rgba(74, 144, 226, 0.2);
+  color: var(--accent-color, #4a90e2);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.monster-ability p {
+  color: var(--text-secondary, #cccccc);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.monster-details-actions {
+  padding: 16px;
+  border-top: 1px solid var(--border-color, #444);
+  display: flex;
+  gap: 12px;
+}
+
+.monster-details-actions .monster-btn {
+  flex: 1;
+}
+
+/* === Pagination === */
+.monster-pagination {
+  padding: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  border-top: 1px solid var(--border-color, #444);
+  background: var(--pagination-bg, #333);
+}
+
+.monster-page-info {
+  color: var(--text-secondary, #cccccc);
+  font-size: 0.9rem;
+}
+
+/* === Empty States === */
+.monster-empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary, #cccccc);
+  text-align: center;
+  padding: 40px;
+}
+
+.monster-empty-state p {
+  margin: 0 0 8px 0;
+  line-height: 1.5;
+}
+
+.monster-empty-state p:first-child {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+}
+
+/* === Responsive Design === */
+@media (max-width: 1200px) {
+  .monster-details-panel {
+    width: 350px;
+  }
+}
+
+@media (max-width: 900px) {
+  .monster-panel {
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+  }
+  
+  .monster-details-panel {
+    display: none;
+  }
+  
+  .monster-results-grid.card-view {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+  }
+  
+  .monster-instances-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  .monster-panel-tabs {
+    font-size: 0.85rem;
+  }
+  
+  .monster-tab {
+    padding: 10px 12px;
+  }
+  
+  .monster-tab-label {
+    display: none;
+  }
+  
+  .monster-results-grid.card-view {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .monster-instances-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .monster-search-controls {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .monster-filter-checkboxes {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* === Dark Mode Support === */
+:root {
+  --panel-bg: #2a2a2a;
+  --header-bg: #333;
+  --content-bg: #2a2a2a;
+  --card-bg: #333;
+  --card-hover-bg: #363636;
+  --input-bg: #333;
+  --border-color: #444;
+  --border-hover: #666;
+  --text-primary: #ffffff;
+  --text-secondary: #cccccc;
+  --accent-color: #4a90e2;
+  --accent-hover: #357abd;
+  --secondary-bg: #444;
+  --secondary-hover: #555;
+  --danger-color: #dc3545;
+  --danger-hover: #c82333;
+  --warning-color: #ffc107;
+  --success-color: #28a745;
+  --info-bg: #333;
+  --filter-bg: #333;
+  --details-bg: #2a2a2a;
+  --pagination-bg: #333;
+  --defeated-bg: #2a1a1a;
+}
+
+/* Light mode overrides */
+@media (prefers-color-scheme: light) {
+  :root {
+    --panel-bg: #ffffff;
+    --header-bg: #f8f9fa;
+    --content-bg: #ffffff;
+    --card-bg: #ffffff;
+    --card-hover-bg: #f8f9fa;
+    --input-bg: #ffffff;
+    --border-color: #dee2e6;
+    --border-hover: #adb5bd;
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --secondary-bg: #e9ecef;
+    --secondary-hover: #dee2e6;
+    --info-bg: #f8f9fa;
+    --filter-bg: #f8f9fa;
+    --details-bg: #ffffff;
+    --pagination-bg: #f8f9fa;
+    --defeated-bg: #fff5f5;
+  }
+}
+
+/* === Focus and Accessibility === */
+.monster-btn:focus,
+.monster-search-input:focus,
+.monster-tab:focus,
+.monster-hp-input:focus {
+  outline: 2px solid var(--accent-color, #4a90e2);
+  outline-offset: 2px;
+}
+
+.monster-card:focus,
+.monster-instance-card:focus {
+  outline: 2px solid var(--accent-color, #4a90e2);
+  outline-offset: 1px;
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .monster-panel,
+  .monster-card,
+  .monster-instance-card,
+  .monster-btn,
+  .monster-health-fill {
+    transition: none;
+  }
+  
+  .monster-card:hover,
+  .monster-instance-card:hover {
+    transform: none;
+  }
+}

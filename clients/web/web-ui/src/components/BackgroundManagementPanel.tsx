@@ -5,16 +5,16 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { 
-  performanceOptimizedBackgroundSystem,
-  type BackgroundConfiguration,
-  type BackgroundLayer,
-  type WeatherEffect,
-  type PerformanceMetrics
+import {
+    performanceOptimizedBackgroundSystem,
+    type BackgroundConfiguration,
+    type BackgroundLayer,
+    type PerformanceMetrics,
+    type WeatherEffect
 } from '../services/performanceOptimizedBackground.service';
+import './BackgroundManagementPanel.css';
 import { ErrorBoundary } from './common/ErrorBoundary';
 import { LoadingSpinner } from './common/LoadingSpinner';
-import './BackgroundManagementPanel.css';
 
 interface BackgroundManagementPanelProps {
   isOpen: boolean;

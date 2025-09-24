@@ -312,7 +312,7 @@ const EnhancedLogin: React.FC = () => {
                   className="primary-btn"
                   disabled={isLoading || !resetEmail.trim()}
                 >
-                  {isLoading ? <LoadingSpinner size="small" /> : 'Send Reset Instructions'}
+                  {isLoading ? <LoadingSpinner size="small" /> : 'Send Reset Link'}
                 </button>
               </div>
             </form>

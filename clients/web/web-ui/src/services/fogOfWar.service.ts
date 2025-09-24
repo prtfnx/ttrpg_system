@@ -4,8 +4,8 @@
  * quadtree spatial optimization, and advanced visibility algorithms
  */
 
-import { EventSystem } from './eventSystem.service';
 import type { EventHandler } from './eventSystem.service';
+import { EventSystem } from './eventSystem.service';
 
 // === Core Types ===
 

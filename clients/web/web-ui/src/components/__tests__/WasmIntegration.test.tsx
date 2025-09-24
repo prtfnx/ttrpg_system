@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Test WASM Manager directly
-import { wasmManager } from '../../utils/wasmManager';
 import type { GlobalWasmModule } from '../../utils/wasmManager';
+import { wasmManager } from '../../utils/wasmManager';
 
 // Mock WASM module for testing
 const mockWasmModule: GlobalWasmModule = {

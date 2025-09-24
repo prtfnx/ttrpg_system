@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Import TypeScript services to test
-import { wasmIntegrationService } from '../../services/wasmIntegration.service';
 import { performanceService } from '../../services/performance.service';
+import { wasmIntegrationService } from '../../services/wasmIntegration.service';
 
 // Mock WASM RenderEngine
 const mockRenderEngine = {

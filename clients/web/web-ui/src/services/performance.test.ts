@@ -3,7 +3,7 @@
  * Tests the performance monitoring and optimization functionality
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Simple test to verify performance utilities
 describe('Performance Tests', () => {

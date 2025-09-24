@@ -3,21 +3,21 @@
  * Tests the fundamental behavior of all core TTRPG systems
  * Focuses on expected user behavior rather than implementation details
  */
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Import components to test
-import { CompendiumPanel } from '../components/CompendiumPanel';
-import { CharacterManager } from '../components/CharacterManager';
-import { AssetPanel } from '../components/AssetPanel';
-import { NetworkPanel } from '../components/NetworkPanel';
-import { LightingPanel } from '../components/LightingPanel';
-import { FogPanel } from '../components/FogPanel';
-import { PaintPanel } from '../components/PaintPanel';
-import { TableManagementPanel } from '../components/TableManagementPanel';
 import { ActionQueuePanel } from '../components/ActionQueuePanel';
 import { ActionsPanel } from '../components/ActionsPanel';
+import { AssetPanel } from '../components/AssetPanel';
+import { CharacterManager } from '../components/CharacterManager';
+import { CompendiumPanel } from '../components/CompendiumPanel';
+import { FogPanel } from '../components/FogPanel';
+import { LightingPanel } from '../components/LightingPanel';
+import { NetworkPanel } from '../components/NetworkPanel';
+import { PaintPanel } from '../components/PaintPanel';
+import { TableManagementPanel } from '../components/TableManagementPanel';
 
 // Mock all the services and WASM modules
 vi.mock('../services/compendium.service', () => ({

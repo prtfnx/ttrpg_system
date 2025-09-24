@@ -541,6 +541,9 @@ const EnhancedLogin: React.FC = () => {
                         }}
                       ></div>
                     </div>
+                    <div className="strength-level">
+                      {passwordStrength.level}
+                    </div>
                     <div className="strength-feedback">
                       {passwordStrength.feedback.map((feedback, index) => (
                         <div key={index} className={passwordStrength.isStrong ? 'success' : 'warning'}>

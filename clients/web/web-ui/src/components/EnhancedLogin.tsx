@@ -15,6 +15,7 @@ interface PasswordStrength {
   score: number;
   feedback: string[];
   isStrong: boolean;
+  level: string;
 }
 
 const EnhancedLogin: React.FC = () => {
@@ -49,7 +50,8 @@ const EnhancedLogin: React.FC = () => {
   const [passwordStrength, setPasswordStrength] = useState<PasswordStrength>({
     score: 0,
     feedback: [],
-    isStrong: false
+    isStrong: false,
+    level: ''
   });
 
   // Refs for focus management
@@ -226,11 +228,19 @@ const EnhancedLogin: React.FC = () => {
     else feedback.push('Avoid repeated characters');
 
     const isStrong = score >= 5 && password.length >= 8;
+    
+    let level = '';
+    if (score <= 1) level = 'Very Weak';
+    else if (score <= 2) level = 'Weak';
+    else if (score <= 3) level = 'Fair';
+    else if (score <= 4) level = 'Good';
+    else level = 'Strong';
 
     return {
       score: Math.min(score, 5),
       feedback: isStrong ? ['Strong password!'] : feedback,
-      isStrong
+      isStrong,
+      level
     };
   };
 
@@ -305,7 +315,7 @@ const EnhancedLogin: React.FC = () => {
                   className="secondary-btn"
                   disabled={isLoading}
                 >
-                  Back to Login
+                  Back to Sign In
                 </button>
                 <button
                   type="submit"

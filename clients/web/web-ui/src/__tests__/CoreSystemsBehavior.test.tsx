@@ -120,7 +120,7 @@ describe('Compendium System Behavior', () => {
 
   it('should allow DM to search and browse monsters effectively', async () => {
     const user = userEvent.setup();
-    render(<CompendiumPanel userInfo={mockUserInfo} />);
+    render(<CompendiumPanel />);
 
     // User expects to see search interface immediately
     expect(screen.getByPlaceholderText(/search monsters, spells, equipment/i)).toBeInTheDocument();

@@ -8,11 +8,11 @@
  * - Use @testing-library/user-event for realistic interactions
  */
 
-import React from 'react';
+import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, test, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
-import '@testing-library/jest-dom';
+import React from 'react';
+import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 
 // Import actual existing components
 import EnhancedLogin from '../EnhancedLogin';

@@ -3,13 +3,13 @@
  * Tests WebSocket connections, session management, real-time synchronization
  * Focus: Real expected behavior for multiplayer TTRPG sessions
  */
-import { describe, it, expect } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
 
 // Import actual components
-import { ProtocolContext } from '../services/ProtocolContext';
 import { EnhancedLogin } from '../components/EnhancedLogin';
+import { ProtocolContext } from '../services/ProtocolContext';
 
 describe('Real-Time Multiplayer System - Session Management', () => {
   const mockWebSocketURL = 'wss://ttrpg-server.example.com/ws';

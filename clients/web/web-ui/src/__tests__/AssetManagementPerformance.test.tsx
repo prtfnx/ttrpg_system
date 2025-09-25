@@ -3,9 +3,9 @@
  * Tests real asset loading, caching, optimization, and performance monitoring
  * Focus: Real expected behavior for efficient TTRPG asset management
  */
-import { describe, it, expect } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
 
 describe('Asset Management System - Performance and Caching', () => {
   const mockUserInfo = { 

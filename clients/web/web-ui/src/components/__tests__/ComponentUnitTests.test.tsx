@@ -3,15 +3,15 @@
  * Tests isolated component behavior, props validation, and rendering
  * Focus: Component-specific functionality without complex integrations
  */
-import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
 
 // Core UI components that should exist
-import { MapPanel } from '../MapPanel';
-import { CompendiumPanel } from '../CompendiumPanel';
 import { CharacterSheet } from '../CharacterWizard/CharacterSheet';
+import { CompendiumPanel } from '../CompendiumPanel';
 import { LayerPanel } from '../LayerPanel';
+import { MapPanel } from '../MapPanel';
 
 describe('MapPanel Component', () => {
   const mockDefaultProps = {

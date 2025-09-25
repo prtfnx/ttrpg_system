@@ -3,16 +3,14 @@
  * Tests combat mechanics, initiative, spell effects, and tactical gameplay
  * Focus: Real expected behavior in D&D 5e combat encounters
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
 
 // Import actual components - no mocking
-import { CombatTracker } from '../components/Combat/CombatTracker';
-import { InitiativeTracker } from '../components/InitiativeTracker';
-import { SpellManagementPanel } from '../components/SpellManagementPanel';
 import { CharacterSheet } from '../components/CharacterWizard/CharacterSheet';
-import { DiceRoller } from '../tools/DiceRoller';
+import { CombatTracker } from '../components/Combat/CombatTracker';
+import { SpellManagementPanel } from '../components/SpellManagementPanel';
 
 describe('Real-Time Combat System - D&D 5e Mechanics', () => {
   const mockDM = { id: 'dm1', username: 'DM Mike', role: 'dm' as const, permissions: ['manage_combat'] };

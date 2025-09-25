@@ -3,9 +3,9 @@
  * Tests form components, input validation, and user interactions
  * Focus: UI components that actually exist and work
  */
-import { describe, it, expect } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
 
 // Import actual working components based on test results
 import { EnhancedLogin } from '../EnhancedLogin';

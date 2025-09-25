@@ -3,14 +3,14 @@
  * Tests real map interaction, grid snapping, measurement tools, and spatial awareness
  * Focus: Real expected behavior for tactical TTRPG mapping
  */
-import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
 
 // Import actual components
+import { LayerPanel } from '../components/LayerPanel';
 import { MapPanel } from '../components/MapPanel';
 import { ToolsPanel } from '../components/panels/ToolsPanel';
-import { LayerPanel } from '../components/LayerPanel';
 import { GridSettings } from '../types/GridSettings';
 
 describe('Advanced Map System - Tactical TTRPG Mapping', () => {

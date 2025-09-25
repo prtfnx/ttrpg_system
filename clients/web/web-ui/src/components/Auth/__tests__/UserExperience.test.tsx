@@ -8,12 +8,12 @@
  * - Test the complete user journey, not isolated functions
  */
 
-import React from 'react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import EnhancedLogin from '../../EnhancedLogin';
+import React from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { enhancedAuthService } from '../../../services/enhancedAuth.service';
+import EnhancedLogin from '../../EnhancedLogin';
 
 // Mock the auth service - following best practice of testing what users expect
 vi.mock('../../../services/enhancedAuth.service', () => ({

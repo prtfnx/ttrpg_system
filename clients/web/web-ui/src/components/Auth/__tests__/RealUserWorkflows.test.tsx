@@ -9,11 +9,11 @@
  * - Validate accessibility at every step
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import EnhancedLogin from '../../EnhancedLogin';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { enhancedAuthService } from '../../../services/enhancedAuth.service';
+import EnhancedLogin from '../../EnhancedLogin';
 
 // Mock external dependencies
 vi.mock('../../../services/enhancedAuth.service', () => ({

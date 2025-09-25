@@ -56,16 +56,21 @@ class WasmManager {
       
       let wasmModule: any;
       
-      // Strategy 1: Use dynamic asset path detection
+      // Strategy 1: Use dynamic asset path detection (browser only)
       try {
-        // Check if we can find the assets via script tags
-        const scripts = document.querySelectorAll('script[src*="ttrpg_rust_core"]');
-        if (scripts.length > 0) {
-          const scriptSrc = (scripts[0] as HTMLScriptElement).src;
-          console.log('[WASM Manager] Found asset path from DOM:', scriptSrc);
-          wasmModule = await import(/* @vite-ignore */ scriptSrc);
+        // Check if we're in a browser environment first
+        if (typeof document !== 'undefined') {
+          // Check if we can find the assets via script tags
+          const scripts = document.querySelectorAll('script[src*="ttrpg_rust_core"]');
+          if (scripts.length > 0) {
+            const scriptSrc = (scripts[0] as HTMLScriptElement).src;
+            console.log('[WASM Manager] Found asset path from DOM:', scriptSrc);
+            wasmModule = await import(/* @vite-ignore */ scriptSrc);
+          } else {
+            throw new Error('No WASM script tags found');
+          }
         } else {
-          throw new Error('No WASM script tags found');
+          throw new Error('Not in browser environment');
         }
       } catch (error) {
         console.log('[WASM Manager] DOM detection failed, trying hardcoded paths...', error);

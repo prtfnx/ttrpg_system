@@ -17,6 +17,7 @@ export const FogPanel: React.FC = () => {
   const [selectedRectId, setSelectedRectId] = useState<string | null>(null);
   const [currentMode, setCurrentMode] = useState<'hide' | 'reveal'>('hide');
   const [isGmMode, setIsGmMode] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string>('');
 
   const addFogRectangle = useCallback((startX: number, startY: number, endX: number, endY: number, mode: 'hide' | 'reveal') => {
     if (!engine) return;
@@ -70,7 +71,48 @@ export const FogPanel: React.FC = () => {
     const newGmMode = !isGmMode;
     setIsGmMode(newGmMode);
     engine.set_gm_mode(newGmMode);
+    
+    // Set status message
+    if (newGmMode) {
+      setStatusMessage('GM mode enabled - fog hidden from players');
+    } else {
+      setStatusMessage('GM mode disabled - fog visible to players');
+    }
+    
+    // Clear status after a few seconds
+    setTimeout(() => setStatusMessage(''), 3000);
   }, [engine, isGmMode]);
+
+  const applyFogPreset = useCallback((preset: 'dungeon' | 'outdoor' | 'darkness') => {
+    if (!engine) return;
+    
+    // Clear existing fog first
+    clearAllFog();
+    
+    // Apply preset-specific fog patterns
+    switch (preset) {
+      case 'dungeon':
+        // Hide most areas, reveal starting room
+        addFogRectangle(0, 0, 800, 600, 'hide');
+        addFogRectangle(350, 250, 450, 350, 'reveal');
+        setStatusMessage('Dungeon preset applied');
+        break;
+      case 'outdoor':
+        // Create scattered hidden areas for forests/obstacles
+        addFogRectangle(100, 100, 300, 200, 'hide');
+        addFogRectangle(500, 300, 700, 500, 'hide');
+        setStatusMessage('Outdoor preset applied');
+        break;
+      case 'darkness':
+        // Hide everything
+        addFogRectangle(0, 0, 1000, 1000, 'hide');
+        setStatusMessage('Complete darkness applied');
+        break;
+    }
+    
+    // Clear status after a few seconds
+    setTimeout(() => setStatusMessage(''), 3000);
+  }, [engine, clearAllFog, addFogRectangle]);
 
   const selectedRect = fogRectangles.find(rect => rect.id === selectedRectId);
 
@@ -79,6 +121,15 @@ export const FogPanel: React.FC = () => {
       <div className="panel-header">
         <h3>🌫️ Fog of War</h3>
       </div>
+      
+      {/* Status Message */}
+      {statusMessage && (
+        <div className="panel-section">
+          <div className="status-message" style={{ padding: '8px', backgroundColor: '#d4edda', color: '#155724', borderRadius: '4px', marginBottom: '8px' }}>
+            ✅ {statusMessage}
+          </div>
+        </div>
+      )}
       
       {/* Drawing status indicator */}
       {engine?.is_in_fog_draw_mode() && (
@@ -106,6 +157,14 @@ export const FogPanel: React.FC = () => {
               onChange={toggleGmMode}
             />
             <span>🎭 GM Mode (see through fog)</span>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginTop: '8px' }}>
+            <input
+              type="checkbox"
+              checked={!isGmMode}
+              onChange={(e) => setIsGmMode(!e.target.checked)}
+            />
+            <span>👥 Show fog to players</span>
           </label>
         </div>
       </div>
@@ -248,6 +307,33 @@ export const FogPanel: React.FC = () => {
               disabled={fogRectangles.length === 0}
             >
               ✨ Reveal All (Clear Fog)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Fog Presets */}
+      <div className="panel-section">
+        <h4>🎲 Fog Presets</h4>
+        <div className="control-group">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <button 
+              className="panel-button secondary"
+              onClick={() => applyFogPreset('dungeon')}
+            >
+              🏰 Dungeon Exploration
+            </button>
+            <button 
+              className="panel-button secondary"
+              onClick={() => applyFogPreset('outdoor')}
+            >
+              🌲 Outdoor Travel
+            </button>
+            <button 
+              className="panel-button secondary"
+              onClick={() => applyFogPreset('darkness')}
+            >
+              🌑 Complete Darkness
             </button>
           </div>
         </div>

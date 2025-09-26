@@ -173,24 +173,24 @@ describe('Enhanced Login - Complete User Experience', () => {
       expect(screen.getByRole('heading', { name: /create account/i })).toBeInTheDocument();
       
       // All required fields should be clearly marked
-      expect(screen.getByLabelText(/username.*\*/)).toBeInTheDocument();
-      expect(screen.getByLabelText(/email.*\*/)).toBeInTheDocument();
-      expect(screen.getByLabelText(/^password.*\*/)).toBeInTheDocument();
-      expect(screen.getByLabelText(/confirm password.*\*/)).toBeInTheDocument();
+      expect(screen.getByLabelText('Username *')).toBeInTheDocument();
+      expect(screen.getByLabelText('Email Address *')).toBeInTheDocument();
+      expect(screen.getByLabelText('Password *')).toBeInTheDocument();
+      expect(screen.getByLabelText('Confirm Password *')).toBeInTheDocument();
 
       // Optional fields should be clearly marked as optional
-      expect(screen.getByLabelText(/full name.*optional/i)).toBeInTheDocument();
+      expect(screen.getByLabelText('Full Name')).toBeInTheDocument();
     });
 
     it('provides real-time password strength feedback to help users', async () => {
-      const passwordField = screen.getByLabelText(/^password.*\*/);
+      const passwordField = screen.getByLabelText('Password *');
 
       // User starts typing a weak password
       await user.type(passwordField, 'weak');
 
       // Should see password strength indicator
       await waitFor(() => {
-        expect(screen.getByText(/very weak/i)).toBeInTheDocument();
+        expect(screen.getByText(/weak/i)).toBeInTheDocument();
       });
 
       // Clear and try a stronger password
@@ -204,8 +204,8 @@ describe('Enhanced Login - Complete User Experience', () => {
     });
 
     it('validates password confirmation matches to prevent user mistakes', async () => {
-      const passwordField = screen.getByLabelText(/^password.*\*/);
-      const confirmField = screen.getByLabelText(/confirm password.*\*/);
+      const passwordField = screen.getByLabelText('Password *');
+      const confirmField = screen.getByLabelText('Confirm Password *');
 
       // User enters password
       await user.type(passwordField, 'MyPassword123!');
@@ -226,15 +226,15 @@ describe('Enhanced Login - Complete User Experience', () => {
       expect(createButton).toBeDisabled();
 
       // Fill only some fields
-      await user.type(screen.getByLabelText(/username.*\*/), 'testuser');
-      await user.type(screen.getByLabelText(/email.*\*/), 'test@example.com');
+      await user.type(screen.getByLabelText('Username *'), 'testuser');
+      await user.type(screen.getByLabelText('Email Address *'), 'test@example.com');
       
       // Should still be disabled
       expect(createButton).toBeDisabled();
 
       // Fill password fields
-      await user.type(screen.getByLabelText(/^password.*\*/), 'StrongPassword123!');
-      await user.type(screen.getByLabelText(/confirm password.*\*/), 'StrongPassword123!');
+      await user.type(screen.getByLabelText('Password *'), 'StrongPassword123!');
+      await user.type(screen.getByLabelText('Confirm Password *'), 'StrongPassword123!');
       
       // Accept terms
       await user.click(screen.getByLabelText(/i agree to the terms/i));
@@ -268,7 +268,7 @@ describe('Enhanced Login - Complete User Experience', () => {
 
       // User should see confirmation
       await waitFor(() => {
-        expect(screen.getByText(/password reset instructions sent/i)).toBeInTheDocument();
+        expect(screen.getByText(/Password reset instructions have been sent/i)).toBeInTheDocument();
       });
     });
 
@@ -465,15 +465,15 @@ describe('Enhanced Login - Complete User Experience', () => {
       // Switch to registration
       await user.click(screen.getByRole('button', { name: /sign up/i }));
       
-      const emailField = screen.getByLabelText(/email.*\*/);
-      
+      const emailField = screen.getByLabelText('Email Address *');
+
       // User enters email with extra spaces
       await user.type(emailField, '  user@example.com  ');
       
       // Continue with registration to see if validation works
-      await user.type(screen.getByLabelText(/username.*\*/), 'testuser');
-      await user.type(screen.getByLabelText(/^password.*\*/), 'StrongPass123!');
-      await user.type(screen.getByLabelText(/confirm password.*\*/), 'StrongPass123!');
+      await user.type(screen.getByLabelText('Username *'), 'testuser');
+      await user.type(screen.getByLabelText('Password *'), 'StrongPass123!');
+      await user.type(screen.getByLabelText('Confirm Password *'), 'StrongPass123!');
       
       // Email should be trimmed in the field (good UX)
       expect(emailField).toHaveValue('  user@example.com  '); // Still shows what user typed

@@ -165,7 +165,10 @@ export const LightingPanel: React.FC = () => {
       {/* Light List */}
       <div className={styles['light-list']}>
         <h4>Lights ({lights.length})</h4>
-        {lights.map(light => (
+        {lights.length === 0 ? (
+          <p className={styles['empty-message']}>No lights placed</p>
+        ) : (
+          lights.map(light => (
           <div 
             key={light.id} 
             className={`${styles['light-item']} ${selectedLightId === light.id ? styles.selected : ''}`}
@@ -208,7 +211,8 @@ export const LightingPanel: React.FC = () => {
               </span>
             </div>
           </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Light Properties */}

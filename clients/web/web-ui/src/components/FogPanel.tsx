@@ -66,21 +66,20 @@ export const FogPanel: React.FC = () => {
   }, [engine, clearAllFog, addFogRectangle]);
 
   const toggleGmMode = useCallback(() => {
-    if (!engine) return;
-
     const newGmMode = !isGmMode;
     setIsGmMode(newGmMode);
-    engine.set_gm_mode(newGmMode);
     
+    // Try to set engine mode, but don't fail if engine is not available
+    if (engine) {
+      engine.set_gm_mode(newGmMode);
+    }
+
     // Set status message
     if (newGmMode) {
       setStatusMessage('GM mode enabled - fog hidden from players');
     } else {
       setStatusMessage('GM mode disabled - fog visible to players');
     }
-    
-    // Clear status after a few seconds
-    setTimeout(() => setStatusMessage(''), 3000);
   }, [engine, isGmMode]);
 
   const applyFogPreset = useCallback((preset: 'dungeon' | 'outdoor' | 'darkness') => {
@@ -109,9 +108,6 @@ export const FogPanel: React.FC = () => {
         setStatusMessage('Complete darkness applied');
         break;
     }
-    
-    // Clear status after a few seconds
-    setTimeout(() => setStatusMessage(''), 3000);
   }, [engine, clearAllFog, addFogRectangle]);
 
   const selectedRect = fogRectangles.find(rect => rect.id === selectedRectId);
@@ -162,7 +158,7 @@ export const FogPanel: React.FC = () => {
             <input
               type="checkbox"
               checked={!isGmMode}
-              onChange={(e) => setIsGmMode(!e.target.checked)}
+              onChange={toggleGmMode}
             />
             <span>👥 Show fog to players</span>
           </label>

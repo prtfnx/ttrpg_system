@@ -28,6 +28,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
 
   // Color picker state for future advanced color picker
   const [currentColor, setCurrentColor] = useState('#ffffff');
+  const [brushType, setBrushType] = useState<'brush' | 'marker' | 'eraser'>('brush');
 
   // Convert RGB array to hex color
   const rgbToHex = (rgb: number[]) => {
@@ -141,6 +142,34 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
         <div className="brush-settings-section">
           <h4>Brush Settings</h4>
           
+          {/* Brush Type Selection */}
+          <div className="brush-type-section">
+            <label>Brush Type:</label>
+            <div className="brush-type-controls" style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+              <button 
+                className={`panel-button ${brushType === 'brush' ? 'primary' : ''}`}
+                onClick={() => setBrushType('brush')}
+                disabled={!paintState.isActive}
+              >
+                🖌️ Brush
+              </button>
+              <button 
+                className={`panel-button ${brushType === 'marker' ? 'primary' : ''}`}
+                onClick={() => setBrushType('marker')}
+                disabled={!paintState.isActive}
+              >
+                🖍️ Marker
+              </button>
+              <button 
+                className={`panel-button ${brushType === 'eraser' ? 'primary' : ''}`}
+                onClick={() => setBrushType('eraser')}
+                disabled={!paintState.isActive}
+              >
+                🧽 Eraser
+              </button>
+            </div>
+          </div>
+          
           {/* Color Picker */}
           <div className="color-picker-section">
             <label>Color:</label>
@@ -172,8 +201,9 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
 
           {/* Brush Width */}
           <div className="brush-width-section">
-            <label>Width: {paintState.brushWidth.toFixed(1)}px</label>
+            <label htmlFor="brush-size">Brush Size: {paintState.brushWidth.toFixed(1)}px</label>
             <input
+              id="brush-size"
               type="range"
               min="0.5"
               max="20"
@@ -182,6 +212,26 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
               onChange={handleWidthChange}
               disabled={!paintState.isActive}
               className="width-slider"
+            />
+          </div>
+
+          {/* Opacity Control */}
+          <div className="opacity-section">
+            <label htmlFor="opacity">Opacity: {(paintState.brushColor[3] || 1).toFixed(2)}</label>
+            <input
+              id="opacity"
+              type="range"
+              min="0.1"
+              max="1.0"
+              step="0.1"
+              value={paintState.brushColor[3] || 1}
+              onChange={(e) => {
+                const opacity = parseFloat(e.target.value);
+                const [r, g, b] = paintState.brushColor;
+                paintControls.setBrushColor(r, g, b, opacity);
+              }}
+              disabled={!paintState.isActive}
+              className="opacity-slider"
             />
           </div>
 

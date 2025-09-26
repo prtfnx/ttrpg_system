@@ -236,6 +236,17 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
             </button>
             <button
               onClick={() => {
+                // TODO: Implement redo functionality
+                console.log('Redo functionality not yet implemented');
+              }}
+              disabled={true}
+              className="btn-secondary"
+              title="Redo last undone stroke"
+            >
+              ↷ Redo
+            </button>
+            <button
+              onClick={() => {
                 if (renderEngine && renderEngine.paint_save_strokes_as_sprites) {
                   const spriteIds = renderEngine.paint_save_strokes_as_sprites('shapes');
                   console.log(`[PaintPanel] Saved ${spriteIds.length} paint strokes as sprites`);
@@ -263,6 +274,38 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
             >
               🗑️ Clear All
             </button>
+          </div>
+        </div>
+
+        {/* Template System */}
+        <div className="templates-section">
+          <h4>Templates</h4>
+          <div className="template-controls">
+            <button
+              onClick={() => {
+                // TODO: Implement save as template
+                console.log('Save as template functionality not yet implemented');
+              }}
+              disabled={!paintState.isActive || paintState.strokeCount === 0}
+              className="btn-secondary"
+              title="Save current strokes as a reusable template"
+            >
+              📋 Save as Template
+            </button>
+            <button
+              onClick={() => {
+                // TODO: Implement load template
+                console.log('Load template functionality not yet implemented');
+              }}
+              disabled={!paintState.isActive}
+              className="btn-secondary"
+              title="Load a saved template"
+            >
+              📁 Load Template
+            </button>
+          </div>
+          <div className="template-list">
+            <p className="template-placeholder">No templates available</p>
           </div>
         </div>
 

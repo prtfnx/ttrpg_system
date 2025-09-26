@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import type { Equipment, Monster, Spell } from '../services/compendium.service';
 import { compendiumService } from '../services/compendium.service';
-import type { Monster, Spell, Equipment } from '../services/compendium.service';
 
 interface CompendiumEntry {
   id: string;

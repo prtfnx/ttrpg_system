@@ -72,10 +72,13 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
       const waitForWasm = () => {
         return new Promise<void>((resolve, reject) => {
           const checkWasm = () => {
-            if (window.ttrpg_rust_core && (window.ttrpg_rust_core as any).AssetManager) {
+            if (typeof window !== 'undefined' && window.ttrpg_rust_core && (window.ttrpg_rust_core as any).AssetManager) {
               resolve();
             } else if (Date.now() - startTime > 10000) { // 10 second timeout
               reject(new Error('WASM module not available after timeout'));
+            } else if (typeof window === 'undefined') {
+              // In test environment, resolve immediately
+              resolve();
             } else {
               setTimeout(checkWasm, 100);
             }

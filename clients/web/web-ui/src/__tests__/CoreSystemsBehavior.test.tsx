@@ -110,16 +110,44 @@ Object.defineProperty(window, 'ttrpg_rust_core', {
   writable: true
 });
 
-describe('Compendium System Behavior', () => {
-  const mockUserInfo = { id: 1, username: 'testuser', role: 'dm', permissions: ['manage_monsters'] };
+// Mock window.rustRenderManager for useRenderEngine hook
+Object.defineProperty(window, 'rustRenderManager', {
+  value: {
+    // GM Mode and Status
+    setGmMode: vi.fn(),
+    setStatusMessage: vi.fn(),
+    clearStatusMessage: vi.fn(),
+    getGmMode: vi.fn(() => false),
+    set_gm_mode: vi.fn(),
+    
+    // Fog Draw Mode
+    is_in_fog_draw_mode: vi.fn(() => false),
+    get_current_input_mode: vi.fn(() => 'normal'),
+    set_fog_draw_mode: vi.fn(),
+    set_fog_erase_mode: vi.fn(),
+    
+    // Fog Management
+    add_fog_rectangle: vi.fn(),
+    remove_fog_rectangle: vi.fn(),
+    clear_fog: vi.fn(),
+    get_fog_count: vi.fn(() => 0),
+    
+    // Rendering
+    render: vi.fn(),
+    updateLighting: vi.fn(),
+    updateFog: vi.fn()
+  },
+  writable: true
+});
 
+describe('Compendium System Behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('should allow DM to search and browse monsters effectively', async () => {
     const user = userEvent.setup();
-    render(<CompendiumPanel userInfo={mockUserInfo} />);
+    render(<CompendiumPanel />);
 
     // User expects to see search interface immediately
     expect(screen.getByPlaceholderText(/search monsters, spells, equipment/i)).toBeInTheDocument();
@@ -144,7 +172,7 @@ describe('Compendium System Behavior', () => {
 
   it('should provide comprehensive spell search and filtering', async () => {
     const user = userEvent.setup();
-    render(<CompendiumPanel userInfo={mockUserInfo} />);
+    render(<CompendiumPanel />);
 
     // Switch to spells tab
     await user.click(screen.getByText('Spells'));
@@ -171,7 +199,7 @@ describe('Compendium System Behavior', () => {
 
   it('should support equipment browsing with cost and type information', async () => {
     const user = userEvent.setup();
-    render(<CompendiumPanel userInfo={mockUserInfo} />);
+    render(<CompendiumPanel />);
 
     await user.click(screen.getByText('Equipment'));
 
@@ -187,7 +215,7 @@ describe('Compendium System Behavior', () => {
 });
 
 describe('Character Management System Behavior', () => {
-  const mockUserInfo = { id: 1, username: 'testuser', role: 'dm', permissions: ['manage_characters'] };
+  const mockUserInfo = { id: 1, username: 'testuser', role: 'dm' as const, permissions: ['manage_characters'] };
   const mockSessionCode = 'TEST123';
 
   it('should display all characters in the session', async () => {
@@ -269,10 +297,8 @@ describe('Character Management System Behavior', () => {
 });
 
 describe('Asset Management System Behavior', () => {
-  const mockUserInfo = { id: 1, username: 'testuser', role: 'dm', permissions: ['manage_assets'] };
-
   it('should display existing assets with proper metadata', async () => {
-    render(<AssetPanel userInfo={mockUserInfo} />);
+    render(<AssetPanel />);
 
     await waitFor(() => {
       expect(screen.getByText('dragon.png')).toBeInTheDocument();
@@ -283,7 +309,7 @@ describe('Asset Management System Behavior', () => {
 
   it('should support file upload with drag and drop', async () => {
     const user = userEvent.setup();
-    render(<AssetPanel userInfo={mockUserInfo} />);
+    render(<AssetPanel />);
 
     // User expects drag and drop zone
     const dropzone = screen.getByText(/drag files here or click to upload/i);
@@ -302,7 +328,7 @@ describe('Asset Management System Behavior', () => {
 
   it('should validate file types and sizes', async () => {
     const user = userEvent.setup();
-    render(<AssetPanel userInfo={mockUserInfo} />);
+    render(<AssetPanel />);
 
     // Try to upload oversized file
     const fileInput = screen.getByRole('button', { name: /upload/i });
@@ -318,7 +344,7 @@ describe('Asset Management System Behavior', () => {
 
   it('should organize assets by type and allow filtering', async () => {
     const user = userEvent.setup();
-    render(<AssetPanel userInfo={mockUserInfo} />);
+    render(<AssetPanel />);
 
     // User expects type filters
     expect(screen.getByText(/images/i)).toBeInTheDocument();
@@ -335,10 +361,8 @@ describe('Asset Management System Behavior', () => {
 });
 
 describe('Network System Behavior', () => {
-  const mockUserInfo = { id: 1, username: 'testuser', role: 'player', permissions: [] };
-
   it('should show connection status clearly to users', async () => {
-    render(<NetworkPanel userInfo={mockUserInfo} />);
+    render(<NetworkPanel />);
 
     // User expects to see connection status immediately
     expect(screen.getByText(/disconnected/i)).toBeInTheDocument();
@@ -347,7 +371,7 @@ describe('Network System Behavior', () => {
 
   it('should allow users to connect to game sessions', async () => {
     const user = userEvent.setup();
-    render(<NetworkPanel userInfo={mockUserInfo} />);
+    render(<NetworkPanel />);
 
     // User enters session code
     const sessionInput = screen.getByPlaceholderText(/session code/i);
@@ -362,7 +386,7 @@ describe('Network System Behavior', () => {
   });
 
   it('should display real-time messages from other players', async () => {
-    render(<NetworkPanel userInfo={mockUserInfo} />);
+    render(<NetworkPanel />);
 
     // Mock incoming message
     const mockMessage = { user: 'DM', message: 'Roll for initiative!', timestamp: Date.now() };
@@ -376,7 +400,7 @@ describe('Network System Behavior', () => {
 
   it('should handle connection errors gracefully', async () => {
     const user = userEvent.setup();
-    render(<NetworkPanel userInfo={mockUserInfo} />);
+    render(<NetworkPanel />);
 
     // Simulate connection failure
     const connectButton = screen.getByText(/connect/i);
@@ -391,11 +415,9 @@ describe('Network System Behavior', () => {
 });
 
 describe('Lighting System Behavior', () => {
-  const mockUserInfo = { id: 1, username: 'testuser', role: 'dm', permissions: ['manage_lighting'] };
-
   it('should allow DM to place and configure lights', async () => {
     const user = userEvent.setup();
-    render(<LightingPanel userInfo={mockUserInfo} />);
+    render(<LightingPanel />);
 
     // User expects light creation controls
     expect(screen.getByText(/add light/i)).toBeInTheDocument();
@@ -452,9 +474,9 @@ describe('Fog of War System Behavior', () => {
     render(<FogPanel userInfo={mockUserInfo} />);
 
     // User expects fog control tools
-    expect(screen.getByText(/reveal area/i)).toBeInTheDocument();
-    expect(screen.getByText(/hide area/i)).toBeInTheDocument();
-    expect(screen.getByText(/clear all fog/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /✨ reveal areas/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /🌫️ hide areas/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /reveal all \(clear fog\)/i })).toBeInTheDocument();
 
     // User can select brush size for revealing
     expect(screen.getByLabelText(/brush size/i)).toBeInTheDocument();
@@ -503,9 +525,9 @@ describe('Paint System Behavior', () => {
     render(<PaintPanel userInfo={mockUserInfo} />);
 
     // User expects brush selection
-    expect(screen.getByText(/brush/i)).toBeInTheDocument();
-    expect(screen.getByText(/marker/i)).toBeInTheDocument();
-    expect(screen.getByText(/eraser/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /🖌️ brush/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /🖍️ marker/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /🧽 eraser/i })).toBeInTheDocument();
 
     // User expects size and color controls
     expect(screen.getByLabelText(/brush size/i)).toBeInTheDocument();

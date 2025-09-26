@@ -63,19 +63,19 @@ describe('Real User Workflow Tests', () => {
 
       // Step 3: User fills out the form progressively
       // Username
-      const usernameField = screen.getByLabelText(/username.*\*/);
+      const usernameField = screen.getByLabelText('Username *');
       await user.type(usernameField, 'newuser123');
 
       // Email
-      const emailField = screen.getByLabelText(/email.*\*/);
+      const emailField = screen.getByLabelText('Email Address *');
       await user.type(emailField, 'newuser@example.com');
 
       // Full name (optional)
-      const fullNameField = screen.getByLabelText(/full name.*optional/i);
+      const fullNameField = screen.getByLabelText('Full Name');
       await user.type(fullNameField, 'New User');
 
       // Password with real-time feedback
-      const passwordField = screen.getByLabelText(/^password.*\*/);
+      const passwordField = screen.getByLabelText('Password *');
       await user.type(passwordField, 'weak');
       
       // User should see weak password warning
@@ -92,7 +92,7 @@ describe('Real User Workflow Tests', () => {
       });
 
       // Password confirmation
-      const confirmField = screen.getByLabelText(/confirm password.*\*/);
+      const confirmField = screen.getByLabelText('Confirm Password *');
       await user.type(confirmField, 'StrongPassword123!');
 
       // Terms acceptance
@@ -120,8 +120,8 @@ describe('Real User Workflow Tests', () => {
       await user.click(screen.getByRole('button', { name: /sign up/i }));
 
       // User enters mismatched passwords
-      await user.type(screen.getByLabelText(/^password.*\*/), 'Password123!');
-      await user.type(screen.getByLabelText(/confirm password.*\*/), 'DifferentPassword123!');
+      await user.type(screen.getByLabelText('Password *'), 'Password123!');
+      await user.type(screen.getByLabelText('Confirm Password *'), 'DifferentPassword123!');
 
       // User should see immediate feedback
       await waitFor(() => {
@@ -129,8 +129,8 @@ describe('Real User Workflow Tests', () => {
       });
 
       // User tries to submit without accepting terms
-      await user.type(screen.getByLabelText(/username.*\*/), 'testuser');
-      await user.type(screen.getByLabelText(/email.*\*/), 'test@example.com');
+      await user.type(screen.getByLabelText('Username *'), 'testuser');
+      await user.type(screen.getByLabelText('Email Address *'), 'test@example.com');
 
       // Button should remain disabled
       const createButton = screen.getByRole('button', { name: /create account/i });
@@ -152,7 +152,7 @@ describe('Real User Workflow Tests', () => {
       expect(screen.getByText(/enter your email address and we'll send you instructions/i)).toBeInTheDocument();
 
       // Step 3: User enters email
-      const emailField = screen.getByLabelText(/email address/i);
+      const emailField = screen.getByLabelText('Email Address');
       await user.type(emailField, 'user@example.com');
 
       // Step 4: Submit request
@@ -224,7 +224,7 @@ describe('Real User Workflow Tests', () => {
       });
 
       // Traditional login should still be available
-      expect(screen.getByLabelText(/username or email/i)).toBeInTheDocument();
+      expect(screen.getByLabelText('Username or Email')).toBeInTheDocument();
     });
   });
 
@@ -238,15 +238,15 @@ describe('Real User Workflow Tests', () => {
       expect(submitButton).toBeDisabled();
 
       // Fill username - still disabled
-      await user.type(screen.getByLabelText(/username or email/i), 'user@test.com');
+      await user.type(screen.getByLabelText('Username or Email'), 'user@test.com');
       expect(submitButton).toBeDisabled();
 
       // Fill password - now enabled
-      await user.type(screen.getByLabelText(/^password/i), 'mypassword');
+      await user.type(screen.getByLabelText('Password'), 'mypassword');
       expect(submitButton).not.toBeDisabled();
 
       // Clear password - disabled again
-      await user.clear(screen.getByLabelText(/^password/i));
+      await user.clear(screen.getByLabelText('Password'));
       expect(submitButton).toBeDisabled();
     });
 
@@ -254,7 +254,7 @@ describe('Real User Workflow Tests', () => {
       render(<EnhancedLogin />);
 
       // Password visibility toggle
-      const passwordField = screen.getByLabelText(/^password/i) as HTMLInputElement;
+      const passwordField = screen.getByLabelText('Password') as HTMLInputElement;
       const toggleButton = screen.getByLabelText(/show password/i);
 
       await user.type(passwordField, 'secretpassword');
@@ -278,8 +278,8 @@ describe('Real User Workflow Tests', () => {
       render(<EnhancedLogin />);
 
       // User attempts login
-      await user.type(screen.getByLabelText(/username or email/i), 'user@test.com');
-      await user.type(screen.getByLabelText(/^password/i), 'password123');
+      await user.type(screen.getByLabelText('Username or Email'), 'user@test.com');
+      await user.type(screen.getByLabelText('Password'), 'password123');
       await user.click(screen.getByRole('button', { name: /sign in/i }));
 
       // Should show network error
@@ -300,8 +300,8 @@ describe('Real User Workflow Tests', () => {
       render(<EnhancedLogin />);
 
       // First failed attempt
-      await user.type(screen.getByLabelText(/username or email/i), 'user@test.com');
-      await user.type(screen.getByLabelText(/^password/i), 'wrongpassword');
+      await user.type(screen.getByLabelText('Username or Email'), 'user@test.com');
+      await user.type(screen.getByLabelText('Password'), 'wrongpassword');
       await user.click(screen.getByRole('button', { name: /sign in/i }));
 
       await waitFor(() => {
@@ -309,7 +309,7 @@ describe('Real User Workflow Tests', () => {
       });
 
       // User corrects password
-      const passwordField = screen.getByLabelText(/^password/i);
+      const passwordField = screen.getByLabelText('Password');
       await user.clear(passwordField);
       await user.type(passwordField, 'correctpassword');
 
@@ -328,8 +328,8 @@ describe('Real User Workflow Tests', () => {
       render(<EnhancedLogin />);
 
       // Submit form to trigger error
-      await user.type(screen.getByLabelText(/username or email/i), 'test');
-      await user.type(screen.getByLabelText(/^password/i), 'test');
+      await user.type(screen.getByLabelText('Username or Email'), 'test');
+      await user.type(screen.getByLabelText('Password'), 'test');
       await user.click(screen.getByRole('button', { name: /sign in/i }));
 
       // Error should have proper ARIA attributes
@@ -364,8 +364,8 @@ describe('Real User Workflow Tests', () => {
       render(<EnhancedLogin />);
 
       // Touch-friendly tap targets
-      const usernameField = screen.getByLabelText(/username or email/i);
-      const passwordField = screen.getByLabelText(/^password/i);
+      const usernameField = screen.getByLabelText('Username or Email');
+      const passwordField = screen.getByLabelText('Password');
 
       // Should be able to focus fields
       await user.click(usernameField);
@@ -385,8 +385,8 @@ describe('Real User Workflow Tests', () => {
       render(<EnhancedLogin />);
 
       // Simulate mobile scenario where Enter key submits
-      const passwordField = screen.getByLabelText(/^password/i);
-      await user.type(screen.getByLabelText(/username or email/i), 'user@test.com');
+      const passwordField = screen.getByLabelText('Password');
+      await user.type(screen.getByLabelText('Username or Email'), 'user@test.com');
       await user.type(passwordField, 'password123');
 
       // Submit by pressing Enter in password field
@@ -403,7 +403,7 @@ describe('Real User Workflow Tests', () => {
       render(<EnhancedLogin />);
 
       // Typing should be immediate (no lag)
-      const usernameField = screen.getByLabelText(/username or email/i);
+      const usernameField = screen.getByLabelText('Username or Email');
       await user.type(usernameField, 'user@test.com');
       
       expect(usernameField).toHaveValue('user@test.com');
@@ -412,7 +412,7 @@ describe('Real User Workflow Tests', () => {
       const submitButton = screen.getByRole('button', { name: /sign in/i });
       expect(submitButton).toBeDisabled();
 
-      await user.type(screen.getByLabelText(/^password/i), 'password');
+      await user.type(screen.getByLabelText('Password'), 'password');
       expect(submitButton).not.toBeDisabled();
     });
 
@@ -424,8 +424,8 @@ describe('Real User Workflow Tests', () => {
 
       render(<EnhancedLogin />);
 
-      await user.type(screen.getByLabelText(/username or email/i), 'user@test.com');
-      await user.type(screen.getByLabelText(/^password/i), 'password');
+      await user.type(screen.getByLabelText('Username or Email'), 'user@test.com');
+      await user.type(screen.getByLabelText('Password'), 'password');
       
       const submitButton = screen.getByRole('button', { name: /sign in/i });
       await user.click(submitButton);

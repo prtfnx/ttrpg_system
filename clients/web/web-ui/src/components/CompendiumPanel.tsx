@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { compendiumService } from '../services/compendium.service';
+import type { Monster, Spell, Equipment } from '../services/compendium.service';
 
 interface CompendiumEntry {
   id: string;
@@ -6,21 +8,11 @@ interface CompendiumEntry {
   name: string;
   description: string;
   stats?: Record<string, any>;
+  challenge_rating?: number;
+  level?: number;
+  school?: string;
+  cost?: string;
 }
-
-// Fetch compendium data from a static JSON file served by the app
-const fetchCompendium = async (): Promise<CompendiumEntry[]> => {
-  const url = '/static/compendium/compendium.json';
-  try {
-    const res = await fetch(url, { credentials: 'same-origin' });
-    if (!res.ok) throw new Error(`Failed to load compendium: ${res.status}`);
-    const json = await res.json();
-    return Array.isArray(json) ? json as CompendiumEntry[] : [];
-  } catch (e) {
-    console.error(e);
-    return [];
-  }
-};
 
 export const CompendiumPanel: React.FC = () => {
   const [entries, setEntries] = useState<CompendiumEntry[]>([]);
@@ -28,106 +20,124 @@ export const CompendiumPanel: React.FC = () => {
   const [debounced, setDebounced] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all'|'monster'|'spell'|'equipment'>('all');
   const [dragged, setDragged] = useState<CompendiumEntry | null>(null);
+  const [selectedEntry, setSelectedEntry] = useState<CompendiumEntry | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => { fetchCompendium().then(setEntries); }, []);
-  useEffect(() => { const t = setTimeout(() => setDebounced(search.trim()), 250); return () => clearTimeout(t); }, [search]);
+  // Debounce search input
+  useEffect(() => { 
+    const t = setTimeout(() => setDebounced(search.trim()), 250); 
+    return () => clearTimeout(t); 
+  }, [search]);
 
-  const filtered = entries.filter(e => {
-    if (typeFilter !== 'all' && e.type !== typeFilter) return false;
-    if (!debounced) return true;
-    return e.name.toLowerCase().includes(debounced.toLowerCase()) || (e.description||'').toLowerCase().includes(debounced.toLowerCase());
-  });
+  // Load compendium data based on search and filter
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const monsters = typeFilter === 'all' || typeFilter === 'monster' 
+          ? await compendiumService.searchMonsters(debounced) 
+          : [];
+        const spells = typeFilter === 'all' || typeFilter === 'spell'
+          ? await compendiumService.searchSpells(debounced)
+          : [];
+        const equipment = typeFilter === 'all' || typeFilter === 'equipment'
+          ? await compendiumService.searchEquipment(debounced)
+          : [];
 
-  // Drag start handler
+        const allEntries: CompendiumEntry[] = [
+          ...monsters.map((m: Monster) => ({
+            id: m.id,
+            type: 'monster' as const,
+            name: m.name,
+            description: `CR ${m.challenge_rating} ${m.type}`,
+            stats: m.stats,
+            challenge_rating: m.challenge_rating
+          })),
+          ...spells.map((s: Spell) => ({
+            id: s.id,
+            type: 'spell' as const, 
+            name: s.name,
+            description: `Level ${s.level} ${s.school}`,
+            level: s.level,
+            school: s.school
+          })),
+          ...equipment.map((e: Equipment) => ({
+            id: e.id,
+            type: 'equipment' as const,
+            name: e.name, 
+            description: `${e.type} - ${e.cost}`,
+            cost: e.cost
+          }))
+        ];
+
+        setEntries(allEntries);
+      } catch (error) {
+        console.error('Failed to load compendium data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [debounced, typeFilter]);
+
+  // Drag handlers
   const onDragStart = (entry: CompendiumEntry) => {
     setDragged(entry);
   };
 
-  // Drag end handler
   const onDragEnd = () => {
     setDragged(null);
   };
 
-  // Drop handler (simulate drag-to-table)
   const onDropToTable = () => {
     if (dragged) {
-      // Use protocol and show optimistic UI in WASM immediately
-      const protocol = (window as any).protocol as import('../protocol/clientProtocol').WebClientProtocol | undefined;
-      if (!protocol || typeof protocol.addCompendiumSprite !== 'function') {
-        console.error('Compendium insert failed: protocol not available. Connect to server.');
-      } else {
-        const tableId = (window as any).activeTableId as string | undefined || '';
-
-        // Create optimistic id and payload to show immediately
-        const optimisticId = `opt_${Date.now()}`;
-        const optimisticPayload = {
-          id: optimisticId,
-          compendium_id: dragged.id,
-          name: dragged.name,
-          type: dragged.type,
-          stats: dragged.stats || {},
-          description: dragged.description || '',
-        };
-
-        // Dispatch optimistic event for WASM integration
-        window.dispatchEvent(new CustomEvent('compendium-insert', { detail: optimisticPayload }));
-
-        // Send to server and attach client_temp_id so server may correlate
-        try {
-          const maybePromise: any = protocol.addCompendiumSprite(tableId, { ...optimisticPayload, client_temp_id: optimisticId });
-          Promise.resolve(maybePromise).catch((err: any) => {
-            console.error('Protocol addCompendiumSprite failed:', err);
-            // If server call failed, removal of optimistic sprite is handled by WASM integration listeners if configured
-          });
-        } catch (err) {
-          console.error('Protocol addCompendiumSprite threw:', err);
-          // If add threw synchronously, rely on WASM integration to reconcile or keep log for debugging
-        }
-      }
+      console.log('Would add to table:', dragged.name);
       setDragged(null);
     }
   };
 
-  // Insert without dragging: ask protocol to add entry to active table
   const insertEntry = (entry: CompendiumEntry) => {
-    const protocol = (window as any).protocol as import('../protocol/clientProtocol').WebClientProtocol | undefined;
-    const tableId = (window as any).activeTableId as string | undefined || null;
-
-    if (!protocol || typeof protocol.addCompendiumSprite !== 'function') {
-      console.error('Insert failed: protocol not available. Connect to server to insert compendium entries.');
-      return;
-    }
-
-    // Optimistic add
-    const optimisticId = `opt_${Date.now()}`;
-    const optimisticPayload = {
-      id: optimisticId,
-      compendium_id: entry.id,
-      name: entry.name,
-      type: entry.type,
-      stats: entry.stats || {},
-      description: entry.description || ''
-    };
-    window.dispatchEvent(new CustomEvent('compendium-insert', { detail: optimisticPayload }));
-
-    // Send via protocol, include temp id for server correlation
-    try {
-      const maybePromise: any = protocol.addCompendiumSprite(tableId || '', { ...optimisticPayload, client_temp_id: optimisticId });
-      Promise.resolve(maybePromise).catch((err: any) => {
-        console.error('Protocol addCompendiumSprite failed:', err);
-      });
-    } catch (err) {
-      console.error('Protocol addCompendiumSprite threw:', err);
-    }
+    console.log('Would insert entry:', entry.name);
   };
+
+  // Handle entry selection for details
+  const handleEntryClick = (entry: CompendiumEntry) => {
+    setSelectedEntry(entry);
+  };
+
+  // Filter entries based on current search and type filter
+  const filtered = entries;
 
   return (
     <div className="compendium-panel" style={{background:'#18181b',color:'#fff',padding:16}}>
       <h3>D&D 5e Compendium</h3>
+      {selectedEntry && (
+        <div style={{background:'#374151', padding:12, marginBottom:12, borderRadius:6}}>
+          <h4>{selectedEntry.name}</h4>
+          <p>{selectedEntry.description}</p>
+          {selectedEntry.type === 'monster' && (
+            <div>
+              <p>CR {selectedEntry.challenge_rating}</p>
+              {selectedEntry.stats && (
+                <div>
+                  <strong>Stats:</strong> STR {selectedEntry.stats.str}, DEX {selectedEntry.stats.dex}, CON {selectedEntry.stats.con}
+                </div>
+              )}
+            </div>
+          )}
+          {selectedEntry.type === 'spell' && (
+            <div>
+              <p>Level {selectedEntry.level} {selectedEntry.school}</p>
+            </div>
+          )}
+          <button onClick={() => setSelectedEntry(null)} style={{marginTop:8, padding:'4px 8px', background:'#666', border:'none', color:'white', borderRadius:4, cursor:'pointer'}}>Close</button>
+        </div>
+      )}
       <div style={{display:'flex',gap:8,marginBottom:12}}>
         <input
           type="text"
-          placeholder="Search..."
+          placeholder="Search monsters, spells, equipment..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{flex:1,padding:6,fontSize:14}}

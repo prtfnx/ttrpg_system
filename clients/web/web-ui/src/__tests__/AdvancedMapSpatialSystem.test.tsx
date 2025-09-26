@@ -12,33 +12,12 @@ import { LayerPanel } from '../components/LayerPanel';
 import { MapPanel } from '../components/MapPanel';
 import { ToolsPanel } from '../components/ToolsPanel';
 
-// Define GridSettings type locally since it's not exported
-interface GridSettings {
-  enabled: boolean;
-  size: number;
-  snapToGrid: boolean;
-  showNumbers: boolean;
-  color: string;
-  opacity: number;
-  type: 'square' | 'hex';
-}
-
 describe('Advanced Map System - Tactical TTRPG Mapping', () => {
   const mockUserInfo = { 
     id: 1, 
     username: 'DM Mike', 
     role: 'dm' as const,
     permissions: ['manage_map', 'place_tokens', 'draw_shapes', 'manage_fog'] 
-  };
-
-  const mockGridSettings: GridSettings = {
-    enabled: true,
-    size: 50, // 50 pixels per grid square
-    snapToGrid: true,
-    showNumbers: true,
-    color: '#ffffff',
-    opacity: 0.3,
-    type: 'square' as const
   };
 
   describe('Grid System and Snapping Mechanics', () => {
@@ -67,7 +46,6 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
 
     it('should allow precise positioning when grid snap is disabled', async () => {
       const user = userEvent.setup();
-      const freeGridSettings = { ...mockGridSettings, snapToGrid: false };
       
       render(<MapPanel />);
       
@@ -122,10 +100,7 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
       expect(screen.getByTestId('saved-measurement-1')).toHaveTextContent('21.2 ft');
     });
 
-    it('should handle hex grid calculations and movement correctly', async () => {
-      const user = userEvent.setup();
-      const hexGridSettings = { ...mockGridSettings, type: 'hex' as const };
-      
+    it('should handle hex grid calculations and movement correctly', async () => {      
       render(<MapPanel />);
       
       // Place character in hex grid
@@ -276,17 +251,7 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
       const user = userEvent.setup();
       render(<MapPanel />);
       
-      // Place character with 60ft darkvision
-      const elfWizard = {
-        id: 'elf-wizard',
-        name: 'Elaria',
-        position: { x: 100, y: 100 },
-        visionRange: 60, // feet
-        darkvision: 60,
-        type: 'pc'
-      };
-      
-      // Add character to map
+      // Add character to map - character data would come from character management system
       const addTokenButton = screen.getByRole('button', { name: /add token/i });
       await user.click(addTokenButton);
       
@@ -408,16 +373,6 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
   describe('Performance and Optimization', () => {
     it('should handle large maps without performance degradation', async () => {
       const performanceStart = performance.now();
-      
-      // Large map with many elements
-      const largeMapProps = {
-        gridSettings: mockGridSettings,
-        userInfo: mockUserInfo,
-        mapSize: { width: 5000, height: 5000 }, // Large 100x100 grid
-        tokenCount: 50,
-        drawingShapes: 100,
-        fogRegions: 200
-      };
       
       render(<MapPanel />);
       

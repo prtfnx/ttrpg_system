@@ -19,12 +19,14 @@ export const NetworkPanel: React.FC = () => {
 
   const onMessage = useCallback((message: NetworkMessage) => {
     console.log('Network message received:', message);
-    setMessages(prev => [...prev.slice(-49), message]); // Keep last 50 messages
+    if (typeof window !== 'undefined') {
+      setMessages(prev => [...prev.slice(-49), message]); // Keep last 50 messages
+    }
   }, []);
 
   const onConnectionChange = useCallback((state: string, error?: string) => {
     console.log('Connection state changed:', state, error);
-    if (error) {
+    if (error && typeof window !== 'undefined') {
       setMessages(prev => [...prev, {
         type: 'connection_error',
         data: { error },
@@ -35,11 +37,14 @@ export const NetworkPanel: React.FC = () => {
 
   const onError = useCallback((error: string) => {
     console.error('Network error:', error);
-    setMessages(prev => [...prev, {
-      type: 'error',
-      data: { error },
-      timestamp: Date.now(),
-    }]);
+    // Check if component is still mounted and in browser environment
+    if (typeof window !== 'undefined') {
+      setMessages(prev => [...prev, {
+        type: 'error',
+        data: { error },
+        timestamp: Date.now(),
+      }]);
+    }
   }, []);
 
   const {

@@ -388,8 +388,7 @@ describe('Network System Behavior', () => {
   it('should display real-time messages from other players', async () => {
     render(<NetworkPanel />);
 
-    // Mock incoming message
-    const mockMessage = { user: 'DM', message: 'Roll for initiative!', timestamp: Date.now() };
+    // Mock incoming message would be handled by WebSocket in real implementation
     
     // User expects to see messages appear in real-time
     await waitFor(() => {
@@ -433,8 +432,7 @@ describe('Lighting System Behavior', () => {
   });
 
   it('should provide ambient lighting controls', async () => {
-    const user = userEvent.setup();
-    render(<LightingPanel userInfo={mockUserInfo} />);
+    render(<LightingPanel />);
 
     // User expects ambient light slider
     const ambientSlider = screen.getByLabelText(/ambient light/i);
@@ -450,7 +448,7 @@ describe('Lighting System Behavior', () => {
 
   it('should show light sources list with edit capabilities', async () => {
     const user = userEvent.setup();
-    render(<LightingPanel userInfo={mockUserInfo} />);
+    render(<LightingPanel />);
 
     // Mock existing lights would be displayed here
     expect(screen.getByText(/no lights placed/i)).toBeInTheDocument();
@@ -467,11 +465,8 @@ describe('Lighting System Behavior', () => {
 });
 
 describe('Fog of War System Behavior', () => {
-  const mockUserInfo = { id: 1, username: 'testuser', role: 'dm', permissions: ['manage_fog'] };
-
   it('should provide fog revealing tools for DM', async () => {
-    const user = userEvent.setup();
-    render(<FogPanel userInfo={mockUserInfo} />);
+    render(<FogPanel />);
 
     // User expects fog control tools
     expect(screen.getByRole('button', { name: /✨ reveal areas/i })).toBeInTheDocument();
@@ -485,7 +480,7 @@ describe('Fog of War System Behavior', () => {
 
   it('should allow toggling fog visibility for players vs DM', async () => {
     const user = userEvent.setup();
-    render(<FogPanel userInfo={mockUserInfo} />);
+    render(<FogPanel />);
 
     // DM should see fog toggle controls
     const showFogToggle = screen.getByLabelText(/show fog to players/i);
@@ -501,7 +496,7 @@ describe('Fog of War System Behavior', () => {
 
   it('should provide presets for common fog scenarios', async () => {
     const user = userEvent.setup();
-    render(<FogPanel userInfo={mockUserInfo} />);
+    render(<FogPanel />);
 
     // User expects quick fog presets
     expect(screen.getByText(/dungeon exploration/i)).toBeInTheDocument();
@@ -518,11 +513,8 @@ describe('Fog of War System Behavior', () => {
 });
 
 describe('Paint System Behavior', () => {
-  const mockUserInfo = { id: 1, username: 'testuser', role: 'dm', permissions: ['manage_paint'] };
-
   it('should provide drawing tools with various brushes', async () => {
-    const user = userEvent.setup();
-    render(<PaintPanel userInfo={mockUserInfo} />);
+    render(<PaintPanel />);
 
     // User expects brush selection
     expect(screen.getByRole('button', { name: /🖌️ brush/i })).toBeInTheDocument();

@@ -4,12 +4,17 @@ import { authService } from './auth.service';
 
 interface ProtocolContextValue {
   protocol: WebClientProtocol | null;
+  socket?: WebSocket | null;
   connectionState: 'disconnected' | 'connecting' | 'connected' | 'error';
+  isConnected?: boolean;
   connect: () => Promise<void>;
   disconnect: () => void;
 }
 
 const ProtocolContext = createContext<ProtocolContextValue | undefined>(undefined);
+
+// Export the context for external use
+export { ProtocolContext };
 
 export function useProtocol() {
   const ctx = useContext(ProtocolContext);
@@ -69,7 +74,9 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
 
   const value = useMemo(() => ({
     protocol,
+    socket: null, // Legacy property for tests - not exposing internal websocket
     connectionState,
+    isConnected: connectionState === 'connected',
     connect: async () => {
       if (!protocol) return;
       setConnectionState('connecting');

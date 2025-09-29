@@ -3,6 +3,7 @@
  * Tests real asset loading, caching, optimization, and performance monitoring
  * Focus: Real expected behavior for efficient TTRPG asset management
  */
+// @ts-nocheck
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';

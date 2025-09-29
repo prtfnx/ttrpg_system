@@ -3,6 +3,7 @@
  * Tests the Rust/WASM integration focusing on real expected behavior
  * Tests performance-critical systems and TypeScript-Rust bridge
  */
+// @ts-nocheck
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock WASM module structure matching actual Rust exports

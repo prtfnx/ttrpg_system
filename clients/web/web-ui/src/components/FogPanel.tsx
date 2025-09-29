@@ -70,7 +70,7 @@ export const FogPanel: React.FC = () => {
     setIsGmMode(newGmMode);
     
     // Try to set engine mode, but don't fail if engine is not available
-    if (engine) {
+    if (engine && typeof engine.set_gm_mode === 'function') {
       engine.set_gm_mode(newGmMode);
     }
 
@@ -128,13 +128,17 @@ export const FogPanel: React.FC = () => {
       )}
       
       {/* Drawing status indicator */}
-      {engine?.is_in_fog_draw_mode() && (
+      {engine && typeof engine.is_in_fog_draw_mode === 'function' && engine.is_in_fog_draw_mode() && (
         <div className="status-indicator active">
-          🖌️ Drawing {engine.get_current_input_mode() === 'fog_draw' ? 'hide' : 'reveal'} areas...
+          🖌️ Drawing {engine.get_current_input_mode && engine.get_current_input_mode() === 'fog_draw' ? 'hide' : 'reveal'} areas...
           <button 
             onClick={() => {
-              engine?.set_fog_draw_mode(false);
-              engine?.set_fog_erase_mode(false);
+              if (engine && typeof engine.set_fog_draw_mode === 'function') {
+                engine.set_fog_draw_mode(false);
+              }
+              if (engine && typeof engine.set_fog_erase_mode === 'function') {
+                engine.set_fog_erase_mode(false);
+              }
             }} 
             className="panel-button danger"
           >
@@ -172,7 +176,7 @@ export const FogPanel: React.FC = () => {
           <div className="control-group">
             <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
               <button
-                className={`panel-button ${engine?.is_in_fog_draw_mode() && engine?.get_current_input_mode() === 'fog_draw' ? 'primary' : ''}`}
+                className={`panel-button ${(typeof engine?.is_in_fog_draw_mode === 'function' && engine?.is_in_fog_draw_mode() && typeof engine?.get_current_input_mode === 'function' && engine?.get_current_input_mode() === 'fog_draw') ? 'primary' : ''}`}
                 onClick={() => {
                   if (!engine) return;
                   const isActive = engine.get_current_input_mode() === 'fog_draw';
@@ -186,7 +190,7 @@ export const FogPanel: React.FC = () => {
                 🌫️ Hide Mode
               </button>
               <button
-                className={`panel-button ${engine?.is_in_fog_draw_mode() && engine?.get_current_input_mode() === 'fog_erase' ? 'primary' : ''}`}
+                className={`panel-button ${(typeof engine?.is_in_fog_draw_mode === 'function' && engine?.is_in_fog_draw_mode() && typeof engine?.get_current_input_mode === 'function' && engine?.get_current_input_mode() === 'fog_erase') ? 'primary' : ''}`}
                 onClick={() => {
                   if (!engine) return;
                   const isActive = engine.get_current_input_mode() === 'fog_erase';
@@ -200,7 +204,7 @@ export const FogPanel: React.FC = () => {
                 👁️ Reveal Mode
               </button>
               <button
-                className={`panel-button ${!engine?.is_in_fog_draw_mode() ? 'primary' : ''}`}
+                className={`panel-button ${(typeof engine?.is_in_fog_draw_mode === 'function' && !engine?.is_in_fog_draw_mode()) ? 'primary' : ''}`}
                 onClick={() => {
                   if (!engine) return;
                   engine.set_fog_draw_mode(false);
@@ -210,9 +214,9 @@ export const FogPanel: React.FC = () => {
                 🎯 Select Mode
               </button>
             </div>
-            {engine?.is_in_fog_draw_mode() && (
+            {(typeof engine?.is_in_fog_draw_mode === 'function' && engine?.is_in_fog_draw_mode()) && (
               <p style={{ fontSize: '13px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                💡 {engine.get_current_input_mode() === 'fog_draw' ? 
+                💡 {(typeof engine?.get_current_input_mode === 'function' && engine.get_current_input_mode() === 'fog_draw') ? 
                   'Click and drag to hide areas' : 
                   'Click and drag to reveal areas'}
               </p>
@@ -509,7 +513,7 @@ export const FogPanel: React.FC = () => {
           </div>
           {engine && (
             <div className="activity-item">
-              <span>Engine Fog Count: <strong>{engine.get_fog_count()}</strong></span>
+              <span>Engine Fog Count: <strong>{engine.get_fog_count ? engine.get_fog_count() : 'N/A'}</strong></span>
             </div>
           )}
         </div>

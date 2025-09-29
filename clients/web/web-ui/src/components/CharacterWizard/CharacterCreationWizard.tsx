@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
+import type { UserInfo } from '../../services/auth.service';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { Modal } from '../common/Modal';
 import '../common/Modal.css';
@@ -83,6 +84,9 @@ interface CharacterCreationWizardProps {
   onFinish: (data: WizardFormData) => void;
   onCancel: () => void;
   isOpen: boolean;
+  userInfo?: UserInfo;
+  character?: Partial<WizardFormData>;
+  mode?: string;
 }
 
 // Form validation schema
@@ -107,7 +111,7 @@ const wizardSchema = z.object({
   image: z.string().optional()
 });
 
-export function CharacterCreationWizard({ onFinish, onCancel, isOpen }: CharacterCreationWizardProps) {
+export function CharacterCreationWizard({ onFinish, onCancel, isOpen, userInfo: _userInfo, character: _character, mode: _mode }: CharacterCreationWizardProps) {
   const [step, setStep] = useState(0);
   const stepsCount = 10; // Race, Class, Background, Abilities, Skills, Spells, Identity, Export/Import, Advancement, Review
   

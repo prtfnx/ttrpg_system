@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import type { UserInfo } from '../../services/auth.service';
 import { CombatSystemService, type CombatStats, type DiceResult } from '../../services/combatSystem.service';
 import './CombatTracker.css';
 import { InitiativeRoll } from './DiceRoller';
@@ -17,12 +18,20 @@ interface CombatParticipant {
 }
 
 interface CombatTrackerProps {
-  characters: WizardFormData[];
+  characters?: WizardFormData[];
+  combatants?: any[];
+  userInfo?: UserInfo;
+  inCombat?: boolean;
+  withMap?: boolean;
   onClose?: () => void;
 }
 
 export const CombatTracker: React.FC<CombatTrackerProps> = ({
   characters,
+  combatants,
+  userInfo: _userInfo,
+  inCombat,
+  withMap: _withMap,
   onClose
 }) => {
   const [participants, setParticipants] = useState<CombatParticipant[]>([]);
@@ -31,22 +40,63 @@ export const CombatTracker: React.FC<CombatTrackerProps> = ({
   const [combatStarted, setCombatStarted] = useState(false);
   const [showAddParticipant, setShowAddParticipant] = useState(false);
 
-  // Initialize participants from characters
+  // Initialize participants from characters or combatants
   useEffect(() => {
-    const initialParticipants: CombatParticipant[] = characters.map((char, index) => ({
-      id: `player-${index}`,
-      name: char.name || `Character ${index + 1}`,
-      character: char,
-      combatStats: CombatSystemService.generateCombatStats(char),
-      initiative: 0,
-      conditions: [],
-      notes: '',
-      isPlayer: true,
-      isActive: false
-    }));
+    let initialParticipants: CombatParticipant[] = [];
+    
+    if (combatants) {
+      // Convert combatants to participants
+      initialParticipants = combatants.map((combatant, index) => ({
+        id: combatant.id || `combatant-${index}`,
+        name: combatant.name || `Combatant ${index + 1}`,
+        character: combatant,
+        combatStats: {
+          armorClass: combatant.ac || 10,
+          hitPoints: {
+            current: combatant.hp || combatant.maxHp || 20,
+            maximum: combatant.maxHp || 20,
+            temporary: 0
+          },
+          speed: 30,
+          initiative: combatant.initiative || 0,
+          proficiencyBonus: Math.max(2, Math.floor((combatant.level || 1) / 4) + 2),
+          savingThrows: {
+            strength: combatant.stats?.str || 10,
+            dexterity: combatant.stats?.dex || 10,
+            constitution: combatant.stats?.con || 10,
+            intelligence: combatant.stats?.int || 10,
+            wisdom: combatant.stats?.wis || 10,
+            charisma: combatant.stats?.cha || 10
+          },
+          skills: {},
+          passivePerception: 10 + Math.floor(((combatant.stats?.wis || 10) - 10) / 2)
+        },
+        initiative: combatant.initiative || 0,
+        conditions: combatant.conditions || [],
+        notes: '',
+        isPlayer: combatant.type === 'player' || combatant.type === 'character',
+        isActive: false
+      }));
+    } else if (characters) {
+      // Convert characters to participants
+      initialParticipants = characters.map((char, index) => ({
+        id: `player-${index}`,
+        name: char.name || `Character ${index + 1}`,
+        character: char,
+        combatStats: CombatSystemService.generateCombatStats(char),
+        initiative: 0,
+        conditions: [],
+        notes: '',
+        isPlayer: true,
+        isActive: false
+      }));
+    }
     
     setParticipants(initialParticipants);
-  }, [characters]);
+    if (inCombat) {
+      setCombatStarted(true);
+    }
+  }, [characters, combatants, inCombat]);
 
   const sortParticipantsByInitiative = () => {
     const sorted = [...participants].sort((a, b) => b.initiative - a.initiative);

@@ -162,7 +162,7 @@ describe('Real User Workflow Tests', () => {
 
       // Step 5: User sees confirmation
       await waitFor(() => {
-        expect(screen.getByText(/password reset instructions sent/i)).toBeInTheDocument();
+        expect(screen.getByText(/password reset instructions have been sent/i)).toBeInTheDocument();
       });
 
       expect(mockAuthService.requestPasswordReset).toHaveBeenCalledWith({

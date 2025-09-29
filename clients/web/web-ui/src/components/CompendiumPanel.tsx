@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import type { UserInfo } from '../services/auth.service';
 import type { Equipment, Monster, Spell } from '../services/compendium.service';
 import { compendiumService } from '../services/compendium.service';
 
@@ -14,14 +15,23 @@ interface CompendiumEntry {
   cost?: string;
 }
 
-export const CompendiumPanel: React.FC = () => {
+interface CompendiumPanelProps extends React.HTMLProps<HTMLDivElement> {
+  userInfo?: UserInfo;
+  category?: string;
+}
+
+export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ userInfo, category, className, style, id, ...otherProps }) => {
   const [entries, setEntries] = useState<CompendiumEntry[]>([]);
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all'|'monster'|'spell'|'equipment'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all'|'monster'|'spell'|'equipment'>(
+    category === 'spells' ? 'spell' : 
+    category === 'monsters' ? 'monster' : 
+    category === 'equipment' ? 'equipment' : 'all'
+  );
   const [dragged, setDragged] = useState<CompendiumEntry | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<CompendiumEntry | null>(null);
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false);
 
   // Debounce search input
   useEffect(() => { 
@@ -32,7 +42,7 @@ export const CompendiumPanel: React.FC = () => {
   // Load compendium data based on search and filter
   useEffect(() => {
     const loadData = async () => {
-      setLoading(true);
+      // setLoading(true);
       try {
         const monsters = typeFilter === 'all' || typeFilter === 'monster' 
           ? await compendiumService.searchMonsters(debounced) 
@@ -74,7 +84,7 @@ export const CompendiumPanel: React.FC = () => {
       } catch (error) {
         console.error('Failed to load compendium data:', error);
       } finally {
-        setLoading(false);
+        // setLoading(false);
       }
     };
 
@@ -102,15 +112,15 @@ export const CompendiumPanel: React.FC = () => {
   };
 
   // Handle entry selection for details
-  const handleEntryClick = (entry: CompendiumEntry) => {
-    setSelectedEntry(entry);
-  };
+  // const handleEntryClick = (entry: CompendiumEntry) => {
+  //   setSelectedEntry(entry);
+  // };
 
   // Filter entries based on current search and type filter
   const filtered = entries;
 
   return (
-    <div className="compendium-panel" style={{background:'#18181b',color:'#fff',padding:16}}>
+    <div className={`compendium-panel ${className || ''}`} style={{background:'#18181b',color:'#fff',padding:16, ...style}} id={id} {...otherProps}>
       <h3>D&D 5e Compendium</h3>
       {selectedEntry && (
         <div style={{background:'#374151', padding:12, marginBottom:12, borderRadius:6}}>

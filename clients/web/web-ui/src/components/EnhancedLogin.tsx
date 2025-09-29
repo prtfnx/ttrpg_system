@@ -646,3 +646,6 @@ const EnhancedLogin: React.FC = () => {
 };
 
 export default EnhancedLogin;
+
+// Also provide named export for compatibility
+export { EnhancedLogin };

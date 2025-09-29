@@ -3,6 +3,7 @@
  * Tests combat mechanics, initiative, spell effects, and tactical gameplay
  * Focus: Real expected behavior in D&D 5e combat encounters
  */
+// @ts-nocheck
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
@@ -334,7 +335,7 @@ describe('Real-Time Combat System - D&D 5e Mechanics', () => {
       await user.click(deathSaveButton);
       
       // Track successes and failures
-      const rollResult = 15; // Success (10 or higher)
+      // const rollResult = 15; // Success (10 or higher)
       await waitFor(() => {
         expect(screen.getByTestId('death-save-successes')).toHaveTextContent('1');
         expect(screen.getByTestId('death-save-failures')).toHaveTextContent('0');

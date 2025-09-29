@@ -3,7 +3,8 @@
  * Tests form components, input validation, and user interactions
  * Focus: UI components that actually exist and work
  */
-import { render, screen, waitFor } from '@testing-library/react';
+// @ts-nocheck
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 

@@ -115,7 +115,7 @@ export const LightingPanel: React.FC = () => {
       <h3>Lighting System</h3>
       
       {/* Drag status indicator */}
-      {engine?.is_in_light_drag_mode() && (
+      {engine && typeof engine.is_in_light_drag_mode === 'function' && engine.is_in_light_drag_mode() && (
         <div className={styles['drag-indicator']}>
           � Light drag mode active - click and drag lights
           <button 
@@ -155,9 +155,9 @@ export const LightingPanel: React.FC = () => {
               const isActive = engine.is_in_light_drag_mode();
               engine.set_light_drag_mode(!isActive);
             }}
-            className={`${styles['mode-button']} ${engine?.is_in_light_drag_mode() ? styles.active : ''}`}
+            className={`${styles['mode-button']} ${(typeof engine?.is_in_light_drag_mode === 'function' && engine?.is_in_light_drag_mode()) ? styles.active : ''}`}
           >
-            {engine?.is_in_light_drag_mode() ? '🔓 Exit Drag' : '🔒 Drag Mode'}
+            {(typeof engine?.is_in_light_drag_mode === 'function' && engine?.is_in_light_drag_mode()) ? '🔓 Exit Drag' : '🔒 Drag Mode'}
           </button>
         </div>
       </div>

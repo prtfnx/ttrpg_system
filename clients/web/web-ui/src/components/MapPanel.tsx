@@ -20,7 +20,11 @@ interface MapSettings {
   panY: number;
 }
 
-export const MapPanel: React.FC = () => {
+interface MapPanelProps extends React.HTMLProps<HTMLDivElement> {
+  // Map-specific props can be added here in the future
+}
+
+export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...otherProps }) => {
   const engine = useRenderEngine();
   const [mapSettings, setMapSettings] = useState<MapSettings>({
     width: 2000,
@@ -166,7 +170,7 @@ export const MapPanel: React.FC = () => {
   }, [engine]);
 
   return (
-    <div className="map-panel">
+    <div className={`map-panel ${className || ''}`} style={style} id={id} {...otherProps}>
       <div className="panel-header">
         <h3>🗺️ Map & Grid</h3>
       </div>

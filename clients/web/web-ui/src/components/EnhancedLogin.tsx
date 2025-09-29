@@ -102,7 +102,17 @@ const EnhancedLogin: React.FC = () => {
         setError(result.error?.message || 'Login failed');
       }
     } catch (error) {
-      setError('An unexpected error occurred');
+      // Handle different error types appropriately
+      let errorMessage = 'An unexpected error occurred';
+      if (error instanceof Error) {
+        if (error.message.toLowerCase().includes('network') || 
+            error.message.toLowerCase().includes('fetch')) {
+          errorMessage = 'Network error - please check your connection';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -137,6 +147,7 @@ const EnhancedLogin: React.FC = () => {
     try {
       const result = await enhancedAuthService.register({
         ...registerData,
+        email: registerData.email.trim(), // Trim email for submission
         acceptTerms
       });
 
@@ -188,7 +199,7 @@ const EnhancedLogin: React.FC = () => {
       });
 
       if (result.success) {
-        setSuccess('Password reset instructions have been sent to your email');
+        setSuccess('Password reset instructions have been sent');
         setShowForgotPassword(false);
         setResetEmail('');
       } else {
@@ -223,8 +234,9 @@ const EnhancedLogin: React.FC = () => {
     if (/[^A-Za-z0-9]/.test(password)) score += 1;
     else feedback.push('Add special characters');
 
-    // Check for patterns
-    if (!/(.)\1{2,}/.test(password)) score += 1;
+    // Check for patterns and minimum quality
+    if (password.length >= 6 && !/(.)\1{2,}/.test(password)) score += 1;
+    else if (password.length <= 5) feedback.push('Password too short');
     else feedback.push('Avoid repeated characters');
 
     const isStrong = score >= 5 && password.length >= 8;
@@ -238,7 +250,7 @@ const EnhancedLogin: React.FC = () => {
 
     return {
       score: Math.min(score, 5),
-      feedback: isStrong ? ['Strong password!'] : feedback,
+      feedback: isStrong ? [] : feedback, // Empty feedback for strong passwords to avoid duplicate "Strong" text
       isStrong,
       level
     };
@@ -280,14 +292,14 @@ const EnhancedLogin: React.FC = () => {
             </div>
 
             {error && (
-              <div className="error-message" role="alert">
+              <div className="error-message" role="alert" aria-live="polite">
                 <span className="error-icon">⚠️</span>
                 {error}
               </div>
             )}
 
             {success && (
-              <div className="success-message" role="alert">
+              <div className="success-message" role="alert" aria-live="polite">
                 <span className="success-icon">✅</span>
                 {success}
               </div>
@@ -300,7 +312,11 @@ const EnhancedLogin: React.FC = () => {
                   id="reset-email"
                   type="email"
                   value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
+                  onChange={(e) => {
+                    setResetEmail(e.target.value);
+                    // Clear errors when user types
+                    if (error) setError(null);
+                  }}
                   required
                   autoFocus
                   disabled={isLoading}
@@ -347,14 +363,14 @@ const EnhancedLogin: React.FC = () => {
           </div>
 
           {error && (
-            <div className="error-message" role="alert">
+            <div className="error-message" role="alert" aria-live="polite">
               <span className="error-icon">⚠️</span>
               {error}
             </div>
           )}
 
           {success && (
-            <div className="success-message" role="alert">
+            <div className="success-message" role="alert" aria-live="polite">
               <span className="success-icon">✅</span>
               {success}
             </div>
@@ -396,7 +412,11 @@ const EnhancedLogin: React.FC = () => {
                   ref={usernameRef}
                   type="text"
                   value={loginData.username}
-                  onChange={(e) => setLoginData(prev => ({ ...prev, username: e.target.value }))}
+                  onChange={(e) => {
+                    setLoginData(prev => ({ ...prev, username: e.target.value }));
+                    // Clear errors when user types
+                    if (error) setError(null);
+                  }}
                   required
                   autoComplete="username"
                   disabled={isLoading}
@@ -412,7 +432,11 @@ const EnhancedLogin: React.FC = () => {
                     ref={passwordRef}
                     type={showPassword ? 'text' : 'password'}
                     value={loginData.password}
-                    onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
+                    onChange={(e) => {
+                      setLoginData(prev => ({ ...prev, password: e.target.value }));
+                      // Clear errors when user types
+                      if (error) setError(null);
+                    }}
                     required
                     autoComplete="current-password"
                     disabled={isLoading}
@@ -482,13 +506,17 @@ const EnhancedLogin: React.FC = () => {
                 <input
                   id="register-email"
                   ref={emailRef}
-                  type="email"
+                  type="text"
                   value={registerData.email}
-                  onChange={(e) => setRegisterData(prev => ({ ...prev, email: e.target.value }))}
+                  onChange={(e) => {
+                    // Keep the original value for UX, don't trim in the field
+                    setRegisterData(prev => ({ ...prev, email: e.target.value }));
+                  }}
                   required
                   autoComplete="email"
                   disabled={isLoading}
                   placeholder="Enter your email"
+                  pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
                 />
               </div>
 
@@ -545,11 +573,17 @@ const EnhancedLogin: React.FC = () => {
                       {passwordStrength.level}
                     </div>
                     <div className="strength-feedback">
-                      {passwordStrength.feedback.map((feedback, index) => (
-                        <div key={index} className={passwordStrength.isStrong ? 'success' : 'warning'}>
-                          {passwordStrength.isStrong ? '✅' : '⚠️'} {feedback}
+                      {passwordStrength.isStrong ? (
+                        <div className="success">
+                          ✅ Excellent password security!
                         </div>
-                      ))}
+                      ) : (
+                        passwordStrength.feedback.map((feedback, index) => (
+                          <div key={index} className="warning">
+                            ⚠️ {feedback}
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 )}
@@ -595,7 +629,7 @@ const EnhancedLogin: React.FC = () => {
                     required
                   />
                   <span className="checkmark"></span>
-                  I accept the{' '}
+                  I agree to the{' '}
                   <a href="/terms" target="_blank" rel="noopener noreferrer">
                     Terms of Service
                   </a>{' '}

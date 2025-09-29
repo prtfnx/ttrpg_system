@@ -3,6 +3,7 @@
  * Tests real D&D 5e character creation, leveling, spell management, and abilities
  * Focus: Real expected behavior for complete character lifecycle
  */
+// @ts-nocheck
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';

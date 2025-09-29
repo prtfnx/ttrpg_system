@@ -10,6 +10,8 @@ interface Layer {
   spriteCount: number;
 }
 
+interface LayerPanelProps extends React.HTMLProps<HTMLDivElement> {}
+
 const DEFAULT_LAYERS: Layer[] = [
   { id: 'map', name: 'Map', icon: '🗺️', color: '#8b5cf6', spriteCount: 0 },
   { id: 'tokens', name: 'Tokens', icon: '⚪', color: '#06b6d4', spriteCount: 0 },
@@ -20,7 +22,7 @@ const DEFAULT_LAYERS: Layer[] = [
   { id: 'fog_of_war', name: 'Fog of War', icon: '🌫️', color: '#6b7280', spriteCount: 0 }
 ];
 
-export function LayerPanel() {
+export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelProps) {
   const {
     activeLayer,
     layerVisibility,
@@ -66,7 +68,7 @@ export function LayerPanel() {
 
   if (isLoading) {
     return (
-      <div className="layer-panel loading">
+      <div className={`layer-panel loading ${className || ''}`} style={style} id={id} {...otherProps}>
         <div className="loading-content">
           <div className="spinner"></div>
           <span>Initializing layers...</span>
@@ -76,7 +78,7 @@ export function LayerPanel() {
   }
 
   return (
-    <div className="layer-panel">
+    <div className={`layer-panel ${className || ''}`} style={style} id={id} {...otherProps}>
       <div className="layer-panel-header">
         <h3>Layers</h3>
         <div className="layer-count">

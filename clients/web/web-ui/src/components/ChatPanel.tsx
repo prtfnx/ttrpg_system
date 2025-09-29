@@ -12,7 +12,10 @@ export function ChatPanel() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Mock-safe scrollIntoView for testing
+    if (messagesEndRef.current && typeof messagesEndRef.current.scrollIntoView === 'function') {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
 
   const handleSend = () => {

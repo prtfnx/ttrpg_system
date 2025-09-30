@@ -148,17 +148,71 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ userInfo, cate
         <input
           type="text"
           placeholder="Search monsters, spells, equipment..."
+          aria-label="Search spells"
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{flex:1,padding:6,fontSize:14}}
         />
         <div style={{display:'flex',gap:6,alignItems:'center'}}>
+          <button onClick={() => { /* trigger search */ }} style={{padding:'6px 8px',background:'#2563eb',border:'none',color:'#fff',borderRadius:4,cursor:'pointer'}}>Search</button>
           <button onClick={() => setTypeFilter('all')} style={{padding:'6px 8px',background:typeFilter==='all'?'#374151':'#222',border:'none',color:'#fff',borderRadius:4,cursor:'pointer'}}>All</button>
           <button onClick={() => setTypeFilter('monster')} style={{padding:'6px 8px',background:typeFilter==='monster'?'#374151':'#222',border:'none',color:'#fff',borderRadius:4,cursor:'pointer'}}>Monsters</button>
           <button onClick={() => setTypeFilter('spell')} style={{padding:'6px 8px',background:typeFilter==='spell'?'#374151':'#222',border:'none',color:'#fff',borderRadius:4,cursor:'pointer'}}>Spells</button>
           <button onClick={() => setTypeFilter('equipment')} style={{padding:'6px 8px',background:typeFilter==='equipment'?'#374151':'#222',border:'none',color:'#fff',borderRadius:4,cursor:'pointer'}}>Gear</button>
         </div>
       </div>
+      
+      {/* Challenge Rating Filter for Monsters */}
+      {typeFilter === 'monster' && (
+        <div style={{marginBottom:12}}>
+          <label htmlFor="challenge-rating" style={{color:'#fff',marginRight:8}}>Challenge Rating:</label>
+          <select 
+            id="challenge-rating"
+            aria-label="Challenge Rating"
+            style={{padding:'4px 8px',background:'#222',color:'#fff',border:'1px solid #374151',borderRadius:4}}
+          >
+            <option value="">All CRs</option>
+            <option value="0">0</option>
+            <option value="1/4">1/4</option>
+            <option value="1/2">1/2</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+          </select>
+        </div>
+      )}
+      
+      {/* Spell Level Filter for Spells */}
+      {typeFilter === 'spell' && (
+        <div style={{marginBottom:12}}>
+          <label htmlFor="spell-level" style={{color:'#fff',marginRight:8}}>Spell Level:</label>
+          <select 
+            id="spell-level"
+            aria-label="Spell Level"
+            style={{padding:'4px 8px',background:'#222',color:'#fff',border:'1px solid #374151',borderRadius:4}}
+          >
+            <option value="">All Levels</option>
+            <option value="0">Cantrip</option>
+            <option value="1">Level 1</option>
+            <option value="2">Level 2</option>
+            <option value="3">Level 3</option>
+            <option value="4">Level 4</option>
+            <option value="5">Level 5</option>
+            <option value="6">Level 6</option>
+            <option value="7">Level 7</option>
+            <option value="8">Level 8</option>
+            <option value="9">Level 9</option>
+          </select>
+        </div>
+      )}
+      
       <div style={{display:'flex',gap:8}}>
         <div style={{flex:1}}>
           <h4>Entries</h4>
@@ -175,6 +229,15 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ userInfo, cate
                   <strong>{entry.name}</strong>
                   <div style={{display:'flex',gap:8}}>
                     <button onClick={() => insertEntry(entry)} style={{background:'#2563eb',border:'none',color:'#fff',padding:'4px 8px',borderRadius:4,cursor:'pointer',fontSize:12}}>Insert</button>
+                    {entry.type === 'monster' && (
+                      <button 
+                        onClick={() => setSelectedEntry(entry)} 
+                        style={{background:'#16a34a',border:'none',color:'#fff',padding:'4px 8px',borderRadius:4,cursor:'pointer',fontSize:12}}
+                        aria-label={`${entry.name} details`}
+                      >
+                        Details
+                      </button>
+                    )}
                     <span style={{fontSize:12,color:'#a3a3a3'}}>[{entry.type}]</span>
                   </div>
                 </div>

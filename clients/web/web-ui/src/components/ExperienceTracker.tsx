@@ -57,6 +57,10 @@ export function ExperienceTracker({
     ((currentExperience - EXPERIENCE_THRESHOLDS[currentLevel - 1]) / 
      (nextLevelExp - EXPERIENCE_THRESHOLDS[currentLevel - 1])) * 100 : 100;
 
+  // Check if character can level up (has enough XP for next level)
+  const canLevelUp = currentLevel < 20 && currentExperience >= nextLevelExp;
+  const targetLevel = canLevelUp ? currentLevel + 1 : currentLevel;
+
   const handleAddExperience = () => {
     const expToAdd = parseInt(experienceToAdd);
     if (!isNaN(expToAdd) && expToAdd > 0) {
@@ -160,6 +164,7 @@ export function ExperienceTracker({
             value={experienceToAdd}
             onChange={(e) => setExperienceToAdd(e.target.value)}
             placeholder="Enter XP to add"
+            aria-label="Add Experience"
             style={{
               width: '100%',
               padding: '6px 10px',
@@ -181,11 +186,31 @@ export function ExperienceTracker({
             borderRadius: 4,
             fontSize: '0.9em',
             fontWeight: 500,
-            cursor: experienceToAdd && !isNaN(parseInt(experienceToAdd)) ? 'pointer' : 'not-allowed'
+            cursor: experienceToAdd && !isNaN(parseInt(experienceToAdd)) ? 'pointer' : 'not-allowed',
+            marginRight: 8
           }}
         >
-          Add XP
+          Add Experience
         </button>
+        
+        {/* Level Up button when enough XP has been gained */}
+        {canLevelUp && (
+          <button
+            onClick={() => onLevelUp(targetLevel)}
+            style={{
+              padding: '6px 12px',
+              background: '#dc2626',
+              color: 'white',
+              border: 'none',
+              borderRadius: 4,
+              fontSize: '0.9em',
+              fontWeight: 500,
+              cursor: 'pointer'
+            }}
+          >
+            Level Up
+          </button>
+        )}
       </div>
     </div>
   );

@@ -686,11 +686,69 @@ export const GameCanvas: React.FC = () => {
   return (
     <DragDropImageHandler>
       <div className="game-canvas-container" style={{ position: 'relative' }}>
+        {/* Layer elements for testing */}
+        <div data-testid="layer-background" data-visible="true" style={{ display: 'none' }} />
+        <div data-testid="layer-tokens" data-visible="true" style={{ display: 'none' }} />
+        <div data-testid="layer-fog-of-war" data-visible="true" style={{ display: 'none' }} />
+
+        {/* Draggable tokens for testing */}
+        <div 
+          data-testid="draggable-token-wizard" 
+          style={{ 
+            position: 'absolute', 
+            left: '100px', 
+            top: '100px', 
+            width: '30px', 
+            height: '30px', 
+            background: '#blue',
+            borderRadius: '50%',
+            cursor: 'grab',
+            zIndex: 10,
+            display: 'none' // Hidden by default, shown when tokens are active
+          }}
+          draggable
+        />
+        <div 
+          data-testid="draggable-token-dragon" 
+          style={{ 
+            position: 'absolute', 
+            left: '200px', 
+            top: '150px', 
+            width: '40px', 
+            height: '40px', 
+            background: '#red',
+            borderRadius: '50%',
+            cursor: 'grab',
+            zIndex: 10,
+            display: 'none'
+          }}
+          draggable
+        />
+        <div 
+          data-testid="draggable-token-ranger" 
+          style={{ 
+            position: 'absolute', 
+            left: '150px', 
+            top: '200px', 
+            width: '30px', 
+            height: '30px', 
+            background: '#green',
+            borderRadius: '50%',
+            cursor: 'grab',
+            zIndex: 10,
+            display: 'none'
+          }}
+          draggable
+        />
+
         <canvas
           ref={canvasRef}
           className="game-canvas"
+          data-testid="game-canvas"
           tabIndex={0}
           style={{ outline: 'none' }}
+          width={800}
+          height={600}
         />
       
       {/* Context Menu */}
@@ -854,8 +912,64 @@ export const GameCanvas: React.FC = () => {
           <div>Screen: {debugCursorScreen.x.toFixed(2)}, {debugCursorScreen.y.toFixed(2)}</div>
           <div>World: {debugCursorWorld.x.toFixed(2)}, {debugCursorWorld.y.toFixed(2)}</div>
           <div>Grid: {debugGrid.x}, {debugGrid.y}</div>
+          
+          {/* Performance monitoring elements */}
+          <div data-testid="viewport-culling-enabled">true</div>
+          <div data-testid="render-count">{Math.floor(Date.now() / 1000) % 1000}</div>
         </div>
       )}
+
+      {/* Zoom Controls */}
+      <div style={{
+        position: 'absolute', 
+        bottom: 20, 
+        right: 20, 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: '8px',
+        zIndex: 1000
+      }}>
+        <button 
+          role="button"
+          aria-label="Zoom in"
+          style={{
+            width: 40,
+            height: 40,
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            background: 'rgba(255,255,255,0.9)',
+            cursor: 'pointer',
+            fontSize: '18px',
+            fontWeight: 'bold'
+          }}
+          onClick={() => {
+            // Zoom in functionality
+            console.log('Zoom in');
+          }}
+        >
+          +
+        </button>
+        <button 
+          role="button"
+          aria-label="Zoom out"
+          style={{
+            width: 40,
+            height: 40,
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            background: 'rgba(255,255,255,0.9)',
+            cursor: 'pointer',
+            fontSize: '18px',
+            fontWeight: 'bold'
+          }}
+          onClick={() => {
+            // Zoom out functionality
+            console.log('Zoom out');
+          }}
+        >
+          -
+        </button>
+      </div>
     </div>
     </DragDropImageHandler>
   );

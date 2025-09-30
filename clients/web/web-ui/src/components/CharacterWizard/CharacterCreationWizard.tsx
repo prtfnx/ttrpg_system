@@ -275,6 +275,71 @@ export function CharacterCreationWizard({ onFinish, onCancel, isOpen, userInfo: 
               </div>
             </div>
 
+            {/* Welcome message for character creation */}
+            {step === 0 && (
+              <div style={{ 
+                marginBottom: 24, 
+                padding: 16, 
+                background: '#f8fafc', 
+                borderRadius: 8,
+                border: '1px solid #e2e8f0'
+              }}>
+                <h2 style={{ 
+                  margin: '0 0 8px 0', 
+                  fontSize: '1.25em', 
+                  color: '#1e293b',
+                  fontWeight: 600
+                }}>
+                  Create your character
+                </h2>
+                <p style={{ 
+                  margin: '0 0 16px 0', 
+                  color: '#64748b', 
+                  fontSize: '0.95em',
+                  lineHeight: 1.5
+                }}>
+                  Welcome to character creation! Follow the steps to build your D&D 5e character. 
+                  Start by giving your character a name, then choose their race and class.
+                </p>
+                
+                {/* Character Name Input */}
+                <div style={{ marginTop: 16 }}>
+                  <label style={{ 
+                    display: 'block', 
+                    marginBottom: 8, 
+                    fontSize: '0.9em', 
+                    fontWeight: 500,
+                    color: '#374151'
+                  }}>
+                    Character Name:
+                  </label>
+                  <input
+                    {...methods.register('name', { required: 'Character name is required' })}
+                    style={{
+                      width: '100%',
+                      maxWidth: 300,
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: 6,
+                      fontSize: '0.95em',
+                      background: '#fff'
+                    }}
+                    placeholder="Enter your character's name"
+                    autoFocus
+                  />
+                  {methods.formState.errors.name && (
+                    <div style={{ 
+                      marginTop: 4, 
+                      color: '#dc2626', 
+                      fontSize: '0.85em' 
+                    }}>
+                      {methods.formState.errors.name.message}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Step content */}
             {step === 0 && <RaceStep onNext={handleNextRace} />}
             {step === 1 && <ClassStep onNext={handleNextClass} onBack={handleBack} />}

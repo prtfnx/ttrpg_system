@@ -47,9 +47,12 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
         expect(screen.getByText(/dwarven resilience/i)).toBeInTheDocument();
       });
       
-      await user.click(nextButton);
-      
-      // Step 2: Class Selection with features
+      // Wait a bit for form state to update
+      await waitFor(() => {
+        expect(raceSelect).toHaveValue('mountain-dwarf');
+      });
+
+      await user.click(nextButton);      // Step 2: Class Selection with features
       await waitFor(() => {
         expect(screen.getByLabelText(/select class/i)).toBeInTheDocument();
       });

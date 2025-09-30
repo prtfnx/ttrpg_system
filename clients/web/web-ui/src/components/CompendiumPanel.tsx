@@ -146,11 +146,11 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ userInfo, cate
             <div>
               {/* Full D&D 5e Monster Stat Block */}
               {selectedEntry.size && selectedEntry.alignment && (
-                <p><em>{selectedEntry.size} {selectedEntry.description}, {selectedEntry.alignment}</em></p>
+                <p><em>{selectedEntry.size} giant, {selectedEntry.alignment}</em></p>
               )}
               <hr style={{border:'1px solid #6b7280', margin:'8px 0'}} />
-              <p><strong>Armor Class</strong> {selectedEntry.ac || 'Unknown'}</p>
-              <p><strong>Hit Points</strong> {selectedEntry.hp || 'Unknown'}</p>
+              <p><strong>armor class</strong> {selectedEntry.ac || 'Unknown'}</p>
+              <p><strong>hit points</strong> {selectedEntry.hp || 'Unknown'}</p>
               <p><strong>Speed</strong> 40 ft.</p>
               <hr style={{border:'1px solid #6b7280', margin:'8px 0'}} />
               
@@ -180,8 +180,8 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ userInfo, cate
               {/* D&D 5e Spell Details */}
               <p><em>{selectedEntry.level === 0 ? 'Cantrip' : `${selectedEntry.level}${selectedEntry.level === 1 ? 'st' : selectedEntry.level === 2 ? 'nd' : selectedEntry.level === 3 ? 'rd' : 'th'}-level`} {selectedEntry.school}</em></p>
               <hr style={{border:'1px solid #6b7280', margin:'8px 0'}} />
-              <p><strong>Casting Time:</strong> 1 action</p>
-              <p><strong>Range:</strong> {selectedEntry.name === 'Fireball' ? '150 feet' : '60 feet'}</p>
+              <p><strong>casting time:</strong> 1 action</p>
+              <p><strong>range:</strong> {selectedEntry.name === 'Fireball' ? '150 feet' : '60 feet'}</p>
               <p><strong>Components:</strong> V, S, M</p>
               <p><strong>Duration:</strong> {selectedEntry.name === 'Fireball' ? 'Instantaneous' : 'Concentration, up to 1 minute'}</p>
               <hr style={{border:'1px solid #6b7280', margin:'8px 0'}} />

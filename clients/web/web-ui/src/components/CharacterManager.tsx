@@ -1,4 +1,13 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } fr          {
+            id: 'local-1',
+            name: 'Test Fighter',
+            class: 'Fighter',
+            race: 'Human',
+            level: 1,
+            experience: 0,
+            stats: { str: 16, dex: 14, con: 15, int: 10, wis: 12, cha: 11 },
+            owner: userInfo.username
+          },";
 import { useAuthenticatedWebSocket } from "../hooks/useAuthenticatedWebSocket";
 import { MessageType, createMessage } from "../protocol/message";
 import type { UserInfo } from "../services/auth.service";
@@ -12,8 +21,10 @@ export interface Character {
   class: string;
   race: string;
   level: number;
+  experience: number;
   stats: Record<string, number>;
   owner: string;
+  multiclass?: string[];
 }
 
 interface CharacterManagerProps {
@@ -64,6 +75,7 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
             class: 'Wizard',
             race: 'Elf',
             level: 1,
+            experience: 0,
             stats: { str: 8, dex: 14, con: 12, int: 16, wis: 13, cha: 10 },
             owner: userInfo.username
           }

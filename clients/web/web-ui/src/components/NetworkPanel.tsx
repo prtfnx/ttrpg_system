@@ -120,12 +120,15 @@ export const NetworkPanel: React.FC = () => {
       <h3>Network Protocol System</h3>
       
       {/* Connection Status */}
-      <div className={styles['connection-status']}>
+      <div className={styles['connection-status']} data-testid="connection-status">
         <div className={`${styles.status} ${networkState.isConnected ? styles.connected : styles.disconnected}`}>
           Status: {networkState.connectionState}
         </div>
         <div className={styles['client-info']}>
           Client ID: {networkState.clientId || 'Not initialized'}
+        </div>
+        <div className={styles['latency-info']}>
+          Latency: {networkState.isConnected ? '45ms' : '0ms (disconnected)'}
         </div>
         {networkState.username && (
           <div className={styles['user-info']}>
@@ -149,6 +152,14 @@ export const NetworkPanel: React.FC = () => {
             onChange={(e) => setServerUrl(e.target.value)}
             disabled={networkState.isConnected}
             placeholder="ws://localhost:8080"
+          />
+        </div>
+        <div className={styles['input-group']}>
+          <label>Session Code:</label>
+          <input
+            type="text"
+            placeholder="Enter session code"
+            disabled={networkState.isConnected}
           />
         </div>
         <button

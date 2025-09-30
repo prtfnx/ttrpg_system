@@ -69,6 +69,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
         </div>
         
         <div className="memory-bar">
+          <span className="memory-label">Memory</span>
           <div 
             className="memory-fill"
             style={{ 
@@ -76,6 +77,10 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
               backgroundColor: getMemoryUsagePercent() > 80 ? '#ef4444' : '#4ade80'
             }}
           />
+        </div>
+        
+        <div className="frame-time-display">
+          <span className="frame-time-label">Frame Time: {metrics.frameTime.toFixed(1)}ms</span>
         </div>
       </div>
 

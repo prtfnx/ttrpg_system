@@ -18,6 +18,10 @@ const createMockWasmModule = () => ({
     update_sprite_position: vi.fn(),
     set_camera: vi.fn(),
     get_camera: vi.fn(() => ({ x: 0, y: 0, zoom: 1 })),
+    add_light: vi.fn(),
+    set_light_color: vi.fn(),
+    set_light_intensity: vi.fn(),
+    remove_light: vi.fn(),
     clear: vi.fn(),
     free: vi.fn()
   })),

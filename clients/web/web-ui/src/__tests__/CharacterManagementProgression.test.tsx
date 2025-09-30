@@ -428,8 +428,8 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
       }
       
       // Should show ritual spells even if not prepared
-      expect(screen.getByText(/comprehend languages/i)).toBeInTheDocument();
-      expect(screen.getByText(/find familiar/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/comprehend languages/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/find familiar/i).length).toBeGreaterThan(0);
       
       // Cast comprehend languages as ritual
       const ritualButton = screen.getByRole('button', { name: /cast comprehend languages \(ritual\)/i });

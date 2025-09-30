@@ -9,6 +9,7 @@ export function ChatPanel() {
   const { messages } = useChatStore();
   const { sendMessage } = useChatWebSocket(config.getWebSocketUrl(), USER);
   const [input, setInput] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -20,7 +21,22 @@ export function ChatPanel() {
 
   const handleSend = () => {
     if (input.trim()) {
-      sendMessage(input.trim());
+      const message = input.trim();
+      setErrorMessage(null); // Clear previous errors
+      
+      // Check for commands
+      if (message.startsWith('/')) {
+        const command = message.split(' ')[0];
+        const validCommands = ['/roll', '/whisper', '/help', '/clear'];
+        
+        if (!validCommands.includes(command)) {
+          setErrorMessage(`Unknown command: ${command}. Type /help for available commands.`);
+          setInput('');
+          return;
+        }
+      }
+      
+      sendMessage(message);
       setInput('');
     }
   };
@@ -34,6 +50,11 @@ export function ChatPanel() {
             <span style={{ color: '#aaa', fontSize: 12, marginLeft: 8 }}>{new Date(msg.timestamp).toLocaleTimeString()}</span>
           </div>
         ))}
+        {errorMessage && (
+          <div style={{ marginBottom: 6, fontSize: 15, color: '#ef4444' }}>
+            <span style={{ fontWeight: 600 }}>Error:</span> <span>{errorMessage}</span>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
       <div style={{ display: 'flex', gap: 8 }}>

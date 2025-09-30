@@ -172,9 +172,10 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
           
           {/* Color Picker */}
           <div className="color-picker-section">
-            <label>Color:</label>
+            <label htmlFor="color-picker">Color:</label>
             <div className="color-controls">
               <input
+                id="color-picker"
                 type="color"
                 value={currentColor}
                 onChange={handleColorChange}

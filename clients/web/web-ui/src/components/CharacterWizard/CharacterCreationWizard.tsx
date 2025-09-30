@@ -275,7 +275,7 @@ export function CharacterCreationWizard({ onFinish, onCancel, isOpen, userInfo: 
               </div>
             </div>
 
-            {/* Welcome message for character creation */}
+            {/* Step 0: Character Name */}
             {step === 0 && (
               <div style={{ 
                 marginBottom: 24, 
@@ -341,28 +341,55 @@ export function CharacterCreationWizard({ onFinish, onCancel, isOpen, userInfo: 
                     </div>
                   )}
                 </div>
+                
+                {/* Next Button for Name Step */}
+                <div style={{ marginTop: 16 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const name = methods.getValues().name;
+                      if (name && name.trim()) {
+                        setStep(1);
+                      } else {
+                        methods.setError('name', { type: 'manual', message: 'Character name is required' });
+                      }
+                    }}
+                    style={{
+                      background: methods.watch('name') ? '#3b82f6' : '#9ca3af',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 4,
+                      padding: '8px 16px',
+                      fontWeight: 600,
+                      cursor: methods.watch('name') ? 'pointer' : 'not-allowed'
+                    }}
+                    disabled={!methods.watch('name')}
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             )}
 
             {/* Step content */}
-            {step === 0 && <RaceStep onNext={handleNextRace} />}
-            {step === 1 && <ClassStep onNext={handleNextClass} onBack={handleBack} />}
-            {step === 2 && <BackgroundStep onNext={handleNextBackground} onBack={handleBack} />}
-            {step === 3 && <AbilitiesStep onNext={handleNextAbilities} onBack={handleBack} />}
-            {step === 4 && (
+            {step === 1 && <RaceStep onNext={() => setStep(2)} />}
+            {step === 2 && <ClassStep onNext={() => setStep(3)} onBack={() => setStep(1)} />}
+            {step === 3 && <BackgroundStep onNext={() => setStep(4)} onBack={() => setStep(2)} />}
+            {step === 4 && <AbilitiesStep onNext={() => setStep(5)} onBack={() => setStep(3)} />}
+            {step === 5 && (
               <SkillsStep
-                onNext={() => setStep(5)}
-                onBack={handleBack}
+                onNext={() => setStep(6)}
+                onBack={() => setStep(4)}
                 classSkills={getClassSkills(methods.getValues().class)}
                 classSkillChoices={getClassSkillChoices(methods.getValues().class)}
                 backgroundSkills={getBackgroundSkills(methods.getValues().background)}
                 raceSkills={getRaceSkills(methods.getValues().race)}
               />
             )}
-            {step === 5 && isSpellcaster(methods.getValues().class) && (
+            {step === 6 && isSpellcaster(methods.getValues().class) && (
               <SpellSelectionStep
-                onNext={() => setStep(6)}
-                onBack={handleBack}
+                onNext={() => setStep(7)}
+                onBack={() => setStep(5)}
                 characterClass={methods.getValues().class}
                 characterLevel={1}
                 abilityScores={{

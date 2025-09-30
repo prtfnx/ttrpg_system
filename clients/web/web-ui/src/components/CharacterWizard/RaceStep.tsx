@@ -27,13 +27,23 @@ const raceData = {
 };
 
 export function RaceStep({ onNext }: { onNext: () => void }) {
-  const { control, handleSubmit, formState, watch } = useFormContext<RaceStepData>();
+  const { control, formState, watch } = useFormContext<RaceStepData>();
   const selectedRace = watch('race');
   
-  const handleRaceNext = (data: RaceStepData) => {
-    console.log('[RaceStep] onNext called, data:', data);
-    onNext();
+  const onFormSubmit = () => {
+    // Get current race value and validate it directly
+    const raceValue = watch('race');
+    console.log('[RaceStep] Submit triggered, race value:', raceValue);
+    
+    if (raceValue && raceValue.trim() !== '') {
+      console.log('[RaceStep] Race is valid, proceeding to next step');
+      onNext();
+    } else {
+      console.log('[RaceStep] Race is invalid, staying on current step');
+    }
   };
+
+  console.log('[RaceStep] Rendering, current race value:', watch('race'));
   
   // Debug: log validation errors on every render
   if (formState.errors && Object.keys(formState.errors).length > 0) {
@@ -41,7 +51,7 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
   }
   
   return (
-    <form onSubmit={handleSubmit(handleRaceNext)} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <form onSubmit={(e) => { e.preventDefault(); onFormSubmit(); }} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Choose your race</div>
       
       <label>
@@ -102,8 +112,13 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
       
       <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
         <button 
-          type="submit" 
+          type="button"
           disabled={!selectedRace}
+          onClick={(e) => {
+            e.preventDefault();
+            console.log('[RaceStep] Button clicked directly');
+            onFormSubmit();
+          }}
           style={{ 
             background: selectedRace ? '#6366f1' : '#9ca3af', 
             color: '#fff', 

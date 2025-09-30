@@ -13,7 +13,7 @@ import CharacterExportStep from './CharacterExportStep';
 import { classSchema } from './classSchema';
 import { ClassStep } from './ClassStep';
 import IdentityStep from './IdentityStep';
-import { RaceStep } from './RaceStepImproved';
+import { RaceStep } from './RaceStep';
 import ReviewStep from './ReviewStep';
 import { abilitiesSchema, raceSchema } from './schemas';
 import { SkillsStep } from './SkillsStep';
@@ -304,16 +304,20 @@ export function CharacterCreationWizard({ onFinish, onCancel, isOpen, userInfo: 
                 
                 {/* Character Name Input */}
                 <div style={{ marginTop: 16 }}>
-                  <label style={{ 
-                    display: 'block', 
-                    marginBottom: 8, 
-                    fontSize: '0.9em', 
-                    fontWeight: 500,
-                    color: '#374151'
-                  }}>
+                  <label 
+                    htmlFor="character-name"
+                    style={{ 
+                      display: 'block', 
+                      marginBottom: 8, 
+                      fontSize: '0.9em', 
+                      fontWeight: 500,
+                      color: '#374151'
+                    }}
+                  >
                     Character Name:
                   </label>
                   <input
+                    id="character-name"
                     {...methods.register('name', { required: 'Character name is required' })}
                     style={{
                       width: '100%',

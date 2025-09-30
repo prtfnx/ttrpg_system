@@ -198,7 +198,7 @@ export function CharacterSummary({ character }: CharacterSummaryProps) {
             EXPERIENCE
           </div>
           <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#ca8a04' }}>
-            {experience.toLocaleString()}
+            {(experience || 0).toLocaleString()}
           </div>
           <div style={{ fontSize: '0.7em', color: '#a16207' }}>
             Level {displayLevel}

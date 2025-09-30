@@ -49,7 +49,6 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
   const [showCharacterCreation, setShowCharacterCreation] = useState<boolean>(false);
   const [presence, setPresence] = useState<Array<{ username: string; editing: boolean }>>([]);
   const [mutationQueue, setMutationQueue] = useState<Array<{ type: 'create'|'update'|'delete'; payload: any; tempId?: string }>>([]);
-  const [showCharacterManagement, setShowCharacterManagement] = useState<boolean>(false);
   const [preparedSpells, setPreparedSpells] = useState<string[]>([]);
 
   // Event-driven character list fetch and updates
@@ -363,8 +362,14 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
           <div style={{ marginTop: 16 }}>
             <ExperienceTracker
               currentExperience={selectedCharacter.experience}
+              currentLevel={selectedCharacter.level}
               onExperienceChange={(newExp) => {
                 const updatedChar = { ...selectedCharacter, experience: newExp };
+                setSelectedCharacter(updatedChar);
+                handleUpdate(updatedChar);
+              }}
+              onLevelUp={(newLevel) => {
+                const updatedChar = { ...selectedCharacter, level: newLevel };
                 setSelectedCharacter(updatedChar);
                 handleUpdate(updatedChar);
               }}
@@ -375,9 +380,12 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
           <div style={{ marginTop: 16 }}>
             <MulticlassManager
               currentClasses={selectedCharacter.multiclass || [selectedCharacter.class]}
+              currentLevel={selectedCharacter.level}
               abilityScores={selectedCharacter.abilityScores || selectedCharacter.stats}
-              onClassChange={(classes) => {
-                const updatedChar = { ...selectedCharacter, multiclass: classes };
+              onMulticlass={(newClass: string) => {
+                const currentClasses = selectedCharacter.multiclass || [selectedCharacter.class];
+                const updatedClasses = [...currentClasses, newClass];
+                const updatedChar = { ...selectedCharacter, multiclass: updatedClasses };
                 setSelectedCharacter(updatedChar);
                 handleUpdate(updatedChar);
               }}
@@ -389,8 +397,8 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
             <SpellPreparationManager
               characterClass={selectedCharacter.class}
               characterLevel={selectedCharacter.level}
-              spellcastingAbility="wisdom"
               abilityScores={selectedCharacter.abilityScores || selectedCharacter.stats}
+              knownSpells={[]}
               preparedSpells={preparedSpells}
               onPrepareSpell={(spellId) => {
                 setPreparedSpells(prev => [...prev, spellId]);

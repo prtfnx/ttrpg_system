@@ -416,7 +416,7 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
         ritualSpells: ['detect-magic', 'identify', 'comprehend-languages', 'find-familiar']
       };
       
-      render(<CharacterWizard character={wizardCharacter} userInfo={mockUserInfo} mode="cast-spell" />);
+      render(<CharacterWizard character={wizardCharacter} userInfo={mockUserInfo} mode="manage-spells" />);
       
       // Ritual section should show all ritual spells from spellbook
       expect(screen.getByText('Ritual Spells')).toBeInTheDocument();

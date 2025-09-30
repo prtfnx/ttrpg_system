@@ -253,7 +253,9 @@ export function SpellPreparationManager({
                 color: '#64748b',
                 fontSize: '0.9em'
               }}>
-                No spells available to prepare
+                {preparedSpells.length >= maxPreparedSpells 
+                  ? "Cannot prepare more spells" 
+                  : "No spells available to prepare"}
               </div>
             ) : (
               availableSpells.map(spell => (
@@ -277,7 +279,7 @@ export function SpellPreparationManager({
                       }
                     }}
                     disabled={preparedSpells.length >= maxPreparedSpells}
-                    aria-label={`Prepare ${spell.name} spell`}
+                    aria-label={`prepare spell ${spell.name}`}
                   />
                   <label 
                     htmlFor={`prepare-${spell.id}`}

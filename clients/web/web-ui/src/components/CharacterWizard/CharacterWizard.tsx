@@ -30,7 +30,10 @@ interface Character {
   spellcastingAbility?: string;
   spellSlots?: Record<number, number>;
   knownSpells?: string[];
+  spellbook?: string[];
   domainSpells?: string[];
+  preparedSpells?: string[];
+  ritualSpells?: string[];
 }
 
 interface CharacterWizardProps {
@@ -52,7 +55,7 @@ export function CharacterWizard({
   // In real usage, this would be managed by a button click or other trigger
   const [isOpen, setIsOpen] = useState(true);
   const [currentCharacter, setCurrentCharacter] = useState<Character | null>(character || null);
-  const [preparedSpells, setPreparedSpells] = useState<string[]>([]);
+  const [preparedSpells, setPreparedSpells] = useState<string[]>(character?.preparedSpells || []);
 
   const handleFinish = (data: WizardFormData | Character) => {
     setIsOpen(false);
@@ -270,61 +273,143 @@ export function CharacterWizard({
               wisdom: currentCharacter.wisdom || 10,
               charisma: currentCharacter.charisma || 10
             }}
-            knownSpells={[
-              // Sample cleric spells for demonstration
-              {
-                id: 'cure-wounds',
-                name: 'Cure Wounds',
-                level: 1,
-                school: 'Evocation',
-                castingTime: '1 action',
-                range: 'Touch',
-                components: 'V, S',
-                duration: 'Instantaneous',
-                description: 'A creature you touch regains hit points.',
-                ritual: false,
-                concentration: false
-              },
-              {
-                id: 'healing-word',
-                name: 'Healing Word',
-                level: 1,
-                school: 'Evocation',
-                castingTime: '1 bonus action',
-                range: '60 feet',
-                components: 'V',
-                duration: 'Instantaneous',
-                description: 'A creature you can see regains hit points.',
-                ritual: false,
-                concentration: false
-              },
-              {
-                id: 'guiding-bolt',
-                name: 'Guiding Bolt',
-                level: 1,
-                school: 'Evocation',
-                castingTime: '1 action',
-                range: '120 feet',
-                components: 'V, S',
-                duration: 'Instantaneous',
-                description: 'A flash of light streaks toward a creature.',
-                ritual: false,
-                concentration: false
-              },
-              {
-                id: 'spiritual-weapon',
-                name: 'Spiritual Weapon',
-                level: 2,
-                school: 'Evocation',
-                castingTime: '1 bonus action',
-                range: '60 feet',
-                components: 'V, S',
-                duration: 'Concentration, up to 1 minute',
-                description: 'You create a floating spectral weapon.',
-                ritual: false,
-                concentration: true
+            knownSpells={(() => {
+              // Create spell objects from character's spellbook or knownSpells
+              const spellList = currentCharacter.spellbook || currentCharacter.knownSpells;
+              if (spellList) {
+                return spellList.map((spellId: string) => {
+                  // Convert spell IDs to proper spell objects
+                  switch (spellId) {
+                    case 'detect-magic':
+                      return {
+                        id: 'detect-magic',
+                        name: 'Detect Magic',
+                        level: 1,
+                        school: 'Divination',
+                        castingTime: '1 action',
+                        range: 'Self',
+                        components: 'V, S',
+                        duration: 'Concentration, up to 10 minutes',
+                        description: 'For the duration, you sense the presence of magic.',
+                        ritual: true,
+                        concentration: true
+                      };
+                    case 'identify':
+                      return {
+                        id: 'identify',
+                        name: 'Identify',
+                        level: 1,
+                        school: 'Divination',
+                        castingTime: '1 minute',
+                        range: 'Touch',
+                        components: 'V, S, M',
+                        duration: 'Instantaneous',
+                        description: 'You choose one object that you must touch.',
+                        ritual: true,
+                        concentration: false
+                      };
+                    case 'comprehend-languages':
+                      return {
+                        id: 'comprehend-languages',
+                        name: 'Comprehend Languages',
+                        level: 1,
+                        school: 'Divination',
+                        castingTime: '1 action',
+                        range: 'Self',
+                        components: 'V, S, M',
+                        duration: '1 hour',
+                        description: 'For the duration, you understand the literal meaning of any spoken language.',
+                        ritual: true,
+                        concentration: false
+                      };
+                    case 'find-familiar':
+                      return {
+                        id: 'find-familiar',
+                        name: 'Find Familiar',
+                        level: 1,
+                        school: 'Conjuration',
+                        castingTime: '1 hour',
+                        range: '10 feet',
+                        components: 'V, S, M',
+                        duration: 'Instantaneous',
+                        description: 'You gain the service of a familiar.',
+                        ritual: true,
+                        concentration: false
+                      };
+                    default:
+                      return {
+                        id: spellId,
+                        name: spellId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                        level: 1,
+                        school: 'Unknown',
+                        castingTime: '1 action',
+                        range: 'Touch',
+                        components: 'V, S',
+                        duration: 'Instantaneous',
+                        description: 'Unknown spell.',
+                        ritual: false,
+                        concentration: false
+                      };
+                  }
+                });
               }
-            ]}
+              
+              // Fallback to sample cleric spells if no spellbook
+              return [
+                {
+                  id: 'cure-wounds',
+                  name: 'Cure Wounds',
+                  level: 1,
+                  school: 'Evocation',
+                  castingTime: '1 action',
+                  range: 'Touch',
+                  components: 'V, S',
+                  duration: 'Instantaneous',
+                  description: 'A creature you touch regains hit points.',
+                  ritual: false,
+                  concentration: false
+                },
+                {
+                  id: 'healing-word',
+                  name: 'Healing Word',
+                  level: 1,
+                  school: 'Evocation',
+                  castingTime: '1 bonus action',
+                  range: '60 feet',
+                  components: 'V',
+                  duration: 'Instantaneous',
+                  description: 'A creature you can see regains hit points.',
+                  ritual: false,
+                  concentration: false
+                },
+                {
+                  id: 'guiding-bolt',
+                  name: 'Guiding Bolt',
+                  level: 1,
+                  school: 'Evocation',
+                  castingTime: '1 action',
+                  range: '120 feet',
+                  components: 'V, S',
+                  duration: 'Instantaneous',
+                  description: 'A flash of light streaks toward a creature.',
+                  ritual: false,
+                  concentration: false
+                },
+                {
+                  id: 'spiritual-weapon',
+                  name: 'Spiritual Weapon',
+                  level: 2,
+                  school: 'Evocation',
+                  castingTime: '1 bonus action',
+                  range: '60 feet',
+                  components: 'V, S',
+                  duration: 'Concentration, up to 1 minute',
+                  description: 'You create a floating spectral weapon.',
+                  ritual: false,
+                  concentration: true
+                }
+              ];
+            })()}
             preparedSpells={preparedSpells}
             onPrepareSpell={(spellId) => {
               setPreparedSpells(prev => [...prev, spellId]);

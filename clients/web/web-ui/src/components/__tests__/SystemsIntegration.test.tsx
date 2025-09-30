@@ -29,6 +29,10 @@ const mockWasmModule = {
     get_sprite_position: vi.fn().mockReturnValue({ x: 5, y: 5 }),
     add_light_source: vi.fn(),
     remove_light_source: vi.fn(),
+    add_light: vi.fn(),
+    set_light_color: vi.fn(),
+    set_light_intensity: vi.fn(),
+    remove_light: vi.fn(),
     update_fog_of_war: vi.fn(),
     calculate_line_of_sight: vi.fn().mockReturnValue(true),
     create_table: vi.fn(),
@@ -86,6 +90,23 @@ vi.mock('../hooks/useActions', () => ({
     batchActions: vi.fn().mockResolvedValue({ success: true, count: 2 }),
     undo: vi.fn().mockResolvedValue({ success: true, message: 'Action undone' }),
     redo: vi.fn().mockResolvedValue({ success: true, message: 'Action redone' })
+  })
+}));
+
+vi.mock('../../services/ProtocolContext', () => ({
+  useProtocol: vi.fn().mockReturnValue({
+    protocol: {
+      client_id: 'test-client-123',
+      connection: {
+        readyState: 1, // WebSocket.OPEN
+        send: vi.fn(),
+        close: vi.fn()
+      },
+      sendMessage: vi.fn(),
+      isConnected: true,
+      registerHandler: vi.fn(),
+      unregisterHandler: vi.fn()
+    }
   })
 }));
 
@@ -233,7 +254,9 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
       // User expects character creation to work with proper validation
       await user.click(screen.getByRole('button', { name: /create.*character/i }));
       
-      expect(screen.getByText(/character creation/i)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText(/character creation/i)).toBeInTheDocument();
+      });
       
       // User expects TypeScript type safety in character data
       const nameInput = screen.getByLabelText(/character name/i);

@@ -150,7 +150,7 @@ export function MulticlassManager({
           borderRadius: 4 
         }}>
           <div style={{ fontWeight: 500, marginBottom: 8, color: '#92400e' }}>
-            Multiclassing Prerequisites:
+            Multiclass Prerequisites
           </div>
           <div style={{ fontSize: '0.85em', color: '#92400e', lineHeight: 1.4 }}>
             To multiclass, you must have at least 13 in the primary ability of both your current class and your new class.
@@ -233,6 +233,63 @@ export function MulticlassManager({
           Multiclass
         </button>
       </div>
+
+      {selectedClass && checkMulticlassPrerequisites(selectedClass, abilityScores) && (
+        <div style={{ 
+          marginTop: 12, 
+          padding: 12, 
+          background: '#f0fdf4', 
+          border: '1px solid #bbf7d0',
+          borderRadius: 4 
+        }}>
+          <h4 style={{ margin: '0 0 8px 0', fontSize: '0.95em', color: '#15803d' }}>
+            Multiclass Prerequisites
+          </h4>
+          <div style={{ fontSize: '0.85em', color: '#166534', marginBottom: 8 }}>
+            {selectedClass === 'wizard' ? 
+              `Wizard requires intelligence 13 (you have ${abilityScores.intelligence || 10})` :
+              `${selectedClass.charAt(0).toUpperCase() + selectedClass.slice(1)} requirements met`
+            }
+          </div>
+          
+          <h5 style={{ margin: '8px 0 4px 0', fontSize: '0.9em', color: '#15803d' }}>
+            Multiclass Proficiencies
+          </h5>
+          <div style={{ fontSize: '0.85em', color: '#166534' }}>
+            {selectedClass === 'barbarian' && 'Shields, simple weapons, martial weapons'}
+            {selectedClass === 'fighter' && 'Light armor, medium armor, shields, simple weapons, martial weapons'}
+            {selectedClass === 'wizard' && 'None'}
+            {selectedClass === 'cleric' && 'Light armor, medium armor, shields'}
+          </div>
+          
+          {selectedClass === 'barbarian' && (
+            <div style={{ marginTop: 8 }}>
+              <div style={{ fontSize: '0.85em', color: '#166534', fontWeight: 500 }}>
+                Rage (2 uses)
+              </div>
+              <div style={{ fontSize: '0.85em', color: '#166534', fontWeight: 500 }}>
+                Unarmored Defense
+              </div>
+            </div>
+          )}
+          
+          <button
+            onClick={handleMulticlass}
+            style={{
+              marginTop: 8,
+              padding: '6px 12px',
+              background: '#16a34a',
+              color: 'white',
+              border: 'none',
+              borderRadius: 4,
+              fontSize: '0.85em',
+              cursor: 'pointer'
+            }}
+          >
+            Confirm Multiclass
+          </button>
+        </div>
+      )}
 
       {selectedClass && !checkMulticlassPrerequisites(selectedClass, abilityScores) && (
         <div style={{ 

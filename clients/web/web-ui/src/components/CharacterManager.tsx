@@ -1,19 +1,14 @@
-import React, { useCallback, useEffect, useState } fr          {
-            id: 'local-1',
-            name: 'Test Fighter',
-            class: 'Fighter',
-            race: 'Human',
-            level: 1,
-            experience: 0,
-            stats: { str: 16, dex: 14, con: 15, int: 10, wis: 12, cha: 11 },
-            owner: userInfo.username
-          },";
+import React, { useCallback, useEffect, useState } from "react";
 import { useAuthenticatedWebSocket } from "../hooks/useAuthenticatedWebSocket";
 import { MessageType, createMessage } from "../protocol/message";
 import type { UserInfo } from "../services/auth.service";
 import { useCharacterStore } from "../store/characterStore";
 import { CharacterCreationForm } from "./CharacterCreationForm";
 import { CharacterSheet } from "./CharacterSheet";
+import { CharacterSummary } from "./CharacterSummary";
+import { ExperienceTracker } from "./ExperienceTracker";
+import { MulticlassManager } from "./MulticlassManager";
+import { SpellPreparationManager } from "./SpellPreparationManager";
 
 export interface Character {
   id: string;
@@ -25,6 +20,14 @@ export interface Character {
   stats: Record<string, number>;
   owner: string;
   multiclass?: string[];
+  hitDice?: string;
+  maxHitPoints?: number;
+  currentHitPoints?: number;
+  armorClass?: number;
+  proficiencyBonus?: number;
+  preparedSpells?: string[];
+  background?: string;
+  abilityScores?: Record<string, number>;
 }
 
 interface CharacterManagerProps {
@@ -46,6 +49,8 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
   const [showCharacterCreation, setShowCharacterCreation] = useState<boolean>(false);
   const [presence, setPresence] = useState<Array<{ username: string; editing: boolean }>>([]);
   const [mutationQueue, setMutationQueue] = useState<Array<{ type: 'create'|'update'|'delete'; payload: any; tempId?: string }>>([]);
+  const [showCharacterManagement, setShowCharacterManagement] = useState<boolean>(false);
+  const [preparedSpells, setPreparedSpells] = useState<string[]>([]);
 
   // Event-driven character list fetch and updates
   useEffect(() => {
@@ -66,6 +71,7 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
             class: 'Fighter',
             race: 'Human',
             level: 1,
+            experience: 0,
             stats: { str: 16, dex: 14, con: 15, int: 10, wis: 12, cha: 8 },
             owner: userInfo.username
           },
@@ -306,6 +312,7 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
                 class: char.class,
                 race: 'Unknown', // Store doesn't have race, add default
                 level: 1, // Store doesn't have level, add default
+                experience: 0, // Add missing experience field
                 stats: {
                   strength: char.stats.strength,
                   dexterity: char.stats.dexterity,
@@ -333,15 +340,80 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
       </div>
       
       {selectedCharacter ? (
-        <CharacterSheet
-          character={selectedCharacter}
-          onSave={handleUpdate}
-          lockedBy={lockedBy}
-          presence={presence}
-          onRequestLock={handleRequestLock}
-          onReleaseLock={handleReleaseLock}
-          onSync={handleSync}
-        />
+        <div>
+          {/* Character Summary */}
+          <CharacterSummary 
+            character={{
+              name: selectedCharacter.name,
+              level: selectedCharacter.level,
+              class: selectedCharacter.class,
+              race: selectedCharacter.race,
+              background: selectedCharacter.background || 'Unknown',
+              abilityScores: selectedCharacter.abilityScores || selectedCharacter.stats,
+              hitDice: selectedCharacter.hitDice || 'd10',
+              maxHitPoints: selectedCharacter.maxHitPoints || 10,
+              currentHitPoints: selectedCharacter.currentHitPoints || 10,
+              armorClass: selectedCharacter.armorClass || 10,
+              proficiencyBonus: selectedCharacter.proficiencyBonus || 2,
+              experience: selectedCharacter.experience
+            }}
+          />
+          
+          {/* Experience Tracker */}
+          <div style={{ marginTop: 16 }}>
+            <ExperienceTracker
+              currentExperience={selectedCharacter.experience}
+              onExperienceChange={(newExp) => {
+                const updatedChar = { ...selectedCharacter, experience: newExp };
+                setSelectedCharacter(updatedChar);
+                handleUpdate(updatedChar);
+              }}
+            />
+          </div>
+          
+          {/* Multiclass Manager */}
+          <div style={{ marginTop: 16 }}>
+            <MulticlassManager
+              currentClasses={selectedCharacter.multiclass || [selectedCharacter.class]}
+              abilityScores={selectedCharacter.abilityScores || selectedCharacter.stats}
+              onClassChange={(classes) => {
+                const updatedChar = { ...selectedCharacter, multiclass: classes };
+                setSelectedCharacter(updatedChar);
+                handleUpdate(updatedChar);
+              }}
+            />
+          </div>
+          
+          {/* Spell Preparation Manager */}
+          <div style={{ marginTop: 16 }}>
+            <SpellPreparationManager
+              characterClass={selectedCharacter.class}
+              characterLevel={selectedCharacter.level}
+              spellcastingAbility="wisdom"
+              abilityScores={selectedCharacter.abilityScores || selectedCharacter.stats}
+              preparedSpells={preparedSpells}
+              onPrepareSpell={(spellId) => {
+                setPreparedSpells(prev => [...prev, spellId]);
+              }}
+              onUnprepareSpell={(spellId) => {
+                setPreparedSpells(prev => prev.filter(id => id !== spellId));
+              }}
+            />
+          </div>
+          
+          {/* Character Sheet */}
+          <div style={{ marginTop: 16 }}>
+            <CharacterSheet
+              character={selectedCharacter}
+              onSave={handleUpdate}
+              lockedBy={lockedBy}
+              presence={presence}
+              onRequestLock={handleRequestLock}
+              onReleaseLock={handleReleaseLock}
+              onSync={handleSync}
+            />
+          </div>
+        </div>
       ) : showSimpleForm ? (
         <CharacterCreationForm onCreate={(data) => {
           // Add to local store and optionally sync to network

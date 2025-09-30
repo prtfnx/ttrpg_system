@@ -36,7 +36,7 @@ export function IdentityStep({ onNext, onBack }: { onNext: () => void; onBack: (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Character Identity</div>
       <label>
-        Name:
+        Character Name:
         <input {...register('name', { required: true })} style={{ marginLeft: 8, width: 200 }} />
       </label>
       {formState.errors.name && (

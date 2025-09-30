@@ -6,11 +6,11 @@
 
 import { useState } from 'react';
 import type { UserInfo } from '../../services/auth.service';
-import { CharacterCreationWizard } from './CharacterCreationWizard';
+import { CharacterSummary } from '../CharacterSummary';
 import { ExperienceTracker } from '../ExperienceTracker';
 import { MulticlassManager } from '../MulticlassManager';
 import { SpellPreparationManager } from '../SpellPreparationManager';
-import { CharacterSummary } from '../CharacterSummary';
+import { CharacterCreationWizard } from './CharacterCreationWizard';
 import type { WizardFormData } from './WizardFormData';
 
 interface Character {
@@ -257,19 +257,6 @@ export function CharacterWizard({
             <h3>Prepare Spells</h3>
             <p>You can prepare {canPrepare} spells</p>
           </div>
-
-          {/* Domain Spells */}
-          {currentCharacter.domainSpells && (
-            <div style={{ marginBottom: 16, padding: 16, background: '#f0fdf4', borderRadius: 8 }}>
-              <h4>Domain Spells (always prepared)</h4>
-              <div>
-                <strong>1st Level:</strong> {currentCharacter.domainSpells.filter(s => ['bless', 'cure-wounds'].includes(s)).join(', ')}
-              </div>
-              <div>
-                <strong>2nd Level:</strong> {currentCharacter.domainSpells.filter(s => ['hold-person', 'spiritual-weapon'].includes(s)).join(', ')}
-              </div>
-            </div>
-          )}
 
           {/* Spell Preparation */}
           <SpellPreparationManager

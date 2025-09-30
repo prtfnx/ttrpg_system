@@ -6,6 +6,9 @@ export interface Monster {
   hp?: number;
   ac?: number;
   stats?: Record<string, number>;
+  size?: string;
+  alignment?: string;
+  description?: string;
 }
 
 export interface Spell {
@@ -36,10 +39,10 @@ const mockMonsters: Monster[] = [
     stats: { str: 8, dex: 14, con: 10, int: 10, wis: 8, cha: 8 }
   },
   {
-    id: '2', 
+    id: '2',
     name: 'Orc',
     challenge_rating: 0.5,
-    type: 'humanoid',
+    type: 'humanoid', 
     hp: 15,
     ac: 13,
     stats: { str: 16, dex: 12, con: 16, int: 7, wis: 11, cha: 10 }
@@ -52,10 +55,29 @@ const mockMonsters: Monster[] = [
     hp: 256,
     ac: 19,
     stats: { str: 27, dex: 14, con: 25, int: 16, wis: 15, cha: 19 }
+  },
+  {
+    id: '4',
+    name: 'Hill Giant',
+    challenge_rating: 5,
+    type: 'giant',
+    size: 'Huge',
+    alignment: 'chaotic evil',
+    hp: 105,
+    ac: 13,
+    stats: { str: 21, dex: 8, con: 19, int: 5, wis: 9, cha: 6 },
+    description: 'Huge giant, chaotic evil. Armor Class 13 (Natural Armor). Hit Points 105 (10d12 + 30).'
+  },
+  {
+    id: '5',
+    name: 'Flesh Golem',
+    challenge_rating: 5,
+    type: 'construct',
+    hp: 93,
+    ac: 9,
+    stats: { str: 19, dex: 9, con: 18, int: 6, wis: 10, cha: 5 }
   }
-];
-
-const mockSpells: Spell[] = [
+];const mockSpells: Spell[] = [
   {
     id: '1',
     name: 'Fireball',
@@ -76,6 +98,13 @@ const mockSpells: Spell[] = [
     level: 1,
     school: 'evocation',
     description: 'Heal a creature for 1d4 + spellcasting modifier hit points'
+  },
+  {
+    id: '4',
+    name: 'Lightning Bolt',
+    level: 3,
+    school: 'evocation',
+    description: '8d6 lightning damage in 100-foot line'
   }
 ];
 

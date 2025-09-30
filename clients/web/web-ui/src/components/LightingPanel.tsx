@@ -20,9 +20,10 @@ export const LightingPanel: React.FC = () => {
   const [newLightName, setNewLightName] = useState('');
 
   const addLight = () => {
-    if (!engine || !newLightName.trim()) return;
+    if (!engine) return;
 
-    const lightId = newLightName.trim();
+    const lightName = newLightName.trim() || `Light #${lights.length + 1}`;
+    const lightId = lightName;
     const newLight: Light = {
       id: lightId,
       x: 0,
@@ -137,7 +138,28 @@ export const LightingPanel: React.FC = () => {
             onChange={(e) => setNewLightName(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && addLight()}
           />
-          <button onClick={addLight} disabled={!newLightName.trim()}>
+          
+          {/* Light creation controls */}
+          <div className="light-creation-controls">
+            <label htmlFor="light-intensity">Light Intensity: 1.0</label>
+            <input
+              id="light-intensity"
+              type="range"
+              min="0.1"
+              max="2.0"
+              step="0.1"
+              defaultValue="1.0"
+            />
+            
+            <label htmlFor="light-color">Light Color:</label>
+            <input
+              id="light-color"
+              type="color"
+              defaultValue="#ffffff"
+            />
+          </div>
+          
+          <button onClick={addLight} disabled={!engine}>
             Add Light
           </button>
         </div>
@@ -159,6 +181,20 @@ export const LightingPanel: React.FC = () => {
           >
             {(typeof engine?.is_in_light_drag_mode === 'function' && engine?.is_in_light_drag_mode()) ? '🔓 Exit Drag' : '🔒 Drag Mode'}
           </button>
+        </div>
+        
+        {/* Ambient Lighting Controls */}
+        <div className={styles['ambient-controls']}>
+          <h4>Ambient Lighting</h4>
+          <label htmlFor="ambient-light">Ambient Light: 0.2</label>
+          <input
+            id="ambient-light"
+            type="range"
+            min="0.0"
+            max="1.0"
+            step="0.1"
+            defaultValue="0.2"
+          />
         </div>
       </div>
 

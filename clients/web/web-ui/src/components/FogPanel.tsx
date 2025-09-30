@@ -214,6 +214,35 @@ export const FogPanel: React.FC = () => {
                 🎯 Select Mode
               </button>
             </div>
+            
+            {/* Brush Controls */}
+            <div className="brush-controls">
+              <div style={{ marginBottom: '8px' }}>
+                <label htmlFor="fog-brush-size">Brush Size: 10px</label>
+                <input
+                  id="fog-brush-size"
+                  type="range"
+                  min="5"
+                  max="50"
+                  step="1"
+                  defaultValue="10"
+                  className="brush-slider"
+                />
+              </div>
+              <div style={{ marginBottom: '8px' }}>
+                <label htmlFor="fog-opacity">Fog Opacity: 0.8</label>
+                <input
+                  id="fog-opacity"
+                  type="range"
+                  min="0.1"
+                  max="1.0"
+                  step="0.1"
+                  defaultValue="0.8"
+                  className="opacity-slider"
+                />
+              </div>
+            </div>
+            
             {(typeof engine?.is_in_fog_draw_mode === 'function' && engine?.is_in_fog_draw_mode()) && (
               <p style={{ fontSize: '13px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
                 💡 {(typeof engine?.get_current_input_mode === 'function' && engine.get_current_input_mode() === 'fog_draw') ? 
@@ -241,6 +270,12 @@ export const FogPanel: React.FC = () => {
               onClick={() => setCurrentMode('reveal')}
             >
               ✨ Reveal Areas
+            </button>
+            <button
+              className="panel-button"
+              onClick={clearAllFog}
+            >
+              Reveal All (Clear Fog)
             </button>
           </div>
         </div>
@@ -300,13 +335,6 @@ export const FogPanel: React.FC = () => {
           <div style={{ display: 'flex', gap: '8px' }}>
             <button className="panel-button" onClick={hideEntireTable}>
               🌫️ Hide Entire Table
-            </button>
-            <button 
-              className="panel-button danger" 
-              onClick={clearAllFog} 
-              disabled={fogRectangles.length === 0}
-            >
-              ✨ Reveal All (Clear Fog)
             </button>
           </div>
         </div>

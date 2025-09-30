@@ -193,11 +193,6 @@ export function SpellPreparationManager({
 
   return (
     <div>
-      <div style={{ marginBottom: 16 }}>
-        <h3>Spell Management</h3>
-        <p>You can prepare {maxPreparedSpells} spells</p>
-      </div>
-      
       {/* Domain Spells for Clerics */}
       {characterClass.toLowerCase().includes('cleric') && (
         <div style={{ 
@@ -267,53 +262,48 @@ export function SpellPreparationManager({
                   style={{
                     padding: '8px 12px',
                     borderBottom: '1px solid #f1f5f9',
-                    cursor: 'pointer',
-                    background: selectedSpell?.id === spell.id ? '#e0f2fe' : 'transparent'
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8
                   }}
-                  onClick={() => setSelectedSpell(spell)}
                 >
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center' 
-                  }}>
-                    <div>
-                      <div style={{ fontWeight: 500, fontSize: '0.9em' }}>
-                        {spell.name}
-                        {spell.ritual && (
-                          <span style={{ 
-                            marginLeft: 8, 
-                            fontSize: '0.75em', 
-                            color: '#7c3aed',
-                            fontWeight: 400
-                          }}>
-                            (Ritual)
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: '0.8em', color: '#64748b' }}>
-                        Level {spell.level} {spell.school}
-                      </div>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
+                  <input
+                    type="checkbox"
+                    id={`prepare-${spell.id}`}
+                    checked={false}
+                    onChange={() => {
+                      if (preparedSpells.length < maxPreparedSpells) {
                         onPrepareSpell(spell.id);
-                      }}
-                      disabled={preparedSpells.length >= maxPreparedSpells}
-                      style={{
-                        padding: '4px 8px',
-                        background: preparedSpells.length < maxPreparedSpells ? '#059669' : '#9ca3af',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: 4,
-                        fontSize: '0.8em',
-                        cursor: preparedSpells.length < maxPreparedSpells ? 'pointer' : 'not-allowed'
-                      }}
-                    >
-                      Prepare
-                    </button>
-                  </div>
+                      }
+                    }}
+                    disabled={preparedSpells.length >= maxPreparedSpells}
+                    aria-label={`Prepare ${spell.name} spell`}
+                  />
+                  <label 
+                    htmlFor={`prepare-${spell.id}`}
+                    style={{ 
+                      flex: 1,
+                      cursor: 'pointer',
+                      fontSize: '0.9em'
+                    }}
+                  >
+                    <div style={{ fontWeight: 500 }}>
+                      {spell.name}
+                      {spell.ritual && (
+                        <span style={{ 
+                          marginLeft: 8, 
+                          fontSize: '0.75em', 
+                          color: '#7c3aed',
+                          fontWeight: 400
+                        }}>
+                          (Ritual)
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.8em', color: '#64748b' }}>
+                      Level {spell.level} {spell.school}
+                    </div>
+                  </label>
                 </div>
               ))
             )}

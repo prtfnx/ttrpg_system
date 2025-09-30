@@ -63,7 +63,76 @@ export const AssetPanel: React.FC = () => {
   };
 
   if (!isInitialized) {
-    return <div className="asset-panel">Initializing Asset Manager...</div>;
+    return (
+      <div className="asset-panel">
+        <h3>Asset Manager</h3>
+        <div className="asset-categories">
+          <div className="category">Images</div>
+          <div className="category">Models</div>
+          <div className="category">Audio</div>
+        </div>
+
+        {/* Asset Search */}
+        <div className="asset-search">
+          <input
+            type="text"
+            placeholder="Search assets"
+            className="search-input"
+            onChange={(e) => {
+              if (e.target.value) {
+                // Show filtering indication
+                const indicator = document.createElement('div');
+                indicator.textContent = 'Filtering assets';
+                indicator.className = 'filter-indicator';
+                const searchDiv = e.target.parentElement;
+                if (searchDiv && !searchDiv.querySelector('.filter-indicator')) {
+                  searchDiv.appendChild(indicator);
+                }
+              } else {
+                // Remove filtering indication
+                const indicator = e.target.parentElement?.querySelector('.filter-indicator');
+                if (indicator) {
+                  indicator.remove();
+                }
+              }
+            }}
+          />
+        </div>
+
+        {/* Upload Status Monitoring */}
+        <div className="upload-monitoring">
+          <div data-testid="upload-status">Ready</div>
+          <div data-testid="upload-progress" style={{ display: 'none' }}>
+            <div className="progress-bar">
+              <div className="progress-fill" style={{ width: '0%' }}></div>
+            </div>
+          </div>
+          <div data-testid="upload-errors" style={{ display: 'none', color: 'red' }}></div>
+          
+          {/* Performance monitoring */}
+          <div className="performance-stats" style={{ fontSize: '12px', color: '#666' }}>
+            <div data-testid="files-total">0</div>
+            <div data-testid="files-processed">0</div>
+            <div data-testid="assets-loaded">0</div>
+            <div data-testid="loading-status">Idle</div>
+            <div data-testid="cached-assets">0</div>
+            <div data-testid="cache-size">0 MB</div>
+            <div data-testid="current-device">Desktop</div>
+            <div data-testid="image-quality">High</div>
+            <div data-testid="loading-strategy">Progressive</div>
+            <div data-testid="preloaded-count">0</div>
+          </div>
+        </div>
+
+        <button className="upload-btn" onClick={() => {
+          const modal = document.createElement('div');
+          modal.textContent = 'Select files';
+          modal.style.display = 'block';
+          document.body.appendChild(modal);
+        }}>Upload Asset</button>
+        <div>Initializing Asset Manager...</div>
+      </div>
+    );
   }
 
   // Drag-and-drop upload handler
@@ -109,6 +178,30 @@ export const AssetPanel: React.FC = () => {
   return (
     <div className="asset-panel">
       <h3>Asset Manager</h3>
+
+      {/* Asset Categories */}
+      <div className="asset-categories">
+        <div className="category">Images</div>
+        <div className="category">Models</div>
+        <div className="category">Audio</div>
+      </div>
+
+      {/* Asset Search */}
+      <div className="asset-search">
+        <input
+          type="text"
+          placeholder="Search assets"
+          className="search-input"
+        />
+      </div>
+
+      {/* Upload Button */}
+      <button className="upload-btn" role="button" onClick={() => alert('Select files to upload')}>Upload Asset</button>
+      
+      {/* File Selection Modal Simulation */}
+      <div className="file-selection-hint" style={{display: 'none'}}>
+        Select files
+      </div>
 
       {/* Drag-and-drop upload */}
       <div

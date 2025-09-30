@@ -270,7 +270,61 @@ export function CharacterWizard({
               wisdom: currentCharacter.wisdom || 10,
               charisma: currentCharacter.charisma || 10
             }}
-            knownSpells={[]}
+            knownSpells={[
+              // Sample cleric spells for demonstration
+              {
+                id: 'cure-wounds',
+                name: 'Cure Wounds',
+                level: 1,
+                school: 'Evocation',
+                castingTime: '1 action',
+                range: 'Touch',
+                components: 'V, S',
+                duration: 'Instantaneous',
+                description: 'A creature you touch regains hit points.',
+                ritual: false,
+                concentration: false
+              },
+              {
+                id: 'healing-word',
+                name: 'Healing Word',
+                level: 1,
+                school: 'Evocation',
+                castingTime: '1 bonus action',
+                range: '60 feet',
+                components: 'V',
+                duration: 'Instantaneous',
+                description: 'A creature you can see regains hit points.',
+                ritual: false,
+                concentration: false
+              },
+              {
+                id: 'guiding-bolt',
+                name: 'Guiding Bolt',
+                level: 1,
+                school: 'Evocation',
+                castingTime: '1 action',
+                range: '120 feet',
+                components: 'V, S',
+                duration: 'Instantaneous',
+                description: 'A flash of light streaks toward a creature.',
+                ritual: false,
+                concentration: false
+              },
+              {
+                id: 'spiritual-weapon',
+                name: 'Spiritual Weapon',
+                level: 2,
+                school: 'Evocation',
+                castingTime: '1 bonus action',
+                range: '60 feet',
+                components: 'V, S',
+                duration: 'Concentration, up to 1 minute',
+                description: 'You create a floating spectral weapon.',
+                ritual: false,
+                concentration: true
+              }
+            ]}
             preparedSpells={preparedSpells}
             onPrepareSpell={(spellId) => {
               setPreparedSpells(prev => [...prev, spellId]);

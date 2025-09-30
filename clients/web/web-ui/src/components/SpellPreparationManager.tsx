@@ -17,7 +17,6 @@ interface Spell {
 interface SpellPreparationManagerProps {
   characterClass: string;
   characterLevel: number;
-  spellcastingAbility: string;
   abilityScores: Record<string, number>;
   knownSpells: Spell[];
   preparedSpells: string[];
@@ -138,13 +137,25 @@ const SAMPLE_SPELLS: Spell[] = [
     description: 'A shimmering field appears and surrounds a creature of your choice within range, granting it a +2 bonus to AC for the duration.',
     ritual: false,
     concentration: true
+  },
+  {
+    id: 'comprehend-languages',
+    name: 'Comprehend Languages',
+    level: 1,
+    school: 'Divination',
+    castingTime: '1 action',
+    range: 'Self',
+    components: 'V, S, M',
+    duration: '1 hour',
+    description: 'For the duration, you understand the literal meaning of any spoken language that you hear.',
+    ritual: true,
+    concentration: false
   }
 ];
 
 export function SpellPreparationManager({
   characterClass,
   characterLevel,
-  spellcastingAbility,
   abilityScores,
   knownSpells = SAMPLE_SPELLS,
   preparedSpells,
@@ -181,31 +192,54 @@ export function SpellPreparationManager({
   const ritualSpells = knownSpells.filter(spell => spell.ritual);
 
   return (
-    <div style={{ 
-      padding: 16, 
-      border: '1px solid #e2e8f0', 
-      borderRadius: 8,
-      background: '#f8fafc'
-    }}>
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: 16
-      }}>
-        <h3 style={{ margin: 0, fontSize: '1.1em', color: '#1e293b' }}>
-          Prepare Spells
-        </h3>
-        <div style={{ fontSize: '0.9em', color: '#64748b' }}>
-          {preparedSpells.length} / {maxPreparedSpells} prepared
-        </div>
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <h3>Spell Management</h3>
+        <p>You can prepare {maxPreparedSpells} spells</p>
       </div>
+      
+      {/* Domain Spells for Clerics */}
+      {characterClass.toLowerCase().includes('cleric') && (
+        <div style={{ 
+          marginBottom: 16,
+          padding: 16,
+          background: '#f0fdf4',
+          borderRadius: 8
+        }}>
+          <h4>Domain Spells (always prepared)</h4>
+          <div>
+            <strong>1st Level:</strong> bless, cure wounds
+          </div>
+          <div>
+            <strong>2nd Level:</strong> hold person, spiritual weapon
+          </div>
+        </div>
+      )}
 
       <div style={{ 
-        display: 'flex', 
-        gap: 16,
-        marginBottom: 16
+        padding: 16, 
+        borderRadius: 8,
+        background: '#f8fafc'
       }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          marginBottom: 16
+        }}>
+          <h3 style={{ margin: 0, fontSize: '1.1em', color: '#1e293b' }}>
+            Spell Management
+          </h3>
+          <div style={{ fontSize: '0.9em', color: '#64748b' }}>
+            {preparedSpells.length} / {maxPreparedSpells} prepared
+          </div>
+        </div>
+
+        <div style={{ 
+          display: 'flex', 
+          gap: 16,
+          marginBottom: 16
+        }}>
         <div style={{ flex: 1 }}>
           <h4 style={{ margin: '0 0 8px 0', fontSize: '1em', color: '#374151' }}>
             Available Spells
@@ -453,6 +487,7 @@ export function SpellPreparationManager({
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

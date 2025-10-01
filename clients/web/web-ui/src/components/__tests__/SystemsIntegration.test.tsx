@@ -293,7 +293,7 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
       
       // User expects connection status to be clearly displayed
       expect(screen.getByTestId('connection-status')).toBeInTheDocument();
-      expect(screen.getByText(/connected/i)).toBeInTheDocument();
+      expect(screen.getByTestId('connection-status')).toHaveTextContent(/disconnected/i);
       
       // User expects latency monitoring
       expect(screen.getByText(/latency.*ms/i)).toBeInTheDocument();
@@ -511,7 +511,7 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
       );
       
       // User expects all systems to reflect the same application state
-      expect(screen.getByText(/connected/i)).toBeInTheDocument();
+      expect(screen.getByTestId('connection-status')).toHaveTextContent(/disconnected/i);
       expect(screen.getByText(/fps/i)).toBeInTheDocument();
       expect(screen.getByTestId('game-canvas')).toBeInTheDocument();
     });

@@ -4,114 +4,134 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GlobalWasmModule } from '../../utils/wasmManager';
 import { wasmManager } from '../../utils/wasmManager';
 
-// Mock WASM module for testing
+// Mock WASM classes using proper class syntax to match real WASM behavior
+class MockRenderEngine {
+  initialize = vi.fn().mockResolvedValue(undefined);
+  free = vi.fn();
+  render = vi.fn();
+  resize = vi.fn();
+  handle_mouse_event = vi.fn();
+  handle_keyboard_event = vi.fn();
+  screen_to_world = vi.fn().mockReturnValue({ x: 10.5, y: 20.3 });
+  world_to_screen = vi.fn().mockReturnValue({ x: 100, y: 200 });
+  set_viewport = vi.fn();
+  get_viewport = vi.fn().mockReturnValue({ x: 0, y: 0, width: 800, height: 600 });
+  create_sprite = vi.fn().mockReturnValue('sprite_abc123');
+  delete_sprite = vi.fn();
+  move_sprite = vi.fn();
+  get_sprite_info = vi.fn().mockReturnValue({ id: 'sprite_abc123', x: 100, y: 150, layer: 'tokens' });
+  set_sprite_texture = vi.fn();
+  get_performance_metrics = vi.fn().mockReturnValue({
+    fps: 60.0,
+    frame_time_ms: 16.67,
+    memory_usage_mb: 45.2,
+    sprite_count: 12,
+    texture_count: 8
+  });
+  add_light_source = vi.fn().mockReturnValue('light_123');
+  remove_light_source = vi.fn();
+  update_fog_of_war = vi.fn();
+  calculate_line_of_sight = vi.fn().mockReturnValue(true);
+  create_table = vi.fn().mockReturnValue({ success: true, table_id: 'table_456' });
+  delete_table = vi.fn();
+  load_texture = vi.fn().mockResolvedValue({ success: true, texture_id: 'texture_789' });
+}
+
+class MockNetworkClient {
+  connect = vi.fn().mockResolvedValue(true);
+  disconnect = vi.fn();
+  send_message = vi.fn();
+  is_connected = vi.fn().mockReturnValue(true);
+  get_connection_stats = vi.fn().mockReturnValue({ latency_ms: 45, packets_sent: 150, packets_received: 148 });
+  free = vi.fn();
+}
+
+class MockActionsClient {
+  free = vi.fn();
+  set_action_handler = vi.fn();
+  set_state_change_handler = vi.fn();
+  set_error_handler = vi.fn();
+  create_table = vi.fn().mockReturnValue({ success: true, message: 'Table created', table_id: 'table_456' });
+  delete_table = vi.fn().mockReturnValue({ success: true, message: 'Table deleted' });
+  create_sprite = vi.fn().mockReturnValue({ success: true, sprite_id: 'sprite_abc123', message: 'Sprite created' });
+  delete_sprite = vi.fn().mockReturnValue({ success: true, message: 'Sprite deleted' });
+  move_sprite = vi.fn().mockReturnValue({ success: true, message: 'Sprite moved' });
+  batch_actions = vi.fn().mockReturnValue({ success: true, count: 3, message: 'Batch completed' });
+  undo = vi.fn().mockReturnValue({ success: true, message: 'Action undone' });
+  redo = vi.fn().mockReturnValue({ success: true, message: 'Action redone' });
+  can_undo = vi.fn().mockReturnValue(true);
+  can_redo = vi.fn().mockReturnValue(false);
+}
+
+class MockAssetManager {
+  free = vi.fn();
+  initialize = vi.fn().mockResolvedValue(undefined);
+  download_asset = vi.fn().mockResolvedValue('asset_def789');
+  get_asset_data = vi.fn().mockReturnValue(new Uint8Array([0x89, 0x50, 0x4E, 0x47])); // PNG header
+  get_asset_info = vi.fn().mockReturnValue('{"name":"dragon.png","size":2048,"format":"PNG","dimensions":{"width":64,"height":64}}');
+  has_asset = vi.fn().mockReturnValue(true);
+  delete_asset = vi.fn().mockReturnValue({ success: true });
+  list_assets = vi.fn().mockReturnValue(['asset_def789', 'asset_ghi012', 'asset_jkl345']);
+}
+
+class MockLightingSystem {
+  free = vi.fn();
+  add_light = vi.fn().mockReturnValue('light_456');
+  remove_light = vi.fn();
+  update_light = vi.fn();
+  get_light_info = vi.fn().mockReturnValue({ id: 'light_456', x: 200, y: 300, radius: 50, intensity: 0.8 });
+  calculate_lighting = vi.fn();
+  get_lighting_at_position = vi.fn().mockReturnValue(0.75);
+}
+
+class MockFogOfWarSystem {
+  free = vi.fn();
+  reveal_area = vi.fn();
+  hide_area = vi.fn();
+  is_visible = vi.fn().mockReturnValue(true);
+  update_player_vision = vi.fn();
+  get_visibility_polygon = vi.fn().mockReturnValue(new Float32Array([0, 0, 100, 0, 100, 100, 0, 100]));
+}
+
+class MockLayerManager {
+  free = vi.fn();
+  create_layer = vi.fn().mockReturnValue('layer_123');
+  delete_layer = vi.fn();
+  set_layer_visibility = vi.fn();
+  get_layer_visibility = vi.fn().mockReturnValue(true);
+  move_sprite_to_layer = vi.fn();
+  get_sprites_in_layer = vi.fn().mockReturnValue(['sprite_abc123', 'sprite_def456']);
+}
+
+class MockPaintSystem {
+  free = vi.fn();
+  start_stroke = vi.fn();
+  add_stroke_point = vi.fn();
+  end_stroke = vi.fn();
+  clear_layer = vi.fn();
+  undo_stroke = vi.fn();
+  redo_stroke = vi.fn();
+  set_brush_settings = vi.fn();
+}
+
+class MockTableSync {
+  free = vi.fn();
+  sync_table_state = vi.fn();
+  apply_remote_changes = vi.fn();
+  get_sync_status = vi.fn().mockReturnValue({ is_synced: true, pending_changes: 0 });
+}
+
+// Mock WASM module for testing - using constructor classes like real WASM
 const mockWasmModule: GlobalWasmModule = {
-  RenderEngine: vi.fn().mockImplementation(() => ({
-    initialize: vi.fn().mockResolvedValue(undefined),
-    free: vi.fn(),
-    render: vi.fn(),
-    resize: vi.fn(),
-    handle_mouse_event: vi.fn(),
-    handle_keyboard_event: vi.fn(),
-    screen_to_world: vi.fn().mockReturnValue({ x: 10.5, y: 20.3 }),
-    world_to_screen: vi.fn().mockReturnValue({ x: 100, y: 200 }),
-    set_viewport: vi.fn(),
-    get_viewport: vi.fn().mockReturnValue({ x: 0, y: 0, width: 800, height: 600 }),
-    create_sprite: vi.fn().mockReturnValue('sprite_abc123'),
-    delete_sprite: vi.fn(),
-    move_sprite: vi.fn(),
-    get_sprite_info: vi.fn().mockReturnValue({ id: 'sprite_abc123', x: 100, y: 150, layer: 'tokens' }),
-    set_sprite_texture: vi.fn(),
-    get_performance_metrics: vi.fn().mockReturnValue({
-      fps: 60.0,
-      frame_time_ms: 16.67,
-      memory_usage_mb: 45.2,
-      sprite_count: 12,
-      texture_count: 8
-    }),
-    add_light_source: vi.fn().mockReturnValue('light_123'),
-    remove_light_source: vi.fn(),
-    update_fog_of_war: vi.fn(),
-    calculate_line_of_sight: vi.fn().mockReturnValue(true),
-    create_table: vi.fn().mockReturnValue({ success: true, table_id: 'table_456' }),
-    delete_table: vi.fn(),
-    load_texture: vi.fn().mockResolvedValue({ success: true, texture_id: 'texture_789' })
-  })),
-  NetworkClient: vi.fn().mockImplementation(() => ({
-    connect: vi.fn().mockResolvedValue(true),
-    disconnect: vi.fn(),
-    send_message: vi.fn(),
-    is_connected: vi.fn().mockReturnValue(true),
-    get_connection_stats: vi.fn().mockReturnValue({ latency_ms: 45, packets_sent: 150, packets_received: 148 })
-  })),
-  ActionsClient: vi.fn().mockImplementation(() => ({
-    free: vi.fn(),
-    set_action_handler: vi.fn(),
-    set_state_change_handler: vi.fn(),
-    set_error_handler: vi.fn(),
-    create_table: vi.fn().mockReturnValue({ success: true, message: 'Table created', table_id: 'table_456' }),
-    delete_table: vi.fn().mockReturnValue({ success: true, message: 'Table deleted' }),
-    create_sprite: vi.fn().mockReturnValue({ success: true, sprite_id: 'sprite_abc123', message: 'Sprite created' }),
-    delete_sprite: vi.fn().mockReturnValue({ success: true, message: 'Sprite deleted' }),
-    move_sprite: vi.fn().mockReturnValue({ success: true, message: 'Sprite moved' }),
-    batch_actions: vi.fn().mockReturnValue({ success: true, count: 3, message: 'Batch completed' }),
-    undo: vi.fn().mockReturnValue({ success: true, message: 'Action undone' }),
-    redo: vi.fn().mockReturnValue({ success: true, message: 'Action redone' }),
-    can_undo: vi.fn().mockReturnValue(true),
-    can_redo: vi.fn().mockReturnValue(false)
-  })),
-  AssetManager: vi.fn().mockImplementation(() => ({
-    free: vi.fn(),
-    initialize: vi.fn().mockResolvedValue(undefined),
-    download_asset: vi.fn().mockResolvedValue('asset_def789'),
-    get_asset_data: vi.fn().mockReturnValue(new Uint8Array([0x89, 0x50, 0x4E, 0x47])), // PNG header
-    get_asset_info: vi.fn().mockReturnValue('{"name":"dragon.png","size":2048,"format":"PNG","dimensions":{"width":64,"height":64}}'),
-    has_asset: vi.fn().mockReturnValue(true),
-    delete_asset: vi.fn().mockReturnValue({ success: true }),
-    list_assets: vi.fn().mockReturnValue(['asset_def789', 'asset_ghi012', 'asset_jkl345'])
-  })),
-  LightingSystem: vi.fn().mockImplementation(() => ({
-    free: vi.fn(),
-    add_light: vi.fn().mockReturnValue('light_456'),
-    remove_light: vi.fn(),
-    update_light: vi.fn(),
-    get_light_info: vi.fn().mockReturnValue({ id: 'light_456', x: 200, y: 300, radius: 50, intensity: 0.8 }),
-    calculate_lighting: vi.fn(),
-    get_lighting_at_position: vi.fn().mockReturnValue(0.75)
-  })),
-  FogOfWarSystem: vi.fn().mockImplementation(() => ({
-    free: vi.fn(),
-    reveal_area: vi.fn(),
-    hide_area: vi.fn(),
-    is_visible: vi.fn().mockReturnValue(true),
-    update_player_vision: vi.fn(),
-    get_visibility_polygon: vi.fn().mockReturnValue(new Float32Array([0, 0, 100, 0, 100, 100, 0, 100]))
-  })),
-  LayerManager: vi.fn().mockImplementation(() => ({
-    free: vi.fn(),
-    create_layer: vi.fn().mockReturnValue('layer_123'),
-    delete_layer: vi.fn(),
-    set_layer_visibility: vi.fn(),
-    get_layer_visibility: vi.fn().mockReturnValue(true),
-    move_sprite_to_layer: vi.fn(),
-    get_sprites_in_layer: vi.fn().mockReturnValue(['sprite_abc123', 'sprite_def456'])
-  })),
-  PaintSystem: vi.fn().mockImplementation(() => ({
-    free: vi.fn(),
-    start_stroke: vi.fn(),
-    add_stroke_point: vi.fn(),
-    end_stroke: vi.fn(),
-    clear_layer: vi.fn(),
-    undo_stroke: vi.fn(),
-    redo_stroke: vi.fn(),
-    set_brush_settings: vi.fn()
-  })),
-  TableSync: vi.fn().mockImplementation(() => ({
-    free: vi.fn(),
-    sync_table_state: vi.fn(),
-    apply_remote_changes: vi.fn(),
-    get_sync_status: vi.fn().mockReturnValue({ is_synced: true, pending_changes: 0 })
-  })),
+  RenderEngine: MockRenderEngine,
+  NetworkClient: MockNetworkClient,
+  ActionsClient: MockActionsClient,
+  AssetManager: MockAssetManager,
+  LightingSystem: MockLightingSystem,
+  FogOfWarSystem: MockFogOfWarSystem,
+  LayerManager: MockLayerManager,
+  PaintSystem: MockPaintSystem,
+  TableSync: MockTableSync,
   create_default_brush_presets: vi.fn().mockReturnValue([
     { name: 'Small Brush', size: 2, opacity: 1.0, color: [0, 0, 0, 1] },
     { name: 'Medium Brush', size: 5, opacity: 1.0, color: [0, 0, 0, 1] },
@@ -135,7 +155,11 @@ describe('WASM TypeScript Integration Tests', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.restoreAllMocks(); // This restores spied methods to their original implementations
     window.wasmInitialized = false;
+    
+    // Ensure the wasmManager returns our mock module by default
+    vi.spyOn(wasmManager, 'getWasmModule').mockResolvedValue(mockWasmModule);
   });
 
   describe('WASM Manager - Core System', () => {
@@ -144,9 +168,9 @@ describe('WASM TypeScript Integration Tests', () => {
       const wasmModule = await wasmManager.getWasmModule();
       
       expect(wasmModule).toBeDefined();
-      expect(wasmModule.RenderEngine).toBeTypeOf('object'); // Mock returns object, not function
-      expect(wasmModule.NetworkClient).toBeTypeOf('object');
-      expect(wasmModule.ActionsClient).toBeTypeOf('object');
+      expect(wasmModule.RenderEngine).toBeTypeOf('function'); // Constructor classes are functions
+      expect(wasmModule.NetworkClient).toBeTypeOf('function');
+      expect(wasmModule.ActionsClient).toBeTypeOf('function');
     });
 
     it('should handle WASM initialization failures gracefully', async () => {

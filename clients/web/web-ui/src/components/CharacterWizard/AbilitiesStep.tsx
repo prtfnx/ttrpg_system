@@ -25,7 +25,7 @@ export function AbilitiesStep({ onNext, onBack }: { onNext: () => void; onBack: 
   useEffect(() => {
     const resetValue = method === 'pointbuy' ? 8 : 10;
     ABILITIES.forEach(ability => setValue(ability, resetValue, { shouldValidate: true }));
-  }, [method, setValue]);
+  }, [method]); // Remove setValue from dependencies
 
   const rollAbilities = () => {
     const newRolls = Array.from({ length: 6 }, () => 
@@ -53,27 +53,27 @@ export function AbilitiesStep({ onNext, onBack }: { onNext: () => void; onBack: 
 
   const isValid = () => {
     const values = getValues();
-    const allValues = Object.values(values);
+    const abilityValues = ABILITIES.map(ability => values[ability]);
     
     if (method === 'standard') {
       // All values must be from standard array and unique
-      return allValues.every(v => STANDARD_ARRAY.includes(v)) && 
-             new Set(allValues).size === 6 &&
-             allValues.every(v => v > 0);
+      return abilityValues.every(v => STANDARD_ARRAY.includes(v)) && 
+             new Set(abilityValues).size === 6 &&
+             abilityValues.every(v => v > 0);
     } else if (method === 'pointbuy') {
       // Must use exactly 27 points and all scores 8-15
       return getTotalPointsUsed() === 27 && 
-             allValues.every(v => v >= 8 && v <= 15);
+             abilityValues.every(v => v >= 8 && v <= 15);
     } else if (method === 'roll') {
       // All values must be assigned from rolls
       return rolls.length > 0 && 
-             allValues.every(v => rolls.includes(v)) &&
-             new Set(allValues).size === allValues.length &&
-             allValues.every(v => v > 0);
+             abilityValues.every(v => rolls.includes(v)) &&
+             new Set(abilityValues).size === abilityValues.length &&
+             abilityValues.every(v => v > 0);
     } else {
       // Manual: just check range
-      return allValues.every(v => v >= 8 && v <= 20) &&
-             allValues.every(v => v > 0);
+      return abilityValues.every(v => v >= 8 && v <= 20) &&
+             abilityValues.every(v => v > 0);
     }
   };
 
@@ -261,6 +261,7 @@ export function AbilitiesStep({ onNext, onBack }: { onNext: () => void; onBack: 
         <button 
           type="button" 
           onClick={onNext}
+          data-testid="abilities-next-button"
           disabled={!isValid()}
           style={{ 
             padding: '8px 16px', 

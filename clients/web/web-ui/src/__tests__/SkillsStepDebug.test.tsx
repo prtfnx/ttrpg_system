@@ -30,13 +30,13 @@ describe('SkillsStep Debug', () => {
     render(<TestWrapper />);
     
     // Check that background skills are shown
-    expect(screen.getByText(/Athletics, Intimidation/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Athletics, Intimidation/)).toHaveLength(2); // One in debug, one in background section
     
     // Check that class skills instruction is shown
     expect(screen.getByText(/Choose 2 from:/)).toBeInTheDocument();
     
     // Check available class skills (should exclude Athletics and Intimidation)
-    expect(screen.getByText(/Acrobatics, Animal Handling, History, Insight, Perception, Survival/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Acrobatics, Animal Handling, History, Insight, Perception, Survival/)).toHaveLength(2); // One in debug, one in class skills section
     
     // Get all checkboxes
     const checkboxes = screen.getAllByRole('checkbox');

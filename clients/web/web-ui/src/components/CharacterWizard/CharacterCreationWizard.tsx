@@ -22,32 +22,32 @@ import type { WizardFormData } from './WizardFormData';
 
 // D&D 5e class skills mapping
 const CLASS_SKILLS = {
-  Fighter: ['Acrobatics', 'Animal Handling', 'Athletics', 'History', 'Insight', 'Intimidation', 'Perception', 'Survival'],
-  Wizard: ['Arcana', 'History', 'Insight', 'Investigation', 'Medicine', 'Religion'],
-  Rogue: ['Acrobatics', 'Athletics', 'Deception', 'Insight', 'Intimidation', 'Investigation', 'Perception', 'Performance', 'Persuasion', 'Sleight of Hand', 'Stealth'],
-  Cleric: ['History', 'Insight', 'Medicine', 'Persuasion', 'Religion'],
-  Barbarian: ['Animal Handling', 'Athletics', 'Intimidation', 'Nature', 'Perception', 'Survival'],
-  Bard: ['Any three skills of your choice'],
-  Druid: ['Arcana', 'Animal Handling', 'Insight', 'Medicine', 'Nature', 'Perception', 'Religion', 'Survival'],
-  Monk: ['Acrobatics', 'Athletics', 'History', 'Insight', 'Religion', 'Stealth'],
-  Paladin: ['Athletics', 'Insight', 'Intimidation', 'Medicine', 'Persuasion', 'Religion'],
-  Ranger: ['Animal Handling', 'Athletics', 'Insight', 'Investigation', 'Nature', 'Perception', 'Stealth', 'Survival'],
-  Sorcerer: ['Arcana', 'Deception', 'Insight', 'Intimidation', 'Persuasion', 'Religion'],
+  'fighter': ['Acrobatics', 'Animal Handling', 'Athletics', 'History', 'Insight', 'Intimidation', 'Perception', 'Survival'],
+  'wizard': ['Arcana', 'History', 'Insight', 'Investigation', 'Medicine', 'Religion'],
+  'rogue': ['Acrobatics', 'Athletics', 'Deception', 'Insight', 'Intimidation', 'Investigation', 'Perception', 'Performance', 'Persuasion', 'Sleight of Hand', 'Stealth'],
+  'cleric': ['History', 'Insight', 'Medicine', 'Persuasion', 'Religion'],
+  'barbarian': ['Animal Handling', 'Athletics', 'Intimidation', 'Nature', 'Perception', 'Survival'],
+  'bard': ['Any three skills of your choice'],
+  'druid': ['Arcana', 'Animal Handling', 'Insight', 'Medicine', 'Nature', 'Perception', 'Religion', 'Survival'],
+  'monk': ['Acrobatics', 'Athletics', 'History', 'Insight', 'Religion', 'Stealth'],
+  'paladin': ['Athletics', 'Insight', 'Intimidation', 'Medicine', 'Persuasion', 'Religion'],
+  'ranger': ['Animal Handling', 'Athletics', 'Insight', 'Investigation', 'Nature', 'Perception', 'Stealth', 'Survival'],
+  'sorcerer': ['Arcana', 'Deception', 'Insight', 'Intimidation', 'Persuasion', 'Religion'],
   Warlock: ['Arcana', 'Deception', 'History', 'Intimidation', 'Investigation', 'Nature', 'Religion'],
 };
 
 const CLASS_SKILL_CHOICES = {
-  Fighter: 2, Wizard: 2, Rogue: 4, Cleric: 2, Barbarian: 2,
-  Bard: 3, Druid: 2, Monk: 2, Paladin: 2, Ranger: 3, Sorcerer: 2, Warlock: 2,
+  'fighter': 2, 'wizard': 2, 'rogue': 4, 'cleric': 2, 'barbarian': 2,
+  'bard': 3, 'druid': 2, 'monk': 2, 'paladin': 2, 'ranger': 3, 'sorcerer': 2, 'warlock': 2,
 };
 
 const BACKGROUND_SKILLS = {
-  Acolyte: ['Insight', 'Religion'],
-  Criminal: ['Deception', 'Stealth'],
-  'Folk Hero': ['Animal Handling', 'Survival'],
-  Noble: ['History', 'Persuasion'],
-  Sage: ['Arcana', 'History'],
-  Soldier: ['Athletics', 'Intimidation'],
+  'acolyte': ['Insight', 'Religion'],
+  'criminal': ['Deception', 'Stealth'],
+  'folk-hero': ['Animal Handling', 'Survival'],
+  'noble': ['History', 'Persuasion'],
+  'sage': ['Arcana', 'History'],
+  'soldier': ['Athletics', 'Intimidation'],
 };
 
 function getClassSkills(className: string): string[] {
@@ -73,7 +73,7 @@ function getRaceSkills(race: string): string[] {
 
 // Spellcasting classes for D&D 5e
 const SPELLCASTING_CLASSES = [
-  'Bard', 'Cleric', 'Druid', 'Paladin', 'Ranger', 'Sorcerer', 'Warlock', 'Wizard'
+  'bard', 'cleric', 'druid', 'paladin', 'ranger', 'sorcerer', 'warlock', 'wizard'
 ];
 
 function isSpellcaster(className: string): boolean {
@@ -113,7 +113,7 @@ const wizardSchema = z.object({
 
 export function CharacterCreationWizard({ onFinish, onCancel, isOpen, userInfo: _userInfo, character: _character, mode: _mode }: CharacterCreationWizardProps) {
   const [step, setStep] = useState(0);
-  const stepsCount = 10; // Race, Class, Background, Abilities, Skills, Spells, Identity, Export/Import, Advancement, Review
+  const stepsCount = 11; // Name, Race, Class, Background, Abilities, Skills, Spells(optional), Identity, Export/Import, Advancement, Review
   
   const methods = useForm<WizardFormData>({
     resolver: zodResolver(wizardSchema),
@@ -382,7 +382,7 @@ export function CharacterCreationWizard({ onFinish, onCancel, isOpen, userInfo: 
             {step === 4 && <AbilitiesStep onNext={handleNextAbilities} onBack={() => setStep(3)} />}
             {step === 5 && (
               <SkillsStep
-                onNext={() => setStep(6)}
+                onNext={() => setStep(isSpellcaster(methods.getValues().class) ? 6 : 7)}
                 onBack={() => setStep(4)}
                 classSkills={getClassSkills(methods.getValues().class)}
                 classSkillChoices={getClassSkillChoices(methods.getValues().class)}
@@ -406,37 +406,31 @@ export function CharacterCreationWizard({ onFinish, onCancel, isOpen, userInfo: 
                 }}
               />
             )}
-            {step === 5 && !isSpellcaster(methods.getValues().class) && (
-              <IdentityStep
-                onNext={() => setStep(7)}
-                onBack={() => setStep(4)}
-              />
-            )}
-            {step === 6 && (
-              <IdentityStep
-                onNext={() => setStep(7)}
-                onBack={() => setStep(isSpellcaster(methods.getValues().class) ? 5 : 4)}
-              />
-            )}
             {step === 7 && (
-              <CharacterExportStep
+              <IdentityStep
                 onNext={() => setStep(8)}
                 onBack={() => setStep(isSpellcaster(methods.getValues().class) ? 6 : 5)}
               />
             )}
             {step === 8 && (
+              <CharacterExportStep
+                onNext={() => setStep(9)}
+                onBack={() => setStep(7)}
+              />
+            )}
+            {step === 9 && (
               <CharacterAdvancementStep
                 data={methods.getValues() as WizardFormData}
                 onChange={(field, value) => {
                   methods.setValue(field, value);
                 }}
-                onComplete={() => setStep(9)}
+                onComplete={() => setStep(10)}
               />
             )}
-            {step === 9 && (
+            {step === 10 && (
               <ReviewStep
                 data={methods.getValues() as WizardFormData}
-                onBack={() => setStep(8)}
+                onBack={() => setStep(9)}
                 onConfirm={() => handleFinish(methods.getValues() as WizardFormData)}
               />
             )}

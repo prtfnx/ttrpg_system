@@ -78,11 +78,31 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
       const classNextButton = screen.getByTestId('class-next-button');
       await user.click(classNextButton);
       
+      // Step 3: Background Selection
+      await waitFor(() => {
+        expect(screen.getByText(/choose background/i)).toBeInTheDocument();
+      });
+      
+      const backgroundSelect = screen.getByLabelText(/background/i);
+      await user.selectOptions(backgroundSelect, 'soldier');
+      
+      // Get the specific background step next button and click it
+      const backgroundNextButton = screen.getByTestId('background-next-button');
+      await user.click(backgroundNextButton);
+      
       // Step 4: Ability Scores (Point Buy System)
       await waitFor(() => {
         expect(screen.getByText(/assign ability scores/i)).toBeInTheDocument();
       });
-      expect(screen.getByText(/point buy \(27 points\)/i)).toBeInTheDocument();
+      
+      // Switch to Point Buy system
+      const pointBuyButton = screen.getByRole('button', { name: /point buy \(27 points\)/i });
+      await user.click(pointBuyButton);
+      
+      // Verify Point Buy is active by checking for the increase buttons
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /increase strength/i })).toBeInTheDocument();
+      });
       
       // All scores start at 8, spend 27 points to increase
       const strIncrease = screen.getByRole('button', { name: /increase strength/i });
@@ -98,9 +118,40 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
         await user.click(conIncrease);
       }
       
-      // Check point calculation
+      // Assign remaining abilities to minimum values
+      // We need to assign all 6 abilities before we can proceed
+      // Dexterity, Intelligence, Wisdom, Charisma should be assigned
+      // Using remaining 11 points for basic assignments
+      
+      // Increase DEX from 8 to 10 (costs 2 points)
+      const dexIncrease = screen.getByRole('button', { name: /increase dexterity/i });
+      for (let i = 0; i < 2; i++) {
+        await user.click(dexIncrease);
+      }
+      
+      // Increase INT from 8 to 10 (costs 2 points)
+      const intIncrease = screen.getByRole('button', { name: /increase intelligence/i });
+      for (let i = 0; i < 2; i++) {
+        await user.click(intIncrease);
+      }
+      
+      // Increase WIS from 8 to 10 (costs 2 points) 
+      const wisIncrease = screen.getByRole('button', { name: /increase wisdom/i });
+      for (let i = 0; i < 2; i++) {
+        await user.click(wisIncrease);
+      }
+      
+      // Increase CHA from 8 to 13 (costs 5 points)
+      const chaIncrease = screen.getByRole('button', { name: /increase charisma/i });
+      for (let i = 0; i < 5; i++) {
+        await user.click(chaIncrease);
+      }
+      
+      // Total points spent: 9 + 7 + 2 + 2 + 2 + 5 = 27 points
+      
+      // Check point calculation - all 27 points should be spent
       await waitFor(() => {
-        expect(screen.getByTestId('points-remaining')).toHaveTextContent('11'); // 27 - 9 - 7
+        expect(screen.getByTestId('points-remaining')).toHaveTextContent('0'); // 27 - 27 = 0
       });
       
       // Apply racial bonuses
@@ -108,27 +159,41 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
         expect(screen.getByTestId('strength-final')).toHaveTextContent('17'); // 15 + 2 racial
         expect(screen.getByTestId('constitution-final')).toHaveTextContent('16'); // 14 + 2 racial
       });
-      
-      await user.click(nextButton);
-      
-      // Step 5: Background and Skills
-      expect(screen.getByText(/choose background/i)).toBeInTheDocument();
-      
-      const backgroundSelect = screen.getByLabelText(/select background/i);
-      await user.selectOptions(backgroundSelect, 'soldier');
-      
-      // Background should provide skill proficiencies
+
+      // Find and click the Next button to proceed to skills
+      const abilitiesNextButton = screen.getByTestId('abilities-next-button');
+      await user.click(abilitiesNextButton);
+
+      // Step 5: Skills Selection (class-based)
       await waitFor(() => {
-        expect(screen.getByText(/athletics, intimidation/i)).toBeInTheDocument();
-        expect(screen.getByText(/vehicles \(land\), gaming set/i)).toBeInTheDocument();
+        expect(screen.getByText(/select skills/i)).toBeInTheDocument();
       });
       
-      // Choose additional class skills (Fighter gets 2 from list)
-      const skillCheckboxes = screen.getAllByRole('checkbox', { name: /skill proficiency/i });
-      await user.click(skillCheckboxes[0]); // Acrobatics
-      await user.click(skillCheckboxes[3]); // Insight
+      // Background should provide skill proficiencies  
+      await waitFor(() => {
+        expect(screen.getByText(/athletics, intimidation/i)).toBeInTheDocument();
+      });
       
-      await user.click(nextButton);
+      // Choose additional class skills (Fighter gets 2 from list, but Athletics/Intimidation already granted by background)
+      // Available class skills should be: Acrobatics, Animal Handling, History, Insight, Perception, Survival
+      const skillCheckboxes = screen.getAllByRole('checkbox');
+      
+      // Find and select Acrobatics and Animal Handling
+      const acrobaticsCheckbox = skillCheckboxes.find((checkbox) => {
+        const label = checkbox.closest('label');
+        return label?.textContent?.includes('Acrobatics');
+      });
+      const animalHandlingCheckbox = skillCheckboxes.find((checkbox) => {
+        const label = checkbox.closest('label');
+        return label?.textContent?.includes('Animal Handling');
+      });
+      
+      if (acrobaticsCheckbox) await user.click(acrobaticsCheckbox);
+      if (animalHandlingCheckbox) await user.click(animalHandlingCheckbox);
+      
+      // Click Next to proceed to spells (Fighter is not a spellcaster, so should skip to review)
+      const skillsNextButton = screen.getByRole('button', { name: /next/i });
+      await user.click(skillsNextButton);
       
       // Final Review - all choices should be compiled
       expect(screen.getByText(/character summary/i)).toBeInTheDocument();

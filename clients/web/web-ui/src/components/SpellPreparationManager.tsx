@@ -163,7 +163,9 @@ export function SpellPreparationManager({
   onUnprepareSpell
 }: SpellPreparationManagerProps) {
   const [selectedSpell, setSelectedSpell] = useState<Spell | null>(null);
-  const [showRitualSpells, setShowRitualSpells] = useState(false);
+  const [showRitualSpells, setShowRitualSpells] = useState(true);
+  const [isRitualCasting, setIsRitualCasting] = useState(false);
+  const [spellSlotsUsed, setSpellSlotsUsed] = useState(0);
 
   const abilityModifier = getSpellcastingAbilityModifier(characterClass, abilityScores);
   const maxPreparedSpells = calculateSpellsCanPrepare(characterClass, characterLevel, abilityModifier);
@@ -225,8 +227,13 @@ export function SpellPreparationManager({
           <h3 style={{ margin: 0, fontSize: '1.1em', color: '#1e293b' }}>
             Spell Management
           </h3>
-          <div style={{ fontSize: '0.9em', color: '#64748b' }}>
-            {preparedSpells.length} / {maxPreparedSpells} prepared
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+            <div style={{ fontSize: '0.9em', color: '#64748b' }}>
+              {preparedSpells.length} / {maxPreparedSpells} prepared
+            </div>
+            <div style={{ fontSize: '0.9em', color: '#64748b' }}>
+              Spell Slots Used: <span data-testid="spell-slots-used">{spellSlotsUsed}</span>
+            </div>
           </div>
         </div>
 
@@ -342,7 +349,10 @@ export function SpellPreparationManager({
                     cursor: 'pointer',
                     background: selectedSpell?.id === spell.id ? '#e0f2fe' : 'transparent'
                   }}
-                  onClick={() => setSelectedSpell(spell)}
+                  onClick={() => {
+                    setSelectedSpell(spell);
+                    setIsRitualCasting(false);
+                  }}
                 >
                   <div style={{ 
                     display: 'flex', 
@@ -436,19 +446,27 @@ export function SpellPreparationManager({
             ) : (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {ritualSpells.map(spell => (
-                  <span 
+                  <button 
                     key={spell.id}
+                    aria-label={`Cast ${spell.name} (Ritual)`}
+                    onClick={() => {
+                      setSelectedSpell(spell);
+                      setIsRitualCasting(true);
+                      // Show casting time information or cast the spell
+                      console.log(`Casting ${spell.name} as a ritual (takes ${spell.castingTime} + 10 minutes)`);
+                    }}
                     style={{
                       padding: '4px 8px',
                       background: '#f3e8ff',
                       border: '1px solid #a855f7',
                       borderRadius: 4,
                       fontSize: '0.8em',
-                      color: '#7c3aed'
+                      color: '#7c3aed',
+                      cursor: 'pointer'
                     }}
                   >
                     {spell.name}
-                  </span>
+                  </button>
                 ))}
               </div>
             )}
@@ -468,15 +486,55 @@ export function SpellPreparationManager({
             {selectedSpell.name}
           </h5>
           <div style={{ fontSize: '0.85em', color: '#475569', marginBottom: 8 }}>
-            <strong>Level:</strong> {selectedSpell.level} | <strong>School:</strong> {selectedSpell.school}
-            <br />
-            <strong>Casting Time:</strong> {selectedSpell.castingTime} | <strong>Range:</strong> {selectedSpell.range}
-            <br />
-            <strong>Components:</strong> {selectedSpell.components} | <strong>Duration:</strong> {selectedSpell.duration}
+            <div>Level: {selectedSpell.level} | School: {selectedSpell.school}</div>
+            <div>Casting Time: {isRitualCasting ? `${selectedSpell.castingTime} + 10 minutes (ritual)` : selectedSpell.castingTime} | Range: {selectedSpell.range}</div>
+            <div>Components: {selectedSpell.components} | Duration: {selectedSpell.duration}</div>
+            {isRitualCasting && (
+              <div style={{ color: '#7c3aed' }}>No spell slot required</div>
+            )}
           </div>
           <div style={{ fontSize: '0.85em', color: '#374151', lineHeight: 1.4 }}>
             {selectedSpell.description}
           </div>
+          {isRitualCasting && (
+            <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+              <button 
+                aria-label="Cast Ritual"
+                onClick={() => {
+                  console.log(`Confirmed ritual casting of ${selectedSpell.name}`);
+                  // Handle ritual casting confirmation
+                }}
+                style={{
+                  padding: '8px 16px',
+                  background: '#7c3aed',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 4,
+                  fontSize: '0.9em',
+                  cursor: 'pointer'
+                }}
+              >
+                Cast Ritual
+              </button>
+              <button 
+                onClick={() => {
+                  setIsRitualCasting(false);
+                  setSelectedSpell(null);
+                }}
+                style={{
+                  padding: '8px 16px',
+                  background: '#e5e7eb',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: 4,
+                  fontSize: '0.9em',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
       )}
       </div>

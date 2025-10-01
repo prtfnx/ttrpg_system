@@ -63,7 +63,7 @@ describe('AssetPanel Component', () => {
     render(<AssetPanel />);
     
     // Should have asset management elements
-    expect(screen.getByText(/asset/i) || screen.getByText(/file/i) || screen.getByText(/upload/i)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /asset manager/i })).toBeInTheDocument();
   });
 
   test('displays upload functionality', () => {
@@ -438,9 +438,7 @@ describe('PerformanceMonitor Component', () => {
     render(<PerformanceMonitor isVisible={true} />);
     
     // Should show performance information
-    expect(screen.getByText(/fps|performance|memory/i) || 
-           screen.getByText(/\d+\s*(fps|ms|%)/i) ||
-           screen.queryAllByRole('progressbar').length > 0).toBeTruthy();
+    expect(screen.getAllByText(/fps|memory/i)).toHaveLength(2); // FPS and Memory labels
   });
 
   test('displays real-time statistics', async () => {

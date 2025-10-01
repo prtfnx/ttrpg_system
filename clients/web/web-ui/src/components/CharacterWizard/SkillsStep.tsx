@@ -35,7 +35,7 @@ type SkillsStepProps = {
 };
 
 export function SkillsStep({ onNext, onBack, classSkills, classSkillChoices, backgroundSkills, raceSkills = [] }: SkillsStepProps) {
-  const { setValue, formState, setError, clearErrors } = useFormContext<SkillsStepData>();
+  const { setValue, formState, setError, clearErrors, getValues } = useFormContext<SkillsStepData>();
   const [selected, setSelected] = useState<string[]>([]);
 
   // Compute already granted skills (background + race)
@@ -45,27 +45,60 @@ export function SkillsStep({ onNext, onBack, classSkills, classSkillChoices, bac
 
   // Pre-select background and race skills
   useEffect(() => {
+    console.log('[SkillsStep] Setting initial skills:', alreadyGranted);
+    console.log('[SkillsStep] Props received:', {
+      classSkills,
+      classSkillChoices,
+      backgroundSkills,
+      raceSkills,
+      availableClassSkills
+    });
+    
+    // Get the current form values to debug
+    try {
+      const formValues = getValues();
+      console.log('[SkillsStep] Current form values:', formValues);
+    } catch (error) {
+      console.log('[SkillsStep] Error getting form values:', error);
+    }
+    
     setSelected(alreadyGranted);
-  }, [alreadyGranted]);
+  }, [alreadyGranted, getValues]);
 
   // Handle skill selection
   function toggleSkill(skill: string) {
+    console.log('[SkillsStep] Toggle skill:', skill, 'currently selected:', selected);
     if (selected.includes(skill)) {
       // Don't allow unselecting background/race skills
-      if (alreadyGranted.includes(skill)) return;
-      setSelected(selected.filter(s => s !== skill));
+      if (alreadyGranted.includes(skill)) {
+        console.log('[SkillsStep] Cannot unselect granted skill:', skill);
+        return;
+      }
+      const newSelected = selected.filter(s => s !== skill);
+      console.log('[SkillsStep] Removing skill, new selection:', newSelected);
+      setSelected(newSelected);
     } else {
       // Only allow selecting from availableClassSkills, up to classSkillChoices
-      if (!availableClassSkills.includes(skill)) return;
-      if (selected.filter(s => availableClassSkills.includes(s)).length >= classSkillChoices) return;
-      setSelected([...selected, skill]);
+      if (!availableClassSkills.includes(skill)) {
+        console.log('[SkillsStep] Skill not available for class:', skill);
+        return;
+      }
+      if (selected.filter(s => availableClassSkills.includes(s)).length >= classSkillChoices) {
+        console.log('[SkillsStep] Already selected max class skills');
+        return;
+      }
+      const newSelected = [...selected, skill];
+      console.log('[SkillsStep] Adding skill, new selection:', newSelected);
+      setSelected(newSelected);
     }
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    console.log('[SkillsStep] Submit with selected skills:', selected);
     // Validate: must have all background/race skills, and exactly classSkillChoices from availableClassSkills
     const classSelected = selected.filter(s => availableClassSkills.includes(s));
+    console.log('[SkillsStep] Class skills selected:', classSelected, 'required:', classSkillChoices);
     if (classSelected.length !== classSkillChoices) {
       setError('skills', { type: 'manual', message: `Select ${classSkillChoices} class skills (excluding those already granted by background or race).` });
       return;
@@ -77,12 +110,17 @@ export function SkillsStep({ onNext, onBack, classSkills, classSkillChoices, bac
     }
     clearErrors('skills');
     setValue('skills', selected, { shouldValidate: true });
+    console.log('[SkillsStep] Calling onNext');
     onNext();
   }
 
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Select Skills</div>
+      <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+        Debug: Selected: [{selected.join(', ')}] | Background: [{backgroundSkills.join(', ')}] | 
+        Available Class: [{availableClassSkills.join(', ')}] | Need: {classSkillChoices}
+      </div>
       <div style={{ marginBottom: 8 }}>
         <b>Background Skills:</b> {backgroundSkills.join(', ')}
       </div>
@@ -122,7 +160,13 @@ export function SkillsStep({ onNext, onBack, classSkills, classSkillChoices, bac
       )}
       <div style={{ display: 'flex', gap: 8 }}>
         <button type="button" onClick={onBack} style={{ background: '#eee', color: '#333', border: 'none', borderRadius: 4, padding: '8px 16px' }}>Back</button>
-        <button type="submit" style={{ background: '#6366f1', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontWeight: 600 }}>Next</button>
+        <button 
+          type="submit" 
+          data-testid="skills-next-button"
+          style={{ background: '#6366f1', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontWeight: 600 }}
+        >
+          Next
+        </button>
       </div>
     </form>
   );

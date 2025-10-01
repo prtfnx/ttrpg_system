@@ -27,23 +27,12 @@ const raceData = {
 };
 
 export function RaceStep({ onNext }: { onNext: () => void }) {
-  const { control, formState, watch } = useFormContext<RaceStepData>();
+  const { control, formState, watch, getValues } = useFormContext<RaceStepData>();
   const selectedRace = watch('race');
   
-  const onFormSubmit = () => {
-    // Get current race value and validate it directly
-    const raceValue = watch('race');
-    console.log('[RaceStep] Submit triggered, race value:', raceValue);
-    
-    if (raceValue && raceValue.trim() !== '') {
-      console.log('[RaceStep] Race is valid, proceeding to next step');
-      onNext();
-    } else {
-      console.log('[RaceStep] Race is invalid, staying on current step');
-    }
-  };
-
   console.log('[RaceStep] Rendering, current race value:', watch('race'));
+  console.log('[RaceStep] All form values:', getValues());
+  console.log('[RaceStep] onNext function:', typeof onNext, onNext);
   
   // Debug: log validation errors on every render
   if (formState.errors && Object.keys(formState.errors).length > 0) {
@@ -51,7 +40,7 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
   }
   
   return (
-    <form onSubmit={(e) => { e.preventDefault(); onFormSubmit(); }} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Choose your race</div>
       
       <label>
@@ -113,11 +102,13 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
       <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
         <button 
           type="button"
+          data-testid="race-next-button"
           disabled={!selectedRace}
-          onClick={(e) => {
-            e.preventDefault();
-            console.log('[RaceStep] Button clicked directly');
-            onFormSubmit();
+          onClick={() => {
+            console.log('[RaceStep] Button clicked! Race value:', selectedRace);
+            console.log('[RaceStep] Calling onNext function');
+            onNext();
+            console.log('[RaceStep] onNext function called');
           }}
           style={{ 
             background: selectedRace ? '#6366f1' : '#9ca3af', 
@@ -132,6 +123,6 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
           Next
         </button>
       </div>
-    </form>
+    </div>
   );
 }

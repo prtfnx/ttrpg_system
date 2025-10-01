@@ -35,11 +35,18 @@ export function ClassStep({ onNext, onBack }: { onNext: () => void; onBack: () =
   const selectedClass = watch('class');
   const selectedFightingStyle = watch('fightingStyle');
   
+  console.log('[ClassStep] Rendering, current class value:', selectedClass);
+  console.log('[ClassStep] Current fighting style:', selectedFightingStyle);
+  console.log('[ClassStep] onNext function:', typeof onNext, onNext);
+  
   const handleClassNext = (data: ClassStepData) => {
+    console.log('[ClassStep] Form submitted with data:', data);
     // For Fighter, ensure fighting style is selected
     if (data.class === 'fighter' && !data.fightingStyle) {
+      console.log('[ClassStep] Fighter requires fighting style, blocking submission');
       return; // Form validation will handle this
     }
+    console.log('[ClassStep] Calling onNext()');
     onNext();
   };
   
@@ -151,6 +158,7 @@ export function ClassStep({ onNext, onBack }: { onNext: () => void; onBack: () =
         </button>
         <button 
           type="submit" 
+          data-testid="class-next-button"
           disabled={!selectedClass || (selectedClass === 'fighter' && !selectedFightingStyle)}
           style={{ 
             background: (selectedClass && (selectedClass !== 'fighter' || selectedFightingStyle)) ? '#6366f1' : '#9ca3af', 

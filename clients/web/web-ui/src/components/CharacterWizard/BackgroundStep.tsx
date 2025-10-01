@@ -48,11 +48,15 @@ const backgroundData = {
 };
 
 export function BackgroundStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
-  const { register, handleSubmit, formState, watch } = useFormContext<BackgroundStepData>();
+  const { register, formState, watch } = useFormContext<BackgroundStepData>();
   const selectedBackground = watch('background');
   
+  const handleBackgroundNext = () => {
+    onNext();
+  };
+  
   return (
-    <form onSubmit={handleSubmit(() => onNext())} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Choose background</div>
       
       <label>
@@ -132,7 +136,9 @@ export function BackgroundStep({ onNext, onBack }: { onNext: () => void; onBack:
           Back
         </button>
         <button 
-          type="submit" 
+          type="button" 
+          onClick={handleBackgroundNext}
+          data-testid="background-next-button"
           disabled={!selectedBackground}
           style={{ 
             background: selectedBackground ? '#6366f1' : '#9ca3af', 
@@ -147,6 +153,6 @@ export function BackgroundStep({ onNext, onBack }: { onNext: () => void; onBack:
           Next
         </button>
       </div>
-    </form>
+    </div>
   );
 }

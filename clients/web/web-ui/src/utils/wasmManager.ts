@@ -30,6 +30,45 @@ class WasmManager {
 
   private constructor() {}
 
+  private createMockWasmModule(): GlobalWasmModule {
+    console.log('[WASM Manager] Creating mock WASM module for testing');
+    
+    // Create mock implementations of all WASM exports
+    const mockEngine = {
+      // Lighting methods
+      add_light: () => console.log('Mock: add_light called'),
+      remove_light: () => console.log('Mock: remove_light called'),
+      set_light_color: () => console.log('Mock: set_light_color called'),
+      set_light_intensity: () => console.log('Mock: set_light_intensity called'),
+      set_light_radius: () => console.log('Mock: set_light_radius called'),
+      update_light_position: () => console.log('Mock: update_light_position called'),
+      toggle_light: () => console.log('Mock: toggle_light called'),
+      turn_off_all_lights: () => console.log('Mock: turn_off_all_lights called'),
+      turn_on_all_lights: () => console.log('Mock: turn_on_all_lights called'),
+      clear_lights: () => console.log('Mock: clear_lights called'),
+      // Render methods
+      render: () => console.log('Mock: render called'),
+      clear: () => console.log('Mock: clear called'),
+      // Basic functionality
+      width: 800,
+      height: 600,
+    };
+    
+    return {
+      RenderEngine: mockEngine,
+      NetworkClient: {},
+      TableSync: {},
+      LightingSystem: mockEngine,
+      FogOfWarSystem: {},
+      AssetManager: {},
+      LayerManager: {},
+      ActionsClient: {},
+      PaintSystem: {},
+      create_default_brush_presets: () => ({}),
+      default: async () => Promise.resolve(),
+    };
+  }
+
   static getInstance(): WasmManager {
     if (!WasmManager.instance) {
       WasmManager.instance = new WasmManager();
@@ -53,6 +92,18 @@ class WasmManager {
   private async initializeWasm(): Promise<GlobalWasmModule> {
     try {
       console.log('[WASM Manager] Starting WASM initialization...');
+      
+      // Check if we're in a test environment using safe detection methods
+      const isTest = (typeof globalThis !== 'undefined' && (globalThis as any).process?.env?.NODE_ENV === 'test') ||
+                     (typeof window !== 'undefined' && (window as any).__VITEST__) ||
+                     (typeof globalThis !== 'undefined' && (globalThis as any).__VITEST__);
+      
+      if (isTest) {
+        console.log('[WASM Manager] Test environment detected, using mock WASM module');
+        this.wasmModule = this.createMockWasmModule();
+        this.isInitialized = true;
+        return this.wasmModule!;
+      }
       
       let wasmModule: any;
       

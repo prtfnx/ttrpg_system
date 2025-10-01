@@ -31,27 +31,16 @@ const classData = {
 };
 
 export function ClassStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
-  const { register, handleSubmit, formState, watch } = useFormContext<ClassStepData>();
+  const { register, formState, watch } = useFormContext<ClassStepData>();
   const selectedClass = watch('class');
   const selectedFightingStyle = watch('fightingStyle');
-  
-  console.log('[ClassStep] Rendering, current class value:', selectedClass);
-  console.log('[ClassStep] Current fighting style:', selectedFightingStyle);
-  console.log('[ClassStep] onNext function:', typeof onNext, onNext);
-  
-  const handleClassNext = (data: ClassStepData) => {
-    console.log('[ClassStep] Form submitted with data:', data);
-    // For Fighter, ensure fighting style is selected
-    if (data.class === 'fighter' && !data.fightingStyle) {
-      console.log('[ClassStep] Fighter requires fighting style, blocking submission');
-      return; // Form validation will handle this
-    }
-    console.log('[ClassStep] Calling onNext()');
+
+  const handleClassNext = () => {
     onNext();
   };
-  
+
   return (
-    <form onSubmit={handleSubmit(handleClassNext)} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Choose your class</div>
       
       <label>
@@ -157,7 +146,8 @@ export function ClassStep({ onNext, onBack }: { onNext: () => void; onBack: () =
           Back
         </button>
         <button 
-          type="submit" 
+          type="button" 
+          onClick={handleClassNext}
           data-testid="class-next-button"
           disabled={!selectedClass || (selectedClass === 'fighter' && !selectedFightingStyle)}
           style={{ 
@@ -173,6 +163,6 @@ export function ClassStep({ onNext, onBack }: { onNext: () => void; onBack: () =
           Next
         </button>
       </div>
-    </form>
+    </div>
   );
 }

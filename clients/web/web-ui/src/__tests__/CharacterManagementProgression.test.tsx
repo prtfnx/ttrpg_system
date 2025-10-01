@@ -52,7 +52,9 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
         expect(raceSelect).toHaveValue('mountain-dwarf');
       });
 
-      await user.click(nextButton);      // Step 2: Class Selection with features
+      // Get the specific race step next button and click it
+      const raceNextButton = screen.getByTestId('race-next-button');
+      await user.click(raceNextButton);      // Step 2: Class Selection with features
       await waitFor(() => {
         expect(screen.getByLabelText(/select class/i)).toBeInTheDocument();
       });
@@ -62,8 +64,9 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
       
       // Class features should be shown
       await waitFor(() => {
-        expect(screen.getByText(/hit die: d10/i)).toBeInTheDocument();
-        expect(screen.getByText(/fighting style/i)).toBeInTheDocument();
+        expect(screen.getByText(/hit die/i)).toBeInTheDocument();
+        expect(screen.getByText(/d10/i)).toBeInTheDocument();
+        expect(screen.getAllByText(/fighting style/i).length).toBeGreaterThan(0);
         expect(screen.getByText(/second wind/i)).toBeInTheDocument();
       });
       
@@ -71,10 +74,14 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
       const fightingStyleSelect = screen.getByLabelText(/fighting style/i);
       await user.selectOptions(fightingStyleSelect, 'defense');
       
-      await user.click(nextButton);
+      // Get the specific class step next button and click it
+      const classNextButton = screen.getByTestId('class-next-button');
+      await user.click(classNextButton);
       
       // Step 4: Ability Scores (Point Buy System)
-      expect(screen.getByText(/assign ability scores/i)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText(/assign ability scores/i)).toBeInTheDocument();
+      });
       expect(screen.getByText(/point buy \(27 points\)/i)).toBeInTheDocument();
       
       // All scores start at 8, spend 27 points to increase

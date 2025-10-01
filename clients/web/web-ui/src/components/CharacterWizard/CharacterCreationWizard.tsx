@@ -145,10 +145,14 @@ export function CharacterCreationWizard({ onFinish, onCancel, isOpen, userInfo: 
   // Step-specific validation with proper error handling
   function handleNextRace() {
     const values = methods.getValues();
+    console.log('[CharacterCreationWizard] handleNextRace called, values:', values);
     const result = raceSchema.safeParse(values);
+    console.log('[CharacterCreationWizard] raceSchema validation result:', result);
     if (result.success) {
+      console.log('[CharacterCreationWizard] Race validation passed, advancing to step 2');
       setStep((s) => s + 1);
     } else {
+      console.log('[CharacterCreationWizard] Race validation failed:', result.error);
       const errors = result.error.flatten().fieldErrors;
       if (errors.race) {
         methods.setError('race', { type: 'manual', message: errors.race[0] });
@@ -372,10 +376,10 @@ export function CharacterCreationWizard({ onFinish, onCancel, isOpen, userInfo: 
             )}
 
             {/* Step content */}
-            {step === 1 && <RaceStep onNext={() => setStep(2)} />}
-            {step === 2 && <ClassStep onNext={() => setStep(3)} onBack={() => setStep(1)} />}
+            {step === 1 && <RaceStep onNext={handleNextRace} />}
+            {step === 2 && <ClassStep onNext={handleNextClass} onBack={() => setStep(1)} />}
             {step === 3 && <BackgroundStep onNext={() => setStep(4)} onBack={() => setStep(2)} />}
-            {step === 4 && <AbilitiesStep onNext={() => setStep(5)} onBack={() => setStep(3)} />}
+            {step === 4 && <AbilitiesStep onNext={handleNextAbilities} onBack={() => setStep(3)} />}
             {step === 5 && (
               <SkillsStep
                 onNext={() => setStep(6)}

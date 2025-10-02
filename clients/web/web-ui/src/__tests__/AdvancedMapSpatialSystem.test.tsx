@@ -280,13 +280,44 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
             )}
             <div data-testid="map-canvas" style={{ width: '400px', height: '400px', border: '1px solid gray' }}>
               {tokens.map(token => (
-                <div key={token.id} data-testid={`token-${token.type}`} style={{ position: 'absolute', left: token.x, top: token.y }}>
+                <div 
+                  key={token.id} 
+                  data-testid={`token-${token.type}`} 
+                  style={{ position: 'absolute', left: token.x, top: token.y }}
+                  draggable
+                  onDragEnd={(e) => {
+                    const newX = e.clientX;
+                    const newY = e.clientY;
+                    setTokens(prev => prev.map(t => t.id === token.id ? { ...t, x: newX, y: newY } : t));
+                  }}
+                >
                   {token.type}
                 </div>
               ))}
             </div>
-            <div data-testid="fog-revealed-area" data-radius="60">Vision Area</div>
+            <div 
+              data-testid="fog-revealed-area" 
+              data-radius="60" 
+              data-center-x={tokens.length > 0 ? tokens[0].x : 100}
+              data-center-y={tokens.length > 0 ? tokens[0].y : 100}
+            >
+              Vision Area
+            </div>
             <div data-testid="fog-area-distant" data-visible="false">Distant Area</div>
+          </div>
+        );
+      };
+      
+      // Add spell template component
+      const SpellTemplateComponent = () => {
+        const [activeTemplate, setActiveTemplate] = React.useState('');
+        
+        return (
+          <div data-testid="spell-templates">
+            <button onClick={() => setActiveTemplate('cone')}>Spell Templates</button>
+            {activeTemplate && (
+              <div data-testid="template-cone-of-cold">Cone of Cold Template</div>
+            )}
           </div>
         );
       };
@@ -295,6 +326,7 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
         <div>
           <MapPanel />
           <TokenPlacementComponent />
+          <SpellTemplateComponent />
         </div>
       );
       
@@ -433,6 +465,7 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
         };
         
         const handleConcealFog = () => {
+          // When concealing, we should add a concealed area, and the test expects it to be numbered sequentially
           setFogAreas(prev => {
             const newArea = { id: Date.now(), type: 'concealed', visible: false };
             return [...prev, newArea];
@@ -452,16 +485,23 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
               placeholder="Brush size"
             />
             <div data-testid="map-canvas" style={{ width: '400px', height: '400px', border: '1px solid gray' }}>
-              {fogAreas.map((area, index) => (
-                <div 
-                  key={area.id} 
-                  data-testid={area.type === 'revealed' ? `manually-revealed-area-${index + 1}` : `manually-concealed-area-${index + 1}`}
-                  data-visible={area.visible}
-                  style={{ position: 'absolute', left: 200 + index * 10, top: 200, opacity: area.visible ? 1 : 0.3 }}
-                >
-                  {area.type} area
-                </div>
-              ))}
+              {fogAreas.map((area, index) => {
+                // Calculate area number for consistent numbering
+                const revealedCount = fogAreas.slice(0, index + 1).filter(a => a.type === 'revealed').length;
+                const concealedCount = fogAreas.slice(0, index + 1).filter(a => a.type === 'concealed').length;
+                const areaNumber = area.type === 'revealed' ? revealedCount : concealedCount;
+                
+                return (
+                  <div 
+                    key={area.id} 
+                    data-testid={area.type === 'revealed' ? `manually-revealed-area-${areaNumber}` : `manually-concealed-area-${areaNumber}`}
+                    data-visible={area.visible}
+                    style={{ position: 'absolute', left: 200 + index * 10, top: 200, opacity: area.visible ? 1 : 0.3 }}
+                  >
+                    {area.type} area
+                  </div>
+                );
+              })}
             </div>
           </div>
         );

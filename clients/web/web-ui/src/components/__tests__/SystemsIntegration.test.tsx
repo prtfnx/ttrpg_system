@@ -11,39 +11,42 @@ import { GameCanvas } from '../GameCanvas';
 import { NetworkPanel } from '../NetworkPanel';
 import { PerformanceMonitor } from '../PerformanceMonitor';
 
-// Mock WASM module with realistic interface
+//Mock WASM module with realistic interface
+const mockLoadTexture = vi.fn().mockResolvedValue(true);
+const mockRenderEngine = {
+  initialize: vi.fn(),
+  render: vi.fn(),
+  update: vi.fn(),
+  handle_mouse_event: vi.fn(),
+  handle_keyboard_event: vi.fn(),
+  screen_to_world: vi.fn().mockReturnValue({ x: 10.5, y: 20.3 }),
+  world_to_screen: vi.fn().mockReturnValue({ x: 100, y: 200 }),
+  set_viewport: vi.fn(),
+  get_viewport: vi.fn().mockReturnValue({ x: 0, y: 0, width: 800, height: 600 }),
+  create_sprite: vi.fn().mockReturnValue('sprite_123'),
+  move_sprite: vi.fn(),
+  delete_sprite: vi.fn(),
+  get_sprite_position: vi.fn().mockReturnValue({ x: 5, y: 5 }),
+  add_light_source: vi.fn(),
+  remove_light_source: vi.fn(),
+  add_light: vi.fn(),
+  set_light_color: vi.fn(),
+  set_light_intensity: vi.fn(),
+  remove_light: vi.fn(),
+  update_fog_of_war: vi.fn(),
+  calculate_line_of_sight: vi.fn().mockReturnValue(true),
+  create_table: vi.fn(),
+  load_texture: mockLoadTexture,
+  get_performance_metrics: vi.fn().mockReturnValue({
+    fps: 60,
+    frame_time: 16.67,
+    memory_usage: 1024 * 1024,
+    sprite_count: 15
+  })
+};
+
 const mockWasmModule = {
-  RenderEngine: vi.fn().mockImplementation(() => ({
-    initialize: vi.fn(),
-    render: vi.fn(),
-    update: vi.fn(),
-    handle_mouse_event: vi.fn(),
-    handle_keyboard_event: vi.fn(),
-    screen_to_world: vi.fn().mockReturnValue({ x: 10.5, y: 20.3 }),
-    world_to_screen: vi.fn().mockReturnValue({ x: 100, y: 200 }),
-    set_viewport: vi.fn(),
-    get_viewport: vi.fn().mockReturnValue({ x: 0, y: 0, width: 800, height: 600 }),
-    create_sprite: vi.fn().mockReturnValue('sprite_123'),
-    move_sprite: vi.fn(),
-    delete_sprite: vi.fn(),
-    get_sprite_position: vi.fn().mockReturnValue({ x: 5, y: 5 }),
-    add_light_source: vi.fn(),
-    remove_light_source: vi.fn(),
-    add_light: vi.fn(),
-    set_light_color: vi.fn(),
-    set_light_intensity: vi.fn(),
-    remove_light: vi.fn(),
-    update_fog_of_war: vi.fn(),
-    calculate_line_of_sight: vi.fn().mockReturnValue(true),
-    create_table: vi.fn(),
-    load_texture: vi.fn().mockResolvedValue(true),
-    get_performance_metrics: vi.fn().mockReturnValue({
-      fps: 60,
-      frame_time: 16.67,
-      memory_usage: 1024 * 1024,
-      sprite_count: 15
-    })
-  })),
+  RenderEngine: vi.fn().mockImplementation(() => mockRenderEngine),
   NetworkClient: vi.fn().mockImplementation(() => ({
     connect: vi.fn().mockResolvedValue(true),
     disconnect: vi.fn(),
@@ -163,6 +166,12 @@ vi.mock('../services/performance.service', () => ({
     optimizePerformance: vi.fn()
   }
 }));
+
+beforeEach(() => {
+  // Clear all mocks before each test
+  vi.clearAllMocks();
+  mockLoadTexture.mockClear();
+});
 
 describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
   const user = userEvent.setup();
@@ -418,7 +427,7 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
         
         // User expects asset to be processed by WASM
         await waitFor(() => {
-          expect(mockWasmModule.RenderEngine().load_texture).toHaveBeenCalled();
+          expect(mockLoadTexture).toHaveBeenCalled();
         });
       }
     });

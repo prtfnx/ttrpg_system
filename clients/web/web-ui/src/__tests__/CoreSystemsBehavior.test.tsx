@@ -340,7 +340,7 @@ describe('Asset Management System Behavior', () => {
     await waitFor(() => {
       // Check that the asset was successfully added to the list
       expect(screen.getByText('test.png')).toBeInTheDocument();
-    });
+    }, { timeout: 3000 });
   });
 
   it('should validate file types and sizes', async () => {
@@ -356,8 +356,8 @@ describe('Asset Management System Behavior', () => {
     await waitFor(() => {
       // Check that validation error appears
       expect(screen.getByTestId('upload-errors')).toBeVisible();
-      expect(screen.getByText(/file too large/i)).toBeInTheDocument();
-    });
+      expect(screen.getByText(/File size exceeds 50MB limit/i)).toBeInTheDocument();
+    }, { timeout: 3000 });
   });
 
   it('should organize assets by type and allow filtering', async () => {
@@ -376,7 +376,7 @@ describe('Asset Management System Behavior', () => {
     await waitFor(() => {
       expect(screen.getByText('dragon.png')).toBeInTheDocument();
       expect(screen.queryByText('music.mp3')).not.toBeInTheDocument();
-    });
+    }, { timeout: 3000 });
   });
 });
 

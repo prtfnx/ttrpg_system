@@ -5,8 +5,8 @@
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
 import React from 'react';
+import { describe, expect, it } from 'vitest';
 
 // Import actual components
 import { LayerPanel } from '../components/LayerPanel';

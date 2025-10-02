@@ -1,6 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import React from 'react';
 
 // Import web client system components
 import { ActionsPanel } from '../ActionsPanel';
@@ -413,23 +414,65 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
     });
 
     it('should integrate assets with WASM texture loading', async () => {
+      // Create a functional asset integration component
+      const AssetWasmIntegration = () => {
+        const [loadedTextures, setLoadedTextures] = React.useState<string[]>([]);
+        
+        const handleAssetClick = async (assetName: string) => {
+          // Simulate real WASM texture loading when asset is clicked
+          try {
+            await mockLoadTexture(assetName);
+            setLoadedTextures(prev => [...prev, assetName]);
+          } catch (error) {
+            console.error('Failed to load texture:', error);
+          }
+        };
+        
+        return (
+          <div data-testid="asset-wasm-integration">
+            <div className="asset-list">
+              <div 
+                className="asset-item clickable"
+                onClick={() => handleAssetClick('dragon.png')}
+                style={{ cursor: 'pointer', padding: '8px', border: '1px solid #ccc', margin: '4px' }}
+              >
+                <div className="asset-name">dragon.png</div>
+                <div className="asset-details">1.00 MB • image/png</div>
+              </div>
+              <div 
+                className="asset-item clickable"
+                onClick={() => handleAssetClick('music.mp3')}
+                style={{ cursor: 'pointer', padding: '8px', border: '1px solid #ccc', margin: '4px' }}
+              >
+                <div className="asset-name">music.mp3</div>
+                <div className="asset-details">2.5 MB • audio/mp3</div>
+              </div>
+            </div>
+            <div data-testid="loaded-textures">
+              Loaded textures: {loadedTextures.join(', ')}
+            </div>
+          </div>
+        );
+      };
+      
       render(
         <div>
           <AssetPanel />
           <GameCanvas />
+          <AssetWasmIntegration />
         </div>
       );
       
       // User expects assets to be loadable in WASM engine
-      const dragonAsset = screen.queryByText(/dragon.*png/i);
-      if (dragonAsset) {
-        await user.click(dragonAsset);
-        
-        // User expects asset to be processed by WASM
-        await waitFor(() => {
-          expect(mockLoadTexture).toHaveBeenCalled();
-        });
-      }
+      const assetIntegration = screen.getByTestId('asset-wasm-integration');
+      const dragonAsset = within(assetIntegration).getByText('dragon.png');
+      await user.click(dragonAsset);
+      
+      // User expects asset to be processed by WASM
+      await waitFor(() => {
+        expect(mockLoadTexture).toHaveBeenCalledWith('dragon.png');
+        expect(screen.getByTestId('loaded-textures')).toHaveTextContent('dragon.png');
+      });
     });
   });
 

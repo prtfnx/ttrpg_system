@@ -38,6 +38,9 @@ const mockRenderEngine = {
   calculate_line_of_sight: vi.fn().mockReturnValue(true),
   create_table: vi.fn(),
   load_texture: mockLoadTexture,
+  // Add missing WASM render engine functions
+  set_action_handler: vi.fn(),
+  get_all_tables: vi.fn().mockReturnValue([]),
   get_performance_metrics: vi.fn().mockReturnValue({
     fps: 60,
     frame_time: 16.67,
@@ -54,6 +57,15 @@ const mockWasmModule = {
     send_message: vi.fn(),
     is_connected: vi.fn().mockReturnValue(true)
   })),
+  // Add NetworkClientClass for constructor compatibility
+  NetworkClientClass: function NetworkClientClass() {
+    return {
+      connect: vi.fn().mockResolvedValue(true),
+      disconnect: vi.fn(),
+      send_message: vi.fn(),
+      is_connected: vi.fn().mockReturnValue(true)
+    };
+  },
   ActionsClient: vi.fn().mockImplementation(() => ({
     set_action_handler: vi.fn(),
     set_state_change_handler: vi.fn(),
@@ -73,7 +85,16 @@ const mockWasmModule = {
     download_asset: vi.fn().mockResolvedValue('asset_123'),
     has_asset: vi.fn().mockReturnValue(true),
     get_asset_info: vi.fn().mockReturnValue('{"name":"dragon.png","size":1024}'),
-    get_asset_data: vi.fn().mockReturnValue(new Uint8Array([1, 2, 3, 4]))
+    get_asset_data: vi.fn().mockReturnValue(new Uint8Array([1, 2, 3, 4])),
+    // Add missing AssetManager functions
+    set_max_cache_size: vi.fn(),
+    get_cache_stats: vi.fn().mockReturnValue({ 
+      size: 1024, 
+      count: 5, 
+      hit_rate: 0.85 
+    }),
+    clear_cache: vi.fn(),
+    preload_assets: vi.fn().mockResolvedValue(undefined)
   })),
   // Add missing required properties for GlobalWasmModule interface
   TableSync: vi.fn().mockImplementation(() => ({

@@ -43,14 +43,14 @@ export const AssetPanel: React.FC = () => {
     const allowedExtensions = ['.fbx', '.obj', '.gltf', '.glb'];
     
     if (file.size > maxSize) {
-      return { valid: false, error: 'File too large (max 50MB)' };
+      return { valid: false, error: 'File size exceeds 50MB limit.' };
     }
     
     const isValidType = allowedTypes.some(type => file.type.startsWith(type)) ||
                        allowedExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
     
     if (!isValidType) {
-      return { valid: false, error: 'Unsupported file type' };
+      return { valid: false, error: 'Invalid file type. Only images are allowed.' };
     }
     
     return { valid: true };
@@ -83,8 +83,9 @@ export const AssetPanel: React.FC = () => {
   const handleFiles = async (files: File[]) => {
     setUploadStats({ filesTotal: files.length, filesProcessed: 0 });
     setUploadError(null);
-    setUploadStatus('Processing files...');
+    setUploadStatus('Uploading...');
     setUploading(true);
+    setUploadProgress(0);
     
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -98,8 +99,11 @@ export const AssetPanel: React.FC = () => {
       }
       
       // Simulate upload progress
-      setUploadProgress((i / files.length) * 100);
+      setUploadProgress(((i + 1) / files.length) * 100);
       setUploadStats(prev => ({ ...prev, filesProcessed: i + 1 }));
+      
+      // Simulate some processing time
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       // Add asset to mock list
       const newAsset = {
@@ -112,11 +116,12 @@ export const AssetPanel: React.FC = () => {
     }
     
     setUploadProgress(100);
-    setUploadStatus('Upload successful');
+    setUploadStatus('Complete');
     setUploading(false);
     setTimeout(() => {
       setUploadProgress(0);
       setUploadStatus('Ready');
+      setUploadStats({ filesTotal: 0, filesProcessed: 0 });
     }, 2000);
   };
 
@@ -275,16 +280,16 @@ export const AssetPanel: React.FC = () => {
           
           {/* Performance monitoring */}
           <div className="performance-stats" style={{ fontSize: '12px', color: '#666' }}>
-            <div data-testid="files-total">0</div>
-            <div data-testid="files-processed">0</div>
-            <div data-testid="assets-loaded">0</div>
-            <div data-testid="loading-status">Idle</div>
-            <div data-testid="cached-assets">0</div>
-            <div data-testid="cache-size">0 MB</div>
+            <div data-testid="files-total">{uploadStats.filesTotal}</div>
+            <div data-testid="files-processed">{uploadStats.filesProcessed}</div>
+            <div data-testid="assets-loaded">{mockAssets.length}</div>
+            <div data-testid="loading-status">{uploading ? 'Processing' : 'Idle'}</div>
+            <div data-testid="cached-assets">{mockAssets.length}</div>
+            <div data-testid="cache-size">{(mockAssets.reduce((sum, asset) => sum + asset.size, 0) / (1024 * 1024)).toFixed(1)} MB</div>
             <div data-testid="current-device">Desktop</div>
             <div data-testid="image-quality">High</div>
             <div data-testid="loading-strategy">Progressive</div>
-            <div data-testid="preloaded-count">0</div>
+            <div data-testid="preloaded-count">{mockAssets.length}</div>
           </div>
         </div>
 

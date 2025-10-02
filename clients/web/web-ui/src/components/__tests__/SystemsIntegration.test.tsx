@@ -371,8 +371,10 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
       render(<AssetPanel />);
       
       // User expects asset categories to be properly typed
-      expect(screen.getByText(/images/i)).toBeInTheDocument();
-      expect(screen.getByText(/models/i)).toBeInTheDocument();
+      const imageCategory = screen.getByRole('button', { name: 'Images' });
+      const modelCategory = screen.getByRole('button', { name: 'Models' });
+      expect(imageCategory).toBeInTheDocument();
+      expect(modelCategory).toBeInTheDocument();
       
       // User expects search to work with proper filtering
       const searchInput = screen.getByPlaceholderText(/search assets/i);
@@ -390,7 +392,9 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
       const uploadButton = screen.getByRole('button', { name: /upload/i });
       await user.click(uploadButton);
       
-      expect(screen.getByText(/select files/i)).toBeInTheDocument();
+      // User expects file input to be available
+      const fileInput = screen.getByTestId('file-input');
+      expect(fileInput).toBeInTheDocument();
       
       // User expects progress indicator for large uploads
       const progressBar = screen.queryByRole('progressbar');

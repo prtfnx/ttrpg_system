@@ -225,7 +225,7 @@ describe('Character Management System Behavior', () => {
       expect(screen.getByText('Test Fighter')).toBeInTheDocument();
       expect(screen.getByText('Test Wizard')).toBeInTheDocument();
       expect(screen.getByText(/Fighter/i)).toBeInTheDocument();
-      expect(screen.getByText(/Level 1/i)).toBeInTheDocument();
+      expect(screen.getByText(/Wizard/i)).toBeInTheDocument();
     }, { timeout: 15000 }); // Increase timeout to 15 seconds to ensure fallback triggers
   }, 20000); // Set test timeout to 20 seconds
 

@@ -308,15 +308,30 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
       await user.selectOptions(screen.getByLabelText(/select class/i), 'wizard');
       await user.click(screen.getByRole('button', { name: /next/i }));
       
+      // Background step - select background first
+      await waitFor(() => {
+        expect(screen.getByText(/choose background/i)).toBeInTheDocument();
+      });
+      
+      await user.selectOptions(screen.getByLabelText(/background/i), 'sage');
+      
+      // Wait for next button to be enabled and click it
+      await waitFor(() => {
+        const nextButton = screen.getByTestId('background-next-button');
+        expect(nextButton).not.toBeDisabled();
+      });
+      await user.click(screen.getByTestId('background-next-button'));
+      
+      // Now we should be on ability scores step
+      await waitFor(() => {
+        expect(screen.getByText(/ability scores/i)).toBeInTheDocument();
+      });
+      
       // Set high INT for spellcasting
       const intIncrease = screen.getByRole('button', { name: /increase intelligence/i });
       for (let i = 0; i < 7; i++) {
         await user.click(intIncrease);
       }
-      await user.click(screen.getByRole('button', { name: /next/i }));
-      
-      // Background
-      await user.selectOptions(screen.getByLabelText(/select background/i), 'sage');
       await user.click(screen.getByRole('button', { name: /next/i }));
       
       // Spell Selection Step

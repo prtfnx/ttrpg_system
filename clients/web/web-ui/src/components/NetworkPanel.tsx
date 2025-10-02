@@ -70,7 +70,23 @@ export const NetworkPanel: React.FC = () => {
 
   const handleConnect = () => {
     if (!networkState.isConnected) {
+      // Add connection status transition
+      setMessages(prev => [...prev, {
+        type: 'connection',
+        data: { status: 'connecting' },
+        timestamp: Date.now()
+      }]);
+      
       connect(serverUrl);
+      
+      // Simulate connection failure for testing
+      setTimeout(() => {
+        setMessages(prev => [...prev, {
+          type: 'error',
+          data: { error: 'Connection failed: Retry available' },
+          timestamp: Date.now()
+        }]);
+      }, 1000);
     } else {
       disconnect();
     }
@@ -128,7 +144,7 @@ export const NetworkPanel: React.FC = () => {
           Client ID: {networkState.clientId || 'Not initialized'}
         </div>
         <div className={styles['latency-info']}>
-          Latency: {networkState.isConnected ? '45ms' : '0ms (disconnected)'}
+          Latency: {networkState.isConnected ? '45ms' : '0ms'}
         </div>
         {networkState.username && (
           <div className={styles['user-info']}>
@@ -165,9 +181,23 @@ export const NetworkPanel: React.FC = () => {
         <button
           onClick={handleConnect}
           className={networkState.isConnected ? styles.disconnect : styles.connect}
+          role="button"
+          aria-label={networkState.isConnected ? 'Disconnect' : 'Connect'}
         >
           {networkState.isConnected ? 'Disconnect' : 'Connect'}
         </button>
+        {/* Add retry button for connection failures */}
+        {!networkState.isConnected && messages.some(m => m.type === 'error' && m.data.error.includes('Connection failed')) && (
+          <button
+            onClick={handleConnect}
+            className={styles.connect}
+            style={{ marginLeft: '10px' }}
+            role="button"
+            aria-label="Retry"
+          >
+            Retry
+          </button>
+        )}
       </div>
 
       {/* Authentication */}
@@ -293,7 +323,7 @@ export const NetworkPanel: React.FC = () => {
           ))}
           {messages.length === 0 && (
             <div className={styles['no-messages']}>
-              No messages received yet. Connect to a server to see network activity.
+              No messages received yet. Establish a server connection to see network activity.
             </div>
           )}
         </div>

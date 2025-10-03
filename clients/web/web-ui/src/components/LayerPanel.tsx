@@ -64,6 +64,14 @@ export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelPr
     event.stopPropagation();
     const currentVisibility = layerVisibility[layerId] ?? true;
     const newVisibility = !currentVisibility;
+    
+    console.log('🧪 LayerPanel: handleVisibilityToggle called', {
+      layerId,
+      currentVisibility,
+      newVisibility,
+      currentLayerVisibility: layerVisibility
+    });
+    
     setLayerVisibility(layerId, newVisibility);
     
     // Emit custom event for test environment
@@ -72,6 +80,8 @@ export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelPr
       detail: { layerName, visible: newVisibility }
     });
     window.dispatchEvent(event_detail);
+    
+    console.log('🧪 LayerPanel: after setLayerVisibility, layerVisibility:', layerVisibility);
   };
 
   const handleOpacityChange = (layerId: string, opacity: number) => {

@@ -134,7 +134,7 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
     it('should manage multiple map layers independently', async () => {
       const user = userEvent.setup();
       
-      // Test layer elements that respond to LayerPanel visibility toggles
+      // Test layer elements that integrate directly with LayerPanel state
       const LayerTestElements = () => {
         const [layerVisibility, setLayerVisibility] = React.useState({
           background: true,
@@ -142,8 +142,42 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
           fogOfWar: true
         });
 
+        // Track clicks on fog of war button by monitoring DOM changes
         React.useEffect(() => {
-          // Listen for layer visibility events from LayerPanel
+          const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+              if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                const target = mutation.target as HTMLElement;
+                if (target.getAttribute('aria-label') === 'Toggle fog of war layer') {
+                  // Check if the button appearance suggests the layer is hidden
+                  const buttonText = target.textContent;
+                  if (buttonText === '🙈') {
+                    console.log('🧪 Test: Fog layer appears to be hidden (button shows 🙈)');
+                    setLayerVisibility(prev => ({ ...prev, fogOfWar: false }));
+                  } else if (buttonText === '👁️') {
+                    console.log('🧪 Test: Fog layer appears to be visible (button shows 👁️)');
+                    setLayerVisibility(prev => ({ ...prev, fogOfWar: true }));
+                  }
+                }
+              }
+            });
+          });
+
+          // Observe the entire LayerPanel for changes
+          const layerPanel = document.querySelector('.layer-panel');
+          if (layerPanel) {
+            observer.observe(layerPanel, { 
+              attributes: true, 
+              childList: true, 
+              subtree: true 
+            });
+          }
+
+          return () => observer.disconnect();
+        }, []);
+
+        // Also listen for layer toggle events
+        React.useEffect(() => {
           const handleLayerToggle = (event: CustomEvent) => {
             const { layerName, visible } = event.detail;
             console.log('🧪 Test: Received layer toggle event:', { layerName, visible });
@@ -153,30 +187,9 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
             }));
           };
 
-          // Create custom event listener for layer toggle
           window.addEventListener('layerToggle', handleLayerToggle as EventListener);
-          
           return () => {
             window.removeEventListener('layerToggle', handleLayerToggle as EventListener);
-          };
-        }, []);
-
-        // Also listen for direct clicks on fog layer buttons to sync state
-        React.useEffect(() => {
-          const handleDocumentClick = (event: MouseEvent) => {
-            const target = event.target as HTMLElement;
-            if (target && target.getAttribute('aria-label') === 'Toggle fog of war layer') {
-              console.log('🧪 Test: Direct fog button click detected');
-              setLayerVisibility(prev => ({
-                ...prev,
-                fogOfWar: !prev.fogOfWar
-              }));
-            }
-          };
-
-          document.addEventListener('click', handleDocumentClick);
-          return () => {
-            document.removeEventListener('click', handleDocumentClick);
           };
         }, []);
 
@@ -197,6 +210,11 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
           <LayerTestElements />
         </>
       );
+      
+      // Wait for layers to load
+      await waitFor(() => {
+        expect(screen.getByLabelText(/toggle fog of war layer/i)).toBeInTheDocument();
+      });
       
       // Default layers should be visible
       expect(screen.getByTestId('layer-background')).toHaveAttribute('data-visible', 'true');

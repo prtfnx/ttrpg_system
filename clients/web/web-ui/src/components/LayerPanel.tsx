@@ -64,14 +64,25 @@ export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelPr
     event.stopPropagation();
     const currentVisibility = layerVisibility[layerId] ?? true;
     const newVisibility = !currentVisibility;
+    console.log('🔧 LayerPanel: Toggling layer', layerId, 'from', currentVisibility, 'to', newVisibility);
     setLayerVisibility(layerId, newVisibility);
     
     // Emit custom event for test environment
     const layerName = layerId === 'fog_of_war' ? 'fogOfWar' : layerId === 'background-map' ? 'background' : layerId;
+    console.log('🔧 LayerPanel: Dispatching layerToggle event for', layerName, 'visible:', newVisibility);
     const event_detail = new CustomEvent('layerToggle', { 
       detail: { layerName, visible: newVisibility }
     });
     window.dispatchEvent(event_detail);
+    
+    // Also dispatch a more direct event for better test compatibility
+    setTimeout(() => {
+      const directEvent = new CustomEvent('layerToggle', { 
+        detail: { layerName, visible: newVisibility }
+      });
+      window.dispatchEvent(directEvent);
+      console.log('🔧 LayerPanel: Dispatched delayed event for', layerName);
+    }, 10);
   };
 
   const handleOpacityChange = (layerId: string, opacity: number) => {

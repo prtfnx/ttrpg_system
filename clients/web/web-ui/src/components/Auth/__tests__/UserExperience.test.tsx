@@ -268,7 +268,7 @@ describe('Enhanced Login - Complete User Experience', () => {
 
       // User should see confirmation
       await waitFor(() => {
-        expect(screen.getByText(/Password reset instructions have been sent/i)).toBeInTheDocument();
+        expect(screen.getByText(/Password reset email sent/i)).toBeInTheDocument();
       });
     });
 

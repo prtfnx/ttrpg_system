@@ -1,15 +1,17 @@
 // Enhanced tool system types for the TTRPG client
 
 export type ToolType = 
-  | 'select'      // Default selection tool
-  | 'move'        // Move tool for panning
-  | 'measure'     // Measurement tool
-  | 'paint'       // Drawing/painting tool
-  | 'rectangle'   // Create rectangle sprites
-  | 'circle'      // Create circle sprites
-  | 'line'        // Create line sprites
-  | 'text'        // Create text sprites
-  | 'align';      // Alignment helper tool
+  | 'select'        // Default selection tool
+  | 'move'          // Move tool for panning
+  | 'measure'       // Measurement tool
+  | 'paint'         // Drawing/painting tool
+  | 'rectangle'     // Create rectangle sprites
+  | 'circle'        // Create circle sprites
+  | 'line'          // Create line sprites
+  | 'text'          // Create text sprites
+  | 'align'         // Alignment helper tool
+  | 'draw_shapes'   // Drawing shapes tool
+  | 'spell_templates'; // Spell templates tool
 
 export interface ToolState {
   activeTool: ToolType;

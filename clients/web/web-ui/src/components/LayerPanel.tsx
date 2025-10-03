@@ -161,6 +161,10 @@ export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelPr
                     onClick={(e) => {
                       console.log('🔧 LayerPanel: Layer visibility clicked for', layer.id, 'current visible:', isVisible, 'will become:', !isVisible);
                       handleVisibilityToggle(layer.id, e);
+                      // Update test elements state for fog_of_war layer
+                      if (layer.id === 'fog_of_war') {
+                        setTestElementsVisible(!isVisible);
+                      }
                     }}
                     title={isVisible ? 'Hide layer' : 'Show layer'}
                     aria-label={layer.id === 'fog_of_war' ? 'Toggle fog of war layer' : `Toggle ${layer.name} layer`}

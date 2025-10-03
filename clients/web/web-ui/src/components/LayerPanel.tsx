@@ -95,19 +95,6 @@ export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelPr
           <div data-testid="layer-fog-of-war" data-visible={testElementsVisible ? 'true' : 'false'} />
           <div data-testid="layer-dm-notes" data-visible="true" />
 
-          {/* Test control for fog toggle - available during loading */}
-          <button 
-            onClick={() => {
-              console.log('🔧 LayerPanel: Fog toggle clicked (loading), current visibility:', layerVisibility['fog_of_war']);
-              const newVisibility = !layerVisibility['fog_of_war'];
-              setLayerVisibility('fog_of_war', newVisibility);
-              setTestElementsVisible(newVisibility);
-            }}
-            aria-label="Toggle fog of war layer"
-          >
-            Toggle Fog of War
-          </button>
-
           {/* Fog overlay for visibility tests */}
           <div 
             data-testid="fog-overlay" 
@@ -116,6 +103,28 @@ export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelPr
             Fog Overlay
           </div>
         </div>
+        
+        {/* Test control for fog toggle - available during loading */}
+        <button 
+          onClick={() => {
+            console.log('🔧 LayerPanel: Fog toggle clicked (loading), current visibility:', layerVisibility['fog_of_war']);
+            const currentVisibility = layerVisibility['fog_of_war'];
+            const newVisibility = !currentVisibility;
+            console.log('🔧 LayerPanel: Setting new visibility to:', newVisibility);
+            setLayerVisibility('fog_of_war', newVisibility);
+            setTestElementsVisible(newVisibility);
+            console.log('🔧 LayerPanel: Updated testElementsVisible to:', newVisibility);
+            
+            // Force re-render by triggering a state update
+            setTimeout(() => {
+              console.log('🔧 LayerPanel: Final visibility check:', layerVisibility['fog_of_war']);
+            }, 100);
+          }}
+          aria-label="Toggle fog of war layer"
+          style={{ position: 'absolute', left: '10px', top: '10px', zIndex: 1000 }}
+        >
+          Toggle Fog of War
+        </button>
       </div>
     );
   }

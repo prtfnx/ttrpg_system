@@ -98,6 +98,7 @@ const EnhancedLogin: React.FC = () => {
 
       if (result.success) {
         // Login successful, auth state will be updated automatically
+        setSuccess('Login successful');
       } else {
         setError(result.error?.message || 'Login failed');
       }
@@ -180,6 +181,7 @@ const EnhancedLogin: React.FC = () => {
 
     try {
       await enhancedAuthService.oauthLogin(provider);
+      setSuccess('OAuth login initiated');
     } catch (error) {
       setError(error instanceof Error ? error.message : 'OAuth login failed');
     } finally {
@@ -199,7 +201,7 @@ const EnhancedLogin: React.FC = () => {
       });
 
       if (result.success) {
-        setSuccess('Password reset instructions have been sent');
+        setSuccess('Password reset email sent');
         setShowForgotPassword(false);
         setResetEmail('');
       } else {

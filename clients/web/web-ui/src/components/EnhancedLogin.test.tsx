@@ -52,7 +52,7 @@ describe('EnhancedLogin - User Experience Tests', () => {
 
       // User should immediately see they can sign in
       expect(screen.getByText('Sign In')).toBeInTheDocument();
-      expect(screen.getByText('Welcome back! Please sign in to your account.')).toBeInTheDocument();
+      expect(screen.getByText('Sign in to access your TTRPG campaigns')).toBeInTheDocument();
       
       // User should see login form fields
       expect(screen.getByLabelText(/username or email/i)).toBeInTheDocument();
@@ -146,8 +146,8 @@ describe('EnhancedLogin - User Experience Tests', () => {
       await user.click(screen.getByText(/sign up/i));
 
       // User should see registration form
-      expect(screen.getByText('Create Account')).toBeInTheDocument();
-      expect(screen.getByText('Join our community and start your adventure.')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Create Account' })).toBeInTheDocument();
+      expect(screen.getByText('Join the adventure and create your account')).toBeInTheDocument();
       
       // User should see all registration fields
       expect(screen.getByLabelText(/username.*\*/i)).toBeInTheDocument();

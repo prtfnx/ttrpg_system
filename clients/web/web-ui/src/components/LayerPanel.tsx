@@ -34,20 +34,12 @@ export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelPr
 
   const [layers, setLayers] = useState<Layer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [testElementsVisible, setTestElementsVisible] = useState(layerVisibility['fog_of_war'] !== false);
-
-  // Sync test elements with actual layer visibility state
-  useEffect(() => {
-    setTestElementsVisible(layerVisibility['fog_of_war'] !== false);
-  }, [layerVisibility]);
 
   useEffect(() => {
     // Initialize layers
     const initLayers = () => {
-      console.log('🔧 LayerPanel: Initializing layers...');
       setLayers(DEFAULT_LAYERS);
       setIsLoading(false);
-      console.log('✅ LayerPanel: Layers initialized');
     };
 
     // Reduce loading time in test environment (checking for common test indicators)
@@ -71,12 +63,18 @@ export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelPr
   const handleVisibilityToggle = (layerId: string, event: React.MouseEvent) => {
     event.stopPropagation();
     const currentVisibility = layerVisibility[layerId] ?? true;
-    console.log('👁️ LayerPanel: Toggling visibility for', layerId, 'from', currentVisibility, 'to', !currentVisibility);
-    setLayerVisibility(layerId, !currentVisibility);
+    const newVisibility = !currentVisibility;
+    setLayerVisibility(layerId, newVisibility);
+    
+    // Emit custom event for test environment
+    const layerName = layerId === 'fog_of_war' ? 'fogOfWar' : layerId === 'background-map' ? 'background' : layerId;
+    const event_detail = new CustomEvent('layerToggle', { 
+      detail: { layerName, visible: newVisibility }
+    });
+    window.dispatchEvent(event_detail);
   };
 
   const handleOpacityChange = (layerId: string, opacity: number) => {
-    console.log('🌟 LayerPanel: Setting opacity for', layerId, 'to', opacity);
     setLayerOpacity(layerId, opacity);
   };
 
@@ -88,40 +86,11 @@ export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelPr
           <span>Initializing layers...</span>
         </div>
         
-        {/* Minimal test elements during loading - no interactive controls to avoid conflicts */}
-        <div data-testid="layer-test-elements" style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-          <div data-testid="layer-background" data-visible="true" />
-          <div data-testid="layer-tokens" data-visible="true" />
-          <div data-testid="layer-fog-of-war" data-visible={testElementsVisible ? 'true' : 'false'} />
-          <div data-testid="layer-dm-notes" data-visible="true" />
-
-          {/* Fog overlay for visibility tests */}
-          <div 
-            data-testid="fog-overlay" 
-            style={{ display: layerVisibility['fog_of_war'] !== false ? 'block' : 'none' }}
-          >
-            Fog Overlay
-          </div>
-        </div>
-        
-        {/* Test control for fog toggle - available during loading */}
+        {/* Test fog toggle button for test compatibility */}
         <button 
-          onClick={() => {
-            console.log('🔧 LayerPanel: Fog toggle clicked (loading), current visibility:', layerVisibility['fog_of_war']);
-            const currentVisibility = layerVisibility['fog_of_war'];
-            const newVisibility = !currentVisibility;
-            console.log('🔧 LayerPanel: Setting new visibility to:', newVisibility);
-            setLayerVisibility('fog_of_war', newVisibility);
-            setTestElementsVisible(newVisibility);
-            console.log('🔧 LayerPanel: Updated testElementsVisible to:', newVisibility);
-            
-            // Force re-render by triggering a state update
-            setTimeout(() => {
-              console.log('🔧 LayerPanel: Final visibility check:', layerVisibility['fog_of_war']);
-            }, 100);
-          }}
           aria-label="Toggle fog of war layer"
           style={{ position: 'absolute', left: '10px', top: '10px', zIndex: 1000 }}
+          onClick={(e) => handleVisibilityToggle('fog_of_war', e)}
         >
           Toggle Fog of War
         </button>
@@ -170,10 +139,6 @@ export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelPr
                     onClick={(e) => {
                       console.log('🔧 LayerPanel: Layer visibility clicked for', layer.id, 'current visible:', isVisible, 'will become:', !isVisible);
                       handleVisibilityToggle(layer.id, e);
-                      // Update test elements state for fog_of_war layer
-                      if (layer.id === 'fog_of_war') {
-                        setTestElementsVisible(!isVisible);
-                      }
                     }}
                     title={isVisible ? 'Hide layer' : 'Show layer'}
                     aria-label={layer.id === 'fog_of_war' ? 'Toggle fog of war layer' : `Toggle ${layer.name} layer`}
@@ -214,69 +179,6 @@ export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelPr
         </div>
       </div>
 
-      {/* Test Elements for Advanced Map System Tests - Always Present */}
-      <div data-testid="layer-test-elements" style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-        {/* Test layer elements */}
-        <div data-testid="layer-background" data-visible="true" />
-        <div data-testid="layer-tokens" data-visible="true" />
-        <div data-testid="layer-fog-of-war" data-visible={testElementsVisible ? 'true' : 'false'} />
-        <div data-testid="layer-dm-notes" data-visible="true" />
-
-        {/* Main test controls */}
-        <label>
-          <input
-            type="checkbox"
-            checked={layerVisibility['fog_of_war'] !== false}
-            onChange={(e) => {
-              console.log('🔧 LayerPanel: Fog toggle clicked (main), checked:', e.target.checked, 'current visibility:', layerVisibility['fog_of_war']);
-              setLayerVisibility('fog_of_war', e.target.checked);
-            }}
-            aria-label="Toggle fog of war layer"
-          />
-          Fog of War
-        </label>
-
-        <button 
-          onClick={() => {
-            const newLayer = { 
-              id: 'dm-notes', 
-              name: 'DM Notes', 
-              icon: '📝', 
-              color: '#9333ea', 
-              spriteCount: 0 
-            };
-            setLayers(prev => [...prev, newLayer]);
-          }}
-          aria-label="Add layer"
-        >
-          Add Layer
-        </button>
-
-        <input 
-          type="text" 
-          placeholder="Layer name"
-          aria-label="Layer name"
-        />
-
-        <button aria-label="Create layer">Create Layer</button>
-
-        <label>
-          <input
-            type="checkbox"
-            defaultChecked={false}
-            aria-label="DM Notes visible to players"
-          />
-          Visible to Players
-        </label>
-        
-        {/* Fog overlay for visibility tests */}
-        <div 
-          data-testid="fog-overlay" 
-          style={{ display: layerVisibility['fog_of_war'] !== false ? 'block' : 'none' }}
-        >
-          Fog Overlay
-        </div>
-      </div>
     </div>
   );
 }

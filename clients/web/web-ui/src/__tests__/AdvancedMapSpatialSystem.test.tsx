@@ -51,7 +51,7 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
       render(<MapPanel />);
       
       // Toggle grid snap off
-      const gridSnapToggle = screen.getByLabelText(/snap to grid/i);
+      const gridSnapToggle = screen.getByLabelText('Snap to Grid');
       await user.click(gridSnapToggle);
       
       // Place token at precise position
@@ -80,7 +80,7 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
       expect(screen.getByTestId('active-tool')).toHaveTextContent('measure');
       
       // Click and drag to measure distance
-      const mapCanvas = screen.getByTestId('map-canvas');
+      const mapCanvas = screen.getByTestId('map-canvas-main');
       
       // Start measurement at grid position A1 (25, 25)
       fireEvent.mouseDown(mapCanvas, { clientX: 25, clientY: 25 });
@@ -174,7 +174,12 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
 
     it('should provide drawing tools for terrain and obstacles', async () => {
       const user = userEvent.setup();
-      render(<ToolsPanel userInfo={mockUserInfo} />);
+      render(
+        <>
+          <ToolsPanel userInfo={mockUserInfo} />
+          <MapPanel />
+        </>
+      );
       
       // Activate drawing tool
       const drawTool = screen.getByRole('button', { name: /draw shapes/i });
@@ -194,7 +199,7 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
       await user.type(brushSize, '5'); // 5 pixel thick walls
       
       // Draw a wall on the map
-      const mapCanvas = screen.getByTestId('map-canvas');
+      const mapCanvas = screen.getByTestId('map-canvas-main');
       
       fireEvent.mouseDown(mapCanvas, { clientX: 50, clientY: 50 });
       fireEvent.mouseMove(mapCanvas, { clientX: 200, clientY: 50 });
@@ -212,7 +217,12 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
 
     it('should handle area effects with proper spell templates', async () => {
       const user = userEvent.setup();
-      render(<ToolsPanel userInfo={mockUserInfo} />);
+      render(
+        <>
+          <ToolsPanel userInfo={mockUserInfo} />
+          <MapPanel />
+        </>
+      );
       
       // Activate spell template tool
       const templateTool = screen.getByRole('button', { name: /spell templates/i });
@@ -223,7 +233,7 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
       await user.click(fireballTemplate);
       
       // Place template on map
-      const mapCanvas = screen.getByTestId('map-canvas');
+      const mapCanvas = screen.getByTestId('map-canvas-main');
       fireEvent.click(mapCanvas, { clientX: 150, clientY: 150 });
       
       // Template should appear with correct size
@@ -340,8 +350,9 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
       await user.click(placeButton);
       
       // Click to place at position
-      const mapCanvas = screen.getByTestId('map-canvas');
-      fireEvent.click(mapCanvas, { clientX: 100, clientY: 100 });
+      const mapCanvases = screen.getAllByTestId('map-canvas');
+      const specificCanvas = mapCanvases.length > 1 ? mapCanvases[1] : mapCanvases[0];
+      fireEvent.click(specificCanvas, { clientX: 100, clientY: 100 });
       
       // Fog should reveal around character based on vision
       await waitFor(() => {
@@ -420,8 +431,9 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
       await user.click(torchTemplate);
       
       // Place torch on map
-      const mapCanvas = screen.getByTestId('map-canvas');
-      fireEvent.click(mapCanvas, { clientX: 150, clientY: 150 });
+      const mapCanvases = screen.getAllByTestId('map-canvas');
+      const specificCanvas = mapCanvases.length > 1 ? mapCanvases[1] : mapCanvases[0];
+      fireEvent.click(specificCanvas, { clientX: 150, clientY: 150 });
       
       // Light should create illumination areas
       await waitFor(() => {
@@ -528,10 +540,11 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
       await user.type(brushSize, '100'); // 100 pixel radius
       
       // Paint revealed area
-      const mapCanvas = screen.getByTestId('map-canvas');
-      fireEvent.mouseDown(mapCanvas, { clientX: 200, clientY: 200 });
-      fireEvent.mouseMove(mapCanvas, { clientX: 250, clientY: 200 });
-      fireEvent.mouseUp(mapCanvas, { clientX: 250, clientY: 200 });
+      const mapCanvases = screen.getAllByTestId('map-canvas');
+      const specificCanvas = mapCanvases.length > 1 ? mapCanvases[1] : mapCanvases[0];
+      fireEvent.mouseDown(specificCanvas, { clientX: 200, clientY: 200 });
+      fireEvent.mouseMove(specificCanvas, { clientX: 250, clientY: 200 });
+      fireEvent.mouseUp(specificCanvas, { clientX: 250, clientY: 200 });
       
       // Area should be revealed
       await waitFor(() => {
@@ -544,9 +557,9 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
       await user.click(concealBrush);
       
       // Paint concealed area over revealed area
-      fireEvent.mouseDown(mapCanvas, { clientX: 225, clientY: 200 });
-      fireEvent.mouseMove(mapCanvas, { clientX: 275, clientY: 200 });
-      fireEvent.mouseUp(mapCanvas, { clientX: 275, clientY: 200 });
+      fireEvent.mouseDown(specificCanvas, { clientX: 225, clientY: 200 });
+      fireEvent.mouseMove(specificCanvas, { clientX: 275, clientY: 200 });
+      fireEvent.mouseUp(specificCanvas, { clientX: 275, clientY: 200 });
       
       // Overlapped area should be concealed again
       await waitFor(() => {

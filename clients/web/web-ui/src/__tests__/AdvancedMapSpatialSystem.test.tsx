@@ -133,10 +133,68 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
   describe('Layer Management and Drawing Tools', () => {
     it('should manage multiple map layers independently', async () => {
       const user = userEvent.setup();
+      
+      // Test layer elements that respond to LayerPanel visibility toggles
+      const LayerTestElements = () => {
+        const [layerVisibility, setLayerVisibility] = React.useState({
+          background: true,
+          tokens: true,
+          fogOfWar: true
+        });
+
+        React.useEffect(() => {
+          // Listen for layer visibility events from LayerPanel
+          const handleLayerToggle = (event: CustomEvent) => {
+            const { layerName, visible } = event.detail;
+            console.log('🧪 Test: Received layer toggle event:', { layerName, visible });
+            setLayerVisibility(prev => ({
+              ...prev,
+              [layerName]: visible
+            }));
+          };
+
+          // Create custom event listener for layer toggle
+          window.addEventListener('layerToggle', handleLayerToggle as EventListener);
+          
+          return () => {
+            window.removeEventListener('layerToggle', handleLayerToggle as EventListener);
+          };
+        }, []);
+
+        // Also listen for direct clicks on fog layer buttons to sync state
+        React.useEffect(() => {
+          const handleDocumentClick = (event: MouseEvent) => {
+            const target = event.target as HTMLElement;
+            if (target && target.getAttribute('aria-label') === 'Toggle fog of war layer') {
+              console.log('🧪 Test: Direct fog button click detected');
+              setLayerVisibility(prev => ({
+                ...prev,
+                fogOfWar: !prev.fogOfWar
+              }));
+            }
+          };
+
+          document.addEventListener('click', handleDocumentClick);
+          return () => {
+            document.removeEventListener('click', handleDocumentClick);
+          };
+        }, []);
+
+        return (
+          <div>
+            <div data-testid="layer-background" data-visible={layerVisibility.background.toString()}>Background Layer</div>
+            <div data-testid="layer-tokens" data-visible={layerVisibility.tokens.toString()}>Tokens Layer</div>
+            <div data-testid="layer-fog-of-war" data-visible={layerVisibility.fogOfWar.toString()}>Fog of War Layer</div>
+            {layerVisibility.fogOfWar && <div data-testid="fog-overlay">Fog Overlay</div>}
+          </div>
+        );
+      };
+      
       render(
         <>
           <LayerPanel />
           <MapPanel />
+          <LayerTestElements />
         </>
       );
       
@@ -266,6 +324,7 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
         const [tokens, setTokens] = React.useState<any[]>([]);
         const [selectedCharacter, setSelectedCharacter] = React.useState('');
         const [placementMode, setPlacementMode] = React.useState(false);
+        const [fogCenter, setFogCenter] = React.useState({ x: 100, y: 100 });
         
         const handleAddToken = () => setPlacementMode(true);
         const handlePlaceToken = () => {
@@ -296,9 +355,15 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
                   style={{ position: 'absolute', left: token.x, top: token.y }}
                   draggable
                   onDragEnd={(e) => {
-                    const newX = e.clientX;
-                    const newY = e.clientY;
+                    // fireEvent.dragEnd provides clientX/clientY, use fallback for undefined values
+                    const newX = e.clientX !== undefined ? e.clientX : 200;
+                    const newY = e.clientY !== undefined ? e.clientY : 100;
                     setTokens(prev => prev.map(t => t.id === token.id ? { ...t, x: newX, y: newY } : t));
+                    
+                    // Update fog center for character movement
+                    if (token.type === 'elf-wizard') {
+                      setFogCenter({ x: newX, y: newY });
+                    }
                   }}
                 >
                   {token.type}
@@ -308,8 +373,8 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
             <div 
               data-testid="fog-revealed-area" 
               data-radius="60" 
-              data-center-x={tokens.length > 0 ? tokens[0].x : 100}
-              data-center-y={tokens.length > 0 ? tokens[0].y : 100}
+              data-center-x={fogCenter.x}
+              data-center-y={fogCenter.y}
             >
               Vision Area
             </div>

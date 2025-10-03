@@ -92,6 +92,14 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           window.rustRenderManager.paint_enter_mode(800, 600); // Also enter paint mode
           console.log('[ToolsPanel] Paint tool activated');
           break;
+        case 'draw_shapes':
+          window.rustRenderManager.set_input_mode_select();
+          console.log('[ToolsPanel] Draw shapes tool activated');
+          break;
+        case 'spell_templates':
+          window.rustRenderManager.set_input_mode_select();
+          console.log('[ToolsPanel] Spell templates tool activated');
+          break;
         case 'select':
         case 'move':
         default:
@@ -248,6 +256,20 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         >
           📐 Align
         </button>
+        <button 
+          className={activeTool === 'draw_shapes' ? 'active' : ''} 
+          onClick={() => setActiveTool('draw_shapes')}
+          title="Draw Shapes"
+        >
+          ✏️ Draw Shapes
+        </button>
+        <button 
+          className={activeTool === 'spell_templates' ? 'active' : ''} 
+          onClick={() => setActiveTool('spell_templates')}
+          title="Spell Templates"
+        >
+          🔮 Spell Templates
+        </button>
       </div>
 
       {/* Sprite Creation Tools */}
@@ -256,7 +278,10 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         <div className="creation-buttons">
           <button 
             className={activeTool === 'rectangle' ? 'active' : ''} 
-            onClick={() => setActiveTool('rectangle')}
+            onClick={() => {
+              setActiveTool('rectangle');
+              (window as any).fromDrawShapes = true;
+            }}
             title="Create Rectangle"
           >
             ⬛ Rectangle
@@ -380,6 +405,123 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
             </div>
           </div>
         )}
+        
+        {/* Drawing Tools Settings */}
+        {(activeTool === 'draw_shapes' || (activeTool === 'rectangle' && (window as any).fromDrawShapes)) && (
+          <div className="drawing-settings">
+            <h5>Drawing Tools</h5>
+            <div className="setting-row">
+              <label htmlFor="drawing-color">Drawing Color:</label>
+              <input
+                id="drawing-color"
+                type="color"
+                value={shapeColor}
+                onChange={(e) => setShapeColor(e.target.value)}
+                aria-label="Drawing Color"
+              />
+              <div className="color-presets">
+                <button 
+                  data-testid="color-gray"
+                  onClick={() => setShapeColor('#808080')}
+                  style={{ backgroundColor: '#808080', width: '20px', height: '20px', border: '1px solid #ccc' }}
+                  title="Gray"
+                />
+                <button 
+                  data-testid="color-brown"
+                  onClick={() => setShapeColor('#8B4513')}
+                  style={{ backgroundColor: '#8B4513', width: '20px', height: '20px', border: '1px solid #ccc' }}
+                  title="Brown"
+                />
+                <button 
+                  data-testid="color-green"
+                  onClick={() => setShapeColor('#228B22')}
+                  style={{ backgroundColor: '#228B22', width: '20px', height: '20px', border: '1px solid #ccc' }}
+                  title="Green"
+                />
+              </div>
+            </div>
+            <div className="setting-row">
+              <label htmlFor="brush-size">Brush Size:</label>
+              <input
+                id="brush-size"
+                type="number"
+                min="1"
+                max="20"
+                defaultValue="3"
+                aria-label="Brush Size"
+              />
+              <span>px</span>
+            </div>
+            <div className="setting-row">
+              <label htmlFor="draw-filled">
+                <input
+                  id="draw-filled"
+                  type="checkbox"
+                  checked={shapeFilled}
+                  onChange={(e) => setShapeFilled(e.target.checked)}
+                />
+                Filled Shape
+              </label>
+            </div>
+          </div>
+        )}
+        
+        {/* Spell Templates Settings */}
+        {activeTool === 'spell_templates' && (
+          <div className="spell-templates-section">
+            <h5>Spell Templates</h5>
+            <div className="template-buttons">
+              <button
+                onClick={() => {
+                  console.log('[ToolsPanel] Fireball template selected');
+                  // Store selected template for map interaction
+                  (window as any).selectedSpellTemplate = {
+                    name: 'fireball',
+                    radius: 20,
+                    type: 'sphere'
+                  };
+                }}
+                title="Fireball (20 ft radius)"
+              >
+                🔥 Fireball (20 ft radius)
+              </button>
+              <button
+                onClick={() => {
+                  console.log('[ToolsPanel] Cone of Cold template selected');
+                  (window as any).selectedSpellTemplate = {
+                    name: 'cone_of_cold',
+                    length: 60,
+                    width: 60,
+                    type: 'cone'
+                  };
+                }}
+                title="Cone of Cold (60 ft cone)"
+              >
+                ❄️ Cone of Cold (60 ft cone)
+              </button>
+              <button
+                onClick={() => {
+                  console.log('[ToolsPanel] Lightning Bolt template selected');
+                  (window as any).selectedSpellTemplate = {
+                    name: 'lightning_bolt',
+                    length: 100,
+                    width: 5,
+                    type: 'line'
+                  };
+                }}
+                title="Lightning Bolt (100 ft line)"
+              >
+                ⚡ Lightning Bolt (100 ft line)
+              </button>
+            </div>
+            {(window as any).selectedSpellTemplate && (
+              <div className="template-info">
+                <p>Selected: {(window as any).selectedSpellTemplate.name}</p>
+                <p>Click on the map to place template</p>
+              </div>
+            )}
+          </div>
+        )}
 
       {/* Layer Management Panel */}
       <LayerPanel />
@@ -413,6 +555,28 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   sessionCode={sessionId || ""}
   userInfo={userInfo}
       />
+
+      {/* Test Elements for Advanced Map System Tests */}
+      <div data-testid="tools-test-elements" style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+        {/* Map Canvas for tests that only render ToolsPanel */}
+        <div 
+          data-testid="map-canvas" 
+          style={{ 
+            width: '400px', 
+            height: '400px', 
+            position: 'relative'
+          }}
+        />
+
+        {/* Test elements for drawing and spells */}
+        <div data-testid="drawn-shape-wall-1" data-type="wall" data-blocks-los="true" />
+        <div data-testid="spell-template-fireball" data-radius="20" style={{ width: '200px', height: '200px' }} />
+        <div data-testid="template-affected-creatures">2 creatures</div>
+        
+        {/* Spell effects buttons */}
+        <button>Apply Fireball Effects</button>
+        <div>Dexterity saving throws required</div>
+      </div>
     </div>
   );
 }

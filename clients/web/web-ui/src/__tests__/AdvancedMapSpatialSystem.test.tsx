@@ -3,10 +3,10 @@
  * Tests real map interaction, grid snapping, measurement tools, and spatial awareness
  * Focused on expected behavior for tactical TTRPG mapping
  */
-import { fireEvent, render, screen, waitFor, act } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
-import { describe, expect, it, afterEach } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 // Import actual components
 import { LayerPanel } from '../components/LayerPanel';
@@ -153,10 +153,18 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
         </>
       );
       
-      // Wait for layers to load properly
+      // Wait for layers to load properly AND for the actual layer buttons to appear
       await waitFor(() => {
-        expect(screen.getByLabelText(/toggle fog of war layer/i)).toBeInTheDocument();
-      });
+        // Make sure the fog of war layer is actually rendered (not just the loading fallback)
+        const fogLayerExists = screen.getByText('Fog of War'); // The actual layer name
+        expect(fogLayerExists).toBeInTheDocument();
+        
+        const fogToggle = screen.getByLabelText(/toggle fog of war layer/i);
+        expect(fogToggle).toBeInTheDocument();
+        
+        // Ensure we're not in loading state by checking the button has an emoji (not "Toggle Fog of War" text)
+        expect(fogToggle.textContent).toMatch(/^(👁️|🙈)$/);
+      }, { timeout: 2000 });
 
       // Test basic layer visibility functionality by checking LayerPanel's actual state
       let fogToggle;

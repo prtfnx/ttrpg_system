@@ -83,9 +83,12 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...oth
     // Apply grid snapping if enabled
     if (mapSettings.gridSettings.snapToGrid) {
       const gridSize = mapSettings.gridSettings.size;
-      // Snap to grid intersection (center of grid cell)
-      newX = Math.round(newX / gridSize) * gridSize + (gridSize / 2);
-      newY = Math.round(newY / gridSize) * gridSize + (gridSize / 2);
+      // Calculate which grid cell we're in and snap to its center
+      // Grid centers are at (25, 25), (75, 75), (125, 125), etc. for 50px grid
+      const cellX = Math.floor(newX / gridSize);
+      const cellY = Math.floor(newY / gridSize);
+      newX = cellX * gridSize + (gridSize / 2);
+      newY = cellY * gridSize + (gridSize / 2);
     }
     
     if (!isNaN(newX) && !isNaN(newY)) {

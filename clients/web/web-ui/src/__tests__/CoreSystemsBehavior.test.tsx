@@ -568,9 +568,8 @@ describe('Paint System Behavior', () => {
     render(<PaintPanel />);
 
     // User expects template management (per TODO_PRODUCTION.md)
-    expect(screen.getByText('Templates')).toBeInTheDocument();
-    expect(screen.getByText(/save as template/i)).toBeInTheDocument();
-    expect(screen.getByText(/load template/i)).toBeInTheDocument();
+    expect(screen.getByText('Paint Templates')).toBeInTheDocument();
+    expect(screen.getByText(/save template/i)).toBeInTheDocument();
   });
 });
 

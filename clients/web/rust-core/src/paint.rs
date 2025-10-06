@@ -1,14 +1,17 @@
 use wasm_bindgen::prelude::*;
-use serde::{Se#[wasm_bindgen]
-pub struct PaintSystem {
-    strokes: Vec<DrawStroke>,
-    redo_stack: Vec<DrawStroke>,  // Add redo stack
-    current_stroke: Option<DrawStroke>,
-    is_drawing: bool,ze, Deserialize};
+use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use crate::math::Vec2;
 use crate::webgl_renderer::WebGLRenderer;
 use crate::types::BlendMode;
+
+#[wasm_bindgen]
+pub struct PaintSystem {
+    strokes: Vec<DrawStroke>,
+    redo_stack: Vec<DrawStroke>,  // Add redo stack
+    current_stroke: Option<DrawStroke>,
+    is_drawing: bool,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrawPoint {

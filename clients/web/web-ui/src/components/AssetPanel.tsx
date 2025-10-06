@@ -317,27 +317,6 @@ export const AssetPanel: React.FC = () => {
     );
   }
 
-  // Add asset list display after the upload button
-  const assetListDisplay = isInitialized ? (
-    <div className="asset-list">
-      {filteredAssets.map(asset => (
-        <div key={asset.id} className="asset-item">
-          <span>{asset.name}</span>
-          <span className="asset-size">{formatFileSize(asset.size)}</span>
-        </div>
-      ))}
-    </div>
-  ) : (
-    <div className="asset-list">
-      {filteredAssets.map(asset => (
-        <div key={asset.id} className="asset-item">
-          <span>{asset.name}</span>
-          <span className="asset-size">{(asset.size / 1024 / 1024).toFixed(2)} MB</span>
-        </div>
-      ))}
-    </div>
-  );
-
   return (
     <div className="asset-panel">
       <h3>Asset Manager</h3>

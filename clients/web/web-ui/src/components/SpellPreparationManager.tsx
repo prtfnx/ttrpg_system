@@ -165,7 +165,7 @@ export function SpellPreparationManager({
   const [selectedSpell, setSelectedSpell] = useState<Spell | null>(null);
   const [showRitualSpells, setShowRitualSpells] = useState(true);
   const [isRitualCasting, setIsRitualCasting] = useState(false);
-  const [spellSlotsUsed, setSpellSlotsUsed] = useState(0);
+  const [spellSlotsUsed] = useState(0);
 
   const abilityModifier = getSpellcastingAbilityModifier(characterClass, abilityScores);
   const maxPreparedSpells = calculateSpellsCanPrepare(characterClass, characterLevel, abilityModifier);

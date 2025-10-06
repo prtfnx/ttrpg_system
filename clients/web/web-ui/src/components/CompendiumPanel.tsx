@@ -35,7 +35,8 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ userInfo, cate
     category === 'equipment' ? 'equipment' : 'all'
   );
   const [spellLevel, setSpellLevel] = useState('');
-  const [challengeRating, setChallengeRating] = useState('');
+  // Challenge rating filtering - to be implemented later
+  // const [challengeRating, setChallengeRating] = useState('');
   const [dragged, setDragged] = useState<CompendiumEntry | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<CompendiumEntry | null>(null);
   // const [loading, setLoading] = useState(false);

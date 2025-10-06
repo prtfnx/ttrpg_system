@@ -10,6 +10,8 @@ export interface PaintState {
   brushColor: number[];
   brushWidth: number;
   blendMode: string;
+  canUndo: boolean;
+  canRedo: boolean;
 }
 
 export interface PaintControls {
@@ -20,6 +22,7 @@ export interface PaintControls {
   setBlendMode: (mode: 'alpha' | 'additive' | 'modulate' | 'multiply') => void;
   clearAll: () => void;
   undoStroke: () => void;
+  redoStroke: () => void;
   getStrokes: () => any[];
   getCurrentStroke: () => any | null;
   startStroke: (worldX: number, worldY: number, pressure?: number) => boolean;
@@ -49,6 +52,8 @@ export function usePaintSystem(
     brushColor: [1.0, 1.0, 1.0, 1.0], // White
     brushWidth: 3.0,
     blendMode: 'alpha',
+    canUndo: false,
+    canRedo: false,
   });
 
   const eventsRef = useRef(events);
@@ -77,6 +82,8 @@ export function usePaintSystem(
         const strokeCount = renderEngine.paint_get_stroke_count();
         const brushColor = renderEngine.paint_get_brush_color();
         const brushWidth = renderEngine.paint_get_brush_width();
+        const canUndo = renderEngine.can_undo ? renderEngine.can_undo() : false;
+        const canRedo = renderEngine.can_redo ? renderEngine.can_redo() : false;
 
         setPaintState(prev => ({
           ...prev,
@@ -85,6 +92,8 @@ export function usePaintSystem(
           strokeCount,
           brushColor,
           brushWidth,
+          canUndo,
+          canRedo,
         }));
       } catch (error) {
         console.error('Error updating paint state:', error);
@@ -139,6 +148,11 @@ export function usePaintSystem(
   const undoStroke = useCallback(() => {
     if (!renderEngine) return;
     return renderEngine.paint_undo_stroke();
+  }, [renderEngine]);
+
+  const redoStroke = useCallback(() => {
+    if (!renderEngine) return false;
+    return renderEngine.redo_last_stroke ? renderEngine.redo_last_stroke() : false;
   }, [renderEngine]);
 
   const getStrokes = useCallback(() => {
@@ -206,6 +220,7 @@ export function usePaintSystem(
     setBlendMode,
     clearAll,
     undoStroke,
+    redoStroke,
     getStrokes,
     getCurrentStroke,
     startStroke,

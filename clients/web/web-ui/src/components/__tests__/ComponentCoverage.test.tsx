@@ -17,6 +17,7 @@ import { AssetPanel } from '../AssetPanel';
 import { ChatPanel } from '../ChatPanel';
 import { FogPanel } from '../FogPanel';
 import { GameCanvas } from '../GameCanvas';
+import { CanvasRenderer } from '../GameCanvas/CanvasRenderer';
 import { InitiativeTracker } from '../InitiativeTracker';
 import { LightingPanel } from '../LightingPanel';
 import { NetworkPanel } from '../NetworkPanel';
@@ -301,49 +302,50 @@ describe('NetworkPanel Component', () => {
 
 // Test GameCanvas Component
 describe('GameCanvas Component', () => {
-  test.skip('renders canvas element', () => {
-    // Skip for now - needs ProtocolProvider setup
-    render(<GameCanvas />);
+  test('renders canvas element with proper accessibility', () => {
+    render(<CanvasRenderer />);
     
-    // Should have a canvas element
-    const canvas = document.querySelector('canvas');
-    expect(canvas).toBeTruthy();
+    const canvas = screen.getByTestId('game-canvas');
+    expect(canvas).toBeInTheDocument();
+    expect(canvas).toBeInstanceOf(HTMLCanvasElement);
+    expect(canvas).toHaveAttribute('tabIndex', '0');
+    expect(canvas).toHaveStyle({ outline: 'none' });
   });
 
-  test.skip('sets proper canvas dimensions', () => {
-    // Skip for now - needs ProtocolProvider setup
-    render(<GameCanvas />);
+  test('sets proper canvas dimensions', () => {
+    render(<CanvasRenderer width={1024} height={768} />);
     
-    const canvas = document.querySelector('canvas');
-    if (canvas) {
-      // Should respect provided dimensions
-      expect(canvas.width >= 0).toBe(true);
-      expect(canvas.height >= 0).toBe(true);
-    }
+    const canvas = screen.getByTestId('game-canvas');
+    expect(canvas).toHaveAttribute('width', '1024');
+    expect(canvas).toHaveAttribute('height', '768');
   });
 
-  test.skip('handles mouse interactions on canvas', async () => {
-    // Skip for now - needs ProtocolProvider setup
+  test('handles mouse interactions on canvas', async () => {
+    const mockMouseDown = vi.fn();
     const user = userEvent.setup();
-    render(<GameCanvas />);
     
-    const canvas = document.querySelector('canvas');
-    if (canvas) {
-      await user.click(canvas);
-      // Should handle canvas clicks without crashing
-      expect(true).toBe(true);
-    }
+    render(<CanvasRenderer onMouseDown={mockMouseDown} />);
+    
+    const canvas = screen.getByTestId('game-canvas');
+    await user.click(canvas);
+    
+    expect(mockMouseDown).toHaveBeenCalled();
   });
 
-  test.skip('provides keyboard interaction support', () => {
-    // Skip for now - needs ProtocolProvider setup
-    render(<GameCanvas />);
+  test('provides keyboard interaction support', async () => {
+    const mockKeyDown = vi.fn();
+    const user = userEvent.setup();
     
-    const canvas = document.querySelector('canvas');
-    if (canvas) {
-      // Canvas should be focusable for keyboard events
-      expect(canvas.tabIndex >= -1).toBe(true);
-    }
+    render(<CanvasRenderer onKeyDown={mockKeyDown} />);
+    
+    const canvas = screen.getByTestId('game-canvas');
+    canvas.focus();
+    await user.keyboard('{F3}');
+    
+    expect(canvas).toHaveFocus();
+    expect(mockKeyDown).toHaveBeenCalledWith(
+      expect.objectContaining({ key: 'F3' })
+    );
   });
 });
 

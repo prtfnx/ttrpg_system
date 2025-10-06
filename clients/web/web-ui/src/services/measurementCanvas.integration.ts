@@ -507,9 +507,134 @@ export class MeasurementCanvasIntegration {
       }
     }
     
-    // TODO: Implement hex, isometric, and triangular grids
+    // Additional grid types implementation
+    if (grid.type === 'hex') {
+      this.createHexGridPath(path, grid as any, canvasSize);
+    } else if (grid.type === 'isometric') {
+      this.createIsometricGridPath(path, grid, canvasSize);
+    } else if (grid.type === 'triangular') {
+      this.createTriangularGridPath(path, grid, canvasSize);
+    }
     
     return path;
+  }
+
+  private createHexGridPath(path: Path2D, grid: any, canvasSize: { width: number; height: number }): void {
+    const hexRadius = grid.hexRadius || grid.size;
+    const width = hexRadius * 1.5;
+    const height = hexRadius * Math.sqrt(3);
+    
+    // Calculate grid bounds
+    const startX = Math.floor((0 - grid.origin.x) / width) * width + grid.origin.x;
+    const endX = Math.ceil((canvasSize.width - grid.origin.x) / width) * width + grid.origin.x;
+    const startY = Math.floor((0 - grid.origin.y) / height) * height + grid.origin.y;
+    const endY = Math.ceil((canvasSize.height - grid.origin.y) / height) * height + grid.origin.y;
+    
+    // Draw hexagonal grid
+    for (let x = startX; x <= endX; x += width) {
+      for (let y = startY; y <= endY; y += height) {
+        // Offset every other row
+        const offsetX = (Math.floor((y - grid.origin.y) / height) % 2) * (width / 2);
+        const centerX = x + offsetX;
+        const centerY = y;
+        
+        // Draw hexagon
+        this.drawHexagon(path, centerX, centerY, hexRadius);
+      }
+    }
+  }
+
+  private drawHexagon(path: Path2D, centerX: number, centerY: number, radius: number): void {
+    const angles = [0, 60, 120, 180, 240, 300].map(deg => deg * Math.PI / 180);
+    
+    angles.forEach((angle, index) => {
+      const x = centerX + radius * Math.cos(angle);
+      const y = centerY + radius * Math.sin(angle);
+      
+      if (index === 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    });
+    path.closePath();
+  }
+
+  private createIsometricGridPath(path: Path2D, grid: GridConfiguration, canvasSize: { width: number; height: number }): void {
+    const size = grid.size;
+    const halfSize = size / 2;
+    
+    // Calculate bounds for diamond pattern
+    const maxDim = Math.max(canvasSize.width, canvasSize.height);
+    const gridRange = Math.ceil(maxDim / halfSize) + 2;
+    
+    // Draw diagonal lines going from top-left to bottom-right
+    for (let i = -gridRange; i <= gridRange; i++) {
+      const startX = grid.origin.x + i * halfSize;
+      const startY = grid.origin.y - maxDim;
+      const endX = startX + maxDim;
+      const endY = grid.origin.y + maxDim;
+      
+      path.moveTo(startX, startY);
+      path.lineTo(endX, endY);
+    }
+    
+    // Draw diagonal lines going from top-right to bottom-left
+    for (let i = -gridRange; i <= gridRange; i++) {
+      const startX = grid.origin.x + i * halfSize;
+      const startY = grid.origin.y + maxDim;
+      const endX = startX + maxDim;
+      const endY = grid.origin.y - maxDim;
+      
+      path.moveTo(startX, startY);
+      path.lineTo(endX, endY);
+    }
+  }
+
+  private createTriangularGridPath(path: Path2D, grid: GridConfiguration, canvasSize: { width: number; height: number }): void {
+    const size = grid.size;
+    const height = size * Math.sqrt(3) / 2;
+    const rowWidth = size * 0.75;
+    
+    // Calculate grid bounds
+    const maxCols = Math.ceil(canvasSize.width / rowWidth) + 2;
+    const maxRows = Math.ceil(canvasSize.height / height) + 2;
+    
+    // Draw triangular grid pattern
+    for (let row = -2; row <= maxRows; row++) {
+      const y = grid.origin.y + row * height;
+      const offsetX = (row % 2) * (size * 0.375);
+      
+      for (let col = -2; col <= maxCols; col++) {
+        const x = grid.origin.x + col * rowWidth + offsetX;
+        
+        // Draw upward pointing triangle
+        this.drawTriangle(path, x, y, size, true);
+        
+        // Draw downward pointing triangle (offset pattern)
+        if (col < maxCols) {
+          this.drawTriangle(path, x + size * 0.375, y + height / 3, size, false);
+        }
+      }
+    }
+  }
+
+  private drawTriangle(path: Path2D, x: number, y: number, size: number, pointUp: boolean): void {
+    const height = size * Math.sqrt(3) / 2;
+    const halfSize = size / 2;
+    
+    if (pointUp) {
+      // Point up triangle
+      path.moveTo(x, y - height / 3 * 2);  // Top point
+      path.lineTo(x - halfSize, y + height / 3);  // Bottom left
+      path.lineTo(x + halfSize, y + height / 3);  // Bottom right
+    } else {
+      // Point down triangle
+      path.moveTo(x, y + height / 3 * 2);  // Bottom point
+      path.lineTo(x - halfSize, y - height / 3);  // Top left
+      path.lineTo(x + halfSize, y - height / 3);  // Top right
+    }
+    path.closePath();
   }
 
   /**

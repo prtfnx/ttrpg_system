@@ -11,6 +11,22 @@ pub struct PaintSystem {
     redo_stack: Vec<DrawStroke>,  // Add redo stack
     current_stroke: Option<DrawStroke>,
     is_drawing: bool,
+    
+    // Brush settings
+    current_color: [f32; 4],
+    current_width: f32,
+    current_blend_mode: BlendMode,
+    
+    // Canvas settings
+    canvas_width: f32,
+    canvas_height: f32,
+    paint_mode: bool,
+    
+    // Drawing state
+    last_point: Option<Vec2>,
+    
+    // Event callbacks
+    stroke_callbacks: HashMap<String, js_sys::Function>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,28 +67,7 @@ impl DrawStroke {
     }
 }
 
-#[wasm_bindgen]
-pub struct PaintSystem {
-    strokes: Vec<DrawStroke>,
-    current_stroke: Option<DrawStroke>,
-    is_drawing: bool,
-    
-    // Brush settings
-    current_color: [f32; 4],
-    current_width: f32,
-    current_blend_mode: BlendMode,
-    
-    // Canvas settings
-    canvas_width: f32,
-    canvas_height: f32,
-    paint_mode: bool,
-    
-    // Drawing state
-    last_point: Option<Vec2>,
-    
-    // Event callbacks
-    stroke_callbacks: HashMap<String, js_sys::Function>,
-}
+// Duplicate struct definition removed - using the complete one above
 
 #[wasm_bindgen]
 impl PaintSystem {

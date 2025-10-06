@@ -12,6 +12,7 @@ import type { RenderEngine } from '../types';
 import type { GlobalWasmModule } from '../utils/wasmManager';
 import { DragDropImageHandler } from './DragDropImageHandler';
 import './GameCanvas.css';
+import { CanvasRenderer } from './GameCanvas/CanvasRenderer';
 import PerformanceMonitor from './PerformanceMonitor';
 
 declare global {
@@ -741,7 +742,7 @@ export const GameCanvas: React.FC = () => {
           draggable
         />
 
-        <canvas
+        <CanvasRenderer
           ref={canvasRef}
           className="game-canvas"
           data-testid="game-canvas"

@@ -1,5 +1,10 @@
 use wasm_bindgen::prelude::*;
-use serde::{Serialize, Deserialize};
+use serde::{Se#[wasm_bindgen]
+pub struct PaintSystem {
+    strokes: Vec<DrawStroke>,
+    redo_stack: Vec<DrawStroke>,  // Add redo stack
+    current_stroke: Option<DrawStroke>,
+    is_drawing: bool,ze, Deserialize};
 use std::collections::HashMap;
 use crate::math::Vec2;
 use crate::webgl_renderer::WebGLRenderer;
@@ -72,6 +77,7 @@ impl PaintSystem {
     pub fn new() -> Self {
         Self {
             strokes: Vec::new(),
+            redo_stack: Vec::new(),  // Initialize redo stack
             current_stroke: None,
             is_drawing: false,
             current_color: [1.0, 1.0, 1.0, 1.0], // White
@@ -209,6 +215,7 @@ impl PaintSystem {
         if let Some(stroke) = self.current_stroke.take() {
             if stroke.points.len() > 1 {
                 self.strokes.push(stroke);
+                self.redo_stack.clear(); // Clear redo stack when new stroke is added
                 self.emit_stroke_completed();
             }
         }
@@ -239,11 +246,38 @@ impl PaintSystem {
     #[wasm_bindgen]
     pub fn undo_last_stroke(&mut self) -> bool {
         if !self.strokes.is_empty() {
-            self.strokes.pop();
+            let stroke = self.strokes.pop().unwrap();
+            self.redo_stack.push(stroke);  // Add to redo stack
             self.emit_stroke_undone();
             return true;
         }
         false
+    }
+    
+    #[wasm_bindgen]
+    pub fn redo_last_stroke(&mut self) -> bool {
+        if !self.redo_stack.is_empty() {
+            let stroke = self.redo_stack.pop().unwrap();
+            self.strokes.push(stroke);  // Restore from redo stack
+            self.emit_stroke_redone();
+            return true;
+        }
+        false
+    }
+    
+    #[wasm_bindgen]
+    pub fn can_undo(&self) -> bool {
+        !self.strokes.is_empty()
+    }
+    
+    #[wasm_bindgen]
+    pub fn can_redo(&self) -> bool {
+        !self.redo_stack.is_empty()
+    }
+    
+    #[wasm_bindgen]
+    pub fn clear_redo_stack(&mut self) {
+        self.redo_stack.clear();
     }
     
     #[wasm_bindgen]
@@ -410,6 +444,12 @@ impl PaintSystem {
     
     fn emit_stroke_undone(&self) {
         if let Some(callback) = self.stroke_callbacks.get("stroke_undone") {
+            let _ = callback.call0(&JsValue::NULL);
+        }
+    }
+    
+    fn emit_stroke_redone(&self) {
+        if let Some(callback) = self.stroke_callbacks.get("stroke_redone") {
             let _ = callback.call0(&JsValue::NULL);
         }
     }

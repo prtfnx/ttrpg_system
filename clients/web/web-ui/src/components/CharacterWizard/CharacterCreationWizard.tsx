@@ -213,15 +213,6 @@ export function CharacterCreationWizard({ onFinish, onCancel, isOpen, userInfo: 
     return step;
   }
 
-  function handleNextBackground() {
-    const values = methods.getValues();
-    if (values.background && values.background.length > 0) {
-      setStep((s) => s + 1);
-    } else {
-      methods.setError('background', { type: 'manual', message: 'Select a background' });
-    }
-  }
-
   function handleBack() {
     setStep((s) => Math.max(0, s - 1));
   }

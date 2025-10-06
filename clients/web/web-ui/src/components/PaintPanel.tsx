@@ -286,11 +286,8 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
               ↶ Undo
             </button>
             <button
-              onClick={() => {
-                // TODO: Implement redo functionality
-                console.log('Redo functionality not yet implemented');
-              }}
-              disabled={true}
+              onClick={paintControls.redoStroke}
+              disabled={!paintState.isActive || !paintState.canRedo}
               className="btn-secondary"
               title="Redo last undone stroke"
             >

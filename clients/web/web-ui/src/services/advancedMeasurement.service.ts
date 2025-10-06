@@ -426,15 +426,15 @@ class AdvancedMeasurementService {
         break;
 
       case 'isometric':
-        // TODO: Implement isometric grid snapping
-        snappedX = point.x;
-        snappedY = point.y;
+        const isoSnap = this.snapToIsometricGrid(point, grid);
+        snappedX = isoSnap.x;
+        snappedY = isoSnap.y;
         break;
 
       case 'triangular':
-        // TODO: Implement triangular grid snapping
-        snappedX = point.x;
-        snappedY = point.y;
+        const triSnap = this.snapToTriangularGrid(point, grid);
+        snappedX = triSnap.x;
+        snappedY = triSnap.y;
         break;
 
       default:
@@ -778,6 +778,71 @@ class AdvancedMeasurementService {
     const q = (2/3 * (point.x - grid.origin.x)) / size;
     const r = (-1/3 * (point.x - grid.origin.x) + Math.sqrt(3)/3 * (point.y - grid.origin.y)) / size;
     return { q: Math.round(q), r: Math.round(r) };
+  }
+
+  private snapToIsometricGrid(point: MeasurementPoint, grid: GridConfiguration): { x: number; y: number } {
+    // Isometric grid snapping using diamond pattern
+    // Transform coordinates to isometric space
+    const size = grid.size;
+    const halfSize = size / 2;
+    
+    // Apply rotation if needed
+    const rotatedX = point.x - grid.origin.x - grid.offsetX;
+    const rotatedY = point.y - grid.origin.y - grid.offsetY;
+    
+    // Convert to isometric coordinates (45-degree rotated and scaled)
+    const isoX = (rotatedX + rotatedY) / size;
+    const isoY = (rotatedY - rotatedX) / size;
+    
+    // Round to nearest grid intersection
+    const roundedIsoX = Math.round(isoX);
+    const roundedIsoY = Math.round(isoY);
+    
+    // Convert back to screen coordinates
+    const screenX = (roundedIsoX - roundedIsoY) * halfSize + grid.origin.x + grid.offsetX;
+    const screenY = (roundedIsoX + roundedIsoY) * halfSize + grid.origin.y + grid.offsetY;
+    
+    return { x: screenX, y: screenY };
+  }
+
+  private snapToTriangularGrid(point: MeasurementPoint, grid: GridConfiguration): { x: number; y: number } {
+    // Triangular grid snapping using equilateral triangle pattern
+    const size = grid.size;
+    const height = size * Math.sqrt(3) / 2; // Height of equilateral triangle
+    
+    // Offset from origin
+    const offsetX = point.x - grid.origin.x - grid.offsetX;
+    const offsetY = point.y - grid.origin.y - grid.offsetY;
+    
+    // Convert to triangular grid coordinates
+    const col = Math.round(offsetX / (size * 0.75)); // 3/4 size for overlapping pattern
+    const row = Math.round(offsetY / height);
+    
+    // Calculate position based on triangular grid
+    let snapX: number;
+    let snapY: number;
+    
+    if (row % 2 === 0) {
+      // Even rows - standard position
+      snapX = col * size * 0.75;
+      snapY = row * height;
+    } else {
+      // Odd rows - offset by half triangle width
+      snapX = col * size * 0.75 + size * 0.375;
+      snapY = row * height;
+    }
+    
+    // Handle point-up vs point-down triangles
+    const triangleIndex = Math.floor(offsetX / (size * 0.5)) + Math.floor(offsetY / (height * 0.5));
+    if (triangleIndex % 2 === 1) {
+      // Adjust for inverted triangles if needed
+      snapY += height * 0.33; // Slight adjustment for triangle centers
+    }
+    
+    return { 
+      x: snapX + grid.origin.x + grid.offsetX, 
+      y: snapY + grid.origin.y + grid.offsetY 
+    };
   }
 
   private calculatePolygonArea(points: { x: number; y: number }[]): number {

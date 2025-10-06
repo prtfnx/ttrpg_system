@@ -15,8 +15,8 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ActionsPanel } from '../ActionsPanel';
 import { AssetPanel } from '../AssetPanel';
 import { ChatPanel } from '../ChatPanel';
+import { AuthProvider } from '../AuthContext';
 import { FogPanel } from '../FogPanel';
-import { GameCanvas } from '../GameCanvas';
 import { CanvasRenderer } from '../GameCanvas/CanvasRenderer';
 import { InitiativeTracker } from '../InitiativeTracker';
 import { LightingPanel } from '../LightingPanel';
@@ -352,7 +352,11 @@ describe('GameCanvas Component', () => {
 // Test ChatPanel Component
 describe('ChatPanel Component', () => {
   test('renders chat interface', () => {
-    render(<ChatPanel />);
+    render(
+      <AuthProvider>
+        <ChatPanel />
+      </AuthProvider>
+    );
     
     // Should have chat-related elements - use more flexible approach
     const textbox = screen.queryByRole('textbox');
@@ -361,7 +365,11 @@ describe('ChatPanel Component', () => {
     
     expect(textbox || messageInput || sendButton).toBeTruthy();
   });  test('provides message input field', () => {
-    render(<ChatPanel />);
+    render(
+      <AuthProvider>
+        <ChatPanel />
+      </AuthProvider>
+    );
     
     // Should have text input for messages
     const messageInputs = screen.queryAllByRole('textbox').concat(
@@ -372,7 +380,11 @@ describe('ChatPanel Component', () => {
   });
 
   test('displays send message functionality', () => {
-    render(<ChatPanel />);
+    render(
+      <AuthProvider>
+        <ChatPanel />
+      </AuthProvider>
+    );
     
     // Should have send button or enter functionality
     const sendButtons = screen.queryAllByRole('button', { name: /send/i });
@@ -382,7 +394,11 @@ describe('ChatPanel Component', () => {
 
   test('handles message input interactions', async () => {
     const user = userEvent.setup();
-    render(<ChatPanel />);
+    render(
+      <AuthProvider>
+        <ChatPanel />
+      </AuthProvider>
+    );
     
     const textInputs = screen.queryAllByRole('textbox');
     
@@ -538,11 +554,13 @@ describe('Component Integration', () => {
   test('components render together without conflicts', () => {
     expect(() => {
       render(
-        <div>
-          <NetworkPanel />
-          <ChatPanel />
-          <PerformanceMonitor isVisible={true} />
-        </div>
+        <AuthProvider>
+          <div>
+            <NetworkPanel />
+            <ChatPanel />
+            <PerformanceMonitor isVisible={true} />
+          </div>
+        </AuthProvider>
       );
     }).not.toThrow();
   });

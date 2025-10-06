@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Import web client system components
 import { ActionsPanel } from '../ActionsPanel';
 import { AssetPanel } from '../AssetPanel';
+import { AuthProvider } from '../AuthContext';
 import { CharacterManager } from '../CharacterManager';
 import ChatPanel from '../ChatPanel';
 import { GameCanvas } from '../GameCanvas';
@@ -385,7 +386,11 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
     });
 
     it('should provide typed message validation', async () => {
-      render(<ChatPanel />);
+      render(
+        <AuthProvider>
+          <ChatPanel />
+        </AuthProvider>
+      );
       
       // User expects message types to be validated
       const messageInput = screen.getByPlaceholderText(/type.*message/i);

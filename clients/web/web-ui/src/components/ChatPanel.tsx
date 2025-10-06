@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { config } from '../config/appConfig';
 import { useChatWebSocket } from '../hooks/useChatWebSocket';
 import { useChatStore } from '../store/chatStore';
-
-const USER = 'Player'; // TODO: Replace with real user info
+import { useAuth } from './AuthContext';
 
 export function ChatPanel() {
+  const { user } = useAuth();
   const { messages } = useChatStore();
-  const { sendMessage } = useChatWebSocket(config.getWebSocketUrl(), USER);
+  const { sendMessage } = useChatWebSocket(config.getWebSocketUrl(), user?.username || 'Anonymous');
   const [input, setInput] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);

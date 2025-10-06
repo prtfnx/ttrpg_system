@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useBrushPresets, usePaintInteraction, usePaintSystem } from '../hooks/usePaintSystem';
+import { paintTemplateService, type TemplateMetadata } from '../services/paintTemplate.service';
 import './PaintPanel.css';
 
 interface PaintPanelProps {
@@ -28,7 +29,54 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
 
   // Color picker state for future advanced color picker
   const [currentColor, setCurrentColor] = useState('#ffffff');
+  
+  // Template management state
+  const [templates, setTemplates] = useState<TemplateMetadata[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState('');
   const [brushType, setBrushType] = useState<'brush' | 'marker' | 'eraser'>('brush');
+
+  // Load templates on mount
+  useEffect(() => {
+    setTemplates(paintTemplateService.getAllTemplateMetadata());
+  }, []);
+
+  // Template management functions
+  const handleSaveTemplate = async () => {
+    if (!newTemplateName.trim()) return;
+    
+    // Get current strokes from paint system
+    const strokes = paintControls.getStrokes();
+    
+    await paintTemplateService.saveTemplate(
+      newTemplateName.trim(), 
+      strokes,
+      `Template saved on ${new Date().toLocaleDateString()}`
+    );
+    setTemplates(paintTemplateService.getAllTemplateMetadata());
+    setNewTemplateName('');
+    setShowTemplateDialog(false);
+  };
+
+  const handleLoadTemplate = async (templateId: string) => {
+    const template = paintTemplateService.getTemplate(templateId);
+    if (template) {
+      // Clear current canvas and apply template strokes
+      paintControls.clearAll();
+      // Note: Loading strokes would require WASM integration
+      // For now, just select the template
+      setSelectedTemplate(templateId);
+    }
+  };
+
+  const handleDeleteTemplate = async (templateId: string) => {
+    await paintTemplateService.deleteTemplate(templateId);
+    setTemplates(paintTemplateService.getAllTemplateMetadata());
+    if (selectedTemplate === templateId) {
+      setSelectedTemplate(null);
+    }
+  };
 
   // Convert RGB array to hex color
   const rgbToHex = (rgb: number[]) => {
@@ -269,6 +317,95 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
                   {index + 1}
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Paint Templates */}
+        <div className="templates-section">
+          <h4>Paint Templates</h4>
+          
+          {/* Save Template */}
+          <div className="template-save">
+            <button
+              onClick={() => setShowTemplateDialog(true)}
+              disabled={!paintState.isActive || paintState.strokeCount === 0}
+              className="btn-primary"
+              title="Save current strokes as template"
+            >
+              💾 Save Template
+            </button>
+          </div>
+
+          {/* Template List */}
+          {templates.length > 0 && (
+            <div className="template-list">
+              <label>Saved Templates:</label>
+              {templates.map((template) => (
+                <div key={template.id} className="template-item">
+                  <div className="template-info">
+                    <span className="template-name">{template.name}</span>
+                    <span className="template-meta">
+                      {template.strokeCount} strokes • {new Date(template.created).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="template-actions">
+                    <button
+                      onClick={() => handleLoadTemplate(template.id)}
+                      disabled={!paintState.isActive}
+                      className="btn-secondary small"
+                      title="Load template"
+                    >
+                      📂 Load
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTemplate(template.id)}
+                      className="btn-danger small"
+                      title="Delete template"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Template Save Dialog */}
+        {showTemplateDialog && (
+          <div className="modal-overlay">
+            <div className="modal-dialog">
+              <h4>Save Paint Template</h4>
+              <div className="form-group">
+                <label htmlFor="template-name">Template Name:</label>
+                <input
+                  id="template-name"
+                  type="text"
+                  value={newTemplateName}
+                  onChange={(e) => setNewTemplateName(e.target.value)}
+                  placeholder="Enter template name..."
+                  autoFocus
+                />
+              </div>
+              <div className="modal-actions">
+                <button
+                  onClick={handleSaveTemplate}
+                  disabled={!newTemplateName.trim()}
+                  className="btn-primary"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => {
+                    setShowTemplateDialog(false);
+                    setNewTemplateName('');
+                  }}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         )}

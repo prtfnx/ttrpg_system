@@ -462,38 +462,6 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
           </div>
         </div>
 
-        {/* Template System */}
-        <div className="templates-section">
-          <h4>Templates</h4>
-          <div className="template-controls">
-            <button
-              onClick={() => {
-                // TODO: Implement save as template
-                console.log('Save as template functionality not yet implemented');
-              }}
-              disabled={!paintState.isActive || paintState.strokeCount === 0}
-              className="btn-secondary"
-              title="Save current strokes as a reusable template"
-            >
-              📋 Save as Template
-            </button>
-            <button
-              onClick={() => {
-                // TODO: Implement load template
-                console.log('Load template functionality not yet implemented');
-              }}
-              disabled={!paintState.isActive}
-              className="btn-secondary"
-              title="Load a saved template"
-            >
-              📁 Load Template
-            </button>
-          </div>
-          <div className="template-list">
-            <p className="template-placeholder">No templates available</p>
-          </div>
-        </div>
-
         {/* Statistics */}
         <div className="paint-stats-section">
           <h4>Statistics</h4>

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useBrushPresets, usePaintInteraction, usePaintSystem } from '../hooks/usePaintSystem';
 import { paintTemplateService, type TemplateMetadata } from '../services/paintTemplate.service';
 import './PaintPanel.css';

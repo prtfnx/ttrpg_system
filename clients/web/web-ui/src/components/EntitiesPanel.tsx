@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { useGameStore } from '../store'
-import { useRenderEngine } from '../hooks/useRenderEngine'
+import { useEffect, useState } from 'react';
+import { useRenderEngine } from '../hooks/useRenderEngine';
+import { useGameStore } from '../store';
 
 interface SyncState {
   status: 'idle' | 'syncing' | 'error' | 'success';

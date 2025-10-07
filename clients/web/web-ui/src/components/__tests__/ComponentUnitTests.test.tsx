@@ -9,10 +9,28 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
 // Core UI components that should exist
+import { AuthProvider } from '../AuthContext';
 import { CharacterSheet } from '../CharacterWizard/CharacterSheet';
 import { CompendiumPanel } from '../CompendiumPanel';
 import { LayerPanel } from '../LayerPanel';
 import { MapPanel } from '../MapPanel';
+
+// Mock the auth service to provide authenticated user for tests
+import { vi } from 'vitest';
+
+vi.mock('../services/auth.service', () => ({
+  authService: {
+    initialize: vi.fn(() => Promise.resolve()),
+    getUserInfo: vi.fn(() => ({
+      id: 'test-user-1',
+      username: 'testuser',
+      email: 'test@example.com',
+      permissions: ['compendium:read', 'compendium:write', 'table:admin', 'character:write']
+    })),
+    isAuthenticated: vi.fn(() => true),
+    updateUserInfo: vi.fn()
+  }
+}));
 
 describe('MapPanel Component', () => {
   const mockDefaultProps = {
@@ -56,12 +74,20 @@ describe('CompendiumPanel Component', () => {
 
   it('renders without crashing', () => {
     expect(() => {
-      render(<CompendiumPanel {...mockDefaultProps} />);
+      render(
+        <AuthProvider>
+          <CompendiumPanel {...mockDefaultProps} />
+        </AuthProvider>
+      );
     }).not.toThrow();
   });
 
   it('displays compendium content container', () => {
-    render(<CompendiumPanel {...mockDefaultProps} />);
+    render(
+      <AuthProvider>
+        <CompendiumPanel {...mockDefaultProps} />
+      </AuthProvider>
+    );
     
     // Should have some content container or related text
     const contentElements = screen.queryAllByRole('main').concat(
@@ -73,7 +99,11 @@ describe('CompendiumPanel Component', () => {
 
   it('handles search interactions if search exists', async () => {
     const user = userEvent.setup();
-    render(<CompendiumPanel {...mockDefaultProps} />);
+    render(
+      <AuthProvider>
+        <CompendiumPanel {...mockDefaultProps} />
+      </AuthProvider>
+    );
     
     // Look for search input
     const searchInput = screen.queryByRole('textbox') || screen.queryByPlaceholderText(/search/i);
@@ -235,7 +265,11 @@ describe('Component Error Boundaries', () => {
     }).not.toThrow();
 
     expect(() => {
-      render(<CompendiumPanel userInfo={null as any} />);
+      render(
+        <AuthProvider>
+          <CompendiumPanel />
+        </AuthProvider>
+      );
     }).not.toThrow();
   });
 });
@@ -245,7 +279,11 @@ describe('Component Performance', () => {
     const startTime = performance.now();
     
     render(<MapPanel />);
-    render(<CompendiumPanel />);
+    render(
+      <AuthProvider>
+        <CompendiumPanel />
+      </AuthProvider>
+    );
     render(<LayerPanel />);
     
     const endTime = performance.now();
@@ -273,7 +311,11 @@ describe('Component Integration Points', () => {
   it('components accept standard React props', () => {
     expect(() => {
       render(<MapPanel id="test-map" data-testid="map-panel" />);
-      render(<CompendiumPanel className="test-compendium" />);
+      render(
+        <AuthProvider>
+          <CompendiumPanel className="test-compendium" />
+        </AuthProvider>
+      );
       render(<LayerPanel style={{ display: 'block' }} />);
     }).not.toThrow();
   });
@@ -287,7 +329,9 @@ describe('Component Integration Points', () => {
       render(
         <TestProvider>
           <MapPanel />
-          <CompendiumPanel />
+          <AuthProvider>
+            <CompendiumPanel />
+          </AuthProvider>
         </TestProvider>
       );
     }).not.toThrow();

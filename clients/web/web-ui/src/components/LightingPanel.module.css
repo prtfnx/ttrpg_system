@@ -221,3 +221,137 @@
 input[type="range"] {
   width: 100%;
 }
+
+/* Error and Loading State Styles */
+.lightingPanel {
+  padding: 1rem;
+  border: 1px solid #444;
+  border-radius: 8px;
+  background: #2a2a2a;
+  color: white;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #444;
+}
+
+.errorIndicator {
+  background: #ef4444;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.loadingIndicator {
+  background: #f59e0b;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.errorState {
+  border-color: #ef4444;
+}
+
+.loadingState {
+  border-color: #f59e0b;
+}
+
+.panelError {
+  text-align: center;
+  padding: 2rem;
+}
+
+.errorIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.errorMessage {
+  color: #ef4444;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
+
+.errorActions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.retryButton {
+  background: #4a90e2;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.retryButton:hover {
+  background: #357abd;
+}
+
+.reloadButton {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.reloadButton:hover {
+  background: #dc2626;
+}
+
+.panelLoading {
+  text-align: center;
+  padding: 2rem;
+}
+
+.loadingSpinner {
+  width: 3rem;
+  height: 3rem;
+  border: 3px solid #444;
+  border-top: 3px solid #4a90e2;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loadingDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: #aaa;
+}
+
+.loadingDetails span {
+  position: relative;
+}
+
+.loadingDetails span::before {
+  content: "⏳";
+  margin-right: 0.5rem;
+}

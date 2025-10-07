@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRenderEngine } from '../hooks/useRenderEngine';
 import type { Color } from '../types';
 import styles from './LightingPanel.module.css';
@@ -18,10 +18,116 @@ export const LightingPanel: React.FC = () => {
   const [lights, setLights] = useState<Light[]>([]);
   const [selectedLightId, setSelectedLightId] = useState<string | null>(null);
   const [newLightName, setNewLightName] = useState('');
+  const [engineError, setEngineError] = useState<string | null>(null);
+  const [isEngineReady, setIsEngineReady] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const addLight = () => {
-    if (!engine) return;
+  // Check engine readiness and capabilities
+  useEffect(() => {
+    const checkEngineReadiness = async () => {
+      try {
+        setIsLoading(true);
+        setEngineError(null);
 
+        if (!engine) {
+          throw new Error('Render engine not initialized');
+        }
+        
+        // Test lighting system availability
+        const requiredMethods = ['add_light', 'remove_light', 'set_light_color', 'set_light_intensity', 'set_light_radius'];
+        const missingMethods = requiredMethods.filter(method => typeof (engine as any)[method] !== 'function');
+        
+        if (missingMethods.length > 0) {
+          throw new Error(`Lighting system missing methods: ${missingMethods.join(', ')}`);
+        }
+        
+        setIsEngineReady(true);
+        setEngineError(null);
+      } catch (error) {
+        setEngineError(error instanceof Error ? error.message : 'Engine initialization failed');
+        setIsEngineReady(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    checkEngineReadiness();
+  }, [engine]);
+
+  // Safe wrapper for engine operations
+  const safeEngineCall = async <T,>(
+    operation: () => T,
+    fallback: T,
+    errorMessage: string
+  ): Promise<T> => {
+    try {
+      if (!isEngineReady || !engine) {
+        throw new Error('Engine not ready');
+      }
+      return operation();
+    } catch (error) {
+      console.error(`${errorMessage}:`, error);
+      setEngineError(`${errorMessage}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return fallback;
+    }
+  };
+
+  // Error state UI
+  if (engineError) {
+    return (
+      <div className={`${styles.lightingPanel} ${styles.errorState}`}>
+        <div className={styles.panelHeader}>
+          <h3>💡 Lighting System</h3>
+          <div className={styles.errorIndicator}>⚠️ Error</div>
+        </div>
+        <div className={styles.panelError}>
+          <div className={styles.errorIcon}>⚠️</div>
+          <h4>Lighting System Error</h4>
+          <p className={styles.errorMessage}>{engineError}</p>
+          <div className={styles.errorActions}>
+            <button 
+              className={styles.retryButton}
+              onClick={() => {
+                setEngineError(null);
+                setIsLoading(true);
+              }}
+            >
+              🔄 Retry
+            </button>
+            <button 
+              className={styles.reloadButton}
+              onClick={() => window.location.reload()}
+            >
+              🔃 Reload Application
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state UI
+  if (isLoading || !isEngineReady) {
+    return (
+      <div className={`${styles.lightingPanel} ${styles.loadingState}`}>
+        <div className={styles.panelHeader}>
+          <h3>💡 Lighting System</h3>
+          <div className={styles.loadingIndicator}>⏳ Loading</div>
+        </div>
+        <div className={styles.panelLoading}>
+          <div className={styles.loadingSpinner}></div>
+          <p>Initializing lighting system...</p>
+          <div className={styles.loadingDetails}>
+            <span>• Connecting to render engine</span>
+            <span>• Verifying lighting capabilities</span>
+            <span>• Preparing light management</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const addLight = async () => {
     const lightName = newLightName.trim() || `Light #${lights.length + 1}`;
     const lightId = lightName;
     const newLight: Light = {
@@ -34,96 +140,109 @@ export const LightingPanel: React.FC = () => {
       isOn: true,
     };
 
-    // Check if lighting methods exist on engine (defensive programming for test environments)
-    if (typeof engine.add_light === 'function') {
-      engine.add_light(lightId, newLight.x, newLight.y);
-    }
-    if (typeof engine.set_light_color === 'function') {
-      engine.set_light_color(lightId, newLight.color.r, newLight.color.g, newLight.color.b, newLight.color.a);
-    }
-    if (typeof engine.set_light_intensity === 'function') {
-      engine.set_light_intensity(lightId, newLight.intensity);
-    }
-    if (typeof engine.set_light_radius === 'function') {
-      engine.set_light_radius(lightId, newLight.radius);
-    }
+    const success = await safeEngineCall(
+      () => {
+        engine!.add_light(lightId, newLight.x, newLight.y);
+        engine!.set_light_color(lightId, newLight.color.r, newLight.color.g, newLight.color.b, newLight.color.a);
+        engine!.set_light_intensity(lightId, newLight.intensity);
+        engine!.set_light_radius(lightId, newLight.radius);
+        return true;
+      },
+      false,
+      'Failed to add light'
+    );
 
-    setLights([...lights, newLight]);
-    setNewLightName('');
-  };
-
-  const removeLight = (lightId: string) => {
-    if (!engine) return;
-
-    // Check if remove_light method exists on engine
-    if (typeof engine.remove_light === 'function') {
-      engine.remove_light(lightId);
-    }
-    setLights(lights.filter(light => light.id !== lightId));
-    if (selectedLightId === lightId) {
-      setSelectedLightId(null);
+    if (success) {
+      setLights([...lights, newLight]);
+      setNewLightName('');
     }
   };
 
-  const updateLightProperty = (lightId: string, property: keyof Light, value: any) => {
-    if (!engine) return;
+  const removeLight = async (lightId: string) => {
+    const success = await safeEngineCall(
+      () => {
+        engine!.remove_light(lightId);
+        return true;
+      },
+      false,
+      'Failed to remove light'
+    );
 
-    const updatedLights = lights.map(light => {
-      if (light.id === lightId) {
+    if (success) {
+      setLights(lights.filter(light => light.id !== lightId));
+      if (selectedLightId === lightId) {
+        setSelectedLightId(null);
+      }
+    }
+  };
+
+  const updateLightProperty = async (lightId: string, property: keyof Light, value: any) => {
+    const success = await safeEngineCall(
+      () => {
+        const light = lights.find(l => l.id === lightId);
+        if (!light) return false;
+        
         const updatedLight = { ...light, [property]: value };
         
-        // Update engine based on property (with defensive checks)
+        // Update engine based on property
         switch (property) {
           case 'x':
           case 'y':
-            if (typeof engine.update_light_position === 'function') {
-              engine.update_light_position(lightId, updatedLight.x, updatedLight.y);
+            if (typeof (engine as any).update_light_position === 'function') {
+              (engine as any).update_light_position(lightId, updatedLight.x, updatedLight.y);
             }
             break;
           case 'color':
             const color = value as Color;
-            if (typeof engine.set_light_color === 'function') {
-              engine.set_light_color(lightId, color.r, color.g, color.b, color.a);
-            }
+            engine!.set_light_color(lightId, color.r, color.g, color.b, color.a);
             break;
           case 'intensity':
-            if (typeof engine.set_light_intensity === 'function') {
-              engine.set_light_intensity(lightId, value as number);
-            }
+            engine!.set_light_intensity(lightId, value as number);
             break;
           case 'radius':
-            if (typeof engine.set_light_radius === 'function') {
-              engine.set_light_radius(lightId, value as number);
-            }
+            engine!.set_light_radius(lightId, value as number);
             break;
           case 'isOn':
-            if (typeof engine.toggle_light === 'function') {
-              engine.toggle_light(lightId);
+            if (typeof (engine as any).toggle_light === 'function') {
+              (engine as any).toggle_light(lightId, value as boolean);
             }
             break;
         }
-        
-        return updatedLight;
-      }
-      return light;
-    });
-    setLights(updatedLights);
+        return true;
+      },
+      false,
+      `Failed to update light ${property}`
+    );
+
+    if (success) {
+      setLights(lights.map(light => 
+        light.id === lightId ? { ...light, [property]: value } : light
+      ));
+    }
   };
 
-  const toggleAllLights = () => {
-    if (!engine) return;
-    
+  const toggleAllLights = async () => {
     const allOn = lights.every(light => light.isOn);
-    if (allOn) {
-      if (typeof engine.turn_off_all_lights === 'function') {
-        engine.turn_off_all_lights();
-      }
-      setLights(lights.map(light => ({ ...light, isOn: false })));
-    } else {
-      if (typeof engine.turn_on_all_lights === 'function') {
-        engine.turn_on_all_lights();
-      }
-      setLights(lights.map(light => ({ ...light, isOn: true })));
+    
+    const success = await safeEngineCall(
+      () => {
+        if (allOn) {
+          if (typeof (engine as any).turn_off_all_lights === 'function') {
+            (engine as any).turn_off_all_lights();
+          }
+        } else {
+          if (typeof (engine as any).turn_on_all_lights === 'function') {
+            (engine as any).turn_on_all_lights();
+          }
+        }
+        return true;
+      },
+      false,
+      'Failed to toggle all lights'
+    );
+
+    if (success) {
+      setLights(lights.map(light => ({ ...light, isOn: !allOn })));
     }
   };
 

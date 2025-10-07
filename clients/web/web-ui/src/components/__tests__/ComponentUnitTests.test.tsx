@@ -209,10 +209,21 @@ describe('LayerPanel Component', () => {
   });
 });
 
+// Test helper to provide authenticated context for components that require it
+const TestAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <AuthProvider>{children}</AuthProvider>
+);
+
+const WrappedCompendiumPanel: React.FC<any> = (props) => (
+  <TestAuthProvider>
+    <CompendiumPanel {...props} />
+  </TestAuthProvider>
+);
+
 describe('Generic Component Behavior', () => {
   const testComponents = [
     { name: 'MapPanel', component: MapPanel, props: {} },
-    { name: 'CompendiumPanel', component: CompendiumPanel, props: {} },
+    { name: 'CompendiumPanel', component: WrappedCompendiumPanel, props: {} },
     { name: 'LayerPanel', component: LayerPanel, props: {} }
   ];
 
@@ -250,7 +261,7 @@ describe('Component Error Boundaries', () => {
   // Test that components handle errors gracefully
   it('handles missing required props without crashing', () => {
     // Test each component with missing props
-    const components = [MapPanel, CompendiumPanel, LayerPanel];
+    const components = [MapPanel, WrappedCompendiumPanel, LayerPanel];
     
     components.forEach(Component => {
       expect(() => {
@@ -294,7 +305,7 @@ describe('Component Performance', () => {
   });
 
   it('components do not cause memory leaks on unmount', () => {
-    const components = [MapPanel, CompendiumPanel, LayerPanel];
+    const components = [MapPanel, WrappedCompendiumPanel, LayerPanel];
     
     components.forEach(Component => {
       const { unmount } = render(<Component />);

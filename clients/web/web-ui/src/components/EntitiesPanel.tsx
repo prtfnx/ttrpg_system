@@ -1,62 +1,123 @@
 import { useEffect, useState } from 'react'
 import { useGameStore } from '../store'
+import { useRenderEngine } from '../hooks/useRenderEngine'
+
+interface SyncState {
+  status: 'idle' | 'syncing' | 'error' | 'success';
+  error?: string;
+  lastSync?: Date;
+  progress?: number;
+}
 
 export function EntitiesPanel() {
   const { sprites, selectedSprites, selectSprite, addSprite, removeSprite, updateSprite } = useGameStore()
-  const [refreshing, setRefreshing] = useState(false)
+  const renderEngine = useRenderEngine()
+  const [syncState, setSyncState] = useState<SyncState>({ status: 'idle' })
 
-  // Function to manually sync sprites from Rust backend
-  const syncSpritesFromRust = async () => {
-    if (!window.rustRenderManager) return
-    
-    setRefreshing(true)
-    try {
-      const rustSprites = window.rustRenderManager.get_all_sprites_network_data()
-      
-      if (Array.isArray(rustSprites)) {
-        // Create a map of existing sprites for efficient lookup
-        const existingSprites = new Map(sprites.map(s => [s.id, s]))
-        const rustSpriteIds = new Set()
-        
-        // Process each sprite from Rust
-        rustSprites.forEach((rustSprite: any) => {
-          const spriteId = rustSprite.id || rustSprite.sprite_id || Math.random().toString()
-          rustSpriteIds.add(spriteId)
-          
-          const sprite = {
-            id: spriteId,
-            name: rustSprite.name || rustSprite.sprite_name || `Sprite ${spriteId}`,
-            x: rustSprite.x || rustSprite.world_x || 0,
-            y: rustSprite.y || rustSprite.world_y || 0,
-            width: rustSprite.width || rustSprite.size_x || 50,
-            height: rustSprite.height || rustSprite.size_y || 50,
-            layer: rustSprite.layer || 'tokens',
-            isSelected: existingSprites.get(spriteId)?.isSelected || false,
-            isVisible: rustSprite.visible !== false,
-          }
-          
-          if (existingSprites.has(spriteId)) {
-            // Update existing sprite
-            updateSprite(spriteId, sprite)
-          } else {
-            // Add new sprite
-            addSprite(sprite)
-          }
-        })
-        
-        // Remove sprites that no longer exist in Rust
-        sprites.forEach(sprite => {
-          if (!rustSpriteIds.has(sprite.id)) {
-            removeSprite(sprite.id)
-          }
-        })
-        
-        console.log(`[EntitiesPanel] Synced ${rustSprites.length} sprites from Rust`)
-      }
-    } catch (error) {
-      console.warn('[EntitiesPanel] Error syncing sprites:', error)
+  // Validate and transform sprite data from WASM
+  const validateAndTransformSprite = (rustSprite: any) => {
+    if (!rustSprite || typeof rustSprite !== 'object') {
+      throw new Error('Invalid sprite data object');
     }
-    setRefreshing(false)
+
+    const spriteId = rustSprite.id || rustSprite.sprite_id;
+    if (!spriteId) {
+      throw new Error('Missing sprite ID');
+    }
+
+    return {
+      id: String(spriteId),
+      name: rustSprite.name || rustSprite.sprite_name || `Sprite ${spriteId}`,
+      x: Number(rustSprite.x || rustSprite.world_x || 0),
+      y: Number(rustSprite.y || rustSprite.world_y || 0),
+      width: Number(rustSprite.width || rustSprite.size_x || 50),
+      height: Number(rustSprite.height || rustSprite.size_y || 50),
+      layer: String(rustSprite.layer || 'tokens'),
+      isSelected: Boolean(rustSprite.isSelected || false),
+      isVisible: rustSprite.visible !== false,
+    };
+  };
+
+  // Function to manually sync sprites from Rust backend with comprehensive error handling
+  const syncSpritesFromRust = async () => {
+    setSyncState({ status: 'syncing', progress: 0 });
+    
+    try {
+      // Validate WASM availability
+      if (!window.rustRenderManager) {
+        throw new Error('WASM render manager not available');
+      }
+      
+      setSyncState(prev => ({ ...prev, progress: 25 }));
+      
+      // Get sprites with error handling
+      const rustSprites = window.rustRenderManager.get_all_sprites_network_data();
+      
+      if (!Array.isArray(rustSprites)) {
+        throw new Error('Invalid sprite data format from WASM');
+      }
+      
+      setSyncState(prev => ({ ...prev, progress: 50 }));
+      
+      // Process sprites with validation
+      const processedSprites: any[] = [];
+      const errors: string[] = [];
+      
+      for (const rustSprite of rustSprites) {
+        try {
+          const sprite = validateAndTransformSprite(rustSprite);
+          processedSprites.push(sprite);
+        } catch (error) {
+          errors.push(`Sprite ${rustSprite.id}: ${error instanceof Error ? error.message : 'Invalid data'}`);
+        }
+      }
+      
+      setSyncState(prev => ({ ...prev, progress: 75 }));
+      
+      // Create a map of existing sprites for efficient lookup
+      const existingSprites = new Map(sprites.map(s => [s.id, s]))
+      const rustSpriteIds = new Set()
+      
+      // Process each validated sprite
+      processedSprites.forEach((sprite) => {
+        rustSpriteIds.add(sprite.id)
+        
+        if (existingSprites.has(sprite.id)) {
+          // Update existing sprite
+          updateSprite(sprite.id, sprite)
+        } else {
+          // Add new sprite
+          addSprite(sprite)
+        }
+      })
+      
+      // Remove sprites that no longer exist in Rust
+      sprites.forEach(sprite => {
+        if (!rustSpriteIds.has(sprite.id)) {
+          removeSprite(sprite.id)
+        }
+      })
+
+      setSyncState({
+        status: 'success',
+        lastSync: new Date(),
+        progress: 100
+      });
+      
+      if (errors.length > 0) {
+        console.warn('Sprite sync completed with warnings:', errors);
+      }
+      
+      console.log(`[EntitiesPanel] Successfully synced ${processedSprites.length} sprites from Rust`)
+      
+    } catch (error) {
+      setSyncState({
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown sync error',
+        progress: 0
+      });
+      console.error('[EntitiesPanel] Error syncing sprites:', error)
+    }
   }
 
   // Auto-sync on mount and when sprite events occur
@@ -79,24 +140,62 @@ export function EntitiesPanel() {
     <div className="entities-section">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2>Entities ({sprites.length})</h2>
-        <button 
-          onClick={syncSpritesFromRust}
-          disabled={refreshing}
-          style={{ 
-            padding: '4px 8px', 
-            fontSize: '12px',
-            opacity: refreshing ? 0.6 : 1 
-          }}
-        >
-          {refreshing ? 'Syncing...' : 'Refresh'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {syncState.status === 'error' && (
+            <span style={{ color: 'red', fontSize: '12px' }} title={syncState.error}>
+              ⚠️ Sync Error
+            </span>
+          )}
+          {syncState.status === 'success' && syncState.lastSync && (
+            <span style={{ color: 'green', fontSize: '12px' }}>
+              ✓ {new Date(syncState.lastSync).toLocaleTimeString()}
+            </span>
+          )}
+          <button 
+            onClick={syncSpritesFromRust}
+            disabled={syncState.status === 'syncing'}
+            style={{ 
+              padding: '4px 8px', 
+              fontSize: '12px',
+              opacity: syncState.status === 'syncing' ? 0.6 : 1,
+              cursor: syncState.status === 'syncing' ? 'wait' : 'pointer'
+            }}
+          >
+            {syncState.status === 'syncing' ? (
+              syncState.progress ? `Syncing... ${syncState.progress}%` : 'Syncing...'
+            ) : 'Refresh'}
+          </button>
+        </div>
       </div>
       
       <div className="sprite-list">
         {sprites.length === 0 ? (
-          <p style={{ color: '#666', textAlign: 'center', padding: '2rem' }}>
-            No sprites on the map
-          </p>
+          <div style={{ color: '#666', textAlign: 'center', padding: '2rem' }}>
+            {syncState.status === 'syncing' ? (
+              <div>
+                <div>Syncing sprites...</div>
+                {syncState.progress && (
+                  <div style={{ 
+                    width: '100%', 
+                    height: '4px', 
+                    backgroundColor: '#eee', 
+                    borderRadius: '2px',
+                    marginTop: '8px',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      width: `${syncState.progress}%`,
+                      height: '100%',
+                      backgroundColor: '#007bff',
+                      transition: 'width 0.3s ease'
+                    }} />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p>No sprites on the map</p>
+            )}
+          </div>
         ) : (
           sprites.map((sprite) => (
             <div
@@ -107,6 +206,9 @@ export function EntitiesPanel() {
               <h3>{sprite.name}</h3>
               <p>Position: ({sprite.x}, {sprite.y})</p>
               <p>Layer: {sprite.layer}</p>
+              {!sprite.isVisible && (
+                <span style={{ color: '#999', fontSize: '11px' }}>Hidden</span>
+              )}
             </div>
           ))
         )}

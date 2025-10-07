@@ -108,6 +108,10 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
   canvasHeight,
   onPreview
 }) => {
+  // WASM Engine Integration
+  const engine = useRenderEngine();
+  const { activeLayer } = useGameStore();
+  
   // State
   const [text, setText] = useState(initialSprite?.text || 'Sample Text');
   const [textStyle, setTextStyle] = useState<TextStyle>(initialSprite?.style || DEFAULT_TEXT_STYLE);
@@ -120,6 +124,10 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // WASM Integration State
+  const [wasmSpriteId, setWasmSpriteId] = useState<string | null>(initialSprite?.id || null);
+  const [isWasmIntegrated, setIsWasmIntegrated] = useState(false);
 
   // Refs
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -180,6 +188,107 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
       lineHeight: lineHeights
     };
   }, []);
+
+  // WASM Integration Functions
+  const createMovableTextSprite = useCallback(async (textSprite: TextSprite): Promise<string | null> => {
+    if (!engine) {
+      console.warn('WASM engine not available, text sprite will not be movable');
+      return null;
+    }
+
+    try {
+      // Convert text sprite to WASM-compatible format
+      const wasmTextSprite = {
+        id: textSprite.id,
+        text: textSprite.text,
+        world_x: textSprite.position.x,
+        world_y: textSprite.position.y,
+        width: textSprite.dimensions.width,
+        height: textSprite.dimensions.height,
+        rotation: textSprite.rotation,
+        opacity: textSprite.opacity,
+        layer: activeLayer || 'text',
+        font_family: textSprite.style.fontFamily,
+        font_size: textSprite.style.fontSize,
+        font_weight: textSprite.style.fontWeight,
+        font_style: textSprite.style.fontStyle,
+        color: textSprite.style.color,
+        background_color: textSprite.style.backgroundColor || 'transparent',
+        text_align: textSprite.style.textAlign,
+        line_height: textSprite.style.lineHeight,
+        letter_spacing: textSprite.style.letterSpacing,
+        stroke_width: textSprite.style.strokeWidth || 0,
+        stroke_color: textSprite.style.strokeColor || '#000000'
+      };
+
+      // Create text sprite in WASM
+      const success = engine.create_text_sprite && await engine.create_text_sprite(wasmTextSprite);
+      
+      if (success) {
+        // Register with movement manager for drag/drop
+        if (engine.register_movable_entity) {
+          engine.register_movable_entity(textSprite.id, 'text_sprite');
+        }
+        
+        // Add to appropriate layer
+        if (engine.add_sprite_to_layer) {
+          engine.add_sprite_to_layer(textSprite.id, activeLayer || 'text');
+        }
+        
+        // Enable movement interactions
+        if (engine.enable_sprite_movement) {
+          engine.enable_sprite_movement(textSprite.id);
+        }
+        
+        console.log('✅ Text sprite created and registered with WASM movement system:', textSprite.id);
+        return textSprite.id;
+      } else {
+        console.warn('Failed to create text sprite in WASM engine');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error creating movable text sprite:', error);
+      setError(`Failed to create movable text: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return null;
+    }
+  }, [engine, activeLayer]);
+
+  const updateTextSpritePosition = useCallback(async (spriteId: string, newPosition: { x: number; y: number }) => {
+    if (!engine || !spriteId) return;
+
+    try {
+      if (engine.update_text_sprite_position) {
+        await engine.update_text_sprite_position(spriteId, newPosition.x, newPosition.y);
+      }
+    } catch (error) {
+      console.error('Error updating text sprite position:', error);
+    }
+  }, [engine]);
+
+  const removeTextSpriteFromWasm = useCallback(async (spriteId: string) => {
+    if (!engine || !spriteId) return;
+
+    try {
+      // Remove from movement system
+      if (engine.unregister_movable_entity) {
+        engine.unregister_movable_entity(spriteId);
+      }
+      
+      // Remove from layer
+      if (engine.remove_sprite_from_layer) {
+        engine.remove_sprite_from_layer(spriteId, activeLayer || 'text');
+      }
+      
+      // Remove text sprite
+      if (engine.remove_text_sprite) {
+        await engine.remove_text_sprite(spriteId);
+      }
+      
+      console.log('✅ Text sprite removed from WASM system:', spriteId);
+    } catch (error) {
+      console.error('Error removing text sprite from WASM:', error);
+    }
+  }, [engine, activeLayer]);
 
   // Render text on canvas
   const renderText = useCallback((canvas: HTMLCanvasElement, currentText: string, currentStyle: TextStyle, currentPosition: { x: number; y: number }, currentRotation: number, currentOpacity: number) => {
@@ -385,7 +494,23 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, undo, redo]);
 
-  // Handle save
+  // Cleanup WASM sprite on unmount or close
+  useEffect(() => {
+    return () => {
+      if (wasmSpriteId && isWasmIntegrated) {
+        removeTextSpriteFromWasm(wasmSpriteId);
+      }
+    };
+  }, [wasmSpriteId, isWasmIntegrated, removeTextSpriteFromWasm]);
+
+  // Sync position changes with WASM
+  useEffect(() => {
+    if (wasmSpriteId && isWasmIntegrated && !isDragging) {
+      updateTextSpritePosition(wasmSpriteId, position);
+    }
+  }, [wasmSpriteId, isWasmIntegrated, position, isDragging, updateTextSpritePosition]);
+
+  // Handle save with WASM integration
   const handleSave = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -416,6 +541,17 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
         updatedAt: new Date()
       };
       
+      // Create movable text sprite in WASM if engine is available
+      const wasmId = await createMovableTextSprite(textSprite);
+      if (wasmId) {
+        setWasmSpriteId(wasmId);
+        setIsWasmIntegrated(true);
+        console.log('✅ Text sprite integrated with WASM movement system');
+      } else {
+        console.warn('⚠️ Text sprite created without WASM integration - will not be movable');
+      }
+      
+      // Save through the provided callback
       await onSave(textSprite);
       onClose();
     } catch (err) {
@@ -423,7 +559,7 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [text, textStyle, position, rotation, opacity, initialSprite, onSave, onClose, calculateTextMetrics, generateId]);
+  }, [text, textStyle, position, rotation, opacity, initialSprite, onSave, onClose, calculateTextMetrics, generateId, createMovableTextSprite, setWasmSpriteId, setIsWasmIntegrated]);
 
   if (!isOpen) return null;
 
@@ -433,7 +569,23 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
         <div className="text-sprite-creator">
           {/* Header */}
           <div className="text-sprite-header">
-            <h2>Text Sprite Creator</h2>
+            <div className="header-title">
+              <h2>Text Sprite Creator</h2>
+              {engine && (
+                <div className={`wasm-status ${isWasmIntegrated ? 'integrated' : 'available'}`}>
+                  <span className="status-icon">{isWasmIntegrated ? '✅' : '🔧'}</span>
+                  <span className="status-text">
+                    {isWasmIntegrated ? 'Movable' : 'WASM Ready'}
+                  </span>
+                </div>
+              )}
+              {!engine && (
+                <div className="wasm-status unavailable">
+                  <span className="status-icon">⚠️</span>
+                  <span className="status-text">Static Only</span>
+                </div>
+              )}
+            </div>
             <button className="close-btn" onClick={onClose} aria-label="Close">
               ✕
             </button>

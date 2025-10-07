@@ -54,11 +54,57 @@
   align-items: center;
 }
 
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
 .text-sprite-header h2 {
   margin: 0;
   font-size: 1.8rem;
   font-weight: 700;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* WASM Status Indicator */
+.wasm-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-shadow: none;
+  transition: all 0.3s ease;
+}
+
+.wasm-status.integrated {
+  background: rgba(46, 125, 50, 0.9);
+  color: white;
+  border: 2px solid rgba(76, 175, 80, 0.5);
+}
+
+.wasm-status.available {
+  background: rgba(255, 193, 7, 0.9);
+  color: #333;
+  border: 2px solid rgba(255, 235, 59, 0.5);
+}
+
+.wasm-status.unavailable {
+  background: rgba(244, 67, 54, 0.9);
+  color: white;
+  border: 2px solid rgba(255, 138, 128, 0.5);
+}
+
+.status-icon {
+  font-size: 1rem;
+}
+
+.status-text {
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
 }
 
 .close-btn {

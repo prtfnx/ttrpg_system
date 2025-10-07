@@ -4,11 +4,12 @@
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-lg);
   padding: var(--spacing-md);
-  height: 100%;
+  /* Remove fixed height, now handled dynamically */
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
   min-width: 280px;
+  overflow: hidden; /* Prevent content from spilling out */
 }
 
 /* Header */

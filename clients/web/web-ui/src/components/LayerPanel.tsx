@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useGameStore } from '../store';
 import './LayerPanel.css';
 
@@ -11,6 +11,29 @@ interface Layer {
 }
 
 interface LayerPanelProps extends React.HTMLProps<HTMLDivElement> {}
+
+// Dynamic height calculation constants
+const LAYER_ITEM_HEIGHT = 120; // Height per layer item including opacity slider
+const PANEL_PADDING = 32; // Total padding
+const HEADER_HEIGHT = 60; // Header section height
+const ACTIVE_LAYER_HEIGHT = 50; // Active layer display height
+const FOOTER_HEIGHT = 40; // Footer height
+
+const calculateDynamicHeight = (layerCount: number): { height: number; maxHeight: number } => {
+  const contentHeight = 
+    HEADER_HEIGHT + 
+    ACTIVE_LAYER_HEIGHT + 
+    (layerCount * LAYER_ITEM_HEIGHT) + 
+    FOOTER_HEIGHT + 
+    PANEL_PADDING;
+  
+  const maxHeight = Math.max(400, window.innerHeight * 0.7); // Max 70% of viewport, min 400px
+  
+  return {
+    height: Math.min(contentHeight, maxHeight),
+    maxHeight
+  };
+};
 
 const DEFAULT_LAYERS: Layer[] = [
   { id: 'map', name: 'Map', icon: '🗺️', color: '#8b5cf6', spriteCount: 0 },
@@ -34,6 +57,22 @@ export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelPr
 
   const [layers, setLayers] = useState<Layer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Calculate dynamic dimensions
+  const dynamicDimensions = useMemo(() => {
+    return calculateDynamicHeight(layers.length);
+  }, [layers.length]);
+
+  // Create dynamic style object
+  const dynamicStyle = useMemo(() => {
+    const baseStyle = style || {};
+    return {
+      ...baseStyle,
+      height: `${dynamicDimensions.height}px`,
+      maxHeight: `${dynamicDimensions.maxHeight}px`,
+      transition: 'height 0.3s ease-in-out'
+    };
+  }, [style, dynamicDimensions]);
 
   useEffect(() => {
     // Initialize layers
@@ -80,7 +119,7 @@ export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelPr
 
   if (isLoading) {
     return (
-      <div className={`layer-panel loading ${className || ''}`} style={style} id={id} {...otherProps}>
+      <div className={`layer-panel loading ${className || ''}`} style={dynamicStyle} id={id} {...otherProps}>
         <div className="loading-content">
           <div className="spinner"></div>
           <span>Initializing layers...</span>
@@ -99,7 +138,7 @@ export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelPr
   }
 
   return (
-    <div className={`layer-panel ${className || ''}`} style={style} id={id} {...otherProps}>
+    <div className={`layer-panel ${className || ''}`} style={dynamicStyle} id={id} {...otherProps}>
       <div className="layer-panel-header">
         <h3>Layers</h3>
         <div className="layer-count">

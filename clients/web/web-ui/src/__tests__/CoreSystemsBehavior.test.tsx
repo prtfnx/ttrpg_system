@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Import components to test
 import { ActionQueuePanel } from '../components/ActionQueuePanel';
 import { AssetPanel } from '../components/AssetPanel';
+import { AuthProvider } from '../components/AuthContext';
 import { CharacterManager } from '../components/CharacterManager';
 import { CompendiumPanel } from '../components/CompendiumPanel';
 import { FogPanel } from '../components/FogPanel';
@@ -36,6 +37,20 @@ vi.mock('../services/compendium.service', () => ({
     getMonsterDetails: vi.fn(() => Promise.resolve({
       id: '1', name: 'Goblin', hp: 7, ac: 15, stats: { str: 8, dex: 14 }
     }))
+  }
+}));
+
+vi.mock('../services/auth.service', () => ({
+  authService: {
+    initialize: vi.fn(() => Promise.resolve()),
+    getUserInfo: vi.fn(() => ({
+      id: 'test-user-1',
+      username: 'testuser',
+      email: 'test@example.com',
+      permissions: ['compendium:read', 'compendium:write', 'table:admin', 'character:write']
+    })),
+    isAuthenticated: vi.fn(() => true),
+    updateUserInfo: vi.fn()
   }
 }));
 
@@ -140,6 +155,15 @@ Object.defineProperty(window, 'rustRenderManager', {
   writable: true
 });
 
+// Test helper to provide authenticated context for components that require it
+const renderWithAuth = (component: React.ReactElement) => {
+  return render(
+    <AuthProvider>
+      {component}
+    </AuthProvider>
+  );
+};
+
 describe('Compendium System Behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -147,13 +171,13 @@ describe('Compendium System Behavior', () => {
 
   it('should allow DM to search and browse monsters effectively', async () => {
     const user = userEvent.setup();
-    render(<CompendiumPanel />);
+    renderWithAuth(<CompendiumPanel />);
 
     // User expects to see search interface immediately
-    expect(screen.getByPlaceholderText(/search monsters, spells, equipment/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/search compendium/i)).toBeInTheDocument();
     
     // User types "goblin" expecting to find goblins
-    const searchInput = screen.getByPlaceholderText(/search monsters, spells, equipment/i);
+    const searchInput = screen.getByPlaceholderText(/search compendium/i);
     await user.type(searchInput, 'goblin');
 
     // User expects search results to appear automatically
@@ -172,13 +196,13 @@ describe('Compendium System Behavior', () => {
 
   it('should provide comprehensive spell search and filtering', async () => {
     const user = userEvent.setup();
-    render(<CompendiumPanel />);
+    renderWithAuth(<CompendiumPanel />);
 
     // Switch to spells tab
     await user.click(screen.getByText('Spells'));
 
     // Search for evocation spells
-    const searchInput = screen.getByPlaceholderText(/search monsters, spells, equipment/i);
+    const searchInput = screen.getByPlaceholderText(/search compendium/i);
     await user.type(searchInput, 'fireball');
 
     await waitFor(() => {
@@ -198,11 +222,11 @@ describe('Compendium System Behavior', () => {
 
   it('should support equipment browsing with cost and type information', async () => {
     const user = userEvent.setup();
-    render(<CompendiumPanel />);
+    renderWithAuth(<CompendiumPanel />);
 
-    await user.click(screen.getByText('Gear'));
+    await user.click(screen.getByText('Equipment'));
 
-    const searchInput = screen.getByPlaceholderText(/search monsters, spells, equipment/i);
+    const searchInput = screen.getByPlaceholderText(/search compendium/i);
     await user.type(searchInput, 'sword');
 
     await waitFor(() => {

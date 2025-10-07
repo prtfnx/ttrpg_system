@@ -9,8 +9,26 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
 // Import actual components - no mocking
+import { AuthProvider } from '../components/AuthContext';
 import { CharacterWizard } from '../components/CharacterWizard/CharacterWizard';
 import { CompendiumPanel } from '../components/CompendiumPanel';
+
+// Mock the auth service to provide authenticated user for tests
+import { vi } from 'vitest';
+
+vi.mock('../services/auth.service', () => ({
+  authService: {
+    initialize: vi.fn(() => Promise.resolve()),
+    getUserInfo: vi.fn(() => ({
+      id: 'test-user-1',
+      username: 'testuser',
+      email: 'test@example.com',
+      permissions: ['compendium:read', 'compendium:write', 'table:admin', 'character:write']
+    })),
+    isAuthenticated: vi.fn(() => true),
+    updateUserInfo: vi.fn()
+  }
+}));
 
 describe('Character Management System - D&D 5e Character Lifecycle', () => {
   const mockUserInfo = { 
@@ -675,14 +693,17 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
   describe('Compendium Integration for Character Building', () => {
     it('should provide searchable spell database for character creation', async () => {
       const user = userEvent.setup();
-      render(<CompendiumPanel userInfo={mockUserInfo} category="spells" />);
+      render(
+        <AuthProvider>
+          <CompendiumPanel category="spells" />
+        </AuthProvider>
+      );
       
-      // Search for spells by school
-      const searchInput = screen.getByLabelText(/search spells/i);
+      // Search for spells using the actual search input
+      const searchInput = screen.getByPlaceholderText(/search compendium/i);
       await user.type(searchInput, 'evocation');
       
-      const searchButton = screen.getByRole('button', { name: /search/i });
-      await user.click(searchButton);
+      // Wait for search results - no search button needed, it's automatic
       
       // Should show evocation spells
       await waitFor(() => {
@@ -723,10 +744,15 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
 
     it('should provide monster stat blocks for DM reference', async () => {
       const user = userEvent.setup();
-      render(<CompendiumPanel userInfo={mockUserInfo} category="monsters" />);
+      render(
+        <AuthProvider>
+          <CompendiumPanel category="monsters" />
+        </AuthProvider>
+      );
       
-      // Search for monsters by challenge rating
-      const crFilter = screen.getByLabelText(/challenge rating/i);
+      // Search for monsters by challenge rating - need to filter to monsters first
+      const typeFilter = screen.getByDisplayValue('All Types');
+      await user.selectOptions(typeFilter, 'monster');
       await user.selectOptions(crFilter, '5');
       
       await waitFor(() => {

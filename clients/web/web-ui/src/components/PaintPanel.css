@@ -4,11 +4,149 @@
   border-radius: 8px;
   color: #e0e0e0;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  width: 320px;
   min-height: 400px;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  transition: width 0.3s ease;
+}
+
+/* Responsive layout classes */
+.paint-panel.narrow {
+  /* Narrow layout optimizations for panels < 300px */
+}
+
+.paint-panel.narrow .paint-mode-controls {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.paint-panel.narrow .paint-mode-controls button {
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+.paint-panel.narrow .predefined-colors {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+}
+
+.paint-panel.narrow .color-swatch {
+  width: 20px;
+  height: 20px;
+}
+
+.paint-panel.narrow .brush-slider-container {
+  flex-direction: column;
+  gap: 4px;
+}
+
+.paint-panel.compact {
+  /* Ultra-compact layout for very small panels < 250px */
+  min-height: 300px;
+}
+
+.paint-panel.compact .paint-panel-content {
+  padding: 8px;
+}
+
+.paint-panel.compact h4 {
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.paint-panel.compact .paint-mode-controls {
+  gap: 2px;
+}
+
+.paint-panel.compact .paint-mode-controls button {
+  font-size: 11px;
+  padding: 4px 6px;
+}
+
+.paint-panel.compact .predefined-colors {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+}
+
+.paint-panel.compact .color-swatch {
+  width: 18px;
+  height: 18px;
+}
+
+.paint-panel.compact .brush-slider {
+  height: 4px;
+}
+
+.paint-panel.wide {
+  /* Wide layout with more spacing for panels >= 300px */
+}
+
+.paint-panel.wide .paint-mode-controls {
+  gap: 12px;
+}
+
+.paint-panel.wide .predefined-colors {
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+.paint-panel.wide .color-swatch {
+  width: 28px;
+  height: 28px;
+}
+
+.paint-panel.wide .template-item {
+  padding: 12px;
+}
+
+.paint-panel.wide .template-actions {
+  gap: 6px;
+}
+
+/* Responsive template layout optimizations */
+.paint-panel.narrow .template-item {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.paint-panel.narrow .template-actions {
+  align-self: stretch;
+  justify-content: center;
+}
+
+.paint-panel.compact .template-item {
+  padding: 6px 8px;
+  margin-bottom: 4px;
+}
+
+.paint-panel.compact .template-info {
+  gap: 1px;
+}
+
+.paint-panel.compact .template-name {
+  font-size: 12px;
+}
+
+.paint-panel.compact .template-meta {
+  font-size: 10px;
+}
+
+/* Responsive grid layouts */
+.paint-panel.narrow .brush-presets-grid {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.paint-panel.compact .brush-presets-grid {
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+
+.paint-panel.wide .brush-presets-grid {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
 }
 
 .paint-panel-header {
@@ -51,6 +189,130 @@
   margin-bottom: 20px;
 }
 
+/* Enhanced Paint Mode Indicator */
+.paint-mode-indicator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #333;
+  border-radius: 8px;
+  border-left: 4px solid #555;
+  margin-bottom: 12px;
+  transition: all 0.3s ease;
+}
+
+.paint-mode-indicator.active {
+  border-left-color: #4caf50;
+  background: #2a3d2a;
+}
+
+.paint-mode-indicator.inactive {
+  border-left-color: #f44336;
+  background: #3d2a2a;
+}
+
+.paint-mode-indicator .mode-icon {
+  font-size: 20px;
+  min-width: 24px;
+  text-align: center;
+}
+
+.paint-mode-indicator .mode-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.paint-mode-indicator .mode-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e0e0e0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.paint-mode-indicator .mode-settings {
+  font-size: 12px;
+  color: #bbb;
+  line-height: 1.2;
+}
+
+.paint-mode-indicator .drawing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #ffa500;
+  font-weight: 600;
+}
+
+.paint-mode-indicator .pulse-dot {
+  color: #ffa500;
+  animation: pulse 1.5s infinite;
+}
+
+.paint-mode-indicator .status-indicator {
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 40px;
+  text-align: center;
+}
+
+.paint-mode-indicator .status-indicator.active {
+  background: #2d5a2d;
+  color: #90ee90;
+  border: 1px solid #4caf50;
+}
+
+.paint-mode-indicator .status-indicator.inactive {
+  background: #5a2d2d;
+  color: #ff9090;
+  border: 1px solid #f44336;
+}
+
+/* Mode-specific styling */
+.paint-mode-indicator.draw .mode-icon {
+  color: #4caf50;
+}
+
+.paint-mode-indicator.erase .mode-icon {
+  color: #ff9800;
+}
+
+.paint-mode-indicator.template .mode-icon {
+  color: #2196f3;
+}
+
+/* Responsive paint mode indicator */
+.paint-panel.narrow .paint-mode-indicator {
+  flex-direction: column;
+  text-align: center;
+  gap: 8px;
+}
+
+.paint-panel.narrow .paint-mode-indicator .mode-details {
+  align-items: center;
+}
+
+.paint-panel.compact .paint-mode-indicator {
+  padding: 8px 12px;
+}
+
+.paint-panel.compact .paint-mode-indicator .mode-name {
+  font-size: 12px;
+}
+
+.paint-panel.compact .paint-mode-indicator .mode-settings {
+  font-size: 10px;
+}
+
+/* Legacy paint mode status (keeping for fallback) */
 .paint-mode-status {
   display: flex;
   align-items: center;

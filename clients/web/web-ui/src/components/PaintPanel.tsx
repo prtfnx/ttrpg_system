@@ -1,7 +1,89 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useBrushPresets, usePaintInteraction, usePaintSystem } from '../hooks/usePaintSystem';
 import { paintTemplateService, type TemplateMetadata } from '../services/paintTemplate.service';
 import './PaintPanel.css';
+
+interface PanelDimensions {
+  width: number;
+  height: number;
+}
+
+// Custom hook for responsive panel dimensions
+const usePanelDimensions = (): PanelDimensions => {
+  const [dimensions, setDimensions] = useState<PanelDimensions>({ width: 320, height: 400 });
+  
+  useEffect(() => {
+    const updateDimensions = () => {
+      const rightPanel = document.querySelector('.right-panel');
+      if (rightPanel) {
+        const { width, height } = rightPanel.getBoundingClientRect();
+        setDimensions({
+          width: Math.max(width - 20, 200), // Min width with padding
+          height: height - 40 // Account for headers
+        });
+      }
+    };
+    
+    // Initial measurement
+    updateDimensions();
+    
+    // Listen for resize events
+    window.addEventListener('resize', updateDimensions);
+    
+    // Use ResizeObserver for more accurate panel size changes
+    const observer = new ResizeObserver(updateDimensions);
+    const rightPanel = document.querySelector('.right-panel');
+    if (rightPanel) {
+      observer.observe(rightPanel);
+    }
+    
+    return () => {
+      window.removeEventListener('resize', updateDimensions);
+      observer.disconnect();
+    };
+  }, []);
+  
+  return dimensions;
+};
+
+interface PaintModeStatus {
+  mode: 'draw' | 'erase' | 'template';
+  isActive: boolean;
+  brush: {
+    size: number;
+    color: string;
+  };
+  template?: {
+    name: string;
+  };
+  isDrawing: boolean;
+}
+
+// Paint Mode Indicator Component
+const PaintModeIndicator: React.FC<{ status: PaintModeStatus }> = ({ status }) => (
+  <div className={`paint-mode-indicator ${status.mode} ${status.isActive ? 'active' : 'inactive'}`}>
+    <div className="mode-icon">
+      {status.mode === 'draw' && <span>🖌️</span>}
+      {status.mode === 'erase' && <span>🧽</span>}
+      {status.mode === 'template' && <span>📋</span>}
+    </div>
+    <div className="mode-details">
+      <div className="mode-name">{status.mode.toUpperCase()} MODE</div>
+      <div className="mode-settings">
+        Size: {status.brush.size}px | 
+        {status.template ? ` Template: ${status.template.name}` : ` Color: ${status.brush.color}`}
+      </div>
+      {status.isDrawing && (
+        <div className="drawing-indicator">
+          <span className="pulse-dot">●</span> Drawing...
+        </div>
+      )}
+    </div>
+    <div className={`status-indicator ${status.isActive ? 'active' : 'inactive'}`}>
+      {status.isActive ? 'ON' : 'OFF'}
+    </div>
+  </div>
+);
 
 interface PaintPanelProps {
   renderEngine?: any;
@@ -23,9 +105,14 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
 
   const brushPresets = useBrushPresets();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const panelDimensions = usePanelDimensions();
   
   // Paint interaction is available for future mouse handling integration
   usePaintInteraction(renderEngine, paintControls, paintState);
+
+  // Responsive layout detection
+  const isNarrow = panelDimensions.width < 300;
+  const isCompact = panelDimensions.width < 250;
 
   // Color picker state for future advanced color picker
   const [currentColor, setCurrentColor] = useState('#ffffff');
@@ -36,6 +123,18 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [brushType, setBrushType] = useState<'brush' | 'marker' | 'eraser'>('brush');
+
+  // Determine current paint mode status for the indicator
+  const currentPaintMode: PaintModeStatus = {
+    mode: brushType === 'eraser' ? 'erase' : selectedTemplate ? 'template' : 'draw',
+    isActive: paintState.isActive,
+    brush: {
+      size: 10, // Default brush size - could be enhanced to track actual brush size
+      color: currentColor
+    },
+    template: selectedTemplate ? { name: templates.find(t => t.id === selectedTemplate)?.name || 'Unknown' } : undefined,
+    isDrawing: paintState.isDrawing
+  };
 
   // Load templates on mount
   useEffect(() => {
@@ -136,8 +235,18 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
 
   if (!isVisible) return null;
 
+  const panelStyle = {
+    width: `${panelDimensions.width}px`,
+    maxWidth: '100%',
+    minWidth: '200px',
+    position: 'relative' as const
+  };
+
   return (
-    <div className="paint-panel" style={{ position: 'relative' }}>
+    <div 
+      className={`paint-panel ${isNarrow ? 'narrow' : 'wide'} ${isCompact ? 'compact' : ''}`} 
+      style={panelStyle}
+    >
       <div className="paint-panel-header">
         <h3>🎨 Paint System</h3>
         <div className="header-controls">
@@ -157,14 +266,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
       <div className="paint-panel-content">
         {/* Paint Mode Controls */}
         <div className="paint-mode-section">
-          <div className="paint-mode-status">
-            <span className={`status-indicator ${paintState.isActive ? 'active' : 'inactive'}`}>
-              {paintState.isActive ? 'Paint Mode ON' : 'Paint Mode OFF'}
-            </span>
-            {paintState.isDrawing && (
-              <span className="drawing-indicator">Drawing...</span>
-            )}
-          </div>
+          <PaintModeIndicator status={currentPaintMode} />
           
           <div className="paint-mode-controls">
             {!paintState.isActive ? (
@@ -193,7 +295,15 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
           {/* Brush Type Selection */}
           <div className="brush-type-section">
             <label>Brush Type:</label>
-            <div className="brush-type-controls" style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+            <div 
+              className={`brush-type-controls ${isCompact ? 'compact' : ''}`}
+              style={{ 
+                display: 'flex', 
+                gap: isCompact ? '4px' : '8px', 
+                marginBottom: '12px',
+                flexWrap: isNarrow ? 'wrap' : 'nowrap'
+              }}
+            >
               <button 
                 className={`panel-button ${brushType === 'brush' ? 'primary' : ''}`}
                 onClick={() => setBrushType('brush')}
@@ -230,7 +340,9 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
                 disabled={!paintState.isActive}
                 className="color-input"
               />
-              <div className="predefined-colors">
+              <div 
+                className={`predefined-colors ${isNarrow ? 'narrow' : ''} ${isCompact ? 'compact' : ''}`}
+              >
                 {predefinedColors.map(color => (
                   <button
                     key={color}

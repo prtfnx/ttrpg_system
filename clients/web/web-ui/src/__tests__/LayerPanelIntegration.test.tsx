@@ -1,6 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import React from 'react';
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { LayerPanel } from '../components/LayerPanel';
 

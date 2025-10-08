@@ -129,7 +129,6 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
   
   // WASM Integration State
   const [textSprites, setTextSprites] = useState<TextSprite[]>([]);
-  const [spritePositions, setSpritePositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   const [wasmSpriteId, setWasmSpriteId] = useState<string | null>(initialSprite?.id || null);
   const [isWasmIntegrated, setIsWasmIntegrated] = useState(false);
 
@@ -243,10 +242,8 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
         setTextSprites(prev => [...prev, textSprite]);
         
         // Store sprite mapping for position updates
-        setSpritePositions(prev => new Map(prev.set(spriteId, {
-          x: wasmTextSprite.world_x,
-          y: wasmTextSprite.world_y
-        })));
+        // Track position on the textSprites array
+        setTextSprites(prev => prev.map(s => s.id === spriteId ? { ...s, position: { x: wasmTextSprite.world_x, y: wasmTextSprite.world_y } } : s));
         
         console.log('✅ Text sprite created and added to layer:', spriteId);
         return spriteId;
@@ -265,8 +262,8 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
     if (!engine || !spriteId) return;
 
     try {
-      // Update position in our tracking map
-      setSpritePositions(prev => new Map(prev.set(spriteId, newPosition)));
+  // Update position tracked on the text sprite object
+  setTextSprites(prev => prev.map(s => s.id === spriteId ? { ...s, position: newPosition } : s));
       
       // Since WASM doesn't have direct position update, we need to recreate the sprite
       // First, get the sprite data
@@ -311,11 +308,8 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
         const removed = engine.remove_sprite(spriteId);
         if (removed) {
           // Remove from our tracking
-          setSpritePositions(prev => {
-            const newMap = new Map(prev);
-            newMap.delete(spriteId);
-            return newMap;
-          });
+          // Remove position tracking by removing sprite from array
+          setTextSprites(prev => prev.filter(sprite => sprite.id !== spriteId));
           
           // Remove from textSprites array
           setTextSprites(prev => prev.filter(sprite => sprite.id !== spriteId));

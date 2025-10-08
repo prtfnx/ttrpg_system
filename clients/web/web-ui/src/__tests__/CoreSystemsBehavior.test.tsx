@@ -50,7 +50,8 @@ vi.mock('../services/auth.service', () => ({
       permissions: ['compendium:read', 'compendium:write', 'table:admin', 'character:write']
     })),
     isAuthenticated: vi.fn(() => true),
-    updateUserInfo: vi.fn()
+    updateUserInfo: vi.fn(),
+    getUserSessions: vi.fn(() => Promise.resolve([]))
   }
 }));
 
@@ -147,6 +148,34 @@ Object.defineProperty(window, 'rustRenderManager', {
     clear_fog: vi.fn(),
     get_fog_count: vi.fn(() => 0),
     
+    // Lighting System - Adding missing methods
+    add_light: vi.fn(),
+    remove_light: vi.fn(),
+    set_light_color: vi.fn(),
+    set_light_intensity: vi.fn(),
+    set_light_radius: vi.fn(),
+    get_light_count: vi.fn(() => 0),
+    
+    // Paint System - Adding missing methods
+    paint_set_brush_color: vi.fn(),
+    paint_set_brush_size: vi.fn(),
+    paint_start_stroke: vi.fn(),
+    paint_continue_stroke: vi.fn(),
+    paint_end_stroke: vi.fn(),
+    paint_clear: vi.fn(),
+    paint_save_strokes_as_sprites: vi.fn(() => []),
+    paint_is_mode: vi.fn(() => false),
+    paint_exit_mode: vi.fn(),
+    screen_to_world: vi.fn((x, y) => [x, y]),
+    world_to_screen: vi.fn((x, y) => [x, y]),
+    get_grid_size: vi.fn(() => 50),
+    
+    // Text Sprite System
+    create_text_sprite: vi.fn(() => 'text_sprite_1'),
+    register_movable_entity: vi.fn(),
+    add_sprite_to_layer: vi.fn(),
+    enable_sprite_movement: vi.fn(),
+    
     // Rendering
     render: vi.fn(),
     updateLighting: vi.fn(),
@@ -189,8 +218,8 @@ describe('Compendium System Behavior', () => {
     await user.click(screen.getByText('Goblin'));
     
     await waitFor(() => {
-      expect(screen.getByText(/CR 0.25/i)).toBeInTheDocument();
-      expect(screen.getByText(/CR 0.25 humanoid/i)).toBeInTheDocument(); // More specific
+      expect(screen.getAllByText(/CR 0.25/i)).toHaveLength(3); // Should appear in list, description, and details
+      expect(screen.getAllByText(/CR 0.25 humanoid/i)).toHaveLength(2); // More specific - in description and details
     });
   });
 
@@ -198,8 +227,14 @@ describe('Compendium System Behavior', () => {
     const user = userEvent.setup();
     renderWithAuth(<CompendiumPanel />);
 
-    // Switch to spells tab
-    await user.click(screen.getByText('Spells'));
+    // Switch to spells filter first to make spell level filter appear
+    const typeFilter = screen.getByDisplayValue('All Types');
+    await user.selectOptions(typeFilter, 'spell');
+
+    // Wait for spell level filter to appear (this indicates the type filter worked)
+    await waitFor(() => {
+      expect(screen.getByLabelText(/spell level/i)).toBeInTheDocument();
+    });
 
     // Search for evocation spells
     const searchInput = screen.getByPlaceholderText(/search compendium/i);

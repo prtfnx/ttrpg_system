@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useBrushPresets, usePaintInteraction, usePaintSystem } from '../hooks/usePaintSystem';
+import { useRenderEngine } from '../hooks/useRenderEngine';
 import { paintTemplateService, type TemplateMetadata } from '../services/paintTemplate.service';
 import './PaintPanel.css';
 
@@ -47,7 +48,7 @@ const usePanelDimensions = (): PanelDimensions => {
 };
 
 interface PaintModeStatus {
-  mode: 'draw' | 'erase' | 'template';
+  mode: 'draw' | 'erase' | 'template' | 'table';
   isActive: boolean;
   brush: {
     size: number;
@@ -57,6 +58,7 @@ interface PaintModeStatus {
     name: string;
   };
   isDrawing: boolean;
+  tableIntegration: boolean;
 }
 
 // Paint Mode Indicator Component
@@ -66,12 +68,14 @@ const PaintModeIndicator: React.FC<{ status: PaintModeStatus }> = ({ status }) =
       {status.mode === 'draw' && <span>🖌️</span>}
       {status.mode === 'erase' && <span>🧽</span>}
       {status.mode === 'template' && <span>📋</span>}
+      {status.mode === 'table' && <span>🗓️</span>}
     </div>
     <div className="mode-details">
       <div className="mode-name">{status.mode.toUpperCase()} MODE</div>
       <div className="mode-settings">
         Size: {status.brush.size}px | 
         {status.template ? ` Template: ${status.template.name}` : ` Color: ${status.brush.color}`}
+        {status.tableIntegration && <span className="table-badge"> | TABLE</span>}
       </div>
       {status.isDrawing && (
         <div className="drawing-indicator">
@@ -85,20 +89,125 @@ const PaintModeIndicator: React.FC<{ status: PaintModeStatus }> = ({ status }) =
   </div>
 );
 
+interface WASMTablePaintIntegration {
+  paintLayer: string;
+  tableId: string;
+  coordinateSystem: 'world' | 'screen';
+  persistence: boolean;
+}
+
+interface PaintStroke {
+  id: string;
+  points: Array<{ x: number; y: number }>;
+  color: string;
+  width: number;
+  blendMode: string;
+}
+
+// Custom hook for paint-table integration
+const usePaintTableIntegration = () => {
+  const engine = useRenderEngine();
+  
+  const paintToTable = async (
+    strokes: PaintStroke[],
+    layer: string,
+    options: WASMTablePaintIntegration
+  ) => {
+    if (!engine) {
+      throw new Error('Render engine not available');
+    }
+    
+    try {
+      // Convert paint strokes to WASM coordinates and paint them
+      for (const stroke of strokes) {
+        // Set brush properties
+        const [r, g, b, a] = hexToRgb(stroke.color);
+        engine.paint_set_brush_color(r, g, b, a);
+        engine.paint_set_brush_size(stroke.width);
+        
+        // Paint the stroke
+        if (stroke.points.length > 0) {
+          const firstPoint = stroke.points[0];
+          let worldCoords = [firstPoint.x, firstPoint.y];
+          
+          if (options.coordinateSystem === 'world') {
+            worldCoords = engine.screen_to_world(firstPoint.x, firstPoint.y);
+          }
+          
+          engine.paint_start_stroke(worldCoords[0], worldCoords[1]);
+          
+          for (let i = 1; i < stroke.points.length; i++) {
+            let coords = [stroke.points[i].x, stroke.points[i].y];
+            if (options.coordinateSystem === 'world') {
+              coords = engine.screen_to_world(coords[0], coords[1]);
+            }
+            engine.paint_continue_stroke(coords[0], coords[1]);
+          }
+          
+          engine.paint_end_stroke();
+        }
+      }
+      
+      // Save strokes as sprites if persistence is enabled
+      if (options.persistence && engine.paint_save_strokes_as_sprites) {
+        const spriteIds = engine.paint_save_strokes_as_sprites(layer);
+        return spriteIds;
+      }
+      
+      return [];
+      
+    } catch (error) {
+      throw new Error(`Failed to integrate paint with table: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+  
+  const clearTablePaint = async () => {
+    if (!engine) {
+      throw new Error('Render engine not available');
+    }
+    
+    try {
+      engine.paint_clear();
+    } catch (error) {
+      throw new Error(`Failed to clear table paint: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+  
+  // Helper function to convert hex to RGB array
+  const hexToRgb = (hex: string): [number, number, number, number] => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!result) return [1, 1, 1, 1];
+    return [
+      parseInt(result[1], 16) / 255,
+      parseInt(result[2], 16) / 255,
+      parseInt(result[3], 16) / 255,
+      1.0
+    ];
+  };
+  
+  return {
+    paintToTable,
+    clearTablePaint,
+    isIntegrated: !!engine,
+    engine
+  };
+};
+
 interface PaintPanelProps {
-  renderEngine?: any;
   isVisible?: boolean;
   onToggle?: () => void;
   onClose?: () => void;
 }
 
 export const PaintPanel: React.FC<PaintPanelProps> = ({
-  renderEngine = null,
   isVisible = true,
   onToggle,
   onClose
 }) => {
-  const [paintState, paintControls] = usePaintSystem(renderEngine, {
+  // WASM table integration hook
+  const { paintToTable, clearTablePaint, isIntegrated, engine } = usePaintTableIntegration();
+  
+  const [paintState, paintControls] = usePaintSystem(engine, {
     onStrokeCompleted: () => console.log('Stroke completed'),
     onCanvasCleared: () => console.log('Canvas cleared'),
   });
@@ -107,8 +216,8 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const panelDimensions = usePanelDimensions();
   
-  // Paint interaction is available for future mouse handling integration
-  usePaintInteraction(renderEngine, paintControls, paintState);
+  // Paint interaction for table integration
+  usePaintInteraction(engine, paintControls, paintState);
 
   // Responsive layout detection
   const isNarrow = panelDimensions.width < 300;
@@ -123,17 +232,21 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [brushType, setBrushType] = useState<'brush' | 'marker' | 'eraser'>('brush');
+  
+  // Paint mode state for table integration
+  const [paintMode, setPaintMode] = useState<'canvas' | 'table'>('table');
 
   // Determine current paint mode status for the indicator
   const currentPaintMode: PaintModeStatus = {
-    mode: brushType === 'eraser' ? 'erase' : selectedTemplate ? 'template' : 'draw',
+    mode: brushType === 'eraser' ? 'erase' : selectedTemplate ? 'template' : paintMode === 'table' ? 'table' : 'draw',
     isActive: paintState.isActive,
     brush: {
       size: 10, // Default brush size - could be enhanced to track actual brush size
       color: currentColor
     },
     template: selectedTemplate ? { name: templates.find(t => t.id === selectedTemplate)?.name || 'Unknown' } : undefined,
-    isDrawing: paintState.isDrawing
+    isDrawing: paintState.isDrawing,
+    tableIntegration: isIntegrated && paintMode === 'table'
   };
 
   // Load templates on mount
@@ -163,8 +276,21 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
     if (template) {
       // Clear current canvas and apply template strokes
       paintControls.clearAll();
-      // Note: Loading strokes would require WASM integration
-      // For now, just select the template
+      
+      // Load template into table if in table mode
+      if (paintMode === 'table' && isIntegrated) {
+        try {
+          await paintToTable(template.strokes, 'paint', {
+            paintLayer: 'paint',
+            tableId: 'main-table',
+            coordinateSystem: 'world',
+            persistence: true
+          });
+        } catch (error) {
+          console.error('Failed to load template to table:', error);
+        }
+      }
+      
       setSelectedTemplate(templateId);
     }
   };
@@ -273,7 +399,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
               <button 
                 onClick={handleEnterPaintMode}
                 className="btn-primary"
-                disabled={!renderEngine}
+                disabled={!engine}
               >
                 Enter Paint Mode
               </button>
@@ -544,8 +670,8 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
             </button>
             <button
               onClick={() => {
-                if (renderEngine && renderEngine.paint_save_strokes_as_sprites) {
-                  const spriteIds = renderEngine.paint_save_strokes_as_sprites('shapes');
+                if (engine && engine.paint_save_strokes_as_sprites) {
+                  const spriteIds = engine.paint_save_strokes_as_sprites('shapes');
                   console.log(`[PaintPanel] Saved ${spriteIds.length} paint strokes as sprites`);
                   if (spriteIds.length > 0) {
                     alert(`Saved ${spriteIds.length} paint strokes as sprites!`);

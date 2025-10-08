@@ -116,6 +116,50 @@ Object.assign(performance, {
   clearMeasures: vi.fn(),
 });
 
+// Mock CSS custom property support for JSDOM
+// JSDOM has issues with CSS variables, so we'll provide fallback values
+const originalGetComputedStyle = window.getComputedStyle;
+window.getComputedStyle = function(element: Element, pseudoElement?: string | null): CSSStyleDeclaration {
+  const style = originalGetComputedStyle.call(this, element, pseudoElement);
+  
+  // Create a proxy to handle CSS variable fallbacks
+  return new Proxy(style, {
+    get(target, property) {
+      const value = target[property as keyof CSSStyleDeclaration];
+      
+      // Handle CSS variable resolution for common cases
+      if (typeof value === 'string' && value.includes('var(--')) {
+        // Replace common CSS variables with fallback values for testing
+        return value
+          .replace(/var\(--border-primary\)/g, '#404040')
+          .replace(/var\(--bg-primary\)/g, '#0a0a0a')
+          .replace(/var\(--bg-secondary\)/g, '#1a1a1a')
+          .replace(/var\(--text-primary\)/g, '#ffffff')
+          .replace(/var\(--accent-primary\)/g, '#646cff')
+          .replace(/var\(--spacing-[a-z]+\)/g, '8px')
+          .replace(/var\(--radius-[a-z]+\)/g, '4px');
+      }
+      
+      return value;
+    }
+  });
+};
+
+// Mock CSSStyleSheet and CSS rule handling for JSDOM
+const mockCSSStyleSheet = {
+  insertRule: vi.fn(),
+  deleteRule: vi.fn(),
+  cssRules: [],
+  ownerRule: null,
+  rules: []
+};
+
+// Override document.styleSheets to handle CSS variable issues
+Object.defineProperty(document, 'styleSheets', {
+  value: [mockCSSStyleSheet],
+  writable: true
+});
+
 // Mock window.rustRenderManager for useRenderEngine hook
 Object.defineProperty(window, 'rustRenderManager', {
   value: {
@@ -159,6 +203,18 @@ Object.defineProperty(window, 'rustRenderManager', {
     set_input_mode_select: vi.fn(),
     set_input_mode_create_rectangle: vi.fn(),
     paint_is_drawing: vi.fn(() => false),
+    paint_get_brush_color: vi.fn(() => '#000000'),
+    paint_get_brush_size: vi.fn(() => 5),
+    paint_undo: vi.fn(),
+    paint_redo: vi.fn(),
+    paint_can_undo: vi.fn(() => false),
+    paint_can_redo: vi.fn(() => false),
+    paint_save_template: vi.fn(() => 'template_id_123'),
+    paint_load_template: vi.fn(),
+    paint_get_templates: vi.fn(() => []),
+    paint_delete_template: vi.fn(),
+    paint_set_blend_mode: vi.fn(),
+    paint_get_blend_mode: vi.fn(() => 'normal'),
     screen_to_world: vi.fn((x, y) => [x, y]),
     world_to_screen: vi.fn((x, y) => [x, y]),
     get_grid_size: vi.fn(() => 50),

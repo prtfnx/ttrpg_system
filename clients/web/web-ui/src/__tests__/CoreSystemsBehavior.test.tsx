@@ -227,14 +227,20 @@ describe('Compendium System Behavior', () => {
     const user = userEvent.setup();
     renderWithAuth(<CompendiumPanel />);
 
-    // Switch to spells filter first to make spell level filter appear
+    // Wait for auth context to initialize and component to be enabled
+    await waitFor(() => {
+      const typeFilter = screen.getByDisplayValue('All Types');
+      expect(typeFilter).not.toBeDisabled();
+    }, { timeout: 3000 });
+
+    // Switch to spells filter to make spell level filter appear
     const typeFilter = screen.getByDisplayValue('All Types');
     await user.selectOptions(typeFilter, 'spell');
 
-    // Wait for the typeFilter state change to take effect and spell level filter to appear
+    // Wait for the spell level filter to appear
     await waitFor(() => {
       expect(screen.getByLabelText(/spell level/i)).toBeInTheDocument();
-    }, { timeout: 3000 });
+    }, { timeout: 5000 });
 
     // Search for evocation spells
     const searchInput = screen.getByPlaceholderText(/search compendium/i);

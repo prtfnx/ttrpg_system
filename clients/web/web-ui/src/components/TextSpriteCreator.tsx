@@ -8,10 +8,10 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useRenderEngine } from '../hooks/useRenderEngine';
 import { ErrorBoundary } from './common/ErrorBoundary';
 import { LoadingSpinner } from './common/LoadingSpinner';
-import { useRenderEngine } from '../hooks/useRenderEngine';
-// import { useGameStore } from '../stores/gameStore'; // TODO: Create gameStore
+import { useGameStore } from '../stores/gameStore';
 import './TextSpriteCreator.css';
 
 // Text formatting options
@@ -112,7 +112,7 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
 }) => {
   // WASM Engine Integration
   const engine = useRenderEngine();
-  const activeLayer = 'text'; // Default layer since gameStore doesn't exist yet
+  const { activeLayer } = useGameStore();
   
   // State
   const [text, setText] = useState(initialSprite?.text || 'Sample Text');
@@ -128,6 +128,8 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
   const [error, setError] = useState<string | null>(null);
   
   // WASM Integration State
+  const [textSprites, setTextSprites] = useState<TextSprite[]>([]);
+  const [spritePositions, setSpritePositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   const [wasmSpriteId, setWasmSpriteId] = useState<string | null>(initialSprite?.id || null);
   const [isWasmIntegrated, setIsWasmIntegrated] = useState(false);
 
@@ -223,27 +225,31 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
         stroke_color: textSprite.style.strokeColor || '#000000'
       };
 
-      // Create text sprite in WASM
-      const success = engine.create_text_sprite && await engine.create_text_sprite(wasmTextSprite);
+      // Create sprite using available WASM API
+      const spriteData = {
+        id: textSprite.id,
+        x: wasmTextSprite.world_x,
+        y: wasmTextSprite.world_y,
+        width: wasmTextSprite.width,
+        height: wasmTextSprite.height,
+        texture: '', // Text will be rendered as canvas texture
+        layer: activeLayer || 'text'
+      };
+
+      const spriteId = engine.add_sprite_to_layer && engine.add_sprite_to_layer(activeLayer || 'text', spriteData);
       
-      if (success) {
-        // Register with movement manager for drag/drop
-        if (engine.register_movable_entity) {
-          engine.register_movable_entity(textSprite.id, 'text_sprite');
-        }
+      if (spriteId) {
+        // Store sprite for management
+        setTextSprites(prev => [...prev, textSprite]);
         
-        // Add to appropriate layer
-        if (engine.add_sprite_to_layer) {
-          engine.add_sprite_to_layer(textSprite.id, activeLayer || 'text');
-        }
+        // Store sprite mapping for position updates
+        setSpritePositions(prev => new Map(prev.set(spriteId, {
+          x: wasmTextSprite.world_x,
+          y: wasmTextSprite.world_y
+        })));
         
-        // Enable movement interactions
-        if (engine.enable_sprite_movement) {
-          engine.enable_sprite_movement(textSprite.id);
-        }
-        
-        console.log('✅ Text sprite created and registered with WASM movement system:', textSprite.id);
-        return textSprite.id;
+        console.log('✅ Text sprite created and added to layer:', spriteId);
+        return spriteId;
       } else {
         console.warn('Failed to create text sprite in WASM engine');
         return null;
@@ -259,38 +265,70 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
     if (!engine || !spriteId) return;
 
     try {
-      if (engine.update_text_sprite_position) {
-        await engine.update_text_sprite_position(spriteId, newPosition.x, newPosition.y);
+      // Update position in our tracking map
+      setSpritePositions(prev => new Map(prev.set(spriteId, newPosition)));
+      
+      // Since WASM doesn't have direct position update, we need to recreate the sprite
+      // First, get the sprite data
+      const currentSprite = textSprites.find(sprite => sprite.id === spriteId);
+      if (!currentSprite) {
+        console.warn('Sprite not found for position update:', spriteId);
+        return;
       }
+      
+      // Remove old sprite
+      if (engine.remove_sprite) {
+        engine.remove_sprite(spriteId);
+      }
+      
+      // Create new sprite at new position
+      const updatedSprite = {
+        ...currentSprite,
+        position: newPosition
+      };
+      
+      const newSpriteId = await createMovableTextSprite(updatedSprite);
+      
+      // Update textSprites array
+      setTextSprites(prev => prev.map(sprite => 
+        sprite.id === spriteId 
+          ? { ...sprite, id: newSpriteId || spriteId, position: newPosition }
+          : sprite
+      ));
+      
+      console.log('✅ Text sprite position updated:', spriteId, '->', newSpriteId);
     } catch (error) {
       console.error('Error updating text sprite position:', error);
     }
-  }, [engine]);
+  }, [engine, textSprites]);
 
   const removeTextSpriteFromWasm = useCallback(async (spriteId: string) => {
     if (!engine || !spriteId) return;
 
     try {
-      // Remove from movement system
-      if (engine.unregister_movable_entity) {
-        engine.unregister_movable_entity(spriteId);
+      // Remove sprite using available API
+      if (engine.remove_sprite) {
+        const removed = engine.remove_sprite(spriteId);
+        if (removed) {
+          // Remove from our tracking
+          setSpritePositions(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(spriteId);
+            return newMap;
+          });
+          
+          // Remove from textSprites array
+          setTextSprites(prev => prev.filter(sprite => sprite.id !== spriteId));
+          
+          console.log('✅ Text sprite removed from WASM system:', spriteId);
+        } else {
+          console.warn('Failed to remove sprite from WASM:', spriteId);
+        }
       }
-      
-      // Remove from layer
-      if (engine.remove_sprite_from_layer) {
-        engine.remove_sprite_from_layer(spriteId, activeLayer || 'text');
-      }
-      
-      // Remove text sprite
-      if (engine.remove_text_sprite) {
-        await engine.remove_text_sprite(spriteId);
-      }
-      
-      console.log('✅ Text sprite removed from WASM system:', spriteId);
     } catch (error) {
       console.error('Error removing text sprite from WASM:', error);
     }
-  }, [engine, activeLayer]);
+  }, [engine]);
 
   // Render text on canvas
   const renderText = useCallback((canvas: HTMLCanvasElement, currentText: string, currentStyle: TextStyle, currentPosition: { x: number; y: number }, currentRotation: number, currentOpacity: number) => {

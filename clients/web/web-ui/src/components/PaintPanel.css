@@ -817,3 +817,106 @@
   gap: 8px;
   justify-content: flex-end;
 }
+
+/* Paint Target Mode Selector Styles */
+.paint-target-mode-section {
+  margin-bottom: 16px;
+}
+
+.paint-target-mode-section h4 {
+  color: #b0b0b0;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.paint-mode-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.paint-mode-selector .mode-button {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #555;
+  background: #333;
+  color: #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.paint-mode-selector .mode-button:hover:not(:disabled) {
+  background: #404040;
+  border-color: #666;
+}
+
+.paint-mode-selector .mode-button.active {
+  background: #007acc;
+  border-color: #007acc;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 122, 204, 0.3);
+}
+
+.paint-mode-selector .mode-button:disabled {
+  background: #222;
+  color: #666;
+  border-color: #444;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.mode-status {
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.mode-status.success {
+  background: rgba(40, 167, 69, 0.2);
+  color: #28a745;
+  border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+.mode-status.warning {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.mode-status.error {
+  background: rgba(220, 53, 69, 0.2);
+  color: #dc3545;
+  border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Responsive adjustments for paint mode selector */
+.paint-panel.narrow .paint-mode-selector {
+  flex-direction: column;
+  gap: 4px;
+}
+
+.paint-panel.narrow .paint-mode-selector .mode-button {
+  flex: none;
+  font-size: 11px;
+  padding: 6px 8px;
+}
+
+.paint-panel.compact .mode-status {
+  font-size: 11px;
+  padding: 6px 8px;
+}

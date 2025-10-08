@@ -414,6 +414,46 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
           </div>
         </div>
 
+        {/* Paint Target Mode Selector */}
+        <div className="paint-target-mode-section">
+          <h4>Paint Target</h4>
+          <div className="paint-mode-selector">
+            <button 
+              className={`mode-button ${paintMode === 'canvas' ? 'active' : ''}`}
+              onClick={() => setPaintMode('canvas')}
+              disabled={!paintState.isActive}
+              title="Paint to local canvas (preview only)"
+            >
+              🖼️ Canvas Mode
+            </button>
+            <button 
+              className={`mode-button ${paintMode === 'table' ? 'active' : ''}`}
+              onClick={() => setPaintMode('table')}
+              disabled={!paintState.isActive || !isIntegrated}
+              title={isIntegrated ? "Paint directly to WASM table (persistent)" : "WASM table integration not available"}
+            >
+              🗺️ Table Mode {!isIntegrated && '(Unavailable)'}
+            </button>
+          </div>
+          <div className="mode-status">
+            {paintMode === 'table' && isIntegrated && (
+              <div className="status-indicator success">
+                ✅ Paint strokes will be saved to the table
+              </div>
+            )}
+            {paintMode === 'canvas' && (
+              <div className="status-indicator warning">
+                ⚠️ Paint strokes are preview only (not saved to table)
+              </div>
+            )}
+            {paintMode === 'table' && !isIntegrated && (
+              <div className="status-indicator error">
+                ❌ WASM table integration unavailable
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Brush Settings */}
         <div className="brush-settings-section">
           <h4>Brush Settings</h4>

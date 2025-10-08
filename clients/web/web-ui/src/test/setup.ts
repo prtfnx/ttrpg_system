@@ -162,6 +162,9 @@ Object.defineProperty(window, 'rustRenderManager', {
     screen_to_world: vi.fn((x, y) => [x, y]),
     world_to_screen: vi.fn((x, y) => [x, y]),
     get_grid_size: vi.fn(() => 50),
+    set_grid_enabled: vi.fn(),
+    set_grid_size: vi.fn(),
+    set_snap_to_grid: vi.fn(),
     
     // Text Sprite System
     create_text_sprite: vi.fn(() => 'text_sprite_1'),

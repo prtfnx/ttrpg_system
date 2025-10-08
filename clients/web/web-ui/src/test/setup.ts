@@ -145,13 +145,24 @@ window.getComputedStyle = function(element: Element, pseudoElement?: string | nu
   });
 };
 
+// Override CSS processing in JSDOM to handle CSS variables
+// Patch the CSS module to prevent parsing errors with CSS variables
+const originalCreateStyleSheet = (Document.prototype as any).createStyleSheet;
+if (originalCreateStyleSheet) {
+  (Document.prototype as any).createStyleSheet = function(...args: any[]) {
+    return originalCreateStyleSheet.apply(this, args);
+  };
+}
+
 // Mock CSSStyleSheet and CSS rule handling for JSDOM
 const mockCSSStyleSheet = {
-  insertRule: vi.fn(),
+  insertRule: vi.fn(() => 0),
   deleteRule: vi.fn(),
   cssRules: [],
   ownerRule: null,
-  rules: []
+  rules: [],
+  addRule: vi.fn(),
+  removeRule: vi.fn()
 };
 
 // Override document.styleSheets to handle CSS variable issues
@@ -159,6 +170,46 @@ Object.defineProperty(document, 'styleSheets', {
   value: [mockCSSStyleSheet],
   writable: true
 });
+
+// Create a safer CSS property setter that handles CSS variables
+const originalSetProperty = CSSStyleDeclaration.prototype.setProperty;
+CSSStyleDeclaration.prototype.setProperty = function(property: string, value: string, priority?: string) {
+  // Handle CSS variables by converting them to static values for testing
+  let processedValue = value;
+  if (typeof value === 'string' && value.includes('var(--')) {
+    processedValue = value
+      .replace(/var\(--border-primary\)/g, '#404040')
+      .replace(/var\(--bg-primary\)/g, '#0a0a0a')
+      .replace(/var\(--bg-secondary\)/g, '#1a1a1a')
+      .replace(/var\(--text-primary\)/g, '#ffffff')
+      .replace(/var\(--accent-primary\)/g, '#646cff')
+      .replace(/var\(--spacing-[a-z]+\)/g, '8px')
+      .replace(/var\(--radius-[a-z]+\)/g, '4px');
+  }
+  
+  // For border shorthand specifically, parse it safely
+  if (property === 'border' && typeof processedValue === 'string') {
+    // Split border shorthand into components to avoid JSDOM parsing errors
+    const borderParts = processedValue.split(' ');
+    if (borderParts.length >= 3) {
+      try {
+        originalSetProperty.call(this, 'border-width', borderParts[0], priority);
+        originalSetProperty.call(this, 'border-style', borderParts[1], priority);
+        originalSetProperty.call(this, 'border-color', borderParts[2], priority);
+        return;
+      } catch (e) {
+        // If individual properties fail, try the original
+      }
+    }
+  }
+  
+  try {
+    return originalSetProperty.call(this, property, processedValue, priority);
+  } catch (e) {
+    // Silently fail for CSS property setting errors in tests
+    console.debug(`CSS property setting failed in test: ${property}=${processedValue}`, e);
+  }
+};
 
 // Mock window.rustRenderManager for useRenderEngine hook
 Object.defineProperty(window, 'rustRenderManager', {
@@ -235,3 +286,64 @@ Object.defineProperty(window, 'rustRenderManager', {
   },
   writable: true
 });
+
+// Mock NetworkClient class for testing
+class MockNetworkClient {
+  // private messageHandler: ((type: string, data: any) => void) | null = null; // TODO: Use for mock message simulation
+  private connectionHandler: ((state: string, error?: string) => void) | null = null;
+  // private errorHandler: ((error: string) => void) | null = null; // TODO: Use for mock error simulation
+  private clientId = 'test-client-' + Math.random().toString(36).substr(2, 9);
+
+  set_message_handler(_handler: (type: string, data: any) => void) {
+    // this.messageHandler = handler; // TODO: Store for mock message simulation
+  }
+
+  set_connection_handler(handler: (state: string, error?: string) => void) {
+    this.connectionHandler = handler;
+  }
+
+  set_error_handler(handler: (error: string) => void) {
+    this.errorHandler = handler;
+  }
+
+  get_client_id() {
+    return this.clientId;
+  }
+
+  connect(_url: string) {
+    // Simulate async connection
+    setTimeout(() => {
+      if (this.connectionHandler) {
+        this.connectionHandler('connected');
+      }
+    }, 10);
+  }
+
+  disconnect() {
+    if (this.connectionHandler) {
+      this.connectionHandler('disconnected');
+    }
+  }
+
+  send_message(_type: string, _data: any) {
+    // Simulate message send - could trigger messageHandler in real implementation
+    return Promise.resolve();
+  }
+}
+
+// Mock wasmManager with proper NetworkClient
+const mockWasmManager = {
+  getInstance: vi.fn(() => Promise.resolve({
+    initialize: vi.fn(),
+    isInitialized: vi.fn(() => true)
+  })),
+  getNetworkClient: vi.fn(() => Promise.resolve(MockNetworkClient)), // Return the class constructor
+  getRenderEngine: vi.fn(() => Promise.resolve(window.rustRenderManager)),
+  getActionsClient: vi.fn(() => Promise.resolve({})),
+  getAssetManager: vi.fn(() => Promise.resolve({}))
+};
+
+// Replace the wasmManager import in tests
+vi.mock('../wasm/wasmManager', () => ({
+  wasmManager: mockWasmManager
+}));

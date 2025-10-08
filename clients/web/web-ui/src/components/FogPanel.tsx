@@ -100,7 +100,7 @@ export const FogPanel: React.FC = () => {
     setIsOperationInProgress(true);
 
     try {
-      const rectangle = fogRectangles.find(rect => rect.id === id);
+      // const rectangle = fogRectangles.find(rect => rect.id === id); // TODO: Use for rectangle operations
       showFeedback('removing', `Removing fog area...`);
 
       if (typeof engine.remove_fog_rectangle === 'function') {

@@ -390,3 +390,4 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
 export { DefaultErrorFallback, PanelErrorBoundary };
 export type { ErrorBoundaryProps, ErrorFallbackProps };
+

@@ -9,9 +9,9 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRenderEngine } from '../hooks/useRenderEngine';
+import { useGameStore } from '../stores/gameStore';
 import { ErrorBoundary } from './common/ErrorBoundary';
 import { LoadingSpinner } from './common/LoadingSpinner';
-import { useGameStore } from '../stores/gameStore';
 import './TextSpriteCreator.css';
 
 // Text formatting options

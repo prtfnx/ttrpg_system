@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useRenderEngine } from '../hooks/useRenderEngine';
 import './PanelStyles.css';
 
@@ -11,6 +11,13 @@ interface FogRectangle {
   mode: 'hide' | 'reveal';
 }
 
+interface FogOperationFeedback {
+  type: 'creating' | 'removing' | 'clearing' | 'success' | 'error' | 'loading';
+  message: string;
+  progress?: number;
+  rectangleId?: string;
+}
+
 export const FogPanel: React.FC = () => {
   const engine = useRenderEngine();
   const [fogRectangles, setFogRectangles] = useState<FogRectangle[]>([]);
@@ -18,41 +25,140 @@ export const FogPanel: React.FC = () => {
   const [currentMode, setCurrentMode] = useState<'hide' | 'reveal'>('hide');
   const [isGmMode, setIsGmMode] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>('');
+  const [feedback, setFeedback] = useState<FogOperationFeedback | null>(null);
+  const [previewRectangle, setPreviewRectangle] = useState<FogRectangle | null>(null);
+  const [isOperationInProgress, setIsOperationInProgress] = useState(false);
 
-  const addFogRectangle = useCallback((startX: number, startY: number, endX: number, endY: number, mode: 'hide' | 'reveal') => {
-    if (!engine) return;
+  // Clear feedback after a delay
+  useEffect(() => {
+    if (feedback && feedback.type === 'success') {
+      const timer = setTimeout(() => setFeedback(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [feedback]);
+
+  // Visual feedback helper
+  const showFeedback = (type: FogOperationFeedback['type'], message: string, options?: Partial<FogOperationFeedback>) => {
+    setFeedback({
+      type,
+      message,
+      ...options
+    });
+  };
+
+  const addFogRectangleWithFeedback = useCallback(async (
+    startX: number, 
+    startY: number, 
+    endX: number, 
+    endY: number, 
+    mode: 'hide' | 'reveal'
+  ) => {
+    if (!engine || isOperationInProgress) return;
 
     const id = `fog_${mode}_${Date.now()}`;
-    const newRect: FogRectangle = {
-      id,
-      startX,
-      startY,
-      endX,
-      endY,
-      mode,
-    };
+    setIsOperationInProgress(true);
+    
+    try {
+      // Show creation feedback with preview
+      showFeedback('creating', `Creating ${mode} fog area...`, { progress: 0 });
+      
+      // Create preview for immediate visual feedback
+      const preview: FogRectangle = { id, startX, startY, endX, endY, mode };
+      setPreviewRectangle(preview);
+      
+      // Simulate progress for better UX
+      showFeedback('creating', `Creating ${mode} fog area...`, { progress: 25 });
+      
+      // Add to engine
+      if (typeof engine.add_fog_rectangle === 'function') {
+        engine.add_fog_rectangle(id, startX, startY, endX, endY, mode);
+      }
+      
+      showFeedback('creating', `Creating ${mode} fog area...`, { progress: 75 });
+      
+      // Update state
+      setFogRectangles(prev => [...prev, preview]);
+      setPreviewRectangle(null);
+      
+      // Show success feedback
+      const area = Math.abs(endX - startX) * Math.abs(endY - startY);
+      showFeedback('success', `${mode.charAt(0).toUpperCase() + mode.slice(1)} fog area created (${area} sq units)`, {
+        rectangleId: id
+      });
+      
+    } catch (error) {
+      showFeedback('error', `Failed to create fog area: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setPreviewRectangle(null);
+    } finally {
+      setIsOperationInProgress(false);
+    }
+  }, [engine, isOperationInProgress]);
 
-    engine.add_fog_rectangle(id, startX, startY, endX, endY, mode);
-    setFogRectangles(prev => [...prev, newRect]);
-  }, [engine]);
+  const removeFogRectangleWithFeedback = useCallback(async (id: string) => {
+    if (!engine || isOperationInProgress) return;
+
+    setIsOperationInProgress(true);
+
+    try {
+      const rectangle = fogRectangles.find(rect => rect.id === id);
+      showFeedback('removing', `Removing fog area...`);
+
+      if (typeof engine.remove_fog_rectangle === 'function') {
+        engine.remove_fog_rectangle(id);
+      }
+
+      setFogRectangles(prev => prev.filter(rect => rect.id !== id));
+      if (selectedRectId === id) {
+        setSelectedRectId(null);
+      }
+
+      showFeedback('success', `Fog area removed successfully`);
+      
+    } catch (error) {
+      showFeedback('error', `Failed to remove fog area: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsOperationInProgress(false);
+    }
+  }, [engine, fogRectangles, selectedRectId, isOperationInProgress]);
+
+  const clearAllFogWithFeedback = useCallback(async () => {
+    if (!engine || isOperationInProgress) return;
+
+    setIsOperationInProgress(true);
+
+    try {
+      showFeedback('clearing', `Clearing all fog...`, { progress: 0 });
+      
+      if (typeof engine.clear_fog === 'function') {
+        engine.clear_fog();
+      }
+      
+      showFeedback('clearing', `Clearing all fog...`, { progress: 50 });
+      
+      setFogRectangles([]);
+      setSelectedRectId(null);
+      
+      showFeedback('success', `All fog cleared from the battlefield`);
+      
+    } catch (error) {
+      showFeedback('error', `Failed to clear fog: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsOperationInProgress(false);
+    }
+  }, [engine, isOperationInProgress]);
+
+  // Legacy method for backward compatibility
+  const addFogRectangle = useCallback((startX: number, startY: number, endX: number, endY: number, mode: 'hide' | 'reveal') => {
+    addFogRectangleWithFeedback(startX, startY, endX, endY, mode);
+  }, [addFogRectangleWithFeedback]);
 
   const removeFogRectangle = useCallback((id: string) => {
-    if (!engine) return;
-
-    engine.remove_fog_rectangle(id);
-    setFogRectangles(prev => prev.filter(rect => rect.id !== id));
-    if (selectedRectId === id) {
-      setSelectedRectId(null);
-    }
-  }, [engine, selectedRectId]);
+    removeFogRectangleWithFeedback(id);
+  }, [removeFogRectangleWithFeedback]);
 
   const clearAllFog = useCallback(() => {
-    if (!engine) return;
-
-    engine.clear_fog();
-    setFogRectangles([]);
-    setSelectedRectId(null);
-  }, [engine]);
+    clearAllFogWithFeedback();
+  }, [clearAllFogWithFeedback]);
 
   const hideEntireTable = useCallback(() => {
     if (!engine) return;
@@ -112,11 +218,103 @@ export const FogPanel: React.FC = () => {
 
   const selectedRect = fogRectangles.find(rect => rect.id === selectedRectId);
 
+  // Feedback Display Component
+  const FeedbackDisplay: React.FC<{ feedback: FogOperationFeedback }> = ({ feedback }) => (
+    <div className={`fog-feedback fog-feedback-${feedback.type}`} style={{
+      padding: '12px',
+      borderRadius: '6px',
+      marginBottom: '12px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '10px',
+      backgroundColor: 
+        feedback.type === 'success' ? '#d4edda' :
+        feedback.type === 'error' ? '#f8d7da' :
+        feedback.type === 'creating' || feedback.type === 'removing' || feedback.type === 'clearing' ? '#fff3cd' :
+        '#e2e3e5',
+      color:
+        feedback.type === 'success' ? '#155724' :
+        feedback.type === 'error' ? '#721c24' :
+        feedback.type === 'creating' || feedback.type === 'removing' || feedback.type === 'clearing' ? '#856404' :
+        '#383d41',
+      border: `1px solid ${
+        feedback.type === 'success' ? '#c3e6cb' :
+        feedback.type === 'error' ? '#f5c6cb' :
+        feedback.type === 'creating' || feedback.type === 'removing' || feedback.type === 'clearing' ? '#ffeaa7' :
+        '#d1ecf1'
+      }`
+    }}>
+      <div className="feedback-icon" style={{ fontSize: '1.2em' }}>
+        {feedback.type === 'creating' && <div className="loading-spinner" style={{
+          width: '16px',
+          height: '16px',
+          border: '2px solid #f3f3f3',
+          borderTop: '2px solid #3498db',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }}></div>}
+        {feedback.type === 'removing' && '🗑️'}
+        {feedback.type === 'clearing' && '🧹'}
+        {feedback.type === 'success' && '✅'}
+        {feedback.type === 'error' && '❌'}
+        {feedback.type === 'loading' && '⏳'}
+      </div>
+      <div className="feedback-content" style={{ flex: 1 }}>
+        <div className="feedback-message" style={{ fontWeight: '500' }}>{feedback.message}</div>
+        {feedback.progress !== undefined && (
+          <div className="feedback-progress" style={{
+            marginTop: '6px',
+            width: '100%',
+            height: '4px',
+            backgroundColor: 'rgba(255,255,255,0.3)',
+            borderRadius: '2px',
+            overflow: 'hidden'
+          }}>
+            <div 
+              className="progress-bar" 
+              style={{ 
+                width: `${feedback.progress}%`,
+                height: '100%',
+                backgroundColor: feedback.type === 'error' ? '#dc3545' : '#28a745',
+                transition: 'width 0.3s ease'
+              }} 
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // Preview Display Component
+  const PreviewDisplay: React.FC<{ preview: FogRectangle }> = ({ preview }) => (
+    <div className="fog-preview" style={{
+      padding: '10px',
+      backgroundColor: '#e7f3ff',
+      border: '1px dashed #0066cc',
+      borderRadius: '4px',
+      marginBottom: '12px',
+      fontSize: '0.9em'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{ fontSize: '1.1em' }}>👁️‍🗨️</span>
+        <span>
+          <strong>Preview:</strong> {preview.mode} area ({Math.abs(preview.endX - preview.startX)} × {Math.abs(preview.endY - preview.startY)} units)
+        </span>
+      </div>
+    </div>
+  );
+
   return (
     <div className="panel-base">
       <div className="panel-header">
         <h3>🌫️ Fog of War</h3>
       </div>
+      
+      {/* Operation Feedback */}
+      {feedback && <FeedbackDisplay feedback={feedback} />}
+      
+      {/* Preview Rectangle */}
+      {previewRectangle && <PreviewDisplay preview={previewRectangle} />}
       
       {/* Status Message */}
       {statusMessage && (

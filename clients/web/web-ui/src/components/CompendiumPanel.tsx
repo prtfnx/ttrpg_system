@@ -254,17 +254,23 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
           </select>
 
           {typeFilter === 'spell' && (
-            <select
-              value={spellLevel}
-              onChange={(e) => setSpellLevel(e.target.value)}
-              disabled={!isAuthenticated || !hasPermission('compendium:read')}
-              style={{ margin: '4px' }}
-            >
-              <option value="">All Levels</option>
-              {[0,1,2,3,4,5,6,7,8,9].map(level => (
-                <option key={level} value={level.toString()}>Level {level}</option>
-              ))}
-            </select>
+            <div style={{ display: 'flex', flexDirection: 'column', margin: '4px' }}>
+              <label htmlFor="spell-level-filter" style={{ fontSize: '12px', marginBottom: '2px' }}>
+                Spell Level
+              </label>
+              <select
+                id="spell-level-filter"
+                value={spellLevel}
+                onChange={(e) => setSpellLevel(e.target.value)}
+                disabled={!isAuthenticated || !hasPermission('compendium:read')}
+                style={{ margin: '0' }}
+              >
+                <option value="">All Levels</option>
+                {[0,1,2,3,4,5,6,7,8,9].map(level => (
+                  <option key={level} value={level.toString()}>Level {level}</option>
+                ))}
+              </select>
+            </div>
           )}
         </div>
       </div>

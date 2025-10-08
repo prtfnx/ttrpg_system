@@ -11,7 +11,7 @@ interface SyncState {
 
 export function EntitiesPanel() {
   const { sprites, selectedSprites, selectSprite, addSprite, removeSprite, updateSprite } = useGameStore()
-  const renderEngine = useRenderEngine()
+  const renderEngine = useRenderEngine();
   const [syncState, setSyncState] = useState<SyncState>({ status: 'idle' })
 
   // Validate and transform sprite data from WASM

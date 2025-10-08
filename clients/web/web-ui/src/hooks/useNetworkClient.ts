@@ -41,8 +41,16 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
   useEffect(() => {
     if (!clientRef.current) {
       // Use global WASM manager for consistent instance
-      wasmManager.getNetworkClient().then(async (NetworkClientClass) => {
-        const client = new NetworkClientClass();
+      wasmManager.getNetworkClient().then(async (NetworkClientClassOrInstance: any) => {
+        // wasmManager may return either a constructor (class) or an already-instantiated client.
+        let client: NetworkClient;
+        if (typeof NetworkClientClassOrInstance === 'function') {
+          client = new NetworkClientClassOrInstance();
+        } else if (typeof NetworkClientClassOrInstance === 'object' && NetworkClientClassOrInstance !== null) {
+          client = NetworkClientClassOrInstance;
+        } else {
+          throw new Error('Invalid NetworkClient provided by wasmManager');
+        }
         
         // Set up event handlers
         client.set_message_handler((messageType: string, data: any) => {
@@ -81,7 +89,7 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
           }
         });
 
-        clientRef.current = client;
+  clientRef.current = client;
         
         // Update client ID
         setNetworkState(prev => ({

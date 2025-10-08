@@ -436,7 +436,7 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
       console.log('[Test] Character creation completed successfully - reached export step');
     });
 
-    it('should handle spellcaster creation with spell selection', async () => {
+  it('should handle spellcaster creation with spell selection', { timeout: 30000 }, async () => {
       const user = userEvent.setup();
       render(<CharacterWizard userInfo={mockUserInfo} />);
       

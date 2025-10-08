@@ -381,7 +381,6 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
       {/* Paint Panel */}
       {paintPanelVisible && (
         <PaintPanel 
-          renderEngine={window.rustRenderManager as any || null}
           isVisible={paintPanelVisible} 
           onClose={() => setPaintPanelVisible(false)} 
         />

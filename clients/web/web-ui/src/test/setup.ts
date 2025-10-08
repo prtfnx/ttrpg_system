@@ -61,8 +61,9 @@ Object.defineProperty(window, 'matchMedia', {
       moveTo: vi.fn(),
       lineTo: vi.fn(),
       closePath: vi.fn(),
-      stroke: vi.fn(),
-      fill: vi.fn(),
+        stroke: vi.fn(),
+        fill: vi.fn(),
+        fillText: vi.fn(),
       measureText: vi.fn(() => ({ width: 0, actualBoundingBoxLeft: 0, actualBoundingBoxRight: 0, fontBoundingBoxAscent: 0, fontBoundingBoxDescent: 0, actualBoundingBoxAscent: 0, actualBoundingBoxDescent: 0, emHeightAscent: 0, emHeightDescent: 0, hangingBaseline: 0, alphabeticBaseline: 0, ideographicBaseline: 0 })),
       transform: vi.fn(),
       translate: vi.fn(),
@@ -302,8 +303,8 @@ class MockNetworkClient {
     this.connectionHandler = handler;
   }
 
-  set_error_handler(handler: (error: string) => void) {
-    this.errorHandler = handler;
+  set_error_handler(_handler: (error: string) => void) {
+    // this.errorHandler = handler; // TODO: Store for mock error simulation
   }
 
   get_client_id() {
@@ -347,3 +348,26 @@ const mockWasmManager = {
 vi.mock('../wasm/wasmManager', () => ({
   wasmManager: mockWasmManager
 }));
+
+// Mock Image so that canvas.toDataURL -> new Image() load path works in tests
+class MockImage {
+  public onload: ((ev: Event) => any) | null = null;
+  public onerror: ((ev: Event) => any) | null = null;
+  private _src = '';
+
+  set src(value: string) {
+    this._src = value;
+    // Simulate async load
+    setTimeout(() => {
+      if (typeof this.onload === 'function') {
+        try { this.onload(new Event('load')); } catch {};
+      }
+    }, 0);
+  }
+
+  get src() {
+    return this._src;
+  }
+}
+
+(window as any).Image = MockImage;

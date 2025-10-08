@@ -10,6 +10,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from './common/ErrorBoundary';
 import { LoadingSpinner } from './common/LoadingSpinner';
+import { useRenderEngine } from '../hooks/useRenderEngine';
+// import { useGameStore } from '../stores/gameStore'; // TODO: Create gameStore
 import './TextSpriteCreator.css';
 
 // Text formatting options
@@ -110,7 +112,7 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
 }) => {
   // WASM Engine Integration
   const engine = useRenderEngine();
-  const { activeLayer } = useGameStore();
+  const activeLayer = 'text'; // Default layer since gameStore doesn't exist yet
   
   // State
   const [text, setText] = useState(initialSprite?.text || 'Sample Text');

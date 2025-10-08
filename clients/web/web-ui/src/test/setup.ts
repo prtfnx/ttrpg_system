@@ -115,3 +115,64 @@ Object.assign(performance, {
   clearMarks: vi.fn(),
   clearMeasures: vi.fn(),
 });
+
+// Mock window.rustRenderManager for useRenderEngine hook
+Object.defineProperty(window, 'rustRenderManager', {
+  value: {
+    // GM Mode and Status
+    setGmMode: vi.fn(),
+    setStatusMessage: vi.fn(),
+    clearStatusMessage: vi.fn(),
+    getGmMode: vi.fn(() => false),
+    set_gm_mode: vi.fn(),
+    
+    // Fog Draw Mode
+    is_in_fog_draw_mode: vi.fn(() => false),
+    get_current_input_mode: vi.fn(() => 'normal'),
+    set_fog_draw_mode: vi.fn(),
+    set_fog_erase_mode: vi.fn(),
+    
+    // Fog Management
+    add_fog_rectangle: vi.fn(),
+    remove_fog_rectangle: vi.fn(),
+    clear_fog: vi.fn(),
+    get_fog_count: vi.fn(() => 0),
+    
+    // Lighting System
+    add_light: vi.fn(),
+    remove_light: vi.fn(),
+    set_light_color: vi.fn(),
+    set_light_intensity: vi.fn(),
+    set_light_radius: vi.fn(),
+    get_light_count: vi.fn(() => 0),
+    
+    // Paint System
+    paint_set_brush_color: vi.fn(),
+    paint_set_brush_size: vi.fn(),
+    paint_start_stroke: vi.fn(),
+    paint_continue_stroke: vi.fn(),
+    paint_end_stroke: vi.fn(),
+    paint_clear: vi.fn(),
+    paint_save_strokes_as_sprites: vi.fn(() => []),
+    paint_is_mode: vi.fn(() => false),
+    paint_exit_mode: vi.fn(),
+    set_input_mode_select: vi.fn(),
+    set_input_mode_create_rectangle: vi.fn(),
+    paint_is_drawing: vi.fn(() => false),
+    screen_to_world: vi.fn((x, y) => [x, y]),
+    world_to_screen: vi.fn((x, y) => [x, y]),
+    get_grid_size: vi.fn(() => 50),
+    
+    // Text Sprite System
+    create_text_sprite: vi.fn(() => 'text_sprite_1'),
+    register_movable_entity: vi.fn(),
+    add_sprite_to_layer: vi.fn(),
+    enable_sprite_movement: vi.fn(),
+    
+    // Rendering
+    render: vi.fn(),
+    updateLighting: vi.fn(),
+    updateFog: vi.fn()
+  },
+  writable: true
+});

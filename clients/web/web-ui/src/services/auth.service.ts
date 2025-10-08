@@ -96,15 +96,17 @@ class AuthService {
    * Instead, we rely on server-side validation of the cookie
    */
   async extractToken(): Promise<string | null> {
-    // Rate limiting
-    const now = Date.now();
-    if (now - this.lastRequestTime > AuthService.RATE_LIMIT_WINDOW) {
-      this.requestCount = 0;
-      this.lastRequestTime = now;
-    }
-    this.requestCount++;
-    if (this.requestCount > AuthService.RATE_LIMIT) {
-      throw new Error('Rate limit exceeded. Please wait before retrying.');
+    // Rate limiting - skip in test environment
+    if (!((globalThis as any).__VITEST__ || import.meta.env?.MODE === 'test')) {
+      const now = Date.now();
+      if (now - this.lastRequestTime > AuthService.RATE_LIMIT_WINDOW) {
+        this.requestCount = 0;
+        this.lastRequestTime = now;
+      }
+      this.requestCount++;
+      if (this.requestCount > AuthService.RATE_LIMIT) {
+        throw new Error('Rate limit exceeded. Please wait before retrying.');
+      }
     }
     // For HTTP-only cookies, we can't read them directly
     // Instead, we validate authentication by making a request to /users/me

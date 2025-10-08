@@ -18,7 +18,7 @@ import { MapPanel } from '../MapPanel';
 // Mock the auth service to provide authenticated user for tests
 import { vi } from 'vitest';
 
-vi.mock('../services/auth.service', () => ({
+vi.mock('../../services/auth.service', () => ({
   authService: {
     initialize: vi.fn(() => Promise.resolve()),
     getUserInfo: vi.fn(() => ({
@@ -28,8 +28,26 @@ vi.mock('../services/auth.service', () => ({
       permissions: ['compendium:read', 'compendium:write', 'table:admin', 'character:write']
     })),
     isAuthenticated: vi.fn(() => true),
-    updateUserInfo: vi.fn()
+    updateUserInfo: vi.fn(),
+    extractToken: vi.fn(() => Promise.resolve('test-token'))
   }
+}));
+
+// Mock AuthContext to provide authenticated state
+vi.mock('../AuthContext', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+  useAuth: () => ({
+    user: { id: 'test-user-1', username: 'testuser', role: 'dm', permissions: ['compendium:read', 'compendium:write', 'table:admin'] },
+    isAuthenticated: true,
+    permissions: ['compendium:read', 'compendium:write', 'table:admin'],
+    hasPermission: () => true,
+    loading: false,
+    error: '',
+    login: vi.fn(),
+    logout: vi.fn(),
+    requireAuth: (op: any) => op(),
+    updateUser: vi.fn()
+  })
 }));
 
 describe('MapPanel Component', () => {

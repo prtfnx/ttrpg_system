@@ -1,5 +1,5 @@
-import React, { Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
+import React, { Component } from 'react';
 import './ErrorBoundary.css';
 
 // Extend Window interface for error tracking
@@ -20,7 +20,7 @@ interface ErrorBoundaryState {
 
 interface ErrorBoundaryProps {
   children: ReactNode;
-  fallback?: React.ComponentType<ErrorFallbackProps>;
+  fallback?: React.ComponentType<ErrorFallbackProps> | React.ReactElement;
   onError?: (error: Error, errorInfo: ErrorInfo) => void;
   maxRetries?: number;
   componentName?: string;
@@ -89,8 +89,15 @@ class PanelErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryStat
 
   render() {
     if (this.state.hasError) {
-      const FallbackComponent = this.props.fallback || DefaultErrorFallback;
+      const fallback = this.props.fallback;
       const maxRetries = this.props.maxRetries || 3;
+      
+      // Handle both component and element types
+      if (React.isValidElement(fallback)) {
+        return fallback;
+      }
+      
+      const FallbackComponent = fallback || DefaultErrorFallback;
       
       return (
         <FallbackComponent
@@ -339,7 +346,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     if (this.state.hasError) {
       if (this.props.fallback) {
         // Use custom fallback if provided
-        const FallbackComponent = this.props.fallback;
+        const fallback = this.props.fallback;
+        
+        // Handle both component and element types
+        if (React.isValidElement(fallback)) {
+          return fallback;
+        }
+        
+        const FallbackComponent = fallback;
         return (
           <FallbackComponent
             error={this.state.error}
@@ -374,5 +388,5 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 }
 
-export { PanelErrorBoundary, DefaultErrorFallback };
-export type { ErrorFallbackProps, ErrorBoundaryProps };
+export { DefaultErrorFallback, PanelErrorBoundary };
+export type { ErrorBoundaryProps, ErrorFallbackProps };

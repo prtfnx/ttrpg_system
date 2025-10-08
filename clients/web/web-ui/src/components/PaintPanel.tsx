@@ -123,7 +123,7 @@ const usePaintTableIntegration = () => {
         // Set brush properties
         const [r, g, b, a] = hexToRgb(stroke.color);
         engine.paint_set_brush_color(r, g, b, a);
-        engine.paint_set_brush_size(stroke.width);
+        engine.paint_set_brush_width(stroke.width);
         
         // Paint the stroke
         if (stroke.points.length > 0) {
@@ -131,17 +131,17 @@ const usePaintTableIntegration = () => {
           let worldCoords = [firstPoint.x, firstPoint.y];
           
           if (options.coordinateSystem === 'world') {
-            worldCoords = engine.screen_to_world(firstPoint.x, firstPoint.y);
+            worldCoords = Array.from(engine.screen_to_world(firstPoint.x, firstPoint.y));
           }
           
-          engine.paint_start_stroke(worldCoords[0], worldCoords[1]);
+          engine.paint_start_stroke(worldCoords[0], worldCoords[1], 1.0);
           
           for (let i = 1; i < stroke.points.length; i++) {
             let coords = [stroke.points[i].x, stroke.points[i].y];
             if (options.coordinateSystem === 'world') {
-              coords = engine.screen_to_world(coords[0], coords[1]);
+              coords = Array.from(engine.screen_to_world(coords[0], coords[1]));
             }
-            engine.paint_continue_stroke(coords[0], coords[1]);
+            engine.paint_add_point(coords[0], coords[1], 1.0);
           }
           
           engine.paint_end_stroke();
@@ -167,7 +167,7 @@ const usePaintTableIntegration = () => {
     }
     
     try {
-      engine.paint_clear();
+      engine.paint_clear_all();
     } catch (error) {
       throw new Error(`Failed to clear table paint: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -205,7 +205,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
   onClose
 }) => {
   // WASM table integration hook
-  const { paintToTable, clearTablePaint, isIntegrated, engine } = usePaintTableIntegration();
+  const { paintToTable, isIntegrated, engine } = usePaintTableIntegration();
   
   const [paintState, paintControls] = usePaintSystem(engine, {
     onStrokeCompleted: () => console.log('Stroke completed'),

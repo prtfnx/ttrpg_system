@@ -361,3 +361,53 @@
   --warning-color-hover: #d97706;
   --warning-color-alpha: rgba(245, 158, 11, 0.2);
 }
+
+/* Loading Spinner Animation */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Fog Panel Specific Styles */
+.fog-feedback {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.fog-feedback-creating .loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+.fog-preview {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Progress bar animations */
+.feedback-progress .progress-bar {
+  transition: width 0.3s ease-in-out;
+}
+
+/* Visual feedback state colors */
+.fog-feedback-success {
+  background-color: #d4edda !important;
+  border-color: #c3e6cb !important;
+  color: #155724 !important;
+}
+
+.fog-feedback-error {
+  background-color: #f8d7da !important;
+  border-color: #f5c6cb !important;
+  color: #721c24 !important;
+}
+
+.fog-feedback-creating,
+.fog-feedback-removing,
+.fog-feedback-clearing {
+  background-color: #fff3cd !important;
+  border-color: #ffeaa7 !important;
+  color: #856404 !important;
+}

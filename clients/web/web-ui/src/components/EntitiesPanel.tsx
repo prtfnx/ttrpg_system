@@ -44,14 +44,15 @@ export function EntitiesPanel() {
     
     try {
       // Validate WASM availability
-      if (!window.rustRenderManager) {
+      const engine = renderEngine || (window as any).rustRenderManager;
+      if (!engine) {
         throw new Error('WASM render manager not available');
       }
-      
+
       setSyncState(prev => ({ ...prev, progress: 25 }));
-      
+
       // Get sprites with error handling
-      const rustSprites = window.rustRenderManager.get_all_sprites_network_data();
+      const rustSprites = engine.get_all_sprites_network_data();
       
       if (!Array.isArray(rustSprites)) {
         throw new Error('Invalid sprite data format from WASM');

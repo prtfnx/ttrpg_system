@@ -231,10 +231,10 @@ describe('Compendium System Behavior', () => {
     const typeFilter = screen.getByDisplayValue('All Types');
     await user.selectOptions(typeFilter, 'spell');
 
-    // Wait for spell level filter to appear (this indicates the type filter worked)
+    // Wait for the typeFilter state change to take effect and spell level filter to appear
     await waitFor(() => {
       expect(screen.getByLabelText(/spell level/i)).toBeInTheDocument();
-    });
+    }, { timeout: 3000 });
 
     // Search for evocation spells
     const searchInput = screen.getByPlaceholderText(/search compendium/i);

@@ -58,7 +58,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
         {activeTab === 'chat' && <ChatPanel />}
         {activeTab === 'lighting' && <LightingPanel />}
         {activeTab === 'fog' && <FogPanel />}
-        {activeTab === 'paint' && <PaintPanel renderEngine={window.rustRenderManager as any || null} />}
+        {activeTab === 'paint' && <PaintPanel />}
         {activeTab === 'compendium' && <CompendiumPanel />}
         {isDevelopment && activeTab === 'assets' && <AssetPanel />}
         {isDevelopment && activeTab === 'network' && <NetworkPanel />}

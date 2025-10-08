@@ -861,8 +861,9 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
       const fireballEntry = screen.getByText('Fireball');
       await user.click(fireballEntry);
       
-      // Spell description should be displayed in the spell card
-      expect(screen.getByText(/8d6 fire damage/i)).toBeInTheDocument();
+      // Spell description should be displayed in the spell card (using getAllByText since it appears multiple places)
+      const damageTexts = screen.getAllByText(/8d6 fire damage/i);
+      expect(damageTexts.length).toBeGreaterThan(0);
       
       // Basic spell details should be accessible
       expect(screen.getByText(/Fireball/i)).toBeInTheDocument();

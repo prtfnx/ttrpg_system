@@ -77,13 +77,13 @@ export function usePaintSystem(
 
     const updateState = () => {
       try {
-        const isActive = renderEngine.paint_is_mode();
-        const isDrawing = renderEngine.paint_is_drawing();
-        const strokeCount = renderEngine.paint_get_stroke_count();
-        const brushColor = renderEngine.paint_get_brush_color();
-        const brushWidth = renderEngine.paint_get_brush_width();
-        const canUndo = renderEngine.can_undo ? renderEngine.can_undo() : false;
-        const canRedo = renderEngine.can_redo ? renderEngine.can_redo() : false;
+        const isActive = typeof renderEngine.paint_is_mode === 'function' ? renderEngine.paint_is_mode() : false;
+        const isDrawing = typeof renderEngine.paint_is_drawing === 'function' ? renderEngine.paint_is_drawing() : false;
+        const strokeCount = typeof renderEngine.paint_get_stroke_count === 'function' ? renderEngine.paint_get_stroke_count() : 0;
+        const brushColor = typeof renderEngine.paint_get_brush_color === 'function' ? renderEngine.paint_get_brush_color() : [1.0, 1.0, 1.0, 1.0];
+        const brushWidth = typeof renderEngine.paint_get_brush_width === 'function' ? renderEngine.paint_get_brush_width() : 3.0;
+        const canUndo = typeof renderEngine.can_undo === 'function' ? renderEngine.can_undo() : false;
+        const canRedo = typeof renderEngine.can_redo === 'function' ? renderEngine.can_redo() : false;
 
         setPaintState(prev => ({
           ...prev,
@@ -96,7 +96,9 @@ export function usePaintSystem(
           canRedo,
         }));
       } catch (error) {
-        console.error('Error updating paint state:', error);
+        // Log but avoid spamming stack traces for missing/mocked engines
+        const msg = error instanceof Error ? error.message : String(error);
+        console.debug('Error updating paint state (non-fatal):', msg);
       }
     };
 
@@ -108,13 +110,21 @@ export function usePaintSystem(
 
   const enterPaintMode = useCallback((width = 800, height = 600) => {
     if (!renderEngine) return;
-    renderEngine.paint_enter_mode(width, height);
+    if (typeof renderEngine.paint_enter_mode === 'function') {
+      renderEngine.paint_enter_mode(width, height);
+    } else {
+      console.debug('Render engine missing paint_enter_mode()');
+    }
     setPaintState(prev => ({ ...prev, isActive: true }));
   }, [renderEngine]);
 
   const exitPaintMode = useCallback(() => {
     if (!renderEngine) return;
-    renderEngine.paint_exit_mode();
+    if (typeof renderEngine.paint_exit_mode === 'function') {
+      renderEngine.paint_exit_mode();
+    } else {
+      console.debug('Render engine missing paint_exit_mode()');
+    }
     setPaintState(prev => ({ 
       ...prev, 
       isActive: false, 
@@ -124,44 +134,69 @@ export function usePaintSystem(
 
   const setBrushColor = useCallback((r: number, g: number, b: number, a = 1.0) => {
     if (!renderEngine) return;
-    renderEngine.paint_set_brush_color(r, g, b, a);
+    if (typeof renderEngine.paint_set_brush_color === 'function') {
+      renderEngine.paint_set_brush_color(r, g, b, a);
+    } else {
+      console.debug('Render engine missing paint_set_brush_color()');
+    }
     setPaintState(prev => ({ ...prev, brushColor: [r, g, b, a] }));
   }, [renderEngine]);
 
   const setBrushWidth = useCallback((width: number) => {
     if (!renderEngine) return;
-    renderEngine.paint_set_brush_width(width);
+    if (typeof renderEngine.paint_set_brush_width === 'function') {
+      renderEngine.paint_set_brush_width(width);
+    } else {
+      console.debug('Render engine missing paint_set_brush_width()');
+    }
     setPaintState(prev => ({ ...prev, brushWidth: width }));
   }, [renderEngine]);
 
   const setBlendMode = useCallback((mode: 'alpha' | 'additive' | 'modulate' | 'multiply') => {
     if (!renderEngine) return;
-    renderEngine.paint_set_blend_mode(mode);
+    if (typeof renderEngine.paint_set_blend_mode === 'function') {
+      renderEngine.paint_set_blend_mode(mode);
+    } else {
+      console.debug('Render engine missing paint_set_blend_mode()');
+    }
     setPaintState(prev => ({ ...prev, blendMode: mode }));
   }, [renderEngine]);
 
   const clearAll = useCallback(() => {
     if (!renderEngine) return;
-    renderEngine.paint_clear_all();
+    if (typeof renderEngine.paint_clear_all === 'function') {
+      renderEngine.paint_clear_all();
+    } else {
+      console.debug('Render engine missing paint_clear_all()');
+    }
   }, [renderEngine]);
 
   const undoStroke = useCallback(() => {
     if (!renderEngine) return;
-    return renderEngine.paint_undo_stroke();
+    if (typeof renderEngine.paint_undo_stroke === 'function') {
+      return renderEngine.paint_undo_stroke();
+    }
+    console.debug('Render engine missing paint_undo_stroke()');
+    return false;
   }, [renderEngine]);
 
   const redoStroke = useCallback(() => {
     if (!renderEngine) return false;
-    return renderEngine.redo_last_stroke ? renderEngine.redo_last_stroke() : false;
+    if (typeof renderEngine.redo_last_stroke === 'function') {
+      return renderEngine.redo_last_stroke();
+    }
+    console.debug('Render engine missing redo_last_stroke()');
+    return false;
   }, [renderEngine]);
 
   const getStrokes = useCallback(() => {
     if (!renderEngine) return [];
     try {
-      const strokesJson = renderEngine.paint_get_strokes();
+      const strokesJson = typeof renderEngine.paint_get_strokes === 'function' ? renderEngine.paint_get_strokes() : [];
       return strokesJson ? JSON.parse(JSON.stringify(strokesJson)) : [];
     } catch (error) {
-      console.error('Error getting strokes:', error);
+      const msg = error instanceof Error ? error.message : String(error);
+      console.debug('Error getting strokes (non-fatal):', msg);
       return [];
     }
   }, [renderEngine]);
@@ -169,41 +204,62 @@ export function usePaintSystem(
   const getCurrentStroke = useCallback(() => {
     if (!renderEngine) return null;
     try {
-      const strokeJson = renderEngine.paint_get_current_stroke();
+      const strokeJson = typeof renderEngine.paint_get_current_stroke === 'function' ? renderEngine.paint_get_current_stroke() : null;
       return strokeJson ? JSON.parse(JSON.stringify(strokeJson)) : null;
     } catch (error) {
-      console.error('Error getting current stroke:', error);
+      const msg = error instanceof Error ? error.message : String(error);
+      console.debug('Error getting current stroke (non-fatal):', msg);
       return null;
     }
   }, [renderEngine]);
 
   const startStroke = useCallback((worldX: number, worldY: number, pressure = 1.0) => {
     if (!renderEngine) return false;
-    return renderEngine.paint_start_stroke(worldX, worldY, pressure);
+    if (typeof renderEngine.paint_start_stroke === 'function') {
+      return renderEngine.paint_start_stroke(worldX, worldY, pressure);
+    }
+    console.debug('Render engine missing paint_start_stroke()');
+    return false;
   }, [renderEngine]);
 
   const addPoint = useCallback((worldX: number, worldY: number, pressure = 1.0) => {
     if (!renderEngine) return false;
-    return renderEngine.paint_add_point(worldX, worldY, pressure);
+    if (typeof renderEngine.paint_add_point === 'function') {
+      return renderEngine.paint_add_point(worldX, worldY, pressure);
+    }
+    console.debug('Render engine missing paint_add_point()');
+    return false;
   }, [renderEngine]);
 
   const endStroke = useCallback(() => {
     if (!renderEngine) return false;
-    return renderEngine.paint_end_stroke();
+    if (typeof renderEngine.paint_end_stroke === 'function') {
+      return renderEngine.paint_end_stroke();
+    }
+    console.debug('Render engine missing paint_end_stroke()');
+    return false;
   }, [renderEngine]);
 
   const cancelStroke = useCallback(() => {
     if (!renderEngine) return;
-    renderEngine.paint_cancel_stroke();
+    if (typeof renderEngine.paint_cancel_stroke === 'function') {
+      renderEngine.paint_cancel_stroke();
+    } else {
+      console.debug('Render engine missing paint_cancel_stroke()');
+    }
   }, [renderEngine]);
 
   const applyBrushPreset = useCallback((preset: BrushPreset) => {
     if (!renderEngine) return;
-    preset.apply_to_paint_system(renderEngine);
+    if (typeof preset.apply_to_paint_system === 'function') {
+      preset.apply_to_paint_system(renderEngine);
+    } else {
+      console.debug('Brush preset missing apply_to_paint_system()');
+    }
     
-    // Update local state
-    const brushColor = renderEngine.paint_get_brush_color();
-    const brushWidth = renderEngine.paint_get_brush_width();
+    // Update local state (guarded reads)
+    const brushColor = typeof renderEngine.paint_get_brush_color === 'function' ? renderEngine.paint_get_brush_color() : [1.0, 1.0, 1.0, 1.0];
+    const brushWidth = typeof renderEngine.paint_get_brush_width === 'function' ? renderEngine.paint_get_brush_width() : 3.0;
     setPaintState(prev => ({ 
       ...prev, 
       brushColor, 

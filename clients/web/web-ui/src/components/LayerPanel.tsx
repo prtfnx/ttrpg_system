@@ -10,28 +10,33 @@ interface Layer {
   spriteCount: number;
 }
 
-interface LayerPanelProps extends React.HTMLProps<HTMLDivElement> {}
+interface LayerPanelProps extends React.HTMLProps<HTMLDivElement> {
+  // Optional: allow tests / callers to provide initial layers for deterministic sizing
+  initialLayers?: Layer[];
+}
 
-// Dynamic height calculation constants
-const LAYER_ITEM_HEIGHT = 120; // Height per layer item including opacity slider
-const PANEL_PADDING = 32; // Total padding
-const HEADER_HEIGHT = 60; // Header section height
+// Dynamic height calculation constants (aligned with UI plan)
+const LAYER_ITEM_HEIGHT = 60; // Height per layer item (collapsed compact height)
+const PANEL_PADDING = 20; // Total vertical padding inside the panel
+const HEADER_HEIGHT = 40; // Header section height
 const ACTIVE_LAYER_HEIGHT = 50; // Active layer display height
 const FOOTER_HEIGHT = 40; // Footer height
 
-const calculateDynamicHeight = (layerCount: number): { height: number; maxHeight: number } => {
-  const contentHeight = 
-    HEADER_HEIGHT + 
-    ACTIVE_LAYER_HEIGHT + 
-    (layerCount * LAYER_ITEM_HEIGHT) + 
-    FOOTER_HEIGHT + 
+const calculateDynamicHeight = (layerCount: number): { height: number; maxHeight: number; isClamped: boolean } => {
+  const contentHeight =
+    HEADER_HEIGHT +
+    ACTIVE_LAYER_HEIGHT +
+    (layerCount * LAYER_ITEM_HEIGHT) +
+    FOOTER_HEIGHT +
     PANEL_PADDING;
-  
-  const maxHeight = Math.max(400, window.innerHeight * 0.7); // Max 70% of viewport, min 400px
-  
+
+  const maxHeight = window.innerHeight * 0.6; // Max 60% of viewport
+  const clamped = contentHeight > maxHeight;
+
   return {
     height: Math.min(contentHeight, maxHeight),
-    maxHeight
+    maxHeight,
+    isClamped: clamped
   };
 };
 
@@ -45,7 +50,7 @@ const DEFAULT_LAYERS: Layer[] = [
   { id: 'fog_of_war', name: 'Fog of War', icon: '🌫️', color: '#6b7280', spriteCount: 0 }
 ];
 
-export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelProps) {
+export function LayerPanel({ className, style, id, initialLayers, ...otherProps }: LayerPanelProps) {
   const {
     activeLayer,
     layerVisibility,
@@ -55,7 +60,7 @@ export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelPr
     setLayerOpacity
   } = useGameStore();
 
-  const [layers, setLayers] = useState<Layer[]>([]);
+  const [layers, setLayers] = useState<Layer[]>(initialLayers ?? []);
   const [isLoading, setIsLoading] = useState(true);
 
   // Calculate dynamic dimensions
@@ -63,21 +68,24 @@ export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelPr
     return calculateDynamicHeight(layers.length);
   }, [layers.length]);
 
-  // Create dynamic style object
+  // Create dynamic style object; when clamped we prefer to allow internal scrolling
   const dynamicStyle = useMemo(() => {
     const baseStyle = style || {};
     return {
       ...baseStyle,
       height: `${dynamicDimensions.height}px`,
       maxHeight: `${dynamicDimensions.maxHeight}px`,
-      transition: 'height 0.3s ease-in-out'
-    };
+      transition: 'height 0.24s ease-in-out'
+    } as React.CSSProperties;
   }, [style, dynamicDimensions]);
 
   useEffect(() => {
     // Initialize layers
     const initLayers = () => {
-      setLayers(DEFAULT_LAYERS);
+      // If initialLayers were provided by a caller/test use them, otherwise use defaults
+      if (!initialLayers || initialLayers.length === 0) {
+        setLayers(DEFAULT_LAYERS);
+      }
       setIsLoading(false);
     };
 
@@ -138,7 +146,7 @@ export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelPr
   }
 
   return (
-    <div className={`layer-panel ${className || ''}`} style={dynamicStyle} id={id} {...otherProps}>
+    <div className={`layer-panel ${className || ''} ${dynamicDimensions.isClamped ? 'clamped' : ''}`} style={dynamicStyle} id={id} {...otherProps}>
       <div className="layer-panel-header">
         <h3>Layers</h3>
         <div className="layer-count">
@@ -151,7 +159,7 @@ export function LayerPanel({ className, style, id, ...otherProps }: LayerPanelPr
         <span className="active-layer-name">{activeLayer}</span>
       </div>
 
-      <div className="layer-list">
+      <div className="layer-list" style={dynamicDimensions.isClamped ? { overflowY: 'auto' } : undefined}>
         {layers.map((layer) => {
           const isActive = activeLayer === layer.id;
           const isVisible = layerVisibility[layer.id] ?? true;

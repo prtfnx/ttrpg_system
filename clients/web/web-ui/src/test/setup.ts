@@ -244,7 +244,10 @@ Object.defineProperty(window, 'rustRenderManager', {
     
     // Paint System
     paint_set_brush_color: vi.fn(),
-    paint_set_brush_size: vi.fn(),
+  paint_set_brush_size: vi.fn(),
+  // alias / convenience names some components use
+  paint_set_brush_width: vi.fn(),
+  paint_add_point: vi.fn(),
     paint_start_stroke: vi.fn(),
     paint_continue_stroke: vi.fn(),
     paint_end_stroke: vi.fn(),
@@ -268,10 +271,13 @@ Object.defineProperty(window, 'rustRenderManager', {
     paint_set_blend_mode: vi.fn(),
     paint_get_blend_mode: vi.fn(() => 'normal'),
     screen_to_world: vi.fn((x, y) => [x, y]),
+  // alias some components use
+  screen_to_world_coordinates: vi.fn((x, y) => [x, y]),
     world_to_screen: vi.fn((x, y) => [x, y]),
     get_grid_size: vi.fn(() => 50),
-    set_grid_enabled: vi.fn(),
-    set_grid_size: vi.fn(),
+  set_grid_enabled: vi.fn(),
+  set_grid_size: vi.fn(),
+  set_grid_color: vi.fn(),
     set_snap_to_grid: vi.fn(),
     
     // Text Sprite System
@@ -279,6 +285,10 @@ Object.defineProperty(window, 'rustRenderManager', {
     register_movable_entity: vi.fn(),
     add_sprite_to_layer: vi.fn(),
     enable_sprite_movement: vi.fn(),
+  // Generic sprite helpers (some components call these names)
+  add_sprite: vi.fn(),
+  remove_sprite: vi.fn(),
+  get_all_sprites_network_data: vi.fn(() => []),
     
     // Rendering
     render: vi.fn(),

@@ -27,11 +27,23 @@ export const NetworkPanel: React.FC = () => {
   const onConnectionChange = useCallback((state: string, error?: string) => {
     console.log('Connection state changed:', state, error);
     if (error && typeof window !== 'undefined') {
-      setMessages(prev => [...prev, {
-        type: 'connection_error',
-        data: { error },
-        timestamp: Date.now(),
-      }]);
+      // Avoid duplicating large human-readable failure messages in the message log.
+      // The UI already shows the lastError banner for connection failures, so only
+      // add structured/loggable messages here.
+      if (!error.includes('Connection failed')) {
+        setMessages(prev => [...prev, {
+          type: 'connection_error',
+          data: { error },
+          timestamp: Date.now(),
+        }]);
+      } else {
+        // Add a compact connection status entry instead of the full error text
+        setMessages(prev => [...prev, {
+          type: 'connection',
+          data: { status: 'error' },
+          timestamp: Date.now(),
+        }]);
+      }
     }
   }, []);
 
@@ -39,11 +51,21 @@ export const NetworkPanel: React.FC = () => {
     console.error('Network error:', error);
     // Check if component is still mounted and in browser environment
     if (typeof window !== 'undefined') {
-      setMessages(prev => [...prev, {
-        type: 'error',
-        data: { error },
-        timestamp: Date.now(),
-      }]);
+      // Avoid adding the full 'Connection failed' text to the message log which
+      // duplicates the banner; keep message log entries compact for readability.
+      if (!error.includes('Connection failed')) {
+        setMessages(prev => [...prev, {
+          type: 'error',
+          data: { error },
+          timestamp: Date.now(),
+        }]);
+      } else {
+        setMessages(prev => [...prev, {
+          type: 'error',
+          data: { message: 'Connection failure' },
+          timestamp: Date.now(),
+        }]);
+      }
     }
   }, []);
 
@@ -79,14 +101,6 @@ export const NetworkPanel: React.FC = () => {
       
       connect(serverUrl);
       
-      // Simulate connection failure for testing
-      setTimeout(() => {
-        setMessages(prev => [...prev, {
-          type: 'error',
-          data: { error: 'Connection failed: Retry available' },
-          timestamp: Date.now()
-        }]);
-      }, 1000);
     } else {
       disconnect();
     }
@@ -187,7 +201,14 @@ export const NetworkPanel: React.FC = () => {
           {networkState.isConnected ? 'Disconnect' : 'Connect'}
         </button>
         {/* Add retry button for connection failures */}
-        {!networkState.isConnected && messages.some(m => m.type === 'error' && m.data.error.includes('Connection failed')) && (
+        {!networkState.isConnected && messages.some(m => {
+          if (m.type !== 'error') return false;
+          const d = m.data as any;
+          if (!d) return false;
+          if (typeof d.error === 'string' && d.error.includes('Connection failed')) return true;
+          if (typeof d.message === 'string' && d.message.includes('Connection failure')) return true;
+          return false;
+        }) && (
           <button
             onClick={handleConnect}
             className={styles.connect}

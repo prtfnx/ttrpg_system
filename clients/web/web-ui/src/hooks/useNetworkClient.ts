@@ -52,55 +52,89 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
           throw new Error('Invalid NetworkClient provided by wasmManager');
         }
         
-        // Set up event handlers
-        client.set_message_handler((messageType: string, data: any) => {
-          const message: NetworkMessage = {
-            type: messageType,
-            data,
-            timestamp: Date.now(),
-          };
-          
-          if (options.onMessage) {
-            options.onMessage(message);
-          }
-        });
+          try {
+            // Set up event handlers
+            client.set_message_handler((messageType: string, data: any) => {
+              const message: NetworkMessage = {
+                type: messageType,
+                data,
+                timestamp: Date.now(),
+              };
 
-        client.set_connection_handler((state: string, error?: string) => {
-          setNetworkState(prev => ({
-            ...prev,
-            connectionState: state,
-            isConnected: state === 'connected',
-            lastError: error,
-          }));
-          
-          if (options.onConnectionChange) {
-            options.onConnectionChange(state, error);
-          }
-        });
+              if (options.onMessage) {
+                options.onMessage(message);
+              }
+            });
 
-        client.set_error_handler((error: string) => {
-          setNetworkState(prev => ({
-            ...prev,
-            lastError: error,
-          }));
-          
-          if (options.onError) {
-            options.onError(error);
-          }
-        });
+            client.set_connection_handler((state: string, error?: string) => {
+              setNetworkState(prev => ({
+                ...prev,
+                connectionState: state,
+                isConnected: state === 'connected',
+                lastError: error,
+              }));
 
-  clientRef.current = client;
+              if (options.onConnectionChange) {
+                options.onConnectionChange(state, error);
+              }
+            });
+
+            client.set_error_handler((error: string) => {
+              setNetworkState(prev => ({
+                ...prev,
+                lastError: error,
+              }));
+
+              if (options.onError) {
+                options.onError(error);
+              }
+            });
+
+            clientRef.current = client;
+            // Update client ID (only after successful handler wiring)
+            try {
+              if (typeof client.get_client_id === 'function') {
+                setNetworkState(prev => ({
+                  ...prev,
+                  clientId: client.get_client_id(),
+                }));
+              }
+            } catch (idErr) {
+              console.warn('Unable to read client id after initialization:', idErr);
+            }
+
+            // Auto-connect if requested
+            if (options.autoConnect && options.serverUrl) {
+              try {
+                client.connect(options.serverUrl);
+              } catch (connErr) {
+                console.error('Auto-connect failed:', connErr);
+              }
+            }
+
+          } catch (e: any) {
+            const message = e instanceof Error ? e.message : String(e);
+            const errorText = `Connection failed: ${message}`;
+            // Set a clear error state so UI can respond appropriately
+            setNetworkState(prev => ({
+              ...prev,
+              connectionState: 'error',
+              isConnected: false,
+              lastError: errorText,
+            }));
+
+            if (options.onError) {
+              options.onError(errorText);
+            }
+            if (options.onConnectionChange) {
+              options.onConnectionChange('error', errorText);
+            }
+
+            console.error('Network client initialization failed:', e);
+            // Do not rethrow; we've recorded the failure for callers/UI
+          }
         
-        // Update client ID
-        setNetworkState(prev => ({
-          ...prev,
-          clientId: client.get_client_id(),
-        }));
-
-        // Auto-connect if requested
-        if (options.autoConnect && options.serverUrl) {
-          client.connect(options.serverUrl);
-        }
+        
       }).catch((error) => {
         console.error('Failed to load WASM network client:', error);
         if (options.onError) {

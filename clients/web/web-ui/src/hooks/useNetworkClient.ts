@@ -53,44 +53,68 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
         }
         
           try {
-            // Set up event handlers
-            client.set_message_handler((messageType: string, data: any) => {
-              const message: NetworkMessage = {
-                type: messageType,
-                data,
-                timestamp: Date.now(),
-              };
+            // Set up event handlers only if the client exposes the expected API.
+            if (typeof client.set_message_handler === 'function') {
+              client.set_message_handler((messageType: string, data: any) => {
+                const message: NetworkMessage = {
+                  type: messageType,
+                  data,
+                  timestamp: Date.now(),
+                };
 
-              if (options.onMessage) {
-                options.onMessage(message);
-              }
-            });
+                if (options.onMessage) {
+                  options.onMessage(message);
+                }
+              });
+            } else {
+              // If the client lacks a message handler setter, surface a clear error
+              const shortMsg = 'Network client missing set_message_handler()';
+              const msg = `Connection failed: ${shortMsg}`;
+              console.error(shortMsg);
+              setNetworkState(prev => ({ ...prev, connectionState: 'error', isConnected: false, lastError: msg }));
+              // Call callbacks asynchronously to avoid React act(...) warning in tests
+              setTimeout(() => {
+                if (options.onError) options.onError(msg);
+                if (options.onConnectionChange) options.onConnectionChange('error', msg);
+              }, 0);
+              // Do not proceed further with initialization
+              return;
+            }
 
-            client.set_connection_handler((state: string, error?: string) => {
-              setNetworkState(prev => ({
-                ...prev,
-                connectionState: state,
-                isConnected: state === 'connected',
-                lastError: error,
-              }));
+            if (typeof client.set_connection_handler === 'function') {
+              client.set_connection_handler((state: string, error?: string) => {
+                setNetworkState(prev => ({
+                  ...prev,
+                  connectionState: state,
+                  isConnected: state === 'connected',
+                  lastError: error,
+                }));
 
-              if (options.onConnectionChange) {
-                options.onConnectionChange(state, error);
-              }
-            });
+                if (options.onConnectionChange) {
+                  options.onConnectionChange(state, error);
+                }
+              });
+            } else {
+              console.warn('Network client missing set_connection_handler()');
+            }
 
-            client.set_error_handler((error: string) => {
-              setNetworkState(prev => ({
-                ...prev,
-                lastError: error,
-              }));
+            if (typeof client.set_error_handler === 'function') {
+              client.set_error_handler((error: string) => {
+                setNetworkState(prev => ({
+                  ...prev,
+                  lastError: error,
+                }));
 
-              if (options.onError) {
-                options.onError(error);
-              }
-            });
+                if (options.onError) {
+                  options.onError(error);
+                }
+              });
+            } else {
+              console.warn('Network client missing set_error_handler()');
+            }
 
             clientRef.current = client;
+
             // Update client ID (only after successful handler wiring)
             try {
               if (typeof client.get_client_id === 'function') {
@@ -98,6 +122,8 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
                   ...prev,
                   clientId: client.get_client_id(),
                 }));
+              } else {
+                console.warn('Network client missing get_client_id()');
               }
             } catch (idErr) {
               console.warn('Unable to read client id after initialization:', idErr);
@@ -106,7 +132,11 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
             // Auto-connect if requested
             if (options.autoConnect && options.serverUrl) {
               try {
-                client.connect(options.serverUrl);
+                if (typeof client.connect === 'function') {
+                  client.connect(options.serverUrl);
+                } else {
+                  console.warn('Network client missing connect()');
+                }
               } catch (connErr) {
                 console.error('Auto-connect failed:', connErr);
               }

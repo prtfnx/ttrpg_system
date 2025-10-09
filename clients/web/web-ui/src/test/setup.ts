@@ -300,21 +300,22 @@ Object.defineProperty(window, 'rustRenderManager', {
 
 // Mock NetworkClient class for testing
 class MockNetworkClient {
-  // private messageHandler: ((type: string, data: any) => void) | null = null; // TODO: Use for mock message simulation
+  // Implement a simple mock that stores handlers and provides common methods
+  private messageHandler: ((type: string, data: any) => void) | null = null;
   private connectionHandler: ((state: string, error?: string) => void) | null = null;
-  // private errorHandler: ((error: string) => void) | null = null; // TODO: Use for mock error simulation
+  private errorHandler: ((error: string) => void) | null = null;
   private clientId = 'test-client-' + Math.random().toString(36).substr(2, 9);
 
-  set_message_handler(_handler: (type: string, data: any) => void) {
-    // this.messageHandler = handler; // TODO: Store for mock message simulation
+  set_message_handler(handler: (type: string, data: any) => void) {
+    this.messageHandler = handler;
   }
 
   set_connection_handler(handler: (state: string, error?: string) => void) {
     this.connectionHandler = handler;
   }
 
-  set_error_handler(_handler: (error: string) => void) {
-    // this.errorHandler = handler; // TODO: Store for mock error simulation
+  set_error_handler(handler: (error: string) => void) {
+    this.errorHandler = handler;
   }
 
   get_client_id() {
@@ -322,12 +323,13 @@ class MockNetworkClient {
   }
 
   connect(_url: string) {
-    // Simulate async connection
+    // Simulate async connection success
     setTimeout(() => {
       if (this.connectionHandler) {
         this.connectionHandler('connected');
       }
     }, 10);
+    return Promise.resolve({ connected: true });
   }
 
   disconnect() {
@@ -336,10 +338,40 @@ class MockNetworkClient {
     }
   }
 
+  // Allow tests to simulate incoming messages
+  __simulate_incoming(type: string, data: any) {
+    if (this.messageHandler) {
+      this.messageHandler(type, data);
+    }
+  }
+
+  // Allow tests to simulate connection errors
+  __simulate_error(error: string) {
+    if (this.errorHandler) this.errorHandler(error);
+    if (this.connectionHandler) this.connectionHandler('error', error);
+  }
+
   send_message(_type: string, _data: any) {
     // Simulate message send - could trigger messageHandler in real implementation
     return Promise.resolve();
   }
+
+  // Lightweight stubs for optional APIs used by UI
+  authenticate(_username: string, _password: string) { return Promise.resolve(true); }
+  set_user_info(_userId: number, _username: string, _sessionCode?: string, _jwt?: string) { /* noop */ }
+  join_session(_code: string) { /* noop */ }
+  request_table_list() { /* noop */ }
+  request_player_list() { /* noop */ }
+  send_sprite_update(_data: any) { return Promise.resolve(); }
+  send_sprite_create(_data: any) { return Promise.resolve(); }
+  send_sprite_remove(_id: string) { return Promise.resolve(); }
+  send_table_update(_data: any) { return Promise.resolve(); }
+  send_ping() { return Promise.resolve(); }
+  request_asset_upload(_filename: string, _hash: string, _size: bigint) { return Promise.resolve(); }
+  request_asset_download(_id: string) { return Promise.resolve(); }
+  confirm_asset_upload(_id: string, _ok: boolean) { return Promise.resolve(); }
+
+  free() { /* noop for mock cleanup */ }
 }
 
 // Mock wasmManager with proper NetworkClient

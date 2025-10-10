@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, afterEach } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 // Ensure wasmManager is mocked before importing the hook (vi.mock is hoisted)
 vi.mock('../utils/wasmManager', () => ({
   wasmManager: {
@@ -7,8 +7,8 @@ vi.mock('../utils/wasmManager', () => ({
   }
 }));
 
-import React from 'react';
 import { render, waitFor } from '@testing-library/react';
+import React from 'react';
 import { useNetworkClient } from '../hooks/useNetworkClient';
 
 // Small helper component to expose the hook's state for assertions

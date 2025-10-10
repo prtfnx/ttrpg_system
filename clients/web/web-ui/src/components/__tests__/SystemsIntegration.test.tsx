@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createMockRenderEngine, resetMockRenderEngine } from '../../test/utils/mockRenderEngine';
 
 // Import web client system components
 import { ActionsPanel } from '../ActionsPanel';
@@ -15,40 +16,7 @@ import { PerformanceMonitor } from '../PerformanceMonitor';
 
 //Mock WASM module with realistic interface
 const mockLoadTexture = vi.fn().mockResolvedValue(true);
-const mockRenderEngine = {
-  initialize: vi.fn(),
-  render: vi.fn(),
-  update: vi.fn(),
-  handle_mouse_event: vi.fn(),
-  handle_keyboard_event: vi.fn(),
-  screen_to_world: vi.fn().mockReturnValue({ x: 10.5, y: 20.3 }),
-  world_to_screen: vi.fn().mockReturnValue({ x: 100, y: 200 }),
-  set_viewport: vi.fn(),
-  get_viewport: vi.fn().mockReturnValue({ x: 0, y: 0, width: 800, height: 600 }),
-  create_sprite: vi.fn().mockReturnValue('sprite_123'),
-  move_sprite: vi.fn(),
-  delete_sprite: vi.fn(),
-  get_sprite_position: vi.fn().mockReturnValue({ x: 5, y: 5 }),
-  add_light_source: vi.fn(),
-  remove_light_source: vi.fn(),
-  add_light: vi.fn(),
-  set_light_color: vi.fn(),
-  set_light_intensity: vi.fn(),
-  remove_light: vi.fn(),
-  update_fog_of_war: vi.fn(),
-  calculate_line_of_sight: vi.fn().mockReturnValue(true),
-  create_table: vi.fn(),
-  load_texture: mockLoadTexture,
-  // Add missing WASM render engine functions
-  set_action_handler: vi.fn(),
-  get_all_tables: vi.fn().mockReturnValue([]),
-  get_performance_metrics: vi.fn().mockReturnValue({
-    fps: 60,
-    frame_time: 16.67,
-    memory_usage: 1024 * 1024,
-    sprite_count: 15
-  })
-};
+const mockRenderEngine = createMockRenderEngine();
 
 const mockWasmModule = {
   RenderEngine: vi.fn().mockImplementation(() => mockRenderEngine),
@@ -194,6 +162,12 @@ beforeEach(() => {
   // Clear all mocks before each test
   vi.clearAllMocks();
   mockLoadTexture.mockClear();
+  // Ensure the RenderEngine factory returns the shared mock after clearing
+  try {
+    mockWasmModule.RenderEngine.mockImplementation(() => createMockRenderEngine());
+  } catch (e) {
+    // no-op if mock not available yet
+  }
 });
 
 describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
@@ -274,15 +248,8 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
     beforeEach(() => {
       // Reset WASM mock for clean actions tests
       mockWasmModule.RenderEngine.mockClear();
-      mockWasmModule.RenderEngine.mockImplementation(() => ({
-        initialize: vi.fn().mockResolvedValue(undefined),
-        free: vi.fn(),
-        render: vi.fn(),
-        resize: vi.fn(),
-        add_sprite_to_layer: vi.fn(),
-        remove_sprite: vi.fn(),
-        screen_to_world: vi.fn().mockReturnValue({ x: 10.5, y: 20.3 })
-      }));
+      // Ensure the Actions tests use the shared, full-featured mock render engine
+      mockWasmModule.RenderEngine.mockImplementation(() => createMockRenderEngine());
     });
     
     it('should coordinate WASM operations through TypeScript actions', async () => {

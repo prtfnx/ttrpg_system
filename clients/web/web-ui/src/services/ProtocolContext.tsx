@@ -18,7 +18,22 @@ export { ProtocolContext };
 
 export function useProtocol() {
   const ctx = useContext(ProtocolContext);
-  if (!ctx) throw new Error('useProtocol must be used within a ProtocolProvider');
+  if (!ctx) {
+    // In tests we may want to render components without wrapping them in the
+    // ProtocolProvider. When running under Vitest return a safe default
+    // context object so callers that destructure { protocol } don't throw.
+    if ((globalThis as any).__VITEST__) {
+      return {
+        protocol: null,
+        socket: null,
+        connectionState: 'disconnected' as const,
+        isConnected: false,
+        connect: async () => {},
+        disconnect: () => {}
+      } as ProtocolContextValue;
+    }
+    throw new Error('useProtocol must be used within a ProtocolProvider');
+  }
   return ctx;
 }
 

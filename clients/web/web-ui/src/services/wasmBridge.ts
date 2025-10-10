@@ -157,7 +157,11 @@ export const wasmBridgeService = new WasmBridgeService();
 
 // React hook for easy integration
 export function useWasmBridge() {
-  const { protocol } = useProtocol();
+  // Defensive call - in tests useProtocol may throw if Provider isn't present
+  const _protocolCtx = (() => {
+    try { return useProtocol(); } catch (e) { return undefined; }
+  })();
+  const protocol = _protocolCtx?.protocol ?? null;
 
   React.useEffect(() => {
     wasmBridgeService.init();

@@ -865,8 +865,9 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
       const damageTexts = screen.getAllByText(/8d6 fire damage/i);
       expect(damageTexts.length).toBeGreaterThan(0);
       
-      // Basic spell details should be accessible
-      expect(screen.getByText(/Fireball/i)).toBeInTheDocument();
+  // Basic spell details should be accessible (allow multiple matching nodes)
+  const fireballNodes = screen.getAllByText(/Fireball/i);
+  expect(fireballNodes.length).toBeGreaterThan(0);
     });
 
     it('should provide monster stat blocks for DM reference', async () => {

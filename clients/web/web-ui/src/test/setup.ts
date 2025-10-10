@@ -1,5 +1,8 @@
 import '@testing-library/jest-dom';
-import { vi } from 'vitest';
+import { vi, afterEach } from 'vitest';
+import { createMockRenderEngine } from './utils/mockRenderEngine';
+import mockWasmManager, { resetNetworkClientFactory } from './utils/mockWasmManager';
+import mockProtocol, { defaultUseProtocol, resetMockProtocol } from './utils/mockProtocol';
 
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
@@ -16,19 +19,21 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
-// Mock ResizeObserver
-(globalThis as any).ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+// Mock ResizeObserver with a simple class so .disconnect exists
+(globalThis as any).ResizeObserver = function(this: any, cb: any) {
+  this.observe = vi.fn();
+  this.unobserve = vi.fn();
+  this.disconnect = vi.fn();
+  this.callback = cb;
+};
 
-// Mock IntersectionObserver
-(globalThis as any).IntersectionObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+// Mock IntersectionObserver similarly
+(globalThis as any).IntersectionObserver = function(this: any, cb: any) {
+  this.observe = vi.fn();
+  this.unobserve = vi.fn();
+  this.disconnect = vi.fn();
+  this.callback = cb;
+};
 
 // Mock window.requestAnimationFrame and cancelAnimationFrame
 (globalThis as any).requestAnimationFrame = vi.fn(cb => setTimeout(cb, 0));
@@ -212,184 +217,38 @@ CSSStyleDeclaration.prototype.setProperty = function(property: string, value: st
   }
 };
 
-// Mock window.rustRenderManager for useRenderEngine hook
-Object.defineProperty(window, 'rustRenderManager', {
-  value: {
-    // GM Mode and Status
-    setGmMode: vi.fn(),
-    setStatusMessage: vi.fn(),
-    clearStatusMessage: vi.fn(),
-    getGmMode: vi.fn(() => false),
-    set_gm_mode: vi.fn(),
-    
-    // Fog Draw Mode
-    is_in_fog_draw_mode: vi.fn(() => false),
-    get_current_input_mode: vi.fn(() => 'normal'),
-    set_fog_draw_mode: vi.fn(),
-    set_fog_erase_mode: vi.fn(),
-    
-    // Fog Management
-    add_fog_rectangle: vi.fn(),
-    remove_fog_rectangle: vi.fn(),
-    clear_fog: vi.fn(),
-    get_fog_count: vi.fn(() => 0),
-    
-    // Lighting System
-    add_light: vi.fn(),
-    remove_light: vi.fn(),
-    set_light_color: vi.fn(),
-    set_light_intensity: vi.fn(),
-    set_light_radius: vi.fn(),
-    get_light_count: vi.fn(() => 0),
-    
-    // Paint System
-    paint_set_brush_color: vi.fn(),
-  paint_set_brush_size: vi.fn(),
-  // alias / convenience names some components use
-  paint_set_brush_width: vi.fn(),
-  paint_add_point: vi.fn(),
-    paint_start_stroke: vi.fn(),
-    paint_continue_stroke: vi.fn(),
-    paint_end_stroke: vi.fn(),
-    paint_clear: vi.fn(),
-    paint_save_strokes_as_sprites: vi.fn(() => []),
-    paint_is_mode: vi.fn(() => false),
-    paint_exit_mode: vi.fn(),
-    set_input_mode_select: vi.fn(),
-    set_input_mode_create_rectangle: vi.fn(),
-    paint_is_drawing: vi.fn(() => false),
-    paint_get_brush_color: vi.fn(() => '#000000'),
-    paint_get_brush_size: vi.fn(() => 5),
-    paint_undo: vi.fn(),
-    paint_redo: vi.fn(),
-    paint_can_undo: vi.fn(() => false),
-    paint_can_redo: vi.fn(() => false),
-    paint_save_template: vi.fn(() => 'template_id_123'),
-    paint_load_template: vi.fn(),
-    paint_get_templates: vi.fn(() => []),
-    paint_delete_template: vi.fn(),
-    paint_set_blend_mode: vi.fn(),
-    paint_get_blend_mode: vi.fn(() => 'normal'),
-    screen_to_world: vi.fn((x, y) => [x, y]),
-  // alias some components use
-  screen_to_world_coordinates: vi.fn((x, y) => [x, y]),
-    world_to_screen: vi.fn((x, y) => [x, y]),
-    get_grid_size: vi.fn(() => 50),
-  set_grid_enabled: vi.fn(),
-  set_grid_size: vi.fn(),
-  set_grid_color: vi.fn(),
-    set_snap_to_grid: vi.fn(),
-    
-    // Text Sprite System
-    create_text_sprite: vi.fn(() => 'text_sprite_1'),
-    register_movable_entity: vi.fn(),
-    add_sprite_to_layer: vi.fn(),
-    enable_sprite_movement: vi.fn(),
-  // Generic sprite helpers (some components call these names)
-  add_sprite: vi.fn(),
-  remove_sprite: vi.fn(),
-  get_all_sprites_network_data: vi.fn(() => []),
-    
-    // Rendering
-    render: vi.fn(),
-    updateLighting: vi.fn(),
-    updateFog: vi.fn()
-  },
-  writable: true
-});
+// Provide a default, stubbed render engine that tests can override per-test
+(window as any).rustRenderManager = createMockRenderEngine();
 
-// Mock NetworkClient class for testing
-class MockNetworkClient {
-  // Implement a simple mock that stores handlers and provides common methods
-  private messageHandler: ((type: string, data: any) => void) | null = null;
-  private connectionHandler: ((state: string, error?: string) => void) | null = null;
-  private errorHandler: ((error: string) => void) | null = null;
-  private clientId = 'test-client-' + Math.random().toString(36).substr(2, 9);
+// Mark that we're in a Vitest environment so production code can switch to
+// non-throwing, test-friendly paths when it checks for __VITEST__.
+(globalThis as any).__VITEST__ = true;
 
-  set_message_handler(handler: (type: string, data: any) => void) {
-    this.messageHandler = handler;
-  }
-
-  set_connection_handler(handler: (state: string, error?: string) => void) {
-    this.connectionHandler = handler;
-  }
-
-  set_error_handler(handler: (error: string) => void) {
-    this.errorHandler = handler;
-  }
-
-  get_client_id() {
-    return this.clientId;
-  }
-
-  connect(_url: string) {
-    // Simulate async connection success
-    setTimeout(() => {
-      if (this.connectionHandler) {
-        this.connectionHandler('connected');
-      }
-    }, 10);
-    return Promise.resolve({ connected: true });
-  }
-
-  disconnect() {
-    if (this.connectionHandler) {
-      this.connectionHandler('disconnected');
-    }
-  }
-
-  // Allow tests to simulate incoming messages
-  __simulate_incoming(type: string, data: any) {
-    if (this.messageHandler) {
-      this.messageHandler(type, data);
-    }
-  }
-
-  // Allow tests to simulate connection errors
-  __simulate_error(error: string) {
-    if (this.errorHandler) this.errorHandler(error);
-    if (this.connectionHandler) this.connectionHandler('error', error);
-  }
-
-  send_message(_type: string, _data: any) {
-    // Simulate message send - could trigger messageHandler in real implementation
-    return Promise.resolve();
-  }
-
-  // Lightweight stubs for optional APIs used by UI
-  authenticate(_username: string, _password: string) { return Promise.resolve(true); }
-  set_user_info(_userId: number, _username: string, _sessionCode?: string, _jwt?: string) { /* noop */ }
-  join_session(_code: string) { /* noop */ }
-  request_table_list() { /* noop */ }
-  request_player_list() { /* noop */ }
-  send_sprite_update(_data: any) { return Promise.resolve(); }
-  send_sprite_create(_data: any) { return Promise.resolve(); }
-  send_sprite_remove(_id: string) { return Promise.resolve(); }
-  send_table_update(_data: any) { return Promise.resolve(); }
-  send_ping() { return Promise.resolve(); }
-  request_asset_upload(_filename: string, _hash: string, _size: bigint) { return Promise.resolve(); }
-  request_asset_download(_id: string) { return Promise.resolve(); }
-  confirm_asset_upload(_id: string, _ok: boolean) { return Promise.resolve(); }
-
-  free() { /* noop for mock cleanup */ }
-}
-
-// Mock wasmManager with proper NetworkClient
-const mockWasmManager = {
-  getInstance: vi.fn(() => Promise.resolve({
-    initialize: vi.fn(),
-    isInitialized: vi.fn(() => true)
-  })),
-  getNetworkClient: vi.fn(() => Promise.resolve(MockNetworkClient)), // Return the class constructor
-  getRenderEngine: vi.fn(() => Promise.resolve(window.rustRenderManager)),
-  getActionsClient: vi.fn(() => Promise.resolve({})),
-  getAssetManager: vi.fn(() => Promise.resolve({}))
-};
-
-// Replace the wasmManager import in tests
+// Use the test utils mock wasmManager so tests can control the network client factory
 vi.mock('../wasm/wasmManager', () => ({
   wasmManager: mockWasmManager
 }));
+
+// Provide a default test-safe implementation of useProtocol and ProtocolProvider
+vi.mock('../services/ProtocolContext', async (importOriginal) => {
+  const actual = await importOriginal();
+  const a: any = actual;
+  return {
+    ...a,
+    useProtocol: () => defaultUseProtocol(),
+    ProtocolProvider: mockProtocol.ProtocolProviderMock
+  } as any;
+});
+
+// Cleanup hooks to keep tests isolated
+afterEach(() => {
+  vi.restoreAllMocks();
+  // unstub globals that tests may replace
+  try { vi.unstubAllGlobals(); } catch (e) { /* no-op if unavailable */ }
+  // reset network client factory to default
+  try { resetNetworkClientFactory(); } catch (e) { /* no-op */ }
+  try { resetMockProtocol(); } catch (e) { /* no-op */ }
+});
 
 // Mock Image so that canvas.toDataURL -> new Image() load path works in tests
 class MockImage {

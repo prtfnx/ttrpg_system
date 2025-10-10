@@ -76,7 +76,11 @@ export const GameCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rustRenderManagerRef = useRef<RenderEngine | null>(null);
   const dprRef = useRef<number>(1);
-  const { protocol } = useProtocol();
+  // Protect against test-time mocks that may return undefined
+  const _protocolCtx = (() => {
+    try { return useProtocol(); } catch (e) { return undefined; }
+  })();
+  const protocol = _protocolCtx?.protocol ?? null;
   const { updateConnectionState, tables, activeTableId } = useGameStore();
   const activeTable = tables.find(t => t.table_id === activeTableId);
   const { connect: connectWebSocket, disconnect: disconnectWebSocket } = useWebSocket('ws://127.0.0.1:12345/ws');

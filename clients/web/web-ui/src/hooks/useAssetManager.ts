@@ -55,6 +55,17 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
     isLoading: false,
   });
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({});
+  // Track mounted state to avoid calling setState after unmount/teardown
+  const isMountedRef = useRef(true);
+
+  // Safe setters that check mounted state
+  const safeSetState = (updater: React.SetStateAction<AssetManagerState>) => {
+    if (isMountedRef.current) setState(updater);
+  };
+
+  const safeSetUploadProgress = (updater: React.SetStateAction<UploadProgress>) => {
+    if (isMountedRef.current) setUploadProgress(updater);
+  };
 
   // Initialize the asset manager
   const initialize = useCallback(async () => {
@@ -63,7 +74,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
       return;
     }
     
-    setState(prev => ({ ...prev, isLoading: true }));
+  safeSetState(prev => ({ ...prev, isLoading: true }));
     
     try {
       console.log('Initializing WASM module...');
@@ -112,7 +123,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
       // Get initial stats
       const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
       
-      setState({
+      safeSetState({
         stats,
         isInitialized: true,
         error: null,
@@ -125,11 +136,11 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
       if (config?.autoCleanup) {
         await manager.cleanup_cache();
         const updatedStats = JSON.parse(manager.get_cache_stats()) as CacheStats;
-        setState(prev => ({ ...prev, stats: updatedStats }));
+  safeSetState(prev => ({ ...prev, stats: updatedStats }));
       }
     } catch (error) {
       console.error('Failed to initialize Enhanced Asset Manager:', error);
-      setState(prev => ({
+      safeSetState(prev => ({
         ...prev,
         isInitialized: false,
         isLoading: false,
@@ -153,15 +164,15 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
       console.log(`Downloading asset: ${url}${expectedHash ? ` (expected hash: ${expectedHash})` : ''}`);
       const assetId = await manager.download_asset(url, expectedHash || undefined);
       
-      // Update stats
-      const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
-      setState(prev => ({ ...prev, stats }));
+  // Update stats
+  const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
+  safeSetState(prev => ({ ...prev, stats }));
       
       console.log(`Asset downloaded successfully: ${assetId}`);
       return assetId;
     } catch (error) {
       console.error('Failed to download asset:', error);
-      setState(prev => ({
+      safeSetState(prev => ({
         ...prev,
         error: error instanceof Error ? error.message : 'Download failed',
       }));
@@ -177,9 +188,9 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
     try {
       const data = manager.get_asset_data(assetId);
       if (data) {
-        // Update stats after cache hit/miss
-        const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
-        setState(prev => ({ ...prev, stats }));
+  // Update stats after cache hit/miss
+  const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
+  safeSetState(prev => ({ ...prev, stats }));
         return data;
       }
       return null;
@@ -223,9 +234,9 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
     try {
       const assetId = manager.get_asset_by_hash(xxhash);
       if (assetId) {
-        // Update stats after cache hit/miss
-        const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
-        setState(prev => ({ ...prev, stats }));
+  // Update stats after cache hit/miss
+  const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
+  safeSetState(prev => ({ ...prev, stats }));
         return assetId;
       }
       return null;
@@ -243,9 +254,9 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
     try {
       const removed = manager.remove_asset(assetId);
       if (removed) {
-        // Update stats
-        const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
-        setState(prev => ({ ...prev, stats }));
+  // Update stats
+  const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
+  safeSetState(prev => ({ ...prev, stats }));
       }
       return removed;
     } catch (error) {
@@ -262,9 +273,9 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
     try {
       await manager.cleanup_cache();
       
-      // Update stats
-      const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
-      setState(prev => ({ ...prev, stats }));
+  // Update stats
+  const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
+  safeSetState(prev => ({ ...prev, stats }));
       
       console.log('Cache cleanup completed');
     } catch (error) {
@@ -347,9 +358,18 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
 
   // Auto-initialize on mount
   useEffect(() => {
+    // Mark mounted and ensure cleanup flips the flag. This prevents
+    // async callbacks from calling setState after the test environment
+    // has torn down (which can remove `window`).
+    isMountedRef.current = true;
+
     if (!state.isInitialized && !state.isLoading) {
       initialize();
     }
+
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [state.isInitialized, state.isLoading]); // Removed initialize from dependencies to prevent infinite loops
 
   // Additional methods expected by AssetManager component
@@ -382,7 +402,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
   ): Promise<string | null> => {
     const fileId = `${file.name}-${Date.now()}`;
     
-    setUploadProgress(prev => ({
+    safeSetUploadProgress(prev => ({
       ...prev,
       [fileId]: { progress: 0, status: 'uploading' }
     }));
@@ -393,7 +413,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
       
       // Update progress callback
       const progressHandler = (progress: number) => {
-        setUploadProgress(prev => ({
+        safeSetUploadProgress(prev => ({
           ...prev,
           [fileId]: { progress, status: 'uploading' }
         }));
@@ -406,7 +426,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
       const assetId = await downloadAsset(objectUrl);
       
       if (assetId) {
-        setUploadProgress(prev => ({
+        safeSetUploadProgress(prev => ({
           ...prev,
           [fileId]: { progress: 100, status: 'completed' }
         }));
@@ -416,7 +436,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
         
         // Remove from upload progress after a delay
         setTimeout(() => {
-          setUploadProgress(prev => {
+          safeSetUploadProgress(prev => {
             const newProgress = { ...prev };
             delete newProgress[fileId];
             return newProgress;
@@ -428,7 +448,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
         throw new Error('Upload failed');
       }
     } catch (error) {
-      setUploadProgress(prev => ({
+      safeSetUploadProgress(prev => ({
         ...prev,
         [fileId]: { progress: 0, status: 'failed' }
       }));
@@ -438,7 +458,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
   }, [downloadAsset]);
 
   const cancelUpload = useCallback((fileId: string): void => {
-    setUploadProgress(prev => {
+    safeSetUploadProgress(prev => {
       const newProgress = { ...prev };
       delete newProgress[fileId];
       return newProgress;

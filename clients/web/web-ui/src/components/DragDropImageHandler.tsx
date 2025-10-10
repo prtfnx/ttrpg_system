@@ -27,7 +27,8 @@ interface PendingUpload {
 export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
   children
 }) => {
-  const { protocol } = useProtocol();
+  const _protocolCtx = useProtocol();
+  const protocol = _protocolCtx?.protocol ?? null;
   const { camera, sessionId } = useGameStore();
   const { calculateHash } = useAssetManager();
   

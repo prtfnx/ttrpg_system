@@ -30,6 +30,8 @@ describe('TypeScript Service Layer Tests', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Re-establish default return values that vi.clearAllMocks() removes
+    mockRenderEngine.get_sprite_info = vi.fn().mockReturnValue({ id: 'sprite_123', x: 100, y: 150 });
   });
 
   describe('WASM Integration Service - TypeScript Bridge', () => {
@@ -331,9 +333,15 @@ describe('TypeScript Service Layer Tests', () => {
       expect(createResult).toBe('sprite_123');
       
       const spriteInfo = mockRenderEngine.get_sprite_info(sprite.id);
-      expect(spriteInfo).toHaveProperty('id');
-      expect(spriteInfo).toHaveProperty('x');
-      expect(spriteInfo).toHaveProperty('y');
+      // Be defensive: some test environments may not return a full sprite info
+      // object from the mocked render engine; assert it's present before
+      // checking properties.
+      expect(spriteInfo).toBeTruthy();
+      if (spriteInfo) {
+        expect(spriteInfo).toHaveProperty('id');
+        expect(spriteInfo).toHaveProperty('x');
+        expect(spriteInfo).toHaveProperty('y');
+      }
     });
 
     it('should handle service errors with TypeScript error types', async () => {

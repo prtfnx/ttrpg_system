@@ -86,9 +86,9 @@
 /* GM Mode Toggle */
 .gm-mode {
   padding: 12px;
-  background: #f3f4f6;
+  background: #374151;
   border-radius: 6px;
-  border: 1px solid #d1d5db;
+  border: 1px solid #4b5563;
 }
 
 .gm-mode label {
@@ -107,9 +107,9 @@
 /* Interactive Drawing */
 .interactive-drawing {
   padding: 12px;
-  background: #eff6ff;
+  background: rgba(59, 130, 246, 0.1);
   border-radius: 6px;
-  border: 1px solid #bfdbfe;
+  border: 1px solid #3b82f6;
 }
 
 .drawing-controls {
@@ -128,9 +128,9 @@
 /* Manual Entry Drawing Mode */
 .manual-drawing-mode {
   padding: 12px;
-  background: #f9fafb;
+  background: #1f2937;
   border-radius: 6px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #374151;
 }
 
 .mode-buttons {
@@ -141,9 +141,10 @@
 .mode-button {
   flex: 1;
   padding: 8px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid #4b5563;
   border-radius: 4px;
-  background: white;
+  background: #374151;
+  color: #ffffff;
   cursor: pointer;
   font-size: 12px;
   font-weight: 500;
@@ -151,8 +152,8 @@
 }
 
 .mode-button:hover {
-  background: #f3f4f6;
-  border-color: #9ca3af;
+  background: #4b5563;
+  border-color: #6b7280;
 }
 
 .mode-button.active {
@@ -164,9 +165,9 @@
 /* Manual Entry */
 .manual-entry {
   padding: 12px;
-  background: #f9fafb;
+  background: #1f2937;
   border-radius: 6px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #374151;
 }
 
 .coords-input {
@@ -177,9 +178,11 @@
 
 .coords-input input {
   padding: 6px 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid #4b5563;
   border-radius: 4px;
   font-size: 12px;
+  background: #1f2937;
+  color: #ffffff;
 }
 
 .coords-input button {
@@ -202,7 +205,7 @@
 /* Quick Actions */
 .quick-actions {
   padding: 12px;
-  background: #fef3c7;
+  background: rgba(251, 191, 36, 0.1);
   border-radius: 6px;
   border: 1px solid #fbbf24;
 }
@@ -243,21 +246,22 @@
 
 .fog-item {
   padding: 10px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #374151;
   border-radius: 6px;
   margin-bottom: 6px;
+  background: #1f2937;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .fog-item:hover {
-  border-color: #9ca3af;
-  background: #f9fafb;
+  border-color: #4b5563;
+  background: #374151;
 }
 
 .fog-item.selected {
   border-color: #3b82f6;
-  background: #eff6ff;
+  background: rgba(59, 130, 246, 0.15);
 }
 
 .fog-header {
@@ -310,9 +314,9 @@
 /* Properties */
 .fog-properties {
   padding: 12px;
-  background: #f3f4f6;
+  background: #1f2937;
   border-radius: 6px;
-  border: 1px solid #d1d5db;
+  border: 1px solid #374151;
 }
 
 .property-group {
@@ -327,7 +331,7 @@
   display: block;
   font-size: 12px;
   font-weight: 600;
-  color: #374151;
+  color: #e5e7eb;
   margin-bottom: 4px;
 }
 
@@ -339,26 +343,29 @@
 
 .position-controls input {
   padding: 6px 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid #4b5563;
   border-radius: 4px;
   font-size: 12px;
+  background: #111827;
+  color: #ffffff;
 }
 
 .property-group select {
   width: 100%;
   padding: 6px 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid #4b5563;
   border-radius: 4px;
   font-size: 12px;
-  background: white;
+  background: #111827;
+  color: #ffffff;
 }
 
 /* Stats */
 .fog-stats {
   padding: 12px;
-  background: #f3f4f6;
+  background: #1f2937;
   border-radius: 6px;
-  border: 1px solid #d1d5db;
+  border: 1px solid #374151;
 }
 
 .fog-stats p {

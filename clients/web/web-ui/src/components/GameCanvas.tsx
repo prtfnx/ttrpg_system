@@ -105,7 +105,19 @@ export const GameCanvas: React.FC = () => {
     y: number;
     spriteId?: string;
     copiedSprite?: string;
-  }>({ visible: false, x: 0, y: 0 });
+    showLayerSubmenu?: boolean;
+  }>({ visible: false, x: 0, y: 0, showLayerSubmenu: false });
+
+  // Available layers - matching LayerPanel
+  const AVAILABLE_LAYERS = [
+    { id: 'map', name: 'Map', icon: '🗺️' },
+    { id: 'tokens', name: 'Tokens', icon: '🎭' },
+    { id: 'dungeon_master', name: 'DM Layer', icon: '👑' },
+    { id: 'light', name: 'Lighting', icon: '💡' },
+    { id: 'height', name: 'Height', icon: '⛰️' },
+    { id: 'obstacles', name: 'Obstacles', icon: '🚧' },
+    { id: 'fog_of_war', name: 'Fog of War', icon: '🌫️' }
+  ];
 
   const getRelativeCoords = useCallback((e: MouseEvent | WheelEvent) => {
     const canvas = canvasRef.current;
@@ -283,12 +295,34 @@ export const GameCanvas: React.FC = () => {
         break;
     }
     
-    setContextMenu({ visible: false, x: 0, y: 0 });
+    // Don't close menu if showing layer submenu
+    if (action !== 'show_layer_submenu') {
+      setContextMenu({ visible: false, x: 0, y: 0, showLayerSubmenu: false });
+    }
   }, [contextMenu, protocol]);
+
+  const handleMoveToLayer = useCallback((layerId: string) => {
+    if (!rustRenderManagerRef.current || !contextMenu.spriteId) return;
+    
+    try {
+      // Use WASM move_sprite_to_layer_action method
+      const renderEngine = rustRenderManagerRef.current as any;
+      if (renderEngine.move_sprite_to_layer_action) {
+        const result = renderEngine.move_sprite_to_layer_action(contextMenu.spriteId, layerId);
+        console.log(`✅ GameCanvas: Moved sprite ${contextMenu.spriteId} to layer ${layerId}`, result);
+      } else {
+        console.warn('⚠️ GameCanvas: move_sprite_to_layer_action not available in WASM');
+      }
+    } catch (error) {
+      console.error('❌ GameCanvas: Failed to move sprite to layer:', error);
+    }
+    
+    setContextMenu({ visible: false, x: 0, y: 0, showLayerSubmenu: false });
+  }, [contextMenu.spriteId]);
 
   // Close context menu on click outside
   useEffect(() => {
-    const handleClick = () => setContextMenu({ visible: false, x: 0, y: 0 });
+    const handleClick = () => setContextMenu({ visible: false, x: 0, y: 0, showLayerSubmenu: false });
     if (contextMenu.visible) {
       document.addEventListener('click', handleClick);
       return () => document.removeEventListener('click', handleClick);
@@ -787,20 +821,6 @@ export const GameCanvas: React.FC = () => {
                 }}
                 onMouseOver={(e) => e.currentTarget.style.background = '#f0f0f0'}
                 onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                onClick={() => handleContextMenuAction('delete')}
-              >
-                Delete Sprite
-              </div>
-              <div 
-                style={{ 
-                  padding: '8px 12px', 
-                  cursor: 'pointer', 
-                  borderBottom: '1px solid #eee',
-                  color: '#333',
-                  background: 'transparent'
-                }}
-                onMouseOver={(e) => e.currentTarget.style.background = '#f0f0f0'}
-                onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                 onClick={() => handleContextMenuAction('copy')}
               >
                 Copy Sprite
@@ -821,6 +841,75 @@ export const GameCanvas: React.FC = () => {
                   Paste Sprite
                 </div>
               )}
+              
+              {/* Move to Layer submenu */}
+              <div 
+                style={{ 
+                  padding: '8px 12px', 
+                  cursor: 'pointer', 
+                  borderBottom: '1px solid #eee',
+                  color: '#333',
+                  background: 'transparent',
+                  position: 'relative',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = '#f0f0f0';
+                  setContextMenu(prev => ({ ...prev, showLayerSubmenu: true }));
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setContextMenu(prev => ({ ...prev, showLayerSubmenu: !prev.showLayerSubmenu }));
+                }}
+              >
+                <span>Move to Layer</span>
+                <span style={{ fontSize: '10px', marginLeft: '8px' }}>▶</span>
+                
+                {/* Layer submenu */}
+                {contextMenu.showLayerSubmenu && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: '100%',
+                      top: 0,
+                      background: 'white',
+                      border: '1px solid #ccc',
+                      borderRadius: 4,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                      minWidth: 140,
+                      zIndex: 1001
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {AVAILABLE_LAYERS.map(layer => (
+                      <div
+                        key={layer.id}
+                        style={{
+                          padding: '8px 12px',
+                          cursor: 'pointer',
+                          color: '#333',
+                          background: 'transparent',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.background = '#f0f0f0'}
+                        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                        onClick={() => handleMoveToLayer(layer.id)}
+                      >
+                        <span>{layer.icon}</span>
+                        <span>{layer.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
               <div 
                 style={{ 
                   padding: '8px 12px', 
@@ -839,6 +928,7 @@ export const GameCanvas: React.FC = () => {
                 style={{ 
                   padding: '8px 12px', 
                   cursor: 'pointer',
+                  borderBottom: '1px solid #eee',
                   color: '#333',
                   background: 'transparent'
                 }}
@@ -847,6 +937,19 @@ export const GameCanvas: React.FC = () => {
                 onClick={() => handleContextMenuAction('rotate')}
               >
                 Rotate Sprite
+              </div>
+              <div 
+                style={{ 
+                  padding: '8px 12px', 
+                  cursor: 'pointer',
+                  color: '#dc2626',
+                  background: 'transparent'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#fef2f2'}
+                onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                onClick={() => handleContextMenuAction('delete')}
+              >
+                Delete Sprite
               </div>
             </>
           ) : (

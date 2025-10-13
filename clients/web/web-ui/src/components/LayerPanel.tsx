@@ -57,7 +57,9 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     layerOpacity,
     setActiveLayer,
     setLayerVisibility,
-    setLayerOpacity
+    setLayerOpacity,
+    activeTableId,
+    sprites
   } = useGameStore();
 
   const [layers, setLayers] = useState<Layer[]>(initialLayers ?? []);
@@ -101,6 +103,27 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     const timer = setTimeout(initLayers, delay);
     return () => clearTimeout(timer);
   }, []);
+
+  // Update sprite counts when activeTableId or sprites change
+  useEffect(() => {
+    if (isLoading) return;
+
+    // Count sprites per layer for the active table
+    const spriteCountByLayer: Record<string, number> = {};
+    
+    sprites.forEach(sprite => {
+      const layer = sprite.layer || 'tokens';
+      spriteCountByLayer[layer] = (spriteCountByLayer[layer] || 0) + 1;
+    });
+
+    // Update layers with sprite counts
+    setLayers(prevLayers => 
+      prevLayers.map(layer => ({
+        ...layer,
+        spriteCount: spriteCountByLayer[layer.id] || 0
+      }))
+    );
+  }, [activeTableId, sprites, isLoading]);
 
   const handleLayerClick = (layerId: string) => {
     setActiveLayer(layerId);
@@ -153,6 +176,21 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
           {layers.length} layers
         </div>
       </div>
+
+      {activeTableId && (
+        <div className="table-indicator" style={{
+          padding: '6px 12px',
+          background: 'rgba(59, 130, 246, 0.15)',
+          border: '1px solid #3b82f6',
+          borderRadius: '4px',
+          marginBottom: '12px',
+          fontSize: '12px',
+          color: '#93c5fd'
+        }}>
+          <span style={{ marginRight: '6px' }}>🗓️</span>
+          <strong>Table:</strong> {activeTableId}
+        </div>
+      )}
 
       <div className="active-layer-display">
         <span className="label">Active:</span>

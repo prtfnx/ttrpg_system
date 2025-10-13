@@ -406,35 +406,61 @@ export class MeasurementCanvasIntegration {
     const distanceText = advancedMeasurementSystem.formatDistance(distance);
     
     ctx.save();
-    ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 2;
-    ctx.font = '12px Arial';
+    
+    // Use bold font for better visibility
+    ctx.font = 'bold 16px Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     
-    // Draw background
+    // Measure text for background sizing
     const textMetrics = ctx.measureText(distanceText);
-    const padding = 4;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(
-      screenPos.x - textMetrics.width / 2 - padding,
-      screenPos.y - 8 - padding,
-      textMetrics.width + padding * 2,
-      16 + padding * 2
-    );
+    const padding = 8;
+    const bgWidth = textMetrics.width + padding * 2;
+    const bgHeight = 24 + padding * 2;
+    const bgX = screenPos.x - bgWidth / 2;
+    const bgY = screenPos.y - bgHeight / 2;
     
-    // Draw text
+    // Draw background with border for maximum contrast
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.fillRect(bgX, bgY, bgWidth, bgHeight);
+    
+    // Draw border for definition
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(bgX, bgY, bgWidth, bgHeight);
+    
+    // Draw text shadow for depth
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    
+    // Draw white text (no stroke to avoid blurriness)
     ctx.fillStyle = '#ffffff';
-    ctx.strokeText(distanceText, screenPos.x, screenPos.y);
     ctx.fillText(distanceText, screenPos.x, screenPos.y);
+    
+    // Reset shadow
+    ctx.shadowBlur = 0;
     
     // Draw grid distance if different
     if (gridDistance && Math.abs(gridDistance - distance) > 0.1) {
       const gridText = `(${advancedMeasurementSystem.formatDistance(gridDistance)} grid)`;
-      ctx.font = '10px Arial';
-      ctx.fillStyle = '#cccccc';
-      ctx.fillText(gridText, screenPos.x, screenPos.y + 15);
+      ctx.font = '12px Arial, sans-serif';
+      
+      // Measure grid text
+      const gridMetrics = ctx.measureText(gridText);
+      const gridBgWidth = gridMetrics.width + padding * 2;
+      const gridBgHeight = 18 + padding * 2;
+      const gridBgX = screenPos.x - gridBgWidth / 2;
+      const gridBgY = screenPos.y + bgHeight / 2 + 4;
+      
+      // Draw grid text background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.fillRect(gridBgX, gridBgY, gridBgWidth, gridBgHeight);
+      
+      // Draw grid text
+      ctx.fillStyle = '#88ff88';
+      ctx.fillText(gridText, screenPos.x, gridBgY + gridBgHeight / 2);
     }
     
     ctx.restore();

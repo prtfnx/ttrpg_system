@@ -45,4 +45,5 @@
   flex: 1 1 auto;
   padding: 16px;
   overflow-y: auto;
+  background: transparent;
 }

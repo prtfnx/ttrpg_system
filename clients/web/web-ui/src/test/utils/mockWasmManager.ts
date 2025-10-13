@@ -6,7 +6,7 @@ type NetworkClientFactory = () => any;
 // Default: return the constructor (class) so existing code that expects a
 // constructor continues to work. Tests can override with a factory that
 // returns an instance if they prefer.
-const defaultNetworkFactory: NetworkClientFactory = () => MockNetworkClient;
+const defaultNetworkFactory: NetworkClientFactory = () => new MockNetworkClient();
 
 let currentFactory: NetworkClientFactory = defaultNetworkFactory;
 

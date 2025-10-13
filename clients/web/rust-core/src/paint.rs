@@ -7,8 +7,11 @@ use crate::types::BlendMode;
 
 #[wasm_bindgen]
 pub struct PaintSystem {
-    strokes: Vec<DrawStroke>,
-    redo_stack: Vec<DrawStroke>,  // Add redo stack
+    // Per-table paint storage
+    table_strokes: HashMap<String, Vec<DrawStroke>>,
+    table_redo_stacks: HashMap<String, Vec<DrawStroke>>,
+    current_table_id: Option<String>,
+    
     current_stroke: Option<DrawStroke>,
     is_drawing: bool,
     
@@ -74,8 +77,9 @@ impl PaintSystem {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         Self {
-            strokes: Vec::new(),
-            redo_stack: Vec::new(),  // Initialize redo stack
+            table_strokes: HashMap::new(),
+            table_redo_stacks: HashMap::new(),
+            current_table_id: None,
             current_stroke: None,
             is_drawing: false,
             current_color: [1.0, 1.0, 1.0, 1.0], // White
@@ -86,6 +90,66 @@ impl PaintSystem {
             paint_mode: false,
             last_point: None,
             stroke_callbacks: HashMap::new(),
+        }
+    }
+    
+    // Table management
+    #[wasm_bindgen]
+    pub fn set_current_table(&mut self, table_id: &str) {
+        let table_id_string = table_id.to_string();
+        self.current_table_id = Some(table_id_string.clone());
+        
+        // Initialize table storage if it doesn't exist
+        if !self.table_strokes.contains_key(&table_id_string) {
+            self.table_strokes.insert(table_id_string.clone(), Vec::new());
+            self.table_redo_stacks.insert(table_id_string, Vec::new());
+            web_sys::console::log_1(&format!("Initialized paint storage for table: {}", table_id).into());
+        } else {
+            web_sys::console::log_1(&format!("Switched to table: {}", table_id).into());
+        }
+    }
+    
+    #[wasm_bindgen]
+    pub fn get_current_table(&self) -> Option<String> {
+        self.current_table_id.clone()
+    }
+    
+    #[wasm_bindgen]
+    pub fn clear_table_paint(&mut self, table_id: &str) {
+        let table_id_string = table_id.to_string();
+        if let Some(strokes) = self.table_strokes.get_mut(&table_id_string) {
+            strokes.clear();
+            web_sys::console::log_1(&format!("Cleared paint for table: {}", table_id).into());
+        }
+        if let Some(redo_stack) = self.table_redo_stacks.get_mut(&table_id_string) {
+            redo_stack.clear();
+        }
+    }
+    
+    // Helper to get current table's strokes (mutable)
+    fn get_current_strokes_mut(&mut self) -> Option<&mut Vec<DrawStroke>> {
+        if let Some(ref table_id) = self.current_table_id {
+            self.table_strokes.get_mut(table_id)
+        } else {
+            None
+        }
+    }
+    
+    // Helper to get current table's strokes (immutable)
+    fn get_current_strokes(&self) -> Option<&Vec<DrawStroke>> {
+        if let Some(ref table_id) = self.current_table_id {
+            self.table_strokes.get(table_id)
+        } else {
+            None
+        }
+    }
+    
+    // Helper to get current table's redo stack (mutable)
+    fn get_current_redo_stack_mut(&mut self) -> Option<&mut Vec<DrawStroke>> {
+        if let Some(ref table_id) = self.current_table_id {
+            self.table_redo_stacks.get_mut(table_id)
+        } else {
+            None
         }
     }
     

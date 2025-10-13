@@ -2,6 +2,7 @@ console.log('[DEBUG] main.tsx script loaded');
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
+import { AuthProvider } from './components/AuthContext';
 import CharacterPanel from './components/CharacterPanel';
 import { EntitiesPanel } from './components/EntitiesPanel';
 import { ToolsPanel } from './components/ToolsPanel';
@@ -23,9 +24,11 @@ window.ReactGameComponents = {
     const root = createRoot(container);
     root.render(
       <StrictMode>
-        <div className="panel-container">
-          <ToolsPanel userInfo={{ id: 0, username: "unknown", role: "player", permissions: [] }} />
-        </div>
+        <AuthProvider>
+          <div className="panel-container">
+            <ToolsPanel userInfo={{ id: 0, username: "unknown", role: "player", permissions: [] }} />
+          </div>
+        </AuthProvider>
       </StrictMode>
     );
   },
@@ -34,10 +37,12 @@ window.ReactGameComponents = {
     const root = createRoot(container);
     root.render(
       <StrictMode>
-        <div className="panel-container">
-          <EntitiesPanel />
-          <CharacterPanel />
-        </div>
+        <AuthProvider>
+          <div className="panel-container">
+            <EntitiesPanel />
+            <CharacterPanel />
+          </div>
+        </AuthProvider>
       </StrictMode>
     );
   }
@@ -48,8 +53,10 @@ const rootElement = document.getElementById('root');
 if (rootElement) {
   // Standalone React app mode
   createRoot(rootElement).render(
-    <StrictMode>    
-      <App />
+    <StrictMode>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
     </StrictMode>,
   )
 }

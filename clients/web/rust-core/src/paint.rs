@@ -276,9 +276,17 @@ impl PaintSystem {
         
         if let Some(stroke) = self.current_stroke.take() {
             if stroke.points.len() > 1 {
-                self.strokes.push(stroke);
-                self.redo_stack.clear(); // Clear redo stack when new stroke is added
-                self.emit_stroke_completed();
+                // Add to current table's strokes
+                if let Some(strokes) = self.get_current_strokes_mut() {
+                    strokes.push(stroke);
+                    // Clear current table's redo stack
+                    if let Some(redo_stack) = self.get_current_redo_stack_mut() {
+                        redo_stack.clear();
+                    }
+                    self.emit_stroke_completed();
+                } else {
+                    web_sys::console::warn_1(&"No current table set for paint stroke".into());
+                }
             }
         }
         

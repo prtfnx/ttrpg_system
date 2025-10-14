@@ -13,6 +13,16 @@ interface Light {
   isOn: boolean;
 }
 
+// Light presets based on common light sources
+const LIGHT_PRESETS = [
+  { name: 'Torch', radius: 150, intensity: 1.0, color: { r: 1.0, g: 0.6, b: 0.2, a: 1.0 }, icon: '🔥' },
+  { name: 'Candle', radius: 80, intensity: 0.7, color: { r: 1.0, g: 0.7, b: 0.3, a: 1.0 }, icon: '🕯️' },
+  { name: 'Daylight', radius: 300, intensity: 1.0, color: { r: 1.0, g: 1.0, b: 0.9, a: 1.0 }, icon: '☀️' },
+  { name: 'Moonlight', radius: 200, intensity: 0.4, color: { r: 0.6, g: 0.7, b: 1.0, a: 1.0 }, icon: '🌙' },
+  { name: 'Fire', radius: 120, intensity: 0.9, color: { r: 1.0, g: 0.4, b: 0.1, a: 1.0 }, icon: '🔥' },
+  { name: 'Magic', radius: 180, intensity: 0.8, color: { r: 0.5, g: 0.2, b: 1.0, a: 1.0 }, icon: '✨' },
+];
+
 export const LightingPanel: React.FC = () => {
   const engine = useRenderEngine();
   const [lights, setLights] = useState<Light[]>([]);
@@ -21,6 +31,8 @@ export const LightingPanel: React.FC = () => {
   const [engineError, setEngineError] = useState<string | null>(null);
   const [isEngineReady, setIsEngineReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [placementMode, setPlacementMode] = useState<typeof LIGHT_PRESETS[0] | null>(null);
+  const [ambientLight, setAmbientLight] = useState(0.2);
 
   // Check engine readiness and capabilities
   useEffect(() => {
@@ -131,6 +143,58 @@ export const LightingPanel: React.FC = () => {
       </div>
     );
   }
+
+  // Start light placement mode with preset
+  const startPlacingLight = (preset: typeof LIGHT_PRESETS[0]) => {
+    setPlacementMode(preset);
+    // Dispatch event for GameCanvas to listen to
+    window.dispatchEvent(new CustomEvent('startLightPlacement', {
+      detail: { preset }
+    }));
+  };
+
+  // Handle light placed event from GameCanvas
+  useEffect(() => {
+    const handleLightPlaced = async (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { x, y, preset } = customEvent.detail;
+      if (!engine || !preset) return;
+
+      const lightId = `${preset.name}_${Date.now()}`;
+      const newLight: Light = {
+        id: lightId,
+        x,
+        y,
+        color: preset.color,
+        intensity: preset.intensity,
+        radius: preset.radius,
+        isOn: true,
+      };
+
+      const success = await safeEngineCall(
+        () => {
+          engine!.add_light(lightId, newLight.x, newLight.y);
+          engine!.set_light_color(lightId, newLight.color.r, newLight.color.g, newLight.color.b, newLight.color.a);
+          engine!.set_light_intensity(lightId, newLight.intensity);
+          engine!.set_light_radius(lightId, newLight.radius);
+          return true;
+        },
+        false,
+        'Failed to add light'
+      );
+
+      if (success) {
+        setLights(prev => [...prev, newLight]);
+        setSelectedLightId(lightId);
+        setPlacementMode(null);
+      }
+    };
+
+    window.addEventListener('lightPlaced', handleLightPlaced);
+    return () => {
+      window.removeEventListener('lightPlaced', handleLightPlaced);
+    };
+  }, [engine, isEngineReady, safeEngineCall]);
 
   const addLight = async () => {
     const lightName = newLightName.trim() || `Light #${lights.length + 1}`;

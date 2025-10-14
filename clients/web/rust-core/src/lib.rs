@@ -33,7 +33,7 @@ mod utils;
 
 pub use render::RenderEngine;
 pub use types::*;
-pub use lighting::{Light, LightingSystem};
+pub use lighting::{Light, LightingSystem, LightType};
 pub use network::NetworkClient;
 pub use actions::ActionsClient;
 pub use paint::{PaintSystem, BrushPreset, create_default_brush_presets};

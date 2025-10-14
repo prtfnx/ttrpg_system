@@ -273,7 +273,7 @@
 }
 
 /* Tab Content */
-.tab-content {
+.measurement-panel .tab-content {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 12px;
   border: 1px solid #2d4a73;

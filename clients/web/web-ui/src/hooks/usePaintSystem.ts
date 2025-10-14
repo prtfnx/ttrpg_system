@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useGameStore } from '../store';
 import type { BrushPreset } from '../types/wasm';
 
 // Access WASM functions through the global window object - use same type as in types.ts
@@ -45,6 +46,8 @@ export function usePaintSystem(
   renderEngine: any,
   events?: PaintEvents
 ): [PaintState, PaintControls] {
+  const { activeTableId } = useGameStore();
+  
   const [paintState, setPaintState] = useState<PaintState>({
     isActive: false,
     isDrawing: false,
@@ -58,6 +61,18 @@ export function usePaintSystem(
 
   const eventsRef = useRef(events);
   eventsRef.current = events;
+
+  // Sync active table with paint system
+  useEffect(() => {
+    if (!renderEngine || !activeTableId) return;
+    
+    if (typeof renderEngine.paint_set_current_table === 'function') {
+      renderEngine.paint_set_current_table(activeTableId);
+      console.log(`🎨 Paint system switched to table: ${activeTableId}`);
+    } else {
+      console.debug('Render engine missing paint_set_current_table()');
+    }
+  }, [renderEngine, activeTableId]);
 
   // Setup event listeners - DISABLED: paint_on_event function not working
   useEffect(() => {

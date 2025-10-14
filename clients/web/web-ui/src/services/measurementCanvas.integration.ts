@@ -420,14 +420,11 @@ export class MeasurementCanvasIntegration {
     const bgX = screenPos.x - bgWidth / 2;
     const bgY = screenPos.y - bgHeight / 2;
     
-    // Draw background with border for maximum contrast
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    // Draw transparent background (no black rectangle)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.fillRect(bgX, bgY, bgWidth, bgHeight);
     
-    // Draw border for definition
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(bgX, bgY, bgWidth, bgHeight);
+    // No border for cleaner look
     
     // Draw text shadow for depth
     ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';

@@ -102,28 +102,42 @@ export class NetworkClient {
 export class PaintSystem {
   free(): void;
   constructor();
+  // Table management
+  set_current_table(table_id: string): void;
+  get_current_table(): string | undefined;
+  clear_table_paint(table_id: string): void;
+  // Paint mode
   enter_paint_mode(width: number, height: number): void;
   exit_paint_mode(): void;
   is_paint_mode(): boolean;
+  // Brush settings
   set_brush_color(r: number, g: number, b: number, a: number): void;
   set_brush_width(width: number): void;
   set_blend_mode(blend_mode: string): void;
   get_brush_color(): Float32Array;
   get_brush_width(): number;
+  // Drawing operations
   start_stroke(world_x: number, world_y: number, pressure: number): boolean;
   add_stroke_point(world_x: number, world_y: number, pressure: number): boolean;
   end_stroke(): boolean;
   cancel_stroke(): void;
+  // Stroke management
   clear_all_strokes(): void;
   undo_last_stroke(): boolean;
+  redo_last_stroke(): boolean;
+  can_undo(): boolean;
+  can_redo(): boolean;
+  clear_redo_stack(): void;
   get_stroke_count(): number;
   is_drawing(): boolean;
+  // Data access
   get_all_strokes_json(): any;
   get_current_stroke_json(): any;
-  on_stroke_event(event_type: string, callback: Function): void;
-  remove_stroke_event(event_type: string): void;
   get_all_strokes_data(): string[];
   get_strokes_data_json(): any;
+  // Events
+  on_stroke_event(event_type: string, callback: Function): void;
+  remove_stroke_event(event_type: string): void;
 }
 export class RenderEngine {
   free(): void;
@@ -257,9 +271,15 @@ export class RenderEngine {
   clear_layer(layer_name: string): boolean;
   clear_all_sprites(): void;
   set_layer_visible(layer_name: string, visible: boolean): boolean;
+  // Paint system - table management
+  paint_set_current_table(table_id: string): void;
+  paint_get_current_table(): string | undefined;
+  paint_clear_table(table_id: string): void;
+  // Paint system - mode
   paint_enter_mode(width: number, height: number): void;
   paint_exit_mode(): void;
   paint_is_mode(): boolean;
+  // Paint system - brush settings
   paint_set_brush_color(r: number, g: number, b: number, a: number): void;
   paint_set_brush_width(width: number): void;
   paint_set_blend_mode(blend_mode: string): void;

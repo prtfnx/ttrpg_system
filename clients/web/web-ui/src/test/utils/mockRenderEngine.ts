@@ -96,9 +96,9 @@ export function createMockRenderEngine() {
   find_sprites_at: vi.fn(( _x: number, _y: number) => []),
 
   // Actions subsystem hooks expected by useActions
-  set_action_handler: vi.fn((fn: any) => { /* store if tests need to trigger */ }),
-  set_state_change_handler: vi.fn((fn: any) => { /* store if tests need to trigger */ }),
-  set_actions_error_handler: vi.fn((fn: any) => { /* store if tests need to trigger */ }),
+  set_action_handler: vi.fn((_fn: any) => { /* store if tests need to trigger */ }),
+  set_state_change_handler: vi.fn((_fn: any) => { /* store if tests need to trigger */ }),
+  set_actions_error_handler: vi.fn((_fn: any) => { /* store if tests need to trigger */ }),
   can_undo: vi.fn(() => false),
   can_redo: vi.fn(() => false),
   get_all_tables: vi.fn(() => []),

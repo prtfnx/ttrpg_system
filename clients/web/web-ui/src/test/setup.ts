@@ -1,8 +1,8 @@
 import '@testing-library/jest-dom';
-import { vi, afterEach } from 'vitest';
+import { afterEach, vi } from 'vitest';
+import mockProtocol, { defaultUseProtocol, resetMockProtocol } from './utils/mockProtocol';
 import { createMockRenderEngine } from './utils/mockRenderEngine';
 import mockWasmManager, { resetNetworkClientFactory } from './utils/mockWasmManager';
-import mockProtocol, { defaultUseProtocol, resetMockProtocol } from './utils/mockProtocol';
 
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {

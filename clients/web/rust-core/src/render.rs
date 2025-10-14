@@ -175,7 +175,10 @@ impl RenderEngine {
             }
         }
 
-        // Render lighting system
+        // Extract obstacles for lighting shadows
+        self.update_lighting_obstacles();
+        
+        // Render lighting system with shadow casting
         self.lighting.render_lights(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y)?;
         
         // Render paint strokes (on top of everything except fog)
@@ -223,6 +226,64 @@ impl RenderEngine {
         let min = self.camera.screen_to_world(Vec2::new(0.0, 0.0));
         let max = self.camera.screen_to_world(self.canvas_size);
         Rect::new(min.x, min.y, max.x - min.x, max.y - min.y)
+    }
+    
+    /// Extract wall obstacles from sprites for shadow casting
+    /// Converts sprite bounds to line segments for visibility calculations
+    fn update_lighting_obstacles(&mut self) {
+        let mut obstacles = Vec::new();
+        
+        // Extract obstacles from wall layer sprites
+        if let Some(wall_layer) = self.layer_manager.get_layer("walls") {
+            for sprite in &wall_layer.sprites {
+                // Convert sprite bounds to 4 line segments (rectangle)
+                let half_w = (sprite.width / 2.0) as f32;
+                let half_h = (sprite.height / 2.0) as f32;
+                
+                // Four corners of the sprite
+                let corners = [
+                    Vec2::new(sprite.world_x as f32 - half_w, sprite.world_y as f32 - half_h),
+                    Vec2::new(sprite.world_x as f32 + half_w, sprite.world_y as f32 - half_h),
+                    Vec2::new(sprite.world_x as f32 + half_w, sprite.world_y as f32 + half_h),
+                    Vec2::new(sprite.world_x as f32 - half_w, sprite.world_y as f32 + half_h),
+                ];
+                
+                // Add four edges as line segments
+                for i in 0..4 {
+                    let next = (i + 1) % 4;
+                    obstacles.push(corners[i].x);
+                    obstacles.push(corners[i].y);
+                    obstacles.push(corners[next].x);
+                    obstacles.push(corners[next].y);
+                }
+            }
+        }
+        
+        // Also extract from objects layer (furniture, etc.)
+        if let Some(objects_layer) = self.layer_manager.get_layer("objects") {
+            for sprite in &objects_layer.sprites {
+                let half_w = (sprite.width / 2.0) as f32;
+                let half_h = (sprite.height / 2.0) as f32;
+                
+                let corners = [
+                    Vec2::new(sprite.world_x as f32 - half_w, sprite.world_y as f32 - half_h),
+                    Vec2::new(sprite.world_x as f32 + half_w, sprite.world_y as f32 - half_h),
+                    Vec2::new(sprite.world_x as f32 + half_w, sprite.world_y as f32 + half_h),
+                    Vec2::new(sprite.world_x as f32 - half_w, sprite.world_y as f32 + half_h),
+                ];
+                
+                for i in 0..4 {
+                    let next = (i + 1) % 4;
+                    obstacles.push(corners[i].x);
+                    obstacles.push(corners[i].y);
+                    obstacles.push(corners[next].x);
+                    obstacles.push(corners[next].y);
+                }
+            }
+        }
+        
+        // Update lighting system with obstacles
+        self.lighting.set_obstacles(&obstacles);
     }
     
     // Public API methods
@@ -808,7 +869,7 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn set_light_color(&mut self, id: &str, r: f32, g: f32, b: f32, a: f32) {
         if let Some(light) = self.lighting.get_light_mut(id) {
-            light.set_color_struct(Color::new(r, g, b, a));
+            light.set_color(Color::new(r, g, b, a));
         }
     }
 
@@ -1428,8 +1489,13 @@ impl RenderEngine {
         // If successful, also move in layer manager
         if let Ok(action_result) = serde_wasm_bindgen::from_value::<crate::actions::ActionResult>(result.clone()) {
             if action_result.success {
-                // Note: LayerManager doesn't have move_sprite_to_layer, so we'll skip this for now
-                web_sys::console::log_1(&format!("Sprite {} moved to layer {} in actions", sprite_id, new_layer).into());
+                // Move sprite in layer manager for rendering
+                let moved = self.layer_manager.move_sprite_to_layer(sprite_id, new_layer);
+                if moved {
+                    web_sys::console::log_1(&format!("✅ Sprite {} successfully moved to layer {} in both actions and layer manager", sprite_id, new_layer).into());
+                } else {
+                    web_sys::console::warn_1(&format!("⚠️ Sprite {} moved in actions but not found in layer manager", sprite_id).into());
+                }
             }
         }
         
@@ -1585,6 +1651,23 @@ impl RenderEngine {
     }
 
     // Paint System Methods
+    
+    // Table management for paint
+    #[wasm_bindgen]
+    pub fn paint_set_current_table(&mut self, table_id: &str) {
+        self.paint.set_current_table(table_id);
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_get_current_table(&self) -> Option<String> {
+        self.paint.get_current_table()
+    }
+    
+    #[wasm_bindgen]
+    pub fn paint_clear_table(&mut self, table_id: &str) {
+        self.paint.clear_table_paint(table_id);
+    }
+    
     #[wasm_bindgen]
     pub fn paint_enter_mode(&mut self, width: f32, height: f32) {
         self.paint.enter_paint_mode(width, height);

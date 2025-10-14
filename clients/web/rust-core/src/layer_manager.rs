@@ -244,4 +244,27 @@ impl LayerManager {
         }
         false
     }
+
+    /// Move sprite from one layer to another
+    pub fn move_sprite_to_layer(&mut self, sprite_id: &str, target_layer: &str) -> bool {
+        // Find and remove sprite from current layer
+        let mut sprite_to_move: Option<Sprite> = None;
+        
+        for layer in self.layers.values_mut() {
+            if let Some(index) = layer.sprites.iter().position(|s| s.id == sprite_id) {
+                sprite_to_move = Some(layer.sprites.remove(index));
+                break;
+            }
+        }
+        
+        // Add sprite to target layer
+        if let Some(sprite) = sprite_to_move {
+            if let Some(target) = self.layers.get_mut(target_layer) {
+                target.sprites.push(sprite);
+                return true;
+            }
+        }
+        
+        false
+    }
 }

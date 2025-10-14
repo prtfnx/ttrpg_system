@@ -306,7 +306,13 @@ impl PaintSystem {
     // Stroke management
     #[wasm_bindgen]
     pub fn clear_all_strokes(&mut self) {
-        self.strokes.clear();
+        if let Some(strokes) = self.get_current_strokes_mut() {
+            strokes.clear();
+            web_sys::console::log_1(&"Cleared strokes for current table".into());
+        }
+        if let Some(redo_stack) = self.get_current_redo_stack_mut() {
+            redo_stack.clear();
+        }
         self.current_stroke = None;
         self.is_drawing = false;
         self.last_point = None;
@@ -315,44 +321,67 @@ impl PaintSystem {
     
     #[wasm_bindgen]
     pub fn undo_last_stroke(&mut self) -> bool {
-        if !self.strokes.is_empty() {
-            let stroke = self.strokes.pop().unwrap();
-            self.redo_stack.push(stroke);  // Add to redo stack
-            self.emit_stroke_undone();
-            return true;
+        if let Some(strokes) = self.get_current_strokes_mut() {
+            if !strokes.is_empty() {
+                let stroke = strokes.pop().unwrap();
+                if let Some(redo_stack) = self.get_current_redo_stack_mut() {
+                    redo_stack.push(stroke);
+                }
+                self.emit_stroke_undone();
+                return true;
+            }
         }
         false
     }
     
     #[wasm_bindgen]
     pub fn redo_last_stroke(&mut self) -> bool {
-        if !self.redo_stack.is_empty() {
-            let stroke = self.redo_stack.pop().unwrap();
-            self.strokes.push(stroke);  // Restore from redo stack
-            self.emit_stroke_redone();
-            return true;
+        if let Some(redo_stack) = self.get_current_redo_stack_mut() {
+            if !redo_stack.is_empty() {
+                let stroke = redo_stack.pop().unwrap();
+                if let Some(strokes) = self.get_current_strokes_mut() {
+                    strokes.push(stroke);
+                }
+                self.emit_stroke_redone();
+                return true;
+            }
         }
         false
     }
     
     #[wasm_bindgen]
     pub fn can_undo(&self) -> bool {
-        !self.strokes.is_empty()
+        if let Some(strokes) = self.get_current_strokes() {
+            !strokes.is_empty()
+        } else {
+            false
+        }
     }
     
     #[wasm_bindgen]
     pub fn can_redo(&self) -> bool {
-        !self.redo_stack.is_empty()
+        if let Some(ref table_id) = self.current_table_id {
+            if let Some(redo_stack) = self.table_redo_stacks.get(table_id) {
+                return !redo_stack.is_empty();
+            }
+        }
+        false
     }
     
     #[wasm_bindgen]
     pub fn clear_redo_stack(&mut self) {
-        self.redo_stack.clear();
+        if let Some(redo_stack) = self.get_current_redo_stack_mut() {
+            redo_stack.clear();
+        }
     }
     
     #[wasm_bindgen]
     pub fn get_stroke_count(&self) -> usize {
-        self.strokes.len()
+        if let Some(strokes) = self.get_current_strokes() {
+            strokes.len()
+        } else {
+            0
+        }
     }
     
     #[wasm_bindgen]
@@ -363,7 +392,11 @@ impl PaintSystem {
     // Stroke data access for rendering
     #[wasm_bindgen]
     pub fn get_all_strokes_json(&self) -> JsValue {
-        serde_wasm_bindgen::to_value(&self.strokes).unwrap_or(JsValue::NULL)
+        if let Some(strokes) = self.get_current_strokes() {
+            serde_wasm_bindgen::to_value(strokes).unwrap_or(JsValue::NULL)
+        } else {
+            serde_wasm_bindgen::to_value(&Vec::<DrawStroke>::new()).unwrap_or(JsValue::NULL)
+        }
     }
     
     #[wasm_bindgen]
@@ -388,15 +421,19 @@ impl PaintSystem {
     
     // Get stroke data for sprite conversion
     pub fn get_all_strokes_data(&self) -> Vec<String> {
-        self.strokes.iter().map(|stroke| {
-            serde_json::to_string(stroke).unwrap_or_else(|_| {
-                format!("stroke_{}_{}_{}_{}", 
-                    stroke.id, 
-                    stroke.points.len(), 
-                    stroke.color[0], 
-                    stroke.width)
-            })
-        }).collect()
+        if let Some(strokes) = self.get_current_strokes() {
+            strokes.iter().map(|stroke| {
+                serde_json::to_string(stroke).unwrap_or_else(|_| {
+                    format!("stroke_{}_{}_{}_{}", 
+                        stroke.id, 
+                        stroke.points.len(), 
+                        stroke.color[0], 
+                        stroke.width)
+                })
+            }).collect()
+        } else {
+            Vec::new()
+        }
     }
     
     // Get stroke bounds for sprite positioning (internal use only)
@@ -430,30 +467,36 @@ impl PaintSystem {
     // WASM-safe method to get stroke data for sprite conversion
     #[wasm_bindgen]
     pub fn get_strokes_data_json(&self) -> JsValue {
-        let stroke_data: Vec<_> = self.strokes.iter().map(|stroke| {
-            let (min, max) = self.get_stroke_bounds(stroke);
-            serde_json::json!({
-                "id": stroke.id,
-                "min_x": min.x,
-                "min_y": min.y,
-                "max_x": max.x,
-                "max_y": max.y,
-                "color": stroke.color,
-                "width": stroke.width,
-                "points": stroke.points
-            })
-        }).collect();
-        
-        serde_wasm_bindgen::to_value(&stroke_data).unwrap_or(JsValue::NULL)
+        if let Some(strokes) = self.get_current_strokes() {
+            let stroke_data: Vec<_> = strokes.iter().map(|stroke| {
+                let (min, max) = self.get_stroke_bounds(stroke);
+                serde_json::json!({
+                    "id": stroke.id,
+                    "min_x": min.x,
+                    "min_y": min.y,
+                    "max_x": max.x,
+                    "max_y": max.y,
+                    "color": stroke.color,
+                    "width": stroke.width,
+                    "points": stroke.points
+                })
+            }).collect();
+            
+            serde_wasm_bindgen::to_value(&stroke_data).unwrap_or(JsValue::NULL)
+        } else {
+            serde_wasm_bindgen::to_value(&Vec::<serde_json::Value>::new()).unwrap_or(JsValue::NULL)
+        }
     }
 }
 
 impl PaintSystem {
     // Rendering helpers (called from render engine)
     pub fn render_strokes(&self, renderer: &WebGLRenderer) -> Result<(), JsValue> {
-        // Render all completed strokes
-        for stroke in &self.strokes {
-            self.render_stroke(stroke, renderer)?;
+        // Render all completed strokes for current table
+        if let Some(strokes) = self.get_current_strokes() {
+            for stroke in strokes {
+                self.render_stroke(stroke, renderer)?;
+            }
         }
         
         // Render current stroke being drawn

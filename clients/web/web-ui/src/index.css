@@ -59,15 +59,16 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+/* Force dark theme - disable light mode media query */
 @media (prefers-color-scheme: light) {
   :root {
-    color: #213547;
-    background-color: #ffffff;
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
   }
   a:hover {
-    color: #747bff;
+    color: #535bf2;
   }
   button {
-    background-color: #f9f9f9;
+    background-color: #1a1a1a;
   }
 }

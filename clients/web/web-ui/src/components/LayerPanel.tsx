@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useRenderEngine } from '../hooks/useRenderEngine';
 import { useGameStore } from '../store';
 import './LayerPanel.css';
 
@@ -61,6 +62,8 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     activeTableId,
     sprites
   } = useGameStore();
+  
+  const renderEngine = useRenderEngine();
 
   const [layers, setLayers] = useState<Layer[]>(initialLayers ?? []);
   const [isLoading, setIsLoading] = useState(true);
@@ -136,6 +139,16 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     
     setLayerVisibility(layerId, newVisibility);
     
+    // Sync with WASM
+    if (renderEngine) {
+      try {
+        (renderEngine as any).set_layer_visible?.(layerId, newVisibility);
+        console.log(`🎨 LayerPanel: Synced layer visibility to WASM: ${layerId} = ${newVisibility}`);
+      } catch (error) {
+        console.error('❌ LayerPanel: Failed to sync layer visibility to WASM:', error);
+      }
+    }
+    
     // Emit custom event for test environment
     const layerName = layerId === 'fog_of_war' ? 'fogOfWar' : layerId === 'background-map' ? 'background' : layerId;
     const event_detail = new CustomEvent('layerToggle', { 
@@ -146,6 +159,16 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
 
   const handleOpacityChange = (layerId: string, opacity: number) => {
     setLayerOpacity(layerId, opacity);
+    
+    // Sync with WASM
+    if (renderEngine) {
+      try {
+        (renderEngine as any).set_layer_opacity?.(layerId, opacity);
+        console.log(`🎨 LayerPanel: Synced layer opacity to WASM: ${layerId} = ${opacity}`);
+      } catch (error) {
+        console.error('❌ LayerPanel: Failed to sync layer opacity to WASM:', error);
+      }
+    }
   };
 
   if (isLoading) {

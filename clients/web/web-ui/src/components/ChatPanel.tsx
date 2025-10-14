@@ -42,16 +42,16 @@ export function ChatPanel() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ flex: 1, overflowY: 'auto', background: '#fff', borderRadius: 8, border: '1px solid #e5e7eb', padding: 12, marginBottom: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'transparent' }}>
+      <div style={{ flex: 1, overflowY: 'auto', background: '#1a1a1a', borderRadius: 8, border: '1px solid #404040', padding: 12, marginBottom: 8 }}>
         {messages.map(msg => (
-          <div key={msg.id} style={{ marginBottom: 6, fontSize: 15 }}>
+          <div key={msg.id} style={{ marginBottom: 6, fontSize: 15, color: '#ffffff' }}>
             <span style={{ fontWeight: 600, color: '#6366f1' }}>{msg.user}:</span> <span>{msg.text}</span>
-            <span style={{ color: '#aaa', fontSize: 12, marginLeft: 8 }}>{new Date(msg.timestamp).toLocaleTimeString()}</span>
+            <span style={{ color: '#808080', fontSize: 12, marginLeft: 8 }}>{new Date(msg.timestamp).toLocaleTimeString()}</span>
           </div>
         ))}
         {errorMessage && (
-          <div style={{ marginBottom: 6, fontSize: 15, color: '#ef4444' }}>
+          <div style={{ marginBottom: 6, fontSize: 15, color: '#ff6b6b' }}>
             <span style={{ fontWeight: 600 }}>Error:</span> <span>{errorMessage}</span>
           </div>
         )}
@@ -64,7 +64,7 @@ export function ChatPanel() {
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') handleSend(); }}
           placeholder="Type a message..."
-          style={{ flex: 1, padding: 8, borderRadius: 4, border: '1px solid #d1d5db', fontSize: 15 }}
+          style={{ flex: 1, padding: 8, borderRadius: 4, border: '1px solid #404040', background: '#1a1a1a', color: '#ffffff', fontSize: 15 }}
         />
         <button
           onClick={handleSend}

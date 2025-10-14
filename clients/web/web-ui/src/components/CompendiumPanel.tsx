@@ -283,7 +283,7 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
         )}
 
         {!loading && filtered.length === 0 && !error && (
-          <div className="no-results" style={{ padding: '16px', textAlign: 'center', color: '#666' }}>
+          <div className="no-results" style={{ padding: '16px', textAlign: 'center', color: '#999' }}>
             {debounced ? 'No entries found' : 'Enter search terms to find compendium entries'}
           </div>
         )}
@@ -299,10 +299,11 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
             style={{
               padding: '8px',
               margin: '4px 0',
-              border: '1px solid #ddd',
+              border: '1px solid #404040',
               borderRadius: '4px',
               cursor: 'pointer',
-              backgroundColor: selectedEntry?.id === entry.id ? '#e3f2fd' : '#fff'
+              backgroundColor: selectedEntry?.id === entry.id ? '#2a2a3a' : '#1a1a1a',
+              color: '#ffffff'
             }}
           >
             <div className="entry-header">
@@ -320,13 +321,13 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
               </span>
               <strong>{entry.name}</strong>
               {entry.level !== undefined && (
-                <span style={{ marginLeft: '8px', color: '#666' }}>Lv.{entry.level}</span>
+                <span style={{ marginLeft: '8px', color: '#999' }}>Lv.{entry.level}</span>
               )}
               {entry.challenge_rating !== undefined && (
-                <span style={{ marginLeft: '8px', color: '#666' }}>CR {entry.challenge_rating}</span>
+                <span style={{ marginLeft: '8px', color: '#999' }}>CR {entry.challenge_rating}</span>
               )}
             </div>
-            <div className="entry-description" style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+            <div className="entry-description" style={{ fontSize: '12px', color: '#bbb', marginTop: '4px' }}>
               {entry.description}
             </div>
           </div>
@@ -339,8 +340,9 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
           top: '50%', 
           left: '50%', 
           transform: 'translate(-50%, -50%)',
-          background: 'white',
-          border: '2px solid #ccc',
+          background: '#1a1a1a',
+          color: '#ffffff',
+          border: '2px solid #404040',
           borderRadius: '8px',
           padding: '16px',
           maxWidth: '400px',

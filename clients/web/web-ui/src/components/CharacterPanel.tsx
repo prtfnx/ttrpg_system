@@ -76,7 +76,7 @@ function CharacterPanel() {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   return (
-    <div className="character-section">
+    <div className="character-section" style={{ background: 'transparent' }}>
       <h2>Characters</h2>
       <button
         style={{ marginBottom: '1rem', padding: '0.5rem 1rem', fontWeight: 600 }}
@@ -136,18 +136,19 @@ function CharacterPanel() {
               <div
                 key={char.id}
                 style={{
-                  border: isSelected ? '2px solid #6366f1' : '1px solid #ddd',
+                  border: isSelected ? '2px solid #6366f1' : '1px solid #404040',
                   borderRadius: 8,
                   padding: 12,
                   marginBottom: 8,
-                  background: isSelected ? '#eef2ff' : '#fff',
+                  background: isSelected ? '#2a2a3a' : '#1a1a1a',
+                  color: '#ffffff',
                   cursor: 'pointer',
                   boxShadow: isSelected ? '0 2px 8px #6366f133' : 'none',
                 }}
                 onClick={() => handleCharacterClick(char)}
               >
                 <div style={{ fontWeight: 700, fontSize: 18 }}>{char.name}</div>
-                <div style={{ color: '#666', fontSize: 14 }}>{char.race} {char.class} (Level {char.level})</div>
+                <div style={{ color: '#bbb', fontSize: 14 }}>{char.race} {char.class} (Level {char.level})</div>
               </div>
             );
           })}
@@ -156,9 +157,9 @@ function CharacterPanel() {
         {/* Character Sheet with Tabs */}
         <div style={{ marginTop: 24 }}>
           {selectedCharacter ? (
-            <div style={{ background: '#fff', borderRadius: 10, padding: 20, boxShadow: '0 2px 12px #0001' }}>
+            <div style={{ background: '#1a1a1a', color: '#ffffff', borderRadius: 10, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.5)' }}>
               <h3 style={{ marginBottom: 8 }}>{selectedCharacter!.name}</h3>
-              <div style={{ color: '#666', marginBottom: 8 }}>{selectedCharacter!.race} {selectedCharacter!.class} (Level {selectedCharacter!.level})</div>
+              <div style={{ color: '#bbb', marginBottom: 8 }}>{selectedCharacter!.race} {selectedCharacter!.class} (Level {selectedCharacter!.level})</div>
               <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
                 <div><strong>HP:</strong> {selectedCharacter!.stats.hp} / {selectedCharacter!.stats.maxHp}</div>
                 <div><strong>AC:</strong> {selectedCharacter!.stats.ac}</div>
@@ -205,9 +206,9 @@ function CharacterSheetTabs({ character }: { character: DetailedCharacter }) {
   return (
     <div style={{ marginTop: 16 }}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <button onClick={() => setTab('social')} style={{ flex: 1, padding: 8, background: tab === 'social' ? '#6366f1' : '#f3f4f6', color: tab === 'social' ? '#fff' : '#222', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>Social</button>
-        <button onClick={() => setTab('exploration')} style={{ flex: 1, padding: 8, background: tab === 'exploration' ? '#6366f1' : '#f3f4f6', color: tab === 'exploration' ? '#fff' : '#222', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>Exploration</button>
-        <button onClick={() => setTab('combat')} style={{ flex: 1, padding: 8, background: tab === 'combat' ? '#6366f1' : '#f3f4f6', color: tab === 'combat' ? '#fff' : '#222', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>Combat</button>
+        <button onClick={() => setTab('social')} style={{ flex: 1, padding: 8, background: tab === 'social' ? '#6366f1' : '#2a2a2a', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>Social</button>
+        <button onClick={() => setTab('exploration')} style={{ flex: 1, padding: 8, background: tab === 'exploration' ? '#6366f1' : '#2a2a2a', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>Exploration</button>
+        <button onClick={() => setTab('combat')} style={{ flex: 1, padding: 8, background: tab === 'combat' ? '#6366f1' : '#2a2a2a', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>Combat</button>
       </div>
       <div style={{ minHeight: 120 }}>
         {tab === 'social' && (

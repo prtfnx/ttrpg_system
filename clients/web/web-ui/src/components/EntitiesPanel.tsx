@@ -138,7 +138,7 @@ export function EntitiesPanel() {
   }, []) // Remove dependencies to avoid constant re-syncing
 
   return (
-    <div className="entities-section">
+    <div className="entities-section" style={{ background: 'transparent' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2>Entities ({sprites.length})</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

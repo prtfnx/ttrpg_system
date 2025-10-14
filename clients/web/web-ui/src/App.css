@@ -567,11 +567,16 @@ body {
 /* Entities Panel */
 .entities-section {
   margin-bottom: 2rem;
+  background: transparent !important;
 }
 
 .entities-section h2 {
   margin-top: 0;
   margin-bottom: 1rem;
+}
+
+.character-section {
+  background: transparent !important;
 }
 
 .character-section h2 {

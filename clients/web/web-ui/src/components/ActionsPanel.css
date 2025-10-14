@@ -57,7 +57,7 @@
   flex-shrink: 0;
 }
 
-.tab-button {
+.actions-panel .tab-button {
   flex: 1;
   padding: 8px 12px;
   background: none;
@@ -68,11 +68,11 @@
   transition: background-color 0.2s;
 }
 
-.tab-button:hover {
+.actions-panel .tab-button:hover {
   background: #404040;
 }
 
-.tab-button.active {
+.actions-panel .tab-button.active {
   background: #007acc;
   color: white;
 }

@@ -108,6 +108,12 @@ export const GameCanvas: React.FC = () => {
     showLayerSubmenu?: boolean;
   }>({ visible: false, x: 0, y: 0, showLayerSubmenu: false });
 
+  // Light placement mode state
+  const [lightPlacementMode, setLightPlacementMode] = useState<{
+    active: boolean;
+    preset: any;
+  } | null>(null);
+
   // Available layers - matching LayerPanel
   const AVAILABLE_LAYERS = [
     { id: 'map', name: 'Map', icon: '🗺️' },
@@ -140,6 +146,33 @@ export const GameCanvas: React.FC = () => {
 
   const handleMouseDown = useCallback((e: MouseEvent) => {
     console.log('[MOUSE] Mouse down event:', e.clientX, e.clientY);
+    
+    // Check if we're in light placement mode
+    if (lightPlacementMode?.active && rustRenderManagerRef.current) {
+      const { x, y } = getRelativeCoords(e);
+      
+      // Convert screen coordinates to world coordinates
+      const worldCoords = rustRenderManagerRef.current.screen_to_world(x, y);
+      if (worldCoords && Array.isArray(worldCoords) && worldCoords.length === 2) {
+        // Dispatch event to LightingPanel with world coordinates
+        window.dispatchEvent(new CustomEvent('lightPlaced', {
+          detail: {
+            x: worldCoords[0],
+            y: worldCoords[1],
+            preset: lightPlacementMode.preset
+          }
+        }));
+        
+        // Exit placement mode
+        setLightPlacementMode(null);
+        const canvas = canvasRef.current;
+        if (canvas) {
+          canvas.style.cursor = 'grab';
+        }
+      }
+      return; // Don't process other mouse events
+    }
+    
     if (rustRenderManagerRef.current) {
       const { x, y } = getRelativeCoords(e);
       console.log('[MOUSE] Relative coords:', x, y);
@@ -152,7 +185,7 @@ export const GameCanvas: React.FC = () => {
         renderManager.handle_mouse_down(x, y);
       }
     }
-  }, [getRelativeCoords]);
+  }, [getRelativeCoords, lightPlacementMode]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (rustRenderManagerRef.current) {
@@ -207,15 +240,16 @@ export const GameCanvas: React.FC = () => {
       const { x, y } = getRelativeCoords(e);
       const spriteId = rustRenderManagerRef.current.handle_right_click(x, y);
       
-      setContextMenu({
+      setContextMenu(prev => ({
         visible: true,
         x: e.clientX,
         y: e.clientY,
         spriteId: spriteId || undefined,
-        copiedSprite: contextMenu.copiedSprite
-      });
+        copiedSprite: prev.copiedSprite, // Preserve copiedSprite
+        showLayerSubmenu: false
+      }));
     }
-  }, [getRelativeCoords, contextMenu.copiedSprite]);
+  }, [getRelativeCoords]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Toggle performance monitor with F3 key
@@ -297,12 +331,20 @@ export const GameCanvas: React.FC = () => {
     
     // Don't close menu if showing layer submenu
     if (action !== 'show_layer_submenu') {
-      setContextMenu({ visible: false, x: 0, y: 0, showLayerSubmenu: false });
+      setContextMenu(prev => ({ 
+        visible: false, 
+        x: 0, 
+        y: 0, 
+        showLayerSubmenu: false,
+        copiedSprite: prev.copiedSprite // Preserve copied sprite
+      }));
     }
   }, [contextMenu, protocol]);
 
   const handleMoveToLayer = useCallback((layerId: string) => {
     if (!rustRenderManagerRef.current || !contextMenu.spriteId) return;
+    
+    const { updateSprite } = useGameStore.getState();
     
     try {
       // Use WASM move_sprite_to_layer_action method
@@ -310,6 +352,15 @@ export const GameCanvas: React.FC = () => {
       if (renderEngine.move_sprite_to_layer_action) {
         const result = renderEngine.move_sprite_to_layer_action(contextMenu.spriteId, layerId);
         console.log(`✅ GameCanvas: Moved sprite ${contextMenu.spriteId} to layer ${layerId}`, result);
+        
+        // Update the sprite in the store to reflect the new layer
+        updateSprite(contextMenu.spriteId, { layer: layerId });
+        console.log(`🔄 GameCanvas: Updated sprite ${contextMenu.spriteId} layer in store to ${layerId}`);
+        
+        // Dispatch event for any other listeners
+        window.dispatchEvent(new CustomEvent('spriteLayerChanged', { 
+          detail: { spriteId: contextMenu.spriteId, layer: layerId } 
+        }));
       } else {
         console.warn('⚠️ GameCanvas: move_sprite_to_layer_action not available in WASM');
       }
@@ -317,17 +368,61 @@ export const GameCanvas: React.FC = () => {
       console.error('❌ GameCanvas: Failed to move sprite to layer:', error);
     }
     
-    setContextMenu({ visible: false, x: 0, y: 0, showLayerSubmenu: false });
+    setContextMenu(prev => ({ 
+      visible: false, 
+      x: 0, 
+      y: 0, 
+      showLayerSubmenu: false,
+      copiedSprite: prev.copiedSprite // Preserve copied sprite
+    }));
   }, [contextMenu.spriteId]);
 
   // Close context menu on click outside
   useEffect(() => {
-    const handleClick = () => setContextMenu({ visible: false, x: 0, y: 0, showLayerSubmenu: false });
+    const handleClick = () => setContextMenu(prev => ({ 
+      visible: false, 
+      x: 0, 
+      y: 0, 
+      showLayerSubmenu: false,
+      copiedSprite: prev.copiedSprite // Preserve copied sprite
+    }));
     if (contextMenu.visible) {
       document.addEventListener('click', handleClick);
       return () => document.removeEventListener('click', handleClick);
     }
   }, [contextMenu.visible]);
+
+  // Listen for light placement events from LightingPanel
+  useEffect(() => {
+    const handleStartPlacement = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      setLightPlacementMode({
+        active: true,
+        preset: customEvent.detail.preset,
+      });
+      // Change cursor to indicate placement mode
+      const canvas = canvasRef.current;
+      if (canvas) {
+        canvas.style.cursor = 'crosshair';
+      }
+    };
+
+    const handleCancelPlacement = () => {
+      setLightPlacementMode(null);
+      const canvas = canvasRef.current;
+      if (canvas) {
+        canvas.style.cursor = 'grab';
+      }
+    };
+
+    window.addEventListener('startLightPlacement', handleStartPlacement);
+    window.addEventListener('cancelLightPlacement', handleCancelPlacement);
+    
+    return () => {
+      window.removeEventListener('startLightPlacement', handleStartPlacement);
+      window.removeEventListener('cancelLightPlacement', handleCancelPlacement);
+    };
+  }, []);
 
   useEffect(() => {
   let animationFrameId: number | null = null;
@@ -954,34 +1049,21 @@ export const GameCanvas: React.FC = () => {
             </>
           ) : (
             // Show paste option when clicking on empty space if there's a copied sprite
-            <div>
-              {contextMenu.copiedSprite && (
-                <div 
-                  style={{ 
-                    padding: '8px 12px', 
-                    cursor: 'pointer',
-                    color: '#333',
-                    background: 'transparent'
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.background = '#f0f0f0'}
-                  onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                  onClick={() => handleContextMenuAction('paste')}
-                >
-                  Paste Sprite
-                </div>
-              )}
-              {!contextMenu.copiedSprite && (
-                <div 
-                  style={{ 
-                    padding: '8px 12px', 
-                    color: '#999',
-                    background: 'transparent'
-                  }}
-                >
-                  No actions available
-                </div>
-              )}
-            </div>
+            contextMenu.copiedSprite && (
+              <div 
+                style={{ 
+                  padding: '8px 12px', 
+                  cursor: 'pointer',
+                  color: '#333',
+                  background: 'transparent'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#f0f0f0'}
+                onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                onClick={() => handleContextMenuAction('paste')}
+              >
+                Paste Sprite
+              </div>
+            )
           )}
         </div>
       )}

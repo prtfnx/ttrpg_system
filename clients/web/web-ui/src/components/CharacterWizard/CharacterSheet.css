@@ -57,7 +57,7 @@
   overflow-x: auto;
 }
 
-.tab-button {
+.character-sheet .tab-button {
   background: none;
   border: none;
   padding: 16px 24px;
@@ -70,12 +70,12 @@
   white-space: nowrap;
 }
 
-.tab-button:hover {
+.character-sheet .tab-button:hover {
   background: #e9ecef;
   color: #333;
 }
 
-.tab-button.active {
+.character-sheet .tab-button.active {
   color: #8b0000;
   border-bottom-color: #8b0000;
   background: white;
@@ -557,13 +557,13 @@
     flex-direction: column;
   }
   
-  .tab-button {
+  .character-sheet .tab-button {
     text-align: center;
     border-bottom: 1px solid #dee2e6;
     border-right: none;
   }
   
-  .tab-button.active {
+  .character-sheet .tab-button.active {
     border-bottom: 1px solid #8b0000;
     border-right: none;
   }

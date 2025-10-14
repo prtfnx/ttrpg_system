@@ -36,7 +36,7 @@
   border-radius: 8px 8px 0 0;
 }
 
-.tab-button {
+.character-export-step .tab-button {
   flex: 1;
   padding: 15px 20px;
   border: none;
@@ -49,17 +49,17 @@
   color: #666;
 }
 
-.tab-button:hover {
+.character-export-step .tab-button:hover {
   background: #f8f9fa;
   color: #333;
 }
 
-.tab-button.active {
+.character-export-step .tab-button.active {
   background: #8b0000;
   color: white;
 }
 
-.tab-content {
+.character-export-step .tab-content {
   padding: 30px;
   background: white;
   border-radius: 0 0 8px 8px;

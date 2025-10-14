@@ -57,7 +57,7 @@
   border-bottom: 1px solid var(--border);
 }
 
-.tab-button {
+.attack-manager .tab-button {
   flex: 1;
   padding: 1rem;
   background: none;
@@ -69,12 +69,12 @@
   border-bottom: 3px solid transparent;
 }
 
-.tab-button:hover {
+.attack-manager .tab-button:hover {
   background: var(--bg-tertiary);
   color: var(--text-primary);
 }
 
-.tab-button.active {
+.attack-manager .tab-button.active {
   background: var(--bg-primary);
   color: #8B0000;
   border-bottom-color: #8B0000;
@@ -566,7 +566,7 @@
     overflow-x: auto;
   }
 
-  .tab-button {
+  .attack-manager .tab-button {
     white-space: nowrap;
     min-width: 120px;
   }

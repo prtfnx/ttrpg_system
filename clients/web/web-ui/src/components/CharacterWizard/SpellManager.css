@@ -57,7 +57,7 @@
   overflow-x: auto;
 }
 
-.tab-button {
+.spell-manager .tab-button {
   background: none;
   border: none;
   padding: 16px 24px;
@@ -70,12 +70,12 @@
   white-space: nowrap;
 }
 
-.tab-button:hover {
+.spell-manager .tab-button:hover {
   background: #e9ecef;
   color: #333;
 }
 
-.tab-button.active {
+.spell-manager .tab-button.active {
   color: #4a148c;
   border-bottom-color: #4a148c;
   background: white;
@@ -784,13 +784,13 @@
     flex-direction: column;
   }
   
-  .tab-button {
+  .spell-manager .tab-button {
     text-align: center;
     border-bottom: 1px solid #dee2e6;
     border-right: none;
   }
   
-  .tab-button.active {
+  .spell-manager .tab-button.active {
     border-bottom: 1px solid #4a148c;
     border-right: none;
   }

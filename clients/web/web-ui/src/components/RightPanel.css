@@ -46,4 +46,5 @@
   padding: 16px;
   overflow-y: auto;
   background: transparent;
+  border: none;
 }

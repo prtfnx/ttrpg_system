@@ -5,11 +5,10 @@
  * Based on LIGHTING_SYSTEM_TEST_PLAN.md
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
-import React from 'react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LightingPanel } from '../components/LightingPanel';
 
 // Mock WASM engine

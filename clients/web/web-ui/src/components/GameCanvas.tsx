@@ -114,6 +114,10 @@ export const GameCanvas: React.FC = () => {
     preset: any;
   } | null>(null);
 
+  // Light placement preview state
+  const [lightPreviewPos, setLightPreviewPos] = useState<{ x: number; y: number } | null>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+
   // Available layers - matching LayerPanel
   const AVAILABLE_LAYERS = [
     { id: 'map', name: 'Map', icon: '🗺️' },
@@ -423,6 +427,109 @@ export const GameCanvas: React.FC = () => {
       window.removeEventListener('cancelLightPlacement', handleCancelPlacement);
     };
   }, []);
+
+  // Handle mousemove for light placement preview
+  useEffect(() => {
+    if (!lightPlacementMode?.active) {
+      setLightPreviewPos(null);
+      return;
+    }
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const { x, y } = getRelativeCoords(e);
+      setLightPreviewPos({ x, y });
+    };
+
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.addEventListener('mousemove', handleMouseMove);
+      return () => {
+        canvas.removeEventListener('mousemove', handleMouseMove);
+      };
+    }
+  }, [lightPlacementMode, getRelativeCoords]);
+
+  // Draw light placement preview on overlay canvas
+  useEffect(() => {
+    const previewCanvas = previewCanvasRef.current;
+    const mainCanvas = canvasRef.current;
+    
+    if (!previewCanvas || !mainCanvas || !lightPreviewPos || !lightPlacementMode?.active) {
+      // Clear preview if no longer active
+      if (previewCanvas) {
+        const ctx = previewCanvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+        }
+      }
+      return;
+    }
+
+    const ctx = previewCanvas.getContext('2d');
+    if (!ctx) return;
+
+    const preset = lightPlacementMode.preset;
+    const dpr = dprRef.current;
+
+    // Ensure preview canvas matches main canvas size
+    const rect = mainCanvas.getBoundingClientRect();
+    if (previewCanvas.width !== rect.width * dpr || previewCanvas.height !== rect.height * dpr) {
+      previewCanvas.width = rect.width * dpr;
+      previewCanvas.height = rect.height * dpr;
+      previewCanvas.style.width = `${rect.width}px`;
+      previewCanvas.style.height = `${rect.height}px`;
+    }
+
+    // Clear previous frame
+    ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    ctx.save();
+    ctx.scale(dpr, dpr);
+
+    // Convert preset color (normalized 0-1) to RGB (0-255)
+    const r = Math.round((preset.color.r || 1) * 255);
+    const g = Math.round((preset.color.g || 1) * 255);
+    const b = Math.round((preset.color.b || 1) * 255);
+
+    // Draw preview circle at mouse position
+    const radius = preset.radius || 100; // Use preset radius in world units
+    // For now, use a simple scale factor (world units to screen pixels)
+    // This should ideally match the actual zoom level
+    const screenRadius = radius * 0.5; // Approximate screen pixels
+
+    // Draw outer circle (dim light edge)
+    ctx.beginPath();
+    ctx.arc(lightPreviewPos.x, lightPreviewPos.y, screenRadius, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.5)`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Draw inner gradient (bright light)
+    const gradient = ctx.createRadialGradient(
+      lightPreviewPos.x, lightPreviewPos.y, 0,
+      lightPreviewPos.x, lightPreviewPos.y, screenRadius
+    );
+    gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.3)`);
+    gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.15)`);
+    gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+    
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    // Draw crosshair at center
+    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.8)`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(lightPreviewPos.x - 10, lightPreviewPos.y);
+    ctx.lineTo(lightPreviewPos.x + 10, lightPreviewPos.y);
+    ctx.moveTo(lightPreviewPos.x, lightPreviewPos.y - 10);
+    ctx.lineTo(lightPreviewPos.x, lightPreviewPos.y + 10);
+    ctx.stroke();
+
+    ctx.restore();
+  }, [lightPreviewPos, lightPlacementMode, rustRenderManagerRef, dprRef]);
 
   useEffect(() => {
   let animationFrameId: number | null = null;
@@ -883,6 +990,18 @@ export const GameCanvas: React.FC = () => {
           style={{ outline: 'none' }}
           width={800}
           height={600}
+        />
+
+        {/* Light placement preview overlay */}
+        <canvas
+          ref={previewCanvasRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            pointerEvents: 'none', // Allow clicks to pass through
+            zIndex: 100, // Above canvas but below UI elements
+          }}
         />
       
       {/* Context Menu */}

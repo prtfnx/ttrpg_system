@@ -117,11 +117,22 @@ impl VisibilityCalculator {
             return self.generate_circle(light_pos, max_radius);
         }
 
+        // Get candidate segments from spatial grid first
+        let candidates = self.spatial_grid.get_candidates_in_radius(light_pos, max_radius);
+        
+        if candidates.is_empty() {
+            // No obstacles in range - return circle
+            return self.generate_circle(light_pos, max_radius);
+        }
+
         // Calculate angles for all endpoints relative to light
         for endpoint in &mut self.endpoints {
             let dx = endpoint.point.x - light_pos.x;
             let dy = endpoint.point.y - light_pos.y;
             endpoint.angle = dy.atan2(dx);
+            
+            // Calculate distance for filtering
+            endpoint.distance = (dx * dx + dy * dy).sqrt();
         }
 
         // Sort endpoints by angle (sweep line rotation)
@@ -132,18 +143,23 @@ impl VisibilityCalculator {
         let mut visibility_points = Vec::new();
         let mut active_segments: Vec<usize> = Vec::new();
 
-        // Get candidate segments from spatial grid
-        let candidates = self.spatial_grid.get_candidates_in_radius(light_pos, max_radius);
+        // Minimum distance threshold to avoid artifacts when light is too close
+        let min_distance = 5.0;
 
         // Sweep through all angles
         for i in 0..self.endpoints.len() {
             let endpoint = &self.endpoints[i];
             
+            // Skip endpoints too close to light source to avoid artifacts
+            if endpoint.distance < min_distance {
+                continue;
+            }
+            
             // Cast 3 rays per endpoint to catch corners
             let angles = [
-                endpoint.angle - 0.00001,
+                endpoint.angle - 0.0001,
                 endpoint.angle,
-                endpoint.angle + 0.00001,
+                endpoint.angle + 0.0001,
             ];
 
             for &angle in &angles {
@@ -166,6 +182,11 @@ impl VisibilityCalculator {
             } else {
                 active_segments.retain(|&idx| idx != endpoint.segment_idx);
             }
+        }
+
+        // If we got very few points, fall back to circle
+        if visibility_points.len() < 8 {
+            return self.generate_circle(light_pos, max_radius);
         }
 
         visibility_points

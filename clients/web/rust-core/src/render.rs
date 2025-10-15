@@ -228,14 +228,14 @@ impl RenderEngine {
         Rect::new(min.x, min.y, max.x - min.x, max.y - min.y)
     }
     
-    /// Extract wall obstacles from sprites for shadow casting
+    /// Extract obstacles from sprites for shadow casting
     /// Converts sprite bounds to line segments for visibility calculations
     fn update_lighting_obstacles(&mut self) {
         let mut obstacles = Vec::new();
         
-        // Extract obstacles from wall layer sprites
-        if let Some(wall_layer) = self.layer_manager.get_layer("walls") {
-            for sprite in &wall_layer.sprites {
+        // Extract obstacles from the "obstacles" layer
+        if let Some(obstacles_layer) = self.layer_manager.get_layer("obstacles") {
+            for sprite in &obstacles_layer.sprites {
                 // Convert sprite bounds to 4 line segments (rectangle)
                 let half_w = (sprite.width / 2.0) as f32;
                 let half_h = (sprite.height / 2.0) as f32;
@@ -249,29 +249,6 @@ impl RenderEngine {
                 ];
                 
                 // Add four edges as line segments
-                for i in 0..4 {
-                    let next = (i + 1) % 4;
-                    obstacles.push(corners[i].x);
-                    obstacles.push(corners[i].y);
-                    obstacles.push(corners[next].x);
-                    obstacles.push(corners[next].y);
-                }
-            }
-        }
-        
-        // Also extract from objects layer (furniture, etc.)
-        if let Some(objects_layer) = self.layer_manager.get_layer("objects") {
-            for sprite in &objects_layer.sprites {
-                let half_w = (sprite.width / 2.0) as f32;
-                let half_h = (sprite.height / 2.0) as f32;
-                
-                let corners = [
-                    Vec2::new(sprite.world_x as f32 - half_w, sprite.world_y as f32 - half_h),
-                    Vec2::new(sprite.world_x as f32 + half_w, sprite.world_y as f32 - half_h),
-                    Vec2::new(sprite.world_x as f32 + half_w, sprite.world_y as f32 + half_h),
-                    Vec2::new(sprite.world_x as f32 - half_w, sprite.world_y as f32 + half_h),
-                ];
-                
                 for i in 0..4 {
                     let next = (i + 1) % 4;
                     obstacles.push(corners[i].x);

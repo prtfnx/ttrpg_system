@@ -857,8 +857,10 @@ impl RenderEngine {
     // Lighting system methods
     #[wasm_bindgen]
     pub fn add_light(&mut self, id: &str, x: f32, y: f32) {
+        web_sys::console::log_1(&format!("[RUST] add_light called: id={}, x={}, y={}", id, x, y).into());
         let light = crate::lighting::Light::new(id.to_string(), x, y);
         self.lighting.add_light(light);
+        web_sys::console::log_1(&format!("[RUST] Light added successfully. Total lights: {}", self.lighting.get_light_count()).into());
     }
 
     #[wasm_bindgen]

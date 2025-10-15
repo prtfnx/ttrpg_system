@@ -76,6 +76,15 @@ export const GameCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rustRenderManagerRef = useRef<RenderEngine | null>(null);
   const dprRef = useRef<number>(1);
+  
+  // Refs for mouse handlers to prevent WASM reinitialization
+  const handleMouseDownRef = useRef<((e: MouseEvent) => void) | null>(null);
+  const handleMouseMoveRef = useRef<((e: MouseEvent) => void) | null>(null);
+  const handleMouseUpRef = useRef<((e: MouseEvent) => void) | null>(null);
+  const handleWheelRef = useRef<((e: WheelEvent) => void) | null>(null);
+  const handleRightClickRef = useRef<((e: MouseEvent) => void) | null>(null);
+  const handleKeyDownRef = useRef<((e: KeyboardEvent) => void) | null>(null);
+  
   // Protect against test-time mocks that may return undefined
   const _protocolCtx = (() => {
     try { return useProtocol(); } catch (e) { return undefined; }
@@ -150,14 +159,21 @@ export const GameCanvas: React.FC = () => {
 
   const handleMouseDown = useCallback((e: MouseEvent) => {
     console.log('[MOUSE] Mouse down event:', e.clientX, e.clientY);
+    console.log('[MOUSE] lightPlacementMode:', lightPlacementMode);
+    console.log('[MOUSE] lightPlacementMode?.active:', lightPlacementMode?.active);
+    console.log('[MOUSE] rustRenderManagerRef.current:', !!rustRenderManagerRef.current);
     
     // Check if we're in light placement mode
     if (lightPlacementMode?.active && rustRenderManagerRef.current) {
+      console.log('[MOUSE] In light placement mode - processing click');
       const { x, y } = getRelativeCoords(e);
       
       // Convert screen coordinates to world coordinates
       const worldCoords = rustRenderManagerRef.current.screen_to_world(x, y);
-      if (worldCoords && Array.isArray(worldCoords) && worldCoords.length === 2) {
+      console.log('[MOUSE] World coords:', worldCoords);
+      // Note: worldCoords is a Float64Array from WASM, not a plain array
+      if (worldCoords && worldCoords.length === 2) {
+        console.log('[MOUSE] Dispatching lightPlaced event');
         // Dispatch event to LightingPanel with world coordinates
         window.dispatchEvent(new CustomEvent('lightPlaced', {
           detail: {
@@ -173,8 +189,12 @@ export const GameCanvas: React.FC = () => {
         if (canvas) {
           canvas.style.cursor = 'grab';
         }
+      } else {
+        console.warn('[MOUSE] Failed to get valid world coords');
       }
       return; // Don't process other mouse events
+    } else {
+      console.log('[MOUSE] NOT in light placement mode - normal click handling');
     }
     
     if (rustRenderManagerRef.current) {
@@ -380,6 +400,41 @@ export const GameCanvas: React.FC = () => {
       copiedSprite: prev.copiedSprite // Preserve copied sprite
     }));
   }, [contextMenu.spriteId]);
+
+  // Update handler refs whenever handlers change
+  useEffect(() => {
+    handleMouseDownRef.current = handleMouseDown;
+    handleMouseMoveRef.current = handleMouseMove;
+    handleMouseUpRef.current = handleMouseUp;
+    handleWheelRef.current = handleWheel;
+    handleRightClickRef.current = handleRightClick;
+    handleKeyDownRef.current = handleKeyDown;
+  }, [handleMouseDown, handleMouseMove, handleMouseUp, handleWheel, handleRightClick, handleKeyDown]);
+
+  // Stable wrapper functions for event listeners (don't change, preventing WASM reinit)
+  const stableMouseDown = useCallback((e: MouseEvent) => {
+    handleMouseDownRef.current?.(e);
+  }, []);
+  
+  const stableMouseMove = useCallback((e: MouseEvent) => {
+    handleMouseMoveRef.current?.(e);
+  }, []);
+  
+  const stableMouseUp = useCallback((e: MouseEvent) => {
+    handleMouseUpRef.current?.(e);
+  }, []);
+  
+  const stableWheel = useCallback((e: WheelEvent) => {
+    handleWheelRef.current?.(e);
+  }, []);
+  
+  const stableRightClick = useCallback((e: MouseEvent) => {
+    handleRightClickRef.current?.(e);
+  }, []);
+  
+  const stableKeyDown = useCallback((e: KeyboardEvent) => {
+    handleKeyDownRef.current?.(e);
+  }, []);
 
   // Close context menu on click outside
   useEffect(() => {
@@ -737,12 +792,12 @@ export const GameCanvas: React.FC = () => {
         assetIntegrationService.initialize();
         console.log('[ASSET] Integration service initialized');
 
-        canvas.addEventListener('mousedown', handleMouseDown);
-        canvas.addEventListener('mousemove', handleMouseMove);
-        canvas.addEventListener('mouseup', handleMouseUp);
-        canvas.addEventListener('wheel', handleWheel);
-        canvas.addEventListener('contextmenu', handleRightClick);
-        document.addEventListener('keydown', handleKeyDown);
+        canvas.addEventListener('mousedown', stableMouseDown);
+        canvas.addEventListener('mousemove', stableMouseMove);
+        canvas.addEventListener('mouseup', stableMouseUp);
+        canvas.addEventListener('wheel', stableWheel);
+        canvas.addEventListener('contextmenu', stableRightClick);
+        document.addEventListener('keydown', stableKeyDown);
         // Set default cursor to grab
         canvas.style.cursor = 'grab';
 
@@ -847,13 +902,13 @@ export const GameCanvas: React.FC = () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps
       const canvas = canvasRef.current;
       if (canvas) {
-        canvas.removeEventListener('mousedown', handleMouseDown);
-        canvas.removeEventListener('mousemove', handleMouseMove);
-        canvas.removeEventListener('mouseup', handleMouseUp);
-        canvas.removeEventListener('wheel', handleWheel);
-        canvas.removeEventListener('contextmenu', handleRightClick);
+        canvas.removeEventListener('mousedown', stableMouseDown);
+        canvas.removeEventListener('mousemove', stableMouseMove);
+        canvas.removeEventListener('mouseup', stableMouseUp);
+        canvas.removeEventListener('wheel', stableWheel);
+        canvas.removeEventListener('contextmenu', stableRightClick);
       }
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', stableKeyDown);
       window.removeEventListener('resize', resizeCanvas);
       // remove debounced listener (scheduleResize may be bound differently in closure)
       try { window.removeEventListener('resize', scheduleResize as EventListener); } catch {}
@@ -866,7 +921,8 @@ export const GameCanvas: React.FC = () => {
       resizeObserver = null;
       window.rustRenderManager = undefined;
     };
-  }, [updateConnectionState, connectWebSocket, disconnectWebSocket, handleMouseDown, handleMouseMove, handleMouseUp, handleWheel, handleRightClick]);
+  }, [updateConnectionState, connectWebSocket, disconnectWebSocket, stableMouseDown, stableMouseMove, stableMouseUp, stableWheel, stableRightClick, stableKeyDown]);
+  // NOTE: Stable wrapper functions never change (no deps), so they don't trigger reinitialization
 
   // Debug overlay state
   const [debugCursorScreen, setDebugCursorScreen] = React.useState({ x: 0, y: 0 });

@@ -46,6 +46,7 @@ impl LineSegment {
 struct Endpoint {
     point: Point,
     angle: f32,
+    distance: f32,
     segment_idx: usize,
     is_start: bool,
 }
@@ -86,6 +87,7 @@ impl VisibilityCalculator {
         self.endpoints.push(Endpoint {
             point: p1,
             angle: 0.0,
+            distance: 0.0,
             segment_idx,
             is_start: true,
         });
@@ -93,6 +95,7 @@ impl VisibilityCalculator {
         self.endpoints.push(Endpoint {
             point: p2,
             angle: 0.0,
+            distance: 0.0,
             segment_idx,
             is_start: false,
         });

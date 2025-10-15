@@ -254,8 +254,14 @@ impl LightingSystem {
     }
 
     /// Render all lights with shadow casting
+    /// Strategy: Render full light circle, then subtract shadow volumes
     pub fn render_lights(&mut self, view_matrix: &[f32; 9], canvas_width: f32, canvas_height: f32) -> Result<(), JsValue> {
         let program = self.light_shader.as_ref().ok_or("Light shader not initialized")?;
+        
+        // Enable stencil test for shadow masking
+        self.gl.enable(WebGlRenderingContext::STENCIL_TEST);
+        self.gl.clear_stencil(0);
+        self.gl.clear(WebGlRenderingContext::STENCIL_BUFFER_BIT);
         
         // Enable additive blending for light accumulation
         self.gl.enable(WebGlRenderingContext::BLEND);
@@ -326,11 +332,12 @@ impl LightingSystem {
         Ok(())
     }
 
-    /// Render a single light with visibility polygon
+    /// Render a single light with visibility polygon (shadow casting)
+    /// The visibility polygon represents the VISIBLE area from the light's perspective
     fn render_single_light(
         &self,
         program: &WebGlProgram,
-        light_id: &str,
+        _light_id: &str,
         position: Vec2,
         color: Color,
         intensity: f32,
@@ -351,14 +358,14 @@ impl LightingSystem {
         let polygon = &polygon;
         
         if polygon.len() < 3 {
-            return Ok((Some(polygon.clone()), new_dirty)); // Need at least 3 points
+            return Ok((Some(polygon.clone()), new_dirty));
         }
         
         // Set light-specific uniforms
         self.set_light_uniforms_explicit(program, &position, &color, intensity, radius, falloff)?;
         
-        // Convert polygon to triangle fan vertices
-        let vertices = self.polygon_to_vertices(polygon);
+        // Render visibility polygon with light position as center
+        let vertices = self.polygon_to_vertices_from_light(polygon, position);
         
         // Upload vertices to GPU
         let buffer = self.vertex_buffer.as_ref().ok_or("Vertex buffer not initialized")?;
@@ -427,25 +434,16 @@ impl LightingSystem {
     }
 
     /// Convert visibility polygon to vertex array for triangle fan
-    /// Triangle fan: center point + polygon vertices
-    fn polygon_to_vertices(&self, polygon: &[Point]) -> Vec<f32> {
+    /// Triangle fan: light position as center + polygon vertices forming the lit area
+    fn polygon_to_vertices_from_light(&self, polygon: &[Point], light_position: Vec2) -> Vec<f32> {
         let mut vertices = Vec::with_capacity((polygon.len() + 2) * 2);
         
-        // Calculate center point (light position)
-        let mut center_x = 0.0;
-        let mut center_y = 0.0;
-        for point in polygon {
-            center_x += point.x;
-            center_y += point.y;
-        }
-        center_x /= polygon.len() as f32;
-        center_y /= polygon.len() as f32;
+        // Center vertex MUST be the light position, not the polygon centroid!
+        // This is critical for correct shadow rendering
+        vertices.push(light_position.x);
+        vertices.push(light_position.y);
         
-        // Center vertex
-        vertices.push(center_x);
-        vertices.push(center_y);
-        
-        // Polygon vertices
+        // Polygon vertices form the perimeter of the lit area
         for point in polygon {
             vertices.push(point.x);
             vertices.push(point.y);
@@ -458,6 +456,23 @@ impl LightingSystem {
         }
         
         vertices
+    }
+
+    /// Generate circle polygon for full light rendering (no shadows)
+    fn generate_circle(&self, center: Vec2, radius: f32) -> Vec<Point> {
+        const SEGMENTS: usize = 64;
+        let mut points = Vec::with_capacity(SEGMENTS);
+        use std::f32::consts::PI;
+        
+        for i in 0..SEGMENTS {
+            let angle = (i as f32 / SEGMENTS as f32) * 2.0 * PI;
+            points.push(Point::new(
+                center.x + radius * angle.cos(),
+                center.y + radius * angle.sin(),
+            ));
+        }
+        
+        points
     }
 
     /// Get light at position (for mouse interaction)

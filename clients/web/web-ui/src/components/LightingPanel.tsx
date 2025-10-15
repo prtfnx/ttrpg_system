@@ -34,6 +34,10 @@ export const LightingPanel: React.FC = () => {
   const [placementMode, setPlacementMode] = useState<typeof LIGHT_PRESETS[0] | null>(null);
   const [ambientLight, setAmbientLight] = useState(0.2);
 
+  // ============================================================================
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
+  // ============================================================================
+
   // Check engine readiness and capabilities
   useEffect(() => {
     const checkEngineReadiness = async () => {
@@ -49,13 +53,15 @@ export const LightingPanel: React.FC = () => {
         const requiredMethods = ['add_light', 'remove_light', 'set_light_color', 'set_light_intensity', 'set_light_radius'];
         const missingMethods = requiredMethods.filter(method => typeof (engine as any)[method] !== 'function');
         
+        // In test environment, proceed even if methods are missing (they might be mocked)
+        const isTestEnv = import.meta.env?.MODE === 'test' || (globalThis as any).__VITEST__;
+        
+        if (missingMethods.length > 0 && !isTestEnv) {
+          throw new Error(`Lighting system missing methods: ${missingMethods.join(', ')}`);
+        }
+        
         if (missingMethods.length > 0) {
-          // In test environment, proceed anyway for UI testing
-          if (import.meta.env?.MODE === 'test' || (globalThis as any).__VITEST__) {
-            console.warn(`Lighting system missing methods in test: ${missingMethods.join(', ')}`);
-          } else {
-            throw new Error(`Lighting system missing methods: ${missingMethods.join(', ')}`);
-          }
+          console.warn(`Lighting system missing methods (test mode): ${missingMethods.join(', ')}`);
         }
         
         setIsEngineReady(true);
@@ -71,23 +77,70 @@ export const LightingPanel: React.FC = () => {
     checkEngineReadiness();
   }, [engine]);
 
-  // Safe wrapper for engine operations
-  const safeEngineCall = async <T,>(
-    operation: () => T,
-    fallback: T,
-    errorMessage: string
-  ): Promise<T> => {
-    try {
-      if (!isEngineReady || !engine) {
-        throw new Error('Engine not ready');
+  // Handle light placed event from GameCanvas
+  useEffect(() => {
+    const handleLightPlaced = async (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { x, y, preset } = customEvent.detail;
+      if (!engine || !preset || !isEngineReady) return;
+
+      // Check if this is a move operation
+      if (preset.isMoving && preset.existingLightId) {
+        // Update existing light position
+        const existingLight = lights.find(l => l.id === preset.existingLightId);
+        if (!existingLight) return;
+
+        try {
+          engine.update_light_position(preset.existingLightId, x, y);
+          // Update light position in state
+          setLights(prev => prev.map(light => 
+            light.id === preset.existingLightId 
+              ? { ...light, x, y }
+              : light
+          ));
+          setPlacementMode(null);
+        } catch (error) {
+          console.error('Failed to move light:', error);
+          setEngineError(`Failed to move light: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      } else {
+        // Add new light
+        const lightId = `${preset.name}_${Date.now()}`;
+        const newLight: Light = {
+          id: lightId,
+          x,
+          y,
+          color: preset.color,
+          intensity: preset.intensity,
+          radius: preset.radius,
+          isOn: true,
+        };
+
+        try {
+          engine.add_light(lightId, newLight.x, newLight.y);
+          engine.set_light_color(lightId, newLight.color.r, newLight.color.g, newLight.color.b, newLight.color.a);
+          engine.set_light_intensity(lightId, newLight.intensity);
+          engine.set_light_radius(lightId, newLight.radius);
+          
+          setLights(prev => [...prev, newLight]);
+          setSelectedLightId(lightId);
+          setPlacementMode(null);
+        } catch (error) {
+          console.error('Failed to add light:', error);
+          setEngineError(`Failed to add light: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
       }
-      return operation();
-    } catch (error) {
-      console.error(`${errorMessage}:`, error);
-      setEngineError(`${errorMessage}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      return fallback;
-    }
-  };
+    };
+
+    window.addEventListener('lightPlaced', handleLightPlaced);
+    return () => {
+      window.removeEventListener('lightPlaced', handleLightPlaced);
+    };
+  }, [engine, isEngineReady, lights]);
+
+  // ============================================================================
+  // CONDITIONAL RETURNS AFTER ALL HOOKS
+  // ============================================================================
 
   // Error state UI
   if (engineError) {
@@ -153,50 +206,32 @@ export const LightingPanel: React.FC = () => {
     }));
   };
 
-  // Handle light placed event from GameCanvas
-  useEffect(() => {
-    const handleLightPlaced = async (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const { x, y, preset } = customEvent.detail;
-      if (!engine || !preset) return;
-
-      const lightId = `${preset.name}_${Date.now()}`;
-      const newLight: Light = {
-        id: lightId,
-        x,
-        y,
-        color: preset.color,
-        intensity: preset.intensity,
-        radius: preset.radius,
-        isOn: true,
-      };
-
-      const success = await safeEngineCall(
-        () => {
-          engine!.add_light(lightId, newLight.x, newLight.y);
-          engine!.set_light_color(lightId, newLight.color.r, newLight.color.g, newLight.color.b, newLight.color.a);
-          engine!.set_light_intensity(lightId, newLight.intensity);
-          engine!.set_light_radius(lightId, newLight.radius);
-          return true;
-        },
-        false,
-        'Failed to add light'
-      );
-
-      if (success) {
-        setLights(prev => [...prev, newLight]);
-        setSelectedLightId(lightId);
-        setPlacementMode(null);
-      }
+  // Start light moving mode
+  const startMovingLight = (light: Light) => {
+    // Create a pseudo-preset for the move mode
+    const movePreset = {
+      name: light.id,
+      radius: light.radius,
+      intensity: light.intensity,
+      color: light.color,
+      icon: '↔️',
+      isMoving: true, // Flag to indicate this is a move operation
+      existingLightId: light.id, // Store the ID of the light being moved
     };
+    setPlacementMode(movePreset as any);
+    // Dispatch event for GameCanvas
+    window.dispatchEvent(new CustomEvent('startLightPlacement', {
+      detail: { preset: movePreset }
+    }));
+  };
 
-    window.addEventListener('lightPlaced', handleLightPlaced);
-    return () => {
-      window.removeEventListener('lightPlaced', handleLightPlaced);
-    };
-  }, [engine, isEngineReady, safeEngineCall]);
+  // ============================================================================
+  // HELPER FUNCTIONS
+  // ============================================================================
 
   const addLight = async () => {
+    if (!engine || !isEngineReady) return;
+
     const lightName = newLightName.trim() || `Light #${lights.length + 1}`;
     const lightId = lightName;
     const newLight: Light = {
@@ -209,209 +244,188 @@ export const LightingPanel: React.FC = () => {
       isOn: true,
     };
 
-    const success = await safeEngineCall(
-      () => {
-        engine!.add_light(lightId, newLight.x, newLight.y);
-        engine!.set_light_color(lightId, newLight.color.r, newLight.color.g, newLight.color.b, newLight.color.a);
-        engine!.set_light_intensity(lightId, newLight.intensity);
-        engine!.set_light_radius(lightId, newLight.radius);
-        return true;
-      },
-      false,
-      'Failed to add light'
-    );
-
-    if (success) {
+    try {
+      engine.add_light(lightId, newLight.x, newLight.y);
+      engine.set_light_color(lightId, newLight.color.r, newLight.color.g, newLight.color.b, newLight.color.a);
+      engine.set_light_intensity(lightId, newLight.intensity);
+      engine.set_light_radius(lightId, newLight.radius);
+      
       setLights([...lights, newLight]);
       setNewLightName('');
+    } catch (error) {
+      console.error('Failed to add light:', error);
+      setEngineError(`Failed to add light: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
   const removeLight = async (lightId: string) => {
-    const success = await safeEngineCall(
-      () => {
-        engine!.remove_light(lightId);
-        return true;
-      },
-      false,
-      'Failed to remove light'
-    );
+    if (!engine || !isEngineReady) return;
 
-    if (success) {
+    try {
+      engine.remove_light(lightId);
       setLights(lights.filter(light => light.id !== lightId));
       if (selectedLightId === lightId) {
         setSelectedLightId(null);
       }
+    } catch (error) {
+      console.error('Failed to remove light:', error);
+      setEngineError(`Failed to remove light: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
   const updateLightProperty = async (lightId: string, property: keyof Light, value: any) => {
-    const success = await safeEngineCall(
-      () => {
-        const light = lights.find(l => l.id === lightId);
-        if (!light) return false;
-        
-        const updatedLight = { ...light, [property]: value };
-        
-        // Update engine based on property
-        switch (property) {
-          case 'x':
-          case 'y':
-            if (typeof (engine as any).update_light_position === 'function') {
-              (engine as any).update_light_position(lightId, updatedLight.x, updatedLight.y);
-            }
-            break;
-          case 'color':
-            const color = value as Color;
-            engine!.set_light_color(lightId, color.r, color.g, color.b, color.a);
-            break;
-          case 'intensity':
-            engine!.set_light_intensity(lightId, value as number);
-            break;
-          case 'radius':
-            engine!.set_light_radius(lightId, value as number);
-            break;
-          case 'isOn':
-            if (typeof (engine as any).toggle_light === 'function') {
-              (engine as any).toggle_light(lightId, value as boolean);
-            }
-            break;
-        }
-        return true;
-      },
-      false,
-      `Failed to update light ${property}`
-    );
+    if (!engine || !isEngineReady) return;
 
-    if (success) {
-      setLights(lights.map(light => 
-        light.id === lightId ? { ...light, [property]: value } : light
+    const light = lights.find(l => l.id === lightId);
+    if (!light) return;
+    
+    const updatedLight = { ...light, [property]: value };
+    
+    try {
+      // Update engine based on property
+      switch (property) {
+        case 'x':
+        case 'y':
+          engine.update_light_position(lightId, updatedLight.x, updatedLight.y);
+          break;
+        case 'color':
+          const color = value as Color;
+          engine.set_light_color(lightId, color.r, color.g, color.b, color.a);
+          break;
+        case 'intensity':
+          engine.set_light_intensity(lightId, value as number);
+          break;
+        case 'radius':
+          engine.set_light_radius(lightId, value as number);
+          break;
+        case 'isOn':
+          engine.toggle_light(lightId);
+          break;
+      }
+
+      setLights(lights.map(l => 
+        l.id === lightId ? { ...l, [property]: value } : l
       ));
+    } catch (error) {
+      console.error(`Failed to update light ${property}:`, error);
+      setEngineError(`Failed to update light ${property}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
   const toggleAllLights = async () => {
+    if (!engine || !isEngineReady) return;
+
     const allOn = lights.every(light => light.isOn);
     
-    const success = await safeEngineCall(
-      () => {
-        if (allOn) {
-          if (typeof (engine as any).turn_off_all_lights === 'function') {
-            (engine as any).turn_off_all_lights();
-          }
-        } else {
-          if (typeof (engine as any).turn_on_all_lights === 'function') {
-            (engine as any).turn_on_all_lights();
-          }
+    try {
+      // Toggle each light individually
+      for (const light of lights) {
+        if (light.isOn === allOn) {
+          engine.toggle_light(light.id);
         }
-        return true;
-      },
-      false,
-      'Failed to toggle all lights'
-    );
-
-    if (success) {
+      }
       setLights(lights.map(light => ({ ...light, isOn: !allOn })));
+    } catch (error) {
+      console.error('Failed to toggle all lights:', error);
+      setEngineError(`Failed to toggle all lights: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
   const clearAllLights = () => {
-    if (!engine) return;
+    if (!engine || !isEngineReady) return;
     
-    if (typeof engine.clear_lights === 'function') {
-      engine.clear_lights();
+    try {
+      // Remove each light individually
+      for (const light of lights) {
+        engine.remove_light(light.id);
+      }
+      setLights([]);
+      setSelectedLightId(null);
+    } catch (error) {
+      console.error('Failed to clear all lights:', error);
+      setEngineError(`Failed to clear all lights: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    setLights([]);
-    setSelectedLightId(null);
   };
 
   const selectedLight = lights.find(light => light.id === selectedLightId);
 
   return (
     <div className={styles['lighting-panel']}>
-      <h3>Lighting System</h3>
-      
-      {/* Drag status indicator */}
-      {engine && typeof engine.is_in_light_drag_mode === 'function' && engine.is_in_light_drag_mode() && (
-        <div className={styles['drag-indicator']}>
-          � Light drag mode active - click and drag lights
+      <div className={styles['panel-header']}>
+        <h3>💡 Lighting System</h3>
+      </div>
+
+      {/* Placement mode indicator */}
+      {placementMode && (
+        <div className={styles['placement-indicator']}>
+          <span>Placing: {placementMode.name} {placementMode.icon}</span>
           <button 
-            onClick={() => engine?.set_light_drag_mode(false)} 
+            onClick={() => {
+              setPlacementMode(null);
+              window.dispatchEvent(new CustomEvent('cancelLightPlacement'));
+            }}
             className={styles['cancel-button']}
           >
-            Exit
+            Cancel
           </button>
         </div>
       )}
       
-      {/* Light Management */}
-      <div className={styles['light-management']}>
-        <div className={styles['add-light']}>
-          <input
-            type="text"
-            placeholder="Light name"
-            value={newLightName}
-            onChange={(e) => setNewLightName(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && addLight()}
-          />
-          
-          {/* Light creation controls */}
-          <div className="light-creation-controls">
-            <label htmlFor="light-intensity">Light Intensity: 1.0</label>
-            <input
-              id="light-intensity"
-              type="range"
-              min="0.1"
-              max="2.0"
-              step="0.1"
-              defaultValue="1.0"
-            />
-            
-            <label htmlFor="light-color">Light Color:</label>
-            <input
-              id="light-color"
-              type="color"
-              defaultValue="#ffffff"
-            />
-          </div>
-          
-          <button onClick={addLight} disabled={!engine}>
-            Add Light
-          </button>
+      {/* Light Presets */}
+      <div className={styles['preset-section']}>
+        <h4>Quick Place Lights</h4>
+        <div className={styles['preset-buttons']}>
+          {LIGHT_PRESETS.map((preset) => (
+            <button
+              key={preset.name}
+              className={styles['preset-button']}
+              onClick={() => startPlacingLight(preset)}
+              style={{
+                background: `radial-gradient(circle, rgba(${preset.color.r * 255}, ${preset.color.g * 255}, ${preset.color.b * 255}, 0.3), rgba(${preset.color.r * 255}, ${preset.color.g * 255}, ${preset.color.b * 255}, 0))`,
+                border: `2px solid rgba(${preset.color.r * 255}, ${preset.color.g * 255}, ${preset.color.b * 255}, 0.8)`,
+              }}
+              title={`${preset.name} - Radius: ${preset.radius}px, Intensity: ${preset.intensity}`}
+            >
+              <span className={styles['preset-icon']}>{preset.icon}</span>
+              <span className={styles['preset-name']}>{preset.name}</span>
+            </button>
+          ))}
         </div>
+      </div>
         
-        <div className={styles['light-controls']}>
-          <button onClick={toggleAllLights}>
-            {lights.every(light => light.isOn) ? 'Turn Off All' : 'Turn On All'}
-          </button>
-          <button onClick={clearAllLights} disabled={lights.length === 0}>
-            Clear All
-          </button>
-          <button 
-            onClick={() => {
-              if (!engine) return;
-              const isActive = engine.is_in_light_drag_mode();
-              engine.set_light_drag_mode(!isActive);
-            }}
-            className={`${styles['mode-button']} ${(typeof engine?.is_in_light_drag_mode === 'function' && engine?.is_in_light_drag_mode()) ? styles.active : ''}`}
-          >
-            {(typeof engine?.is_in_light_drag_mode === 'function' && engine?.is_in_light_drag_mode()) ? '🔓 Exit Drag' : '🔒 Drag Mode'}
-          </button>
-        </div>
-        
-        {/* Ambient Lighting Controls */}
-        <div className={styles['ambient-controls']}>
-          <h4>Ambient Lighting</h4>
-          <label htmlFor="ambient-light">Ambient Light: 0.2</label>
-          <input
-            id="ambient-light"
-            type="range"
-            min="0.0"
-            max="1.0"
-            step="0.1"
-            defaultValue="0.2"
-          />
-        </div>
+      {/* Ambient Lighting Controls */}
+      <div className={styles['ambient-controls']}>
+        <h4>Ambient Lighting</h4>
+        <label htmlFor="ambient-light">Ambient Light: {(ambientLight * 100).toFixed(0)}%</label>
+        <input
+          id="ambient-light"
+          type="range"
+          min="0.0"
+          max="1.0"
+          step="0.05"
+          value={ambientLight}
+          onChange={(e) => {
+            const value = parseFloat(e.target.value);
+            setAmbientLight(value);
+            if (engine && isEngineReady && typeof (engine as any).set_ambient_light === 'function') {
+              try {
+                (engine as any).set_ambient_light(value);
+              } catch (error) {
+                console.error('Failed to set ambient light:', error);
+              }
+            }
+          }}
+        />
+      </div>
+
+      {/* Light Management Controls */}
+      <div className={styles['light-controls']}>
+        <button onClick={toggleAllLights} disabled={lights.length === 0}>
+          {lights.every(light => light.isOn) ? 'Turn Off All' : 'Turn On All'}
+        </button>
+        <button onClick={clearAllLights} disabled={lights.length === 0}>
+          Clear All Lights
+        </button>
       </div>
 
       {/* Light List */}
@@ -429,6 +443,16 @@ export const LightingPanel: React.FC = () => {
             <div className={styles['light-header']}>
               <span className={styles['light-name']}>{light.id}</span>
               <div className={styles['light-actions']}>
+                <button
+                  className={styles['move-button']}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startMovingLight(light);
+                  }}
+                  title="Move light"
+                >
+                  ↔️
+                </button>
                 <button
                   className={`${styles['toggle-button']} ${light.isOn ? styles.on : styles.off}`}
                   onClick={(e) => {

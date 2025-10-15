@@ -27,7 +27,6 @@ export const LightingPanel: React.FC = () => {
   const engine = useRenderEngine();
   const [lights, setLights] = useState<Light[]>([]);
   const [selectedLightId, setSelectedLightId] = useState<string | null>(null);
-  const [newLightName, setNewLightName] = useState('');
   const [engineError, setEngineError] = useState<string | null>(null);
   const [isEngineReady, setIsEngineReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -82,7 +81,13 @@ export const LightingPanel: React.FC = () => {
     const handleLightPlaced = async (e: Event) => {
       const customEvent = e as CustomEvent;
       const { x, y, preset } = customEvent.detail;
-      if (!engine || !preset || !isEngineReady) return;
+      
+      console.log('[LIGHTING] Light placed event received:', { x, y, preset, engine: !!engine, isEngineReady });
+      
+      if (!engine || !preset || !isEngineReady) {
+        console.warn('[LIGHTING] Cannot place light - engine:', !!engine, 'preset:', !!preset, 'isEngineReady:', isEngineReady);
+        return;
+      }
 
       // Check if this is a move operation
       if (preset.isMoving && preset.existingLightId) {
@@ -228,35 +233,6 @@ export const LightingPanel: React.FC = () => {
   // ============================================================================
   // HELPER FUNCTIONS
   // ============================================================================
-
-  const addLight = async () => {
-    if (!engine || !isEngineReady) return;
-
-    const lightName = newLightName.trim() || `Light #${lights.length + 1}`;
-    const lightId = lightName;
-    const newLight: Light = {
-      id: lightId,
-      x: 0,
-      y: 0,
-      color: { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
-      intensity: 1.0,
-      radius: 200.0,
-      isOn: true,
-    };
-
-    try {
-      engine.add_light(lightId, newLight.x, newLight.y);
-      engine.set_light_color(lightId, newLight.color.r, newLight.color.g, newLight.color.b, newLight.color.a);
-      engine.set_light_intensity(lightId, newLight.intensity);
-      engine.set_light_radius(lightId, newLight.radius);
-      
-      setLights([...lights, newLight]);
-      setNewLightName('');
-    } catch (error) {
-      console.error('Failed to add light:', error);
-      setEngineError(`Failed to add light: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
 
   const removeLight = async (lightId: string) => {
     if (!engine || !isEngineReady) return;

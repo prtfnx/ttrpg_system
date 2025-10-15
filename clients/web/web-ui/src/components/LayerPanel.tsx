@@ -108,36 +108,56 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
   }, []);
 
   // Update sprite counts when activeTableId or sprites change (real-time updates)
+  // FIXED: Query WASM directly for authoritative sprite counts instead of counting React store
   useEffect(() => {
     if (isLoading) return;
 
-    console.log('[LayerPanel] Updating sprite counts. Total sprites:', sprites.length);
-    
-    // Count sprites per layer for the active table
-    const spriteCountByLayer: Record<string, number> = {};
-    
-    sprites.forEach(sprite => {
-      const layer = sprite.layer || 'tokens';
-      spriteCountByLayer[layer] = (spriteCountByLayer[layer] || 0) + 1;
-    });
+    const updateSpriteCounts = () => {
+      const renderManager = (window as any).rustRenderManager;
+      if (!renderManager) {
+        console.warn('[LayerPanel] RenderManager not available');
+        return;
+      }
 
-    console.log('[LayerPanel] Sprite counts by layer:', spriteCountByLayer);
+      console.log('[LayerPanel] Querying WASM for sprite counts');
 
-    // Update layers with sprite counts
-    setLayers(prevLayers => 
-      prevLayers.map(layer => ({
-        ...layer,
-        spriteCount: spriteCountByLayer[layer.id] || 0
-      }))
-    );
+      // Query WASM for actual sprite counts (single source of truth)
+      setLayers(prevLayers => 
+        prevLayers.map(layer => {
+          try {
+            const count = renderManager.get_layer_sprite_count(layer.id);
+            return { ...layer, spriteCount: count };
+          } catch (error) {
+            console.error(`[LayerPanel] Failed to get count for layer ${layer.id}:`, error);
+            return { ...layer, spriteCount: 0 };
+          }
+        })
+      );
+    };
+
+    updateSpriteCounts();
   }, [activeTableId, sprites, isLoading]);
 
   // Subscribe to sprite events for immediate UI updates
   useEffect(() => {
     const handleSpriteEvent = () => {
-      console.log('[LayerPanel] Sprite event detected, forcing update');
-      // Force a re-render by updating a timestamp or similar
-      setLayers(prevLayers => [...prevLayers]);
+      console.log('[LayerPanel] Sprite event detected, querying WASM for updated counts');
+      
+      const renderManager = (window as any).rustRenderManager;
+      if (!renderManager) return;
+
+      // Query WASM immediately when sprites change
+      setLayers(prevLayers => 
+        prevLayers.map(layer => {
+          try {
+            const count = renderManager.get_layer_sprite_count(layer.id);
+            return { ...layer, spriteCount: count };
+          } catch (error) {
+            console.error(`[LayerPanel] Failed to get count for layer ${layer.id}:`, error);
+            return layer;
+          }
+        })
+      );
     };
 
     window.addEventListener('spriteAdded', handleSpriteEvent);

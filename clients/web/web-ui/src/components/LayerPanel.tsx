@@ -107,10 +107,12 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     return () => clearTimeout(timer);
   }, []);
 
-  // Update sprite counts when activeTableId or sprites change
+  // Update sprite counts when activeTableId or sprites change (real-time updates)
   useEffect(() => {
     if (isLoading) return;
 
+    console.log('[LayerPanel] Updating sprite counts. Total sprites:', sprites.length);
+    
     // Count sprites per layer for the active table
     const spriteCountByLayer: Record<string, number> = {};
     
@@ -118,6 +120,8 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
       const layer = sprite.layer || 'tokens';
       spriteCountByLayer[layer] = (spriteCountByLayer[layer] || 0) + 1;
     });
+
+    console.log('[LayerPanel] Sprite counts by layer:', spriteCountByLayer);
 
     // Update layers with sprite counts
     setLayers(prevLayers => 
@@ -127,6 +131,25 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
       }))
     );
   }, [activeTableId, sprites, isLoading]);
+
+  // Subscribe to sprite events for immediate UI updates
+  useEffect(() => {
+    const handleSpriteEvent = () => {
+      console.log('[LayerPanel] Sprite event detected, forcing update');
+      // Force a re-render by updating a timestamp or similar
+      setLayers(prevLayers => [...prevLayers]);
+    };
+
+    window.addEventListener('spriteAdded', handleSpriteEvent);
+    window.addEventListener('spriteRemoved', handleSpriteEvent);
+    window.addEventListener('spriteUpdated', handleSpriteEvent);
+
+    return () => {
+      window.removeEventListener('spriteAdded', handleSpriteEvent);
+      window.removeEventListener('spriteRemoved', handleSpriteEvent);
+      window.removeEventListener('spriteUpdated', handleSpriteEvent);
+    };
+  }, []);
 
   const handleLayerClick = (layerId: string) => {
     setActiveLayer(layerId);

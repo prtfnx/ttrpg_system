@@ -195,6 +195,20 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
               color: '#CC3300',
             });
             
+            // Add test obstacle sprite for shadow testing
+            window.gameAPI.sendMessage('sprite_create', {
+              id: `obstacle_test_wall`,
+              x: 300,
+              y: 200,
+              width: 80,
+              height: 80,
+              layer: 'obstacles',
+              texture_path: '', // No texture, just a solid rectangle
+              color: '#666666', // Gray color for wall
+            });
+            
+            console.log('[ToolsPanel] Added test sprites including obstacle for shadow testing');
+            
             // Trigger sprite sync event
             setTimeout(() => {
               window.dispatchEvent(new CustomEvent('spriteAdded'));

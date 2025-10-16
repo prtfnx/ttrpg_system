@@ -637,12 +637,23 @@ impl LightingSystem {
                     let norm2_x = dir2_x / len2;
                     let norm2_y = dir2_y / len2;
                     
-                    // Shadow quad vertices (in order for triangle strip)
+                    // Shadow quad vertices (CORRECT order for triangle strip)
+                    // Triangle strip order: v0, v1, v2, v3 creates triangles (v0,v1,v2) and (v1,v2,v3)
+                    // We want: (p1, proj_p1, p2) and (proj_p1, p2, proj_p2)
+                    let projected_p1 = Point::new(
+                        segment.p1.x + norm1_x * shadow_length, 
+                        segment.p1.y + norm1_y * shadow_length
+                    );
+                    let projected_p2 = Point::new(
+                        segment.p2.x + norm2_x * shadow_length, 
+                        segment.p2.y + norm2_y * shadow_length
+                    );
+                    
                     let quad = vec![
-                        segment.p1.clone(),
-                        segment.p2.clone(),
-                        Point::new(segment.p1.x + norm1_x * shadow_length, segment.p1.y + norm1_y * shadow_length),
-                        Point::new(segment.p2.x + norm2_x * shadow_length, segment.p2.y + norm2_y * shadow_length),
+                        segment.p1.clone(),      // v0: segment start
+                        projected_p1,            // v1: projected start (forms diagonal)
+                        segment.p2.clone(),      // v2: segment end
+                        projected_p2,            // v3: projected end
                     ];
                     
                     shadow_quads.push(quad);

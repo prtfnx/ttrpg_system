@@ -103,6 +103,20 @@ pub struct LightingSystem {
 
 impl LightingSystem {
     pub fn new(gl: WebGlRenderingContext) -> Result<Self, JsValue> {
+        // Verify stencil buffer is available
+        let stencil_bits = gl.get_parameter(web_sys::WebGl2RenderingContext::STENCIL_BITS)
+            .ok()
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0) as i32;
+        
+        web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 🎨 Stencil buffer bits: {}", stencil_bits).into());
+        
+        if stencil_bits == 0 {
+            web_sys::console::error_1(&"[LIGHTING-DEBUG] ❌ ERROR: No stencil buffer available! Shadow casting will not work.".into());
+        } else {
+            web_sys::console::log_1(&"[LIGHTING-DEBUG] ✅ Stencil buffer is available".into());
+        }
+        
         let mut system = Self {
             gl,
             light_shader: None,
@@ -240,9 +254,17 @@ impl LightingSystem {
 
     /// Set obstacles for shadow casting
     pub fn set_obstacles(&mut self, obstacles: &[f32]) {
+        web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 📥 Received {} floats = {} segments", 
+            obstacles.len(), obstacles.len() / 4).into());
+        
         let mut calc = self.visibility_calculator.borrow_mut();
         calc.clear();
         calc.add_segments_from_array(obstacles);
+        
+        let segment_count = calc.get_segments().len();
+        web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 📐 VisibilityCalculator now has {} segments", 
+            segment_count).into());
+        
         drop(calc); // Release borrow
         
         self.obstacles_dirty = true;
@@ -260,8 +282,11 @@ impl LightingSystem {
         
         // Enable stencil test for shadow masking
         self.gl.enable(WebGlRenderingContext::STENCIL_TEST);
+        self.gl.stencil_mask(0xFF); // Enable writing all stencil bits
         self.gl.clear_stencil(0);
         self.gl.clear(WebGlRenderingContext::STENCIL_BUFFER_BIT);
+        
+        web_sys::console::log_1(&"[STENCIL-DEBUG] 🎭 Stencil buffer enabled and cleared".into());
         
         // Enable additive blending for light accumulation
         self.gl.enable(WebGlRenderingContext::BLEND);
@@ -324,16 +349,20 @@ impl LightingSystem {
             }
         }
         
-        // Restore normal blending
+        // Restore normal blending and disable stencil test
         self.gl.blend_func(WebGlRenderingContext::SRC_ALPHA, WebGlRenderingContext::ONE_MINUS_SRC_ALPHA);
+        self.gl.disable(WebGlRenderingContext::STENCIL_TEST);
+        
+        web_sys::console::log_1(&"[STENCIL-DEBUG] 🎭 Stencil test disabled, rendering complete".into());
         
         self.obstacles_dirty = false;
         
         Ok(())
     }
 
-    /// Render a single light with visibility polygon (shadow casting)
-    /// The visibility polygon represents the VISIBLE area from the light's perspective
+    /// Render a single light with shadow casting
+    /// CORRECTED APPROACH: Stencil buffer marks SHADOW areas, light renders everywhere EXCEPT shadows
+    /// Best practice: Shadow geometry - project obstacles away from light to create shadow quads
     fn render_single_light(
         &self,
         program: &WebGlProgram,
@@ -343,36 +372,74 @@ impl LightingSystem {
         intensity: f32,
         radius: f32,
         falloff: f32,
-        cached_polygon: Option<Vec<Point>>,
-        dirty: bool,
+        _cached_polygon: Option<Vec<Point>>,
+        _dirty: bool,
     ) -> Result<(Option<Vec<Point>>, bool), JsValue> {
-        // Compute or retrieve cached visibility polygon
-        let (polygon, new_dirty) = if dirty || cached_polygon.is_none() {
-            let light_pos = Point::from_vec2(position);
-            let poly = self.visibility_calculator.borrow_mut().compute_visibility(light_pos, radius);
-            (poly, false)
-        } else {
-            (cached_polygon.unwrap(), false)
-        };
-        
-        let polygon = &polygon;
-        
-        if polygon.len() < 3 {
-            return Ok((Some(polygon.clone()), new_dirty));
-        }
-        
         // Set light-specific uniforms
         self.set_light_uniforms_explicit(program, &position, &color, intensity, radius, falloff)?;
         
-        // Render visibility polygon with light position as center
-        let vertices = self.polygon_to_vertices_from_light(polygon, position);
+        // CORRECTED APPROACH: Use stencil buffer to BLOCK shadows
+        // 1. Render shadow quads to stencil buffer (mark as 1 where shadows are)
+        // 2. Render full light circle where stencil = 0 (NOT in shadow)
         
-        // Upload vertices to GPU
+        // Step 1: Compute and render shadow quads to stencil
+        let shadow_quads = self.compute_shadow_quads(position, radius);
+        
+        web_sys::console::log_1(&format!("[STENCIL-DEBUG] 🌑 Computing shadows for light at ({:.1}, {:.1}), found {} shadow quads", 
+            position.x, position.y, shadow_quads.len()).into());
+        
+        if !shadow_quads.is_empty() {
+            // Write shadows to stencil (set to 1)
+            self.gl.stencil_func(WebGlRenderingContext::ALWAYS, 1, 0xFF);
+            self.gl.stencil_op(WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP, WebGlRenderingContext::REPLACE);
+            self.gl.stencil_mask(0xFF); // Ensure stencil can be written
+            self.gl.color_mask(false, false, false, false); // Don't write color, only stencil
+            
+            web_sys::console::log_1(&"[STENCIL-DEBUG] 🎭 Stencil setup: ALWAYS pass, REPLACE with 1, color mask OFF".into());
+            
+            // Render each shadow quad as triangle strip
+            for (i, quad) in shadow_quads.iter().enumerate() {
+                if quad.len() == 4 {
+                    let shadow_vertices = self.quad_to_vertices(quad);
+                    web_sys::console::log_1(&format!("[STENCIL-DEBUG] 🌑 Drawing shadow quad {} with {} vertices", 
+                        i, shadow_vertices.len() / 2).into());
+                    self.upload_and_draw_triangle_strip(&shadow_vertices, program)?;
+                }
+            }
+            
+            // Re-enable color writing
+            self.gl.color_mask(true, true, true, true);
+            web_sys::console::log_1(&"[STENCIL-DEBUG] ✅ Shadow quads written to stencil, color mask restored".into());
+        }
+        
+        // Step 2: Render full light circle where stencil = 0 (not shadowed)
+        self.gl.stencil_func(WebGlRenderingContext::EQUAL, 0, 0xFF);
+        self.gl.stencil_op(WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP);
+        self.gl.stencil_mask(0x00); // Don't modify stencil during light rendering
+        
+        web_sys::console::log_1(&"[STENCIL-DEBUG] 💡 Rendering light circle where stencil = 0 (not in shadow)".into());
+        
+        // Render full light circle (only where NOT in shadow)
+        let circle = self.generate_circle(position, radius);
+        let circle_vertices = self.polygon_to_vertices_from_light(&circle, position);
+        self.upload_and_draw_vertices(&circle_vertices, program)?;
+        
+        web_sys::console::log_1(&format!("[STENCIL-DEBUG] ✅ Light circle drawn with {} vertices", circle_vertices.len() / 2).into());
+        
+        // Reset stencil state
+        self.gl.stencil_func(WebGlRenderingContext::ALWAYS, 0, 0xFF);
+        self.gl.stencil_mask(0xFF);
+        
+        Ok((None, false))
+    }
+
+    /// Helper to upload vertices and draw triangle fan
+    fn upload_and_draw_vertices(&self, vertices: &[f32], program: &WebGlProgram) -> Result<(), JsValue> {
         let buffer = self.vertex_buffer.as_ref().ok_or("Vertex buffer not initialized")?;
         self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(buffer));
         
         unsafe {
-            let vertices_array = js_sys::Float32Array::view(&vertices);
+            let vertices_array = js_sys::Float32Array::view(vertices);
             self.gl.buffer_data_with_array_buffer_view(
                 WebGlRenderingContext::ARRAY_BUFFER,
                 &vertices_array,
@@ -380,7 +447,6 @@ impl LightingSystem {
             );
         }
         
-        // Set up vertex attributes
         let position_location = self.gl.get_attrib_location(program, "a_position") as u32;
         self.gl.enable_vertex_attrib_array(position_location);
         self.gl.vertex_attrib_pointer_with_i32(
@@ -392,12 +458,51 @@ impl LightingSystem {
             0,
         );
         
-        // Draw as triangle fan
         self.gl.draw_arrays(WebGlRenderingContext::TRIANGLE_FAN, 0, (vertices.len() / 2) as i32);
-        
         self.gl.disable_vertex_attrib_array(position_location);
         
-        Ok((Some(polygon.clone()), new_dirty))
+        Ok(())
+    }
+
+    /// Helper to upload vertices and draw triangle strip (for shadow quads)
+    fn upload_and_draw_triangle_strip(&self, vertices: &[f32], program: &WebGlProgram) -> Result<(), JsValue> {
+        let buffer = self.vertex_buffer.as_ref().ok_or("Vertex buffer not initialized")?;
+        self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(buffer));
+        
+        unsafe {
+            let vertices_array = js_sys::Float32Array::view(vertices);
+            self.gl.buffer_data_with_array_buffer_view(
+                WebGlRenderingContext::ARRAY_BUFFER,
+                &vertices_array,
+                WebGlRenderingContext::DYNAMIC_DRAW,
+            );
+        }
+        
+        let position_location = self.gl.get_attrib_location(program, "a_position") as u32;
+        self.gl.enable_vertex_attrib_array(position_location);
+        self.gl.vertex_attrib_pointer_with_i32(
+            position_location,
+            2,
+            WebGlRenderingContext::FLOAT,
+            false,
+            0,
+            0,
+        );
+        
+        self.gl.draw_arrays(WebGlRenderingContext::TRIANGLE_STRIP, 0, (vertices.len() / 2) as i32);
+        self.gl.disable_vertex_attrib_array(position_location);
+        
+        Ok(())
+    }
+
+    /// Convert shadow quad to vertex array for triangle strip
+    fn quad_to_vertices(&self, quad: &[Point]) -> Vec<f32> {
+        let mut vertices = Vec::with_capacity(8);
+        for point in quad {
+            vertices.push(point.x);
+            vertices.push(point.y);
+        }
+        vertices
     }
 
     /// Set uniforms for specific light
@@ -458,7 +563,7 @@ impl LightingSystem {
         vertices
     }
 
-    /// Generate circle polygon for full light rendering (no shadows)
+    /// Generate circle polygon for full light rendering
     fn generate_circle(&self, center: Vec2, radius: f32) -> Vec<Point> {
         const SEGMENTS: usize = 64;
         let mut points = Vec::with_capacity(SEGMENTS);
@@ -475,7 +580,84 @@ impl LightingSystem {
         points
     }
 
-    /// Get light at position (for mouse interaction)
+    /// Compute shadow quads from obstacles (for subtractive shadow rendering)
+    /// Each obstacle edge that faces away from light casts a shadow quad
+    /// This is the standard "shadow geometry" approach for 2D lighting
+    fn compute_shadow_quads(&self, light_pos: Vec2, radius: f32) -> Vec<Vec<Point>> {
+        let calc = self.visibility_calculator.borrow();
+        let mut shadow_quads = Vec::new();
+        
+        let segment_count = calc.get_segments().len();
+        web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 🌑 Computing shadows for light at ({:.1}, {:.1}) with radius {:.1}, {} segments available", 
+            light_pos.x, light_pos.y, radius, segment_count).into());
+        
+        if segment_count == 0 {
+            web_sys::console::warn_1(&"[LIGHTING-DEBUG] ⚠️ WARNING: No segments for shadow casting!".into());
+            return shadow_quads;
+        }
+        
+        let mut back_facing_count = 0;
+        let mut front_facing_count = 0;
+        
+        for segment in calc.get_segments() {
+            // Segment direction vector
+            let seg_dx = segment.p2.x - segment.p1.x;
+            let seg_dy = segment.p2.y - segment.p1.y;
+            
+            // Segment normal (perpendicular vector, rotate 90° counter-clockwise)
+            let normal_x = -seg_dy;
+            let normal_y = seg_dx;
+            
+            // Vector from segment start to light
+            let to_light_x = light_pos.x - segment.p1.x;
+            let to_light_y = light_pos.y - segment.p1.y;
+            
+            // Dot product: negative = back-facing (segment faces away from light, should cast shadow)
+            // This is geometrically correct: tests if the segment's outward normal points away from light
+            let faces_light = normal_x * to_light_x + normal_y * to_light_y;
+            
+            if faces_light < 0.0 {  // Back-facing segments cast shadows
+                back_facing_count += 1;
+                // Project segment endpoints away from light to create shadow quad
+                let shadow_length = radius * 2.0; // Extend far enough
+                
+                // Direction from light to each endpoint
+                let dir1_x = segment.p1.x - light_pos.x;
+                let dir1_y = segment.p1.y - light_pos.y;
+                let len1 = (dir1_x * dir1_x + dir1_y * dir1_y).sqrt();
+                
+                let dir2_x = segment.p2.x - light_pos.x;
+                let dir2_y = segment.p2.y - light_pos.y;
+                let len2 = (dir2_x * dir2_x + dir2_y * dir2_y).sqrt();
+                
+                if len1 > 0.01 && len2 > 0.01 {
+                    // Normalize and extend
+                    let norm1_x = dir1_x / len1;
+                    let norm1_y = dir1_y / len1;
+                    let norm2_x = dir2_x / len2;
+                    let norm2_y = dir2_y / len2;
+                    
+                    // Shadow quad vertices (in order for triangle strip)
+                    let quad = vec![
+                        segment.p1.clone(),
+                        segment.p2.clone(),
+                        Point::new(segment.p1.x + norm1_x * shadow_length, segment.p1.y + norm1_y * shadow_length),
+                        Point::new(segment.p2.x + norm2_x * shadow_length, segment.p2.y + norm2_y * shadow_length),
+                    ];
+                    
+                    shadow_quads.push(quad);
+                }
+            } else {
+                front_facing_count += 1;
+            }
+        }
+    
+    web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 🌑 Segment analysis: {} back-facing (casting shadows), {} front-facing (lit)", 
+        back_facing_count, front_facing_count).into());
+    web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 🌑 Generated {} shadow quads", shadow_quads.len()).into());
+    
+    shadow_quads
+}    /// Get light at position (for mouse interaction)
     pub fn get_light_at_position(&self, world_pos: Vec2, tolerance: f32) -> Option<&String> {
         self.lights.iter()
             .find(|(_, light)| {

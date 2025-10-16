@@ -1002,81 +1002,9 @@ impl RenderEngine {
         self.lighting.get_light_radius(light_id).unwrap_or(0.0)
     }
 
-    // Fog interaction methods
-    #[wasm_bindgen]
-    pub fn start_fog_draw(&mut self, world_x: f32, world_y: f32, mode: &str) -> String {
-        use crate::input::FogDrawMode;
-        let fog_mode = match mode {
-            "reveal" => FogDrawMode::Reveal,
-            _ => FogDrawMode::Hide,
-        };
-        
-        let id = format!("interactive_fog_{}", js_sys::Date::now() as u64);
-        let world_pos = Vec2::new(world_x, world_y);
-        
-        self.input.start_fog_draw(world_pos, fog_mode);
-        
-        use crate::fog::FogMode;
-        let fog_system_mode = match fog_mode {
-            FogDrawMode::Reveal => FogMode::Reveal,
-            FogDrawMode::Hide => FogMode::Hide,
-        };
-        
-        self.fog.start_interactive_rectangle(id.clone(), world_pos, fog_system_mode);
-        id
-    }
-
-    #[wasm_bindgen]
-    pub fn update_fog_draw(&mut self, rect_id: &str, world_x: f32, world_y: f32) -> bool {
-        let world_pos = Vec2::new(world_x, world_y);
-        
-        if self.input.update_fog_draw(world_pos).is_some() {
-            self.fog.update_interactive_rectangle(rect_id, world_pos)
-        } else {
-            false
-        }
-    }
-
-    #[wasm_bindgen]
-    pub fn finish_fog_draw(&mut self, rect_id: &str) -> bool {
-        if let Some((_, _, _)) = self.input.end_fog_draw() {
-            self.fog.finish_interactive_rectangle(rect_id)
-        } else {
-            false
-        }
-    }
-
-    #[wasm_bindgen]
-    pub fn cancel_fog_draw(&mut self, rect_id: &str) {
-        self.input.end_fog_draw();
-        self.fog.cancel_interactive_rectangle(rect_id);
-    }
-
-    #[wasm_bindgen]
-    pub fn get_fog_at_position(&self, x: f32, y: f32) -> Option<String> {
-        let world_pos = Vec2::new(x, y);
-        self.fog.get_fog_rectangle_at_position(world_pos).map(|s| s.clone())
-    }
-
-    // Tool mode management for fog drawing
-    #[wasm_bindgen]
-    pub fn set_fog_draw_mode(&mut self, enabled: bool) {
-        if enabled {
-            self.input.input_mode = InputMode::FogDraw;
-        } else if matches!(self.input.input_mode, InputMode::FogDraw | InputMode::FogErase) {
-            self.input.input_mode = InputMode::None;
-        }
-    }
-
-    #[wasm_bindgen]
-    pub fn set_fog_erase_mode(&mut self, enabled: bool) {
-        if enabled {
-            self.input.input_mode = InputMode::FogErase;
-        } else if matches!(self.input.input_mode, InputMode::FogDraw | InputMode::FogErase) {
-            self.input.input_mode = InputMode::None;
-        }
-    }
-
+    // Fog of War - Simple API for Design A (manual DM fog only)
+    // All fog drawing handled in TypeScript UI, these are just forwarding methods
+    
     #[wasm_bindgen]
     pub fn set_light_drag_mode(&mut self, enabled: bool) {
         if enabled {

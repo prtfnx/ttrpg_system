@@ -78,24 +78,8 @@ impl EventSystem {
             }
         }
         
-        // Check for fog drawing mode first
-        if matches!(input.input_mode, InputMode::FogDraw | InputMode::FogErase) {
-            let fog_mode = match input.input_mode {
-                InputMode::FogErase => FogDrawMode::Reveal,
-                _ => FogDrawMode::Hide,
-            };
-            
-            let id = format!("interactive_fog_{}", js_sys::Date::now() as u64);
-            input.start_fog_draw(world_pos, fog_mode);
-            
-            let fog_system_mode = match fog_mode {
-                FogDrawMode::Reveal => FogMode::Reveal,
-                FogDrawMode::Hide => FogMode::Hide,
-            };
-            
-            fog.start_interactive_rectangle(id, world_pos, fog_system_mode);
-            return MouseEventResult::Handled;
-        }
+        // Note: Fog drawing is now handled in TypeScript UI (Design A - manual DM fog only)
+        // All fog interaction removed from Rust event system
         
         // Check for light drag mode
         if input.input_mode == InputMode::LightDrag {

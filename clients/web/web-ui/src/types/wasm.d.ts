@@ -159,6 +159,8 @@ export class RenderEngine {
   set_camera(world_x: number, world_y: number, zoom: number): void;
   screen_to_world(screen_x: number, screen_y: number): Float64Array;
   world_to_screen(world_x: number, world_y: number): Float64Array;
+  get_viewport_bounds(): Float64Array;
+  get_active_table_world_bounds(): Float64Array;
   get_cursor_type(screen_x: number, screen_y: number): string;
   handle_mouse_down(screen_x: number, screen_y: number): void;
   handle_mouse_down_with_ctrl(screen_x: number, screen_y: number, ctrl_pressed: boolean): void;

@@ -375,6 +375,13 @@ impl LightingSystem {
         _cached_polygon: Option<Vec<Point>>,
         _dirty: bool,
     ) -> Result<(Option<Vec<Point>>, bool), JsValue> {
+        // Check if light is inside an opaque obstacle
+        if self.is_light_occluded(position) {
+            web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 🚫 Light at ({:.1}, {:.1}) is inside obstacle, skipping render", 
+                position.x, position.y).into());
+            return Ok((None, false));
+        }
+        
         // Set light-specific uniforms
         self.set_light_uniforms_explicit(program, &position, &color, intensity, radius, falloff)?;
         
@@ -619,7 +626,9 @@ impl LightingSystem {
             if faces_light < 0.0 {  // Back-facing segments cast shadows
                 back_facing_count += 1;
                 // Project segment endpoints away from light to create shadow quad
-                let shadow_length = radius * 2.0; // Extend far enough
+                // Use a very large shadow length to ensure shadows extend beyond visible area
+                // This prevents light leaking when light source is very close to obstacle edges
+                let shadow_length = 10000.0; // Large enough to cover entire screen
                 
                 // Direction from light to each endpoint
                 let dir1_x = segment.p1.x - light_pos.x;
@@ -668,7 +677,61 @@ impl LightingSystem {
     web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 🌑 Generated {} shadow quads", shadow_quads.len()).into());
     
     shadow_quads
-}    /// Get light at position (for mouse interaction)
+}
+
+    /// Check if a light position is inside an opaque obstacle
+    /// Uses ray-casting algorithm for point-in-polygon test
+    fn is_light_occluded(&self, light_pos: Vec2) -> bool {
+        let calc = self.visibility_calculator.borrow();
+        let segments = calc.get_segments();
+        
+        if segments.is_empty() {
+            return false;
+        }
+        
+        // Build polygons from connected segments (assuming obstacles form closed rectangles)
+        // For a simple rectangle, we'll check if the point is inside by counting ray intersections
+        
+        // Ray-casting algorithm: cast a ray from the point to infinity
+        // Count how many times it crosses polygon edges
+        // Odd = inside, Even = outside
+        
+        let ray_end_x = light_pos.x + 10000.0; // Ray goes far to the right
+        let ray_end_y = light_pos.y;
+        
+        let mut intersections = 0;
+        
+        for segment in segments {
+            // Check if ray intersects this segment
+            let x1 = segment.p1.x;
+            let y1 = segment.p1.y;
+            let x2 = segment.p2.x;
+            let y2 = segment.p2.y;
+            
+            // Check if segment crosses the horizontal ray
+            if (y1 > light_pos.y) != (y2 > light_pos.y) {
+                // Calculate x coordinate of intersection
+                let x_intersect = x1 + (light_pos.y - y1) * (x2 - x1) / (y2 - y1);
+                
+                // Count intersection if it's to the right of the point
+                if x_intersect > light_pos.x {
+                    intersections += 1;
+                }
+            }
+        }
+        
+        // Odd number of intersections = point is inside
+        let is_occluded = intersections % 2 == 1;
+        
+        if is_occluded {
+            web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 🚫 Light occluded at ({:.1}, {:.1}): {} ray intersections", 
+                light_pos.x, light_pos.y, intersections).into());
+        }
+        
+        is_occluded
+    }
+
+    /// Get light at position (for mouse interaction)
     pub fn get_light_at_position(&self, world_pos: Vec2, tolerance: f32) -> Option<&String> {
         self.lights.iter()
             .find(|(_, light)| {

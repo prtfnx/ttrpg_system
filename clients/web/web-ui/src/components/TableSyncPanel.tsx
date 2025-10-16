@@ -176,6 +176,60 @@ export default function TableSyncPanel() {
     }
   };
 
+  const handleAddTestLine = async () => {
+    if (!tableSync) {
+      addLog('warning', 'Table sync not available', '⚠️');
+      return;
+    }
+
+    try {
+      const spriteId = `line_${Date.now()}`;
+      addLog('info', `Adding test line segment`, '📏');
+      
+      await tableSync.add_sprite(
+        spriteId,
+        'Test Line',
+        150,  // x
+        150,  // y
+        100,  // width (length)
+        5,    // height (thickness)
+        '',
+        0
+      );
+      
+      addLog('success', `Line segment added: ${spriteId}`, '✅');
+    } catch (err) {
+      addLog('error', `Failed to add line: ${err}`, '❌');
+    }
+  };
+
+  const handleAddTestCircle = async () => {
+    if (!tableSync) {
+      addLog('warning', 'Table sync not available', '⚠️');
+      return;
+    }
+
+    try {
+      const spriteId = `circle_${Date.now()}`;
+      addLog('info', `Adding test circle`, '⭕');
+      
+      await tableSync.add_sprite(
+        spriteId,
+        'Test Circle',
+        200,  // x
+        200,  // y
+        60,   // width (diameter)
+        60,   // height (diameter)
+        '',
+        0
+      );
+      
+      addLog('success', `Circle added: ${spriteId}`, '✅');
+    } catch (err) {
+      addLog('error', `Failed to add circle: ${err}`, '❌');
+    }
+  };
+
   const clearLog = () => {
     setActivityLog([]);
     addLog('info', 'Activity log cleared', '🧹');
@@ -355,6 +409,30 @@ export default function TableSyncPanel() {
             >
               🗑️ Remove Sprite
             </button>
+          </div>
+          
+          <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #333' }}>
+            <div style={{ marginBottom: '8px', color: '#888', fontSize: '12px' }}>
+              Quick Test Sprites:
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button 
+                onClick={handleAddTestLine}
+                disabled={!tableSync || !isConnected}
+                className="panel-button"
+                title="Add horizontal line segment (100x5)"
+              >
+                📏 Line Segment
+              </button>
+              <button 
+                onClick={handleAddTestCircle}
+                disabled={!tableSync || !isConnected}
+                className="panel-button"
+                title="Add circle (60px diameter)"
+              >
+                ⭕ Circle
+              </button>
+            </div>
           </div>
         </div>
       </div>

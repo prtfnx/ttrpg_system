@@ -193,14 +193,18 @@ impl RenderEngine {
         // Extract obstacles for lighting shadows
         self.update_lighting_obstacles();
         
+        web_sys::console::log_1(&"[RENDER-ORDER] 1️⃣ About to render lighting".into());
         // Render lighting system with shadow casting
         self.lighting.render_lights(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y)?;
+        web_sys::console::log_1(&"[RENDER-ORDER] 2️⃣ Lighting complete".into());
         
         // Render paint strokes (on top of everything except fog)
         self.paint.render_strokes(&self.renderer)?;
         
+        web_sys::console::log_1(&"[RENDER-ORDER] 3️⃣ About to render fog".into());
         // Render fog of war system (should be rendered last, on top of everything)
         self.fog.render_fog(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y)?;
+        web_sys::console::log_1(&"[RENDER-ORDER] 4️⃣ Fog complete".into());
         
         // Draw area selection rectangle if active
         if let Some((min, max)) = self.input.get_area_selection_rect() {
@@ -340,6 +344,12 @@ impl RenderEngine {
     pub fn screen_to_world(&self, screen_x: f32, screen_y: f32) -> Vec<f64> {
         let world = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
         vec![world.x as f64, world.y as f64]
+    }
+    
+    #[wasm_bindgen]
+    pub fn world_to_screen(&self, world_x: f32, world_y: f32) -> Vec<f64> {
+        let screen = self.camera.world_to_screen(Vec2::new(world_x, world_y));
+        vec![screen.x as f64, screen.y as f64]
     }
     
     #[wasm_bindgen]

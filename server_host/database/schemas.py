@@ -48,6 +48,8 @@ class EntityBase(BaseModel):
     scale_x: float = 1.0
     scale_y: float = 1.0
     rotation: float = 0.0
+    obstacle_type: Optional[str] = None
+    obstacle_data: Optional[str] = None  # JSON string
 
 class EntityCreate(EntityBase):
     pass
@@ -61,6 +63,8 @@ class EntityUpdate(BaseModel):
     scale_x: Optional[float] = None
     scale_y: Optional[float] = None
     rotation: Optional[float] = None
+    obstacle_type: Optional[str] = None
+    obstacle_data: Optional[str] = None  # JSON string
 
 class Entity(EntityBase):
     id: int

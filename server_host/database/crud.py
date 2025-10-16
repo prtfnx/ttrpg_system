@@ -338,7 +338,9 @@ def create_entity(db: Session, entity_data: schemas.EntityCreate, table_db_id: i
         texture_path=entity_data.texture_path,
         scale_x=entity_data.scale_x,
         scale_y=entity_data.scale_y,
-        rotation=entity_data.rotation
+        rotation=entity_data.rotation,
+        obstacle_type=entity_data.obstacle_type,
+        obstacle_data=entity_data.obstacle_data
     )
     db.add(db_entity)
     db.commit()
@@ -461,7 +463,9 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             texture_path=entity_obj.texture_path,
             scale_x=entity_obj.scale_x,
             scale_y=entity_obj.scale_y,
-            rotation=entity_obj.rotation
+            rotation=entity_obj.rotation,
+            obstacle_type=entity_obj.obstacle_type,
+            obstacle_data=json.dumps(entity_obj.obstacle_data) if entity_obj.obstacle_data else None
         )
         db_entity = update_entity(db, entity_obj.sprite_id, entity_update)
     else:
@@ -476,7 +480,9 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             texture_path=entity_obj.texture_path,
             scale_x=entity_obj.scale_x,
             scale_y=entity_obj.scale_y,
-            rotation=entity_obj.rotation
+            rotation=entity_obj.rotation,
+            obstacle_type=entity_obj.obstacle_type,
+            obstacle_data=json.dumps(entity_obj.obstacle_data) if entity_obj.obstacle_data else None
         )
         db_entity = create_entity(db, entity_data, table_db_id)
     
@@ -518,7 +524,9 @@ def load_table_from_db(db: Session, table_id: str):
                 position=(db_entity.position_x, db_entity.position_y),
                 layer=db_entity.layer,
                 path_to_texture=db_entity.texture_path,
-                entity_id=db_entity.entity_id
+                entity_id=db_entity.entity_id,
+                obstacle_type=db_entity.obstacle_type,
+                obstacle_data=json.loads(db_entity.obstacle_data) if db_entity.obstacle_data else None
             )
             entity.sprite_id = db_entity.sprite_id
             entity.scale_x = db_entity.scale_x

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';// FogPanel.tsx
+import React, { useCallback, useEffect, useState } from 'react'; // FogPanel.tsx
 
 import { useRenderEngine } from '../hooks/useRenderEngine';
 import './PanelStyles.css';

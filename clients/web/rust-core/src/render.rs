@@ -257,17 +257,24 @@ impl RenderEngine {
                 web_sys::console::log_1(&format!("[LIGHTING-DEBUG]   - Sprite '{}' at ({}, {}) size {}x{}", 
                     sprite.id, sprite.world_x, sprite.world_y, sprite.width, sprite.height).into());
                 
+                // IMPORTANT: world_x and world_y are TOP-LEFT corner, not center!
                 // Convert sprite bounds to 4 line segments (rectangle)
-                let half_w = (sprite.width / 2.0) as f32;
-                let half_h = (sprite.height / 2.0) as f32;
+                let x = sprite.world_x as f32;
+                let y = sprite.world_y as f32;
+                let w = sprite.width as f32;
+                let h = sprite.height as f32;
                 
-                // Four corners of the sprite
+                // Four corners of the sprite (top-left origin)
                 let corners = [
-                    Vec2::new(sprite.world_x as f32 - half_w, sprite.world_y as f32 - half_h),
-                    Vec2::new(sprite.world_x as f32 + half_w, sprite.world_y as f32 - half_h),
-                    Vec2::new(sprite.world_x as f32 + half_w, sprite.world_y as f32 + half_h),
-                    Vec2::new(sprite.world_x as f32 - half_w, sprite.world_y as f32 + half_h),
+                    Vec2::new(x, y),         // Top-left
+                    Vec2::new(x + w, y),     // Top-right
+                    Vec2::new(x + w, y + h), // Bottom-right
+                    Vec2::new(x, y + h),     // Bottom-left
                 ];
+                
+                web_sys::console::log_1(&format!("[LIGHTING-DEBUG]     Corners: TL({:.1},{:.1}) TR({:.1},{:.1}) BR({:.1},{:.1}) BL({:.1},{:.1})", 
+                    corners[0].x, corners[0].y, corners[1].x, corners[1].y, 
+                    corners[2].x, corners[2].y, corners[3].x, corners[3].y).into());
                 
                 // Add four edges as line segments
                 for i in 0..4 {
@@ -300,17 +307,6 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn compute_visibility_polygon(&mut self, player_x: f32, player_y: f32, obstacles: js_sys::Float32Array, max_dist: f32) -> JsValue {
         geometry::compute_visibility_polygon(player_x, player_y, &obstacles, max_dist)
-    }
-
-    /// Add a fog reveal polygon (array of {x,y}) under given id
-    #[wasm_bindgen]
-    pub fn add_fog_polygon(&mut self, id: &str, points: &JsValue) {
-    self.fog.add_fog_polygon(id.to_string(), points.clone());
-    }
-
-    #[wasm_bindgen]
-    pub fn remove_fog_polygon(&mut self, id: &str) {
-        self.fog.remove_fog_polygon(id);
     }
     
     #[wasm_bindgen]

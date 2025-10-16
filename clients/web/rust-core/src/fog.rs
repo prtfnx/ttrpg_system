@@ -52,7 +52,6 @@ pub struct FogOfWarSystem {
     gl: WebGlRenderingContext,
     fog_shader: Option<WebGlProgram>,
     fog_rectangles: HashMap<String, FogRectangle>,
-    fog_polygons: HashMap<String, Vec<Vec2>>,
     is_gm: bool,
 }
 
@@ -62,7 +61,6 @@ impl FogOfWarSystem {
             gl,
             fog_shader: None,
             fog_rectangles: HashMap::new(),
-            fog_polygons: HashMap::new(),
             is_gm: false,
         };
         
@@ -162,7 +160,6 @@ impl FogOfWarSystem {
 
     pub fn clear_fog(&mut self) {
         self.fog_rectangles.clear();
-    self.fog_polygons.clear();
     }
 
     pub fn hide_entire_table(&mut self, table_width: f32, table_height: f32) {
@@ -264,13 +261,6 @@ impl FogOfWarSystem {
                 self.render_single_rectangle(program, rectangle)?;
             }
         }
-
-        // Also subtract reveal polygons from stencil
-        for (_id, polygon) in self.fog_polygons.iter() {
-            if polygon.len() >= 3 {
-                self.render_polygon_to_stencil(program, polygon)?;
-            }
-        }
         
         // Final pass: Render fog color where stencil == 1
         self.gl.color_mask(true, true, true, true); // Re-enable color writes
@@ -358,104 +348,7 @@ impl FogOfWarSystem {
         Ok(())
     }
 
-    fn render_polygon_to_stencil(&self, program: &WebGlProgram, polygon: &Vec<Vec2>) -> Result<(), JsValue> {
-        // Build vertex array from polygon points
-        let mut verts: Vec<f32> = Vec::with_capacity(polygon.len() * 2);
-        for p in polygon.iter() {
-            verts.push(p.x);
-            verts.push(p.y);
-        }
-
-        // Create and bind buffer
-        let buffer = self.gl.create_buffer().ok_or("Failed to create buffer for polygon")?;
-        self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&buffer));
-        unsafe {
-            let verts_array = js_sys::Float32Array::view(&verts);
-            self.gl.buffer_data_with_array_buffer_view(
-                WebGlRenderingContext::ARRAY_BUFFER,
-                &verts_array,
-                WebGlRenderingContext::STATIC_DRAW,
-            );
-        }
-
-        let position_location = self.gl.get_attrib_location(program, "a_position") as u32;
-        self.gl.enable_vertex_attrib_array(position_location);
-        self.gl.vertex_attrib_pointer_with_i32(position_location, 2, WebGlRenderingContext::FLOAT, false, 0, 0);
-
-        // Draw polygon as TRIANGLE_FAN
-        self.gl.draw_arrays(WebGlRenderingContext::TRIANGLE_FAN, 0, polygon.len() as i32);
-
-        self.gl.disable_vertex_attrib_array(position_location);
-
-        Ok(())
-    }
-
     pub fn get_fog_count(&self) -> usize {
         self.fog_rectangles.len()
-    }
-
-    /// Add a polygon (array of [ {x,y}, ... ]) which will be treated as a reveal area
-    pub fn add_fog_polygon(&mut self, id: String, points: JsValue) {
-        let mut vec = Vec::new();
-        // Try to treat points as a JS Array (value). Use JsValue by value to satisfy TryFrom.
-        let arr = js_sys::Array::try_from(points).expect("Points should be a JS Array");
-        for item in arr.iter() {
-            if let Some(x) = js_sys::Reflect::get(&item, &"x".into()).ok().and_then(|v| v.as_f64()) {
-                if let Some(y) = js_sys::Reflect::get(&item, &"y".into()).ok().and_then(|v| v.as_f64()) {
-                    vec.push(Vec2::new(x as f32, y as f32));
-                }
-            }
-        }
-        if !vec.is_empty() {
-            self.fog_polygons.insert(id, vec);
-        }
-    }
-
-    pub fn remove_fog_polygon(&mut self, id: &str) {
-        self.fog_polygons.remove(id);
-    }
-
-    // Mouse interaction support
-    pub fn get_fog_rectangle_at_position(&self, world_pos: Vec2) -> Option<&String> {
-        self.fog_rectangles.iter()
-            .find(|(_, rectangle)| rectangle.contains_point(world_pos))
-            .map(|(id, _)| id)
-    }
-
-    pub fn start_interactive_rectangle(&mut self, id: String, start_pos: Vec2, mode: FogMode) {
-        let rectangle = FogRectangle::new(id, start_pos.x, start_pos.y, start_pos.x, start_pos.y, mode);
-        self.fog_rectangles.insert(rectangle.id.clone(), rectangle);
-    }
-
-    pub fn update_interactive_rectangle(&mut self, id: &str, end_pos: Vec2) -> bool {
-        if let Some(rectangle) = self.fog_rectangles.get_mut(id) {
-            rectangle.end = end_pos;
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn finish_interactive_rectangle(&mut self, id: &str) -> bool {
-        if let Some(rectangle) = self.fog_rectangles.get(id) {
-            let normalized = rectangle.normalized();
-            // Only keep rectangle if it has some area
-            let min_size = 5.0; // Minimum rectangle size
-            let width = normalized.end.x - normalized.start.x;
-            let height = normalized.end.y - normalized.start.y;
-            
-            if width < min_size || height < min_size {
-                self.fog_rectangles.remove(id);
-                false
-            } else {
-                true
-            }
-        } else {
-            false
-        }
-    }
-
-    pub fn cancel_interactive_rectangle(&mut self, id: &str) {
-        self.fog_rectangles.remove(id);
     }
 }

@@ -112,6 +112,11 @@ impl VisibilityCalculator {
         }
     }
 
+    /// Get all obstacle segments (for shadow quad generation)
+    pub fn get_segments(&self) -> &[LineSegment] {
+        &self.segments
+    }
+
     /// Compute visibility polygon from light position using sweep line algorithm
     /// This is the core algorithm - rotational sweep with ray casting
     pub fn compute_visibility(&mut self, light_pos: Point, max_radius: f32) -> Vec<Point> {

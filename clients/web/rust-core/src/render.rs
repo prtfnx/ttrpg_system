@@ -159,11 +159,15 @@ impl RenderEngine {
         // Create a default table if none exists
         web_sys::console::log_1(&"[TABLE-DEBUG] Creating default table...".into());
         if let Err(e) = engine.table_manager.create_table("default_table", "Default Table", 1200.0, 1200.0) {
-            web_sys::console::log_1(&format!("[TABLE-DEBUG] Failed to create default table: {:?}", e).into());
+            web_sys::console::log_1(&format!("[TABLE-DEBUG] ❌ Failed to create default table: {:?}", e).into());
         } else {
-            engine.table_manager.set_active_table("default_table");
-            web_sys::console::log_1(&"[TABLE-DEBUG] Default table created and activated (1200x1200)".into());
+            let success = engine.table_manager.set_active_table("default_table");
+            web_sys::console::log_1(&format!("[TABLE-DEBUG] ✅ Default table created and activated (1200x1200), set_active result: {}", success).into());
         }
+        
+        // Verify table was created
+        let active_id = engine.table_manager.get_active_table_id();
+        web_sys::console::log_1(&format!("[TABLE-DEBUG] 🔍 After creation, active table ID: {:?}", active_id).into());
         
         engine.update_view_matrix();
         Ok(engine)

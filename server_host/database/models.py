@@ -98,6 +98,10 @@ class Entity(Base):
     scale_y = Column(Float, default=1.0)
     rotation = Column(Float, default=0.0)
     
+    # Obstacle metadata (for client-side lighting/collision)
+    obstacle_type = Column(String(20), nullable=True)  # "rectangle", "circle", "polygon", "line", None
+    obstacle_data = Column(Text, nullable=True)  # JSON: shape-specific data
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

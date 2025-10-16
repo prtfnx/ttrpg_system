@@ -12,7 +12,9 @@ LAYER_NAMES = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles'
 
 class Entity:
     def __init__(self, name: str, position: Tuple[int, int], layer: str, 
-                 path_to_texture: str = None, entity_id: int = None, coord_x: float = 0.0, coord_y: float = 0.0,):
+                 path_to_texture: Optional[str] = None, entity_id: Optional[int] = None, 
+                 coord_x: float = 0.0, coord_y: float = 0.0,
+                 obstacle_type: Optional[str] = None, obstacle_data: Optional[dict] = None):
         # Use entity_id consistently
         self.entity_id = entity_id
         self.id = entity_id  # Keep both for backward compatibility
@@ -23,6 +25,10 @@ class Entity:
         self.scale_x = 1.0
         self.scale_y = 1.0        # Add rotation attribute
         self.rotation = 0.0      
+        
+        # Obstacle metadata (for client-side lighting/collision)
+        self.obstacle_type = obstacle_type  # "rectangle", "circle", "polygon", "line", None
+        self.obstacle_data = obstacle_data  # Shape-specific data dict
 
         self.sprite_id = str(uuid.uuid4())
         
@@ -37,6 +43,8 @@ class Entity:
             'scale_x': self.scale_x,
             'scale_y': self.scale_y,
             'rotation': self.rotation,
+            'obstacle_type': self.obstacle_type,
+            'obstacle_data': self.obstacle_data,
             'character': None,
             'moving': False,
             'speed': None,
@@ -117,6 +125,10 @@ class VirtualTable:
         name = entity_data.get('name', 'Unnamed Entity')
         path_to_texture = entity_data.get('texture_path', None)
         asset_id = entity_data.get('asset_id', None)
+        
+        # Obstacle metadata
+        obstacle_type = entity_data.get('obstacle_type', None)
+        obstacle_data = entity_data.get('obstacle_data', None)
 
         #TODO validate position 
         #if not self.is_valid_position(position):
@@ -126,7 +138,8 @@ class VirtualTable:
         #if self.grid[layer][position[1]][position[0]] is not None:
         #    raise ValueError("Position already occupied")
         logger.debug(f"Adding entity {name} at {position} on layer {layer} with texture {path_to_texture}")
-        entity = Entity(name, position, layer, path_to_texture, self.next_entity_id)
+        entity = Entity(name, position, layer, path_to_texture, self.next_entity_id,
+                       obstacle_type=obstacle_type, obstacle_data=obstacle_data)
         self.entities[self.next_entity_id] = entity
         self.sprite_to_entity[entity.sprite_id] = self.next_entity_id
         self.grid[layer][position[1]][position[0]] = self.next_entity_id
@@ -339,7 +352,7 @@ class VirtualTable:
             raise
 
 
-def get_entity_at_position(self, position: Tuple[int, int], layer: str = None) -> Optional[Entity]:
+def get_entity_at_position(self, position: Tuple[int, int], layer: Optional[str] = None) -> Optional[Entity]:
     """Get entity at specific position"""
     x, y = position
     if not self.is_valid_position(position):
@@ -359,7 +372,7 @@ def get_entity_at_position(self, position: Tuple[int, int], layer: str = None) -
     return None
 
 def get_entities_in_area(self, top_left: Tuple[int, int], bottom_right: Tuple[int, int], 
-                        layer: str = None) -> List[Entity]:
+                        layer: Optional[str] = None) -> List[Entity]:
     """Get all entities in a rectangular area"""
     entities = []
     x1, y1 = top_left
@@ -392,9 +405,10 @@ def create_table_from_json(json_data: str) -> VirtualTable:
     table = VirtualTable(data['name'], data['width'], data['height'])
     for e_data in data['entities']:
         entity = Entity.from_dict(e_data)
-        table.entities[entity.entity_id] = entity
-        table.grid[entity.layer][entity.position[1]][entity.position[0]] = entity.entity_id
-        table.next_entity_id = max(table.next_entity_id, entity.entity_id + 1)
+        if entity.entity_id is not None:
+            table.entities[entity.entity_id] = entity
+            table.grid[entity.layer][entity.position[1]][entity.position[0]] = entity.entity_id
+            table.next_entity_id = max(table.next_entity_id, entity.entity_id + 1)
     logger.info(f"Created table from JSON data")
     return table
 
@@ -403,8 +417,18 @@ def create_table_from_json(json_data: str) -> VirtualTable:
 
 if __name__ == "__main__":
     table = VirtualTable('test_table',10, 10)
-    table.add_entity("Hero", (2, 3), layer='tokens', path_to_texture='resources/hero.png')
-    table.add_entity("Goblin", (5, 6), layer='dungeon_master', path_to_texture='resources/goblin.png')
+    table.add_entity({
+        'name': 'Hero',
+        'position': (2, 3),
+        'layer': 'tokens',
+        'texture_path': 'resources/hero.png'
+    })
+    table.add_entity({
+        'name': 'Goblin',
+        'position': (5, 6),
+        'layer': 'dungeon_master',
+        'texture_path': 'resources/goblin.png'
+    })
     table.save_to_disk("table.json")
     
 

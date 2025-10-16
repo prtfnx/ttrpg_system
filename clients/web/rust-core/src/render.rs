@@ -156,6 +156,15 @@ impl RenderEngine {
             background_color: [0.1, 0.1, 0.1, 1.0], // Default dark gray background
         };
         
+        // Create a default table if none exists
+        web_sys::console::log_1(&"[TABLE-DEBUG] Creating default table...".into());
+        if let Err(e) = engine.table_manager.create_table("default_table", "Default Table", 1200.0, 1200.0) {
+            web_sys::console::log_1(&format!("[TABLE-DEBUG] Failed to create default table: {:?}", e).into());
+        } else {
+            engine.table_manager.set_active_table("default_table");
+            web_sys::console::log_1(&"[TABLE-DEBUG] Default table created and activated (1200x1200)".into());
+        }
+        
         engine.update_view_matrix();
         Ok(engine)
     }
@@ -170,9 +179,51 @@ impl RenderEngine {
             self.background_color[3]
         );
         
-        // Draw grid
+        // Draw grid - restrict to active table area when available
         let world_bounds = self.get_world_view_bounds();
-        self.grid_system.draw_grid(&self.renderer, world_bounds)?;
+
+        // Debug: Check table state
+        web_sys::console::log_1(&format!("[TABLE-DEBUG] Active table ID: {:?}", self.table_manager.get_active_table_id()).into());
+        
+        // If we have an active table, use its world bounds to restrict the grid
+        let mut draw_bounds = world_bounds;
+        if let Some((tx, ty, tw, th)) = self.table_manager.get_active_table_world_bounds() {
+            web_sys::console::log_1(&format!("[TABLE-DEBUG] Table world bounds: ({}, {}) size {}x{}", tx, ty, tw, th).into());
+            
+            // Table bounds are already in world coordinates
+            let table_world = Rect::new(
+                tx as f32,
+                ty as f32,
+                tw as f32,
+                th as f32,
+            );
+
+            // Intersect view bounds with table world bounds
+            let intersect_min_x = draw_bounds.min.x.max(table_world.min.x);
+            let intersect_min_y = draw_bounds.min.y.max(table_world.min.y);
+            let intersect_max_x = draw_bounds.max.x.min(table_world.max.x);
+            let intersect_max_y = draw_bounds.max.y.min(table_world.max.y);
+
+            // Only draw if there is overlap
+            if intersect_max_x > intersect_min_x && intersect_max_y > intersect_min_y {
+                draw_bounds = Rect::new(
+                    intersect_min_x,
+                    intersect_min_y,
+                    intersect_max_x - intersect_min_x,
+                    intersect_max_y - intersect_min_y,
+                );
+            } else {
+                // No overlap -> empty rect
+                draw_bounds = Rect::new(0.0, 0.0, 0.0, 0.0);
+            }
+            
+            web_sys::console::log_1(&format!("[TABLE-DEBUG] Final grid draw bounds: ({}, {}) size {}x{}", 
+                draw_bounds.min.x, draw_bounds.min.y, draw_bounds.max.x - draw_bounds.min.x, draw_bounds.max.y - draw_bounds.min.y).into());
+        } else {
+            web_sys::console::log_1(&"[TABLE-DEBUG] No active table, drawing grid over entire view".into());
+        }
+
+        self.grid_system.draw_grid(&self.renderer, draw_bounds)?;
         
         // Sort layers by z_order
         let mut sorted_layers: Vec<_> = self.layer_manager.get_layers().iter().collect();
@@ -234,6 +285,23 @@ impl RenderEngine {
         
         Ok(())
     }
+
+    #[wasm_bindgen]
+    pub fn get_active_table_world_bounds(&self) -> Vec<f64> {
+        web_sys::console::log_1(&"[TABLE-DEBUG] get_active_table_world_bounds called".into());
+        
+        // Use table's world dimensions directly (no screen coordinate conversion needed)
+        if let Some((x, y, width, height)) = self.table_manager.get_active_table_world_bounds() {
+            let result = vec![x, y, width, height];
+            web_sys::console::log_1(&format!("[TABLE-DEBUG] Returning table world bounds: {:?}", result).into());
+            result
+        } else {
+            let vb = self.get_world_view_bounds();
+            let result = vec![vb.min.x as f64, vb.min.y as f64, (vb.max.x - vb.min.x) as f64, (vb.max.y - vb.min.y) as f64];
+            web_sys::console::log_1(&format!("[TABLE-DEBUG] No table, returning view bounds: {:?}", result).into());
+            result
+        }
+    }
     
     fn update_view_matrix(&mut self) {
         self.view_matrix = self.camera.view_matrix(self.canvas_size);
@@ -245,6 +313,12 @@ impl RenderEngine {
         let min = self.camera.screen_to_world(Vec2::new(0.0, 0.0));
         let max = self.camera.screen_to_world(self.canvas_size);
         Rect::new(min.x, min.y, max.x - min.x, max.y - min.y)
+    }
+    
+    #[wasm_bindgen]
+    pub fn get_viewport_bounds(&self) -> Vec<f64> {
+        let bounds = self.get_world_view_bounds();
+        vec![bounds.min.x as f64, bounds.min.y as f64, (bounds.max.x - bounds.min.x) as f64, (bounds.max.y - bounds.min.y) as f64]
     }
     
     /// Extract obstacles from sprites for shadow casting

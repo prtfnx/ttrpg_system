@@ -165,6 +165,9 @@ impl TableManager {
         }
     }
 
+    // NOTE: internal helper moved to a plain `impl TableManager` block below to
+    // avoid wasm-bindgen attempting to export a tuple return type.
+
     #[wasm_bindgen]
     pub fn pan_viewport(&mut self, table_id: &str, dx: f64, dy: f64) -> bool {
         if let Some(table) = self.tables.get_mut(table_id) {
@@ -318,5 +321,37 @@ impl TableManager {
 impl Default for TableManager {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// Plain impl block for internal-only helpers (not exported to wasm-bindgen)
+impl TableManager {
+    pub fn get_active_table_screen_area_internal(&self) -> Option<(f64, f64, f64, f64)> {
+        if let Some(active_id) = &self.active_table_id {
+            if let Some(area) = self.screen_areas.get(active_id) {
+                Some((area.x, area.y, area.width, area.height))
+            } else {
+                // If no explicit screen area set for the table, default to full canvas
+                Some((0.0, 0.0, self.canvas_width, self.canvas_height))
+            }
+        } else {
+            None
+        }
+    }
+    
+    /// Get the active table's world bounds (width/height from TableInfo, NOT screen coordinates)
+    /// Returns (x, y, width, height) in world coordinates
+    pub fn get_active_table_world_bounds(&self) -> Option<(f64, f64, f64, f64)> {
+        if let Some(active_id) = &self.active_table_id {
+            if let Some(table) = self.tables.get(active_id) {
+                // Table's width and height are already in world coordinates
+                // Tables start at origin (0, 0) by default
+                Some((0.0, 0.0, table.width, table.height))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }

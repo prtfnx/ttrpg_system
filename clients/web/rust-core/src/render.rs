@@ -106,7 +106,22 @@ impl RenderEngine {
     
     #[wasm_bindgen(constructor)]
     pub fn new(canvas: HtmlCanvasElement) -> Result<RenderEngine, JsValue> {
-        let gl = canvas.get_context("webgl2")?.unwrap().dyn_into::<WebGlRenderingContext>()?;
+        // Create WebGL context with stencil buffer enabled for shadow casting
+        let context_options = js_sys::Object::new();
+        js_sys::Reflect::set(&context_options, &"stencil".into(), &true.into())?;
+        js_sys::Reflect::set(&context_options, &"alpha".into(), &false.into())?;
+        js_sys::Reflect::set(&context_options, &"antialias".into(), &true.into())?;
+        
+        let gl = canvas
+            .get_context_with_context_options("webgl2", &context_options)?
+            .unwrap()
+            .dyn_into::<WebGlRenderingContext>()?;
+        
+        // Verify stencil buffer bits
+        let stencil_bits = gl.get_parameter(WebGlRenderingContext::STENCIL_BITS)?;
+        web_sys::console::log_1(&format!("[RUST] WebGL context created with {} stencil buffer bits", 
+            stencil_bits.as_f64().unwrap_or(0.0)).into());
+        
         let renderer = WebGLRenderer::new(gl.clone())?;
         let lighting = LightingSystem::new(gl.clone())?;
         let fog = FogOfWarSystem::new(gl.clone())?;
@@ -235,7 +250,13 @@ impl RenderEngine {
         
         // Extract obstacles from the "obstacles" layer
         if let Some(obstacles_layer) = self.layer_manager.get_layer("obstacles") {
+            web_sys::console::log_1(&format!("[LIGHTING-DEBUG] ✅ Found 'obstacles' layer with {} sprites", 
+                obstacles_layer.sprites.len()).into());
+            
             for sprite in &obstacles_layer.sprites {
+                web_sys::console::log_1(&format!("[LIGHTING-DEBUG]   - Sprite '{}' at ({}, {}) size {}x{}", 
+                    sprite.id, sprite.world_x, sprite.world_y, sprite.width, sprite.height).into());
+                
                 // Convert sprite bounds to 4 line segments (rectangle)
                 let half_w = (sprite.width / 2.0) as f32;
                 let half_h = (sprite.height / 2.0) as f32;
@@ -257,7 +278,12 @@ impl RenderEngine {
                     obstacles.push(corners[next].y);
                 }
             }
+        } else {
+            web_sys::console::error_1(&"[LIGHTING-DEBUG] ❌ ERROR: 'obstacles' layer NOT FOUND!".into());
         }
+        
+        web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 📊 Sending {} obstacle segments ({} floats) to lighting system", 
+            obstacles.len() / 4, obstacles.len()).into());
         
         // Update lighting system with obstacles
         self.lighting.set_obstacles(&obstacles);

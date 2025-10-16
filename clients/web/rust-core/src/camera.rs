@@ -36,6 +36,13 @@ impl Camera {
         )
     }
     
+    pub fn world_to_screen(&self, world_pos: Vec2) -> Vec2 {
+        Vec2::new(
+            (world_pos.x - self.world_x as f32) * self.zoom as f32,
+            (world_pos.y - self.world_y as f32) * self.zoom as f32
+        )
+    }
+    
     pub fn handle_wheel(&mut self, screen_x: f32, screen_y: f32, delta_y: f32) {
         let zoom_factor = if delta_y > 0.0 { 0.9 } else { 1.1 };
         let world_point_before = self.screen_to_world(Vec2::new(screen_x, screen_y));

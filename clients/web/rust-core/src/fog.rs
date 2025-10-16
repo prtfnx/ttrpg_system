@@ -70,19 +70,24 @@ impl FogOfWarSystem {
 
     fn init_shaders(&mut self) -> Result<(), JsValue> {
         // Fog rendering shader with proper alpha blending
+        // Input: world coordinates, Output: screen coordinates
         let fog_vertex_source = r#"#version 300 es
             precision highp float;
             
-            in vec2 a_position;
+            in vec2 a_position;  // World coordinates
             
-            uniform mat3 u_view_matrix;
-            uniform vec2 u_canvas_size;
+            uniform mat3 u_view_matrix;  // Camera transform
+            uniform vec2 u_canvas_size;  // Canvas size in pixels
             
             void main() {
-                vec3 world_pos = u_view_matrix * vec3(a_position, 1.0);
-                vec2 clip_pos = (world_pos.xy / u_canvas_size) * 2.0 - 1.0;
-                clip_pos.y = -clip_pos.y;
-                gl_Position = vec4(clip_pos, 0.0, 1.0);
+                // Transform world coords to view space
+                vec3 view_pos = u_view_matrix * vec3(a_position, 1.0);
+                
+                // Convert to normalized device coordinates (-1 to 1)
+                vec2 ndc = (view_pos.xy / u_canvas_size) * 2.0 - 1.0;
+                ndc.y = -ndc.y;  // Flip Y axis
+                
+                gl_Position = vec4(ndc, 0.0, 1.0);
             }
         "#;
 
@@ -150,8 +155,12 @@ impl FogOfWarSystem {
             _ => FogMode::Hide,
         };
         
+        web_sys::console::log_1(&format!("Adding fog rectangle: {} ({}, {}) -> ({}, {}) mode: {}", id, start_x, start_y, end_x, end_y, mode).into());
+        
         let rectangle = FogRectangle::new(id.clone(), start_x, start_y, end_x, end_y, fog_mode);
         self.fog_rectangles.insert(id, rectangle);
+        
+        web_sys::console::log_1(&format!("Total fog rectangles: {}", self.fog_rectangles.len()).into());
     }
 
     pub fn remove_fog_rectangle(&mut self, id: &str) {
@@ -203,6 +212,8 @@ impl FogOfWarSystem {
             return Ok(());
         }
 
+        web_sys::console::log_1(&format!("Rendering {} fog rectangles", self.fog_rectangles.len()).into());
+
         let program = self.fog_shader.as_ref().ok_or("Fog shader not initialized")?;
         
         // Enable alpha blending for fog overlay
@@ -229,8 +240,18 @@ impl FogOfWarSystem {
             self.gl.uniform1i(Some(&location), if self.is_gm { 1 } else { 0 });
         }
         
-        // Render fog rectangles using stencil buffer approach
-        self.render_fog_with_stencil(program)?;
+        web_sys::console::log_1(&"[FOG-DEBUG] 🌫️ Rendering fog rectangles directly (no stencil)".into());
+        
+        // Render fog rectangles directly
+        for (i, rectangle) in self.fog_rectangles.values().enumerate() {
+            if rectangle.mode == FogMode::Hide {
+                web_sys::console::log_1(&format!("[FOG-DEBUG] 🌫️ Drawing fog rectangle {} at ({}, {}) to ({}, {})", 
+                    i, rectangle.start.x, rectangle.start.y, rectangle.end.x, rectangle.end.y).into());
+                self.render_single_rectangle(program, rectangle)?;
+            }
+        }
+        
+        web_sys::console::log_1(&"[FOG-DEBUG] 🌫️ Fog rendering complete".into());
         
         Ok(())
     }
@@ -241,34 +262,44 @@ impl FogOfWarSystem {
         self.gl.clear_stencil(0);
         self.gl.clear(WebGlRenderingContext::STENCIL_BUFFER_BIT);
         
+        web_sys::console::log_1(&"Starting stencil rendering pass".into());
+        
         // First pass: Render hide rectangles to stencil buffer
         self.gl.color_mask(false, false, false, false); // Don't write to color buffer
         self.gl.stencil_func(WebGlRenderingContext::ALWAYS, 1, 0xFF);
         self.gl.stencil_op(WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP, WebGlRenderingContext::REPLACE);
         
+        let mut hide_count = 0;
         for rectangle in self.fog_rectangles.values() {
             if rectangle.mode == FogMode::Hide {
+                hide_count += 1;
                 self.render_single_rectangle(program, rectangle)?;
             }
         }
+        web_sys::console::log_1(&format!("Rendered {} hide rectangles to stencil", hide_count).into());
         
         // Second pass: Subtract reveal rectangles from stencil
         self.gl.stencil_func(WebGlRenderingContext::EQUAL, 1, 0xFF);
         self.gl.stencil_op(WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP, WebGlRenderingContext::ZERO);
         
+        let mut reveal_count = 0;
         for rectangle in self.fog_rectangles.values() {
             if rectangle.mode == FogMode::Reveal {
+                reveal_count += 1;
                 self.render_single_rectangle(program, rectangle)?;
             }
         }
+        web_sys::console::log_1(&format!("Rendered {} reveal rectangles to stencil", reveal_count).into());
         
         // Final pass: Render fog color where stencil == 1
         self.gl.color_mask(true, true, true, true); // Re-enable color writes
         self.gl.stencil_func(WebGlRenderingContext::EQUAL, 1, 0xFF);
         self.gl.stencil_op(WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP);
         
+        web_sys::console::log_1(&"Rendering fullscreen fog overlay".into());
         // Render full-screen quad with fog color
         self.render_fullscreen_fog(program)?;
+        web_sys::console::log_1(&"Fog stencil rendering complete".into());
         
         // Disable stencil testing
         self.gl.disable(WebGlRenderingContext::STENCIL_TEST);

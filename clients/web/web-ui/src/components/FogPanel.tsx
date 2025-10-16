@@ -160,19 +160,28 @@ export const FogPanel: React.FC = () => {
 
   const handleHideAll = useCallback(() => {
     if (!renderer) return;
-    renderer.hide_entire_table(10000, 10000);
-    
+    // Use active table world bounds so Hide All covers the table only
+    const bounds = renderer.get_active_table_world_bounds();
+    if (!bounds || bounds.length < 4) return;
+    const [startX, startY, width, height] = bounds;
+
+    const endX = startX + width;
+    const endY = startY + height;
+
+    renderer.clear_fog();
+    renderer.add_fog_rectangle('full_table_fog', startX, startY, endX, endY, 'hide');
+
     // Update state to reflect the full table fog
     setFogRectangles([{
       id: 'full_table_fog',
-      startX: 0,
-      startY: 0,
-      endX: 10000,
-      endY: 10000,
+      startX,
+      startY,
+      endX,
+      endY,
       mode: 'hide'
     }]);
-    
-    console.log('Entire table hidden with fog');
+
+    console.log(`Entire table hidden with fog: (${startX}, ${startY}) to (${endX}, ${endY})`);
   }, [renderer]);
 
   const handleRemoveRectangle = useCallback((id: string) => {

@@ -242,6 +242,11 @@ impl FogOfWarSystem {
     }
 
     pub fn render_fog(&self, view_matrix: &[f32; 9], canvas_width: f32, canvas_height: f32) -> Result<(), JsValue> {
+        // Default: render all fog (backwards compatibility)
+        self.render_fog_filtered(view_matrix, canvas_width, canvas_height, None)
+    }
+    
+    pub fn render_fog_filtered(&self, view_matrix: &[f32; 9], canvas_width: f32, canvas_height: f32, table_id: Option<&str>) -> Result<(), JsValue> {
         if self.fog_rectangles.is_empty() {
             return Ok(());
         }
@@ -276,8 +281,15 @@ impl FogOfWarSystem {
         
         web_sys::console::log_1(&"[FOG-DEBUG] 🌫️ Rendering fog rectangles directly (no stencil)".into());
         
-        // Render fog rectangles directly
+        // Render fog rectangles directly (filtered by table_id if specified)
         for (i, rectangle) in self.fog_rectangles.values().enumerate() {
+            // Filter by table_id if specified
+            if let Some(filter_table_id) = table_id {
+                if rectangle.table_id != filter_table_id {
+                    continue; // Skip fog not belonging to active table
+                }
+            }
+            
             if rectangle.mode == FogMode::Hide {
                 web_sys::console::log_1(&format!("[FOG-DEBUG] 🌫️ Drawing fog rectangle {} at ({}, {}) to ({}, {})", 
                     i, rectangle.start.x, rectangle.start.y, rectangle.end.x, rectangle.end.y).into());
@@ -415,5 +427,35 @@ impl FogOfWarSystem {
 
     pub fn get_fog_count(&self) -> usize {
         self.fog_rectangles.len()
+    }
+    
+    // ===== TABLE-BASED OPTIMIZATION METHODS =====
+    
+    /// Count fog rectangles per table
+    pub fn count_fog_by_table(&self) -> std::collections::HashMap<String, usize> {
+        let mut counts = std::collections::HashMap::new();
+        for fog in self.fog_rectangles.values() {
+            *counts.entry(fog.table_id.clone()).or_insert(0) += 1;
+        }
+        counts
+    }
+    
+    /// Get fog count for specific table only
+    pub fn count_fog_for_table(&self, table_id: &str) -> usize {
+        self.fog_rectangles.values().filter(|fog| fog.table_id == table_id).count()
+    }
+    
+    /// Remove all fog not belonging to the specified table (optimization)
+    pub fn remove_fog_not_in_table(&mut self, table_id: &str) -> usize {
+        let before_count = self.fog_rectangles.len();
+        self.fog_rectangles.retain(|_, fog| fog.table_id == table_id);
+        before_count - self.fog_rectangles.len()
+    }
+    
+    /// Clear all fog from a specific table
+    pub fn clear_fog_for_table(&mut self, table_id: &str) -> usize {
+        let before_count = self.fog_rectangles.len();
+        self.fog_rectangles.retain(|_, fog| fog.table_id != table_id);
+        before_count - self.fog_rectangles.len()
     }
 }

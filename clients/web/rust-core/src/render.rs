@@ -156,18 +156,55 @@ impl RenderEngine {
             background_color: [0.1, 0.1, 0.1, 1.0], // Default dark gray background
         };
         
-        // Create a default table if none exists
-        web_sys::console::log_1(&"[TABLE-DEBUG] Creating default table...".into());
-        if let Err(e) = engine.table_manager.create_table("default_table", "Default Table", 1200.0, 1200.0) {
-            web_sys::console::log_1(&format!("[TABLE-DEBUG] ❌ Failed to create default table: {:?}", e).into());
-        } else {
-            let success = engine.table_manager.set_active_table("default_table");
-            web_sys::console::log_1(&format!("[TABLE-DEBUG] ✅ Default table created and activated (1200x1200), set_active result: {}", success).into());
+        // ===== MANDATORY TABLE CREATION =====
+        // The table MUST exist for the system to work properly
+        web_sys::console::log_1(&"[TABLE-INIT] 🎯 Creating mandatory default table...".into());
+        
+        // Create default table - this MUST succeed
+        engine.table_manager.create_table("default_table", "Default Table", 1200.0, 1200.0)
+            .expect("CRITICAL: Failed to create default table - cannot continue!");
+        
+        // Set as active table - this should always succeed since we just created it
+        let set_active_result = engine.table_manager.set_active_table("default_table");
+        if !set_active_result {
+            panic!("CRITICAL: Failed to set default table as active - cannot continue!");
         }
         
-        // Verify table was created
+        web_sys::console::log_1(&"[TABLE-INIT] ✅ Default table created successfully".into());
+        
+        // Verify table was created and is active
         let active_id = engine.table_manager.get_active_table_id();
-        web_sys::console::log_1(&format!("[TABLE-DEBUG] 🔍 After creation, active table ID: {:?}", active_id).into());
+        match active_id {
+            Some(ref id) => {
+                web_sys::console::log_1(&format!("[TABLE-INIT] ✅ Active table ID: '{}'", id).into());
+                
+                // Get and log table bounds
+                if let Some((x, y, width, height)) = engine.table_manager.get_active_table_world_bounds() {
+                    web_sys::console::log_1(&format!(
+                        "[TABLE-INIT] ✅ Table bounds: origin=({}, {}), size={}x{}", 
+                        x, y, width, height
+                    ).into());
+                } else {
+                    web_sys::console::error_1(&"[TABLE-INIT] ❌ ERROR: Table exists but get_active_table_world_bounds() returned None!".into());
+                }
+            }
+            None => {
+                panic!("CRITICAL: Table was created but active_table_id is still None!");
+            }
+        }
+        
+        // Center camera on table center (600, 600 for 1200x1200 table)
+        engine.camera.center_on(600.0, 600.0);
+        web_sys::console::log_1(&"[TABLE-INIT] 📷 Camera centered on table (600, 600)".into());
+        
+        // Set camera bounds to match table (allows panning with padding)
+        if let Some((tx, ty, tw, th)) = engine.table_manager.get_active_table_world_bounds() {
+            engine.camera.set_table_bounds(tx, ty, tw, th);
+            engine.camera.allow_outside_table = true; // Allow some panning beyond table edges
+            
+            // Set fog system table bounds
+            engine.fog.set_table_bounds(tx as f32, ty as f32, tw as f32, th as f32);
+        }
         
         engine.update_view_matrix();
         Ok(engine)
@@ -183,55 +220,46 @@ impl RenderEngine {
             self.background_color[3]
         );
         
-        // Draw grid - restrict to active table area when available
-        let world_bounds = self.get_world_view_bounds();
-
-        // Debug: Check table state
-        web_sys::console::log_1(&format!("[TABLE-DEBUG] Active table ID: {:?}", self.table_manager.get_active_table_id()).into());
+        // ===== GRID RENDERING (TABLE-BOUNDED) =====
+        // Get what the camera can see (viewport in world coords)
+        let viewport_bounds = self.get_world_view_bounds();
         
-        // If we have an active table, use its world bounds to restrict the grid
-        let mut draw_bounds = world_bounds;
-        if let Some((tx, ty, tw, th)) = self.table_manager.get_active_table_world_bounds() {
-            web_sys::console::log_1(&format!("[TABLE-DEBUG] Table world bounds: ({}, {}) size {}x{}", tx, ty, tw, th).into());
-            
-            // Table bounds are already in world coordinates
-            let table_world = Rect::new(
-                tx as f32,
-                ty as f32,
-                tw as f32,
-                th as f32,
+        // Get table bounds (ALWAYS exists - enforced at initialization)
+        let (tx, ty, tw, th) = self.table_manager.get_active_table_world_bounds()
+            .expect("Table must exist!");
+        
+        let table_bounds = Rect::new(
+            tx as f32,
+            ty as f32,
+            tw as f32,
+            th as f32,
+        );
+        
+        // Grid only drawn where viewport intersects table
+        let intersect_min_x = viewport_bounds.min.x.max(table_bounds.min.x);
+        let intersect_min_y = viewport_bounds.min.y.max(table_bounds.min.y);
+        let intersect_max_x = viewport_bounds.max.x.min(table_bounds.max.x);
+        let intersect_max_y = viewport_bounds.max.y.min(table_bounds.max.y);
+        
+        // Only draw grid if there's overlap between viewport and table
+        if intersect_max_x > intersect_min_x && intersect_max_y > intersect_min_y {
+            let grid_draw_bounds = Rect::new(
+                intersect_min_x,
+                intersect_min_y,
+                intersect_max_x - intersect_min_x,
+                intersect_max_y - intersect_min_y,
             );
-
-            // Intersect view bounds with table world bounds
-            let intersect_min_x = draw_bounds.min.x.max(table_world.min.x);
-            let intersect_min_y = draw_bounds.min.y.max(table_world.min.y);
-            let intersect_max_x = draw_bounds.max.x.min(table_world.max.x);
-            let intersect_max_y = draw_bounds.max.y.min(table_world.max.y);
-
-            // Only draw if there is overlap
-            if intersect_max_x > intersect_min_x && intersect_max_y > intersect_min_y {
-                draw_bounds = Rect::new(
-                    intersect_min_x,
-                    intersect_min_y,
-                    intersect_max_x - intersect_min_x,
-                    intersect_max_y - intersect_min_y,
-                );
-            } else {
-                // No overlap -> empty rect
-                draw_bounds = Rect::new(0.0, 0.0, 0.0, 0.0);
-            }
-            
-            web_sys::console::log_1(&format!("[TABLE-DEBUG] Final grid draw bounds: ({}, {}) size {}x{}", 
-                draw_bounds.min.x, draw_bounds.min.y, draw_bounds.max.x - draw_bounds.min.x, draw_bounds.max.y - draw_bounds.min.y).into());
-        } else {
-            web_sys::console::log_1(&"[TABLE-DEBUG] No active table, drawing grid over entire view".into());
+            self.grid_system.draw_grid(&self.renderer, grid_draw_bounds)?;
         }
-
-        self.grid_system.draw_grid(&self.renderer, draw_bounds)?;
+        // else: viewport doesn't overlap table, no grid to draw
         
         // Sort layers by z_order
         let mut sorted_layers: Vec<_> = self.layer_manager.get_layers().iter().collect();
         sorted_layers.sort_by_key(|(_, layer)| layer.settings.z_order);
+
+        // Get active table ID for filtering entities
+        let active_table_id = self.table_manager.get_active_table_id()
+            .expect("Active table must exist!");
 
         // Render all layers except light and fog_of_war layers (they have special handling)
         for (layer_name, layer) in sorted_layers {
@@ -239,8 +267,11 @@ impl RenderEngine {
                 self.renderer.set_blend_mode(&layer.settings.blend_mode);
                 self.renderer.set_layer_color(&layer.settings.color);
                 
+                // Only render sprites that belong to the active table
                 for sprite in &layer.sprites {
-                    SpriteRenderer::draw_sprite(sprite, layer.settings.opacity, &self.renderer, &self.texture_manager, &self.input, self.camera.zoom)?;
+                    if sprite.table_id == active_table_id {
+                        SpriteRenderer::draw_sprite(sprite, layer.settings.opacity, &self.renderer, &self.texture_manager, &self.input, self.camera.zoom)?;
+                    }
                 }
             }
         }
@@ -249,8 +280,8 @@ impl RenderEngine {
         self.update_lighting_obstacles();
         
         web_sys::console::log_1(&"[RENDER-ORDER] 1️⃣ About to render lighting".into());
-        // Render lighting system with shadow casting
-        self.lighting.render_lights(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y)?;
+        // Render lighting system with shadow casting (filtered by active table)
+        self.lighting.render_lights_filtered(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y, Some(&active_table_id))?;
         web_sys::console::log_1(&"[RENDER-ORDER] 2️⃣ Lighting complete".into());
         
         // Render paint strokes (on top of everything except fog)
@@ -292,18 +323,13 @@ impl RenderEngine {
 
     #[wasm_bindgen]
     pub fn get_active_table_world_bounds(&self) -> Vec<f64> {
-        web_sys::console::log_1(&"[TABLE-DEBUG] get_active_table_world_bounds called".into());
-        
-        // Use table's world dimensions directly (no screen coordinate conversion needed)
+        // Table MUST exist - if it doesn't, this is a critical error
         if let Some((x, y, width, height)) = self.table_manager.get_active_table_world_bounds() {
-            let result = vec![x, y, width, height];
-            web_sys::console::log_1(&format!("[TABLE-DEBUG] Returning table world bounds: {:?}", result).into());
-            result
+            vec![x, y, width, height]
         } else {
-            let vb = self.get_world_view_bounds();
-            let result = vec![vb.min.x as f64, vb.min.y as f64, (vb.max.x - vb.min.x) as f64, (vb.max.y - vb.min.y) as f64];
-            web_sys::console::log_1(&format!("[TABLE-DEBUG] No table, returning view bounds: {:?}", result).into());
-            result
+            // This should NEVER happen - panic to catch bugs early
+            web_sys::console::error_1(&"[TABLE-ERROR] ❌ CRITICAL: No active table found!".into());
+            panic!("No active table found - this should never happen! Table creation must have failed.");
         }
     }
     

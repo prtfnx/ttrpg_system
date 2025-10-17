@@ -256,16 +256,16 @@ impl LightingSystem {
 
     /// Set obstacles for shadow casting
     pub fn set_obstacles(&mut self, obstacles: &[f32]) {
-        web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 📥 Received {} floats = {} segments", 
-            obstacles.len(), obstacles.len() / 4).into());
+        // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 📥 Received {} floats = {} segments", 
+        //     obstacles.len(), obstacles.len() / 4).into());
         
         let mut calc = self.visibility_calculator.borrow_mut();
         calc.clear();
         calc.add_segments_from_array(obstacles);
         
-        let segment_count = calc.get_segments().len();
-        web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 📐 VisibilityCalculator now has {} segments", 
-            segment_count).into());
+        // let segment_count = calc.get_segments().len();
+        // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 📐 VisibilityCalculator now has {} segments", 
+        //     segment_count).into());
         
         drop(calc); // Release borrow
         
@@ -294,7 +294,7 @@ impl LightingSystem {
         self.gl.clear_stencil(0);
         self.gl.clear(WebGlRenderingContext::STENCIL_BUFFER_BIT);
         
-        web_sys::console::log_1(&"[STENCIL-DEBUG] 🎭 Stencil buffer enabled and cleared".into());
+        // web_sys::console::log_1(&"[STENCIL-DEBUG] 🎭 Stencil buffer enabled and cleared".into());
         
         // Enable additive blending for light accumulation
         self.gl.enable(WebGlRenderingContext::BLEND);
@@ -370,7 +370,7 @@ impl LightingSystem {
         self.gl.blend_func(WebGlRenderingContext::SRC_ALPHA, WebGlRenderingContext::ONE_MINUS_SRC_ALPHA);
         self.gl.disable(WebGlRenderingContext::STENCIL_TEST);
         
-        web_sys::console::log_1(&"[STENCIL-DEBUG] 🎭 Stencil test disabled, rendering complete".into());
+        // web_sys::console::log_1(&"[STENCIL-DEBUG] 🎭 Stencil test disabled, rendering complete".into());
         
         self.obstacles_dirty = false;
         
@@ -409,8 +409,8 @@ impl LightingSystem {
         // Step 1: Compute and render shadow quads to stencil
         let shadow_quads = self.compute_shadow_quads(position, radius);
         
-        web_sys::console::log_1(&format!("[STENCIL-DEBUG] 🌑 Computing shadows for light at ({:.1}, {:.1}), found {} shadow quads", 
-            position.x, position.y, shadow_quads.len()).into());
+        // web_sys::console::log_1(&format!("[STENCIL-DEBUG] 🌑 Computing shadows for light at ({:.1}, {:.1}), found {} shadow quads", 
+        //     position.x, position.y, shadow_quads.len()).into());
         
         if !shadow_quads.is_empty() {
             // Write shadows to stencil (set to 1)
@@ -419,21 +419,21 @@ impl LightingSystem {
             self.gl.stencil_mask(0xFF); // Ensure stencil can be written
             self.gl.color_mask(false, false, false, false); // Don't write color, only stencil
             
-            web_sys::console::log_1(&"[STENCIL-DEBUG] 🎭 Stencil setup: ALWAYS pass, REPLACE with 1, color mask OFF".into());
+            // web_sys::console::log_1(&"[STENCIL-DEBUG] 🎭 Stencil setup: ALWAYS pass, REPLACE with 1, color mask OFF".into());
             
             // Render each shadow quad as triangle strip
             for (i, quad) in shadow_quads.iter().enumerate() {
                 if quad.len() == 4 {
                     let shadow_vertices = self.quad_to_vertices(quad);
-                    web_sys::console::log_1(&format!("[STENCIL-DEBUG] 🌑 Drawing shadow quad {} with {} vertices", 
-                        i, shadow_vertices.len() / 2).into());
+                    // web_sys::console::log_1(&format!("[STENCIL-DEBUG] 🌑 Drawing shadow quad {} with {} vertices", 
+                    //     i, shadow_vertices.len() / 2).into());
                     self.upload_and_draw_triangle_strip(&shadow_vertices, program)?;
                 }
             }
             
             // Re-enable color writing
             self.gl.color_mask(true, true, true, true);
-            web_sys::console::log_1(&"[STENCIL-DEBUG] ✅ Shadow quads written to stencil, color mask restored".into());
+            // web_sys::console::log_1(&"[STENCIL-DEBUG] ✅ Shadow quads written to stencil, color mask restored".into());
         }
         
         // Step 2: Render full light circle where stencil = 0 (not shadowed)
@@ -441,14 +441,14 @@ impl LightingSystem {
         self.gl.stencil_op(WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP);
         self.gl.stencil_mask(0x00); // Don't modify stencil during light rendering
         
-        web_sys::console::log_1(&"[STENCIL-DEBUG] 💡 Rendering light circle where stencil = 0 (not in shadow)".into());
+        // web_sys::console::log_1(&"[STENCIL-DEBUG] 💡 Rendering light circle where stencil = 0 (not in shadow)".into());
         
         // Render full light circle (only where NOT in shadow)
         let circle = self.generate_circle(position, radius);
         let circle_vertices = self.polygon_to_vertices_from_light(&circle, position);
         self.upload_and_draw_vertices(&circle_vertices, program)?;
         
-        web_sys::console::log_1(&format!("[STENCIL-DEBUG] ✅ Light circle drawn with {} vertices", circle_vertices.len() / 2).into());
+        // web_sys::console::log_1(&format!("[STENCIL-DEBUG] ✅ Light circle drawn with {} vertices", circle_vertices.len() / 2).into());
         
         // Reset stencil state
         self.gl.stencil_func(WebGlRenderingContext::ALWAYS, 0, 0xFF);

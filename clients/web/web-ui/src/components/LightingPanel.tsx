@@ -10,7 +10,7 @@ import styles from './LightingPanel.module.css';
 // ============================================================================
 
 /** Convert Light to Sprite data for protocol/storage */
-function lightToSprite(light: Light): Record<string, any> {
+function lightToSprite(light: Light, tableId: string): Record<string, any> {
   return {
     id: light.id,
     x: light.x,
@@ -20,6 +20,7 @@ function lightToSprite(light: Light): Record<string, any> {
     rotation: 0,
     texture_path: '__LIGHT__', // Special marker for light sprites
     layer: 'light',
+    table_id: tableId, // CRITICAL: Include table_id for table-specific lights
     metadata: JSON.stringify({
       isLight: true,
       color: light.color,
@@ -145,8 +146,6 @@ export const LightingPanel: React.FC = () => {
   // Clear lights when table changes
   useEffect(() => {
     if (!engine || !isEngineReady) return;
-
-    console.log('[LIGHTING] Table changed, clearing all lights');
     
     // Remove all existing lights from WASM
     for (const light of lights) {
@@ -167,7 +166,6 @@ export const LightingPanel: React.FC = () => {
   useEffect(() => {
     if (!engine || !isEngineReady || !activeTableId) return;
 
-    console.log('[LIGHTING] Loading lights from sprites for table:', activeTableId);
     const loadedLights: Light[] = [];
 
     // Find all sprites on the "light" layer and convert them to lights
@@ -268,7 +266,7 @@ export const LightingPanel: React.FC = () => {
           // Persist to server via protocol (if available)
           if (protocol) {
             console.log('[LIGHTING] Persisting light to server:', lightId);
-            const spriteData = lightToSprite(newLight);
+            const spriteData = lightToSprite(newLight, activeTableId || 'default_table');
             protocol.createSprite(spriteData);
           } else {
             console.warn('[LIGHTING] Protocol not available, light will not persist');
@@ -284,7 +282,7 @@ export const LightingPanel: React.FC = () => {
     return () => {
       window.removeEventListener('lightPlaced', handleLightPlaced);
     };
-  }, [engine, isEngineReady, lights]);
+  }, [engine, isEngineReady, lights, activeTableId, protocol]);
 
   // ============================================================================
   // CONDITIONAL RETURNS AFTER ALL HOOKS

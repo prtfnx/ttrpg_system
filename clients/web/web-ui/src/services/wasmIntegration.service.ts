@@ -233,6 +233,30 @@ class WasmIntegrationService {
       console.log('Using tableData:', tableData);
       console.log('TableData keys:', Object.keys(tableData));
       
+      // CRITICAL: Call handle_table_data to set the active table in WASM
+      // Transform data to match Rust's TableData struct requirements
+      if (tableData.table_id && (this.renderEngine as any).handle_table_data) {
+        console.log('[WASM] Setting active table to:', tableData.table_id);
+        
+        // Format data to match Rust TableData struct
+        const rustTableData = {
+          table_id: tableData.table_id,
+          table_name: tableData.table_name || tableData.name || tableData.table_id, // Ensure string, not undefined
+          name: tableData.table_name || tableData.name || tableData.table_id, // Legacy compatibility
+          width: tableData.width || 20,
+          height: tableData.height || 20,
+          scale: tableData.scale || 1.0,
+          x_moved: tableData.x_moved || 0,
+          y_moved: tableData.y_moved || 0,
+          show_grid: tableData.grid_enabled ?? true,
+          cell_side: tableData.grid_size || 50,
+          layers: tableData.layers || {} // Empty object is valid - Rust will deserialize to empty HashMap
+        };
+        
+        console.log('[WASM] Formatted table data:', rustTableData);
+        (this.renderEngine as any).handle_table_data(rustTableData);
+      }
+      
       // Handle table configuration
       if (tableData.grid_size) {
         this.renderEngine.set_grid_size(tableData.grid_size);

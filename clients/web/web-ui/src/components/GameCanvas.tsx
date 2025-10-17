@@ -158,22 +158,14 @@ export const GameCanvas: React.FC = () => {
   }, []);
 
   const handleMouseDown = useCallback((e: MouseEvent) => {
-    console.log('[MOUSE] Mouse down event:', e.clientX, e.clientY);
-    console.log('[MOUSE] lightPlacementMode:', lightPlacementMode);
-    console.log('[MOUSE] lightPlacementMode?.active:', lightPlacementMode?.active);
-    console.log('[MOUSE] rustRenderManagerRef.current:', !!rustRenderManagerRef.current);
-    
     // Check if we're in light placement mode
     if (lightPlacementMode?.active && rustRenderManagerRef.current) {
-      console.log('[MOUSE] In light placement mode - processing click');
       const { x, y } = getRelativeCoords(e);
       
       // Convert screen coordinates to world coordinates
       const worldCoords = rustRenderManagerRef.current.screen_to_world(x, y);
-      console.log('[MOUSE] World coords:', worldCoords);
       // Note: worldCoords is a Float64Array from WASM, not a plain array
       if (worldCoords && worldCoords.length === 2) {
-        console.log('[MOUSE] Dispatching lightPlaced event');
         // Dispatch event to LightingPanel with world coordinates
         window.dispatchEvent(new CustomEvent('lightPlaced', {
           detail: {
@@ -193,13 +185,10 @@ export const GameCanvas: React.FC = () => {
         console.warn('[MOUSE] Failed to get valid world coords');
       }
       return; // Don't process other mouse events
-    } else {
-      console.log('[MOUSE] NOT in light placement mode - normal click handling');
     }
     
     if (rustRenderManagerRef.current) {
       const { x, y } = getRelativeCoords(e);
-      console.log('[MOUSE] Relative coords:', x, y);
       // Check if we have the new Ctrl-aware method
       const renderManager = rustRenderManagerRef.current as any;
       if (renderManager.handle_mouse_down_with_ctrl) {
@@ -605,7 +594,6 @@ export const GameCanvas: React.FC = () => {
     // Use requestAnimationFrame to ensure layout is complete before measuring
     requestAnimationFrame(() => {
       resizeTimeout = window.setTimeout(() => {
-        console.log('📐 Canvas: Executing resize after layout complete');
         try { resizeCanvas(); } catch (e) { console.error('Scheduled resize failed', e); }
         resizeTimeout = null;
       }, 10); // Very short delay after layout is complete
@@ -628,10 +616,6 @@ export const GameCanvas: React.FC = () => {
       const dpr = window.devicePixelRatio || 1;
       dprRef.current = dpr;
       const containerRect = container.getBoundingClientRect();
-      const canvasRect = canvas.getBoundingClientRect();
-      
-      console.log('🖼️  Canvas: Container size:', containerRect.width, 'x', containerRect.height);
-      console.log('🖼️  Canvas: Canvas element size:', canvasRect.width, 'x', canvasRect.height);
       
       // Use container dimensions for the canvas size
       const targetWidth = containerRect.width;
@@ -644,11 +628,8 @@ export const GameCanvas: React.FC = () => {
       const currentDeviceHeight = canvas.height;
       
       if (newDeviceWidth === currentDeviceWidth && newDeviceHeight === currentDeviceHeight) {
-        console.log('⚠️  Canvas: Size unchanged, skipping resize');
         return;
       }
-      
-      console.log('🎯 Canvas: Actual size change detected:', currentDeviceWidth, 'x', currentDeviceHeight, '->', newDeviceWidth, 'x', newDeviceHeight);
 
       // Compute world coordinate at canvas center before changing internal size.
       // Use the canvas' current internal pixel size (canvas.width/height) to avoid
@@ -669,15 +650,10 @@ export const GameCanvas: React.FC = () => {
       }
 
       // Update canvas internal resolution
-      const oldWidth = canvas.width;
-      const oldHeight = canvas.height;
       canvas.width = newDeviceWidth;
       canvas.height = newDeviceHeight;
       canvas.style.width = targetWidth + 'px';
       canvas.style.height = targetHeight + 'px';
-      
-      console.log('🎨 Canvas: Updated canvas size from', oldWidth, 'x', oldHeight, 'to', canvas.width, 'x', canvas.height, 'pixels');
-      console.log('🎨 Canvas: Set CSS size to', targetWidth, 'x', targetHeight, 'pixels');
 
       // Notify WASM of resize if method exists. Try common names exported by wasm-bindgen.
       try {
@@ -685,15 +661,12 @@ export const GameCanvas: React.FC = () => {
         if (rm) {
           let resizeSuccess = false;
           if (typeof rm.resize_canvas === 'function') {
-            console.log('🦀 WASM: Calling resize_canvas with', canvas.width, 'x', canvas.height);
             rm.resize_canvas(canvas.width, canvas.height);
             resizeSuccess = true;
           } else if (typeof rm.resize === 'function') {
-            console.log('🦀 WASM: Calling resize with', canvas.width, 'x', canvas.height);
             rm.resize(canvas.width, canvas.height);
             resizeSuccess = true;
           } else if (typeof rm.resizeCanvas === 'function') {
-            console.log('🦀 WASM: Calling resizeCanvas with', canvas.width, 'x', canvas.height);
             rm.resizeCanvas(canvas.width, canvas.height);
             resizeSuccess = true;
           }

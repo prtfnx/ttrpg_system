@@ -16,6 +16,7 @@ pub struct Size {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Sprite {
     pub id: String,
+    pub table_id: String, // NEW: Associates sprite with specific table
     pub world_x: f64,
     pub world_y: f64,
     pub width: f64,
@@ -32,6 +33,7 @@ impl Sprite {
     pub fn new(id: String, world_x: f64, world_y: f64, width: f64, height: f64, layer: String) -> Self {
         Self {
             id,
+            table_id: "default_table".to_string(), // Default to default_table
             world_x,
             world_y,
             width,

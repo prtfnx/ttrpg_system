@@ -162,7 +162,7 @@ impl FogOfWarSystem {
         self.is_gm = is_gm;
     }
 
-    pub fn add_fog_rectangle(&mut self, id: String, start_x: f32, start_y: f32, end_x: f32, end_y: f32, mode: &str) {
+    pub fn add_fog_rectangle(&mut self, id: String, start_x: f32, start_y: f32, end_x: f32, end_y: f32, mode: &str, table_id: String) {
         let fog_mode = match mode {
             "reveal" => FogMode::Reveal,
             _ => FogMode::Hide,
@@ -188,11 +188,12 @@ impl FogOfWarSystem {
         };
         
         web_sys::console::log_1(&format!(
-            "[FOG] Adding fog rectangle: {} ({}, {}) → ({}, {}) mode: {}", 
-            id, clamped_start_x, clamped_start_y, clamped_end_x, clamped_end_y, mode
+            "[FOG] Adding fog rectangle: {} ({}, {}) → ({}, {}) mode: {} table: {}", 
+            id, clamped_start_x, clamped_start_y, clamped_end_x, clamped_end_y, mode, table_id
         ).into());
         
-        let rectangle = FogRectangle::new(id.clone(), clamped_start_x, clamped_start_y, clamped_end_x, clamped_end_y, fog_mode);
+        let mut rectangle = FogRectangle::new(id.clone(), clamped_start_x, clamped_start_y, clamped_end_x, clamped_end_y, fog_mode);
+        rectangle.table_id = table_id; // Set the table_id
         self.fog_rectangles.insert(id, rectangle);
         
         web_sys::console::log_1(&format!("[FOG] Total fog rectangles: {}", self.fog_rectangles.len()).into());
@@ -206,13 +207,14 @@ impl FogOfWarSystem {
         self.fog_rectangles.clear();
     }
 
-    pub fn hide_entire_table(&mut self, table_width: f32, table_height: f32) {
+    pub fn hide_entire_table(&mut self, table_width: f32, table_height: f32, table_id: String) {
         self.clear_fog();
         self.add_fog_rectangle(
             "full_table_fog".to_string(),
             0.0, 0.0,
             table_width, table_height,
-            "hide"
+            "hide",
+            table_id
         );
     }
 
@@ -280,7 +282,7 @@ impl FogOfWarSystem {
             self.gl.uniform1i(Some(&location), if self.is_gm { 1 } else { 0 });
         }
         
-        web_sys::console::log_1(&"[FOG-DEBUG] 🌫️ Rendering fog rectangles directly (no stencil)".into());
+        // web_sys::console::log_1(&"[FOG-DEBUG] 🌫️ Rendering fog rectangles directly (no stencil)".into());
         
         // Render fog rectangles directly (filtered by table_id if specified)
         for (i, rectangle) in self.fog_rectangles.values().enumerate() {
@@ -292,13 +294,13 @@ impl FogOfWarSystem {
             }
             
             if rectangle.mode == FogMode::Hide {
-                web_sys::console::log_1(&format!("[FOG-DEBUG] 🌫️ Drawing fog rectangle {} at ({}, {}) to ({}, {})", 
-                    i, rectangle.start.x, rectangle.start.y, rectangle.end.x, rectangle.end.y).into());
+                // web_sys::console::log_1(&format!("[FOG-DEBUG] 🌫️ Drawing fog rectangle {} at ({}, {}) to ({}, {})", 
+                //     i, rectangle.start.x, rectangle.start.y, rectangle.end.x, rectangle.end.y).into());
                 self.render_single_rectangle(program, rectangle)?;
             }
         }
         
-        web_sys::console::log_1(&"[FOG-DEBUG] 🌫️ Fog rendering complete".into());
+        // web_sys::console::log_1(&"[FOG-DEBUG] 🌫️ Fog rendering complete".into());
         
         Ok(())
     }

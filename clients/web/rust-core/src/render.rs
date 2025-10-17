@@ -288,8 +288,8 @@ impl RenderEngine {
         self.paint.render_strokes(&self.renderer)?;
         
         web_sys::console::log_1(&"[RENDER-ORDER] 3️⃣ About to render fog".into());
-        // Render fog of war system (should be rendered last, on top of everything)
-        self.fog.render_fog(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y)?;
+        // Render fog of war system (should be rendered last, on top of everything, filtered by active table)
+        self.fog.render_fog_filtered(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y, Some(&active_table_id))?;
         web_sys::console::log_1(&"[RENDER-ORDER] 4️⃣ Fog complete".into());
         
         // Draw area selection rectangle if active

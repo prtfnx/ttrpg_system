@@ -279,18 +279,18 @@ impl RenderEngine {
         // Extract obstacles for lighting shadows
         self.update_lighting_obstacles();
         
-        web_sys::console::log_1(&"[RENDER-ORDER] 1️⃣ About to render lighting".into());
+        // web_sys::console::log_1(&"[RENDER-ORDER] 1️⃣ About to render lighting".into());
         // Render lighting system with shadow casting (filtered by active table)
         self.lighting.render_lights_filtered(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y, Some(&active_table_id))?;
-        web_sys::console::log_1(&"[RENDER-ORDER] 2️⃣ Lighting complete".into());
+        // web_sys::console::log_1(&"[RENDER-ORDER] 2️⃣ Lighting complete".into());
         
         // Render paint strokes (on top of everything except fog)
         self.paint.render_strokes(&self.renderer)?;
         
-        web_sys::console::log_1(&"[RENDER-ORDER] 3️⃣ About to render fog".into());
+        // web_sys::console::log_1(&"[RENDER-ORDER] 3️⃣ About to render fog".into());
         // Render fog of war system (should be rendered last, on top of everything, filtered by active table)
         self.fog.render_fog_filtered(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y, Some(&active_table_id))?;
-        web_sys::console::log_1(&"[RENDER-ORDER] 4️⃣ Fog complete".into());
+        // web_sys::console::log_1(&"[RENDER-ORDER] 4️⃣ Fog complete".into());
         
         // Draw area selection rectangle if active
         if let Some((min, max)) = self.input.get_area_selection_rect() {
@@ -358,12 +358,12 @@ impl RenderEngine {
         
         // Extract obstacles from the "obstacles" layer
         if let Some(obstacles_layer) = self.layer_manager.get_layer("obstacles") {
-            web_sys::console::log_1(&format!("[LIGHTING-DEBUG] ✅ Found 'obstacles' layer with {} sprites", 
-                obstacles_layer.sprites.len()).into());
+            // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] ✅ Found 'obstacles' layer with {} sprites", 
+            //     obstacles_layer.sprites.len()).into());
             
             for sprite in &obstacles_layer.sprites {
-                web_sys::console::log_1(&format!("[LIGHTING-DEBUG]   - Sprite '{}' at ({}, {}) size {}x{}", 
-                    sprite.id, sprite.world_x, sprite.world_y, sprite.width, sprite.height).into());
+                // web_sys::console::log_1(&format!("[LIGHTING-DEBUG]   - Sprite '{}' at ({}, {}) size {}x{}", 
+                //     sprite.id, sprite.world_x, sprite.world_y, sprite.width, sprite.height).into());
                 
                 // IMPORTANT: world_x and world_y are TOP-LEFT corner, not center!
                 // Convert sprite bounds to 4 line segments (rectangle)
@@ -380,9 +380,9 @@ impl RenderEngine {
                     Vec2::new(x, y + h),     // Bottom-left
                 ];
                 
-                web_sys::console::log_1(&format!("[LIGHTING-DEBUG]     Corners: TL({:.1},{:.1}) TR({:.1},{:.1}) BR({:.1},{:.1}) BL({:.1},{:.1})", 
-                    corners[0].x, corners[0].y, corners[1].x, corners[1].y, 
-                    corners[2].x, corners[2].y, corners[3].x, corners[3].y).into());
+                // web_sys::console::log_1(&format!("[LIGHTING-DEBUG]     Corners: TL({:.1},{:.1}) TR({:.1},{:.1}) BR({:.1},{:.1}) BL({:.1},{:.1})", 
+                //     corners[0].x, corners[0].y, corners[1].x, corners[1].y, 
+                //     corners[2].x, corners[2].y, corners[3].x, corners[3].y).into());
                 
                 // Add four edges as line segments
                 for i in 0..4 {
@@ -397,8 +397,8 @@ impl RenderEngine {
             web_sys::console::error_1(&"[LIGHTING-DEBUG] ❌ ERROR: 'obstacles' layer NOT FOUND!".into());
         }
         
-        web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 📊 Sending {} obstacle segments ({} floats) to lighting system", 
-            obstacles.len() / 4, obstacles.len()).into());
+        // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 📊 Sending {} obstacle segments ({} floats) to lighting system", 
+        //     obstacles.len() / 4, obstacles.len()).into());
         
         // Update lighting system with obstacles
         self.lighting.set_obstacles(&obstacles);

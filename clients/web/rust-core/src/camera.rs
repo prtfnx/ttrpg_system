@@ -7,6 +7,8 @@ pub struct Camera {
     pub zoom: f64,
     pub min_zoom: f64,
     pub max_zoom: f64,
+    pub table_bounds: Option<(f64, f64, f64, f64)>, // (x, y, width, height)
+    pub allow_outside_table: bool,
 }
 
 impl Default for Camera {
@@ -17,11 +19,21 @@ impl Default for Camera {
             zoom: 1.0,
             min_zoom: 0.1,
             max_zoom: 5.0,
+            table_bounds: None,
+            allow_outside_table: true, // Allow some panning outside table by default
         }
     }
 }
 
 impl Camera {
+    pub fn set_table_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
+        self.table_bounds = Some((x, y, width, height));
+        web_sys::console::log_1(&format!(
+            "[CAMERA] Table bounds set: origin=({}, {}), size={}x{}", 
+            x, y, width, height
+        ).into());
+    }
+    
     pub fn view_matrix(&self, _canvas_size: Vec2) -> Mat3 {
         Mat3::from_scale_translation(
             Vec2::splat(self.zoom as f32),
@@ -67,6 +79,20 @@ impl Camera {
     pub fn pan(&mut self, world_delta_x: f64, world_delta_y: f64) {
         self.world_x += world_delta_x;
         self.world_y += world_delta_y;
+        
+        // Clamp to table bounds if set
+        if let Some((tx, ty, tw, th)) = self.table_bounds {
+            if self.allow_outside_table {
+                // Allow panning somewhat outside table (for better UX)
+                let padding = 500.0; // Can see 500px beyond table edges
+                self.world_x = self.world_x.clamp(tx - padding, tx + tw + padding);
+                self.world_y = self.world_y.clamp(ty - padding, ty + th + padding);
+            } else {
+                // Strict clamping to table bounds
+                self.world_x = self.world_x.clamp(tx, tx + tw);
+                self.world_y = self.world_y.clamp(ty, ty + th);
+            }
+        }
     }
     
     pub fn pan_by_screen_delta(&mut self, screen_delta: Vec2) {

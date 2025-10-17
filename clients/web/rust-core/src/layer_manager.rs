@@ -267,4 +267,49 @@ impl LayerManager {
         
         false
     }
+    
+    // ===== TABLE-BASED OPTIMIZATION METHODS =====
+    
+    /// Count sprites per table across all layers
+    pub fn count_sprites_by_table(&self) -> HashMap<String, usize> {
+        let mut counts = HashMap::new();
+        for layer in self.layers.values() {
+            for sprite in &layer.sprites {
+                *counts.entry(sprite.table_id.clone()).or_insert(0) += 1;
+            }
+        }
+        counts
+    }
+    
+    /// Get total sprite count for active table only
+    pub fn count_sprites_for_table(&self, table_id: &str) -> usize {
+        let mut count = 0;
+        for layer in self.layers.values() {
+            count += layer.sprites.iter().filter(|s| s.table_id == table_id).count();
+        }
+        count
+    }
+    
+    /// Remove all sprites not belonging to the specified table (optimization)
+    /// This is useful when switching tables to free memory
+    pub fn remove_sprites_not_in_table(&mut self, table_id: &str) -> usize {
+        let mut removed_count = 0;
+        for layer in self.layers.values_mut() {
+            let before_count = layer.sprites.len();
+            layer.sprites.retain(|sprite| sprite.table_id == table_id);
+            removed_count += before_count - layer.sprites.len();
+        }
+        removed_count
+    }
+    
+    /// Clear all sprites from a specific table
+    pub fn clear_sprites_for_table(&mut self, table_id: &str) -> usize {
+        let mut removed_count = 0;
+        for layer in self.layers.values_mut() {
+            let before_count = layer.sprites.len();
+            layer.sprites.retain(|sprite| sprite.table_id != table_id);
+            removed_count += before_count - layer.sprites.len();
+        }
+        removed_count
+    }
 }

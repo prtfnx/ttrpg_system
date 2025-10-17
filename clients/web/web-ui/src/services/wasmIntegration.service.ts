@@ -239,6 +239,24 @@ class WasmIntegrationService {
         console.log('[WASM] Setting active table to:', tableData.table_id);
         
         // Format data to match Rust TableData struct
+        // Convert layers object to proper HashMap<String, Vec<SpriteData>> format
+        const formattedLayers: Record<string, any[]> = {};
+        if (tableData.layers && typeof tableData.layers === 'object') {
+          // If layers is already an object with arrays, use it
+          // If layers is empty object {}, create default empty layers
+          Object.keys(tableData.layers).forEach(layerName => {
+            const layerData = tableData.layers[layerName];
+            formattedLayers[layerName] = Array.isArray(layerData) ? layerData : [];
+          });
+        }
+        // Ensure at least the default layers exist as empty arrays
+        if (Object.keys(formattedLayers).length === 0) {
+          formattedLayers['background'] = [];
+          formattedLayers['tokens'] = [];
+          formattedLayers['objects'] = [];
+          formattedLayers['foreground'] = [];
+        }
+        
         const rustTableData = {
           table_id: tableData.table_id,
           table_name: tableData.table_name || tableData.name || tableData.table_id, // Ensure string, not undefined
@@ -250,7 +268,7 @@ class WasmIntegrationService {
           y_moved: tableData.y_moved || 0,
           show_grid: tableData.grid_enabled ?? true,
           cell_side: tableData.grid_size || 50,
-          layers: tableData.layers || {} // Empty object is valid - Rust will deserialize to empty HashMap
+          layers: formattedLayers // Properly formatted HashMap<String, Vec<SpriteData>>
         };
         
         console.log('[WASM] Formatted table data:', rustTableData);

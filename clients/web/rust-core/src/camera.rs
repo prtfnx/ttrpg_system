@@ -63,6 +63,18 @@ impl Camera {
         let world_delta = world_point_before - world_point_after;
         self.world_x += world_delta.x as f64;
         self.world_y += world_delta.y as f64;
+        
+        // Clamp to table bounds after zoom to prevent jump on first drag
+        if let Some((tx, ty, tw, th)) = self.table_bounds {
+            if self.allow_outside_table {
+                let padding = 500.0;
+                self.world_x = self.world_x.clamp(tx - padding, tx + tw + padding);
+                self.world_y = self.world_y.clamp(ty - padding, ty + th + padding);
+            } else {
+                self.world_x = self.world_x.clamp(tx, tx + tw);
+                self.world_y = self.world_y.clamp(ty, ty + th);
+            }
+        }
     }
     
     pub fn center_on(&mut self, world_x: f64, world_y: f64) {

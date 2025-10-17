@@ -634,12 +634,16 @@ impl RenderEngine {
         }
         
         // Use the event system to handle mouse up events
+        let table_id = self.table_manager.get_active_table_id()
+            .unwrap_or("default_table".to_string());
+        
         let result = self.event_system.handle_mouse_up(
             world_pos,
             &mut self.input,
             self.layer_manager.get_layers_mut(),
             &mut self.lighting,
-            &mut self.fog
+            &mut self.fog,
+            table_id
         );
         
         // Handle event system results that need render engine specific operations
@@ -971,9 +975,19 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn add_light(&mut self, id: &str, x: f32, y: f32) {
         web_sys::console::log_1(&format!("[RUST] add_light called: id={}, x={}, y={}", id, x, y).into());
-        let light = crate::lighting::Light::new(id.to_string(), x, y);
+        
+        // Get active table_id
+        let active_table_opt = self.table_manager.get_active_table_id();
+        web_sys::console::log_1(&format!("[RUST] get_active_table_id returned: {:?}", active_table_opt).into());
+        
+        let table_id = active_table_opt.unwrap_or("default_table".to_string());
+        
+        let mut light = crate::lighting::Light::new(id.to_string(), x, y);
+        light.table_id = table_id.clone(); // Set the active table_id
+        
         self.lighting.add_light(light);
-        web_sys::console::log_1(&format!("[RUST] Light added successfully. Total lights: {}", self.lighting.get_light_count()).into());
+        web_sys::console::log_1(&format!("[RUST] Light added to table '{}'. Total lights: {}", 
+            table_id, self.lighting.get_light_count()).into());
     }
 
     #[wasm_bindgen]
@@ -1043,7 +1057,12 @@ impl RenderEngine {
 
     #[wasm_bindgen]
     pub fn add_fog_rectangle(&mut self, id: &str, start_x: f32, start_y: f32, end_x: f32, end_y: f32, mode: &str) {
-        self.fog.add_fog_rectangle(id.to_string(), start_x, start_y, end_x, end_y, mode);
+        // Get active table_id
+        let table_id = self.table_manager.get_active_table_id()
+            .unwrap_or("default_table".to_string());
+        
+        self.fog.add_fog_rectangle(id.to_string(), start_x, start_y, end_x, end_y, mode, table_id.clone());
+        web_sys::console::log_1(&format!("[RUST] Fog rectangle added to table '{}'", table_id).into());
     }
 
     #[wasm_bindgen]
@@ -1058,7 +1077,11 @@ impl RenderEngine {
 
     #[wasm_bindgen]
     pub fn hide_entire_table(&mut self, table_width: f32, table_height: f32) {
-        self.fog.hide_entire_table(table_width, table_height);
+        // Get active table_id
+        let table_id = self.table_manager.get_active_table_id()
+            .unwrap_or("default_table".to_string());
+        
+        self.fog.hide_entire_table(table_width, table_height, table_id);
     }
 
     #[wasm_bindgen]
@@ -1923,19 +1946,25 @@ impl RenderEngine {
 
         // Update table manager
         if let Some(table_id) = self.table_sync.get_table_id() {
+            web_sys::console::log_1(&format!("[RUST] handle_table_data: Setting active table to '{}'", table_id).into());
             self.table_manager.create_table(&table_id, &table.table_name, table.width, table.height)?;
             self.table_manager.set_active_table(&table_id);
+            
+            // Verify it was set
+            let active = self.table_manager.get_active_table_id();
+            web_sys::console::log_1(&format!("[RUST] handle_table_data: Active table is now: {:?}", active).into());
         }
 
         // Clear existing sprites from all layers
         self.layer_manager.clear_all_layers();
 
-        // Add sprites to appropriate layers
+        // Add sprites to appropriate layers - pass table_id to ensure correct association
+        let table_id = table.table_id.clone();
         for (_layer_name, sprites) in &table.layers {
             // Note: layer_name is available if needed for layer-specific logic
             for sprite_data in sprites {
                 // The sprite data already contains layer information
-                self.add_sprite_from_table_data(sprite_data)?;
+                self.add_sprite_from_table_data(sprite_data, &table_id)?;
             }
         }
 
@@ -1946,10 +1975,7 @@ impl RenderEngine {
     }
 
     /// Add a sprite from table sync data to the render engine
-    fn add_sprite_from_table_data(&mut self, sprite_data: &crate::table_sync::SpriteData) -> Result<(), JsValue> {
-        let active_table_id = self.table_manager.get_active_table_id()
-            .unwrap_or("default_table".to_string());
-        
+    fn add_sprite_from_table_data(&mut self, sprite_data: &crate::table_sync::SpriteData, table_id: &str) -> Result<(), JsValue> {
         // Convert table sync sprite data to render engine sprite
         let sprite = Sprite {
             id: sprite_data.sprite_id.clone(),
@@ -1963,7 +1989,7 @@ impl RenderEngine {
             layer: sprite_data.layer.clone(),
             texture_id: sprite_data.texture_path.clone(),
             tint_color: [1.0, 1.0, 1.0, 1.0], // Default white tint
-            table_id: active_table_id,
+            table_id: table_id.to_string(), // Use the table_id from TableData
         };
 
         // Add sprite to the appropriate layer
@@ -2039,7 +2065,11 @@ impl RenderEngine {
                         .map_err(|e| JsValue::from_str(&format!("Failed to convert sprite data: {}", e)))?;
                     let sprite: crate::table_sync::SpriteData = serde_wasm_bindgen::from_value(sprite_js)
                         .map_err(|e| JsValue::from_str(&format!("Failed to parse new sprite data: {}", e)))?;
-                    self.add_sprite_from_table_data(&sprite)?;
+                    
+                    // For real-time sprite creation, use active table
+                    let active_table_id = self.table_manager.get_active_table_id()
+                        .unwrap_or("default_table".to_string());
+                    self.add_sprite_from_table_data(&sprite, &active_table_id)?;
                 }
             }
             "sprite_remove" => {

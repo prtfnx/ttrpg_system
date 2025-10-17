@@ -612,11 +612,11 @@ impl LightingSystem {
         let mut shadow_quads = Vec::new();
         
         let segment_count = calc.get_segments().len();
-        web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 🌑 Computing shadows for light at ({:.1}, {:.1}) with radius {:.1}, {} segments available", 
-            light_pos.x, light_pos.y, radius, segment_count).into());
+        // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 🌑 Computing shadows for light at ({:.1}, {:.1}) with radius {:.1}, {} segments available", 
+        //     light_pos.x, light_pos.y, radius, segment_count).into());
         
         if segment_count == 0 {
-            web_sys::console::warn_1(&"[LIGHTING-DEBUG] ⚠️ WARNING: No segments for shadow casting!".into());
+            // web_sys::console::warn_1(&"[LIGHTING-DEBUG] ⚠️ WARNING: No segments for shadow casting!".into());
             return shadow_quads;
         }
         

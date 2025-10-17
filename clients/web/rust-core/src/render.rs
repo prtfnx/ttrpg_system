@@ -2089,4 +2089,116 @@ impl RenderEngine {
     pub fn set_table_error_handler(&mut self, callback: &js_sys::Function) {
         self.table_sync.set_error_handler(callback);
     }
+    
+    // ===== TABLE SWITCHING & OPTIMIZATION METHODS =====
+    
+    /// Switch to a different table and optionally unload entities from other tables
+    #[wasm_bindgen]
+    pub fn switch_table(&mut self, table_id: &str, unload_other_tables: bool) -> Result<(), JsValue> {
+        web_sys::console::log_1(&format!("[TABLE-SWITCH] Switching to table: {}", table_id).into());
+        
+        // Check if table exists
+        if !self.table_manager.set_active_table(table_id) {
+            return Err(JsValue::from_str(&format!("Table '{}' not found", table_id)));
+        }
+        
+        // Get table bounds and update camera + fog
+        if let Some((tx, ty, tw, th)) = self.table_manager.get_active_table_world_bounds() {
+            // Update camera bounds
+            self.camera.set_table_bounds(tx, ty, tw, th);
+            
+            // Update fog bounds
+            self.fog.set_table_bounds(tx as f32, ty as f32, tw as f32, th as f32);
+            
+            // Center camera on new table
+            let center_x = tx + tw / 2.0;
+            let center_y = ty + th / 2.0;
+            self.camera.center_on(center_x, center_y);
+            self.update_view_matrix();
+            
+            web_sys::console::log_1(&format!(
+                "[TABLE-SWITCH] ✅ Switched to table '{}', bounds: ({}, {}) size {}x{}", 
+                table_id, tx, ty, tw, th
+            ).into());
+        }
+        
+        // Optionally unload entities from other tables to save memory
+        if unload_other_tables {
+            let sprites_removed = self.layer_manager.remove_sprites_not_in_table(table_id);
+            let lights_removed = self.lighting.remove_lights_not_in_table(table_id);
+            let fog_removed = self.fog.remove_fog_not_in_table(table_id);
+            
+            web_sys::console::log_1(&format!(
+                "[TABLE-SWITCH] 🗑️ Optimization: Removed {} sprites, {} lights, {} fog from other tables",
+                sprites_removed, lights_removed, fog_removed
+            ).into());
+        }
+        
+        Ok(())
+    }
+    
+    /// Get statistics about entities per table
+    #[wasm_bindgen]
+    pub fn get_entity_stats_by_table(&self) -> JsValue {
+        let sprites_by_table = self.layer_manager.count_sprites_by_table();
+        let lights_by_table = self.lighting.count_lights_by_table();
+        let fog_by_table = self.fog.count_fog_by_table();
+        
+        let mut stats = js_sys::Object::new();
+        
+        // Get all unique table IDs
+        let mut all_table_ids = std::collections::HashSet::new();
+        all_table_ids.extend(sprites_by_table.keys().cloned());
+        all_table_ids.extend(lights_by_table.keys().cloned());
+        all_table_ids.extend(fog_by_table.keys().cloned());
+        
+        for table_id in all_table_ids {
+            let table_stats = js_sys::Object::new();
+            js_sys::Reflect::set(
+                &table_stats,
+                &"sprites".into(),
+                &(*sprites_by_table.get(&table_id).unwrap_or(&0) as f64).into(),
+            ).unwrap();
+            js_sys::Reflect::set(
+                &table_stats,
+                &"lights".into(),
+                &(*lights_by_table.get(&table_id).unwrap_or(&0) as f64).into(),
+            ).unwrap();
+            js_sys::Reflect::set(
+                &table_stats,
+                &"fog".into(),
+                &(*fog_by_table.get(&table_id).unwrap_or(&0) as f64).into(),
+            ).unwrap();
+            
+            js_sys::Reflect::set(&stats, &table_id.into(), &table_stats).unwrap();
+        }
+        
+        stats.into()
+    }
+    
+    /// Get entity count for active table only
+    #[wasm_bindgen]
+    pub fn get_active_table_entity_count(&self) -> JsValue {
+        let active_table_id = self.table_manager.get_active_table_id()
+            .expect("Active table must exist!");
+        
+        let counts = js_sys::Object::new();
+        js_sys::Reflect::set(
+            &counts,
+            &"sprites".into(),
+            &(self.layer_manager.count_sprites_for_table(&active_table_id) as f64).into(),
+        ).unwrap();
+        js_sys::Reflect::set(
+            &counts,
+            &"lights".into(),
+            &(self.lighting.count_lights_for_table(&active_table_id) as f64).into(),
+        ).unwrap();
+        js_sys::Reflect::set(
+            &counts,
+            &"fog".into(),
+            &(self.fog.count_fog_for_table(&active_table_id) as f64).into(),
+        ).unwrap();
+        
+        counts.into()
+    }
 }

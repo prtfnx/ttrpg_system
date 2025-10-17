@@ -30,30 +30,24 @@ export class WebClientProtocol {
   queueMessage(msg: Message) {
     // Skip batching if connection is not stable
     if (this.websocket?.readyState !== WebSocket.OPEN) {
-      console.log('⚠️ Protocol: WebSocket not open, cannot queue message. State:', this.websocket?.readyState);
       return;
     }
 
-    console.log('📦 Protocol: Adding message to batch queue:', { type: msg.type, queueLength: this.batchQueue.length + 1 });
     this.batchQueue.push(msg);
     
     // Start timer if not already running
     if (!this.batchTimer) {
-      console.log(`⏰ Protocol: Starting batch timer (${this.BATCH_DELAY_MS}ms)`);
       this.batchTimer = window.setTimeout(() => this.sendBatch(), this.BATCH_DELAY_MS);
     }
     
     // Send immediately if batch is getting large
     if (this.batchQueue.length >= this.MAX_BATCH_SIZE) {
-      console.log('🚀 Protocol: Batch queue full, sending immediately');
       this.sendBatch();
     }
   }
 
   /** Send all batched messages as a single batch */
   sendBatch() {
-    console.log('📨 Protocol: sendBatch called, queue length:', this.batchQueue.length);
-    
     // Clear timer first
     if (this.batchTimer) {
       clearTimeout(this.batchTimer);
@@ -61,13 +55,11 @@ export class WebClientProtocol {
     }
     
     if (this.batchQueue.length === 0) {
-      console.log('📭 Protocol: Batch queue empty, nothing to send');
       return;
     }
     
     // Check connection state before attempting to send
     if (this.websocket?.readyState !== WebSocket.OPEN) {
-      console.log('❌ Protocol: WebSocket not open, cannot send batch. State:', this.websocket?.readyState);
       // Keep messages in queue for retry when connection is restored
       return;
     }
@@ -76,8 +68,6 @@ export class WebClientProtocol {
     const batchMessage = createMessage(MessageType.BATCH, {
       messages: [...this.batchQueue]  // Copy the array to avoid mutation issues
     }, 1);
-    
-    console.log('🚀 Protocol: Sending batch with', this.batchQueue.length, 'messages:', this.batchQueue.map(m => m.type));
     
     try {
       this.websocket.send(JSON.stringify(batchMessage));
@@ -93,7 +83,6 @@ export class WebClientProtocol {
   /** Flush any pending batched messages when connection is restored */
   flushPendingBatches() {
     if (this.batchQueue.length > 0) {
-      console.log('🔄 Protocol: Flushing pending batch messages on connection restore');
       this.sendBatch();
     }
   }
@@ -111,8 +100,6 @@ export class WebClientProtocol {
 
   /** Override sendMessage to use batching for non-critical messages */
   sendMessage(message: Message): void {
-    console.log('📡 Protocol: sendMessage called with:', { type: message.type, websocketState: this.websocket?.readyState });
-    
     // Critical messages (table, actions, player, assets) sent immediately
     const critical = [
       'table_data', 'table_update', 'table_list_request', 'table_request', 'new_table_request', 'table_delete',
@@ -121,23 +108,14 @@ export class WebClientProtocol {
       'asset_upload_request', 'asset_download_request', 'asset_list_request', 'asset_delete_request', 'asset_hash_check'
     ];
     
-    console.log('🔍 Protocol: Checking if message is critical:', { 
-      type: message.type, 
-      isCritical: critical.includes(message.type),
-      criticalList: critical
-    });
-    
     if (critical.includes(message.type)) {
-      console.log('🔥 Protocol: Critical message, sending immediately');
+      console.log('� Protocol: Sending critical message:', message.type);
       if (this.websocket?.readyState === WebSocket.OPEN) {
-        console.log('✅ Protocol: WebSocket open, sending message');
         this.websocket.send(JSON.stringify(message));
       } else {
-        console.log('⏳ Protocol: WebSocket not open, queueing message');
         this.messageQueue.push(message);
       }
     } else {
-      console.log('📦 Protocol: Non-critical message, using batch queue');
       this.queueMessage(message);
     }
   }
@@ -382,8 +360,6 @@ export class WebClientProtocol {
   }
 
   private async handleBatch(message: Message): Promise<void> {
-    console.log('📦 Protocol: Received batch response:', message.data);
-    
     if (message.data && Array.isArray(message.data.messages)) {
       // Process each message in the batch response
       for (const msgData of message.data.messages) {
@@ -581,12 +557,13 @@ export class WebClientProtocol {
   }
 
   createSprite(spriteData: Record<string, unknown>): void {
-    const activeTableId = useGameStore.getState().activeTableId;
-    if (!activeTableId) {
-      console.error('[Protocol] No active table ID available for sprite create');
+    // Use table_id from spriteData if available, otherwise fall back to store
+    const tableId = (spriteData.table_id as string) || useGameStore.getState().activeTableId;
+    if (!tableId) {
+      console.error('[Protocol] No table ID available for sprite create (neither in spriteData nor store)');
       return;
     }
-    this.sendMessage(createMessage(MessageType.SPRITE_CREATE, { sprite: spriteData, table_id: activeTableId }, 2));
+    this.sendMessage(createMessage(MessageType.SPRITE_CREATE, { sprite_data: spriteData, table_id: tableId }, 2));
   }
 
   updateSprite(spriteId: string, updates: Record<string, unknown>): void {

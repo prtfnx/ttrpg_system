@@ -6,6 +6,7 @@ use crate::math::Vec2;
 #[derive(Clone, Debug)]
 pub struct FogRectangle {
     pub id: String,
+    pub table_id: String, // NEW: Associates fog with specific table
     pub start: Vec2,
     pub end: Vec2,
     pub mode: FogMode, // hide or reveal
@@ -21,6 +22,7 @@ impl FogRectangle {
     pub fn new(id: String, start_x: f32, start_y: f32, end_x: f32, end_y: f32, mode: FogMode) -> Self {
         Self {
             id,
+            table_id: "default_table".to_string(), // Default to default_table
             start: Vec2::new(start_x, start_y),
             end: Vec2::new(end_x, end_y),
             mode,
@@ -53,6 +55,7 @@ pub struct FogOfWarSystem {
     fog_shader: Option<WebGlProgram>,
     fog_rectangles: HashMap<String, FogRectangle>,
     is_gm: bool,
+    table_bounds: Option<(f32, f32, f32, f32)>, // (x, y, width, height)
 }
 
 impl FogOfWarSystem {
@@ -62,10 +65,19 @@ impl FogOfWarSystem {
             fog_shader: None,
             fog_rectangles: HashMap::new(),
             is_gm: false,
+            table_bounds: None,
         };
         
         system.init_shaders()?;
         Ok(system)
+    }
+    
+    pub fn set_table_bounds(&mut self, x: f32, y: f32, width: f32, height: f32) {
+        self.table_bounds = Some((x, y, width, height));
+        web_sys::console::log_1(&format!(
+            "[FOG-INIT] Table bounds set: origin=({}, {}), size={}x{}", 
+            x, y, width, height
+        ).into());
     }
 
     fn init_shaders(&mut self) -> Result<(), JsValue> {
@@ -155,12 +167,34 @@ impl FogOfWarSystem {
             _ => FogMode::Hide,
         };
         
-        web_sys::console::log_1(&format!("Adding fog rectangle: {} ({}, {}) -> ({}, {}) mode: {}", id, start_x, start_y, end_x, end_y, mode).into());
+        // Clamp coordinates to table bounds if table bounds are set
+        let (clamped_start_x, clamped_start_y, clamped_end_x, clamped_end_y) = if let Some((tx, ty, tw, th)) = self.table_bounds {
+            let clamped_sx = start_x.clamp(tx, tx + tw);
+            let clamped_sy = start_y.clamp(ty, ty + th);
+            let clamped_ex = end_x.clamp(tx, tx + tw);
+            let clamped_ey = end_y.clamp(ty, ty + th);
+            
+            if start_x != clamped_sx || start_y != clamped_sy || end_x != clamped_ex || end_y != clamped_ey {
+                web_sys::console::log_1(&format!(
+                    "[FOG] Coordinates clamped to table: ({}, {}) → ({}, {}) became ({}, {}) → ({}, {})",
+                    start_x, start_y, end_x, end_y, clamped_sx, clamped_sy, clamped_ex, clamped_ey
+                ).into());
+            }
+            
+            (clamped_sx, clamped_sy, clamped_ex, clamped_ey)
+        } else {
+            (start_x, start_y, end_x, end_y)
+        };
         
-        let rectangle = FogRectangle::new(id.clone(), start_x, start_y, end_x, end_y, fog_mode);
+        web_sys::console::log_1(&format!(
+            "[FOG] Adding fog rectangle: {} ({}, {}) → ({}, {}) mode: {}", 
+            id, clamped_start_x, clamped_start_y, clamped_end_x, clamped_end_y, mode
+        ).into());
+        
+        let rectangle = FogRectangle::new(id.clone(), clamped_start_x, clamped_start_y, clamped_end_x, clamped_end_y, fog_mode);
         self.fog_rectangles.insert(id, rectangle);
         
-        web_sys::console::log_1(&format!("Total fog rectangles: {}", self.fog_rectangles.len()).into());
+        web_sys::console::log_1(&format!("[FOG] Total fog rectangles: {}", self.fog_rectangles.len()).into());
     }
 
     pub fn remove_fog_rectangle(&mut self, id: &str) {

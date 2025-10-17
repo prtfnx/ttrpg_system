@@ -267,7 +267,8 @@ impl EventSystem {
         input: &mut InputHandler,
         layers: &mut HashMap<String, Layer>,
         lighting: &mut LightingSystem,
-        fog: &mut FogOfWarSystem
+        fog: &mut FogOfWarSystem,
+        table_id: String
     ) -> MouseEventResult {
         match input.input_mode {
             InputMode::AreaSelect => {
@@ -300,7 +301,7 @@ impl EventSystem {
                     
                     let min_size = 10.0;
                     if (end.x - start.x).abs() > min_size && (end.y - start.y).abs() > min_size {
-                        fog.add_fog_rectangle(id, start.x, start.y, end.x, end.y, mode_str);
+                        fog.add_fog_rectangle(id, start.x, start.y, end.x, end.y, mode_str, table_id.clone());
                     }
                 }
                 input.input_mode = InputMode::None;

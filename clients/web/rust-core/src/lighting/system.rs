@@ -21,6 +21,7 @@ pub enum LightType {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Light {
     pub id: String,
+    pub table_id: String, // NEW: Associates light with specific table
     pub position: Vec2,
     pub color: Color,
     pub intensity: f32,
@@ -40,6 +41,7 @@ impl Light {
     pub fn new(id: String, x: f32, y: f32) -> Self {
         Self {
             id,
+            table_id: "default_table".to_string(), // Default to default_table
             position: Vec2::new(x, y),
             color: Color::new(1.0, 1.0, 0.9, 1.0), // Warm white
             intensity: 1.0,
@@ -278,6 +280,12 @@ impl LightingSystem {
     /// Render all lights with shadow casting
     /// Strategy: Render full light circle, then subtract shadow volumes
     pub fn render_lights(&mut self, view_matrix: &[f32; 9], canvas_width: f32, canvas_height: f32) -> Result<(), JsValue> {
+        // Default: render all lights (backwards compatibility)
+        self.render_lights_filtered(view_matrix, canvas_width, canvas_height, None)
+    }
+    
+    /// Render lights filtered by table_id
+    pub fn render_lights_filtered(&mut self, view_matrix: &[f32; 9], canvas_width: f32, canvas_height: f32, table_id: Option<&str>) -> Result<(), JsValue> {
         let program = self.light_shader.as_ref().ok_or("Light shader not initialized")?;
         
         // Enable stencil test for shadow masking
@@ -305,15 +313,23 @@ impl LightingSystem {
             self.gl.uniform2f(Some(&location), canvas_width, canvas_height);
         }
         
-        // Render each light
+        // Render each light (filtered by table_id if specified)
         let light_ids: Vec<String> = self.lights.keys().cloned().collect();
         for light_id in light_ids {
             // Get light data for rendering
-            let (id, position, color, intensity, radius, falloff, cached_polygon, dirty) = {
+            let (id, position, color, intensity, radius, falloff, cached_polygon, dirty, light_table_id) = {
                 if let Some(light) = self.lights.get(&light_id) {
                     if !light.is_on {
                         continue;
                     }
+                    
+                    // Filter by table_id if specified
+                    if let Some(filter_table_id) = table_id {
+                        if light.table_id != filter_table_id {
+                            continue; // Skip lights not belonging to active table
+                        }
+                    }
+                    
                     (
                         light.id.clone(),
                         light.position,
@@ -323,6 +339,7 @@ impl LightingSystem {
                         light.falloff,
                         light.cached_polygon.clone(),
                         light.dirty,
+                        light.table_id.clone(),
                     )
                 } else {
                     continue;

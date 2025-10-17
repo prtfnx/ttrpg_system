@@ -1231,6 +1231,9 @@ impl RenderEngine {
             web_sys::console::log_1(&format!("[RUST] Failed to create rectangle texture: {:?}", e).into());
         }
         
+        let active_table_id = self.table_manager.get_active_table_id()
+            .unwrap_or("default_table".to_string());
+        
         let sprite = Sprite {
             id: sprite_id.clone(),
             world_x: x as f64,
@@ -1243,6 +1246,7 @@ impl RenderEngine {
             layer: layer_name.to_string(),
             texture_id: texture_name, // Use procedural rectangle texture
             tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
+            table_id: active_table_id,
         };
         
         web_sys::console::log_1(&format!("[RUST] Created sprite {}, adding to layer '{}'", sprite_id, layer_name).into());
@@ -1274,6 +1278,9 @@ impl RenderEngine {
             web_sys::console::log_1(&format!("[RUST] Failed to create circle texture: {:?}", e).into());
         }
         
+        let active_table_id = self.table_manager.get_active_table_id()
+            .unwrap_or("default_table".to_string());
+        
         let sprite = Sprite {
             id: sprite_id.clone(),
             world_x: (x - radius) as f64,
@@ -1286,6 +1293,7 @@ impl RenderEngine {
             layer: layer_name.to_string(),
             texture_id: texture_name, // Use procedural circle texture
             tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
+            table_id: active_table_id,
         };
         
         // Convert to JsValue for layer manager
@@ -1326,6 +1334,9 @@ impl RenderEngine {
             web_sys::console::log_1(&format!("[RUST] Failed to create line texture: {:?}", e).into());
         }
         
+        let active_table_id = self.table_manager.get_active_table_id()
+            .unwrap_or("default_table".to_string());
+        
         let sprite = Sprite {
             id: sprite_id.clone(),
             world_x: (center_x - length / 2.0) as f64,
@@ -1338,6 +1349,7 @@ impl RenderEngine {
             layer: layer_name.to_string(),
             texture_id: texture_name, // Use procedural line texture
             tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
+            table_id: active_table_id,
         };
         
         // Convert to JsValue for layer manager
@@ -1394,6 +1406,9 @@ impl RenderEngine {
         let network_data: crate::network::SpriteNetworkData = 
             serde_wasm_bindgen::from_value(sprite_data.clone())?;
         
+        let active_table_id = self.table_manager.get_active_table_id()
+            .unwrap_or("default_table".to_string());
+        
         // Create a new sprite from network data
         let sprite = Sprite {
             id: network_data.sprite_id.clone(),
@@ -1407,6 +1422,7 @@ impl RenderEngine {
             layer: network_data.layer_name.clone(),
             texture_id: network_data.texture_name,
             tint_color: [1.0, 1.0, 1.0, 1.0],
+            table_id: active_table_id,
         };
         
         let sprite_js = serde_wasm_bindgen::to_value(&sprite)?;
@@ -1807,25 +1823,27 @@ impl RenderEngine {
                             color[3].as_f64().unwrap_or(1.0) as f32,
                         ]
                     } else {
-                        [1.0, 1.0, 1.0, 1.0]
-                    };
-                    
-                    // Create a sprite representing the paint stroke
-                    let sprite = Sprite {
-                        id: sprite_id.clone(),
-                        world_x: min_x,
-                        world_y: min_y,
-                        width: sprite_width,
-                        height: sprite_height,
-                        rotation: 0.0,
-                        scale_x: 1.0,
-                        scale_y: 1.0,
-                        texture_id: format!("paint_stroke_{}", id), // Custom texture ID for paint stroke
-                        tint_color,
-                        layer: layer_name.to_string(),
-                    };
-                    
-                    // Convert sprite to JsValue and add to layer manager
+                    [1.0, 1.0, 1.0, 1.0]
+                };
+                
+                let active_table_id = self.table_manager.get_active_table_id()
+                    .unwrap_or("default_table".to_string());
+                
+                // Create a sprite representing the paint stroke
+                let sprite = Sprite {
+                    id: sprite_id.clone(),
+                    world_x: min_x,
+                    world_y: min_y,
+                    width: sprite_width,
+                    height: sprite_height,
+                    rotation: 0.0,
+                    scale_x: 1.0,
+                    scale_y: 1.0,
+                    texture_id: format!("paint_stroke_{}", id), // Custom texture ID for paint stroke
+                    tint_color,
+                    layer: layer_name.to_string(),
+                    table_id: active_table_id,
+                };                    // Convert sprite to JsValue and add to layer manager
                     if let Ok(sprite_js) = serde_wasm_bindgen::to_value(&sprite) {
                         match self.layer_manager.add_sprite_to_layer(layer_name, &sprite_js) {
                             Ok(sprite_id) => {
@@ -1929,6 +1947,9 @@ impl RenderEngine {
 
     /// Add a sprite from table sync data to the render engine
     fn add_sprite_from_table_data(&mut self, sprite_data: &crate::table_sync::SpriteData) -> Result<(), JsValue> {
+        let active_table_id = self.table_manager.get_active_table_id()
+            .unwrap_or("default_table".to_string());
+        
         // Convert table sync sprite data to render engine sprite
         let sprite = Sprite {
             id: sprite_data.sprite_id.clone(),
@@ -1942,6 +1963,7 @@ impl RenderEngine {
             layer: sprite_data.layer.clone(),
             texture_id: sprite_data.texture_path.clone(),
             tint_color: [1.0, 1.0, 1.0, 1.0], // Default white tint
+            table_id: active_table_id,
         };
 
         // Add sprite to the appropriate layer
@@ -2144,7 +2166,7 @@ impl RenderEngine {
         let lights_by_table = self.lighting.count_lights_by_table();
         let fog_by_table = self.fog.count_fog_by_table();
         
-        let mut stats = js_sys::Object::new();
+        let stats = js_sys::Object::new();
         
         // Get all unique table IDs
         let mut all_table_ids = std::collections::HashSet::new();

@@ -40,6 +40,7 @@ impl FogRectangle {
             start: Vec2::new(min_x, min_y),
             end: Vec2::new(max_x, max_y),
             mode: self.mode.clone(),
+            table_id: self.table_id.clone(),
         }
     }
 

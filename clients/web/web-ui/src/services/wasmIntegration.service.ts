@@ -267,6 +267,7 @@ class WasmIntegrationService {
             // Layer data is an array of sprites
             layerData.forEach((spriteData: any) => {
               spriteData.layer = layerName; // Ensure layer is set
+              spriteData.table_id = tableData.table_id || 'default_table'; // Add table_id
               this.addSpriteToWasm(spriteData);
             });
           } else if (layerData && typeof layerData === 'object') {
@@ -274,6 +275,7 @@ class WasmIntegrationService {
             if (layerData.sprites && Array.isArray(layerData.sprites)) {
               layerData.sprites.forEach((spriteData: any) => {
                 spriteData.layer = layerName;
+                spriteData.table_id = tableData.table_id || 'default_table'; // Add table_id
                 this.addSpriteToWasm(spriteData);
               });
             } else {
@@ -281,6 +283,7 @@ class WasmIntegrationService {
               Object.values(layerData).forEach((spriteData: any) => {
                 if (spriteData && typeof spriteData === 'object' && spriteData.sprite_id) {
                   spriteData.layer = layerName;
+                  spriteData.table_id = tableData.table_id || 'default_table'; // Add table_id
                   this.addSpriteToWasm(spriteData);
                 }
               });
@@ -726,7 +729,8 @@ class WasmIntegrationService {
         rotation: spriteData.rotation || 0.0,
         layer: layer,
         texture_id: assetId || '',  // Use asset_id as texture_id so it matches loaded texture
-        tint_color: spriteData.tint_color || [1.0, 1.0, 1.0, 1.0]
+        tint_color: spriteData.tint_color || [1.0, 1.0, 1.0, 1.0],
+        table_id: spriteData.table_id || 'default_table'  // Use table_id from spriteData
       };
 
       console.log('Converted sprite for WASM:', wasmSprite);

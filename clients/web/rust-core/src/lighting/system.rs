@@ -689,10 +689,6 @@ impl LightingSystem {
             }
         }
     
-    web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 🌑 Segment analysis: {} back-facing (casting shadows), {} front-facing (lit)", 
-        back_facing_count, front_facing_count).into());
-    web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 🌑 Generated {} shadow quads", shadow_quads.len()).into());
-    
     shadow_quads
 }
 

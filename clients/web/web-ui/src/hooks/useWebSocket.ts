@@ -30,15 +30,11 @@ export function useWebSocket(url: string) {
   }), []);
 
   const sendMessage = useCallback((message: WebSocketMessage) => {
-    console.log('[WebSocket] sendMessage called:', message);
     if (protocol && protocol.isConnected && protocol.isConnected()) {
-      console.log('[WebSocket] Sending message via protocol:', message);
       protocol.sendMessage(message);
     } else if (wsRef.current?.readyState === WebSocket.OPEN) {
-      console.log('[WebSocket] Sending message over socket:', message);
       wsRef.current.send(JSON.stringify(message));
     } else {
-      console.log('[WebSocket] Socket not open, queueing message:', message);
       messageQueueRef.current.push(message);
     }
   }, []);
@@ -61,7 +57,6 @@ export function useWebSocket(url: string) {
   const handleMessage = useCallback((payload: any) => {
     try {
       const message: WebSocketMessage = typeof payload === 'string' ? JSON.parse(payload) : payload;
-      console.log('[WebSocket] handleMessage received:', message);
       switch (message.type) {
         case 'sprite_update':
           if (message.data && typeof message.data === 'object') {

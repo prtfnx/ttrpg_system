@@ -582,12 +582,6 @@ export const GameCanvas: React.FC = () => {
   // Debounced resize scheduling shared across the effect scope so cleanup can access it
   let resizeTimeout: number | null = null;
   const scheduleResize = () => {
-    console.log('🔄 Canvas: Scheduling resize due to layout change');
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const rect = canvas.getBoundingClientRect();
-      console.log('📏 Canvas: Current canvas rect when resize scheduled:', rect.width, 'x', rect.height);
-    }
     if (resizeTimeout) {
       window.clearTimeout(resizeTimeout);
     }

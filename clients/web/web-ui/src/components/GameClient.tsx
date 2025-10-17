@@ -149,9 +149,6 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     };
     
     const onDragEnd = () => {
-      if (dragRef.current) {
-        console.log(`✅ GameClient: Finished resizing ${dragRef.current.side} panel`);
-      }
       dragRef.current = null;
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
@@ -159,7 +156,6 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
       // Final resize trigger after drag ends to ensure canvas updates
       setTimeout(() => {
         window.dispatchEvent(new Event('resize'));
-        console.log('🔄 GameClient: Final resize trigger after panel drag end');
       }, 100);
     };
     

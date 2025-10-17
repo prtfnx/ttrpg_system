@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     layer: layer,
                     texture_id: data.texture_path ?? data.asset_id ?? '',
                     tint_color: [1.0, 1.0, 1.0, 1.0],
+                    table_id: data.table_id ?? 'default_table', // Use default table if not specified
                   };
                   console.log('[integration] Forwarding to WASM add_sprite_to_layer:', layer, sprite);
                   window.rustRenderManager.add_sprite_to_layer(layer, sprite);

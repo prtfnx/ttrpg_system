@@ -55,6 +55,8 @@ class PerformanceService {
   private isMonitoring: boolean = false;
   private monitoringInterval: number | null = null;
   private renderEngine: any = null;
+  private lastOptimizationTime: number = 0;
+  private readonly OPTIMIZATION_COOLDOWN_MS = 10000; // 10 seconds cooldown
 
   // Sprite and texture caching
   private spriteCache = new Map<string, any>();
@@ -332,15 +334,27 @@ class PerformanceService {
    * Auto-optimize based on current performance
    */
   private optimizeIfNeeded(): void {
+    const now = performance.now();
+    
+    // Enforce cooldown to prevent oscillation
+    if (now - this.lastOptimizationTime < this.OPTIMIZATION_COOLDOWN_MS) {
+      return;
+    }
+    
     const targetFPS = this.getTargetFPS();
     
-    // If FPS is consistently below target, reduce quality
-    if (this.metrics.averageFPS < targetFPS * 0.8) {
+    // Require more extreme conditions to trigger optimization
+    // If FPS is consistently below 70% of target, reduce quality
+    if (this.metrics.averageFPS < targetFPS * 0.7) {
+      console.log(`📉 Auto-downgrading: FPS ${this.metrics.averageFPS.toFixed(1)} < ${(targetFPS * 0.7).toFixed(1)} (70% of target ${targetFPS})`);
       this.downgradePerformance();
+      this.lastOptimizationTime = now;
     }
-    // If FPS is consistently above target with headroom, upgrade quality
-    else if (this.metrics.averageFPS > targetFPS * 1.2 && this.metrics.memoryUsage.usedJSHeapSize < this.metrics.memoryUsage.jsHeapSizeLimit * 0.7) {
+    // If FPS is consistently above 150% of target with memory headroom, upgrade quality
+    else if (this.metrics.averageFPS > targetFPS * 1.5 && this.metrics.memoryUsage.usedJSHeapSize < this.metrics.memoryUsage.jsHeapSizeLimit * 0.6) {
+      console.log(`📈 Auto-upgrading: FPS ${this.metrics.averageFPS.toFixed(1)} > ${(targetFPS * 1.5).toFixed(1)} (150% of target ${targetFPS})`);
       this.upgradePerformance();
+      this.lastOptimizationTime = now;
     }
   }
 
@@ -355,8 +369,6 @@ class PerformanceService {
   }
 
   private downgradePerformance(): void {
-    console.log('📉 Auto-downgrading performance settings due to low FPS');
-    
     if (this.settings.level === PerformanceLevel.HIGH) {
       this.updateSettings({ level: PerformanceLevel.MEDIUM });
     } else if (this.settings.level === PerformanceLevel.MEDIUM) {
@@ -367,8 +379,6 @@ class PerformanceService {
   }
 
   private upgradePerformance(): void {
-    console.log('📈 Auto-upgrading performance settings due to high FPS');
-    
     if (this.settings.level === PerformanceLevel.LOW) {
       this.updateSettings({ level: PerformanceLevel.MEDIUM });
     } else if (this.settings.level === PerformanceLevel.MEDIUM) {

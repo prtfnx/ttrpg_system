@@ -809,4 +809,34 @@ impl LightingSystem {
     pub fn get_ambient_light(&self) -> f32 {
         self.ambient_light
     }
+    
+    // ===== TABLE-BASED OPTIMIZATION METHODS =====
+    
+    /// Count lights per table
+    pub fn count_lights_by_table(&self) -> std::collections::HashMap<String, usize> {
+        let mut counts = std::collections::HashMap::new();
+        for light in self.lights.values() {
+            *counts.entry(light.table_id.clone()).or_insert(0) += 1;
+        }
+        counts
+    }
+    
+    /// Get light count for specific table only
+    pub fn count_lights_for_table(&self, table_id: &str) -> usize {
+        self.lights.values().filter(|light| light.table_id == table_id).count()
+    }
+    
+    /// Remove all lights not belonging to the specified table (optimization)
+    pub fn remove_lights_not_in_table(&mut self, table_id: &str) -> usize {
+        let before_count = self.lights.len();
+        self.lights.retain(|_, light| light.table_id == table_id);
+        before_count - self.lights.len()
+    }
+    
+    /// Clear all lights from a specific table
+    pub fn clear_lights_for_table(&mut self, table_id: &str) -> usize {
+        let before_count = self.lights.len();
+        self.lights.retain(|_, light| light.table_id != table_id);
+        before_count - self.lights.len()
+    }
 }

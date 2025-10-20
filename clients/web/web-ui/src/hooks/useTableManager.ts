@@ -13,6 +13,10 @@ export interface TableInfo {
   table_scale: number;
   show_grid: boolean;
   cell_side: number;
+  // Sync state tracking (best practice: local-first architecture)
+  syncStatus?: 'local' | 'syncing' | 'synced' | 'error';
+  lastSyncTime?: number;
+  syncError?: string;
 }
 
 export interface ScreenArea {
@@ -90,7 +94,18 @@ export const useTableManager = (): UseTableManagerReturn => {
     
     try {
       tableManager.create_table(tableId, tableName, width, height);
+      
+      // BEST PRACTICE: Mark newly created tables as 'local' (optimistic UI update)
+      // They will be marked as 'synced' after successful server confirmation
       refreshTables();
+      
+      // Update the sync status of the newly created table
+      setTables(prev => prev.map(t => 
+        t.table_id === tableId 
+          ? { ...t, syncStatus: 'local' as const, lastSyncTime: undefined }
+          : t
+      ));
+      
       return true;
     } catch (error) {
       console.error('Failed to create table:', error);

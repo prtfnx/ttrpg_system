@@ -193,9 +193,10 @@ impl RenderEngine {
             }
         }
         
-        // Center camera on table center (600, 600 for 1200x1200 table)
-        engine.camera.center_on(600.0, 600.0);
-        web_sys::console::log_1(&"[TABLE-INIT] 📷 Camera centered on table (600, 600)".into());
+        // Position camera at table origin (0, 0)
+        // This makes screen top-left align with table top-left
+        engine.camera.center_on(0.0, 0.0);
+        web_sys::console::log_1(&"[TABLE-INIT] 📷 Camera positioned at table origin (0, 0)".into());
         
         // Set camera bounds to match table (allows panning with padding)
         if let Some((tx, ty, tw, th)) = engine.table_manager.get_active_table_world_bounds() {
@@ -419,7 +420,9 @@ impl RenderEngine {
     
     #[wasm_bindgen]
     pub fn handle_wheel(&mut self, screen_x: f32, screen_y: f32, delta_y: f32) {
-        web_sys::console::log_1(&format!("[RUST] Wheel event at screen: {}, {}, delta: {}", screen_x, screen_y, delta_y).into());
+        // Debug-only wheel logging to avoid spamming console
+        #[cfg(debug_assertions)]
+        web_sys::console::debug_1(&format!("[RUST-DEBUG] Wheel event at screen: {}, {}, delta: {}", screen_x, screen_y, delta_y).into());
         self.camera.handle_wheel(screen_x, screen_y, delta_y);
         self.update_view_matrix();
     }
@@ -488,7 +491,12 @@ impl RenderEngine {
     
     #[wasm_bindgen]
     pub fn handle_mouse_down(&mut self, screen_x: f32, screen_y: f32) {
-        web_sys::console::log_1(&format!("[RUST] Mouse down at screen: {}, {}", screen_x, screen_y).into());
+        let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
+        web_sys::console::log_1(&format!(
+            "[CLICK] Screen({:.0}, {:.0}) → World({:.1}, {:.1}) | Camera({:.1}, {:.1}) @ zoom {:.2}",
+            screen_x, screen_y, world_pos.x, world_pos.y, 
+            self.camera.world_x, self.camera.world_y, self.camera.zoom
+        ).into());
         self.handle_mouse_down_with_modifiers(screen_x, screen_y, false)
     }
     
@@ -499,7 +507,6 @@ impl RenderEngine {
     
     fn handle_mouse_down_with_modifiers(&mut self, screen_x: f32, screen_y: f32, ctrl_pressed: bool) {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
-        web_sys::console::log_1(&format!("[RUST] World pos: {}, {}", world_pos.x, world_pos.y).into());
         self.input.last_mouse_screen = Vec2::new(screen_x, screen_y);
         
         // Check if paint mode is active first
@@ -574,11 +581,14 @@ impl RenderEngine {
         if self.input.input_mode == InputMode::CameraPan {
             let last_screen = self.input.last_mouse_screen;
             let screen_delta = current_screen - last_screen;
-            web_sys::console::log_1(&format!("[RUST] Camera panning by screen delta: {}, {}", -screen_delta.x, -screen_delta.y).into());
+            // Debug-only pan logging
+            #[cfg(debug_assertions)]
+            web_sys::console::debug_1(&format!("[RUST-DEBUG] Camera panning by screen delta: {}, {}", -screen_delta.x, -screen_delta.y).into());
             self.camera.pan_by_screen_delta(Vec2::new(-screen_delta.x, -screen_delta.y));
             self.input.last_mouse_screen = current_screen;
             self.update_view_matrix(); // This calls renderer.set_view_matrix()
-            web_sys::console::log_1(&format!("[RUST] Camera position now: {}, {}", self.camera.world_x, self.camera.world_y).into());
+            #[cfg(debug_assertions)]
+            web_sys::console::debug_1(&format!("[RUST-DEBUG] Camera position now: {}, {}", self.camera.world_x, self.camera.world_y).into());
             return;
         }
         
@@ -1061,8 +1071,10 @@ impl RenderEngine {
         let table_id = self.table_manager.get_active_table_id()
             .unwrap_or("default_table".to_string());
         
-        self.fog.add_fog_rectangle(id.to_string(), start_x, start_y, end_x, end_y, mode, table_id.clone());
-        web_sys::console::log_1(&format!("[RUST] Fog rectangle added to table '{}'", table_id).into());
+    self.fog.add_fog_rectangle(id.to_string(), start_x, start_y, end_x, end_y, mode, table_id.clone());
+    // Debug-only confirmation to avoid duplicating higher-level JS logs
+    #[cfg(debug_assertions)]
+    web_sys::console::debug_1(&format!("[RUST-DEBUG] Fog rectangle added to table '{}'", table_id).into());
     }
 
     #[wasm_bindgen]
@@ -1965,9 +1977,10 @@ impl RenderEngine {
                 self.fog.set_table_bounds(tx as f32, ty as f32, tw as f32, th as f32);
                 web_sys::console::log_1(&format!("[TABLE-SWITCH] 🌫️ Updated fog bounds: {}x{}", tw, th).into());
                 
-                // Center camera on new table
-                self.camera.center_on(tw / 2.0, th / 2.0);
-                web_sys::console::log_1(&format!("[TABLE-SWITCH] 📷 Centered camera on ({}, {})", tw / 2.0, th / 2.0).into());
+                // Position camera at table origin (0, 0)
+                // This aligns screen top-left with table top-left
+                self.camera.center_on(tx, ty);
+                web_sys::console::log_1(&format!("[TABLE-SWITCH] 📷 Camera positioned at table origin ({}, {})", tx, ty).into());
                 
                 // CRITICAL: Update view matrix after camera position change!
                 self.update_view_matrix();

@@ -226,7 +226,7 @@ impl RenderEngine {
         
         // Get table bounds (ALWAYS exists - enforced at initialization)
         let (tx, ty, tw, th) = self.table_manager.get_active_table_world_bounds()
-            .expect("Table must exist!");
+            .expect("CRITICAL: No active table found during rendering! Table-centric architecture requires a table to exist.");
         
         let table_bounds = Rect::new(
             tx as f32,
@@ -259,7 +259,7 @@ impl RenderEngine {
 
         // Get active table ID for filtering entities
         let active_table_id = self.table_manager.get_active_table_id()
-            .expect("Active table must exist!");
+            .expect("CRITICAL: No active table ID during rendering! Table-centric architecture requires a table to exist.");
 
         // Render all layers except light and fog_of_war layers (they have special handling)
         for (layer_name, layer) in sorted_layers {
@@ -1953,6 +1953,26 @@ impl RenderEngine {
             // Verify it was set
             let active = self.table_manager.get_active_table_id();
             web_sys::console::log_1(&format!("[RUST] handle_table_data: Active table is now: {:?}", active).into());
+            
+            // ===== UPDATE CAMERA AND FOG BOUNDS FOR NEW TABLE =====
+            // Get the new table bounds
+            if let Some((tx, ty, tw, th)) = self.table_manager.get_active_table_world_bounds() {
+                // Update camera bounds to match new table
+                self.camera.set_table_bounds(tx, ty, tw, th);
+                web_sys::console::log_1(&format!("[TABLE-SWITCH] 🎯 Updated camera bounds: {}x{}", tw, th).into());
+                
+                // Update fog system bounds to match new table
+                self.fog.set_table_bounds(tx as f32, ty as f32, tw as f32, th as f32);
+                web_sys::console::log_1(&format!("[TABLE-SWITCH] 🌫️ Updated fog bounds: {}x{}", tw, th).into());
+                
+                // Center camera on new table
+                self.camera.center_on(tw / 2.0, th / 2.0);
+                web_sys::console::log_1(&format!("[TABLE-SWITCH] 📷 Centered camera on ({}, {})", tw / 2.0, th / 2.0).into());
+                
+                // CRITICAL: Update view matrix after camera position change!
+                self.update_view_matrix();
+                web_sys::console::log_1(&"[TABLE-SWITCH] ✅ View matrix updated".into());
+            }
         }
 
         // Clear existing sprites from all layers

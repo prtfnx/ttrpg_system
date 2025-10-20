@@ -34,8 +34,14 @@ export const FogPanel: React.FC = () => {
       e.preventDefault();
       
       const rect = canvas.getBoundingClientRect();
-      const screenX = e.clientX - rect.left;
-      const screenY = e.clientY - rect.top;
+      const rawX = e.clientX - rect.left;
+      const rawY = e.clientY - rect.top;
+      
+      // Scale to canvas internal resolution (accounts for DPR/HiDPI scaling)
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const screenX = rawX * scaleX;
+      const screenY = rawY * scaleY;
       
       const [worldX, worldY] = renderer.screen_to_world(screenX, screenY);
       
@@ -43,15 +49,15 @@ export const FogPanel: React.FC = () => {
       currentDrawing = { id: fogId, startX: worldX, startY: worldY };
       setFogDrawing(currentDrawing);
       
-      // Create preview overlay
+      // Create preview overlay (uses display coordinates for DOM positioning)
       previewOverlay = document.createElement('div');
       previewOverlay.style.position = 'absolute';
       previewOverlay.style.border = fogDrawMode === 'hide' ? '2px solid rgba(0, 0, 0, 0.8)' : '2px solid rgba(255, 255, 0, 0.8)';
       previewOverlay.style.backgroundColor = fogDrawMode === 'hide' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 0, 0.2)';
       previewOverlay.style.pointerEvents = 'none';
       previewOverlay.style.zIndex = '1000';
-      previewOverlay.style.left = `${rect.left + screenX}px`;
-      previewOverlay.style.top = `${rect.top + screenY}px`;
+      previewOverlay.style.left = `${rect.left + rawX}px`;
+      previewOverlay.style.top = `${rect.top + rawY}px`;
       document.body.appendChild(previewOverlay);
       
       console.log(`Fog drawing started (${fogDrawMode}): (${worldX}, ${worldY})`);
@@ -64,15 +70,23 @@ export const FogPanel: React.FC = () => {
       e.preventDefault();
       
       const rect = canvas.getBoundingClientRect();
-      const screenX = e.clientX - rect.left;
-      const screenY = e.clientY - rect.top;
+      const rawX = e.clientX - rect.left;
+      const rawY = e.clientY - rect.top;
+      
+      // Scale factor for converting canvas internal coords to display coords
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
       
       const [startScreenX, startScreenY] = renderer.world_to_screen(currentDrawing.startX, currentDrawing.startY);
       
-      const left = Math.min(startScreenX, screenX);
-      const top = Math.min(startScreenY, screenY);
-      const width = Math.abs(screenX - startScreenX);
-      const height = Math.abs(screenY - startScreenY);
+      // Convert canvas internal coordinates back to display coordinates for DOM overlay
+      const startDisplayX = startScreenX / scaleX;
+      const startDisplayY = startScreenY / scaleY;
+      
+      const left = Math.min(startDisplayX, rawX);
+      const top = Math.min(startDisplayY, rawY);
+      const width = Math.abs(rawX - startDisplayX);
+      const height = Math.abs(rawY - startDisplayY);
       
       previewOverlay.style.left = `${rect.left + left}px`;
       previewOverlay.style.top = `${rect.top + top}px`;
@@ -88,8 +102,14 @@ export const FogPanel: React.FC = () => {
       e.preventDefault();
       
       const rect = canvas.getBoundingClientRect();
-      const screenX = e.clientX - rect.left;
-      const screenY = e.clientY - rect.top;
+      const rawX = e.clientX - rect.left;
+      const rawY = e.clientY - rect.top;
+      
+      // Scale to canvas internal resolution (accounts for DPR/HiDPI scaling)
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const screenX = rawX * scaleX;
+      const screenY = rawY * scaleY;
       
       const [worldX, worldY] = renderer.screen_to_world(screenX, screenY);
       

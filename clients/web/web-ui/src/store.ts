@@ -10,6 +10,10 @@ export interface TableInfo {
   height: number;
   created_at?: string;
   updated_at?: string;
+  // Sync state tracking (best practice: local-first architecture)
+  syncStatus?: 'local' | 'syncing' | 'synced' | 'error';
+  lastSyncTime?: number;
+  syncError?: string;
 }
 
 interface GameStore extends GameState {

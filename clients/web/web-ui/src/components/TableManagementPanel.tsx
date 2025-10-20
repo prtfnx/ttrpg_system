@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useGameStore } from '../store';
+import type { TableInfo } from '../store';
 import './TableManagementPanel.css';
 
 export const TableManagementPanel: React.FC = () => {
@@ -29,12 +30,35 @@ export const TableManagementPanel: React.FC = () => {
       
       if (data.tables) {
         // Convert object format to array format
-        const tablesArray = Object.entries(data.tables).map(([id, tableData]: [string, any]) => ({
+        const serverTables = Object.entries(data.tables).map(([id, tableData]: [string, any]) => ({
           table_id: id,  // Use table_id instead of id to match TableInfo interface
-          ...tableData
+          ...tableData,
+          syncStatus: 'synced' as const, // Server tables are synced
+          lastSyncTime: Date.now()
         }));
-        console.log('Converting tables object to array:', data.tables, '→', tablesArray);
-        setTables(tablesArray);
+        
+        console.log('Server tables received:', serverTables);
+        
+        // BEST PRACTICE: Merge with local WASM tables instead of replacing
+        // This implements optimistic UI updates - local tables persist until explicitly synced
+        
+        // Get current tables from store
+        const currentTables = tables;
+        
+        // Filter local-only tables (not in server response and marked as local)
+        const localTables = currentTables.filter((t: TableInfo) => 
+          // Keep tables that are local-only (not in server response)
+          !serverTables.some(st => st.table_id === t.table_id) && 
+          t.syncStatus === 'local'
+        );
+        
+        console.log('Merging: local tables =', localTables, 'server tables =', serverTables);
+        
+        // Merge: server tables first (authoritative), then local-only tables
+        const mergedTables = [...serverTables, ...localTables];
+        console.log('Merged table list:', mergedTables);
+        
+        setTables(mergedTables);
       }
       setTablesLoading(false);
     };
@@ -199,7 +223,26 @@ export const TableManagementPanel: React.FC = () => {
             className={`table-item ${activeTableId === table.table_id ? 'active' : ''}`}
           >
             <div className="table-info" onClick={() => handleTableSelect(table.table_id)}>
-              <div className="table-name">{table.table_name}</div>
+              <div className="table-header-row">
+                <div className="table-name">{table.table_name}</div>
+                {/* BEST PRACTICE: Visual sync status indicators */}
+                <span 
+                  className={`sync-status sync-status-${table.syncStatus || 'synced'}`}
+                  title={
+                    table.syncStatus === 'local' ? 'Local only - not synced to server' :
+                    table.syncStatus === 'syncing' ? 'Syncing with server...' :
+                    table.syncStatus === 'synced' ? `Synced ${table.lastSyncTime ? new Date(table.lastSyncTime).toLocaleString() : ''}` :
+                    table.syncStatus === 'error' ? `Sync error: ${table.syncError || 'Unknown error'}` :
+                    'Synced with server'
+                  }
+                >
+                  {table.syncStatus === 'local' && '💾'}
+                  {table.syncStatus === 'syncing' && '🔄'}
+                  {table.syncStatus === 'synced' && '☁️'}
+                  {table.syncStatus === 'error' && '⚠️'}
+                  {!table.syncStatus && '☁️'}
+                </span>
+              </div>
               <div className="table-details">
                 <span className="table-size">{table.width} × {table.height}</span>
                 <span className="table-date">Created: {formatDate(table.created_at)}</span>
@@ -207,6 +250,20 @@ export const TableManagementPanel: React.FC = () => {
             </div>
             
             <div className="table-actions">
+              {/* BEST PRACTICE: Manual sync button for local tables */}
+              {table.syncStatus === 'local' && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // TODO: Implement sync to server
+                    console.log('Sync table to server:', table.table_id);
+                  }}
+                  className="sync-button"
+                  title="Sync to server"
+                >
+                  ↑
+                </button>
+              )}
               <button 
                 onClick={() => handleDeleteTable(table.table_id)}
                 className="delete-button"

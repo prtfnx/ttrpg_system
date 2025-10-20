@@ -175,9 +175,11 @@ impl FogOfWarSystem {
             let clamped_ex = end_x.clamp(tx, tx + tw);
             let clamped_ey = end_y.clamp(ty, ty + th);
             
+            // Only log clamping in debug builds to avoid spamming console every time users draw
+            #[cfg(debug_assertions)]
             if start_x != clamped_sx || start_y != clamped_sy || end_x != clamped_ex || end_y != clamped_ey {
-                web_sys::console::log_1(&format!(
-                    "[FOG] Coordinates clamped to table: ({}, {}) → ({}, {}) became ({}, {}) → ({}, {})",
+                web_sys::console::debug_1(&format!(
+                    "[FOG-DEBUG] Coordinates clamped to table: ({}, {}) → ({}, {}) became ({}, {}) → ({}, {})",
                     start_x, start_y, end_x, end_y, clamped_sx, clamped_sy, clamped_ex, clamped_ey
                 ).into());
             }
@@ -187,16 +189,15 @@ impl FogOfWarSystem {
             (start_x, start_y, end_x, end_y)
         };
         
+        // Concise informational log for fog additions (safe to keep in production)
         web_sys::console::log_1(&format!(
-            "[FOG] Adding fog rectangle: {} ({}, {}) → ({}, {}) mode: {} table: {}", 
+            "[FOG] Add: {} ({:.2}, {:.2})→({:.2}, {:.2}) mode={} table={}",
             id, clamped_start_x, clamped_start_y, clamped_end_x, clamped_end_y, mode, table_id
         ).into());
-        
+
         let mut rectangle = FogRectangle::new(id.clone(), clamped_start_x, clamped_start_y, clamped_end_x, clamped_end_y, fog_mode);
         rectangle.table_id = table_id; // Set the table_id
         self.fog_rectangles.insert(id, rectangle);
-        
-        web_sys::console::log_1(&format!("[FOG] Total fog rectangles: {}", self.fog_rectangles.len()).into());
     }
 
     pub fn remove_fog_rectangle(&mut self, id: &str) {
@@ -253,8 +254,6 @@ impl FogOfWarSystem {
         if self.fog_rectangles.is_empty() {
             return Ok(());
         }
-
-        web_sys::console::log_1(&format!("Rendering {} fog rectangles", self.fog_rectangles.len()).into());
 
         let program = self.fog_shader.as_ref().ok_or("Fog shader not initialized")?;
         

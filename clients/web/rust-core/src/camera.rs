@@ -58,11 +58,21 @@ impl Camera {
     pub fn handle_wheel(&mut self, screen_x: f32, screen_y: f32, delta_y: f32) {
         let zoom_factor = if delta_y > 0.0 { 0.9 } else { 1.1 };
         let world_point_before = self.screen_to_world(Vec2::new(screen_x, screen_y));
+        let old_zoom = self.zoom;
         self.zoom = (self.zoom * zoom_factor).clamp(self.min_zoom, self.max_zoom);
         let world_point_after = self.screen_to_world(Vec2::new(screen_x, screen_y));
         let world_delta = world_point_before - world_point_after;
         self.world_x += world_delta.x as f64;
         self.world_y += world_delta.y as f64;
+        
+        // Use debug log to avoid spamming console during frequent wheel events
+        #[cfg(debug_assertions)]
+        web_sys::console::debug_1(&format!(
+            "[CAMERA-DEBUG] Zoom: {} → {} | Camera moved: ({}, {}) → ({}, {})",
+            old_zoom, self.zoom, 
+            self.world_x - world_delta.x as f64, self.world_y - world_delta.y as f64,
+            self.world_x, self.world_y
+        ).into());
         
         // Clamp to table bounds after zoom to prevent jump on first drag
         if let Some((tx, ty, tw, th)) = self.table_bounds {

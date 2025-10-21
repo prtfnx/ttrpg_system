@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'; // FogPanel.tsx
 
 import { useRenderEngine } from '../hooks/useRenderEngine';
+import { useProtocol } from '../services/ProtocolContext';
 import './PanelStyles.css';
 
 interface FogRectangle {
@@ -14,9 +15,34 @@ interface FogRectangle {
 
 export const FogPanel: React.FC = () => {
   const renderer = useRenderEngine();
+  const { protocol } = useProtocol();
   const [fogRectangles, setFogRectangles] = useState<FogRectangle[]>([]);
   const [fogDrawMode, setFogDrawMode] = useState<'hide' | 'reveal' | null>(null);
   const [_fogDrawing, setFogDrawing] = useState<{ id: string; startX: number; startY: number } | null>(null);
+
+  // Helper function to send fog updates to server
+  const sendFogUpdateToServer = useCallback((updatedRectangles: FogRectangle[]) => {
+    if (!protocol || !renderer) return;
+
+    // Get active table ID
+    const tableId = (renderer as any).get_active_table_id?.();
+    if (!tableId) {
+      console.warn('No active table ID, cannot send fog update');
+      return;
+    }
+
+    // Separate into hide and reveal rectangles
+    const hideRectangles = updatedRectangles
+      .filter(rect => rect.mode === 'hide')
+      .map(rect => [[rect.startX, rect.startY], [rect.endX, rect.endY]] as [[number, number], [number, number]]);
+    
+    const revealRectangles = updatedRectangles
+      .filter(rect => rect.mode === 'reveal')
+      .map(rect => [[rect.startX, rect.startY], [rect.endX, rect.endY]] as [[number, number], [number, number]]);
+
+    console.log('🌫️ Sending fog update to server:', { tableId, hideCount: hideRectangles.length, revealCount: revealRectangles.length });
+    protocol.updateFog(tableId, hideRectangles, revealRectangles);
+  }, [protocol, renderer]);
 
   // Mouse event handlers for fog drawing
   useEffect(() => {
@@ -130,7 +156,12 @@ export const FogPanel: React.FC = () => {
         endY: worldY,
         mode: fogDrawMode
       };
-      setFogRectangles(prev => [...prev, newRect]);
+      
+      const updatedRectangles = [...fogRectangles, newRect];
+      setFogRectangles(updatedRectangles);
+      
+      // Send update to server
+      sendFogUpdateToServer(updatedRectangles);
       
       console.log(`Fog rectangle added (${fogDrawMode}): ${currentDrawing.id} - from (${currentDrawing.startX}, ${currentDrawing.startY}) to (${worldX}, ${worldY})`);
       
@@ -159,7 +190,7 @@ export const FogPanel: React.FC = () => {
         previewOverlay.parentNode.removeChild(previewOverlay);
       }
     };
-  }, [renderer, fogDrawMode]);
+  }, [renderer, fogDrawMode, fogRectangles, sendFogUpdateToServer]);
 
   const handleToggleFogMode = useCallback((mode: 'hide' | 'reveal') => {
     if (fogDrawMode === mode) {
@@ -175,8 +206,9 @@ export const FogPanel: React.FC = () => {
     if (!renderer) return;
     renderer.clear_fog();
     setFogRectangles([]);
+    sendFogUpdateToServer([]); // Send empty update to server
     console.log('All fog cleared');
-  }, [renderer]);
+  }, [renderer, sendFogUpdateToServer]);
 
   const handleHideAll = useCallback(() => {
     if (!renderer) return;
@@ -192,24 +224,33 @@ export const FogPanel: React.FC = () => {
     renderer.add_fog_rectangle('full_table_fog', startX, startY, endX, endY, 'hide');
 
     // Update state to reflect the full table fog
-    setFogRectangles([{
+    const updatedRectangles = [{
       id: 'full_table_fog',
       startX,
       startY,
       endX,
       endY,
-      mode: 'hide'
-    }]);
+      mode: 'hide' as const
+    }];
+    setFogRectangles(updatedRectangles);
+    
+    // Send update to server
+    sendFogUpdateToServer(updatedRectangles);
 
     console.log(`Entire table hidden with fog: (${startX}, ${startY}) to (${endX}, ${endY})`);
-  }, [renderer]);
+  }, [renderer, sendFogUpdateToServer]);
 
   const handleRemoveRectangle = useCallback((id: string) => {
     if (!renderer) return;
     renderer.remove_fog_rectangle(id);
-    setFogRectangles(prev => prev.filter(rect => rect.id !== id));
+    const updatedRectangles = fogRectangles.filter(rect => rect.id !== id);
+    setFogRectangles(updatedRectangles);
+    
+    // Send update to server
+    sendFogUpdateToServer(updatedRectangles);
+    
     console.log(`Removed fog rectangle: ${id}`);
-  }, [renderer]);
+  }, [renderer, fogRectangles, sendFogUpdateToServer]);
 
   return (
     <div className="panel-base">

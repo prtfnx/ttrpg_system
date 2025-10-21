@@ -621,6 +621,19 @@ export class WebClientProtocol {
     this.sendMessage(createMessage(MessageType.ASSET_DOWNLOAD_REQUEST, { asset_id: assetId }));
   }
 
+  // Fog of War methods
+  updateFog(tableId: string, hideRectangles: Array<[[number, number], [number, number]]>, revealRectangles: Array<[[number, number], [number, number]]>): void {
+    this.sendMessage(createMessage(MessageType.TABLE_UPDATE, {
+      category: 'table',
+      type: 'fog_update',
+      data: {
+        table_id: tableId,
+        hide_rectangles: hideRectangles,
+        reveal_rectangles: revealRectangles
+      }
+    }, 2));
+  }
+
   // Character management methods
   saveCharacter(characterData: Record<string, unknown>): void {
     this.sendMessage(createMessage(MessageType.CHARACTER_SAVE_REQUEST, characterData));

@@ -367,6 +367,9 @@ class ServerProtocol:
         if not sprite_id or scale_x is None or scale_y is None:
             return Message(MessageType.ERROR, {'error': 'Sprite ID, scale_x, and scale_y are required'})
         
+        # Note: Sprite updates are frequent and typically batched, not immediately persisted
+        # Session manager will handle periodic persistence
+        
         # Update sprite scale using the actions interface
         update_data = {
             'sprite_id': sprite_id,
@@ -417,6 +420,9 @@ class ServerProtocol:
         if not sprite_id or rotation is None:
             return Message(MessageType.ERROR, {'error': 'Sprite ID and rotation are required'})
         
+        # Note: Sprite updates are frequent and typically batched, not immediately persisted
+        # Session manager will handle periodic persistence
+        
         # Update sprite rotation using the actions interface
         update_data = {
             'sprite_id': sprite_id,
@@ -461,7 +467,10 @@ class ServerProtocol:
         if not table_id:
             return Message(MessageType.ERROR, {'error': 'Table ID is required'})
         
-        result = await self.actions.delete_table(table_id)
+        # Get session_id for database persistence
+        session_id = self._get_session_id(msg)
+        
+        result = await self.actions.delete_table(table_id, session_id)
         if result.success:
             # Broadcast table deletion to all clients in the session
             update_message = Message(MessageType.TABLE_UPDATE, {

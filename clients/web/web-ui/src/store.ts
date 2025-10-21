@@ -58,6 +58,7 @@ interface GameStore extends GameState {
   createNewTable: (name: string, width: number, height: number) => void;
   deleteTable: (tableId: string) => void;
   switchToTable: (tableId: string) => void;
+  syncTableToServer: (tableId: string) => void; // BEST PRACTICE: Manual sync control
   
   // Layer management actions
   setActiveLayer: (layerName: string) => void;
@@ -339,14 +340,16 @@ export const useGameStore = create<GameStore>()(
       },
 
       createNewTable: (name: string, width: number, height: number) => {
-        // Create table locally first
+        // BEST PRACTICE: Create table locally first (optimistic UI)
         const newTable: TableInfo = {
-          table_id: `temp_${Date.now()}`, // Temporary ID until server responds
+          table_id: `local_${Date.now()}`, // Local ID until synced to server
           table_name: name,
           width,
           height,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          syncStatus: 'local', // Mark as local-only initially
+          lastSyncTime: undefined
         };
         
         set((state) => ({
@@ -382,13 +385,15 @@ export const useGameStore = create<GameStore>()(
         }));
         
         // Send message via protocol to create new table on server
+        // BEST PRACTICE: Include local_table_id for sync mapping
         window.dispatchEvent(new CustomEvent('protocol-send-message', {
           detail: {
             type: 'new_table_request',
             data: {
               table_name: name,
               width,
-              height
+              height,
+              local_table_id: newTable.table_id // Include local ID for server mapping
             }
           }
         }));
@@ -404,6 +409,42 @@ export const useGameStore = create<GameStore>()(
             }
           }
         }));
+      },
+
+      // BEST PRACTICE: Manual sync - send local table to server
+      syncTableToServer: (tableId: string) => {
+        set((state) => {
+          const table = state.tables.find((t: TableInfo) => t.table_id === tableId);
+          
+          if (!table) {
+            console.error('Table not found for sync:', tableId);
+            return state; // No change
+          }
+          
+          console.log('Syncing table to server:', table);
+          
+          // Send NEW_TABLE_REQUEST to create on server
+          window.dispatchEvent(new CustomEvent('protocol-send-message', {
+            detail: {
+              type: 'new_table_request',
+              data: {
+                table_name: table.table_name,
+                width: table.width,
+                height: table.height,
+                local_table_id: tableId // Include local ID for mapping
+              }
+            }
+          }));
+          
+          // Mark table as syncing
+          return {
+            tables: state.tables.map((t: TableInfo) => 
+              t.table_id === tableId 
+                ? { ...t, syncStatus: 'syncing' as const, syncError: undefined }
+                : t
+            )
+          };
+        });
       },
 
       switchToTable: (tableId: string) => {

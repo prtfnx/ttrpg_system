@@ -32,6 +32,15 @@ export const TableManagementPanel: React.FC = () => {
   const [settingsGridSize, setSettingsGridSize] = useState(50);
   const [settingsGridEnabled, setSettingsGridEnabled] = useState(true);
 
+  // Filter and search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'date' | 'size'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  
+  // Auto-sync settings
+  const [autoSync, setAutoSync] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
+
   // Listen for protocol events
   useEffect(() => {
     const handleTableListUpdate = (event: Event) => {
@@ -243,9 +252,44 @@ export const TableManagementPanel: React.FC = () => {
         : t
     ));
 
-    // If this is the active table, request fresh table data to re-render
+    // If this is the active table, immediately update WASM rendering with new dimensions
     if (activeTableId === settingsTableId) {
-      console.log('Requesting updated table data for active table:', settingsTableId);
+      console.log('Updating WASM table data with new settings:', {
+        width: settingsWidth,
+        height: settingsHeight,
+        grid_size: settingsGridSize,
+        grid_enabled: settingsGridEnabled
+      });
+      
+      // Create updated table data structure for WASM rendering
+      const updatedTableDataForWasm = {
+        table_data: {
+          table_id: settingsTableId,
+          table_name: settingsName,
+          width: settingsWidth,
+          height: settingsHeight,
+          grid_size: settingsGridSize,
+          grid_enabled: settingsGridEnabled,
+          grid_snapping: false,
+          layers: {
+            map: [],
+            tokens: [],
+            dungeon_master: [],
+            light: [],
+            height: [],
+            obstacles: [],
+            fog_of_war: []
+          }
+        }
+      };
+      
+      // Immediately dispatch to WASM for rendering update
+      window.dispatchEvent(new CustomEvent('table-data-received', {
+        detail: updatedTableDataForWasm
+      }));
+      
+      // Also request fresh table data from server (will include entities)
+      console.log('Requesting full table data from server for:', settingsTableId);
       window.dispatchEvent(new CustomEvent('protocol-send-message', {
         detail: {
           type: 'table_request',
@@ -264,11 +308,68 @@ export const TableManagementPanel: React.FC = () => {
     setSettingsTableId(null);
   };
 
+  // Filter and sort tables
+  const filteredAndSortedTables = React.useMemo(() => {
+    let filtered = tables;
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(t => 
+        (t.table_name || '').toLowerCase().includes(query) ||
+        (t.table_id || '').toLowerCase().includes(query)
+      );
+    }
+
+    // Apply sorting
+    const sorted = [...filtered].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'name':
+          const nameA = a.table_name || '';
+          const nameB = b.table_name || '';
+          comparison = nameA.localeCompare(nameB);
+          break;
+        case 'date':
+          const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          comparison = dateB - dateA; // Newest first by default
+          break;
+        case 'size':
+          const sizeA = (a.width || 0) * (a.height || 0);
+          const sizeB = (b.width || 0) * (b.height || 0);
+          comparison = sizeA - sizeB;
+          break;
+      }
+      
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    return sorted;
+  }, [tables, searchQuery, sortBy, sortOrder]);
+
+  // Handle duplicate table
+  const handleDuplicateTable = (tableId: string) => {
+    const table = tables.find(t => t.table_id === tableId);
+    if (table) {
+      const newName = `${table.table_name} (Copy)`;
+      createNewTable(newName, table.width, table.height);
+    }
+  };
+
   return (
     <div className="table-management-panel">
       <div className="panel-header">
         <h3>Table Management</h3>
         <div className="header-actions">
+          <button 
+            onClick={() => setShowSettings(!showSettings)}
+            className={`settings-toggle-button ${showSettings ? 'active' : ''}`}
+            title="Panel settings"
+          >
+            ⚙️
+          </button>
           <button 
             onClick={requestTableList}
             disabled={tablesLoading}
@@ -284,6 +385,67 @@ export const TableManagementPanel: React.FC = () => {
           >
             +
           </button>
+        </div>
+      </div>
+
+      {/* Panel Settings */}
+      {showSettings && (
+        <div className="panel-settings">
+          <div className="settings-row">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={autoSync}
+                onChange={(e) => setAutoSync(e.target.checked)}
+              />
+              <span>Auto-sync local tables</span>
+            </label>
+            <span className="help-text">Automatically sync new tables to server</span>
+          </div>
+        </div>
+      )}
+
+      {/* Search and Filter Bar */}
+      <div className="search-filter-bar">
+        <div className="search-box">
+          <span className="search-icon">🔍</span>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search tables..."
+            className="search-input"
+          />
+          {searchQuery && (
+            <button 
+              onClick={() => setSearchQuery('')}
+              className="clear-search"
+              title="Clear search"
+            >
+              ×
+            </button>
+          )}
+        </div>
+        <div className="sort-controls">
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as 'name' | 'date' | 'size')}
+            className="sort-select"
+          >
+            <option value="name">Name</option>
+            <option value="date">Date</option>
+            <option value="size">Size</option>
+          </select>
+          <button
+            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+            className="sort-order-button"
+            title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+          >
+            {sortOrder === 'asc' ? '↑' : '↓'}
+          </button>
+        </div>
+        <div className="table-count">
+          {filteredAndSortedTables.length} / {tables.length}
         </div>
       </div>
 
@@ -343,14 +505,21 @@ export const TableManagementPanel: React.FC = () => {
       <div className="tables-list">
         {tablesLoading && <div className="loading-indicator">Loading tables...</div>}
         
-        {!tablesLoading && tables.length === 0 && (
+        {!tablesLoading && filteredAndSortedTables.length === 0 && tables.length === 0 && (
           <div className="empty-state">
             <p>No tables available</p>
             <p>Create a new table to get started</p>
           </div>
         )}
 
-        {!tablesLoading && tables.map((table) => (
+        {!tablesLoading && filteredAndSortedTables.length === 0 && tables.length > 0 && (
+          <div className="empty-state">
+            <p>No tables match your search</p>
+            <p>Try a different search term</p>
+          </div>
+        )}
+
+        {!tablesLoading && filteredAndSortedTables.map((table) => (
           <div 
             key={table.table_id} 
             className={`table-card ${activeTableId === table.table_id ? 'active' : ''}`}
@@ -423,6 +592,17 @@ export const TableManagementPanel: React.FC = () => {
               >
                 <span className="action-icon">⚙️</span>
                 Settings
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDuplicateTable(table.table_id);
+                }}
+                className="action-btn action-btn-duplicate"
+                title="Duplicate table"
+              >
+                <span className="action-icon">📋</span>
+                Copy
               </button>
               {table.syncStatus === 'local' && (
                 <button

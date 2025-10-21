@@ -137,6 +137,37 @@ class ActionsCore(AsyncActionsProtocol):
             logger.error(f"Failed to force persist {operation_name} to database: {persist_error}")
             # Continue anyway - the operation was successful in memory
     
+    async def _delete_table_from_database(self, table_id: str, session_id: int):
+        """
+        Delete table from database immediately.
+        """
+        try:
+            if hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
+                from server_host.database import crud
+                
+                logger.debug(f"Deleting table from database: table_id={table_id}, session_id={session_id}")
+                
+                # Cancel any pending saves for this table
+                if table_id in self._save_tasks:
+                    if not self._save_tasks[table_id].done():
+                        self._save_tasks[table_id].cancel()
+                    del self._save_tasks[table_id]
+                
+                # Remove from dirty list
+                self._dirty_tables.pop(table_id, None)
+                
+                # Delete table from database
+                success = crud.delete_virtual_table(self.table_manager.db_session, table_id)
+                if success:
+                    logger.info(f"Deleted table '{table_id}' from database")
+                else:
+                    logger.warning(f"Table '{table_id}' not found in database (may have already been deleted)")
+            else:
+                logger.warning(f"Database not available - table deletion only applied to in-memory state")
+        except Exception as e:
+            logger.error(f"Failed to delete table from database: {e}")
+            # Continue anyway - the operation was successful in memory
+    
     async def flush_all_pending_saves(self):
         """
         Force save all dirty tables immediately.
@@ -199,6 +230,8 @@ class ActionsCore(AsyncActionsProtocol):
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
+            table_name = table.name
+            
             # Store table data for undo
             table_data = {
                 'table_id': table_id,
@@ -208,10 +241,14 @@ class ActionsCore(AsyncActionsProtocol):
                 'entities': copy.deepcopy(table.entities)
             }
             
-            # Force immediate save for table deletion (critical operation)
-            await self._force_persist_table_state(table, "table deletion", session_id)
+            # Delete from memory FIRST (both dictionaries)
+            self.table_manager.remove_table(table_name)
             
-            del self.table_manager.tables[table_id]
+            # Then delete from database if session_id provided
+            if session_id:
+                await self._delete_table_from_database(str(table.table_id), session_id)
+            else:
+                logger.warning(f"No session_id provided for table deletion, skipping database deletion")
             
             action = {
                 'type': 'delete_table',
@@ -219,7 +256,7 @@ class ActionsCore(AsyncActionsProtocol):
             }
             await self._add_to_history(action)
             
-            return ActionResult(True, f"Table {table_id} deleted successfully")
+            return ActionResult(True, f"Table {table_name} deleted successfully")
         except Exception as e:
             return ActionResult(False, f"Failed to delete table: {str(e)}")
     

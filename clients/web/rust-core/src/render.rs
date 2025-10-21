@@ -1504,6 +1504,30 @@ impl RenderEngine {
         self.actions.delete_table(table_id)
     }
 
+    /// Delete a table and clean up all associated resources (sprites, lights, fog)
+    #[wasm_bindgen]
+    pub fn delete_table(&mut self, table_id: &str) -> Result<(), JsValue> {
+        web_sys::console::log_1(&format!("[TABLE-DELETE] 🗑️ Deleting table: {}", table_id).into());
+        
+        // Clean up all entities associated with this table
+        let sprites_removed = self.layer_manager.clear_sprites_for_table(table_id);
+        let lights_removed = self.lighting.clear_lights_for_table(table_id);
+        let fog_removed = self.fog.clear_fog_for_table(table_id);
+        
+        web_sys::console::log_1(&format!(
+            "[TABLE-DELETE] 🗑️ Cleaned up {} sprites, {} lights, {} fog rectangles",
+            sprites_removed, lights_removed, fog_removed
+        ).into());
+        
+        // Remove from table manager
+        if !self.table_manager.remove_table(table_id) {
+            return Err(JsValue::from_str(&format!("Table '{}' not found", table_id)));
+        }
+        
+        web_sys::console::log_1(&format!("[TABLE-DELETE] ✅ Table '{}' deleted successfully", table_id).into());
+        Ok(())
+    }
+
     #[wasm_bindgen]
     pub fn update_table_action(&mut self, table_id: &str, updates: &JsValue) -> JsValue {
         self.actions.update_table(table_id, updates)
@@ -1959,6 +1983,27 @@ impl RenderEngine {
         // Update table manager
         if let Some(table_id) = self.table_sync.get_table_id() {
             web_sys::console::log_1(&format!("[RUST] handle_table_data: Setting active table to '{}'", table_id).into());
+            
+            // Check if we're switching from a different table
+            let old_table_id = self.table_manager.get_active_table_id();
+            let is_switching_tables = old_table_id.as_ref().map_or(false, |old_id| old_id != &table_id);
+            
+            if is_switching_tables {
+                if let Some(old_id) = old_table_id {
+                    web_sys::console::log_1(&format!("[TABLE-SWITCH] 🔄 Switching from table '{}' to '{}'", old_id, table_id).into());
+                    
+                    // Clean up old table's resources
+                    let sprites_removed = self.layer_manager.clear_sprites_for_table(&old_id);
+                    let lights_removed = self.lighting.clear_lights_for_table(&old_id);
+                    let fog_removed = self.fog.clear_fog_for_table(&old_id);
+                    
+                    web_sys::console::log_1(&format!(
+                        "[TABLE-SWITCH] 🗑️ Cleaned up old table '{}': {} sprites, {} lights, {} fog",
+                        old_id, sprites_removed, lights_removed, fog_removed
+                    ).into());
+                }
+            }
+            
             self.table_manager.create_table(&table_id, &table.table_name, table.width, table.height)?;
             self.table_manager.set_active_table(&table_id);
             

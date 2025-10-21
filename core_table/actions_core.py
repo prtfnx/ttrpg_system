@@ -303,8 +303,12 @@ class ActionsCore(AsyncActionsProtocol):
         if not table_id:
             return ActionResult(False, "Table ID is required")
 
+        # Extract table_id from data to avoid duplicate parameter
+        data_copy = data.copy()
+        data_copy.pop('table_id', None)
+        
         # Update table properties
-        return await self.update_table(table_id, **data)
+        return await self.update_table(table_id, **data_copy)
 
     async def move_table(self, table_id: str, position: Position) -> ActionResult:
         """Move table to new position (add position attribute if needed)"""

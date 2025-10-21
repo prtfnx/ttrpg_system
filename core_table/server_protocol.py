@@ -502,7 +502,17 @@ class ServerProtocol:
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in new table request'})
         table_name = msg.data.get('table_name', 'default')
-        result = await self.actions.create_table(table_name, msg.data.get('width', 100), msg.data.get('height', 100))        
+        local_table_id = msg.data.get('local_table_id')  # BEST PRACTICE: Preserve local ID for sync mapping
+        logger.info(f"DEBUG: Extracted local_table_id = '{local_table_id}' (type: {type(local_table_id).__name__})")
+        
+        # BEST PRACTICE: Get session_id for database persistence
+        session_id = self._get_session_id(msg)
+        if session_id:
+            logger.info(f"Creating table with session_id: {session_id}")
+        else:
+            logger.warning(f"No session_id available - table will not be persisted to database")
+        
+        result = await self.actions.create_table(table_name, msg.data.get('width', 100), msg.data.get('height', 100), session_id=session_id)        
         
         if not result.success or not result.data or result.data.get('table') is None:
             return Message(MessageType.ERROR, {'error': 'Failed to create new table'})
@@ -511,6 +521,9 @@ class ServerProtocol:
             table_data = result.data.get('table').to_dict()
             await self.ensure_assets_in_r2(table_data, msg.data.get('session_code', 'default'), msg.data.get('user_id', 0))
             logger.info(f"Processing table {table_name} with {len(table_data.get('layers', {}))} layers")
+            
+            if local_table_id:
+                logger.info(f"Sync completed: local table '{local_table_id}' → server table '{table_data.get('table_id')}'")
             
             # Broadcast new table creation to all clients in the session
             update_message = Message(MessageType.TABLE_UPDATE, {
@@ -521,9 +534,20 @@ class ServerProtocol:
             })
             await self.broadcast_to_session(update_message, client_id)
             
-            # return message that need send to client
-            return Message(MessageType.NEW_TABLE_RESPONSE, {'name': table_name, 'client_id': client_id,
-                                                            'table_data': table_data})
+            # BEST PRACTICE: Include local_table_id in response for client-side ID mapping
+            response_data = {
+                'name': table_name,
+                'client_id': client_id,
+                'table_data': table_data
+            }
+            if local_table_id:
+                response_data['local_table_id'] = local_table_id
+                logger.info(f"DEBUG: Added local_table_id to response: {local_table_id}")
+            else:
+                logger.warning(f"DEBUG: local_table_id is falsy, not adding to response")
+            
+            logger.info(f"DEBUG: Final response_data keys: {list(response_data.keys())}")
+            return Message(MessageType.NEW_TABLE_RESPONSE, response_data)
 
     async def handle_table_request(self, msg: Message, client_id: str) -> Message:
         """Handle table request"""
@@ -1226,8 +1250,14 @@ class ServerProtocol:
         """Get session_id for database persistence from message data or session manager"""
         try:
             # Primary method: Get from session manager (most reliable)
-            if self.session_manager and hasattr(self.session_manager, 'game_session_db_id') and self.session_manager.game_session_db_id:
-                return self.session_manager.game_session_db_id
+            logger.debug(f"DEBUG _get_session_id: session_manager={self.session_manager}")
+            if self.session_manager:
+                logger.debug(f"DEBUG _get_session_id: has game_session_db_id attr={hasattr(self.session_manager, 'game_session_db_id')}")
+                if hasattr(self.session_manager, 'game_session_db_id'):
+                    logger.debug(f"DEBUG _get_session_id: game_session_db_id={self.session_manager.game_session_db_id}")
+                    if self.session_manager.game_session_db_id:
+                        logger.info(f"Using session_id from session_manager: {self.session_manager.game_session_db_id}")
+                        return self.session_manager.game_session_db_id
             
             # Secondary method: Extract from message data
             if msg.data:

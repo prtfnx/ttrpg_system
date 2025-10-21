@@ -171,7 +171,10 @@ class ActionsCore(AsyncActionsProtocol):
         """Create a new table"""       
 
         table = VirtualTable(name, width, height)
-        self.table_manager.tables_id[str(table.table_id)] = table
+        
+        # CRITICAL: Add table to BOTH dictionaries in table_manager
+        self.table_manager.add_table(table)  # Adds to tables (by name) and tables_id (by UUID)
+        logger.info(f"Added new table '{name}' (ID: {table.table_id}) to table_manager memory")
 
         action = {
             'type': 'create_table',

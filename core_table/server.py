@@ -50,13 +50,21 @@ class TableManager:
     def add_table(self, table: VirtualTable):
         """Add existing table to manager"""
         self.tables[table.name] = table
-        logger.info(f"Added table '{table.name}' to manager")
+        self.tables_id[str(table.table_id)] = table
+        logger.info(f"Added table '{table.name}' (ID: {table.table_id}) to manager")
     
     def remove_table(self, table_name: str):
         """Remove table from manager"""
         if table_name in self.tables and table_name != "default":
+            table = self.tables[table_name]
+            table_id = str(table.table_id)
+            
+            # Remove from both dictionaries
             del self.tables[table_name]
-            logger.info(f"Removed table '{table_name}' from manager")
+            if table_id in self.tables_id:
+                del self.tables_id[table_id]
+            
+            logger.info(f"Removed table '{table_name}' (ID: {table_id}) from manager")
             return True
         return False
     

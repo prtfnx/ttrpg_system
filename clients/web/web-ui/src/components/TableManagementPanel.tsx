@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import type { TableInfo } from '../store';
 import { useGameStore } from '../store';
-import { TablePreview } from './TablePreview';
 import './TableManagementPanel.css';
+import { TablePreview } from './TablePreview';
 
 export const TableManagementPanel: React.FC = () => {
   const {
@@ -23,6 +23,14 @@ export const TableManagementPanel: React.FC = () => {
   const [newTableWidth, setNewTableWidth] = useState(2000);
   const [newTableHeight, setNewTableHeight] = useState(2000);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  
+  // Settings modal state
+  const [settingsTableId, setSettingsTableId] = useState<string | null>(null);
+  const [settingsName, setSettingsName] = useState('');
+  const [settingsWidth, setSettingsWidth] = useState(2000);
+  const [settingsHeight, setSettingsHeight] = useState(2000);
+  const [settingsGridSize, setSettingsGridSize] = useState(50);
+  const [settingsGridEnabled, setSettingsGridEnabled] = useState(true);
 
   // Listen for protocol events
   useEffect(() => {
@@ -190,6 +198,72 @@ export const TableManagementPanel: React.FC = () => {
     return `${days}d ago`;
   };
 
+  const handleOpenSettings = (tableId: string) => {
+    const table = tables.find(t => t.table_id === tableId);
+    if (table) {
+      setSettingsTableId(tableId);
+      setSettingsName(table.table_name);
+      setSettingsWidth(table.width);
+      setSettingsHeight(table.height);
+      setSettingsGridSize(50); // Default, would need to be stored in TableInfo
+      setSettingsGridEnabled(true); // Default, would need to be stored in TableInfo
+    }
+  };
+
+  const handleCloseSettings = () => {
+    setSettingsTableId(null);
+  };
+
+  const handleSaveSettings = () => {
+    if (!settingsTableId) return;
+    
+    // Send update message to server with proper structure
+    window.dispatchEvent(new CustomEvent('protocol-send-message', {
+      detail: {
+        type: 'table_update',
+        data: {
+          category: 'table',
+          type: 'table_update',
+          data: {
+            table_id: settingsTableId,
+            table_name: settingsName,
+            width: settingsWidth,
+            height: settingsHeight,
+            grid_size: settingsGridSize,
+            grid_enabled: settingsGridEnabled
+          }
+        }
+      }
+    }));
+
+    // Update local state optimistically
+    setTables(tables.map(t => 
+      t.table_id === settingsTableId 
+        ? { ...t, table_name: settingsName, width: settingsWidth, height: settingsHeight }
+        : t
+    ));
+
+    // If this is the active table, request fresh table data to re-render
+    if (activeTableId === settingsTableId) {
+      console.log('Requesting updated table data for active table:', settingsTableId);
+      window.dispatchEvent(new CustomEvent('protocol-send-message', {
+        detail: {
+          type: 'table_request',
+          data: {
+            table_id: settingsTableId
+          }
+        }
+      }));
+    }
+
+    // Refresh table list after a short delay to get updated data from server
+    setTimeout(() => {
+      requestTableList();
+    }, 500);
+
+    setSettingsTableId(null);
+  };
+
   return (
     <div className="table-management-panel">
       <div className="panel-header">
@@ -339,6 +413,17 @@ export const TableManagementPanel: React.FC = () => {
                 <span className="action-icon">↗</span>
                 Open
               </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenSettings(table.table_id);
+                }}
+                className="action-btn action-btn-settings"
+                title="Table settings"
+              >
+                <span className="action-icon">⚙️</span>
+                Settings
+              </button>
               {table.syncStatus === 'local' && (
                 <button
                   onClick={(e) => {
@@ -382,6 +467,96 @@ export const TableManagementPanel: React.FC = () => {
               </button>
               <button 
                 onClick={() => setDeleteConfirmId(null)} 
+                className="cancel-button"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {settingsTableId && (
+        <div className="settings-modal">
+          <div 
+            className="modal-content settings-modal-content"
+            style={{ background: '#2a2a2a', color: '#e0e0e0' }}
+          >
+            <h4 style={{ color: '#fff' }}>Table Settings</h4>
+            
+            <div className="settings-section" style={{ background: 'transparent' }}>
+              <label style={{ color: '#e0e0e0' }}>
+                Table Name:
+                <input
+                  type="text"
+                  value={settingsName}
+                  onChange={(e) => setSettingsName(e.target.value)}
+                  placeholder="Enter table name"
+                  maxLength={50}
+                />
+              </label>
+            </div>
+
+            <div className="settings-section" style={{ background: 'transparent' }}>
+              <h5 style={{ color: '#fff' }}>Resolution</h5>
+              <div className="form-row">
+                <label style={{ color: '#e0e0e0' }}>
+                  Width (px):
+                  <input
+                    type="number"
+                    value={settingsWidth}
+                    onChange={(e) => setSettingsWidth(parseInt(e.target.value) || 2000)}
+                    min="500"
+                    max="10000"
+                    step="100"
+                  />
+                </label>
+                <label style={{ color: '#e0e0e0' }}>
+                  Height (px):
+                  <input
+                    type="number"
+                    value={settingsHeight}
+                    onChange={(e) => setSettingsHeight(parseInt(e.target.value) || 2000)}
+                    min="500"
+                    max="10000"
+                    step="100"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="settings-section" style={{ background: 'transparent' }}>
+              <h5 style={{ color: '#fff' }}>Grid Settings</h5>
+              <div className="checkbox-row">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={settingsGridEnabled}
+                    onChange={(e) => setSettingsGridEnabled(e.target.checked)}
+                  />
+                  <span>Show Grid</span>
+                </label>
+              </div>
+              <label>
+                Grid Size (px):
+                <input
+                  type="number"
+                  value={settingsGridSize}
+                  onChange={(e) => setSettingsGridSize(parseInt(e.target.value) || 50)}
+                  min="10"
+                  max="200"
+                  step="5"
+                  disabled={!settingsGridEnabled}
+                />
+              </label>
+            </div>
+
+            <div className="modal-actions">
+              <button onClick={handleSaveSettings} className="confirm-button">
+                Save Changes
+              </button>
+              <button 
+                onClick={handleCloseSettings} 
                 className="cancel-button"
               >
                 Cancel

@@ -109,6 +109,7 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
         display: 'block',
         width: '100%',
         height: '100%',
+        minHeight: '120px',
         imageRendering: 'crisp-edges'
       }}
     />

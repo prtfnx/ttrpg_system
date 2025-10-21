@@ -50,14 +50,37 @@
 
 .refresh-button:hover,
 .create-button:hover,
-.settings-toggle-button:hover {
+.settings-toggle-button:hover,
+.import-button:hover,
+.bulk-mode-button:hover {
   background: #4a4a4a;
   border-color: #666;
 }
 
-.settings-toggle-button.active {
+.settings-toggle-button.active,
+.bulk-mode-button.active {
   background: #0078d4;
   border-color: #0078d4;
+}
+
+.import-button {
+  background: #1a1a1a;
+  border: 1px solid #555;
+  color: #e0e0e0;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.bulk-mode-button {
+  background: #1a1a1a;
+  border: 1px solid #555;
+  color: #e0e0e0;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
 .refresh-button:disabled {
@@ -69,6 +92,63 @@
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* Bulk Actions Bar */
+.bulk-actions-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #2a4a7c;
+  border: 1px solid #4a7abc;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.bulk-count {
+  font-weight: 600;
+  color: #e0e0e0;
+  font-size: 14px;
+}
+
+.bulk-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.bulk-duplicate-button,
+.bulk-delete-button {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.bulk-duplicate-button {
+  background: #1a4a4a;
+  border-color: #17a2b8;
+  color: #17a2b8;
+}
+
+.bulk-duplicate-button:hover {
+  background: #17a2b8;
+  color: #fff;
+}
+
+.bulk-delete-button {
+  background: #4a1a1a;
+  border-color: #dc3545;
+  color: #dc3545;
+}
+
+.bulk-delete-button:hover {
+  background: #dc3545;
+  color: #fff;
 }
 
 /* Panel Settings */
@@ -104,6 +184,27 @@
   border: 1px solid #555;
   border-radius: 6px;
   flex-shrink: 0;
+}
+
+.select-all-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #2a4a7c;
+  border: 1px solid #4a7abc;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.select-all-checkbox input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
 }
 
 .search-box {
@@ -214,6 +315,50 @@
   margin: 0 0 12px 0;
   color: #fff;
   font-size: 16px;
+}
+
+.template-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+}
+
+.template-label {
+  font-size: 13px;
+  color: #999;
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+.template-button {
+  padding: 6px 12px;
+  background: #1a3a5a;
+  border: 1px solid #2a5a8a;
+  color: #6db3f2;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.template-button:hover {
+  background: #2a5a8a;
+  border-color: #4a8aba;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.template-button:active {
+  transform: translateY(0);
 }
 
 .form-row {
@@ -340,6 +485,45 @@
   right: 0;
   height: 3px;
   background: linear-gradient(90deg, #0078d4, #00bcf2);
+}
+
+/* Bulk Mode Styles */
+.table-card.bulk-mode {
+  cursor: pointer;
+}
+
+.table-card.selected {
+  border-color: #4a7abc;
+  box-shadow: 0 8px 16px rgba(74, 122, 188, 0.6);
+  background: #2a3a4c;
+}
+
+.table-card.selected::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #4a7abc, #6db3f2);
+}
+
+.bulk-checkbox-wrapper {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 15;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  border-radius: 4px;
+  padding: 4px;
+}
+
+.bulk-checkbox {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  margin: 0;
 }
 
 /* Sync Status Badge */
@@ -522,6 +706,16 @@
 .action-btn-settings:hover {
   background: #6c757d;
   border-color: #5a6268;
+  color: white;
+}
+
+.action-btn-export {
+  border-color: #28a745;
+}
+
+.action-btn-export:hover {
+  background: #28a745;
+  border-color: #218838;
   color: white;
 }
 

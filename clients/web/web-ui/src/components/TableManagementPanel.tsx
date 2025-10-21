@@ -41,6 +41,18 @@ export const TableManagementPanel: React.FC = () => {
   const [autoSync, setAutoSync] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
 
+  // NEW: Bulk selection
+  const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
+  const [bulkMode, setBulkMode] = useState(false);
+
+  // NEW: Table templates
+  const TABLE_TEMPLATES = {
+    small: { width: 1000, height: 1000, label: 'Small (1000×1000)' },
+    medium: { width: 2000, height: 2000, label: 'Medium (2000×2000)' },
+    large: { width: 4000, height: 4000, label: 'Large (4000×4000)' },
+    huge: { width: 8000, height: 8000, label: 'Huge (8000×8000)' },
+  };
+
   // Listen for protocol events
   useEffect(() => {
     const handleTableListUpdate = (event: Event) => {
@@ -358,11 +370,122 @@ export const TableManagementPanel: React.FC = () => {
     }
   };
 
+  // NEW: Bulk operations
+  const toggleTableSelection = (tableId: string) => {
+    const newSelection = new Set(selectedTables);
+    if (newSelection.has(tableId)) {
+      newSelection.delete(tableId);
+    } else {
+      newSelection.add(tableId);
+    }
+    setSelectedTables(newSelection);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedTables.size === filteredAndSortedTables.length) {
+      setSelectedTables(new Set());
+    } else {
+      setSelectedTables(new Set(filteredAndSortedTables.map(t => t.table_id)));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedTables.size === 0) return;
+    if (!confirm(`Delete ${selectedTables.size} table(s)?`)) return;
+    
+    selectedTables.forEach(tableId => {
+      deleteTable(tableId);
+    });
+    setSelectedTables(new Set());
+    setBulkMode(false);
+  };
+
+  const handleBulkDuplicate = () => {
+    if (selectedTables.size === 0) return;
+    
+    selectedTables.forEach(tableId => {
+      handleDuplicateTable(tableId);
+    });
+    setSelectedTables(new Set());
+  };
+
+  // NEW: Export/Import
+  const handleExportTable = (tableId: string) => {
+    const table = tables.find(t => t.table_id === tableId);
+    if (!table) return;
+
+    const exportData = {
+      table_name: table.table_name,
+      width: table.width,
+      height: table.height,
+      exported_at: new Date().toISOString(),
+      version: '1.0'
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${table.table_name || 'table'}_export.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportTable = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e: any) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+
+        if (!data.table_name || !data.width || !data.height) {
+          alert('Invalid table export file');
+          return;
+        }
+
+        createNewTable(
+          `${data.table_name} (Imported)`,
+          data.width,
+          data.height
+        );
+      } catch (err) {
+        alert('Failed to import table: ' + err);
+      }
+    };
+    input.click();
+  };
+
+  // NEW: Apply template
+  const applyTemplate = (templateKey: keyof typeof TABLE_TEMPLATES) => {
+    const template = TABLE_TEMPLATES[templateKey];
+    setNewTableWidth(template.width);
+    setNewTableHeight(template.height);
+  };
+
   return (
     <div className="table-management-panel">
       <div className="panel-header">
         <h3>Table Management</h3>
         <div className="header-actions">
+          <button 
+            onClick={() => setBulkMode(!bulkMode)}
+            className={`bulk-mode-button ${bulkMode ? 'active' : ''}`}
+            title="Bulk select mode"
+          >
+            {bulkMode ? '☑' : '☐'}
+          </button>
+          <button 
+            onClick={handleImportTable}
+            className="import-button"
+            title="Import table"
+          >
+            📥
+          </button>
           <button 
             onClick={() => setShowSettings(!showSettings)}
             className={`settings-toggle-button ${showSettings ? 'active' : ''}`}
@@ -388,6 +511,29 @@ export const TableManagementPanel: React.FC = () => {
         </div>
       </div>
 
+      {/* Bulk Actions Bar */}
+      {bulkMode && selectedTables.size > 0 && (
+        <div className="bulk-actions-bar">
+          <span className="bulk-count">{selectedTables.size} selected</span>
+          <div className="bulk-buttons">
+            <button 
+              onClick={handleBulkDuplicate}
+              className="bulk-duplicate-button"
+              title="Duplicate selected"
+            >
+              📋 Duplicate
+            </button>
+            <button 
+              onClick={handleBulkDelete}
+              className="bulk-delete-button"
+              title="Delete selected"
+            >
+              🗑️ Delete
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Panel Settings */}
       {showSettings && (
         <div className="panel-settings">
@@ -407,6 +553,17 @@ export const TableManagementPanel: React.FC = () => {
 
       {/* Search and Filter Bar */}
       <div className="search-filter-bar">
+        {bulkMode && (
+          <label className="select-all-checkbox">
+            <input
+              type="checkbox"
+              checked={selectedTables.size === filteredAndSortedTables.length && filteredAndSortedTables.length > 0}
+              onChange={toggleSelectAll}
+              title="Select all"
+            />
+            <span>All</span>
+          </label>
+        )}
         <div className="search-box">
           <span className="search-icon">🔍</span>
           <input
@@ -452,6 +609,24 @@ export const TableManagementPanel: React.FC = () => {
       {showCreateForm && (
         <div className="create-table-form">
           <h4>Create New Table</h4>
+          
+          {/* Template buttons */}
+          <div className="template-buttons">
+            <span className="template-label">Quick Templates:</span>
+            <button onClick={() => applyTemplate('small')} className="template-button">
+              Small (1000×1000)
+            </button>
+            <button onClick={() => applyTemplate('medium')} className="template-button">
+              Medium (2000×2000)
+            </button>
+            <button onClick={() => applyTemplate('large')} className="template-button">
+              Large (4000×4000)
+            </button>
+            <button onClick={() => applyTemplate('huge')} className="template-button">
+              Huge (8000×8000)
+            </button>
+          </div>
+
           <div className="form-row">
             <label>
               Name:
@@ -522,8 +697,20 @@ export const TableManagementPanel: React.FC = () => {
         {!tablesLoading && filteredAndSortedTables.map((table) => (
           <div 
             key={table.table_id} 
-            className={`table-card ${activeTableId === table.table_id ? 'active' : ''}`}
+            className={`table-card ${activeTableId === table.table_id ? 'active' : ''} ${bulkMode ? 'bulk-mode' : ''} ${selectedTables.has(table.table_id) ? 'selected' : ''}`}
           >
+            {/* Bulk Selection Checkbox */}
+            {bulkMode && (
+              <div className="bulk-checkbox-wrapper">
+                <input
+                  type="checkbox"
+                  checked={selectedTables.has(table.table_id)}
+                  onChange={() => toggleTableSelection(table.table_id)}
+                  className="bulk-checkbox"
+                />
+              </div>
+            )}
+
             {/* Sync Status Badge */}
             <div 
               className={`sync-badge sync-badge-${table.syncStatus || 'synced'}`}
@@ -543,12 +730,18 @@ export const TableManagementPanel: React.FC = () => {
             </div>
 
             {/* Table Preview */}
-            <div className="table-preview" onClick={() => handleTableSelect(table.table_id)}>
+            <div 
+              className="table-preview" 
+              onClick={() => bulkMode ? toggleTableSelection(table.table_id) : handleTableSelect(table.table_id)}
+            >
               <TablePreview table={table} width={160} height={120} />
             </div>
 
             {/* Table Info */}
-            <div className="table-card-info" onClick={() => handleTableSelect(table.table_id)}>
+            <div 
+              className="table-card-info" 
+              onClick={() => bulkMode ? toggleTableSelection(table.table_id) : handleTableSelect(table.table_id)}
+            >
               <div className="table-card-name" title={table.table_name}>
                 {table.table_name}
               </div>
@@ -571,63 +764,78 @@ export const TableManagementPanel: React.FC = () => {
 
             {/* Action Bar */}
             <div className="table-card-actions">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleTableSelect(table.table_id);
-                }}
-                className="action-btn action-btn-open"
-                title="Open table"
-              >
-                <span className="action-icon">↗</span>
-                Open
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleOpenSettings(table.table_id);
-                }}
-                className="action-btn action-btn-settings"
-                title="Table settings"
-              >
-                <span className="action-icon">⚙️</span>
-                Settings
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDuplicateTable(table.table_id);
-                }}
-                className="action-btn action-btn-duplicate"
-                title="Duplicate table"
-              >
-                <span className="action-icon">📋</span>
-                Copy
-              </button>
-              {table.syncStatus === 'local' && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    syncTableToServer(table.table_id);
-                  }}
-                  className="action-btn action-btn-sync"
-                  title="Sync to server"
-                >
-                  <span className="action-icon">↑</span>
-                  Sync
-                </button>
+              {!bulkMode && (
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleTableSelect(table.table_id);
+                    }}
+                    className="action-btn action-btn-open"
+                    title="Open table"
+                  >
+                    <span className="action-icon">↗</span>
+                    Open
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenSettings(table.table_id);
+                    }}
+                    className="action-btn action-btn-settings"
+                    title="Table settings"
+                  >
+                    <span className="action-icon">⚙️</span>
+                    Settings
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleExportTable(table.table_id);
+                    }}
+                    className="action-btn action-btn-export"
+                    title="Export table"
+                  >
+                    <span className="action-icon">📤</span>
+                    Export
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDuplicateTable(table.table_id);
+                    }}
+                    className="action-btn action-btn-duplicate"
+                    title="Duplicate table"
+                  >
+                    <span className="action-icon">📋</span>
+                    Copy
+                  </button>
+                  {table.syncStatus === 'local' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        syncTableToServer(table.table_id);
+                      }}
+                      className="action-btn action-btn-sync"
+                      title="Sync to server"
+                    >
+                      <span className="action-icon">↑</span>
+                      Sync
+                    </button>
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteTable(table.table_id);
+                    }}
+                    className="action-btn action-btn-delete"
+                    title="Delete table"
+                  >
+                    <span className="action-icon">🗑️</span>
+                    Delete
+                  </button>
+                </>
               )}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteTable(table.table_id);
-                }}
-                className="action-btn action-btn-delete"
-                title="Delete table"
-              >
-                <span className="action-icon">🗑️</span>
-                Delete
-              </button>
             </div>
           </div>
         ))}

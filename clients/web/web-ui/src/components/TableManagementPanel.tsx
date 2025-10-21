@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { TableInfo } from '../store';
 import { useGameStore } from '../store';
+import { TablePreview } from './TablePreview';
 import './TableManagementPanel.css';
 
 export const TableManagementPanel: React.FC = () => {
@@ -173,6 +174,22 @@ export const TableManagementPanel: React.FC = () => {
     }
   };
 
+  const formatRelativeTime = (timestamp?: number) => {
+    if (!timestamp) return '';
+    const now = Date.now();
+    const diff = now - timestamp;
+    
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (seconds < 60) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return `${days}d ago`;
+  };
+
   return (
     <div className="table-management-panel">
       <div className="panel-header">
@@ -262,67 +279,89 @@ export const TableManagementPanel: React.FC = () => {
         {!tablesLoading && tables.map((table) => (
           <div 
             key={table.table_id} 
-            className={`table-item ${activeTableId === table.table_id ? 'active' : ''}`}
+            className={`table-card ${activeTableId === table.table_id ? 'active' : ''}`}
           >
-            <div className="table-info" onClick={() => handleTableSelect(table.table_id)}>
-              <div className="table-header-row">
-                <div className="table-name">{table.table_name}</div>
-                {/* BEST PRACTICE: Visual sync status indicators */}
-                <span 
-                  className={`sync-status sync-status-${table.syncStatus || 'synced'}`}
-                  title={
-                    table.syncStatus === 'local' ? 'Local only - not synced to server' :
-                    table.syncStatus === 'syncing' ? 'Syncing with server...' :
-                    table.syncStatus === 'synced' ? `Synced ${table.lastSyncTime ? new Date(table.lastSyncTime).toLocaleString() : ''}` :
-                    table.syncStatus === 'error' ? `Sync error: ${table.syncError || 'Unknown error'}` :
-                    'Synced with server'
-                  }
-                >
-                  {table.syncStatus === 'local' && '💾'}
-                  {table.syncStatus === 'syncing' && '🔄'}
-                  {table.syncStatus === 'synced' && '☁️'}
-                  {table.syncStatus === 'error' && '⚠️'}
-                  {!table.syncStatus && '☁️'}
-                </span>
+            {/* Sync Status Badge */}
+            <div 
+              className={`sync-badge sync-badge-${table.syncStatus || 'synced'}`}
+              title={
+                table.syncStatus === 'local' ? 'Local only - not synced to server' :
+                table.syncStatus === 'syncing' ? 'Syncing with server...' :
+                table.syncStatus === 'synced' ? `Synced ${formatRelativeTime(table.lastSyncTime)}` :
+                table.syncStatus === 'error' ? `Sync error: ${table.syncError || 'Unknown error'}` :
+                'Synced with server'
+              }
+            >
+              {table.syncStatus === 'local' && '💾'}
+              {table.syncStatus === 'syncing' && '🔄'}
+              {table.syncStatus === 'synced' && '☁️'}
+              {table.syncStatus === 'error' && '⚠️'}
+              {!table.syncStatus && '☁️'}
+            </div>
+
+            {/* Table Preview */}
+            <div className="table-preview" onClick={() => handleTableSelect(table.table_id)}>
+              <TablePreview table={table} width={160} height={120} />
+            </div>
+
+            {/* Table Info */}
+            <div className="table-card-info" onClick={() => handleTableSelect(table.table_id)}>
+              <div className="table-card-name" title={table.table_name}>
+                {table.table_name}
               </div>
-              <div className="table-details">
-                <span className="table-size">{table.width} × {table.height}</span>
-                <span className="table-date">Created: {formatDate(table.created_at)}</span>
+              <div className="table-card-meta">
+                <span className="meta-item">
+                  <span className="meta-icon">📐</span>
+                  {table.width} × {table.height}
+                </span>
+                {table.entity_count !== undefined && (
+                  <span className="meta-item">
+                    <span className="meta-icon">🎭</span>
+                    {table.entity_count}
+                  </span>
+                )}
+              </div>
+              <div className="table-card-date">
+                {formatDate(table.created_at)}
               </div>
             </div>
-            
-            <div className="table-actions">
-              {/* BEST PRACTICE: Manual sync button for local tables */}
+
+            {/* Action Bar */}
+            <div className="table-card-actions">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTableSelect(table.table_id);
+                }}
+                className="action-btn action-btn-open"
+                title="Open table"
+              >
+                <span className="action-icon">↗</span>
+                Open
+              </button>
               {table.syncStatus === 'local' && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     syncTableToServer(table.table_id);
                   }}
-                  className="sync-button"
+                  className="action-btn action-btn-sync"
                   title="Sync to server"
                 >
-                  ↑
+                  <span className="action-icon">↑</span>
+                  Sync
                 </button>
               )}
-              {table.syncStatus === 'syncing' && (
-                <button
-                  className="sync-button syncing"
-                  title="Syncing..."
-                  disabled
-                >
-                  🔄
-                </button>
-              )}
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleDeleteTable(table.table_id);
                 }}
-                className="delete-button"
+                className="action-btn action-btn-delete"
                 title="Delete table"
               >
-                🗑️
+                <span className="action-icon">🗑️</span>
+                Delete
               </button>
             </div>
           </div>

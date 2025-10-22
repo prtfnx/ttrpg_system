@@ -350,37 +350,8 @@ class WasmIntegrationService {
         this.loadBackgroundImage(tableData.background_image);
       }
 
-      // Handle fog rectangles if present
-      if (tableData.fog_rectangles) {
-        console.log('🌫️ Processing fog rectangles from server:', tableData.fog_rectangles);
-        const hideRects = tableData.fog_rectangles.hide || [];
-        const revealRects = tableData.fog_rectangles.reveal || [];
-        
-        console.log(`🌫️ Adding ${hideRects.length} hide rectangles and ${revealRects.length} reveal rectangles`);
-        
-        // Clear existing fog first
-        if (typeof (this.renderEngine as any).clear_fog === 'function') {
-          (this.renderEngine as any).clear_fog();
-        }
-        
-        // Add hide rectangles
-        hideRects.forEach((rect: [[number, number], [number, number]], index: number) => {
-          const [[startX, startY], [endX, endY]] = rect;
-          const fogId = `fog_hide_${index}_${Date.now()}`;
-          console.log(`🌫️ Adding hide rectangle: ${fogId} from (${startX}, ${startY}) to (${endX}, ${endY})`);
-          (this.renderEngine as any).add_fog_rectangle(fogId, startX, startY, endX, endY, 'hide');
-        });
-        
-        // Add reveal rectangles
-        revealRects.forEach((rect: [[number, number], [number, number]], index: number) => {
-          const [[startX, startY], [endX, endY]] = rect;
-          const fogId = `fog_reveal_${index}_${Date.now()}`;
-          console.log(`🌫️ Adding reveal rectangle: ${fogId} from (${startX}, ${startY}) to (${endX}, ${endY})`);
-          (this.renderEngine as any).add_fog_rectangle(fogId, startX, startY, endX, endY, 'reveal');
-        });
-        
-        console.log('🌫️ Fog rectangles loaded successfully');
-      }
+      // NOTE: Fog is now handled via entities in the fog_of_war layer (processed above in layer handling)
+      // The old fog_rectangles system has been removed in favor of entity-based fog
 
     } catch (error) {
       console.error('Failed to process table data in WASM:', error);
@@ -778,6 +749,10 @@ class WasmIntegrationService {
       // Check if this is a light source
       const isLight = spriteData.texture_path === '__LIGHT__';
       
+      // Check if this is a fog rectangle
+      const isFogHide = spriteData.texture_path === '__FOG_HIDE__';
+      const isFogReveal = spriteData.texture_path === '__FOG_REVEAL__';
+      
       if (isLight) {
         // This is a light source, add it as a light instead of a sprite
         console.log('🔦 Detected light entity from server, adding as light:', spriteData);
@@ -817,7 +792,48 @@ class WasmIntegrationService {
         return; // Exit early, don't add as sprite
       }
       
-      // Regular sprite handling (not a light)
+      // Check if this is a fog rectangle
+      if (isFogHide || isFogReveal) {
+        console.log('🌫️ Detected fog entity from server, adding as fog rectangle:', spriteData);
+        
+        // Parse position (start point of rectangle)
+        let startX = 0, startY = 0;
+        if (Array.isArray(spriteData.position) && spriteData.position.length >= 2) {
+          startX = spriteData.position[0];
+          startY = spriteData.position[1];
+        } else {
+          startX = spriteData.coord_x ?? spriteData.x ?? 0;
+          startY = spriteData.coord_y ?? spriteData.y ?? 0;
+        }
+        
+        // Calculate end point from scale (width and height)
+        const width = spriteData.scale_x ?? 100;
+        const height = spriteData.scale_y ?? 100;
+        const endX = startX + width;
+        const endY = startY + height;
+        
+        // Add as fog rectangle
+        const fogId = spriteData.sprite_id || spriteData.id || `fog_${Date.now()}`;
+        const mode = isFogHide ? 'hide' : 'reveal';
+        
+        if (typeof (this.renderEngine as any).add_fog_rectangle === 'function') {
+          (this.renderEngine as any).add_fog_rectangle(
+            fogId,
+            startX,
+            startY,
+            endX,
+            endY,
+            mode
+          );
+          console.log(`✅ Successfully added fog rectangle from server: ${fogId} (${mode}) at [${startX}, ${startY}] to [${endX}, ${endY}]`);
+        } else {
+          console.error('❌ add_fog_rectangle method not available on render engine');
+        }
+        
+        return; // Exit early, don't add as sprite
+      }
+      
+      // Regular sprite handling (not a light or fog)
       // Create sprite object for WASM - handle various position formats
       let x = 0, y = 0;
       if (Array.isArray(spriteData.position) && spriteData.position.length >= 2) {

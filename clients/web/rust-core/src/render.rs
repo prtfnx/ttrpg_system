@@ -334,6 +334,11 @@ impl RenderEngine {
         }
     }
     
+    #[wasm_bindgen]
+    pub fn get_active_table_id(&self) -> Option<String> {
+        self.table_manager.get_active_table_id()
+    }
+    
     fn update_view_matrix(&mut self) {
         self.view_matrix = self.camera.view_matrix(self.canvas_size);
         let matrix_array = self.view_matrix.to_array();

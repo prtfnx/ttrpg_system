@@ -935,12 +935,45 @@ class ActionsCore(AsyncActionsProtocol):
     async def update_fog_rectangles(self, table_id: str, hide_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]], 
                                    reveal_rectangles: List[Tuple[Tuple[float, float], Tuple[float, float]]], 
                                    session_id: Optional[int] = None) -> ActionResult:
-        """Update fog of war rectangles"""
+        """Update fog of war rectangles by creating entities in fog_of_war layer"""
         try:
             table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, "Table not found")
             
+            # Remove existing fog entities from fog_of_war layer
+            fog_entities_to_remove = [
+                entity_id for entity_id, entity in table.entities.items() 
+                if entity.layer == 'fog_of_war'
+            ]
+            for entity_id in fog_entities_to_remove:
+                table.remove_entity(entity_id)
+            
+            # Create hide fog entities
+            for i, (start, end) in enumerate(hide_rectangles):
+                entity_data = {
+                    'name': f'fog_hide_{i}',
+                    'position': start,  # Store start position
+                    'layer': 'fog_of_war',
+                    'texture_path': '__FOG_HIDE__',
+                    'scale_x': abs(end[0] - start[0]),  # Store rectangle width as scale_x
+                    'scale_y': abs(end[1] - start[1]),  # Store rectangle height as scale_y
+                }
+                table.add_entity(entity_data)
+            
+            # Create reveal fog entities
+            for i, (start, end) in enumerate(reveal_rectangles):
+                entity_data = {
+                    'name': f'fog_reveal_{i}',
+                    'position': start,  # Store start position
+                    'layer': 'fog_of_war',
+                    'texture_path': '__FOG_REVEAL__',
+                    'scale_x': abs(end[0] - start[0]),  # Store rectangle width as scale_x
+                    'scale_y': abs(end[1] - start[1]),  # Store rectangle height as scale_y
+                }
+                table.add_entity(entity_data)
+            
+            # Also update the old fog_rectangles structure for compatibility
             table.fog_rectangles = {'hide': hide_rectangles, 'reveal': reveal_rectangles}
             
             await self._add_to_history({

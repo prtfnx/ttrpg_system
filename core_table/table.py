@@ -84,7 +84,7 @@ class VirtualTable:
         self.name = name
         self.width = width
         self.height = height
-        self.layers = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles']
+        self.layers = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles', 'fog_of_war']
         self.entities: Dict[int, Entity] = {}
         self.next_entity_id = 1
         
@@ -140,6 +140,15 @@ class VirtualTable:
         logger.debug(f"Adding entity {name} at {position} on layer {layer} with texture {path_to_texture}")
         entity = Entity(name, position, layer, path_to_texture, self.next_entity_id,
                        obstacle_type=obstacle_type, obstacle_data=obstacle_data)
+        
+        # Apply transform properties if provided
+        if 'scale_x' in entity_data:
+            entity.scale_x = entity_data['scale_x']
+        if 'scale_y' in entity_data:
+            entity.scale_y = entity_data['scale_y']
+        if 'rotation' in entity_data:
+            entity.rotation = entity_data['rotation']
+        
         self.entities[self.next_entity_id] = entity
         self.sprite_to_entity[entity.sprite_id] = self.next_entity_id
         self.grid[layer][position[1]][position[0]] = self.next_entity_id

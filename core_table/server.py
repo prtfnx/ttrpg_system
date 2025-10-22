@@ -22,9 +22,9 @@ class TableManager:
     """Manages virtual tables for the server with database persistence"""
     def __init__(self, db_session=None):
         self.tables: Dict[str, VirtualTable] = {}
+        self.tables_id: dict[str, VirtualTable] = {}
         self.db_session = db_session  # SQLAlchemy session for database operations
         self.default_table = self._create_default_table()
-        self.tables_id: dict[str, VirtualTable]= {}
     def set_db_session(self, db_session):
         """Set database session for persistence operations"""
         self.db_session = db_session
@@ -33,6 +33,7 @@ class TableManager:
         """Create a default table"""
         table = VirtualTable("default", 100, 100)
         self.tables["default"] = table
+        self.tables_id[str(table.table_id)] = table  # Also add to tables_id
         return table
     
     def get_table(self, name: str = None) -> VirtualTable:
@@ -44,7 +45,8 @@ class TableManager:
         """Create a new table"""
         table = VirtualTable(name, width, height)
         self.tables[name] = table
-        logger.info(f"Created table '{name}' ({width}x{height})")
+        self.tables_id[str(table.table_id)] = table  # Also add to tables_id for UUID lookup
+        logger.info(f"Created table '{name}' ({width}x{height}) with ID {table.table_id}")
         return table
     
     def add_table(self, table: VirtualTable):

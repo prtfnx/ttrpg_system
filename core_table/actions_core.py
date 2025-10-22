@@ -950,7 +950,8 @@ class ActionsCore(AsyncActionsProtocol):
                 'reveal_rectangles': reveal_rectangles
             })
             
-            await self._persist_table_state(table, "fog update", session_id)
+            # Use immediate persistence for fog updates to ensure they're saved right away
+            await self._force_persist_table_state(table, "fog update", session_id)
             return ActionResult(True, "Fog updated", {'fog_rectangles': table.fog_rectangles})
         except Exception as e:
             return ActionResult(False, f"Failed to update fog: {str(e)}")

@@ -49,6 +49,7 @@ interface GameStore extends GameState {
   updateSprite: (id: string, updates: Partial<Sprite>) => void;
   addCharacter: (character: import('./types').Character) => void;
   updateCharacter: (id: string, updates: Partial<import('./types').Character>) => void;
+  removeCharacter: (id: string) => void;
   addInventoryItem: (characterId: string, item: string) => void;
   
   // Table management actions
@@ -238,6 +239,16 @@ export const useGameStore = create<GameStore>()(
           characters: state.characters.map((char) =>
             char.id === id ? { ...char, ...updates, stats: { ...char.stats, ...(updates.stats || {}) } } : char
           ),
+        }));
+      },
+
+      removeCharacter: (id: string) => {
+        set((state) => ({
+          characters: state.characters.filter((char) => char.id !== id),
+          selectedSprites: state.selectedSprites.filter((spriteId) => {
+            const char = state.characters.find(c => c.id === id);
+            return char ? spriteId !== char.sprite.id : true;
+          }),
         }));
       },
 

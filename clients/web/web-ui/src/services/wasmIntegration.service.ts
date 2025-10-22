@@ -350,6 +350,38 @@ class WasmIntegrationService {
         this.loadBackgroundImage(tableData.background_image);
       }
 
+      // Handle fog rectangles if present
+      if (tableData.fog_rectangles) {
+        console.log('🌫️ Processing fog rectangles from server:', tableData.fog_rectangles);
+        const hideRects = tableData.fog_rectangles.hide || [];
+        const revealRects = tableData.fog_rectangles.reveal || [];
+        
+        console.log(`🌫️ Adding ${hideRects.length} hide rectangles and ${revealRects.length} reveal rectangles`);
+        
+        // Clear existing fog first
+        if (typeof (this.renderEngine as any).clear_fog === 'function') {
+          (this.renderEngine as any).clear_fog();
+        }
+        
+        // Add hide rectangles
+        hideRects.forEach((rect: [[number, number], [number, number]], index: number) => {
+          const [[startX, startY], [endX, endY]] = rect;
+          const fogId = `fog_hide_${index}_${Date.now()}`;
+          console.log(`🌫️ Adding hide rectangle: ${fogId} from (${startX}, ${startY}) to (${endX}, ${endY})`);
+          (this.renderEngine as any).add_fog_rectangle(fogId, startX, startY, endX, endY, 'hide');
+        });
+        
+        // Add reveal rectangles
+        revealRects.forEach((rect: [[number, number], [number, number]], index: number) => {
+          const [[startX, startY], [endX, endY]] = rect;
+          const fogId = `fog_reveal_${index}_${Date.now()}`;
+          console.log(`🌫️ Adding reveal rectangle: ${fogId} from (${startX}, ${startY}) to (${endX}, ${endY})`);
+          (this.renderEngine as any).add_fog_rectangle(fogId, startX, startY, endX, endY, 'reveal');
+        });
+        
+        console.log('🌫️ Fog rectangles loaded successfully');
+      }
+
     } catch (error) {
       console.error('Failed to process table data in WASM:', error);
     }
@@ -743,6 +775,49 @@ class WasmIntegrationService {
     try {
       const layer = spriteData.layer || 'tokens';
       
+      // Check if this is a light source
+      const isLight = spriteData.texture_path === '__LIGHT__';
+      
+      if (isLight) {
+        // This is a light source, add it as a light instead of a sprite
+        console.log('🔦 Detected light entity from server, adding as light:', spriteData);
+        
+        // Create sprite object for WASM - handle various position formats
+        let x = 0, y = 0;
+        if (Array.isArray(spriteData.position) && spriteData.position.length >= 2) {
+          // Server format: position: [x, y]
+          x = spriteData.position[0];
+          y = spriteData.position[1];
+          console.log(`Position from array: [${x}, ${y}]`);
+        } else {
+          // Client format: coord_x/coord_y or x/y
+          x = spriteData.coord_x ?? spriteData.x ?? 0;
+          y = spriteData.coord_y ?? spriteData.y ?? 0;
+          console.log(`Position from properties: (${x}, ${y})`);
+        }
+        
+        // Add as light using the rendering engine's add_light method
+        const lightId = spriteData.sprite_id || spriteData.id || `light_${Date.now()}`;
+        const tableId = spriteData.table_id || 'default_table';
+        
+        if (typeof (this.renderEngine as any).add_light === 'function') {
+          (this.renderEngine as any).add_light(
+            lightId,
+            x,
+            y,
+            150.0,  // Default radius
+            1.0, 1.0, 0.9, 1.0,  // Default color (warm white)
+            tableId
+          );
+          console.log(`✅ Successfully added light from server: ${lightId} at (${x}, ${y})`);
+        } else {
+          console.error('❌ add_light method not available on render engine');
+        }
+        
+        return; // Exit early, don't add as sprite
+      }
+      
+      // Regular sprite handling (not a light)
       // Create sprite object for WASM - handle various position formats
       let x = 0, y = 0;
       if (Array.isArray(spriteData.position) && spriteData.position.length >= 2) {

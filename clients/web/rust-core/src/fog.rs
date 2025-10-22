@@ -22,7 +22,7 @@ impl FogRectangle {
     pub fn new(id: String, start_x: f32, start_y: f32, end_x: f32, end_y: f32, mode: FogMode) -> Self {
         Self {
             id,
-            table_id: "default_table".to_string(), // Default to default_table
+            table_id: "default".to_string(), // Default to "default" (matches server table name)
             start: Vec2::new(start_x, start_y),
             end: Vec2::new(end_x, end_y),
             mode,

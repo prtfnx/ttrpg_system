@@ -186,8 +186,10 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
     mode: 'onChange'
   });
 
-  const { watch, reset, getValues } = form;
-  const watchedValues = watch();
+  const { reset, getValues, formState } = form;
+  
+  // DON'T watch fields here - it causes infinite re-renders!
+  // Child components will watch what they need via useFormContext
 
   // Current step data
   const currentStep = WIZARD_STEPS[currentStepIndex];
@@ -226,9 +228,9 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
     }
   }, [getValues]);
 
-  // Auto-save on data changes
+  // Auto-save on data changes (use formState.isDirty to avoid infinite loops)
   useEffect(() => {
-    if (!isInitializing && isOpen) {
+    if (!isInitializing && isOpen && formState.isDirty) {
       const timeoutId = setTimeout(() => {
         persistData();
         setHasUnsavedChanges(true);
@@ -236,7 +238,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
 
       return () => clearTimeout(timeoutId);
     }
-  }, [watchedValues, persistData, isInitializing, isOpen]);
+  }, [formState.isDirty, persistData, isInitializing, isOpen]);
 
   // Check if step can be navigated to
   const canNavigateToStep = useCallback((stepIndex: number): boolean => {
@@ -404,12 +406,11 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, handleClose, handlePrevious, handleNext]);
 
-  // Progress calculation
+  // Progress calculation (simplified to avoid infinite loops)
+  // Just use current step position as progress, not completed steps filter
   const progress = useMemo(() => {
-    const applicableSteps = WIZARD_STEPS.filter(step => shouldShowStep(step, watchedValues));
-    const completedApplicableSteps = applicableSteps.filter((_, index) => completedSteps.has(index));
-    return Math.round((completedApplicableSteps.length / applicableSteps.length) * 100);
-  }, [completedSteps, watchedValues]);
+    return Math.round((currentStepIndex / (WIZARD_STEPS.length - 1)) * 100);
+  }, [currentStepIndex]);
 
   // Render current step component
   const renderCurrentStep = () => {
@@ -428,16 +429,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
         <StepComponent
           onNext={handleNext}
           onPrevious={handlePrevious}
-          characterClass={watchedValues.class}
-          characterLevel={watchedValues.advancement?.currentLevel || 1}
-          abilityScores={{
-            strength: watchedValues.strength,
-            dexterity: watchedValues.dexterity,
-            constitution: watchedValues.constitution,
-            intelligence: watchedValues.intelligence,
-            wisdom: watchedValues.wisdom,
-            charisma: watchedValues.charisma
-          }}
+          // Don't pass watched values - child components access via useFormContext
           {...(currentStep.id === 'equipment' ? {
             onBack: handlePrevious
           } : {})}
@@ -497,7 +489,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
 
               {/* Step Navigation */}
               <nav className="wizard-steps" aria-label="Wizard steps">
-                {WIZARD_STEPS.filter(step => shouldShowStep(step, watchedValues)).map((step, index) => (
+                {WIZARD_STEPS.filter(step => shouldShowStep(step, getValues())).map((step, index) => (
                   <button
                     key={step.id}
                     className={`step-button ${

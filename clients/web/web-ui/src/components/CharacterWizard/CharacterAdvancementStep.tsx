@@ -1,4 +1,5 @@
 import React from 'react';
+import { useFormContext } from 'react-hook-form';
 import type { AdvancedCharacter } from '../../services/advancementSystem.service';
 import './CharacterAdvancementStep.css';
 import { LevelUpWizard } from './LevelUpWizard';
@@ -6,16 +7,35 @@ import type { WizardFormData } from './WizardFormData';
 import { XPTracker } from './XPTracker';
 
 interface CharacterAdvancementStepProps {
-  data: WizardFormData;
-  onChange: (field: keyof WizardFormData, value: any) => void;
+  onNext?: () => void;
+  onPrevious?: () => void;
+  onBack?: () => void;
+  // Legacy props for backwards compatibility
+  data?: WizardFormData;
+  onChange?: (field: keyof WizardFormData, value: any) => void;
   onComplete?: () => void;
 }
 
 export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> = ({
-  data,
-  onChange,
+  onNext,
+  onPrevious: _onPrevious,
+  onBack: _onBack,
+  data: legacyData,
+  onChange: legacyOnChange,
   onComplete
 }) => {
+  const formContext = useFormContext<WizardFormData>();
+  const isUsingFormContext = formContext !== undefined;
+  
+  // Use form context if available, otherwise use legacy props
+  const data = isUsingFormContext ? formContext.watch() : (legacyData || {} as WizardFormData);
+  
+  const onChange = legacyOnChange || ((field: keyof WizardFormData, value: any) => {
+    if (isUsingFormContext) {
+      formContext.setValue(field, value, { shouldValidate: true });
+    }
+  });
+  
   const [showLevelUpWizard, setShowLevelUpWizard] = React.useState(false);
   const [currentXP, setCurrentXP] = React.useState(data.advancement?.experiencePoints || 0);
   const [targetLevel, setTargetLevel] = React.useState<number | null>(null);
@@ -98,8 +118,12 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
     setShowLevelUpWizard(false);
     setTargetLevel(null);
     
+    // Call completion handlers if available
     if (onComplete) {
       onComplete();
+    }
+    if (onNext) {
+      onNext();
     }
   };
 

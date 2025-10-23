@@ -409,7 +409,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
     const applicableSteps = WIZARD_STEPS.filter(step => shouldShowStep(step, watchedValues));
     const completedApplicableSteps = applicableSteps.filter((_, index) => completedSteps.has(index));
     return Math.round((completedApplicableSteps.length / applicableSteps.length) * 100);
-  }, [completedSteps, shouldShowStep, watchedValues]);
+  }, [completedSteps, watchedValues]);
 
   // Render current step component
   const renderCurrentStep = () => {

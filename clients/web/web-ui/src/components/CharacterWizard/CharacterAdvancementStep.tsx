@@ -1,10 +1,10 @@
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
-import type { AdvancedCharacter } from '../../services/advancementSystem.service';
 import './CharacterAdvancementStep.css';
 import { LevelUpWizard } from './LevelUpWizard';
 import type { WizardFormData } from './WizardFormData';
 import { XPTracker } from './XPTracker';
+import { AdvancementSystemService } from '../../services/advancementSystem.service';
 
 interface CharacterAdvancementStepProps {
   onNext?: () => void;
@@ -134,9 +134,52 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
   };
 
   if (showLevelUpWizard) {
+    // AdvancedCharacter extends WizardFormData, so abilities should be top-level (not nested)
+    // Just add the missing required AdvancedCharacter properties
+    
+    // DEBUG: Log the actual data structure
+    console.log('🔍 CharacterAdvancementStep - Raw data:', data);
+    console.log('🔍 Ability scores:', {
+      strength: data.strength,
+      dexterity: data.dexterity,
+      constitution: data.constitution,
+      intelligence: data.intelligence,
+      wisdom: data.wisdom,
+      charisma: data.charisma
+    });
+    
+    const characterData: any = {
+      ...data,
+      // Ensure ability scores have defaults if not set
+      strength: data.strength || 10,
+      dexterity: data.dexterity || 10,
+      constitution: data.constitution || 10,
+      intelligence: data.intelligence || 10,
+      wisdom: data.wisdom || 10,
+      charisma: data.charisma || 10,
+      // Add required AdvancedCharacter properties
+      totalLevel: currentLevel,
+      classLevels: data.class ? [{ name: data.class, level: currentLevel }] : [],
+      experiencePoints: {
+        current: currentXP,
+        required: AdvancementSystemService.calculateXPForLevel(currentLevel + 1)
+      },
+      hitPoints: { 
+        current: 10, 
+        maximum: 10,
+        temporary: 0 
+      },
+      features: [],
+      feats: [],
+      inspiration: false
+    };
+    
+    console.log('🔍 CharacterData being passed to LevelUpWizard:', characterData);
+    console.log('🔍 characterData.strength =', characterData.strength);
+    
     return (
       <LevelUpWizard
-        character={data as AdvancedCharacter}
+        character={characterData}
         onComplete={handleLevelUpComplete}
         onCancel={() => {
           setShowLevelUpWizard(false);

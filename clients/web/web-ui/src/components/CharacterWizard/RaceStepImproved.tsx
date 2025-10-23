@@ -11,7 +11,7 @@ interface ExtendedRaceData extends RaceStepData {
 export function RaceStep({ onNext }: { onNext: () => void }) {
   const { control, handleSubmit, formState, watch, setValue } = useFormContext<ExtendedRaceData>();
   const [selectedRace, setSelectedRace] = useState<string>('');
-  const watchedRace = watch('race');
+  // DON'T watch 'race' here - causes infinite loop when setValue is called
   
   // Load races from compendium
   const { data: RACES, loading: racesLoading, error: racesError } = useRacesForCharacterWizard();
@@ -175,15 +175,15 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
       <div style={{ display: 'flex', gap: 8 }}>
         <button 
           type="submit" 
-          disabled={!watchedRace || (hasSubraces && !selectedSubrace)}
+          disabled={!selectedRace || (hasSubraces && !selectedSubrace)}
           style={{ 
-            background: watchedRace && (!hasSubraces || selectedSubrace) ? '#6366f1' : '#9ca3af', 
+            background: selectedRace && (!hasSubraces || selectedSubrace) ? '#6366f1' : '#9ca3af', 
             color: '#fff', 
             border: 'none', 
             borderRadius: 4, 
             padding: '8px 16px', 
             fontWeight: 600,
-            cursor: watchedRace && (!hasSubraces || selectedSubrace) ? 'pointer' : 'not-allowed'
+            cursor: selectedRace && (!hasSubraces || selectedSubrace) ? 'pointer' : 'not-allowed'
           }}
         >
           Next

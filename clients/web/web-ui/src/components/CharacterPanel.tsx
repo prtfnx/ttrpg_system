@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../store';
-import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 import './CharacterPanelRedesigned.css';
+import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 
 // Utility to generate unique IDs
 function genId(): string {
@@ -11,7 +11,7 @@ function genId(): string {
 
 
 function CharacterPanel() {
-  const { characters, selectedSprites, addCharacter, selectSprite, removeCharacter } = useGameStore();
+  const { characters, selectedSprites, addCharacter, selectSprite, removeCharacter, activeTableId } = useGameStore();
   const [showWizard, setShowWizard] = useState(false);
   const [expandedCharId, setExpandedCharId] = useState<string | null>(null);
   const [wizardKey, setWizardKey] = useState(0);
@@ -53,6 +53,7 @@ function CharacterPanel() {
         isSelected: false,
         isVisible: true,
         layer: 'tokens' as const,
+        table_id: activeTableId || 'default', // Use active table or fallback
       },
       stats: {
         hp: 10,

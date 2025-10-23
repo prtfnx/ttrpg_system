@@ -74,7 +74,8 @@ export function SkillsStep({
     }
     
     setSelected(alreadyGranted);
-  }, [alreadyGranted, getValues]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alreadyGranted]); // Remove getValues from deps - it causes infinite loop
 
   // Handle skill selection
   function toggleSkill(skill: string) {

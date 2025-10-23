@@ -285,6 +285,31 @@
   overflow-y: auto;
 }
 
+/* Ensure all text in step content is visible with dark color */
+.step-content,
+.step-content * {
+  color: #2c3e50;
+}
+
+/* Preserve explicit colors for specific elements */
+.step-content label,
+.step-content input,
+.step-content select,
+.step-content textarea,
+.step-content button {
+  color: inherit;
+}
+
+/* Ensure headers and labels are dark */
+.step-content h1,
+.step-content h2,
+.step-content h3,
+.step-content h4,
+.step-content h5,
+.step-content h6 {
+  color: #2c3e50;
+}
+
 /* Step Error Fallback */
 .step-error {
   text-align: center;

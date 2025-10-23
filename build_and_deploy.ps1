@@ -1,4 +1,13 @@
 # PowerShell script to build Rust WASM, build React, copy assets, and update vite_assets.html for FastAPI
+# Usage: .\build_and_deploy.ps1 [-dev]
+# -dev: Build in development mode with unminified React for debugging
+
+param(
+    [switch]$dev
+)
+
+$buildMode = if ($dev) { "development" } else { "production" }
+Write-Host "Build mode: $buildMode"
 
 # 1. Build Rust WASM (assumes wasm-pack and correct Rust toolchain installed)
 Write-Host "Building Rust WASM..."
@@ -7,8 +16,14 @@ wasm-pack build --target web --out-dir ../public/wasm
 Pop-Location
 
 # 2. Build React (Vite)
-Write-Host "Building React (Vite)..."
+Write-Host "Building React (Vite) in $buildMode mode..."
 Push-Location "clients/web/web-ui"
+if ($dev) {
+    $env:NODE_ENV = "development"
+    Write-Host "(Development mode: React will be unminified with detailed error messages)"
+} else {
+    $env:NODE_ENV = "production"
+}
 npm run build
 Pop-Location
 

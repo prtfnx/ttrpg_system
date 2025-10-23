@@ -127,20 +127,20 @@ export function SkillsStep({
 
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8, color: '#ffffff' }}>Select Skills</div>
-      <div style={{ fontSize: 12, color: '#cccccc', marginBottom: 8 }}>
+      <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Select Skills</div>
+      <div style={{ fontSize: 12, marginBottom: 8 }}>
         Debug: Selected: [{selected.join(', ')}] | Background: [{backgroundSkills.join(', ')}] | 
         Available Class: [{availableClassSkills.join(', ')}] | Need: {classSkillChoices}
       </div>
-      <div style={{ marginBottom: 8, color: '#ffffff' }}>
+      <div style={{ marginBottom: 8 }}>
         <b>Background Skills:</b> {backgroundSkills.join(', ') || 'None'}
       </div>
       {raceSkills.length > 0 && (
-        <div style={{ marginBottom: 8, color: '#ffffff' }}>
+        <div style={{ marginBottom: 8 }}>
           <b>Racial Skills:</b> {raceSkills.join(', ')}
         </div>
       )}
-      <div style={{ marginBottom: 8, color: '#ffffff' }}>
+      <div style={{ marginBottom: 8 }}>
         <b>Class Skills:</b> Choose {classSkillChoices} from: {availableClassSkills.length > 0 ? availableClassSkills.join(', ') : '(All granted by background/race)'}
         <span style={{ fontSize: 12, color: '#888', marginLeft: 8 }} title="If a class skill is already granted by your background or race, you may pick a replacement from the remaining class skills.">[?]</span>
       </div>
@@ -151,7 +151,7 @@ export function SkillsStep({
           const isClass = availableClassSkills.includes(skill);
           const checked = selected.includes(skill);
           return (
-            <label key={skill} style={{ display: 'flex', alignItems: 'center', gap: 4, opacity: isClass || isBackground || isRace ? 1 : 0.5, color: '#ffffff' }}>
+            <label key={skill} style={{ display: 'flex', alignItems: 'center', gap: 4, opacity: isClass || isBackground || isRace ? 1 : 0.5 }}>
               <input
                 type="checkbox"
                 checked={checked}

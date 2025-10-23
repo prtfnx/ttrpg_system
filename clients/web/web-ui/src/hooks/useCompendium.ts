@@ -2,7 +2,7 @@
  * React hooks for D&D 5e Compendium data
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { compendiumService, type CharacterClass, type CompendiumStatus, type Race, type Spell } from '../services/compendiumService';
 
 export interface UseCompendiumDataState<T> {
@@ -41,9 +41,8 @@ export function useCompendiumStatus(): UseCompendiumDataState<CompendiumStatus> 
     fetchStatus();
   }, [fetchStatus]);
 
-  setState(prev => ({ ...prev, refetch: fetchStatus }));
-
-  return state;
+  // Return state with refetch function using useMemo to avoid infinite re-renders
+  return useMemo(() => ({ ...state, refetch: fetchStatus }), [state, fetchStatus]);
 }
 
 /**
@@ -75,9 +74,8 @@ export function useRaces(): UseCompendiumDataState<Race[]> {
     fetchRaces();
   }, [fetchRaces]);
 
-  setState(prev => ({ ...prev, refetch: fetchRaces }));
-
-  return state;
+  // Return state with refetch function using useMemo to avoid infinite re-renders
+  return useMemo(() => ({ ...state, refetch: fetchRaces }), [state, fetchRaces]);
 }
 
 /**
@@ -109,9 +107,8 @@ export function useRacesForCharacterWizard(): UseCompendiumDataState<Record<stri
     fetchRaces();
   }, [fetchRaces]);
 
-  setState(prev => ({ ...prev, refetch: fetchRaces }));
-
-  return state;
+  // Return state with refetch function using useMemo to avoid infinite re-renders
+  return useMemo(() => ({ ...state, refetch: fetchRaces }), [state, fetchRaces]);
 }
 
 /**
@@ -143,9 +140,8 @@ export function useClasses(): UseCompendiumDataState<CharacterClass[]> {
     fetchClasses();
   }, [fetchClasses]);
 
-  setState(prev => ({ ...prev, refetch: fetchClasses }));
-
-  return state;
+  // Return state with refetch function using useMemo to avoid infinite re-renders
+  return useMemo(() => ({ ...state, refetch: fetchClasses }), [state, fetchClasses]);
 }
 
 /**
@@ -182,9 +178,8 @@ export function useSpells(filters: {
     fetchSpells();
   }, [fetchSpells]);
 
-  setState(prev => ({ ...prev, refetch: fetchSpells }));
-
-  return state;
+  // Return state with refetch function using useMemo to avoid infinite re-renders
+  return useMemo(() => ({ ...state, refetch: fetchSpells }), [state, fetchSpells]);
 }
 
 /**
@@ -221,9 +216,8 @@ export function useRace(raceName: string | null): UseCompendiumDataState<Race> {
     fetchRace();
   }, [fetchRace]);
 
-  setState(prev => ({ ...prev, refetch: fetchRace }));
-
-  return state;
+  // Return state with refetch function using useMemo to avoid infinite re-renders
+  return useMemo(() => ({ ...state, refetch: fetchRace }), [state, fetchRace]);
 }
 
 /**
@@ -260,9 +254,8 @@ export function useClass(className: string | null): UseCompendiumDataState<Chara
     fetchClass();
   }, [fetchClass]);
 
-  setState(prev => ({ ...prev, refetch: fetchClass }));
-
-  return state;
+  // Return state with refetch function using useMemo to avoid infinite re-renders
+  return useMemo(() => ({ ...state, refetch: fetchClass }), [state, fetchClass]);
 }
 
 /**
@@ -299,7 +292,6 @@ export function useSpell(spellName: string | null): UseCompendiumDataState<Spell
     fetchSpell();
   }, [fetchSpell]);
 
-  setState(prev => ({ ...prev, refetch: fetchSpell }));
-
-  return state;
+  // Return state with refetch function using useMemo to avoid infinite re-renders
+  return useMemo(() => ({ ...state, refetch: fetchSpell }), [state, fetchSpell]);
 }

@@ -9,9 +9,10 @@ interface ExtendedRaceData extends RaceStepData {
 }
 
 export function RaceStep({ onNext }: { onNext: () => void }) {
-  const { control, handleSubmit, formState, watch, setValue } = useFormContext<ExtendedRaceData>();
+  const { control, handleSubmit, formState, setValue } = useFormContext<ExtendedRaceData>();
   const [selectedRace, setSelectedRace] = useState<string>('');
-  // DON'T watch 'race' here - causes infinite loop when setValue is called
+  const [selectedSubrace, setSelectedSubrace] = useState<string>('');
+  // DON'T watch fields here - causes infinite loop when setValue is called
   
   // Load races from compendium
   const { data: RACES, loading: racesLoading, error: racesError } = useRacesForCharacterWizard();
@@ -25,6 +26,7 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
     setSelectedRace(raceName);
     setValue('race', raceName);
     // Clear subrace when race changes
+    setSelectedSubrace('');
     setValue('subrace', '');
   };
 
@@ -64,7 +66,7 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
 
   const selectedRaceData = RACES[selectedRace];
   const hasSubraces = selectedRaceData?.subraces && Object.keys(selectedRaceData.subraces).length > 0;
-  const selectedSubrace = watch('subrace');
+  // Use local state instead of watch() to avoid infinite loops
   
   // Show racial traits
   const racialTraits = selectedRace ? getRacialTraits(selectedRace, selectedSubrace, RACES) : [];
@@ -111,7 +113,10 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
             render={({ field }) => (
               <select
                 value={field.value || ''}
-                onChange={field.onChange}
+                onChange={(e) => {
+                  field.onChange(e);
+                  setSelectedSubrace(e.target.value);
+                }}
                 style={{ marginLeft: 8, padding: '4px 8px' }}
               >
                 <option value="">Select subrace...</option>

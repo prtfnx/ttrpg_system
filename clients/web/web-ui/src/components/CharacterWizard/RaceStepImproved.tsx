@@ -74,10 +74,10 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
 
   return (
     <form onSubmit={handleSubmit(handleRaceNext)} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Choose your character's race</div>
+      <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8, color: '#ffffff' }}>Choose your character's race</div>
       
       {/* Race Selection */}
-      <label>
+      <label style={{ color: '#ffffff', fontSize: 14, fontWeight: 500 }}>
         Race:
         <Controller
           name="race"
@@ -104,7 +104,7 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
 
       {/* Subrace Selection */}
       {hasSubraces && (
-        <label>
+        <label style={{ color: '#ffffff', fontSize: 14, fontWeight: 500 }}>
           Subrace:
           <Controller
             name="subrace"

@@ -27,16 +27,27 @@ const SKILLS = [
 // Example: classSkills and backgroundSkills would come from previous steps or compendium
 type SkillsStepProps = {
   onNext: () => void;
-  onBack: () => void;
-  classSkills: string[]; // e.g. ['Athletics', 'Intimidation', ...]
-  classSkillChoices: number; // e.g. 2 for Fighter
-  backgroundSkills: string[]; // e.g. ['Insight', 'Religion']
+  onBack?: () => void;
+  onPrevious?: () => void;
+  classSkills?: string[]; // e.g. ['Athletics', 'Intimidation', ...]
+  classSkillChoices?: number; // e.g. 2 for Fighter
+  backgroundSkills?: string[]; // e.g. ['Insight', 'Religion']
   raceSkills?: string[]; // e.g. ['Perception']
 };
 
-export function SkillsStep({ onNext, onBack, classSkills, classSkillChoices, backgroundSkills, raceSkills = [] }: SkillsStepProps) {
+export function SkillsStep({ 
+  onNext, 
+  onBack, 
+  onPrevious,
+  classSkills = [], 
+  classSkillChoices = 2, 
+  backgroundSkills = [], 
+  raceSkills = [] 
+}: SkillsStepProps) {
   const { setValue, formState, setError, clearErrors, getValues } = useFormContext<SkillsStepData>();
   const [selected, setSelected] = useState<string[]>([]);
+  
+  const handleBack = onBack || onPrevious;
 
   // Compute already granted skills (background + race)
   const alreadyGranted = useMemo(() => [...backgroundSkills, ...raceSkills], [backgroundSkills, raceSkills]);
@@ -116,20 +127,20 @@ export function SkillsStep({ onNext, onBack, classSkills, classSkillChoices, bac
 
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Select Skills</div>
-      <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+      <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8, color: '#ffffff' }}>Select Skills</div>
+      <div style={{ fontSize: 12, color: '#cccccc', marginBottom: 8 }}>
         Debug: Selected: [{selected.join(', ')}] | Background: [{backgroundSkills.join(', ')}] | 
         Available Class: [{availableClassSkills.join(', ')}] | Need: {classSkillChoices}
       </div>
-      <div style={{ marginBottom: 8 }}>
-        <b>Background Skills:</b> {backgroundSkills.join(', ')}
+      <div style={{ marginBottom: 8, color: '#ffffff' }}>
+        <b>Background Skills:</b> {backgroundSkills.join(', ') || 'None'}
       </div>
       {raceSkills.length > 0 && (
-        <div style={{ marginBottom: 8 }}>
+        <div style={{ marginBottom: 8, color: '#ffffff' }}>
           <b>Racial Skills:</b> {raceSkills.join(', ')}
         </div>
       )}
-      <div style={{ marginBottom: 8 }}>
+      <div style={{ marginBottom: 8, color: '#ffffff' }}>
         <b>Class Skills:</b> Choose {classSkillChoices} from: {availableClassSkills.length > 0 ? availableClassSkills.join(', ') : '(All granted by background/race)'}
         <span style={{ fontSize: 12, color: '#888', marginLeft: 8 }} title="If a class skill is already granted by your background or race, you may pick a replacement from the remaining class skills.">[?]</span>
       </div>
@@ -140,7 +151,7 @@ export function SkillsStep({ onNext, onBack, classSkills, classSkillChoices, bac
           const isClass = availableClassSkills.includes(skill);
           const checked = selected.includes(skill);
           return (
-            <label key={skill} style={{ display: 'flex', alignItems: 'center', gap: 4, opacity: isClass || isBackground || isRace ? 1 : 0.5 }}>
+            <label key={skill} style={{ display: 'flex', alignItems: 'center', gap: 4, opacity: isClass || isBackground || isRace ? 1 : 0.5, color: '#ffffff' }}>
               <input
                 type="checkbox"
                 checked={checked}
@@ -159,7 +170,9 @@ export function SkillsStep({ onNext, onBack, classSkills, classSkillChoices, bac
         <span style={{ color: 'red' }}>{formState.errors.skills.message as string}</span>
       )}
       <div style={{ display: 'flex', gap: 8 }}>
-        <button type="button" onClick={onBack} style={{ background: '#eee', color: '#333', border: 'none', borderRadius: 4, padding: '8px 16px' }}>Back</button>
+        {handleBack && (
+          <button type="button" onClick={handleBack} style={{ background: '#eee', color: '#333', border: 'none', borderRadius: 4, padding: '8px 16px' }}>Back</button>
+        )}
         <button 
           type="submit" 
           data-testid="skills-next-button"

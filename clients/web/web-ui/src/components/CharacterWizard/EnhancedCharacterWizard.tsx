@@ -416,6 +416,13 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
   const renderCurrentStep = () => {
     const StepComponent = currentStep.component;
     
+    console.log('🎭 Rendering step:', {
+      index: currentStepIndex,
+      id: currentStep.id,
+      title: currentStep.title,
+      componentName: StepComponent.name
+    });
+    
     return (
       <ErrorBoundary
         fallback={
@@ -489,28 +496,37 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
 
               {/* Step Navigation */}
               <nav className="wizard-steps" aria-label="Wizard steps">
-                {WIZARD_STEPS.filter(step => shouldShowStep(step, getValues())).map((step, index) => (
-                  <button
-                    key={step.id}
-                    className={`step-button ${
-                      index === currentStepIndex ? 'active' : ''
-                    } ${
-                      completedSteps.has(index) ? 'completed' : ''
-                    } ${
-                      !canNavigateToStep(index) ? 'disabled' : ''
-                    }`}
-                    onClick={() => handleStepClick(index)}
-                    disabled={!canNavigateToStep(index)}
-                    aria-current={index === currentStepIndex ? 'step' : undefined}
-                    title={step.description}
-                  >
-                    <span className="step-number">{index + 1}</span>
-                    <span className="step-title">{step.title}</span>
-                    {completedSteps.has(index) && (
-                      <span className="step-check" aria-label="Completed">✓</span>
-                    )}
-                  </button>
-                ))}
+                {WIZARD_STEPS.map((step, originalIndex) => {
+                  // Skip steps that shouldn't be shown
+                  if (!shouldShowStep(step, getValues())) {
+                    return null;
+                  }
+                  
+                  return (
+                    <button
+                      key={step.id}
+                      className={`step-button ${
+                        originalIndex === currentStepIndex ? 'active' : ''
+                      } ${
+                        completedSteps.has(originalIndex) ? 'completed' : ''
+                      } ${
+                        !canNavigateToStep(originalIndex) ? 'disabled' : ''
+                      }`}
+                      onClick={() => handleStepClick(originalIndex)}
+                      disabled={!canNavigateToStep(originalIndex)}
+                      aria-current={originalIndex === currentStepIndex ? 'step' : undefined}
+                      title={step.description}
+                    >
+                      <span className="step-number">
+                        {WIZARD_STEPS.filter((s, i) => i <= originalIndex && shouldShowStep(s, getValues())).length}
+                      </span>
+                      <span className="step-title">{step.title}</span>
+                      {completedSteps.has(originalIndex) && (
+                        <span className="step-check" aria-label="Completed">✓</span>
+                      )}
+                    </button>
+                  );
+                })}
               </nav>
             </div>
 

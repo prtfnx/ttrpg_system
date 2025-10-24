@@ -25,11 +25,12 @@ interface SpellFilters {
 }
 
 interface SpellSelectionStepProps {
-  characterClass: string;
-  characterLevel: number;
-  abilityScores: Record<string, number>;
+  characterClass?: string;
+  characterLevel?: number;
+  abilityScores?: Record<string, number>;
   onNext: () => void;
-  onBack: () => void;
+  onBack?: () => void;
+  onPrevious?: () => void;
 }
 
 // D&D 5e spell schools
@@ -45,13 +46,34 @@ const SPELL_SCHOOLS = [
 ];
 
 export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
-  characterClass,
-  characterLevel,
-  abilityScores,
+  characterClass: propCharacterClass,
+  characterLevel: propCharacterLevel,
+  abilityScores: propAbilityScores,
   onNext,
-  onBack
+  onBack,
+  onPrevious
 }) => {
-  const { setValue, watch, formState: { errors } } = useFormContext<WizardFormData>();
+  const { setValue, watch, formState: { errors }, getValues } = useFormContext<WizardFormData>();
+  
+  // Get data from form context if not provided as props
+  const formData = getValues();
+  const characterClass = propCharacterClass || formData.class || 'fighter';
+  const characterLevel = propCharacterLevel || formData.advancement?.currentLevel || 1;
+  const abilityScores = propAbilityScores || {
+    strength: formData.strength || 10,
+    dexterity: formData.dexterity || 10,
+    constitution: formData.constitution || 10,
+    intelligence: formData.intelligence || 10,
+    wisdom: formData.wisdom || 10,
+    charisma: formData.charisma || 10
+  };
+  
+  const handleBack = onBack || onPrevious;
+  
+  console.log('🔮 SpellSelectionStep - characterClass:', characterClass);
+  console.log('🔮 SpellSelectionStep - characterLevel:', characterLevel);
+  console.log('🔮 SpellSelectionStep - abilityScores:', abilityScores);
+  
   const currentSpells = watch('spells') || { cantrips: [], knownSpells: [], preparedSpells: [] };
 
   const [availableSpells, setAvailableSpells] = useState<Record<string, Spell>>({});
@@ -417,7 +439,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
 
         {/* Step Navigation */}
         <div className="step-navigation">
-          <button onClick={onBack} className="nav-button secondary">
+          <button onClick={handleBack} className="nav-button secondary">
             ← Back
           </button>
           

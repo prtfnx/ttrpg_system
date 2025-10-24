@@ -84,19 +84,18 @@ type SkillsStepProps = {
 };
 
 export function SkillsStep({ 
-  onNext, 
-  onBack, 
-  onPrevious,
+  onNext: _onNext, 
+  onBack: _onBack, 
+  onPrevious: _onPrevious,
   classSkills: propClassSkills, 
   classSkillChoices: propClassSkillChoices, 
   backgroundSkills: propBackgroundSkills, 
   raceSkills: propRaceSkills 
 }: SkillsStepProps) {
-  const { setValue, formState, setError, clearErrors, getValues } = useFormContext<SkillsStepData>();
-  const [selected, setSelected] = useState<string[]>([]);
+  const { setValue, formState, setError: _setError, clearErrors: _clearErrors, getValues } = useFormContext<SkillsStepData>();
   
   // Get data from form context if not provided as props
-  const formData = getValues();
+  const formData = getValues() as any; // Cast to any to access other form fields
   const characterClass = formData.class || 'fighter';
   const background = formData.background || 'acolyte';
   const race = formData.race || 'human';
@@ -107,36 +106,28 @@ export function SkillsStep({
   const classSkillChoices = propClassSkillChoices || 2;
   const backgroundSkills = propBackgroundSkills || getBackgroundSkills(background);
   const raceSkills = propRaceSkills || getRaceSkills(race);
-  
-  const handleBack = onBack || onPrevious;
 
   // Compute already granted skills (background + race)
   const alreadyGranted = useMemo(() => [...backgroundSkills, ...raceSkills], [backgroundSkills, raceSkills]);
   // Filter class skills to only those not already granted
   const availableClassSkills = classSkills.filter(skill => !alreadyGranted.includes(skill));
 
-  // Pre-select background and race skills
-  useEffect(() => {
-    console.log('[SkillsStep] Setting initial skills:', alreadyGranted);
-    console.log('[SkillsStep] Props received:', {
-      classSkills,
-      classSkillChoices,
-      backgroundSkills,
-      raceSkills,
-      availableClassSkills
-    });
-    
-    // Get the current form values to debug
-    try {
-      const formValues = getValues();
-      console.log('[SkillsStep] Current form values:', formValues);
-    } catch (error) {
-      console.log('[SkillsStep] Error getting form values:', error);
+  // Initialize selected state from form value OR default to granted skills
+  const [selected, setSelected] = useState<string[]>(() => {
+    const existingSkills = formData.skills;
+    if (existingSkills && Array.isArray(existingSkills) && existingSkills.length > 0) {
+      console.log('[SkillsStep] Initializing from existing form skills:', existingSkills);
+      return existingSkills;
     }
-    
-    setSelected(alreadyGranted);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alreadyGranted]); // Remove getValues from deps - it causes infinite loop
+    console.log('[SkillsStep] Initializing with granted skills:', alreadyGranted);
+    return alreadyGranted;
+  });
+
+  // Sync selected skills to form whenever they change
+  useEffect(() => {
+    console.log('[SkillsStep] Syncing to form:', selected);
+    setValue('skills', selected, { shouldValidate: false });
+  }, [selected, setValue]);
 
   // Handle skill selection
   function toggleSkill(skill: string) {
@@ -166,29 +157,8 @@ export function SkillsStep({
     }
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    console.log('[SkillsStep] Submit with selected skills:', selected);
-    // Validate: must have all background/race skills, and exactly classSkillChoices from availableClassSkills
-    const classSelected = selected.filter(s => availableClassSkills.includes(s));
-    console.log('[SkillsStep] Class skills selected:', classSelected, 'required:', classSkillChoices);
-    if (classSelected.length !== classSkillChoices) {
-      setError('skills', { type: 'manual', message: `Select ${classSkillChoices} class skills (excluding those already granted by background or race).` });
-      return;
-    }
-    // No duplicates
-    if (new Set(selected).size !== selected.length) {
-      setError('skills', { type: 'manual', message: 'No duplicate skills.' });
-      return;
-    }
-    clearErrors('skills');
-    setValue('skills', selected, { shouldValidate: true });
-    console.log('[SkillsStep] Calling onNext');
-    onNext();
-  }
-
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Select Skills</div>
       <div style={{ fontSize: 12, marginBottom: 8 }}>
         Debug: Selected: [{selected.join(', ')}] | Background: [{backgroundSkills.join(', ')}] | 
@@ -231,18 +201,6 @@ export function SkillsStep({
       {formState.errors.skills && (
         <span style={{ color: 'red' }}>{formState.errors.skills.message as string}</span>
       )}
-      <div style={{ display: 'flex', gap: 8 }}>
-        {handleBack && (
-          <button type="button" onClick={handleBack} style={{ background: '#eee', color: '#333', border: 'none', borderRadius: 4, padding: '8px 16px' }}>Back</button>
-        )}
-        <button 
-          type="submit" 
-          data-testid="skills-next-button"
-          style={{ background: '#6366f1', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontWeight: 600 }}
-        >
-          Next
-        </button>
-      </div>
-    </form>
+    </div>
   );
 }

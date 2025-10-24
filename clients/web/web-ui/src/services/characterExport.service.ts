@@ -391,7 +391,7 @@ export class CharacterExportService {
         
         personality: {
           bio: character.bio,
-          image: character.image,
+          image: character.image || undefined, // Guard against undefined character
         },
         
         calculated: {

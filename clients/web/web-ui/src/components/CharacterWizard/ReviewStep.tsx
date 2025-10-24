@@ -1,14 +1,18 @@
 
 import React from 'react';
+import { useFormContext } from 'react-hook-form';
 import type { WizardFormData } from './WizardFormData';
 
 interface ReviewStepProps {
-  data: WizardFormData;
-  onBack: () => void;
-  onConfirm: () => void;
+  data?: WizardFormData;
+  onBack?: () => void;
+  onConfirm?: () => void;
 }
 
-const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onConfirm }) => {
+const ReviewStep: React.FC<ReviewStepProps> = () => {
+  const { getValues } = useFormContext<WizardFormData>();
+  const data = getValues();
+  
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <h3 style={{ marginBottom: 8 }}>Review Your Character</h3>
@@ -46,11 +50,6 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onConfirm }) => {
         <div style={{ fontSize: '0.9em', color: '#8B0000', fontStyle: 'italic' }}>
           Combat Manager will be available after character creation is complete.
         </div>
-      </div>
-      
-      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-        <button onClick={onBack} style={{ background: '#eee', color: '#333', border: 'none', borderRadius: 4, padding: '8px 16px' }}>Back</button>
-        <button onClick={onConfirm} style={{ background: '#6366f1', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', fontWeight: 600 }}>Confirm</button>
       </div>
     </div>
   );

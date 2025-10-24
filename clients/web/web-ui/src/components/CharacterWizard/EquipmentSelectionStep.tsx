@@ -91,7 +91,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
     };
 
     loadEquipment();
-  }, [characterClass, currentEquipment.items]);
+  }, [characterClass, currentEquipment]); // Watch the whole object, not just .items
 
   // Filter equipment based on search and category
   useEffect(() => {
@@ -138,7 +138,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
 
   // Calculate carrying capacity
   const calculateCarryingCapacity = useCallback(() => {
-    const strengthScore = abilityScores.strength || 10;
+    const strengthScore = abilityScores?.strength || 10;
     const baseCapacity = strengthScore * 15; // Standard D&D rule
     
     return {
@@ -149,7 +149,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
         total + (item.equipment.weight * item.quantity), 0
       )
     };
-  }, [abilityScores.strength, selectedItems]);
+  }, [abilityScores, selectedItems]); // Watch the whole abilityScores object, not individual properties
 
   // Add item to selection
   const addItem = useCallback((equipment: Equipment) => {

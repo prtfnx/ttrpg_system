@@ -24,6 +24,54 @@ const SKILLS = [
   'Survival',
 ];
 
+// Helper functions to get skills from class/background/race
+// TODO: Replace with compendium data
+function getClassSkills(className: string): string[] {
+  const classSkillMap: Record<string, string[]> = {
+    barbarian: ['Animal Handling', 'Athletics', 'Intimidation', 'Nature', 'Perception', 'Survival'],
+    bard: SKILLS, // All skills
+    cleric: ['History', 'Insight', 'Medicine', 'Persuasion', 'Religion'],
+    druid: ['Arcana', 'Animal Handling', 'Insight', 'Medicine', 'Nature', 'Perception', 'Religion', 'Survival'],
+    fighter: ['Acrobatics', 'Animal Handling', 'Athletics', 'History', 'Insight', 'Intimidation', 'Perception', 'Survival'],
+    monk: ['Acrobatics', 'Athletics', 'History', 'Insight', 'Religion', 'Stealth'],
+    paladin: ['Athletics', 'Insight', 'Intimidation', 'Medicine', 'Persuasion', 'Religion'],
+    ranger: ['Animal Handling', 'Athletics', 'Insight', 'Investigation', 'Nature', 'Perception', 'Stealth', 'Survival'],
+    rogue: ['Acrobatics', 'Athletics', 'Deception', 'Insight', 'Intimidation', 'Investigation', 'Perception', 'Performance', 'Persuasion', 'Sleight of Hand', 'Stealth'],
+    sorcerer: ['Arcana', 'Deception', 'Insight', 'Intimidation', 'Persuasion', 'Religion'],
+    warlock: ['Arcana', 'Deception', 'History', 'Intimidation', 'Investigation', 'Nature', 'Religion'],
+    wizard: ['Arcana', 'History', 'Insight', 'Investigation', 'Medicine', 'Religion']
+  };
+  return classSkillMap[className.toLowerCase()] || [];
+}
+
+function getBackgroundSkills(background: string): string[] {
+  const backgroundSkillMap: Record<string, string[]> = {
+    acolyte: ['Insight', 'Religion'],
+    charlatan: ['Deception', 'Sleight of Hand'],
+    criminal: ['Deception', 'Stealth'],
+    entertainer: ['Acrobatics', 'Performance'],
+    folk_hero: ['Animal Handling', 'Survival'],
+    guild_artisan: ['Insight', 'Persuasion'],
+    hermit: ['Medicine', 'Religion'],
+    noble: ['History', 'Persuasion'],
+    outlander: ['Athletics', 'Survival'],
+    sage: ['Arcana', 'History'],
+    sailor: ['Athletics', 'Perception'],
+    soldier: ['Athletics', 'Intimidation'],
+    urchin: ['Sleight of Hand', 'Stealth']
+  };
+  return backgroundSkillMap[background.toLowerCase()] || [];
+}
+
+function getRaceSkills(race: string): string[] {
+  const raceSkillMap: Record<string, string[]> = {
+    half_elf: ['Persuasion'], // Can choose 2 skills from any
+    human: [], // Variant human gets 1 skill
+    elf: ['Perception']
+  };
+  return raceSkillMap[race.toLowerCase()] || [];
+}
+
 // Example: classSkills and backgroundSkills would come from previous steps or compendium
 type SkillsStepProps = {
   onNext: () => void;
@@ -39,13 +87,26 @@ export function SkillsStep({
   onNext, 
   onBack, 
   onPrevious,
-  classSkills = [], 
-  classSkillChoices = 2, 
-  backgroundSkills = [], 
-  raceSkills = [] 
+  classSkills: propClassSkills, 
+  classSkillChoices: propClassSkillChoices, 
+  backgroundSkills: propBackgroundSkills, 
+  raceSkills: propRaceSkills 
 }: SkillsStepProps) {
   const { setValue, formState, setError, clearErrors, getValues } = useFormContext<SkillsStepData>();
   const [selected, setSelected] = useState<string[]>([]);
+  
+  // Get data from form context if not provided as props
+  const formData = getValues();
+  const characterClass = formData.class || 'fighter';
+  const background = formData.background || 'acolyte';
+  const race = formData.race || 'human';
+  
+  // TODO: Get from compendium data based on class/background/race
+  // For now, use props or provide sensible defaults
+  const classSkills = propClassSkills || getClassSkills(characterClass);
+  const classSkillChoices = propClassSkillChoices || 2;
+  const backgroundSkills = propBackgroundSkills || getBackgroundSkills(background);
+  const raceSkills = propRaceSkills || getRaceSkills(race);
   
   const handleBack = onBack || onPrevious;
 

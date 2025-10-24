@@ -7,7 +7,7 @@ interface IdentityStepData {
   image?: string;
 }
 
-export function IdentityStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+export function IdentityStep({ onNext, onBack: _onBack }: { onNext?: () => void; onBack?: () => void } = {}) {
   const { register, setValue, getValues, formState, watch } = useFormContext<IdentityStepData>();
   const imageInputRef = useRef<HTMLInputElement>(null);
   const imageUrl = watch('image');
@@ -29,7 +29,7 @@ export function IdentityStep({ onNext, onBack }: { onNext: () => void; onBack: (
       formState.errors.name = { type: 'manual', message: 'Name is required' };
       return;
     }
-    onNext();
+    onNext?.();
   }
 
   return (
@@ -124,46 +124,6 @@ export function IdentityStep({ onNext, onBack }: { onNext: () => void; onBack: (
           />
         </div>
       )}
-      
-      <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-        <button 
-          type="button" 
-          onClick={onBack} 
-          style={{ 
-            background: '#ecf0f1', 
-            color: '#2c3e50', 
-            border: 'none', 
-            borderRadius: 8, 
-            padding: '10px 20px',
-            fontWeight: 600,
-            fontSize: 14,
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.background = '#dfe6e9'}
-          onMouseLeave={(e) => e.currentTarget.style.background = '#ecf0f1'}
-        >
-          Back
-        </button>
-        <button 
-          type="submit" 
-          style={{ 
-            background: '#3498db', 
-            color: '#fff', 
-            border: 'none', 
-            borderRadius: 8, 
-            padding: '10px 24px', 
-            fontWeight: 600,
-            fontSize: 14,
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.background = '#2980b9'}
-          onMouseLeave={(e) => e.currentTarget.style.background = '#3498db'}
-        >
-          Next →
-        </button>
-      </div>
     </form>
   );
 }

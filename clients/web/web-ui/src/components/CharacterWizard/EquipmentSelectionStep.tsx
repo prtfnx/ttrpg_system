@@ -11,19 +11,38 @@ import './EquipmentSelectionStep.css';
 import type { WizardFormData } from './WizardFormData';
 
 interface EquipmentSelectionStepProps {
-  characterClass: string;
-  abilityScores: Record<string, number>;
+  characterClass?: string;
+  abilityScores?: Record<string, number>;
   onNext: () => void;
-  onBack: () => void;
+  onBack?: () => void;
+  onPrevious?: () => void;
 }
 
 export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
-  characterClass,
-  abilityScores,
+  characterClass: propCharacterClass,
+  abilityScores: propAbilityScores,
   onNext,
-  onBack
+  onBack,
+  onPrevious
 }) => {
-  const { setValue, watch } = useFormContext<WizardFormData>();
+  const { setValue, watch, getValues } = useFormContext<WizardFormData>();
+  
+  // Get data from form context if not provided as props
+  const formData = getValues();
+  const characterClass = propCharacterClass || formData.class || 'fighter';
+  const abilityScores = propAbilityScores || {
+    strength: formData.strength || 10,
+    dexterity: formData.dexterity || 10,
+    constitution: formData.constitution || 10,
+    intelligence: formData.intelligence || 10,
+    wisdom: formData.wisdom || 10,
+    charisma: formData.charisma || 10
+  };
+  
+  const handleBack = onBack || onPrevious;
+  
+  console.log('🎒 EquipmentSelectionStep - RENDERING');
+  console.log('🎒 EquipmentSelectionStep - characterClass:', characterClass);
   
   // Get current equipment from form
   const currentEquipment = watch('equipment') || {
@@ -65,8 +84,22 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
     const loadEquipment = async () => {
       try {
         setLoading(true);
+        console.log('🎒 Loading equipment for class:', characterClass);
         const equipment = await equipmentManagementService.getAllEquipment();
-        setAvailableEquipment(equipment);
+        console.log('🎒 Loaded equipment count:', equipment.length);
+        console.log('🎒 First 3 equipment items:', equipment.slice(0, 3));
+        
+        // Validate equipment data structure
+        const validEquipment = equipment.filter(item => {
+          if (!item.name) {
+            console.warn('🎒 Equipment item missing name:', item);
+            return false;
+          }
+          return true;
+        });
+        
+        console.log('🎒 Valid equipment count:', validEquipment.length);
+        setAvailableEquipment(validEquipment);
         
         // Calculate starting gold based on class
         const startingMoney = calculateStartingGold(characterClass);
@@ -89,7 +122,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load equipment');
-        console.error('Error loading equipment:', err);
+        console.error('🎒 Error loading equipment:', err);
       } finally {
         setLoading(false);
       }
@@ -112,10 +145,15 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
     // Filter by search term
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(item =>
-        item.name.toLowerCase().includes(term) ||
-        item.description?.toLowerCase().includes(term)
-      );
+      filtered = filtered.filter(item => {
+        // Guard against items without name property
+        if (!item.name) {
+          console.warn('🎒 Filtering: Equipment item missing name:', item);
+          return false;
+        }
+        return item.name.toLowerCase().includes(term) ||
+               item.description?.toLowerCase().includes(term);
+      });
     }
 
     setFilteredEquipment(filtered);
@@ -137,6 +175,12 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
       warlock: 100,     // 4d4 × 10 gp
       wizard: 100       // 4d4 × 10 gp
     };
+    
+    // Guard against undefined className
+    if (!className) {
+      console.warn('🎒 calculateStartingGold: className is undefined, defaulting to 100 gp');
+      return 100;
+    }
     
     return goldByClass[className.toLowerCase()] || 100;
   };
@@ -397,7 +441,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
         <div className="step-navigation">
           <button
             type="button"
-            onClick={onBack}
+            onClick={handleBack}
             className="nav-button back-button"
           >
             ← Back

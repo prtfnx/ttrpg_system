@@ -12,14 +12,14 @@ import './CharacterExportStep.css';
 import type { WizardFormData } from './WizardFormData';
 
 interface CharacterExportStepProps {
-  onNext: () => void;
-  onBack: () => void;
+  onNext?: () => void;
+  onBack?: () => void;
 }
 
 type ExportFormat = 'd5e' | 'dndBeyond' | 'characterSheet';
 type TabType = 'export' | 'import' | 'pdf';
 
-export function CharacterExportStep({ onNext, onBack }: CharacterExportStepProps) {
+export function CharacterExportStep({ onNext: _onNext, onBack: _onBack }: CharacterExportStepProps = {}) {
   const { getValues, setValue } = useFormContext<WizardFormData>();
   const [activeTab, setActiveTab] = useState<TabType>('export');
   const [exportFormat, setExportFormat] = useState<ExportFormat>('d5e');
@@ -473,17 +473,8 @@ export function CharacterExportStep({ onNext, onBack }: CharacterExportStepProps
           {activeTab === 'pdf' && renderPDFTab()}
         </div>
       </div>
-      
-      <div className="step-navigation">
-        <button type="button" onClick={onBack} className="nav-button secondary">
-          ← Back
-        </button>
-        <button type="button" onClick={onNext} className="nav-button primary">
-          Continue →
-        </button>
-      </div>
     </div>
   );
-}
+};
 
 export default CharacterExportStep;

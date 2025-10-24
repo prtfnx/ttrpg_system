@@ -47,13 +47,9 @@ const backgroundData = {
   }
 };
 
-export function BackgroundStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+export function BackgroundStep({ onNext: _onNext, onBack: _onBack }: { onNext?: () => void; onBack?: () => void } = {}) {
   const { register, formState, watch } = useFormContext<BackgroundStepData>();
   const selectedBackground = watch('background');
-  
-  const handleBackgroundNext = () => {
-    onNext();
-  };
   
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -119,40 +115,6 @@ export function BackgroundStep({ onNext, onBack }: { onNext: () => void; onBack:
           </p>
         </div>
       )}
-      
-      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-        <button 
-          type="button" 
-          onClick={onBack} 
-          style={{ 
-            background: '#e5e7eb', 
-            color: '#374151', 
-            border: 'none', 
-            borderRadius: 4, 
-            padding: '8px 16px',
-            cursor: 'pointer'
-          }}
-        >
-          Back
-        </button>
-        <button 
-          type="button" 
-          onClick={handleBackgroundNext}
-          data-testid="background-next-button"
-          disabled={!selectedBackground}
-          style={{ 
-            background: selectedBackground ? '#6366f1' : '#9ca3af', 
-            color: '#fff', 
-            border: 'none', 
-            borderRadius: 4, 
-            padding: '8px 16px', 
-            fontWeight: 600,
-            cursor: selectedBackground ? 'pointer' : 'not-allowed'
-          }}
-        >
-          Next
-        </button>
-      </div>
     </div>
   );
 }

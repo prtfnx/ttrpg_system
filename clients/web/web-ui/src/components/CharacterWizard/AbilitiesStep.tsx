@@ -17,7 +17,7 @@ const getRacialBonus = (ability: string): number => {
   return 0;
 };
 
-export function AbilitiesStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: () => void; onBack?: () => void } = {}) {
   const { control, setValue, getValues, formState: { errors } } = useFormContext<AbilitiesStepData>();
   const [method, setMethod] = useState<Method>('standard');
   const [rolls, setRolls] = useState<number[]>([]);
@@ -49,32 +49,6 @@ export function AbilitiesStep({ onNext, onBack }: { onNext: () => void; onBack: 
   const getTotalPointsUsed = (): number => {
     const values = getValues();
     return ABILITIES.reduce((total, ability) => total + getPointCost(values[ability] || 8), 0);
-  };
-
-  const isValid = () => {
-    const values = getValues();
-    const abilityValues = ABILITIES.map(ability => values[ability]);
-    
-    if (method === 'standard') {
-      // All values must be from standard array and unique
-      return abilityValues.every(v => STANDARD_ARRAY.includes(v)) && 
-             new Set(abilityValues).size === 6 &&
-             abilityValues.every(v => v > 0);
-    } else if (method === 'pointbuy') {
-      // Must use exactly 27 points and all scores 8-15
-      return getTotalPointsUsed() === 27 && 
-             abilityValues.every(v => v >= 8 && v <= 15);
-    } else if (method === 'roll') {
-      // All values must be assigned from rolls
-      return rolls.length > 0 && 
-             abilityValues.every(v => rolls.includes(v)) &&
-             new Set(abilityValues).size === abilityValues.length &&
-             abilityValues.every(v => v > 0);
-    } else {
-      // Manual: just check range
-      return abilityValues.every(v => v >= 8 && v <= 20) &&
-             abilityValues.every(v => v > 0);
-    }
   };
 
   return (
@@ -252,28 +226,6 @@ export function AbilitiesStep({ onNext, onBack }: { onNext: () => void; onBack: 
             )}
           </div>
         ))}
-      </div>
-
-      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-        <button type="button" onClick={onBack} style={{ padding: '8px 16px' }}>
-          Back
-        </button>
-        <button 
-          type="button" 
-          onClick={onNext}
-          data-testid="abilities-next-button"
-          disabled={!isValid()}
-          style={{ 
-            padding: '8px 16px', 
-            background: isValid() ? '#007acc' : '#ccc',
-            color: 'white', 
-            border: 'none', 
-            borderRadius: 4,
-            cursor: isValid() ? 'pointer' : 'not-allowed'
-          }}
-        >
-          Next
-        </button>
       </div>
     </div>
   );

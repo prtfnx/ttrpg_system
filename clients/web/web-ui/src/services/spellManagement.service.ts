@@ -386,6 +386,19 @@ class SpellManagementService {
     spellAttackBonus: number;
     proficiencyBonus: number;
   } {
+    // Guard against undefined or null abilityScores
+    if (!abilityScores || typeof abilityScores !== 'object') {
+      console.warn('🔮 getSpellcastingStats: abilityScores is undefined/null, using defaults');
+      abilityScores = {
+        strength: 10,
+        dexterity: 10,
+        constitution: 10,
+        intelligence: 10,
+        wisdom: 10,
+        charisma: 10
+      };
+    }
+    
     // Map classes to their spellcasting abilities
     const spellcastingAbilities = {
       Bard: 'Charisma',
@@ -400,7 +413,14 @@ class SpellManagementService {
     
     const spellcastingAbility = spellcastingAbilities[characterClass as keyof typeof spellcastingAbilities] || 'Intelligence';
     const proficiencyBonus = Math.ceil(characterLevel / 4) + 1;
-    const abilityModifier = Math.floor((abilityScores[spellcastingAbility] - 10) / 2);
+    
+    // Get ability score with case-insensitive lookup
+    const abilityKey = Object.keys(abilityScores).find(
+      key => key.toLowerCase() === spellcastingAbility.toLowerCase()
+    ) || spellcastingAbility.toLowerCase();
+    
+    const abilityScore = abilityScores[abilityKey] || 10; // Default to 10 if not found
+    const abilityModifier = Math.floor((abilityScore - 10) / 2);
     
     const spellSaveDC = 8 + proficiencyBonus + abilityModifier;
     const spellAttackBonus = proficiencyBonus + abilityModifier;

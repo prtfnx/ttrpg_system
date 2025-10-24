@@ -4,8 +4,8 @@ import type { Spell } from '../../services/compendiumService';
 import { compendiumService } from '../../services/compendiumService';
 import { spellManagementService } from '../../services/spellManagement.service';
 import { ErrorBoundary } from '../common/ErrorBoundary';
-import type { WizardFormData } from './WizardFormData';
 import './SpellSelectionStep.css';
+import type { WizardFormData } from './WizardFormData';
 
 // Loading spinner component
 const LoadingSpinner: React.FC = () => (
@@ -49,9 +49,9 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
   characterClass: propCharacterClass,
   characterLevel: propCharacterLevel,
   abilityScores: propAbilityScores,
-  onNext,
-  onBack,
-  onPrevious
+  onNext: _onNext,
+  onBack: _onBack,
+  onPrevious: _onPrevious
 }) => {
   const { setValue, watch, formState: { errors }, getValues } = useFormContext<WizardFormData>();
   
@@ -67,8 +67,6 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
     wisdom: formData.wisdom || 10,
     charisma: formData.charisma || 10
   };
-  
-  const handleBack = onBack || onPrevious;
   
   console.log('🔮 SpellSelectionStep - characterClass:', characterClass);
   console.log('🔮 SpellSelectionStep - characterLevel:', characterLevel);
@@ -204,17 +202,6 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
       preparedSpells: currentSpells.preparedSpells
     });
   }, [currentSpells, setValue, spellSlots.cantrips, maxSpellsKnown]);
-
-  // Validation
-  const isValid = useMemo(() => {
-    const validation = spellManagementService.validateSpellSelection(
-      characterClass,
-      characterLevel,
-      [...currentSpells.cantrips, ...currentSpells.knownSpells],
-      availableSpells
-    );
-    return validation.isValid;
-  }, [characterClass, characterLevel, currentSpells, availableSpells]);
 
   const handleFilterChange = useCallback((key: keyof SpellFilters, value: any) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -435,21 +422,6 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                 </div>
               );
             })}
-        </div>
-
-        {/* Step Navigation */}
-        <div className="step-navigation">
-          <button onClick={handleBack} className="nav-button secondary">
-            ← Back
-          </button>
-          
-          <button 
-            onClick={onNext} 
-            className={`nav-button primary ${!isValid ? 'disabled' : ''}`}
-            disabled={!isValid}
-          >
-            Next →
-          </button>
         </div>
 
         {errors.spells && (

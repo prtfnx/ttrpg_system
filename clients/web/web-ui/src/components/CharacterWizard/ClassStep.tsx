@@ -30,14 +30,10 @@ const classData = {
   }
 };
 
-export function ClassStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+export function ClassStep({ onNext: _onNext, onBack: _onBack }: { onNext?: () => void; onBack?: () => void } = {}) {
   const { register, formState, watch } = useFormContext<ClassStepData>();
   const selectedClass = watch('class');
   const selectedFightingStyle = watch('fightingStyle');
-
-  const handleClassNext = () => {
-    onNext();
-  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -129,40 +125,6 @@ export function ClassStep({ onNext, onBack }: { onNext: () => void; onBack: () =
           )}
         </div>
       )}
-      
-      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-        <button 
-          type="button" 
-          onClick={onBack} 
-          style={{ 
-            background: '#e5e7eb', 
-            color: '#374151', 
-            border: 'none', 
-            borderRadius: 4, 
-            padding: '8px 16px',
-            cursor: 'pointer'
-          }}
-        >
-          Back
-        </button>
-        <button 
-          type="button" 
-          onClick={handleClassNext}
-          data-testid="class-next-button"
-          disabled={!selectedClass || (selectedClass === 'fighter' && !selectedFightingStyle)}
-          style={{ 
-            background: (selectedClass && (selectedClass !== 'fighter' || selectedFightingStyle)) ? '#6366f1' : '#9ca3af', 
-            color: '#fff', 
-            border: 'none', 
-            borderRadius: 4, 
-            padding: '8px 16px', 
-            fontWeight: 600,
-            cursor: (selectedClass && (selectedClass !== 'fighter' || selectedFightingStyle)) ? 'pointer' : 'not-allowed'
-          }}
-        >
-          Next
-        </button>
-      </div>
     </div>
   );
 }

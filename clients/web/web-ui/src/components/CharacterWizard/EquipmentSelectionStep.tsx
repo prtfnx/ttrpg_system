@@ -74,12 +74,17 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
         setCurrentGold(startingMoney);
         
         // Convert existing equipment items to wizard format
-        const wizardItems = currentEquipment.items.map(item => ({
-          equipment: item.equipment,
-          quantity: item.quantity,
-          equipped: item.equipped
-        }));
-        setSelectedItems(wizardItems);
+        // Guard against undefined or missing items array
+        if (currentEquipment?.items && Array.isArray(currentEquipment.items)) {
+          const wizardItems = currentEquipment.items.map(item => ({
+            equipment: item.equipment,
+            quantity: item.quantity,
+            equipped: item.equipped
+          }));
+          setSelectedItems(wizardItems);
+        } else {
+          setSelectedItems([]);
+        }
         
         setError(null);
       } catch (err) {

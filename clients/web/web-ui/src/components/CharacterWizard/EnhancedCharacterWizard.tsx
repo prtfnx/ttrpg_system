@@ -355,9 +355,9 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
   const shouldShowStep = useCallback((step: WizardStep, data: WizardFormData): boolean => {
     switch (step.id) {
       case 'spells':
-        // Only show spells step for spellcasting classes
-        const spellcastingClasses = ['Wizard', 'Sorcerer', 'Warlock', 'Bard', 'Cleric', 'Druid', 'Paladin', 'Ranger'];
-        return spellcastingClasses.includes(data.class);
+        // Only show spells step for spellcasting classes (case-insensitive)
+        const spellcastingClasses = ['wizard', 'sorcerer', 'warlock', 'bard', 'cleric', 'druid', 'paladin', 'ranger'];
+        return spellcastingClasses.includes(data.class?.toLowerCase() || '');
       case 'advancement':
         // Optional step, always show but allow skipping
         return true;

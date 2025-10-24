@@ -31,9 +31,40 @@ interface LevelUpChoices {
 export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizardProps) {
   // DEBUG: Log what character object we receive
   console.log('🎯 LevelUpWizard received character:', character);
-  console.log('🎯 character.strength =', character.strength);
-  console.log('🎯 character.classLevels =', character.classLevels);
-  console.log('🎯 character.experiencePoints =', character.experiencePoints);
+  console.log('🎯 character.strength =', character?.strength);
+  console.log('🎯 character.classLevels =', character?.classLevels);
+  console.log('🎯 character.experiencePoints =', character?.experiencePoints);
+  
+  // GUARD: Prevent rendering if character is invalid
+  if (!character) {
+    console.error('🎯 LevelUpWizard: character is undefined!');
+    return (
+      <div className="level-up-wizard">
+        <div className="wizard-header">
+          <h2>Error</h2>
+          <p>Character data is missing. Please go back and complete the previous steps.</p>
+        </div>
+        <div className="wizard-actions">
+          <button onClick={onCancel} className="btn-secondary">Back</button>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!character.totalLevel || !character.experiencePoints) {
+    console.error('🎯 LevelUpWizard: character is missing required properties', character);
+    return (
+      <div className="level-up-wizard">
+        <div className="wizard-header">
+          <h2>Error</h2>
+          <p>Character data is incomplete. Missing level or experience points.</p>
+        </div>
+        <div className="wizard-actions">
+          <button onClick={onCancel} className="btn-secondary">Back</button>
+        </div>
+      </div>
+    );
+  }
   
   const [currentStep, setCurrentStep] = useState<LevelUpStep>('class-choice');
   const [levelProgression, setLevelProgression] = useState<LevelProgression | null>(null);

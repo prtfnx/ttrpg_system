@@ -60,6 +60,12 @@ export const AttackManager: React.FC<AttackManagerProps> = ({
 
   // Initialize weapons from character equipment
   useEffect(() => {
+    // Guard: Don't process if character is not provided
+    if (!character) {
+      console.warn('[AttackManager] Character is undefined, skipping weapon initialization');
+      return;
+    }
+    
     if (character.equipment?.items) {
       const weaponItems = character.equipment.items.filter(item =>
         item.equipment.name.toLowerCase().includes('sword') ||
@@ -95,7 +101,8 @@ export const AttackManager: React.FC<AttackManagerProps> = ({
         setSelectedWeapon(weaponData[0]);
       }
     }
-  }, [character.equipment, character.strength, character.dexterity, character.advancement]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [character]); // Simplified dependency - just watch the whole character object
 
   const getAbilityModifier = (abilityScore: number): number => {
     return Math.floor((abilityScore - 10) / 2);

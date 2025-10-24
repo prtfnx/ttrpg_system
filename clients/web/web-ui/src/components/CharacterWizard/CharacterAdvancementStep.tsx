@@ -1,10 +1,10 @@
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
+import { AdvancementSystemService } from '../../services/advancementSystem.service';
 import './CharacterAdvancementStep.css';
 import { LevelUpWizard } from './LevelUpWizard';
 import type { WizardFormData } from './WizardFormData';
 import { XPTracker } from './XPTracker';
-import { AdvancementSystemService } from '../../services/advancementSystem.service';
 
 interface CharacterAdvancementStepProps {
   onNext?: () => void;

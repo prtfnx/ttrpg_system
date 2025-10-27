@@ -94,6 +94,9 @@ class MessageType(enum.Enum):    # Core messages
     CHARACTER_LIST_RESPONSE = "character_list_response"
     CHARACTER_DELETE_REQUEST = "character_delete_request"
     CHARACTER_DELETE_RESPONSE = "character_delete_response"
+    # Delta/real-time character update
+    CHARACTER_UPDATE = "character_update"
+    CHARACTER_UPDATE_RESPONSE = "character_update_response"
       
     
     # Batch messaging for performance

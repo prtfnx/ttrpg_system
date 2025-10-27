@@ -109,6 +109,10 @@ class ServerProtocol:
         self.register_handler(MessageType.CHARACTER_LOAD_REQUEST, self.handle_character_load_request)
         self.register_handler(MessageType.CHARACTER_LIST_REQUEST, self.handle_character_list_request)
         self.register_handler(MessageType.CHARACTER_DELETE_REQUEST, self.handle_character_delete_request)
+        # Character update (delta updates)
+        # New message type allows clients to send partial updates with version checks
+        if hasattr(MessageType, 'CHARACTER_UPDATE'):
+            self.register_handler(MessageType.CHARACTER_UPDATE, self.handle_character_update)
         
         # Error handling
         self.register_handler(MessageType.ERROR, self.handle_error)
@@ -240,6 +244,16 @@ class ServerProtocol:
         # Get session_id for database persistence
         session_id = self._get_session_id(msg)
         
+        # Normalize controlled_by if provided as list -> store as JSON string for DB
+        try:
+            if isinstance(sprite_data, dict):
+                cb = sprite_data.get('controlled_by')
+                if isinstance(cb, (list, tuple)):
+                    sprite_data['controlled_by'] = json.dumps(cb)
+        except Exception:
+            # ignore normalization errors
+            pass
+
         result = await self.actions.create_sprite(table_id=table_id, sprite_data=sprite_data, session_id=session_id)
         logger.debug(f"Create sprite result: {result}")
         if not result.success or not result.data or result.data.get('sprite_data') is None:
@@ -1644,6 +1658,58 @@ class ServerProtocol:
                 'success': False,
                 'error': result.message
             })
+
+    async def handle_character_update(self, msg: Message, client_id: str) -> Message:
+        """Handle partial character updates (delta) with optimistic version checking"""
+        logger.debug(f"Character update request received: {msg}")
+        if not msg.data:
+            return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': 'No data provided'})
+
+        character_id = msg.data.get('character_id')
+        updates = msg.data.get('updates') or msg.data.get('character_data')
+        version = msg.data.get('version')
+        user_id = msg.data.get('user_id', 0)
+        session_id = self._get_session_id(msg)
+
+        if not character_id or not updates:
+            return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': 'character_id and updates are required'})
+
+        if not session_id:
+            return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': 'Session not found'})
+
+        # Prefer specialized update method in ActionsCore if implemented
+        try:
+            if hasattr(self.actions, 'update_character'):
+                result = await self.actions.update_character(session_id=session_id, character_id=character_id, updates=updates, user_id=user_id, version=version)
+            else:
+                # Fallback: load current char and merge updates into character_data then save
+                existing = await self.actions.load_character(session_id, character_id, user_id)
+                if not existing.success or not existing.data:
+                    return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': 'Character not found'})
+                current = existing.data.get('character_data', {})
+                # shallow merge - ActionsCore should do proper JSON merge if needed
+                if isinstance(current, dict) and isinstance(updates, dict):
+                    merged = {**current, **updates}
+                else:
+                    merged = updates
+                result = await self.actions.save_character(session_id, {'character_id': character_id, 'character_data': merged}, user_id)
+
+            if result.success:
+                # Broadcast to session that character updated
+                broadcast = Message(MessageType.CHARACTER_UPDATE, {
+                    'character_id': character_id,
+                    'updates': updates,
+                    'version': getattr(result, 'version', version)
+                })
+                await self.broadcast_to_session(broadcast, client_id)
+
+                return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': True, 'character_id': character_id, 'message': result.message if hasattr(result, 'message') else 'updated'})
+            else:
+                return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': result.message})
+
+        except Exception as e:
+            logger.error(f"Error handling character update: {e}")
+            return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': str(e)})
 
     # =========================================================================
     # MISSING MESSAGE HANDLERS IMPLEMENTATION

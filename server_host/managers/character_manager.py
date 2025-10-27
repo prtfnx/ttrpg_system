@@ -38,8 +38,8 @@ class ServerCharacterManager:
                         'error': f'Session {session_id} not found'
                     }
                 
-                # Generate or use existing character ID
-                character_id = character_data.get('id', str(uuid.uuid4()))
+                # Generate or use existing character ID (accept both 'character_id' and legacy 'id' keys)
+                character_id = character_data.get('character_id') or character_data.get('id') or str(uuid.uuid4())
                 character_name = character_data.get('name', 'Unnamed Character')
                 
                 # Serialize character data
@@ -50,23 +50,31 @@ class ServerCharacterManager:
                     SessionCharacter.character_id == character_id
                 ).first()
                 
+                # ensure new_version defined for return value
+                new_version = 1
                 if existing:
                     # Update existing character (only if owned by user)
-                    if existing.owner_user_id != user_id:  # type: ignore
+                    if str(getattr(existing, 'owner_user_id', '')) != str(user_id):  # type: ignore
                         return {
                             'success': False,
                             'error': f'Permission denied: Character belongs to user {existing.owner_user_id}'
                         }
-                    
-                    # Update the fields
+                    # Update the fields with version increment and audit
+                    try:
+                        current_version = int(getattr(existing, 'version', 1) or 1)
+                    except Exception:
+                        current_version = 1
+                    new_version = current_version + 1
                     db.query(SessionCharacter).filter(
                         SessionCharacter.character_id == character_id
                     ).update({
                         SessionCharacter.character_name: character_name,
                         SessionCharacter.character_data: character_json,
-                        SessionCharacter.updated_at: datetime.utcnow()
+                        SessionCharacter.updated_at: datetime.utcnow(),
+                        SessionCharacter.version: new_version,
+                        SessionCharacter.last_modified_by: user_id
                     })
-                    logger.info(f"Updated character {character_name} (ID: {character_id})")
+                    logger.info(f"Updated character {character_name} (ID: {character_id}) to version {new_version}")
                 else:
                     # Insert new character
                     new_character = SessionCharacter(
@@ -84,7 +92,8 @@ class ServerCharacterManager:
                 return {
                     'success': True,
                     'character_id': character_id,
-                    'message': f'Character {character_name} saved successfully'
+                    'message': f'Character {character_name} saved successfully',
+                    'version': new_version
                 }
                 
         except Exception as e:
@@ -93,6 +102,61 @@ class ServerCharacterManager:
                 'success': False,
                 'error': f'Database error: {str(e)}'
             }
+
+    def update_character(self, session_id: int, character_id: str, updates: Dict[str, Any], user_id: int, expected_version: Optional[int] = None) -> Dict[str, Any]:
+        """Perform a versioned update of a character's JSON data in a single DB transaction.
+        Merges JSON if appropriate and enforces optimistic concurrency if expected_version provided.
+        """
+        try:
+            with SessionLocal() as db:
+                # Validate session and character presence
+                session = db.query(GameSession).filter(GameSession.id == session_id).first()
+                if not session:
+                    return {'success': False, 'error': f'Session {session_id} not found'}
+
+                existing = db.query(SessionCharacter).filter(
+                    SessionCharacter.character_id == character_id,
+                    SessionCharacter.session_id == session_id
+                ).with_for_update().first()
+
+                if not existing:
+                    return {'success': False, 'error': 'Character not found'}
+
+                if str(getattr(existing, 'owner_user_id', '')) != str(user_id):
+                    return {'success': False, 'error': 'Permission denied'}
+
+                # Version check
+                current_version = getattr(existing, 'version', 1) or 1
+                if expected_version is not None and int(expected_version) != int(current_version):
+                    return {'success': False, 'error': 'Version conflict', 'current_version': current_version}
+
+                # Merge JSON
+                try:
+                    char_payload = getattr(existing, 'character_data', None) or '{}'
+                    current_json = json.loads(str(char_payload)) if char_payload else {}
+                except Exception:
+                    current_json = {}
+
+                if isinstance(current_json, dict) and isinstance(updates, dict):
+                    merged = {**current_json, **updates}
+                else:
+                    merged = updates
+
+                new_version = int(current_version) + 1
+
+                db.query(SessionCharacter).filter(SessionCharacter.character_id == character_id).update({
+                    SessionCharacter.character_data: json.dumps(merged),
+                    SessionCharacter.updated_at: datetime.utcnow(),
+                    SessionCharacter.version: new_version,
+                    SessionCharacter.last_modified_by: user_id
+                })
+                db.commit()
+
+                return {'success': True, 'character_id': character_id, 'version': new_version}
+
+        except Exception as e:
+            logger.error(f"Error updating character: {e}")
+            return {'success': False, 'error': f'Database error: {str(e)}'}
     
     def load_character(self, session_id: int, character_id: str, 
                       user_id: int) -> Dict[str, Any]:

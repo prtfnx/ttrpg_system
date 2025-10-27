@@ -1122,3 +1122,31 @@ class ActionsCore(AsyncActionsProtocol):
                 success=False,
                 message=f"Server error: {str(e)}"
             )
+
+    async def update_character(self, session_id: int, character_id: str, updates: Dict[str, Any], user_id: int, expected_version: Optional[int] = None) -> ActionResult:
+        """Apply partial updates (delta) to a character using server-side manager with optimistic concurrency."""
+        try:
+            from server_host.managers.character_manager import get_server_character_manager
+
+            char_manager = get_server_character_manager()
+            result = char_manager.update_character(session_id, character_id, updates, user_id, expected_version)
+
+            if result.get('success'):
+                logger.info(f"Character {character_id} updated to version {result.get('version')}")
+                return ActionResult(
+                    success=True,
+                    message='Character updated',
+                    data={'character_id': character_id, 'version': result.get('version')}
+                )
+            else:
+                logger.error(f"Character update failed: {result.get('error')}")
+                return ActionResult(
+                    success=False,
+                    message=result.get('error', 'Character update failed')
+                )
+        except Exception as e:
+            logger.error(f"Error in update_character: {e}")
+            return ActionResult(
+                success=False,
+                message=f"Server error: {str(e)}"
+            )

@@ -1680,7 +1680,7 @@ class ServerProtocol:
         # Prefer specialized update method in ActionsCore if implemented
         try:
             if hasattr(self.actions, 'update_character'):
-                result = await self.actions.update_character(session_id=session_id, character_id=character_id, updates=updates, user_id=user_id, version=version)
+                result = await self.actions.update_character(session_id=session_id, character_id=character_id, updates=updates, user_id=user_id, expected_version=version)
             else:
                 # Fallback: load current char and merge updates into character_data then save
                 existing = await self.actions.load_character(session_id, character_id, user_id)
@@ -1696,10 +1696,15 @@ class ServerProtocol:
 
             if result.success:
                 # Broadcast to session that character updated
+                returned_version = None
+                data = getattr(result, 'data', None)
+                if isinstance(data, dict):
+                    returned_version = data.get('version')
+
                 broadcast = Message(MessageType.CHARACTER_UPDATE, {
                     'character_id': character_id,
                     'updates': updates,
-                    'version': getattr(result, 'version', version)
+                    'version': returned_version if returned_version is not None else version
                 })
                 await self.broadcast_to_session(broadcast, client_id)
 

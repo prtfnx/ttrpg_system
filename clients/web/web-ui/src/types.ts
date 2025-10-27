@@ -24,6 +24,10 @@ export interface Sprite {
   isSelected: boolean;
   isVisible: boolean;
   layer: string;
+  // Optional link to a persistent character
+  characterId?: string;
+  // Optional list of user ids that can control this token
+  controlledBy?: string[];
 }
 
 export interface Character {
@@ -41,6 +45,9 @@ export interface Character {
   };
   conditions: string[];
   inventory: string[];
+  // Optional versioning and sync status for optimistic updates
+  version?: number;
+  syncStatus?: 'local' | 'syncing' | 'synced' | 'error';
 }
 
 export interface GameState {

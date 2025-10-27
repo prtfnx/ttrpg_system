@@ -3,6 +3,7 @@ Tests for CHARACTER_UPDATE protocol handling
 """
 import asyncio
 import pytest
+from types import SimpleNamespace
 
 from net.protocol import Message, MessageType
 from core_table.server_protocol import ServerProtocol
@@ -19,6 +20,8 @@ class DummyTableManager:
 async def test_character_update_handler_registered():
     tm = DummyTableManager()
     protocol = ServerProtocol(tm)
+        # Monkeypatch _get_session_id to always return a valid session_id for tests
+    protocol._get_session_id = lambda msg: 1
     assert MessageType.CHARACTER_UPDATE in protocol.handlers
     assert protocol.handlers[MessageType.CHARACTER_UPDATE] == protocol.handle_character_update
 
@@ -44,6 +47,9 @@ async def test_handle_character_update_success_broadcast(monkeypatch):
         return ActionResult(True, 'ok', {'version': 5})
 
     protocol.actions.update_character = fake_update
+
+    # Monkeypatch _get_session_id to always return a valid session_id for this test
+    protocol._get_session_id = lambda msg: 1
 
     broadcasts = []
 

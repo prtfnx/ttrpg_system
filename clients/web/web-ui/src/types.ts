@@ -14,39 +14,30 @@ export interface Color {
 }
 
 export interface Sprite {
-  id: string;
-  name: string;
+  id: string; // sprite_id
+  tableId: string;
+  characterId?: string; // References Character.id
+  controlledBy?: string[]; // User IDs who can control this token
   x: number;
   y: number;
-  width: number;
-  height: number;
-  imageUrl?: string;
-  isSelected: boolean;
-  isVisible: boolean;
   layer: string;
-  // Optional link to a persistent character
-  characterId?: string;
-  // Optional list of user ids that can control this token
-  controlledBy?: string[];
+  texture: string;
+  scale: { x: number; y: number };
+  rotation: number;
+  syncStatus?: 'local' | 'syncing' | 'synced' | 'error';
 }
 
 export interface Character {
-  id: string;
+  id: string; // character_id
+  sessionId: string;
   name: string;
-  race: string;
-  class: string;
-  level: number;
-  sprite: Sprite;
-  stats: {
-    hp: number;
-    maxHp: number;
-    ac: number;
-    speed: number;
-  };
-  conditions: string[];
-  inventory: string[];
-  // Optional versioning and sync status for optimistic updates
-  version?: number;
+  ownerId: number;
+  controlledBy: number[];
+  data: any; // D&D 5e structure, see architecture
+  version: number;
+  lastModifiedBy?: number;
+  createdAt: string;
+  updatedAt: string;
   syncStatus?: 'local' | 'syncing' | 'synced' | 'error';
 }
 

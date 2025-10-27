@@ -235,50 +235,51 @@ export const useGameStore = create<GameStore>()(
       },
 
           // --- Character / Sprite linking helpers ---
-          getSpritesForCharacter: (characterId: string) => {
-            return useGameStore.getState().sprites.filter((s) => (s as any).characterId === characterId);
-          },
 
-          getCharacterForSprite: (spriteId: string) => {
-            const state = useGameStore.getState();
-            const sprite = state.sprites.find((s) => s.id === spriteId) as any;
-            if (!sprite || !sprite.characterId) return undefined;
-            return state.characters.find((c) => c.id === sprite.characterId);
-          },
+      getSpritesForCharacter: (characterId: string) => {
+        return useGameStore.getState().sprites.filter((s) => s.characterId === characterId);
+      },
 
-          canControlSprite: (spriteId: string, userId?: number) => {
-            const sprite = useGameStore.getState().sprites.find((s) => s.id === spriteId) as any;
-            if (!sprite) return false;
-            if (!sprite.controlledBy) return false;
-            const controlled = Array.isArray(sprite.controlledBy) ? sprite.controlledBy : [];
-            if (userId === undefined) return controlled.length > 0;
-            return controlled.includes(String(userId));
-          },
+      getCharacterForSprite: (spriteId: string) => {
+        const sprite = useGameStore.getState().sprites.find((s) => s.id === spriteId);
+        if (!sprite?.characterId) return undefined;
+        return useGameStore.getState().characters.find((c) => c.id === sprite.characterId);
+      },
 
-          canEditCharacter: (characterId: string, userId?: number) => {
-            const character = useGameStore.getState().characters.find((c) => c.id === characterId) as any;
-            if (!character) return false;
-            if (userId === undefined) return true; // best-effort
-            return character.owner_user_id === userId || (character.controlled_by && (character.controlled_by as string[]).includes(String(userId)));
-          },
+      canControlSprite: (spriteId: string, userId?: number) => {
+        const sprite = useGameStore.getState().sprites.find((s) => s.id === spriteId);
+        if (!sprite) return false;
+        if (userId === undefined) return Array.isArray(sprite.controlledBy) && sprite.controlledBy.length > 0;
+        if (sprite.controlledBy && sprite.controlledBy.includes(String(userId))) return true;
+        const character = useGameStore.getState().getCharacterForSprite(spriteId);
+        if (!character) return false;
+        return character.ownerId === userId || (Array.isArray(character.controlledBy) && character.controlledBy.includes(userId));
+      },
 
-          linkSpriteToCharacter: (spriteId: string, characterId: string) => {
-            set((state) => ({
-              sprites: state.sprites.map((s) => s.id === spriteId ? ({ ...(s as any), characterId }) : s)
-            }));
-          },
+      canEditCharacter: (characterId: string, userId?: number) => {
+        const character = useGameStore.getState().characters.find((c) => c.id === characterId);
+        if (!character) return false;
+        if (userId === undefined) return true;
+        return character.ownerId === userId || (Array.isArray(character.controlledBy) && character.controlledBy.includes(userId));
+      },
 
-          unlinkSpriteFromCharacter: (spriteId: string) => {
-            set((state) => ({
-              sprites: state.sprites.map((s) => s.id === spriteId ? ({ ...(s as any), characterId: undefined }) : s)
-            }));
-          },
+      linkSpriteToCharacter: (spriteId: string, characterId: string) => {
+        set((state) => ({
+          sprites: state.sprites.map((s) => s.id === spriteId ? { ...s, characterId } : s)
+        }));
+      },
+
+      unlinkSpriteFromCharacter: (spriteId: string) => {
+        set((state) => ({
+          sprites: state.sprites.map((s) => s.id === spriteId ? { ...s, characterId: undefined } : s)
+        }));
+      },
 
       updateCharacter: (id, updates) => {
         set((state) => ({
           characters: state.characters.map((char) =>
-            char.id === id ? { ...char, ...updates, stats: { ...char.stats, ...(updates.stats || {}) } } : char
-          ),
+            char.id === id ? { ...char, ...updates } : char
+          )
         }));
       },
 

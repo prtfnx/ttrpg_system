@@ -221,6 +221,9 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.CHARACTER_SAVE_RESPONSE, this.handleCharacterSaveResponse.bind(this));
     this.registerHandler(MessageType.CHARACTER_LIST_RESPONSE, this.handleCharacterListResponse.bind(this));
     this.registerHandler(MessageType.CHARACTER_DELETE_RESPONSE, this.handleCharacterDeleteResponse.bind(this));
+    // Character update handlers (delta)
+    this.registerHandler(MessageType.CHARACTER_UPDATE, this.handleCharacterUpdate.bind(this));
+    this.registerHandler(MessageType.CHARACTER_UPDATE_RESPONSE, this.handleCharacterUpdateResponse.bind(this));
   }
 
   registerHandler(type: string, handler: MessageHandler): void {
@@ -527,6 +530,27 @@ export class WebClientProtocol {
     window.dispatchEvent(new CustomEvent('character-list-updated', { detail: message.data }));
   }
 
+  // Handle incoming character delta updates broadcast from server
+  private async handleCharacterUpdate(message: Message): Promise<void> {
+    console.log('Character update received:', message.data);
+    // Apply to store: if contains character_id and updates, merge
+    const data: any = message.data || {};
+    const characterId = data.character_id || data.id;
+    const updates = data.updates || data.character_data;
+    if (characterId && updates) {
+      // Use store helper to apply partial update
+      const store = useGameStore.getState();
+      // Merge: updateCharacter should merge fields appropriately
+      store.updateCharacter(characterId, updates as any);
+      window.dispatchEvent(new CustomEvent('character-updated', { detail: { character_id: characterId, updates } }));
+    }
+  }
+
+  private async handleCharacterUpdateResponse(message: Message): Promise<void> {
+    console.log('Character update response:', message.data);
+    window.dispatchEvent(new CustomEvent('character-update-response', { detail: message.data }));
+  }
+
   // Public API methods for sending requests
   requestTableList(): void {
     this.sendMessage(createMessage(MessageType.TABLE_LIST_REQUEST));
@@ -641,6 +665,13 @@ export class WebClientProtocol {
 
   loadCharacter(characterId: string): void {
     this.sendMessage(createMessage(MessageType.CHARACTER_LOAD_REQUEST, { character_id: characterId }));
+  }
+
+  // Send partial/delta updates for a character
+  updateCharacter(characterId: string, updates: Record<string, unknown>, version?: number): void {
+    const payload: any = { character_id: characterId, updates };
+    if (version !== undefined) payload.version = version;
+    this.sendMessage(createMessage(MessageType.CHARACTER_UPDATE, payload));
   }
 
   requestCharacterList(): void {

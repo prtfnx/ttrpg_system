@@ -92,6 +92,9 @@ export const MessageType = {
   CHARACTER_LIST_RESPONSE: "character_list_response",
   CHARACTER_DELETE_REQUEST: "character_delete_request",
   CHARACTER_DELETE_RESPONSE: "character_delete_response",
+  // Character delta updates
+  CHARACTER_UPDATE: "character_update",
+  CHARACTER_UPDATE_RESPONSE: "character_update_response",
   
   // Batch messaging for performance
   BATCH: "batch",

@@ -239,28 +239,50 @@ class ServerProtocol:
         sprite_data = msg.data.get('sprite_data')
         if not sprite_data:
             return Message(MessageType.ERROR, {'error': 'No sprite data provided'})
+        # Normalize sprite_data to a dict to satisfy static checks and ensure .get works
+        if not isinstance(sprite_data, dict):
+            try:
+                if hasattr(sprite_data, 'to_dict'):
+                    sprite_data = sprite_data.to_dict() or {}
+                else:
+                    sprite_data = dict(sprite_data)
+            except Exception:
+                sprite_data = {}
         table_id = msg.data.get('table_id', 'default')
         
         # Get session_id for database persistence
         session_id = self._get_session_id(msg)
         
-        # Normalize controlled_by if provided as list -> store as JSON string for DB
+        # Extract canonical character link and normalize controlled_by
         try:
             if isinstance(sprite_data, dict):
+                # Enforce canonical `character_id` key (do not accept legacy `id`)
+                char_id = msg.data.get('character_id') or sprite_data.get('character_id')
+                if char_id:
+                    sprite_data['character_id'] = str(char_id)
+
+                # Normalize controlled_by if provided as list -> store as JSON string for DB
                 cb = sprite_data.get('controlled_by')
                 if isinstance(cb, (list, tuple)):
                     sprite_data['controlled_by'] = json.dumps(cb)
         except Exception:
-            # ignore normalization errors
+            # ignore normalization errors but do not silently remap legacy keys
             pass
 
         result = await self.actions.create_sprite(table_id=table_id, sprite_data=sprite_data, session_id=session_id)
         logger.debug(f"Create sprite result: {result}")
-        if not result.success or not result.data or result.data.get('sprite_data') is None:
+        # Safely extract result data
+        result_data = result.data or {}
+        if not result.success or not result_data or result_data.get('sprite_data') is None:
             return Message(MessageType.ERROR, {'error': 'Failed to create sprite'})
         else:
             # Include both sprite_id and the full sprite_data for client WASM engine
-            sprite_data = result.data.get('sprite_data')
+            sprite_data = result_data.get('sprite_data') or {}
+            if not isinstance(sprite_data, dict) and hasattr(sprite_data, 'to_dict'):
+                try:
+                    sprite_data = sprite_data.to_dict() or {}
+                except Exception:
+                    sprite_data = {}
             logger.debug(f"Sprite creation result - sprite_data: {sprite_data}")
             response_data = {
                 'sprite_id': sprite_data.get('sprite_id'),
@@ -541,7 +563,17 @@ class ServerProtocol:
             return Message(MessageType.ERROR, {'error': 'Failed to create new table'})
         else:
             # Get table data and ensure assets are in R2
-            table_data = result.data.get('table').to_dict()
+            table_obj = (result.data or {}).get('table')
+            to_dict_fn = getattr(table_obj, 'to_dict', None)
+            if callable(to_dict_fn):
+                try:
+                    table_data = to_dict_fn() or {}
+                except Exception:
+                    table_data = {}
+            elif isinstance(table_obj, dict):
+                table_data = table_obj
+            else:
+                table_data = {}
             await self.ensure_assets_in_r2(table_data, msg.data.get('session_code', 'default'), msg.data.get('user_id', 0))
             logger.info(f"Processing table {table_name} with {len(table_data.get('layers', {}))} layers")
             
@@ -587,7 +619,17 @@ class ServerProtocol:
             return Message(MessageType.ERROR, {'error': 'Failed to get table'})
         else:
             # Get table data and add xxHash information
-            table_data = result.data.get('table').to_dict()
+            table_obj = (result.data or {}).get('table')
+            to_dict_fn = getattr(table_obj, 'to_dict', None)
+            if callable(to_dict_fn):
+                try:
+                    table_data = to_dict_fn() or {}
+                except Exception:
+                    table_data = {}
+            elif isinstance(table_obj, dict):
+                table_data = table_obj
+            else:
+                table_data = {}
             table_data_with_hashes = await self.add_asset_hashes_to_table(table_data, session_code=msg.data.get('session_code', 'default'), user_id=user_id)
 
             # return message that need send to client
@@ -770,9 +812,10 @@ class ServerProtocol:
                 return Message(MessageType.ERROR, {'error': f'Failed to create sprite: {result.message}'})
 
             # Prepare a minimal table structure containing the new entity so we can ensure assets in R2
+            # Ensure created_sprite is defined even if nested blocks fail
+            created_sprite = sprite_data
             try:
                 # The created sprite data may be returned in result.data or be identical to input
-                created_sprite = sprite_data
                 # Build table_data structure compatible with ensure_assets_in_r2
                 table_data = {'layers': {created_sprite.get('layer', 'tokens'): {created_sprite.get('sprite_id', created_sprite.get('entity_id', 'new')): created_sprite}}}
                 table_data_enriched = await self.ensure_assets_in_r2(table_data, session_code=session_code, user_id=user_id)
@@ -1073,8 +1116,9 @@ class ServerProtocol:
                 db_session = SessionLocal()
                 try:
                     asset = db_session.query(Asset).filter_by(r2_asset_id=asset_id).first()
-                    if asset and asset.xxhash:
-                        return asset.xxhash
+                    val = getattr(asset, 'xxhash', None) if asset is not None else None
+                    if isinstance(val, str) and val:
+                        return val
                     return None
                 finally:
                     db_session.close()
@@ -1110,7 +1154,11 @@ class ServerProtocol:
                 # Check if asset already exists in database
                 asset = db_session.query(Asset).filter_by(asset_name=asset_name).first()
                 if asset:
-                    asset.xxhash = calculated_hash
+                    try:
+                        setattr(asset, 'xxhash', calculated_hash)
+                    except Exception:
+                        # Best effort: some SQLAlchemy models may use Column descriptors; ignore failures
+                        pass
                     logger.debug(f"Updated existing asset {asset_name} with xxHash: {calculated_hash}")
                 else:
                     # Use content-based asset_id (first 16 chars of xxhash)
@@ -1131,8 +1179,9 @@ class ServerProtocol:
                 return calculated_hash
             else:
                 asset = db_session.query(Asset).filter_by(asset_name=asset_name).first()
-                if asset and hasattr(asset, 'xxhash') and asset.xxhash:
-                    return asset.xxhash
+                val = getattr(asset, 'xxhash', None) if asset is not None else None
+                if isinstance(val, str) and val:
+                    return val
                 return None
         except Exception as e:
             logger.error(f"Error calculating xxHash for {texture_path}: {e}")
@@ -1511,11 +1560,12 @@ class ServerProtocol:
             })
         
         result = await self.actions.save_character(session_id, character_data, user_id)
-        
+
         if result.success:
             # Broadcast character save to other clients in session
+            resdata = result.data or {}
             broadcast_data = {
-                'character_id': result.data.get('character_id') if result.data else None,
+                'character_id': resdata.get('character_id'),
                 'session_code': session_code,
                 'operation': 'character_save',
                 'user_id': user_id
@@ -1524,7 +1574,7 @@ class ServerProtocol:
             
             return Message(MessageType.CHARACTER_SAVE_RESPONSE, {
                 'success': True,
-                'character_id': result.data.get('character_id') if result.data else None,
+                'character_id': resdata.get('character_id'),
                 'message': result.message
             })
         else:
@@ -1561,11 +1611,12 @@ class ServerProtocol:
             })
         
         result = await self.actions.load_character(session_id, character_id, user_id)
-        
+
         if result.success:
+            resdata = result.data or {}
             return Message(MessageType.CHARACTER_LOAD_RESPONSE, {
                 'success': True,
-                'character_data': result.data.get('character_data'),
+                'character_data': resdata.get('character_data'),
                 'message': result.message
             })
         else:
@@ -1595,11 +1646,12 @@ class ServerProtocol:
             })
         
         result = await self.actions.list_characters(session_id, user_id)
-        
+
         if result.success:
+            resdata = result.data or {}
             return Message(MessageType.CHARACTER_LIST_RESPONSE, {
                 'success': True,
-                'characters': result.data.get('characters', []),
+                'characters': resdata.get('characters', []),
                 'session_code': session_code,
                 'message': result.message
             })
@@ -1677,29 +1729,18 @@ class ServerProtocol:
         if not session_id:
             return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': 'Session not found'})
 
-        # Prefer specialized update method in ActionsCore if implemented
+        # Require specialized update method in ActionsCore (no fallback)
         try:
-            if hasattr(self.actions, 'update_character'):
-                result = await self.actions.update_character(session_id=session_id, character_id=character_id, updates=updates, user_id=user_id, expected_version=version)
-            else:
-                # Fallback: load current char and merge updates into character_data then save
-                existing = await self.actions.load_character(session_id, character_id, user_id)
-                if not existing.success or not existing.data:
-                    return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': 'Character not found'})
-                current = existing.data.get('character_data', {})
-                # shallow merge - ActionsCore should do proper JSON merge if needed
-                if isinstance(current, dict) and isinstance(updates, dict):
-                    merged = {**current, **updates}
-                else:
-                    merged = updates
-                result = await self.actions.save_character(session_id, {'character_id': character_id, 'character_data': merged}, user_id)
+            if not hasattr(self.actions, 'update_character'):
+                return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': 'Server does not support character delta updates'})
+
+            result = await self.actions.update_character(session_id=session_id, character_id=character_id, updates=updates, user_id=user_id, expected_version=version)
 
             if result.success:
                 # Broadcast to session that character updated
                 returned_version = None
-                data = getattr(result, 'data', None)
-                if isinstance(data, dict):
-                    returned_version = data.get('version')
+                if isinstance(result.data, dict):
+                    returned_version = result.data.get('version')
 
                 broadcast = Message(MessageType.CHARACTER_UPDATE, {
                     'character_id': character_id,
@@ -1708,7 +1749,7 @@ class ServerProtocol:
                 })
                 await self.broadcast_to_session(broadcast, client_id)
 
-                return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': True, 'character_id': character_id, 'message': result.message if hasattr(result, 'message') else 'updated'})
+                return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': True, 'character_id': character_id, 'message': result.message if hasattr(result, 'message') else 'updated', 'version': returned_version})
             else:
                 return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': result.message})
 

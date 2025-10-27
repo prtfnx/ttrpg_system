@@ -773,6 +773,26 @@ export class WebClientProtocol {
     window.dispatchEvent(new CustomEvent('character-delete-response', { detail: message.data }));
   }
 
+    private async handleCharacterUpdate(message: Message): Promise<void> {
+      // Apply delta updates to character in store
+      const { character_id, updates, version } = message.data || {};
+      if (!character_id || !updates) return;
+      useGameStore.getState().updateCharacter(character_id, updates, version);
+      window.dispatchEvent(new CustomEvent('character-updated', { detail: { character_id, updates, version } }));
+    }
+
+    private async handleCharacterUpdateResponse(message: Message): Promise<void> {
+      // Server confirms update, may include merged data or version
+      const { character_id, updates, version, error } = message.data || {};
+      if (error) {
+        window.dispatchEvent(new CustomEvent('character-update-error', { detail: { character_id, error } }));
+        return;
+      }
+      if (!character_id || !updates) return;
+      useGameStore.getState().updateCharacter(character_id, updates, version);
+      window.dispatchEvent(new CustomEvent('character-update-confirmed', { detail: { character_id, updates, version } }));
+    }
+
   // Public API methods for new message types
   requestPlayerStatus(clientId?: string): void {
     this.sendMessage(createMessage(MessageType.PLAYER_STATUS, { client_id: clientId }));

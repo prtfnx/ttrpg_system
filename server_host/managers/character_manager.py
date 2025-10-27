@@ -38,8 +38,9 @@ class ServerCharacterManager:
                         'error': f'Session {session_id} not found'
                     }
                 
-                # Generate or use existing character ID (accept both 'character_id' and legacy 'id' keys)
-                character_id = character_data.get('character_id') or character_data.get('id') or str(uuid.uuid4())
+                # Generate or use existing character ID (canonical key: 'character_id')
+                # Do NOT accept legacy 'id' fallback - callers must use `character_id`.
+                character_id = character_data.get('character_id') or str(uuid.uuid4())
                 character_name = character_data.get('name', 'Unnamed Character')
                 
                 # Serialize character data

@@ -1,3 +1,5 @@
+import { CharacterPanelRedesigned } from '../components/CharacterPanelRedesigned';
+import { useGameStore } from '../store';
 /**
  * Character Management and Progression System Behavior Tests  
  * Tests real D&D 5e character creation, leveling, spell management, and abilities
@@ -157,6 +159,41 @@ vi.mock('../components/AuthContext', () => ({
 }));
 
 describe('Character Management System - D&D 5e Character Lifecycle', () => {
+  describe('Character-Token Linking and UI Integration', () => {
+    it('should allow adding a token from the character panel, show token badge, and enforce permissions', async () => {
+      const user = userEvent.setup();
+      render(<CharacterPanelRedesigned />);
+
+      // Create a character via the wizard
+      await user.click(screen.getByRole('button', { name: /create new character/i }));
+      // Simulate wizard finish (bypass UI for brevity)
+      const addCharacter = useGameStore.getState().addCharacter;
+      const charId = 'char-test-1';
+      addCharacter({
+        id: charId,
+        sessionId: '',
+        name: 'Test Hero',
+        ownerId: 1,
+        controlledBy: [],
+        data: {},
+        version: 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        syncStatus: 'local',
+      });
+
+      // Expand character card
+      await user.click(screen.getByText('Test Hero'));
+      // Add a token
+      await user.click(screen.getByRole('button', { name: /add token/i }));
+
+      // Badge for linked token should appear
+      expect(screen.getByText('Token')).toBeInTheDocument();
+
+      // Permission: delete button should be visible for owner
+      expect(screen.getByRole('button', { name: /delete/i })).toBeVisible();
+    });
+  });
   const mockUserInfo = { 
     id: 'player1', 
     username: 'Alice', 

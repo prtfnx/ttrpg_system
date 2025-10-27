@@ -497,10 +497,11 @@ export class WebClientProtocol {
 
   private async handleCharacterLoadResponse(message: Message): Promise<void> {
     console.log('Character loaded:', message.data);
-    // Upsert character into cache
-    if (message.data && typeof message.data.id === 'string') {
+    // Upsert character into cache (server now uses `character_id` in payloads)
+    if (message.data && typeof message.data.character_id === 'string') {
       useAssetCharacterCache.getState().upsertCharacter({
-        id: String(message.data.id),
+        // keep internal cache keyed by `id` for legacy code paths, but source is character_id
+        id: String(message.data.character_id),
         name: typeof message.data.name === 'string' ? message.data.name : '',
         data: message.data,
       });
@@ -519,9 +520,10 @@ export class WebClientProtocol {
     // Bulk load characters into cache
     if (Array.isArray(message.data?.characters)) {
       const validChars = message.data.characters.filter(
-        (c: any) => c && typeof c.id === 'string'
+        (c: any) => c && typeof c.character_id === 'string'
       ).map((c: any) => ({
-        id: String(c.id),
+        // cache still expects `id` field internally — map from character_id
+        id: String(c.character_id),
         name: typeof c.name === 'string' ? c.name : '',
         data: c,
       }));
@@ -534,8 +536,9 @@ export class WebClientProtocol {
   private async handleCharacterUpdate(message: Message): Promise<void> {
     console.log('Character update received:', message.data);
     // Apply to store: if contains character_id and updates, merge
-    const data: any = message.data || {};
-    const characterId = data.character_id || data.id;
+  const data: any = message.data || {};
+  // server/client payloads standardized to use `character_id`
+  const characterId = data.character_id;
     const updates = data.updates || data.character_data;
     if (characterId && updates) {
       // Use store helper to apply partial update

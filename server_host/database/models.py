@@ -160,6 +160,9 @@ class SessionCharacter(Base):
     
     # Relationships
     session = relationship("GameSession")
-    owner = relationship("User")
+    owner = relationship("User", foreign_keys=[owner_user_id])
     # Tokens (entities) that reference this character
     tokens = relationship("Entity", back_populates="character")
+
+    # Explicit relationship for last modifier to avoid FK ambiguity
+    last_modified_by_user = relationship("User", foreign_keys=[last_modified_by])

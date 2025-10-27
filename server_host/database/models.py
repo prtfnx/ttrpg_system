@@ -92,6 +92,10 @@ class Entity(Base):
     position_y = Column(Integer, nullable=False)
     layer = Column(String(50), nullable=False)
     texture_path = Column(String(500))
+    # Link to persistent character (nullable)
+    character_id = Column(String(36), ForeignKey("session_characters.character_id"), nullable=True)
+    # JSON array of user ids who can control this token (nullable)
+    controlled_by = Column(Text, nullable=True)
     
     # Transform properties
     scale_x = Column(Float, default=1.0)
@@ -107,6 +111,8 @@ class Entity(Base):
     
     # Relationships
     table = relationship("VirtualTable", back_populates="entities")
+    # Backref to SessionCharacter (nullable)
+    character = relationship("SessionCharacter", back_populates="tokens", primaryjoin="Entity.character_id==SessionCharacter.character_id")
 
 class Asset(Base):
     __tablename__ = "assets"
@@ -148,7 +154,12 @@ class SessionCharacter(Base):
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # Versioning for optimistic concurrency
+    version = Column(Integer, default=1)
+    last_modified_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     
     # Relationships
     session = relationship("GameSession")
     owner = relationship("User")
+    # Tokens (entities) that reference this character
+    tokens = relationship("Entity", back_populates="character")

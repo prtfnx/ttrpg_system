@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useGameStore } from '../store';
 import './CharacterPanelRedesigned.css';
@@ -10,6 +9,18 @@ function genId(): string {
 
 
 export function CharacterPanelRedesigned() {
+  const {
+    characters,
+    getSpritesForCharacter,
+    linkSpriteToCharacter,
+    canEditCharacter,
+    canControlSprite, // <-- add this
+    addCharacter,
+    removeCharacter,
+    selectSprite,
+    sprites,
+    selectedSprites
+  } = useGameStore();
   // Drag-and-drop: start drag with character id
   const handleDragStart = (e: React.DragEvent, charId: string) => {
     e.dataTransfer.setData('application/x-character-id', charId);
@@ -40,17 +51,6 @@ export function CharacterPanelRedesigned() {
       linkSpriteToCharacter(spriteId, charId);
     }
   };
-  const {
-    characters,
-    getSpritesForCharacter,
-    linkSpriteToCharacter,
-    canEditCharacter,
-    addCharacter,
-    removeCharacter,
-    selectSprite,
-    sprites,
-    selectedSprites
-  } = useGameStore();
   const [showWizard, setShowWizard] = useState(false);
   const [expandedCharId, setExpandedCharId] = useState<string | null>(null);
   const [wizardKey, setWizardKey] = useState(0);

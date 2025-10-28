@@ -18,6 +18,13 @@ export interface TableInfo {
 }
 
 interface GameStore extends GameState {
+  // Character/Sprite linking helpers
+  getSpritesForCharacter: (characterId: string) => Sprite[];
+  getCharacterForSprite: (spriteId: string) => import('./types').Character | undefined;
+  canControlSprite: (spriteId: string, userId?: number) => boolean;
+  canEditCharacter: (characterId: string, userId?: number) => boolean;
+  linkSpriteToCharacter: (spriteId: string, characterId: string) => void;
+  unlinkSpriteFromCharacter: (spriteId: string) => void;
   // Table management state
   tables: TableInfo[];
   activeTableId: string | null;

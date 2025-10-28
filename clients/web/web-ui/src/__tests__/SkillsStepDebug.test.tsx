@@ -93,11 +93,10 @@ describe('SkillsStep Debug', () => {
     if (availableSkills.length >= 2) {
       await user.click(availableSkills[0]);
       await user.click(availableSkills[1]);
-      
-      // Try to submit
-      const submitButton = screen.getByTestId('skills-next-button');
+      // Wait for submit button to be enabled
+      const submitButton = await screen.findByTestId('skills-next-button');
+      expect(submitButton).toBeEnabled();
       await user.click(submitButton);
-      
       // Should not show any error
       await waitFor(() => {
         const errorText = screen.queryByText(/Select \d+ class skills/);

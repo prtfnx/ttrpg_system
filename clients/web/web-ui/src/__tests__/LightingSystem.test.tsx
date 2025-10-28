@@ -84,9 +84,9 @@ describe('Lighting System', () => {
       
       render(<LightingPanel />);
       
-      // Click Torch preset
-      const torchButton = screen.getByText(/torch/i);
-      await user.click(torchButton);
+  // Click Torch preset (use role-based query to avoid ambiguity)
+  const torchButton = screen.getByRole('button', { name: /torch/i });
+  await user.click(torchButton);
       
       // Verify placement mode is active
       expect(screen.getByText(/click on the map/i)).toBeInTheDocument();
@@ -127,9 +127,9 @@ describe('Lighting System', () => {
       
       render(<LightingPanel />);
       
-      // Enter placement mode
-      const torchButton = screen.getByText(/torch/i);
-      await user.click(torchButton);
+  // Enter placement mode
+  const torchButton = screen.getByRole('button', { name: /torch/i });
+  await user.click(torchButton);
       
       expect(screen.getByText(/click on the map/i)).toBeInTheDocument();
       
@@ -164,9 +164,9 @@ describe('Lighting System', () => {
         
         render(<LightingPanel />);
         
-        // Click preset
-        const presetButton = screen.getByText(new RegExp(preset.name, 'i'));
-        await user.click(presetButton);
+  // Click preset (use role-based query)
+  const presetButton = screen.getByRole('button', { name: new RegExp(preset.name, 'i') });
+  await user.click(presetButton);
         
         // Simulate placement
         const placementEvent = new CustomEvent('lightPlaced', {
@@ -258,9 +258,9 @@ describe('Lighting System', () => {
       
       const { container } = render(<LightingPanel />);
       
-      // Place a light first
-      const torchButton = screen.getByText(/torch/i);
-      await user.click(torchButton);
+  // Place a light first
+  const torchButton = screen.getByRole('button', { name: /torch/i });
+  await user.click(torchButton);
       
       const placementEvent = new CustomEvent('lightPlaced', {
         detail: { x: 100, y: 100 }
@@ -300,9 +300,9 @@ describe('Lighting System', () => {
       
       const { container } = render(<LightingPanel />);
       
-      // Place a light
-      const torchButton = screen.getByText(/torch/i);
-      await user.click(torchButton);
+  // Place a light
+  const torchButton = screen.getByRole('button', { name: /torch/i });
+  await user.click(torchButton);
       
       window.dispatchEvent(new CustomEvent('lightPlaced', {
         detail: { x: 100, y: 100 }
@@ -336,9 +336,9 @@ describe('Lighting System', () => {
       
       const { container } = render(<LightingPanel />);
       
-      // Place a light
-      const torchButton = screen.getByText(/torch/i);
-      await user.click(torchButton);
+  // Place a light
+  const torchButton = screen.getByRole('button', { name: /torch/i });
+  await user.click(torchButton);
       
       window.dispatchEvent(new CustomEvent('lightPlaced', {
         detail: { x: 100, y: 100 }
@@ -376,9 +376,9 @@ describe('Lighting System', () => {
       
       render(<LightingPanel />);
       
-      // Place a light
-      const torchButton = screen.getByText(/torch/i);
-      await user.click(torchButton);
+  // Place a light
+  const torchButton = screen.getByRole('button', { name: /torch/i });
+  await user.click(torchButton);
       
       window.dispatchEvent(new CustomEvent('lightPlaced', {
         detail: { x: 100, y: 100 }
@@ -405,9 +405,9 @@ describe('Lighting System', () => {
       
       render(<LightingPanel />);
       
-      // Place a light
-      const torchButton = screen.getByText(/torch/i);
-      await user.click(torchButton);
+  // Place a light
+  const torchButton = screen.getByRole('button', { name: /torch/i });
+  await user.click(torchButton);
       
       window.dispatchEvent(new CustomEvent('lightPlaced', {
         detail: { x: 100, y: 100 }
@@ -433,8 +433,8 @@ describe('Lighting System', () => {
       
       render(<LightingPanel />);
       
-      // Place first light (Torch)
-      await user.click(screen.getByText(/torch/i));
+  // Place first light (Torch)
+  await user.click(screen.getByRole('button', { name: /torch/i }));
       window.dispatchEvent(new CustomEvent('lightPlaced', {
         detail: { x: 100, y: 100 }
       }));
@@ -443,8 +443,8 @@ describe('Lighting System', () => {
         expect(mockEngine.add_light).toHaveBeenCalledTimes(1);
       });
       
-      // Place second light (Candle)
-      await user.click(screen.getByText(/candle/i));
+  // Place second light (Candle)
+  await user.click(screen.getByRole('button', { name: /candle/i }));
       window.dispatchEvent(new CustomEvent('lightPlaced', {
         detail: { x: 200, y: 200 }
       }));
@@ -469,9 +469,9 @@ describe('Lighting System', () => {
       
       render(<LightingPanel />);
       
-      // Click Torch preset
-      const torchButton = screen.getByText(/torch/i);
-      await user.click(torchButton);
+  // Click Torch preset
+  const torchButton = screen.getByRole('button', { name: /torch/i });
+  await user.click(torchButton);
       
       // Verify event was dispatched
       await waitFor(() => {
@@ -502,8 +502,8 @@ describe('Lighting System', () => {
       render(<LightingPanel />);
       
       // Should show error or disabled state
-      const torchButton = screen.getByText(/torch/i);
-      await user.click(torchButton);
+  const torchButton = screen.getByRole('button', { name: /torch/i });
+  await user.click(torchButton);
       
       // Should not crash when placing light
       window.dispatchEvent(new CustomEvent('lightPlaced', {
@@ -524,9 +524,8 @@ describe('Lighting System', () => {
       
       // Place 10 lights
       for (let i = 0; i < 10; i++) {
-        const torchButton = screen.getByText(/torch/i);
+        const torchButton = screen.getByRole('button', { name: /torch/i });
         await user.click(torchButton);
-        
         window.dispatchEvent(new CustomEvent('lightPlaced', {
           detail: { x: 100 + i * 50, y: 100 + i * 50 }
         }));

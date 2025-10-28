@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FormProvider, useForm } from 'react-hook-form';
+import { describe, it, expect } from 'vitest';
 import { SkillsStep } from '../components/CharacterWizard/SkillsStep';
 
 // Test component to wrap SkillsStep with form context
@@ -72,16 +73,29 @@ describe('SkillsStep Interaction Test', () => {
     if (availableCheckboxes.length >= 2) {
       console.log('[Test] Clicking first available skill');
       await user.click(availableCheckboxes[0]);
-      
       console.log('[Test] Clicking second available skill');
       await user.click(availableCheckboxes[1]);
+    } else {
+      throw new Error('Not enough available checkboxes to select');
     }
 
-    // Try to submit
-    const nextButton = screen.getByTestId('skills-next-button');
+    // Debug: log DOM after selection
+    // eslint-disable-next-line no-console
+    console.log('[Test] DOM after skill selection:', document.body.innerHTML);
+
+    // Try to submit (wait for button to be enabled or present)
+    let nextButton = null;
+    try {
+      nextButton = await screen.findByTestId('skills-next-button', {}, { timeout: 2000 });
+    } catch (e) {
+      // Not found, log all buttons
+      const allButtons = screen.queryAllByRole('button');
+      console.log('[Test] All buttons:', allButtons.map(btn => btn.outerHTML));
+      throw new Error('skills-next-button not found after skill selection');
+    }
+    expect(nextButton).toBeEnabled();
     console.log('[Test] Clicking next button');
     await user.click(nextButton);
-
     // The test should complete without timing out
     expect(true).toBe(true);
   });

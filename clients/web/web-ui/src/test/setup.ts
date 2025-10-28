@@ -1,8 +1,9 @@
 // --- Global fetch mock for OAuth and API endpoints ---
 if (!globalThis.fetch || typeof globalThis.fetch !== 'function') {
-  globalThis.fetch = vi.fn((input: RequestInfo, init?: RequestInit) => {
+  globalThis.fetch = vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {
     // Simulate OAuth provider endpoint
-    if (typeof input === 'string' && input.includes('/auth/oauth/providers')) {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : '';
+    if (url.includes('/auth/oauth/providers')) {
       return Promise.resolve({
         ok: true,
         status: 200,
@@ -14,7 +15,7 @@ if (!globalThis.fetch || typeof globalThis.fetch !== 'function') {
           { id: 'google', name: 'Google', icon: '🔍', isEnabled: true },
           { id: 'discord', name: 'Discord', icon: '💬', isEnabled: true }
         ])
-      });
+      } as Response);
     }
     // Default: return a generic successful response
     return Promise.resolve({
@@ -22,8 +23,8 @@ if (!globalThis.fetch || typeof globalThis.fetch !== 'function') {
       status: 200,
       json: async () => ({}),
       text: async () => ''
-    });
-  });
+    } as Response);
+  }) as typeof fetch;
 }
 
 // --- Ensure rustRenderManager is always present for LayerPanel and related tests ---

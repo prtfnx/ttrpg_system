@@ -536,9 +536,9 @@ export class WebClientProtocol {
   private async handleCharacterUpdate(message: Message): Promise<void> {
     console.log('Character update received:', message.data);
     // Apply to store: if contains character_id and updates, merge
-  const data: any = message.data || {};
-  // server/client payloads standardized to use `character_id`
-  const characterId = data.character_id;
+    const data: any = message.data || {};
+    // server/client payloads standardized to use `character_id`
+    const characterId = data.character_id;
     const updates = data.updates || data.character_data;
     if (characterId && updates) {
       // Use store helper to apply partial update
@@ -772,26 +772,6 @@ export class WebClientProtocol {
     console.log('👤 Protocol: Character delete response:', message.data);
     window.dispatchEvent(new CustomEvent('character-delete-response', { detail: message.data }));
   }
-
-    private async handleCharacterUpdate(message: Message): Promise<void> {
-      // Apply delta updates to character in store
-      const { character_id, updates, version } = message.data || {};
-      if (!character_id || !updates) return;
-      useGameStore.getState().updateCharacter(character_id, updates, version);
-      window.dispatchEvent(new CustomEvent('character-updated', { detail: { character_id, updates, version } }));
-    }
-
-    private async handleCharacterUpdateResponse(message: Message): Promise<void> {
-      // Server confirms update, may include merged data or version
-      const { character_id, updates, version, error } = message.data || {};
-      if (error) {
-        window.dispatchEvent(new CustomEvent('character-update-error', { detail: { character_id, error } }));
-        return;
-      }
-      if (!character_id || !updates) return;
-      useGameStore.getState().updateCharacter(character_id, updates, version);
-      window.dispatchEvent(new CustomEvent('character-update-confirmed', { detail: { character_id, updates, version } }));
-    }
 
   // Public API methods for new message types
   requestPlayerStatus(clientId?: string): void {

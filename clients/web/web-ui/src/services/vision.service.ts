@@ -1,6 +1,7 @@
 // Gather obstacles from the game store, call into the Rust/WASM visibility
 // routine and push resulting reveal polygons into the fog system.
 import { useGameStore } from '../store';
+import { getSpriteWidth, getSpriteHeight } from '../utils/spriteHelpers';
 
 let _interval: number | null = null;
 let _poller: number | null = null;
@@ -25,8 +26,8 @@ function buildObstaclesFloat32(): Float32Array {
     // Assume sprite x,y are top-left in world coords
     const x1 = s.x;
     const y1 = s.y;
-    const x2 = s.x + (s.width || 0);
-    const y2 = s.y + (s.height || 0);
+    const x2 = s.x + getSpriteWidth(s);
+    const y2 = s.y + getSpriteHeight(s);
 
     // Add rectangle edges as segments (x1,y1)-(x2,y1), (x2,y1)-(x2,y2), ...
     segs.push(x1, y1, x2, y1);

@@ -236,18 +236,20 @@ export const useGameStore = create<GameStore>()(
 
           // --- Character / Sprite linking helpers ---
 
+
+      // --- Character / Sprite linking helpers ---
       getSpritesForCharacter: (characterId: string) => {
-        return useGameStore.getState().sprites.filter((s) => s.characterId === characterId);
+        return useGameStore.getState().sprites.filter((s: any) => s.characterId === characterId);
       },
 
       getCharacterForSprite: (spriteId: string) => {
-        const sprite = useGameStore.getState().sprites.find((s) => s.id === spriteId);
+        const sprite = useGameStore.getState().sprites.find((s: any) => s.id === spriteId);
         if (!sprite?.characterId) return undefined;
-        return useGameStore.getState().characters.find((c) => c.id === sprite.characterId);
+        return useGameStore.getState().characters.find((c: any) => c.id === sprite.characterId);
       },
 
       canControlSprite: (spriteId: string, userId?: number) => {
-        const sprite = useGameStore.getState().sprites.find((s) => s.id === spriteId);
+        const sprite = useGameStore.getState().sprites.find((s: any) => s.id === spriteId);
         if (!sprite) return false;
         if (userId === undefined) return Array.isArray(sprite.controlledBy) && sprite.controlledBy.length > 0;
         if (sprite.controlledBy && sprite.controlledBy.includes(String(userId))) return true;
@@ -257,7 +259,7 @@ export const useGameStore = create<GameStore>()(
       },
 
       canEditCharacter: (characterId: string, userId?: number) => {
-        const character = useGameStore.getState().characters.find((c) => c.id === characterId);
+        const character = useGameStore.getState().characters.find((c: any) => c.id === characterId);
         if (!character) return false;
         if (userId === undefined) return true;
         return character.ownerId === userId || (Array.isArray(character.controlledBy) && character.controlledBy.includes(userId));
@@ -265,13 +267,13 @@ export const useGameStore = create<GameStore>()(
 
       linkSpriteToCharacter: (spriteId: string, characterId: string) => {
         set((state) => ({
-          sprites: state.sprites.map((s) => s.id === spriteId ? { ...s, characterId } : s)
+          sprites: state.sprites.map((s: any) => s.id === spriteId ? { ...s, characterId } : s)
         }));
       },
 
       unlinkSpriteFromCharacter: (spriteId: string) => {
         set((state) => ({
-          sprites: state.sprites.map((s) => s.id === spriteId ? { ...s, characterId: undefined } : s)
+          sprites: state.sprites.map((s: any) => s.id === spriteId ? { ...s, characterId: undefined } : s)
         }));
       },
 

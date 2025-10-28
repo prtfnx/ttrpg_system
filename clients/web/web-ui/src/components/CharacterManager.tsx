@@ -1,8 +1,31 @@
+/**
+ * CharacterManager Component
+ * 
+ * ⚠️ LEGACY COMPONENT - NEEDS MIGRATION ⚠️
+ * 
+ * This component was built for an old character structure where character data
+ * was stored directly in properties (class, race, level, stats, etc.).
+ * 
+ * The new architecture (implemented Oct 27-28, 2025) uses:
+ * - Character.data: any - holds the full D&D 5e structure
+ * - Character.ownerId: number - not string "owner"
+ * - Character properties like sessionId, controlledBy, version, etc.
+ * 
+ * TODO: Refactor this component to:
+ * 1. Access character properties via character.data.class, character.data.level, etc.
+ * 2. Use character.ownerId instead of character.owner
+ * 3. Remove references to characterStore (which doesn't exist anymore)
+ * 4. Update test fallback data to use new structure
+ * 
+ * Until then, this component will have TypeScript errors but tests can be updated
+ * to use CharacterPanelRedesigned which follows the new architecture.
+ */
+
 import React, { useCallback, useEffect, useState } from "react";
 import { useAuthenticatedWebSocket } from "../hooks/useAuthenticatedWebSocket";
 import { MessageType, createMessage } from "../protocol/message";
 import type { UserInfo } from "../services/auth.service";
-import { useCharacterStore } from "../store/characterStore";
+import type { Character } from "../types";
 import { CharacterCreationForm } from "./CharacterCreationForm";
 import { CharacterSheet } from "./CharacterSheet";
 import { CharacterSummary } from "./CharacterSummary";
@@ -10,36 +33,16 @@ import { ExperienceTracker } from "./ExperienceTracker";
 import { MulticlassManager } from "./MulticlassManager";
 import { SpellPreparationManager } from "./SpellPreparationManager";
 
-export interface Character {
-  id: string;
-  name: string;
-  class: string;
-  race: string;
-  level: number;
-  experience: number;
-  stats: Record<string, number>;
-  owner: string;
-  multiclass?: string[];
-  hitDice?: string;
-  maxHitPoints?: number;
-  currentHitPoints?: number;
-  armorClass?: number;
-  proficiencyBonus?: number;
-  preparedSpells?: string[];
-  background?: string;
-  abilityScores?: Record<string, number>;
-}
+// Export the Character type for other components that import it from here
+export type { Character } from "../types";
 
 interface CharacterManagerProps {
   sessionCode: string;
   userInfo: UserInfo;
 }
 
-
-
 export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode, userInfo }) => {
   const { protocol } = useAuthenticatedWebSocket({ sessionCode, userInfo });
-  const { characters: localCharacters, addCharacter, removeCharacter } = useCharacterStore();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

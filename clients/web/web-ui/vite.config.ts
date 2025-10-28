@@ -1,6 +1,6 @@
-import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
-import wasmPack from 'vite-plugin-wasm'
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
+import wasmPack from 'vite-plugin-wasm';
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {

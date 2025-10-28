@@ -4,9 +4,9 @@
 
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { WebClientProtocol } from '../clientProtocol';
 import { useGameStore } from '../../store';
-import type { Sprite, Character } from '../../types';
+import type { Character, Sprite } from '../../types';
+import { WebClientProtocol } from '../clientProtocol';
 
 // Capture the initial Zustand store state (with all methods)
 const initialState = useGameStore.getState();

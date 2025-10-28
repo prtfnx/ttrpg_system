@@ -1,4 +1,3 @@
-import React from 'react';
 import '@testing-library/jest-dom';
 import { afterEach, vi } from 'vitest';
 import mockProtocol, { defaultUseProtocol, resetMockProtocol } from './utils/mockProtocol';

@@ -21,14 +21,18 @@ export function useSpriteSyncing() {
       // Convert Rust sprite data to our format
       const convertedSprites = rustSprites.map((rustSprite: any) => ({
         id: rustSprite.id || rustSprite.sprite_id || Math.random().toString(),
-        name: rustSprite.name || rustSprite.sprite_name || 'Unnamed Sprite',
+        tableId: rustSprite.table_id || useGameStore.getState().activeTableId || '',
+        characterId: rustSprite.character_id,
+        controlledBy: rustSprite.controlled_by,
         x: rustSprite.x || rustSprite.world_x || 0,
         y: rustSprite.y || rustSprite.world_y || 0,
-        width: rustSprite.width || rustSprite.size_x || 50,
-        height: rustSprite.height || rustSprite.size_y || 50,
         layer: rustSprite.layer || 'tokens',
-        isSelected: false,
-        isVisible: rustSprite.visible !== false,
+        texture: rustSprite.texture_id || rustSprite.texture || '',
+        scale: {
+          x: rustSprite.scale_x || (rustSprite.width ? rustSprite.width / 32 : 1),
+          y: rustSprite.scale_y || (rustSprite.height ? rustSprite.height / 32 : 1)
+        },
+        rotation: rustSprite.rotation || 0
       }));
 
       // Update store with current sprites from Rust

@@ -69,17 +69,22 @@ export function useWebSocket(url: string) {
           if (message.data && typeof message.data === 'object') {
             const data = message.data as Record<string, unknown>;
             console.log('[WebSocket] sprite_create received:', data);
+            
+            // Convert legacy width/height to scale if provided
+            const scaleX = data.width ? (data.width as number) / 32 : (data.scale_x as number) || 1;
+            const scaleY = data.height ? (data.height as number) / 32 : (data.scale_y as number) || 1;
+            
             addSprite({
               id: (data.id as string) || '',
-              name: (data.name as string) || 'Sprite',
+              tableId: (data.table_id as string) || useGameStore.getState().activeTableId || '',
+              characterId: data.character_id as string | undefined,
+              controlledBy: data.controlled_by as string[] | undefined,
               x: (data.x as number) || 0,
               y: (data.y as number) || 0,
-              width: (data.width as number) || 32,
-              height: (data.height as number) || 32,
-              imageUrl: data.imageUrl as string | undefined,
-              isSelected: false,
-              isVisible: true,
-              layer: (data.layer as string) || 'tokens'
+              layer: (data.layer as string) || 'tokens',
+              texture: (data.texture || data.imageUrl || data.texture_path) as string || '',
+              scale: { x: scaleX, y: scaleY },
+              rotation: (data.rotation as number) || 0
             });
             // WASM integration: also add sprite to RenderManager if available
             // Ensure all required fields for WASM
@@ -143,40 +148,46 @@ export function useWebSocket(url: string) {
             // Load sprites and handle asset downloads
             if (data.sprites && Array.isArray(data.sprites)) {
               data.sprites.forEach(async (sprite: Partial<Sprite>) => {
-                const newSprite = {
+                // Convert legacy width/height to scale if provided
+                const spriteData = sprite as any; // Type assertion for legacy fields
+                const scaleX = spriteData.width ? spriteData.width / 32 : sprite.scale?.x || 1;
+                const scaleY = spriteData.height ? spriteData.height / 32 : sprite.scale?.y || 1;
+                
+                const newSprite: Sprite = {
                   id: sprite.id || '',
-                  name: sprite.name || 'Sprite',
+                  tableId: sprite.tableId || (data.table_id as string) || useGameStore.getState().activeTableId || '',
+                  characterId: sprite.characterId,
+                  controlledBy: sprite.controlledBy,
                   x: sprite.x || 0,
                   y: sprite.y || 0,
-                  width: sprite.width || 32,
-                  height: sprite.height || 32,
-                  imageUrl: sprite.imageUrl,
-                  isSelected: false,
-                  isVisible: sprite.isVisible ?? true,
                   layer: sprite.layer || 'tokens',
+                  texture: sprite.texture || spriteData.imageUrl || '',
+                  scale: { x: scaleX, y: scaleY },
+                  rotation: sprite.rotation || 0
                 };
                 
                 // Add sprite to store
                 addSprite(newSprite);
                 
                 // Download asset if needed and not in cache
-                if (sprite.imageUrl && sprite.imageUrl !== '') {
+                const textureUrl = newSprite.texture;
+                if (textureUrl && textureUrl !== '') {
                   try {
                     // Check if asset is already cached (simple check)
                     const img = new Image();
                     img.onload = () => {
-                      console.log('Asset already available:', sprite.imageUrl);
+                      console.log('Asset already available:', textureUrl);
                     };
                     img.onerror = () => {
-                      console.log('Asset needs download:', sprite.imageUrl);
+                      console.log('Asset needs download:', textureUrl);
                       // Request asset download from server
                       const downloadMessage = createMessage('asset_download_request', {
-                        asset_id: sprite.imageUrl,
+                        asset_id: textureUrl,
                         sprite_id: sprite.id
                       });
                       sendMessage(downloadMessage);
                     };
-                    img.src = sprite.imageUrl;
+                    img.src = textureUrl;
                   } catch (error) {
                     console.error('Error checking asset:', error);
                   }
@@ -185,16 +196,16 @@ export function useWebSocket(url: string) {
                 // Add sprite to WASM if available
                 if (window.rustRenderManager && typeof window.rustRenderManager.add_sprite_to_layer === 'function') {
                   try {
-                    const layerName = sprite.layer || 'tokens';
+                    const layerName = newSprite.layer;
                     const spriteData = {
-                      id: sprite.id,
-                      world_x: sprite.x || 0,
-                      world_y: sprite.y || 0,
-                      width: sprite.width || 32,
-                      height: sprite.height || 32,
-                      rotation: 'rotation' in sprite ? sprite.rotation ?? 0 : 0,
+                      id: newSprite.id,
+                      world_x: newSprite.x,
+                      world_y: newSprite.y,
+                      width: newSprite.scale.x * 32,
+                      height: newSprite.scale.y * 32,
+                      rotation: newSprite.rotation,
                       layer: layerName,
-                      texture_id: sprite.imageUrl || '',
+                      texture_id: newSprite.texture,
                       tint_color: [1, 1, 1, 1]
                     };
                     

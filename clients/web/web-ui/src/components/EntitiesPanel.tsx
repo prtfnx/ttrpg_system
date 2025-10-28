@@ -204,12 +204,10 @@ export function EntitiesPanel() {
               className={`sprite-item ${selectedSprites.includes(sprite.id) ? 'selected' : ''}`}
               onClick={() => selectSprite(sprite.id)}
             >
-              <h3>{sprite.name}</h3>
+              <h3>{sprite.id}</h3>
               <p>Position: ({sprite.x}, {sprite.y})</p>
               <p>Layer: {sprite.layer}</p>
-              {!sprite.isVisible && (
-                <span style={{ color: '#999', fontSize: '11px' }}>Hidden</span>
-              )}
+              <p>Scale: {sprite.scale.x.toFixed(2)} x {sprite.scale.y.toFixed(2)}</p>
             </div>
           ))
         )}

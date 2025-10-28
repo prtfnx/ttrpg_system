@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { Character } from "./CharacterManager";
+import type { Character } from "../types";
 import "./CharacterSheet.css";
 import type { WizardFormData } from "./CharacterWizard/WizardFormData";
 
@@ -28,11 +28,18 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
   const [form, setForm] = useState<Partial<Character>>(
     character || {
       name: "",
-      class: "",
-      race: "",
-      level: 1,
-      stats: { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 },
-      owner: "",
+      data: {
+        class: "",
+        race: "",
+        level: 1,
+        abilityScores: { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 }
+      },
+      sessionId: "",
+      ownerId: 0,
+      controlledBy: [],
+      version: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     }
   );
   const [editing, setEditing] = useState<boolean>(false);
@@ -42,7 +49,18 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (lockedBy && lockedBy !== "me") return;
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    
+    // Update nested data fields for character properties
+    if (name === 'class' || name === 'race' || name === 'level') {
+      setForm((prev) => ({ 
+        ...prev, 
+        data: { ...prev.data, [name]: name === 'level' ? Number(value) : value }
+      }));
+    } else {
+      // For top-level fields like 'name'
+      setForm((prev) => ({ ...prev, [name]: value }));
+    }
+    
     setEditing(true);
     if (onRequestLock) onRequestLock();
   };
@@ -52,7 +70,10 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
     if (lockedBy && lockedBy !== "me") return;
     setForm((prev) => ({
       ...prev,
-      stats: { ...prev.stats, [stat]: value },
+      data: { 
+        ...prev.data, 
+        abilityScores: { ...(prev.data?.abilityScores || {}), [stat]: value }
+      },
     }));
     setEditing(true);
     if (onRequestLock) onRequestLock();
@@ -326,7 +347,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                 Class: 
                 <input 
                   name="class" 
-                  value={form.class || ""} 
+                  value={form.data?.class || ""} 
                   onChange={handleChange} 
                   required 
                   disabled={!!lockedBy && lockedBy !== "me"} 
@@ -336,7 +357,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                 Race: 
                 <input 
                   name="race" 
-                  value={form.race || ""} 
+                  value={form.data?.race || ""} 
                   onChange={handleChange} 
                   required 
                   disabled={!!lockedBy && lockedBy !== "me"} 
@@ -348,7 +369,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                   name="level" 
                   type="number" 
                   min={1} 
-                  value={form.level || 1} 
+                  value={form.data?.level || 1} 
                   onChange={handleChange} 
                   required 
                   disabled={!!lockedBy && lockedBy !== "me"} 
@@ -359,8 +380,9 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
             <fieldset className="ability-scores">
               <legend>Ability Scores</legend>
               <div className="stats-grid">
-                {Object.entries(form.stats || {}).map(([stat, value]) => {
-                  const modifier = Math.floor((value - 10) / 2);
+                {Object.entries(form.data?.abilityScores || {}).map(([stat, value]) => {
+                  const numValue = typeof value === 'number' ? value : 10;
+                  const modifier = Math.floor((numValue - 10) / 2);
                   const modifierString = modifier >= 0 ? `+${modifier}` : `${modifier}`;
                   
                   return (
@@ -370,7 +392,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                         type="number" 
                         min={1} 
                         max={30} 
-                        value={value} 
+                        value={numValue} 
                         onChange={e => handleStatChange(stat, Number(e.target.value))} 
                         disabled={!!lockedBy && lockedBy !== "me"}
                         className="ability-value" 

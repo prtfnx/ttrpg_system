@@ -18,7 +18,6 @@ export function CharacterPanelRedesigned() {
     addCharacter,
     removeCharacter,
     selectSprite,
-    sprites,
     selectedSprites,
     sessionId
   } = useGameStore();
@@ -30,6 +29,7 @@ export function CharacterPanelRedesigned() {
 
   // Table drop area handler (should be implemented in table component, but provide a helper here)
   // Example usage: <div onDrop={handleDropOnTable} onDragOver={e => e.preventDefault()} />
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDropOnTable = (e: React.DragEvent) => {
     const charId = e.dataTransfer.getData('application/x-character-id');
     if (charId) {
@@ -142,8 +142,6 @@ export function CharacterPanelRedesigned() {
           const linkedSprites = getSpritesForCharacter(char.id);
           const userId = typeof sessionId === 'string' ? parseInt(sessionId, 10) : sessionId;
           const canEdit = canEditCharacter(char.id, userId);
-          // Use canControlSprite for token actions (e.g., selecting, moving tokens)
-          const canControl = linkedSprites.some(s => canControlSprite(s.id, userId));
           return (
             <div
               key={char.id}

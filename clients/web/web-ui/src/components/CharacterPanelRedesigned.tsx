@@ -14,12 +14,13 @@ export function CharacterPanelRedesigned() {
     getSpritesForCharacter,
     linkSpriteToCharacter,
     canEditCharacter,
-    canControlSprite, // <-- add this
+    canControlSprite,
     addCharacter,
     removeCharacter,
     selectSprite,
     sprites,
-    selectedSprites
+    selectedSprites,
+    sessionId
   } = useGameStore();
   // Drag-and-drop: start drag with character id
   const handleDragStart = (e: React.DragEvent, charId: string) => {
@@ -139,10 +140,10 @@ export function CharacterPanelRedesigned() {
           const isExpanded = expandedCharId === char.id;
           const isSelected = selectedCharacter?.id === char.id;
           const linkedSprites = getSpritesForCharacter(char.id);
-          const canEdit = canEditCharacter(char.id, char.ownerId);
-          // For demo, assume current user is char.ownerId; in real app, use actual user id
+          const userId = typeof sessionId === 'string' ? parseInt(sessionId, 10) : sessionId;
+          const canEdit = canEditCharacter(char.id, userId);
           // Use canControlSprite for token actions (e.g., selecting, moving tokens)
-          const canControl = linkedSprites.some(s => canControlSprite(s.id, char.ownerId));
+          const canControl = linkedSprites.some(s => canControlSprite(s.id, userId));
           return (
             <div
               key={char.id}
@@ -162,7 +163,7 @@ export function CharacterPanelRedesigned() {
                 {/* Badges for linked tokens */}
                 <div className="char-badges">
                   {linkedSprites.map((s: typeof linkedSprites[0]) => {
-                    const canControlToken = canControlSprite(s.id, char.ownerId);
+                    const canControlToken = canControlSprite(s.id, userId);
                     return (
                       <span key={s.id} className={`token-badge${canControlToken ? '' : ' no-permission'}`} title={canControlToken ? 'You can control this token.' : 'You do not have permission to control this token.'}>
                         Token

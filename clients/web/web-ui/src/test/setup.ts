@@ -1,3 +1,39 @@
+// --- Global fetch mock for OAuth and API endpoints ---
+if (!globalThis.fetch || typeof globalThis.fetch !== 'function') {
+  globalThis.fetch = vi.fn((input: RequestInfo, init?: RequestInit) => {
+    // Simulate OAuth provider endpoint
+    if (typeof input === 'string' && input.includes('/auth/oauth/providers')) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ([
+          { id: 'google', name: 'Google', icon: '🔍', isEnabled: true },
+          { id: 'discord', name: 'Discord', icon: '💬', isEnabled: true }
+        ]),
+        text: async () => JSON.stringify([
+          { id: 'google', name: 'Google', icon: '🔍', isEnabled: true },
+          { id: 'discord', name: 'Discord', icon: '💬', isEnabled: true }
+        ])
+      });
+    }
+    // Default: return a generic successful response
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+      text: async () => ''
+    });
+  });
+}
+
+// --- Ensure rustRenderManager is always present for LayerPanel and related tests ---
+if (!(window as any).rustRenderManager) {
+  (window as any).rustRenderManager = {
+    get_layer_sprite_count: vi.fn().mockReturnValue(0),
+    set_layer_visible: vi.fn(),
+    set_layer_opacity: vi.fn()
+  };
+}
 import '@testing-library/jest-dom';
 import { afterEach, vi } from 'vitest';
 import mockProtocol, { defaultUseProtocol, resetMockProtocol } from './utils/mockProtocol';

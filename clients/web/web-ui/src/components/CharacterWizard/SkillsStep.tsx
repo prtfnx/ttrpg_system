@@ -157,6 +157,10 @@ export function SkillsStep({
     }
   }
 
+  // Determine if the user has selected the required number of class skills
+  const selectedClassSkills = selected.filter(s => availableClassSkills.includes(s));
+  const canSubmit = selectedClassSkills.length === classSkillChoices;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Select Skills</div>
@@ -201,6 +205,15 @@ export function SkillsStep({
       {formState.errors.skills && (
         <span style={{ color: 'red' }}>{formState.errors.skills.message as string}</span>
       )}
+      <button
+        type="button"
+        data-testid="skills-next-button"
+        disabled={!canSubmit}
+        style={{ marginTop: 16, alignSelf: 'flex-end', padding: '8px 24px', fontWeight: 600, fontSize: 16 }}
+        onClick={_onNext}
+      >
+        Next
+      </button>
     </div>
   );
 }

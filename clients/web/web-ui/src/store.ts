@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import type { ConnectionState, GameState, Sprite } from './types';
+import type { Character, ConnectionState, GameState, Sprite } from './types';
 import type { ToolType } from './types/tools';
 
 export interface TableInfo {
@@ -55,7 +55,7 @@ interface GameStore extends GameState {
   removeSprite: (id: string) => void;
   updateSprite: (id: string, updates: Partial<Sprite>) => void;
   addCharacter: (character: import('./types').Character) => void;
-  updateCharacter: (id: string, updates: Partial<import('./types').Character>) => void;
+  updateCharacter: (id: string, updates: Partial<Character>) => void;
   removeCharacter: (id: string) => void;
   addInventoryItem: (characterId: string, item: string) => void;
   
@@ -171,7 +171,13 @@ export const useGameStore = create<GameStore>()(
         set((state) => ({
           characters: state.characters.map((char) =>
             char.id === characterId
-              ? { ...char, inventory: [...(char.inventory || []), item] }
+              ? { 
+                  ...char, 
+                  data: {
+                    ...char.data,
+                    inventory: [...(char.data?.inventory || []), item]
+                  }
+                }
               : char
           ),
         }));
@@ -284,7 +290,7 @@ export const useGameStore = create<GameStore>()(
         }));
       },
 
-      updateCharacter: (id, updates) => {
+      updateCharacter: (id: string, updates: Partial<Character>) => {
         set((state) => ({
           characters: state.characters.map((char) =>
             char.id === id ? { ...char, ...updates } : char

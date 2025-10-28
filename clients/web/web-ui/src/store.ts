@@ -295,9 +295,10 @@ export const useGameStore = create<GameStore>()(
       removeCharacter: (id: string) => {
         set((state) => ({
           characters: state.characters.filter((char) => char.id !== id),
+          // Remove spriteId from selectedSprites if any sprite is linked to this character
           selectedSprites: state.selectedSprites.filter((spriteId) => {
-            const char = state.characters.find(c => c.id === id);
-            return char ? spriteId !== char.sprite.id : true;
+            const spritesForChar = state.sprites.filter(s => s.characterId === id);
+            return !spritesForChar.some(s => s.id === spriteId);
           }),
         }));
       },

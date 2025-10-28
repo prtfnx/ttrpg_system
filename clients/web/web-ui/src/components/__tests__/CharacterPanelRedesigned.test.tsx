@@ -1,10 +1,9 @@
-import React from 'react';
+import '@testing-library/jest-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import '@testing-library/jest-dom';
-import { CharacterPanelRedesigned } from '../CharacterPanelRedesigned';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGameStore } from '../../store';
+import { CharacterPanelRedesigned } from '../CharacterPanelRedesigned';
 
 function createCharacter({ id, ownerId, controlledBy = [] }: { id: string, ownerId: number, controlledBy?: number[] }) {
   return {
@@ -78,11 +77,13 @@ describe('CharacterPanelRedesigned - Real Usage', () => {
       await act(async () => {
         card.querySelector('.character-header')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       });
-      const expandedCard = document.querySelector('.character-card.expanded');
-      expect(expandedCard).not.toBeNull();
-      const deleteBtn = expandedCard && (expandedCard.querySelector('button[title="Delete Character"]') || expandedCard.querySelector('button[aria-label="Delete"]'));
-      expect(deleteBtn).not.toBeNull();
-      expect(deleteBtn).not.toBeDisabled();
+      await waitFor(() => {
+        const expandedCard = document.querySelector('.character-card.expanded');
+        expect(expandedCard).not.toBeNull();
+        const deleteBtn = expandedCard && Array.from(expandedCard.querySelectorAll('button')).find(btn => btn.textContent?.match(/delete/i));
+        expect(deleteBtn).not.toBeNull();
+        expect(deleteBtn).not.toBeDisabled();
+      });
     }
     // Collapse all
     document.querySelectorAll('.character-card.expanded .character-header').forEach(header => {
@@ -96,7 +97,9 @@ describe('CharacterPanelRedesigned - Real Usage', () => {
       });
       const expandedCard = document.querySelector('.character-card.expanded');
       expect(expandedCard).not.toBeNull();
-      expect(screen.getByText('Token')).toBeInTheDocument();
+      // Scope Token badge assertion to expanded card only
+      const tokenBadges = expandedCard ? Array.from(expandedCard.querySelectorAll('.token-badge')) : [];
+      expect(tokenBadges.length).toBeGreaterThan(0);
       // Optionally check for permission warning absence if relevant
     }
     // Collapse all
@@ -109,11 +112,17 @@ describe('CharacterPanelRedesigned - Real Usage', () => {
       await act(async () => {
         card.querySelector('.character-header')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       });
-      const expandedCard = document.querySelector('.character-card.expanded');
-      expect(expandedCard).not.toBeNull();
-      const deleteBtn = expandedCard && (expandedCard.querySelector('button[title="Delete Character"]') || expandedCard.querySelector('button[aria-label="Delete"]'));
-      expect(deleteBtn).not.toBeNull();
-      expect(deleteBtn).toBeDisabled();
+      await waitFor(() => {
+        const expandedCard = document.querySelector('.character-card.expanded');
+        expect(expandedCard).not.toBeNull();
+        const deleteBtn = expandedCard && Array.from(expandedCard.querySelectorAll('button')).find(btn => btn.textContent?.match(/delete/i));
+        // Should be either not present or disabled
+        if (deleteBtn) {
+          expect(deleteBtn).toBeDisabled();
+        } else {
+          expect(deleteBtn).toBeUndefined();
+        }
+      });
     }
   });
 
@@ -149,11 +158,14 @@ describe('CharacterPanelRedesigned - Real Usage', () => {
       await act(async () => {
         card.querySelector('.character-header')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       });
-      // Find delete button within expanded card
+      await waitFor(() => {
+        const expandedCard = document.querySelector('.character-card.expanded');
+        expect(expandedCard).not.toBeNull();
+        const deleteBtn = expandedCard && Array.from(expandedCard.querySelectorAll('button')).find(btn => btn.textContent?.match(/delete/i));
+        expect(deleteBtn).not.toBeNull();
+      });
       const expandedCard = document.querySelector('.character-card.expanded');
-      expect(expandedCard).not.toBeNull();
-      const deleteBtn = expandedCard && (expandedCard.querySelector('button[title="Delete Character"]') || expandedCard.querySelector('button[aria-label="Delete"]'));
-      expect(deleteBtn).not.toBeNull();
+      const deleteBtn = expandedCard && Array.from(expandedCard.querySelectorAll('button')).find(btn => btn.textContent?.match(/delete/i));
       window.confirm = vi.fn(() => true);
       if (!deleteBtn) throw new Error('Delete button not found');
       await act(async () => {

@@ -1,30 +1,69 @@
+
 import React, { useState } from 'react';
 import { useGameStore } from '../store';
-import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 import './CharacterPanelRedesigned.css';
+import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 
-// Utility to generate unique IDs
 function genId(): string {
   return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
 }
 
+
 export function CharacterPanelRedesigned() {
-  const { characters, selectedSprites, addCharacter, selectSprite, removeCharacter } = useGameStore();
+  // Drag-and-drop: start drag with character id
+  const handleDragStart = (e: React.DragEvent, charId: string) => {
+    e.dataTransfer.setData('application/x-character-id', charId);
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  // Table drop area handler (should be implemented in table component, but provide a helper here)
+  // Example usage: <div onDrop={handleDropOnTable} onDragOver={e => e.preventDefault()} />
+  const handleDropOnTable = (e: React.DragEvent) => {
+    const charId = e.dataTransfer.getData('application/x-character-id');
+    if (charId) {
+      // Create a new token at drop position (x/y can be extracted from event if table provides coordinates)
+      const spriteId = genId();
+      const sprite = {
+        id: spriteId,
+        tableId: '',
+        characterId: charId,
+        controlledBy: [],
+        x: 0, // TODO: Use drop coordinates if available
+        y: 0,
+        layer: 'tokens',
+        texture: '',
+        scale: { x: 1, y: 1 },
+        rotation: 0,
+        syncStatus: 'local' as const,
+      };
+      useGameStore.getState().addSprite(sprite);
+      linkSpriteToCharacter(spriteId, charId);
+    }
+  };
+  const {
+    characters,
+    getSpritesForCharacter,
+    linkSpriteToCharacter,
+    canEditCharacter,
+    addCharacter,
+    removeCharacter,
+    selectSprite,
+    sprites,
+    selectedSprites
+  } = useGameStore();
   const [showWizard, setShowWizard] = useState(false);
   const [expandedCharId, setExpandedCharId] = useState<string | null>(null);
   const [wizardKey, setWizardKey] = useState(0);
 
-  // Find selected character based on sprite selection
-  const selectedCharacter = characters.find(c => selectedSprites.includes(c.sprite.id)) || null;
+  const selectedCharacter = characters.find(c => {
+    return getSpritesForCharacter(c.id).some(s => selectedSprites.includes(s.id));
+  }) || null;
 
   const handleCharacterClick = (charId: string) => {
-    const char = characters.find(c => c.id === charId);
-    if (char) {
-      // Toggle expansion
-      setExpandedCharId(expandedCharId === charId ? null : charId);
-      // Select sprite
-      selectSprite(char.sprite.id, false);
-    }
+    setExpandedCharId(expandedCharId === charId ? null : charId);
+    // Select first linked sprite if any
+    const linkedSprites = getSpritesForCharacter(charId);
+    if (linkedSprites.length > 0) selectSprite(linkedSprites[0].id, false);
   };
 
   const handleCreateCharacter = () => {
@@ -33,47 +72,48 @@ export function CharacterPanelRedesigned() {
   };
 
   const handleWizardFinish = (data: any) => {
-    const spriteId = genId();
-    const defaultName = `${data.race} ${data.class}`;
     const newCharacter = {
       id: genId(),
-      name: defaultName,
-      race: data.race,
-      class: data.class,
-      level: 1,
-      sprite: {
-        id: spriteId,
-        name: defaultName,
-        x: 0,
-        y: 0,
-        width: 1,
-        height: 1,
-        isSelected: false,
-        isVisible: true,
-        layer: 'tokens' as const,
-      },
-      stats: {
-        hp: 10,
-        maxHp: 10,
-        ac: 10,
-        speed: 30,
-      },
-      conditions: [],
-      inventory: [],
+      sessionId: '',
+      name: data.name || `${data.race} ${data.class}`,
+      ownerId: data.ownerId || 0,
+      controlledBy: [],
+      data,
+      version: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      syncStatus: 'local' as const,
     };
     addCharacter(newCharacter);
-    selectSprite(spriteId, false);
     setShowWizard(false);
     setExpandedCharId(newCharacter.id);
   };
 
+  const handleAddToken = (charId: string) => {
+    // Create a new sprite linked to this character
+    const spriteId = genId();
+    const sprite = {
+      id: spriteId,
+      tableId: '',
+      characterId: charId,
+      controlledBy: [],
+      x: 0,
+      y: 0,
+      layer: 'tokens',
+      texture: '',
+      scale: { x: 1, y: 1 },
+      rotation: 0,
+      syncStatus: 'local' as const,
+    };
+    useGameStore.getState().addSprite(sprite);
+    linkSpriteToCharacter(spriteId, charId);
+  };
+
   const handleDeleteCharacter = (charId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm('Delete this character?')) {
+    if (window.confirm('Delete this character?')) {
       removeCharacter(charId);
-      if (expandedCharId === charId) {
-        setExpandedCharId(null);
-      }
+      if (expandedCharId === charId) setExpandedCharId(null);
     }
   };
 
@@ -95,77 +135,87 @@ export function CharacterPanelRedesigned() {
           </div>
         )}
 
-        {characters.map(char => {
+  {characters.map(char => {
           const isExpanded = expandedCharId === char.id;
           const isSelected = selectedCharacter?.id === char.id;
-
+          const linkedSprites = getSpritesForCharacter(char.id);
+          const canEdit = canEditCharacter(char.id, char.ownerId);
+          // For demo, assume current user is char.ownerId; in real app, use actual user id
+          // Use canControlSprite for token actions (e.g., selecting, moving tokens)
+          const canControl = linkedSprites.some(s => canControlSprite(s.id, char.ownerId));
           return (
-            <div 
-              key={char.id} 
+            <div
+              key={char.id}
               className={`character-card ${isSelected ? 'selected' : ''} ${isExpanded ? 'expanded' : ''}`}
+              draggable
+              onDragStart={e => handleDragStart(e, char.id)}
             >
-              {/* Compact Header - Always Visible */}
-              <div 
-                className="character-header" 
+              <div
+                className="character-header"
                 onClick={() => handleCharacterClick(char.id)}
               >
-                <div className="char-avatar">
-                  {char.name.charAt(0).toUpperCase()}
-                </div>
+                <div className="char-avatar">{char.name.charAt(0).toUpperCase()}</div>
                 <div className="char-info">
                   <div className="char-name">{char.name}</div>
-                  <div className="char-details">
-                    Lv{char.level} {char.race} {char.class}
-                  </div>
+                  <div className="char-details">Owner: {char.ownerId}</div>
                 </div>
-                <div className="char-stats-compact">
-                  <div className="stat-pill">
-                    <span className="stat-label">HP</span>
-                    <span className="stat-value">{char.stats.hp}/{char.stats.maxHp}</span>
-                  </div>
-                  <div className="stat-pill">
-                    <span className="stat-label">AC</span>
-                    <span className="stat-value">{char.stats.ac}</span>
-                  </div>
+                {/* Badges for linked tokens */}
+                <div className="char-badges">
+                  {linkedSprites.map((s: typeof linkedSprites[0]) => {
+                    const canControlToken = canControlSprite(s.id, char.ownerId);
+                    return (
+                      <span key={s.id} className={`token-badge${canControlToken ? '' : ' no-permission'}`} title={canControlToken ? 'You can control this token.' : 'You do not have permission to control this token.'}>
+                        Token
+                        {s.syncStatus && (
+                          <span className={`sync-status ${s.syncStatus}`}>{s.syncStatus}</span>
+                        )}
+                        {!canControlToken && (
+                          <span className="permission-warning" title="No control permission">🚫</span>
+                        )}
+                      </span>
+                    );
+                  })}
+                  {char.syncStatus && (
+                    <span className={`sync-status ${char.syncStatus}`}>{char.syncStatus}</span>
+                  )}
                 </div>
-                <button 
+                <button
                   className="char-expand-btn"
-                  onClick={(e) => { e.stopPropagation(); handleCharacterClick(char.id); }}
+                  onClick={e => { e.stopPropagation(); handleCharacterClick(char.id); }}
                 >
                   {isExpanded ? '▼' : '▶'}
                 </button>
               </div>
-
-              {/* Expanded Details - Shown when clicked */}
               {isExpanded && (
                 <div className="character-details">
                   <div className="details-section">
                     <div className="stat-row">
-                      <span>Speed:</span>
-                      <span>{char.stats.speed} ft</span>
+                      <span>Version:</span>
+                      <span>{char.version}</span>
                     </div>
-                    {char.conditions && char.conditions.length > 0 && (
-                      <div className="conditions">
-                        <strong>Conditions:</strong>
-                        <div className="condition-tags">
-                          {char.conditions.map((cond, idx) => (
-                            <span key={idx} className="condition-tag">{cond}</span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                    <div className="stat-row">
+                      <span>Created:</span>
+                      <span>{char.createdAt}</span>
+                    </div>
+                    <div className="stat-row">
+                      <span>Updated:</span>
+                      <span>{char.updatedAt}</span>
+                    </div>
                   </div>
-
-                  {/* Quick Actions */}
                   <div className="char-actions">
-                    <button className="action-btn edit">Edit</button>
-                    <button 
-                      className="action-btn delete" 
-                      onClick={(e) => handleDeleteCharacter(char.id, e)}
-                    >
-                      Delete
+                    <button className="action-btn" onClick={() => handleAddToken(char.id)} disabled={!canEdit} title={canEdit ? 'Add a token for this character.' : 'You do not have permission to add tokens for this character.'}>
+                      Add Token
                     </button>
-                    <button className="action-btn">Sheet</button>
+                    {canEdit && (
+                      <button className="action-btn delete" onClick={e => handleDeleteCharacter(char.id, e)} title="Delete this character.">
+                        Delete
+                      </button>
+                    )}
+                    {!canEdit && (
+                      <button className="action-btn delete" disabled title="You do not have permission to delete this character.">
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

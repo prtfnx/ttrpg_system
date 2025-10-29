@@ -27,31 +27,7 @@ export function CharacterPanelRedesigned() {
     e.dataTransfer.effectAllowed = 'copy';
   };
 
-  // Table drop area handler (should be implemented in table component, but provide a helper here)
-  // Example usage: <div onDrop={handleDropOnTable} onDragOver={e => e.preventDefault()} />
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleDropOnTable = (e: React.DragEvent) => {
-    const charId = e.dataTransfer.getData('application/x-character-id');
-    if (charId) {
-      // Create a new token at drop position (x/y can be extracted from event if table provides coordinates)
-      const spriteId = genId();
-      const sprite = {
-        id: spriteId,
-        tableId: '',
-        characterId: charId,
-        controlledBy: [],
-        x: 0, // TODO: Use drop coordinates if available
-        y: 0,
-        layer: 'tokens',
-        texture: '',
-        scale: { x: 1, y: 1 },
-        rotation: 0,
-        syncStatus: 'local' as const,
-      };
-      useGameStore.getState().addSprite(sprite);
-      linkSpriteToCharacter(spriteId, charId);
-    }
-  };
+  // ...existing code...
   const [showWizard, setShowWizard] = useState(false);
   const [expandedCharId, setExpandedCharId] = useState<string | null>(null);
   const [wizardKey, setWizardKey] = useState(0);

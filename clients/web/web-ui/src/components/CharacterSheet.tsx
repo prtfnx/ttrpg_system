@@ -32,7 +32,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
         class: "",
         race: "",
         level: 1,
-        abilityScores: { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 }
+        abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }
       },
       sessionId: "",
       ownerId: 0,
@@ -380,19 +380,19 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
             <fieldset className="ability-scores">
               <legend>Ability Scores</legend>
               <div className="stats-grid">
-                {Object.entries(form.data?.abilityScores || {}).map(([stat, value]) => {
-                  const numValue = typeof value === 'number' ? value : 10;
-                  const modifier = Math.floor((numValue - 10) / 2);
+                {['str','dex','con','int','wis','cha'].map((stat) => {
+                  const value = form.data?.abilityScores?.[stat] ?? 10;
+                  const modifier = Math.floor((value - 10) / 2);
                   const modifierString = modifier >= 0 ? `+${modifier}` : `${modifier}`;
-                  
+                  const label = stat.toUpperCase();
                   return (
                     <div key={stat} className="ability-score">
-                      <label className="ability-name">{stat}</label>
+                      <label className="ability-name">{label}</label>
                       <input 
                         type="number" 
                         min={1} 
                         max={30} 
-                        value={numValue} 
+                        value={value} 
                         onChange={e => handleStatChange(stat, Number(e.target.value))} 
                         disabled={!!lockedBy && lockedBy !== "me"}
                         className="ability-value" 

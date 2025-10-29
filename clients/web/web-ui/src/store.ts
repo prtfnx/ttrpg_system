@@ -87,7 +87,7 @@ interface GameStore extends GameState {
 
 export const useGameStore = create<GameStore>()(
   devtools(
-    (set) => ({
+    (set, get) => ({
       // Initial state
       sprites: [],
       characters: [],

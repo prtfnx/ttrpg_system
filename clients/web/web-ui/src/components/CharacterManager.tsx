@@ -69,23 +69,41 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
         const testCharacters: Character[] = [
           {
             id: 'local-1',
+            sessionId: '',
             name: 'Test Fighter',
-            class: 'Fighter',
-            race: 'Human',
-            level: 1,
-            experience: 0,
-            stats: { str: 16, dex: 14, con: 15, int: 10, wis: 12, cha: 8 },
-            owner: userInfo.username
+            ownerId: 1,
+            controlledBy: [],
+            data: {
+              class: 'Fighter',
+              race: 'Human',
+              level: 1,
+              stats: { hp: 12, maxHp: 12, ac: 16, speed: 30 },
+              abilityScores: { str: 16, dex: 14, con: 15, int: 10, wis: 12, cha: 8 },
+              conditions: [],
+              inventory: [],
+            },
+            version: 1,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
           },
           {
-            id: 'local-2', 
+            id: 'local-2',
+            sessionId: '',
             name: 'Test Wizard',
-            class: 'Wizard',
-            race: 'Elf',
-            level: 1,
-            experience: 0,
-            stats: { str: 8, dex: 14, con: 12, int: 16, wis: 13, cha: 10 },
-            owner: userInfo.username
+            ownerId: 1,
+            controlledBy: [],
+            data: {
+              class: 'Wizard',
+              race: 'Elf',
+              level: 1,
+              stats: { hp: 8, maxHp: 8, ac: 12, speed: 30 },
+              abilityScores: { str: 8, dex: 14, con: 12, int: 16, wis: 13, cha: 10 },
+              conditions: [],
+              inventory: [],
+            },
+            version: 1,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
           }
         ];
         setCharacters(testCharacters);
@@ -133,7 +151,7 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
   // Optimistic update helpers
   const optimisticCreate = (character: Partial<Character>) => {
     const tempId = `temp-${Date.now()}`;
-    setCharacters(prev => [...prev, { ...character, id: tempId, owner: userInfo.username } as Character]);
+    setCharacters(prev => [...prev, { ...character, id: tempId, ownerId: userInfo.id || 1, controlledBy: [], version: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as Character]);
     setMutationQueue(q => [...q, { type: 'create', payload: character, tempId }]);
   };
 
@@ -186,10 +204,11 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
   // Input validation helpers
   const validateCharacter = (character: Partial<Character>): string | null => {
     if (!character.name || typeof character.name !== 'string' || character.name.length < 2) return 'Name must be at least 2 characters.';
-    if (!character.class || typeof character.class !== 'string') return 'Class is required.';
-    if (!character.race || typeof character.race !== 'string') return 'Race is required.';
-    if (typeof character.level !== 'number' || character.level < 1) return 'Level must be a positive number.';
-    if (!character.stats || typeof character.stats !== 'object') return 'Stats are required.';
+    if (!character.data || typeof character.data !== 'object') return 'Character data is required.';
+    if (!character.data.class || typeof character.data.class !== 'string') return 'Class is required.';
+    if (!character.data.race || typeof character.data.race !== 'string') return 'Race is required.';
+    if (typeof character.data.level !== 'number' || character.data.level < 1) return 'Level must be a positive number.';
+    if (!character.data.stats || typeof character.data.stats !== 'object') return 'Stats are required.';
     return null;
   };
 
@@ -291,7 +310,7 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
         {characters.map((char) => (
           <li key={char.id}>
             <button onClick={() => setSelectedCharacter(char)}>{char.name}</button>
-            {(userInfo.role === "dm" || char.owner === userInfo.username) && (
+        {(userInfo.role === "dm" || char.ownerId === userInfo.id) && (
               <>
                 <button onClick={() => setSelectedCharacter(char)}>Edit</button>
                 <button onClick={() => handleDelete(char.id)}>Delete</button>
@@ -301,37 +320,8 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
         ))}
       </ul>
       
-      {/* Local Characters from Store */}
-      <h3>Local Characters</h3>
-      <ul>
-        {localCharacters.map((char) => (
-          <li key={char.id}>
-            <button onClick={() => {
-              // Convert local character to network character format for editing
-              const networkChar: Character = {
-                id: char.id,
-                name: char.name,
-                class: char.class,
-                race: 'Unknown', // Store doesn't have race, add default
-                level: 1, // Store doesn't have level, add default
-                experience: 0, // Add missing experience field
-                stats: {
-                  strength: char.stats.strength,
-                  dexterity: char.stats.dexterity,
-                  constitution: char.stats.constitution,
-                  intelligence: char.stats.intelligence,
-                  wisdom: char.stats.wisdom,
-                  charisma: char.stats.charisma,
-                },
-                owner: userInfo.username
-              };
-              setSelectedCharacter(networkChar);
-            }}>{char.name}</button>
-            <button onClick={() => removeCharacter(char.id)}>Delete</button>
-          </li>
-        ))}
-      </ul>
-      
+
+      {/* Character Creation Shortcuts */}
       <div style={{ margin: '10px 0' }}>
         <button onClick={() => { setSelectedCharacter(null); setShowSimpleForm(false); }}>
           Create New Character (Full Editor)
@@ -344,63 +334,69 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
       {selectedCharacter ? (
         <div>
           {/* Character Summary */}
-          <CharacterSummary 
+          <CharacterSummary
             character={{
               name: selectedCharacter.name,
-              level: selectedCharacter.level,
-              class: selectedCharacter.class,
-              race: selectedCharacter.race,
-              background: selectedCharacter.background || 'Unknown',
-              abilityScores: selectedCharacter.abilityScores || selectedCharacter.stats,
-              hitDice: selectedCharacter.hitDice || 'd10',
-              maxHitPoints: selectedCharacter.maxHitPoints || 10,
-              currentHitPoints: selectedCharacter.currentHitPoints || 10,
-              armorClass: selectedCharacter.armorClass || 10,
-              proficiencyBonus: selectedCharacter.proficiencyBonus || 2,
-              experience: selectedCharacter.experience
+              level: selectedCharacter.data?.level,
+              class: selectedCharacter.data?.class,
+              race: selectedCharacter.data?.race,
+              background: selectedCharacter.data?.background || 'Unknown',
+              abilityScores: selectedCharacter.data?.abilityScores,
+              hitDice: selectedCharacter.data?.hitDice || 'd10',
+              maxHitPoints: selectedCharacter.data?.stats?.maxHp || 10,
+              currentHitPoints: selectedCharacter.data?.stats?.hp || 10,
+              armorClass: selectedCharacter.data?.stats?.ac || 10,
+              proficiencyBonus: selectedCharacter.data?.proficiencyBonus || 2,
+              experience: selectedCharacter.data?.experience || 0
             }}
           />
-          
           {/* Experience Tracker */}
           <div style={{ marginTop: 16 }}>
             <ExperienceTracker
-              currentExperience={selectedCharacter.experience}
-              currentLevel={selectedCharacter.level}
+              currentExperience={selectedCharacter.data?.experience || 0}
+              currentLevel={selectedCharacter.data?.level || 1}
               onExperienceChange={(newExp) => {
-                const updatedChar = { ...selectedCharacter, experience: newExp };
+                const updatedChar = {
+                  ...selectedCharacter,
+                  data: { ...selectedCharacter.data, experience: newExp }
+                };
                 setSelectedCharacter(updatedChar);
                 handleUpdate(updatedChar);
               }}
               onLevelUp={(newLevel) => {
-                const updatedChar = { ...selectedCharacter, level: newLevel };
+                const updatedChar = {
+                  ...selectedCharacter,
+                  data: { ...selectedCharacter.data, level: newLevel }
+                };
                 setSelectedCharacter(updatedChar);
                 handleUpdate(updatedChar);
               }}
             />
           </div>
-          
           {/* Multiclass Manager */}
           <div style={{ marginTop: 16 }}>
             <MulticlassManager
-              currentClasses={selectedCharacter.multiclass || [selectedCharacter.class]}
-              currentLevel={selectedCharacter.level}
-              abilityScores={selectedCharacter.abilityScores || selectedCharacter.stats}
+              currentClasses={selectedCharacter.data?.multiclass || [selectedCharacter.data?.class]}
+              currentLevel={selectedCharacter.data?.level || 1}
+              abilityScores={selectedCharacter.data?.abilityScores}
               onMulticlass={(newClass: string) => {
-                const currentClasses = selectedCharacter.multiclass || [selectedCharacter.class];
+                const currentClasses = selectedCharacter.data?.multiclass || [selectedCharacter.data?.class];
                 const updatedClasses = [...currentClasses, newClass];
-                const updatedChar = { ...selectedCharacter, multiclass: updatedClasses };
+                const updatedChar = {
+                  ...selectedCharacter,
+                  data: { ...selectedCharacter.data, multiclass: updatedClasses }
+                };
                 setSelectedCharacter(updatedChar);
                 handleUpdate(updatedChar);
               }}
             />
           </div>
-          
           {/* Spell Preparation Manager */}
           <div style={{ marginTop: 16 }}>
             <SpellPreparationManager
-              characterClass={selectedCharacter.class}
-              characterLevel={selectedCharacter.level}
-              abilityScores={selectedCharacter.abilityScores || selectedCharacter.stats}
+              characterClass={selectedCharacter.data?.class}
+              characterLevel={selectedCharacter.data?.level || 1}
+              abilityScores={selectedCharacter.data?.abilityScores}
               knownSpells={[]}
               preparedSpells={preparedSpells}
               onPrepareSpell={(spellId) => {
@@ -411,7 +407,6 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
               }}
             />
           </div>
-          
           {/* Character Sheet */}
           <div style={{ marginTop: 16 }}>
             <CharacterSheet
@@ -427,38 +422,32 @@ export const CharacterManager: React.FC<CharacterManagerProps> = ({ sessionCode,
         </div>
       ) : showSimpleForm ? (
         <CharacterCreationForm onCreate={(data) => {
-          // Add to local store and optionally sync to network
-          addCharacter({
+          // Create new character using new structure
+          const newChar: Partial<Character> = {
             name: data.name,
-            class: data.class,
-            stats: {
-              strength: 10,
-              dexterity: 10,
-              constitution: 10,
-              intelligence: 10,
-              wisdom: 10,
-              charisma: 10,
-            },
-            inventory: [],
-            conditions: [],
-          });
-          
-          // Also create on network if needed
-          const networkChar = {
-            name: data.name,
-            class: data.class,
-            race: data.race,
-            level: data.level,
-            stats: {
-              strength: 10,
-              dexterity: 10,
-              constitution: 10,
-              intelligence: 10,
-              wisdom: 10,
-              charisma: 10,
-            },
+            data: {
+              class: data.class,
+              race: data.race,
+              level: data.level,
+              stats: {
+                hp: 10,
+                maxHp: 10,
+                ac: 10,
+                speed: 30
+              },
+              abilityScores: {
+                str: 10,
+                dex: 10,
+                con: 10,
+                int: 10,
+                wis: 10,
+                cha: 10
+              },
+              conditions: [],
+              inventory: [],
+            }
           };
-          optimisticCreate(networkChar);
+          optimisticCreate(newChar);
           setShowSimpleForm(false);
         }} />
       ) : (

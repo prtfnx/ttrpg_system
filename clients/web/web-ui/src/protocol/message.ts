@@ -121,7 +121,7 @@ export type MessageHandler = (message: Message) => Promise<void> | void;
  * Create a standardized message with proper formatting
  */
 export function createMessage(
-  type: MessageType, 
+  type: MessageType,
   data?: Record<string, unknown>,
   priority: number = 5
 ): Message {
@@ -139,6 +139,10 @@ export function createMessage(
  */
 export function parseMessage(jsonStr: string): Message {
   const data = JSON.parse(jsonStr);
+  // Validate message structure
+  if (!data || typeof data.type !== 'string') {
+    throw new Error('Invalid message: missing or invalid "type" field');
+  }
   return {
     type: data.type as MessageType,
     data: data.data || {},

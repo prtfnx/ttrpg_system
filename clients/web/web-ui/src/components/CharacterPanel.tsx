@@ -11,21 +11,26 @@ function genId(): string {
 
 
 function CharacterPanel() {
-  const { characters, selectedSprites, addCharacter, selectSprite, removeCharacter, activeTableId } = useGameStore();
+  const { characters, selectedSprites, addCharacter, selectSprite, removeCharacter, getSpritesForCharacter } = useGameStore();
   const [showWizard, setShowWizard] = useState(false);
   const [expandedCharId, setExpandedCharId] = useState<string | null>(null);
   const [wizardKey, setWizardKey] = useState(0);
 
-  // Find selected character based on sprite selection
-  const selectedCharacter = characters.find(c => selectedSprites.includes(c.sprite.id)) || null;
+  // Find selected character based on selected sprite(s)
+  const selectedCharacter = characters.find(c => {
+    const sprites = getSpritesForCharacter(c.id);
+    return sprites.some(spr => selectedSprites.includes(spr.id));
+  }) || null;
 
   const handleCharacterClick = (charId: string) => {
     const char = characters.find(c => c.id === charId);
     if (char) {
-      // Toggle expansion
       setExpandedCharId(expandedCharId === charId ? null : charId);
-      // Select sprite
-      selectSprite(char.sprite.id, false);
+      // Select the first linked sprite if any
+      const sprites = getSpritesForCharacter(char.id);
+      if (sprites.length > 0) {
+        selectSprite(sprites[0].id, false);
+      }
     }
   };
 
@@ -35,37 +40,30 @@ function CharacterPanel() {
   };
 
   const handleWizardFinish = (data: any) => {
-    const spriteId = genId();
-    const defaultName = `${data.race} ${data.class}`;
     const newCharacter = {
       id: genId(),
-      name: defaultName,
-      race: data.race,
-      class: data.class,
-      level: 1,
-      sprite: {
-        id: spriteId,
-        name: defaultName,
-        x: 0,
-        y: 0,
-        width: 1,
-        height: 1,
-        isSelected: false,
-        isVisible: true,
-        layer: 'tokens' as const,
-        table_id: activeTableId || 'default', // Use active table or fallback
+      sessionId: '', // Set appropriately if needed
+      name: `${data.race} ${data.class}`,
+      ownerId: 0, // Set appropriately if needed
+      controlledBy: [],
+      data: {
+        class: data.class,
+        race: data.race,
+        level: 1,
+        stats: {
+          hp: 10,
+          maxHp: 10,
+          ac: 10,
+          speed: 30,
+        },
+        conditions: [],
+        inventory: [],
       },
-      stats: {
-        hp: 10,
-        maxHp: 10,
-        ac: 10,
-        speed: 30,
-      },
-      conditions: [],
-      inventory: [],
+      version: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
     addCharacter(newCharacter);
-    selectSprite(spriteId, false);
     setShowWizard(false);
     setExpandedCharId(newCharacter.id);
   };
@@ -101,15 +99,16 @@ function CharacterPanel() {
         {characters.map(char => {
           const isExpanded = expandedCharId === char.id;
           const isSelected = selectedCharacter?.id === char.id;
-
+          const data = char.data || {};
+          const stats = data.stats || {};
           return (
-            <div 
-              key={char.id} 
+            <div
+              key={char.id}
               className={`character-card ${isSelected ? 'selected' : ''} ${isExpanded ? 'expanded' : ''}`}
             >
               {/* Compact Header - Always Visible */}
-              <div 
-                className="character-header" 
+              <div
+                className="character-header"
                 onClick={() => handleCharacterClick(char.id)}
               >
                 <div className="char-avatar">
@@ -118,20 +117,20 @@ function CharacterPanel() {
                 <div className="char-info">
                   <div className="char-name">{char.name}</div>
                   <div className="char-details">
-                    Lv{char.level} {char.race} {char.class}
+                    Lv{data.level} {data.race} {data.class}
                   </div>
                 </div>
                 <div className="char-stats-compact">
                   <div className="stat-pill">
                     <span className="stat-label">HP</span>
-                    <span className="stat-value">{char.stats.hp}/{char.stats.maxHp}</span>
+                    <span className="stat-value">{stats.hp}/{stats.maxHp}</span>
                   </div>
                   <div className="stat-pill">
                     <span className="stat-label">AC</span>
-                    <span className="stat-value">{char.stats.ac}</span>
+                    <span className="stat-value">{stats.ac}</span>
                   </div>
                 </div>
-                <button 
+                <button
                   className="char-expand-btn"
                   onClick={(e) => { e.stopPropagation(); handleCharacterClick(char.id); }}
                 >
@@ -145,13 +144,13 @@ function CharacterPanel() {
                   <div className="details-section">
                     <div className="stat-row">
                       <span>Speed:</span>
-                      <span>{char.stats.speed} ft</span>
+                      <span>{stats.speed} ft</span>
                     </div>
-                    {char.conditions && char.conditions.length > 0 && (
+                    {data.conditions && data.conditions.length > 0 && (
                       <div className="conditions">
                         <strong>Conditions:</strong>
                         <div className="condition-tags">
-                          {char.conditions.map((cond, idx) => (
+                          {data.conditions.map((cond: string, idx: number) => (
                             <span key={idx} className="condition-tag">{cond}</span>
                           ))}
                         </div>
@@ -162,8 +161,8 @@ function CharacterPanel() {
                   {/* Quick Actions */}
                   <div className="char-actions">
                     <button className="action-btn edit">Edit</button>
-                    <button 
-                      className="action-btn delete" 
+                    <button
+                      className="action-btn delete"
                       onClick={(e) => handleDeleteCharacter(char.id, e)}
                     >
                       Delete

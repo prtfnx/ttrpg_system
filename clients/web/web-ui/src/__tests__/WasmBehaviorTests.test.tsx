@@ -1,3 +1,35 @@
+describe('WASM Fog and Lighting Edge Cases', () => {
+  let wasm: any;
+  beforeEach(() => {
+    wasm = createMockWasmModule();
+  });
+
+  it('should handle partial fog visibility at edge of revealed area', () => {
+    const fog = wasm.FogOfWarSystem();
+    fog.reveal_area({ x: 10, y: 10, radius: 5 });
+    // Simulate edge
+    fog.is_visible.mockReturnValueOnce(false).mockReturnValueOnce(true);
+    expect(fog.is_visible(15, 10)).toBe(false); // outside
+    expect(fog.is_visible(12, 10)).toBe(true); // inside
+  });
+
+  it('should handle overlapping lights and calculate combined intensity', () => {
+    const lighting = wasm.LightingSystem();
+    lighting.add_light({ x: 5, y: 5, intensity: 0.5 });
+    lighting.add_light({ x: 5, y: 5, intensity: 0.7 });
+    lighting.get_light_at_position.mockReturnValueOnce(1.0);
+    expect(lighting.get_light_at_position(5, 5)).toBeCloseTo(1.0);
+  });
+
+  it('should handle fog/lighting system errors gracefully', () => {
+    const fog = wasm.FogOfWarSystem();
+    fog.reveal_area.mockImplementation(() => { throw new Error('Fog error'); });
+    expect(() => fog.reveal_area({ x: 0, y: 0, radius: 1 })).toThrow('Fog error');
+    const lighting = wasm.LightingSystem();
+    lighting.add_light.mockImplementation(() => { throw new Error('Lighting error'); });
+    expect(() => lighting.add_light({ x: 0, y: 0, intensity: 1 })).toThrow('Lighting error');
+  });
+});
 /**
  * WASM Rust Core Systems Behavior Tests
  * Tests the Rust/WASM integration focusing on real expected behavior

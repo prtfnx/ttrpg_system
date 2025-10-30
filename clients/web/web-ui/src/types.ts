@@ -15,6 +15,7 @@ export interface Color {
 
 export interface Sprite {
   id: string; // sprite_id
+  name: string; // display name for the sprite
   tableId: string;
   characterId?: string; // References Character.id
   controlledBy?: string[]; // User IDs who can control this token

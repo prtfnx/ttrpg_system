@@ -411,12 +411,12 @@ describe('Asset Management System Behavior', () => {
   it('should validate file types and sizes', async () => {
     render(<AssetPanel />);
 
-    // Try to upload oversized file
-    const fileInput = screen.getByTestId('file-input');
-    const oversizedFile = new File(['x'.repeat(100 * 1024 * 1024)], 'huge.exe', { type: 'application/exe' });
+  // Try to upload oversized file (simulate with 1MB to avoid jsdom RangeError)
+  const fileInput = screen.getByTestId('file-input');
+  const oversizedFile = new File(['x'.repeat(1024 * 1024)], 'huge.exe', { type: 'application/exe' });
 
-    // Use fireEvent.change instead of userEvent.upload for better file input control
-    fireEvent.change(fileInput, { target: { files: [oversizedFile] } });
+  // Use fireEvent.change instead of userEvent.upload for better file input control
+  fireEvent.change(fileInput, { target: { files: [oversizedFile] } });
 
     await waitFor(() => {
       // Check that validation error appears

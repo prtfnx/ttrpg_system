@@ -1,8 +1,19 @@
 // --- Global fetch mock for OAuth and API endpoints ---
 if (!globalThis.fetch || typeof globalThis.fetch !== 'function') {
   globalThis.fetch = vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {
-    // Simulate OAuth provider endpoint
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : '';
+    // Normalize input to string URL
+    let url = '';
+    if (typeof input === 'string') {
+      url = input;
+    } else if (input instanceof URL) {
+      url = input.toString();
+    } else if (typeof input === 'object' && 'url' in input) {
+      url = (input as any).url || '';
+    }
+    // Prepend base URL if relative
+    if (url.startsWith('/')) {
+      url = `http://localhost${url}`;
+    }
     if (url.includes('/auth/oauth/providers')) {
       return Promise.resolve({
         ok: true,

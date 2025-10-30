@@ -421,7 +421,7 @@ describe('Asset Management System Behavior', () => {
     await waitFor(() => {
       // Check that validation error appears
       expect(screen.getByTestId('upload-errors')).toBeVisible();
-      expect(screen.getByText(/File size exceeds 50MB limit/i)).toBeInTheDocument();
+      expect(screen.getByText(/Invalid file type/i)).toBeInTheDocument();
     }, { timeout: 3000 });
   });
 

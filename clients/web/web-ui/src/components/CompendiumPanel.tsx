@@ -290,7 +290,7 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
 
         {!loading && filtered.map(entry => (
           <div
-            key={entry.id}
+            key={`${entry.type}-${entry.id}`}
             className={`entry-item ${selectedEntry?.id === entry.id ? 'selected' : ''}`}
             draggable={isAuthenticated && hasPermission('compendium:read')}
             onDragStart={() => onDragStart(entry)}

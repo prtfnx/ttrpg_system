@@ -5,8 +5,8 @@
  */
 // @ts-nocheck
 import { render, screen, waitFor } from '@testing-library/react';
-import { act } from 'react-dom/test-utils';
 import userEvent from '@testing-library/user-event';
+import { act } from 'react-dom/test-utils';
 import { describe, expect, it } from 'vitest';
 
 // Import actual working components based on test results

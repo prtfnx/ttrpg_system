@@ -31,8 +31,8 @@ vi.mock('../hooks/useRenderEngine', () => ({
  */
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { act } from 'react-dom/test-utils';
 import userEvent from '@testing-library/user-event';
+import { act } from 'react-dom/test-utils';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { useGameStore } from '../../store';
 import { LightingPanel } from '../LightingPanel';

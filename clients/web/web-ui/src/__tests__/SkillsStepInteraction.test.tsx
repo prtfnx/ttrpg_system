@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FormProvider, useForm } from 'react-hook-form';
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { SkillsStep } from '../components/CharacterWizard/SkillsStep';
 
 // Test component to wrap SkillsStep with form context

@@ -48,7 +48,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onClo
       <div className="sheet-header">
         <div className="character-title">
           {character.image && (
-            <img src={character.image} alt={character.name} className="character-portrait" />
+            <img src={character.image || "/default-avatar.png"} alt={character.name} className="character-portrait" />
           )}
           <div className="character-info">
             <h2>{character.name}</h2>

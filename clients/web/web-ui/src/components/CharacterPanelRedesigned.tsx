@@ -69,6 +69,7 @@ export function CharacterPanelRedesigned() {
   const handleAddToken = (charId: string) => {
     // Create a new sprite linked to this character
     const spriteId = genId();
+    const character = characters.find(c => c.id === charId);
     const sprite = {
       id: spriteId,
       tableId: '',
@@ -81,6 +82,7 @@ export function CharacterPanelRedesigned() {
       scale: { x: 1, y: 1 },
       rotation: 0,
       syncStatus: 'local' as const,
+      name: character?.name || 'Unnamed Sprite',
     };
     useGameStore.getState().addSprite(sprite);
     linkSpriteToCharacter(spriteId, charId);

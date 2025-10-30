@@ -17,6 +17,14 @@ if (!globalThis.fetch || typeof globalThis.fetch !== 'function') {
         ])
       } as Response);
     }
+    if (url.includes('/auth/me')) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ id: 1, username: 'testuser', role: 'player', isEmailVerified: true, createdAt: '', updatedAt: '', permissions: [], preferences: { theme: 'light', language: 'en', timezone: 'UTC', notifications: { email: true, push: false, gameInvites: true, systemUpdates: true } } }),
+        text: async () => JSON.stringify({ id: 1, username: 'testuser', role: 'player', isEmailVerified: true, createdAt: '', updatedAt: '', permissions: [], preferences: { theme: 'light', language: 'en', timezone: 'UTC', notifications: { email: true, push: false, gameInvites: true, systemUpdates: true } } })
+      } as Response);
+    }
     // Default: return a generic successful response
     return Promise.resolve({
       ok: true,
@@ -32,7 +40,21 @@ if (!(window as any).rustRenderManager) {
   (window as any).rustRenderManager = {
     get_layer_sprite_count: vi.fn().mockReturnValue(0),
     set_layer_visible: vi.fn(),
-    set_layer_opacity: vi.fn()
+    set_layer_opacity: vi.fn(),
+    get_all_sprites_network_data: vi.fn(() => []),
+    add_light: vi.fn(),
+    remove_light: vi.fn(),
+    set_light_color: vi.fn(),
+    set_light_intensity: vi.fn(),
+    get_light_at_position: vi.fn(() => 0),
+    add_sprite: vi.fn(),
+    remove_sprite: vi.fn(),
+    update_sprite_position: vi.fn(),
+    set_camera: vi.fn(),
+    get_camera: vi.fn(() => ({ x: 0, y: 0, zoom: 1 })),
+    clear: vi.fn(),
+    free: vi.fn(),
+    // Add any other methods required by panels here
   };
 }
 import '@testing-library/jest-dom';

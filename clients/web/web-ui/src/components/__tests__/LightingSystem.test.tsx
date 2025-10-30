@@ -31,6 +31,7 @@ vi.mock('../hooks/useRenderEngine', () => ({
  */
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act } from 'react-dom/test-utils';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { useGameStore } from '../../store';
@@ -67,18 +68,18 @@ describe('Lighting System', () => {
   describe('Test Scenario 1: Basic Light Placement', () => {
    it('should place a light at clicked map position', async () => {
       const user = userEvent.setup();
-      // Set up store state
       useGameStore.setState({
         sprites: [],
         activeTableId: 'test-table',
       });
-      render(<LightingPanel />);
-      // Click Torch preset (use role-based query to avoid ambiguity)
+      await act(async () => {
+        render(<LightingPanel />);
+      });
       const torchButton = screen.getByRole('button', { name: /torch/i });
-      await user.click(torchButton);
-  // Verify placement mode is active (placement indicator for Torch)
-  expect(screen.getByText((content) => content.includes('Placing: Torch'))).toBeInTheDocument();
-      // Simulate lightPlaced event from GameCanvas (include preset)
+      await act(async () => {
+        await user.click(torchButton);
+      });
+      expect(screen.getByText((content) => content.includes('Placing: Torch'))).toBeInTheDocument();
       const preset = {
         name: 'Torch',
         color: { r: 1.0, g: 0.6, b: 0.2, a: 1.0 },
@@ -88,8 +89,9 @@ describe('Lighting System', () => {
       const placementEvent = new CustomEvent('lightPlaced', {
         detail: { x: 500, y: 300, preset }
       });
-      window.dispatchEvent(placementEvent);
-      // Verify light was added to WASM
+      await act(async () => {
+        window.dispatchEvent(placementEvent);
+      });
       await waitFor(() => {
         expect(mockEngine.add_light).toHaveBeenCalledWith(
           expect.any(String),

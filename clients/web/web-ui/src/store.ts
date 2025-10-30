@@ -87,7 +87,7 @@ interface GameStore extends GameState {
 
 export const useGameStore = create<GameStore>()(
   devtools(
-    (set, get) => ({
+  (set, _get) => ({
       // Initial state
       sprites: [],
       characters: [],
@@ -208,19 +208,35 @@ export const useGameStore = create<GameStore>()(
         }));
       },
 
-      addSprite: (sprite: Sprite) => {
+      addSprite: (sprite: any) => {
+        // Migrate legacy sprite fields if needed
+        const migrated = { ...sprite };
+        if (migrated.imageUrl && !migrated.texture) {
+          migrated.texture = migrated.imageUrl;
+        }
+        if ((typeof migrated.width === 'number' && typeof migrated.height === 'number') && !migrated.scale) {
+          // Assume default sprite size is 32x32 for scale calculation
+          migrated.scale = {
+            x: migrated.width / 32,
+            y: migrated.height / 32
+          };
+        }
+        // Remove legacy fields if present
+        delete migrated.imageUrl;
+        delete migrated.width;
+        delete migrated.height;
         set((state) => {
           // Check if sprite already exists
-          const existingSprite = state.sprites.find(s => s.id === sprite.id);
+          const existingSprite = state.sprites.find(s => s.id === migrated.id);
           if (existingSprite) {
             // If it exists, update it instead of adding
             return {
-              sprites: state.sprites.map(s => s.id === sprite.id ? sprite : s)
+              sprites: state.sprites.map(s => s.id === migrated.id ? migrated : s)
             };
           } else {
             // Add new sprite
             return {
-              sprites: [...state.sprites, sprite]
+              sprites: [...state.sprites, migrated]
             };
           }
         });
@@ -241,9 +257,17 @@ export const useGameStore = create<GameStore>()(
         }));
       },
 
-      addCharacter: (character) => {
+      addCharacter: (character: any) => {
+        // Migrate legacy character fields if needed
+        const migrated = { ...character };
+        if (typeof migrated.data !== 'object' || migrated.data == null) {
+          migrated.data = {};
+        }
+        if (typeof migrated.version !== 'number') {
+          migrated.version = 1;
+        }
         set((state) => ({
-          characters: [...state.characters, character],
+          characters: [...state.characters, migrated],
         }));
       },
 

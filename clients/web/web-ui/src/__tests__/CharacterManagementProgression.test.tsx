@@ -183,7 +183,7 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
       });
 
       // Expand character card
-      await user.click(screen.getByText('Test Hero'));
+  await user.click(screen.getByText('Test Hero'));
       // Add a token
       await user.click(screen.getByRole('button', { name: /add token/i }));
 
@@ -195,10 +195,10 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
     });
   });
   const mockUserInfo = { 
-    id: 'player1', 
-    username: 'Alice', 
-    role: 'player' as const,
-    permissions: ['create_character', 'manage_own_character', 'cast_spells'] 
+  id: 1, 
+  username: 'Alice', 
+  role: 'player' as const,
+  permissions: ['create_character', 'manage_own_character', 'cast_spells'] 
   };
 
   describe('Character Creation Wizard - Complete Workflow', () => {
@@ -256,8 +256,8 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
       await user.selectOptions(fightingStyleSelect, 'defense');
       
       // Get the specific class step next button and click it
-      const classNextButton = screen.getByTestId('class-next-button');
-      await user.click(classNextButton);
+  // Use the visible 'Next →' button for class step
+  await user.click(screen.getByRole('button', { name: /next/i }));
       
       // Step 3: Background Selection
       await waitFor(() => {
@@ -479,15 +479,22 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
       
       // Create wizard character
       await user.type(screen.getByLabelText(/character name/i), 'Elaria Moonwhisper');
-      await user.click(screen.getByRole('button', { name: /next/i }));
+      // Find the first enabled button with 'next' or '→' in the label
+      const nextButton = screen.getAllByRole('button').find(
+        btn =>
+          !btn.disabled &&
+          /next|→/i.test(btn.textContent || '')
+      );
+      expect(nextButton).toBeDefined();
+      await user.click(nextButton!);
       
       // Select Elf (gets cantrip)
       await user.selectOptions(screen.getByLabelText(/select race/i), 'elf');
       await user.click(screen.getByRole('button', { name: /next/i }));
       
       // Select Wizard class
-      await user.selectOptions(screen.getByLabelText(/select class/i), 'wizard');
-      await user.click(screen.getByRole('button', { name: /next/i }));
+  await user.selectOptions(screen.getByLabelText(/select class/i), 'wizard');
+  await user.click(screen.getByRole('button', { name: /next/i }));
       
       // Background step - select background first
       await waitFor(() => {
@@ -636,13 +643,19 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
       
       // Level 1 Fighter character
       const existingCharacter = {
-        name: 'Thorin Oakenshield',
-        race: 'mountain-dwarf',
-        class: 'fighter',
-        level: 1,
-        hitPoints: 13,
-        maxHitPoints: 13,
-        experience: 0
+  name: 'Thorin Oakenshield',
+  race: 'mountain-dwarf',
+  class: 'fighter',
+  level: 1,
+  hitPoints: 13,
+  maxHitPoints: 13,
+  experience: 0,
+  strength: 16,
+  dexterity: 12,
+  constitution: 14,
+  intelligence: 10,
+  wisdom: 10,
+  charisma: 8
       };
       
       render(<CharacterWizard character={existingCharacter} userInfo={mockUserInfo} mode="level-up" />);
@@ -678,16 +691,17 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
       
       // Level 3 Fighter wanting to multiclass
       const existingCharacter = {
-        name: 'Thorin',
-        race: 'mountain-dwarf', 
-        class: 'fighter',
-        level: 3,
-        strength: 17,
-        dexterity: 13,
-        constitution: 16,
-        intelligence: 12,
-        wisdom: 14,
-        charisma: 8
+  name: 'Thorin',
+  race: 'mountain-dwarf', 
+  class: 'fighter',
+  level: 3,
+  experience: 900,
+  strength: 17,
+  dexterity: 13,
+  constitution: 16,
+  intelligence: 12,
+  wisdom: 14,
+  charisma: 8
       };
       
       render(<CharacterWizard character={existingCharacter} userInfo={mockUserInfo} mode="level-up" />);
@@ -752,16 +766,22 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
       
       // 3rd level Cleric character
       const clericCharacter = {
-        name: 'Sister Mary',
-        race: 'human',
-        class: 'cleric',
-        level: 3,
-        wisdom: 16, // +3 modifier
-        spellcastingAbility: 'wisdom',
-        spellSlots: { 1: 4, 2: 2 },
-        knownSpells: ['cure-wounds', 'healing-word', 'guiding-bolt', 'spiritual-weapon', 'aid', 'sanctuary'], // Common cleric spells
-        spellbook: ['cure-wounds', 'healing-word', 'guiding-bolt', 'spiritual-weapon', 'aid', 'sanctuary'],
-        domainSpells: ['bless', 'cure-wounds', 'hold-person', 'spiritual-weapon']
+  name: 'Sister Mary',
+  race: 'human',
+  class: 'cleric',
+  level: 3,
+  experience: 900,
+  strength: 10,
+  dexterity: 10,
+  constitution: 12,
+  intelligence: 10,
+  wisdom: 16, // +3 modifier
+  charisma: 14,
+  spellcastingAbility: 'wisdom',
+  spellSlots: { 1: 4, 2: 2 },
+  knownSpells: ['cure-wounds', 'healing-word', 'guiding-bolt', 'spiritual-weapon', 'aid', 'sanctuary'], // Common cleric spells
+  spellbook: ['cure-wounds', 'healing-word', 'guiding-bolt', 'spiritual-weapon', 'aid', 'sanctuary'],
+  domainSpells: ['bless', 'cure-wounds', 'hold-person', 'spiritual-weapon']
       };
       
       render(<CharacterWizard character={clericCharacter} userInfo={mockUserInfo} mode="manage-spells" />);
@@ -820,12 +840,20 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
       const user = userEvent.setup();
       
       const wizardCharacter = {
-        name: 'Gandalf',
-        class: 'wizard',
-        level: 5,
-        spellbook: ['detect-magic', 'identify', 'comprehend-languages', 'find-familiar'],
-        preparedSpells: ['detect-magic', 'identify'],
-        ritualSpells: ['detect-magic', 'identify', 'comprehend-languages', 'find-familiar']
+  name: 'Gandalf',
+  race: 'maiar',
+  class: 'wizard',
+  level: 5,
+  experience: 6500,
+  strength: 10,
+  dexterity: 14,
+  constitution: 12,
+  intelligence: 18,
+  wisdom: 16,
+  charisma: 16,
+  spellbook: ['detect-magic', 'identify', 'comprehend-languages', 'find-familiar'],
+  preparedSpells: ['detect-magic', 'identify'],
+  ritualSpells: ['detect-magic', 'identify', 'comprehend-languages', 'find-familiar']
       };
       
       render(<CharacterWizard character={wizardCharacter} userInfo={mockUserInfo} mode="manage-spells" />);

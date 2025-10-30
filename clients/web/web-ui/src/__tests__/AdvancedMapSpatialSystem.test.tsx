@@ -14,6 +14,15 @@ import { MapPanel } from '../components/MapPanel';
 import { ToolsPanel } from '../components/ToolsPanel';
 
 describe('Advanced Map System - Tactical TTRPG Mapping', () => {
+  // Ensure rustRenderManager always has get_layer_sprite_count
+  beforeAll(() => {
+    if (!window.rustRenderManager) {
+      (window as any).rustRenderManager = {};
+    }
+    if (typeof window.rustRenderManager.get_layer_sprite_count !== 'function') {
+      window.rustRenderManager.get_layer_sprite_count = vi.fn().mockReturnValue(0);
+    }
+  });
   const mockUserInfo = { 
     id: 1, 
     username: 'DM Mike', 

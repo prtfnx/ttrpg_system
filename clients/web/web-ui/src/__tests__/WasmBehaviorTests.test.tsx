@@ -38,128 +38,116 @@ describe('WASM Fog and Lighting Edge Cases', () => {
 // @ts-nocheck
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock WASM module structure matching actual Rust exports
+
+// Class-based mocks for WASM systems (Vitest 4+ requirement)
+class MockRenderEngine {
+  initialize = vi.fn(() => ({ success: true }));
+  set_canvas_size = vi.fn();
+  render_frame = vi.fn();
+  add_sprite = vi.fn(() => 'sprite_001');
+  remove_sprite = vi.fn();
+  update_sprite_position = vi.fn();
+  set_camera = vi.fn();
+  get_camera = vi.fn(() => ({ x: 0, y: 0, zoom: 1 }));
+  add_light = vi.fn();
+  set_light_color = vi.fn();
+  set_light_intensity = vi.fn();
+  remove_light = vi.fn();
+  clear = vi.fn();
+  free = vi.fn();
+}
+class MockNetworkClient {
+  connect = vi.fn(() => Promise.resolve({ connected: true }));
+  disconnect = vi.fn();
+  send_message = vi.fn();
+  receive_messages = vi.fn(() => []);
+  is_connected = vi.fn(() => false);
+  get_connection_status = vi.fn(() => 'disconnected');
+  free = vi.fn();
+}
+class MockTableSync {
+  sync_state = vi.fn();
+  get_sync_status = vi.fn(() => 'synced');
+  handle_conflict = vi.fn();
+  apply_changes = vi.fn();
+  free = vi.fn();
+}
+class MockLightingSystem {
+  add_light = vi.fn(() => 'light_001');
+  remove_light = vi.fn();
+  update_light = vi.fn();
+  set_ambient = vi.fn();
+  get_ambient = vi.fn(() => 0.5);
+  calculate_lighting = vi.fn();
+  get_light_at_position = vi.fn(() => 0.8);
+  free = vi.fn();
+}
+class MockFogOfWarSystem {
+  reveal_area = vi.fn();
+  hide_area = vi.fn();
+  clear_fog = vi.fn();
+  is_visible = vi.fn(() => true);
+  get_visibility_at = vi.fn(() => 1.0);
+  save_fog_state = vi.fn();
+  load_fog_state = vi.fn();
+  free = vi.fn();
+}
+class MockAssetManager {
+  load_asset = vi.fn(() => Promise.resolve({ id: 'asset_001', loaded: true }));
+  unload_asset = vi.fn();
+  get_asset_info = vi.fn(() => ({ id: 'asset_001', size: 1024, cached: true }));
+  cache_asset = vi.fn();
+  clear_cache = vi.fn();
+  get_cache_stats = vi.fn(() => ({ size: 1024000, count: 10 }));
+  free = vi.fn();
+}
+class MockLayerManager {
+  create_layer = vi.fn(() => 'layer_001');
+  delete_layer = vi.fn();
+  set_layer_visible = vi.fn();
+  set_layer_order = vi.fn();
+  get_layers = vi.fn(() => []);
+  render_layer = vi.fn();
+  free = vi.fn();
+}
+class MockActionsClient {
+  queue_action = vi.fn();
+  execute_action = vi.fn(() => ({ success: true }));
+  undo_action = vi.fn();
+  redo_action = vi.fn();
+  get_action_history = vi.fn(() => []);
+  clear_history = vi.fn();
+  free = vi.fn();
+}
+class MockPaintSystem {
+  start_stroke = vi.fn(() => 'stroke_001');
+  add_point = vi.fn();
+  end_stroke = vi.fn();
+  set_brush = vi.fn();
+  get_brush = vi.fn(() => ({ size: 5, color: [0, 0, 0, 255] }));
+  undo_stroke = vi.fn();
+  clear_canvas = vi.fn();
+  free = vi.fn();
+}
+
 const createMockWasmModule = () => ({
-  // Core render engine
-  RenderEngine: vi.fn().mockImplementation(() => ({
-    initialize: vi.fn(() => ({ success: true })),
-    set_canvas_size: vi.fn(),
-    render_frame: vi.fn(),
-    add_sprite: vi.fn(() => 'sprite_001'),
-    remove_sprite: vi.fn(),
-    update_sprite_position: vi.fn(),
-    set_camera: vi.fn(),
-    get_camera: vi.fn(() => ({ x: 0, y: 0, zoom: 1 })),
-    add_light: vi.fn(),
-    set_light_color: vi.fn(),
-    set_light_intensity: vi.fn(),
-    remove_light: vi.fn(),
-    clear: vi.fn(),
-    free: vi.fn()
-  })),
-
-  // Network client for multiplayer
-  NetworkClient: vi.fn().mockImplementation(() => ({
-    connect: vi.fn(() => Promise.resolve({ connected: true })),
-    disconnect: vi.fn(),
-    send_message: vi.fn(),
-    receive_messages: vi.fn(() => []),
-    is_connected: vi.fn(() => false),
-    get_connection_status: vi.fn(() => 'disconnected'),
-    free: vi.fn()
-  })),
-
-  // Table synchronization
-  TableSync: vi.fn().mockImplementation(() => ({
-    sync_state: vi.fn(),
-    get_sync_status: vi.fn(() => 'synced'),
-    handle_conflict: vi.fn(),
-    apply_changes: vi.fn(),
-    free: vi.fn()
-  })),
-
-  // Lighting system
-  LightingSystem: vi.fn().mockImplementation(() => ({
-    add_light: vi.fn(() => 'light_001'),
-    remove_light: vi.fn(),
-    update_light: vi.fn(),
-    set_ambient: vi.fn(),
-    get_ambient: vi.fn(() => 0.5),
-    calculate_lighting: vi.fn(),
-    get_light_at_position: vi.fn(() => 0.8),
-    free: vi.fn()
-  })),
-
-  // Fog of war system
-  FogOfWarSystem: vi.fn().mockImplementation(() => ({
-    reveal_area: vi.fn(),
-    hide_area: vi.fn(),
-    clear_fog: vi.fn(),
-    is_visible: vi.fn(() => true),
-    get_visibility_at: vi.fn(() => 1.0),
-    save_fog_state: vi.fn(),
-    load_fog_state: vi.fn(),
-    free: vi.fn()
-  })),
-
-  // Asset management
-  AssetManager: vi.fn().mockImplementation(() => ({
-    load_asset: vi.fn(() => Promise.resolve({ id: 'asset_001', loaded: true })),
-    unload_asset: vi.fn(),
-    get_asset_info: vi.fn(() => ({ id: 'asset_001', size: 1024, cached: true })),
-    cache_asset: vi.fn(),
-    clear_cache: vi.fn(),
-    get_cache_stats: vi.fn(() => ({ size: 1024000, count: 10 })),
-    free: vi.fn()
-  })),
-
-  // Layer management for UI organization
-  LayerManager: vi.fn().mockImplementation(() => ({
-    create_layer: vi.fn(() => 'layer_001'),
-    delete_layer: vi.fn(),
-    set_layer_visible: vi.fn(),
-    set_layer_order: vi.fn(),
-    get_layers: vi.fn(() => []),
-    render_layer: vi.fn(),
-    free: vi.fn()
-  })),
-
-  // Actions system for game commands
-  ActionsClient: vi.fn().mockImplementation(() => ({
-    queue_action: vi.fn(),
-    execute_action: vi.fn(() => ({ success: true })),
-    undo_action: vi.fn(),
-    redo_action: vi.fn(),
-    get_action_history: vi.fn(() => []),
-    clear_history: vi.fn(),
-    free: vi.fn()
-  })),
-
-  // Paint system for drawing
-  PaintSystem: vi.fn().mockImplementation(() => ({
-    start_stroke: vi.fn(() => 'stroke_001'),
-    add_point: vi.fn(),
-    end_stroke: vi.fn(),
-    set_brush: vi.fn(),
-    get_brush: vi.fn(() => ({ size: 5, color: [0, 0, 0, 255] })),
-    undo_stroke: vi.fn(),
-    clear_canvas: vi.fn(),
-    free: vi.fn()
-  })),
-
-  // Brush presets utility
+  RenderEngine: MockRenderEngine,
+  NetworkClient: MockNetworkClient,
+  TableSync: MockTableSync,
+  LightingSystem: MockLightingSystem,
+  FogOfWarSystem: MockFogOfWarSystem,
+  AssetManager: MockAssetManager,
+  LayerManager: MockLayerManager,
+  ActionsClient: MockActionsClient,
+  PaintSystem: MockPaintSystem,
   create_default_brush_presets: vi.fn(() => [
     { name: 'Pencil', size: 2, opacity: 1.0 },
     { name: 'Marker', size: 8, opacity: 0.8 },
     { name: 'Eraser', size: 10, opacity: 1.0 }
   ]),
-
-  // WASM initialization
   default: vi.fn(() => Promise.resolve()),
-
-  // Memory management utilities
   memory: {
-    buffer: new ArrayBuffer(1024 * 1024), // 1MB mock memory
+    buffer: new ArrayBuffer(1024 * 1024),
   }
 });
 

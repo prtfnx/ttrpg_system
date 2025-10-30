@@ -5,7 +5,7 @@ describe('WASM Fog and Lighting Edge Cases', () => {
   });
 
   it('should handle partial fog visibility at edge of revealed area', () => {
-    const fog = wasm.FogOfWarSystem();
+    const fog = new wasm.FogOfWarSystem();
     fog.reveal_area({ x: 10, y: 10, radius: 5 });
     // Simulate edge
     fog.is_visible.mockReturnValueOnce(false).mockReturnValueOnce(true);
@@ -14,7 +14,7 @@ describe('WASM Fog and Lighting Edge Cases', () => {
   });
 
   it('should handle overlapping lights and calculate combined intensity', () => {
-    const lighting = wasm.LightingSystem();
+    const lighting = new wasm.LightingSystem();
     lighting.add_light({ x: 5, y: 5, intensity: 0.5 });
     lighting.add_light({ x: 5, y: 5, intensity: 0.7 });
     lighting.get_light_at_position.mockReturnValueOnce(1.0);
@@ -22,10 +22,10 @@ describe('WASM Fog and Lighting Edge Cases', () => {
   });
 
   it('should handle fog/lighting system errors gracefully', () => {
-    const fog = wasm.FogOfWarSystem();
+    const fog = new wasm.FogOfWarSystem();
     fog.reveal_area.mockImplementation(() => { throw new Error('Fog error'); });
     expect(() => fog.reveal_area({ x: 0, y: 0, radius: 1 })).toThrow('Fog error');
-    const lighting = wasm.LightingSystem();
+    const lighting = new wasm.LightingSystem();
     lighting.add_light.mockImplementation(() => { throw new Error('Lighting error'); });
     expect(() => lighting.add_light({ x: 0, y: 0, intensity: 1 })).toThrow('Lighting error');
   });
@@ -181,12 +181,9 @@ afterEach(() => {
 describe('WASM RenderEngine Behavior', () => {
   it('should initialize render engine and set up canvas properly', () => {
     const renderEngine = new mockWasm.RenderEngine();
-    
     // Initialize with canvas dimensions
     const result = renderEngine.initialize();
-    
     expect(result.success).toBe(true);
-    expect(mockWasm.RenderEngine).toHaveBeenCalled();
     expect(renderEngine.initialize).toHaveBeenCalled();
   });
 

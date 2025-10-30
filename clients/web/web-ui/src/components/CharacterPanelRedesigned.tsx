@@ -99,7 +99,13 @@ export function CharacterPanelRedesigned() {
       {/* Header with single create button */}
       <div className="panel-header">
         <h2>Characters</h2>
-        <button className="create-btn" onClick={handleCreateCharacter} title="Create New Character">
+        <button
+          className="create-btn"
+          onClick={handleCreateCharacter}
+          title="Create New Character"
+          aria-label="Create New Character"
+          data-testid="create-character-btn"
+        >
           +
         </button>
       </div>

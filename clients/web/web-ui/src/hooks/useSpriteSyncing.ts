@@ -49,10 +49,11 @@ export function useSpriteSyncing() {
 
       // Add or update sprites from Rust
       convertedSprites.forEach(sprite => {
+        const spriteWithName = { ...sprite, name: 'Unnamed Sprite' };
         if (!currentSpriteIds.has(sprite.id)) {
-          addSprite(sprite);
+          addSprite(spriteWithName);
         } else {
-          updateSprite(sprite.id, sprite);
+          updateSprite(sprite.id, spriteWithName);
         }
       });
 

@@ -84,7 +84,8 @@ export function useWebSocket(url: string) {
               layer: (data.layer as string) || 'tokens',
               texture: (data.texture || data.imageUrl || data.texture_path) as string || '',
               scale: { x: scaleX, y: scaleY },
-              rotation: (data.rotation as number) || 0
+              rotation: (data.rotation as number) || 0,
+              name: (data.name as string) || 'Unnamed Sprite',
             });
             // WASM integration: also add sprite to RenderManager if available
             // Ensure all required fields for WASM
@@ -163,7 +164,8 @@ export function useWebSocket(url: string) {
                   layer: sprite.layer || 'tokens',
                   texture: sprite.texture || spriteData.imageUrl || '',
                   scale: { x: scaleX, y: scaleY },
-                  rotation: sprite.rotation || 0
+                  rotation: sprite.rotation || 0,
+                  name: typeof sprite.name === 'string' ? sprite.name : 'Unnamed Sprite',
                 };
                 
                 // Add sprite to store

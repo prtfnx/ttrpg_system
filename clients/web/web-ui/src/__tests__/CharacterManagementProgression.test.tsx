@@ -256,8 +256,18 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
       await user.selectOptions(fightingStyleSelect, 'defense');
       
       // Get the specific class step next button and click it
-  // Use the visible 'Next →' button for class step
-  await user.click(screen.getByRole('button', { name: /next/i }));
+      // Use the visible 'Next →' button for class step, or fallback to first enabled button
+      let nextBtn: HTMLElement | null = screen.queryByRole('button', { name: /next/i });
+      if (!nextBtn) {
+        // Fallback: find first enabled button that is not 'Back' or 'Cancel'
+        nextBtn = (screen.getAllByRole('button').find(
+          (btn) =>
+            !(btn as HTMLButtonElement).disabled &&
+            !/back|cancel/i.test(btn.textContent || '')
+        ) ?? null);
+      }
+      expect(nextBtn).not.toBeNull();
+      await user.click(nextBtn!);
       
       // Step 3: Background Selection
       await waitFor(() => {
@@ -480,17 +490,28 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
       // Create wizard character
       await user.type(screen.getByLabelText(/character name/i), 'Elaria Moonwhisper');
       // Find the first enabled button with 'next' or '→' in the label
-      const nextButton = screen.getAllByRole('button').find(
-        btn =>
-          !btn.disabled &&
+      const firstNextButton = screen.getAllByRole('button').find(
+        (btn: HTMLElement) =>
+          !(btn as HTMLButtonElement).disabled &&
           /next|→/i.test(btn.textContent || '')
       );
-      expect(nextButton).toBeDefined();
-      await user.click(nextButton!);
+      expect(firstNextButton).toBeDefined();
+      await user.click(firstNextButton!);
       
       // Select Elf (gets cantrip)
       await user.selectOptions(screen.getByLabelText(/select race/i), 'elf');
-      await user.click(screen.getByRole('button', { name: /next/i }));
+      // Use the visible 'Next →' button for class step, or fallback to first enabled button
+      let nextBtn: HTMLElement | null = screen.queryByRole('button', { name: /next/i });
+      if (!nextBtn) {
+        // Fallback: find first enabled button that is not 'Back' or 'Cancel'
+        nextBtn = (screen.getAllByRole('button').find(
+          (btn) =>
+            !(btn as HTMLButtonElement).disabled &&
+            !/back|cancel/i.test(btn.textContent || '')
+        ) ?? null);
+      }
+      expect(nextBtn).not.toBeNull();
+      await user.click(nextBtn!);
       
       // Select Wizard class
   await user.selectOptions(screen.getByLabelText(/select class/i), 'wizard');

@@ -111,7 +111,7 @@ export function IdentityStep({ onNext, onBack: _onBack }: { onNext?: () => void;
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' }}>
           <span style={{ fontWeight: 600, fontSize: 14, color: '#2c3e50' }}>Preview:</span>
           <img 
-            src={imageUrl} 
+            src={imageUrl || "/default-avatar.png"} 
             alt="Character" 
             style={{ 
               width: 120, 

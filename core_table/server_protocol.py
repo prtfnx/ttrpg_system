@@ -574,11 +574,6 @@ class ServerProtocol:
                 table_data = table_obj
             else:
                 table_data = {}
-            
-            # Ensure table_data is a dict
-            if not isinstance(table_data, dict):
-                table_data = {}
-            
             await self.ensure_assets_in_r2(table_data, msg.data.get('session_code', 'default'), msg.data.get('user_id', 0))
             logger.info(f"Processing table {table_name} with {len(table_data.get('layers', {}))} layers")
             
@@ -635,11 +630,6 @@ class ServerProtocol:
                 table_data = table_obj
             else:
                 table_data = {}
-            
-            # Ensure table_data is a dict
-            if not isinstance(table_data, dict):
-                table_data = {}
-            
             table_data_with_hashes = await self.add_asset_hashes_to_table(table_data, session_code=msg.data.get('session_code', 'default'), user_id=user_id)
 
             # return message that need send to client

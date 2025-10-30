@@ -198,18 +198,24 @@ export function EntitiesPanel() {
             )}
           </div>
         ) : (
-          sprites.map((sprite) => (
-            <div
-              key={sprite.id}
-              className={`sprite-item ${selectedSprites.includes(sprite.id) ? 'selected' : ''}`}
-              onClick={() => selectSprite(sprite.id)}
-            >
-              <h3>{sprite.id}</h3>
-              <p>Position: ({sprite.x}, {sprite.y})</p>
-              <p>Layer: {sprite.layer}</p>
-              <p>Scale: {sprite.scale.x.toFixed(2)} x {sprite.scale.y.toFixed(2)}</p>
-            </div>
-          ))
+          sprites.map((sprite) => {
+            // Provide fallback for scale if missing
+            const scale = sprite.scale && typeof sprite.scale.x === 'number' && typeof sprite.scale.y === 'number'
+              ? sprite.scale
+              : { x: 1, y: 1 };
+            return (
+              <div
+                key={sprite.id}
+                className={`sprite-item ${selectedSprites.includes(sprite.id) ? 'selected' : ''}`}
+                onClick={() => selectSprite(sprite.id)}
+              >
+                <h3>{sprite.id}</h3>
+                <p>Position: ({sprite.x}, {sprite.y})</p>
+                <p>Layer: {sprite.layer}</p>
+                <p>Scale: {scale.x.toFixed(2)} x {scale.y.toFixed(2)}</p>
+              </div>
+            );
+          })
         )}
       </div>
     </div>

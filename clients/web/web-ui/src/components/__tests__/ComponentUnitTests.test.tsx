@@ -1,3 +1,17 @@
+// Mock useGameStore for LayerPanel
+vi.mock('../../store', () => ({
+  useGameStore: vi.fn().mockReturnValue({
+    activeLayer: 'tokens',
+    sprites: [],
+    selectSprite: vi.fn(),
+    setActiveLayer: vi.fn(),
+    layerVisibility: { tokens: true, background: true },
+    setLayerVisibility: vi.fn(),
+    layerOpacity: { tokens: 1, background: 1 },
+    setLayerOpacity: vi.fn(),
+    // Add any other properties LayerPanel expects
+  })
+}));
 /**
  * Individual Component Unit Tests
  * Tests isolated component behavior, props validation, and rendering

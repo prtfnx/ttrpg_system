@@ -1,3 +1,21 @@
+// Mock useAssetManager for AssetPanel
+vi.mock('../../hooks/useAssetManager', () => ({
+  useAssetManager: vi.fn().mockReturnValue({
+    isInitialized: true,
+    stats: { assetCount: 2, totalSize: 1024 * 1024 },
+    getAssetInfo: vi.fn(),
+    removeAsset: vi.fn(),
+    cleanupCache: vi.fn(),
+    clearCache: vi.fn(),
+    refreshStats: vi.fn(),
+    downloadAsset: vi.fn(),
+    listAssets: vi.fn().mockReturnValue([
+      { id: 'asset1', name: 'dragon.png', size: 1048576, type: 'image/png' },
+      { id: 'asset2', name: 'music.mp3', size: 5242880, type: 'audio/mp3' }
+    ]),
+    formatFileSize: (size: number) => `${(size / 1024).toFixed(1)} KB`,
+  })
+}));
 /**
  * Uncovered Components Comprehensive Test Suite
  * Tests components that don't have adequate test coverage yet

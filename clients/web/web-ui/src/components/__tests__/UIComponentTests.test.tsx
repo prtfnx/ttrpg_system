@@ -5,6 +5,7 @@
  */
 // @ts-nocheck
 import { render, screen, waitFor } from '@testing-library/react';
+import { act } from 'react-dom/test-utils';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
@@ -13,7 +14,9 @@ import { EnhancedLogin } from '../EnhancedLogin';
 
 describe('EnhancedLogin Component', () => {
   it('renders login form elements', () => {
-    render(<EnhancedLogin />);
+    act(() => {
+      render(<EnhancedLogin />);
+    });
     
     // Should have login form elements - use more specific selectors
     const usernameField = screen.queryByLabelText(/username or email/i) || 
@@ -25,7 +28,9 @@ describe('EnhancedLogin Component', () => {
 
   it('handles form input changes', async () => {
     const user = userEvent.setup();
-    render(<EnhancedLogin />);
+    await act(async () => {
+      render(<EnhancedLogin />);
+    });
     
     const inputs = screen.queryAllByRole('textbox').concat(
       Array.from(document.querySelectorAll('input[type="password"]'))
@@ -39,7 +44,9 @@ describe('EnhancedLogin Component', () => {
   });
 
   it('displays authentication options', () => {
-    render(<EnhancedLogin />);
+    act(() => {
+      render(<EnhancedLogin />);
+    });
     
     // Look for buttons or auth-related text
     const authElements = screen.queryAllByRole('button').concat(
@@ -51,7 +58,9 @@ describe('EnhancedLogin Component', () => {
 
   it('handles form submission attempts', async () => {
     const user = userEvent.setup();
-    render(<EnhancedLogin />);
+    await act(async () => {
+      render(<EnhancedLogin />);
+    });
     
     // Get the submit button specifically (type="submit")
     const submitButton = document.querySelector('button[type="submit"]') ||
@@ -66,7 +75,9 @@ describe('EnhancedLogin Component', () => {
 
   it('toggles between login and register modes', async () => {
     const user = userEvent.setup();
-    render(<EnhancedLogin />);
+    await act(async () => {
+      render(<EnhancedLogin />);
+    });
     
     const toggleButton = screen.queryByText(/sign up/i) ||
                         screen.queryByRole('button', { name: /sign up/i });

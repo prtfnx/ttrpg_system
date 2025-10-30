@@ -3,13 +3,14 @@ import { vi } from 'vitest';
 const mockEngine = {
   add_light: vi.fn((id: string, x: number, y: number) => true),
   remove_light: vi.fn((id: string) => true),
-  set_light_color: vi.fn((id: string, r: number, g: number, b: number) => true),
+  set_light_color: vi.fn((id: string, r: number, g: number, b: number, a?: number) => true),
   set_light_intensity: vi.fn((id: string, intensity: number) => true),
   set_light_radius: vi.fn((id: string, radius: number) => true),
   set_light_enabled: vi.fn((id: string, enabled: boolean) => true),
   set_ambient_light: vi.fn((intensity: number) => true),
   update_lighting_obstacles: vi.fn(() => true),
   get_light_count: vi.fn(() => 0),
+  toggle_light: vi.fn((id: string) => true),
 };
 vi.mock('../hooks/useRenderEngine', () => ({
   useRenderEngine: () => mockEngine
@@ -75,8 +76,8 @@ describe('Lighting System', () => {
       // Click Torch preset (use role-based query to avoid ambiguity)
       const torchButton = screen.getByRole('button', { name: /torch/i });
       await user.click(torchButton);
-      // Verify placement mode is active
-      expect(screen.getByText(/click on the map/i)).toBeInTheDocument();
+  // Verify placement mode is active (placement indicator for Torch)
+  expect(screen.getByText((content) => content.includes('Placing: Torch'))).toBeInTheDocument();
       // Simulate lightPlaced event from GameCanvas (include preset)
       const preset = {
         name: 'Torch',
@@ -96,10 +97,10 @@ describe('Lighting System', () => {
           300
         );
       });
-      // Verify light properties were set (Torch preset)
+      // Verify light properties were set (Torch preset, normalized color)
       expect(mockEngine.set_light_color).toHaveBeenCalledWith(
         expect.any(String),
-        255, 140, 0 // Orange color
+        1, 0.6, 0.2, 1 // Orange color, normalized
       );
       expect(mockEngine.set_light_radius).toHaveBeenCalledWith(
         expect.any(String),
@@ -121,16 +122,14 @@ describe('Lighting System', () => {
   const torchButton = screen.getByRole('button', { name: /torch/i });
   await user.click(torchButton);
       
-      expect(screen.getByText(/click on the map/i)).toBeInTheDocument();
+  expect(screen.getByText((content) => content.includes('Placing: Torch'))).toBeInTheDocument();
       
-      // Click cancel
-      const cancelButton = screen.getByText(/cancel/i);
-      await user.click(cancelButton);
-      
-      // Verify placement mode exited
-      expect(screen.queryByText(/click on the map/i)).not.toBeInTheDocument();
-      
-      // Optionally, check that placement mode exited by UI state or other means
+  // Click cancel
+  const cancelButton = screen.getByText(/cancel/i);
+  await user.click(cancelButton);
+  // Verify placement mode exited
+  expect(screen.queryByText((content) => content.includes('Placing: Torch'))).not.toBeInTheDocument();
+  // Optionally, check that placement mode exited by UI state or other means
     });
   });
 

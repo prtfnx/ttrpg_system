@@ -324,31 +324,49 @@ export const AssetPanel: React.FC = () => {
     <div className="asset-panel">
   <h3 role="heading" aria-level={3}>Asset Manager</h3>
 
-      {/* Asset Categories */}
-      <div className="asset-categories">
-        <div 
-          className={`category ${selectedCategory === 'images' ? 'active' : ''}`}
-          onClick={() => setSelectedCategory('images')}
-        >
-          Images
+
+      {/* Organization Controls */}
+      <div className="organization-controls" style={{ marginBottom: 16 }}>
+        <label htmlFor="category-group" style={{ fontWeight: 'bold', marginRight: 8 }}>Category</label>
+        <div id="category-group" className="asset-categories" style={{ display: 'inline-flex', gap: 8 }}>
+          <div 
+            className={`category ${selectedCategory === 'images' ? 'active' : ''}`}
+            onClick={() => setSelectedCategory('images')}
+            role="button"
+            aria-label="Images"
+          >
+            Images
+          </div>
+          <div 
+            className={`category ${selectedCategory === 'models' ? 'active' : ''}`}
+            onClick={() => setSelectedCategory('models')}
+            role="button"
+            aria-label="Models"
+          >
+            Models
+          </div>
+          <div 
+            className={`category ${selectedCategory === 'audio' ? 'active' : ''}`}
+            onClick={() => setSelectedCategory('audio')}
+            role="button"
+            aria-label="Audio"
+          >
+            Audio
+          </div>
         </div>
-        <div 
-          className={`category ${selectedCategory === 'models' ? 'active' : ''}`}
-          onClick={() => setSelectedCategory('models')}
-        >
-          Models
-        </div>
-        <div 
-          className={`category ${selectedCategory === 'audio' ? 'active' : ''}`}
-          onClick={() => setSelectedCategory('audio')}
-        >
-          Audio
-        </div>
+        <label htmlFor="sort-select" style={{ fontWeight: 'bold', marginLeft: 24, marginRight: 8 }}>Sort</label>
+        <select id="sort-select" style={{ marginRight: 16 }} aria-label="Sort assets">
+          <option value="name">Name</option>
+          <option value="type">Type</option>
+          <option value="size">Size</option>
+        </select>
       </div>
 
-      {/* Asset Search */}
-      <div className="asset-search">
+      {/* Asset Search (Filter) */}
+      <div className="asset-search" style={{ marginBottom: 16 }}>
+        <label htmlFor="asset-filter" style={{ fontWeight: 'bold', marginRight: 8 }}>Filter</label>
         <input
+          id="asset-filter"
           type="text"
           placeholder="Search assets"
           className="search-input"

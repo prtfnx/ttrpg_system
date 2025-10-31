@@ -183,7 +183,7 @@ export const AssetPanel: React.FC = () => {
   if (!isInitialized) {
     return (
       <div className="asset-panel">
-  <h3 role="heading" aria-level="3">Asset Manager</h3>
+  <h3 role="heading" aria-level={3}>Asset Manager</h3>
         <div className="asset-categories">
           <div 
             className={`category ${selectedCategory === 'images' ? 'active' : ''}`}
@@ -296,7 +296,7 @@ export const AssetPanel: React.FC = () => {
           </div>
         </div>
 
-        <button className="upload-btn" onClick={() => fileInputRef.current?.click()}>
+        <button className="upload-btn" aria-label="Upload Asset" onClick={() => fileInputRef.current?.click()}>
           Upload Asset
         </button>
 
@@ -322,7 +322,7 @@ export const AssetPanel: React.FC = () => {
 
   return (
     <div className="asset-panel">
-  <h3 role="heading" aria-level="3">Asset Manager</h3>
+  <h3 role="heading" aria-level={3}>Asset Manager</h3>
 
       {/* Asset Categories */}
       <div className="asset-categories">
@@ -414,7 +414,7 @@ export const AssetPanel: React.FC = () => {
       />
 
       {/* Upload Button (secondary interface) */}
-      <button className="upload-btn" role="button" onClick={() => document.getElementById('file-input')?.click()}>
+      <button className="upload-btn" role="button" aria-label="Upload Asset" onClick={() => document.getElementById('file-input')?.click()}>
         Upload Asset
       </button>
       

@@ -52,16 +52,17 @@ const DEFAULT_LAYERS: Layer[] = [
 ];
 
 export function LayerPanel({ className, style, id, initialLayers, ...otherProps }: LayerPanelProps) {
+  const gameStore = useGameStore() || {};
   const {
-    activeLayer,
-    layerVisibility,
-    layerOpacity,
-    setActiveLayer,
-    setLayerVisibility,
-    setLayerOpacity,
-    activeTableId,
-    sprites
-  } = useGameStore();
+    activeLayer = '',
+    layerVisibility = {},
+    layerOpacity = {},
+    setActiveLayer = () => {},
+    setLayerVisibility = () => {},
+    setLayerOpacity = () => {},
+    activeTableId = null,
+    sprites = [],
+  } = gameStore;
   
   const renderEngine = useRenderEngine();
 

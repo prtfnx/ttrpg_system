@@ -183,7 +183,7 @@ export const AssetPanel: React.FC = () => {
   if (!isInitialized) {
     return (
       <div className="asset-panel">
-        <h3>Asset Manager</h3>
+  <h3 role="heading" aria-level="3">Asset Manager</h3>
         <div className="asset-categories">
           <div 
             className={`category ${selectedCategory === 'images' ? 'active' : ''}`}
@@ -322,7 +322,7 @@ export const AssetPanel: React.FC = () => {
 
   return (
     <div className="asset-panel">
-      <h3>Asset Manager</h3>
+  <h3 role="heading" aria-level="3">Asset Manager</h3>
 
       {/* Asset Categories */}
       <div className="asset-categories">

@@ -3,22 +3,25 @@ import { useAssetManager } from '../hooks/useAssetManager';
 import './AssetPanel.css';
 
 export const AssetPanel: React.FC = () => {
-  const {
-    isInitialized,
-    stats,
-    getAssetInfo,
-    removeAsset,
-    cleanupCache,
-    clearCache,
-    refreshStats,
-    downloadAsset,
-    listAssets,
-    formatFileSize
-  } = useAssetManager({
+  const assetManager = useAssetManager({
     maxCacheSizeMB: 100,
     maxAgeHours: 24,
     autoCleanup: true
-  });
+  }) || {};
+
+  const {
+    isInitialized = false,
+    stats = null,
+    getAssetInfo = () => {},
+    removeAsset = () => {},
+    cleanupCache = () => {},
+    clearCache = () => {},
+    refreshStats = () => {},
+    downloadAsset = () => {},
+    listAssets = () => [],
+    formatFileSize = (size: number) => `${size} B`,
+    // Only destructure what is actually used
+  } = assetManager;
 
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState('');

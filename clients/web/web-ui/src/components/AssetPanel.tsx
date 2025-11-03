@@ -3,25 +3,22 @@ import { useAssetManager } from '../hooks/useAssetManager';
 import './AssetPanel.css';
 
 export const AssetPanel: React.FC = () => {
-  const assetManager = useAssetManager({
+  const {
+    isInitialized,
+    stats,
+    getAssetInfo,
+    removeAsset,
+    cleanupCache,
+    clearCache,
+    refreshStats,
+    downloadAsset,
+    listAssets,
+    formatFileSize
+  } = useAssetManager({
     maxCacheSizeMB: 100,
     maxAgeHours: 24,
     autoCleanup: true
-  }) || {};
-
-  const {
-    isInitialized = false,
-    stats = null,
-    getAssetInfo = () => {},
-    removeAsset = () => {},
-    cleanupCache = () => {},
-    clearCache = () => {},
-    refreshStats = () => {},
-    downloadAsset = () => {},
-    listAssets = () => [],
-    formatFileSize = (size: number) => `${size} B`,
-    // Only destructure what is actually used
-  } = assetManager;
+  });
 
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState('');
@@ -183,7 +180,7 @@ export const AssetPanel: React.FC = () => {
   if (!isInitialized) {
     return (
       <div className="asset-panel">
-  <h3 role="heading" aria-level={3}>Asset Manager</h3>
+        <h3>Asset Manager</h3>
         <div className="asset-categories">
           <div 
             className={`category ${selectedCategory === 'images' ? 'active' : ''}`}
@@ -296,7 +293,7 @@ export const AssetPanel: React.FC = () => {
           </div>
         </div>
 
-        <button className="upload-btn" aria-label="Upload Asset" onClick={() => fileInputRef.current?.click()}>
+        <button className="upload-btn" onClick={() => fileInputRef.current?.click()}>
           Upload Asset
         </button>
 
@@ -322,51 +319,33 @@ export const AssetPanel: React.FC = () => {
 
   return (
     <div className="asset-panel">
-  <h3 role="heading" aria-level={3}>Asset Manager</h3>
+      <h3>Asset Manager</h3>
 
-
-      {/* Organization Controls */}
-      <div className="organization-controls" style={{ marginBottom: 16 }}>
-        <label htmlFor="category-group" style={{ fontWeight: 'bold', marginRight: 8 }}>Category</label>
-        <div id="category-group" className="asset-categories" style={{ display: 'inline-flex', gap: 8 }}>
-          <div 
-            className={`category ${selectedCategory === 'images' ? 'active' : ''}`}
-            onClick={() => setSelectedCategory('images')}
-            role="button"
-            aria-label="Images"
-          >
-            Images
-          </div>
-          <div 
-            className={`category ${selectedCategory === 'models' ? 'active' : ''}`}
-            onClick={() => setSelectedCategory('models')}
-            role="button"
-            aria-label="Models"
-          >
-            Models
-          </div>
-          <div 
-            className={`category ${selectedCategory === 'audio' ? 'active' : ''}`}
-            onClick={() => setSelectedCategory('audio')}
-            role="button"
-            aria-label="Audio"
-          >
-            Audio
-          </div>
+      {/* Asset Categories */}
+      <div className="asset-categories">
+        <div 
+          className={`category ${selectedCategory === 'images' ? 'active' : ''}`}
+          onClick={() => setSelectedCategory('images')}
+        >
+          Images
         </div>
-        <label htmlFor="sort-select" style={{ fontWeight: 'bold', marginLeft: 24, marginRight: 8 }}>Sort</label>
-        <select id="sort-select" style={{ marginRight: 16 }} aria-label="Sort assets">
-          <option value="name">Name</option>
-          <option value="type">Type</option>
-          <option value="size">Size</option>
-        </select>
+        <div 
+          className={`category ${selectedCategory === 'models' ? 'active' : ''}`}
+          onClick={() => setSelectedCategory('models')}
+        >
+          Models
+        </div>
+        <div 
+          className={`category ${selectedCategory === 'audio' ? 'active' : ''}`}
+          onClick={() => setSelectedCategory('audio')}
+        >
+          Audio
+        </div>
       </div>
 
-      {/* Asset Search (Filter) */}
-      <div className="asset-search" style={{ marginBottom: 16 }}>
-        <label htmlFor="asset-filter" style={{ fontWeight: 'bold', marginRight: 8 }}>Filter</label>
+      {/* Asset Search */}
+      <div className="asset-search">
         <input
-          id="asset-filter"
           type="text"
           placeholder="Search assets"
           className="search-input"
@@ -432,7 +411,7 @@ export const AssetPanel: React.FC = () => {
       />
 
       {/* Upload Button (secondary interface) */}
-      <button className="upload-btn" role="button" aria-label="Upload Asset" onClick={() => document.getElementById('file-input')?.click()}>
+      <button className="upload-btn" role="button" onClick={() => document.getElementById('file-input')?.click()}>
         Upload Asset
       </button>
       

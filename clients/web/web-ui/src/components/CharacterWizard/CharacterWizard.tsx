@@ -445,6 +445,7 @@ export function CharacterWizard({
 
 // Re-export the core wizard for advanced usage
 export { CharacterCreationWizard } from './CharacterCreationWizard';
+export { default as EnhancedCharacterWizard } from './EnhancedCharacterWizard';
 
 // Re-export other commonly used components
 export { CharacterSheet } from './CharacterSheet';

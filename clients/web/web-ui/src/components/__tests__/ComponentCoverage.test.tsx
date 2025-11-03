@@ -14,6 +14,16 @@ vi.mock('../../hooks/useAssetManager', () => ({
       { id: 'asset2', name: 'music.mp3', size: 5242880, type: 'audio/mp3' }
     ]),
     formatFileSize: (size: number) => `${(size / 1024).toFixed(1)} KB`,
+    // Add all other possible properties used in AssetPanel
+    error: null,
+    isLoading: false,
+    uploadProgress: {},
+    initialize: vi.fn(),
+    getAssetData: vi.fn(),
+    hasAsset: vi.fn(),
+    hasAssetByHash: vi.fn(),
+    getAssetByHash: vi.fn(),
+    // Add any additional methods as needed for future-proofing
   })
 }));
 /**

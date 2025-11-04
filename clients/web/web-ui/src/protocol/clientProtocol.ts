@@ -511,46 +511,188 @@ export class WebClientProtocol {
 
   private async handleCharacterSaveResponse(message: Message): Promise<void> {
     console.log('Character saved:', message.data);
+    
+    // Map temp ID to real ID from server
+    if (message.data?.success && message.data?.character_id) {
+      const realId = String(message.data.character_id);
+      const version = typeof message.data.version === 'number' ? message.data.version : 1;
+      
+      // Find character with 'syncing' status (likely has temp ID)
+      const store = useGameStore.getState();
+      const tempChar = store.characters.find(c => 
+        c.syncStatus === 'syncing' && c.id.startsWith('temp-')
+      );
+      
+      if (tempChar) {
+        // Update character with real ID and synced status
+        store.removeCharacter(tempChar.id);
+        store.addCharacter({
+          ...tempChar,
+          id: realId,
+          version: version,
+          syncStatus: 'synced'
+        });
+        console.log(`✅ Character synced: temp ID ${tempChar.id} → real ID ${realId}`);
+      }
+    } else if (message.data?.success === false) {
+      // Handle save failure
+      console.error('❌ Character save failed:', message.data?.error);
+      
+      // Find and mark character as error
+      const store = useGameStore.getState();
+      const failedChar = store.characters.find(c => c.syncStatus === 'syncing');
+      if (failedChar) {
+        store.updateCharacter(failedChar.id, { syncStatus: 'error' });
+      }
+    }
+    
     window.dispatchEvent(new CustomEvent('character-saved', { detail: message.data }));
   }
 
 
   private async handleCharacterListResponse(message: Message): Promise<void> {
     console.log('Character list received:', message.data);
-    // Bulk load characters into cache
+    
+    // Load characters into game store
     if (Array.isArray(message.data?.characters)) {
-      const validChars = message.data.characters.filter(
-        (c: any) => c && typeof c.character_id === 'string'
-      ).map((c: any) => ({
-        // cache still expects `id` field internally — map from character_id
-        id: String(c.character_id),
-        name: typeof c.name === 'string' ? c.name : '',
-        data: c,
+      const store = useGameStore.getState();
+      
+      // Map server characters to client format
+      const characters = message.data.characters
+        .filter((c: any) => c && (c.character_id || c.id))
+        .map((c: any) => ({
+          id: String(c.character_id || c.id),
+          sessionId: c.session_id || '',
+          name: String(c.character_name || c.name || 'Unnamed'),
+          ownerId: Number(c.owner_user_id || c.ownerId || 0),
+          controlledBy: Array.isArray(c.controlledBy) ? c.controlledBy : [],
+          data: c.character_data || c.data || {},
+          version: Number(c.version || 1),
+          createdAt: c.created_at || new Date().toISOString(),
+          updatedAt: c.updated_at || new Date().toISOString(),
+          syncStatus: 'synced' as const
+        }));
+      
+      // Clear existing characters and load new ones
+      // This ensures we don't have stale data
+      store.characters.forEach(c => store.removeCharacter(c.id));
+      characters.forEach(c => store.addCharacter(c));
+      
+      console.log(`✅ Loaded ${characters.length} characters from server`);
+      
+      // Also update asset cache for legacy compatibility
+      const cacheChars = characters.map(c => ({
+        id: c.id,
+        name: c.name,
+        data: c.data,
       }));
-      useAssetCharacterCache.getState().bulkLoadCharacters(validChars);
+      useAssetCharacterCache.getState().bulkLoadCharacters(cacheChars);
     }
+    
     window.dispatchEvent(new CustomEvent('character-list-updated', { detail: message.data }));
   }
 
   // Handle incoming character delta updates broadcast from server
   private async handleCharacterUpdate(message: Message): Promise<void> {
     console.log('Character update received:', message.data);
-    // Apply to store: if contains character_id and updates, merge
     const data: any = message.data || {};
-    // server/client payloads standardized to use `character_id`
+    const store = useGameStore.getState();
+    
+    // Check for operation type
+    const operation = data.operation;
     const characterId = data.character_id;
-    const updates = data.updates || data.character_data;
+    
+    if (operation === 'delete' && characterId) {
+      // Handle character deletion broadcast
+      store.removeCharacter(characterId);
+      console.log(`🗑️ Character deleted (broadcast): ${characterId}`);
+      window.dispatchEvent(new CustomEvent('character-deleted', { detail: { character_id: characterId } }));
+      return;
+    }
+    
+    if (operation === 'save' || operation === 'create') {
+      // Full character update (new character or complete save)
+      const characterData = data.character_data;
+      if (characterData) {
+        const character = {
+          id: String(characterData.character_id || characterData.id || characterId),
+          sessionId: characterData.session_id || characterData.sessionId || '',
+          name: String(characterData.name || 'Unnamed'),
+          ownerId: Number(characterData.owner_user_id || characterData.ownerId || 0),
+          controlledBy: Array.isArray(characterData.controlledBy) ? characterData.controlledBy : [],
+          data: characterData.data || characterData,
+          version: Number(data.version || characterData.version || 1),
+          createdAt: characterData.created_at || characterData.createdAt || new Date().toISOString(),
+          updatedAt: characterData.updated_at || characterData.updatedAt || new Date().toISOString(),
+          syncStatus: 'synced' as const
+        };
+        
+        // Check if character exists (update) or is new (add)
+        const existing = store.characters.find(c => c.id === character.id);
+        if (existing) {
+          store.updateCharacter(character.id, character);
+          console.log(`♻️ Character updated (broadcast): ${character.name}`);
+        } else {
+          store.addCharacter(character);
+          console.log(`➕ Character added (broadcast): ${character.name}`);
+        }
+        
+        window.dispatchEvent(new CustomEvent('character-updated', { detail: { character_id: character.id, operation } }));
+      }
+      return;
+    }
+    
+    // Delta update (partial changes)
+    const updates = data.updates;
     if (characterId && updates) {
-      // Use store helper to apply partial update
-      const store = useGameStore.getState();
-      // Merge: updateCharacter should merge fields appropriately
-      store.updateCharacter(characterId, updates as any);
+      const version = data.version;
+      const updatePayload: any = { ...updates };
+      if (version !== undefined) {
+        updatePayload.version = version;
+      }
+      updatePayload.syncStatus = 'synced';
+      updatePayload.updatedAt = new Date().toISOString();
+      
+      store.updateCharacter(characterId, updatePayload);
+      console.log(`🔄 Character updated (delta): ${characterId}`, updates);
       window.dispatchEvent(new CustomEvent('character-updated', { detail: { character_id: characterId, updates } }));
     }
   }
 
   private async handleCharacterUpdateResponse(message: Message): Promise<void> {
     console.log('Character update response:', message.data);
+    
+    const success = message.data?.success;
+    const characterId = String(message.data?.character_id || '');
+    const version = message.data?.version;
+    const error = message.data?.error;
+    
+    if (success && characterId) {
+      // Update successful - update version and sync status
+      const store = useGameStore.getState();
+      const updatePayload: any = { syncStatus: 'synced' };
+      if (version !== undefined) {
+        updatePayload.version = typeof version === 'number' ? version : parseInt(String(version));
+      }
+      store.updateCharacter(characterId, updatePayload);
+      console.log(`✅ Character update confirmed: ${characterId}, version ${version}`);
+    } else if (!success && characterId) {
+      // Update failed - handle version conflict or other errors
+      const store = useGameStore.getState();
+      
+      if (error === 'Version conflict') {
+        // Version conflict - need to fetch latest and retry
+        console.warn(`⚠️ Version conflict for character ${characterId}`);
+        store.updateCharacter(characterId, { syncStatus: 'error' } as any);
+        // Could auto-fetch latest version here
+        // protocol.loadCharacter(characterId);
+      } else {
+        // Other error
+        console.error(`❌ Character update failed: ${error}`);
+        store.updateCharacter(characterId, { syncStatus: 'error' } as any);
+      }
+    }
+    
     window.dispatchEvent(new CustomEvent('character-update-response', { detail: message.data }));
   }
 

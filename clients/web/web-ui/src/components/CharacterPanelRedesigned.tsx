@@ -170,6 +170,14 @@ export function CharacterPanelRedesigned() {
   const [showWizard, setShowWizard] = useState(false);
   const [expandedCharId, setExpandedCharId] = useState<string | null>(null);
   const [wizardKey, setWizardKey] = useState(0);
+  const [editingCharId, setEditingCharId] = useState<string | null>(null);
+  const [editFormData, setEditFormData] = useState<{
+    hp?: number;
+    maxHp?: number;
+    ac?: number;
+    speed?: number;
+    newCondition?: string;
+  }>({});
 
   const selectedCharacter = characters.find(c => {
     return getSpritesForCharacter(c.id).some(s => selectedSprites.includes(s.id));
@@ -290,6 +298,143 @@ export function CharacterPanelRedesigned() {
     } else if (charId.startsWith('temp-')) {
       // Temp character - just remove locally
       console.log('Removed local-only character');
+    }
+  };
+
+  // === EDIT MODE HANDLERS ===
+  const handleStartEdit = (char: Character) => {
+    setEditingCharId(char.id);
+    setEditFormData({
+      hp: char.stats.hp,
+      maxHp: char.stats.maxHp,
+      ac: char.stats.ac,
+      speed: char.stats.speed,
+      newCondition: ''
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCharId(null);
+    setEditFormData({});
+  };
+
+  const handleSaveEdit = (charId: string) => {
+    const char = characters.find(c => c.id === charId);
+    if (!char) return;
+
+    // Build delta updates object
+    const updates: Record<string, unknown> = {};
+    const statsUpdates: Record<string, unknown> = {};
+
+    if (editFormData.hp !== undefined && editFormData.hp !== char.stats.hp) {
+      statsUpdates.hp = editFormData.hp;
+    }
+    if (editFormData.maxHp !== undefined && editFormData.maxHp !== char.stats.maxHp) {
+      statsUpdates.maxHp = editFormData.maxHp;
+    }
+    if (editFormData.ac !== undefined && editFormData.ac !== char.stats.ac) {
+      statsUpdates.ac = editFormData.ac;
+    }
+    if (editFormData.speed !== undefined && editFormData.speed !== char.stats.speed) {
+      statsUpdates.speed = editFormData.speed;
+    }
+
+    if (Object.keys(statsUpdates).length > 0) {
+      updates.stats = { ...char.stats, ...statsUpdates };
+    }
+
+    // Only send update if there are changes
+    if (Object.keys(updates).length === 0) {
+      handleCancelEdit();
+      return;
+    }
+
+    // Optimistic update locally
+    updateCharacter(charId, updates);
+
+    // Send to server if connected
+    if (protocol && isConnected) {
+      updateCharacter(charId, { syncStatus: 'syncing' });
+      protocol.updateCharacter(charId, updates, char.version);
+
+      // Register rollback timer
+      const rollbackTimer = setTimeout(() => {
+        console.warn(`⏱️ Character update timeout for ${charId}, rolling back...`);
+        // Rollback to original values
+        updateCharacter(charId, {
+          stats: char.stats,
+          syncStatus: 'error'
+        });
+        alert(`Character update failed - rolled back changes for ${char.name}`);
+      }, 5000);
+
+      pendingOperations.current.set(charId, {
+        type: 'update',
+        originalData: char,
+        timer: rollbackTimer
+      });
+
+      // Listen for confirmation
+      const handleUpdateConfirm = (e: Event) => {
+        const customEvent = e as CustomEvent;
+        if (customEvent.detail?.character_id === charId && customEvent.detail?.success) {
+          const op = pendingOperations.current.get(charId);
+          if (op && op.type === 'update') {
+            clearTimeout(op.timer);
+            pendingOperations.current.delete(charId);
+            console.log(`✅ Character update confirmed: ${charId}`);
+          }
+        }
+      };
+
+      window.addEventListener('character-update-response', handleUpdateConfirm, { once: true });
+    }
+
+    handleCancelEdit();
+  };
+
+  const handleAddCondition = (charId: string) => {
+    const char = characters.find(c => c.id === charId);
+    if (!char || !editFormData.newCondition?.trim()) return;
+
+    const newCondition = editFormData.newCondition.trim();
+    if (char.conditions.includes(newCondition)) {
+      alert('Condition already exists');
+      return;
+    }
+
+    const updates = {
+      conditions: [...char.conditions, newCondition]
+    };
+
+    // Optimistic update
+    updateCharacter(charId, updates);
+
+    // Send to server
+    if (protocol && isConnected) {
+      updateCharacter(charId, { syncStatus: 'syncing' });
+      protocol.updateCharacter(charId, updates, char.version);
+    }
+
+    // Clear input
+    setEditFormData({ ...editFormData, newCondition: '' });
+  };
+
+  const handleRemoveCondition = (charId: string, condition: string) => {
+    const char = characters.find(c => c.id === charId);
+    if (!char) return;
+
+    const updates = {
+      conditions: char.conditions.filter(c => c !== condition)
+    };
+
+    // Optimistic update
+    updateCharacter(charId, updates);
+
+    // Send to server
+    if (protocol && isConnected) {
+      updateCharacter(charId, { syncStatus: 'syncing' });
+      protocol.updateCharacter(charId, updates, char.version);
     }
   };
 

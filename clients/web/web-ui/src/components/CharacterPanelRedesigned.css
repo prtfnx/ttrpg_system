@@ -417,6 +417,14 @@
   background: #3276e4;
 }
 
+.action-btn.share {
+  background: #17a2b8;
+}
+
+.action-btn.share:hover {
+  background: #138496;
+}
+
 /* Conditions Section */
 .conditions-section {
   margin-top: 12px;

@@ -5,6 +5,7 @@ import type { Character } from '../types';
 import { showToast } from '../utils/toast';
 import './CharacterPanelRedesigned.css';
 import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
+import { ShareCharacterDialog } from './ShareCharacterDialog';
 
 function genId(): string {
   return 'temp-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
@@ -61,6 +62,19 @@ export function CharacterPanelRedesigned() {
       protocol.requestCharacterList();
     }
   }, [protocol, isConnected]);
+
+  // Connection status notifications
+  const [prevConnected, setPrevConnected] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (prevConnected !== null) {
+      if (isConnected && !prevConnected) {
+        showToast.connectionRestored();
+      } else if (!isConnected && prevConnected) {
+        showToast.connectionLost();
+      }
+    }
+    setPrevConnected(isConnected ?? false);
+  }, [isConnected, prevConnected]);
   
   // Pending operations tracker for rollback
   const pendingOperationsRef = React.useRef<Map<string, {
@@ -120,7 +134,7 @@ export function CharacterPanelRedesigned() {
       pendingOperationsRef.current.delete(characterId);
       
       // Notify user
-      alert(`Server did not respond. Operation for "${originalState?.name || 'character'}" was rolled back.`);
+      showToast.rollbackWarning(originalState?.name || 'character');
     }, 5000); // 5 second timeout
     
     // Store the pending operation
@@ -180,6 +194,7 @@ export function CharacterPanelRedesigned() {
     speed?: number;
     newCondition?: string;
   }>({});
+  const [shareDialogCharId, setShareDialogCharId] = useState<string | null>(null);
 
   const selectedCharacter = characters.find(c => {
     return getSpritesForCharacter(c.id).some(s => selectedSprites.includes(s.id));
@@ -239,7 +254,7 @@ export function CharacterPanelRedesigned() {
         // Clear pending operation and rollback
         confirmPendingOperation(tempId);
         removeCharacter(tempId);
-        alert('Failed to create character. Please try again.');
+        showToast.characterSaveFailed(newCharacter.name, 'Server error');
       }
     } else {
       // No connection - mark as local only
@@ -295,7 +310,7 @@ export function CharacterPanelRedesigned() {
         // Clear pending operation and rollback immediately
         confirmPendingOperation(charId);
         addCharacter(character);
-        alert('Failed to delete character. Please try again.');
+        showToast.error(`Failed to delete character "${character.name}". Please try again.`);
       }
     } else if (charId.startsWith('temp-')) {
       // Temp character - just remove locally
@@ -376,7 +391,7 @@ export function CharacterPanelRedesigned() {
           data: charData,
           syncStatus: 'error'
         });
-        alert(`Character update failed - rolled back changes for ${char.name}`);
+        showToast.characterUpdateFailed(char.name, 'Server timeout');
       }, 5000);
 
       pendingOperationsRef.current.set(charId, {
@@ -414,7 +429,7 @@ export function CharacterPanelRedesigned() {
     const newCondition = editFormData.newCondition.trim();
     
     if (currentConditions.includes(newCondition)) {
-      alert('Condition already exists');
+      showToast.warning(`Condition "${newCondition}" already exists on ${char.name}`);
       return;
     }
 
@@ -461,6 +476,37 @@ export function CharacterPanelRedesigned() {
       protocol.updateCharacter(charId, updates, char.version);
     }
   };
+
+  // === PERMISSIONS HANDLERS ===
+  const handleShareCharacter = (charId: string) => {
+    setShareDialogCharId(charId);
+  };
+
+  const handleSavePermissions = (charId: string, controlledBy: number[]) => {
+    const char = characters.find(c => c.id === charId);
+    if (!char) return;
+
+    const updates = {
+      controlledBy
+    };
+
+    // Optimistic update
+    updateCharacter(charId, updates);
+
+    // Send to server
+    if (protocol && isConnected) {
+      updateCharacter(charId, { syncStatus: 'syncing' });
+      protocol.updateCharacter(charId, updates, char.version);
+      showToast.success(`Updated permissions for "${char.name}"`);
+    }
+  };
+
+  // Mock users list - in real app, this would come from the session/server
+  const mockUsers = [
+    { id: 1, name: 'Player 1' },
+    { id: 2, name: 'Player 2' },
+    { id: 3, name: 'DM' },
+  ];
 
   return (
     <div className="character-panel-redesigned">
@@ -675,9 +721,14 @@ export function CharacterPanelRedesigned() {
                       Add Token
                     </button>
                     {canEdit && (
-                      <button className="action-btn delete" onClick={e => handleDeleteCharacter(char.id, e)} title="Delete this character.">
-                        Delete
-                      </button>
+                      <>
+                        <button className="action-btn share" onClick={() => handleShareCharacter(char.id)} title="Share character with other players">
+                          Share
+                        </button>
+                        <button className="action-btn delete" onClick={e => handleDeleteCharacter(char.id, e)} title="Delete this character.">
+                          Delete
+                        </button>
+                      </>
                     )}
                     {!canEdit && (
                       <button className="action-btn delete" disabled title="You do not have permission to delete this character.">
@@ -701,6 +752,23 @@ export function CharacterPanelRedesigned() {
           onCancel={() => setShowWizard(false)}
         />
       )}
+
+      {/* Share Character Dialog */}
+      {shareDialogCharId && (() => {
+        const char = characters.find(c => c.id === shareDialogCharId);
+        if (!char) return null;
+        return (
+          <ShareCharacterDialog
+            characterId={char.id}
+            characterName={char.name}
+            ownerId={char.ownerId}
+            currentControlledBy={char.controlledBy}
+            availableUsers={mockUsers}
+            onClose={() => setShareDialogCharId(null)}
+            onSave={handleSavePermissions}
+          />
+        );
+      })()}
     </div>
   );
 }

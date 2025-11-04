@@ -139,11 +139,11 @@ describe('CharacterPanelRedesigned - Real Usage', () => {
   // Should show two badges in this card
   const badges = card ? Array.from(card.querySelectorAll('.token-badge')) : [];
   expect(badges.length).toBe(2);
-  // Should show sync status for each, scoped to this card
-  const localBadges = card ? Array.from(card.querySelectorAll('.sync-status.local')) : [];
-  const syncedBadges = card ? Array.from(card.querySelectorAll('.sync-status.synced')) : [];
-  expect(localBadges.length).toBeGreaterThan(0);
-  expect(syncedBadges.length).toBeGreaterThan(0);
+  // Should show sync status icons (new implementation uses SyncStatusIcon component)
+  // Local status shows an icon, synced status doesn't show anything (clean UI)
+  const localIcons = card ? Array.from(card.querySelectorAll('.sync-status-icon.local')) : [];
+  expect(localIcons.length).toBeGreaterThan(0); // At least one 'local' status should be visible
+  // Synced status doesn't render an icon (by design for cleaner UI)
   });
 
   it('removes character and updates UI/badges', async () => {

@@ -60,6 +60,106 @@ export function CharacterPanelRedesigned() {
     }
   }, [protocol, isConnected]);
   
+  // Pending operations tracker for rollback
+  const pendingOperationsRef = React.useRef<Map<string, {
+    type: 'create' | 'update' | 'delete';
+    characterId: string;
+    originalState?: any;
+    timeoutId: ReturnType<typeof setTimeout>;
+  }>>(new Map());
+  
+  // Cleanup pending operations on unmount
+  useEffect(() => {
+    return () => {
+      // Clear all pending timeouts
+      pendingOperationsRef.current.forEach(op => clearTimeout(op.timeoutId));
+      pendingOperationsRef.current.clear();
+    };
+  }, []);
+  
+  // Register a pending operation with automatic rollback after 5 seconds
+  const registerPendingOperation = (
+    characterId: string,
+    type: 'create' | 'update' | 'delete',
+    originalState?: any
+  ) => {
+    // Clear any existing timeout for this character
+    const existing = pendingOperationsRef.current.get(characterId);
+    if (existing) {
+      clearTimeout(existing.timeoutId);
+    }
+    
+    // Set new timeout for rollback
+    const timeoutId = setTimeout(() => {
+      console.warn(`Operation timeout for character ${characterId}, rolling back...`);
+      
+      const operation = pendingOperationsRef.current.get(characterId);
+      if (!operation) return;
+      
+      // Perform rollback based on operation type
+      if (type === 'create') {
+        // Remove the character that was never confirmed by server
+        removeCharacter(characterId);
+        console.log(`Rolled back create operation for ${characterId}`);
+      } else if (type === 'update' && originalState) {
+        // Restore original state
+        updateCharacter(characterId, originalState);
+        console.log(`Rolled back update operation for ${characterId}`);
+      } else if (type === 'delete' && originalState) {
+        // Re-add the deleted character
+        addCharacter(originalState);
+        console.log(`Rolled back delete operation for ${characterId}`);
+      }
+      
+      // Update sync status to error
+      updateCharacter(characterId, { syncStatus: 'error' });
+      
+      // Clean up
+      pendingOperationsRef.current.delete(characterId);
+      
+      // Notify user
+      alert(`Server did not respond. Operation for "${originalState?.name || 'character'}" was rolled back.`);
+    }, 5000); // 5 second timeout
+    
+    // Store the pending operation
+    pendingOperationsRef.current.set(characterId, {
+      type,
+      characterId,
+      originalState,
+      timeoutId
+    });
+  };
+  
+  // Confirm a pending operation (server responded successfully)
+  const confirmPendingOperation = (characterId: string) => {
+    const operation = pendingOperationsRef.current.get(characterId);
+    if (operation) {
+      clearTimeout(operation.timeoutId);
+      pendingOperationsRef.current.delete(characterId);
+      console.log(`Confirmed operation for ${characterId}`);
+    }
+  };
+  
+  // Listen for successful server responses to confirm operations
+  useEffect(() => {
+    const handleCharacterUpdate = (event: CustomEvent) => {
+      const { character_id } = event.detail;
+      if (character_id) {
+        confirmPendingOperation(character_id);
+        
+        // Also confirm by temp ID if it's a create operation
+        const tempChars = characters.filter(c => c.id.startsWith('temp-') && c.syncStatus === 'syncing');
+        tempChars.forEach(c => confirmPendingOperation(c.id));
+      }
+    };
+    
+    window.addEventListener('character-update' as any, handleCharacterUpdate);
+    
+    return () => {
+      window.removeEventListener('character-update' as any, handleCharacterUpdate);
+    };
+  }, [characters, confirmPendingOperation]);
+  
   // Drag-and-drop: start drag with character id
   const handleDragStart = (e: React.DragEvent, charId: string) => {
     e.dataTransfer.setData('application/x-character-id', charId);
@@ -112,6 +212,9 @@ export function CharacterPanelRedesigned() {
     // Send to server if connected
     if (protocol && isConnected) {
       try {
+        // Register pending operation with automatic rollback after 5 seconds
+        registerPendingOperation(tempId, 'create', newCharacter);
+        
         protocol.saveCharacter({
           character_data: newCharacter,
           user_id: userId,
@@ -120,9 +223,11 @@ export function CharacterPanelRedesigned() {
         
         // Server will broadcast CHARACTER_UPDATE with real ID
         // Protocol handlers will update the character with real ID and syncStatus:'synced'
+        // The pending operation will be confirmed when server responds
       } catch (error) {
         console.error('Failed to save character:', error);
-        // Rollback optimistic update on error
+        // Clear pending operation and rollback
+        confirmPendingOperation(tempId);
         removeCharacter(tempId);
         alert('Failed to create character. Please try again.');
       }

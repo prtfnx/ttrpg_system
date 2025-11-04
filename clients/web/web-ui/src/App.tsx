@@ -6,6 +6,8 @@ import { SessionSelector } from './components/SessionSelector';
 import { authService, type UserInfo } from './services/auth.service';
 import { ProtocolProvider } from './services/ProtocolContext';
 import { logger } from './utils/logger';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 interface AppState {
   isAuthenticated: boolean;
@@ -179,6 +181,7 @@ function App() {
             onAuthError={handleAuthError}
           />
         </ProtocolProvider>
+        <ToastContainer theme="dark" />
       </div>
     </ErrorBoundary>
   );

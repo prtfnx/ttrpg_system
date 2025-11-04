@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useProtocol } from '../services/ProtocolContext';
 import { useGameStore } from '../store';
 import type { Character } from '../types';
+import { showToast } from '../utils/toast';
 import './CharacterPanelRedesigned.css';
 import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 

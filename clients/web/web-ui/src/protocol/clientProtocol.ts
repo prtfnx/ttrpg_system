@@ -912,6 +912,21 @@ export class WebClientProtocol {
   // Character management handlers
   private async handleCharacterDeleteResponse(message: Message): Promise<void> {
     console.log('👤 Protocol: Character delete response:', message.data);
+    
+    const success = message.data?.success;
+    const characterId = String(message.data?.character_id || '');
+    
+    if (success && characterId) {
+      console.log(`✅ Character deletion confirmed: ${characterId}`);
+      // Character already removed optimistically, just confirm
+    } else if (!success) {
+      // Deletion failed - need to restore the character
+      console.error(`❌ Character deletion failed:`, message.data?.error);
+      // The character was optimistically removed, but we should restore it
+      // This would require keeping a backup before deletion
+      alert(`Failed to delete character: ${message.data?.error || 'Unknown error'}`);
+    }
+    
     window.dispatchEvent(new CustomEvent('character-delete-response', { detail: message.data }));
   }
 

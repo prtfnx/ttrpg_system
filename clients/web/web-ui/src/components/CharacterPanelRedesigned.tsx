@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useProtocol } from '../services/ProtocolContext';
 import { useGameStore } from '../store';
+import type { Character } from '../types';
 import './CharacterPanelRedesigned.css';
 import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 
@@ -304,11 +305,14 @@ export function CharacterPanelRedesigned() {
   // === EDIT MODE HANDLERS ===
   const handleStartEdit = (char: Character) => {
     setEditingCharId(char.id);
+    // Character data is stored in char.data object
+    const charData = char.data || {};
+    const stats = charData.stats || {};
     setEditFormData({
-      hp: char.stats.hp,
-      maxHp: char.stats.maxHp,
-      ac: char.stats.ac,
-      speed: char.stats.speed,
+      hp: stats.hp || 0,
+      maxHp: stats.maxHp || 10,
+      ac: stats.ac || 10,
+      speed: stats.speed || 30,
       newCondition: ''
     });
   };
@@ -322,32 +326,38 @@ export function CharacterPanelRedesigned() {
     const char = characters.find(c => c.id === charId);
     if (!char) return;
 
-    // Build delta updates object
-    const updates: Record<string, unknown> = {};
+    const charData = char.data || {};
+    const currentStats = charData.stats || {};
+
+    // Build delta updates for data.stats
     const statsUpdates: Record<string, unknown> = {};
 
-    if (editFormData.hp !== undefined && editFormData.hp !== char.stats.hp) {
+    if (editFormData.hp !== undefined && editFormData.hp !== currentStats.hp) {
       statsUpdates.hp = editFormData.hp;
     }
-    if (editFormData.maxHp !== undefined && editFormData.maxHp !== char.stats.maxHp) {
+    if (editFormData.maxHp !== undefined && editFormData.maxHp !== currentStats.maxHp) {
       statsUpdates.maxHp = editFormData.maxHp;
     }
-    if (editFormData.ac !== undefined && editFormData.ac !== char.stats.ac) {
+    if (editFormData.ac !== undefined && editFormData.ac !== currentStats.ac) {
       statsUpdates.ac = editFormData.ac;
     }
-    if (editFormData.speed !== undefined && editFormData.speed !== char.stats.speed) {
+    if (editFormData.speed !== undefined && editFormData.speed !== currentStats.speed) {
       statsUpdates.speed = editFormData.speed;
     }
 
-    if (Object.keys(statsUpdates).length > 0) {
-      updates.stats = { ...char.stats, ...statsUpdates };
-    }
-
     // Only send update if there are changes
-    if (Object.keys(updates).length === 0) {
+    if (Object.keys(statsUpdates).length === 0) {
       handleCancelEdit();
       return;
     }
+
+    // Build updates object with nested data.stats
+    const updates = {
+      data: {
+        ...charData,
+        stats: { ...currentStats, ...statsUpdates }
+      }
+    };
 
     // Optimistic update locally
     updateCharacter(charId, updates);
@@ -362,26 +372,27 @@ export function CharacterPanelRedesigned() {
         console.warn(`⏱️ Character update timeout for ${charId}, rolling back...`);
         // Rollback to original values
         updateCharacter(charId, {
-          stats: char.stats,
+          data: charData,
           syncStatus: 'error'
         });
         alert(`Character update failed - rolled back changes for ${char.name}`);
       }, 5000);
 
-      pendingOperations.current.set(charId, {
+      pendingOperationsRef.current.set(charId, {
         type: 'update',
-        originalData: char,
-        timer: rollbackTimer
+        characterId: charId,
+        originalState: charData,
+        timeoutId: rollbackTimer
       });
 
       // Listen for confirmation
       const handleUpdateConfirm = (e: Event) => {
         const customEvent = e as CustomEvent;
         if (customEvent.detail?.character_id === charId && customEvent.detail?.success) {
-          const op = pendingOperations.current.get(charId);
+          const op = pendingOperationsRef.current.get(charId);
           if (op && op.type === 'update') {
-            clearTimeout(op.timer);
-            pendingOperations.current.delete(charId);
+            clearTimeout(op.timeoutId);
+            pendingOperationsRef.current.delete(charId);
             console.log(`✅ Character update confirmed: ${charId}`);
           }
         }
@@ -397,14 +408,20 @@ export function CharacterPanelRedesigned() {
     const char = characters.find(c => c.id === charId);
     if (!char || !editFormData.newCondition?.trim()) return;
 
+    const charData = char.data || {};
+    const currentConditions = charData.conditions || [];
     const newCondition = editFormData.newCondition.trim();
-    if (char.conditions.includes(newCondition)) {
+    
+    if (currentConditions.includes(newCondition)) {
       alert('Condition already exists');
       return;
     }
 
     const updates = {
-      conditions: [...char.conditions, newCondition]
+      data: {
+        ...charData,
+        conditions: [...currentConditions, newCondition]
+      }
     };
 
     // Optimistic update
@@ -424,8 +441,14 @@ export function CharacterPanelRedesigned() {
     const char = characters.find(c => c.id === charId);
     if (!char) return;
 
+    const charData = char.data || {};
+    const currentConditions = charData.conditions || [];
+
     const updates = {
-      conditions: char.conditions.filter(c => c !== condition)
+      data: {
+        ...charData,
+        conditions: currentConditions.filter((c: string) => c !== condition)
+      }
     };
 
     // Optimistic update
@@ -521,20 +544,131 @@ export function CharacterPanelRedesigned() {
               </div>
               {isExpanded && (
                 <div className="character-details">
-                  <div className="details-section">
-                    <div className="stat-row">
-                      <span>Version:</span>
-                      <span>{char.version}</span>
+                  {/* Stats Section */}
+                  {editingCharId === char.id ? (
+                    <div className="details-section edit-mode">
+                      <h4>Edit Stats</h4>
+                      <div className="stat-row">
+                        <label>HP:</label>
+                        <input
+                          type="number"
+                          value={editFormData.hp || 0}
+                          onChange={e => setEditFormData({ ...editFormData, hp: parseInt(e.target.value) || 0 })}
+                          className="stat-input"
+                        />
+                        <span>/ {editFormData.maxHp}</span>
+                      </div>
+                      <div className="stat-row">
+                        <label>Max HP:</label>
+                        <input
+                          type="number"
+                          value={editFormData.maxHp || 10}
+                          onChange={e => setEditFormData({ ...editFormData, maxHp: parseInt(e.target.value) || 10 })}
+                          className="stat-input"
+                        />
+                      </div>
+                      <div className="stat-row">
+                        <label>AC:</label>
+                        <input
+                          type="number"
+                          value={editFormData.ac || 10}
+                          onChange={e => setEditFormData({ ...editFormData, ac: parseInt(e.target.value) || 10 })}
+                          className="stat-input"
+                        />
+                      </div>
+                      <div className="stat-row">
+                        <label>Speed:</label>
+                        <input
+                          type="number"
+                          value={editFormData.speed || 30}
+                          onChange={e => setEditFormData({ ...editFormData, speed: parseInt(e.target.value) || 30 })}
+                          className="stat-input"
+                        />
+                        <span>ft</span>
+                      </div>
+                      <div className="edit-actions">
+                        <button className="action-btn save" onClick={() => handleSaveEdit(char.id)}>
+                          Save
+                        </button>
+                        <button className="action-btn cancel" onClick={handleCancelEdit}>
+                          Cancel
+                        </button>
+                      </div>
                     </div>
-                    <div className="stat-row">
-                      <span>Created:</span>
-                      <span>{char.createdAt}</span>
+                  ) : (
+                    <div className="details-section">
+                      <h4>Stats</h4>
+                      <div className="stat-row">
+                        <span>HP:</span>
+                        <span>{char.data?.stats?.hp || 0} / {char.data?.stats?.maxHp || 10}</span>
+                      </div>
+                      <div className="stat-row">
+                        <span>AC:</span>
+                        <span>{char.data?.stats?.ac || 10}</span>
+                      </div>
+                      <div className="stat-row">
+                        <span>Speed:</span>
+                        <span>{char.data?.stats?.speed || 30} ft</span>
+                      </div>
+                      <div className="stat-row">
+                        <span>Version:</span>
+                        <span>{char.version}</span>
+                      </div>
+                      {canEdit && (
+                        <button className="action-btn edit" onClick={() => handleStartEdit(char)}>
+                          Edit Stats
+                        </button>
+                      )}
                     </div>
-                    <div className="stat-row">
-                      <span>Updated:</span>
-                      <span>{char.updatedAt}</span>
+                  )}
+                  
+                  {/* Conditions Section */}
+                  <div className="details-section conditions-section">
+                    <h4>Conditions</h4>
+                    <div className="conditions-list">
+                      {(char.data?.conditions || []).length === 0 && (
+                        <span className="no-conditions">No active conditions</span>
+                      )}
+                      {(char.data?.conditions || []).map((cond: string) => (
+                        <div key={cond} className="condition-tag">
+                          {cond}
+                          {canEdit && (
+                            <button
+                              className="remove-condition"
+                              onClick={() => handleRemoveCondition(char.id, cond)}
+                              title="Remove condition"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      ))}
                     </div>
+                    {canEdit && editingCharId !== char.id && (
+                      <div className="add-condition-row">
+                        <input
+                          type="text"
+                          placeholder="Add condition..."
+                          value={editFormData.newCondition || ''}
+                          onChange={e => setEditFormData({ ...editFormData, newCondition: e.target.value })}
+                          onKeyPress={e => {
+                            if (e.key === 'Enter') {
+                              handleAddCondition(char.id);
+                            }
+                          }}
+                          className="condition-input"
+                        />
+                        <button
+                          className="action-btn add-condition"
+                          onClick={() => handleAddCondition(char.id)}
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Actions Section */}
                   <div className="char-actions">
                     <button className="action-btn" onClick={() => handleAddToken(char.id)} disabled={!canEdit} title={canEdit ? 'Add a token for this character.' : 'You do not have permission to add tokens for this character.'}>
                       Add Token

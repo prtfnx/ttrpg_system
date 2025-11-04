@@ -274,11 +274,16 @@ export function CharacterPanelRedesigned() {
     // Send to server if connected and not a temp ID
     if (protocol && isConnected && !charId.startsWith('temp-')) {
       try {
+        // Register pending delete operation with automatic rollback
+        registerPendingOperation(charId, 'delete', character);
+        
         protocol.deleteCharacter(charId);
         // Server will broadcast CHARACTER_UPDATE with operation:'delete'
+        // Pending operation will be confirmed when server responds
       } catch (error) {
         console.error('Failed to delete character:', error);
-        // Rollback: Re-add character on error
+        // Clear pending operation and rollback immediately
+        confirmPendingOperation(charId);
         addCharacter(character);
         alert('Failed to delete character. Please try again.');
       }

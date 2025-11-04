@@ -1,12 +1,39 @@
-import React, { useState, useEffect } from 'react';
-import { useGameStore } from '../store';
+import React, { useEffect, useState } from 'react';
 import { useProtocol } from '../services/ProtocolContext';
+import { useGameStore } from '../store';
 import './CharacterPanelRedesigned.css';
 import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 
 function genId(): string {
   return 'temp-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
 }
+
+// Sync status icon components
+const SyncStatusIcon: React.FC<{ status?: 'local' | 'syncing' | 'synced' | 'error' }> = ({ status }) => {
+  if (!status || status === 'synced') return null; // Don't show anything for synced (clean UI)
+  
+  const statusConfig = {
+    local: { icon: '📝', tooltip: 'Not synced - changes are local only', color: '#fbbf24' },
+    syncing: { icon: '⟳', tooltip: 'Syncing with server...', color: '#3b82f6' },
+    error: { icon: '⚠️', tooltip: 'Sync failed - click to retry', color: '#ef4444' },
+  };
+  
+  const config = statusConfig[status];
+  
+  return (
+    <span 
+      className={`sync-status-icon ${status}`} 
+      title={config.tooltip}
+      style={{ color: config.color, fontSize: '14px', marginLeft: '4px' }}
+    >
+      {status === 'syncing' ? (
+        <span className="sync-spinner">{config.icon}</span>
+      ) : (
+        config.icon
+      )}
+    </span>
+  );
+};
 
 
 export function CharacterPanelRedesigned() {
@@ -158,9 +185,19 @@ export function CharacterPanelRedesigned() {
 
   return (
     <div className="character-panel-redesigned">
+      {/* Connection status banner */}
+      {!isConnected && (
+        <div className="connection-banner offline" title="Not connected to server - characters will be saved locally">
+          ⚠️ Offline - Changes saved locally only
+        </div>
+      )}
+      
       {/* Header with single create button */}
       <div className="panel-header">
         <h2>Characters</h2>
+        {isConnected && (
+          <span className="connection-status connected" title="Connected to server">🟢</span>
+        )}
         <button
           className="create-btn"
           onClick={handleCreateCharacter}
@@ -199,7 +236,10 @@ export function CharacterPanelRedesigned() {
               >
                 <div className="char-avatar">{char.name.charAt(0).toUpperCase()}</div>
                 <div className="char-info">
-                  <div className="char-name">{char.name}</div>
+                  <div className="char-name">
+                    {char.name}
+                    <SyncStatusIcon status={char.syncStatus} />
+                  </div>
                   <div className="char-details">Owner: {char.ownerId}</div>
                 </div>
                 {/* Badges for linked tokens */}
@@ -209,18 +249,13 @@ export function CharacterPanelRedesigned() {
                     return (
                       <span key={s.id} className={`token-badge${canControlToken ? '' : ' no-permission'}`} title={canControlToken ? 'You can control this token.' : 'You do not have permission to control this token.'}>
                         Token
-                        {s.syncStatus && (
-                          <span className={`sync-status ${s.syncStatus}`}>{s.syncStatus}</span>
-                        )}
+                        <SyncStatusIcon status={s.syncStatus} />
                         {!canControlToken && (
                           <span className="permission-warning" title="No control permission">🚫</span>
                         )}
                       </span>
                     );
                   })}
-                  {char.syncStatus && (
-                    <span className={`sync-status ${char.syncStatus}`}>{char.syncStatus}</span>
-                  )}
                 </div>
                 <button
                   className="char-expand-btn"

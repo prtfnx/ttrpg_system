@@ -7,11 +7,38 @@
   overflow: hidden;
 }
 
+/* Connection Banner */
+.connection-banner {
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+  animation: slideDown 0.3s ease-out;
+}
+
+.connection-banner.offline {
+  background: linear-gradient(90deg, #dc3545, #c82333);
+  color: white;
+  border-bottom: 1px solid #bd2130;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 /* Header */
 .panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   padding: 12px 16px;
   border-bottom: 1px solid #333;
   background: #252525;
@@ -22,6 +49,23 @@
   font-weight: 600;
   margin: 0;
   color: #fff;
+  flex: 1;
+}
+
+.connection-status {
+  font-size: 10px;
+  opacity: 0.8;
+  transition: opacity 0.3s;
+}
+
+.connection-status.connected {
+  opacity: 1;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 .create-btn {
@@ -281,6 +325,56 @@
 
 .action-btn.delete:hover {
   background: rgba(220, 53, 69, 0.1);
+}
+
+/* Sync Status Icons */
+.sync-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.sync-status-icon.syncing .sync-spinner {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+
+.sync-status-icon.error {
+  cursor: pointer;
+  animation: shake 0.5s ease-in-out;
+}
+
+.sync-status-icon.local {
+  opacity: 0.8;
+}
+
+/* Animations */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+  20%, 40%, 60%, 80% { transform: translateX(2px); }
 }
 
 /* Scrollbar Styling */

@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../store';
+import { useProtocol } from '../services/ProtocolContext';
 import './CharacterPanelRedesigned.css';
 import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 
 function genId(): string {
-  return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
+  return 'temp-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
 }
 
 
@@ -16,11 +17,22 @@ export function CharacterPanelRedesigned() {
     canEditCharacter,
     canControlSprite,
     addCharacter,
+    updateCharacter,
     removeCharacter,
     selectSprite,
     selectedSprites,
     sessionId
   } = useGameStore();
+  
+  const { protocol, isConnected } = useProtocol();
+  
+  // Auto-load characters when connected
+  useEffect(() => {
+    if (protocol && isConnected) {
+      protocol.requestCharacterList();
+    }
+  }, [protocol, isConnected]);
+  
   // Drag-and-drop: start drag with character id
   const handleDragStart = (e: React.DragEvent, charId: string) => {
     e.dataTransfer.setData('application/x-character-id', charId);
@@ -48,22 +60,50 @@ export function CharacterPanelRedesigned() {
     setShowWizard(true);
   };
 
-  const handleWizardFinish = (data: any) => {
+  const handleWizardFinish = async (data: any) => {
+    const tempId = genId();
+    const userId = typeof sessionId === 'string' ? parseInt(sessionId, 10) : (sessionId || 0);
+    
     const newCharacter = {
-      id: genId(),
-      sessionId: '',
+      id: tempId,
+      sessionId: sessionId?.toString() || '',
       name: data.name || `${data.race} ${data.class}`,
-      ownerId: data.ownerId || 0,
+      ownerId: userId,
       controlledBy: [],
       data,
       version: 1,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      syncStatus: 'local' as const,
+      syncStatus: 'syncing' as const,
     };
+    
+    // Optimistic update: Add to UI immediately
     addCharacter(newCharacter);
     setShowWizard(false);
-    setExpandedCharId(newCharacter.id);
+    setExpandedCharId(tempId);
+    
+    // Send to server if connected
+    if (protocol && isConnected) {
+      try {
+        protocol.saveCharacter({
+          character_data: newCharacter,
+          user_id: userId,
+          session_code: sessionId?.toString() || ''
+        });
+        
+        // Server will broadcast CHARACTER_UPDATE with real ID
+        // Protocol handlers will update the character with real ID and syncStatus:'synced'
+      } catch (error) {
+        console.error('Failed to save character:', error);
+        // Rollback optimistic update on error
+        removeCharacter(tempId);
+        alert('Failed to create character. Please try again.');
+      }
+    } else {
+      // No connection - mark as local only
+      updateCharacter(tempId, { syncStatus: 'local' });
+      console.warn('Character created locally - not connected to server');
+    }
   };
 
   const handleAddToken = (charId: string) => {
@@ -88,11 +128,31 @@ export function CharacterPanelRedesigned() {
     linkSpriteToCharacter(spriteId, charId);
   };
 
-  const handleDeleteCharacter = (charId: string, e: React.MouseEvent) => {
+  const handleDeleteCharacter = async (charId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm('Delete this character?')) {
-      removeCharacter(charId);
-      if (expandedCharId === charId) setExpandedCharId(null);
+    if (!window.confirm('Delete this character?')) return;
+    
+    const character = characters.find(c => c.id === charId);
+    if (!character) return;
+    
+    // Optimistic update: Remove from UI immediately
+    removeCharacter(charId);
+    if (expandedCharId === charId) setExpandedCharId(null);
+    
+    // Send to server if connected and not a temp ID
+    if (protocol && isConnected && !charId.startsWith('temp-')) {
+      try {
+        protocol.deleteCharacter(charId);
+        // Server will broadcast CHARACTER_UPDATE with operation:'delete'
+      } catch (error) {
+        console.error('Failed to delete character:', error);
+        // Rollback: Re-add character on error
+        addCharacter(character);
+        alert('Failed to delete character. Please try again.');
+      }
+    } else if (charId.startsWith('temp-')) {
+      // Temp character - just remove locally
+      console.log('Removed local-only character');
     }
   };
 

@@ -2,16 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { useProtocol } from '../services/ProtocolContext';
 import { useGameStore } from '../store';
 import type { Character } from '../types';
+import {
+    cloneCharacter,
+    downloadCharacterAsJSON,
+    downloadMultipleCharactersAsJSON,
+    pickAndImportCharacter
+} from '../utils/characterImportExport';
 import { showToast } from '../utils/toast';
 import './CharacterPanelRedesigned.css';
 import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 import { ShareCharacterDialog } from './ShareCharacterDialog';
-import { 
-  downloadCharacterAsJSON, 
-  pickAndImportCharacter, 
-  cloneCharacter,
-  downloadMultipleCharactersAsJSON
-} from '../utils/characterImportExport';
 
 function genId(): string {
   return 'temp-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
@@ -202,6 +202,8 @@ export function CharacterPanelRedesigned() {
   }>({});
   const [shareDialogCharId, setShareDialogCharId] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState<string>('');
+  const [selectedCharacterIds, setSelectedCharacterIds] = useState<Set<string>>(new Set());
+  const [bulkSelectMode, setBulkSelectMode] = useState<boolean>(false);
 
   const selectedCharacter = characters.find(c => {
     return getSpritesForCharacter(c.id).some(s => selectedSprites.includes(s.id));
@@ -437,6 +439,125 @@ export function CharacterPanelRedesigned() {
     }
   };
 
+  // === BULK SELECTION HANDLERS ===
+  const handleToggleBulkMode = () => {
+    setBulkSelectMode(!bulkSelectMode);
+    if (bulkSelectMode) {
+      // Exiting bulk mode, clear selections
+      setSelectedCharacterIds(new Set());
+    }
+  };
+
+  const handleToggleCharacterSelection = (charId: string) => {
+    const newSelection = new Set(selectedCharacterIds);
+    if (newSelection.has(charId)) {
+      newSelection.delete(charId);
+    } else {
+      newSelection.add(charId);
+    }
+    setSelectedCharacterIds(newSelection);
+  };
+
+  const handleSelectAllCharacters = () => {
+    const allCharIds = characters.map(c => c.id);
+    setSelectedCharacterIds(new Set(allCharIds));
+  };
+
+  const handleDeselectAllCharacters = () => {
+    setSelectedCharacterIds(new Set());
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedCharacterIds.size === 0) {
+      showToast.warning('No characters selected.');
+      return;
+    }
+
+    const count = selectedCharacterIds.size;
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${count} character(s)? This action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    const userId = typeof sessionId === 'string' ? parseInt(sessionId, 10) : (sessionId || 0);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const charId of selectedCharacterIds) {
+      const char = characters.find(c => c.id === charId);
+      if (!char) continue;
+
+      // Check permissions
+      if (!canEditCharacter(charId, userId)) {
+        errorCount++;
+        continue;
+      }
+
+      try {
+        // Optimistic delete
+        removeCharacter(charId);
+
+        // Send to server if connected and not a temp ID
+        if (isConnected && protocol && !charId.startsWith('temp-')) {
+          registerPendingOperation(charId, 'delete', char);
+          protocol.deleteCharacter(charId);
+        }
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to delete character ${charId}:`, error);
+        // Rollback on error
+        addCharacter(char);
+        errorCount++;
+      }
+    }
+
+    // Clear selections and exit bulk mode
+    setSelectedCharacterIds(new Set());
+    setBulkSelectMode(false);
+
+    // Show summary toast
+    if (successCount > 0) {
+      showToast.success(`Deleted ${successCount} character(s) successfully!`);
+    }
+    if (errorCount > 0) {
+      showToast.error(`Failed to delete ${errorCount} character(s).`);
+    }
+  };
+
+  const handleBulkExport = () => {
+    if (selectedCharacterIds.size === 0) {
+      showToast.warning('No characters selected.');
+      return;
+    }
+
+    const selectedChars = characters.filter(c => selectedCharacterIds.has(c.id));
+    
+    try {
+      downloadMultipleCharactersAsJSON(selectedChars, {
+        exportedBy: `Session ${sessionId || 'unknown'}`,
+        notes: `Bulk export of ${selectedChars.length} selected characters`
+      });
+      showToast.success(`Exported ${selectedChars.length} character(s) successfully!`);
+      
+      // Optionally clear selections
+      setSelectedCharacterIds(new Set());
+    } catch (error) {
+      console.error('Failed to export selected characters:', error);
+      showToast.error('Failed to export characters. Please try again.');
+    }
+  };
+
+  const handleBulkShare = () => {
+    if (selectedCharacterIds.size === 0) {
+      showToast.warning('No characters selected.');
+      return;
+    }
+
+    showToast.info('Bulk permission management coming soon!');
+    // TODO: Implement bulk permission dialog
+  };
+
   // === EDIT MODE HANDLERS ===
   const handleStartEdit = (char: Character) => {
     setEditingCharId(char.id);
@@ -652,14 +773,24 @@ export function CharacterPanelRedesigned() {
             📤 Import
           </button>
           {characters.length > 0 && (
-            <button
-              className="action-btn"
-              onClick={handleExportAllCharacters}
-              title="Export all characters to JSON file"
-              style={{ fontSize: '12px', padding: '6px 12px' }}
-            >
-              📥 Export All
-            </button>
+            <>
+              <button
+                className="action-btn"
+                onClick={handleExportAllCharacters}
+                title="Export all characters to JSON file"
+                style={{ fontSize: '12px', padding: '6px 12px' }}
+              >
+                📥 Export All
+              </button>
+              <button
+                className={`action-btn ${bulkSelectMode ? 'active' : ''}`}
+                onClick={handleToggleBulkMode}
+                title={bulkSelectMode ? "Exit bulk selection mode" : "Enter bulk selection mode"}
+                style={{ fontSize: '12px', padding: '6px 12px' }}
+              >
+                {bulkSelectMode ? '✓ Done' : '☑ Select'}
+              </button>
+            </>
           )}
           <button
             className="create-btn"
@@ -672,6 +803,38 @@ export function CharacterPanelRedesigned() {
           </button>
         </div>
       </div>
+
+      {/* Bulk Actions Bar */}
+      {bulkSelectMode && (
+        <div className="bulk-actions-bar">
+          <div className="bulk-actions-left">
+            <span className="bulk-selection-count">
+              {selectedCharacterIds.size} selected
+            </span>
+            <button className="bulk-action-link" onClick={handleSelectAllCharacters}>
+              Select All
+            </button>
+            <button className="bulk-action-link" onClick={handleDeselectAllCharacters}>
+              Deselect All
+            </button>
+          </div>
+          <div className="bulk-actions-right">
+            {selectedCharacterIds.size > 0 && (
+              <>
+                <button className="bulk-action-btn export" onClick={handleBulkExport}>
+                  📥 Export Selected
+                </button>
+                <button className="bulk-action-btn share" onClick={handleBulkShare}>
+                  👥 Share Selected
+                </button>
+                <button className="bulk-action-btn delete" onClick={handleBulkDelete}>
+                  🗑️ Delete Selected
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Search/Filter */}
       {characters.length > 0 && (
@@ -744,19 +907,33 @@ export function CharacterPanelRedesigned() {
     return filteredCharacters.map(char => {
           const isExpanded = expandedCharId === char.id;
           const isSelected = selectedCharacter?.id === char.id;
+          const isBulkSelected = selectedCharacterIds.has(char.id);
           const linkedSprites = getSpritesForCharacter(char.id);
           const userId = typeof sessionId === 'string' ? parseInt(sessionId, 10) : sessionId;
           const canEdit = canEditCharacter(char.id, userId);
           return (
             <div
               key={char.id}
-              className={`character-card ${isSelected ? 'selected' : ''} ${isExpanded ? 'expanded' : ''}`}
-              draggable
+              className={`character-card ${isSelected ? 'selected' : ''} ${isExpanded ? 'expanded' : ''} ${isBulkSelected ? 'bulk-selected' : ''}`}
+              draggable={!bulkSelectMode}
               onDragStart={e => handleDragStart(e, char.id)}
             >
+              {/* Bulk selection checkbox */}
+              {bulkSelectMode && (
+                <div className="bulk-checkbox-wrapper">
+                  <input
+                    type="checkbox"
+                    className="bulk-checkbox"
+                    checked={isBulkSelected}
+                    onChange={() => handleToggleCharacterSelection(char.id)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+              )}
+              
               <div
                 className="character-header"
-                onClick={() => handleCharacterClick(char.id)}
+                onClick={() => bulkSelectMode ? handleToggleCharacterSelection(char.id) : handleCharacterClick(char.id)}
               >
                 <div className="char-avatar">{char.name.charAt(0).toUpperCase()}</div>
                 <div className="char-info">

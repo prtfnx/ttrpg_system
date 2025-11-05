@@ -380,6 +380,8 @@ export function cloneCharacter(
     ownerId: currentUserId,
     controlledBy: [currentUserId],
     version: 1,
+    // Deep clone the data object to prevent shared references
+    data: JSON.parse(JSON.stringify(character.data)),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     syncStatus: 'local' as const,

@@ -54,17 +54,24 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
       try {
         // Resolve session code to canonical form using authService
         let resolved = sessionCode;
+        let userId: number | undefined;
         try {
           const sessions = await authService.getUserSessions();
           const byCode = sessions.find((s: any) => s.session_code === sessionCode);
           const byName = sessions.find((s: any) => s.session_name === sessionCode);
           if (byCode) resolved = byCode.session_code;
           else if (byName) resolved = byName.session_code;
+          
+          // Get user ID from auth service
+          const userInfo = authService.getUserInfo();
+          if (userInfo?.id) {
+            userId = userInfo.id;
+          }
         } catch (e) {
-          console.warn('[ProtocolProvider] Failed to resolve session code, using provided value', e);
+          console.warn('[ProtocolProvider] Failed to resolve session code or user ID, using provided value', e);
         }
 
-        const p = new WebClientProtocol(resolved);
+        const p = new WebClientProtocol(resolved, userId);
         if (!mounted) return;
         setProtocol(p);
         await p.connect();

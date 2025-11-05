@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GameClient } from './components/GameClient';
@@ -6,8 +8,6 @@ import { SessionSelector } from './components/SessionSelector';
 import { authService, type UserInfo } from './services/auth.service';
 import { ProtocolProvider } from './services/ProtocolContext';
 import { logger } from './utils/logger';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 
 interface AppState {
   isAuthenticated: boolean;

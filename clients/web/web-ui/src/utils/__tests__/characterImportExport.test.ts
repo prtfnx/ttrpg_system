@@ -12,18 +12,18 @@
  * @vitest-environment jsdom
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import {
-  exportCharacter,
-  exportMultipleCharacters,
-  validateImportedCharacter,
-  importCharacterFromJSON,
-  importMultipleCharactersFromJSON,
-  cloneCharacter,
-  downloadCharacterAsJSON,
-  downloadMultipleCharactersAsJSON
-} from '../characterImportExport';
+import { describe, expect, it, vi } from 'vitest';
 import type { Character } from '../../types';
+import {
+    cloneCharacter,
+    downloadCharacterAsJSON,
+    downloadMultipleCharactersAsJSON,
+    exportCharacter,
+    exportMultipleCharacters,
+    importCharacterFromJSON,
+    importMultipleCharactersFromJSON,
+    validateImportedCharacter
+} from '../characterImportExport';
 
 // Mock DOM APIs
 vi.stubGlobal('URL', {
@@ -500,7 +500,30 @@ describe('Character Import/Export', () => {
     });
 
     it('should create deep copy of data', () => {
-      const cloned = cloneCharacter(mockCharacter, 10);
+      // Create a fresh mock to avoid test pollution
+      const freshMock: Character = {
+        id: 'char-fresh',
+        sessionId: 'session-1',
+        name: 'Fresh Hero',
+        ownerId: 1,
+        controlledBy: [1],
+        data: {
+          class: 'Wizard',
+          abilities: {
+            str: 16,
+            dex: 14,
+            con: 15,
+            int: 10,
+            wis: 12,
+            cha: 8
+          }
+        },
+        version: 1,
+        createdAt: '2025-11-01T10:00:00Z',
+        updatedAt: '2025-11-01T10:00:00Z',
+      };
+
+      const cloned = cloneCharacter(freshMock, 10);
       
       // Modify cloned data
       if (cloned.data.abilities) {
@@ -508,21 +531,40 @@ describe('Character Import/Export', () => {
       }
       
       // Original should remain unchanged
-      expect(mockCharacter.data.abilities?.str).toBe(16);
+      expect(freshMock.data.abilities?.str).toBe(16);
+      // Cloned should be modified
+      expect(cloned.data.abilities?.str).toBe(20);
     });
   });
 
   describe('downloadCharacterAsJSON', () => {
     it('should create download link with sanitized filename', () => {
+      // Mock URL and DOM APIs properly
+      const mockCreateObjectURL = vi.fn(() => 'blob:mock-url');
+      const mockRevokeObjectURL = vi.fn();
+      (globalThis as any).URL.createObjectURL = mockCreateObjectURL;
+      (globalThis as any).URL.revokeObjectURL = mockRevokeObjectURL;
+
       const createElementSpy = vi.spyOn(document, 'createElement');
+      const clickSpy = vi.fn();
+      const mockLink = {
+        href: '',
+        download: '',
+        click: clickSpy,
+      } as any;
+      createElementSpy.mockReturnValue(mockLink);
+
       const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => null as any);
       const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => null as any);
 
       downloadCharacterAsJSON(mockCharacter);
 
       expect(createElementSpy).toHaveBeenCalledWith('a');
+      expect(mockCreateObjectURL).toHaveBeenCalled();
+      expect(clickSpy).toHaveBeenCalled();
       expect(appendChildSpy).toHaveBeenCalled();
       expect(removeChildSpy).toHaveBeenCalled();
+      expect(mockRevokeObjectURL).toHaveBeenCalled();
 
       createElementSpy.mockRestore();
       appendChildSpy.mockRestore();
@@ -532,7 +574,21 @@ describe('Character Import/Export', () => {
 
   describe('downloadMultipleCharactersAsJSON', () => {
     it('should download multiple characters', () => {
+      // Mock URL and DOM APIs properly
+      const mockCreateObjectURL = vi.fn(() => 'blob:mock-url');
+      const mockRevokeObjectURL = vi.fn();
+      (globalThis as any).URL.createObjectURL = mockCreateObjectURL;
+      (globalThis as any).URL.revokeObjectURL = mockRevokeObjectURL;
+
       const createElementSpy = vi.spyOn(document, 'createElement');
+      const clickSpy = vi.fn();
+      const mockLink = {
+        href: '',
+        download: '',
+        click: clickSpy,
+      } as any;
+      createElementSpy.mockReturnValue(mockLink);
+
       const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => null as any);
       const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => null as any);
 
@@ -540,8 +596,11 @@ describe('Character Import/Export', () => {
       downloadMultipleCharactersAsJSON([mockCharacter, char2]);
 
       expect(createElementSpy).toHaveBeenCalledWith('a');
+      expect(mockCreateObjectURL).toHaveBeenCalled();
+      expect(clickSpy).toHaveBeenCalled();
       expect(appendChildSpy).toHaveBeenCalled();
       expect(removeChildSpy).toHaveBeenCalled();
+      expect(mockRevokeObjectURL).toHaveBeenCalled();
 
       createElementSpy.mockRestore();
       appendChildSpy.mockRestore();

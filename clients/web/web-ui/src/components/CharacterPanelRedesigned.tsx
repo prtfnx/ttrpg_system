@@ -6,6 +6,12 @@ import { showToast } from '../utils/toast';
 import './CharacterPanelRedesigned.css';
 import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 import { ShareCharacterDialog } from './ShareCharacterDialog';
+import { 
+  downloadCharacterAsJSON, 
+  pickAndImportCharacter, 
+  cloneCharacter,
+  downloadMultipleCharactersAsJSON
+} from '../utils/characterImportExport';
 
 function genId(): string {
   return 'temp-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
@@ -195,6 +201,7 @@ export function CharacterPanelRedesigned() {
     newCondition?: string;
   }>({});
   const [shareDialogCharId, setShareDialogCharId] = useState<string | null>(null);
+  const [searchFilter, setSearchFilter] = useState<string>('');
 
   const selectedCharacter = characters.find(c => {
     return getSpritesForCharacter(c.id).some(s => selectedSprites.includes(s.id));
@@ -315,6 +322,118 @@ export function CharacterPanelRedesigned() {
     } else if (charId.startsWith('temp-')) {
       // Temp character - just remove locally
       console.log('Removed local-only character');
+    }
+  };
+
+  // === IMPORT/EXPORT HANDLERS ===
+  
+  // Export character to JSON file
+  const handleExportCharacter = (charId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const character = characters.find(c => c.id === charId);
+    if (!character) return;
+    
+    try {
+      downloadCharacterAsJSON(character, {
+        exportedBy: `User ${character.ownerId}`,
+        notes: `Exported from session ${sessionId || 'unknown'}`
+      });
+      showToast.success(`Character "${character.name}" exported successfully!`);
+    } catch (error) {
+      console.error('Failed to export character:', error);
+      showToast.error('Failed to export character. Please try again.');
+    }
+  };
+
+  // Import character from JSON file
+  const handleImportCharacter = () => {
+    const currentUserId = typeof sessionId === 'string' ? parseInt(sessionId, 10) : (sessionId || 0);
+    const currentSessionId = sessionId?.toString() || '';
+    
+    pickAndImportCharacter(
+      ({ character, warnings }) => {
+        // Add imported character with optimistic update
+        addCharacter(character);
+        setExpandedCharId(character.id);
+        
+        // Show warnings if any
+        if (warnings.length > 0) {
+          showToast.warning(`Character imported with warnings:\n${warnings.join('\n')}`);
+        } else {
+          showToast.success(`Character "${character.name}" imported successfully!`);
+        }
+        
+        // Send to server if connected
+        if (protocol && isConnected) {
+          try {
+            registerPendingOperation(character.id, 'create');
+            protocol.saveCharacter({
+              character_data: character,
+              user_id: currentUserId,
+              session_code: currentSessionId
+            });
+          } catch (error) {
+            console.error('Failed to save imported character to server:', error);
+            confirmPendingOperation(character.id);
+            showToast.warning(`Character "${character.name}" imported locally only. Will sync when connected.`);
+          }
+        }
+      },
+      (error) => {
+        showToast.error(`Import failed: ${error.message}`);
+      },
+      currentUserId,
+      currentSessionId
+    );
+  };
+
+  // Clone/duplicate character
+  const handleCloneCharacter = async (charId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const character = characters.find(c => c.id === charId);
+    if (!character) return;
+    
+    const currentUserId = typeof sessionId === 'string' ? parseInt(sessionId, 10) : (sessionId || 0);
+    const clonedChar = cloneCharacter(character, currentUserId);
+    
+    // Add cloned character with optimistic update
+    addCharacter(clonedChar);
+    setExpandedCharId(clonedChar.id);
+    showToast.success(`Character "${character.name}" duplicated!`);
+    
+    // Send to server if connected
+    if (protocol && isConnected) {
+      try {
+        registerPendingOperation(clonedChar.id, 'create');
+        protocol.saveCharacter({
+          character_data: clonedChar,
+          user_id: currentUserId,
+          session_code: sessionId?.toString() || ''
+        });
+      } catch (error) {
+        console.error('Failed to save cloned character to server:', error);
+        confirmPendingOperation(clonedChar.id);
+        showToast.warning(`Cloned character saved locally only. Will sync when connected.`);
+      }
+    }
+  };
+
+  // Export all characters
+  const handleExportAllCharacters = () => {
+    if (characters.length === 0) {
+      showToast.info('No characters to export.');
+      return;
+    }
+    
+    try {
+      downloadMultipleCharactersAsJSON(characters, {
+        exportedBy: `Session ${sessionId || 'unknown'}`,
+        notes: `Bulk export of ${characters.length} characters`
+      });
+      showToast.success(`Exported ${characters.length} character(s) successfully!`);
+    } catch (error) {
+      console.error('Failed to export characters:', error);
+      showToast.error('Failed to export characters. Please try again.');
     }
   };
 
@@ -523,16 +642,77 @@ export function CharacterPanelRedesigned() {
         {isConnected && (
           <span className="connection-status connected" title="Connected to server">🟢</span>
         )}
-        <button
-          className="create-btn"
-          onClick={handleCreateCharacter}
-          title="Create New Character"
-          aria-label="Create New Character"
-          data-testid="create-character-btn"
-        >
-          +
-        </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button
+            className="action-btn"
+            onClick={handleImportCharacter}
+            title="Import character from JSON file"
+            style={{ fontSize: '12px', padding: '6px 12px' }}
+          >
+            📤 Import
+          </button>
+          {characters.length > 0 && (
+            <button
+              className="action-btn"
+              onClick={handleExportAllCharacters}
+              title="Export all characters to JSON file"
+              style={{ fontSize: '12px', padding: '6px 12px' }}
+            >
+              📥 Export All
+            </button>
+          )}
+          <button
+            className="create-btn"
+            onClick={handleCreateCharacter}
+            title="Create New Character"
+            aria-label="Create New Character"
+            data-testid="create-character-btn"
+          >
+            +
+          </button>
+        </div>
       </div>
+
+      {/* Search/Filter */}
+      {characters.length > 0 && (
+        <div className="search-filter" style={{ padding: '12px', borderBottom: '1px solid var(--border-color)' }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <input
+              type="text"
+              placeholder="Search by name, class, or race..."
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 32px 8px 12px',
+                fontSize: '14px',
+                border: '1px solid var(--border-color)',
+                borderRadius: '4px',
+                backgroundColor: 'var(--bg-secondary)',
+                color: 'var(--text-primary)'
+              }}
+            />
+            {searchFilter && (
+              <button
+                onClick={() => setSearchFilter('')}
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  color: 'var(--text-secondary)',
+                  padding: '4px'
+                }}
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Character List */}
       <div className="character-list">
@@ -542,7 +722,26 @@ export function CharacterPanelRedesigned() {
           </div>
         )}
 
-  {characters.map(char => {
+  {(() => {
+    const filteredCharacters = characters.filter(char => {
+      if (!searchFilter) return true;
+      const search = searchFilter.toLowerCase();
+      return (
+        char.name.toLowerCase().includes(search) ||
+        char.data.class?.toLowerCase().includes(search) ||
+        char.data.race?.toLowerCase().includes(search)
+      );
+    });
+
+    if (filteredCharacters.length === 0 && searchFilter) {
+      return (
+        <div className="empty-state">
+          No characters found matching "{searchFilter}".
+        </div>
+      );
+    }
+
+    return filteredCharacters.map(char => {
           const isExpanded = expandedCharId === char.id;
           const isSelected = selectedCharacter?.id === char.id;
           const linkedSprites = getSpritesForCharacter(char.id);
@@ -720,8 +919,14 @@ export function CharacterPanelRedesigned() {
                     <button className="action-btn" onClick={() => handleAddToken(char.id)} disabled={!canEdit} title={canEdit ? 'Add a token for this character.' : 'You do not have permission to add tokens for this character.'}>
                       Add Token
                     </button>
+                    <button className="action-btn export" onClick={e => handleExportCharacter(char.id, e)} title="Export character to JSON file">
+                      📥 Export
+                    </button>
                     {canEdit && (
                       <>
+                        <button className="action-btn clone" onClick={e => handleCloneCharacter(char.id, e)} title="Create a duplicate of this character">
+                          📋 Clone
+                        </button>
                         <button className="action-btn share" onClick={() => handleShareCharacter(char.id)} title="Share character with other players">
                           Share
                         </button>
@@ -740,7 +945,8 @@ export function CharacterPanelRedesigned() {
               )}
             </div>
           );
-        })}
+        });
+  })()}
       </div>
 
       {/* Character Creation Wizard Modal */}

@@ -8,6 +8,7 @@
 import { useAssetCharacterCache } from '../assetCharacterCache';
 import { useGameStore } from '../store';
 import { logger, protocolLogger } from '../utils/logger';
+import { showToast } from '../utils/toast';
 import type { Message, MessageHandler } from './message';
 import { MessageType, createMessage, parseMessage } from './message';
 
@@ -19,6 +20,7 @@ export class WebClientProtocol {
   private messageQueue: Message[] = [];
   private pingInterval: number | null = null;
   private sessionCode: string;
+  private userId: number | null = null;
 
   // --- Performance Optimization: Message Batching & Delta Updates ---
   private batchQueue: Message[] = [];
@@ -120,10 +122,26 @@ export class WebClientProtocol {
     }
   }
 
-  constructor(sessionCode: string) {
+  constructor(sessionCode: string, userId?: number) {
     this.sessionCode = sessionCode;
+    this.userId = userId ?? null;
     this.registerBuiltInHandlers();
     this.setupProtocolMessageSender();
+  }
+
+  /**
+   * Set the user ID for this protocol instance
+   * Should be called after authentication
+   */
+  setUserId(userId: number): void {
+    this.userId = userId;
+  }
+
+  /**
+   * Get the current user ID
+   */
+  getUserId(): number | null {
+    return this.userId;
   }
 
   // Compendium helpers
@@ -666,6 +684,7 @@ export class WebClientProtocol {
     const characterId = String(message.data?.character_id || '');
     const version = message.data?.version;
     const error = message.data?.error;
+    const currentVersion = message.data?.current_version;
     
     if (success && characterId) {
       // Update successful - update version and sync status
@@ -680,16 +699,51 @@ export class WebClientProtocol {
       // Update failed - handle version conflict or other errors
       const store = useGameStore.getState();
       
-      if (error === 'Version conflict') {
-        // Version conflict - need to fetch latest and retry
-        console.warn(`⚠️ Version conflict for character ${characterId}`);
-        store.updateCharacter(characterId, { syncStatus: 'error' } as any);
-        // Could auto-fetch latest version here
-        // protocol.loadCharacter(characterId);
+      if (error === 'Version conflict' && currentVersion !== undefined) {
+        // Version conflict - auto-retry with latest version
+        console.warn(`⚠️ Version conflict for character ${characterId}. Current version: ${currentVersion}`);
+        showToast.warning('Character was modified by another user. Retrying with latest version...');
+        
+        // Fetch latest version from server
+        this.loadCharacter(characterId);
+        
+        // Listen for load response to retry the update
+        const retryListener = (event: Event) => {
+          const customEvent = event as CustomEvent;
+          const loadedData = customEvent.detail;
+          
+          if (loadedData?.character_data?.character_id === characterId) {
+            console.log(`🔄 Retrying update for ${characterId} with version ${currentVersion}`);
+            
+            // Get the character from store with pending updates
+            const character = store.characters.find(c => c.id === characterId);
+            if (character && character.syncStatus === 'error') {
+              // Update with the new version
+              store.updateCharacter(characterId, {
+                version: currentVersion,
+                syncStatus: 'synced'
+              } as any);
+              
+              showToast.success('Character synchronized with latest version');
+            }
+            
+            // Remove listener after handling
+            window.removeEventListener('character-loaded', retryListener);
+          }
+        };
+        
+        window.addEventListener('character-loaded', retryListener);
+        
+        // Set timeout to clean up listener if load fails
+        setTimeout(() => {
+          window.removeEventListener('character-loaded', retryListener);
+        }, 5000);
+        
       } else {
         // Other error
         console.error(`❌ Character update failed: ${error}`);
         store.updateCharacter(characterId, { syncStatus: 'error' } as any);
+        showToast.error(`Failed to update character: ${error || 'Unknown error'}`);
       }
     }
     
@@ -804,23 +858,83 @@ export class WebClientProtocol {
   }
 
   // Character management methods
-  saveCharacter(characterData: Record<string, unknown>): void {
-    this.sendMessage(createMessage(MessageType.CHARACTER_SAVE_REQUEST, characterData));
+  /**
+   * Save a character to the server (create or update)
+   * @param characterData - The character data to save
+   * @param userId - Optional user ID (uses instance userId if not provided)
+   */
+  saveCharacter(characterData: Record<string, unknown>, userId?: number): void {
+    const effectiveUserId = userId ?? this.userId;
+    if (effectiveUserId === null) {
+      console.error('❌ Cannot save character: user ID not set');
+      return;
+    }
+
+    this.sendMessage(createMessage(MessageType.CHARACTER_SAVE_REQUEST, {
+      character_data: characterData,
+      user_id: effectiveUserId,
+      session_code: this.sessionCode
+    }));
   }
 
-  loadCharacter(characterId: string): void {
-    this.sendMessage(createMessage(MessageType.CHARACTER_LOAD_REQUEST, { character_id: characterId }));
+  /**
+   * Load a character from the server
+   * @param characterId - The ID of the character to load
+   * @param userId - Optional user ID (uses instance userId if not provided)
+   */
+  loadCharacter(characterId: string, userId?: number): void {
+    const effectiveUserId = userId ?? this.userId;
+    if (effectiveUserId === null) {
+      console.error('❌ Cannot load character: user ID not set');
+      return;
+    }
+
+    this.sendMessage(createMessage(MessageType.CHARACTER_LOAD_REQUEST, {
+      character_id: characterId,
+      user_id: effectiveUserId,
+      session_code: this.sessionCode
+    }));
   }
 
-  // Send partial/delta updates for a character
-  updateCharacter(characterId: string, updates: Record<string, unknown>, version?: number): void {
-    const payload: any = { character_id: characterId, updates };
+  /**
+   * Send partial/delta updates for a character
+   * @param characterId - The ID of the character to update
+   * @param updates - The partial updates to apply
+   * @param version - Optional version number for optimistic concurrency control
+   * @param userId - Optional user ID (uses instance userId if not provided)
+   */
+  updateCharacter(characterId: string, updates: Record<string, unknown>, version?: number, userId?: number): void {
+    const effectiveUserId = userId ?? this.userId;
+    if (effectiveUserId === null) {
+      console.error('❌ Cannot update character: user ID not set');
+      return;
+    }
+
+    const payload: any = {
+      character_id: characterId,
+      updates,
+      user_id: effectiveUserId,
+      session_code: this.sessionCode
+    };
     if (version !== undefined) payload.version = version;
     this.sendMessage(createMessage(MessageType.CHARACTER_UPDATE, payload));
   }
 
-  requestCharacterList(): void {
-    this.sendMessage(createMessage(MessageType.CHARACTER_LIST_REQUEST));
+  /**
+   * Request list of all characters in the session
+   * @param userId - Optional user ID (uses instance userId if not provided)
+   */
+  requestCharacterList(userId?: number): void {
+    const effectiveUserId = userId ?? this.userId;
+    if (effectiveUserId === null) {
+      console.error('❌ Cannot request character list: user ID not set');
+      return;
+    }
+
+    this.sendMessage(createMessage(MessageType.CHARACTER_LIST_REQUEST, {
+      user_id: effectiveUserId,
+      session_code: this.sessionCode
+    }));
   }
 
   disconnect(): void {
@@ -915,16 +1029,22 @@ export class WebClientProtocol {
     
     const success = message.data?.success;
     const characterId = String(message.data?.character_id || '');
+    const error = message.data?.error;
     
     if (success && characterId) {
       console.log(`✅ Character deletion confirmed: ${characterId}`);
       // Character already removed optimistically, just confirm
+      const store = useGameStore.getState();
+      // Ensure character is removed from store
+      store.removeCharacter(characterId);
+      showToast.success('Character deleted successfully');
     } else if (!success) {
       // Deletion failed - need to restore the character
-      console.error(`❌ Character deletion failed:`, message.data?.error);
-      // The character was optimistically removed, but we should restore it
-      // This would require keeping a backup before deletion
-      alert(`Failed to delete character: ${message.data?.error || 'Unknown error'}`);
+      console.error(`❌ Character deletion failed:`, error);
+      showToast.error(`Failed to delete character: ${error || 'Unknown error'}`);
+      
+      // Try to restore from backup if available
+      // The UI component should handle rollback via pendingOperationsRef
     }
     
     window.dispatchEvent(new CustomEvent('character-delete-response', { detail: message.data }));
@@ -989,8 +1109,23 @@ export class WebClientProtocol {
     this.sendMessage(createMessage(MessageType.ASSET_DELETE_REQUEST, { asset_id: assetId }));
   }
 
-  deleteCharacter(characterId: string): void {
-    this.sendMessage(createMessage(MessageType.CHARACTER_DELETE_REQUEST, { character_id: characterId }));
+  /**
+   * Delete a character from the server
+   * @param characterId - The ID of the character to delete
+   * @param userId - Optional user ID (uses instance userId if not provided)
+   */
+  deleteCharacter(characterId: string, userId?: number): void {
+    const effectiveUserId = userId ?? this.userId;
+    if (effectiveUserId === null) {
+      console.error('❌ Cannot delete character: user ID not set');
+      return;
+    }
+
+    this.sendMessage(createMessage(MessageType.CHARACTER_DELETE_REQUEST, {
+      character_id: characterId,
+      user_id: effectiveUserId,
+      session_code: this.sessionCode
+    }));
   }
 
   scaleTable(tableId: string, scale: number): void {

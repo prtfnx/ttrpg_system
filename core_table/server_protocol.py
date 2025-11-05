@@ -120,12 +120,6 @@ class ServerProtocol:
         self.register_handler(MessageType.PLAYER_KICK_REQUEST, self.handle_player_kick_request)
         self.register_handler(MessageType.PLAYER_BAN_REQUEST, self.handle_player_ban_request)
         self.register_handler(MessageType.CONNECTION_STATUS_REQUEST, self.handle_connection_status_request)
-        
-        # Character management handlers
-        self.register_handler(MessageType.CHARACTER_SAVE_REQUEST, self.handle_character_save_request)
-        self.register_handler(MessageType.CHARACTER_LOAD_REQUEST, self.handle_character_load_request)
-        self.register_handler(MessageType.CHARACTER_LIST_REQUEST, self.handle_character_list_request)
-        self.register_handler(MessageType.CHARACTER_DELETE_REQUEST, self.handle_character_delete_request)
 
     async def handle_client(self, msg: Message, client_id: str) -> bool:
         """Handle client message"""

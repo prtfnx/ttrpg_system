@@ -27,6 +27,7 @@ import { RaceStep } from './RaceStepImproved';
 import ReviewStep from './ReviewStep';
 import { SkillsStep } from './SkillsStep';
 import { SpellSelectionStep } from './SpellSelectionStep';
+import { TemplateSelectionStep } from './TemplateSelectionStep';
 import { enhancedWizardSchema, type WizardFormData } from './WizardFormData';
 
 // Step definitions with metadata
@@ -41,6 +42,13 @@ interface WizardStep {
 }
 
 const WIZARD_STEPS: WizardStep[] = [
+  {
+    id: 'template',
+    title: 'Template Selection',
+    description: 'Choose a template or start from scratch',
+    component: TemplateSelectionStep,
+    canSkip: true
+  },
   {
     id: 'identity',
     title: 'Character Identity',

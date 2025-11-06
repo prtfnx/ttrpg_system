@@ -239,9 +239,20 @@ vi.mock('../../utils/characterImportExport', () => ({
   pickAndImportCharacter: vi.fn(),
 }));
 
-function createTestCharacter(overrides: Partial<ReturnType<typeof createCharacter>> = {}) {
+function createTestCharacter(overrides: Partial<{
+  id: string;
+  sessionId: string;
+  name: string;
+  ownerId: number;
+  controlledBy: number[];
+  data: any;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  syncStatus: 'local' | 'syncing' | 'synced' | 'error';
+}> = {}) {
   return {
-    id: `char-${Math.random()}`,
+    id: overrides.id || `char-${Date.now()}-${Math.random()}`,
     sessionId: 'test-session',
     name: 'Test Character',
     ownerId: 1,
@@ -432,14 +443,18 @@ describe('CharacterPanelRedesigned - Sync Status Display', () => {
   });
 
   it('should not show status icon for synced characters (clean UI)', () => {
+    // Clear existing characters first to avoid noise
+    useGameStore.setState({ characters: [] });
+    
     useGameStore.getState().addCharacter(createTestCharacter({ 
       id: 'synced-1',
       name: 'Synced Char',
-      syncStatus: 'synced' 
+      // syncStatus defaults to 'synced' in createTestCharacter
     }));
     
     render(<CharacterPanelRedesigned />);
     
+    // Now that we only have one synced character, there should be no sync status icons
     expect(screen.queryByTitle(/not synced/i)).not.toBeInTheDocument();
     expect(screen.queryByTitle(/syncing/i)).not.toBeInTheDocument();
     expect(screen.queryByTitle(/sync failed/i)).not.toBeInTheDocument();
@@ -473,11 +488,11 @@ describe('CharacterPanelRedesigned - Character Actions', () => {
     
     // Now find and click clone button
     await waitFor(() => {
-      const cloneButton = screen.getByTitle(/clone this character/i);
+      const cloneButton = screen.getByTitle(/create a duplicate/i);
       expect(cloneButton).toBeInTheDocument();
     });
     
-    const cloneButton = screen.getByTitle(/clone this character/i);
+    const cloneButton = screen.getByTitle(/create a duplicate/i);
     await userEvent.click(cloneButton);
     
     await waitFor(() => {
@@ -507,11 +522,11 @@ describe('CharacterPanelRedesigned - Character Actions', () => {
     }
     
     await waitFor(() => {
-      const exportButton = screen.getByTitle(/export to json/i);
+      const exportButton = screen.getByTitle(/export character to json/i);
       expect(exportButton).toBeInTheDocument();
     });
     
-    const exportButton = screen.getByTitle(/export to json/i);
+    const exportButton = screen.getByTitle(/export character to json/i);
     await userEvent.click(exportButton);
     
     await waitFor(() => {

@@ -13,8 +13,8 @@
 
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FormProvider, useForm } from 'react-hook-form';
+import { describe, expect, it, vi } from 'vitest';
 import { TemplateSelectionStep } from '../TemplateSelectionStep';
 import type { WizardFormData } from '../WizardFormData';
 
@@ -265,7 +265,9 @@ describe('TemplateSelectionStep - PC Templates', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Template selected:/i)).toBeInTheDocument();
-      expect(screen.getByText('Wizard')).toBeInTheDocument();
+      // Multiple "Wizard" texts exist (card name and summary), so be more specific
+      const summaryBox = document.querySelector('.summary-box.success');
+      expect(summaryBox?.textContent).toContain('Wizard');
     });
   });
 });
@@ -342,7 +344,9 @@ describe('TemplateSelectionStep - NPC Templates', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Template selected:/i)).toBeInTheDocument();
-      expect(screen.getByText('Dragon')).toBeInTheDocument();
+      // Multiple "Dragon" texts exist (card name and summary), so be more specific
+      const summaryBox = document.querySelector('.summary-box.success');
+      expect(summaryBox?.textContent).toContain('Dragon');
     });
   });
 });
@@ -355,7 +359,9 @@ describe('TemplateSelectionStep - Scratch Mode', () => {
       </TestWrapper>
     );
 
-    expect(screen.getByText(/Starting from scratch/i)).toBeInTheDocument();
+    // Multiple "Starting from scratch" texts exist (info box and summary), be more specific
+    const infoBox = document.querySelector('.template-scratch-info .info-box');
+    expect(infoBox?.textContent).toContain('Starting from scratch');
     expect(screen.getByText(/guide you through each step/i)).toBeInTheDocument();
   });
 

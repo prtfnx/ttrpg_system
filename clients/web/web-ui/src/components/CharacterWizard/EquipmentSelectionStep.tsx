@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import {
-    equipmentManagementService,
-    equipmentToWizardItem,
-    type Equipment,
-    type WizardEquipmentItem
+  equipmentManagementService,
+  equipmentToWizardItem,
+  type Equipment,
+  type WizardEquipmentItem
 } from '../../services/equipmentManagement.service';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import './EquipmentSelectionStep.css';
@@ -204,6 +204,13 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
 
   // Add item to selection
   const addItem = useCallback((equipment: Equipment) => {
+    // Guard against missing equipment data
+    if (!equipment || !equipment.name) {
+      console.error('🎒 addItem: Invalid equipment data:', equipment);
+      setError('Invalid equipment selected');
+      return;
+    }
+    
     const cost = equipment.cost?.quantity || 0;
     
     if (currentGold < cost) {
@@ -212,7 +219,9 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
     }
 
     const wizardItem = equipmentToWizardItem(equipment, 1);
-    const existingIndex = selectedItems.findIndex(item => item.equipment.name === equipment.name);
+    const existingIndex = selectedItems.findIndex(item => 
+      item?.equipment?.name === equipment.name
+    );
     
     if (existingIndex >= 0) {
       // Increase quantity of existing item

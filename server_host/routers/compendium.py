@@ -157,6 +157,32 @@ async def get_class_by_name(class_name: str):
     
     return char_class
 
+@router.get("/backgrounds")
+async def get_backgrounds():
+    """Get all background data"""
+    if not compendium_service.character_data:
+        raise HTTPException(status_code=500, detail="Character data not available")
+    
+    backgrounds = compendium_service.character_data.get('backgrounds', [])
+    return {
+        "backgrounds": backgrounds,
+        "count": len(backgrounds)
+    }
+
+@router.get("/backgrounds/{background_name}")
+async def get_background_by_name(background_name: str):
+    """Get specific background by name"""
+    if not compendium_service.character_data:
+        raise HTTPException(status_code=500, detail="Character data not available")
+    
+    backgrounds = compendium_service.character_data.get('backgrounds', [])
+    background = next((b for b in backgrounds if b['name'].lower() == background_name.lower()), None)
+    
+    if not background:
+        raise HTTPException(status_code=404, detail=f"Background '{background_name}' not found")
+    
+    return background
+
 @router.get("/spells")
 async def get_spells(
     level: Optional[int] = Query(None, description="Filter by spell level"),

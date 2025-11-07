@@ -38,9 +38,14 @@ export interface Race {
 
 export interface CharacterClass {
   name: string;
-  hit_dice: string;
+  hit_die: number; // Just the number (e.g., 12 for d12)
   primary_abilities: string[];
-  saving_throws: string[];
+  saving_throw_proficiencies: string[]; // Renamed from saving_throws
+  skill_proficiencies?: string[];
+  num_skills?: number;
+  spell_ability?: string | null;
+  armor_proficiencies?: string[];
+  weapon_proficiencies?: string[];
   // Add more class properties as needed
 }
 

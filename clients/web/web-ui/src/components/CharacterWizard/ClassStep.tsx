@@ -47,25 +47,36 @@ export function ClassStep({ onNext: _onNext, onBack: _onBack }: { onNext?: () =>
               border: '1px solid #e2e8f0'
             }}>
               <h3 style={{ margin: '0 0 12px 0', fontSize: '1.1em', color: '#1e293b' }}>
-                {selectedClassData.name} Features
+                {selectedClassData.name}
               </h3>
               
               <div style={{ marginBottom: 8 }}>
                 <strong>Hit Die:</strong>{' '}
                 <span style={{ color: '#dc2626', fontWeight: 500 }}>
-                  {selectedClassData.hit_dice}
+                  d{selectedClassData.hit_die}
                 </span>
               </div>
               
-              <div style={{ marginBottom: 8 }}>
-                <strong>Primary Abilities:</strong>{' '}
-                {selectedClassData.primary_abilities.join(', ')}
-              </div>
+              {selectedClassData.primary_abilities && selectedClassData.primary_abilities.length > 0 && (
+                <div style={{ marginBottom: 8 }}>
+                  <strong>Primary Abilities:</strong>{' '}
+                  {selectedClassData.primary_abilities.join(', ')}
+                </div>
+              )}
               
-              <div style={{ marginBottom: 12 }}>
-                <strong>Saving Throws:</strong>{' '}
-                {selectedClassData.saving_throws.join(', ')}
-              </div>
+              {selectedClassData.saving_throw_proficiencies && selectedClassData.saving_throw_proficiencies.length > 0 && (
+                <div style={{ marginBottom: 8 }}>
+                  <strong>Saving Throw Proficiencies:</strong>{' '}
+                  {selectedClassData.saving_throw_proficiencies.join(', ')}
+                </div>
+              )}
+              
+              {selectedClassData.skill_proficiencies && selectedClassData.skill_proficiencies.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <strong>Skill Proficiencies:</strong>{' '}
+                  Choose {selectedClassData.num_skills || 2} from: {selectedClassData.skill_proficiencies.join(', ')}
+                </div>
+              )}
             </div>
           )}
         </>

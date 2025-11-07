@@ -1,57 +1,33 @@
 import { useFormContext } from 'react-hook-form';
+import { useBackgrounds } from '../../hooks/useCompendium';
 import type { BackgroundStepData } from './schemas';
-
-// NOTE: Background data is hardcoded because the backend API doesn't have a /api/backgrounds endpoint yet.
-// TODO: Add backgrounds endpoint to core_table/compendiums/api_server.py and update this to use useBackgrounds() hook
-// Background data with skills and tool proficiencies
-const backgroundData = {
-  'soldier': {
-    name: 'Soldier',
-    skillProficiencies: ['Athletics', 'Intimidation'],
-    toolProficiencies: ['Vehicles (land)', 'Gaming set'],
-    languages: ['One of your choice'],
-    description: 'You had a military career and are experienced in combat and tactics.'
-  },
-  'acolyte': {
-    name: 'Acolyte',
-    skillProficiencies: ['Insight', 'Religion'],
-    toolProficiencies: [],
-    languages: ['Two of your choice'],
-    description: 'You have spent your life in service to a temple and its deity.'
-  },
-  'criminal': {
-    name: 'Criminal',
-    skillProficiencies: ['Deception', 'Stealth'],
-    toolProficiencies: ['Thieves\' tools', 'Gaming set'],
-    languages: [],
-    description: 'You are an experienced criminal with a history of breaking the law.'
-  },
-  'folk-hero': {
-    name: 'Folk Hero',
-    skillProficiencies: ['Animal Handling', 'Survival'],
-    toolProficiencies: ['Artisan\'s tools', 'Vehicles (land)'],
-    languages: [],
-    description: 'You come from a humble background, but you are destined for so much more.'
-  },
-  'noble': {
-    name: 'Noble',
-    skillProficiencies: ['History', 'Persuasion'],
-    toolProficiencies: ['Gaming set'],
-    languages: ['One of your choice'],
-    description: 'You were born into privilege and wealth, with all the advantages that entails.'
-  },
-  'sage': {
-    name: 'Sage',
-    skillProficiencies: ['Arcana', 'History'],
-    toolProficiencies: [],
-    languages: ['Two of your choice'],
-    description: 'You spent years learning the lore of the multiverse in libraries and universities.'
-  }
-};
 
 export function BackgroundStep({ onNext: _onNext, onBack: _onBack }: { onNext?: () => void; onBack?: () => void } = {}) {
   const { register, formState, watch } = useFormContext<BackgroundStepData>();
   const selectedBackground = watch('background');
+  const { data: backgrounds, loading, error } = useBackgrounds();
+  
+  // Show loading state
+  if (loading) {
+    return <div style={{ textAlign: 'center', padding: '2rem' }}>Loading backgrounds...</div>;
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div style={{ color: 'red', padding: '1rem' }}>
+        Error loading backgrounds: {error}
+      </div>
+    );
+  }
+
+  // Show if no backgrounds available
+  if (!backgrounds || backgrounds.length === 0) {
+    return <div style={{ padding: '1rem' }}>No backgrounds available</div>;
+  }
+
+  // Find selected background details
+  const selectedBackgroundData = backgrounds.find(bg => bg.name === selectedBackground);
   
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -64,8 +40,8 @@ export function BackgroundStep({ onNext: _onNext, onBack: _onBack }: { onNext?: 
           style={{ marginLeft: 8, padding: '4px 8px' }}
         >
           <option value="">Select...</option>
-          {Object.entries(backgroundData).map(([key, bg]) => (
-            <option key={key} value={key}>{bg.name}</option>
+          {backgrounds.map((bg) => (
+            <option key={bg.name} value={bg.name}>{bg.name}</option>
           ))}
         </select>
       </label>
@@ -75,7 +51,7 @@ export function BackgroundStep({ onNext: _onNext, onBack: _onBack }: { onNext?: 
       )}
       
       {/* Display background details when selected */}
-      {selectedBackground && backgroundData[selectedBackground as keyof typeof backgroundData] && (
+      {selectedBackgroundData && (
         <div style={{ 
           marginTop: 16, 
           padding: 16, 
@@ -84,39 +60,54 @@ export function BackgroundStep({ onNext: _onNext, onBack: _onBack }: { onNext?: 
           border: '1px solid #e2e8f0'
         }}>
           <h3 style={{ margin: '0 0 12px 0', fontSize: '1.1em', color: '#1e293b' }}>
-            {backgroundData[selectedBackground as keyof typeof backgroundData].name} Benefits
+            {selectedBackgroundData.name} Benefits
           </h3>
           
-          <div style={{ marginBottom: 8 }}>
-            <strong>Skill Proficiencies:</strong>{' '}
-            <span style={{ color: '#059669', fontWeight: 500 }}>
-              {backgroundData[selectedBackground as keyof typeof backgroundData].skillProficiencies.join(', ')}
-            </span>
-          </div>
+          {selectedBackgroundData.skill_proficiencies && selectedBackgroundData.skill_proficiencies.length > 0 && (
+            <div style={{ marginBottom: 8 }}>
+              <strong>Skill Proficiencies:</strong>{' '}
+              <span style={{ color: '#059669', fontWeight: 500 }}>
+                {selectedBackgroundData.skill_proficiencies.join(', ')}
+              </span>
+            </div>
+          )}
           
-          {backgroundData[selectedBackground as keyof typeof backgroundData].toolProficiencies.length > 0 && (
+          {selectedBackgroundData.tool_proficiencies && selectedBackgroundData.tool_proficiencies.length > 0 && (
             <div style={{ marginBottom: 8 }}>
               <strong>Tool Proficiencies:</strong>{' '}
               <span style={{ color: '#7c3aed', fontWeight: 500 }}>
-                {backgroundData[selectedBackground as keyof typeof backgroundData].toolProficiencies.join(', ')}
+                {selectedBackgroundData.tool_proficiencies.join(', ')}
               </span>
             </div>
           )}
           
-          {backgroundData[selectedBackground as keyof typeof backgroundData].languages.length > 0 && (
+          {selectedBackgroundData.language_proficiencies && selectedBackgroundData.language_proficiencies.length > 0 && (
             <div style={{ marginBottom: 8 }}>
               <strong>Languages:</strong>{' '}
               <span style={{ color: '#0369a1', fontWeight: 500 }}>
-                {backgroundData[selectedBackground as keyof typeof backgroundData].languages.join(', ')}
+                {selectedBackgroundData.language_proficiencies.join(', ')}
               </span>
             </div>
           )}
           
-          <p style={{ margin: 0, color: '#64748b', fontSize: '0.9em', lineHeight: 1.4 }}>
-            {backgroundData[selectedBackground as keyof typeof backgroundData].description}
-          </p>
+          {/* Display background features */}
+          {selectedBackgroundData.features && selectedBackgroundData.features.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              {selectedBackgroundData.features.map((feature, index) => (
+                <div key={index} style={{ marginBottom: 12 }}>
+                  <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95em', color: '#475569' }}>
+                    {feature.name}
+                  </h4>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.9em', lineHeight: 1.4 }}>
+                    {feature.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
+

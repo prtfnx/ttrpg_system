@@ -1,6 +1,8 @@
 import { useFormContext } from 'react-hook-form';
 import type { BackgroundStepData } from './schemas';
 
+// NOTE: Background data is hardcoded because the backend API doesn't have a /api/backgrounds endpoint yet.
+// TODO: Add backgrounds endpoint to core_table/compendiums/api_server.py and update this to use useBackgrounds() hook
 // Background data with skills and tool proficiencies
 const backgroundData = {
   'soldier': {

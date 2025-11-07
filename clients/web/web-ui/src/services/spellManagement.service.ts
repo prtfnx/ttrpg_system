@@ -216,25 +216,54 @@ class SpellManagementService {
    * Get spell slots available for a character class and level
    */
   getSpellSlots(characterClass: string, level: number): SpellSlots {
-    const classData = SPELL_SLOTS_BY_CLASS_AND_LEVEL[characterClass as keyof typeof SPELL_SLOTS_BY_CLASS_AND_LEVEL];
+    // Normalize class name to match the keys in SPELL_SLOTS_BY_CLASS_AND_LEVEL (capitalized)
+    const normalizedClass = characterClass.charAt(0).toUpperCase() + characterClass.slice(1).toLowerCase();
+    const classData = SPELL_SLOTS_BY_CLASS_AND_LEVEL[normalizedClass as keyof typeof SPELL_SLOTS_BY_CLASS_AND_LEVEL];
     if (!classData) {
+      console.warn(`⚠️ No spell slot data for class: ${characterClass} (normalized: ${normalizedClass})`);
       return { cantrips: 0 };
     }
     
-    return classData[level as keyof typeof classData] || { cantrips: 0 };
+    const slots = classData[level as keyof typeof classData] || { cantrips: 0 };
+    console.log(`✅ Spell slots for ${normalizedClass} level ${level}:`, slots);
+    return slots;
   }
 
   /**
    * Get number of spells known for classes that have limited spell knowledge
+   * For prepared casters (Cleric, Druid, Wizard, Paladin), this returns the prepare limit
    */
-  getSpellsKnown(characterClass: string, level: number): number {
-    const classData = SPELLS_KNOWN_BY_CLASS[characterClass as keyof typeof SPELLS_KNOWN_BY_CLASS];
-    if (!classData) {
-      // Classes like Cleric, Druid, Wizard know all spells of their class
-      return Infinity;
+  getSpellsKnown(characterClass: string, level: number, abilityScores?: Record<string, number>): number {
+    // Normalize class name to match the keys (capitalized)
+    const normalizedClass = characterClass.charAt(0).toUpperCase() + characterClass.slice(1).toLowerCase();
+    const classData = SPELLS_KNOWN_BY_CLASS[normalizedClass as keyof typeof SPELLS_KNOWN_BY_CLASS];
+    
+    // If class has fixed spells known (Bard, Sorcerer, Warlock, Ranger)
+    if (classData) {
+      return classData[level as keyof typeof classData] || 0;
     }
     
-    return classData[level as keyof typeof classData] || 0;
+    // Prepared casters (Cleric, Druid, Wizard, Paladin) can prepare: ability modifier + level
+    const preparedCasters = ['Cleric', 'Druid', 'Wizard', 'Paladin'];
+    if (preparedCasters.includes(normalizedClass) && abilityScores) {
+      const spellcastingAbilities: Record<string, string> = {
+        'Cleric': 'wisdom',
+        'Druid': 'wisdom',
+        'Wizard': 'intelligence',
+        'Paladin': 'charisma'
+      };
+      
+      const abilityKey = spellcastingAbilities[normalizedClass] || 'wisdom';
+      const abilityScore = abilityScores[abilityKey] || 10;
+      const modifier = Math.floor((abilityScore - 10) / 2);
+      const preparedCount = Math.max(1, modifier + level); // Minimum of 1
+      
+      console.log(`✅ ${normalizedClass} can prepare ${preparedCount} spells (${abilityKey} ${abilityScore}, modifier ${modifier}, level ${level})`);
+      return preparedCount;
+    }
+    
+    // Non-spellcasting classes
+    return 0;
   }
 
   /**

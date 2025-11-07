@@ -90,12 +90,13 @@
   color: #dc3545;
 }
 
-/* Equipment Content Layout */
+/* Equipment Content Layout - Side by side like D&D Beyond */
 .equipment-content {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
   gap: 1.5rem;
   margin-bottom: 2rem;
+  min-height: 600px;
 }
 
 /* Equipment Filters */
@@ -104,6 +105,8 @@
   padding: 1.5rem;
   border-radius: 12px;
   border: 2px solid #e9ecef;
+  margin-bottom: 1.5rem;
+  grid-column: 1 / -1; /* Span both columns */
 }
 
 .search-container {
@@ -162,6 +165,9 @@
   padding: 1.5rem;
   border-radius: 12px;
   border: 2px solid #e9ecef;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .available-equipment h3 {
@@ -170,26 +176,27 @@
   color: #2c3e50;
   border-bottom: 2px solid #e9ecef;
   padding-bottom: 0.5rem;
+  flex-shrink: 0;
 }
 
 .equipment-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1rem;
-  max-height: 500px;
   overflow-y: auto;
   padding-right: 0.5rem;
+  flex: 1;
 }
 
 .equipment-card {
   background: #f8f9fa;
   border: 1px solid #dee2e6;
   border-radius: 8px;
-  padding: 1.25rem;
+  padding: 1rem;
   transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
-  min-height: 160px;
+  min-height: 140px;
 }
 
 .equipment-card:hover {
@@ -289,25 +296,34 @@
   grid-column: 1 / -1;
 }
 
-/* Selected Equipment */
+/* Selected Equipment - Sticky sidebar */
 .selected-equipment {
   background: #ffffff;
   padding: 1.5rem;
   border-radius: 12px;
-  border: 2px solid #e9ecef;
+  border: 2px solid #28a745;
+  position: sticky;
+  top: 1rem;
+  align-self: start;
+  max-height: calc(100vh - 4rem);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .selected-equipment h3 {
   margin: 0 0 1rem 0;
   font-size: 1.3rem;
-  color: #2c3e50;
-  border-bottom: 2px solid #e9ecef;
+  color: #28a745;
+  border-bottom: 2px solid #28a745;
   padding-bottom: 0.5rem;
+  flex-shrink: 0;
 }
 
 .selected-items {
-  max-height: 400px;
   overflow-y: auto;
+  flex: 1;
+  padding-right: 0.5rem;
 }
 
 .selected-item {
@@ -372,7 +388,11 @@
   text-align: center;
   color: #6c757d;
   font-style: italic;
-  padding: 2rem;
+  padding: 2rem 1rem;
+  background: #f8f9fa;
+  border: 2px dashed #dee2e6;
+  border-radius: 8px;
+  margin-top: 1rem;
 }
 
 /* Step Navigation */

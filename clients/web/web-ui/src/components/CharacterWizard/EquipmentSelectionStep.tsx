@@ -109,11 +109,25 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
         // Convert existing equipment items to wizard format
         // Guard against undefined or missing items array
         if (currentEquipment?.items && Array.isArray(currentEquipment.items)) {
-          const wizardItems = currentEquipment.items.map(item => ({
-            equipment: item.equipment,
-            quantity: item.quantity,
-            equipped: item.equipped
-          }));
+          console.log('🎒 Loading existing equipment items:', currentEquipment.items);
+          const wizardItems: WizardEquipmentItem[] = currentEquipment.items
+            .map(item => {
+              // Check if item is already in wizard format or needs conversion
+              if (item.equipment && typeof item.equipment === 'object' && 'name' in item.equipment) {
+                // Already in wizard format
+                return {
+                  equipment: item.equipment,
+                  quantity: item.quantity || 1,
+                  equipped: item.equipped
+                } as WizardEquipmentItem;
+              } else {
+                console.warn('🎒 Item has unexpected structure:', item);
+                return null;
+              }
+            })
+            .filter((item): item is WizardEquipmentItem => item !== null);
+          
+          console.log('🎒 Converted wizard items:', wizardItems);
           setSelectedItems(wizardItems);
         } else {
           setSelectedItems([]);
@@ -211,6 +225,8 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
       return;
     }
     
+    console.log('🎒 addItem called with:', equipment);
+    
     const cost = equipment.cost?.quantity || 0;
     
     if (currentGold < cost) {
@@ -219,6 +235,8 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
     }
 
     const wizardItem = equipmentToWizardItem(equipment, 1);
+    console.log('🎒 Created wizard item:', wizardItem);
+    
     const existingIndex = selectedItems.findIndex(item => 
       item?.equipment?.name === equipment.name
     );
@@ -227,10 +245,16 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
       // Increase quantity of existing item
       const updatedItems = [...selectedItems];
       updatedItems[existingIndex].quantity += 1;
+      console.log('🎒 Updated quantity for existing item, new items:', updatedItems);
       setSelectedItems(updatedItems);
     } else {
       // Add new item
-      setSelectedItems(prev => [...prev, wizardItem]);
+      console.log('🎒 Adding new item to selection');
+      setSelectedItems(prev => {
+        const newItems = [...prev, wizardItem];
+        console.log('🎒 New selected items:', newItems);
+        return newItems;
+      });
     }
     
     setCurrentGold(prev => prev - cost);
@@ -351,33 +375,33 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
           </div>
         </div>
 
-        <div className="equipment-content">
-          {/* Equipment Filters */}
-          <div className="equipment-filters">
-            <div className="search-container">
-              <input
-                type="text"
-                placeholder="Search equipment..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="search-input"
-              />
-            </div>
-            
-            <div className="category-filters">
-              {equipmentCategories.map(category => (
-                <button
-                  key={category}
-                  className={`category-button ${selectedCategory === category ? 'active' : ''}`}
-                  onClick={() => setSelectedCategory(category)}
-                >
-                  {category.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                </button>
-              ))}
-            </div>
+        {/* Equipment Filters - Spans both columns */}
+        <div className="equipment-filters">
+          <div className="search-container">
+            <input
+              type="text"
+              placeholder="Search equipment..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
           </div>
+          
+          <div className="category-filters">
+            {equipmentCategories.map(category => (
+              <button
+                key={category}
+                className={`category-button ${selectedCategory === category ? 'active' : ''}`}
+                onClick={() => setSelectedCategory(category)}
+              >
+                {category.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              </button>
+            ))}
+          </div>
+        </div>
 
-          {/* Available Equipment */}
+        <div className="equipment-content">
+          {/* Available Equipment - Left side */}
           <div className="available-equipment">
             <h3>Available Equipment ({filteredEquipment.length})</h3>
             <div className="equipment-grid">

@@ -230,15 +230,6 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         <button onClick={handleAddTestSprites}>Add Test Sprites</button>
       </div>
       <h2>Tools</h2>
-      <div className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
-        {isConnected ? `Connected: ${sessionId}` : 'Disconnected'}
-        {isIntegrationMode && <span> (Integration Mode)</span>}
-      </div>
-
-
-
-
-
 
       {/* Enhanced Toolbar Section */}
       <div className="toolbar">

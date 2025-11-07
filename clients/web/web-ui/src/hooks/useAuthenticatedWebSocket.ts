@@ -99,6 +99,27 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
 
   const getProtocol = useCallback(() => protocolRef.current, []);
 
+  // Monitor connection state by polling the protocol
+  useEffect(() => {
+    if (!protocolRef.current) return;
+
+    const checkConnection = () => {
+      if (protocolRef.current) {
+        const isConnected = protocolRef.current.isConnected();
+        if (isConnected && connectionState !== 'connected') {
+          setConnectionState('connected');
+        } else if (!isConnected && connectionState === 'connected') {
+          setConnectionState('disconnected');
+          setError('Connection lost');
+        }
+      }
+    };
+
+    // Poll connection state every 1 second
+    const interval = setInterval(checkConnection, 1000);
+    return () => clearInterval(interval);
+  }, [connectionState]);
+
   // Auto-connect on mount and disconnect on unmount
   useEffect(() => {
     connect();

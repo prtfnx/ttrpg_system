@@ -5,8 +5,8 @@
 
 // Base API URL - adjust based on environment
 const API_BASE_URL = import.meta.env.MODE === 'development' 
-  ? 'http://localhost:12345/api'
-  : '/api';
+  ? 'http://localhost:12345/api/compendium'
+  : '/api/compendium';
 
 // Type definitions based on compendium data structure
 export interface AbilityScoreIncrease {

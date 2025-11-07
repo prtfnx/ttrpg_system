@@ -17,9 +17,6 @@ declare global {
   }
 }
 
-// Integration mode detection
-const isIntegrationMode = !document.getElementById('root');
-
 import type { UserInfo } from '../services/auth.service';
 
 interface ToolsPanelProps {
@@ -37,7 +34,6 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   const [shapeFilled, setShapeFilled] = useState(false); // Default outline only
   
   const { 
-    isConnected, 
     sessionId, 
     activeLayer, 
     activeTool, 

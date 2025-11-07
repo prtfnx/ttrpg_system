@@ -194,9 +194,11 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
       max_weight: baseCapacity,
       encumbered_at: baseCapacity * 0.67, // 2/3 capacity
       heavily_encumbered_at: baseCapacity * 0.83, // 5/6 capacity
-      current_weight: selectedItems.reduce((total, item) => 
-        total + (item.equipment.weight * item.quantity), 0
-      )
+      current_weight: selectedItems.reduce((total, item) => {
+        const itemWeight = item?.equipment?.weight ?? 0;
+        const quantity = item?.quantity ?? 1;
+        return total + (itemWeight * quantity);
+      }, 0)
     };
   }, [abilityScores, selectedItems]); // Watch the whole abilityScores object, not individual properties
 
@@ -285,7 +287,12 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
 
   // Calculate total weight and check encumbrance
   const { totalWeight, isEncumbered, isHeavilyEncumbered } = useMemo(() => {
-    const weight = selectedItems.reduce((total, item) => total + (item.equipment.weight * item.quantity), 0);
+    const weight = selectedItems.reduce((total, item) => {
+      // Safely access weight with fallback to 0
+      const itemWeight = item?.equipment?.weight ?? 0;
+      const quantity = item?.quantity ?? 1;
+      return total + (itemWeight * quantity);
+    }, 0);
     const capacity = calculateCarryingCapacity();
     
     return {
@@ -411,11 +418,11 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
             {selectedItems.length > 0 ? (
               <div className="selected-items">
                 {selectedItems.map((item, index) => (
-                  <div key={`${item.equipment.name}-${index}`} className="selected-item">
+                  <div key={`${item?.equipment?.name || 'item'}-${index}`} className="selected-item">
                     <div className="item-info">
-                      <span className="item-name">{item.equipment.name}</span>
-                      <span className="item-quantity">x{item.quantity}</span>
-                      <span className="item-weight">{(item.equipment.weight * item.quantity).toFixed(1)} lbs</span>
+                      <span className="item-name">{item?.equipment?.name || 'Unknown Item'}</span>
+                      <span className="item-quantity">x{item?.quantity || 1}</span>
+                      <span className="item-weight">{((item?.equipment?.weight ?? 0) * (item?.quantity ?? 1)).toFixed(1)} lbs</span>
                     </div>
                     <div className="item-actions">
                       <button

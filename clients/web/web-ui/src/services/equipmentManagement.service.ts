@@ -661,34 +661,111 @@ export const CLASS_STARTING_EQUIPMENT: Record<string, StartingEquipment> = {
 };
 
 class EquipmentManagementService {
+  private equipmentCache: Equipment[] | null = null;
+  private readonly API_BASE = 'http://localhost:12345/api/compendium';
+
+  /**
+   * Fetch equipment from compendium API
+   */
+  private async fetchEquipmentFromAPI(): Promise<Equipment[]> {
+    try {
+      const response = await fetch(`${this.API_BASE}/equipment`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch equipment: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      // Transform compendium equipment format to our Equipment type
+      const items = data.equipment?.items || [];
+      
+      return items.map((item: any) => {
+        // Calculate cost in gold pieces
+        const costInGold = (
+          (item.cost?.copper || 0) * 0.01 +
+          (item.cost?.silver || 0) * 0.1 +
+          (item.cost?.electrum || 0) * 0.5 +
+          (item.cost?.gold || 0) +
+          (item.cost?.platinum || 0) * 10
+        );
+        
+        // Determine category from item data
+        let category: EquipmentCategoryType = EquipmentCategory.GEAR;
+        
+        // Check for weapon properties
+        if (item.damage_roll || item.weapon_category || item.weapon_properties ||
+            item.name.toLowerCase().includes('sword') || 
+            item.name.toLowerCase().includes('axe') || 
+            item.name.toLowerCase().includes('bow') ||
+            item.name.toLowerCase().includes('crossbow') ||
+            item.name.toLowerCase().includes('mace') || 
+            item.name.toLowerCase().includes('dagger') ||
+            item.name.toLowerCase().includes('spear') ||
+            item.name.toLowerCase().includes('hammer')) {
+          category = EquipmentCategory.WEAPON;
+        } 
+        // Check for armor
+        else if (item.armor_category || item.ac_bonus !== undefined ||
+                 item.name.toLowerCase().includes('armor') || 
+                 item.name.toLowerCase().includes('mail') || 
+                 item.name.toLowerCase().includes('plate') ||
+                 item.name.toLowerCase().includes('leather') ||
+                 item.name.toLowerCase().includes('breastplate')) {
+          category = EquipmentCategory.ARMOR;
+        } 
+        // Check for shield
+        else if (item.name.toLowerCase().includes('shield')) {
+          category = EquipmentCategory.SHIELD;
+        }
+        // Check for tools
+        else if (item.name.toLowerCase().includes('tools') ||
+                 item.name.toLowerCase().includes('kit') && !item.name.toLowerCase().includes('first aid')) {
+          category = EquipmentCategory.TOOL;
+        }
+        
+        return {
+          name: item.name,
+          category,
+          cost: {
+            quantity: Math.round(costInGold * 100) / 100, // Round to 2 decimal places
+            unit: 'gp'
+          },
+          weight: item.weight || 0,
+          description: item.description || '',
+          properties: item.properties || {}
+        } as Equipment;
+      });
+    } catch (error) {
+      console.error('Failed to fetch equipment from API, using fallback data:', error);
+      // Fallback to hardcoded data if API fails
+      return [
+        ...WEAPONS,
+        ...ARMOR,
+        ...SHIELDS,
+        ...ADVENTURING_GEAR
+      ];
+    }
+  }
+
   /**
    * Get all equipment by category
    */
-  getEquipmentByCategory(category: EquipmentCategoryType): Equipment[] {
-    switch (category) {
-      case EquipmentCategory.WEAPON:
-        return WEAPONS;
-      case EquipmentCategory.ARMOR:
-        return ARMOR;
-      case EquipmentCategory.SHIELD:
-        return SHIELDS;
-      case EquipmentCategory.GEAR:
-        return ADVENTURING_GEAR;
-      default:
-        return [];
-    }
+  async getEquipmentByCategory(category: EquipmentCategoryType): Promise<Equipment[]> {
+    const allEquipment = await this.getAllEquipment();
+    return allEquipment.filter(item => item.category === category);
   }
 
   /**
    * Get all equipment
    */
-  getAllEquipment(): Equipment[] {
-    return [
-      ...WEAPONS,
-      ...ARMOR, 
-      ...SHIELDS,
-      ...ADVENTURING_GEAR
-    ];
+  async getAllEquipment(): Promise<Equipment[]> {
+    if (this.equipmentCache) {
+      return this.equipmentCache;
+    }
+    
+    this.equipmentCache = await this.fetchEquipmentFromAPI();
+    console.log(`✅ Loaded ${this.equipmentCache.length} equipment items from compendium`);
+    return this.equipmentCache;
   }
 
   /**

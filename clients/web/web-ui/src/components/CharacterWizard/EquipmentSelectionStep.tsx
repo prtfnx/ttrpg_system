@@ -25,7 +25,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
   onBack,
   onPrevious
 }) => {
-  const { setValue, watch, getValues } = useFormContext<WizardFormData>();
+  const { setValue, getValues } = useFormContext<WizardFormData>();
   
   // Get data from form context if not provided as props
   const formData = getValues();
@@ -41,20 +41,12 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
   
   const handleBack = onBack || onPrevious;
   
+  // Use ref to track if we're in initial load to prevent infinite loop
+  const initialLoadRef = React.useRef(true);
+  const previousItemsRef = React.useRef<string>('');
+  
   console.log('🎒 EquipmentSelectionStep - RENDERING');
   console.log('🎒 EquipmentSelectionStep - characterClass:', characterClass);
-  
-  // Get current equipment from form
-  const currentEquipment = watch('equipment') || {
-    items: [],
-    currency: { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 },
-    carrying_capacity: {
-      current_weight: 0,
-      max_weight: 0,
-      encumbered_at: 0,
-      heavily_encumbered_at: 0
-    }
-  };
 
   // Local state
   const [availableEquipment, setAvailableEquipment] = useState<Equipment[]>([]);
@@ -70,16 +62,14 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
   // Equipment categories for filtering
   const equipmentCategories = useMemo(() => [
     'all',
-    'weapons',
-    'armor', 
-    'adventuring-gear',
-    'tools',
-    'mounts-vehicles',
-    'trade-goods',
-    'magic-items'
+    'weapon',
+    'armor',
+    'shield', 
+    'gear',
+    'tool'
   ], []);
 
-  // Load available equipment on mount
+  // Load available equipment on mount - only once!
   useEffect(() => {
     const loadEquipment = async () => {
       try {
@@ -108,28 +98,41 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
         
         // Convert existing equipment items to wizard format
         // Guard against undefined or missing items array
-        if (currentEquipment?.items && Array.isArray(currentEquipment.items)) {
-          console.log('🎒 Loading existing equipment items:', currentEquipment.items);
-          const wizardItems: WizardEquipmentItem[] = currentEquipment.items
-            .map(item => {
-              // Check if item is already in wizard format or needs conversion
-              if (item.equipment && typeof item.equipment === 'object' && 'name' in item.equipment) {
-                // Already in wizard format
-                return {
-                  equipment: item.equipment,
-                  quantity: item.quantity || 1,
-                  equipped: item.equipped
-                } as WizardEquipmentItem;
+        const existingItems = formData.equipment?.items;
+        if (existingItems && Array.isArray(existingItems) && existingItems.length > 0) {
+          console.log('🎒 Loading existing equipment items:', existingItems);
+          const wizardItems: WizardEquipmentItem[] = [];
+          
+          for (const item of existingItems) {
+            const itemAny = item as any; // Type assertion for old format compatibility
+            
+            // Check if item is in new wizard format: {equipment: {...}, quantity, equipped}
+            if (item.equipment && typeof item.equipment === 'object' && 'name' in item.equipment) {
+              wizardItems.push({
+                equipment: item.equipment,
+                quantity: item.quantity || 1,
+                equipped: item.equipped
+              } as WizardEquipmentItem);
+            }
+            // Check if item is in old format: {name, quantity, equipped, weight}
+            else if (itemAny.name && typeof itemAny.name === 'string') {
+              console.log('🎒 Converting old format item:', itemAny);
+              // Find the full equipment data from available equipment
+              const fullEquipment = validEquipment.find(eq => eq.name === itemAny.name);
+              if (fullEquipment) {
+                wizardItems.push(equipmentToWizardItem(fullEquipment, itemAny.quantity || 1, itemAny.equipped));
               } else {
-                console.warn('🎒 Item has unexpected structure:', item);
-                return null;
+                console.warn('🎒 Could not find equipment data for:', itemAny.name);
               }
-            })
-            .filter((item): item is WizardEquipmentItem => item !== null);
+            } else {
+              console.warn('🎒 Item has unexpected structure:', itemAny);
+            }
+          }
           
           console.log('🎒 Converted wizard items:', wizardItems);
           setSelectedItems(wizardItems);
         } else {
+          console.log('🎒 No existing equipment items to load');
           setSelectedItems([]);
         }
         
@@ -143,7 +146,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
     };
 
     loadEquipment();
-  }, [characterClass, currentEquipment]); // Watch the whole object, not just .items
+  }, [characterClass]); // Only run when class changes, NOT when currentEquipment changes!
 
   // Filter equipment based on search and category
   useEffect(() => {
@@ -282,24 +285,26 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
 
   // Update form with selected equipment
   const updateFormEquipment = useCallback(() => {
-    const inventoryItems = selectedItems.map(item => {
-      const equipment = availableEquipment.find(eq => eq.name === item.equipment.name)!;
-      return {
-        equipment: {
-          name: equipment.name,
-          weight: equipment.weight,
-          cost: {
-            amount: equipment.cost.quantity,
-            unit: equipment.cost.unit
-          }
-        },
+    console.log('🎒 updateFormEquipment called, selectedItems:', selectedItems);
+    
+    const inventoryItems = selectedItems.map((item, index) => {
+      console.log(`🎒 Processing item ${index}:`, item);
+      
+      // Use the equipment data already in the item
+      // It's already in the correct format from equipmentToWizardItem
+      const result = {
+        equipment: item.equipment, // Already has name, weight, cost
         quantity: item.quantity,
         equipped: item.equipped
       };
+      
+      console.log(`🎒 Mapped item ${index} result:`, result);
+      return result;
     });
+    
     const carryingCapacity = calculateCarryingCapacity();
     
-    setValue('equipment', {
+    const equipmentData = {
       items: inventoryItems,
       currency: {
         cp: 0,
@@ -309,8 +314,72 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
         pp: 0
       },
       carrying_capacity: carryingCapacity
-    });
-  }, [selectedItems, currentGold, calculateCarryingCapacity, setValue]);
+    };
+    
+    console.log('🎒 Setting equipment form value:', equipmentData);
+    setValue('equipment', equipmentData, { shouldValidate: true });
+  }, [selectedItems, currentGold, calculateCarryingCapacity, setValue, availableEquipment]);
+
+  // Auto-save equipment to form whenever selectedItems changes
+  useEffect(() => {
+    if (!loading) {
+      // Create a stable string representation to detect actual changes
+      const currentItemsStr = JSON.stringify(selectedItems.map(i => ({ 
+        name: i.equipment.name, 
+        qty: i.quantity, 
+        eq: i.equipped 
+      })));
+      
+      // Skip if items haven't actually changed
+      if (previousItemsRef.current === currentItemsStr && !initialLoadRef.current) {
+        console.log('🎒 Skipping auto-save - items unchanged');
+        return;
+      }
+      
+      previousItemsRef.current = currentItemsStr;
+      initialLoadRef.current = false;
+      
+      console.log('🎒 Auto-saving equipment, selectedItems changed:', selectedItems);
+      
+      // Inline the update logic to avoid dependency issues
+      const inventoryItems = selectedItems.map((item, index) => {
+        console.log(`🎒 Processing item ${index}:`, item);
+        return {
+          equipment: item.equipment,
+          quantity: item.quantity,
+          equipped: item.equipped
+        };
+      });
+      
+      const strengthScore = abilityScores?.strength || 10;
+      const baseCapacity = strengthScore * 15;
+      const currentWeight = selectedItems.reduce((total, item) => {
+        const itemWeight = item?.equipment?.weight ?? 0;
+        const quantity = item?.quantity ?? 1;
+        return total + (itemWeight * quantity);
+      }, 0);
+      
+      const equipmentData = {
+        items: inventoryItems,
+        currency: {
+          cp: 0,
+          sp: 0,
+          ep: 0,
+          gp: currentGold,
+          pp: 0
+        },
+        carrying_capacity: {
+          max_weight: baseCapacity,
+          encumbered_at: baseCapacity * 0.67,
+          heavily_encumbered_at: baseCapacity * 0.83,
+          current_weight: currentWeight
+        }
+      };
+      
+      console.log('🎒 Setting equipment form value:', equipmentData);
+      setValue('equipment', equipmentData, { shouldValidate: true });
+    }
+  }, [selectedItems, currentGold, loading, abilityScores, setValue]); // Don't include updateFormEquipment!
 
   // Handle next step
   const handleNext = useCallback(() => {

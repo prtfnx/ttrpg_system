@@ -46,6 +46,24 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
   const [protocol, setProtocol] = useState<WebClientProtocol | null>(null);
   const [connectionState, setConnectionState] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
 
+  // Monitor connection state by polling the protocol
+  useEffect(() => {
+    if (!protocol) return;
+
+    const checkConnection = () => {
+      const isConnected = protocol.isConnected();
+      if (isConnected && connectionState !== 'connected') {
+        setConnectionState('connected');
+      } else if (!isConnected && connectionState === 'connected') {
+        setConnectionState('disconnected');
+      }
+    };
+
+    // Poll connection state every 1 second
+    const interval = setInterval(checkConnection, 1000);
+    return () => clearInterval(interval);
+  }, [protocol, connectionState]);
+
   // Create protocol instance when sessionCode changes
   useEffect(() => {
     let mounted = true;

@@ -68,7 +68,7 @@ export const CombatTracker: React.FC<CombatTrackerProps> = ({
             wisdom: combatant.stats?.wis || 10,
             charisma: combatant.stats?.cha || 10
           },
-          skills: {},
+          skills: [],
           passivePerception: 10 + Math.floor(((combatant.stats?.wis || 10) - 10) / 2)
         },
         initiative: combatant.initiative || 0,

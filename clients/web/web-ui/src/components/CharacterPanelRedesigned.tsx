@@ -249,11 +249,8 @@ export function CharacterPanelRedesigned() {
         // Register pending operation with automatic rollback after 5 seconds
         registerPendingOperation(tempId, 'create', newCharacter);
         
-        protocol.saveCharacter({
-          character_data: newCharacter,
-          user_id: userId,
-          session_code: sessionId?.toString() || ''
-        });
+        console.log('💾 Saving character to server:', newCharacter.name, 'userId:', userId);
+        protocol.saveCharacter(newCharacter, userId);
         
         // Server will broadcast CHARACTER_UPDATE with real ID
         // Protocol handlers will update the character with real ID and syncStatus:'synced'

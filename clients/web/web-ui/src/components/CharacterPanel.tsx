@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useGameStore } from '../store';
 import './CharacterPanelRedesigned.css';
 import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
+import { CharacterSheet } from './CharacterWizard/CharacterSheet';
+import type { WizardFormData } from './CharacterWizard/WizardFormData';
 
 // Utility to generate unique IDs
 function genId(): string {
@@ -11,10 +13,12 @@ function genId(): string {
 
 
 function CharacterPanel() {
-  const { characters, selectedSprites, addCharacter, selectSprite, removeCharacter, getSpritesForCharacter } = useGameStore();
+  const { characters, selectedSprites, addCharacter, selectSprite, removeCharacter, getSpritesForCharacter, updateCharacter } = useGameStore();
   const [showWizard, setShowWizard] = useState(false);
   const [expandedCharId, setExpandedCharId] = useState<string | null>(null);
   const [wizardKey, setWizardKey] = useState(0);
+  const [editingCharId, setEditingCharId] = useState<string | null>(null);
+  const [viewingSheetCharId, setViewingSheetCharId] = useState<string | null>(null);
 
   // Find selected character based on selected sprite(s)
   const selectedCharacter = characters.find(c => {
@@ -76,6 +80,20 @@ function CharacterPanel() {
         setExpandedCharId(null);
       }
     }
+  };
+
+  const handleEditCharacter = (charId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log('🔧 Edit character:', charId);
+    // For now, just open wizard in edit mode - you can enhance this later
+    setEditingCharId(charId);
+    // TODO: Open wizard with pre-filled data or inline editor
+  };
+
+  const handleViewSheet = (charId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log('📋 View character sheet:', charId);
+    setViewingSheetCharId(charId);
   };
 
   return (
@@ -160,14 +178,14 @@ function CharacterPanel() {
 
                   {/* Quick Actions */}
                   <div className="char-actions">
-                    <button className="action-btn edit">Edit</button>
+                    <button className="action-btn edit" onClick={(e) => handleEditCharacter(char.id, e)}>Edit</button>
                     <button
                       className="action-btn delete"
                       onClick={(e) => handleDeleteCharacter(char.id, e)}
                     >
                       Delete
                     </button>
-                    <button className="action-btn">Sheet</button>
+                    <button className="action-btn" onClick={(e) => handleViewSheet(char.id, e)}>Sheet</button>
                   </div>
                 </div>
               )}
@@ -185,6 +203,40 @@ function CharacterPanel() {
           onCancel={() => setShowWizard(false)}
         />
       )}
+
+      {/* Character Sheet Viewer Modal */}
+      {viewingSheetCharId && (() => {
+        const char = characters.find(c => c.id === viewingSheetCharId);
+        if (!char || !char.data) return null;
+        
+        // Convert Character to WizardFormData format for CharacterSheet
+        const wizardData: WizardFormData = {
+          name: char.name,
+          race: char.data.race || '',
+          class: char.data.class || '',
+          level: char.data.level || 1,
+          background: char.data.background || '',
+          alignment: char.data.alignment || '',
+          abilityScores: {
+            strength: char.data.strength || 10,
+            dexterity: char.data.dexterity || 10,
+            constitution: char.data.constitution || 10,
+            intelligence: char.data.intelligence || 10,
+            wisdom: char.data.wisdom || 10,
+            charisma: char.data.charisma || 10,
+          },
+          skills: char.data.skills || [],
+          equipment: char.data.equipment || [],
+          spells: char.data.spells || [],
+        };
+
+        return (
+          <CharacterSheet 
+            character={wizardData} 
+            onClose={() => setViewingSheetCharId(null)} 
+          />
+        );
+      })()}
     </div>
   );
 }

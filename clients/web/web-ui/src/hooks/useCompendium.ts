@@ -3,7 +3,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { compendiumService, type CharacterClass, type CompendiumStatus, type Race, type Spell } from '../services/compendiumService';
+import { compendiumService, type Background, type CharacterClass, type CompendiumStatus, type Race, type Spell } from '../services/compendiumService';
 
 export interface UseCompendiumDataState<T> {
   data: T | null;
@@ -142,6 +142,39 @@ export function useClasses(): UseCompendiumDataState<CharacterClass[]> {
 
   // Return state with refetch function using useMemo to avoid infinite re-renders
   return useMemo(() => ({ ...state, refetch: fetchClasses }), [state, fetchClasses]);
+}
+
+/**
+ * Hook to get all backgrounds
+ */
+export function useBackgrounds(): UseCompendiumDataState<Background[]> {
+  const [state, setState] = useState<UseCompendiumDataState<Background[]>>({
+    data: null,
+    loading: true,
+    error: null,
+    refetch: async () => {}
+  });
+
+  const fetchBackgrounds = useCallback(async () => {
+    setState(prev => ({ ...prev, loading: true, error: null }));
+    try {
+      const response = await compendiumService.getBackgrounds();
+      setState(prev => ({ ...prev, data: response.backgrounds, loading: false }));
+    } catch (error) {
+      setState(prev => ({ 
+        ...prev, 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        loading: false 
+      }));
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBackgrounds();
+  }, [fetchBackgrounds]);
+
+  // Return state with refetch function using useMemo to avoid infinite re-renders
+  return useMemo(() => ({ ...state, refetch: fetchBackgrounds }), [state, fetchBackgrounds]);
 }
 
 /**

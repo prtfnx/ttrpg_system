@@ -242,9 +242,16 @@ class SpellManagementService {
    */
   getSpellsForClass(spells: Record<string, Spell>, characterClass: string): Record<string, Spell> {
     const filtered: Record<string, Spell> = {};
+    const classLower = characterClass.toLowerCase();
     
     for (const [name, spell] of Object.entries(spells)) {
-      if (spell.classes.includes(characterClass)) {
+      // Case-insensitive check, and handle subclasses like "Fighter (eldritch knight)"
+      const hasClass = spell.classes.some(c => {
+        const cLower = c.toLowerCase();
+        return cLower === classLower || cLower.startsWith(`${classLower} (`);
+      });
+      
+      if (hasClass) {
         filtered[name] = spell;
       }
     }

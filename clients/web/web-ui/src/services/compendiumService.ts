@@ -49,6 +49,21 @@ export interface CharacterClass {
   // Add more class properties as needed
 }
 
+export interface BackgroundFeature {
+  name: string;
+  description: string;
+  feature_type: string;
+}
+
+export interface Background {
+  name: string;
+  skill_proficiencies: string[];
+  language_proficiencies: string[];
+  tool_proficiencies: string[];
+  equipment: string[];
+  features: BackgroundFeature[];
+}
+
 export interface Spell {
   name: string;
   level: number;
@@ -94,6 +109,11 @@ export interface RacesResponse {
 
 export interface ClassesResponse {
   classes: CharacterClass[];
+  count: number;
+}
+
+export interface BackgroundsResponse {
+  backgrounds: Background[];
   count: number;
 }
 
@@ -184,6 +204,20 @@ class CompendiumService {
    */
   async getClass(className: string): Promise<CharacterClass> {
     return this.fetchWithCache<CharacterClass>(`/classes/${encodeURIComponent(className)}`);
+  }
+
+  /**
+   * Get all backgrounds
+   */
+  async getBackgrounds(): Promise<BackgroundsResponse> {
+    return this.fetchWithCache<BackgroundsResponse>('/backgrounds');
+  }
+
+  /**
+   * Get specific background by name
+   */
+  async getBackground(backgroundName: string): Promise<Background> {
+    return this.fetchWithCache<Background>(`/backgrounds/${encodeURIComponent(backgroundName)}`);
   }
 
   /**

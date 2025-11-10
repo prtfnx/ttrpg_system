@@ -3,7 +3,7 @@ import { ActionQueuePanel } from './ActionQueuePanel';
 import { ActionsPanel } from './ActionsPanel';
 import { ActionsQuickPanel } from './ActionsQuickPanel';
 import { AssetPanel } from './AssetPanel';
-import CharacterPanel from './CharacterPanel';
+import CharacterPanelRedesigned from './CharacterPanelRedesigned';
 import ChatPanel from './ChatPanel';
 import { CompendiumPanel } from './CompendiumPanel';
 import { EntitiesPanel } from './EntitiesPanel';
@@ -49,7 +49,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
         {activeTab === 'quick-actions' && <ActionsQuickPanel renderEngine={window.rustRenderManager as any || null} />}
         {isDevelopment && activeTab === 'table-tools' && <TablePanel />}
         {isDevelopment && activeTab === 'sync' && <TableSyncPanel />}
-        {activeTab === 'characters' && <CharacterPanel />}
+        {activeTab === 'characters' && <CharacterPanelRedesigned />}
         {activeTab === 'players' && <PlayerManagerPanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'initiative' && <InitiativeTracker sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {isDevelopment && activeTab === 'actions' && <ActionsPanel renderEngine={window.rustRenderManager as any || null} />}

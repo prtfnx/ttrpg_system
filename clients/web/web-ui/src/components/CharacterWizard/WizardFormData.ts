@@ -2,6 +2,9 @@ export type WizardFormData = {
   race: string;
   class: string;
   background: string;
+  // Optional simple level and alignment for viewer/editor convenience
+  level?: number;
+  alignment?: string;
   strength: number;
   dexterity: number;
   constitution: number;
@@ -9,10 +12,14 @@ export type WizardFormData = {
   wisdom: number;
   charisma: number;
   skills: string[];
-  spells?: {
-    cantrips: string[];
-    knownSpells: string[];
-    preparedSpells: string[];
+  // Convenience grouping for components that use an abilityScores object
+  abilityScores?: {
+    strength: number;
+    dexterity: number;
+    constitution: number;
+    intelligence: number;
+    wisdom: number;
+    charisma: number;
   };
   name: string;
   bio?: string;
@@ -44,6 +51,12 @@ export type WizardFormData = {
       encumbered_at: number;
       heavily_encumbered_at: number;
     };
+  };
+  // Spells selection
+  spells?: {
+    cantrips: string[];
+    knownSpells: string[];
+    preparedSpells: string[];
   };
   // Character advancement tracking
   advancement?: {

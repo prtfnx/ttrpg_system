@@ -1248,38 +1248,54 @@ export function CharacterPanelRedesigned() {
       {/* Character Sheet Modal */}
       {viewSheetCharId && (() => {
         const char = characters.find(c => c.id === viewSheetCharId);
-        if (!char) return null;
+        if (!char) {
+          console.warn('Character not found for sheet view:', viewSheetCharId);
+          return null;
+        }
         
         const handleSheetSave = (updates: Partial<Character>) => {
+          console.log('Sheet save requested:', updates);
           // Update character with changes from sheet
-          updateCharacter(char.id, updates);
+          updateCharacter(viewSheetCharId, updates);
           
           // Send to server if connected
           if (protocol && isConnected) {
-            updateCharacter(char.id, { syncStatus: 'syncing' });
-            protocol.updateCharacter(char.id, updates, char.version);
+            updateCharacter(viewSheetCharId, { syncStatus: 'syncing' });
+            protocol.updateCharacter(viewSheetCharId, updates, char.version);
           }
         };
         
         const handleCloseModal = (e: React.MouseEvent) => {
+          console.log('Close modal clicked, target:', e.target, 'currentTarget:', e.currentTarget);
           // Only close if clicking the overlay itself, not its children
           if (e.target === e.currentTarget) {
+            console.log('Closing modal');
             setViewSheetCharId(null);
           }
         };
+        
+        console.log('Rendering character sheet modal for:', char.name, 'ID:', viewSheetCharId);
         
         return (
           <div className="modal-overlay" onClick={handleCloseModal}>
             <div 
               className="modal-content character-sheet-modal"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                console.log('Modal content clicked');
+                e.stopPropagation();
+              }}
             >
               <div className="modal-header">
                 <h2>{char.name} - Character Sheet</h2>
                 <button 
                   className="modal-close-btn" 
-                  onClick={() => setViewSheetCharId(null)}
+                  onClick={(e) => {
+                    console.log('Close button clicked');
+                    e.stopPropagation();
+                    setViewSheetCharId(null);
+                  }}
                   aria-label="Close character sheet"
+                  type="button"
                 >
                   ✕
                 </button>

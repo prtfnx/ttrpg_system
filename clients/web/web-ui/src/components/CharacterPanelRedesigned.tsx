@@ -11,9 +11,9 @@ import {
 } from '../utils/characterImportExport';
 import { showToast } from '../utils/toast';
 import './CharacterPanelRedesigned.css';
+import { CharacterSheet } from './CharacterSheet';
 import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 import { ShareCharacterDialog } from './ShareCharacterDialog';
-import { CharacterSheet } from './CharacterSheet';
 
 function genId(): string {
   return 'temp-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
@@ -1270,7 +1270,10 @@ export function CharacterPanelRedesigned() {
         
         return (
           <div className="modal-overlay" onClick={handleCloseModal}>
-            <div className="modal-content character-sheet-modal">
+            <div 
+              className="modal-content character-sheet-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="modal-header">
                 <h2>{char.name} - Character Sheet</h2>
                 <button 

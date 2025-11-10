@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { authService } from '../services/auth.service';
 import { useProtocol } from '../services/ProtocolContext';
 import { useGameStore } from '../store';
 import type { Character } from '../types';
@@ -62,6 +63,10 @@ export function CharacterPanelRedesigned() {
   
   const { protocol, isConnected } = useProtocol();
   
+  // Get authenticated user ID
+  const userInfo = authService.getUserInfo();
+  const currentUserId = userInfo?.id || 0;
+  
   // Auto-load characters when connected
   useEffect(() => {
     if (protocol && isConnected) {
@@ -113,34 +118,31 @@ export function CharacterPanelRedesigned() {
     
     // Set new timeout for rollback
     const timeoutId = setTimeout(() => {
-      console.warn(`Operation timeout for character ${characterId}, rolling back...`);
+      console.warn(`Operation timeout for character ${characterId}, marking as error...`);
       
       const operation = pendingOperationsRef.current.get(characterId);
       if (!operation) return;
       
-      // Perform rollback based on operation type
+      // For CREATE operations, DON'T delete the character - keep it with error status
       if (type === 'create') {
-        // Remove the character that was never confirmed by server
-        removeCharacter(characterId);
-        console.log(`Rolled back create operation for ${characterId}`);
+        // Keep the character but mark as error so user can retry
+        updateCharacter(characterId, { syncStatus: 'error' });
+        console.log(`Character ${characterId} save failed, kept in UI with error status`);
+        showToast.error(`Failed to save character "${originalState?.name || 'character'}". Click retry to try again.`);
       } else if (type === 'update' && originalState) {
-        // Restore original state
-        updateCharacter(characterId, originalState);
+        // Restore original state for updates
+        updateCharacter(characterId, { ...originalState, syncStatus: 'error' });
         console.log(`Rolled back update operation for ${characterId}`);
+        showToast.error(`Failed to update character "${originalState?.name || 'character'}". Changes reverted.`);
       } else if (type === 'delete' && originalState) {
         // Re-add the deleted character
-        addCharacter(originalState);
+        addCharacter({ ...originalState, syncStatus: 'error' });
         console.log(`Rolled back delete operation for ${characterId}`);
+        showToast.error(`Failed to delete character "${originalState?.name || 'character'}". Character restored.`);
       }
-      
-      // Update sync status to error
-      updateCharacter(characterId, { syncStatus: 'error' });
       
       // Clean up
       pendingOperationsRef.current.delete(characterId);
-      
-      // Notify user
-      showToast.rollbackWarning(originalState?.name || 'character');
     }, 5000); // 5 second timeout
     
     // Store the pending operation
@@ -223,13 +225,19 @@ export function CharacterPanelRedesigned() {
 
   const handleWizardFinish = async (data: any) => {
     const tempId = genId();
-    const userId = typeof sessionId === 'string' ? parseInt(sessionId, 10) : (sessionId || 0);
+    
+    if (!currentUserId) {
+      console.error('Cannot create character: No authenticated user');
+      showToast.error('Please log in to create characters');
+      setShowWizard(false);
+      return;
+    }
     
     const newCharacter = {
       id: tempId,
       sessionId: sessionId?.toString() || '',
       name: data.name || `${data.race} ${data.class}`,
-      ownerId: userId,
+      ownerId: currentUserId,
       controlledBy: [],
       data,
       version: 1,
@@ -246,26 +254,55 @@ export function CharacterPanelRedesigned() {
     // Send to server if connected
     if (protocol && isConnected) {
       try {
-        // Register pending operation with automatic rollback after 5 seconds
+        // Register pending operation - will mark as error if timeout, but won't delete
         registerPendingOperation(tempId, 'create', newCharacter);
         
-        console.log('💾 Saving character to server:', newCharacter.name, 'userId:', userId);
-        protocol.saveCharacter(newCharacter, userId);
+        console.log('💾 Saving character to server:', newCharacter.name, 'userId:', currentUserId);
+        protocol.saveCharacter(newCharacter, currentUserId);
         
         // Server will broadcast CHARACTER_UPDATE with real ID
         // Protocol handlers will update the character with real ID and syncStatus:'synced'
         // The pending operation will be confirmed when server responds
       } catch (error) {
         console.error('Failed to save character:', error);
-        // Clear pending operation and rollback
+        // Clear pending operation and mark as error (don't delete)
         confirmPendingOperation(tempId);
-        removeCharacter(tempId);
-        showToast.characterSaveFailed(newCharacter.name, 'Server error');
+        updateCharacter(tempId, { syncStatus: 'error' });
+        showToast.error(`Failed to save character "${newCharacter.name}". Click retry to try again.`);
       }
     } else {
       // No connection - mark as local only
       updateCharacter(tempId, { syncStatus: 'local' });
       console.warn('Character created locally - not connected to server');
+    }
+  };
+
+  // Retry saving a failed character
+  const handleRetrySave = async (charId: string) => {
+    const char = characters.find(c => c.id === charId);
+    if (!char) return;
+
+    if (!protocol || !isConnected) {
+      showToast.error('Cannot retry - not connected to server');
+      return;
+    }
+
+    // Update to syncing status
+    updateCharacter(charId, { syncStatus: 'syncing' });
+
+    try {
+      // Register pending operation
+      registerPendingOperation(charId, 'create', char);
+      
+      console.log('🔄 Retrying character save:', char.name, 'userId:', currentUserId);
+      protocol.saveCharacter(char, currentUserId);
+      
+      showToast.info(`Retrying save for "${char.name}"...`);
+    } catch (error) {
+      console.error('Failed to retry character save:', error);
+      confirmPendingOperation(charId);
+      updateCharacter(charId, { syncStatus: 'error' });
+      showToast.error(`Retry failed for "${char.name}". Please try again.`);
     }
   };
 
@@ -346,7 +383,6 @@ export function CharacterPanelRedesigned() {
 
   // Import character from JSON file
   const handleImportCharacter = () => {
-    const currentUserId = typeof sessionId === 'string' ? parseInt(sessionId, 10) : (sessionId || 0);
     const currentSessionId = sessionId?.toString() || '';
     
     pickAndImportCharacter(
@@ -392,7 +428,6 @@ export function CharacterPanelRedesigned() {
     const character = characters.find(c => c.id === charId);
     if (!character) return;
     
-    const currentUserId = typeof sessionId === 'string' ? parseInt(sessionId, 10) : (sessionId || 0);
     const clonedChar = cloneCharacter(character, currentUserId);
     
     // Add cloned character with optimistic update
@@ -477,7 +512,6 @@ export function CharacterPanelRedesigned() {
 
     if (!confirmed) return;
 
-    const userId = typeof sessionId === 'string' ? parseInt(sessionId, 10) : (sessionId || 0);
     let successCount = 0;
     let errorCount = 0;
 
@@ -486,7 +520,7 @@ export function CharacterPanelRedesigned() {
       if (!char) continue;
 
       // Check permissions
-      if (!canEditCharacter(charId, userId)) {
+      if (!canEditCharacter(charId, currentUserId)) {
         errorCount++;
         continue;
       }
@@ -906,8 +940,7 @@ export function CharacterPanelRedesigned() {
           const isSelected = selectedCharacter?.id === char.id;
           const isBulkSelected = selectedCharacterIds.has(char.id);
           const linkedSprites = getSpritesForCharacter(char.id);
-          const userId = typeof sessionId === 'string' ? parseInt(sessionId, 10) : sessionId;
-          const canEdit = canEditCharacter(char.id, userId);
+          const canEdit = canEditCharacter(char.id, currentUserId);
           return (
             <div
               key={char.id}
@@ -937,13 +970,37 @@ export function CharacterPanelRedesigned() {
                   <div className="char-name">
                     {char.name}
                     <SyncStatusIcon status={char.syncStatus} />
+                    {/* Retry button for failed saves */}
+                    {char.syncStatus === 'error' && (
+                      <button
+                        className="retry-save-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRetrySave(char.id);
+                        }}
+                        title="Retry saving to server"
+                        style={{
+                          marginLeft: '8px',
+                          padding: '2px 8px',
+                          fontSize: '11px',
+                          backgroundColor: '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '3px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        🔄 Retry
+                      </button>
+                    )}
                   </div>
                   <div className="char-details">Owner: {char.ownerId}</div>
                 </div>
                 {/* Badges for linked tokens */}
                 <div className="char-badges">
                   {linkedSprites.map((s: typeof linkedSprites[0]) => {
-                    const canControlToken = canControlSprite(s.id, userId);
+                    const canControlToken = canControlSprite(s.id, currentUserId);
                     return (
                       <span key={s.id} className={`token-badge${canControlToken ? '' : ' no-permission'}`} title={canControlToken ? 'You can control this token.' : 'You do not have permission to control this token.'}>
                         Token

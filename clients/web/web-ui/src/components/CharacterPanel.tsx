@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../store';
 import './CharacterPanelRedesigned.css';
-import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 import { CharacterSheet } from './CharacterWizard/CharacterSheet';
+import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 import type { WizardFormData } from './CharacterWizard/WizardFormData';
 
 // Utility to generate unique IDs
@@ -13,11 +13,10 @@ function genId(): string {
 
 
 function CharacterPanel() {
-  const { characters, selectedSprites, addCharacter, selectSprite, removeCharacter, getSpritesForCharacter, updateCharacter } = useGameStore();
+  const { characters, selectedSprites, addCharacter, selectSprite, removeCharacter, getSpritesForCharacter } = useGameStore();
   const [showWizard, setShowWizard] = useState(false);
   const [expandedCharId, setExpandedCharId] = useState<string | null>(null);
   const [wizardKey, setWizardKey] = useState(0);
-  const [editingCharId, setEditingCharId] = useState<string | null>(null);
   const [viewingSheetCharId, setViewingSheetCharId] = useState<string | null>(null);
 
   // Find selected character based on selected sprite(s)
@@ -85,9 +84,8 @@ function CharacterPanel() {
   const handleEditCharacter = (charId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     console.log('🔧 Edit character:', charId);
-    // For now, just open wizard in edit mode - you can enhance this later
-    setEditingCharId(charId);
-    // TODO: Open wizard with pre-filled data or inline editor
+    // TODO: Implement inline editing or open wizard with pre-filled data
+    alert('Edit functionality coming soon!');
   };
 
   const handleViewSheet = (charId: string, e: React.MouseEvent) => {
@@ -217,6 +215,12 @@ function CharacterPanel() {
           level: char.data.level || 1,
           background: char.data.background || '',
           alignment: char.data.alignment || '',
+          strength: char.data.strength || 10,
+          dexterity: char.data.dexterity || 10,
+          constitution: char.data.constitution || 10,
+          intelligence: char.data.intelligence || 10,
+          wisdom: char.data.wisdom || 10,
+          charisma: char.data.charisma || 10,
           abilityScores: {
             strength: char.data.strength || 10,
             dexterity: char.data.dexterity || 10,
@@ -226,8 +230,9 @@ function CharacterPanel() {
             charisma: char.data.charisma || 10,
           },
           skills: char.data.skills || [],
-          equipment: char.data.equipment || [],
-          spells: char.data.spells || [],
+          spells: Array.isArray(char.data.spells) 
+            ? char.data.spells 
+            : (char.data.spells || { cantrips: [], knownSpells: [], preparedSpells: [] }),
         };
 
         return (

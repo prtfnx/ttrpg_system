@@ -13,6 +13,7 @@ import { showToast } from '../utils/toast';
 import './CharacterPanelRedesigned.css';
 import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 import { ShareCharacterDialog } from './ShareCharacterDialog';
+import { CharacterSheet } from './CharacterSheet';
 
 function genId(): string {
   return 'temp-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
@@ -69,10 +70,11 @@ export function CharacterPanelRedesigned() {
   
   // Auto-load characters when connected
   useEffect(() => {
-    if (protocol && isConnected) {
-      protocol.requestCharacterList();
+    if (protocol && isConnected && currentUserId) {
+      console.log('🔄 Loading character list for user:', currentUserId);
+      protocol.requestCharacterList(currentUserId);
     }
-  }, [protocol, isConnected]);
+  }, [protocol, isConnected, currentUserId]);
 
   // Connection status notifications
   const [prevConnected, setPrevConnected] = useState<boolean | null>(null);
@@ -229,6 +231,7 @@ export function CharacterPanelRedesigned() {
   const [searchFilter, setSearchFilter] = useState<string>('');
   const [selectedCharacterIds, setSelectedCharacterIds] = useState<Set<string>>(new Set());
   const [bulkSelectMode, setBulkSelectMode] = useState<boolean>(false);
+  const [viewSheetCharId, setViewSheetCharId] = useState<string | null>(null);
 
   const selectedCharacter = characters.find(c => {
     return getSpritesForCharacter(c.id).some(s => selectedSprites.includes(s.id));
@@ -776,6 +779,10 @@ export function CharacterPanelRedesigned() {
     setShareDialogCharId(charId);
   };
 
+  const handleViewSheet = (charId: string) => {
+    setViewSheetCharId(charId);
+  };
+
   const handleSavePermissions = (charId: string, controlledBy: number[]) => {
     const char = characters.find(c => c.id === charId);
     if (!char) return;
@@ -895,10 +902,12 @@ export function CharacterPanelRedesigned() {
         <div className="search-filter" style={{ padding: '12px', borderBottom: '1px solid var(--border-color)' }}>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <input
+              id="character-search"
               type="text"
               placeholder="Search by name, class, or race..."
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
+              aria-label="Search characters"
               style={{
                 width: '100%',
                 padding: '8px 32px 8px 12px',
@@ -1147,6 +1156,7 @@ export function CharacterPanelRedesigned() {
                     {canEdit && editingCharId !== char.id && (
                       <div className="add-condition-row">
                         <input
+                          id={`condition-input-${char.id}`}
                           type="text"
                           placeholder="Add condition..."
                           value={editFormData.newCondition || ''}
@@ -1157,10 +1167,12 @@ export function CharacterPanelRedesigned() {
                             }
                           }}
                           className="condition-input"
+                          aria-label="Add condition"
                         />
                         <button
                           className="action-btn add-condition"
                           onClick={() => handleAddCondition(char.id)}
+                          aria-label="Add condition"
                         >
                           +
                         </button>
@@ -1170,6 +1182,9 @@ export function CharacterPanelRedesigned() {
 
                   {/* Actions Section */}
                   <div className="char-actions">
+                    <button className="action-btn view-sheet" onClick={() => handleViewSheet(char.id)} title="View full character sheet">
+                      📄 View Sheet
+                    </button>
                     <button className="action-btn" onClick={() => handleAddToken(char.id)} disabled={!canEdit} title={canEdit ? 'Add a token for this character.' : 'You do not have permission to add tokens for this character.'}>
                       Add Token
                     </button>
@@ -1227,6 +1242,50 @@ export function CharacterPanelRedesigned() {
             onClose={() => setShareDialogCharId(null)}
             onSave={handleSavePermissions}
           />
+        );
+      })()}
+
+      {/* Character Sheet Modal */}
+      {viewSheetCharId && (() => {
+        const char = characters.find(c => c.id === viewSheetCharId);
+        if (!char) return null;
+        
+        const handleSheetSave = (updates: Partial<Character>) => {
+          // Update character with changes from sheet
+          updateCharacter(char.id, updates);
+          
+          // Send to server if connected
+          if (protocol && isConnected) {
+            updateCharacter(char.id, { syncStatus: 'syncing' });
+            protocol.updateCharacter(char.id, updates, char.version);
+          }
+        };
+        
+        const handleCloseModal = (e: React.MouseEvent) => {
+          // Only close if clicking the overlay itself, not its children
+          if (e.target === e.currentTarget) {
+            setViewSheetCharId(null);
+          }
+        };
+        
+        return (
+          <div className="modal-overlay" onClick={handleCloseModal}>
+            <div className="modal-content character-sheet-modal">
+              <div className="modal-header">
+                <h2>{char.name} - Character Sheet</h2>
+                <button 
+                  className="modal-close-btn" 
+                  onClick={() => setViewSheetCharId(null)}
+                  aria-label="Close character sheet"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="modal-body">
+                <CharacterSheet character={char} onSave={handleSheetSave} />
+              </div>
+            </div>
+          </div>
         );
       })()}
     </div>

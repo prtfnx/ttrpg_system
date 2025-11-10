@@ -303,24 +303,28 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
       {/* Tab Navigation */}
       <div className="character-sheet-tabs">
         <button 
+          type="button"
           className={`tab-button ${activeTab === 'basics' ? 'active' : ''}`}
           onClick={() => setActiveTab('basics')}
         >
           Basic Info
         </button>
         <button 
+          type="button"
           className={`tab-button ${activeTab === 'equipment' ? 'active' : ''}`}
           onClick={() => setActiveTab('equipment')}
         >
           Equipment
         </button>
         <button 
+          type="button"
           className={`tab-button ${activeTab === 'spells' ? 'active' : ''}`}
           onClick={() => setActiveTab('spells')}
         >
           Spells
         </button>
         <button 
+          type="button"
           className={`tab-button ${activeTab === 'notes' ? 'active' : ''}`}
           onClick={() => setActiveTab('notes')}
         >
@@ -340,7 +344,8 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                   value={form.name || ""} 
                   onChange={handleChange} 
                   required 
-                  disabled={!!lockedBy && lockedBy !== "me"} 
+                  disabled={!!lockedBy && lockedBy !== "me"}
+                  autoComplete="off"
                 />
               </label>
               <label>
@@ -350,7 +355,8 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                   value={form.data?.class || ""} 
                   onChange={handleChange} 
                   required 
-                  disabled={!!lockedBy && lockedBy !== "me"} 
+                  disabled={!!lockedBy && lockedBy !== "me"}
+                  autoComplete="off"
                 />
               </label>
               <label>
@@ -360,7 +366,8 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                   value={form.data?.race || ""} 
                   onChange={handleChange} 
                   required 
-                  disabled={!!lockedBy && lockedBy !== "me"} 
+                  disabled={!!lockedBy && lockedBy !== "me"}
+                  autoComplete="off"
                 />
               </label>
               <label>
@@ -372,7 +379,8 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                   value={form.data?.level || 1} 
                   onChange={handleChange} 
                   required 
-                  disabled={!!lockedBy && lockedBy !== "me"} 
+                  disabled={!!lockedBy && lockedBy !== "me"}
+                  autoComplete="off"
                 />
               </label>
             </div>
@@ -385,17 +393,21 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                   const modifier = Math.floor((value - 10) / 2);
                   const modifierString = modifier >= 0 ? `+${modifier}` : `${modifier}`;
                   const label = stat.toUpperCase();
+                  const inputId = `ability-${stat}`;
                   return (
                     <div key={stat} className="ability-score">
-                      <label className="ability-name">{label}</label>
+                      <label htmlFor={inputId} className="ability-name">{label}</label>
                       <input 
+                        id={inputId}
+                        name={stat}
                         type="number" 
                         min={1} 
                         max={30} 
                         value={value} 
                         onChange={e => handleStatChange(stat, Number(e.target.value))} 
                         disabled={!!lockedBy && lockedBy !== "me"}
-                        className="ability-value" 
+                        className="ability-value"
+                        aria-label={`${label} ability score`}
                       />
                       <div className="ability-modifier">{modifierString}</div>
                     </div>

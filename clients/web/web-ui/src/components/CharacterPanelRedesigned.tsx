@@ -4,10 +4,10 @@ import { useProtocol } from '../services/ProtocolContext';
 import { useGameStore } from '../store';
 import type { Character } from '../types';
 import {
-    cloneCharacter,
-    downloadCharacterAsJSON,
-    downloadMultipleCharactersAsJSON,
-    pickAndImportCharacter
+  cloneCharacter,
+  downloadCharacterAsJSON,
+  downloadMultipleCharactersAsJSON,
+  pickAndImportCharacter
 } from '../utils/characterImportExport';
 import { showToast } from '../utils/toast';
 import './CharacterPanelRedesigned.css';
@@ -25,7 +25,7 @@ const SyncStatusIcon: React.FC<{ status?: 'local' | 'syncing' | 'synced' | 'erro
   const statusConfig = {
     local: { icon: '📝', tooltip: 'Not synced - changes are local only', color: '#fbbf24' },
     syncing: { icon: '⟳', tooltip: 'Syncing with server...', color: '#3b82f6' },
-    error: { icon: '⚠️', tooltip: 'Sync failed - click to retry', color: '#ef4444' },
+    error: { icon: '⚠️', tooltip: 'Sync failed - click retry button to try again', color: '#ef4444' },
   };
   
   const config = statusConfig[status];
@@ -177,10 +177,33 @@ export function CharacterPanelRedesigned() {
       }
     };
     
+    const handleCharacterSaved = (event: CustomEvent) => {
+      console.log('🎉 Character saved event received:', event.detail);
+      
+      // Confirm all pending create operations for temp characters
+      const tempChars = characters.filter(c => c.id.startsWith('temp-') && c.syncStatus === 'syncing');
+      tempChars.forEach(c => {
+        console.log(`✅ Confirming pending operation for temp character: ${c.id}`);
+        confirmPendingOperation(c.id);
+        
+        // Show success toast
+        if (event.detail?.success) {
+          showToast.success(`Character "${c.name}" saved successfully!`);
+        }
+      });
+      
+      // Also confirm by real character_id if provided
+      if (event.detail?.character_id) {
+        confirmPendingOperation(String(event.detail.character_id));
+      }
+    };
+    
     window.addEventListener('character-update' as any, handleCharacterUpdate);
+    window.addEventListener('character-saved' as any, handleCharacterSaved);
     
     return () => {
       window.removeEventListener('character-update' as any, handleCharacterUpdate);
+      window.removeEventListener('character-saved' as any, handleCharacterSaved);
     };
   }, [characters, confirmPendingOperation]);
   
@@ -295,7 +318,7 @@ export function CharacterPanelRedesigned() {
       registerPendingOperation(charId, 'create', char);
       
       console.log('🔄 Retrying character save:', char.name, 'userId:', currentUserId);
-      protocol.saveCharacter(char, currentUserId);
+      protocol.saveCharacter(char as unknown as Record<string, unknown>, currentUserId);
       
       showToast.info(`Retrying save for "${char.name}"...`);
     } catch (error) {

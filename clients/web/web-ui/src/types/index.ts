@@ -228,6 +228,7 @@ export interface RenderEngine {
   set_input_mode_select: () => void;
   set_input_mode_paint: () => void;
   get_current_input_mode: () => string;
+  clear_measurement: () => void;
   
   // Sprite information
   get_all_sprites_network_data: () => any[];

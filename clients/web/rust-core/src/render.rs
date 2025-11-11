@@ -1240,6 +1240,12 @@ impl RenderEngine {
     }
 
     #[wasm_bindgen]
+    pub fn clear_measurement(&mut self) {
+        self.input.clear_completed_measurement();
+        web_sys::console::log_1(&"[RUST] Completed measurement cleared".into());
+    }
+
+    #[wasm_bindgen]
     pub fn set_input_mode_paint(&mut self) {
         self.input.input_mode = InputMode::Paint;
         web_sys::console::log_1(&"[RUST] Input mode set to Paint".into());

@@ -49,7 +49,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
     }
   );
   const [editing, setEditing] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'core' | 'combat' | 'features' | 'equipment' | 'spells' | 'bio'>('core');
+  const [activeTab, setActiveTab] = useState<'core' | 'combat' | 'features' | 'equipment' | 'spells' | 'bio' | 'basics' | 'notes'>('basics');
 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import type { Character } from "../types";
-import "./CharacterSheet.css";
+import "./CharacterSheetNew.css";
 
 interface CharacterSheetProps {
   character: Character | null;
   onSave: (character: Partial<Character>) => void;
 }
 
-// D&D 5E Skills list
+// D&D 5E Skills with their associated ability scores
 const SKILLS = [
   { name: 'Acrobatics', ability: 'dex' },
   { name: 'Animal Handling', ability: 'wis' },

@@ -55,6 +55,7 @@ pub struct InputHandler {
     // Measurement tool state
     pub measurement_start: Option<Vec2>,
     pub measurement_current: Option<Vec2>,
+    pub completed_measurement: Option<(Vec2, Vec2)>, // Persists after mouse up
     
     // Shape creation state
     pub shape_creation_start: Option<Vec2>,
@@ -86,6 +87,7 @@ impl Default for InputHandler {
             fog_mode: FogDrawMode::Hide,
             measurement_start: None,
             measurement_current: None,
+            completed_measurement: None,
             shape_creation_start: None,
             shape_creation_current: None,
         }
@@ -240,6 +242,7 @@ impl InputHandler {
 
     pub fn end_measurement(&mut self) -> Option<(Vec2, Vec2)> {
         if let (Some(start), Some(end)) = (self.measurement_start, self.measurement_current) {
+            self.completed_measurement = Some((start, end)); // Save completed measurement
             self.measurement_start = None;
             self.measurement_current = None;
             Some((start, end))
@@ -249,11 +252,20 @@ impl InputHandler {
     }
 
     pub fn get_measurement_line(&self) -> Option<(Vec2, Vec2)> {
+        // During active measurement, show current line
         if let (Some(start), Some(current)) = (self.measurement_start, self.measurement_current) {
             Some((start, current))
+        }
+        // After mouse up, show completed measurement until cleared
+        else if let Some(completed) = self.completed_measurement {
+            Some(completed)
         } else {
             None
         }
+    }
+    
+    pub fn clear_completed_measurement(&mut self) {
+        self.completed_measurement = None;
     }
 
     // ============================================================================

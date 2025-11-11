@@ -12,7 +12,7 @@ import {
 } from '../utils/characterImportExport';
 import { showToast } from '../utils/toast';
 import './CharacterPanelRedesigned.css';
-import { CharacterSheet } from './CharacterSheet';
+import { CharacterSheet } from './CharacterSheetNew';
 import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 import { ShareCharacterDialog } from './ShareCharacterDialog';
 

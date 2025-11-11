@@ -32,7 +32,13 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
         class: "",
         race: "",
         level: 1,
-        abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }
+        abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+        stats: { hp: 0, maxHp: 10, ac: 10, speed: 30 },
+        proficiencyBonus: 2,
+        inspiration: false,
+        conditions: [],
+        savingThrows: { str: false, dex: false, con: false, int: false, wis: false, cha: false },
+        skills: {}
       },
       sessionId: "",
       ownerId: 0,
@@ -43,7 +49,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
     }
   );
   const [editing, setEditing] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'basics' | 'equipment' | 'spells' | 'notes'>('basics');
+  const [activeTab, setActiveTab] = useState<'core' | 'combat' | 'features' | 'equipment' | 'spells' | 'bio'>('core');
 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

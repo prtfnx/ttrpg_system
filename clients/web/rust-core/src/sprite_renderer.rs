@@ -237,74 +237,118 @@ impl SpriteRenderer {
     }
     
     pub fn draw_measurement_line(start: Vec2, end: Vec2, renderer: &WebGLRenderer) -> Result<(), JsValue> {
-        // Draw measurement line
-        let line_vertices = vec![
-            start.x, start.y,
-            end.x, end.y,
-        ];
-        renderer.draw_lines(&line_vertices, [1.0, 1.0, 0.0, 1.0])?; // Yellow line
+        // Calculate direction and distance
+        let dx = end.x - start.x;
+        let dy = end.y - start.y;
+        let distance = (dx * dx + dy * dy).sqrt();
         
-        // Draw start and end points
-        let point_size = 5.0;
-        
-        // Start point
-        let start_vertices = vec![
-            start.x - point_size, start.y - point_size,
-            start.x + point_size, start.y - point_size,
-            start.x - point_size, start.y + point_size,
-            start.x + point_size, start.y + point_size,
-        ];
-        let tex_coords = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        renderer.draw_quad(&start_vertices, &tex_coords, [0.0, 1.0, 0.0, 1.0], false)?; // Green start
-        
-        // End point
-        let end_vertices = vec![
-            end.x - point_size, end.y - point_size,
-            end.x + point_size, end.y - point_size,
-            end.x - point_size, end.y + point_size,
-            end.x + point_size, end.y + point_size,
-        ];
-        renderer.draw_quad(&end_vertices, &tex_coords, [1.0, 0.0, 0.0, 1.0], false)?; // Red end
-        
-        // Calculate distance
-        let distance = ((end.x - start.x).powi(2) + (end.y - start.y).powi(2)).sqrt();
-        
-        // Draw distance label background (small rectangle at midpoint)
-        let mid_point = Vec2::new((start.x + end.x) / 2.0, (start.y + end.y) / 2.0);
-        let label_width = 60.0;
-        let label_height = 20.0;
-        
-        // Background rectangle for text
-        let bg_vertices = vec![
-            mid_point.x - label_width / 2.0, mid_point.y - label_height / 2.0,
-            mid_point.x + label_width / 2.0, mid_point.y - label_height / 2.0,
-            mid_point.x - label_width / 2.0, mid_point.y + label_height / 2.0,
-            mid_point.x + label_width / 2.0, mid_point.y + label_height / 2.0,
-        ];
-        renderer.draw_quad(&bg_vertices, &tex_coords, [0.0, 0.0, 0.0, 0.7], false)?; // Semi-transparent black background
-        
-        // Draw small tick marks on the line to indicate measurement
-        let num_ticks = 5;
-        for i in 1..num_ticks {
-            let t = i as f32 / num_ticks as f32;
-            let tick_pos = Vec2::new(
-                start.x + t * (end.x - start.x),
-                start.y + t * (end.y - start.y)
-            );
-            
-            // Calculate perpendicular direction for tick marks
-            let dir = Vec2::new(end.x - start.x, end.y - start.y);
-            let perp = Vec2::new(-dir.y, dir.x).normalize() * 3.0; // 3 pixel tick marks
-            
-            let tick_vertices = vec![
-                tick_pos.x - perp.x, tick_pos.y - perp.y,
-                tick_pos.x + perp.x, tick_pos.y + perp.y,
-            ];
-            renderer.draw_lines(&tick_vertices, [1.0, 1.0, 1.0, 0.8])?; // White tick marks
+        if distance < 1.0 {
+            return Ok(()); // Too short to draw
         }
         
-        // Log distance for debugging (will be visible in browser console)
-        web_sys::console::log_1(&format!("Measurement distance: {:.1} units", distance).into());
+        // Normalize direction
+        let dir_x = dx / distance;
+        let dir_y = dy / distance;
+        
+        // Perpendicular direction for arrow heads
+        let perp_x = -dir_y;
+        let perp_y = dir_x;
+        
+        // Arrow styling - cyan with black outline (standard CAD/measurement color)
+        let line_color = [0.0, 0.9, 0.9, 1.0]; // Cyan
+        let outline_color = [0.0, 0.0, 0.0, 1.0]; // Black
+        
+        // Draw black outline (thicker line first)
+        let outline_width = 3.0;
+        renderer.draw_lines(&vec![start.x, start.y, end.x, end.y], outline_color)?;
+        
+        // Draw main cyan line (thinner, on top)
+        renderer.draw_lines(&vec![start.x, start.y, end.x, end.y], line_color)?;
+        
+        // Arrow head size
+        let arrow_size = 12.0;
+        let arrow_width = 6.0;
+        
+        // Draw START arrowhead (pointing from start towards end)
+        let start_arrow_tip = start;
+        let start_arrow_base_x = start.x + dir_x * arrow_size;
+        let start_arrow_base_y = start.y + dir_y * arrow_size;
+        
+        let start_arrow_left_x = start_arrow_base_x + perp_x * arrow_width;
+        let start_arrow_left_y = start_arrow_base_y + perp_y * arrow_width;
+        let start_arrow_right_x = start_arrow_base_x - perp_x * arrow_width;
+        let start_arrow_right_y = start_arrow_base_y - perp_y * arrow_width;
+        
+        // Start arrow triangle (filled)
+        let start_arrow_vertices = vec![
+            start_arrow_left_x, start_arrow_left_y,
+            start_arrow_right_x, start_arrow_right_y,
+            start_arrow_tip.x, start_arrow_tip.y,
+        ];
+        renderer.draw_triangles(&start_arrow_vertices, line_color)?;
+        
+        // Draw END arrowhead (pointing from end back towards start)
+        let end_arrow_tip = end;
+        let end_arrow_base_x = end.x - dir_x * arrow_size;
+        let end_arrow_base_y = end.y - dir_y * arrow_size;
+        
+        let end_arrow_left_x = end_arrow_base_x + perp_x * arrow_width;
+        let end_arrow_left_y = end_arrow_base_y + perp_y * arrow_width;
+        let end_arrow_right_x = end_arrow_base_x - perp_x * arrow_width;
+        let end_arrow_right_y = end_arrow_base_y - perp_y * arrow_width;
+        
+        // End arrow triangle (filled)
+        let end_arrow_vertices = vec![
+            end_arrow_left_x, end_arrow_left_y,
+            end_arrow_right_x, end_arrow_right_y,
+            end_arrow_tip.x, end_arrow_tip.y,
+        ];
+        renderer.draw_triangles(&end_arrow_vertices, line_color)?;
+        
+        // Calculate distance in different units
+        let grid_size = 50.0;
+        let grid_units = distance / grid_size;
+        let feet = grid_units * 5.0; // D&D: 5ft per square
+        
+        // Draw distance label at midpoint
+        let mid_point = Vec2::new((start.x + end.x) / 2.0, (start.y + end.y) / 2.0);
+        
+        // Format distance text (we'll draw background box - actual text rendering would need font support)
+        // For now, draw a prominent label box
+        let label_width = 80.0;
+        let label_height = 24.0;
+        
+        // Offset label slightly perpendicular to line so it doesn't overlap
+        let label_offset = 15.0;
+        let label_x = mid_point.x + perp_x * label_offset;
+        let label_y = mid_point.y + perp_y * label_offset;
+        
+        // Background rectangle for distance label (semi-transparent black)
+        let quad_tex_coords = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+        let bg_vertices = vec![
+            label_x - label_width / 2.0, label_y - label_height / 2.0,
+            label_x + label_width / 2.0, label_y - label_height / 2.0,
+            label_x - label_width / 2.0, label_y + label_height / 2.0,
+            label_x + label_width / 2.0, label_y + label_height / 2.0,
+        ];
+        renderer.draw_quad(&bg_vertices, &quad_tex_coords, [0.0, 0.0, 0.0, 0.85], false)?;
+        
+        // Border for label box (cyan to match arrow)
+        let border_vertices = vec![
+            label_x - label_width / 2.0, label_y - label_height / 2.0,
+            label_x + label_width / 2.0, label_y - label_height / 2.0,
+            label_x + label_width / 2.0, label_y + label_height / 2.0,
+            label_x - label_width / 2.0, label_y + label_height / 2.0,
+            label_x - label_width / 2.0, label_y - label_height / 2.0,
+        ];
+        renderer.draw_lines(&border_vertices, line_color)?;
+        
+        // Log distance with formatted units to console
+        web_sys::console::log_1(&format!("Measurement: {:.1} ft ({:.1} grid squares)", feet, grid_units).into());
+        
+        // Note: Actual text rendering would require a font rendering system
+        // The label box serves as a visual indicator of measurement
+        // The React popup will show the actual numbers
         
         Ok(())
     }

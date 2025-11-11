@@ -323,10 +323,45 @@ impl EventSystem {
                 MouseEventResult::Handled
             }
             InputMode::Measurement => {
-                // Complete measurement and log the result
+                // Complete measurement and send event to React
                 if let Some((start, end)) = input.end_measurement() {
-                    let distance = ((end.x - start.x).powi(2) + (end.y - start.y).powi(2)).sqrt();
-                    web_sys::console::log_1(&format!("[RUST EVENT] Measurement complete: {:.2} units from ({:.1}, {:.1}) to ({:.1}, {:.1})", distance, start.x, start.y, end.x, end.y).into());
+                    let dx = end.x - start.x;
+                    let dy = end.y - start.y;
+                    let distance = (dx * dx + dy * dy).sqrt();
+                    let angle = dy.atan2(dx) * 180.0 / std::f32::consts::PI;
+                    
+                    // Calculate grid units (assuming 50px per grid square, 5ft per square)
+                    let grid_size = 50.0; // TODO: Get from settings
+                    let grid_units = distance / grid_size;
+                    let feet = grid_units * 5.0; // D&D standard: 5ft per square
+                    let meters = feet * 0.3048; // Convert feet to meters
+                    
+                    web_sys::console::log_1(&format!("[RUST EVENT] Measurement complete: {:.2} units ({:.1} ft) from ({:.1}, {:.1}) to ({:.1}, {:.1})", distance, feet, start.x, start.y, end.x, end.y).into());
+                    
+                    // Dispatch custom event to React with measurement data
+                    if let Some(window) = web_sys::window() {
+                        use wasm_bindgen::JsValue;
+                        use js_sys::Object;
+                        
+                        let detail = Object::new();
+                        js_sys::Reflect::set(&detail, &"distance".into(), &JsValue::from_f64(distance as f64)).ok();
+                        js_sys::Reflect::set(&detail, &"gridUnits".into(), &JsValue::from_f64(grid_units as f64)).ok();
+                        js_sys::Reflect::set(&detail, &"feet".into(), &JsValue::from_f64(feet as f64)).ok();
+                        js_sys::Reflect::set(&detail, &"meters".into(), &JsValue::from_f64(meters as f64)).ok();
+                        js_sys::Reflect::set(&detail, &"angle".into(), &JsValue::from_f64(angle as f64)).ok();
+                        js_sys::Reflect::set(&detail, &"startX".into(), &JsValue::from_f64(start.x as f64)).ok();
+                        js_sys::Reflect::set(&detail, &"startY".into(), &JsValue::from_f64(start.y as f64)).ok();
+                        js_sys::Reflect::set(&detail, &"endX".into(), &JsValue::from_f64(end.x as f64)).ok();
+                        js_sys::Reflect::set(&detail, &"endY".into(), &JsValue::from_f64(end.y as f64)).ok();
+                        
+                        let event_init = web_sys::CustomEventInit::new();
+                        event_init.set_detail(&detail);
+                        
+                        if let Ok(event) = web_sys::CustomEvent::new_with_event_init_dict("measurementComplete", &event_init) {
+                            window.dispatch_event(&event).ok();
+                            web_sys::console::log_1(&"[RUST EVENT] Dispatched measurementComplete event to React".into());
+                        }
+                    }
                 }
                 // Keep measurement mode active for multiple measurements
                 MouseEventResult::Handled

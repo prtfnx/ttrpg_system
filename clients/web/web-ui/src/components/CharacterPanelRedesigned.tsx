@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { authService } from '../services/auth.service';
 import { useProtocol } from '../services/ProtocolContext';
 import { useGameStore } from '../store';
@@ -232,6 +233,14 @@ export function CharacterPanelRedesigned() {
   const [selectedCharacterIds, setSelectedCharacterIds] = useState<Set<string>>(new Set());
   const [bulkSelectMode, setBulkSelectMode] = useState<boolean>(false);
   const [viewSheetCharId, setViewSheetCharId] = useState<string | null>(null);
+  
+  // Wrap setViewSheetCharId to track who's calling it
+  const setViewSheetCharIdTracked = (value: string | null) => {
+    const stack = new Error().stack;
+    console.log('🎯 setViewSheetCharId called with:', value);
+    console.log('   From:', stack?.split('\n')[2]?.trim());
+    setViewSheetCharId(value);
+  };
 
   const selectedCharacter = characters.find(c => {
     return getSpritesForCharacter(c.id).some(s => selectedSprites.includes(s.id));
@@ -780,8 +789,22 @@ export function CharacterPanelRedesigned() {
   };
 
   const handleViewSheet = (charId: string) => {
-    setViewSheetCharId(charId);
+    console.log('📄 Opening character sheet for:', charId);
+    setViewSheetCharIdTracked(charId);
   };
+
+  // Debug: Track viewSheetCharId changes
+  useEffect(() => {
+    const stack = new Error().stack;
+    console.log('👁️ viewSheetCharId changed to:', viewSheetCharId);
+    console.log('   Call stack:', stack?.split('\n').slice(1, 4).join('\n'));
+    if (viewSheetCharId) {
+      const char = characters.find(c => c.id === viewSheetCharId);
+      console.log('   Character found:', char ? char.name : 'NOT FOUND');
+    } else {
+      console.log('   ⚠️ Set to null - WHY?');
+    }
+  }, [viewSheetCharId]); // Removed 'characters' dependency - don't need to rerun when characters array changes
 
   const handleSavePermissions = (charId: string, controlledBy: number[]) => {
     const char = characters.find(c => c.id === charId);
@@ -1270,13 +1293,14 @@ export function CharacterPanelRedesigned() {
           // Only close if clicking the overlay itself, not its children
           if (e.target === e.currentTarget) {
             console.log('Closing modal');
-            setViewSheetCharId(null);
+            setViewSheetCharIdTracked(null);
           }
         };
         
         console.log('Rendering character sheet modal for:', char.name, 'ID:', viewSheetCharId);
         
-        return (
+        // Render modal using Portal to escape parent DOM hierarchy
+        const modalContent = (
           <div className="modal-overlay" onClick={handleCloseModal}>
             <div 
               className="modal-content character-sheet-modal"
@@ -1292,7 +1316,7 @@ export function CharacterPanelRedesigned() {
                   onClick={(e) => {
                     console.log('Close button clicked');
                     e.stopPropagation();
-                    setViewSheetCharId(null);
+                    setViewSheetCharIdTracked(null);
                   }}
                   aria-label="Close character sheet"
                   type="button"
@@ -1306,6 +1330,8 @@ export function CharacterPanelRedesigned() {
             </div>
           </div>
         );
+        
+        return ReactDOM.createPortal(modalContent, document.body);
       })()}
     </div>
   );

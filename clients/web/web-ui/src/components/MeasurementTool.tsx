@@ -1,254 +1,163 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useRenderEngine } from '../hooks/useRenderEngine';
-import { useGameStore } from '../store';
+import { useEffect, useState } from 'react';
 
-interface MeasurementToolProps {
-  isActive: boolean;
-  onMeasurementComplete?: (result: MeasurementResult) => void;
+// Window type extension
+declare global {
+  interface Window {
+    actionsProtocol?: {
+      createSprite: (sprite: any) => Promise<void>;
+    };
+  }
 }
 
 interface MeasurementResult {
   distance: number;
-  angle: number;
   gridUnits: number;
-  screenPixels: number;
   feet: number;
   meters: number;
-  formatted: MeasurementDisplay;
+  angle: number;
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
 }
 
-interface MeasurementDisplay {
-  distance: number;
-  unit: 'px' | 'ft' | 'm' | 'grid';
-  formatted: string;
-  gridDistance?: number;
+interface MeasurementToolProps {
+  isActive: boolean;
 }
 
-interface Point {
-  x: number;
-  y: number;
-}
-
-export function MeasurementTool({ isActive, onMeasurementComplete }: MeasurementToolProps) {
+export function MeasurementTool({ isActive }: MeasurementToolProps) {
   const [measurement, setMeasurement] = useState<MeasurementResult | null>(null);
-  const [currentUnit, setCurrentUnit] = useState<'px' | 'ft' | 'm' | 'grid'>('ft');
-  const [measurementPoints, setMeasurementPoints] = useState<{ start: Point | null; end: Point | null }>({
-    start: null,
-    end: null
-  });
-  const { gridSize, camera } = useGameStore();
-  const engine = useRenderEngine();
+  const [currentUnit, setCurrentUnit] = useState<'ft' | 'm' | 'grid' | 'px'>('ft');
 
-  // Format measurement display with multiple unit support
-  const formatMeasurement = useCallback((distance: number, unit: string): MeasurementDisplay => {
-    const pixelsPerGrid = gridSize || 50; // Default grid size
-    const pixelsPerFoot = pixelsPerGrid / 5; // D&D standard: 5ft per grid square
-    const pixelsPerMeter = pixelsPerFoot * 3.281; // 1 meter = 3.281 feet
-    
-    switch (unit) {
-      case 'ft':
-        const feet = distance / pixelsPerFoot;
-        return {
-          distance: feet,
-          unit: 'ft',
-          formatted: `${feet.toFixed(1)} ft`,
-          gridDistance: feet / 5
-        };
-      case 'm':
-        const meters = distance / pixelsPerMeter;
-        return {
-          distance: meters,
-          unit: 'm',
-          formatted: `${meters.toFixed(1)} m`,
-          gridDistance: (meters * 3.281) / 5
-        };
-      case 'grid':
-        const gridUnits = distance / pixelsPerGrid;
-        return {
-          distance: gridUnits,
-          unit: 'grid',
-          formatted: `${gridUnits.toFixed(1)} squares`,
-          gridDistance: gridUnits
-        };
-      default:
-        return {
-          distance,
-          unit: 'px',
-          formatted: `${distance.toFixed(0)} px`
-        };
-    }
-  }, [gridSize]);
-
-  // Calculate measurement between two points
-  const calculateMeasurement = useCallback((start: Point, end: Point): MeasurementResult => {
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-    const gridUnits = distance / (gridSize || 50);
-    const screenPixels = distance * (camera.zoom || 1);
-    
-    const pixelsPerGrid = gridSize || 50;
-    const pixelsPerFoot = pixelsPerGrid / 5;
-    const pixelsPerMeter = pixelsPerFoot * 3.281;
-    
-    const feet = distance / pixelsPerFoot;
-    const meters = distance / pixelsPerMeter;
-    const formatted = formatMeasurement(distance, currentUnit);
-
-    return {
-      distance,
-      angle,
-      gridUnits,
-      screenPixels,
-      feet,
-      meters,
-      formatted
+  // Listen for measurement completion from Rust
+  useEffect(() => {
+    const handleMeasurementComplete = (event: CustomEvent<MeasurementResult>) => {
+      console.log('[MeasurementTool] Received measurement from Rust:', event.detail);
+      setMeasurement(event.detail);
     };
-  }, [gridSize, camera.zoom, currentUnit, formatMeasurement]);
 
-  // Handle measurement events
-  const handleMeasurement = useCallback((start: Point, end: Point) => {
-    const result = calculateMeasurement(start, end);
-    setMeasurement(result);
-    onMeasurementComplete?.(result);
-  }, [calculateMeasurement, onMeasurementComplete]);
-
-  // Handle click events for manual measurement
-  const handleClick = useCallback((event: MouseEvent) => {
-    if (!isActive) return;
+    window.addEventListener('measurementComplete', handleMeasurementComplete as EventListener);
     
-    const rect = (event.target as Element).getBoundingClientRect();
-    const point: Point = {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top
+    return () => {
+      window.removeEventListener('measurementComplete', handleMeasurementComplete as EventListener);
     };
-    
-    setMeasurementPoints(prev => {
-      if (!prev.start) {
-        return { start: point, end: null };
-      } else {
-        const result = { start: prev.start, end: point };
-        handleMeasurement(result.start, result.end);
-        return { start: null, end: null }; // Reset for next measurement
-      }
-    });
-  }, [isActive, handleMeasurement]);
+  }, []);
 
+  // Clear measurement when tool is deactivated
   useEffect(() => {
     if (!isActive) {
       setMeasurement(null);
-      setMeasurementPoints({ start: null, end: null });
-      return;
     }
+  }, [isActive]);
 
-    // Listen for measurement events from Rust engine if available
-    const handleMeasurementEvent = (event: CustomEvent) => {
-      const { start, end } = event.detail;
-      handleMeasurement(start, end);
-    };
-
-    // Listen for click events on canvas for manual measurement
-    const canvas = document.querySelector('canvas') || document.querySelector('.game-canvas');
-    
-    window.addEventListener('measurementComplete', handleMeasurementEvent as EventListener);
-    if (canvas) {
-      canvas.addEventListener('click', handleClick);
+  const formatDistance = (measurement: MeasurementResult): string => {
+    switch (currentUnit) {
+      case 'ft':
+        return `${measurement.feet.toFixed(1)} ft`;
+      case 'm':
+        return `${measurement.meters.toFixed(1)} m`;
+      case 'grid':
+        return `${measurement.gridUnits.toFixed(1)} squares`;
+      case 'px':
+        return `${measurement.distance.toFixed(0)} px`;
     }
-    
-    return () => {
-      window.removeEventListener('measurementComplete', handleMeasurementEvent as EventListener);
-      if (canvas) {
-        canvas.removeEventListener('click', handleClick);
-      }
-    };
-  }, [isActive, handleMeasurement, handleClick]);
-
-  // Update measurement when unit changes
-  useEffect(() => {
-    if (measurement && measurementPoints.start && measurementPoints.end) {
-      const updated = calculateMeasurement(measurementPoints.start, measurementPoints.end);
-      setMeasurement(updated);
-    }
-  }, [currentUnit, measurement, measurementPoints, calculateMeasurement]);
-
-  const clearMeasurement = () => {
-    setMeasurement(null);
-    setMeasurementPoints({ start: null, end: null });
   };
 
-  if (!isActive && !measurement) return null;
+  const handleClear = () => {
+    setMeasurement(null);
+    console.log('[MeasurementTool] Measurement cleared');
+  };
+
+  const handleSave = async () => {
+    if (!measurement) return;
+
+    // Create a line sprite representing the measurement arrow
+    const sprite = {
+      type: 'line',
+      worldX: measurement.startX,
+      worldY: measurement.startY,
+      endX: measurement.endX,
+      endY: measurement.endY,
+      color: '#FFFF00', // Yellow arrow
+      lineWidth: 2,
+      metadata: {
+        measurement: true,
+        distance: measurement.distance,
+        feet: measurement.feet,
+        angle: measurement.angle
+      }
+    };
+
+    try {
+      // Send create sprite action to server via protocol
+      if (window.actionsProtocol) {
+        await window.actionsProtocol.createSprite(sprite);
+        console.log('[MeasurementTool] Measurement saved as sprite');
+        handleClear();
+      } else {
+        console.error('[MeasurementTool] Actions protocol not available');
+      }
+    } catch (error) {
+      console.error('[MeasurementTool] Failed to save measurement:', error);
+    }
+  };
+
+  if (!measurement) return null;
 
   return (
     <div className="measurement-tool">
       <div className="measurement-overlay">
-        {measurementPoints.start && !measurementPoints.end && (
-          <div className="measurement-instructions">
-            <p>Click to complete measurement</p>
-          </div>
-        )}
-        
-        {measurement && (
-          <div className="measurement-results">
-            <div className="measurement-header">
-              <h4>Measurement Results</h4>
-              <div className="unit-selector">
-                {(['ft', 'm', 'grid', 'px'] as const).map(unit => (
-                  <button
-                    key={unit}
-                    className={`unit-btn ${currentUnit === unit ? 'active' : ''}`}
-                    onClick={() => setCurrentUnit(unit)}
-                  >
-                    {unit}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            <div className="measurement-item primary">
-              <span className="label">Distance:</span>
-              <span className="value">{measurement.formatted.formatted}</span>
-            </div>
-            
-            {measurement.formatted.gridDistance && (
-              <div className="measurement-item secondary">
-                <span className="label">Grid Units:</span>
-                <span className="value">{measurement.formatted.gridDistance.toFixed(1)} squares</span>
-              </div>
-            )}
-            
-            <div className="measurement-item">
-              <span className="label">Angle:</span>
-              <span className="value">{measurement.angle.toFixed(1)}°</span>
-            </div>
-            
-            <div className="measurement-item">
-              <span className="label">Pixels:</span>
-              <span className="value">{measurement.distance.toFixed(1)}px</span>
-            </div>
-            
-            <div className="measurement-actions">
-              <button 
-                className="clear-measurement"
-                onClick={clearMeasurement}
-              >
-                Clear
-              </button>
-              {engine && (
-                <button 
-                  className="save-measurement"
-                  onClick={() => {
-                    // Could save measurement to game state or notes
-                    console.log('Measurement saved:', measurement);
-                  }}
+        <div className="measurement-results">
+          <div className="measurement-header">
+            <h4>Measurement Results</h4>
+            <div className="unit-selector">
+              {(['ft', 'm', 'grid', 'px'] as const).map(unit => (
+                <button
+                  key={unit}
+                  className={`unit-btn ${currentUnit === unit ? 'active' : ''}`}
+                  onClick={() => setCurrentUnit(unit)}
                 >
-                  Save
+                  {unit}
                 </button>
-              )}
+              ))}
             </div>
           </div>
-        )}
+          
+          <div className="measurement-item primary">
+            <span className="label">Distance:</span>
+            <span className="value">{formatDistance(measurement)}</span>
+          </div>
+          
+          <div className="measurement-item secondary">
+            <span className="label">Grid Units:</span>
+            <span className="value">{measurement.gridUnits.toFixed(1)} squares</span>
+          </div>
+          
+          <div className="measurement-item">
+            <span className="label">Angle:</span>
+            <span className="value">{measurement.angle.toFixed(1)}°</span>
+          </div>
+          
+          <div className="measurement-item">
+            <span className="label">Pixels:</span>
+            <span className="value">{measurement.distance.toFixed(1)}px</span>
+          </div>
+          
+          <div className="measurement-actions">
+            <button 
+              className="clear-measurement"
+              onClick={handleClear}
+            >
+              Clear
+            </button>
+            <button 
+              className="save-measurement"
+              onClick={handleSave}
+            >
+              Save as Arrow
+            </button>
+          </div>
+        </div>
       </div>
       
       <style>{`

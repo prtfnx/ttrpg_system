@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { RenderEngine } from '../types/index';
 
 // Window type extension
 declare global {
@@ -6,6 +7,7 @@ declare global {
     actionsProtocol?: {
       createSprite: (sprite: any) => Promise<void>;
     };
+    rustRenderManager?: RenderEngine;
   }
 }
 
@@ -112,9 +114,18 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
 
   if (!measurement) return null;
 
-  // Calculate midpoint for floating label
-  const midX = (measurement.startX + measurement.endX) / 2;
-  const midY = (measurement.startY + measurement.endY) / 2;
+  // Convert world coordinates to screen coordinates
+  let screenMidX = 0;
+  let screenMidY = 0;
+  
+  if (window.rustRenderManager) {
+    const midWorldX = (measurement.startX + measurement.endX) / 2;
+    const midWorldY = (measurement.startY + measurement.endY) / 2;
+    
+    const screenCoords = window.rustRenderManager.world_to_screen(midWorldX, midWorldY);
+    screenMidX = screenCoords[0];
+    screenMidY = screenCoords[1];
+  }
   
   // Offset label above the line
   const labelOffsetY = 30;
@@ -126,8 +137,8 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
         className="measurement-floating-label"
         style={{
           position: 'absolute',
-          left: `${midX}px`,
-          top: `${midY - labelOffsetY}px`,
+          left: `${screenMidX}px`,
+          top: `${screenMidY - labelOffsetY}px`,
           transform: 'translate(-50%, -50%)',
           pointerEvents: 'none',
           zIndex: 1001,

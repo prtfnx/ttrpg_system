@@ -144,6 +144,7 @@ export interface RenderEngine {
   // Camera control
   set_camera: (world_x: number, world_y: number, zoom: number) => void;
   screen_to_world: (screen_x: number, screen_y: number) => number[];
+  world_to_screen: (world_x: number, world_y: number) => number[];
   
   // Sprite management
   add_sprite_to_layer: (layer: string, sprite_data: Record<string, unknown>) => string;

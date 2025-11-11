@@ -74,6 +74,7 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
     console.log('[MeasurementTool] Measurement cleared');
   };
 
+  /* Save function disabled - actionsProtocol not available in WASM mode
   const handleSave = async () => {
     if (!measurement) return;
 
@@ -107,11 +108,46 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
       console.error('[MeasurementTool] Failed to save measurement:', error);
     }
   };
+  */
 
   if (!measurement) return null;
 
+  // Calculate midpoint for floating label
+  const midX = (measurement.startX + measurement.endX) / 2;
+  const midY = (measurement.startY + measurement.endY) / 2;
+  
+  // Offset label above the line
+  const labelOffsetY = 30;
+
   return (
     <div className="measurement-tool">
+      {/* Floating label on the arrow */}
+      <div 
+        className="measurement-floating-label"
+        style={{
+          position: 'absolute',
+          left: `${midX}px`,
+          top: `${midY - labelOffsetY}px`,
+          transform: 'translate(-50%, -50%)',
+          pointerEvents: 'none',
+          zIndex: 1001,
+        }}
+      >
+        <div style={{
+          background: 'rgba(0, 0, 0, 0.85)',
+          border: '1px solid #00FFFF',
+          borderRadius: '4px',
+          padding: '4px 8px',
+          color: '#00FFFF',
+          fontSize: '14px',
+          fontFamily: 'monospace',
+          whiteSpace: 'nowrap',
+          textShadow: '0 0 4px black',
+        }}>
+          {measurement.feet.toFixed(1)} ft ({measurement.gridUnits.toFixed(1)} sq)
+        </div>
+      </div>
+      
       <div className="measurement-overlay">
         <div className="measurement-results">
           <div className="measurement-header">
@@ -154,14 +190,16 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
               className="clear-measurement"
               onClick={handleClear}
             >
-              Clear
+              Clear Measurement
             </button>
+            {/* Save button disabled - actionsProtocol not available in WASM mode
             <button 
               className="save-measurement"
               onClick={handleSave}
             >
               Save as Arrow
             </button>
+            */}
           </div>
         </div>
       </div>

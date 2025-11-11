@@ -343,12 +343,8 @@ impl SpriteRenderer {
         ];
         renderer.draw_lines(&border_vertices, line_color)?;
         
-        // Log distance with formatted units to console
-        web_sys::console::log_1(&format!("Measurement: {:.1} ft ({:.1} grid squares)", feet, grid_units).into());
-        
-        // Note: Actual text rendering would require a font rendering system
-        // The label box serves as a visual indicator of measurement
-        // The React popup will show the actual numbers
+        // Text rendering would require a font system or HTML overlay
+        // For now, the measurement popup shows the actual numbers
         
         Ok(())
     }

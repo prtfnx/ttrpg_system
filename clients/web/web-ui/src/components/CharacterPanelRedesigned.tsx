@@ -233,14 +233,6 @@ export function CharacterPanelRedesigned() {
   const [selectedCharacterIds, setSelectedCharacterIds] = useState<Set<string>>(new Set());
   const [bulkSelectMode, setBulkSelectMode] = useState<boolean>(false);
   const [viewSheetCharId, setViewSheetCharId] = useState<string | null>(null);
-  
-  // Wrap setViewSheetCharId to track who's calling it
-  const setViewSheetCharIdTracked = (value: string | null) => {
-    const stack = new Error().stack;
-    console.log('🎯 setViewSheetCharId called with:', value);
-    console.log('   From:', stack?.split('\n')[2]?.trim());
-    setViewSheetCharId(value);
-  };
 
   const selectedCharacter = characters.find(c => {
     return getSpritesForCharacter(c.id).some(s => selectedSprites.includes(s.id));
@@ -789,22 +781,8 @@ export function CharacterPanelRedesigned() {
   };
 
   const handleViewSheet = (charId: string) => {
-    console.log('📄 Opening character sheet for:', charId);
-    setViewSheetCharIdTracked(charId);
+    setViewSheetCharId(charId);
   };
-
-  // Debug: Track viewSheetCharId changes
-  useEffect(() => {
-    const stack = new Error().stack;
-    console.log('👁️ viewSheetCharId changed to:', viewSheetCharId);
-    console.log('   Call stack:', stack?.split('\n').slice(1, 4).join('\n'));
-    if (viewSheetCharId) {
-      const char = characters.find(c => c.id === viewSheetCharId);
-      console.log('   Character found:', char ? char.name : 'NOT FOUND');
-    } else {
-      console.log('   ⚠️ Set to null - WHY?');
-    }
-  }, [viewSheetCharId]); // Removed 'characters' dependency - don't need to rerun when characters array changes
 
   const handleSavePermissions = (charId: string, controlledBy: number[]) => {
     const char = characters.find(c => c.id === charId);
@@ -1271,17 +1249,11 @@ export function CharacterPanelRedesigned() {
       {/* Character Sheet Modal */}
       {viewSheetCharId && (() => {
         const char = characters.find(c => c.id === viewSheetCharId);
-        if (!char) {
-          console.warn('Character not found for sheet view:', viewSheetCharId);
-          return null;
-        }
+        if (!char) return null;
         
         const handleSheetSave = (updates: Partial<Character>) => {
-          console.log('Sheet save requested:', updates);
-          // Update character with changes from sheet
           updateCharacter(viewSheetCharId, updates);
           
-          // Send to server if connected
           if (protocol && isConnected) {
             updateCharacter(viewSheetCharId, { syncStatus: 'syncing' });
             protocol.updateCharacter(viewSheetCharId, updates, char.version);
@@ -1289,34 +1261,24 @@ export function CharacterPanelRedesigned() {
         };
         
         const handleCloseModal = (e: React.MouseEvent) => {
-          console.log('Close modal clicked, target:', e.target, 'currentTarget:', e.currentTarget);
-          // Only close if clicking the overlay itself, not its children
           if (e.target === e.currentTarget) {
-            console.log('Closing modal');
-            setViewSheetCharIdTracked(null);
+            setViewSheetCharId(null);
           }
         };
         
-        console.log('Rendering character sheet modal for:', char.name, 'ID:', viewSheetCharId);
-        
-        // Render modal using Portal to escape parent DOM hierarchy
         const modalContent = (
           <div className="modal-overlay" onClick={handleCloseModal}>
             <div 
               className="modal-content character-sheet-modal"
-              onClick={(e) => {
-                console.log('Modal content clicked');
-                e.stopPropagation();
-              }}
+              onClick={(e) => e.stopPropagation()}
             >
               <div className="modal-header">
                 <h2>{char.name} - Character Sheet</h2>
                 <button 
                   className="modal-close-btn" 
                   onClick={(e) => {
-                    console.log('Close button clicked');
                     e.stopPropagation();
-                    setViewSheetCharIdTracked(null);
+                    setViewSheetCharId(null);
                   }}
                   aria-label="Close character sheet"
                   type="button"

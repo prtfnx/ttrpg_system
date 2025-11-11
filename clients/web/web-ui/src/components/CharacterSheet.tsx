@@ -25,8 +25,6 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
   onReleaseLock, 
   onSync 
 }) => {
-  console.log('🎨 CharacterSheet component mounting/rendering for:', character?.name);
-  
   const [form, setForm] = useState<Partial<Character>>(
     character || {
       name: "",

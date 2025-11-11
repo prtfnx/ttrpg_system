@@ -693,7 +693,7 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  opacity: 1 !important; /* Force visible - override any animation issues */
+  opacity: 1 !important;
   animation: fadeIn 0.2s ease-out;
 }
 

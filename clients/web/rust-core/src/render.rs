@@ -9,6 +9,7 @@ use crate::input::{InputHandler, InputMode, HandleDetector};
 use crate::sprite_manager::SpriteManager;
 use crate::sprite_renderer::SpriteRenderer;
 use crate::webgl_renderer::WebGLRenderer;
+use crate::text_renderer::TextRenderer;
 use crate::lighting::LightingSystem;
 use crate::fog::FogOfWarSystem;
 use crate::geometry;
@@ -40,6 +41,7 @@ pub struct RenderEngine {
     
     // Core rendering
     renderer: WebGLRenderer,
+    text_renderer: TextRenderer,
     
     // Lighting system
     lighting: LightingSystem,
@@ -123,9 +125,17 @@ impl RenderEngine {
             stencil_bits.as_f64().unwrap_or(0.0)).into());
         
         let renderer = WebGLRenderer::new(gl.clone())?;
+        let mut text_renderer = TextRenderer::new();
         let lighting = LightingSystem::new(gl.clone())?;
         let fog = FogOfWarSystem::new(gl.clone())?;
-        let texture_manager = TextureManager::new(gl);
+        let mut texture_manager = TextureManager::new(gl);
+        
+        // Load font atlas texture asynchronously
+        web_sys::console::log_1(&"[RENDER] Loading font atlas texture...".into());
+        texture_manager.load_texture_from_url("font_atlas", "/static/ui/assets/font_atlas.png")?;
+        
+        // Initialize text renderer
+        text_renderer.init_font_atlas(&mut texture_manager)?;
         
         let layer_manager = LayerManager::new();
         let grid_system = GridSystem::new();
@@ -147,6 +157,7 @@ impl RenderEngine {
             input: InputHandler::new(),
             event_system: EventSystem::new(),
             renderer,
+            text_renderer,
             lighting,
             fog,
             actions,
@@ -300,7 +311,7 @@ impl RenderEngine {
         
         // Draw measurement line if active
         if let Some((start, end)) = self.input.get_measurement_line() {
-            SpriteRenderer::draw_measurement_line(start, end, &self.renderer)?;
+            SpriteRenderer::draw_measurement_line(start, end, &self.renderer, &self.text_renderer, &self.texture_manager)?;
         }
         
         // Draw shape creation preview if active

@@ -16,6 +16,7 @@ mod input;
 mod sprite_manager;
 mod sprite_renderer;
 mod webgl_renderer;
+mod text_renderer;
 mod lighting;
 mod fog;
 mod event_system;

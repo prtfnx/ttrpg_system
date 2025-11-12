@@ -12,6 +12,7 @@ pub struct TextRenderer {
     atlas_width: f32,
     atlas_height: f32,
     char_size: f32,
+    char_advance: f32,  // Default advance for most characters
     chars_per_row: usize,
     start_char: u32,
 }
@@ -23,8 +24,19 @@ impl TextRenderer {
             atlas_width: 512.0,
             atlas_height: 512.0,
             char_size: 32.0,
+            char_advance: 18.0,  // Default spacing (about 56% of cell size)
             chars_per_row: 16,
             start_char: 32, // ASCII space character
+        }
+    }
+    
+    /// Get character advance width (some characters are narrower)
+    fn get_char_advance(&self, ch: char) -> f32 {
+        match ch {
+            '.' | ',' | ':' | ';' | '!' | '\'' | '`' => 8.0,  // Punctuation: narrower
+            'i' | 'l' | 'I' | '|' => 10.0,                     // Thin letters
+            ' ' => 12.0,                                        // Space
+            _ => self.char_advance,                             // Default: 18.0
         }
     }
     
@@ -61,18 +73,22 @@ impl TextRenderer {
         
         // Check if font atlas is loaded
         if !texture_manager.has_texture(&self.font_atlas_id) {
-            web_sys::console::warn_1(&format!("⚠️ [TEXT RENDERER] Font atlas '{}' not loaded yet, skipping text render", self.font_atlas_id).into());
             return Ok(());
         }
         
-        // Draw background box for readability
-        let text_width = text.len() as f32 * self.char_size * size;
+        // Calculate actual text width using advance spacing
+        let text_width = text.len() as f32 * self.char_advance * size;
         let padding = 4.0 * size;
         
+        // Center the text in the background box
+        let box_width = text_width + padding * 2.0;
+        let box_x = x - box_width / 2.0;  // Center horizontally
+        let text_x = box_x + padding;      // Start text after left padding
+        
         self.draw_text_background(
-            x - padding,
+            box_x,
             y - padding,
-            text_width + padding * 2.0,
+            box_width,
             self.char_size * size + padding * 2.0,
             renderer,
         )?;
@@ -81,11 +97,12 @@ impl TextRenderer {
         texture_manager.bind_texture(&self.font_atlas_id);
         
         // Render each character with proper UV mapping
-        let mut cursor_x = x;
+        let mut cursor_x = text_x;
         
         for ch in text.chars() {
             self.draw_char(ch, cursor_x, y, size, color, renderer, texture_manager)?;
-            cursor_x += self.char_size * size;
+            let advance = self.get_char_advance(ch) * size;  // Variable width
+            cursor_x += advance;
         }
         
         Ok(())
@@ -187,7 +204,9 @@ impl TextRenderer {
     
     /// Calculate the width of rendered text in world units
     pub fn measure_text(&self, text: &str, size: f32) -> f32 {
-        text.len() as f32 * self.char_size * size
+        text.chars()
+            .map(|ch| self.get_char_advance(ch))
+            .sum::<f32>() * size
     }
 }
 

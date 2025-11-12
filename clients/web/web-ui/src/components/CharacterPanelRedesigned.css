@@ -697,7 +697,9 @@
   animation: fadeIn 0.2s ease-out;
 }
 
-.modal-content {
+/* ===== CHARACTER SHEET MODAL STYLES ===== */
+/* Override Modal.css generic styles with higher specificity */
+.modal-overlay .modal-content {
   background: #1e1e1e;
   border-radius: 8px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
@@ -707,9 +709,27 @@
   animation: slideUp 0.3s ease-out;
 }
 
-.character-sheet-modal {
-  width: 90vw;
-  max-width: 1200px;
+/* Character sheet modal - specific sizing that overrides Modal.css defaults */
+.modal-overlay .modal-content.character-sheet-modal {
+  width: clamp(320px, 95vw, 1600px) !important; /* !important to override Modal.css .modal-small */
+  max-width: 98vw !important; /* Never exceed viewport */
+  min-width: 320px; /* Ensure minimum usable width */
+}
+
+/* Responsive breakpoints for modal */
+@media (max-width: 768px) {
+  .modal-overlay .modal-content.character-sheet-modal {
+    width: 100vw !important;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0; /* Full screen on mobile */
+  }
+}
+
+@media (min-width: 1920px) {
+  .modal-overlay .modal-content.character-sheet-modal {
+    max-width: 1800px !important; /* Limit on ultra-wide displays */
+  }
 }
 
 .modal-header {

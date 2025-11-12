@@ -2,6 +2,7 @@ use crate::types::Sprite;
 use crate::math::Vec2;
 use crate::webgl_renderer::WebGLRenderer;
 use crate::texture_manager::TextureManager;
+use crate::text_renderer::{TextRenderer, format_distance};
 use crate::sprite_manager::SpriteManager;
 use crate::input::InputHandler;
 use wasm_bindgen::prelude::*;
@@ -236,7 +237,13 @@ impl SpriteRenderer {
         Ok(())
     }
     
-    pub fn draw_measurement_line(start: Vec2, end: Vec2, renderer: &WebGLRenderer) -> Result<(), JsValue> {
+    pub fn draw_measurement_line(
+        start: Vec2, 
+        end: Vec2, 
+        renderer: &WebGLRenderer,
+        text_renderer: &TextRenderer,
+        texture_manager: &TextureManager,
+    ) -> Result<(), JsValue> {
         // Calculate direction and distance
         let dx = end.x - start.x;
         let dy = end.y - start.y;
@@ -259,7 +266,6 @@ impl SpriteRenderer {
         let outline_color = [0.0, 0.0, 0.0, 1.0]; // Black
         
         // Draw black outline (thicker line first)
-        let outline_width = 3.0;
         renderer.draw_lines(&vec![start.x, start.y, end.x, end.y], outline_color)?;
         
         // Draw main cyan line (thinner, on top)
@@ -305,46 +311,34 @@ impl SpriteRenderer {
         ];
         renderer.draw_triangles(&end_arrow_vertices, line_color)?;
         
-        // Calculate distance in different units
-        let grid_size = 50.0;
-        let grid_units = distance / grid_size;
-        let feet = grid_units * 5.0; // D&D: 5ft per square
-        
-        // Draw distance label at midpoint
+        // ===== TEXT RENDERING =====
+        // Draw distance label at midpoint using WebGL text renderer
         let mid_point = Vec2::new((start.x + end.x) / 2.0, (start.y + end.y) / 2.0);
         
-        // Format distance text (we'll draw background box - actual text rendering would need font support)
-        // For now, draw a prominent label box
-        let label_width = 80.0;
-        let label_height = 24.0;
+        // Format distance text
+        let distance_text = format_distance(distance);
         
-        // Offset label slightly perpendicular to line so it doesn't overlap
-        let label_offset = 15.0;
+        // Offset label perpendicular to line so it doesn't overlap the arrow
+        let label_offset = 20.0;
         let label_x = mid_point.x + perp_x * label_offset;
         let label_y = mid_point.y + perp_y * label_offset;
         
-        // Background rectangle for distance label (semi-transparent black)
-        let quad_tex_coords = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        let bg_vertices = vec![
-            label_x - label_width / 2.0, label_y - label_height / 2.0,
-            label_x + label_width / 2.0, label_y - label_height / 2.0,
-            label_x - label_width / 2.0, label_y + label_height / 2.0,
-            label_x + label_width / 2.0, label_y + label_height / 2.0,
-        ];
-        renderer.draw_quad(&bg_vertices, &quad_tex_coords, [0.0, 0.0, 0.0, 0.85], false)?;
+        // Measure text width to center it
+        let text_width = text_renderer.measure_text(&distance_text, 1.0);
+        let text_x = label_x - text_width / 2.0;
         
-        // Border for label box (cyan to match arrow)
-        let border_vertices = vec![
-            label_x - label_width / 2.0, label_y - label_height / 2.0,
-            label_x + label_width / 2.0, label_y - label_height / 2.0,
-            label_x + label_width / 2.0, label_y + label_height / 2.0,
-            label_x - label_width / 2.0, label_y + label_height / 2.0,
-            label_x - label_width / 2.0, label_y - label_height / 2.0,
-        ];
-        renderer.draw_lines(&border_vertices, line_color)?;
+        // Draw text in world space (cyan to match arrow)
+        text_renderer.draw_text(
+            &distance_text,
+            text_x,
+            label_y,
+            1.0,  // Size multiplier
+            [0.0, 0.9, 0.9, 1.0],  // Cyan text
+            renderer,
+            texture_manager,
+        )?;
         
-        // Text rendering would require a font system or HTML overlay
-        // For now, the measurement popup shows the actual numbers
+        web_sys::console::log_1(&format!("[SPRITE RENDERER] Drew measurement label '{}' at world coords ({:.1}, {:.1})", distance_text, label_x, label_y).into());
         
         Ok(())
     }

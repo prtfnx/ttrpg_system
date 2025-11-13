@@ -282,7 +282,7 @@ impl RenderEngine {
                 // Only render sprites that belong to the active table
                 for sprite in &layer.sprites {
                     if sprite.table_id == active_table_id {
-                        SpriteRenderer::draw_sprite(sprite, layer.settings.opacity, &self.renderer, &self.texture_manager, &self.input, self.camera.zoom)?;
+                        SpriteRenderer::draw_sprite(sprite, layer.settings.opacity, &self.renderer, &self.texture_manager, &self.text_renderer, &self.input, self.camera.zoom)?;
                     }
                 }
             }
@@ -1304,6 +1304,10 @@ impl RenderEngine {
             texture_id: texture_name, // Use procedural rectangle texture
             tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
             table_id: active_table_id,
+            is_text_sprite: None,
+            text_content: None,
+            text_size: None,
+            text_color: None,
         };
         
         web_sys::console::log_1(&format!("[RUST] Created sprite {}, adding to layer '{}'", sprite_id, layer_name).into());
@@ -1351,6 +1355,10 @@ impl RenderEngine {
             texture_id: texture_name, // Use procedural circle texture
             tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
             table_id: active_table_id,
+            is_text_sprite: None,
+            text_content: None,
+            text_size: None,
+            text_color: None,
         };
         
         // Convert to JsValue for layer manager
@@ -1407,6 +1415,10 @@ impl RenderEngine {
             texture_id: texture_name, // Use procedural line texture
             tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
             table_id: active_table_id,
+            is_text_sprite: None,
+            text_content: None,
+            text_size: None,
+            text_color: None,
         };
         
         // Convert to JsValue for layer manager
@@ -1480,6 +1492,10 @@ impl RenderEngine {
             texture_id: network_data.texture_name,
             tint_color: [1.0, 1.0, 1.0, 1.0],
             table_id: active_table_id,
+            is_text_sprite: None,
+            text_content: None,
+            text_size: None,
+            text_color: None,
         };
         
         let sprite_js = serde_wasm_bindgen::to_value(&sprite)?;
@@ -1924,6 +1940,10 @@ impl RenderEngine {
                     tint_color,
                     layer: layer_name.to_string(),
                     table_id: active_table_id,
+                    is_text_sprite: None,
+                    text_content: None,
+                    text_size: None,
+                    text_color: None,
                 };                    // Convert sprite to JsValue and add to layer manager
                     if let Ok(sprite_js) = serde_wasm_bindgen::to_value(&sprite) {
                         match self.layer_manager.add_sprite_to_layer(layer_name, &sprite_js) {
@@ -2089,7 +2109,11 @@ impl RenderEngine {
             layer: sprite_data.layer.clone(),
             texture_id: sprite_data.texture_path.clone(),
             tint_color: [1.0, 1.0, 1.0, 1.0], // Default white tint
-            table_id: table_id.to_string(), // Use the table_id from TableData
+            table_id: table_id.to_string(),
+            is_text_sprite: None,
+            text_content: None,
+            text_size: None,
+            text_color: None,
         };
 
         // Add sprite to the appropriate layer

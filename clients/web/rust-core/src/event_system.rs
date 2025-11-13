@@ -6,6 +6,7 @@ use crate::sprite_manager::SpriteManager;
 use crate::lighting::LightingSystem;
 use crate::fog::{FogOfWarSystem, FogMode};
 use std::collections::HashMap;
+use wasm_bindgen::JsValue;
 
 #[derive(Debug, Clone)]
 pub enum MouseEventResult {
@@ -412,10 +413,24 @@ impl EventSystem {
                 MouseEventResult::Handled
             }
             InputMode::CreateText => {
-                // Create text sprite
+                // Create text sprite - emit event for React to show modal
                 if let Some((start, _end)) = input.end_shape_creation() {
                     web_sys::console::log_1(&format!("[RUST EVENT] Creating text at ({:.1}, {:.1})", start.x, start.y).into());
-                    // TODO: Actually create the text sprite and show text input dialog
+                    
+                    // Emit custom event to React to open text input modal
+                    if let Some(window) = web_sys::window() {
+                        let detail = js_sys::Object::new();
+                        js_sys::Reflect::set(&detail, &"x".into(), &JsValue::from_f64(start.x as f64)).ok();
+                        js_sys::Reflect::set(&detail, &"y".into(), &JsValue::from_f64(start.y as f64)).ok();
+                        
+                        let event_init = web_sys::CustomEventInit::new();
+                        event_init.set_detail(&detail);
+                        
+                        if let Ok(event) = web_sys::CustomEvent::new_with_event_init_dict("textSpriteClick", &event_init) {
+                            window.dispatch_event(&event).ok();
+                            web_sys::console::log_1(&"[RUST EVENT] Dispatched textSpriteClick event to React".into());
+                        }
+                    }
                 }
                 // Keep creation mode active for multiple text objects
                 MouseEventResult::Handled

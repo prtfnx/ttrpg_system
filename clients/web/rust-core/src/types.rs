@@ -27,6 +27,12 @@ pub struct Sprite {
     pub layer: String,
     pub texture_id: String,
     pub tint_color: [f32; 4],
+    
+    // Text sprite fields
+    pub is_text_sprite: Option<bool>,
+    pub text_content: Option<String>,
+    pub text_size: Option<f64>,
+    pub text_color: Option<[f32; 4]>,
 }
 
 impl Sprite {
@@ -44,6 +50,10 @@ impl Sprite {
             layer,
             texture_id: String::new(),
             tint_color: [1.0, 1.0, 1.0, 1.0],
+            is_text_sprite: None,
+            text_content: None,
+            text_size: None,
+            text_color: None,
         }
     }
     

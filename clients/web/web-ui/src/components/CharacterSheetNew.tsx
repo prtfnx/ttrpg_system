@@ -86,38 +86,53 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
     );
     
     if (newWindow) {
+      // Get all stylesheets from current document
+      const styles = Array.from(document.styleSheets)
+        .map(sheet => {
+          try {
+            return Array.from(sheet.cssRules)
+              .map(rule => rule.cssText)
+              .join('\n');
+          } catch (e) {
+            // Cross-origin stylesheets will throw, skip them
+            return '';
+          }
+        })
+        .join('\n');
+
+      // Get the character sheet HTML
+      const sheetHTML = document.querySelector('.character-sheet-redesigned')?.outerHTML || '<p>Error loading character sheet</p>';
+      
       newWindow.document.write(`
         <!DOCTYPE html>
         <html>
           <head>
             <title>${character.name} - Character Sheet</title>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
-              body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-              #root { width: 100vw; height: 100vh; }
+              ${styles}
+              body { 
+                margin: 0; 
+                padding: 0; 
+                background: #1a1a1a;
+                overflow: auto;
+              }
+              .character-sheet-redesigned {
+                height: 100vh;
+              }
+              /* Hide pop-out button in pop-out window */
+              .popout-btn {
+                display: none !important;
+              }
             </style>
           </head>
           <body>
-            <div id="root">Loading character sheet...</div>
-            <script>
-              window.characterData = ${JSON.stringify(character)};
-              window.isPopout = true;
-            </script>
+            ${sheetHTML}
           </body>
         </html>
       `);
       newWindow.document.close();
-      
-      setTimeout(() => {
-        const root = newWindow.document.getElementById('root');
-        if (root) {
-          const linkElem = newWindow.document.createElement('link');
-          linkElem.rel = 'stylesheet';
-          linkElem.href = window.location.origin + '/src/components/CharacterSheetNew.css';
-          newWindow.document.head.appendChild(linkElem);
-          
-          root.innerHTML = document.querySelector('.character-sheet-redesigned')?.outerHTML || '';
-        }
-      }, 100);
     }
   };
 
@@ -290,7 +305,14 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
               <div className="hp-card card">
                 <h3 className="card-title">Hit Points</h3>
                 <div className="hp-display">
-                  <div className="hp-current">{stats.hp || 0}</div>
+                  <input
+                    type="number"
+                    className="hp-current-input"
+                    value={stats.hp || 0}
+                    onChange={(e) => handleStatUpdate('hp', Number(e.target.value))}
+                    min={0}
+                    max={stats.maxHp || 999}
+                  />
                   <div className="hp-divider">/</div>
                   <div className="hp-max">{stats.maxHp || 10}</div>
                 </div>

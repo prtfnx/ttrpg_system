@@ -332,6 +332,7 @@
 
 .ability-score {
   width: 100%;
+  max-width: 100%;
   background: #374151;
   border: 1px solid #4a5568;
   border-radius: 4px;
@@ -341,6 +342,7 @@
   font-weight: 600;
   color: #f7fafc;
   margin-bottom: 8px;
+  box-sizing: border-box;
 }
 
 .ability-score:focus {
@@ -478,6 +480,41 @@
   font-size: 48px;
   font-weight: 700;
   color: #fc8181;
+}
+
+.hp-current-input {
+  font-size: 48px;
+  font-weight: 700;
+  color: #fc8181;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  text-align: center;
+  width: 80px;
+  padding: 0;
+  transition: border-color 0.2s ease;
+}
+
+.hp-current-input:hover {
+  border-bottom-color: #fc8181;
+}
+
+.hp-current-input:focus {
+  outline: none;
+  border-bottom-color: #fc8181;
+  background: rgba(252, 129, 129, 0.1);
+}
+
+/* Hide number input spinners for HP */
+.hp-current-input::-webkit-outer-spin-button,
+.hp-current-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.hp-current-input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .hp-divider {

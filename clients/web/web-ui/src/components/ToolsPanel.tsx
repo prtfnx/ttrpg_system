@@ -394,6 +394,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
             <div className="setting-row">
               <TextSpriteTool 
                 activeLayer={activeLayer}
+                activeTool={activeTool}
                 onSpriteCreated={(spriteId) => {
                   console.log('[ToolsPanel] Text sprite created:', spriteId);
                 }}

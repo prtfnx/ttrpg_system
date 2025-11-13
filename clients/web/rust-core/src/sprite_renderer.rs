@@ -15,9 +15,15 @@ impl SpriteRenderer {
         layer_opacity: f32,
         renderer: &WebGLRenderer,
         texture_manager: &TextureManager,
+        text_renderer: &TextRenderer,
         input: &InputHandler,
         camera_zoom: f64,
     ) -> Result<(), JsValue> {
+        // Check if this is a text sprite - render with bitmap font atlas
+        if sprite.is_text_sprite.unwrap_or(false) {
+            return Self::draw_text_sprite(sprite, layer_opacity, renderer, texture_manager, text_renderer, input, camera_zoom);
+        }
+        
         let is_selected = input.is_sprite_selected(&sprite.id);
         let is_primary_selected = input.selected_sprite_id.as_ref() == Some(&sprite.id);
         let world_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
@@ -233,6 +239,57 @@ impl SpriteRenderer {
         ];
         let tex_coords = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         renderer.draw_quad(&fill_vertices, &tex_coords, [0.3, 0.7, 1.0, 0.2], false)?;
+        
+        Ok(())
+    }
+    
+    /// Render text sprite using bitmap font atlas (WebGL)
+    fn draw_text_sprite(
+        sprite: &Sprite,
+        layer_opacity: f32,
+        renderer: &WebGLRenderer,
+        texture_manager: &TextureManager,
+        text_renderer: &TextRenderer,
+        input: &InputHandler,
+        camera_zoom: f64,
+    ) -> Result<(), JsValue> {
+        let is_selected = input.is_sprite_selected(&sprite.id);
+        let is_primary_selected = input.selected_sprite_id.as_ref() == Some(&sprite.id);
+        let world_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
+        let size = Vec2::new(
+            (sprite.width * sprite.scale_x) as f32,
+            (sprite.height * sprite.scale_y) as f32
+        );
+        
+        // Get text properties with defaults
+        let text = sprite.text_content.as_ref().map(|s| s.as_str()).unwrap_or("Text");
+        let text_size = sprite.text_size.unwrap_or(1.0) as f32;
+        let mut text_color = sprite.text_color.unwrap_or([1.0, 1.0, 1.0, 1.0]);
+        
+        // Apply layer opacity
+        text_color[3] *= layer_opacity;
+        
+        // Render text at sprite center
+        let text_x = world_pos.x + size.x * 0.5;
+        let text_y = world_pos.y + size.y * 0.5;
+        
+        text_renderer.draw_text(
+            text,
+            text_x,
+            text_y,
+            text_size,
+            text_color,
+            renderer,
+            texture_manager
+        )?;
+        
+        // Draw selection indicators if selected
+        if is_selected {
+            Self::draw_selection_border(sprite, world_pos, size, is_primary_selected, renderer)?;
+            if is_primary_selected {
+                Self::draw_handles(sprite, world_pos, size, renderer, camera_zoom)?;
+            }
+        }
         
         Ok(())
     }

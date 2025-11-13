@@ -1428,6 +1428,63 @@ impl RenderEngine {
         sprite_id
     }
 
+    #[wasm_bindgen]
+    pub fn create_text_sprite(&mut self, text: &str, x: f32, y: f32, font_size: f32, color: &str, layer_name: &str) -> String {
+        web_sys::console::log_1(&format!("[RUST] create_text_sprite called: '{}' at ({:.1}, {:.1}) size: {} color: {} on layer '{}'", 
+            text, x, y, font_size, color, layer_name).into());
+        
+        let sprite_id = format!("text_{}", js_sys::Date::now() as u64);
+        
+        // Convert color hex to RGBA (opacity is always 1.0 for text)
+        let rgba_color = Self::hex_to_rgba(color, 1.0);
+        
+        // Convert RGBA bytes to normalized float array [0.0, 1.0]
+        let text_color = [
+            rgba_color[0] as f32 / 255.0,
+            rgba_color[1] as f32 / 255.0,
+            rgba_color[2] as f32 / 255.0,
+            rgba_color[3] as f32 / 255.0,
+        ];
+        
+        // Estimate text dimensions based on font size and character count
+        // This is a rough estimate for the sprite bounding box
+        let char_count = text.len() as f32;
+        let estimated_width = (font_size * 0.6 * char_count).max(font_size); // ~60% of height per char
+        let estimated_height = font_size * 1.2; // Add some vertical padding
+        
+        let active_table_id = self.table_manager.get_active_table_id()
+            .unwrap_or("default_table".to_string());
+        
+        let sprite = Sprite {
+            id: sprite_id.clone(),
+            world_x: x as f64,
+            world_y: y as f64,
+            width: estimated_width as f64,
+            height: estimated_height as f64,
+            rotation: 0.0,
+            scale_x: 1.0,
+            scale_y: 1.0,
+            layer: layer_name.to_string(),
+            texture_id: "text_sprite".to_string(), // Placeholder - text sprites don't use textures
+            tint_color: [1.0, 1.0, 1.0, 1.0],
+            table_id: active_table_id,
+            is_text_sprite: Some(true),
+            text_content: Some(text.to_string()),
+            text_size: Some(font_size as f64),
+            text_color: Some(text_color),
+        };
+        
+        web_sys::console::log_1(&format!("[RUST] Created text sprite {}, adding to layer '{}'", sprite_id, layer_name).into());
+        
+        // Convert to JsValue for layer manager
+        let sprite_data = serde_wasm_bindgen::to_value(&sprite).unwrap();
+        let result = self.layer_manager.add_sprite_to_layer(layer_name, &sprite_data);
+        web_sys::console::log_1(&format!("[RUST] add_sprite_to_layer result: {:?}", result).into());
+        web_sys::console::log_1(&format!("[RUST] Created text sprite: {} with text: '{}'", sprite_id, text).into());
+        
+        sprite_id
+    }
+
     // ============================================================================
     // NETWORK INTEGRATION - Direct integration with NetworkClient
     // ============================================================================

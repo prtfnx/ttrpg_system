@@ -1,80 +1,95 @@
-import { useState } from 'react';
-import { TextSpriteCreator, type TextSpriteConfig } from './TextSpriteCreator';
-import { createTextSprite } from './textSpriteUtils';
+import { useState, useEffect } from 'react';
+import { TextSpriteModal, type TextSpriteConfig } from './TextSpriteModal';
 
 interface TextSpriteToolProps {
   activeLayer: string;
+  activeTool: string | null;
   onSpriteCreated?: (spriteId: string) => void;
   onError?: (error: Error) => void;
 }
 
 export function TextSpriteTool({ 
-  activeLayer, 
+  activeLayer,
+  activeTool,
   onSpriteCreated,
   onError 
 }: TextSpriteToolProps) {
-  const [isCreatorOpen, setIsCreatorOpen] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [clickPosition, setClickPosition] = useState<{ x: number; y: number } | null>(null);
 
-  const handleCreateSprite = async (
-    config: TextSpriteConfig,
-    position: { x: number; y: number }
-  ) => {
-    setIsCreating(true);
+  // Listen for map clicks when text tool is active
+  useEffect(() => {
+    if (activeTool !== 'text') {
+      // Clear state when tool is deactivated
+      setIsModalOpen(false);
+      setClickPosition(null);
+      return;
+    }
+
+    const handleMapClick = (event: CustomEvent) => {
+      const { x, y } = event.detail;
+      console.log('[TextSpriteTool] Received textSpriteClick event at:', x, y);
+      setClickPosition({ x, y });
+      setIsModalOpen(true);
+    };
+
+    // Listen for custom event from Rust
+    console.log('[TextSpriteTool] Registering textSpriteClick event listener');
+    window.addEventListener('textSpriteClick' as any, handleMapClick);
+
+    return () => {
+      console.log('[TextSpriteTool] Removing textSpriteClick event listener');
+      window.removeEventListener('textSpriteClick' as any, handleMapClick);
+    };
+  }, [activeTool]);
+
+  const handleConfirm = async (config: TextSpriteConfig) => {
+    if (!clickPosition) {
+      console.error('[TextSpriteTool] No click position available');
+      return;
+    }
+
     try {
-      await createTextSprite(
-        config,
-        position,
-        activeLayer,
-        (id) => {
-          console.log('[TextSpriteTool] Successfully created text sprite:', id);
-          onSpriteCreated?.(id);
-        },
-        (error) => {
-          console.error('[TextSpriteTool] Error creating text sprite:', error);
-          onError?.(error);
-        }
+      const rustManager = (window as any).rustRenderManager;
+      if (!rustManager) {
+        throw new Error('Rust render manager not available');
+      }
+
+      // Call Rust function to create text sprite
+      const spriteId = rustManager.create_text_sprite(
+        config.text,
+        clickPosition.x,
+        clickPosition.y,
+        config.fontSize,
+        config.color,
+        activeLayer || 'tokens'
       );
+
+      console.log('[TextSpriteTool] Successfully created text sprite:', spriteId);
+      onSpriteCreated?.(spriteId);
       
-      setIsCreatorOpen(false);
+      // Close modal and reset state
+      setIsModalOpen(false);
+      setClickPosition(null);
     } catch (error) {
+      console.error('[TextSpriteTool] Error creating text sprite:', error);
       const err = error instanceof Error ? error : new Error('Unknown error');
       onError?.(err);
-    } finally {
-      setIsCreating(false);
     }
   };
 
-  return (
-    <>
-      <button
-        type="button"
-        className="tool-button text-sprite-button"
-        onClick={() => setIsCreatorOpen(true)}
-        disabled={isCreating}
-        title="Create Text Sprite"
-        style={{
-          padding: '8px 16px',
-          backgroundColor: '#3b82f6',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: isCreating ? 'wait' : 'pointer',
-          fontSize: '14px',
-          fontWeight: '500',
-          opacity: isCreating ? 0.7 : 1
-        }}
-      >
-        {isCreating ? 'Creating...' : '📝 Add Text'}
-      </button>
+  const handleCancel = () => {
+    setIsModalOpen(false);
+    setClickPosition(null);
+  };
 
-      <TextSpriteCreator
-        isOpen={isCreatorOpen}
-        onClose={() => setIsCreatorOpen(false)}
-        onCreateSprite={handleCreateSprite}
-        activeLayer={activeLayer}
-      />
-    </>
+  return (
+    <TextSpriteModal
+      isOpen={isModalOpen}
+      position={clickPosition}
+      onConfirm={handleConfirm}
+      onCancel={handleCancel}
+    />
   );
 }
 

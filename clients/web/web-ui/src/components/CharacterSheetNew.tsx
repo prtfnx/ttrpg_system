@@ -78,6 +78,49 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
     });
   };
 
+  const openInNewWindow = () => {
+    const newWindow = window.open(
+      '',
+      'character-sheet',
+      'width=1400,height=900,scrollbars=yes,resizable=yes'
+    );
+    
+    if (newWindow) {
+      newWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>${character.name} - Character Sheet</title>
+            <style>
+              body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+              #root { width: 100vw; height: 100vh; }
+            </style>
+          </head>
+          <body>
+            <div id="root">Loading character sheet...</div>
+            <script>
+              window.characterData = ${JSON.stringify(character)};
+              window.isPopout = true;
+            </script>
+          </body>
+        </html>
+      `);
+      newWindow.document.close();
+      
+      setTimeout(() => {
+        const root = newWindow.document.getElementById('root');
+        if (root) {
+          const linkElem = newWindow.document.createElement('link');
+          linkElem.rel = 'stylesheet';
+          linkElem.href = window.location.origin + '/src/components/CharacterSheetNew.css';
+          newWindow.document.head.appendChild(linkElem);
+          
+          root.innerHTML = document.querySelector('.character-sheet-redesigned')?.outerHTML || '';
+        }
+      }, 100);
+    }
+  };
+
   return (
     <div className="character-sheet-redesigned">
       {/* Character Header - Always Visible */}
@@ -93,6 +136,17 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
           </div>
         </div>
         <div className="header-right">
+          <button
+            type="button"
+            className="popout-btn"
+            onClick={openInNewWindow}
+            title="Open in new window (Ctrl+Shift+C)"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M14 2H8v2h3.59L5.29 10.3l1.42 1.42L13 5.41V9h2V3c0-.55-.45-1-1-1zM12 14H3V5h4V3H3a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-4h-2v4z"/>
+            </svg>
+            <span>Pop-out</span>
+          </button>
           <div className="prof-bonus-display">
             <div className="prof-label">Proficiency Bonus</div>
             <div className="prof-value">+{profBonus}</div>

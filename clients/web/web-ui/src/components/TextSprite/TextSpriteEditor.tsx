@@ -1,110 +1,202 @@
-import { useState } from 'react';
-import { TextSpriteCreator, type TextSpriteConfig } from './TextSpriteCreator';
-import { deleteTextSprite, updateTextSprite } from './textSpriteUtils';
+import { useEffect, useRef, useState } from 'react';
+import './TextSpriteEditor.css';
 
 interface TextSpriteEditorProps {
-  spriteId: string;
-  initialConfig: Partial<TextSpriteConfig>;
-  initialPosition: { x: number; y: number };
-  layer: string;
-  isOpen: boolean;
-  onClose: () => void;
-  onUpdated?: (spriteId: string) => void;
-  onDeleted?: (spriteId: string) => void;
-  onError?: (error: Error) => void;
+  position: { x: number; y: number } | null;
+  onComplete: (config: TextSpriteConfig) => void;
+  onCancel: () => void;
 }
 
-export function TextSpriteEditor({
-  spriteId,
-  initialConfig,
-  initialPosition,
-  layer,
-  isOpen,
-  onClose,
-  onUpdated,
-  onDeleted,
-  onError
-}: TextSpriteEditorProps) {
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+export interface TextSpriteConfig {
+  text: string;
+  fontSize: number;
+  color: string;
+  bold: boolean;
+}
 
-  // Fill in default config values for any missing properties
-  const getCompleteConfig = (partial: Partial<TextSpriteConfig>): TextSpriteConfig => ({
-    text: partial.text || 'Sample Text',
-    fontSize: partial.fontSize || 24,
-    fontFamily: partial.fontFamily || 'Arial',
-    fontWeight: partial.fontWeight || 'normal',
-    color: partial.color || '#000000',
-    backgroundColor: partial.backgroundColor || '#ffffff',
-    hasBackground: partial.hasBackground || false,
-    textAlign: partial.textAlign || 'left',
-    opacity: partial.opacity || 1.0,
-    rotation: partial.rotation || 0,
-    borderWidth: partial.borderWidth || 1,
-    borderColor: partial.borderColor || '#000000',
-    hasBorder: partial.hasBorder || false,
-    padding: partial.padding || 8,
-    lineHeight: partial.lineHeight || 1.2,
-    letterSpacing: partial.letterSpacing || 0,
-    textShadow: partial.textShadow || false,
-    shadowColor: partial.shadowColor || '#000000',
-    shadowBlur: partial.shadowBlur || 2,
-    shadowOffsetX: partial.shadowOffsetX || 1,
-    shadowOffsetY: partial.shadowOffsetY || 1,
-  });
+export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteEditorProps) {
+  const [text, setText] = useState('');
+  const [fontSize, setFontSize] = useState(24);
+  const [color, setColor] = useState('#ffffff');
+  const [bold, setBold] = useState(false);
+  const [screenPos, setScreenPos] = useState<{ x: number; y: number } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleUpdateSprite = async (
-    config: TextSpriteConfig,
-    position: { x: number; y: number }
-  ) => {
-    setIsUpdating(true);
-    try {
-      await updateTextSprite(spriteId, config, position, layer);
-      onUpdated?.(spriteId);
-      onClose();
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error('Failed to update text sprite');
-      onError?.(err);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleDeleteSprite = async () => {
-    if (!confirm('Are you sure you want to delete this text sprite?')) {
+  // Convert world coordinates to screen coordinates
+  useEffect(() => {
+    if (!position) {
+      setScreenPos(null);
       return;
     }
 
-    setIsDeleting(true);
+    const rustManager = (window as any).rustRenderManager;
+    if (!rustManager) {
+      console.error('[TextSpriteEditor] Rust render manager not available');
+      return;
+    }
+
     try {
-      deleteTextSprite(spriteId);
-      onDeleted?.(spriteId);
-      onClose();
+      const canvas = document.getElementById('gameCanvas');
+      if (!canvas) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const screenCoords = rustManager.world_to_screen(position.x, position.y);
+      
+      setScreenPos({
+        x: rect.left + screenCoords.x,
+        y: rect.top + screenCoords.y
+      });
     } catch (error) {
-      const err = error instanceof Error ? error : new Error('Failed to delete text sprite');
-      onError?.(err);
-    } finally {
-      setIsDeleting(false);
+      console.error('[TextSpriteEditor] Error converting world to screen coords:', error);
+    }
+  }, [position]);
+
+  // Auto-focus input when editor appears
+  useEffect(() => {
+    if (screenPos && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [screenPos]);
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleCancel();
+      } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        handleFinish();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [text]);
+
+  const handleFinish = () => {
+    if (text.trim()) {
+      onComplete({ text: text.trim(), fontSize, color, bold });
     }
   };
 
+  const handleCancel = () => {
+    setText('');
+    onCancel();
+  };
+
+  if (!screenPos) return null;
+
   return (
-    <div>
-      <TextSpriteCreator
-        isOpen={isOpen}
-        onClose={onClose}
-        onCreateSprite={handleUpdateSprite}
-        activeLayer={layer}
-        initialPosition={initialPosition}
-        // Pass the complete config by spreading initial values
-        initialConfig={getCompleteConfig(initialConfig)}
-        // Override the title and button text for editing mode
-        title="Edit Text Sprite"
-        createButtonText={isUpdating ? 'Updating...' : 'Update Text Sprite'}
-        showDeleteButton={true}
-        onDelete={handleDeleteSprite}
-        isDeleting={isDeleting}
-      />
-    </div>
+    <>
+      {/* Text input cursor on canvas */}
+      <div
+        className="text-sprite-input"
+        style={{
+          position: 'fixed',
+          left: `${screenPos.x}px`,
+          top: `${screenPos.y}px`,
+          zIndex: 9999,
+        }}
+      >
+        <input
+          ref={inputRef}
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Type text..."
+          style={{
+            fontSize: `${fontSize}px`,
+            color: color,
+            fontWeight: bold ? 'bold' : 'normal',
+            fontFamily: 'Consolas, monospace',
+            background: 'rgba(0, 0, 0, 0.8)',
+            border: '2px solid #4299e1',
+            padding: '4px 8px',
+            borderRadius: '4px',
+            outline: 'none',
+            minWidth: '200px',
+          }}
+        />
+      </div>
+
+      {/* Floating toolbar above text */}
+      <div
+        className="text-sprite-toolbar"
+        style={{
+          position: 'fixed',
+          left: `${screenPos.x}px`,
+          top: `${screenPos.y - 60}px`,
+          zIndex: 10000,
+        }}
+      >
+        <div className="toolbar-container">
+          {/* Font size */}
+          <div className="toolbar-group">
+            <label>Size</label>
+            <select 
+              value={fontSize} 
+              onChange={(e) => setFontSize(Number(e.target.value))}
+              className="toolbar-select"
+            >
+              <option value={12}>12</option>
+              <option value={16}>16</option>
+              <option value={20}>20</option>
+              <option value={24}>24</option>
+              <option value={32}>32</option>
+              <option value={48}>48</option>
+              <option value={64}>64</option>
+            </select>
+          </div>
+
+          {/* Color picker */}
+          <div className="toolbar-group">
+            <label>Color</label>
+            <input
+              type="color"
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              className="toolbar-color"
+            />
+          </div>
+
+          {/* Bold toggle */}
+          <button
+            className={`toolbar-button ${bold ? 'active' : ''}`}
+            onClick={() => setBold(!bold)}
+            title="Bold (Ctrl+B)"
+          >
+            <strong>B</strong>
+          </button>
+
+          {/* Divider */}
+          <div className="toolbar-divider"></div>
+
+          {/* Finish button */}
+          <button
+            className="toolbar-button finish"
+            onClick={handleFinish}
+            disabled={!text.trim()}
+            title="Finish (Ctrl+Enter)"
+          >
+            ✓
+          </button>
+
+          {/* Cancel button */}
+          <button
+            className="toolbar-button cancel"
+            onClick={handleCancel}
+            title="Cancel (Esc)"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Hint text */}
+        <div className="toolbar-hint">
+          Press Enter to add line · Ctrl+Enter to finish · Esc to cancel
+        </div>
+      </div>
+    </>
   );
 }
+
+export default TextSpriteEditor;

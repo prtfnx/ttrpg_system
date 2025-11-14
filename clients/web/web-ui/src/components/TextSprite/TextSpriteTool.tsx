@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { TextSpriteEditor, type TextSpriteConfig } from './TextSpriteEditor';
+import { useEffect, useState, useRef } from 'react';
 
 interface TextSpriteToolProps {
   activeLayer: string;
@@ -8,20 +7,177 @@ interface TextSpriteToolProps {
   onError?: (error: Error) => void;
 }
 
+interface InlineTextEditorProps {
+  worldPosition: { x: number; y: number };
+  onComplete: (text: string, fontSize: number, color: string) => void;
+  onCancel: () => void;
+}
+
+function InlineTextEditor({ worldPosition, onComplete, onCancel }: InlineTextEditorProps) {
+  const [text, setText] = useState('');
+  const [fontSize, setFontSize] = useState(16);  // Default 16px (0.5 multiplier)
+  const [color, setColor] = useState('#ffffff');
+  const [screenPos, setScreenPos] = useState<{ x: number; y: number } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Convert world coords to screen coords
+  useEffect(() => {
+    const rustManager = (window as any).rustRenderManager;
+    const canvas = document.querySelector('.game-canvas') as HTMLCanvasElement;
+    
+    if (!rustManager || !canvas) return;
+
+    try {
+      const rect = canvas.getBoundingClientRect();
+      const screenCoords = rustManager.world_to_screen(worldPosition.x, worldPosition.y);
+      
+      setScreenPos({
+        x: rect.left + screenCoords[0],  // Float64Array access by index
+        y: rect.top + screenCoords[1]
+      });
+    } catch (error) {
+      console.error('[InlineTextEditor] Error converting coords:', error);
+    }
+  }, [worldPosition]);
+
+  // Auto-focus input
+  useEffect(() => {
+    if (screenPos && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [screenPos]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCancel();
+      } else if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (text.trim()) {
+          onComplete(text.trim(), fontSize, color);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [text, fontSize, color, onComplete, onCancel]);
+
+  if (!screenPos) return null;
+
+  return (
+    <>
+      {/* Floating toolbar above input */}
+      <div
+        style={{
+          position: 'fixed',
+          left: `${screenPos.x}px`,
+          top: `${screenPos.y - 50}px`,
+          display: 'flex',
+          gap: '8px',
+          alignItems: 'center',
+          background: 'rgba(30, 30, 30, 0.95)',
+          padding: '6px 12px',
+          borderRadius: '6px',
+          border: '1px solid #4299e1',
+          zIndex: 10000,
+          fontSize: '12px',
+          color: '#ccc',
+        }}
+      >
+        <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          Size:
+          <input
+            type="range"
+            min="12"
+            max="48"
+            value={fontSize}
+            onChange={(e) => setFontSize(Number(e.target.value))}
+            style={{ width: '80px' }}
+          />
+          <span style={{ minWidth: '30px', color: '#fff' }}>{fontSize}px</span>
+        </label>
+        
+        <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          Color:
+          <input
+            type="color"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+            style={{ width: '30px', height: '20px', border: 'none', cursor: 'pointer' }}
+          />
+        </label>
+        
+        <button
+          onClick={() => text.trim() && onComplete(text.trim(), fontSize, color)}
+          style={{
+            padding: '4px 12px',
+            background: '#4299e1',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '12px',
+          }}
+        >
+          ✓
+        </button>
+        <button
+          onClick={onCancel}
+          style={{
+            padding: '4px 12px',
+            background: '#666',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '12px',
+          }}
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Inline text input */}
+      <input
+        ref={inputRef}
+        type="text"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Type text..."
+        style={{
+          position: 'fixed',
+          left: `${screenPos.x}px`,
+          top: `${screenPos.y}px`,
+          fontSize: `${fontSize}px`,
+          color: color,
+          fontFamily: 'Consolas, monospace',
+          background: 'transparent',
+          border: 'none',
+          outline: '2px solid #4299e1',
+          padding: '2px 4px',
+          zIndex: 9999,
+          minWidth: '100px',
+        }}
+      />
+    </>
+  );
+}
+
 export function TextSpriteTool({ 
   activeLayer,
   activeTool,
   onSpriteCreated,
   onError 
 }: TextSpriteToolProps) {
-  const [isEditing, setIsEditing] = useState(false);
+  const [showDialog, setShowDialog] = useState(false);
   const [clickPosition, setClickPosition] = useState<{ x: number; y: number } | null>(null);
 
   // Listen for map clicks when text tool is active
   useEffect(() => {
     if (activeTool !== 'text') {
-      // Clear state when tool is deactivated
-      setIsEditing(false);
+      setShowDialog(false);
       setClickPosition(null);
       return;
     }
@@ -30,10 +186,9 @@ export function TextSpriteTool({
       const { x, y } = event.detail;
       console.log('[TextSpriteTool] Received textSpriteClick event at:', x, y);
       setClickPosition({ x, y });
-      setIsEditing(true);
+      setShowDialog(true);
     };
 
-    // Listen for custom event from Rust
     console.log('[TextSpriteTool] Registering textSpriteClick event listener');
     window.addEventListener('textSpriteClick' as any, handleMapClick);
 
@@ -43,7 +198,7 @@ export function TextSpriteTool({
     };
   }, [activeTool]);
 
-  const handleComplete = async (config: TextSpriteConfig) => {
+  const handleComplete = (text: string, fontSize: number, color: string) => {
     if (!clickPosition) {
       console.error('[TextSpriteTool] No click position available');
       return;
@@ -55,22 +210,34 @@ export function TextSpriteTool({
         throw new Error('Rust render manager not available');
       }
 
-      // Call Rust function to create text sprite
-      // Note: bold is not supported by bitmap font atlas, so we ignore it for now
+      // Convert font size from pixels to multiplier for Rust renderer
+      // The bitmap font atlas has 32px base size, so:
+      // 16px = 0.5, 24px = 0.75, 32px = 1.0, 48px = 1.5
+      const sizeMultiplier = fontSize / 32.0;
+
+      console.log('[TextSpriteTool] Creating text sprite:', {
+        text,
+        position: clickPosition,
+        fontSize,
+        sizeMultiplier,
+        color,
+        layer: activeLayer
+      });
+
+      // Call Rust function to create text sprite directly in WebGL
       const spriteId = rustManager.create_text_sprite(
-        config.text,
+        text,
         clickPosition.x,
         clickPosition.y,
-        config.fontSize,
-        config.color,
+        sizeMultiplier,  // Use multiplier, not pixel size
+        color,
         activeLayer || 'tokens'
       );
 
       console.log('[TextSpriteTool] Successfully created text sprite:', spriteId);
       onSpriteCreated?.(spriteId);
       
-      // Close editor and reset state
-      setIsEditing(false);
+      setShowDialog(false);
       setClickPosition(null);
     } catch (error) {
       console.error('[TextSpriteTool] Error creating text sprite:', error);
@@ -80,17 +247,17 @@ export function TextSpriteTool({
   };
 
   const handleCancel = () => {
-    setIsEditing(false);
+    setShowDialog(false);
     setClickPosition(null);
   };
 
-  return (
-    <TextSpriteEditor
-      position={isEditing ? clickPosition : null}
+  return showDialog && clickPosition ? (
+    <InlineTextEditor
+      worldPosition={clickPosition}
       onComplete={handleComplete}
       onCancel={handleCancel}
     />
-  );
+  ) : null;
 }
 
 export default TextSpriteTool;

@@ -76,29 +76,21 @@ impl TextRenderer {
             return Ok(());
         }
         
-        // Calculate actual text width using advance spacing
-        let text_width = text.len() as f32 * self.char_advance * size;
-        let padding = 4.0 * size;
-        
-        // Center the text in the background box
-        let box_width = text_width + padding * 2.0;
-        let box_x = x - box_width / 2.0;  // Center horizontally
-        let text_x = box_x + padding;      // Start text after left padding
-        
-        self.draw_text_background(
-            box_x,
-            y - padding,
-            box_width,
-            self.char_size * size + padding * 2.0,
-            renderer,
-        )?;
+        // NO BACKGROUND - render text with transparent background
+        // Text is rendered directly using textured quads
         
         // Bind font atlas texture
         texture_manager.bind_texture(&self.font_atlas_id);
         
-        // Render each character with proper UV mapping
-        let mut cursor_x = text_x;
+        // Calculate text centering for positioning
+        let text_width: f32 = text.chars()
+            .map(|ch| self.get_char_advance(ch) * size)
+            .sum();
         
+        // Center text horizontally around the given x position
+        let mut cursor_x = x - text_width / 2.0;
+        
+        // Render each character with proper UV mapping
         for ch in text.chars() {
             self.draw_char(ch, cursor_x, y, size, color, renderer, texture_manager)?;
             let advance = self.get_char_advance(ch) * size;  // Variable width

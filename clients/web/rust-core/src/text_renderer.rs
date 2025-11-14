@@ -90,9 +90,13 @@ impl TextRenderer {
         // Center text horizontally around the given x position
         let mut cursor_x = x - text_width / 2.0;
         
+        // Center text vertically - offset by half char height so text is centered at y
+        let char_height = self.char_size * size;
+        let text_y = y - char_height / 2.0;
+        
         // Render each character with proper UV mapping
         for ch in text.chars() {
-            self.draw_char(ch, cursor_x, y, size, color, renderer, texture_manager)?;
+            self.draw_char(ch, cursor_x, text_y, size, color, renderer, texture_manager)?;
             let advance = self.get_char_advance(ch) * size;  // Variable width
             cursor_x += advance;
         }

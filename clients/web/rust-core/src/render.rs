@@ -1472,9 +1472,10 @@ impl RenderEngine {
         // to match where the text actually appears
         let bbox_x = x - estimated_width / 2.0;
         
-        // Text renders from y downward, but we need to offset by half padding
-        // to center the bounding box around the text vertically
-        let bbox_y = y - padding / 2.0;
+        // Text renderer will draw at bbox center: (world_y + height/2)
+        // We want text at y, so: y = bbox_y + height/2
+        // Therefore: bbox_y = y - height/2
+        let bbox_y = y - estimated_height / 2.0;
         
         let active_table_id = self.table_manager.get_active_table_id()
             .unwrap_or("default_table".to_string());
@@ -1482,7 +1483,7 @@ impl RenderEngine {
         let sprite = Sprite {
             id: sprite_id.clone(),
             world_x: bbox_x as f64,  // Use centered position
-            world_y: bbox_y as f64,  // Offset by half padding
+            world_y: bbox_y as f64,  // Center vertically so text renders at click Y
             width: estimated_width as f64,
             height: estimated_height as f64,
             rotation: 0.0,

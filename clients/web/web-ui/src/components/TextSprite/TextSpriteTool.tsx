@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useGameStore } from '../../store';
 
 interface TextSpriteToolProps {
   activeLayer: string;
@@ -25,16 +26,36 @@ function InlineTextEditor({ worldPosition, onComplete, onCancel }: InlineTextEdi
     const rustManager = (window as any).rustRenderManager;
     const canvas = document.querySelector('.game-canvas') as HTMLCanvasElement;
     
-    if (!rustManager || !canvas) return;
+    if (!rustManager || !canvas) {
+      console.error('[InlineTextEditor] Missing rustManager or canvas');
+      return;
+    }
 
     try {
       const rect = canvas.getBoundingClientRect();
       const screenCoords = rustManager.world_to_screen(worldPosition.x, worldPosition.y);
       
-      setScreenPos({
-        x: rect.left + screenCoords[0],  // Float64Array access by index
-        y: rect.top + screenCoords[1]
+      console.log('[InlineTextEditor] Converting coords:', {
+        world: worldPosition,
+        screen: screenCoords,
+        canvasRect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
       });
+      
+      // Validate screen coordinates
+      if (screenCoords && screenCoords.length >= 2 && 
+          !isNaN(screenCoords[0]) && !isNaN(screenCoords[1])) {
+        const finalX = rect.left + screenCoords[0];
+        const finalY = rect.top + screenCoords[1];
+        
+        console.log('[InlineTextEditor] Final screen position:', { x: finalX, y: finalY });
+        
+        setScreenPos({
+          x: finalX,
+          y: finalY
+        });
+      } else {
+        console.error('[InlineTextEditor] Invalid screen coords:', screenCoords);
+      }
     } catch (error) {
       console.error('[InlineTextEditor] Error converting coords:', error);
     }
@@ -68,12 +89,13 @@ function InlineTextEditor({ worldPosition, onComplete, onCancel }: InlineTextEdi
 
   return (
     <>
-      {/* Floating toolbar above input */}
+      {/* Floating toolbar above input - centered */}
       <div
         style={{
           position: 'fixed',
           left: `${screenPos.x}px`,
           top: `${screenPos.y - 50}px`,
+          transform: 'translateX(-50%)',  // Center toolbar horizontally
           display: 'flex',
           gap: '8px',
           alignItems: 'center',
@@ -139,7 +161,7 @@ function InlineTextEditor({ worldPosition, onComplete, onCancel }: InlineTextEdi
         </button>
       </div>
 
-      {/* Inline text input */}
+      {/* Inline text input - centered to match Rust text rendering */}
       <input
         ref={inputRef}
         type="text"
@@ -150,6 +172,7 @@ function InlineTextEditor({ worldPosition, onComplete, onCancel }: InlineTextEdi
           position: 'fixed',
           left: `${screenPos.x}px`,
           top: `${screenPos.y}px`,
+          transform: 'translateX(-50%)',  // Center horizontally at the x position
           fontSize: `${fontSize}px`,
           color: color,
           fontFamily: 'Consolas, monospace',
@@ -173,6 +196,7 @@ export function TextSpriteTool({
 }: TextSpriteToolProps) {
   const [showDialog, setShowDialog] = useState(false);
   const [clickPosition, setClickPosition] = useState<{ x: number; y: number } | null>(null);
+  const { setActiveTool } = useGameStore();
 
   // Listen for map clicks when text tool is active
   useEffect(() => {
@@ -236,6 +260,9 @@ export function TextSpriteTool({
 
       console.log('[TextSpriteTool] Successfully created text sprite:', spriteId);
       onSpriteCreated?.(spriteId);
+      
+      // Auto-switch to select tool after creating text
+      setActiveTool('select');
       
       setShowDialog(false);
       setClickPosition(null);

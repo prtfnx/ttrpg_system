@@ -24,7 +24,10 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
 
   // Convert world coordinates to screen coordinates
   useEffect(() => {
+    console.log('[TextSpriteEditor] useEffect triggered, position:', position);
+    
     if (!position) {
+      console.log('[TextSpriteEditor] No position, setting screenPos to null');
       setScreenPos(null);
       return;
     }
@@ -35,17 +38,29 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
       return;
     }
 
-    try {
-      const canvas = document.getElementById('gameCanvas');
-      if (!canvas) return;
+    console.log('[TextSpriteEditor] rustManager available, converting coords');
 
+    try {
+      const canvas = document.querySelector('.game-canvas') as HTMLCanvasElement;
+      if (!canvas) {
+        console.error('[TextSpriteEditor] Canvas not found!');
+        return;
+      }
+
+      console.log('[TextSpriteEditor] Canvas found, getting bounds');
       const rect = canvas.getBoundingClientRect();
-      const screenCoords = rustManager.world_to_screen(position.x, position.y);
+      console.log('[TextSpriteEditor] Canvas rect:', rect);
       
-      setScreenPos({
+      const screenCoords = rustManager.world_to_screen(position.x, position.y);
+      console.log('[TextSpriteEditor] Screen coords from Rust:', screenCoords);
+      
+      const finalPos = {
         x: rect.left + screenCoords.x,
         y: rect.top + screenCoords.y
-      });
+      };
+      console.log('[TextSpriteEditor] Final screen position:', finalPos);
+      
+      setScreenPos(finalPos);
     } catch (error) {
       console.error('[TextSpriteEditor] Error converting world to screen coords:', error);
     }
@@ -83,7 +98,14 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
     onCancel();
   };
 
-  if (!screenPos) return null;
+  console.log('[TextSpriteEditor] Render check - screenPos:', screenPos, 'position:', position);
+
+  if (!screenPos) {
+    console.log('[TextSpriteEditor] Returning null - no screenPos');
+    return null;
+  }
+
+  console.log('[TextSpriteEditor] Rendering editor at:', screenPos);
 
   return (
     <>

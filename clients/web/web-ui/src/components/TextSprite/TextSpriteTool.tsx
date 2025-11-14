@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { TextSpriteModal, type TextSpriteConfig } from './TextSpriteModal';
+import { useEffect, useState } from 'react';
+import { TextSpriteEditor, type TextSpriteConfig } from './TextSpriteEditor';
 
 interface TextSpriteToolProps {
   activeLayer: string;
@@ -14,14 +14,14 @@ export function TextSpriteTool({
   onSpriteCreated,
   onError 
 }: TextSpriteToolProps) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [clickPosition, setClickPosition] = useState<{ x: number; y: number } | null>(null);
 
   // Listen for map clicks when text tool is active
   useEffect(() => {
     if (activeTool !== 'text') {
       // Clear state when tool is deactivated
-      setIsModalOpen(false);
+      setIsEditing(false);
       setClickPosition(null);
       return;
     }
@@ -30,7 +30,7 @@ export function TextSpriteTool({
       const { x, y } = event.detail;
       console.log('[TextSpriteTool] Received textSpriteClick event at:', x, y);
       setClickPosition({ x, y });
-      setIsModalOpen(true);
+      setIsEditing(true);
     };
 
     // Listen for custom event from Rust
@@ -43,7 +43,7 @@ export function TextSpriteTool({
     };
   }, [activeTool]);
 
-  const handleConfirm = async (config: TextSpriteConfig) => {
+  const handleComplete = async (config: TextSpriteConfig) => {
     if (!clickPosition) {
       console.error('[TextSpriteTool] No click position available');
       return;
@@ -56,6 +56,7 @@ export function TextSpriteTool({
       }
 
       // Call Rust function to create text sprite
+      // Note: bold is not supported by bitmap font atlas, so we ignore it for now
       const spriteId = rustManager.create_text_sprite(
         config.text,
         clickPosition.x,
@@ -68,8 +69,8 @@ export function TextSpriteTool({
       console.log('[TextSpriteTool] Successfully created text sprite:', spriteId);
       onSpriteCreated?.(spriteId);
       
-      // Close modal and reset state
-      setIsModalOpen(false);
+      // Close editor and reset state
+      setIsEditing(false);
       setClickPosition(null);
     } catch (error) {
       console.error('[TextSpriteTool] Error creating text sprite:', error);
@@ -79,15 +80,14 @@ export function TextSpriteTool({
   };
 
   const handleCancel = () => {
-    setIsModalOpen(false);
+    setIsEditing(false);
     setClickPosition(null);
   };
 
   return (
-    <TextSpriteModal
-      isOpen={isModalOpen}
-      position={clickPosition}
-      onConfirm={handleConfirm}
+    <TextSpriteEditor
+      position={isEditing ? clickPosition : null}
+      onComplete={handleComplete}
       onCancel={handleCancel}
     />
   );

@@ -1446,19 +1446,43 @@ impl RenderEngine {
             rgba_color[3] as f32 / 255.0,
         ];
         
-        // Estimate text dimensions based on font size and character count
-        // This is a rough estimate for the sprite bounding box
-        let char_count = text.len() as f32;
-        let estimated_width = (font_size * 0.6 * char_count).max(font_size); // ~60% of height per char
-        let estimated_height = font_size * 1.2; // Add some vertical padding
+        // Calculate accurate text dimensions based on character advances
+        // Base char size is 32px, so scale by font_size multiplier
+        let base_char_size = 32.0;
+        let actual_size = base_char_size * font_size;
+        
+        // Calculate text width using actual character advances (matching text_renderer.rs)
+        let mut text_width = 0.0;
+        for ch in text.chars() {
+            let advance = match ch {
+                '.' | ',' | ':' | ';' | '!' | '\'' | '`' => 8.0,
+                'i' | 'l' | 'I' | '|' => 10.0,
+                ' ' => 12.0,
+                _ => 18.0,  // Default advance
+            };
+            text_width += advance * font_size;
+        }
+        
+        // Add padding to make the sprite easier to select
+        let padding = 8.0 * font_size;
+        let estimated_width = text_width + padding;
+        let estimated_height = actual_size + padding;
+        
+        // Since text is rendered centered at x, the bounding box should start at x - width/2
+        // to match where the text actually appears
+        let bbox_x = x - estimated_width / 2.0;
+        
+        // Text renders from y downward, but we need to offset by half padding
+        // to center the bounding box around the text vertically
+        let bbox_y = y - padding / 2.0;
         
         let active_table_id = self.table_manager.get_active_table_id()
             .unwrap_or("default_table".to_string());
         
         let sprite = Sprite {
             id: sprite_id.clone(),
-            world_x: x as f64,
-            world_y: y as f64,
+            world_x: bbox_x as f64,  // Use centered position
+            world_y: bbox_y as f64,  // Offset by half padding
             width: estimated_width as f64,
             height: estimated_height as f64,
             rotation: 0.0,

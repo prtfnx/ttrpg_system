@@ -53,7 +53,27 @@ export function useSpriteSyncing() {
         if (!currentSpriteIds.has(sprite.id)) {
           addSprite(spriteWithName);
         } else {
-          updateSprite(sprite.id, spriteWithName);
+          // IMPORTANT: Only update WASM-managed fields, preserve React-managed fields
+          // WASM manages: x, y, rotation, scale, texture, layer
+          // React manages: characterId, hp, maxHp, ac, auraRadius, controlledBy
+          const existingSprite = sprites.find((s: any) => s.id === sprite.id);
+          updateSprite(sprite.id, {
+            x: spriteWithName.x,
+            y: spriteWithName.y,
+            rotation: spriteWithName.rotation,
+            scale: spriteWithName.scale,
+            texture: spriteWithName.texture,
+            layer: spriteWithName.layer,
+            tableId: spriteWithName.tableId,
+            // Preserve React-managed fields from existing sprite
+            characterId: existingSprite?.characterId,
+            hp: existingSprite?.hp,
+            maxHp: existingSprite?.maxHp,
+            ac: existingSprite?.ac,
+            auraRadius: existingSprite?.auraRadius,
+            controlledBy: existingSprite?.controlledBy,
+            name: existingSprite?.name || 'Unnamed Sprite',
+          });
         }
       });
 

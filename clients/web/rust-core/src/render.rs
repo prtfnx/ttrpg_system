@@ -1304,6 +1304,7 @@ impl RenderEngine {
             texture_id: texture_name, // Use procedural rectangle texture
             tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
             table_id: active_table_id,
+            character_id: None,
             is_text_sprite: None,
             text_content: None,
             text_size: None,
@@ -1355,6 +1356,7 @@ impl RenderEngine {
             texture_id: texture_name, // Use procedural circle texture
             tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
             table_id: active_table_id,
+            character_id: None,
             is_text_sprite: None,
             text_content: None,
             text_size: None,
@@ -1415,6 +1417,7 @@ impl RenderEngine {
             texture_id: texture_name, // Use procedural line texture
             tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
             table_id: active_table_id,
+            character_id: None,
             is_text_sprite: None,
             text_content: None,
             text_size: None,
@@ -1493,6 +1496,7 @@ impl RenderEngine {
             texture_id: "text_sprite".to_string(), // Placeholder - text sprites don't use textures
             tint_color: [1.0, 1.0, 1.0, 1.0],
             table_id: active_table_id,
+            character_id: None,
             is_text_sprite: Some(true),
             text_content: Some(text.to_string()),
             text_size: Some(font_size as f64),
@@ -1574,6 +1578,7 @@ impl RenderEngine {
             texture_id: network_data.texture_name,
             tint_color: [1.0, 1.0, 1.0, 1.0],
             table_id: active_table_id,
+            character_id: None,
             is_text_sprite: None,
             text_content: None,
             text_size: None,
@@ -2178,6 +2183,12 @@ impl RenderEngine {
 
     /// Add a sprite from table sync data to the render engine
     fn add_sprite_from_table_data(&mut self, sprite_data: &crate::table_sync::SpriteData, table_id: &str) -> Result<(), JsValue> {
+        // Extract character_id if present in the character field
+        let character_id = sprite_data.character.as_ref()
+            .and_then(|c| c.get("id"))
+            .and_then(|id| id.as_str())
+            .map(|s| s.to_string());
+        
         // Convert table sync sprite data to render engine sprite
         let sprite = Sprite {
             id: sprite_data.sprite_id.clone(),
@@ -2192,6 +2203,7 @@ impl RenderEngine {
             texture_id: sprite_data.texture_path.clone(),
             tint_color: [1.0, 1.0, 1.0, 1.0], // Default white tint
             table_id: table_id.to_string(),
+            character_id,
             is_text_sprite: None,
             text_content: None,
             text_size: None,

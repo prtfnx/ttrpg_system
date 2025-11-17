@@ -316,6 +316,29 @@ impl EventSystem {
             InputMode::SpriteMove | InputMode::SpriteResize(_) | InputMode::SpriteRotate => {
                 // Handle sprite operation completion - send network sync
                 if let Some(sprite_id) = &input.selected_sprite_id {
+                    // Check for double-click ONLY on SpriteMove (not resize/rotate)
+                    // and only if sprite didn't actually move (click without drag)
+                    if matches!(input.input_mode, InputMode::SpriteMove) {
+                        let current_time = js_sys::Date::now();
+                        if input.check_double_click(sprite_id, current_time) {
+                            // Double-click detected! Emit event to React for token configuration
+                            web_sys::console::log_1(&format!("[RUST EVENT] Double-click detected on sprite: {}", sprite_id).into());
+                            
+                            if let Some(window) = web_sys::window() {
+                                let detail = js_sys::Object::new();
+                                js_sys::Reflect::set(&detail, &"spriteId".into(), &JsValue::from_str(sprite_id)).ok();
+                                
+                                let event_init = web_sys::CustomEventInit::new();
+                                event_init.set_detail(&detail);
+                                
+                                if let Ok(event) = web_sys::CustomEvent::new_with_event_init_dict("tokenDoubleClick", &event_init) {
+                                    window.dispatch_event(&event).ok();
+                                    web_sys::console::log_1(&"[RUST EVENT] Dispatched tokenDoubleClick event to React".into());
+                                }
+                            }
+                        }
+                    }
+                    
                     // Call the bridge to notify operation completion
                     self.notify_operation_complete(input.input_mode, sprite_id, layers);
                 }

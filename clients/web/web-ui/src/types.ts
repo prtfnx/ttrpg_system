@@ -17,7 +17,7 @@ export interface Sprite {
   id: string; // sprite_id
   name: string; // display name for the sprite
   tableId: string;
-  characterId?: string; // References Character.id
+  characterId?: string; // References Character.id (optional)
   controlledBy?: string[]; // User IDs who can control this token
   x: number;
   y: number;
@@ -25,6 +25,11 @@ export interface Sprite {
   texture: string;
   scale: { x: number; y: number };
   rotation: number;
+  // Token stats (independent of character)
+  hp?: number;
+  maxHp?: number;
+  ac?: number;
+  auraRadius?: number;
   syncStatus?: 'local' | 'syncing' | 'synced' | 'error';
 }
 

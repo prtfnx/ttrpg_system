@@ -28,8 +28,14 @@ pub struct Sprite {
     pub texture_id: String,
     pub tint_color: [f32; 4],
     
-    // Character binding
+    // Character binding (optional)
     pub character_id: Option<String>,
+    
+    // Token stats (independent of character)
+    pub hp: Option<i32>,
+    pub max_hp: Option<i32>,
+    pub ac: Option<i32>,
+    pub aura_radius: Option<f64>,
     
     // Text sprite fields
     pub is_text_sprite: Option<bool>,
@@ -54,6 +60,10 @@ impl Sprite {
             texture_id: String::new(),
             tint_color: [1.0, 1.0, 1.0, 1.0],
             character_id: None,
+            hp: None,
+            max_hp: None,
+            ac: None,
+            aura_radius: None,
             is_text_sprite: None,
             text_content: None,
             text_size: None,

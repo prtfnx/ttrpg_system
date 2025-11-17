@@ -314,19 +314,25 @@ impl EventSystem {
                 MouseEventResult::Handled
             }
             InputMode::SpriteMove | InputMode::SpriteResize(_) | InputMode::SpriteRotate => {
-                // Handle sprite operation completion - send network sync
-                if let Some(sprite_id) = &input.selected_sprite_id {
-                    // Check for double-click ONLY on SpriteMove (not resize/rotate)
-                    // and only if sprite didn't actually move (click without drag)
-                    if matches!(input.input_mode, InputMode::SpriteMove) {
+                // Extract sprite_id and input_mode for later use
+                let sprite_id_opt = input.selected_sprite_id.clone();
+                let current_input_mode = input.input_mode;
+                
+                web_sys::console::log_1(&format!("[RUST EVENT] Mouse up in mode: {:?}, sprite: {:?}", current_input_mode, sprite_id_opt).into());
+                
+                // Check for double-click ONLY on SpriteMove (not resize/rotate)
+                if matches!(current_input_mode, InputMode::SpriteMove) {
+                    if let Some(ref sprite_id_str) = sprite_id_opt {
                         let current_time = js_sys::Date::now();
-                        if input.check_double_click(sprite_id, current_time) {
+                        web_sys::console::log_1(&format!("[RUST EVENT] Checking double-click for sprite {} at time {}", sprite_id_str, current_time).into());
+                        
+                        if input.check_double_click(sprite_id_str, current_time) {
                             // Double-click detected! Emit event to React for token configuration
-                            web_sys::console::log_1(&format!("[RUST EVENT] Double-click detected on sprite: {}", sprite_id).into());
+                            web_sys::console::log_1(&format!("[RUST EVENT] ✅ Double-click detected on sprite: {}", sprite_id_str).into());
                             
                             if let Some(window) = web_sys::window() {
                                 let detail = js_sys::Object::new();
-                                js_sys::Reflect::set(&detail, &"spriteId".into(), &JsValue::from_str(sprite_id)).ok();
+                                js_sys::Reflect::set(&detail, &"spriteId".into(), &JsValue::from_str(sprite_id_str)).ok();
                                 
                                 let event_init = web_sys::CustomEventInit::new();
                                 event_init.set_detail(&detail);
@@ -336,12 +342,18 @@ impl EventSystem {
                                     web_sys::console::log_1(&"[RUST EVENT] Dispatched tokenDoubleClick event to React".into());
                                 }
                             }
+                        } else {
+                            web_sys::console::log_1(&format!("[RUST EVENT] ❌ Not a double-click for sprite: {}", sprite_id_str).into());
                         }
                     }
-                    
-                    // Call the bridge to notify operation completion
-                    self.notify_operation_complete(input.input_mode, sprite_id, layers);
                 }
+                
+                // Handle sprite operation completion - send network sync
+                if let Some(sprite_id) = &sprite_id_opt {
+                    // Call the bridge to notify operation completion
+                    self.notify_operation_complete(current_input_mode, sprite_id, layers);
+                }
+                
                 // Reset input mode since operation is complete  
                 input.input_mode = InputMode::None;
                 MouseEventResult::Handled

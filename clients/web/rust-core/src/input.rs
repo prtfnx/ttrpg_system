@@ -315,11 +315,14 @@ impl InputHandler {
         let is_double_click = if let Some(last_sprite) = &self.last_click_sprite {
             if last_sprite == sprite_id {
                 let time_diff = current_time - self.last_click_time;
+                web_sys::console::log_1(&format!("[INPUT] Same sprite clicked: {}. Time diff: {}ms (threshold: {}ms)", sprite_id, time_diff, DOUBLE_CLICK_THRESHOLD_MS).into());
                 time_diff < DOUBLE_CLICK_THRESHOLD_MS
             } else {
+                web_sys::console::log_1(&format!("[INPUT] Different sprite: last={}, current={}", last_sprite, sprite_id).into());
                 false
             }
         } else {
+            web_sys::console::log_1(&"[INPUT] First click (no previous sprite)".into());
             false
         };
         
@@ -327,6 +330,7 @@ impl InputHandler {
         self.last_click_time = current_time;
         self.last_click_sprite = Some(sprite_id.to_string());
         
+        web_sys::console::log_1(&format!("[INPUT] Double-click result: {}", is_double_click).into());
         is_double_click
     }
 }

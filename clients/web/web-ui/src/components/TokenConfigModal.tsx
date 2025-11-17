@@ -53,12 +53,15 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
     
     // Update character HP
     if (linkedCharacter) {
-      const updateCharacterData = useGameStore.getState().updateCharacterData;
-      const newStats = {
-        ...linkedCharacter.data?.stats,
-        hp: newHp,
+      const updateCharacter = useGameStore.getState().updateCharacter;
+      const newData = {
+        ...linkedCharacter.data,
+        stats: {
+          ...linkedCharacter.data?.stats,
+          hp: newHp,
+        }
       };
-      updateCharacterData(linkedCharacter.id, { stats: newStats });
+      updateCharacter(linkedCharacter.id, { data: newData });
     }
   };
 
@@ -67,12 +70,15 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
     
     // Update character max HP
     if (linkedCharacter) {
-      const updateCharacterData = useGameStore.getState().updateCharacterData;
-      const newStats = {
-        ...linkedCharacter.data?.stats,
-        maxHp: newMaxHp,
+      const updateCharacter = useGameStore.getState().updateCharacter;
+      const newData = {
+        ...linkedCharacter.data,
+        stats: {
+          ...linkedCharacter.data?.stats,
+          maxHp: newMaxHp,
+        }
       };
-      updateCharacterData(linkedCharacter.id, { stats: newStats });
+      updateCharacter(linkedCharacter.id, { data: newData });
     }
   };
 
@@ -80,7 +86,11 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
   const hpPercentage = localMaxHp > 0 ? (localHp / localMaxHp) * 100 : 0;
 
   // Filter characters in current session
-  const sessionCharacters = characters.filter(c => c.sessionId === sprite.sessionId);
+  // Get session from linked character or use first character's session as fallback
+  const currentSessionId = linkedCharacter?.sessionId || characters[0]?.sessionId;
+  const sessionCharacters = currentSessionId 
+    ? characters.filter(c => c.sessionId === currentSessionId)
+    : characters;
 
   return (
     <div className="token-config-modal-overlay" onClick={onClose}>

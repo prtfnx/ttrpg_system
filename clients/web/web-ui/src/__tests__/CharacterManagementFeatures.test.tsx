@@ -14,11 +14,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { useGameStore } from '../store';
 import type { Character } from '../types';
 import {
-  cloneCharacter,
-  exportCharacter,
-  importCharacterFromJSON,
-  exportMultipleCharacters,
-  importMultipleCharactersFromJSON
+    cloneCharacter,
+    exportCharacter,
+    exportMultipleCharacters,
+    importCharacterFromJSON,
+    importMultipleCharactersFromJSON
 } from '../utils/characterImportExport';
 
 describe('Character Management - Store Integration', () => {

@@ -5,6 +5,7 @@ import { GameCanvas } from './GameCanvas';
 import './GameClient.css';
 import { RightPanel } from './RightPanel';
 import { ToolsPanel } from './ToolsPanel';
+import { TokenConfigModal } from './TokenConfigModal';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -109,6 +110,24 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     const v = localStorage.getItem('panel_right_visible');
     return v !== 'false';
   });
+
+  // Token config modal state
+  const [tokenConfigSpriteId, setTokenConfigSpriteId] = React.useState<string | null>(null);
+
+  // Listen for double-click events from Rust WASM
+  useEffect(() => {
+    const handleTokenDoubleClick = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { spriteId } = customEvent.detail;
+      console.log('[GameClient] Token double-click on sprite:', spriteId);
+      setTokenConfigSpriteId(spriteId);
+    };
+
+    window.addEventListener('tokenDoubleClick', handleTokenDoubleClick);
+    return () => {
+      window.removeEventListener('tokenDoubleClick', handleTokenDoubleClick);
+    };
+  }, []);
 
   // Handle drag to resize panels
   const dragRef = React.useRef<{ side: 'left'|'right', startX: number, startWidth: number }|null>(null);
@@ -227,6 +246,14 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
             <RightPanel sessionCode={sessionCode} userInfo={userInfo} />
             <button className="collapse-btn" onClick={toggleRight}>▶</button>
           </div>
+        )}
+
+        {/* Token Configuration Modal */}
+        {tokenConfigSpriteId && (
+          <TokenConfigModal
+            spriteId={tokenConfigSpriteId}
+            onClose={() => setTokenConfigSpriteId(null)}
+          />
         )}
       </div>
     </DebugErrorBoundary>

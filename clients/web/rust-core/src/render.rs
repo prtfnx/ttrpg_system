@@ -2027,6 +2027,7 @@ impl RenderEngine {
                     tint_color,
                     layer: layer_name.to_string(),
                     table_id: active_table_id,
+                    character_id: None,
                     is_text_sprite: None,
                     text_content: None,
                     text_size: None,

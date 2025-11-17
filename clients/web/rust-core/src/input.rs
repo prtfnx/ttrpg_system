@@ -306,6 +306,29 @@ impl InputHandler {
             None
         }
     }
+    
+    /// Check if a sprite click is a double-click (within 300ms of previous click on same sprite)
+    /// Returns true if double-click detected
+    pub fn check_double_click(&mut self, sprite_id: &str, current_time: f64) -> bool {
+        const DOUBLE_CLICK_THRESHOLD_MS: f64 = 300.0;
+        
+        let is_double_click = if let Some(last_sprite) = &self.last_click_sprite {
+            if last_sprite == sprite_id {
+                let time_diff = current_time - self.last_click_time;
+                time_diff < DOUBLE_CLICK_THRESHOLD_MS
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+        
+        // Update tracking state
+        self.last_click_time = current_time;
+        self.last_click_sprite = Some(sprite_id.to_string());
+        
+        is_double_click
+    }
 }
 
 pub struct HandleDetector;
@@ -417,28 +440,5 @@ impl HandleDetector {
             ResizeHandle::TopCenter | ResizeHandle::BottomCenter => "ns-resize",
             ResizeHandle::LeftCenter | ResizeHandle::RightCenter => "ew-resize",
         }
-    }
-    
-    /// Check if a sprite click is a double-click (within 300ms of previous click on same sprite)
-    /// Returns true if double-click detected
-    pub fn check_double_click(&mut self, sprite_id: &str, current_time: f64) -> bool {
-        const DOUBLE_CLICK_THRESHOLD_MS: f64 = 300.0;
-        
-        let is_double_click = if let Some(last_sprite) = &self.last_click_sprite {
-            if last_sprite == sprite_id {
-                let time_diff = current_time - self.last_click_time;
-                time_diff < DOUBLE_CLICK_THRESHOLD_MS
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-        
-        // Update tracking state
-        self.last_click_time = current_time;
-        self.last_click_sprite = Some(sprite_id.to_string());
-        
-        is_double_click
     }
 }

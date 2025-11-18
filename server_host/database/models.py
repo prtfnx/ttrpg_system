@@ -106,6 +106,12 @@ class Entity(Base):
     obstacle_type = Column(String(20), nullable=True)  # "rectangle", "circle", "polygon", "line", None
     obstacle_data = Column(Text, nullable=True)  # JSON: shape-specific data
     
+    # Token stats (for gameplay)
+    hp = Column(Integer, nullable=True)
+    max_hp = Column(Integer, nullable=True)
+    ac = Column(Integer, nullable=True)
+    aura_radius = Column(Float, nullable=True)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

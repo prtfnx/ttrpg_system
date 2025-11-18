@@ -50,6 +50,14 @@ class EntityBase(BaseModel):
     rotation: float = 0.0
     obstacle_type: Optional[str] = None
     obstacle_data: Optional[str] = None  # JSON string
+    # Character binding
+    character_id: Optional[str] = None
+    controlled_by: Optional[str] = None  # JSON array as string
+    # Token stats
+    hp: Optional[int] = None
+    max_hp: Optional[int] = None
+    ac: Optional[int] = None
+    aura_radius: Optional[float] = None
 
 class EntityCreate(EntityBase):
     pass
@@ -65,6 +73,14 @@ class EntityUpdate(BaseModel):
     rotation: Optional[float] = None
     obstacle_type: Optional[str] = None
     obstacle_data: Optional[str] = None  # JSON string
+    # Character binding
+    character_id: Optional[str] = None
+    controlled_by: Optional[str] = None  # JSON array as string
+    # Token stats
+    hp: Optional[int] = None
+    max_hp: Optional[int] = None
+    ac: Optional[int] = None
+    aura_radius: Optional[float] = None
 
 class Entity(EntityBase):
     id: int

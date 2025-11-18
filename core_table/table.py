@@ -14,7 +14,10 @@ class Entity:
     def __init__(self, name: str, position: Tuple[int, int], layer: str, 
                  path_to_texture: Optional[str] = None, entity_id: Optional[int] = None, 
                  coord_x: float = 0.0, coord_y: float = 0.0,
-                 obstacle_type: Optional[str] = None, obstacle_data: Optional[dict] = None):
+                 obstacle_type: Optional[str] = None, obstacle_data: Optional[dict] = None,
+                 character_id: Optional[str] = None, controlled_by: Optional[List[int]] = None,
+                 hp: Optional[int] = None, max_hp: Optional[int] = None,
+                 ac: Optional[int] = None, aura_radius: Optional[float] = None):
         # Use entity_id consistently
         self.entity_id = entity_id
         self.id = entity_id  # Keep both for backward compatibility
@@ -29,6 +32,16 @@ class Entity:
         # Obstacle metadata (for client-side lighting/collision)
         self.obstacle_type = obstacle_type  # "rectangle", "circle", "polygon", "line", None
         self.obstacle_data = obstacle_data  # Shape-specific data dict
+        
+        # Character binding
+        self.character_id = character_id
+        self.controlled_by = controlled_by or []
+        
+        # Token stats
+        self.hp = hp
+        self.max_hp = max_hp
+        self.ac = ac
+        self.aura_radius = aura_radius
 
         self.sprite_id = str(uuid.uuid4())
         
@@ -45,6 +58,15 @@ class Entity:
             'rotation': self.rotation,
             'obstacle_type': self.obstacle_type,
             'obstacle_data': self.obstacle_data,
+            # Character binding
+            'character_id': self.character_id,
+            'controlled_by': self.controlled_by,
+            # Token stats
+            'hp': self.hp,
+            'max_hp': self.max_hp,
+            'ac': self.ac,
+            'aura_radius': self.aura_radius,
+            # Legacy fields
             'character': None,
             'moving': False,
             'speed': None,
@@ -59,7 +81,13 @@ class Entity:
             position=tuple(data['position']),
             layer=data['layer'],
             path_to_texture=data.get('texture_path'),
-            entity_id=data['entity_id']
+            entity_id=data['entity_id'],
+            character_id=data.get('character_id'),
+            controlled_by=data.get('controlled_by', []),
+            hp=data.get('hp'),
+            max_hp=data.get('max_hp'),
+            ac=data.get('ac'),
+            aura_radius=data.get('aura_radius')
         )
         entity.sprite_id = data.get('sprite_id', str(uuid.uuid4()))
         entity.scale_x = data.get('scale_x', 1.0)
@@ -138,8 +166,19 @@ class VirtualTable:
         #if self.grid[layer][position[1]][position[0]] is not None:
         #    raise ValueError("Position already occupied")
         logger.debug(f"Adding entity {name} at {position} on layer {layer} with texture {path_to_texture}")
+        
+        # Extract character binding and token stats
+        character_id = entity_data.get('character_id')
+        controlled_by = entity_data.get('controlled_by', [])
+        hp = entity_data.get('hp')
+        max_hp = entity_data.get('max_hp')
+        ac = entity_data.get('ac')
+        aura_radius = entity_data.get('aura_radius')
+        
         entity = Entity(name, position, layer, path_to_texture, self.next_entity_id,
-                       obstacle_type=obstacle_type, obstacle_data=obstacle_data)
+                       obstacle_type=obstacle_type, obstacle_data=obstacle_data,
+                       character_id=character_id, controlled_by=controlled_by,
+                       hp=hp, max_hp=max_hp, ac=ac, aura_radius=aura_radius)
         
         # Apply transform properties if provided
         if 'scale_x' in entity_data:

@@ -727,45 +727,85 @@ class ServerProtocol:
             return Message(MessageType.ERROR, {'error': f"Update failed: {e}"})
     
     async def handle_sprite_update(self, msg: Message, client_id: str) -> Message:
-        """Handle sprite update message"""
+        """Handle sprite update message with character binding and token stats support"""
         logger.info(f"Handling sprite update from {client_id}: {msg}")
         if not msg.data:
             logger.error(f"No data provided in sprite update from {client_id}")
             return Message(MessageType.ERROR, {'error': 'No data provided in sprite update'})
             
         type = msg.data.get('type')
-        if not type:
-            logger.error(f"Missing 'type' field in sprite update from {client_id}: {msg.data}")
-            return Message(MessageType.ERROR, {'error': 'Missing required field: type'})
         update_data = msg.data.get('data', {})
-
-        if not update_data or 'table_name' not in update_data or 'sprite_id' not in update_data:
-            logger.error(f"Invalid sprite update data from {client_id}: {update_data}")
-            return Message(MessageType.ERROR, {'error': 'Invalid sprite update data'})
-        match type:
-            case 'sprite_move':
-                # Handle sprite movement
-                
-                if 'from' not in update_data or 'to' not in update_data:
-                    logger.error(f"Missing 'from' or 'to' field in sprite move update from {client_id}: {update_data}")
-                    return Message(MessageType.ERROR, {'error': 'Missing required fields: from, to'})
-     
-                await self.actions.move_sprite(table_name=update_data['table_name'],
-                                               sprite_id=update_data['sprite_id'],
-                                               old_position=update_data['from'],
-                                               new_position=update_data['to'])
-
-                # Here you can add logic to check for conflicts with other sprites
-                # For now, we just assume the move is valid
-            case 'sprite_scale':
-                raise NotImplementedError(f"Sprite update type '{type}' not implemented")
-            case 'sprite_rotate':
-                raise NotImplementedError(f"Sprite update type '{type}' not implemented")
-        table_id = update_data.get('table_id')
-        await self.actions.update_sprite(table_id, update_data.get('sprite_id'), data=update_data)
+        
+        # Extract sprite_id and table_id for permission checks
+        sprite_id = update_data.get('sprite_id') or msg.data.get('sprite_id')
+        table_id = update_data.get('table_id') or update_data.get('table_name')
+        
+        if not sprite_id:
+            return Message(MessageType.ERROR, {'error': 'Missing sprite_id'})
+        
+        # Permission validation
+        user_id = self._get_user_id(msg)
+        if not await self._can_control_sprite(sprite_id, user_id):
+            logger.warning(f"User {user_id} attempted to update sprite {sprite_id} without permission")
+            return Message(MessageType.ERROR, {'error': 'Permission denied: you cannot control this sprite'})
+        
+        # Handle legacy type-based updates
+        if type:
+            if not update_data or 'table_name' not in update_data or 'sprite_id' not in update_data:
+                logger.error(f"Invalid sprite update data from {client_id}: {update_data}")
+                return Message(MessageType.ERROR, {'error': 'Invalid sprite update data'})
+            match type:
+                case 'sprite_move':
+                    if 'from' not in update_data or 'to' not in update_data:
+                        logger.error(f"Missing 'from' or 'to' field in sprite move update from {client_id}: {update_data}")
+                        return Message(MessageType.ERROR, {'error': 'Missing required fields: from, to'})
+         
+                    await self.actions.move_sprite(table_name=update_data['table_name'],
+                                                   sprite_id=update_data['sprite_id'],
+                                                   old_position=update_data['from'],
+                                                   new_position=update_data['to'])
+                case 'sprite_scale':
+                    raise NotImplementedError(f"Sprite update type '{type}' not implemented")
+                case 'sprite_rotate':
+                    raise NotImplementedError(f"Sprite update type '{type}' not implemented")
+        
+        # Extract character binding updates
+        updates = {}
+        if 'character_id' in update_data:
+            updates['character_id'] = update_data['character_id']
+        if 'controlled_by' in update_data:
+            cb = update_data['controlled_by']
+            updates['controlled_by'] = json.dumps(cb) if isinstance(cb, list) else cb
+        
+        # Extract token stat updates
+        if 'hp' in update_data:
+            updates['hp'] = update_data['hp']
+        if 'max_hp' in update_data:
+            updates['max_hp'] = update_data['max_hp']
+        if 'ac' in update_data:
+            updates['ac'] = update_data['ac']
+        if 'aura_radius' in update_data:
+            updates['aura_radius'] = update_data['aura_radius']
+        
+        # Apply updates via actions
+        if updates:
+            session_id = self._get_session_id(msg)
+            result = await self.actions.update_sprite(table_id, sprite_id, session_id=session_id, **updates)
+            if not result.success:
+                return Message(MessageType.ERROR, {'error': f'Failed to update sprite: {result.message}'})
+        
+        # Broadcast update to all clients in session
+        broadcast_msg = Message(MessageType.SPRITE_UPDATE, {
+            'sprite_id': sprite_id,
+            'table_id': table_id,
+            'updates': updates,
+            'operation': 'update'
+        })
+        await self.broadcast_to_session(broadcast_msg, client_id)
+        
         response = Message(MessageType.SUCCESS, {
             'table_id': table_id,
-            'sprite_id': update_data.get('sprite_id'),
+            'sprite_id': sprite_id,
             'message': f'Sprite updated successfully'
         })
         return response
@@ -1348,6 +1388,115 @@ class ServerProtocol:
         except Exception as e:
             logger.error(f"Error getting session_id: {e}")
             return None
+    
+    def _get_user_id(self, msg: Message) -> Optional[int]:
+        """Extract user_id from message data"""
+        if not msg.data:
+            return None
+        return msg.data.get('user_id')
+    
+    async def _can_control_sprite(self, sprite_id: str, user_id: Optional[int]) -> bool:
+        """Check if user can control sprite based on controlled_by field"""
+        try:
+            # If no user_id provided, allow operation (for now, could change for production)
+            if user_id is None:
+                return True
+            
+            # Get sprite from database
+            if hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
+                from server_host.database import crud
+                entity = crud.get_entity_by_sprite_id(self.table_manager.db_session, sprite_id)
+                
+                if not entity:
+                    return False
+                
+                # Parse controlled_by JSON
+                if entity.controlled_by:
+                    try:
+                        controlled_by = json.loads(entity.controlled_by)
+                        if user_id in controlled_by:
+                            return True
+                    except:
+                        pass
+                
+                # Check character permissions if linked
+                if entity.character_id:
+                    from server_host.database.models import SessionCharacter
+                    character = self.table_manager.db_session.query(SessionCharacter).filter_by(
+                        character_id=entity.character_id
+                    ).first()
+                    if character:
+                        # Check if user owns the character
+                        if character.owner_user_id == user_id:
+                            return True
+                        # Check if user is in controlled_by list (character level)
+                        try:
+                            char_controlled_by = json.loads(character.controlled_by or '[]')
+                            if user_id in char_controlled_by:
+                                return True
+                        except:
+                            pass
+                
+                return False
+            
+            # Fallback: allow if no database (development mode)
+            return True
+        except Exception as e:
+            logger.error(f"Error checking sprite control permissions: {e}")
+            return True  # Fail open for now
+
+    async def _sync_character_stats_to_tokens(self, session_id: int, character_id: str, updates: dict):
+        """
+        Sync character stat changes (HP, max HP, AC) to all tokens linked to this character.
+        Called after character updates to keep token stats in sync.
+        """
+        try:
+            # Only sync if HP, max_hp, or AC were updated
+            stat_fields = {'hp', 'max_hp', 'ac'}
+            updated_stats = {k: v for k, v in updates.items() if k in stat_fields}
+            
+            if not updated_stats:
+                return  # No stats to sync
+            
+            logger.debug(f"Syncing character {character_id} stats to linked tokens: {updated_stats}")
+            
+            # Get all entities linked to this character
+            db = SessionLocal()
+            try:
+                from server_host.database.models import Entity
+                
+                # Find all entities with this character_id in the session
+                linked_entities = db.query(Entity).filter(
+                    Entity.session_id == session_id,
+                    Entity.character_id == character_id
+                ).all()
+                
+                if not linked_entities:
+                    logger.debug(f"No tokens linked to character {character_id}")
+                    return
+                
+                # Update each linked entity
+                for entity in linked_entities:
+                    # Update database entity
+                    for field, value in updated_stats.items():
+                        setattr(entity, field, value)
+                    
+                    # Update in-memory entity if it exists
+                    table = self.table_manager.get_table_by_session_id(session_id)
+                    if table:
+                        in_memory_entity = table.entities.get(entity.id)
+                        if in_memory_entity:
+                            for field, value in updated_stats.items():
+                                setattr(in_memory_entity, field, value)
+                
+                db.commit()
+                logger.info(f"Synced stats from character {character_id} to {len(linked_entities)} token(s)")
+                
+            finally:
+                db.close()
+                
+        except Exception as e:
+            logger.error(f"Error syncing character stats to tokens: {e}")
 
     # Player Management Handlers
     
@@ -1731,6 +1880,9 @@ class ServerProtocol:
             result = await self.actions.update_character(session_id=session_id, character_id=character_id, updates=updates, user_id=user_id, expected_version=version)
 
             if result.success:
+                # Sync character stats to linked tokens
+                await self._sync_character_stats_to_tokens(session_id, character_id, updates)
+                
                 # Broadcast to session that character updated
                 returned_version = None
                 if isinstance(result.data, dict):

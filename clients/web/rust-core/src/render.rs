@@ -2208,11 +2208,8 @@ impl RenderEngine {
 
     /// Add a sprite from table sync data to the render engine
     fn add_sprite_from_table_data(&mut self, sprite_data: &crate::table_sync::SpriteData, table_id: &str) -> Result<(), JsValue> {
-        // Extract character_id if present in the character field
-        let character_id = sprite_data.character.as_ref()
-            .and_then(|c| c.get("id"))
-            .and_then(|id| id.as_str())
-            .map(|s| s.to_string());
+        // Extract character_id if present
+        let character_id = sprite_data.character_id.clone();
         
         // Convert table sync sprite data to render engine sprite
         let sprite = Sprite {

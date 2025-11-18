@@ -340,7 +340,15 @@ def create_entity(db: Session, entity_data: schemas.EntityCreate, table_db_id: i
         scale_y=entity_data.scale_y,
         rotation=entity_data.rotation,
         obstacle_type=entity_data.obstacle_type,
-        obstacle_data=entity_data.obstacle_data
+        obstacle_data=entity_data.obstacle_data,
+        # Character binding
+        character_id=entity_data.character_id,
+        controlled_by=entity_data.controlled_by,
+        # Token stats
+        hp=entity_data.hp,
+        max_hp=entity_data.max_hp,
+        ac=entity_data.ac,
+        aura_radius=entity_data.aura_radius
     )
     db.add(db_entity)
     db.commit()

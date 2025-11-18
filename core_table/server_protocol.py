@@ -1463,12 +1463,21 @@ class ServerProtocol:
             # Get all entities linked to this character
             db = SessionLocal()
             try:
-                from server_host.database.models import Entity
+                from server_host.database.models import Entity as DBEntity, VirtualTable as DBVirtualTable
                 
-                # Find all entities with this character_id in the session
-                linked_entities = db.query(Entity).filter(
-                    Entity.session_id == session_id,
-                    Entity.character_id == character_id
+                # Find the table_id for this session
+                table_record = db.query(DBVirtualTable).filter(
+                    DBVirtualTable.session_id == session_id
+                ).first()
+                
+                if not table_record:
+                    logger.debug(f"No table found for session {session_id}")
+                    return
+                
+                # Find all entities with this character_id in the table
+                linked_entities = db.query(DBEntity).filter(
+                    DBEntity.table_id == table_record.id,
+                    DBEntity.character_id == character_id
                 ).all()
                 
                 if not linked_entities:

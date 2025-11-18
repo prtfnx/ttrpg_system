@@ -559,7 +559,7 @@ class ActionsCore(AsyncActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to rotate sprite: {str(e)}")
     
-    async def update_sprite(self, table_id: str, sprite_id: str, **kwargs) -> ActionResult:
+    async def update_sprite(self, table_id: str, sprite_id: str, session_id: Optional[int] = None, **kwargs) -> ActionResult:
         """Update sprite properties"""
         try:
             table = await self._get_table(table_id)
@@ -575,6 +575,9 @@ class ActionsCore(AsyncActionsProtocol):
                 if hasattr(entity, key):
                     old_values[key] = getattr(entity, key)
                     setattr(entity, key, value)
+            
+            # Persist the update to database
+            await self._persist_table_state(table, "sprite update", session_id)
             
             action = {
                 'type': 'update_sprite',

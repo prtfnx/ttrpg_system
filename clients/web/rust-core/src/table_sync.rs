@@ -86,8 +86,23 @@ pub struct SpriteData {
     pub scale_y: f64,
     #[serde(default)]
     pub rotation: Option<f64>,
+    
+    // Character binding (replaces generic 'character' field)
     #[serde(default)]
-    pub character: Option<serde_json::Value>,
+    pub character_id: Option<String>,
+    #[serde(default)]
+    pub controlled_by: Option<Vec<i32>>,
+    
+    // Token stats
+    #[serde(default)]
+    pub hp: Option<i32>,
+    #[serde(default)]
+    pub max_hp: Option<i32>,
+    #[serde(default)]
+    pub ac: Option<i32>,
+    #[serde(default)]
+    pub aura_radius: Option<f64>,
+    
     #[serde(default)]
     pub moving: bool,
     #[serde(default)]

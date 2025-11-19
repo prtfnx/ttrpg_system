@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useGameStore } from '../store';
 import { useProtocol } from '../services/ProtocolContext';
 import { authService } from '../services/auth.service';
+import { useGameStore } from '../store';
 import './TokenConfigModal.css';
 
 interface TokenConfigModalProps {
@@ -10,7 +10,7 @@ interface TokenConfigModalProps {
 }
 
 export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, onClose }) => {
-  const { sprites, characters, linkSpriteToCharacter, unlinkSpriteFromCharacter, getCharacterForSprite, updateSprite } = useGameStore();
+  const { sprites, characters, unlinkSpriteFromCharacter, getCharacterForSprite, updateSprite } = useGameStore();
   const { protocol, isConnected } = useProtocol();
   
   const sprite = sprites.find(s => s.id === spriteId);
@@ -63,22 +63,37 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
 
   const handleCharacterLink = (characterId: string) => {
     if (characterId) {
-      linkSpriteToCharacter(spriteId, characterId);
-      setSelectedCharacterId(characterId);
-      
-      // Sync character stats to token
+      // Find the character
       const char = characters.find(c => c.id === characterId);
+      
       if (char) {
+        // Get character stats
         const newHp = char.data?.stats?.hp ?? localHp;
         const newMaxHp = char.data?.stats?.maxHp ?? localMaxHp;
         const newAc = char.data?.stats?.ac ?? localAc;
         
+        // Update local state
         setLocalHp(newHp);
         setLocalMaxHp(newMaxHp);
         setLocalAc(newAc);
+        setSelectedCharacterId(characterId);
         
-        // Update sprite with character stats
-        updateSprite(spriteId, { hp: newHp, maxHp: newMaxHp, ac: newAc });
+        // Single update: link character AND sync stats in one call
+        updateSprite(spriteId, { 
+          characterId, 
+          hp: newHp, 
+          maxHp: newMaxHp, 
+          ac: newAc 
+        });
+      } else {
+        // Character not found, link with current token stats
+        updateSprite(spriteId, { 
+          characterId,
+          hp: localHp,
+          maxHp: localMaxHp,
+          ac: localAc
+        });
+        setSelectedCharacterId(characterId);
       }
     } else {
       unlinkSpriteFromCharacter(spriteId);

@@ -733,8 +733,10 @@ class ServerProtocol:
             logger.error(f"No data provided in sprite update from {client_id}")
             return Message(MessageType.ERROR, {'error': 'No data provided in sprite update'})
             
+        # Client sends flat structure: { sprite_id, table_id, character_id, hp, ... }
+        # Legacy support for nested structure: { type: 'sprite_move', data: { ... } }
         type = msg.data.get('type')
-        update_data = msg.data.get('data', {})
+        update_data = msg.data.get('data', {}) if type else msg.data
         
         # Extract sprite_id and table_id for permission checks
         sprite_id = update_data.get('sprite_id') or msg.data.get('sprite_id')

@@ -872,6 +872,31 @@ class WasmIntegrationService {
       const addedSpriteId = this.renderEngine.add_sprite_to_layer(layer, wasmSprite);
       console.log('Successfully added sprite to WASM:', addedSpriteId, wasmSprite);
       
+      // CRITICAL: Also add sprite to Zustand store to preserve character_id and other metadata
+      // Import useGameStore at runtime to avoid circular dependencies
+      import('../store').then(({ useGameStore }) => {
+        const storeSprite = {
+          id: wasmSprite.id,
+          name: spriteData.name || 'Unnamed Entity',
+          tableId: wasmSprite.table_id,
+          x: wasmSprite.world_x,
+          y: wasmSprite.world_y,
+          layer: wasmSprite.layer,
+          texture: spriteData.texture_path || '',
+          scale: { x: wasmSprite.scale_x, y: wasmSprite.scale_y },
+          rotation: wasmSprite.rotation,
+          characterId: spriteData.character_id || undefined,
+          controlledBy: spriteData.controlled_by || [],
+          hp: spriteData.hp,
+          maxHp: spriteData.max_hp,
+          ac: spriteData.ac,
+          auraRadius: spriteData.aura_radius,
+          syncStatus: 'synced' as const
+        };
+        useGameStore.getState().addSprite(storeSprite);
+        console.log('Added sprite to store with character_id:', spriteData.character_id);
+      });
+      
       console.log('Asset management for sprite:', {
         spriteId: wasmSprite.id,
         assetId: assetId

@@ -92,6 +92,10 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
         const p = new WebClientProtocol(resolved, userId);
         if (!mounted) return;
         setProtocol(p);
+        
+        // Expose protocol globally for store access
+        (window as any).__protocol__ = p;
+        
         await p.connect();
         if (!mounted) return;
         setConnectionState('connected');
@@ -108,6 +112,8 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
         try { protocol.disconnect(); } catch {};
         setProtocol(null);
       }
+      // Clean up global protocol reference
+      (window as any).__protocol__ = null;
       setConnectionState('disconnected');
     };
   }, [sessionCode]);

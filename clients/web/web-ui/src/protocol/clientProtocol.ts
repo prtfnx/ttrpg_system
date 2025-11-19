@@ -19,6 +19,7 @@ export class WebClientProtocol {
   private connecting: boolean = false;
   private messageQueue: Message[] = [];
   private pingInterval: number | null = null;
+  private pingEnabled: boolean = false; // Ping disabled by default
   private sessionCode: string;
   private userId: number | null = null;
 
@@ -275,7 +276,7 @@ export class WebClientProtocol {
           protocolLogger.connection('WebSocket connected to authenticated session', this.sessionCode);
           this.flushMessageQueue();
           this.flushPendingBatches(); // Flush any batched messages that were queued during disconnection
-          this.startPingInterval();
+          // Don't auto-start ping - let user control it via UI
           this.connecting = false;
           resolve();
         };
@@ -330,19 +331,41 @@ export class WebClientProtocol {
     }
   }
 
-  private startPingInterval(): void {
+  /** Start sending keep-alive pings to server (30s interval) */
+  public startPing(): void {
+    if (this.pingInterval) {
+      console.log('[Protocol] Ping already running');
+      return;
+    }
+    
+    this.pingEnabled = true;
     this.pingInterval = window.setInterval(() => {
       if (this.websocket?.readyState === WebSocket.OPEN) {
         this.sendMessage(createMessage(MessageType.PING));
       }
     }, 30000); // Ping every 30 seconds
+    
+    protocolLogger.connection('Ping started', { interval: '30s' });
   }
 
-  private stopPingInterval(): void {
+  /** Stop sending keep-alive pings */
+  public stopPing(): void {
+    this.pingEnabled = false;
     if (this.pingInterval) {
       clearInterval(this.pingInterval);
       this.pingInterval = null;
+      protocolLogger.connection('Ping stopped');
     }
+  }
+
+  /** Check if ping is currently enabled */
+  public isPingEnabled(): boolean {
+    return this.pingEnabled;
+  }
+
+  private stopPingInterval(): void {
+    // Called on disconnect - use public stopPing
+    this.stopPing();
   }
 
   // Message handler implementations

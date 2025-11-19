@@ -350,23 +350,13 @@ export const useGameStore = create<GameStore>()(
       },
 
       linkSpriteToCharacter: (spriteId: string, characterId: string) => {
-        // Update local state and send to server via updateSprite (which updates cache)
-        set((state) => ({
-          sprites: state.sprites.map((s: any) => s.id === spriteId ? { ...s, characterId } : s)
-        }));
-        
-        // Use updateSprite to properly update cache and send to server
+        // Just use updateSprite - it handles both local state and server sync
         const updateSprite = useGameStore.getState().updateSprite;
         updateSprite(spriteId, { characterId });
       },
 
       unlinkSpriteFromCharacter: (spriteId: string) => {
-        // Update local state and send to server via updateSprite (which updates cache)
-        set((state) => ({
-          sprites: state.sprites.map((s: any) => s.id === spriteId ? { ...s, characterId: undefined } : s)
-        }));
-        
-        // Use updateSprite to properly update cache and send to server
+        // Just use updateSprite - it handles both local state and server sync
         const updateSprite = useGameStore.getState().updateSprite;
         updateSprite(spriteId, { characterId: undefined });
       },

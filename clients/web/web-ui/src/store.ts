@@ -2,6 +2,27 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { Character, ConnectionState, GameState, Sprite } from './types';
 import type { ToolType } from './types/tools';
+import { ProtocolService } from './services/ProtocolService';
+
+// Change detection cache
+const spriteCache = new Map<string, Record<string, any>>();
+
+const detectChanges = (spriteId: string, updates: Record<string, any>): Record<string, any> => {
+  const prev = spriteCache.get(spriteId) || {};
+  const changes: Record<string, any> = {};
+  
+  for (const [key, value] of Object.entries(updates)) {
+    if (prev[key] !== value) {
+      changes[key] = value;
+    }
+  }
+  
+  if (Object.keys(changes).length > 0) {
+    spriteCache.set(spriteId, { ...prev, ...changes });
+  }
+  
+  return changes;
+};
 
 export interface TableInfo {
   table_id: string;
@@ -256,38 +277,25 @@ export const useGameStore = create<GameStore>()(
           ),
         }));
         
-        // Send update to server - only send fields that are actually in updates
-        const protocol = (window as any).__protocol__;
-        if (protocol?.updateSprite) {
-          const serverUpdate: Record<string, unknown> = {};
-          
-          // Only include fields that are being updated
-          if ('characterId' in updates) {
-            serverUpdate.character_id = updates.characterId || null;
-          }
-          
-          if ('controlledBy' in updates) {
-            serverUpdate.controlled_by = updates.controlledBy || [];
-          }
-          
-          // Include token stats only if present in updates
-          if ('hp' in updates) serverUpdate.hp = updates.hp;
-          if ('maxHp' in updates) serverUpdate.max_hp = updates.maxHp;
-          if ('ac' in updates) serverUpdate.ac = updates.ac;
-          if ('auraRadius' in updates) serverUpdate.aura_radius = updates.auraRadius;
-          
-          // Include position/transform updates only if present
-          if ('x' in updates) serverUpdate.x = updates.x;
-          if ('y' in updates) serverUpdate.y = updates.y;
-          if ('scaleX' in updates) serverUpdate.scale_x = updates.scaleX;
-          if ('scaleY' in updates) serverUpdate.scale_y = updates.scaleY;
-          if ('rotation' in updates) serverUpdate.rotation = updates.rotation;
-          
-          // Only send if there are actual server-relevant updates
-          if (Object.keys(serverUpdate).length > 0) {
-            console.log('[Store] Sending sprite update to server:', { id, serverUpdate });
-            protocol.updateSprite(id, serverUpdate);
-          }
+        // Send to server with change detection
+        if (!ProtocolService.hasProtocol()) return;
+        
+        const serverUpdate: Record<string, any> = {};
+        if ('characterId' in updates) serverUpdate.character_id = updates.characterId || null;
+        if ('controlledBy' in updates) serverUpdate.controlled_by = updates.controlledBy || [];
+        if ('hp' in updates) serverUpdate.hp = updates.hp;
+        if ('maxHp' in updates) serverUpdate.max_hp = updates.maxHp;
+        if ('ac' in updates) serverUpdate.ac = updates.ac;
+        if ('auraRadius' in updates) serverUpdate.aura_radius = updates.auraRadius;
+        if ('x' in updates) serverUpdate.x = updates.x;
+        if ('y' in updates) serverUpdate.y = updates.y;
+        if ('scaleX' in updates) serverUpdate.scale_x = updates.scaleX;
+        if ('scaleY' in updates) serverUpdate.scale_y = updates.scaleY;
+        if ('rotation' in updates) serverUpdate.rotation = updates.rotation;
+        
+        const changes = detectChanges(id, serverUpdate);
+        if (Object.keys(changes).length > 0) {
+          ProtocolService.getProtocol().updateSprite(id, changes);
         }
       },
 
@@ -341,11 +349,8 @@ export const useGameStore = create<GameStore>()(
           sprites: state.sprites.map((s: any) => s.id === spriteId ? { ...s, characterId } : s)
         }));
         
-        // Send character link to server
-        const protocol = (window as any).__protocol__;
-        if (protocol?.updateSprite) {
-          console.log('[Store] Linking sprite to character on server:', { spriteId, characterId });
-          protocol.updateSprite(spriteId, { character_id: characterId });
+        if (ProtocolService.hasProtocol()) {
+          ProtocolService.getProtocol().updateSprite(spriteId, { character_id: characterId });
         }
       },
 
@@ -354,11 +359,8 @@ export const useGameStore = create<GameStore>()(
           sprites: state.sprites.map((s: any) => s.id === spriteId ? { ...s, characterId: undefined } : s)
         }));
         
-        // Send character unlink to server
-        const protocol = (window as any).__protocol__;
-        if (protocol?.updateSprite) {
-          console.log('[Store] Unlinking sprite from character on server:', { spriteId });
-          protocol.updateSprite(spriteId, { character_id: null });
+        if (ProtocolService.hasProtocol()) {
+          ProtocolService.getProtocol().updateSprite(spriteId, { character_id: null });
         }
       },
 

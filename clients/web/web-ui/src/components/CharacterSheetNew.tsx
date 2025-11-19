@@ -1,5 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import type { Character } from "../types";
+import { useGameStore } from "../store";
+import { useProtocol } from "../services/ProtocolContext";
+import { ProtocolService } from "../services/ProtocolService";
+import { showToast } from "../utils/toast";
 import "./CharacterSheetNew.css";
 
 interface CharacterSheetProps {
@@ -31,6 +35,12 @@ const SKILLS = [
 
 export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSave }) => {
   const [activeTab, setActiveTab] = useState<'core' | 'spells' | 'inventory' | 'bio'>('core');
+  const [selectedTokenSpriteId, setSelectedTokenSpriteId] = useState<string>('');
+  const [tokenImagePreview, setTokenImagePreview] = useState<string>('');
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  
+  const { isConnected } = useProtocol();
+  const { sprites, activeTableId, getSpritesForCharacter, linkSpriteToCharacter } = useGameStore();
   
   if (!character) {
     return <div className="character-sheet-empty">No character data</div>;
@@ -77,6 +87,88 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
       }
     });
   };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast.error('Please select an image file');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result as string;
+      setTokenImagePreview(result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleLinkExistingToken = () => {
+    if (!selectedTokenSpriteId) {
+      showToast.error('Please select a token to link');
+      return;
+    }
+
+    linkSpriteToCharacter(selectedTokenSpriteId, character.id);
+    showToast.success(`Token linked to ${character.name}`);
+    setSelectedTokenSpriteId('');
+  };
+
+  const handleCreateTokenFromImage = () => {
+    if (!tokenImagePreview) {
+      showToast.error('Please upload an image first');
+      return;
+    }
+
+    if (!activeTableId) {
+      showToast.error('No active table. Please create or join a table first');
+      return;
+    }
+
+    if (!isConnected || !ProtocolService.hasProtocol()) {
+      showToast.error('Not connected to server');
+      return;
+    }
+
+    const spriteId = `sprite_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const spriteData = {
+      sprite_id: spriteId,
+      table_id: activeTableId,
+      character_id: character.id,
+      texture_path: tokenImagePreview,
+      coord_x: 100,
+      coord_y: 100,
+      scale_x: 1.0,
+      scale_y: 1.0,
+      rotation: 0,
+      layer: 'tokens',
+      moving: false,
+      collidable: true,
+      hp: character.data?.stats?.hp,
+      max_hp: character.data?.stats?.maxHp,
+      ac: character.data?.stats?.ac
+    };
+
+    console.log('[CharacterSheet] Creating token sprite:', spriteData);
+    
+    try {
+      ProtocolService.getProtocol().createSprite(spriteData);
+      showToast.success(`Token created for ${character.name}`);
+      setTokenImagePreview('');
+      if (imageInputRef.current) {
+        imageInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('[CharacterSheet] Failed to create token:', error);
+      showToast.error('Failed to create token');
+    }
+  };
+
+  const linkedTokens = getSpritesForCharacter(character.id);
+  const availableSprites = sprites.filter(s => s.tableId === activeTableId && !s.characterId);
+
 
   const openInNewWindow = () => {
     const newWindow = window.open(
@@ -527,8 +619,176 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
 
         {activeTab === 'bio' && (
           <div className="bio-tab-content">
-            <h3>Character Biography</h3>
-            <p>Character notes and biography will appear here</p>
+            <h3>Character Biography & Tokens</h3>
+            
+            {/* Bio Section */}
+            <div className="bio-section" style={{ marginBottom: '24px' }}>
+              <h4>Biography</h4>
+              <textarea
+                value={character.data?.bio || ''}
+                onChange={(e) => onSave({
+                  data: { ...data, bio: e.target.value }
+                })}
+                placeholder="Write your character's backstory, personality, goals, etc..."
+                rows={6}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  fontSize: '14px',
+                  border: '1px solid #444',
+                  borderRadius: '6px',
+                  backgroundColor: '#2a2a2a',
+                  color: '#e0e0e0',
+                  resize: 'vertical',
+                  fontFamily: 'inherit'
+                }}
+              />
+            </div>
+
+            {/* Linked Tokens Section */}
+            <div className="linked-tokens-section" style={{ marginBottom: '24px' }}>
+              <h4>Linked Tokens</h4>
+              {linkedTokens.length > 0 ? (
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  {linkedTokens.map(token => (
+                    <div 
+                      key={token.id} 
+                      style={{
+                        padding: '8px 12px',
+                        backgroundColor: '#3a3a3a',
+                        borderRadius: '6px',
+                        border: '1px solid #555',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      <span style={{ fontSize: '14px' }}>🎭</span>
+                      <span style={{ fontSize: '13px' }}>{token.name || token.id.substring(0, 8)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ color: '#888', fontSize: '13px' }}>No tokens linked to this character</p>
+              )}
+            </div>
+
+            {/* Link Existing Token */}
+            <div className="link-token-section" style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#2a2a2a', borderRadius: '8px', border: '1px solid #444' }}>
+              <h4 style={{ marginTop: 0 }}>Link Existing Token</h4>
+              <p style={{ fontSize: '13px', color: '#aaa', marginBottom: '12px' }}>
+                Select a token from the current table to link to this character
+              </p>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <select
+                  value={selectedTokenSpriteId}
+                  onChange={(e) => setSelectedTokenSpriteId(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    backgroundColor: '#1a1a1a',
+                    color: '#e0e0e0',
+                    border: '1px solid #555',
+                    borderRadius: '6px',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="">-- Select a token --</option>
+                  {availableSprites.map(sprite => (
+                    <option key={sprite.id} value={sprite.id}>
+                      {sprite.name || `Token ${sprite.id.substring(0, 8)}`}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleLinkExistingToken}
+                  disabled={!selectedTokenSpriteId}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: selectedTokenSpriteId ? '#4a90e2' : '#333',
+                    color: selectedTokenSpriteId ? '#fff' : '#666',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: selectedTokenSpriteId ? 'pointer' : 'not-allowed',
+                    fontSize: '14px',
+                    fontWeight: 500
+                  }}
+                >
+                  Link Token
+                </button>
+              </div>
+            </div>
+
+            {/* Create New Token from Image */}
+            <div className="create-token-section" style={{ padding: '16px', backgroundColor: '#2a2a2a', borderRadius: '8px', border: '1px solid #444' }}>
+              <h4 style={{ marginTop: 0 }}>Create New Token</h4>
+              <p style={{ fontSize: '13px', color: '#aaa', marginBottom: '12px' }}>
+                Upload an image to create a new token on the current table
+              </p>
+              
+              {/* Image Upload */}
+              <div style={{ marginBottom: '16px' }}>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  style={{
+                    padding: '8px',
+                    backgroundColor: '#1a1a1a',
+                    color: '#e0e0e0',
+                    border: '1px solid #555',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    width: '100%'
+                  }}
+                />
+              </div>
+
+              {/* Image Preview */}
+              {tokenImagePreview && (
+                <div style={{ marginBottom: '16px', textAlign: 'center' }}>
+                  <p style={{ fontSize: '13px', color: '#aaa', marginBottom: '8px' }}>Preview:</p>
+                  <img
+                    src={tokenImagePreview}
+                    alt="Token preview"
+                    style={{
+                      maxWidth: '120px',
+                      maxHeight: '120px',
+                      borderRadius: '8px',
+                      border: '2px solid #4a90e2',
+                      objectFit: 'contain'
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Create Button */}
+              <button
+                onClick={handleCreateTokenFromImage}
+                disabled={!tokenImagePreview || !isConnected}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  backgroundColor: (tokenImagePreview && isConnected) ? '#10b981' : '#333',
+                  color: (tokenImagePreview && isConnected) ? '#fff' : '#666',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: (tokenImagePreview && isConnected) ? 'pointer' : 'not-allowed',
+                  fontSize: '15px',
+                  fontWeight: 600
+                }}
+              >
+                {!isConnected ? '⚠️ Not Connected' : !tokenImagePreview ? 'Upload Image First' : '✨ Add as Token on Table'}
+              </button>
+              
+              {!activeTableId && (
+                <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '8px', textAlign: 'center' }}>
+                  ⚠️ No active table selected
+                </p>
+              )}
+            </div>
           </div>
         )}
       </div>

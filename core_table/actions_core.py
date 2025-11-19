@@ -575,6 +575,8 @@ class ActionsCore(AsyncActionsProtocol):
                 if hasattr(entity, key):
                     old_values[key] = getattr(entity, key)
                     setattr(entity, key, value)
+                else:
+                    logger.warning(f"update_sprite: Entity does NOT have attribute '{key}' - skipping!")
             
             # Persist the update to database
             await self._persist_table_state(table, "sprite update", session_id)

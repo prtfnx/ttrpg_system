@@ -53,27 +53,44 @@ export function useSpriteSyncing() {
         if (!currentSpriteIds.has(sprite.id)) {
           addSprite(spriteWithName);
         } else {
-          // IMPORTANT: Only update WASM-managed fields, preserve React-managed fields
+          // IMPORTANT: Only update if WASM-managed fields actually changed
           // WASM manages: x, y, rotation, scale, texture, layer
           // React manages: characterId, hp, maxHp, ac, auraRadius, controlledBy
           const existingSprite = sprites.find((s: any) => s.id === sprite.id);
-          updateSprite(sprite.id, {
-            x: spriteWithName.x,
-            y: spriteWithName.y,
-            rotation: spriteWithName.rotation,
-            scale: spriteWithName.scale,
-            texture: spriteWithName.texture,
-            layer: spriteWithName.layer,
-            tableId: spriteWithName.tableId,
-            // Preserve React-managed fields from existing sprite
-            characterId: existingSprite?.characterId,
-            hp: existingSprite?.hp,
-            maxHp: existingSprite?.maxHp,
-            ac: existingSprite?.ac,
-            auraRadius: existingSprite?.auraRadius,
-            controlledBy: existingSprite?.controlledBy,
-            name: existingSprite?.name || 'Unnamed Sprite',
-          });
+          
+          if (!existingSprite) return;
+          
+          // Check if any WASM-managed fields changed
+          const hasChanges = 
+            existingSprite.x !== spriteWithName.x ||
+            existingSprite.y !== spriteWithName.y ||
+            existingSprite.rotation !== spriteWithName.rotation ||
+            existingSprite.scale?.x !== spriteWithName.scale.x ||
+            existingSprite.scale?.y !== spriteWithName.scale.y ||
+            existingSprite.texture !== spriteWithName.texture ||
+            existingSprite.layer !== spriteWithName.layer ||
+            existingSprite.tableId !== spriteWithName.tableId;
+          
+          // Only update if something changed
+          if (hasChanges) {
+            updateSprite(sprite.id, {
+              x: spriteWithName.x,
+              y: spriteWithName.y,
+              rotation: spriteWithName.rotation,
+              scale: spriteWithName.scale,
+              texture: spriteWithName.texture,
+              layer: spriteWithName.layer,
+              tableId: spriteWithName.tableId,
+              // Preserve React-managed fields from existing sprite
+              characterId: existingSprite.characterId,
+              hp: existingSprite.hp,
+              maxHp: existingSprite.maxHp,
+              ac: existingSprite.ac,
+              auraRadius: existingSprite.auraRadius,
+              controlledBy: existingSprite.controlledBy,
+              name: existingSprite.name || 'Unnamed Sprite',
+            });
+          }
         }
       });
 

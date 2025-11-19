@@ -27,6 +27,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   // console.log('[ToolsPanel] Component mounted'); // Removed to reduce noise
   const [assetManagerVisible, setAssetManagerVisible] = useState(false);
   const [paintPanelVisible, setPaintPanelVisible] = useState(false);
+  const [pingEnabled, setPingEnabled] = useState(false);
   
   // Shape creation settings
   const [shapeColor, setShapeColor] = useState('#0080ff'); // Default blue
@@ -216,6 +217,25 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   };
   // Character creation state
 
+  // Handle ping toggle
+  const handlePingToggle = (enabled: boolean) => {
+    setPingEnabled(enabled);
+    
+    const protocol = (window as any).__protocol__;
+    if (!protocol) {
+      console.warn('[ToolsPanel] Protocol not available');
+      return;
+    }
+    
+    if (enabled) {
+      protocol.startPing();
+      console.log('[ToolsPanel] Ping enabled');
+    } else {
+      protocol.stopPing();
+      console.log('[ToolsPanel] Ping disabled');
+    }
+  };
+
   // Use different WebSocket approaches based on mode
   return (
     <div className="game-panel">
@@ -225,6 +245,41 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         <button onClick={handleAddCharacter} style={{ marginRight: '8px' }}>Add Character</button>
         <button onClick={handleAddTestSprites}>Add Test Sprites</button>
       </div>
+
+      {/* Network Settings */}
+      <div className="network-settings" style={{ 
+        marginBottom: '16px', 
+        padding: '12px', 
+        border: '1px solid #444', 
+        borderRadius: '4px',
+        backgroundColor: '#2a2a2a'
+      }}>
+        <h4 style={{ marginTop: 0, marginBottom: '8px', fontSize: '14px' }}>Network Settings</h4>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <label htmlFor="ping-toggle" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+            <input
+              id="ping-toggle"
+              type="checkbox"
+              checked={pingEnabled}
+              onChange={(e) => handlePingToggle(e.target.checked)}
+              style={{ cursor: 'pointer' }}
+            />
+            <span>Keep-Alive Ping (30s)</span>
+          </label>
+          <span style={{ 
+            marginLeft: 'auto',
+            fontSize: '12px',
+            color: pingEnabled ? '#4CAF50' : '#888',
+            fontWeight: pingEnabled ? 'bold' : 'normal'
+          }}>
+            {pingEnabled ? '● Active' : '○ Inactive'}
+          </span>
+        </div>
+        <div style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
+          Enable to send periodic pings to keep connection alive
+        </div>
+      </div>
+
       <h2>Tools</h2>
 
       {/* Enhanced Toolbar Section */}

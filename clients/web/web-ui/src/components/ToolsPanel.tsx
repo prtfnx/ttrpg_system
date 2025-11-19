@@ -8,6 +8,7 @@ import { GridControls } from './GridControls';
 import { LayerPanel } from './LayerPanel';
 import { MeasurementTool } from './MeasurementTool';
 import { PaintPanel } from './PaintPanel';
+import { ProtocolService } from '../services/ProtocolService';
 import { TextSpriteTool } from './TextSprite';
 
 // Global type declarations
@@ -221,18 +222,13 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   const handlePingToggle = (enabled: boolean) => {
     setPingEnabled(enabled);
     
-    const protocol = (window as any).__protocol__;
-    if (!protocol) {
-      console.warn('[ToolsPanel] Protocol not available');
-      return;
-    }
+    if (!ProtocolService.hasProtocol()) return;
     
+    const protocol = ProtocolService.getProtocol();
     if (enabled) {
       protocol.startPing();
-      console.log('[ToolsPanel] Ping enabled');
     } else {
       protocol.stopPing();
-      console.log('[ToolsPanel] Ping disabled');
     }
   };
 

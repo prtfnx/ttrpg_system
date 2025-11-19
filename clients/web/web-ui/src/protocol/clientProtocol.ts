@@ -19,15 +19,21 @@ export class WebClientProtocol {
   private connecting: boolean = false;
   private messageQueue: Message[] = [];
   private pingInterval: number | null = null;
-  private pingEnabled: boolean = false; // Ping disabled by default
+  private pingEnabled: boolean = false;
   private sessionCode: string;
   private userId: number | null = null;
 
-  // --- Performance Optimization: Message Batching & Delta Updates ---
+  // Reconnection with exponential backoff
+  private reconnectAttempts = 0;
+  private readonly MAX_RECONNECT_ATTEMPTS = 10;
+  private readonly BASE_RECONNECT_DELAY = 1000;
+  private readonly MAX_RECONNECT_DELAY = 30000;
+
+  // Message batching
   private batchQueue: Message[] = [];
   private batchTimer: number | null = null;
-  private readonly BATCH_DELAY_MS = 30; // Optimal delay for responsiveness vs efficiency
-  private readonly MAX_BATCH_SIZE = 15; // Reasonable limit to prevent large payloads
+  private readonly BATCH_DELAY_MS = 30;
+  private readonly MAX_BATCH_SIZE = 15;
 
   /** Queue message for batching, flush after short delay or if batch is large */
   queueMessage(msg: Message) {
@@ -289,8 +295,12 @@ export class WebClientProtocol {
           protocolLogger.connection('WebSocket connection closed', { code: event.code, reason: event.reason });
           this.stopPingInterval();
           this.connecting = false;
+          
           if (event.code === 1008) {
-            reject(new Error('Authentication failed - invalid token'));
+            reject(new Error('Authentication failed'));
+          } else if (event.code !== 1000) {
+            // Abnormal closure - attempt reconnection
+            this.attemptReconnect();
           }
         };
 
@@ -364,8 +374,32 @@ export class WebClientProtocol {
   }
 
   private stopPingInterval(): void {
-    // Called on disconnect - use public stopPing
     this.stopPing();
+  }
+
+  private attemptReconnect(): void {
+    if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
+      console.error('[Protocol] Max reconnection attempts reached');
+      return;
+    }
+
+    this.reconnectAttempts++;
+    const delay = Math.min(
+      this.BASE_RECONNECT_DELAY * Math.pow(2, this.reconnectAttempts - 1),
+      this.MAX_RECONNECT_DELAY
+    );
+
+    console.log(`[Protocol] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS})`);
+
+    window.setTimeout(async () => {
+      try {
+        await this.connect();
+        this.reconnectAttempts = 0;
+        console.log('[Protocol] Reconnection successful');
+      } catch (error) {
+        console.error('[Protocol] Reconnection failed:', error);
+      }
+    }, delay);
   }
 
   // Message handler implementations

@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { ProtocolService } from './services/ProtocolService';
 import type { Character, ConnectionState, GameState, Sprite } from './types';
 import type { ToolType } from './types/tools';
-import { ProtocolService } from './services/ProtocolService';
 
 // Change detection cache
 const spriteCache = new Map<string, Record<string, any>>();
@@ -12,7 +12,12 @@ const detectChanges = (spriteId: string, updates: Record<string, any>): Record<s
   const changes: Record<string, any> = {};
   
   for (const [key, value] of Object.entries(updates)) {
-    if (prev[key] !== value) {
+    // Deep comparison for arrays
+    if (Array.isArray(value) && Array.isArray(prev[key])) {
+      if (JSON.stringify(value) !== JSON.stringify(prev[key])) {
+        changes[key] = value;
+      }
+    } else if (prev[key] !== value) {
       changes[key] = value;
     }
   }
@@ -345,23 +350,25 @@ export const useGameStore = create<GameStore>()(
       },
 
       linkSpriteToCharacter: (spriteId: string, characterId: string) => {
+        // Update local state and send to server via updateSprite (which updates cache)
         set((state) => ({
           sprites: state.sprites.map((s: any) => s.id === spriteId ? { ...s, characterId } : s)
         }));
         
-        if (ProtocolService.hasProtocol()) {
-          ProtocolService.getProtocol().updateSprite(spriteId, { character_id: characterId });
-        }
+        // Use updateSprite to properly update cache and send to server
+        const updateSprite = useGameStore.getState().updateSprite;
+        updateSprite(spriteId, { characterId });
       },
 
       unlinkSpriteFromCharacter: (spriteId: string) => {
+        // Update local state and send to server via updateSprite (which updates cache)
         set((state) => ({
           sprites: state.sprites.map((s: any) => s.id === spriteId ? { ...s, characterId: undefined } : s)
         }));
         
-        if (ProtocolService.hasProtocol()) {
-          ProtocolService.getProtocol().updateSprite(spriteId, { character_id: null });
-        }
+        // Use updateSprite to properly update cache and send to server
+        const updateSprite = useGameStore.getState().updateSprite;
+        updateSprite(spriteId, { characterId: undefined });
       },
 
       updateCharacter: (id: string, updates: Partial<Character>) => {

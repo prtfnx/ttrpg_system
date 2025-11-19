@@ -461,6 +461,11 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
     # Check if entity already exists
     existing_entity = get_entity_by_sprite_id(db, entity_obj.sprite_id)
     
+    # Prepare controlled_by as JSON string
+    controlled_by_json = None
+    if hasattr(entity_obj, 'controlled_by') and entity_obj.controlled_by:
+        controlled_by_json = json.dumps(entity_obj.controlled_by) if isinstance(entity_obj.controlled_by, list) else entity_obj.controlled_by
+    
     if existing_entity:
         # Update existing entity
         entity_update = schemas.EntityUpdate(
@@ -473,7 +478,15 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             scale_y=entity_obj.scale_y,
             rotation=entity_obj.rotation,
             obstacle_type=entity_obj.obstacle_type,
-            obstacle_data=json.dumps(entity_obj.obstacle_data) if entity_obj.obstacle_data else None
+            obstacle_data=json.dumps(entity_obj.obstacle_data) if entity_obj.obstacle_data else None,
+            # Character binding
+            character_id=getattr(entity_obj, 'character_id', None),
+            controlled_by=controlled_by_json,
+            # Token stats
+            hp=getattr(entity_obj, 'hp', None),
+            max_hp=getattr(entity_obj, 'max_hp', None),
+            ac=getattr(entity_obj, 'ac', None),
+            aura_radius=getattr(entity_obj, 'aura_radius', None)
         )
         db_entity = update_entity(db, entity_obj.sprite_id, entity_update)
     else:
@@ -490,7 +503,15 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             scale_y=entity_obj.scale_y,
             rotation=entity_obj.rotation,
             obstacle_type=entity_obj.obstacle_type,
-            obstacle_data=json.dumps(entity_obj.obstacle_data) if entity_obj.obstacle_data else None
+            obstacle_data=json.dumps(entity_obj.obstacle_data) if entity_obj.obstacle_data else None,
+            # Character binding
+            character_id=getattr(entity_obj, 'character_id', None),
+            controlled_by=controlled_by_json,
+            # Token stats
+            hp=getattr(entity_obj, 'hp', None),
+            max_hp=getattr(entity_obj, 'max_hp', None),
+            ac=getattr(entity_obj, 'ac', None),
+            aura_radius=getattr(entity_obj, 'aura_radius', None)
         )
         db_entity = create_entity(db, entity_data, table_db_id)
     
@@ -527,6 +548,14 @@ def load_table_from_db(db: Session, table_id: str):
         # Load entities
         db_entities = get_table_entities(db, db_table.id)
         for db_entity in db_entities:
+            # Parse controlled_by JSON if present
+            controlled_by = []
+            if db_entity.controlled_by:
+                try:
+                    controlled_by = json.loads(db_entity.controlled_by) if isinstance(db_entity.controlled_by, str) else db_entity.controlled_by
+                except json.JSONDecodeError:
+                    controlled_by = []
+            
             entity = Entity(
                 name=db_entity.name,
                 position=(db_entity.position_x, db_entity.position_y),
@@ -534,7 +563,15 @@ def load_table_from_db(db: Session, table_id: str):
                 path_to_texture=db_entity.texture_path,
                 entity_id=db_entity.entity_id,
                 obstacle_type=db_entity.obstacle_type,
-                obstacle_data=json.loads(db_entity.obstacle_data) if db_entity.obstacle_data else None
+                obstacle_data=json.loads(db_entity.obstacle_data) if db_entity.obstacle_data else None,
+                # Character binding
+                character_id=db_entity.character_id,
+                controlled_by=controlled_by,
+                # Token stats
+                hp=db_entity.hp,
+                max_hp=db_entity.max_hp,
+                ac=db_entity.ac,
+                aura_radius=db_entity.aura_radius
             )
             entity.sprite_id = db_entity.sprite_id
             entity.scale_x = db_entity.scale_x

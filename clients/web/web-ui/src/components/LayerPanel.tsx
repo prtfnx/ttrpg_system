@@ -61,7 +61,6 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     setLayerVisibility = () => {},
     setLayerOpacity = () => {},
     activeTableId = null,
-    sprites = [],
   } = gameStore;
   
   const renderEngine = useRenderEngine();
@@ -108,8 +107,9 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     return () => clearTimeout(timer);
   }, []);
 
-  // Update sprite counts when activeTableId or sprites change (real-time updates)
-  // FIXED: Query WASM directly for authoritative sprite counts instead of counting React store
+  // Update sprite counts when activeTableId changes
+  // Don't depend on sprites array - that causes updates for EVERY sprite change
+  // Instead rely on sprite events (spriteAdded, spriteRemoved, spriteUpdated)
   useEffect(() => {
     if (isLoading) return;
 
@@ -119,8 +119,6 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
         console.warn('[LayerPanel] RenderManager not available');
         return;
       }
-
-      console.log('[LayerPanel] Querying WASM for sprite counts');
 
       // Query WASM for actual sprite counts (single source of truth)
       setLayers(prevLayers => 
@@ -137,24 +135,21 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     };
 
     updateSpriteCounts();
-  }, [activeTableId, sprites, isLoading]);
+  }, [activeTableId, isLoading]);
 
   // Subscribe to sprite events for immediate UI updates
   useEffect(() => {
     const handleSpriteEvent = () => {
-      console.log('[LayerPanel] Sprite event detected, querying WASM for updated counts');
-      
       const renderManager = (window as any).rustRenderManager;
       if (!renderManager) return;
 
-      // Query WASM immediately when sprites change
+      // Query WASM when sprites change
       setLayers(prevLayers => 
         prevLayers.map(layer => {
           try {
             const count = renderManager.get_layer_sprite_count(layer.id);
             return { ...layer, spriteCount: count };
           } catch (error) {
-            console.error(`[LayerPanel] Failed to get count for layer ${layer.id}:`, error);
             return layer;
           }
         })

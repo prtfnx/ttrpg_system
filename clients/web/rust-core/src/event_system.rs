@@ -367,8 +367,8 @@ impl EventSystem {
                     let angle = dy.atan2(dx) * 180.0 / std::f32::consts::PI;
                     
                     // Calculate grid units (assuming 50px per grid square, 5ft per square)
-                    let grid_size = 50.0; // TODO: Get from settings
-                    let grid_units = distance / grid_size;
+                    const DEFAULT_GRID_SIZE: f32 = 50.0; // Will be configurable in settings
+                    let grid_units = distance / DEFAULT_GRID_SIZE;
                     let feet = grid_units * 5.0; // D&D standard: 5ft per square
                     let meters = feet * 0.3048; // Convert feet to meters
                     

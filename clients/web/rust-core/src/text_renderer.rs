@@ -64,6 +64,7 @@ impl TextRenderer {
         y: f32,
         size: f32,
         color: [f32; 4],
+        with_background: bool,
         renderer: &WebGLRenderer,
         texture_manager: &TextureManager,
     ) -> Result<(), JsValue> {
@@ -76,16 +77,26 @@ impl TextRenderer {
             return Ok(());
         }
         
-        // NO BACKGROUND - render text with transparent background
-        // Text is rendered directly using textured quads
-        
-        // Bind font atlas texture
-        texture_manager.bind_texture(&self.font_atlas_id);
-        
-        // Calculate text centering for positioning
+        // Calculate text dimensions
         let text_width: f32 = text.chars()
             .map(|ch| self.get_char_advance(ch) * size)
             .sum();
+        let text_height = size;
+        
+        // Draw background if requested
+        if with_background {
+            let padding = 4.0;
+            self.draw_text_background(
+                x - text_width * 0.5 - padding,
+                y - text_height * 0.5 - padding,
+                text_width + padding * 2.0,
+                text_height + padding * 2.0,
+                renderer,
+            )?;
+        }
+        
+        // Bind font atlas texture
+        texture_manager.bind_texture(&self.font_atlas_id);
         
         // Center text horizontally around the given x position
         let mut cursor_x = x - text_width / 2.0;
@@ -130,9 +141,9 @@ impl TextRenderer {
         let grid_x = (atlas_index % self.chars_per_row) as f32;
         let grid_y = (atlas_index / self.chars_per_row) as f32;
         
-        // Calculate UV coordinates (normalized 0.0-1.0)
-        let uv_cell_width = 1.0 / self.chars_per_row as f32;
-        let uv_cell_height = 1.0 / self.chars_per_row as f32; // Square atlas
+        // Calculate UV coordinates using actual atlas dimensions for precision
+        let uv_cell_width = self.char_size / self.atlas_width;
+        let uv_cell_height = self.char_size / self.atlas_height;
         
         let uv_x = grid_x * uv_cell_width;
         let uv_y = grid_y * uv_cell_height;

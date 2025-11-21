@@ -1,6 +1,3 @@
-use crate::math::Vec2;
-use std::f32::consts::PI;
-
 /// Point in 2D space for visibility calculations
 #[derive(Clone, Copy, Debug)]
 pub struct Point {
@@ -109,32 +106,6 @@ impl SpatialGrid {
                 self.grid.entry((cx, cy)).or_insert_with(Vec::new).push(idx);
             }
         }
-    }
-
-    fn get_candidates_in_radius(&self, center: Point, radius: f32) -> Vec<usize> {
-        let min_x = center.x - radius;
-        let max_x = center.x + radius;
-        let min_y = center.y - radius;
-        let max_y = center.y + radius;
-
-        let cx0 = (min_x / self.cell_size).floor() as i32;
-        let cx1 = (max_x / self.cell_size).floor() as i32;
-        let cy0 = (min_y / self.cell_size).floor() as i32;
-        let cy1 = (max_y / self.cell_size).floor() as i32;
-
-        let mut candidates = std::collections::HashSet::new();
-        
-        for cx in cx0..=cx1 {
-            for cy in cy0..=cy1 {
-                if let Some(indices) = self.grid.get(&(cx, cy)) {
-                    for &idx in indices {
-                        candidates.insert(idx);
-                    }
-                }
-            }
-        }
-
-        candidates.into_iter().collect()
     }
 }
 

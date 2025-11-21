@@ -9,9 +9,7 @@ use wasm_bindgen::prelude::*;
 /// Rendering: UV-mapped textured quads for each character
 pub struct TextRenderer {
     font_atlas_id: String,
-    #[allow(dead_code)]
     atlas_width: f32,
-    #[allow(dead_code)]
     atlas_height: f32,
     char_size: f32,
     char_advance: f32,  // Default advance for most characters
@@ -168,7 +166,6 @@ impl TextRenderer {
     }
     
     /// Draw a background box behind text for readability
-    #[allow(dead_code)]
     fn draw_text_background(
         &self,
         x: f32,

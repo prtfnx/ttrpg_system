@@ -245,7 +245,6 @@ impl FogOfWarSystem {
         true // Point is in fog
     }
 
-    #[allow(dead_code)]
     pub fn render_fog(&self, view_matrix: &[f32; 9], canvas_width: f32, canvas_height: f32) -> Result<(), JsValue> {
         // Default: render all fog (backwards compatibility)
         self.render_fog_filtered(view_matrix, canvas_width, canvas_height, None)
@@ -305,7 +304,6 @@ impl FogOfWarSystem {
         Ok(())
     }
 
-    #[allow(dead_code)]
     fn render_fog_with_stencil(&self, program: &WebGlProgram) -> Result<(), JsValue> {
         // Enable stencil testing
         self.gl.enable(WebGlRenderingContext::STENCIL_TEST);
@@ -394,7 +392,6 @@ impl FogOfWarSystem {
         Ok(())
     }
 
-    #[allow(dead_code)]
     fn render_fullscreen_fog(&self, program: &WebGlProgram) -> Result<(), JsValue> {
         // Create full-screen quad in normalized device coordinates
         let vertices: [f32; 8] = [

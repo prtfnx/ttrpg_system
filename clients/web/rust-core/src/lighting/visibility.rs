@@ -12,20 +12,6 @@ impl Point {
     pub fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
-
-    pub fn from_vec2(v: Vec2) -> Self {
-        Self { x: v.x, y: v.y }
-    }
-
-    pub fn to_vec2(self) -> Vec2 {
-        Vec2::new(self.x, self.y)
-    }
-
-    pub fn distance_to(&self, other: &Point) -> f32 {
-        let dx = self.x - other.x;
-        let dy = self.y - other.y;
-        (dx * dx + dy * dy).sqrt()
-    }
 }
 
 /// Line segment for obstacle representation
@@ -41,21 +27,10 @@ impl LineSegment {
     }
 }
 
-/// Endpoint with angle information for sweep line algorithm
-#[derive(Clone, Debug)]
-struct Endpoint {
-    point: Point,
-    angle: f32,
-    distance: f32,
-    segment_idx: usize,
-    is_start: bool,
-}
-
-/// Visibility calculator using rotational sweep ray casting
-/// This is the industry-standard algorithm for 2D lighting with shadow casting
+/// Visibility calculator using shadow quad generation for 2D lighting
+/// Stores obstacle line segments and provides access for shadow casting
 pub struct VisibilityCalculator {
     segments: Vec<LineSegment>,
-    endpoints: Vec<Endpoint>,
     spatial_grid: SpatialGrid,
 }
 
@@ -63,7 +38,6 @@ impl VisibilityCalculator {
     pub fn new() -> Self {
         Self {
             segments: Vec::new(),
-            endpoints: Vec::new(),
             spatial_grid: SpatialGrid::new(128.0),
         }
     }
@@ -71,7 +45,6 @@ impl VisibilityCalculator {
     /// Clear all obstacles
     pub fn clear(&mut self) {
         self.segments.clear();
-        self.endpoints.clear();
         self.spatial_grid.clear();
     }
 

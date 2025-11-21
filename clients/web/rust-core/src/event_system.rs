@@ -31,13 +31,20 @@ impl EventSystem {
         input: &mut InputHandler,
         layers: &mut HashMap<String, Layer>,
         lighting: &mut LightingSystem,
-        _fog: &mut FogOfWarSystem,
+        fog: &mut FogOfWarSystem,
         camera_zoom: f64,
         ctrl_pressed: bool
     ) -> MouseEventResult {
         web_sys::console::log_1(&format!("[RUST EVENT] Mouse down at world: {}, {}, input_mode: {:?}", world_pos.x, world_pos.y, input.input_mode).into());
         
-        // Handle tool-specific input modes first
+        // Handle fog drawing modes FIRST before other tools
+        if matches!(input.input_mode, InputMode::FogDraw | InputMode::FogErase) {
+            input.start_fog_draw(world_pos, input.fog_mode);
+            web_sys::console::log_1(&format!("[RUST EVENT] Started fog drawing at: {}, {} mode: {:?}", world_pos.x, world_pos.y, input.fog_mode).into());
+            return MouseEventResult::Handled;
+        }
+        
+        // Handle tool-specific input modes
         match input.input_mode {
             InputMode::Measurement => {
                 // Start measurement from this point
@@ -190,10 +197,10 @@ impl EventSystem {
         fog: &mut FogOfWarSystem,
         camera: &Camera
     ) -> MouseEventResult {
-        // Update fog interaction based on mouse position
-        if input.input_mode == InputMode::FogDraw || input.input_mode == InputMode::FogErase {
-            // Basic fog interaction - could be expanded
-            let _ = (fog, camera); // Acknowledge parameters for now
+        // Update fog drawing preview
+        if matches!(input.input_mode, InputMode::FogDraw | InputMode::FogErase) {
+            input.update_fog_draw(world_pos);
+            return MouseEventResult::Handled;
         }
         
         match input.input_mode {

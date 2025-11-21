@@ -422,7 +422,7 @@ impl LightingSystem {
             // web_sys::console::log_1(&"[STENCIL-DEBUG] 🎭 Stencil setup: ALWAYS pass, REPLACE with 1, color mask OFF".into());
             
             // Render each shadow quad as triangle strip
-            for (i, quad) in shadow_quads.iter().enumerate() {
+            for quad in shadow_quads.iter() {
                 if quad.len() == 4 {
                     let shadow_vertices = self.quad_to_vertices(quad);
                     // web_sys::console::log_1(&format!("[STENCIL-DEBUG] 🌑 Drawing shadow quad {} with {} vertices", 
@@ -620,9 +620,6 @@ impl LightingSystem {
             return shadow_quads;
         }
         
-        let mut back_facing_count = 0;
-        let mut front_facing_count = 0;
-        
         for segment in calc.get_segments() {
             // Segment direction vector
             let seg_dx = segment.p2.x - segment.p1.x;
@@ -641,7 +638,6 @@ impl LightingSystem {
             let faces_light = normal_x * to_light_x + normal_y * to_light_y;
             
             if faces_light < 0.0 {  // Back-facing segments cast shadows
-                back_facing_count += 1;
                 // Project segment endpoints away from light to create shadow quad
                 // Use a very large shadow length to ensure shadows extend beyond visible area
                 // This prevents light leaking when light source is very close to obstacle edges
@@ -684,8 +680,6 @@ impl LightingSystem {
                     
                     shadow_quads.push(quad);
                 }
-            } else {
-                front_facing_count += 1;
             }
         }
     
@@ -708,9 +702,6 @@ impl LightingSystem {
         // Ray-casting algorithm: cast a ray from the point to infinity
         // Count how many times it crosses polygon edges
         // Odd = inside, Even = outside
-        
-        let ray_end_x = light_pos.x + 10000.0; // Ray goes far to the right
-        let ray_end_y = light_pos.y;
         
         let mut intersections = 0;
         

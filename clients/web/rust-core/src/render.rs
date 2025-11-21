@@ -5,7 +5,7 @@ use serde_wasm_bindgen;
 use crate::types::*;
 use crate::math::*;
 use crate::camera::Camera;
-use crate::input::{InputHandler, InputMode, HandleDetector};
+use crate::input::{InputHandler, InputMode, HandleDetector, FogDrawMode};
 use crate::sprite_manager::SpriteManager;
 use crate::sprite_renderer::SpriteRenderer;
 use crate::webgl_renderer::WebGLRenderer;
@@ -1260,6 +1260,32 @@ impl RenderEngine {
     pub fn set_input_mode_paint(&mut self) {
         self.input.input_mode = InputMode::Paint;
         web_sys::console::log_1(&"[RUST] Input mode set to Paint".into());
+    }
+
+    #[wasm_bindgen]
+    pub fn set_input_mode_fog_draw(&mut self) {
+        self.input.input_mode = InputMode::FogDraw;
+        self.input.fog_mode = FogDrawMode::Hide;
+        web_sys::console::log_1(&"[RUST] Input mode set to FogDraw (Hide)".into());
+    }
+
+    #[wasm_bindgen]
+    pub fn set_input_mode_fog_erase(&mut self) {
+        self.input.input_mode = InputMode::FogErase;
+        self.input.fog_mode = FogDrawMode::Reveal;
+        web_sys::console::log_1(&"[RUST] Input mode set to FogErase (Reveal)".into());
+    }
+
+    #[wasm_bindgen]
+    pub fn set_fog_draw_mode_hide(&mut self) {
+        self.input.fog_mode = FogDrawMode::Hide;
+        web_sys::console::log_1(&"[RUST] Fog draw mode set to Hide".into());
+    }
+
+    #[wasm_bindgen]
+    pub fn set_fog_draw_mode_reveal(&mut self) {
+        self.input.fog_mode = FogDrawMode::Reveal;
+        web_sys::console::log_1(&"[RUST] Fog draw mode set to Reveal".into());
     }
 
     // ============================================================================

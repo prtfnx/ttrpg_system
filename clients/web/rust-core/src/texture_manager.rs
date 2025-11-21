@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::cell::RefCell;
 use web_sys::{WebGl2RenderingContext as WebGlRenderingContext, WebGlTexture, HtmlImageElement};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;

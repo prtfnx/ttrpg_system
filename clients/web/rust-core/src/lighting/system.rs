@@ -607,7 +607,7 @@ impl LightingSystem {
     /// Compute shadow quads from obstacles (for subtractive shadow rendering)
     /// Each obstacle edge that faces away from light casts a shadow quad
     /// This is the standard "shadow geometry" approach for 2D lighting
-    fn compute_shadow_quads(&self, light_pos: Vec2, radius: f32) -> Vec<Vec<Point>> {
+    fn compute_shadow_quads(&self, light_pos: Vec2, _radius: f32) -> Vec<Vec<Point>> {
         let calc = self.visibility_calculator.borrow();
         let mut shadow_quads = Vec::new();
         

@@ -31,7 +31,7 @@ impl EventSystem {
         input: &mut InputHandler,
         layers: &mut HashMap<String, Layer>,
         lighting: &mut LightingSystem,
-        fog: &mut FogOfWarSystem,
+        _fog: &mut FogOfWarSystem,
         camera_zoom: f64,
         ctrl_pressed: bool
     ) -> MouseEventResult {

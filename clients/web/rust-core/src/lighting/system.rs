@@ -317,7 +317,7 @@ impl LightingSystem {
         let light_ids: Vec<String> = self.lights.keys().cloned().collect();
         for light_id in light_ids {
             // Get light data for rendering
-            let (id, position, color, intensity, radius, falloff, cached_polygon, dirty, light_table_id) = {
+            let (id, position, color, intensity, radius, falloff, cached_polygon, dirty, _light_table_id) = {
                 if let Some(light) = self.lights.get(&light_id) {
                     if !light.is_on {
                         continue;

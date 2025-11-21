@@ -58,6 +58,7 @@ impl Camera {
     pub fn handle_wheel(&mut self, screen_x: f32, screen_y: f32, delta_y: f32) {
         let zoom_factor = if delta_y > 0.0 { 0.9 } else { 1.1 };
         let world_point_before = self.screen_to_world(Vec2::new(screen_x, screen_y));
+        #[cfg(debug_assertions)]
         let old_zoom = self.zoom;
         self.zoom = (self.zoom * zoom_factor).clamp(self.min_zoom, self.max_zoom);
         let world_point_after = self.screen_to_world(Vec2::new(screen_x, screen_y));

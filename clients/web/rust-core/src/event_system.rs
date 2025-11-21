@@ -194,8 +194,8 @@ impl EventSystem {
         input: &mut InputHandler,
         layers: &mut HashMap<String, Layer>,
         lighting: &mut LightingSystem,
-        fog: &mut FogOfWarSystem,
-        camera: &Camera
+        _fog: &mut FogOfWarSystem,
+        _camera: &Camera
     ) -> MouseEventResult {
         // Update fog drawing preview
         if matches!(input.input_mode, InputMode::FogDraw | InputMode::FogErase) {

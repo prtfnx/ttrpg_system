@@ -244,11 +244,6 @@ impl FogOfWarSystem {
         
         true // Point is in fog
     }
-
-    fn render_fog(&self, view_matrix: &[f32; 9], canvas_width: f32, canvas_height: f32) -> Result<(), JsValue> {
-        // Default: render all fog (backwards compatibility)
-        self.render_fog_filtered(view_matrix, canvas_width, canvas_height, None)
-    }
     
     pub fn render_fog_filtered(&self, view_matrix: &[f32; 9], canvas_width: f32, canvas_height: f32, table_id: Option<&str>) -> Result<(), JsValue> {
         if self.fog_rectangles.is_empty() {

@@ -279,6 +279,7 @@ impl SpriteRenderer {
             text_y,
             text_size,
             text_color,
+            true,
             renderer,
             texture_manager
         )?;
@@ -391,6 +392,7 @@ impl SpriteRenderer {
             label_y,
             1.0,  // Size multiplier
             [0.0, 0.9, 0.9, 1.0],  // Cyan text
+            true,  // with_background for readability
             renderer,
             texture_manager,
         )?;

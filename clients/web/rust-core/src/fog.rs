@@ -268,6 +268,15 @@ impl FogOfWarSystem {
             self.texture_width, self.texture_height
         ).into());
         
+        // Clear texture to fully revealed state (0.0 = no fog)
+        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, Some(self.fog_framebuffer.as_ref().unwrap()));
+        self.gl.viewport(0, 0, self.texture_width, self.texture_height);
+        self.gl.clear_color(0.0, 0.0, 0.0, 1.0); // Clear to black (0 = revealed)
+        self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
+        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
+        
+        web_sys::console::log_1(&"[FOG-TEXTURE] Cleared fog texture to revealed state".into());
+        
         Ok(())
     }
 
@@ -349,7 +358,7 @@ impl FogOfWarSystem {
     }
 
     pub fn remove_fog_rectangle(&mut self, id: &str) {
-        self.fog_rectangles.remove(id);
+        self.fog_rectangles.shift_remove(id);
         // Removing requires full rebuild since we can't "un-draw" from texture
         self.needs_full_rebuild = true;
     }
@@ -513,7 +522,7 @@ impl FogOfWarSystem {
         ]
     }
     
-    pub fn render_fog_filtered(&mut self, view_matrix: &[f32; 9], canvas_width: f32, canvas_height: f32, table_id: Option<&str>) -> Result<(), JsValue> {
+    pub fn render_fog_filtered(&mut self, view_matrix: &[f32; 9], canvas_width: f32, canvas_height: f32, _table_id: Option<&str>) -> Result<(), JsValue> {
         if self.fog_rectangles.is_empty() {
             return Ok(());
         }

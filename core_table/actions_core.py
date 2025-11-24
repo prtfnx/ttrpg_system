@@ -942,41 +942,74 @@ class ActionsCore(AsyncActionsProtocol):
                                    session_id: Optional[int] = None) -> ActionResult:
         """Update fog of war rectangles by creating entities in fog_of_war layer"""
         try:
+            logger.debug(f"[FOG-SERVER] Updating fog for table {table_id}")
+            logger.debug(f"[FOG-SERVER] Hide rectangles: {hide_rectangles}")
+            logger.debug(f"[FOG-SERVER] Reveal rectangles: {reveal_rectangles}")
+            
             table = await self._get_table(table_id)
             if not table:
                 return ActionResult(False, "Table not found")
             
             # Remove existing fog entities from fog_of_war layer
-            fog_entities_to_remove = [
-                entity_id for entity_id, entity in table.entities.items() 
-                if entity.layer == 'fog_of_war'
-            ]
+            fog_entities_to_remove = []
+            for entity_id, entity in table.entities.items():
+                try:
+                    if hasattr(entity, 'layer') and entity.layer == 'fog_of_war':
+                        fog_entities_to_remove.append(entity_id)
+                except Exception as e:
+                    logger.error(f"[FOG-SERVER] Error checking entity {entity_id}: {e}")
+            
             for entity_id in fog_entities_to_remove:
-                table.remove_entity(entity_id)
+                try:
+                    table.remove_entity(entity_id)
+                except Exception as e:
+                    logger.error(f"[FOG-SERVER] Error removing entity {entity_id}: {e}")
             
             # Create hide fog entities
-            for i, (start, end) in enumerate(hide_rectangles):
-                entity_data = {
-                    'name': f'fog_hide_{i}',
-                    'position': start,  # Store start position
-                    'layer': 'fog_of_war',
-                    'texture_path': '__FOG_HIDE__',
-                    'scale_x': abs(end[0] - start[0]),  # Store rectangle width as scale_x
-                    'scale_y': abs(end[1] - start[1]),  # Store rectangle height as scale_y
-                }
-                table.add_entity(entity_data)
+            for i, rect_data in enumerate(hide_rectangles):
+                try:
+                    # Handle both tuple and list formats
+                    if isinstance(rect_data, (list, tuple)) and len(rect_data) == 2:
+                        start, end = rect_data
+                    else:
+                        logger.error(f"[FOG-SERVER] Invalid rectangle format: {rect_data}")
+                        continue
+                    
+                    entity_data = {
+                        'name': f'fog_hide_{i}',
+                        'position': start,  # Store start position
+                        'layer': 'fog_of_war',
+                        'texture_path': '__FOG_HIDE__',
+                        'scale_x': abs(end[0] - start[0]),  # Store rectangle width as scale_x
+                        'scale_y': abs(end[1] - start[1]),  # Store rectangle height as scale_y
+                    }
+                    table.add_entity(entity_data)
+                except Exception as e:
+                    logger.error(f"[FOG-SERVER] Error processing hide rectangle {i}: {e}")
+                    continue
             
             # Create reveal fog entities
-            for i, (start, end) in enumerate(reveal_rectangles):
-                entity_data = {
-                    'name': f'fog_reveal_{i}',
-                    'position': start,  # Store start position
-                    'layer': 'fog_of_war',
-                    'texture_path': '__FOG_REVEAL__',
-                    'scale_x': abs(end[0] - start[0]),  # Store rectangle width as scale_x
-                    'scale_y': abs(end[1] - start[1]),  # Store rectangle height as scale_y
-                }
-                table.add_entity(entity_data)
+            for i, rect_data in enumerate(reveal_rectangles):
+                try:
+                    # Handle both tuple and list formats
+                    if isinstance(rect_data, (list, tuple)) and len(rect_data) == 2:
+                        start, end = rect_data
+                    else:
+                        logger.error(f"[FOG-SERVER] Invalid rectangle format: {rect_data}")
+                        continue
+                    
+                    entity_data = {
+                        'name': f'fog_reveal_{i}',
+                        'position': start,  # Store start position
+                        'layer': 'fog_of_war',
+                        'texture_path': '__FOG_REVEAL__',
+                        'scale_x': abs(end[0] - start[0]),  # Store rectangle width as scale_x
+                        'scale_y': abs(end[1] - start[1]),  # Store rectangle height as scale_y
+                    }
+                    table.add_entity(entity_data)
+                except Exception as e:
+                    logger.error(f"[FOG-SERVER] Error processing reveal rectangle {i}: {e}")
+                    continue
             
             # Also update the old fog_rectangles structure for compatibility
             table.fog_rectangles = {'hide': hide_rectangles, 'reveal': reveal_rectangles}

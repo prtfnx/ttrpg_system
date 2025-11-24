@@ -299,57 +299,6 @@ impl FogOfWarSystem {
         Ok(())
     }
 
-    fn render_fog_with_stencil(&self, program: &WebGlProgram) -> Result<(), JsValue> {
-        // Enable stencil testing
-        self.gl.enable(WebGlRenderingContext::STENCIL_TEST);
-        self.gl.clear_stencil(0);
-        self.gl.clear(WebGlRenderingContext::STENCIL_BUFFER_BIT);
-        
-        web_sys::console::log_1(&"Starting stencil rendering pass".into());
-        
-        // First pass: Render hide rectangles to stencil buffer
-        self.gl.color_mask(false, false, false, false); // Don't write to color buffer
-        self.gl.stencil_func(WebGlRenderingContext::ALWAYS, 1, 0xFF);
-        self.gl.stencil_op(WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP, WebGlRenderingContext::REPLACE);
-        
-        let mut hide_count = 0;
-        for rectangle in self.fog_rectangles.values() {
-            if rectangle.mode == FogMode::Hide {
-                hide_count += 1;
-                self.render_single_rectangle(program, rectangle)?;
-            }
-        }
-        web_sys::console::log_1(&format!("Rendered {} hide rectangles to stencil", hide_count).into());
-        
-        // Second pass: Subtract reveal rectangles from stencil
-        self.gl.stencil_func(WebGlRenderingContext::EQUAL, 1, 0xFF);
-        self.gl.stencil_op(WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP, WebGlRenderingContext::ZERO);
-        
-        let mut reveal_count = 0;
-        for rectangle in self.fog_rectangles.values() {
-            if rectangle.mode == FogMode::Reveal {
-                reveal_count += 1;
-                self.render_single_rectangle(program, rectangle)?;
-            }
-        }
-        web_sys::console::log_1(&format!("Rendered {} reveal rectangles to stencil", reveal_count).into());
-        
-        // Final pass: Render fog color where stencil == 1
-        self.gl.color_mask(true, true, true, true); // Re-enable color writes
-        self.gl.stencil_func(WebGlRenderingContext::EQUAL, 1, 0xFF);
-        self.gl.stencil_op(WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP);
-        
-        web_sys::console::log_1(&"Rendering fullscreen fog overlay".into());
-        // Render full-screen quad with fog color
-        self.render_fullscreen_fog(program)?;
-        web_sys::console::log_1(&"Fog stencil rendering complete".into());
-        
-        // Disable stencil testing
-        self.gl.disable(WebGlRenderingContext::STENCIL_TEST);
-        
-        Ok(())
-    }
-
     fn render_single_rectangle(&self, program: &WebGlProgram, rectangle: &FogRectangle) -> Result<(), JsValue> {
         let normalized = rectangle.normalized();
         
@@ -380,41 +329,6 @@ impl FogOfWarSystem {
         self.gl.vertex_attrib_pointer_with_i32(position_location, 2, WebGlRenderingContext::FLOAT, false, 0, 0);
         
         // Draw rectangle
-        self.gl.draw_arrays(WebGlRenderingContext::TRIANGLE_FAN, 0, 4);
-        
-        self.gl.disable_vertex_attrib_array(position_location);
-        
-        Ok(())
-    }
-
-    fn render_fullscreen_fog(&self, program: &WebGlProgram) -> Result<(), JsValue> {
-        // Create full-screen quad in normalized device coordinates
-        let vertices: [f32; 8] = [
-            -1.0, -1.0,
-            1.0, -1.0,
-            1.0, 1.0,
-            -1.0, 1.0,
-        ];
-        
-        // Create and bind vertex buffer
-        let buffer = self.gl.create_buffer().ok_or("Failed to create buffer")?;
-        self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&buffer));
-        
-        unsafe {
-            let vertices_array = js_sys::Float32Array::view(&vertices);
-            self.gl.buffer_data_with_array_buffer_view(
-                WebGlRenderingContext::ARRAY_BUFFER,
-                &vertices_array,
-                WebGlRenderingContext::STATIC_DRAW,
-            );
-        }
-        
-        // Set up vertex attributes
-        let position_location = self.gl.get_attrib_location(program, "a_position") as u32;
-        self.gl.enable_vertex_attrib_array(position_location);
-        self.gl.vertex_attrib_pointer_with_i32(position_location, 2, WebGlRenderingContext::FLOAT, false, 0, 0);
-        
-        // Draw full-screen quad
         self.gl.draw_arrays(WebGlRenderingContext::TRIANGLE_FAN, 0, 4);
         
         self.gl.disable_vertex_attrib_array(position_location);

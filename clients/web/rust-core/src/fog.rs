@@ -65,6 +65,10 @@ pub struct FogOfWarSystem {
     texture_width: i32,
     texture_height: i32,
     needs_full_rebuild: bool, // Flag to rebuild entire fog texture
+    
+    // Canvas dimensions for viewport restoration
+    canvas_width: f32,
+    canvas_height: f32,
 }
 
 impl FogOfWarSystem {
@@ -81,6 +85,8 @@ impl FogOfWarSystem {
             texture_width: 2048,
             texture_height: 2048,
             needs_full_rebuild: true,
+            canvas_width: 800.0,
+            canvas_height: 600.0,
         };
         
         system.init_shaders()?;
@@ -98,25 +104,20 @@ impl FogOfWarSystem {
     }
 
     fn init_shaders(&mut self) -> Result<(), JsValue> {
-        // Fog rendering shader with proper alpha blending
-        // Input: world coordinates, Output: screen coordinates
+        // Fog rendering shader for writing to texture
+        // Input: world coordinates, Output: NDC coordinates for framebuffer
         let fog_vertex_source = r#"#version 300 es
             precision highp float;
             
             in vec2 a_position;  // World coordinates
             
-            uniform mat3 u_view_matrix;  // Camera transform
-            uniform vec2 u_canvas_size;  // Canvas size in pixels
+            uniform mat3 u_view_matrix;  // Orthographic projection matrix
             
             void main() {
-                // Transform world coords to view space
-                vec3 view_pos = u_view_matrix * vec3(a_position, 1.0);
-                
-                // Convert to normalized device coordinates (-1 to 1)
-                vec2 ndc = (view_pos.xy / u_canvas_size) * 2.0 - 1.0;
-                ndc.y = -ndc.y;  // Flip Y axis
-                
-                gl_Position = vec4(ndc, 0.0, 1.0);
+                // Transform world coords directly to NDC (-1 to 1)
+                // The orthographic matrix handles the full transformation
+                vec3 pos = u_view_matrix * vec3(a_position, 1.0);
+                gl_Position = vec4(pos.xy, 0.0, 1.0);
             }
         "#;
 
@@ -124,18 +125,13 @@ impl FogOfWarSystem {
             precision highp float;
             
             uniform vec4 u_fog_color;
-            uniform bool u_is_gm;
             
             out vec4 fragColor;
             
             void main() {
-                if (u_is_gm) {
-                    // GM sees semi-transparent gray fog
-                    fragColor = vec4(0.5, 0.5, 0.5, 0.3);
-                } else {
-                    // Players see opaque black fog
-                    fragColor = vec4(0.0, 0.0, 0.0, 1.0);
-                }
+                // Write fog mask value to red channel
+                // u_fog_color.r = 1.0 for hide (fogged), 0.0 for reveal (clear)
+                fragColor = vec4(u_fog_color.r, 0.0, 0.0, 1.0);
             }
         "#;
 
@@ -179,9 +175,9 @@ impl FogOfWarSystem {
                 if (fogValue > 0.5) {
                     // Fogged area
                     if (u_is_gm) {
-                        fragColor = vec4(0.5, 0.5, 0.5, 0.3); // Semi-transparent for GM
+                        fragColor = vec4(0.5, 0.5, 0.5, 0.3); // Semi-transparent gray for GM
                     } else {
-                        fragColor = vec4(0.0, 0.0, 0.0, 1.0); // Opaque for players
+                        fragColor = vec4(0.0, 0.0, 0.0, 1.0); // Opaque black for players
                     }
                 } else {
                     // Revealed area - transparent
@@ -351,9 +347,13 @@ impl FogOfWarSystem {
         rectangle.table_id = table_id; // Set the table_id
         self.fog_rectangles.insert(id.clone(), rectangle.clone());
         
-        // Incrementally update fog texture with this single rectangle
-        if let Err(e) = self.update_fog_texture_incremental(&rectangle) {
-            web_sys::console::error_1(&format!("[FOG-ERROR] Failed to update fog texture: {:?}", e).into());
+        // If we need a full rebuild (e.g., first rectangle or table bounds changed),
+        // mark it for rebuild on next render. Otherwise, update incrementally.
+        if !self.needs_full_rebuild {
+            // Incrementally update fog texture with this single rectangle
+            if let Err(e) = self.update_fog_texture_incremental(&rectangle) {
+                web_sys::console::error_1(&format!("[FOG-ERROR] Failed to update fog texture: {:?}", e).into());
+            }
         }
     }
 
@@ -427,11 +427,6 @@ impl FogOfWarSystem {
             self.gl.uniform_matrix3fv_with_f32_array(Some(&location), false, &ortho_matrix);
         }
         
-        let canvas_size_location = self.gl.get_uniform_location(program, "u_canvas_size");
-        if let Some(location) = canvas_size_location {
-            self.gl.uniform2f(Some(&location), self.texture_width as f32, self.texture_height as f32);
-        }
-        
         // Render rectangle directly to texture color buffer
         // Color value: 1.0 = fogged, 0.0 = revealed
         let fog_value = match rectangle.mode {
@@ -447,10 +442,17 @@ impl FogOfWarSystem {
         // Disable blending - overwrite pixels directly
         self.gl.disable(WebGlRenderingContext::BLEND);
         
+        // Ensure depth/stencil tests are disabled
+        self.gl.disable(WebGlRenderingContext::DEPTH_TEST);
+        self.gl.disable(WebGlRenderingContext::STENCIL_TEST);
+        
         self.render_single_rectangle(program, rectangle)?;
         
         // Unbind framebuffer
         self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
+        
+        // CRITICAL: Restore viewport to canvas size (otherwise camera gets misplaced)
+        self.gl.viewport(0, 0, self.canvas_width as i32, self.canvas_height as i32);
         
         Ok(())
     }
@@ -479,12 +481,11 @@ impl FogOfWarSystem {
             self.gl.uniform_matrix3fv_with_f32_array(Some(&location), false, &ortho_matrix);
         }
         
-        let canvas_size_location = self.gl.get_uniform_location(program, "u_canvas_size");
-        if let Some(location) = canvas_size_location {
-            self.gl.uniform2f(Some(&location), self.texture_width as f32, self.texture_height as f32);
-        }
-        
         self.gl.disable(WebGlRenderingContext::BLEND);
+        
+        // Ensure depth/stencil tests are disabled
+        self.gl.disable(WebGlRenderingContext::DEPTH_TEST);
+        self.gl.disable(WebGlRenderingContext::STENCIL_TEST);
         
         // Render all rectangles in chronological order
         for rectangle in self.fog_rectangles.values() {
@@ -503,6 +504,9 @@ impl FogOfWarSystem {
         
         // Unbind framebuffer
         self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
+        
+        // CRITICAL: Restore viewport to canvas size
+        self.gl.viewport(0, 0, self.canvas_width as i32, self.canvas_height as i32);
         
         Ok(())
     }
@@ -523,6 +527,10 @@ impl FogOfWarSystem {
     }
     
     pub fn render_fog_filtered(&mut self, view_matrix: &[f32; 9], canvas_width: f32, canvas_height: f32, _table_id: Option<&str>) -> Result<(), JsValue> {
+        // Update canvas dimensions for viewport restoration
+        self.canvas_width = canvas_width;
+        self.canvas_height = canvas_height;
+        
         if self.fog_rectangles.is_empty() {
             return Ok(());
         }
@@ -638,8 +646,20 @@ impl FogOfWarSystem {
         }
         
         // Set up vertex attributes (interleaved: position + texcoord)
-        let position_location = self.gl.get_attrib_location(program, "a_position") as u32;
-        let texcoord_location = self.gl.get_attrib_location(program, "a_texcoord") as u32;
+        let position_location = self.gl.get_attrib_location(program, "a_position");
+        let texcoord_location = self.gl.get_attrib_location(program, "a_texcoord");
+        
+        web_sys::console::log_1(&format!(
+            "[FOG-QUAD] Attribute locations: position={}, texcoord={}",
+            position_location, texcoord_location
+        ).into());
+        
+        if position_location < 0 || texcoord_location < 0 {
+            return Err(JsValue::from_str("Shader attribute locations not found"));
+        }
+        
+        let position_location = position_location as u32;
+        let texcoord_location = texcoord_location as u32;
         
         let stride = 4 * 4; // 4 floats * 4 bytes per float
         
@@ -665,6 +685,8 @@ impl FogOfWarSystem {
         
         // Draw quad
         self.gl.draw_arrays(WebGlRenderingContext::TRIANGLE_FAN, 0, 4);
+        
+        web_sys::console::log_1(&"[FOG-QUAD] Drew TRIANGLE_FAN with 4 vertices".into());
         
         self.gl.disable_vertex_attrib_array(position_location);
         self.gl.disable_vertex_attrib_array(texcoord_location);

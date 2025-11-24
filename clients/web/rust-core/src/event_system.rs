@@ -31,7 +31,6 @@ impl EventSystem {
         input: &mut InputHandler,
         layers: &mut HashMap<String, Layer>,
         lighting: &mut LightingSystem,
-        fog: &mut FogOfWarSystem,
         camera_zoom: f64,
         ctrl_pressed: bool
     ) -> MouseEventResult {
@@ -193,9 +192,7 @@ impl EventSystem {
         world_pos: Vec2,
         input: &mut InputHandler,
         layers: &mut HashMap<String, Layer>,
-        lighting: &mut LightingSystem,
-        fog: &mut FogOfWarSystem,
-        camera: &Camera
+        lighting: &mut LightingSystem
     ) -> MouseEventResult {
         // Update fog drawing preview
         if matches!(input.input_mode, InputMode::FogDraw | InputMode::FogErase) {

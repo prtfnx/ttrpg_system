@@ -542,7 +542,6 @@ impl RenderEngine {
             &mut self.input,
             self.layer_manager.get_layers_mut(),
             &mut self.lighting,
-            &mut self.fog,
             self.camera.zoom,
             ctrl_pressed
         );
@@ -613,9 +612,7 @@ impl RenderEngine {
             world_pos,
             &mut self.input,
             self.layer_manager.get_layers_mut(),
-            &mut self.lighting,
-            &mut self.fog,
-            &self.camera
+            &mut self.lighting
         );
         
         // Update last mouse position

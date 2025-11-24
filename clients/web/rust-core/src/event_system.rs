@@ -1,7 +1,6 @@
 use crate::math::Vec2;
 use crate::types::{Sprite, Layer};
 use crate::input::{InputHandler, InputMode, HandleDetector, FogDrawMode};
-use crate::camera::Camera;
 use crate::sprite_manager::SpriteManager;
 use crate::lighting::LightingSystem;
 use crate::fog::{FogOfWarSystem, FogMode};

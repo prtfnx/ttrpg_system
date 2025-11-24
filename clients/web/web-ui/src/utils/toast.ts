@@ -1,5 +1,5 @@
-import { toast } from 'react-toastify';
 import type { ToastOptions } from 'react-toastify';
+import { toast } from 'react-toastify';
 
 /**
  * Centralized toast notification utility

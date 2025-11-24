@@ -1,8 +1,8 @@
-import React, { useState, useRef } from "react";
-import type { Character } from "../types";
-import { useGameStore } from "../store";
+import React, { useRef, useState } from "react";
 import { useProtocol } from "../services/ProtocolContext";
 import { ProtocolService } from "../services/ProtocolService";
+import { useGameStore } from "../store";
+import type { Character } from "../types";
 import { showToast } from "../utils/toast";
 import "./CharacterSheetNew.css";
 

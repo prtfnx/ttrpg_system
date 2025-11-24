@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ProtocolService } from '../services/ProtocolService';
 import { useGameStore } from '../store';
 import DiceRoller from '../tools/DiceRoller';
 import type { GameAPI } from '../types';
@@ -8,7 +9,6 @@ import { GridControls } from './GridControls';
 import { LayerPanel } from './LayerPanel';
 import { MeasurementTool } from './MeasurementTool';
 import { PaintPanel } from './PaintPanel';
-import { ProtocolService } from '../services/ProtocolService';
 import { TextSpriteTool } from './TextSprite';
 
 // Global type declarations

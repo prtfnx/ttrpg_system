@@ -4,8 +4,8 @@ import type { UserInfo } from '../services/auth.service';
 import { GameCanvas } from './GameCanvas';
 import './GameClient.css';
 import { RightPanel } from './RightPanel';
-import { ToolsPanel } from './ToolsPanel';
 import { TokenConfigModal } from './TokenConfigModal';
+import { ToolsPanel } from './ToolsPanel';
 
 interface ErrorBoundaryState {
   hasError: boolean;

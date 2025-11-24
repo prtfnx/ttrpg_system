@@ -607,6 +607,7 @@ impl LightingSystem {
     /// Compute shadow quads from obstacles (for subtractive shadow rendering)
     /// Each obstacle edge that faces away from light casts a shadow quad
     /// This is the standard "shadow geometry" approach for 2D lighting
+    /// Performance optimization: Only processes segments within light radius for shadow casting
     fn compute_shadow_quads(&self, light_pos: Vec2, radius: f32) -> Vec<Vec<Point>> {
         let calc = self.visibility_calculator.borrow();
         let mut shadow_quads = Vec::new();
@@ -620,7 +621,23 @@ impl LightingSystem {
             return shadow_quads;
         }
         
+        // Shadow distance culling: extend radius slightly to ensure shadows at the edge are complete
+        let shadow_cull_radius = radius * 1.5;
+        let shadow_cull_radius_squared = shadow_cull_radius * shadow_cull_radius;
+        
         for segment in calc.get_segments() {
+            // Distance-based culling: skip segments too far from light
+            // Check distance to segment midpoint for efficient culling
+            let mid_x = (segment.p1.x + segment.p2.x) * 0.5;
+            let mid_y = (segment.p1.y + segment.p2.y) * 0.5;
+            let dx = mid_x - light_pos.x;
+            let dy = mid_y - light_pos.y;
+            let dist_squared = dx * dx + dy * dy;
+            
+            if dist_squared > shadow_cull_radius_squared {
+                continue; // Segment is beyond light influence, skip shadow computation
+            }
+            
             // Segment direction vector
             let seg_dx = segment.p2.x - segment.p1.x;
             let seg_dy = segment.p2.y - segment.p1.y;

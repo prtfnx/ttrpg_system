@@ -252,9 +252,10 @@ impl FogOfWarSystem {
 
         let program = self.fog_shader.as_ref().ok_or("Fog shader not initialized")?;
         
-        // Enable alpha blending for fog overlay
-        self.gl.enable(WebGlRenderingContext::BLEND);
-        self.gl.blend_func(WebGlRenderingContext::SRC_ALPHA, WebGlRenderingContext::ONE_MINUS_SRC_ALPHA);
+        // Enable stencil test for proper hide/reveal masking
+        self.gl.enable(WebGlRenderingContext::STENCIL_TEST);
+        self.gl.clear_stencil(0);
+        self.gl.clear(WebGlRenderingContext::STENCIL_BUFFER_BIT);
         
         self.gl.use_program(Some(program));
         
@@ -276,25 +277,51 @@ impl FogOfWarSystem {
             self.gl.uniform1i(Some(&location), if self.is_gm { 1 } else { 0 });
         }
         
-        // web_sys::console::log_1(&"[FOG-DEBUG] 🌫️ Rendering fog rectangles directly (no stencil)".into());
+        // PASS 1: Render Hide rectangles to stencil buffer (mark areas as fogged)
+        self.gl.color_mask(false, false, false, false); // Don't write color
+        self.gl.stencil_func(WebGlRenderingContext::ALWAYS, 1, 0xFF);
+        self.gl.stencil_op(WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP, WebGlRenderingContext::REPLACE);
         
-        // Render fog rectangles directly (filtered by table_id if specified)
         for rectangle in self.fog_rectangles.values() {
-            // Filter by table_id if specified
             if let Some(filter_table_id) = table_id {
                 if rectangle.table_id != filter_table_id {
-                    continue; // Skip fog not belonging to active table
+                    continue;
                 }
             }
             
             if rectangle.mode == FogMode::Hide {
-                // web_sys::console::log_1(&format!("[FOG-DEBUG] 🌫️ Drawing fog rectangle {} at ({}, {}) to ({}, {})", 
-                //     i, rectangle.start.x, rectangle.start.y, rectangle.end.x, rectangle.end.y).into());
                 self.render_single_rectangle(program, rectangle)?;
             }
         }
         
-        // web_sys::console::log_1(&"[FOG-DEBUG] 🌫️ Fog rendering complete".into());
+        // PASS 2: Render Reveal rectangles to stencil buffer (punch holes in fog)
+        self.gl.stencil_func(WebGlRenderingContext::ALWAYS, 0, 0xFF);
+        self.gl.stencil_op(WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP, WebGlRenderingContext::REPLACE);
+        
+        for rectangle in self.fog_rectangles.values() {
+            if let Some(filter_table_id) = table_id {
+                if rectangle.table_id != filter_table_id {
+                    continue;
+                }
+            }
+            
+            if rectangle.mode == FogMode::Reveal {
+                self.render_single_rectangle(program, rectangle)?;
+            }
+        }
+        
+        // PASS 3: Render fog color where stencil == 1 (fogged areas only)
+        self.gl.color_mask(true, true, true, true); // Re-enable color writes
+        self.gl.enable(WebGlRenderingContext::BLEND);
+        self.gl.blend_func(WebGlRenderingContext::SRC_ALPHA, WebGlRenderingContext::ONE_MINUS_SRC_ALPHA);
+        self.gl.stencil_func(WebGlRenderingContext::EQUAL, 1, 0xFF);
+        self.gl.stencil_op(WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP);
+        
+        // Render fullscreen fog overlay where stencil == 1
+        self.render_fullscreen_fog(program)?;
+        
+        // Clean up
+        self.gl.disable(WebGlRenderingContext::STENCIL_TEST);
         
         Ok(())
     }
@@ -330,6 +357,55 @@ impl FogOfWarSystem {
         
         // Draw rectangle
         self.gl.draw_arrays(WebGlRenderingContext::TRIANGLE_FAN, 0, 4);
+        
+        self.gl.disable_vertex_attrib_array(position_location);
+        
+        Ok(())
+    }
+
+    fn render_fullscreen_fog(&self, program: &WebGlProgram) -> Result<(), JsValue> {
+        // Render fog overlay based on table bounds or fullscreen
+        let (vertices, vertex_count) = if let Some((x, y, width, height)) = self.table_bounds {
+            // Render fog only within table bounds (world coordinates)
+            let vertices = [
+                x, y,
+                x + width, y,
+                x + width, y + height,
+                x, y + height,
+            ];
+            (vertices, 4)
+        } else {
+            // Fallback: render extremely large fog area (world coordinates)
+            let large_size = 100000.0;
+            let vertices = [
+                -large_size, -large_size,
+                large_size, -large_size,
+                large_size, large_size,
+                -large_size, large_size,
+            ];
+            (vertices, 4)
+        };
+        
+        // Create and bind vertex buffer
+        let buffer = self.gl.create_buffer().ok_or("Failed to create buffer")?;
+        self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&buffer));
+        
+        unsafe {
+            let vertices_array = js_sys::Float32Array::view(&vertices);
+            self.gl.buffer_data_with_array_buffer_view(
+                WebGlRenderingContext::ARRAY_BUFFER,
+                &vertices_array,
+                WebGlRenderingContext::STATIC_DRAW,
+            );
+        }
+        
+        // Set up vertex attributes
+        let position_location = self.gl.get_attrib_location(program, "a_position") as u32;
+        self.gl.enable_vertex_attrib_array(position_location);
+        self.gl.vertex_attrib_pointer_with_i32(position_location, 2, WebGlRenderingContext::FLOAT, false, 0, 0);
+        
+        // Draw fullscreen quad
+        self.gl.draw_arrays(WebGlRenderingContext::TRIANGLE_FAN, 0, vertex_count as i32);
         
         self.gl.disable_vertex_attrib_array(position_location);
         

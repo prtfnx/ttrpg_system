@@ -1,0 +1,225 @@
+/* Modern TTRPG Client Styles */
+.app {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  background-color: #0a0a0a;
+  color: #ffffff;
+  overflow: hidden;
+}
+
+/* Loading and Error Screens */
+.loadingScreen,
+.errorScreen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+}
+
+.loadingContent,
+.errorContent {
+  text-align: center;
+  padding: 2rem;
+  border-radius: 8px;
+  background-color: #111827;
+  border: 1px solid #404040;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #404040;
+  border-top: 4px solid #60a5fa;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Session Selector */
+.sessionSelector {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 2rem;
+}
+
+.sessionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #404040;
+}
+
+.sessionHeader h2 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 1.5rem;
+}
+
+.sessionsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.sessionCard {
+  background-color: #111827;
+  border: 1px solid #404040;
+  border-radius: 8px;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sessionCard:hover {
+  border-color: #60a5fa;
+  background-color: #1e293b;
+  transform: translateY(-2px);
+}
+
+.sessionCard.dm {
+  border-left: 4px solid #f59e0b;
+}
+
+.sessionCard.player {
+  border-left: 4px solid #10b981;
+}
+
+.sessionInfo h3 {
+  margin: 0 0 0.5rem 0;
+  color: #ffffff;
+  font-size: 1.1rem;
+}
+
+.sessionInfo p {
+  margin: 0.25rem 0;
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+.sessionRole {
+  margin: 1rem 0;
+}
+
+.roleBadge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.roleBadge.dm {
+  background-color: #f59e0b;
+  color: #000000;
+}
+
+.roleBadge.player {
+  background-color: #10b981;
+  color: #000000;
+}
+
+.joinBtn,
+.retryBtn,
+.logoutBtn {
+  background-color: #60a5fa;
+  color: #000000;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.joinBtn:hover,
+.retryBtn:hover,
+.logoutBtn:hover {
+  background-color: #3b82f6;
+}
+
+.logoutBtn {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+
+.logoutBtn:hover {
+  background-color: #dc2626;
+}
+
+.logoutBtn.small {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.emptyContent {
+  text-align: center;
+  padding: 3rem 2rem;
+}
+
+.errorActions {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.errorMessage {
+  color: #f87171;
+  font-weight: 500;
+}
+
+/* Connection Status */
+.connectionStatus {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: #111827;
+  border: 1px solid #404040;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  z-index: 1000;
+}
+
+.statusIndicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.connectionStatus.connecting .statusIndicator {
+  background-color: #f59e0b;
+}
+
+.connectionStatus.connected .statusIndicator {
+  background-color: #10b981;
+}
+
+.connectionStatus.disconnected .statusIndicator {
+  background-color: #6b7280;
+}
+
+.connectionStatus.error .statusIndicator {
+  background-color: #ef4444;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

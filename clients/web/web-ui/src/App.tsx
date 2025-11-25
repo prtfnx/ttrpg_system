@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import './App.css';
+import styles from './App.module.css';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GameClient } from './components/GameClient';
 import { SessionSelector } from './components/SessionSelector';
@@ -128,9 +128,9 @@ function App() {
 
   if (state.loading) {
     return (
-      <div className="app loading-screen">
-        <div className="loading-content">
-          <div className="spinner"></div>
+      <div className={`${styles.app} ${styles.loadingScreen}`}>
+        <div className={styles.loadingContent}>
+          <div className={styles.spinner}></div>
           <h2>Loading TTRPG System</h2>
           <p>Initializing authentication...</p>
         </div>
@@ -140,8 +140,8 @@ function App() {
 
   if (state.error) {
     return (
-      <div className="app error-screen">
-        <div className="error-content">
+      <div className={`${styles.app} ${styles.errorScreen}`}>
+        <div className={styles.errorContent}>
           <h2>Authentication Error</h2>
           <p>{state.error}</p>
         </div>
@@ -151,8 +151,8 @@ function App() {
 
   if (!state.isAuthenticated || !state.userInfo) {
     return (
-      <div className="app error-screen">
-        <div className="error-content">
+      <div className={`${styles.app} ${styles.errorScreen}`}>
+        <div className={styles.errorContent}>
           <h2>Not Authenticated</h2>
           <p>Redirecting to login...</p>
         </div>
@@ -163,7 +163,7 @@ function App() {
   if (!state.selectedSession) {
     return (
       <ErrorBoundary>
-        <div className="app">
+        <div className={styles.app}>
           <SessionSelector onSessionSelected={handleSessionSelected} />
         </div>
       </ErrorBoundary>
@@ -172,7 +172,7 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <div className="app">
+      <div className={styles.app}>
         <ProtocolProvider sessionCode={state.selectedSession}>
           <GameClient 
             sessionCode={state.selectedSession}

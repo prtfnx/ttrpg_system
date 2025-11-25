@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
+import clsx from 'clsx';
 import { useAuthenticatedWebSocket } from '../hooks/useAuthenticatedWebSocket';
 import type { UserInfo } from '../services/auth.service';
 import { GameCanvas } from './GameCanvas';
-import './GameClient.css';
+import styles from './GameClient.module.css';
 import { RightPanel } from './RightPanel';
 import { TokenConfigModal } from './TokenConfigModal';
 import { ToolsPanel } from './ToolsPanel';
@@ -198,12 +199,12 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
 
   return (
     <DebugErrorBoundary>
-      <div className="game-layout">
+      <div className={styles.gameLayout}>
         {leftVisible && (
-          <div className="left-panel" style={{ width: leftWidth }}>
-            <div className={`connection-status ${connectionState}`}>
-              <span className="status-indicator"></span>
-              <span className="status-text">
+          <div className={styles.leftPanel} style={{ width: leftWidth }}>
+            <div className={clsx(styles.connectionStatus, styles[connectionState])}>
+              <span className={styles.statusIndicator}></span>
+              <span>
                 {connectionState === 'connecting' && 'Connecting...'}
                 {connectionState === 'connected' && `Connected as ${userInfo.username} (${userRole})`}
                 {connectionState === 'disconnected' && 'Disconnected'}
@@ -211,40 +212,40 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
               </span>
             </div>
             <ToolsPanel userInfo={userInfo} />
-            <button className="collapse-btn" onClick={toggleLeft}>◀</button>
+            <button className={styles.collapseBtn} onClick={toggleLeft}>◀</button>
           </div>
         )}
         
         {leftVisible && (
           <div 
-            className="panel-resizer left-resizer" 
+            className={clsx(styles.panelResizer, styles.leftResizer)} 
             onMouseDown={e => onDragStart('left', e)}
           />
         )}
         
-        <div className="canvas-container">
+        <div className={styles.canvasContainer}>
           <GameCanvas />
-          <div className="canvas-controls">
+          <div className={styles.canvasControls}>
             {!leftVisible && (
-              <button className="expand-btn left" onClick={toggleLeft}>▶</button>
+              <button className={clsx(styles.expandBtn, styles.left)} onClick={toggleLeft}>▶</button>
             )}
             {!rightVisible && (
-              <button className="expand-btn right" onClick={toggleRight}>◀</button>
+              <button className={clsx(styles.expandBtn, styles.right)} onClick={toggleRight}>◀</button>
             )}
           </div>
         </div>
         
         {rightVisible && (
           <div 
-            className="panel-resizer right-resizer" 
+            className={clsx(styles.panelResizer, styles.rightResizer)} 
             onMouseDown={e => onDragStart('right', e)}
           />
         )}
         
         {rightVisible && (
-          <div className="right-panel" style={{ width: rightWidth }}>
+          <div className={styles.rightPanel} style={{ width: rightWidth }}>
             <RightPanel sessionCode={sessionCode} userInfo={userInfo} />
-            <button className="collapse-btn" onClick={toggleRight}>▶</button>
+            <button className={styles.collapseBtn} onClick={toggleRight}>▶</button>
           </div>
         )}
 

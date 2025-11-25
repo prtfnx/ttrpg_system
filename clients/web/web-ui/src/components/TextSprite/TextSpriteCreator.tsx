@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { Modal } from '../common/Modal';
-import '../common/Modal.css';
 import './TextSpriteCreator.css';
 
 // Font families available for text sprites

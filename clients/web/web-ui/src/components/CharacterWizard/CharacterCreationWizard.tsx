@@ -5,7 +5,6 @@ import { z } from 'zod';
 import type { UserInfo } from '../../services/auth.service';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { Modal } from '../common/Modal';
-import '../common/Modal.css';
 import { AbilitiesStep } from './AbilitiesStep';
 import { BackgroundStep } from './BackgroundStep';
 import { CharacterAdvancementStep } from './CharacterAdvancementStep';

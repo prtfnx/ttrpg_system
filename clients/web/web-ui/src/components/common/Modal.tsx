@@ -1,7 +1,7 @@
+import clsx from 'clsx';
 import type { ReactNode } from 'react';
 import { Component, createRef } from 'react';
 import { createPortal } from 'react-dom';
-import clsx from 'clsx';
 import styles from './Modal.module.css';
 
 interface Props {

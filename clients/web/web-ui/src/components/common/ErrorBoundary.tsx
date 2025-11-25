@@ -1,6 +1,6 @@
 import type { ErrorInfo, ReactNode } from 'react';
 import React, { Component } from 'react';
-import './ErrorBoundary.css';
+import styles from './ErrorBoundary.module.css';
 
 // Extend Window interface for error tracking
 declare global {
@@ -120,30 +120,30 @@ const DefaultErrorFallback: React.FC<ErrorFallbackProps> = ({
   canRetry, 
   componentName 
 }) => (
-  <div className="panel-error-boundary">
-    <div className="error-icon">⚠️</div>
+  <div className={styles.panelErrorBoundary}>
+    <div className={styles.errorIcon}>⚠️</div>
     <h3>Something went wrong</h3>
     <p>The {componentName || 'panel'} encountered an error and couldn't load properly.</p>
     
     {error && (
-      <details className="error-details">
+      <details className={styles.errorDetails}>
         <summary>Error Details</summary>
-        <pre className="error-message">{error.message}</pre>
+        <pre className={styles.errorMessage}>{error.message}</pre>
         {import.meta.env?.DEV && error.stack && (
-          <pre className="error-stack">{error.stack}</pre>
+          <pre className={styles.errorStack}>{error.stack}</pre>
         )}
       </details>
     )}
     
-    <div className="error-actions">
+    <div className={styles.errorActions}>
       {canRetry && (
-        <button onClick={onRetry} className="retry-button">
+        <button onClick={onRetry} className={styles.retryButton}>
           🔄 Try Again
         </button>
       )}
       <button 
         onClick={() => window.location.reload()} 
-        className="reload-button"
+        className={styles.reloadButton}
       >
         🔃 Reload Page
       </button>
@@ -153,8 +153,8 @@ const DefaultErrorFallback: React.FC<ErrorFallbackProps> = ({
 
 // Specialized error fallbacks for different panel types
 const PaintPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, canRetry }) => (
-  <div className="paint-panel-error">
-    <div className="error-icon">🎨</div>
+  <div className={styles.paintPanelError}>
+    <div className={styles.errorIcon}>🎨</div>
     <h4>Paint System Error</h4>
     <p>The paint system couldn't initialize. This might be due to:</p>
     <ul>
@@ -163,16 +163,16 @@ const PaintPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, canRet
       <li>Browser compatibility problems</li>
     </ul>
     
-    <div className="error-actions">
+    <div className={styles.errorActions}>
       {canRetry && (
-        <button onClick={onRetry} className="retry-button">
+        <button onClick={onRetry} className={styles.retryButton}>
           🔄 Retry Paint System
         </button>
       )}
       
       <button 
         onClick={() => window.open('/help/paint-troubleshooting', '_blank')}
-        className="help-button"
+        className={styles.helpButton}
       >
         📚 Troubleshooting Guide
       </button>
@@ -181,12 +181,12 @@ const PaintPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, canRet
 );
 
 const LightingPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, canRetry }) => (
-  <div className="lighting-panel-error">
-    <div className="error-icon">💡</div>
+  <div className={styles.lightingPanelError}>
+    <div className={styles.errorIcon}>💡</div>
     <h4>Lighting System Error</h4>
     <p>The lighting system failed to initialize properly.</p>
     
-    <div className="common-solutions">
+    <div className={styles.commonSolutions}>
       <h5>Common Solutions:</h5>
       <ul>
         <li>Check WebGL support in your browser</li>
@@ -195,9 +195,9 @@ const LightingPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, can
       </ul>
     </div>
     
-    <div className="error-actions">
+    <div className={styles.errorActions}>
       {canRetry && (
-        <button onClick={onRetry} className="retry-button">
+        <button onClick={onRetry} className={styles.retryButton}>
           🔄 Retry Lighting System
         </button>
       )}
@@ -206,14 +206,14 @@ const LightingPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, can
 );
 
 const FogPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, canRetry }) => (
-  <div className="fog-panel-error">
-    <div className="error-icon">🌫️</div>
+  <div className={styles.fogPanelError}>
+    <div className={styles.errorIcon}>🌫️</div>
     <h4>Fog System Error</h4>
     <p>The fog of war system encountered an error.</p>
     
-    <div className="error-actions">
+    <div className={styles.errorActions}>
       {canRetry && (
-        <button onClick={onRetry} className="retry-button">
+        <button onClick={onRetry} className={styles.retryButton}>
           🔄 Retry Fog System
         </button>
       )}
@@ -222,27 +222,27 @@ const FogPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, canRetry
 );
 
 const CompendiumPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, canRetry, error }) => (
-  <div className="compendium-panel-error">
-    <div className="error-icon">📚</div>
+  <div className={styles.compendiumPanelError}>
+    <div className={styles.errorIcon}>📚</div>
     <h4>Compendium Error</h4>
     <p>Failed to load compendium data.</p>
     
     {error?.message?.includes('auth') && (
-      <div className="auth-error-hint">
+      <div className={styles.authErrorHint}>
         <p>This might be an authentication issue. Try logging out and back in.</p>
       </div>
     )}
     
-    <div className="error-actions">
+    <div className={styles.errorActions}>
       {canRetry && (
-        <button onClick={onRetry} className="retry-button">
+        <button onClick={onRetry} className={styles.retryButton}>
           🔄 Retry Loading
         </button>
       )}
       {error?.message?.includes('auth') && (
         <button 
           onClick={() => window.location.href = '/login'}
-          className="auth-button"
+          className={styles.authButton}
         >
           🔐 Re-authenticate
         </button>
@@ -366,8 +366,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       }
 
       return (
-        <div className="error-boundary">
-          <div className="error-content">
+        <div className={styles.errorBoundary}>
+          <div className={styles.errorContent}>
             <h2>Something went wrong</h2>
             <details style={{ whiteSpace: 'pre-wrap' }}>
               <summary>Error details</summary>
@@ -375,7 +375,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             </details>
             <button 
               onClick={() => this.setState({ hasError: false, error: undefined })}
-              className="retry-button"
+              className={styles.retryButton}
             >
               Try again
             </button>

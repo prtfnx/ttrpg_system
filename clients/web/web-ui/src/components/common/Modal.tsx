@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { Component, createRef } from 'react';
 import { createPortal } from 'react-dom';
+import clsx from 'clsx';
+import styles from './Modal.module.css';
 
 interface Props {
   isOpen: boolean;
@@ -98,12 +100,7 @@ export class Modal extends Component<Props, State> {
 
   private getSizeClass = () => {
     const { size = 'medium' } = this.props;
-    switch (size) {
-      case 'small': return 'modal-small';
-      case 'large': return 'modal-large';
-      case 'fullscreen': return 'modal-fullscreen';
-      default: return 'modal-medium';
-    }
+    return styles[size];
   };
 
   render() {
@@ -113,26 +110,26 @@ export class Modal extends Component<Props, State> {
 
     const modalContent = (
       <div 
-        className={`modal-overlay ${this.props.isOpen ? 'modal-open' : 'modal-closing'}`}
+        className={clsx(styles.modalOverlay, this.props.isOpen ? styles.modalOpen : styles.modalClosing)}
         onClick={this.handleOverlayClick}
         role="presentation"
       >
         <div 
           ref={this.modalRef}
-          className={`modal-content ${this.getSizeClass()}`}
+          className={clsx(styles.modalContent, this.getSizeClass())}
           role="dialog"
           aria-modal="true"
           aria-labelledby={this.props.title ? 'modal-title' : undefined}
           tabIndex={-1}
         >
           {this.props.title && (
-            <div className="modal-header">
-              <h2 id="modal-title" className="modal-title">
+            <div className={styles.modalHeader}>
+              <h2 id="modal-title" className={styles.modalTitle}>
                 {this.props.title}
               </h2>
               <button
                 type="button"
-                className="modal-close-button"
+                className={styles.modalCloseButton}
                 onClick={this.props.onClose}
                 aria-label="Close modal"
               >
@@ -140,7 +137,7 @@ export class Modal extends Component<Props, State> {
               </button>
             </div>
           )}
-          <div className="modal-body">
+          <div className={styles.modalBody}>
             {this.props.children}
           </div>
         </div>

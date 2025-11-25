@@ -1,11 +1,11 @@
 /* Loading Spinner Component Styles */
-.loading-spinner {
+.loadingSpinner {
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-.spinner-circle {
+.spinnerCircle {
   border: 2px solid transparent;
   border-top: 2px solid currentColor;
   border-radius: 50%;
@@ -13,19 +13,19 @@
 }
 
 /* Size variants */
-.loading-spinner-small .spinner-circle {
+.small .spinnerCircle {
   width: 16px;
   height: 16px;
   border-width: 1px;
 }
 
-.loading-spinner-medium .spinner-circle {
+.medium .spinnerCircle {
   width: 24px;
   height: 24px;
   border-width: 2px;
 }
 
-.loading-spinner-large .spinner-circle {
+.large .spinnerCircle {
   width: 40px;
   height: 40px;
   border-width: 3px;
@@ -38,7 +38,7 @@
 
 /* Accessibility */
 @media (prefers-reduced-motion: reduce) {
-  .spinner-circle {
+  .spinnerCircle {
     animation: none;
     border-top-color: transparent;
     border-right-color: currentColor;

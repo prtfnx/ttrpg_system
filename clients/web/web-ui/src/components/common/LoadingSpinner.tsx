@@ -1,5 +1,6 @@
 import React from 'react';
-import './LoadingSpinner.css';
+import clsx from 'clsx';
+import styles from './LoadingSpinner.module.css';
 
 interface LoadingSpinnerProps {
   size?: 'small' | 'medium' | 'large';
@@ -14,12 +15,12 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
 }) => {
   return (
     <div 
-      className={`loading-spinner loading-spinner-${size} ${className}`}
+      className={clsx(styles.loadingSpinner, styles[size], className)}
       style={{ color }}
       role="status"
       aria-label="Loading"
     >
-      <div className="spinner-circle"></div>
+      <div className={styles.spinnerCircle}></div>
     </div>
   );
 };

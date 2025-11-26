@@ -1,7 +1,8 @@
+import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
 import type { TableInfo } from '../store';
 import { useGameStore } from '../store';
-import './TableManagementPanel.css';
+import styles from './TableManagementPanel.module.css';
 import { TablePreview } from './TablePreview';
 
 export const TableManagementPanel: React.FC = () => {
@@ -468,27 +469,27 @@ export const TableManagementPanel: React.FC = () => {
   };
 
   return (
-    <div className="table-management-panel">
-      <div className="panel-header">
+    <div className={styles.tableManagementPanel}>
+      <div className={styles.panelHeader}>
         <h3>Table Management</h3>
-        <div className="header-actions">
+        <div className={styles.headerActions}>
           <button 
             onClick={() => setBulkMode(!bulkMode)}
-            className={`bulk-mode-button ${bulkMode ? 'active' : ''}`}
+            className={clsx(styles.bulkModeButton, bulkMode && styles.active)}
             title="Bulk select mode"
           >
             {bulkMode ? '☑' : '☐'}
           </button>
           <button 
             onClick={handleImportTable}
-            className="import-button"
+            className={styles.importButton}
             title="Import table"
           >
             📥
           </button>
           <button 
             onClick={() => setShowSettings(!showSettings)}
-            className={`settings-toggle-button ${showSettings ? 'active' : ''}`}
+            className={clsx(styles.settingsToggleButton, showSettings && styles.active)}
             title="Panel settings"
           >
             ⚙️
@@ -496,14 +497,14 @@ export const TableManagementPanel: React.FC = () => {
           <button 
             onClick={requestTableList}
             disabled={tablesLoading}
-            className="refresh-button"
+            className={styles.refreshButton}
             title="Refresh table list"
           >
             {tablesLoading ? '⟳' : '↻'}
           </button>
           <button 
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="create-button"
+            className={styles.createButton}
             title="Create new table"
           >
             +
@@ -513,19 +514,19 @@ export const TableManagementPanel: React.FC = () => {
 
       {/* Bulk Actions Bar */}
       {bulkMode && selectedTables.size > 0 && (
-        <div className="bulk-actions-bar">
-          <span className="bulk-count">{selectedTables.size} selected</span>
-          <div className="bulk-buttons">
+        <div className={styles.bulkActionsBar}>
+          <span className={styles.bulkCount}>{selectedTables.size} selected</span>
+          <div className={styles.bulkButtons}>
             <button 
               onClick={handleBulkDuplicate}
-              className="bulk-duplicate-button"
+              className={styles.bulkDuplicateButton}
               title="Duplicate selected"
             >
               📋 Duplicate
             </button>
             <button 
               onClick={handleBulkDelete}
-              className="bulk-delete-button"
+              className={styles.bulkDeleteButton}
               title="Delete selected"
             >
               🗑️ Delete
@@ -536,9 +537,9 @@ export const TableManagementPanel: React.FC = () => {
 
       {/* Panel Settings */}
       {showSettings && (
-        <div className="panel-settings">
-          <div className="settings-row">
-            <label className="checkbox-label">
+        <div className={styles.panelSettings}>
+          <div className={styles.settingsRow}>
+            <label className={styles.checkboxLabel}>
               <input
                 type="checkbox"
                 checked={autoSync}
@@ -546,15 +547,15 @@ export const TableManagementPanel: React.FC = () => {
               />
               <span>Auto-sync local tables</span>
             </label>
-            <span className="help-text">Automatically sync new tables to server</span>
+            <span className={styles.helpText}>Automatically sync new tables to server</span>
           </div>
         </div>
       )}
 
       {/* Search and Filter Bar */}
-      <div className="search-filter-bar">
+      <div className={styles.searchFilterBar}>
         {bulkMode && (
-          <label className="select-all-checkbox">
+          <label className={styles.selectAllCheckbox}>
             <input
               type="checkbox"
               checked={selectedTables.size === filteredAndSortedTables.length && filteredAndSortedTables.length > 0}
@@ -564,14 +565,14 @@ export const TableManagementPanel: React.FC = () => {
             <span>All</span>
           </label>
         )}
-        <div className="search-box">
-          <span className="search-icon">🔍</span>
+        <div className={styles.searchBox}>
+          <span className={styles.searchIcon}>🔍</span>
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search tables..."
-            className="search-input"
+            className={styles.searchInput}
           />
           {searchQuery && (
             <button 
@@ -681,14 +682,14 @@ export const TableManagementPanel: React.FC = () => {
         {tablesLoading && <div className="loading-indicator">Loading tables...</div>}
         
         {!tablesLoading && filteredAndSortedTables.length === 0 && tables.length === 0 && (
-          <div className="empty-state">
+          <div className={styles.emptyState}>
             <p>No tables available</p>
             <p>Create a new table to get started</p>
           </div>
         )}
 
         {!tablesLoading && filteredAndSortedTables.length === 0 && tables.length > 0 && (
-          <div className="empty-state">
+          <div className={styles.emptyState}>
             <p>No tables match your search</p>
             <p>Try a different search term</p>
           </div>
@@ -916,7 +917,7 @@ export const TableManagementPanel: React.FC = () => {
             <div className="settings-section" style={{ background: 'transparent' }}>
               <h5 style={{ color: '#fff' }}>Grid Settings</h5>
               <div className="checkbox-row">
-                <label className="checkbox-label">
+                <label className={styles.checkboxLabel}>
                   <input
                     type="checkbox"
                     checked={settingsGridEnabled}

@@ -1,4 +1,4 @@
-.table-management-panel {
+.tableManagementPanel {
   background: #2a2a2a !important;
   border: 1px solid #444;
   border-radius: 8px;
@@ -12,7 +12,7 @@
   overflow: hidden;
 }
 
-.panel-header {
+.panelHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -22,22 +22,22 @@
   flex-shrink: 0;
 }
 
-.panel-header h3 {
+.panelHeader h3 {
   margin: 0;
   color: #fff;
   font-size: 16px;
   font-weight: 600;
 }
 
-.header-actions {
+.headerActions {
   display: flex;
   gap: 8px;
   padding-right: 0;
 }
 
-.refresh-button,
-.create-button,
-.settings-toggle-button {
+.refreshButton,
+.createButton,
+.settingsToggleButton {
   background: #3a3a3a;
   border: 1px solid #555;
   border-radius: 4px;
@@ -48,22 +48,22 @@
   transition: all 0.2s ease;
 }
 
-.refresh-button:hover,
-.create-button:hover,
-.settings-toggle-button:hover,
-.import-button:hover,
-.bulk-mode-button:hover {
+.refreshButton:hover,
+.createButton:hover,
+.settingsToggleButton:hover,
+.importButton:hover,
+.bulkModeButton:hover {
   background: #4a4a4a;
   border-color: #666;
 }
 
-.settings-toggle-button.active,
-.bulk-mode-button.active {
+.settingsToggleButton.active,
+.bulkModeButton.active {
   background: #0078d4;
   border-color: #0078d4;
 }
 
-.import-button {
+.importButton {
   background: #1a1a1a;
   border: 1px solid #555;
   color: #e0e0e0;
@@ -73,7 +73,7 @@
   transition: all 0.2s;
 }
 
-.bulk-mode-button {
+.bulkModeButton {
   background: #1a1a1a;
   border: 1px solid #555;
   color: #e0e0e0;
@@ -83,7 +83,7 @@
   transition: all 0.2s;
 }
 
-.refresh-button:disabled {
+.refreshButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   animation: spin 1s linear infinite;
@@ -95,7 +95,7 @@
 }
 
 /* Bulk Actions Bar */
-.bulk-actions-bar {
+.bulkActionsBar {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -107,19 +107,19 @@
   flex-shrink: 0;
 }
 
-.bulk-count {
+.bulkCount {
   font-weight: 600;
   color: #e0e0e0;
   font-size: 14px;
 }
 
-.bulk-buttons {
+.bulkButtons {
   display: flex;
   gap: 8px;
 }
 
-.bulk-duplicate-button,
-.bulk-delete-button {
+.bulkDuplicateButton,
+.bulkDeleteButton {
   padding: 6px 12px;
   border-radius: 4px;
   border: 1px solid;
@@ -129,30 +129,30 @@
   font-weight: 500;
 }
 
-.bulk-duplicate-button {
+.bulkDuplicateButton {
   background: #1a4a4a;
   border-color: #17a2b8;
   color: #17a2b8;
 }
 
-.bulk-duplicate-button:hover {
+.bulkDuplicateButton:hover {
   background: #17a2b8;
   color: #fff;
 }
 
-.bulk-delete-button {
+.bulkDeleteButton {
   background: #4a1a1a;
   border-color: #dc3545;
   color: #dc3545;
 }
 
-.bulk-delete-button:hover {
+.bulkDeleteButton:hover {
   background: #dc3545;
   color: #fff;
 }
 
 /* Panel Settings */
-.panel-settings {
+.panelSettings {
   background: #333;
   border: 1px solid #555;
   border-radius: 6px;
@@ -161,20 +161,20 @@
   flex-shrink: 0;
 }
 
-.settings-row {
+.settingsRow {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.help-text {
+.helpText {
   font-size: 12px;
   color: #999;
   margin-left: 26px;
 }
 
 /* Search and Filter Bar */
-.search-filter-bar {
+.searchFilterBar {
   display: flex;
   gap: 12px;
   align-items: center;
@@ -186,7 +186,7 @@
   flex-shrink: 0;
 }
 
-.select-all-checkbox {
+.selectAllCheckbox {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -201,20 +201,20 @@
   white-space: nowrap;
 }
 
-.select-all-checkbox input[type="checkbox"] {
+.selectAllCheckbox input[type="checkbox"] {
   cursor: pointer;
   width: 16px;
   height: 16px;
 }
 
-.search-box {
+.searchBox {
   flex: 1;
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.search-icon {
+.searchIcon {
   position: absolute;
   left: 8px;
   font-size: 14px;
@@ -222,7 +222,7 @@
   pointer-events: none;
 }
 
-.search-input {
+.searchInput {
   width: 100%;
   padding: 6px 32px 6px 32px;
   background: #444;
@@ -232,7 +232,7 @@
   font-size: 14px;
 }
 
-.search-input:focus {
+.searchInput:focus {
   outline: none;
   border-color: #0078d4;
   box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
@@ -439,18 +439,18 @@
   font-style: italic;
 }
 
-.empty-state {
+.emptyState {
   text-align: center;
   color: #999;
   padding: 20px;
 }
 
-.empty-state p {
+.emptyState p {
   margin: 8px 0;
 }
 
 /* Modern Card-Based Design - Material Design 3 Principles */
-.table-card {
+.tableCard {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -466,18 +466,18 @@
   height: 280px;
 }
 
-.table-card:hover {
+.tableCard:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
   border-color: #555;
 }
 
-.table-card.active {
+.tableCard.active {
   border-color: #0078d4;
   box-shadow: 0 8px 16px rgba(0, 120, 212, 0.4);
 }
 
-.table-card.active::before {
+.tableCard.active::before {
   content: '';
   position: absolute;
   top: 0;
@@ -488,17 +488,17 @@
 }
 
 /* Bulk Mode Styles */
-.table-card.bulk-mode {
+.tableCard.bulk-mode {
   cursor: pointer;
 }
 
-.table-card.selected {
+.tableCard.selected {
   border-color: #4a7abc;
   box-shadow: 0 8px 16px rgba(74, 122, 188, 0.6);
   background: #2a3a4c;
 }
 
-.table-card.selected::before {
+.tableCard.selected::before {
   content: '';
   position: absolute;
   top: 0;
@@ -600,7 +600,7 @@
 }
 
 /* Table Info Section */
-.table-card-info {
+.tableCard-info {
   flex: 1;
   padding: 12px;
   cursor: pointer;
@@ -609,7 +609,7 @@
   gap: 8px;
 }
 
-.table-card-name {
+.tableCard-name {
   font-size: 16px;
   font-weight: 600;
   color: #fff;
@@ -619,11 +619,11 @@
   line-height: 1.4;
 }
 
-.table-card.active .table-card-name {
+.tableCard.active .tableCard-name {
   color: #00bcf2;
 }
 
-.table-card-meta {
+.tableCard-meta {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
@@ -642,14 +642,14 @@
   line-height: 1;
 }
 
-.table-card-date {
+.tableCard-date {
   font-size: 11px;
   color: #888;
   margin-top: auto;
 }
 
 /* Action Bar */
-.table-card-actions {
+.tableCard-actions {
   display: flex;
   gap: 4px;
   padding: 8px;
@@ -837,7 +837,7 @@
     gap: 12px;
   }
   
-  .table-card {
+  .tableCard {
     height: 280px; /* Allow more height for wrapped buttons */
   }
   
@@ -850,15 +850,15 @@
     font-size: 12px;
   }
   
-  .table-card-actions {
+  .tableCard-actions {
     flex-wrap: wrap;
   }
   
-  .search-filter-bar {
+  .searchFilterBar {
     flex-wrap: wrap;
   }
   
-  .search-box {
+  .searchBox {
     flex: 1 1 100%;
     margin-bottom: 8px;
   }
@@ -955,7 +955,7 @@
   margin-bottom: 12px;
 }
 
-.checkbox-label {
+.checkboxLabel {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -964,13 +964,13 @@
   font-size: 14px;
 }
 
-.checkbox-label input[type="checkbox"] {
+.checkboxLabel input[type="checkbox"] {
   width: 18px;
   height: 18px;
   cursor: pointer;
 }
 
-.checkbox-label span {
+.checkboxLabel span {
   user-select: none;
 }
 

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useBrushPresets, usePaintInteraction, usePaintSystem } from '../hooks/usePaintSystem';
 import { useRenderEngine } from '../hooks/useRenderEngine';
 import { paintTemplateService, type TemplateMetadata } from '../services/paintTemplate.service';
-import './PaintPanel.css';
+import './PaintPanel.module.css';
 
 interface PanelDimensions {
   width: number;

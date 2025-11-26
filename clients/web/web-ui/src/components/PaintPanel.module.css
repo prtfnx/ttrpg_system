@@ -1,4 +1,4 @@
-.paint-panel {
+.paintPanel {
   background: #2a2a2a;
   border: 1px solid #444;
   border-radius: 8px;
@@ -12,144 +12,144 @@
 }
 
 /* Responsive layout classes */
-.paint-panel.narrow {
+.paintPanel.narrow {
   /* Narrow layout optimizations for panels < 300px */
 }
 
-.paint-panel.narrow .paint-mode-controls {
+.paintPanel.narrow .paint-mode-controls {
   flex-wrap: wrap;
   gap: 4px;
 }
 
-.paint-panel.narrow .paint-mode-controls button {
+.paintPanel.narrow .paint-mode-controls button {
   font-size: 12px;
   padding: 6px 10px;
 }
 
-.paint-panel.narrow .predefined-colors {
+.paintPanel.narrow .predefined-colors {
   grid-template-columns: repeat(4, 1fr);
   gap: 3px;
 }
 
-.paint-panel.narrow .color-swatch {
+.paintPanel.narrow .color-swatch {
   width: 20px;
   height: 20px;
 }
 
-.paint-panel.narrow .brush-slider-container {
+.paintPanel.narrow .brush-slider-container {
   flex-direction: column;
   gap: 4px;
 }
 
-.paint-panel.compact {
+.paintPanel.compact {
   /* Ultra-compact layout for very small panels < 250px */
   min-height: 300px;
 }
 
-.paint-panel.compact .paint-panel-content {
+.paintPanel.compact .paintPanel-content {
   padding: 8px;
 }
 
-.paint-panel.compact h4 {
+.paintPanel.compact h4 {
   font-size: 12px;
   margin-bottom: 6px;
 }
 
-.paint-panel.compact .paint-mode-controls {
+.paintPanel.compact .paint-mode-controls {
   gap: 2px;
 }
 
-.paint-panel.compact .paint-mode-controls button {
+.paintPanel.compact .paint-mode-controls button {
   font-size: 11px;
   padding: 4px 6px;
 }
 
-.paint-panel.compact .predefined-colors {
+.paintPanel.compact .predefined-colors {
   grid-template-columns: repeat(3, 1fr);
   gap: 2px;
 }
 
-.paint-panel.compact .color-swatch {
+.paintPanel.compact .color-swatch {
   width: 18px;
   height: 18px;
 }
 
-.paint-panel.compact .brush-slider {
+.paintPanel.compact .brush-slider {
   height: 4px;
 }
 
-.paint-panel.wide {
+.paintPanel.wide {
   /* Wide layout with more spacing for panels >= 300px */
 }
 
-.paint-panel.wide .paint-mode-controls {
+.paintPanel.wide .paint-mode-controls {
   gap: 12px;
 }
 
-.paint-panel.wide .predefined-colors {
+.paintPanel.wide .predefined-colors {
   grid-template-columns: repeat(6, 1fr);
   gap: 6px;
 }
 
-.paint-panel.wide .color-swatch {
+.paintPanel.wide .color-swatch {
   width: 28px;
   height: 28px;
 }
 
-.paint-panel.wide .template-item {
+.paintPanel.wide .template-item {
   padding: 12px;
 }
 
-.paint-panel.wide .template-actions {
+.paintPanel.wide .template-actions {
   gap: 6px;
 }
 
 /* Responsive template layout optimizations */
-.paint-panel.narrow .template-item {
+.paintPanel.narrow .template-item {
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
 }
 
-.paint-panel.narrow .template-actions {
+.paintPanel.narrow .template-actions {
   align-self: stretch;
   justify-content: center;
 }
 
-.paint-panel.compact .template-item {
+.paintPanel.compact .template-item {
   padding: 6px 8px;
   margin-bottom: 4px;
 }
 
-.paint-panel.compact .template-info {
+.paintPanel.compact .template-info {
   gap: 1px;
 }
 
-.paint-panel.compact .template-name {
+.paintPanel.compact .template-name {
   font-size: 12px;
 }
 
-.paint-panel.compact .template-meta {
+.paintPanel.compact .template-meta {
   font-size: 10px;
 }
 
 /* Responsive grid layouts */
-.paint-panel.narrow .brush-presets-grid {
+.paintPanel.narrow .brush-presets-grid {
   grid-template-columns: repeat(2, 1fr);
   gap: 6px;
 }
 
-.paint-panel.compact .brush-presets-grid {
+.paintPanel.compact .brush-presets-grid {
   grid-template-columns: 1fr;
   gap: 4px;
 }
 
-.paint-panel.wide .brush-presets-grid {
+.paintPanel.wide .brush-presets-grid {
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 
-.paint-panel-header {
+.paintPanel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -159,7 +159,7 @@
   border-radius: 8px 8px 0 0;
 }
 
-.paint-panel-header h3 {
+.paintPanel-header h3 {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
@@ -180,7 +180,7 @@
   background: #555;
 }
 
-.paint-panel-content {
+.paintPanel-content {
   padding: 16px;
 }
 
@@ -290,25 +290,25 @@
 }
 
 /* Responsive paint mode indicator */
-.paint-panel.narrow .paint-mode-indicator {
+.paintPanel.narrow .paint-mode-indicator {
   flex-direction: column;
   text-align: center;
   gap: 8px;
 }
 
-.paint-panel.narrow .paint-mode-indicator .mode-details {
+.paintPanel.narrow .paint-mode-indicator .mode-details {
   align-items: center;
 }
 
-.paint-panel.compact .paint-mode-indicator {
+.paintPanel.compact .paint-mode-indicator {
   padding: 8px 12px;
 }
 
-.paint-panel.compact .paint-mode-indicator .mode-name {
+.paintPanel.compact .paint-mode-indicator .mode-name {
   font-size: 12px;
 }
 
-.paint-panel.compact .paint-mode-indicator .mode-settings {
+.paintPanel.compact .paint-mode-indicator .mode-settings {
   font-size: 10px;
 }
 
@@ -373,11 +373,11 @@
   padding-bottom: 4px;
 }
 
-.color-picker-section {
+.colorPicker-section {
   margin-bottom: 16px;
 }
 
-.color-picker-section label {
+.colorPicker-section label {
   display: block;
   margin-bottom: 8px;
   font-size: 13px;
@@ -678,7 +678,7 @@
 
 /* Responsive Design */
 @media (max-width: 360px) {
-  .paint-panel {
+  .paintPanel {
     width: 100%;
     max-width: 320px;
   }
@@ -905,18 +905,18 @@
 }
 
 /* Responsive adjustments for paint mode selector */
-.paint-panel.narrow .paint-mode-selector {
+.paintPanel.narrow .paint-mode-selector {
   flex-direction: column;
   gap: 4px;
 }
 
-.paint-panel.narrow .paint-mode-selector .mode-button {
+.paintPanel.narrow .paint-mode-selector .mode-button {
   flex: none;
   font-size: 11px;
   padding: 6px 8px;
 }
 
-.paint-panel.compact .mode-status {
+.paintPanel.compact .mode-status {
   font-size: 11px;
   padding: 6px 8px;
 }

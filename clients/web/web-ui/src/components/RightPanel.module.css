@@ -1,0 +1,49 @@
+.rightPanelContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #111827;
+}
+
+.tabsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px;
+  border-bottom: 1px solid #374151;
+  max-height: 96px;
+  overflow-y: auto;
+}
+
+.tabButton {
+  flex: 0 1 auto;
+  padding: 6px 8px;
+  background-color: #0b2740;
+  border: 0;
+  cursor: pointer;
+  font-size: 12px;
+  color: #bcd7f8;
+  transition: background 0.12s ease, transform 0.12s ease;
+  white-space: nowrap;
+  border-radius: 4px;
+  box-sizing: border-box;
+  border-bottom: 2px solid transparent;
+}
+
+.tabButton:hover {
+  background-color: #0f375e;
+}
+
+.tabButton.active {
+  background-color: #0b3b7a;
+  border-bottom-color: #1e40af;
+  color: #ffffff;
+}
+
+.tabContent {
+  flex: 1 1 auto;
+  padding: 16px;
+  overflow-y: auto;
+  background: transparent;
+  border: none;
+}

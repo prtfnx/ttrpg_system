@@ -1,4 +1,4 @@
-.game-canvas-container {
+.gameCanvasContainer {
   position: relative;
   width: 100%;
   height: 100%;
@@ -7,14 +7,14 @@
   overflow: hidden;
 }
 
-.game-canvas {
+.gameCanvas {
   width: 100%;
   height: 100%;
   display: block;
   cursor: crosshair;
 }
 
-.canvas-overlay {
+.canvasOverlay {
   position: absolute;
   top: 12px;
   right: 12px;
@@ -25,7 +25,7 @@
   align-items: flex-end;
 }
 
-.status-indicator {
+.statusIndicator {
   padding: 6px 12px;
   border-radius: 6px;
   color: white;
@@ -35,27 +35,27 @@
   transition: all 0.3s ease;
 }
 
-.status-connected {
+.statusConnected {
   background-color: #4ade80;
   opacity: 0.7;
 }
 
-.status-connecting {
+.statusConnecting {
   background-color: #facc15;
   opacity: 1;
 }
 
-.status-error {
+.statusError {
   background-color: #ef4444;
   opacity: 1;
 }
 
-.status-disconnected {
+.statusDisconnected {
   background-color: #6b7280;
   opacity: 1;
 }
 
-.ws-status {
+.wsStatus {
   padding: 4px 8px;
   border-radius: 4px;
   color: white;
@@ -65,18 +65,17 @@
   transition: all 0.3s ease;
 }
 
-.ws-connected {
+.wsConnected {
   background-color: #10b981;
   opacity: 0.8;
 }
 
-.ws-disconnected {
+.wsDisconnected {
   background-color: #f59e0b;
   opacity: 1;
 }
 
-/* Development only debug overlay */
-.debug-overlay {
+.debugOverlay {
   position: absolute;
   top: 10px;
   left: 10px;

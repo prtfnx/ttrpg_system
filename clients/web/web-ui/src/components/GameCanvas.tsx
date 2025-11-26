@@ -11,7 +11,7 @@ import { useGameStore } from '../store';
 import type { RenderEngine } from '../types';
 import type { GlobalWasmModule } from '../utils/wasmManager';
 import { DragDropImageHandler } from './DragDropImageHandler';
-import './GameCanvas.css';
+import styles from './GameCanvas.module.css';
 import { CanvasRenderer } from './GameCanvas/CanvasRenderer';
 import PerformanceMonitor from './PerformanceMonitor';
 
@@ -949,7 +949,7 @@ export const GameCanvas: React.FC = () => {
 
   return (
     <DragDropImageHandler>
-      <div className="game-canvas-container" style={{ position: 'relative' }}>
+      <div className={styles.gameCanvasContainer} style={{ position: 'relative' }}>
         {/* Layer elements for testing */}
         <div data-testid="layer-background" data-visible="true" style={{ display: 'none' }} />
         <div data-testid="layer-tokens" data-visible="true" style={{ display: 'none' }} />
@@ -1007,7 +1007,7 @@ export const GameCanvas: React.FC = () => {
 
         <CanvasRenderer
           ref={canvasRef}
-          className="game-canvas"
+          className={styles.gameCanvas}
           data-testid="game-canvas"
           tabIndex={0}
           style={{ outline: 'none' }}
@@ -1240,7 +1240,7 @@ export const GameCanvas: React.FC = () => {
       
       {/* Debug overlay conditionally rendered in development */}
       {import.meta.env.DEV && (
-        <div className="debug-overlay">
+        <div className={styles.debugOverlay}>
           <div>Screen: {debugCursorScreen.x.toFixed(2)}, {debugCursorScreen.y.toFixed(2)}</div>
           <div>World: {debugCursorWorld.x.toFixed(2)}, {debugCursorWorld.y.toFixed(2)}</div>
           <div>Grid: {debugGrid.x}, {debugGrid.y}</div>

@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useAssetManager } from '../hooks/useAssetManager';
-import './AssetPanel.css';
+import clsx from 'clsx';
+import styles from './AssetPanel.module.css';
 
 export const AssetPanel: React.FC = () => {
   const {
@@ -179,11 +180,11 @@ export const AssetPanel: React.FC = () => {
 
   if (!isInitialized) {
     return (
-      <div className="asset-panel">
+      <div className={styles.assetPanel}>
         <h3>Asset Manager</h3>
-        <div className="asset-categories">
+        <div className={styles.assetCategories}>
           <div 
-            className={`category ${selectedCategory === 'images' ? 'active' : ''}`}
+            className={clsx(styles.category, selectedCategory === 'images' && styles.active)}
             onClick={() => setSelectedCategory('images')}
             role="button"
             aria-label="Images"
@@ -191,7 +192,7 @@ export const AssetPanel: React.FC = () => {
             Images
           </div>
           <div 
-            className={`category ${selectedCategory === 'models' ? 'active' : ''}`}
+            className={clsx(styles.category, selectedCategory === 'models' && styles.active)}
             onClick={() => setSelectedCategory('models')}
             role="button"
             aria-label="Models"
@@ -199,7 +200,7 @@ export const AssetPanel: React.FC = () => {
             Models
           </div>
           <div 
-            className={`category ${selectedCategory === 'audio' ? 'active' : ''}`}
+            className={clsx(styles.category, selectedCategory === 'audio' && styles.active)}
             onClick={() => setSelectedCategory('audio')}
             role="button"
             aria-label="Audio"
@@ -209,11 +210,11 @@ export const AssetPanel: React.FC = () => {
         </div>
 
         {/* Asset Search */}
-        <div className="asset-search">
+        <div className={styles.assetSearch}>
           <input
             type="text"
             placeholder="Search assets"
-            className="search-input"
+            className={styles.searchInput}
             onChange={(e) => {
               if (e.target.value) {
                 // Show filtering indication
@@ -237,7 +238,7 @@ export const AssetPanel: React.FC = () => {
 
         {/* Drag and Drop Zone */}
         <div 
-          className="drag-drop-zone"
+          className={styles.dragDropZone}
           onDragOver={handleDragOver}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
@@ -267,11 +268,11 @@ export const AssetPanel: React.FC = () => {
         />
 
         {/* Upload Status Monitoring */}
-        <div className="upload-monitoring">
+        <div className={styles.uploadMonitoring}>
           <div data-testid="upload-status">{uploadStatus}</div>
           <div data-testid="upload-progress" style={{ display: uploadProgress > 0 ? 'block' : 'none' }}>
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: `${uploadProgress}%` }}></div>
+            <div className={styles.progressBar}>
+              <div className={styles.progressFill} style={{ width: `${uploadProgress}%` }}></div>
             </div>
           </div>
           <div data-testid="upload-errors" style={{ display: uploadError ? 'block' : 'none', color: 'red' }}>
@@ -279,7 +280,7 @@ export const AssetPanel: React.FC = () => {
           </div>
           
           {/* Performance monitoring */}
-          <div className="performance-stats" style={{ fontSize: '12px', color: '#666' }}>
+          <div className={styles.performanceStats} style={{ fontSize: '12px', color: '#666' }}>
             <div data-testid="files-total">{uploadStats.filesTotal}</div>
             <div data-testid="files-processed">{uploadStats.filesProcessed}</div>
             <div data-testid="assets-loaded">{mockAssets.length}</div>
@@ -293,18 +294,18 @@ export const AssetPanel: React.FC = () => {
           </div>
         </div>
 
-        <button className="upload-btn" onClick={() => fileInputRef.current?.click()}>
+        <button className={styles.uploadBtn} onClick={() => fileInputRef.current?.click()}>
           Upload Asset
         </button>
 
         {/* Asset List Display */}
-        <div className="asset-list">
+        <div className={styles.assetList}>
           <h4>Assets ({filteredAssets.length})</h4>
           {filteredAssets.map(asset => (
-            <div key={asset.id} className="asset-item">
-              <div className="asset-info">
-                <div className="asset-name">{asset.name}</div>
-                <div className="asset-details">
+            <div key={asset.id} className={styles.assetItem}>
+              <div className={styles.assetInfo}>
+                <div className={styles.assetName}>{asset.name}</div>
+                <div className={styles.assetDetails}>
                   {(asset.size / 1024 / 1024).toFixed(2)} MB • {asset.type}
                 </div>
               </div>
@@ -318,25 +319,25 @@ export const AssetPanel: React.FC = () => {
   }
 
   return (
-    <div className="asset-panel">
+    <div className={styles.assetPanel}>
       <h3>Asset Manager</h3>
 
       {/* Asset Categories */}
-      <div className="asset-categories">
+      <div className={styles.assetCategories}>
         <div 
-          className={`category ${selectedCategory === 'images' ? 'active' : ''}`}
+          className={clsx(styles.category, selectedCategory === 'images' && styles.active)}
           onClick={() => setSelectedCategory('images')}
         >
           Images
         </div>
         <div 
-          className={`category ${selectedCategory === 'models' ? 'active' : ''}`}
+          className={clsx(styles.category, selectedCategory === 'models' && styles.active)}
           onClick={() => setSelectedCategory('models')}
         >
           Models
         </div>
         <div 
-          className={`category ${selectedCategory === 'audio' ? 'active' : ''}`}
+          className={clsx(styles.category, selectedCategory === 'audio' && styles.active)}
           onClick={() => setSelectedCategory('audio')}
         >
           Audio
@@ -344,20 +345,20 @@ export const AssetPanel: React.FC = () => {
       </div>
 
       {/* Asset Search */}
-      <div className="asset-search">
+      <div className={styles.assetSearch}>
         <input
           type="text"
           placeholder="Search assets"
-          className="search-input"
+          className={styles.searchInput}
         />
       </div>
 
       {/* Upload Status Monitoring */}
-      <div className="upload-monitoring">
+      <div className={styles.uploadMonitoring}>
         <div data-testid="upload-status">{uploadStatus}</div>
         <div data-testid="upload-progress" style={{ display: uploading ? 'block' : 'none' }}>
-          <div className="progress-bar">
-            <div className="progress-fill" style={{ width: uploading ? '50%' : '0%' }}></div>
+          <div className={styles.progressBar}>
+            <div className={styles.progressFill} style={{ width: uploading ? '50%' : '0%' }}></div>
           </div>
         </div>
         <div data-testid="upload-errors" style={{ display: uploadError ? 'block' : 'none', color: 'red' }}>
@@ -365,7 +366,7 @@ export const AssetPanel: React.FC = () => {
         </div>
         
         {/* Performance monitoring */}
-        <div className="performance-stats" style={{ fontSize: '12px', color: '#666' }}>
+        <div className={styles.performanceStats} style={{ fontSize: '12px', color: '#666' }}>
           <div data-testid="files-total">{mockAssets.length}</div>
           <div data-testid="files-processed">{mockAssets.length}</div>
           <div data-testid="assets-loaded">{mockAssets.length}</div>
@@ -383,7 +384,7 @@ export const AssetPanel: React.FC = () => {
 
       {/* Drag-and-drop upload zone - Primary upload interface */}
       <div
-        className="upload-dropzone"
+        className={styles.uploadDropzone}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         style={{
@@ -411,18 +412,18 @@ export const AssetPanel: React.FC = () => {
       />
 
       {/* Upload Button (secondary interface) */}
-      <button className="upload-btn" role="button" onClick={() => document.getElementById('file-input')?.click()}>
+      <button className={styles.uploadBtn} role="button" onClick={() => document.getElementById('file-input')?.click()}>
         Upload Asset
       </button>
       
       {/* Asset List */}
-      <div className="asset-list">
+      <div className={styles.assetList}>
         <h4>Assets ({filteredAssets.length})</h4>
         {filteredAssets.map(asset => (
-          <div key={asset.id} className="asset-item">
-            <div className="asset-info">
-              <div className="asset-name">{asset.name}</div>
-              <div className="asset-details">
+          <div key={asset.id} className={styles.assetItem}>
+            <div className={styles.assetInfo}>
+              <div className={styles.assetName}>{asset.name}</div>
+              <div className={styles.assetDetails}>
                 {formatFileSize(asset.size)} • {asset.type}
               </div>
             </div>
@@ -432,7 +433,7 @@ export const AssetPanel: React.FC = () => {
           </div>
         ))}
         {filteredAssets.length === 0 && (
-          <div className="no-assets">No assets found</div>
+          <div className={styles.noAssets}>No assets found</div>
         )}
       </div>
 
@@ -471,7 +472,7 @@ export const AssetPanel: React.FC = () => {
       )}
 
       {/* Asset List */}
-      <div className="asset-list">
+      <div className={styles.assetList}>
         <h4>Cached Assets ({assets.length})</h4>
         <div className="assets-container">
           {assets.map(asset => {
@@ -482,8 +483,8 @@ export const AssetPanel: React.FC = () => {
                 className={`asset-item ${selectedAsset === asset.id ? 'selected' : ''}`}
                 onClick={() => setSelectedAsset(asset.id)}
               >
-                <div className="asset-name">{info?.name || asset.id}</div>
-                <div className="asset-size">{info ? formatFileSize(info.size) : 'Unknown'}</div>
+                <div className={styles.assetName}>{info?.name || asset.id}</div>
+                <div className={styles.assetSize}>{info ? formatFileSize(info.size) : 'Unknown'}</div>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -497,14 +498,14 @@ export const AssetPanel: React.FC = () => {
             );
           })}
           {assets.length === 0 && (
-            <div className="no-assets">No assets cached</div>
+            <div className={styles.noAssets}>No assets cached</div>
           )}
         </div>
       </div>
 
       {/* Asset Details */}
       {selectedAssetInfo && (
-        <div className="asset-details">
+        <div className={styles.assetDetails}>
           <h4>Asset Details</h4>
           <div><strong>ID:</strong> {selectedAssetInfo.id}</div>
           <div><strong>Name:</strong> {selectedAssetInfo.name}</div>

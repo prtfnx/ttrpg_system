@@ -1,4 +1,4 @@
-.asset-panel {
+.assetPanel {
   padding: 1rem;
   background: #f8f9fa;
   border-radius: 8px;
@@ -6,33 +6,33 @@
   margin: 0 auto;
 }
 
-.asset-panel h3 {
+.assetPanel h3 {
   margin: 0 0 1rem 0;
   color: #333;
   border-bottom: 2px solid #007bff;
   padding-bottom: 0.5rem;
 }
 
-.asset-panel h4 {
+.assetPanel h4 {
   margin: 1.5rem 0 0.5rem 0;
   color: #555;
   font-size: 1.1rem;
 }
 
-.asset-panel h5 {
+.assetPanel h5 {
   margin: 1rem 0 0.5rem 0;
   color: #666;
   font-size: 1rem;
 }
 
-.asset-panel.loading {
+.assetPanel.loading {
   text-align: center;
   padding: 2rem;
   color: #666;
 }
 
 /* Stats Section */
-.stats-section {
+.statsSection {
   background: white;
   padding: 1rem;
   border-radius: 6px;
@@ -40,14 +40,14 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.stats-grid {
+.statsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 0.5rem;
   margin-bottom: 1rem;
 }
 
-.stats-grid > div {
+.statsGrid > div {
   background: #f8f9fa;
   padding: 0.5rem;
   border-radius: 4px;
@@ -55,14 +55,14 @@
   font-weight: 500;
 }
 
-.stats-controls {
+.statsControls {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
 }
 
 /* Settings Section */
-.settings-section {
+.settingsSection {
   background: white;
   padding: 1rem;
   border-radius: 6px;
@@ -70,21 +70,21 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.settings-grid {
+.settingsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
   margin-bottom: 1rem;
 }
 
-.settings-grid label {
+.settingsGrid label {
   display: flex;
   flex-direction: column;
   font-weight: 500;
   color: #555;
 }
 
-.settings-grid input {
+.settingsGrid input {
   margin-top: 0.25rem;
   padding: 0.5rem;
   border: 1px solid #ddd;
@@ -92,7 +92,7 @@
 }
 
 /* Upload Section */
-.upload-section {
+.uploadSection {
   background: white;
   padding: 1rem;
   border-radius: 6px;
@@ -100,22 +100,22 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.upload-method {
+.uploadMethod {
   margin-bottom: 1.5rem;
   padding: 1rem;
   background: #f8f9fa;
   border-radius: 4px;
 }
 
-.upload-form {
+.uploadForm {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.upload-form input[type="text"],
-.upload-form input[type="url"],
-.upload-form input[type="file"] {
+.uploadForm input[type="text"],
+.uploadForm input[type="url"],
+.uploadForm input[type="file"] {
   padding: 0.5rem;
   border: 1px solid #ddd;
   border-radius: 4px;
@@ -123,7 +123,7 @@
 }
 
 /* Asset List Section */
-.asset-list-section {
+.assetList-section {
   background: white;
   padding: 1rem;
   border-radius: 6px;
@@ -131,14 +131,14 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.asset-list {
+.assetList {
   max-height: 300px;
   overflow-y: auto;
   border: 1px solid #eee;
   border-radius: 4px;
 }
 
-.asset-item {
+.assetItem {
   display: grid;
   grid-template-columns: 1fr auto auto;
   align-items: center;
@@ -148,20 +148,20 @@
   transition: background-color 0.2s;
 }
 
-.asset-item:hover {
+.assetItem:hover {
   background-color: #f8f9fa;
 }
 
-.asset-item.selected {
+.assetItem.selected {
   background-color: #e3f2fd;
   border-left: 4px solid #007bff;
 }
 
-.asset-item:last-child {
+.assetItem:last-child {
   border-bottom: none;
 }
 
-.asset-name {
+.assetName {
   font-weight: 500;
   color: #333;
   overflow: hidden;
@@ -169,18 +169,18 @@
   white-space: nowrap;
 }
 
-.asset-size {
+.assetSize {
   color: #666;
   font-size: 0.9rem;
   margin-right: 1rem;
 }
 
-.asset-actions {
+.assetActions {
   display: flex;
   gap: 0.5rem;
 }
 
-.no-assets {
+.noAssets {
   padding: 2rem;
   text-align: center;
   color: #666;
@@ -188,7 +188,7 @@
 }
 
 /* Asset Details Section */
-.asset-details-section {
+.assetDetails-section {
   background: white;
   padding: 1rem;
   border-radius: 6px;
@@ -196,29 +196,29 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.asset-details {
+.assetDetails {
   display: grid;
   gap: 0.5rem;
 }
 
-.asset-details > div {
+.assetDetails > div {
   padding: 0.5rem;
   background: #f8f9fa;
   border-radius: 4px;
   word-break: break-all;
 }
 
-.asset-details strong {
+.assetDetails strong {
   color: #555;
   margin-right: 0.5rem;
 }
 
-.asset-details a {
+.assetDetails a {
   color: #007bff;
   text-decoration: none;
 }
 
-.asset-details a:hover {
+.assetDetails a:hover {
   text-decoration: underline;
 }
 
@@ -258,28 +258,28 @@ button.small {
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .asset-panel {
+  .assetPanel {
     padding: 0.5rem;
   }
   
-  .stats-grid {
+  .statsGrid {
     grid-template-columns: repeat(2, 1fr);
   }
   
-  .settings-grid {
+  .settingsGrid {
     grid-template-columns: 1fr;
   }
   
-  .asset-item {
+  .assetItem {
     grid-template-columns: 1fr;
     gap: 0.5rem;
   }
   
-  .asset-actions {
+  .assetActions {
     justify-content: flex-end;
   }
   
-  .stats-controls {
+  .statsControls {
     justify-content: center;
   }
 }

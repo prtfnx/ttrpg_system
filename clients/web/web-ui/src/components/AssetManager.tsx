@@ -1,8 +1,9 @@
+import clsx from 'clsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAssetManager } from '../hooks/useAssetManager';
 import { useAuthenticatedWebSocket } from '../hooks/useAuthenticatedWebSocket';
 import { MessageType, createMessage } from '../protocol/message';
-import './AssetManager.css';
+import styles from './AssetManager.module.css';
 
 
 interface AssetManagerProps {
@@ -209,28 +210,28 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
   if (!isVisible) return null;
 
   return (
-    <div className="asset-manager-overlay">
-      <div className="asset-manager">
-        <div className="asset-manager-header">
+    <div className={styles.assetManagerOverlay}>
+      <div className={styles.assetManager}>
+        <div className={styles.assetManagerHeader}>
           <h2>Asset Manager</h2>
-          <button className="close-button" onClick={onClose}>×</button>
+          <button className={styles.closeButton} onClick={onClose}>×</button>
         </div>
 
-        <div className="asset-manager-tabs">
+        <div className={styles.assetManagerTabs}>
           <button
-            className={`tab ${activeTab === 'cache' ? 'active' : ''}`}
+            className={clsx(styles.tab, activeTab === 'cache' && styles.active)}
             onClick={() => setActiveTab('cache')}
           >
             Cache ({stats?.total_assets || 0})
           </button>
           <button
-            className={`tab ${activeTab === 'upload' ? 'active' : ''}`}
+            className={clsx(styles.tab, activeTab === 'upload' && styles.active)}
             onClick={() => setActiveTab('upload')}
           >
             Upload ({uploadFiles.size})
           </button>
           <button
-            className={`tab ${activeTab === 'settings' ? 'active' : ''}`}
+            className={clsx(styles.tab, activeTab === 'settings' && styles.active)}
             onClick={() => setActiveTab('settings')}
           >
             Settings
@@ -238,84 +239,84 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
         </div>
 
         {error && (
-          <div className="error-message">
+          <div className={styles.errorMessage}>
             {error}
           </div>
         )}
 
         {activeTab === 'cache' && (
-          <div className="cache-tab">
-            <div className="cache-stats">
-              <div className="stat-item">
-                <span className="stat-label">Total Assets:</span>
-                <span className="stat-value">{stats?.total_assets || 0}</span>
+          <div className={styles.cacheTab}>
+            <div className={styles.cacheStats}>
+              <div className={styles.statItem}>
+                <span className={styles.statLabel}>Total Assets:</span>
+                <span className={styles.statValue}>{stats?.total_assets || 0}</span>
               </div>
-              <div className="stat-item">
-                <span className="stat-label">Cache Size:</span>
-                <span className="stat-value">{formatFileSize(stats?.total_size || 0)}</span>
+              <div className={styles.statItem}>
+                <span className={styles.statLabel}>Cache Size:</span>
+                <span className={styles.statValue}>{formatFileSize(stats?.total_size || 0)}</span>
               </div>
-              <div className="stat-item">
-                <span className="stat-label">Cache Usage:</span>
-                <span className="stat-value">{getCacheUsagePercentage()}%</span>
+              <div className={styles.statItem}>
+                <span className={styles.statLabel}>Cache Usage:</span>
+                <span className={styles.statValue}>{getCacheUsagePercentage()}%</span>
               </div>
-              <div className="stat-item">
-                <span className="stat-label">Cache Hits:</span>
-                <span className="stat-value">{stats?.cache_hits || 0}</span>
+              <div className={styles.statItem}>
+                <span className={styles.statLabel}>Cache Hits:</span>
+                <span className={styles.statValue}>{stats?.cache_hits || 0}</span>
               </div>
-              <div className="stat-item">
-                <span className="stat-label">Cache Misses:</span>
-                <span className="stat-value">{stats?.cache_misses || 0}</span>
+              <div className={styles.statItem}>
+                <span className={styles.statLabel}>Cache Misses:</span>
+                <span className={styles.statValue}>{stats?.cache_misses || 0}</span>
               </div>
             </div>
 
-            <div className="cache-usage-bar">
+            <div className={styles.cacheUsageBar}>
               <div 
-                className="usage-fill"
+                className={styles.usageFill}
                 style={{ width: `${Math.min(getCacheUsagePercentage(), 100)}%` }}
               />
             </div>
 
-            <div className="cache-controls">
+            <div className={styles.cacheControls}>
               <input
                 type="text"
                 placeholder="Search assets..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="search-input"
+                className={styles.searchInput}
               />
-              <button onClick={handleSelectAll} className="control-button">
+              <button onClick={handleSelectAll} className={styles.controlButton}>
                 {selectedAssets.size === filteredAssets.length ? 'Deselect All' : 'Select All'}
               </button>
               <button 
                 onClick={handleRemoveSelected} 
-                className="control-button danger"
+                className={clsx(styles.controlButton, styles.danger)}
                 disabled={selectedAssets.size === 0}
               >
                 Remove Selected ({selectedAssets.size})
               </button>
-              <button onClick={performCleanup} className="control-button">
+              <button onClick={performCleanup} className={styles.controlButton}>
                 Cleanup Cache
               </button>
-              <button onClick={clearCache} className="control-button danger">
+              <button onClick={clearCache} className={clsx(styles.controlButton, styles.danger)}>
                 Clear All
               </button>
             </div>
 
-            <div className="asset-list">
+            <div className={styles.assetList}>
               {filteredAssets.map((assetId: string) => {
                 const assetInfo = getAssetInfo(assetId);
                 if (!assetInfo) return null;
 
                 return (
-                  <div key={assetId} className="asset-item">
+                  <div key={assetId} className={styles.assetItem}>
                     <input
                       type="checkbox"
                       checked={selectedAssets.has(assetId)}
                       onChange={(e) => handleSelectAsset(assetId, e.target.checked)}
                     />
-                    <div className="asset-info">
-                      <div className="asset-name">{assetInfo.name}</div>
-                      <div className="asset-details">
+                    <div className={styles.assetInfo}>
+                      <div className={styles.assetName}>{assetInfo.name}</div>
+                      <div className={styles.assetDetails}>
                         {formatFileSize(assetInfo.size)} • {assetInfo.mime_type}
                         {assetInfo.last_accessed && (
                           <span> • Last accessed: {new Date(assetInfo.last_accessed).toLocaleDateString()}</span>
@@ -324,7 +325,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
                     </div>
                     <button
                       onClick={() => handleRemoveAsset(assetId)}
-                      className="remove-asset-button"
+                      className={styles.removeAssetButton}
                     >
                       Remove
                     </button>
@@ -332,7 +333,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
                 );
               })}
               {filteredAssets.length === 0 && (
-                <div className="no-assets">
+                <div className={styles.noAssets}>
                   {searchTerm ? 'No assets match your search.' : 'No assets cached.'}
                 </div>
               )}
@@ -341,8 +342,8 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
         )}
 
         {activeTab === 'upload' && (
-          <div className="upload-tab">
-            <div className="upload-controls">
+          <div className={styles.uploadTab}>
+            <div className={styles.uploadControls}>
               <input
                 type="file"
                 ref={fileInputRef}
@@ -353,39 +354,39 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="select-files-button"
+                className={styles.selectFilesButton}
               >
                 Select Files
               </button>
             </div>
 
-            <div className="upload-list">
+            <div className={styles.uploadList}>
               {Array.from(uploadFiles.entries()).map(([fileId, fileInfo]) => (
-                <div key={fileId} className="upload-item">
+                <div key={fileId} className={styles.uploadItem}>
                   {fileInfo.preview && (
                     <img 
                       src={fileInfo.preview} 
                       alt={fileInfo.file.name}
-                      className="upload-preview"
+                      className={styles.uploadPreview}
                     />
                   )}
-                  <div className="upload-info">
-                    <div className="upload-name">{fileInfo.file.name}</div>
-                    <div className="upload-details">
+                  <div className={styles.uploadInfo}>
+                    <div className={styles.uploadName}>{fileInfo.file.name}</div>
+                    <div className={styles.uploadDetails}>
                       {formatFileSize(fileInfo.file.size)} • {fileInfo.file.type}
                     </div>
-                    <div className="upload-status">
+                    <div className={styles.uploadStatus}>
                       Status: {fileInfo.status}
                       {fileInfo.status === 'uploading' && (
                         <span> ({fileInfo.progress}%)</span>
                       )}
                     </div>
                   </div>
-                  <div className="upload-actions">
+                  <div className={styles.uploadActions}>
                     {fileInfo.status === 'pending' && (
                       <button
                         onClick={() => handleUploadBatch([fileId])}
-                        className="upload-button"
+                        className={styles.uploadButton}
                       >
                         Upload
                       </button>
@@ -417,22 +418,22 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
         )}
 
         {activeTab === 'settings' && (
-          <div className="settings-tab">
+          <div className={styles.settingsTab}>
             <div className="setting-group">
               <h3>Cache Configuration</h3>
-              <div className="setting-item">
+              <div className={styles.settingItem}>
                 <label>Maximum Cache Size: 100 MB</label>
                 <div className="setting-description">
                   Maximum amount of storage used for cached assets
                 </div>
               </div>
-              <div className="setting-item">
+              <div className={styles.settingItem}>
                 <label>Maximum Age: 24 hours</label>
                 <div className="setting-description">
                   Assets older than this will be removed during cleanup
                 </div>
               </div>
-              <div className="setting-item">
+              <div className={styles.settingItem}>
                 <label>Auto Cleanup: Enabled</label>
                 <div className="setting-description">
                   Automatically remove old assets every 30 minutes
@@ -442,7 +443,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
 
             <div className="setting-group">
               <h3>Upload Configuration</h3>
-              <div className="setting-item">
+              <div className={styles.settingItem}>
                 <label>Max Concurrent Uploads: 3</label>
                 <div className="setting-description">
                   Maximum number of files that can be uploaded simultaneously
@@ -452,7 +453,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
 
             <div className="setting-group">
               <h3>Storage Information</h3>
-              <div className="setting-item">
+              <div className={styles.settingItem}>
                 <label>IndexedDB Support: Available</label>
                 <div className="setting-description">
                   Browser supports persistent local storage for assets

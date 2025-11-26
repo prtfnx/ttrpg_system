@@ -1,6 +1,6 @@
+import clsx from 'clsx';
 import React, { useRef, useState } from 'react';
 import { useAssetManager } from '../hooks/useAssetManager';
-import clsx from 'clsx';
 import styles from './AssetPanel.module.css';
 
 export const AssetPanel: React.FC = () => {

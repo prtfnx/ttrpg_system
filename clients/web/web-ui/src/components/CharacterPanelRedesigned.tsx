@@ -1,15 +1,15 @@
+import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
-import clsx from 'clsx';
 import { authService } from '../services/auth.service';
 import { useProtocol } from '../services/ProtocolContext';
 import { useGameStore } from '../store';
 import type { Character } from '../types';
 import {
-  cloneCharacter,
-  downloadCharacterAsJSON,
-  downloadMultipleCharactersAsJSON,
-  pickAndImportCharacter
+    cloneCharacter,
+    downloadCharacterAsJSON,
+    downloadMultipleCharactersAsJSON,
+    pickAndImportCharacter
 } from '../utils/characterImportExport';
 import { showToast } from '../utils/toast';
 import styles from './CharacterPanelRedesigned.module.css';

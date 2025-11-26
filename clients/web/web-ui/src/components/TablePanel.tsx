@@ -1,7 +1,7 @@
+import clsx from 'clsx';
 import React, { useState } from 'react';
 import type { TableInfo } from '../hooks/useTableManager';
 import { useTableManager } from '../hooks/useTableManager';
-import clsx from 'clsx';
 import styles from './TablePanel.module.css';
 
 const TablePanel: React.FC = () => {

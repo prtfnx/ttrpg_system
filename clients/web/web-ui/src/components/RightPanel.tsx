@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import clsx from 'clsx';
+import { useState } from 'react';
 import { ActionQueuePanel } from './ActionQueuePanel';
 import { ActionsPanel } from './ActionsPanel';
 import { ActionsQuickPanel } from './ActionsQuickPanel';
@@ -14,10 +14,10 @@ import { LightingPanel } from './LightingPanel';
 import { NetworkPanel } from './NetworkPanel';
 import { PaintPanel } from './PaintPanel';
 import { PlayerManagerPanel } from './PlayerManagerPanel';
+import styles from './RightPanel.module.css';
 import { TableManagementPanel } from './TableManagementPanel';
 import TablePanel from './TablePanel';
 import TableSyncPanel from './TableSyncPanel';
-import styles from './RightPanel.module.css';
 
 // Development-only imports
 const isDevelopment = import.meta.env.DEV;

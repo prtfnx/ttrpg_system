@@ -9,7 +9,7 @@ import type { LoginCredentials, OAuthProvider, RegisterCredentials } from '../se
 import { enhancedAuthService } from '../services/enhancedAuth.service';
 import { ErrorBoundary } from './common/ErrorBoundary';
 import { LoadingSpinner } from './common/LoadingSpinner';
-import './EnhancedLogin.css';
+import './EnhancedLogin.module.css';
 
 interface PasswordStrength {
   score: number;

@@ -344,7 +344,7 @@
   text-decoration: underline;
 }
 
-.forgot-password-link {
+.forgotPassword-link {
   background: none;
   border: none;
   color: #667eea;
@@ -354,12 +354,12 @@
   transition: color 0.3s ease;
 }
 
-.forgot-password-link:hover:not(:disabled) {
+.forgotPassword-link:hover:not(:disabled) {
   color: #5a6fd8;
   text-decoration: underline;
 }
 
-.forgot-password-link:disabled {
+.forgotPassword-link:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -587,7 +587,7 @@
     border-color: #404040;
   }
   
-  .forgot-password-link,
+  .forgotPassword-link,
   .toggle-btn {
     color: #667eea;
   }

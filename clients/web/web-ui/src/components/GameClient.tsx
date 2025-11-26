@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
 import clsx from 'clsx';
+import React, { useEffect } from 'react';
 import { useAuthenticatedWebSocket } from '../hooks/useAuthenticatedWebSocket';
 import type { UserInfo } from '../services/auth.service';
 import { GameCanvas } from './GameCanvas';

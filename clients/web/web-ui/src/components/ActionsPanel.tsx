@@ -1,7 +1,8 @@
 import React, { useCallback, useState } from 'react';
 import { useActions, type ActionResult, type BatchAction, type TableInfo } from '../hooks/useActions';
 import type { RenderEngine } from '../types/wasm';
-import './ActionsPanel.css';
+import clsx from 'clsx';
+import styles from './ActionsPanel.module.css';
 
 interface ActionsPanelProps {
   renderEngine: RenderEngine | null;
@@ -105,10 +106,10 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
     switch (activeTab) {
       case 'tables':
         return (
-          <div className="actions-tab-content">
-            <div className="actions-form">
+          <div className={styles.actionsTabContent}>
+            <div className={styles.actionsForm}>
               <h4>Create Table</h4>
-              <div className="form-row">
+              <div className={styles.formRow}>
                 <input
                   type="text"
                   placeholder="Table name"
@@ -116,7 +117,7 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
                   onChange={(e) => setTableForm(prev => ({ ...prev, name: e.target.value }))}
                 />
               </div>
-              <div className="form-row">
+              <div className={styles.formRow}>
                 <input
                   type="number"
                   placeholder="Width"
@@ -133,30 +134,30 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
               <button 
                 onClick={handleCreateTable}
                 disabled={!tableForm.name.trim() || actions.isLoading}
-                className="action-button primary"
+                className={clsx(styles.actionButton, styles.primary)}
               >
                 Create Table
               </button>
             </div>
 
-            <div className="actions-list">
+            <div className={styles.actionsList}>
               <h4>Tables ({actions.tables.size})</h4>
               {Array.from(actions.tables.values()).map(table => (
-                <div key={table.table_id} className={`list-item ${selectedTable === table.table_id ? 'selected' : ''}`}>
-                  <div className="item-info" onClick={() => setSelectedTable(table.table_id)}>
+                <div key={table.table_id} className={clsx(styles.listItem, selectedTable === table.table_id && styles.selected)}>
+                  <div className={styles.itemInfo} onClick={() => setSelectedTable(table.table_id)}>
                     <strong>{table.name}</strong>
                     <span>{table.width}x{table.height}</span>
                   </div>
-                  <div className="item-actions">
+                  <div className={styles.itemActions}>
                     <button 
                       onClick={() => handleUpdateTable(table.table_id, { scale_x: 1.5, scale_y: 1.5 })}
-                      className="action-button small"
+                      className={clsx(styles.actionButton, styles.small)}
                     >
                       Scale
                     </button>
                     <button 
                       onClick={() => handleDeleteTable(table.table_id)}
-                      className="action-button small danger"
+                      className={clsx(styles.actionButton, styles.small, styles.danger)}
                     >
                       Delete
                     </button>
@@ -169,20 +170,20 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
 
       case 'layers':
         return (
-          <div className="actions-tab-content">
+          <div className={styles.actionsTabContent}>
             <h4>Layer Visibility</h4>
-            <div className="layer-controls">
+            <div className={styles.layerControls}>
               {Array.from(actions.layerVisibility.entries()).map(([layer, visible]) => (
-                <div key={layer} className="layer-item">
-                  <label className="layer-toggle">
+                <div key={layer} className={styles.layerItem}>
+                  <label className={styles.layerToggle}>
                     <input
                       type="checkbox"
                       checked={visible}
                       onChange={() => handleToggleLayerVisibility(layer)}
                     />
-                    <span className="layer-name">{layer.replace('_', ' ')}</span>
+                    <span className={styles.layerName}>{layer.replace('_', ' ')}</span>
                   </label>
-                  <span className="sprite-count">
+                  <span className={styles.spriteCount}>
                     ({Array.from(actions.sprites.values()).filter(s => s.layer === layer).length})
                   </span>
                 </div>
@@ -193,32 +194,32 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
 
       case 'history':
         return (
-          <div className="actions-tab-content">
-            <div className="history-controls">
+          <div className={styles.actionsTabContent}>
+            <div className={styles.historyControls}>
               <button 
                 onClick={actions.undo}
                 disabled={!actions.canUndo || actions.isLoading}
-                className="action-button"
+                className={styles.actionButton}
               >
                 ↶ Undo
               </button>
               <button 
                 onClick={actions.redo}
                 disabled={!actions.canRedo || actions.isLoading}
-                className="action-button"
+                className={styles.actionButton}
               >
                 ↷ Redo
               </button>
               <button 
                 onClick={handleBatchTest}
                 disabled={actions.isLoading}
-                className="action-button"
+                className={styles.actionButton}
               >
                 Batch Test
               </button>
               <button 
                 onClick={actions.refreshState}
-                className="action-button"
+                className={styles.actionButton}
               >
                 Refresh
               </button>
@@ -245,19 +246,19 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
   };
 
   return (
-    <div className={`actions-panel ${className}`}>
-      <div className="panel-header">
+    <div className={clsx(styles.actionsPanel, className)}>
+      <div className={styles.panelHeader}>
         <h3>Actions System</h3>
-        {actions.isLoading && <div className="loading-indicator">⏳</div>}
+        {actions.isLoading && <div className={styles.loadingIndicator}>⏳</div>}
         {actions.error && (
-          <div className="error-message">
+          <div className={styles.errorMessage}>
             {actions.error}
-            <button onClick={actions.clearError} className="clear-error">×</button>
+            <button onClick={actions.clearError} className={styles.clearError}>×</button>
           </div>
         )}
       </div>
 
-      <div className="panel-tabs">
+      <div className={styles.panelTabs}>
         {['tables', 'layers', 'history'].map(tab => (
           <button
             key={tab}
@@ -269,7 +270,7 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
         ))}
       </div>
 
-      <div className="panel-content">
+      <div className={styles.panelContent}>
         {renderTabContent()}
       </div>
 
@@ -278,7 +279,7 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
           <h4>Recent Logs</h4>
           <div className="logs-container">
             {logs.slice(-5).map((log, index) => (
-              <div key={index} className="log-entry">
+              <div key={index} className={styles.logEntry}>
                 {log}
               </div>
             ))}

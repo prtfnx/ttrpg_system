@@ -1,4 +1,4 @@
-.actions-panel {
+.actionsPanel {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -9,7 +9,7 @@
   overflow: hidden;
 }
 
-.panel-header {
+.panelHeader {
   padding: 12px;
   background: #383838;
   border-bottom: 1px solid #464647;
@@ -19,18 +19,18 @@
   flex-shrink: 0;
 }
 
-.panel-header h3 {
+.panelHeader h3 {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
 }
 
-.loading-indicator {
+.loadingIndicator {
   font-size: 12px;
   animation: pulse 1.5s infinite;
 }
 
-.error-message {
+.errorMessage {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -41,7 +41,7 @@
   font-size: 12px;
 }
 
-.clear-error {
+.clearError {
   background: none;
   border: none;
   color: white;
@@ -50,14 +50,14 @@
   padding: 0 4px;
 }
 
-.panel-tabs {
+.panelTabs {
   display: flex;
   background: #333333;
   border-bottom: 1px solid #464647;
   flex-shrink: 0;
 }
 
-.actions-panel .tab-button {
+.tabButton {
   flex: 1;
   padding: 8px 12px;
   background: none;
@@ -68,48 +68,48 @@
   transition: background-color 0.2s;
 }
 
-.actions-panel .tab-button:hover {
+.tabButton:hover {
   background: #404040;
 }
 
-.actions-panel .tab-button.active {
+.tabButton.active {
   background: #007acc;
   color: white;
 }
 
-.panel-content {
+.panelContent {
   flex: 1;
   overflow-y: auto;
   padding: 12px;
 }
 
-.actions-tab-content {
+.actionsTabContent {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.actions-form {
+.actionsForm {
   background: #383838;
   border: 1px solid #464647;
   border-radius: 4px;
   padding: 12px;
 }
 
-.actions-form h4 {
+.actionsForm h4 {
   margin: 0 0 12px 0;
   font-size: 13px;
   color: #e1e1e1;
 }
 
-.form-row {
+.formRow {
   display: flex;
   gap: 8px;
   margin-bottom: 8px;
 }
 
-.form-row input,
-.form-row select {
+.formRow input,
+.formRow select {
   flex: 1;
   padding: 6px 8px;
   background: #1e1e1e;
@@ -119,13 +119,13 @@
   font-size: 12px;
 }
 
-.form-row input:focus,
-.form-row select:focus {
+.formRow input:focus,
+.formRow select:focus {
   outline: none;
   border-color: #007acc;
 }
 
-.action-button {
+.actionButton {
   padding: 6px 12px;
   background: #0e639c;
   border: none;
@@ -136,38 +136,38 @@
   transition: background-color 0.2s;
 }
 
-.action-button:hover:not(:disabled) {
+.actionButton:hover:not(:disabled) {
   background: #1177bb;
 }
 
-.action-button:disabled {
+.actionButton:disabled {
   background: #666666;
   cursor: not-allowed;
   opacity: 0.6;
 }
 
-.action-button.primary {
+.actionButton.primary {
   background: #16825d;
 }
 
-.action-button.primary:hover:not(:disabled) {
+.actionButton.primary:hover:not(:disabled) {
   background: #1e9750;
 }
 
-.action-button.danger {
+.actionButton.danger {
   background: #d32f2f;
 }
 
-.action-button.danger:hover:not(:disabled) {
+.actionButton.danger:hover:not(:disabled) {
   background: #f44336;
 }
 
-.action-button.small {
+.actionButton.small {
   padding: 4px 8px;
   font-size: 11px;
 }
 
-.actions-list {
+.actionsList {
   background: #383838;
   border: 1px solid #464647;
   border-radius: 4px;
@@ -176,13 +176,13 @@
   overflow-y: auto;
 }
 
-.actions-list h4 {
+.actionsList h4 {
   margin: 0 0 12px 0;
   font-size: 13px;
   color: #e1e1e1;
 }
 
-.list-item {
+.listItem {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -195,44 +195,44 @@
   transition: background-color 0.2s;
 }
 
-.list-item:hover {
+.listItem:hover {
   background: #404040;
 }
 
-.list-item.selected {
+.listItem.selected {
   background: #2e4d7b;
   border-color: #007acc;
 }
 
-.item-info {
+.itemInfo {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.item-info strong {
+.itemInfo strong {
   font-size: 13px;
   color: #e1e1e1;
 }
 
-.item-info span {
+.itemInfo span {
   font-size: 11px;
   color: #999999;
 }
 
-.item-actions {
+.itemActions {
   display: flex;
   gap: 4px;
 }
 
-.layer-controls {
+.layerControls {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.layer-item {
+.layerItem {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -242,7 +242,7 @@
   border-radius: 3px;
 }
 
-.layer-toggle {
+.layerToggle {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -250,28 +250,28 @@
   flex: 1;
 }
 
-.layer-toggle input[type="checkbox"] {
+.layerToggle input[type="checkbox"] {
   margin: 0;
 }
 
-.layer-name {
+.layerName {
   font-size: 13px;
   text-transform: capitalize;
 }
 
-.sprite-count {
+.spriteCount {
   font-size: 11px;
   color: #999999;
 }
 
-.history-controls {
+.historyControls {
   display: flex;
   gap: 8px;
   margin-bottom: 12px;
   flex-wrap: wrap;
 }
 
-.history-list {
+.historyList {
   background: #383838;
   border: 1px solid #464647;
   border-radius: 4px;
@@ -280,7 +280,7 @@
   overflow-y: auto;
 }
 
-.history-item {
+.historyItem {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -292,35 +292,35 @@
   font-size: 12px;
 }
 
-.history-type {
+.historyType {
   font-weight: 500;
   color: #e1e1e1;
 }
 
-.history-time {
+.historyTime {
   color: #999999;
   font-size: 11px;
 }
 
-.history-reversible {
+.historyReversible {
   color: #16825d;
   font-weight: bold;
 }
 
-.panel-footer {
+.panelFooter {
   flex-shrink: 0;
   background: #383838;
   border-top: 1px solid #464647;
   padding: 8px 12px;
 }
 
-.action-logs h4 {
+.actionLogs h4 {
   margin: 0 0 8px 0;
   font-size: 12px;
   color: #e1e1e1;
 }
 
-.logs-container {
+.logsContainer {
   max-height: 80px;
   overflow-y: auto;
   background: #1e1e1e;
@@ -329,14 +329,14 @@
   padding: 6px;
 }
 
-.log-entry {
+.logEntry {
   font-size: 11px;
   color: #cccccc;
   padding: 2px 0;
   border-bottom: 1px solid #333333;
 }
 
-.log-entry:last-child {
+.logEntry:last-child {
   border-bottom: none;
 }
 

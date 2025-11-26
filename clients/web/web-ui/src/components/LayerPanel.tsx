@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRenderEngine } from '../hooks/useRenderEngine';
 import { useGameStore } from '../store';
-import './LayerPanel.css';
+import clsx from 'clsx';
+import styles from './LayerPanel.module.css';
 
 interface Layer {
   id: string;
@@ -212,9 +213,9 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
 
   if (isLoading) {
     return (
-      <div className={`layer-panel loading ${className || ''}`} style={dynamicStyle} id={id} {...otherProps}>
-        <div className="loading-content">
-          <div className="spinner"></div>
+      <div className={clsx(styles.layerPanel, styles.loading, className)} style={dynamicStyle} id={id} {...otherProps}>
+        <div className={styles.loadingContent}>
+          <div className={styles.spinner}></div>
           <span>Initializing layers...</span>
         </div>
         
@@ -231,16 +232,16 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
   }
 
   return (
-    <div className={`layer-panel ${className || ''} ${dynamicDimensions.isClamped ? 'clamped' : ''}`} style={dynamicStyle} id={id} {...otherProps}>
-      <div className="layer-panel-header">
+    <div className={clsx(styles.layerPanel, className, dynamicDimensions.isClamped && styles.clamped)} style={dynamicStyle} id={id} {...otherProps}>
+      <div className={styles.layerPanelHeader}>
         <h3>Layers</h3>
-        <div className="layer-count">
+        <div className={styles.layerCount}>
           {layers.length} layers
         </div>
       </div>
 
       {activeTableId && (
-        <div className="table-indicator" style={{
+        <div className={styles.tableIndicator} style={{
           padding: '6px 12px',
           background: 'rgba(59, 130, 246, 0.15)',
           border: '1px solid #3b82f6',
@@ -254,12 +255,12 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
         </div>
       )}
 
-      <div className="active-layer-display">
-        <span className="label">Active:</span>
-        <span className="active-layer-name">{activeLayer}</span>
+      <div className={styles.activeLayerDisplay}>
+        <span className={styles.label}>Active:</span>
+        <span className={styles.activeLayerName}>{activeLayer}</span>
       </div>
 
-      <div className="layer-list" style={dynamicDimensions.isClamped ? { overflowY: 'auto' } : undefined}>
+      <div className={styles.layerList} style={dynamicDimensions.isClamped ? { overflowY: 'auto' } : undefined}>
         {layers.map((layer) => {
           const isActive = activeLayer === layer.id;
           const isVisible = layerVisibility[layer.id] ?? true;
@@ -268,21 +269,21 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
           return (
             <div
               key={layer.id}
-              className={`layer-item ${isActive ? 'active' : ''}`}
+              className={clsx(styles.layerItem, isActive && styles.active)}
               onClick={() => handleLayerClick(layer.id)}
             >
-              <div className="layer-main">
-                <div className="layer-info">
-                  <span className="layer-icon">{layer.icon}</span>
-                  <div className="layer-details">
-                    <span className="layer-name">{layer.name}</span>
-                    <span className="sprite-count">{layer.spriteCount} sprites</span>
+              <div className={styles.layerMain}>
+                <div className={styles.layerInfo}>
+                  <span className={styles.layerIcon}>{layer.icon}</span>
+                  <div className={styles.layerDetails}>
+                    <span className={styles.layerName}>{layer.name}</span>
+                    <span className={styles.spriteCount}>{layer.spriteCount} sprites</span>
                   </div>
                 </div>
                 
-                <div className="layer-controls">
+                <div className={styles.layerControls}>
                   <button
-                    className={`visibility-btn ${!isVisible ? 'hidden' : ''}`}
+                    className={clsx(styles.visibilityBtn, !isVisible && styles.hidden)}
                     onClick={(e) => {
                       handleVisibilityToggle(layer.id, e);
                     }}
@@ -294,8 +295,8 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
                 </div>
               </div>
 
-              <div className="layer-opacity">
-                <label className="opacity-label">
+              <div className={styles.layerOpacity}>
+                <label className={styles.opacityLabel}>
                   Opacity: {Math.round(opacity * 100)}%
                 </label>
                 <input
@@ -305,13 +306,13 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
                   step="0.1"
                   value={opacity}
                   onChange={(e) => handleOpacityChange(layer.id, parseFloat(e.target.value))}
-                  className="opacity-slider"
+                  className={styles.opacitySlider}
                   onClick={(e) => e.stopPropagation()}
                 />
               </div>
 
               <div 
-                className="layer-color-indicator" 
+                className={styles.layerColorIndicator} 
                 style={{ backgroundColor: layer.color }}
               />
             </div>
@@ -319,8 +320,8 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
         })}
       </div>
 
-      <div className="layer-panel-footer">
-        <div className="layer-tips">
+      <div className={styles.layerPanelFooter}>
+        <div className={styles.layerTips}>
           <small>💡 Click layer to activate • Use icons to toggle visibility</small>
         </div>
       </div>

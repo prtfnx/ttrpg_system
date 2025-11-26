@@ -1,10 +1,11 @@
 import React, { useRef, useState } from "react";
+import clsx from "clsx";
 import { useProtocol } from "../services/ProtocolContext";
 import { ProtocolService } from "../services/ProtocolService";
 import { useGameStore } from "../store";
 import type { Character } from "../types";
 import { showToast } from "../utils/toast";
-import "./CharacterSheetNew.css";
+import styles from "./CharacterSheetNew.module.css";
 
 interface CharacterSheetProps {
   character: Character | null;
@@ -43,7 +44,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
   const { sprites, activeTableId, getSpritesForCharacter, linkSpriteToCharacter } = useGameStore();
   
   if (!character) {
-    return <div className="character-sheet-empty">No character data</div>;
+    return <div className={styles.characterSheetEmpty}>No character data</div>;
   }
 
   const data = character.data || {};
@@ -229,23 +230,23 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
   };
 
   return (
-    <div className="character-sheet-redesigned">
+    <div className={styles.characterSheetRedesigned}>
       {/* Character Header - Always Visible */}
-      <div className="sheet-header">
-        <div className="header-left">
-          <h1 className="char-name">{character.name}</h1>
-          <div className="char-subtitle">
-            <span className="char-class">{data.class || 'Class'}</span>
-            <span className="char-divider">•</span>
-            <span className="char-level">Level {data.level || 1}</span>
-            <span className="char-divider">•</span>
-            <span className="char-race">{data.race || 'Race'}</span>
+      <div className={styles.sheetHeader}>
+        <div className={styles.headerLeft}>
+          <h1 className={styles.charName}>{character.name}</h1>
+          <div className={styles.charSubtitle}>
+            <span className={styles.charClass}>{data.class || 'Class'}</span>
+            <span className={styles.charDivider}>•</span>
+            <span className={styles.charLevel}>Level {data.level || 1}</span>
+            <span className={styles.charDivider}>•</span>
+            <span className={styles.charRace}>{data.race || 'Race'}</span>
           </div>
         </div>
-        <div className="header-right">
+        <div className={styles.headerRight}>
           <button
             type="button"
-            className="popout-btn"
+            className={styles.popoutBtn}
             onClick={openInNewWindow}
             title="Open in new window (Ctrl+Shift+C)"
           >
@@ -254,39 +255,39 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
             </svg>
             <span>Pop-out</span>
           </button>
-          <div className="prof-bonus-display">
-            <div className="prof-label">Proficiency Bonus</div>
-            <div className="prof-value">+{profBonus}</div>
+          <div className={styles.profBonusDisplay}>
+            <div className={styles.profLabel}>Proficiency Bonus</div>
+            <div className={styles.profValue}>+{profBonus}</div>
           </div>
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <div className="sheet-tabs">
+      <div className={styles.sheetTabs}>
         <button
           type="button"
-          className={`sheet-tab ${activeTab === 'core' ? 'active' : ''}`}
+          className={clsx(styles.sheetTab, activeTab === "core" && styles.active)}
           onClick={() => setActiveTab('core')}
         >
           Core Stats
         </button>
         <button
           type="button"
-          className={`sheet-tab ${activeTab === 'spells' ? 'active' : ''}`}
+          className={clsx(styles.sheetTab, activeTab === "spells" && styles.active)}
           onClick={() => setActiveTab('spells')}
         >
           Spells & Features
         </button>
         <button
           type="button"
-          className={`sheet-tab ${activeTab === 'inventory' ? 'active' : ''}`}
+          className={clsx(styles.sheetTab, activeTab === "inventory" && styles.active)}
           onClick={() => setActiveTab('inventory')}
         >
           Inventory
         </button>
         <button
           type="button"
-          className={`sheet-tab ${activeTab === 'bio' ? 'active' : ''}`}
+          className={clsx(styles.sheetTab, activeTab === "bio" && styles.active)}
           onClick={() => setActiveTab('bio')}
         >
           Notes & Bio
@@ -294,15 +295,15 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
       </div>
 
       {/* Main Content */}
-      <div className="sheet-body">
+      <div className={styles.sheetBody}>
         {activeTab === 'core' && (
-          <div className="core-stats-layout">
+          <div className={styles.coreStatsLayout}>
             {/* Left Column - Ability Scores & Skills */}
-            <div className="left-column">
+            <div className={styles.leftColumn}>
               {/* Ability Scores */}
-              <div className="abilities-card card">
-                <h3 className="card-title">Ability Scores</h3>
-                <div className="abilities-grid">
+              <div className={clsx(styles.abilitiesCard, styles.card)}>
+                <h3 className={styles.cardTitle}>Ability Scores</h3>
+                <div className={styles.abilitiesGrid}>
                   {Object.entries(abilities).map(([key, value]) => {
                     const score = Number(value);
                     const mod = getModifier(score);
@@ -313,18 +314,18 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                     const saveStr = saveBonus >= 0 ? `+${saveBonus}` : `${saveBonus}`;
 
                     return (
-                      <div key={key} className="ability-block">
-                        <div className="ability-header">{label}</div>
-                        <div className="ability-modifier" title="Modifier">{modStr}</div>
+                      <div key={key} className={styles.abilityBlock}>
+                        <div className={styles.abilityHeader}>{label}</div>
+                        <div className={styles.abilityModifier} title="Modifier">{modStr}</div>
                         <input
                           type="number"
-                          className="ability-score"
+                          className={styles.abilityScore}
                           value={score}
                           onChange={(e) => handleAbilityUpdate(key, Number(e.target.value))}
                           min={1}
                           max={30}
                         />
-                        <div className="saving-throw">
+                        <div className={styles.savingThrow}>
                           <input
                             type="checkbox"
                             id={`save-${key}`}
@@ -349,9 +350,9 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
               </div>
 
               {/* Skills */}
-              <div className="skills-card card">
-                <h3 className="card-title">Skills</h3>
-                <div className="skills-list">
+              <div className={clsx(styles.skillsCard, styles.card)}>
+                <h3 className={styles.cardTitle}>Skills</h3>
+                <div className={styles.skillsList}>
                   {SKILLS.map((skill) => {
                     const abilityMod = getModifier(abilities[skill.ability]);
                     const isProficient = skills[skill.name] || false;
@@ -359,7 +360,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                     const bonusStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
 
                     return (
-                      <div key={skill.name} className="skill-row">
+                      <div key={skill.name} className={styles.skillRow}>
                         <input
                           type="checkbox"
                           id={`skill-${skill.name}`}
@@ -373,18 +374,18 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                             });
                           }}
                         />
-                        <label htmlFor={`skill-${skill.name}`} className="skill-name">
+                        <label htmlFor={`skill-${skill.name}`} className={styles.skillName}>
                           {skill.name}
                         </label>
-                        <span className="skill-ability">({skill.ability.toUpperCase()})</span>
-                        <span className="skill-bonus">{bonusStr}</span>
+                        <span className={styles.skillAbility}>({skill.ability.toUpperCase()})</span>
+                        <span className={styles.skillBonus}>{bonusStr}</span>
                       </div>
                     );
                   })}
                 </div>
-                <div className="passive-perception">
-                  <span className="passive-label">Passive Perception</span>
-                  <span className="passive-value">
+                <div className={styles.passivePerception}>
+                  <span className={styles.passiveLabel}>Passive Perception</span>
+                  <span className={styles.passiveValue}>
                     {10 + getModifier(abilities.wis) + (skills['Perception'] ? profBonus : 0)}
                   </span>
                 </div>
@@ -392,26 +393,26 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
             </div>
 
             {/* Center Column - Combat Stats */}
-            <div className="center-column">
+            <div className={styles.centerColumn}>
               {/* Hit Points */}
-              <div className="hp-card card">
-                <h3 className="card-title">Hit Points</h3>
-                <div className="hp-display">
+              <div className={clsx(styles.hpCard, styles.card)}>
+                <h3 className={styles.cardTitle}>Hit Points</h3>
+                <div className={styles.hpDisplay}>
                   <input
                     type="number"
-                    className="hp-current-input"
+                    className={styles.hpCurrentInput}
                     value={stats.hp || 0}
                     onChange={(e) => handleStatUpdate('hp', Number(e.target.value))}
                     min={0}
                     max={stats.maxHp || 999}
                   />
-                  <div className="hp-divider">/</div>
-                  <div className="hp-max">{stats.maxHp || 10}</div>
+                  <div className={styles.hpDivider}>/</div>
+                  <div className={styles.hpMax}>{stats.maxHp || 10}</div>
                 </div>
-                <div className="hp-controls">
+                <div className={styles.hpControls}>
                   <button
                     type="button"
-                    className="hp-btn damage"
+                    className={clsx(styles.hpBtn, styles.damage)}
                     onClick={() => handleHPChange(-1)}
                     title="Damage (-1)"
                   >
@@ -419,7 +420,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                   </button>
                   <button
                     type="button"
-                    className="hp-btn damage"
+                    className={clsx(styles.hpBtn, styles.damage)}
                     onClick={() => handleHPChange(-5)}
                     title="Damage (-5)"
                   >
@@ -427,7 +428,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                   </button>
                   <button
                     type="button"
-                    className="hp-btn heal"
+                    className={clsx(styles.hpBtn, styles.heal)}
                     onClick={() => handleHPChange(1)}
                     title="Heal (+1)"
                   >
@@ -435,7 +436,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                   </button>
                   <button
                     type="button"
-                    className="hp-btn heal"
+                    className={clsx(styles.hpBtn, styles.heal)}
                     onClick={() => handleHPChange(5)}
                     title="Heal (+5)"
                   >
@@ -456,7 +457,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
 
               {/* Combat Stats */}
               <div className="combat-stats-card card">
-                <h3 className="card-title">Combat Stats</h3>
+                <h3 className={styles.cardTitle}>Combat Stats</h3>
                 <div className="combat-grid">
                   <div className="combat-stat">
                     <label htmlFor="ac">Armor Class</label>
@@ -490,7 +491,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
 
               {/* Death Saves */}
               <div className="death-saves-card card">
-                <h3 className="card-title">Death Saves</h3>
+                <h3 className={styles.cardTitle}>Death Saves</h3>
                 <div className="death-saves-grid">
                   <div className="death-saves-row">
                     <span className="save-label success">Successes</span>
@@ -513,7 +514,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
 
               {/* Conditions */}
               <div className="conditions-card card">
-                <h3 className="card-title">Conditions</h3>
+                <h3 className={styles.cardTitle}>Conditions</h3>
                 <div className="conditions-list">
                   {(data.conditions && data.conditions.length > 0) ? (
                     data.conditions.map((condition: string) => (
@@ -529,10 +530,10 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
             </div>
 
             {/* Right Column - Features & Actions */}
-            <div className="right-column">
+            <div className={styles.rightColumn}>
               {/* Hit Dice */}
               <div className="hit-dice-card card">
-                <h3 className="card-title">Hit Dice</h3>
+                <h3 className={styles.cardTitle}>Hit Dice</h3>
                 <div className="hit-dice-display">
                   <span className="hit-dice-count">
                     {data.level || 1}d{data.hitDie || 8}
@@ -561,7 +562,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
 
               {/* Attacks & Actions */}
               <div className="attacks-card card">
-                <h3 className="card-title">Attacks & Spellcasting</h3>
+                <h3 className={styles.cardTitle}>Attacks & Spellcasting</h3>
                 <div className="attack-info">
                   <div className="attack-row">
                     <span className="attack-label">Melee Attack:</span>
@@ -586,7 +587,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
 
               {/* Features & Traits */}
               <div className="features-card card">
-                <h3 className="card-title">Features & Traits</h3>
+                <h3 className={styles.cardTitle}>Features & Traits</h3>
                 <div className="features-list">
                   {data.features && data.features.length > 0 ? (
                     data.features.map((feature: string, idx: number) => (
@@ -622,7 +623,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
             <h3>Character Biography & Tokens</h3>
             
             {/* Bio Section */}
-            <div className="bio-section" style={{ marginBottom: '24px' }}>
+            <div className={styles.bioSection} style={{ marginBottom: '24px' }}>
               <h4>Biography</h4>
               <textarea
                 value={character.data?.bio || ''}

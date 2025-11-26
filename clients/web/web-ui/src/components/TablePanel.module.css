@@ -1,4 +1,4 @@
-.table-panel {
+.tablePanel {
   background: #1e1e1e;
   border: 1px solid #333;
   border-radius: 8px;
@@ -10,7 +10,7 @@
   overflow-y: auto;
 }
 
-.table-panel-header {
+.tablePanelHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -19,14 +19,14 @@
   border-bottom: 1px solid #333;
 }
 
-.table-panel-header h3 {
+.tablePanelHeader h3 {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
   color: #ffffff;
 }
 
-.create-table-btn {
+.createTableBtn {
   background: #007acc;
   color: white;
   border: none;
@@ -42,11 +42,11 @@
   transition: background-color 0.2s;
 }
 
-.create-table-btn:hover {
+.createTableBtn:hover {
   background: #005a9e;
 }
 
-.create-table-form {
+.createTableForm {
   background: #2d2d2d;
   border: 1px solid #444;
   border-radius: 4px;
@@ -54,7 +54,7 @@
   margin-bottom: 12px;
 }
 
-.create-table-form input[type="text"] {
+.createTableForm input[type="text"] {
   width: 100%;
   background: #1e1e1e;
   border: 1px solid #555;
@@ -64,19 +64,19 @@
   margin-bottom: 8px;
 }
 
-.size-inputs {
+.sizeInputs {
   display: flex;
   gap: 8px;
   margin-bottom: 8px;
 }
 
-.size-inputs label {
+.sizeInputs label {
   flex: 1;
   font-size: 12px;
   color: #cccccc;
 }
 
-.size-inputs input[type="number"] {
+.sizeInputs input[type="number"] {
   width: 100%;
   background: #1e1e1e;
   border: 1px solid #555;
@@ -86,12 +86,12 @@
   margin-top: 4px;
 }
 
-.form-buttons {
+.formButtons {
   display: flex;
   gap: 8px;
 }
 
-.form-buttons button {
+.formButtons button {
   flex: 1;
   background: #007acc;
   color: white;
@@ -102,25 +102,25 @@
   transition: background-color 0.2s;
 }
 
-.form-buttons button:hover {
+.formButtons button:hover {
   background: #005a9e;
 }
 
-.form-buttons button:last-child {
+.formButtons button:last-child {
   background: #666;
 }
 
-.form-buttons button:last-child:hover {
+.formButtons button:last-child:hover {
   background: #555;
 }
 
-.tables-list {
+.tablesList {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.table-item {
+.tableItem {
   background: #2d2d2d;
   border: 1px solid #444;
   border-radius: 4px;
@@ -128,30 +128,30 @@
   transition: border-color 0.2s;
 }
 
-.table-item.active {
+.tableItem.active {
   border-color: #007acc;
   background: #1a3a52;
 }
 
-.table-header {
+.tableHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 4px;
 }
 
-.table-name {
+.tableName {
   font-weight: 500;
   cursor: pointer;
   color: #ffffff;
   flex: 1;
 }
 
-.table-name:hover {
+.tableName:hover {
   color: #007acc;
 }
 
-.remove-table-btn {
+.removeTableBtn {
   background: #dc3545;
   color: white;
   border: none;
@@ -165,11 +165,11 @@
   justify-content: center;
 }
 
-.remove-table-btn:hover {
+.removeTableBtn:hover {
   background: #c82333;
 }
 
-.table-info {
+.tableInfo {
   display: flex;
   justify-content: space-between;
   font-size: 12px;
@@ -177,7 +177,7 @@
   margin-bottom: 8px;
 }
 
-.table-controls {
+.tableControls {
   border-top: 1px solid #444;
   padding-top: 8px;
   display: flex;
@@ -185,21 +185,21 @@
   gap: 8px;
 }
 
-.grid-controls {
+.gridControls {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 12px;
 }
 
-.grid-controls label {
+.gridControls label {
   display: flex;
   align-items: center;
   gap: 4px;
   color: #cccccc;
 }
 
-.grid-controls input[type="number"] {
+.gridControls input[type="number"] {
   width: 60px;
   background: #1e1e1e;
   border: 1px solid #555;
@@ -209,31 +209,31 @@
   font-size: 11px;
 }
 
-.pan-controls, .zoom-controls {
+.panControls, .zoomControls {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.pan-label, .zoom-label {
+.panLabel, .zoomLabel {
   font-size: 12px;
   color: #cccccc;
   min-width: 35px;
 }
 
-.pan-buttons {
+.panButtons {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
 }
 
-.pan-row {
+.panRow {
   display: flex;
   gap: 2px;
 }
 
-.pan-buttons button {
+.panButtons button {
   width: 24px;
   height: 24px;
   background: #444;
@@ -247,16 +247,16 @@
   justify-content: center;
 }
 
-.pan-buttons button:hover {
+.panButtons button:hover {
   background: #555;
 }
 
-.zoom-buttons {
+.zoomButtons {
   display: flex;
   gap: 4px;
 }
 
-.zoom-buttons button {
+.zoomButtons button {
   width: 28px;
   height: 24px;
   background: #444;
@@ -268,17 +268,17 @@
   font-weight: bold;
 }
 
-.zoom-buttons button:hover {
+.zoomButtons button:hover {
   background: #555;
 }
 
-.viewport-info {
+.viewportInfo {
   font-size: 11px;
   color: #999;
   text-align: center;
 }
 
-.no-tables {
+.noTables {
   text-align: center;
   color: #999;
   font-size: 14px;

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import type { TableInfo } from '../hooks/useTableManager';
 import { useTableManager } from '../hooks/useTableManager';
-import './TablePanel.css';
+import clsx from 'clsx';
+import styles from './TablePanel.module.css';
 
 const TablePanel: React.FC = () => {
   const {
@@ -67,11 +68,11 @@ const TablePanel: React.FC = () => {
   };
 
   return (
-    <div className="table-panel">
-      <div className="table-panel-header">
+    <div className={styles.tablePanel}>
+      <div className={styles.tablePanelHeader}>
         <h3>Tables</h3>
         <button 
-          className="create-table-btn"
+          className={styles.createTableBtn}
           onClick={() => setShowCreateForm(!showCreateForm)}
         >
           +
@@ -79,14 +80,14 @@ const TablePanel: React.FC = () => {
       </div>
 
       {showCreateForm && (
-        <div className="create-table-form">
+        <div className={styles.createTableForm}>
           <input
             type="text"
             placeholder="Table name"
             value={newTableName}
             onChange={(e) => setNewTableName(e.target.value)}
           />
-          <div className="size-inputs">
+          <div className={styles.sizeInputs}>
             <label>
               Width:
               <input
@@ -108,28 +109,28 @@ const TablePanel: React.FC = () => {
               />
             </label>
           </div>
-          <div className="form-buttons">
+          <div className={styles.formButtons}>
             <button onClick={handleCreateTable}>Create</button>
             <button onClick={() => setShowCreateForm(false)}>Cancel</button>
           </div>
         </div>
       )}
 
-      <div className="tables-list">
+      <div className={styles.tablesList}>
         {tables.map((table: TableInfo) => (
           <div 
             key={table.table_id}
-            className={`table-item ${table.table_id === activeTableId ? 'active' : ''}`}
+            className={clsx(styles.tableItem, table.table_id === activeTableId && styles.active)}
           >
-            <div className="table-header">
+            <div className={styles.tableHeader}>
               <span 
-                className="table-name"
+                className={styles.tableName}
                 onClick={() => handleTableSelect(table.table_id)}
               >
                 {table.table_name}
               </span>
               <button 
-                className="remove-table-btn"
+                className={styles.removeTableBtn}
                 onClick={() => removeTable(table.table_id)}
                 title="Remove table"
               >
@@ -137,18 +138,18 @@ const TablePanel: React.FC = () => {
               </button>
             </div>
             
-            <div className="table-info">
-              <div className="table-size">
+            <div className={styles.tableInfo}>
+              <div className={styles.tableSize}>
                 {table.width}×{table.height}
               </div>
-              <div className="table-scale">
+              <div className={styles.tableScale}>
                 Scale: {table.table_scale.toFixed(2)}x
               </div>
             </div>
 
             {table.table_id === activeTableId && (
-              <div className="table-controls">
-                <div className="grid-controls">
+              <div className={styles.tableControls}>
+                <div className={styles.gridControls}>
                   <label>
                     <input
                       type="checkbox"
@@ -169,11 +170,11 @@ const TablePanel: React.FC = () => {
                   )}
                 </div>
 
-                <div className="pan-controls">
-                  <div className="pan-label">Pan:</div>
-                  <div className="pan-buttons">
+                <div className={styles.panControls}>
+                  <div className={styles.panLabel}>Pan:</div>
+                  <div className={styles.panButtons}>
                     <button onClick={() => handlePanTable(table.table_id, 'up')}>↑</button>
-                    <div className="pan-row">
+                    <div className={styles.panRow}>
                       <button onClick={() => handlePanTable(table.table_id, 'left')}>←</button>
                       <button onClick={() => handlePanTable(table.table_id, 'right')}>→</button>
                     </div>
@@ -181,15 +182,15 @@ const TablePanel: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="zoom-controls">
-                  <div className="zoom-label">Zoom:</div>
-                  <div className="zoom-buttons">
+                <div className={styles.zoomControls}>
+                  <div className={styles.zoomLabel}>Zoom:</div>
+                  <div className={styles.zoomButtons}>
                     <button onClick={() => handleZoomTable(table.table_id, false)}>-</button>
                     <button onClick={() => handleZoomTable(table.table_id, true)}>+</button>
                   </div>
                 </div>
 
-                <div className="viewport-info">
+                <div className={styles.viewportInfo}>
                   <div>Viewport: ({table.viewport_x.toFixed(0)}, {table.viewport_y.toFixed(0)})</div>
                 </div>
               </div>
@@ -199,7 +200,7 @@ const TablePanel: React.FC = () => {
       </div>
 
       {tables.length === 0 && (
-        <div className="no-tables">
+        <div className={styles.noTables}>
           No tables created. Click + to create your first table.
         </div>
       )}

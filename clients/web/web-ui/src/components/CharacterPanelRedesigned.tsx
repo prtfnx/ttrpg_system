@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
+import clsx from 'clsx';
 import { authService } from '../services/auth.service';
 import { useProtocol } from '../services/ProtocolContext';
 import { useGameStore } from '../store';
@@ -11,7 +12,7 @@ import {
   pickAndImportCharacter
 } from '../utils/characterImportExport';
 import { showToast } from '../utils/toast';
-import './CharacterPanelRedesigned.css';
+import styles from './CharacterPanelRedesigned.module.css';
 import { CharacterSheet } from './CharacterSheetNew';
 import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 import { ShareCharacterDialog } from './ShareCharacterDialog';
@@ -34,12 +35,12 @@ const SyncStatusIcon: React.FC<{ status?: 'local' | 'syncing' | 'synced' | 'erro
   
   return (
     <span 
-      className={`sync-status-icon ${status}`} 
+      className={clsx(styles.syncStatusIcon, status)} 
       title={config.tooltip}
       style={{ color: config.color, fontSize: '14px', marginLeft: '4px' }}
     >
       {status === 'syncing' ? (
-        <span className="sync-spinner">{config.icon}</span>
+        <span className={styles.syncSpinner}>{config.icon}</span>
       ) : (
         config.icon
       )}
@@ -811,23 +812,23 @@ export function CharacterPanelRedesigned() {
   ];
 
   return (
-    <div className="character-panel-redesigned">
+    <div className={styles.characterPanelRedesigned}>
       {/* Connection status banner */}
       {!isConnected && (
-        <div className="connection-banner offline" title="Not connected to server - characters will be saved locally">
+        <div className={clsx(styles.connectionBanner, 'offline')} title="Not connected to server - characters will be saved locally">
           ⚠️ Offline - Changes saved locally only
         </div>
       )}
       
       {/* Header with single create button */}
-      <div className="panel-header">
+      <div className={styles.panelHeader}>
         <h2>Characters</h2>
         {isConnected && (
-          <span className="connection-status connected" title="Connected to server">🟢</span>
+          <span className={clsx(styles.connectionStatus, 'connected')} title="Connected to server">🟢</span>
         )}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
-            className="action-btn"
+            className={styles.actionBtn}
             onClick={handleImportCharacter}
             title="Import character from JSON file"
             style={{ fontSize: '12px', padding: '6px 12px' }}
@@ -837,7 +838,7 @@ export function CharacterPanelRedesigned() {
           {characters.length > 0 && (
             <>
               <button
-                className="action-btn"
+                className={styles.actionBtn}
                 onClick={handleExportAllCharacters}
                 title="Export all characters to JSON file"
                 style={{ fontSize: '12px', padding: '6px 12px' }}
@@ -845,7 +846,7 @@ export function CharacterPanelRedesigned() {
                 📥 Export All
               </button>
               <button
-                className={`action-btn ${bulkSelectMode ? 'active' : ''}`}
+                className={clsx(styles.actionBtn, bulkSelectMode && 'active')}
                 onClick={handleToggleBulkMode}
                 title={bulkSelectMode ? "Exit bulk selection mode" : "Enter bulk selection mode"}
                 style={{ fontSize: '12px', padding: '6px 12px' }}
@@ -855,7 +856,7 @@ export function CharacterPanelRedesigned() {
             </>
           )}
           <button
-            className="create-btn"
+            className={styles.createBtn}
             onClick={handleCreateCharacter}
             title="Create New Character"
             aria-label="Create New Character"
@@ -868,28 +869,28 @@ export function CharacterPanelRedesigned() {
 
       {/* Bulk Actions Bar */}
       {bulkSelectMode && (
-        <div className="bulk-actions-bar">
-          <div className="bulk-actions-left">
-            <span className="bulk-selection-count">
+        <div className={styles.bulkActionsBar}>
+          <div className={styles.bulkActionsLeft}>
+            <span className={styles.bulkSelectionCount}>
               {selectedCharacterIds.size} selected
             </span>
-            <button className="bulk-action-link" onClick={handleSelectAllCharacters}>
+            <button className={styles.bulkActionLink} onClick={handleSelectAllCharacters}>
               Select All
             </button>
-            <button className="bulk-action-link" onClick={handleDeselectAllCharacters}>
+            <button className={styles.bulkActionLink} onClick={handleDeselectAllCharacters}>
               Deselect All
             </button>
           </div>
-          <div className="bulk-actions-right">
+          <div className={styles.bulkActionsRight}>
             {selectedCharacterIds.size > 0 && (
               <>
-                <button className="bulk-action-btn export" onClick={handleBulkExport}>
+                <button className={clsx(styles.bulkActionBtn, "export")} onClick={handleBulkExport}>
                   📥 Export Selected
                 </button>
-                <button className="bulk-action-btn share" onClick={handleBulkShare}>
+                <button className={clsx(styles.bulkActionBtn, "share")} onClick={handleBulkShare}>
                   👥 Share Selected
                 </button>
-                <button className="bulk-action-btn delete" onClick={handleBulkDelete}>
+                <button className={clsx(styles.bulkActionBtn, "delete")} onClick={handleBulkDelete}>
                   🗑️ Delete Selected
                 </button>
               </>
@@ -900,7 +901,7 @@ export function CharacterPanelRedesigned() {
 
       {/* Search/Filter */}
       {characters.length > 0 && (
-        <div className="search-filter" style={{ padding: '12px', borderBottom: '1px solid var(--border-color)' }}>
+        <div className={styles.searchFilter} style={{ padding: '12px', borderBottom: '1px solid var(--border-color)' }}>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <input
               id="character-search"
@@ -942,9 +943,9 @@ export function CharacterPanelRedesigned() {
       )}
 
       {/* Character List */}
-      <div className="character-list">
+      <div className={styles.characterList}>
         {characters.length === 0 && (
-          <div className="empty-state">
+          <div className={styles.emptyState}>
             No characters yet. Click <strong>+</strong> to create one.
           </div>
         )}
@@ -962,7 +963,7 @@ export function CharacterPanelRedesigned() {
 
     if (filteredCharacters.length === 0 && searchFilter) {
       return (
-        <div className="empty-state">
+        <div className={styles.emptyState}>
           No characters found matching "{searchFilter}".
         </div>
       );
@@ -977,16 +978,16 @@ export function CharacterPanelRedesigned() {
           return (
             <div
               key={char.id}
-              className={`character-card ${isSelected ? 'selected' : ''} ${isExpanded ? 'expanded' : ''} ${isBulkSelected ? 'bulk-selected' : ''}`}
+              className={clsx(styles.characterCard, isSelected && "selected", isExpanded && "expanded", isBulkSelected && "bulkSelected")}
               draggable={!bulkSelectMode}
               onDragStart={e => handleDragStart(e, char.id)}
             >
               {/* Bulk selection checkbox */}
               {bulkSelectMode && (
-                <div className="bulk-checkbox-wrapper">
+                <div className={styles.bulkCheckboxWrapper}>
                   <input
                     type="checkbox"
-                    className="bulk-checkbox"
+                    className={styles.bulkCheckbox}
                     checked={isBulkSelected}
                     onChange={() => handleToggleCharacterSelection(char.id)}
                     onClick={(e) => e.stopPropagation()}
@@ -995,18 +996,18 @@ export function CharacterPanelRedesigned() {
               )}
               
               <div
-                className="character-header"
+                className={styles.characterHeader}
                 onClick={() => bulkSelectMode ? handleToggleCharacterSelection(char.id) : handleCharacterClick(char.id)}
               >
-                <div className="char-avatar">{char.name.charAt(0).toUpperCase()}</div>
-                <div className="char-info">
-                  <div className="char-name">
+                <div className={styles.charAvatar}>{char.name.charAt(0).toUpperCase()}</div>
+                <div className={styles.charInfo}>
+                  <div className={styles.charName}>
                     {char.name}
                     <SyncStatusIcon status={char.syncStatus} />
                     {/* Retry button for failed saves */}
                     {char.syncStatus === 'error' && (
                       <button
-                        className="retry-save-btn"
+                        className={styles.retrySaveBtn}
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRetrySave(char.id);
@@ -1028,7 +1029,7 @@ export function CharacterPanelRedesigned() {
                       </button>
                     )}
                   </div>
-                  <div className="char-details">Owner: {char.ownerId}</div>
+                  <div className={styles.charDetails}>Owner: {char.ownerId}</div>
                 </div>
                 {/* Badges for linked tokens */}
                 <div className="char-badges">
@@ -1046,86 +1047,86 @@ export function CharacterPanelRedesigned() {
                   })}
                 </div>
                 <button
-                  className="char-expand-btn"
+                  className={styles.charExpandBtn}
                   onClick={e => { e.stopPropagation(); handleCharacterClick(char.id); }}
                 >
                   {isExpanded ? '▼' : '▶'}
                 </button>
               </div>
               {isExpanded && (
-                <div className="character-details">
+                <div className={styles.characterDetails}>
                   {/* Stats Section */}
                   {editingCharId === char.id ? (
-                    <div className="details-section edit-mode">
+                    <div className={clsx(styles.detailsSection, "editMode")}>
                       <h4>Edit Stats</h4>
-                      <div className="stat-row">
+                      <div className={styles.statRow}>
                         <label>HP:</label>
                         <input
                           type="number"
                           value={editFormData.hp || 0}
                           onChange={e => setEditFormData({ ...editFormData, hp: parseInt(e.target.value) || 0 })}
-                          className="stat-input"
+                          className={styles.statInput}
                         />
                         <span>/ {editFormData.maxHp}</span>
                       </div>
-                      <div className="stat-row">
+                      <div className={styles.statRow}>
                         <label>Max HP:</label>
                         <input
                           type="number"
                           value={editFormData.maxHp || 10}
                           onChange={e => setEditFormData({ ...editFormData, maxHp: parseInt(e.target.value) || 10 })}
-                          className="stat-input"
+                          className={styles.statInput}
                         />
                       </div>
-                      <div className="stat-row">
+                      <div className={styles.statRow}>
                         <label>AC:</label>
                         <input
                           type="number"
                           value={editFormData.ac || 10}
                           onChange={e => setEditFormData({ ...editFormData, ac: parseInt(e.target.value) || 10 })}
-                          className="stat-input"
+                          className={styles.statInput}
                         />
                       </div>
-                      <div className="stat-row">
+                      <div className={styles.statRow}>
                         <label>Speed:</label>
                         <input
                           type="number"
                           value={editFormData.speed || 30}
                           onChange={e => setEditFormData({ ...editFormData, speed: parseInt(e.target.value) || 30 })}
-                          className="stat-input"
+                          className={styles.statInput}
                         />
                         <span>ft</span>
                       </div>
-                      <div className="edit-actions">
-                        <button className="action-btn save" onClick={() => handleSaveEdit(char.id)}>
+                      <div className={styles.editActions}>
+                        <button className={clsx(styles.actionBtn, "save")} onClick={() => handleSaveEdit(char.id)}>
                           Save
                         </button>
-                        <button className="action-btn cancel" onClick={handleCancelEdit}>
+                        <button className={clsx(styles.actionBtn, "cancel")} onClick={handleCancelEdit}>
                           Cancel
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div className="details-section">
+                    <div className={styles.detailsSection}>
                       <h4>Stats</h4>
-                      <div className="stat-row">
+                      <div className={styles.statRow}>
                         <span>HP:</span>
                         <span>{char.data?.stats?.hp || 0} / {char.data?.stats?.maxHp || 10}</span>
                       </div>
-                      <div className="stat-row">
+                      <div className={styles.statRow}>
                         <span>AC:</span>
                         <span>{char.data?.stats?.ac || 10}</span>
                       </div>
-                      <div className="stat-row">
+                      <div className={styles.statRow}>
                         <span>Speed:</span>
                         <span>{char.data?.stats?.speed || 30} ft</span>
                       </div>
-                      <div className="stat-row">
+                      <div className={styles.statRow}>
                         <span>Version:</span>
                         <span>{char.version}</span>
                       </div>
                       {canEdit && (
-                        <button className="action-btn edit" onClick={() => handleStartEdit(char)}>
+                        <button className={clsx(styles.actionBtn, "edit")} onClick={() => handleStartEdit(char)}>
                           Edit Stats
                         </button>
                       )}
@@ -1135,16 +1136,16 @@ export function CharacterPanelRedesigned() {
                   {/* Conditions Section */}
                   <div className="details-section conditions-section">
                     <h4>Conditions</h4>
-                    <div className="conditions-list">
+                    <div className={styles.conditionsList}>
                       {(char.data?.conditions || []).length === 0 && (
-                        <span className="no-conditions">No active conditions</span>
+                        <span className={styles.noConditions}>No active conditions</span>
                       )}
                       {(char.data?.conditions || []).map((cond: string) => (
-                        <div key={cond} className="condition-tag">
+                        <div key={cond} className={styles.conditionTag}>
                           {cond}
                           {canEdit && (
                             <button
-                              className="remove-condition"
+                              className={styles.removeCondition}
                               onClick={() => handleRemoveCondition(char.id, cond)}
                               title="Remove condition"
                             >
@@ -1155,7 +1156,7 @@ export function CharacterPanelRedesigned() {
                       ))}
                     </div>
                     {canEdit && editingCharId !== char.id && (
-                      <div className="add-condition-row">
+                      <div className={styles.addConditionRow}>
                         <input
                           id={`condition-input-${char.id}`}
                           type="text"
@@ -1167,11 +1168,11 @@ export function CharacterPanelRedesigned() {
                               handleAddCondition(char.id);
                             }
                           }}
-                          className="condition-input"
+                          className={styles.conditionInput}
                           aria-label="Add condition"
                         />
                         <button
-                          className="action-btn add-condition"
+                          className={clsx(styles.actionBtn, "addCondition")}
                           onClick={() => handleAddCondition(char.id)}
                           aria-label="Add condition"
                         >
@@ -1182,31 +1183,31 @@ export function CharacterPanelRedesigned() {
                   </div>
 
                   {/* Actions Section */}
-                  <div className="char-actions">
-                    <button className="action-btn view-sheet" onClick={() => handleViewSheet(char.id)} title="View full character sheet">
+                  <div className={styles.charActions}>
+                    <button className={clsx(styles.actionBtn, "viewSheet")} onClick={() => handleViewSheet(char.id)} title="View full character sheet">
                       📄 View Sheet
                     </button>
-                    <button className="action-btn" onClick={() => handleAddToken(char.id)} disabled={!canEdit} title={canEdit ? 'Add a token for this character.' : 'You do not have permission to add tokens for this character.'}>
+                    <button className={styles.actionBtn} onClick={() => handleAddToken(char.id)} disabled={!canEdit} title={canEdit ? 'Add a token for this character.' : 'You do not have permission to add tokens for this character.'}>
                       Add Token
                     </button>
-                    <button className="action-btn export" onClick={e => handleExportCharacter(char.id, e)} title="Export character to JSON file">
+                    <button className={clsx(styles.actionBtn, "export")} onClick={e => handleExportCharacter(char.id, e)} title="Export character to JSON file">
                       📥 Export
                     </button>
                     {canEdit && (
                       <>
-                        <button className="action-btn clone" onClick={e => handleCloneCharacter(char.id, e)} title="Create a duplicate of this character">
+                        <button className={clsx(styles.actionBtn, "clone")} onClick={e => handleCloneCharacter(char.id, e)} title="Create a duplicate of this character">
                           📋 Clone
                         </button>
-                        <button className="action-btn share" onClick={() => handleShareCharacter(char.id)} title="Share character with other players">
+                        <button className={clsx(styles.actionBtn, "share")} onClick={() => handleShareCharacter(char.id)} title="Share character with other players">
                           Share
                         </button>
-                        <button className="action-btn delete" onClick={e => handleDeleteCharacter(char.id, e)} title="Delete this character.">
+                        <button className={clsx(styles.actionBtn, "delete")} onClick={e => handleDeleteCharacter(char.id, e)} title="Delete this character.">
                           Delete
                         </button>
                       </>
                     )}
                     {!canEdit && (
-                      <button className="action-btn delete" disabled title="You do not have permission to delete this character.">
+                      <button className={clsx(styles.actionBtn, "delete")} disabled title="You do not have permission to delete this character.">
                         Delete
                       </button>
                     )}
@@ -1267,15 +1268,15 @@ export function CharacterPanelRedesigned() {
         };
         
         const modalContent = (
-          <div className="modal-overlay" onClick={handleCloseModal}>
+          <div className={styles.modalOverlay} onClick={handleCloseModal}>
             <div 
-              className="modal-content character-sheet-modal"
+              className={clsx(styles.modalContent, "characterSheetModal")}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="modal-header">
+              <div className={styles.modalHeader}>
                 <h2>{char.name} - Character Sheet</h2>
                 <button 
-                  className="modal-close-btn" 
+                  className={styles.modalCloseBtn} 
                   onClick={(e) => {
                     e.stopPropagation();
                     setViewSheetCharId(null);
@@ -1286,7 +1287,7 @@ export function CharacterPanelRedesigned() {
                   ✕
                 </button>
               </div>
-              <div className="modal-body">
+              <div className={styles.modalBody}>
                 <CharacterSheet character={char} onSave={handleSheetSave} />
               </div>
             </div>

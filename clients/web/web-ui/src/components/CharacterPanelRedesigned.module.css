@@ -1,4 +1,4 @@
-.character-panel-redesigned {
+.characterPanelRedesigned {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -7,8 +7,7 @@
   overflow: hidden;
 }
 
-/* Connection Banner */
-.connection-banner {
+.connectionBanner {
   padding: 8px 16px;
   text-align: center;
   font-size: 12px;
@@ -16,7 +15,7 @@
   animation: slideDown 0.3s ease-out;
 }
 
-.connection-banner.offline {
+.connectionBanner.offline {
   background: linear-gradient(90deg, #dc3545, #c82333);
   color: white;
   border-bottom: 1px solid #bd2130;
@@ -33,8 +32,7 @@
   }
 }
 
-/* Header */
-.panel-header {
+.panelHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -44,7 +42,7 @@
   background: #252525;
 }
 
-.panel-header h2 {
+.panelHeader h2 {
   font-size: 18px;
   font-weight: 600;
   margin: 0;
@@ -52,13 +50,13 @@
   flex: 1;
 }
 
-.connection-status {
+.connectionStatus {
   font-size: 10px;
   opacity: 0.8;
   transition: opacity 0.3s;
 }
 
-.connection-status.connected {
+.connectionStatus.connected {
   opacity: 1;
   animation: pulse 2s ease-in-out infinite;
 }
@@ -68,7 +66,7 @@
   50% { opacity: 0.6; }
 }
 
-.create-btn {
+.createBtn {
   width: 32px;
   height: 32px;
   border-radius: 6px;
@@ -84,27 +82,25 @@
   justify-content: center;
 }
 
-.create-btn:hover {
+.createBtn:hover {
   background: #0b5ed7;
   transform: scale(1.05);
 }
 
-/* Character List */
-.character-list {
+.characterList {
   flex: 1;
   overflow-y: auto;
   padding: 8px;
 }
 
-.empty-state {
+.emptyState {
   text-align: center;
   padding: 32px 16px;
   color: #888;
   font-size: 14px;
 }
 
-/* Character Card */
-.character-card {
+.characterCard {
   background: #2a2a2a;
   border-radius: 8px;
   margin-bottom: 8px;
@@ -112,17 +108,16 @@
   transition: all 0.2s;
 }
 
-.character-card.selected {
+.characterCard.selected {
   border-color: #0d6efd;
   box-shadow: 0 0 8px rgba(13, 110, 253, 0.3);
 }
 
-.character-card.expanded {
+.characterCard.expanded {
   background: #2d2d2d;
 }
 
-/* Character Header - Always Visible */
-.character-header {
+.characterHeader {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -131,11 +126,11 @@
   transition: background 0.15s;
 }
 
-.character-header:hover {
+.characterHeader:hover {
   background: rgba(255, 255, 255, 0.05);
 }
 
-.char-avatar {
+.charAvatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -149,7 +144,7 @@
   flex-shrink: 0;
 }
 
-.char-info {
+.charInfo {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -157,7 +152,7 @@
   gap: 2px;
 }
 
-.char-name {
+.charName {
   font-weight: 600;
   font-size: 15px;
   white-space: nowrap;
@@ -166,7 +161,7 @@
   color: #fff;
 }
 
-.char-details {
+.charDetails {
   font-size: 12px;
   color: #aaa;
   white-space: nowrap;
@@ -174,14 +169,13 @@
   text-overflow: ellipsis;
 }
 
-/* Compact Stats Pills */
-.char-stats-compact {
+.charStatsCompact {
   display: flex;
   gap: 6px;
   flex-shrink: 0;
 }
 
-.stat-pill {
+.statPill {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -191,17 +185,17 @@
   font-size: 11px;
 }
 
-.stat-label {
+.statLabel {
   color: #999;
   font-weight: 500;
 }
 
-.stat-value {
+.statValue {
   color: #fff;
   font-weight: 600;
 }
 
-.char-expand-btn {
+.charExpandBtn {
   background: none;
   border: none;
   color: #888;
@@ -217,44 +211,32 @@
   flex-shrink: 0;
 }
 
-.char-expand-btn:hover {
+.charExpandBtn:hover {
   color: #fff;
 }
 
-/* Expanded Details */
-.character-details {
+.characterDetails {
   padding: 12px 16px;
   border-top: 1px solid #333;
   animation: slideDown 0.2s ease-out;
 }
 
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.details-section {
+.detailsSection {
   margin-bottom: 12px;
 }
 
-.stat-row {
+.statRow {
   display: flex;
   justify-content: space-between;
   padding: 6px 0;
   font-size: 13px;
 }
 
-.stat-row span:first-child {
+.statRow span:first-child {
   color: #aaa;
 }
 
-.stat-row span:last-child {
+.statRow span:last-child {
   color: #fff;
   font-weight: 500;
 }
@@ -270,13 +252,13 @@
   margin-bottom: 6px;
 }
 
-.condition-tags {
+.conditionTags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.condition-tag {
+.conditionTag {
   background: #ff6b6b;
   color: white;
   padding: 4px 10px;
@@ -285,14 +267,13 @@
   font-weight: 500;
 }
 
-/* Character Actions */
-.char-actions {
+.charActions {
   display: flex;
   gap: 8px;
   margin-top: 12px;
 }
 
-.action-btn {
+.actionBtn {
   flex: 1;
   padding: 8px 12px;
   border-radius: 6px;
@@ -304,31 +285,30 @@
   transition: all 0.2s;
 }
 
-.action-btn:hover {
+.actionBtn:hover {
   background: #3a3a3a;
   border-color: #555;
 }
 
-.action-btn.edit {
+.actionBtn.edit {
   border-color: #0d6efd;
   color: #0d6efd;
 }
 
-.action-btn.edit:hover {
+.actionBtn.edit:hover {
   background: rgba(13, 110, 253, 0.1);
 }
 
-.action-btn.delete {
+.actionBtn.delete {
   border-color: #dc3545;
   color: #dc3545;
 }
 
-.action-btn.delete:hover {
+.actionBtn.delete:hover {
   background: rgba(220, 53, 69, 0.1);
 }
 
-/* Sync Status Icons */
-.sync-status-icon {
+.syncStatusIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -336,22 +316,25 @@
   animation: fadeIn 0.3s ease-in;
 }
 
-.sync-status-icon.syncing .sync-spinner {
+.syncStatusIcon.syncing .syncSpinner {
   display: inline-block;
   animation: spin 1s linear infinite;
 }
 
-.sync-status-icon.error {
+.syncStatusIcon.error {
   cursor: pointer;
   animation: shake 0.5s ease-in-out;
 }
 
-.sync-status-icon.local {
+.syncStatusIcon.local {
   opacity: 0.8;
 }
 
-/* Edit Mode Styles */
-.details-section.edit-mode {
+.syncSpinner {
+  display: inline-block;
+}
+
+.detailsSection.editMode {
   background: rgba(66, 135, 245, 0.05);
   border: 1px solid rgba(66, 135, 245, 0.3);
   border-radius: 6px;
@@ -359,7 +342,7 @@
   margin-bottom: 12px;
 }
 
-.details-section h4 {
+.detailsSection h4 {
   margin: 0 0 12px 0;
   font-size: 13px;
   font-weight: 600;
@@ -368,7 +351,7 @@
   letter-spacing: 0.5px;
 }
 
-.stat-input {
+.statInput {
   width: 80px;
   padding: 6px 8px;
   background: #2a2a2a;
@@ -379,76 +362,63 @@
   text-align: center;
 }
 
-.stat-input:focus {
+.statInput:focus {
   outline: none;
   border-color: #4287f5;
   box-shadow: 0 0 0 2px rgba(66, 135, 245, 0.2);
 }
 
-.edit-actions {
+.editActions {
   display: flex;
   gap: 8px;
   margin-top: 16px;
   justify-content: flex-end;
 }
 
-.action-btn.save {
+.actionBtn.save {
   background: #28a745;
 }
 
-.action-btn.save:hover {
+.actionBtn.save:hover {
   background: #218838;
 }
 
-.action-btn.cancel {
+.actionBtn.cancel {
   background: #6c757d;
 }
 
-.action-btn.cancel:hover {
+.actionBtn.cancel:hover {
   background: #5a6268;
 }
 
-.action-btn.edit {
-  background: #ffc107;
-  color: #000;
-  border-color: #ffc107;
-  margin-top: 12px;
-}
-
-.action-btn.edit:hover {
-  background: #e0a800;
-  border-color: #e0a800;
-}
-
-.action-btn.view-sheet {
+.actionBtn.viewSheet {
   background: #17a2b8;
   border-color: #17a2b8;
   color: #fff;
 }
 
-.action-btn.view-sheet:hover {
+.actionBtn.viewSheet:hover {
   background: #138496;
   border-color: #138496;
 }
 
-.action-btn.share {
+.actionBtn.share {
   background: #6610f2;
   border-color: #6610f2;
 }
 
-.action-btn.share:hover {
+.actionBtn.share:hover {
   background: #560bd0;
   border-color: #560bd0;
 }
 
-/* Conditions Section */
-.conditions-section {
+.conditionsSection {
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid #333;
 }
 
-.conditions-list {
+.conditionsList {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -456,13 +426,13 @@
   min-height: 24px;
 }
 
-.no-conditions {
+.noConditions {
   color: #888;
   font-size: 12px;
   font-style: italic;
 }
 
-.condition-tag {
+.conditionTag {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -475,7 +445,7 @@
   animation: fadeIn 0.2s;
 }
 
-.remove-condition {
+.removeCondition {
   background: none;
   border: none;
   color: #ffc107;
@@ -492,17 +462,17 @@
   transition: background 0.2s;
 }
 
-.remove-condition:hover {
+.removeCondition:hover {
   background: rgba(255, 193, 7, 0.3);
 }
 
-.add-condition-row {
+.addConditionRow {
   display: flex;
   gap: 6px;
   margin-top: 8px;
 }
 
-.condition-input {
+.conditionInput {
   flex: 1;
   padding: 6px 8px;
   background: #2a2a2a;
@@ -512,13 +482,13 @@
   font-size: 12px;
 }
 
-.condition-input:focus {
+.conditionInput:focus {
   outline: none;
   border-color: #ffc107;
   box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.2);
 }
 
-.action-btn.add-condition {
+.actionBtn.addCondition {
   width: 32px;
   height: 32px;
   padding: 0;
@@ -528,11 +498,10 @@
   color: #000;
 }
 
-.action-btn.add-condition:hover {
+.actionBtn.addCondition:hover {
   background: #e6ac00;
 }
 
-/* Animations */
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -559,26 +528,24 @@
   20%, 40%, 60%, 80% { transform: translateX(2px); }
 }
 
-/* Scrollbar Styling */
-.character-list::-webkit-scrollbar {
+.characterList::-webkit-scrollbar {
   width: 6px;
 }
 
-.character-list::-webkit-scrollbar-track {
+.characterList::-webkit-scrollbar-track {
   background: #1e1e1e;
 }
 
-.character-list::-webkit-scrollbar-thumb {
+.characterList::-webkit-scrollbar-thumb {
   background: #444;
   border-radius: 3px;
 }
 
-.character-list::-webkit-scrollbar-thumb:hover {
+.characterList::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
 
-/* Bulk Selection Styles */
-.bulk-actions-bar {
+.bulkActionsBar {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -588,19 +555,19 @@
   animation: slideDown 0.3s ease-out;
 }
 
-.bulk-actions-left {
+.bulkActionsLeft {
   display: flex;
   align-items: center;
   gap: 16px;
 }
 
-.bulk-selection-count {
+.bulkSelectionCount {
   font-size: 14px;
   font-weight: 600;
   color: #3b82f6;
 }
 
-.bulk-action-link {
+.bulkActionLink {
   background: none;
   border: none;
   color: #60a5fa;
@@ -611,16 +578,16 @@
   transition: color 0.2s;
 }
 
-.bulk-action-link:hover {
+.bulkActionLink:hover {
   color: #93c5fd;
 }
 
-.bulk-actions-right {
+.bulkActionsRight {
   display: flex;
   gap: 8px;
 }
 
-.bulk-action-btn {
+.bulkActionBtn {
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 500;
@@ -630,59 +597,57 @@
   transition: all 0.2s;
 }
 
-.bulk-action-btn.export {
+.bulkActionBtn.export {
   background: #059669;
   border-color: #047857;
   color: white;
 }
 
-.bulk-action-btn.export:hover {
+.bulkActionBtn.export:hover {
   background: #047857;
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
 }
 
-.bulk-action-btn.share {
+.bulkActionBtn.share {
   background: #3b82f6;
   border-color: #2563eb;
   color: white;
 }
 
-.bulk-action-btn.share:hover {
+.bulkActionBtn.share:hover {
   background: #2563eb;
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 }
 
-.bulk-action-btn.delete {
+.bulkActionBtn.delete {
   background: #dc2626;
   border-color: #b91c1c;
   color: white;
 }
 
-.bulk-action-btn.delete:hover {
+.bulkActionBtn.delete:hover {
   background: #b91c1c;
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
 }
 
-/* Bulk selection checkbox in character cards */
-.bulk-checkbox-wrapper {
+.bulkCheckboxWrapper {
   position: absolute;
   top: 12px;
   left: 12px;
   z-index: 10;
 }
 
-.bulk-checkbox {
+.bulkCheckbox {
   width: 20px;
   height: 20px;
   cursor: pointer;
   accent-color: #3b82f6;
 }
 
-/* Modal Styles */
-.modal-overlay {
+.modalOverlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -697,9 +662,7 @@
   animation: fadeIn 0.2s ease-out;
 }
 
-/* ===== CHARACTER SHEET MODAL STYLES ===== */
-/* Override Modal.css generic styles with higher specificity */
-.modal-overlay .modal-content {
+.modalOverlay .modalContent {
   background: #1e1e1e;
   border-radius: 8px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
@@ -709,30 +672,28 @@
   animation: slideUp 0.3s ease-out;
 }
 
-/* Character sheet modal - specific sizing that overrides Modal.css defaults */
-.modal-overlay .modal-content.character-sheet-modal {
-  width: clamp(320px, 95vw, 1600px) !important; /* !important to override Modal.css .modal-small */
-  max-width: 98vw !important; /* Never exceed viewport */
-  min-width: 320px; /* Ensure minimum usable width */
+.modalOverlay .modalContent.characterSheetModal {
+  width: clamp(320px, 95vw, 1600px) !important;
+  max-width: 98vw !important;
+  min-width: 320px;
 }
 
-/* Responsive breakpoints for modal */
 @media (max-width: 768px) {
-  .modal-overlay .modal-content.character-sheet-modal {
+  .modalOverlay .modalContent.characterSheetModal {
     width: 100vw !important;
     height: 100vh;
     max-height: 100vh;
-    border-radius: 0; /* Full screen on mobile */
+    border-radius: 0;
   }
 }
 
 @media (min-width: 1920px) {
-  .modal-overlay .modal-content.character-sheet-modal {
-    max-width: 1800px !important; /* Limit on ultra-wide displays */
+  .modalOverlay .modalContent.characterSheetModal {
+    max-width: 1800px !important;
   }
 }
 
-.modal-header {
+.modalHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -742,14 +703,14 @@
   border-radius: 8px 8px 0 0;
 }
 
-.modal-header h2 {
+.modalHeader h2 {
   margin: 0;
   font-size: 20px;
   font-weight: 600;
   color: #fff;
 }
 
-.modal-close-btn {
+.modalCloseBtn {
   width: 32px;
   height: 32px;
   border: none;
@@ -764,12 +725,12 @@
   transition: all 0.2s;
 }
 
-.modal-close-btn:hover {
+.modalCloseBtn:hover {
   background: #444;
   transform: scale(1.05);
 }
 
-.modal-body {
+.modalBody {
   flex: 1;
   overflow-y: auto;
   padding: 24px;
@@ -786,14 +747,34 @@
   }
 }
 
-.character-card.bulk-selected {
+.characterCard.bulkSelected {
   background: rgba(59, 130, 246, 0.1);
   border-color: #3b82f6;
 }
 
-/* Active state for bulk select button */
-.action-btn.active {
+.actionBtn.active {
   background: #3b82f6;
   border-color: #2563eb;
   color: white;
+}
+
+.retrySaveBtn {
+  background: #ffc107;
+  color: #000;
+  border: 1px solid #ffc107;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.retrySaveBtn:hover {
+  background: #e6ac00;
+  transform: scale(1.05);
+}
+
+.searchFilter {
+  padding: 12px;
+  border-bottom: 1px solid #333;
 }

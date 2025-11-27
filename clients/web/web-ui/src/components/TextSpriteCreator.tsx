@@ -12,7 +12,7 @@ import { useRenderEngine } from '../hooks/useRenderEngine';
 import { useGameStore } from '../stores/gameStore';
 import { ErrorBoundary } from './common/ErrorBoundary';
 import { LoadingSpinner } from './common/LoadingSpinner';
-import './TextSpriteCreator.css';
+import styles from './TextSpriteCreator.module.css';
 
 // Text formatting options
 export interface TextStyle {
@@ -600,7 +600,7 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
   return (
     <ErrorBoundary>
       <div className="text-sprite-creator-overlay">
-        <div className="text-sprite-creator">
+        <div className={styles.textSpriteCreator}>
           {/* Header */}
           <div className="text-sprite-header">
             <div className="header-title">
@@ -620,7 +620,7 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
                 </div>
               )}
             </div>
-            <button className="close-btn" onClick={onClose} aria-label="Close">
+            <button className={styles.closeBtn} onClick={onClose} aria-label="Close">
               ✕
             </button>
           </div>
@@ -634,7 +634,7 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
 
           <div className="text-sprite-content">
             {/* Text Input */}
-            <div className="text-input-section">
+            <div className={styles.textInputSection}>
               <label htmlFor="text-content">Text Content</label>
               <textarea
                 ref={textInputRef}
@@ -643,12 +643,12 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
                 onChange={(e) => handleTextChange(e.target.value)}
                 placeholder="Enter your text here..."
                 rows={4}
-                className="text-input"
+                className={styles.textInput}
               />
             </div>
 
             {/* Style Controls */}
-            <div className="style-controls">
+            <div className={styles.styleControls}>
               <div className="control-group">
                 <label htmlFor="font-family">Font Family</label>
                 <select
@@ -760,14 +760,14 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
             </div>
 
             {/* Preview Canvas */}
-            <div className="preview-section">
+            <div className={styles.previewSection}>
               <h3>Preview</h3>
               <div className="canvas-container">
                 <canvas
                   ref={previewCanvasRef}
                   width={canvasWidth}
                   height={canvasHeight}
-                  className="preview-canvas"
+                  className={styles.previewCanvas}
                   onMouseDown={handleMouseDown}
                   onMouseMove={handleMouseMove}
                   onMouseUp={handleMouseUp}
@@ -801,7 +801,7 @@ export const TextSpriteCreator: React.FC<TextSpriteCreatorProps> = ({
               </button>
             </div>
 
-            <div className="action-buttons">
+            <div className={styles.actionButtons}>
               <button className="cancel-btn" onClick={onClose}>
                 Cancel
               </button>

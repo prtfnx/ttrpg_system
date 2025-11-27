@@ -1,5 +1,5 @@
 /* Text Sprite Creator Styles */
-.text-sprite-creator-overlay {
+.textSpriteCreator-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -15,7 +15,7 @@
   animation: fadeIn 0.3s ease-out;
 }
 
-.text-sprite-creator {
+.textSpriteCreator {
   background: #ffffff;
   border-radius: 16px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
@@ -107,7 +107,7 @@
   letter-spacing: 0.5px;
 }
 
-.close-btn {
+.closeBtn {
   background: rgba(255, 255, 255, 0.2);
   color: white;
   border: none;
@@ -123,7 +123,7 @@
   backdrop-filter: blur(10px);
 }
 
-.close-btn:hover {
+.closeBtn:hover {
   background: rgba(255, 255, 255, 0.3);
   transform: scale(1.1);
 }
@@ -155,19 +155,19 @@
 }
 
 /* Text Input Section */
-.text-input-section {
+.textInputSection {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.text-input-section label {
+.textInputSection label {
   font-weight: 600;
   color: #2c3e50;
   font-size: 1.1rem;
 }
 
-.text-input {
+.textInput {
   width: 100%;
   padding: 1rem;
   border: 2px solid #e9ecef;
@@ -179,14 +179,14 @@
   background: #ffffff;
 }
 
-.text-input:focus {
+.textInput:focus {
   outline: none;
   border-color: #667eea;
   box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
 }
 
 /* Style Controls */
-.style-controls {
+.styleControls {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -302,14 +302,14 @@
 }
 
 /* Preview Section */
-.preview-section {
+.previewSection {
   grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-.preview-section h3 {
+.previewSection h3 {
   margin: 0;
   font-size: 1.3rem;
   color: #2c3e50;
@@ -328,7 +328,7 @@
   justify-content: center;
 }
 
-.preview-canvas {
+.previewCanvas {
   max-width: 100%;
   max-height: 400px;
   border-radius: 6px;
@@ -387,7 +387,7 @@
   cursor: not-allowed;
 }
 
-.action-buttons {
+.actionButtons {
   display: flex;
   gap: 1rem;
   align-items: center;
@@ -447,11 +447,11 @@
 }
 
 @media (max-width: 768px) {
-  .text-sprite-creator-overlay {
+  .textSpriteCreator-overlay {
     padding: 0;
   }
   
-  .text-sprite-creator {
+  .textSpriteCreator {
     border-radius: 0;
     max-height: 100vh;
     height: 100vh;
@@ -476,7 +476,7 @@
     gap: 1rem;
   }
   
-  .action-buttons {
+  .actionButtons {
     width: 100%;
     justify-content: space-between;
   }
@@ -498,18 +498,18 @@
 
 /* Dark Mode Support */
 @media (prefers-color-scheme: dark) {
-  .text-sprite-creator {
+  .textSpriteCreator {
     background: #1a1a1a;
     color: #ffffff;
   }
   
-  .text-input {
+  .textInput {
     background: #2a2a2a;
     border-color: #404040;
     color: #ffffff;
   }
   
-  .text-input:focus {
+  .textInput:focus {
     border-color: #667eea;
   }
   
@@ -538,7 +538,7 @@
     border-color: #404040;
   }
   
-  .preview-canvas {
+  .previewCanvas {
     background: #ffffff;
   }
   
@@ -570,11 +570,11 @@
 
 /* High Contrast Mode */
 @media (prefers-contrast: high) {
-  .text-sprite-creator {
+  .textSpriteCreator {
     border: 3px solid #000000;
   }
   
-  .text-input,
+  .textInput,
   .control-group select,
   .button-group button,
   .undo-redo button,
@@ -589,18 +589,18 @@
 }
 
 /* Accessibility Enhancements */
-.text-sprite-creator button:focus-visible,
-.text-sprite-creator input:focus-visible,
-.text-sprite-creator select:focus-visible,
-.text-sprite-creator textarea:focus-visible {
+.textSpriteCreator button:focus-visible,
+.textSpriteCreator input:focus-visible,
+.textSpriteCreator select:focus-visible,
+.textSpriteCreator textarea:focus-visible {
   outline: 3px solid #007bff;
   outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .text-sprite-creator-overlay,
-  .text-sprite-creator,
-  .close-btn,
+  .textSpriteCreator-overlay,
+  .textSpriteCreator,
+  .closeBtn,
   .button-group button,
   .color-preset,
   .cancel-btn,
@@ -609,7 +609,7 @@
     transition: none !important;
   }
   
-  .close-btn:hover,
+  .closeBtn:hover,
   .button-group button:hover,
   .color-preset:hover,
   .cancel-btn:hover,

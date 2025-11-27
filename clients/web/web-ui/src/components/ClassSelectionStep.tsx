@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import type { ExtendedCharacterClass } from '../services/classProgression.service';
 import { classProgressionService } from '../services/classProgression.service';
-import './ClassSelectionStep.css';
+import styles from './ClassSelectionStep.module.css';
 
 // Character form data interface
 interface CharacterFormData {
@@ -31,7 +31,7 @@ const ClassDisplay: React.FC<ClassDisplayProps> = ({ characterClass, isSelected,
     <div className={`class-card ${isSelected ? 'selected' : ''}`}>
       <div className="class-header" onClick={onSelect}>
         <div className="class-name-container">
-          <h3 className="class-name">{characterClass.name}</h3>
+          <h3 className={styles.className}>{characterClass.name}</h3>
           <span className="hit-die">Hit Die: d{characterClass.hit_dice}</span>
         </div>
         <button 
@@ -47,7 +47,7 @@ const ClassDisplay: React.FC<ClassDisplayProps> = ({ characterClass, isSelected,
       </div>
       
       <div className="class-summary">
-        <p className="class-description">{characterClass.description}</p>
+        <p className={styles.classDescription}>{characterClass.description}</p>
         <div className="class-basics">
           <div className="primary-abilities">
             <strong>Primary Abilities:</strong> {characterClass.primary_abilities.join(', ')}

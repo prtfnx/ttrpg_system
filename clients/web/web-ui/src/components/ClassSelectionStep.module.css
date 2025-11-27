@@ -1,4 +1,4 @@
-.class-selection-step {
+.classSelection-step {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
@@ -21,7 +21,7 @@
   margin-bottom: 30px;
 }
 
-.class-card {
+.classCard {
   border: 2px solid #e1e5e9;
   border-radius: 8px;
   padding: 20px;
@@ -30,12 +30,12 @@
   transition: all 0.2s ease;
 }
 
-.class-card:hover {
+.classCard:hover {
   border-color: #3498db;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.class-card.selected {
+.classCard.selected {
   border-color: #27ae60;
   background: #f8fff8;
   box-shadow: 0 4px 12px rgba(39, 174, 96, 0.2);
@@ -48,11 +48,11 @@
   margin-bottom: 15px;
 }
 
-.class-name-container {
+.className-container {
   flex: 1;
 }
 
-.class-name {
+.className {
   margin: 0 0 5px 0;
   color: #2c3e50;
   font-size: 1.3em;
@@ -77,7 +77,7 @@
   background: #d5dbdb;
 }
 
-.class-description {
+.classDescription {
   color: #34495e;
   line-height: 1.4;
   margin-bottom: 15px;

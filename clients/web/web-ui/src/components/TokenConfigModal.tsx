@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useProtocol } from '../services/ProtocolContext';
 import { authService } from '../services/auth.service';
 import { useGameStore } from '../store';
-import './TokenConfigModal.css';
+import styles from './TokenConfigModal.module.css';
 
 interface TokenConfigModalProps {
   spriteId: string;
@@ -181,15 +181,15 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
 
   return (
     <div className="token-config-modal-overlay" onClick={onClose}>
-      <div className="token-config-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
+      <div className={styles.tokenConfigModal} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
           <h2>Token Configuration</h2>
-          <button className="close-button" onClick={onClose}>×</button>
+          <button className={styles.closeButton} onClick={onClose}>×</button>
         </div>
         
-        <div className="modal-content">
+        <div className={styles.modalContent}>
           {/* Character Linking */}
-          <div className="config-section">
+          <div className={styles.configSection}>
             <label htmlFor="character-select">Link to Character:</label>
             <select
               id="character-select"
@@ -207,7 +207,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
           </div>
 
           {/* Token Stats - Always visible */}
-          <div className="config-section">
+          <div className={styles.configSection}>
             <div className="stat-row">
               <label>Current HP:</label>
               <div className="hp-input-group">
@@ -246,7 +246,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
             </div>
           </div>
 
-          <div className="config-section">
+          <div className={styles.configSection}>
             <div className="stat-row">
               <label>Max HP:</label>
               <input
@@ -259,7 +259,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
             </div>
           </div>
 
-          <div className="config-section">
+          <div className={styles.configSection}>
             <div className="stat-row">
               <label>Armor Class (AC):</label>
               <input
@@ -272,7 +272,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
             </div>
           </div>
 
-          <div className="config-section">
+          <div className={styles.configSection}>
             <div className="stat-row">
               <label>Aura Radius:</label>
               <input

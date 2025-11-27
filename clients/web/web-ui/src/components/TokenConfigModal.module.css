@@ -1,4 +1,4 @@
-.token-config-modal-overlay {
+.tokenConfigModal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -11,7 +11,7 @@
   z-index: 10000;
 }
 
-.token-config-modal {
+.tokenConfigModal {
   background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
   border-radius: 12px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
@@ -23,7 +23,7 @@
   color: #e2e8f0;
 }
 
-.modal-header {
+.modalHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -31,14 +31,14 @@
   border-bottom: 1px solid rgba(148, 163, 184, 0.2);
 }
 
-.modal-header h2 {
+.modalHeader h2 {
   margin: 0;
   font-size: 20px;
   font-weight: 600;
   color: #f1f5f9;
 }
 
-.close-button {
+.closeButton {
   background: none;
   border: none;
   font-size: 28px;
@@ -54,20 +54,20 @@
   transition: all 0.2s ease;
 }
 
-.close-button:hover {
+.closeButton:hover {
   background: rgba(148, 163, 184, 0.1);
   color: #f1f5f9;
 }
 
-.modal-content {
+.modalContent {
   padding: 24px;
 }
 
-.config-section {
+.configSection {
   margin-bottom: 20px;
 }
 
-.config-section label {
+.configSection label {
   display: block;
   margin-bottom: 8px;
   font-size: 14px;
@@ -269,20 +269,20 @@
 }
 
 /* Custom scrollbar */
-.token-config-modal::-webkit-scrollbar {
+.tokenConfigModal::-webkit-scrollbar {
   width: 8px;
 }
 
-.token-config-modal::-webkit-scrollbar-track {
+.tokenConfigModal::-webkit-scrollbar-track {
   background: rgba(15, 23, 42, 0.5);
   border-radius: 4px;
 }
 
-.token-config-modal::-webkit-scrollbar-thumb {
+.tokenConfigModal::-webkit-scrollbar-thumb {
   background: rgba(148, 163, 184, 0.3);
   border-radius: 4px;
 }
 
-.token-config-modal::-webkit-scrollbar-thumb:hover {
+.tokenConfigModal::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.5);
 }

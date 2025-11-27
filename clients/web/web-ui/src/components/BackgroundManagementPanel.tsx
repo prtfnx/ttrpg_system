@@ -12,7 +12,7 @@ import {
     type PerformanceMetrics,
     type WeatherEffect
 } from '../services/performanceOptimizedBackground.service';
-import './BackgroundManagementPanel.css';
+import styles from './BackgroundManagementPanel.module.css';
 import { ErrorBoundary } from './common/ErrorBoundary';
 import { LoadingSpinner } from './common/LoadingSpinner';
 
@@ -338,28 +338,28 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
 
   return (
     <ErrorBoundary>
-      <div className="background-management-overlay">
-        <div className="background-management-panel">
-          <div className="panel-header">
+      <div className={styles.backgroundManagementOverlay}>
+        <div className={styles.backgroundManagementPanel}>
+          <div className={styles.panelHeader}>
             <h2>Background Management</h2>
-            <button className="close-btn" onClick={onClose} aria-label="Close panel">
+            <button className={styles.closeBtn} onClick={onClose} aria-label="Close panel">
               ✕
             </button>
           </div>
 
           {error && (
-            <div className="error-message" role="alert">
-              <span className="error-icon">⚠️</span>
+            <div className={styles.errorMessage} role="alert">
+              <span className={styles.errorIcon}>⚠️</span>
               {error}
-              <button className="error-dismiss" onClick={() => setError(null)}>✕</button>
+              <button className={styles.errorDismiss} onClick={() => setError(null)}>✕</button>
             </div>
           )}
 
-          <div className="panel-content">
+          <div className={styles.panelContent}>
             {/* Configuration Selection */}
-            <div className="section">
+            <div className={styles.section}>
               <h3>Background Configuration</h3>
-              <div className="config-selector">
+              <div className={styles.configSelector}>
                 {configurations.map(config => (
                   <button
                     key={config.id}
@@ -367,8 +367,8 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                     onClick={() => setActiveConfiguration(config.id)}
                     disabled={isLoading}
                   >
-                    <div className="config-name">{config.name}</div>
-                    <div className="config-description">{config.description}</div>
+                    <div className={styles.configName}>{config.name}</div>
+                    <div className={styles.configDescription}>{config.description}</div>
                   </button>
                 ))}
               </div>
@@ -376,44 +376,44 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
 
             {/* Performance Metrics */}
             {performanceMetrics && (
-              <div className="section">
+              <div className={styles.section}>
                 <h3>Performance Metrics</h3>
-                <div className="metrics-grid">
-                  <div className="metric">
-                    <span className="metric-label">FPS:</span>
+                <div className={styles.metricsGrid}>
+                  <div className={styles.metric}>
+                    <span className={styles.metricLabel}>FPS:</span>
                     <span className={`metric-value ${performanceMetrics.fps < 30 ? 'warning' : performanceMetrics.fps < 60 ? 'caution' : 'good'}`}>
                       {performanceMetrics.fps.toFixed(1)}
                     </span>
                   </div>
-                  <div className="metric">
-                    <span className="metric-label">Frame Time:</span>
-                    <span className="metric-value">{performanceMetrics.frameTime.toFixed(1)}ms</span>
+                  <div className={styles.metric}>
+                    <span className={styles.metricLabel}>Frame Time:</span>
+                    <span className={styles.metricValue}>{performanceMetrics.frameTime.toFixed(1)}ms</span>
                   </div>
-                  <div className="metric">
-                    <span className="metric-label">Draw Calls:</span>
-                    <span className="metric-value">{performanceMetrics.drawCalls}</span>
+                  <div className={styles.metric}>
+                    <span className={styles.metricLabel}>Draw Calls:</span>
+                    <span className={styles.metricValue}>{performanceMetrics.drawCalls}</span>
                   </div>
-                  <div className="metric">
-                    <span className="metric-label">Background Layers:</span>
-                    <span className="metric-value">{performanceMetrics.backgroundLayers}</span>
+                  <div className={styles.metric}>
+                    <span className={styles.metricLabel}>Background Layers:</span>
+                    <span className={styles.metricValue}>{performanceMetrics.backgroundLayers}</span>
                   </div>
-                  <div className="metric">
-                    <span className="metric-label">LOD Switches:</span>
-                    <span className="metric-value">{performanceMetrics.lodSwitches}</span>
+                  <div className={styles.metric}>
+                    <span className={styles.metricLabel}>LOD Switches:</span>
+                    <span className={styles.metricValue}>{performanceMetrics.lodSwitches}</span>
                   </div>
-                  <div className="metric">
-                    <span className="metric-label">Texture Memory:</span>
-                    <span className="metric-value">{(performanceMetrics.textureMemory / 1024 / 1024).toFixed(1)}MB</span>
+                  <div className={styles.metric}>
+                    <span className={styles.metricLabel}>Texture Memory:</span>
+                    <span className={styles.metricValue}>{(performanceMetrics.textureMemory / 1024 / 1024).toFixed(1)}MB</span>
                   </div>
                 </div>
               </div>
             )}
 
             {/* Performance Settings */}
-            <div className="section">
+            <div className={styles.section}>
               <h3>Performance Settings</h3>
-              <div className="settings-grid">
-                <div className="setting">
+              <div className={styles.settingsGrid}>
+                <div className={styles.setting}>
                   <label htmlFor="performance-profile">Performance Profile:</label>
                   <select
                     id="performance-profile"
@@ -426,7 +426,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                     <option value="ultra">Ultra</option>
                   </select>
                 </div>
-                <div className="setting">
+                <div className={styles.setting}>
                   <label htmlFor="streaming-enabled">
                     <input
                       type="checkbox"
@@ -442,23 +442,23 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
 
             {/* Background Layers */}
             {currentConfig && (
-              <div className="section">
+              <div className={styles.section}>
                 <h3>Background Layers</h3>
-                <div className="layers-list">
+                <div className={styles.layersList}>
                   {currentConfig.layers
                     .sort((a, b) => a.zIndex - b.zIndex)
                     .map(layer => (
                     <div key={layer.id} className={`layer-item ${selectedLayerId === layer.id ? 'selected' : ''}`}>
-                      <div className="layer-header" onClick={() => setSelectedLayerId(layer.id)}>
-                        <div className="layer-info">
-                          <span className="layer-name">{layer.name}</span>
-                          <span className="layer-details">
+                      <div className={styles.layerHeader} onClick={() => setSelectedLayerId(layer.id)}>
+                        <div className={styles.layerInfo}>
+                          <span className={styles.layerName}>{layer.name}</span>
+                          <span className={styles.layerDetails}>
                             Z: {layer.zIndex} | Opacity: {(layer.opacity * 100).toFixed(0)}%
                           </span>
                         </div>
-                        <div className="layer-controls">
+                        <div className={styles.layerControls}>
                           <button
-                            className="visibility-toggle"
+                            className={styles.visibilityToggle}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleLayerUpdate(layer.id, { visible: !layer.visible });
@@ -468,7 +468,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                             {layer.visible ? '👁️' : '👁️‍🗨️'}
                           </button>
                           <button
-                            className="edit-btn"
+                            className={styles.editBtn}
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedLayerId(layer.id);
@@ -481,8 +481,8 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                       </div>
                       
                       {selectedLayerId === layer.id && (
-                        <div className="layer-details-panel">
-                          <div className="layer-property">
+                        <div className={styles.layerDetailsPanel}>
+                          <div className={styles.layerProperty}>
                             <label>Opacity:</label>
                             <input
                               type="range"
@@ -494,7 +494,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                             />
                             <span>{(layer.opacity * 100).toFixed(0)}%</span>
                           </div>
-                          <div className="layer-property">
+                          <div className={styles.layerProperty}>
                             <label>Parallax Factor:</label>
                             <input
                               type="range"
@@ -506,7 +506,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                             />
                             <span>{layer.parallaxFactor.toFixed(1)}</span>
                           </div>
-                          <div className="layer-property">
+                          <div className={styles.layerProperty}>
                             <label>Blend Mode:</label>
                             <select
                               value={layer.blendMode}
@@ -520,7 +520,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                             </select>
                           </div>
                           {layer.animated && (
-                            <div className="layer-property">
+                            <div className={styles.layerProperty}>
                               <label>Animation Speed:</label>
                               <input
                                 type="range"
@@ -542,14 +542,14 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
             )}
 
             {/* Weather Effects */}
-            <div className="section">
+            <div className={styles.section}>
               <h3>Weather Effects</h3>
-              <div className="weather-effects">
+              <div className={styles.weatherEffects}>
                 {weatherEffects.map(effect => (
-                  <div key={effect.id} className="weather-effect">
+                  <div key={effect.id} className={styles.weatherEffect}>
                     <div className="effect-info">
                       <span className="effect-type">{effect.type}</span>
-                      <span className="effect-intensity">Intensity: {(effect.intensity * 100).toFixed(0)}%</span>
+                      <span className={styles.effectIntensity}>Intensity: {(effect.intensity * 100).toFixed(0)}%</span>
                     </div>
                     <div className="effect-controls">
                       <input

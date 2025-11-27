@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useBrushPresets, usePaintInteraction, usePaintSystem } from '../hooks/usePaintSystem';
 import { useRenderEngine } from '../hooks/useRenderEngine';
 import { paintTemplateService, type TemplateMetadata } from '../services/paintTemplate.service';
-import './PaintPanel.module.css';
+import clsx from 'clsx';
+import styles from './PaintPanel.module.css';
 
 interface PanelDimensions {
   width: number;
@@ -64,22 +65,22 @@ interface PaintModeStatus {
 // Paint Mode Indicator Component
 const PaintModeIndicator: React.FC<{ status: PaintModeStatus }> = ({ status }) => (
   <div className={`paint-mode-indicator ${status.mode} ${status.isActive ? 'active' : 'inactive'}`}>
-    <div className="mode-icon">
+    <div className={styles.modeIcon}>
       {status.mode === 'draw' && <span>🖌️</span>}
       {status.mode === 'erase' && <span>🧽</span>}
       {status.mode === 'template' && <span>📋</span>}
       {status.mode === 'table' && <span>🗓️</span>}
     </div>
-    <div className="mode-details">
-      <div className="mode-name">{status.mode.toUpperCase()} MODE</div>
-      <div className="mode-settings">
+    <div className={styles.modeDetails}>
+      <div className={styles.modeName}>{status.mode.toUpperCase()} MODE</div>
+      <div className={styles.modeSettings}>
         Size: {status.brush.size}px | 
         {status.template ? ` Template: ${status.template.name}` : ` Color: ${status.brush.color}`}
-        {status.tableIntegration && <span className="table-badge"> | TABLE</span>}
+        {status.tableIntegration && <span className={styles.tableBadge}> | TABLE</span>}
       </div>
       {status.isDrawing && (
-        <div className="drawing-indicator">
-          <span className="pulse-dot">●</span> Drawing...
+        <div className={styles.drawingIndicator}>
+          <span className={styles.pulseDot}>●</span> Drawing...
         </div>
       )}
     </div>
@@ -373,32 +374,32 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
       className={`paint-panel ${isNarrow ? 'narrow' : 'wide'} ${isCompact ? 'compact' : ''}`} 
       style={panelStyle}
     >
-      <div className="paint-panel-header">
+      <div className={styles.paintPanelHeader}>
         <h3>🎨 Paint System</h3>
-        <div className="header-controls">
+        <div className={styles.headerControls}>
           {onToggle && (
-            <button onClick={onToggle} className="panel-toggle">
+            <button onClick={onToggle} className={styles.panelToggle}>
               ⬇
             </button>
           )}
           {onClose && (
-            <button onClick={onClose} className="panel-toggle">
+            <button onClick={onClose} className={styles.panelToggle}>
               ×
             </button>
           )}
         </div>
       </div>
 
-      <div className="paint-panel-content">
+      <div className={styles.paintPanelContent}>
         {/* Paint Mode Controls */}
-        <div className="paint-mode-section">
+        <div className={styles.paintModeSection}>
           <PaintModeIndicator status={currentPaintMode} />
           
-          <div className="paint-mode-controls">
+          <div className={styles.paintModeControls}>
             {!paintState.isActive ? (
               <button 
                 onClick={handleEnterPaintMode}
-                className="btn-primary"
+                className={styles.btnPrimary}
                 disabled={!engine}
               >
                 Enter Paint Mode
@@ -406,7 +407,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
             ) : (
               <button 
                 onClick={paintControls.exitPaintMode}
-                className="btn-secondary"
+                className={styles.btnSecondary}
               >
                 Exit Paint Mode
               </button>
@@ -415,9 +416,9 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
         </div>
 
         {/* Paint Target Mode Selector */}
-        <div className="paint-target-mode-section">
+        <div className={styles.paintTargetModeSection}>
           <h4>Paint Target</h4>
-          <div className="paint-mode-selector">
+          <div className={styles.paintModeSelector}>
             <button 
               className={`mode-button ${paintMode === 'canvas' ? 'active' : ''}`}
               onClick={() => setPaintMode('canvas')}
@@ -435,19 +436,19 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
               🗺️ Table Mode {!isIntegrated && '(Unavailable)'}
             </button>
           </div>
-          <div className="mode-status">
+          <div className={styles.modeStatus}>
             {paintMode === 'table' && isIntegrated && (
-              <div className="status-indicator success">
+              <div className={clsx(styles.statusIndicator, styles.success)}>
                 ✅ Paint strokes will be saved to the table
               </div>
             )}
             {paintMode === 'canvas' && (
-              <div className="status-indicator warning">
+              <div className={clsx(styles.statusIndicator, styles.warning)}>
                 ⚠️ Paint strokes are preview only (not saved to table)
               </div>
             )}
             {paintMode === 'table' && !isIntegrated && (
-              <div className="status-indicator error">
+              <div className={clsx(styles.statusIndicator, styles.error)}>
                 ❌ WASM table integration unavailable
               </div>
             )}
@@ -455,11 +456,11 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
         </div>
 
         {/* Brush Settings */}
-        <div className="brush-settings-section">
+        <div className={styles.brushSettingsSection}>
           <h4>Brush Settings</h4>
           
           {/* Brush Type Selection */}
-          <div className="brush-type-section">
+          <div className={styles.brushTypeSection}>
             <label>Brush Type:</label>
             <div 
               className={`brush-type-controls ${isCompact ? 'compact' : ''}`}
@@ -495,16 +496,16 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
           </div>
           
           {/* Color Picker */}
-          <div className="color-picker-section">
+          <div className={styles.colorPickerSection}>
             <label htmlFor="color-picker">Color:</label>
-            <div className="color-controls">
+            <div className={styles.colorControls}>
               <input
                 id="color-picker"
                 type="color"
                 value={currentColor}
                 onChange={handleColorChange}
                 disabled={!paintState.isActive}
-                className="color-input"
+                className={styles.colorInput}
               />
               <div 
                 className={`predefined-colors ${isNarrow ? 'narrow' : ''} ${isCompact ? 'compact' : ''}`}
@@ -512,7 +513,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
                 {predefinedColors.map(color => (
                   <button
                     key={color}
-                    className="color-swatch"
+                    className={styles.colorSwatch}
                     style={{ backgroundColor: color }}
                     onClick={() => {
                       setCurrentColor(color);
@@ -527,7 +528,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
           </div>
 
           {/* Brush Width */}
-          <div className="brush-width-section">
+          <div className={styles.brushWidthSection}>
             <label htmlFor="brush-size">Brush Size: {paintState.brushWidth.toFixed(1)}px</label>
             <input
               id="brush-size"
@@ -538,12 +539,12 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
               value={paintState.brushWidth}
               onChange={handleWidthChange}
               disabled={!paintState.isActive}
-              className="width-slider"
+              className={styles.widthSlider}
             />
           </div>
 
           {/* Opacity Control */}
-          <div className="opacity-section">
+          <div className={styles.opacitySection}>
             <label htmlFor="opacity">Opacity: {(paintState.brushColor[3] || 1).toFixed(2)}</label>
             <input
               id="opacity"
@@ -558,18 +559,18 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
                 paintControls.setBrushColor(r, g, b, opacity);
               }}
               disabled={!paintState.isActive}
-              className="opacity-slider"
+              className={styles.opacitySlider}
             />
           </div>
 
           {/* Blend Mode */}
-          <div className="blend-mode-section">
+          <div className={styles.blendModeSection}>
             <label>Blend Mode:</label>
             <select 
               value={paintState.blendMode} 
               onChange={handleBlendModeChange}
               disabled={!paintState.isActive}
-              className="blend-mode-select"
+              className={styles.blendModeSelect}
             >
               <option value="alpha">Alpha (Normal)</option>
               <option value="additive">Additive (Glow)</option>
@@ -581,15 +582,15 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
 
         {/* Brush Presets */}
         {brushPresets.length > 0 && (
-          <div className="brush-presets-section">
+          <div className={styles.brushPresetsSection}>
             <h4>Brush Presets</h4>
-            <div className="preset-buttons">
+            <div className={styles.presetButtons}>
               {brushPresets.map((preset, index) => (
                 <button
                   key={index}
                   onClick={() => paintControls.applyBrushPreset(preset)}
                   disabled={!paintState.isActive}
-                  className="preset-button"
+                  className={styles.presetButton}
                   title={`Preset ${index + 1}`}
                 >
                   {index + 1}
@@ -600,15 +601,15 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
         )}
 
         {/* Paint Templates */}
-        <div className="templates-section">
+        <div className={styles.templatesSection}>
           <h4>Paint Templates</h4>
           
           {/* Save Template */}
-          <div className="template-save">
+          <div className={styles.templateSave}>
             <button
               onClick={() => setShowTemplateDialog(true)}
               disabled={!paintState.isActive || paintState.strokeCount === 0}
-              className="btn-primary"
+              className={styles.btnPrimary}
               title="Save current strokes as template"
             >
               💾 Save Template
@@ -617,28 +618,28 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
 
           {/* Template List */}
           {templates.length > 0 && (
-            <div className="template-list">
+            <div className={styles.templateList}>
               <label>Saved Templates:</label>
               {templates.map((template) => (
-                <div key={template.id} className="template-item">
-                  <div className="template-info">
-                    <span className="template-name">{template.name}</span>
-                    <span className="template-meta">
+                <div key={template.id} className={styles.templateItem}>
+                  <div className={styles.templateInfo}>
+                    <span className={styles.templateName}>{template.name}</span>
+                    <span className={styles.templateMeta}>
                       {template.strokeCount} strokes • {new Date(template.created).toLocaleDateString()}
                     </span>
                   </div>
-                  <div className="template-actions">
+                  <div className={styles.templateActions}>
                     <button
                       onClick={() => handleLoadTemplate(template.id)}
                       disabled={!paintState.isActive}
-                      className="btn-secondary small"
+                      className={clsx(styles.btnSecondary, styles.small)}
                       title="Load template"
                     >
                       📂 Load
                     </button>
                     <button
                       onClick={() => handleDeleteTemplate(template.id)}
-                      className="btn-danger small"
+                      className={clsx(styles.btnDanger, styles.small)}
                       title="Delete template"
                     >
                       🗑️
@@ -652,10 +653,10 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
 
         {/* Template Save Dialog */}
         {showTemplateDialog && (
-          <div className="modal-overlay">
-            <div className="modal-dialog">
+          <div className={styles.modalOverlay}>
+            <div className={styles.modalDialog}>
               <h4>Save Paint Template</h4>
-              <div className="form-group">
+              <div className={styles.formGroup}>
                 <label htmlFor="template-name">Template Name:</label>
                 <input
                   id="template-name"
@@ -670,7 +671,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
                 <button
                   onClick={handleSaveTemplate}
                   disabled={!newTemplateName.trim()}
-                  className="btn-primary"
+                  className={styles.btnPrimary}
                 >
                   Save
                 </button>
@@ -679,7 +680,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
                     setShowTemplateDialog(false);
                     setNewTemplateName('');
                   }}
-                  className="btn-secondary"
+                  className={styles.btnSecondary}
                 >
                   Cancel
                 </button>
@@ -695,7 +696,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
             <button
               onClick={paintControls.undoStroke}
               disabled={!paintState.isActive || paintState.strokeCount === 0}
-              className="btn-secondary"
+              className={styles.btnSecondary}
               title="Undo last stroke"
             >
               ↶ Undo
@@ -703,7 +704,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
             <button
               onClick={paintControls.redoStroke}
               disabled={!paintState.isActive || !paintState.canRedo}
-              className="btn-secondary"
+              className={styles.btnSecondary}
               title="Redo last undone stroke"
             >
               ↷ Redo
@@ -724,7 +725,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
                 }
               }}
               disabled={!paintState.isActive || paintState.strokeCount === 0}
-              className="btn-primary"
+              className={styles.btnPrimary}
               title="Save current strokes as sprites"
             >
               💾 Save Strokes
@@ -732,7 +733,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
             <button
               onClick={paintControls.clearAll}
               disabled={!paintState.isActive || paintState.strokeCount === 0}
-              className="btn-danger"
+              className={styles.btnDanger}
               title="Clear all strokes"
             >
               🗑️ Clear All

@@ -226,14 +226,14 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
             </div>
             
             <h4>Action History ({actions.actionHistory.length})</h4>
-            <div className="history-list">
+            <div className={styles.historyList}>
               {actions.actionHistory.slice(-10).reverse().map((entry, index) => (
-                <div key={index} className="history-item">
-                  <div className="history-type">{entry.action_type}</div>
-                  <div className="history-time">
+                <div key={index} className={styles.historyItem}>
+                  <div className={styles.historyType}>{entry.action_type}</div>
+                  <div className={styles.historyTime}>
                     {new Date(entry.timestamp).toLocaleTimeString()}
                   </div>
-                  {entry.reversible && <span className="history-reversible">↶</span>}
+                  {entry.reversible && <span className={styles.historyReversible}>↶</span>}
                 </div>
               ))}
             </div>
@@ -263,7 +263,7 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
           <button
             key={tab}
             onClick={() => setActiveTab(tab as any)}
-            className={`tab-button ${activeTab === tab ? 'active' : ''}`}
+            className={clsx(styles.tabButton, activeTab === tab && styles.active)}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
@@ -274,10 +274,10 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
         {renderTabContent()}
       </div>
 
-      <div className="panel-footer">
-        <div className="action-logs">
+      <div className={styles.panelFooter}>
+        <div className={styles.actionLogs}>
           <h4>Recent Logs</h4>
-          <div className="logs-container">
+          <div className={styles.logsContainer}>
             {logs.slice(-5).map((log, index) => (
               <div key={index} className={styles.logEntry}>
                 {log}

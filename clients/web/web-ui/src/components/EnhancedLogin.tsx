@@ -9,7 +9,7 @@ import type { LoginCredentials, OAuthProvider, RegisterCredentials } from '../se
 import { enhancedAuthService } from '../services/enhancedAuth.service';
 import { ErrorBoundary } from './common/ErrorBoundary';
 import { LoadingSpinner } from './common/LoadingSpinner';
-import './EnhancedLogin.module.css';
+import styles from './EnhancedLogin.module.css';
 
 interface PasswordStrength {
   score: number;
@@ -286,29 +286,29 @@ const EnhancedLogin: React.FC = () => {
   if (showForgotPassword) {
     return (
       <ErrorBoundary>
-        <div className="auth-container">
-          <div className="auth-card">
-            <div className="auth-header">
+        <div className={styles.authContainer}>
+          <div className={styles.authCard}>
+            <div className={styles.authHeader}>
               <h2>Reset Password</h2>
               <p>Enter your email address and we'll send you instructions to reset your password.</p>
             </div>
 
             {error && (
-              <div className="error-message" role="alert" aria-live="polite">
-                <span className="error-icon">⚠️</span>
+              <div className={styles.errorMessage} role="alert" aria-live="polite">
+                <span className={styles.errorIcon}>⚠️</span>
                 {error}
               </div>
             )}
 
             {success && (
-              <div className="success-message" role="alert" aria-live="polite">
-                <span className="success-icon">✅</span>
+              <div className={styles.successMessage} role="alert" aria-live="polite">
+                <span className={styles.successIcon}>✅</span>
                 {success}
               </div>
             )}
 
-            <form onSubmit={handleForgotPassword} className="auth-form">
-              <div className="form-group">
+            <form onSubmit={handleForgotPassword} className={styles.authForm}>
+              <div className={styles.formGroup}>
                 <label htmlFor="reset-email">Email Address</label>
                 <input
                   id="reset-email"
@@ -326,18 +326,18 @@ const EnhancedLogin: React.FC = () => {
                 />
               </div>
 
-              <div className="form-actions">
+              <div className={styles.formActions}>
                 <button
                   type="button"
                   onClick={() => setShowForgotPassword(false)}
-                  className="secondary-btn"
+                  className={styles.secondaryBtn}
                   disabled={isLoading}
                 >
                   Back to Sign In
                 </button>
                 <button
                   type="submit"
-                  className="primary-btn"
+                  className={styles.primaryBtn}
                   disabled={isLoading || !resetEmail.trim()}
                 >
                   {isLoading ? <LoadingSpinner size="small" /> : 'Send Reset Link'}
@@ -352,9 +352,9 @@ const EnhancedLogin: React.FC = () => {
 
   return (
     <ErrorBoundary>
-      <div className="auth-container">
-        <div className="auth-card">
-          <div className="auth-header">
+      <div className={styles.authContainer}>
+        <div className={styles.authCard}>
+          <div className={styles.authHeader}>
             <h2>{isLoginMode ? 'Welcome Back' : 'Create Account'}</h2>
             <p>
               {isLoginMode 
@@ -365,40 +365,40 @@ const EnhancedLogin: React.FC = () => {
           </div>
 
           {error && (
-            <div className="error-message" role="alert" aria-live="polite">
-              <span className="error-icon">⚠️</span>
+            <div className={styles.errorMessage} role="alert" aria-live="polite">
+              <span className={styles.errorIcon}>⚠️</span>
               {error}
             </div>
           )}
 
           {success && (
-            <div className="success-message" role="alert" aria-live="polite">
-              <span className="success-icon">✅</span>
+            <div className={styles.successMessage} role="alert" aria-live="polite">
+              <span className={styles.successIcon}>✅</span>
               {success}
             </div>
           )}
 
           {/* OAuth Providers */}
           {oauthProviders.length > 0 && (
-            <div className="oauth-section">
-              <div className="oauth-divider">
+            <div className={styles.oauthSection}>
+              <div className={styles.oauthDivider}>
                 <span>Continue with</span>
               </div>
-              <div className="oauth-providers">
+              <div className={styles.oauthProviders}>
                 {oauthProviders.map((provider) => (
                   <button
                     key={provider.id}
                     type="button"
-                    className="oauth-btn"
+                    className={styles.oauthBtn}
                     onClick={() => handleOAuthLogin(provider.id)}
                     disabled={isLoading}
                   >
-                    <img src={provider.icon} alt={provider.name} className="oauth-icon" />
+                    <img src={provider.icon} alt={provider.name} className={styles.oauthIcon} />
                     {provider.name}
                   </button>
                 ))}
               </div>
-              <div className="oauth-divider">
+              <div className={styles.oauthDivider}>
                 <span>or</span>
               </div>
             </div>
@@ -406,8 +406,8 @@ const EnhancedLogin: React.FC = () => {
 
           {/* Login Form */}
           {isLoginMode ? (
-            <form onSubmit={handleLogin} className="auth-form" onKeyDown={handleKeyDown}>
-              <div className="form-group">
+            <form onSubmit={handleLogin} className={styles.authForm} onKeyDown={handleKeyDown}>
+              <div className={styles.formGroup}>
                 <label htmlFor="login-username">Username or Email</label>
                 <input
                   id="login-username"
@@ -426,9 +426,9 @@ const EnhancedLogin: React.FC = () => {
                 />
               </div>
 
-              <div className="form-group">
+              <div className={styles.formGroup}>
                 <label htmlFor="login-password">Password</label>
-                <div className="password-input-group">
+                <div className={styles.passwordInputGroup}>
                   <input
                     id="login-password"
                     ref={passwordRef}
@@ -446,7 +446,7 @@ const EnhancedLogin: React.FC = () => {
                   />
                   <button
                     type="button"
-                    className="password-toggle"
+                    className={styles.passwordToggle}
                     onClick={() => setShowPassword(!showPassword)}
                     disabled={isLoading}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
@@ -456,20 +456,20 @@ const EnhancedLogin: React.FC = () => {
                 </div>
               </div>
 
-              <div className="form-options">
-                <label className="checkbox-label">
+              <div className={styles.formOptions}>
+                <label className={styles.checkboxLabel}>
                   <input
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
                     disabled={isLoading}
                   />
-                  <span className="checkmark"></span>
+                  <span className={styles.checkmark}></span>
                   Remember me
                 </label>
                 <button
                   type="button"
-                  className="forgot-password-link"
+                  className={styles.forgotPasswordLink}
                   onClick={() => setShowForgotPassword(true)}
                   disabled={isLoading}
                 >
@@ -479,7 +479,7 @@ const EnhancedLogin: React.FC = () => {
 
               <button
                 type="submit"
-                className="primary-btn"
+                className={styles.primaryBtn}
                 disabled={isLoading || !loginData.username.trim() || !loginData.password.trim()}
               >
                 {isLoading ? <LoadingSpinner size="small" /> : 'Sign In'}
@@ -487,8 +487,8 @@ const EnhancedLogin: React.FC = () => {
             </form>
           ) : (
             /* Register Form */
-            <form onSubmit={handleRegister} className="auth-form" onKeyDown={handleKeyDown}>
-              <div className="form-group">
+            <form onSubmit={handleRegister} className={styles.authForm} onKeyDown={handleKeyDown}>
+              <div className={styles.formGroup}>
                 <label htmlFor="register-username">Username *</label>
                 <input
                   id="register-username"
@@ -503,7 +503,7 @@ const EnhancedLogin: React.FC = () => {
                 />
               </div>
 
-              <div className="form-group">
+              <div className={styles.formGroup}>
                 <label htmlFor="register-email">Email Address *</label>
                 <input
                   id="register-email"
@@ -522,7 +522,7 @@ const EnhancedLogin: React.FC = () => {
                 />
               </div>
 
-              <div className="form-group">
+              <div className={styles.formGroup}>
                 <label htmlFor="register-fullname">Full Name</label>
                 <input
                   id="register-fullname"
@@ -535,9 +535,9 @@ const EnhancedLogin: React.FC = () => {
                 />
               </div>
 
-              <div className="form-group">
+              <div className={styles.formGroup}>
                 <label htmlFor="register-password">Password *</label>
-                <div className="password-input-group">
+                <div className={styles.passwordInputGroup}>
                   <input
                     id="register-password"
                     type={showPassword ? 'text' : 'password'}
@@ -550,7 +550,7 @@ const EnhancedLogin: React.FC = () => {
                   />
                   <button
                     type="button"
-                    className="password-toggle"
+                    className={styles.passwordToggle}
                     onClick={() => setShowPassword(!showPassword)}
                     disabled={isLoading}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
@@ -561,27 +561,27 @@ const EnhancedLogin: React.FC = () => {
                 
                 {/* Password Strength Indicator */}
                 {registerData.password && (
-                  <div className="password-strength">
-                    <div className="strength-bar">
+                  <div className={styles.passwordStrength}>
+                    <div className={styles.strengthBar}>
                       <div 
-                        className="strength-fill"
+                        className={styles.strengthFill}
                         style={{
                           width: `${(passwordStrength.score / 5) * 100}%`,
                           backgroundColor: getPasswordStrengthColor(passwordStrength.score)
                         }}
                       ></div>
                     </div>
-                    <div className="strength-level">
+                    <div className={styles.strengthLevel}>
                       {passwordStrength.level}
                     </div>
-                    <div className="strength-feedback">
+                    <div className={styles.strengthFeedback}>
                       {passwordStrength.isStrong ? (
-                        <div className="success">
+                        <div className={styles.success}>
                           ✅ Excellent password security!
                         </div>
                       ) : (
                         passwordStrength.feedback.map((feedback, index) => (
-                          <div key={index} className="warning">
+                          <div key={index} className={styles.warning}>
                             ⚠️ {feedback}
                           </div>
                         ))
@@ -591,9 +591,9 @@ const EnhancedLogin: React.FC = () => {
                 )}
               </div>
 
-              <div className="form-group">
+              <div className={styles.formGroup}>
                 <label htmlFor="confirm-password">Confirm Password *</label>
-                <div className="password-input-group">
+                <div className={styles.passwordInputGroup}>
                   <input
                     id="confirm-password"
                     type={showConfirmPassword ? 'text' : 'password'}
@@ -606,7 +606,7 @@ const EnhancedLogin: React.FC = () => {
                   />
                   <button
                     type="button"
-                    className="password-toggle"
+                    className={styles.passwordToggle}
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     disabled={isLoading}
                     aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
@@ -615,14 +615,14 @@ const EnhancedLogin: React.FC = () => {
                   </button>
                 </div>
                 {confirmPassword && registerData.password && confirmPassword !== registerData.password && (
-                  <div className="password-mismatch">
+                  <div className={styles.passwordMismatch}>
                     ⚠️ Passwords do not match
                   </div>
                 )}
               </div>
 
-              <div className="form-options">
-                <label className="checkbox-label">
+              <div className={styles.formOptions}>
+                <label className={styles.checkboxLabel}>
                   <input
                     type="checkbox"
                     checked={acceptTerms}
@@ -630,7 +630,7 @@ const EnhancedLogin: React.FC = () => {
                     disabled={isLoading}
                     required
                   />
-                  <span className="checkmark"></span>
+                  <span className={styles.checkmark}></span>
                   I agree to the{' '}
                   <a href="/terms" target="_blank" rel="noopener noreferrer">
                     Terms of Service
@@ -644,7 +644,7 @@ const EnhancedLogin: React.FC = () => {
 
               <button
                 type="submit"
-                className="primary-btn"
+                className={styles.primaryBtn}
                 disabled={
                   isLoading || 
                   !registerData.username.trim() || 
@@ -662,12 +662,12 @@ const EnhancedLogin: React.FC = () => {
           )}
 
           {/* Toggle Mode */}
-          <div className="auth-toggle">
+          <div className={styles.authToggle}>
             <p>
               {isLoginMode ? "Don't have an account? " : "Already have an account? "}
               <button
                 type="button"
-                className="toggle-btn"
+                className={styles.toggleBtn}
                 onClick={toggleMode}
                 disabled={isLoading}
               >

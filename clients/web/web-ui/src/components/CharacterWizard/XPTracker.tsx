@@ -1,5 +1,6 @@
+import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
-import './XPTracker.css';
+import styles from './XPTracker.module.css';
 
 interface XPTrackerProps {
   currentXP: number;
@@ -64,26 +65,26 @@ export const XPTracker: React.FC<XPTrackerProps> = ({
 
   if (compact) {
     return (
-      <div className={`xp-tracker compact ${className}`}>
-        <div className="xp-display">
-          <div className="current-xp">{currentXP.toLocaleString()} XP</div>
-          <div className="level-display">Level {currentLevel}</div>
+      <div className={clsx(styles.xpTracker, styles.compact, className)}>
+        <div className={styles.xpDisplay}>
+          <div className={styles.currentXp}>{currentXP.toLocaleString()} XP</div>
+          <div className={styles.levelDisplay}>Level {currentLevel}</div>
         </div>
         {currentLevel < 20 && (
-          <div className="xp-progress-compact">
-            <div className="progress-bar">
+          <div className={styles.xpProgressCompact}>
+            <div className={styles.progressBar}>
               <div 
-                className="progress-fill"
+                className={styles.progressFill}
                 style={{ width: `${progress.percentage}%` }}
               />
             </div>
-            <div className="progress-text">
+            <div className={styles.progressText}>
               {progress.total > 0 ? `${progress.total.toLocaleString()} XP to level ${currentLevel + 1}` : 'Ready to level up!'}
             </div>
           </div>
         )}
         {canLevelUp && (
-          <div className="level-up-indicator">
+          <div className={styles.levelUpIndicator}>
             🎉 Level Up Available!
           </div>
         )}
@@ -92,19 +93,19 @@ export const XPTracker: React.FC<XPTrackerProps> = ({
   }
 
   return (
-    <div className={`xp-tracker ${className}`}>
-      <div className="xp-header">
+    <div className={clsx(styles.xpTracker, className)}>
+      <div className={styles.xpHeader}>
         <h3>Experience Points</h3>
         {canLevelUp && (
-          <div className="level-up-badge">
+          <div className={styles.levelUpBadge}>
             Level Up Available!
           </div>
         )}
       </div>
 
-      <div className="xp-input-section">
+      <div className={styles.xpInputSection}>
         <label htmlFor="xp-input">Current XP</label>
-        <div className="xp-input-container">
+        <div className={styles.xpInputContainer}>
           <input
             id="xp-input"
             type="number"
@@ -113,12 +114,12 @@ export const XPTracker: React.FC<XPTrackerProps> = ({
             value={xpInput}
             onChange={(e) => handleXPInputChange(e.target.value)}
             onBlur={() => setXpInput(currentXP.toString())}
-            className="xp-input"
+            className={styles.xpInput}
           />
           <button
             type="button"
             onClick={() => setShowQuickAdd(!showQuickAdd)}
-            className="quick-add-toggle"
+            className={styles.quickAddToggle}
             title="Quick Add XP"
           >
             +
@@ -126,15 +127,15 @@ export const XPTracker: React.FC<XPTrackerProps> = ({
         </div>
 
         {showQuickAdd && (
-          <div className="quick-add-panel">
-            <div className="quick-add-header">Quick Add XP</div>
-            <div className="quick-add-buttons">
+          <div className={styles.quickAddPanel}>
+            <div className={styles.quickAddHeader}>Quick Add XP</div>
+            <div className={styles.quickAddButtons}>
               {[50, 100, 250, 500, 1000, 2500].map(amount => (
                 <button
                   key={amount}
                   type="button"
                   onClick={() => handleQuickAdd(amount)}
-                  className={`quick-add-btn ${amount <= 250 ? 'small' : amount <= 1000 ? 'medium' : 'large'}`}
+                  className={clsx(styles.quickAddBtn, {[styles.small]: amount <= 250, [styles.medium]: amount > 250 && amount <= 1000, [styles.large]: amount > 1000})}
                 >
                   +{amount}
                 </button>
@@ -144,9 +145,9 @@ export const XPTracker: React.FC<XPTrackerProps> = ({
         )}
       </div>
 
-      <div className="level-info">
-        <div className="current-level">
-          <div className="level-number">{currentLevel}</div>
+      <div className={styles.levelInfo}>
+        <div className={styles.currentLevel}>
+          <div className={styles.levelNumber}>{currentLevel}</div>
           <div className="level-label">Current Level</div>
         </div>
         
@@ -154,7 +155,7 @@ export const XPTracker: React.FC<XPTrackerProps> = ({
           <>
             <div className="level-arrow">→</div>
             <div className="next-level">
-              <div className="level-number">{currentLevel + 1}</div>
+              <div className={styles.levelNumber}>{currentLevel + 1}</div>
               <div className="level-label">Next Level</div>
             </div>
           </>
@@ -162,12 +163,12 @@ export const XPTracker: React.FC<XPTrackerProps> = ({
       </div>
 
       {currentLevel < 20 ? (
-        <div className="xp-progress">
+        <div className={styles.xpProgress}>
           <div className="progress-header">
             <span>Progress to Level {currentLevel + 1}</span>
             <span>{progress.current.toLocaleString()} / {progress.needed.toLocaleString()} XP</span>
           </div>
-          <div className="progress-bar">
+          <div className={styles.progressBar}>
             <div 
               className={`progress-fill ${canLevelUp ? 'ready' : ''}`}
               style={{ width: `${progress.percentage}%` }}
@@ -204,8 +205,8 @@ export const XPTracker: React.FC<XPTrackerProps> = ({
                 key={level}
                 className={`milestone ${isReached ? 'reached' : ''} ${isCurrent ? 'current' : ''}`}
               >
-                <div className="milestone-level">Level {level}</div>
-                <div className="milestone-xp">{xpRequired.toLocaleString()} XP</div>
+                <div className={styles.milestoneLevel}>Level {level}</div>
+                <div className={styles.milestoneXp}>{xpRequired.toLocaleString()} XP</div>
               </div>
             );
           })}

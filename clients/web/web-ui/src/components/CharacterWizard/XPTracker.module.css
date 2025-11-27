@@ -1,6 +1,6 @@
 /* XP Tracker Component Styles */
 
-.xp-tracker {
+.xpTracker {
   background: white;
   border-radius: 12px;
   padding: 24px;
@@ -8,7 +8,7 @@
   border: 1px solid #e9ecef;
 }
 
-.xp-tracker.compact {
+.xpTracker.compact {
   padding: 16px;
   background: #f8f9fa;
   border: 1px solid #dee2e6;
@@ -373,20 +373,20 @@
 }
 
 /* Compact Styles */
-.xp-tracker.compact .xp-display {
+.xpTracker.compact .xp-display {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
 }
 
-.xp-tracker.compact .current-xp {
+.xpTracker.compact .current-xp {
   font-size: 18px;
   font-weight: 700;
   color: #007bff;
 }
 
-.xp-tracker.compact .level-display {
+.xpTracker.compact .level-display {
   background: #8b0000;
   color: white;
   padding: 4px 12px;
@@ -423,7 +423,7 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .xp-tracker {
+  .xpTracker {
     padding: 16px;
   }
   

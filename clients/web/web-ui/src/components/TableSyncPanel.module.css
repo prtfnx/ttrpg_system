@@ -9,7 +9,7 @@
   max-width: 480px;
 }
 
-.panel-header {
+.panelHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -18,13 +18,13 @@
   padding-bottom: 12px;
 }
 
-.panel-header h3 {
+.panelHeader h3 {
   margin: 0;
   color: #00ff88;
   font-size: 18px;
 }
 
-.status-indicator {
+.statusIndicator {
   display: flex;
   align-items: center;
 }

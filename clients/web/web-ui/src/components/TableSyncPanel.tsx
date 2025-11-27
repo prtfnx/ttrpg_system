@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNetworkClient } from '../hooks/useNetworkClient';
 import { useTableSync } from '../hooks/useTableSync';
-import './PanelStyles.css';
+import styles from './TableSyncPanel.module.css';
 
 interface ActivityLog {
   id: number;
@@ -248,7 +248,7 @@ export default function TableSyncPanel() {
 
   return (
     <div className="panel-base">
-      <div className="panel-header">
+      <div className={styles.panelHeader}>
         <h3>🎲 Table Sync</h3>
         <div className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
           <span>{isConnected ? '🟢' : '🔴'}</span>

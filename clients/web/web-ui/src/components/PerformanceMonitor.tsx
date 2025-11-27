@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { PerformanceMetrics } from '../services/performance.service';
 import { performanceService } from '../services/performance.service';
-import './PerformanceMonitor.css';
+import styles from './PerformanceMonitor.module.css';
 
 interface PerformanceMonitorProps {
   isVisible: boolean;
@@ -97,7 +97,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
           <div className="performance-grid">
             {/* FPS Section */}
             <div className="metric-group">
-              <div className="metric-label">Frame Rate</div>
+              <div className={styles.metricLabel}>Frame Rate</div>
               <div className="metric-row">
                 <span>Current:</span>
                 <span style={{ color: getFPSColor(metrics.fps) }}>
@@ -118,7 +118,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
 
             {/* Memory Section */}
             <div className="metric-group">
-              <div className="metric-label">Memory Usage</div>
+              <div className={styles.metricLabel}>Memory Usage</div>
               <div className="metric-row">
                 <span>JS Heap:</span>
                 <span>{formatBytes(metrics.memoryUsage.usedJSHeapSize)}</span>
@@ -141,7 +141,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
 
             {/* Rendering Section */}
             <div className="metric-group">
-              <div className="metric-label">Rendering</div>
+              <div className={styles.metricLabel}>Rendering</div>
               <div className="metric-row">
                 <span>Sprites:</span>
                 <span>{metrics.spriteCount.toLocaleString()}</span>

@@ -1,5 +1,5 @@
 /* Performance Monitor Styles */
-.performance-monitor {
+.performanceMonitor {
   position: fixed;
   z-index: 1000;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -8,22 +8,22 @@
   pointer-events: auto;
 }
 
-.performance-monitor--top-left {
+.performanceMonitor--top-left {
   top: 10px;
   left: 10px;
 }
 
-.performance-monitor--top-right {
+.performanceMonitor--top-right {
   top: 10px;
   right: 10px;
 }
 
-.performance-monitor--bottom-left {
+.performanceMonitor--bottom-left {
   bottom: 10px;
   left: 10px;
 }
 
-.performance-monitor--bottom-right {
+.performanceMonitor--bottom-right {
   bottom: 10px;
   right: 10px;
 }
@@ -95,16 +95,16 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
-.performance-monitor--bottom-left .performance-monitor__expanded,
-.performance-monitor--bottom-right .performance-monitor__expanded {
+.performanceMonitor--bottom-left .performance-monitor__expanded,
+.performanceMonitor--bottom-right .performance-monitor__expanded {
   bottom: 100%;
   top: auto;
   margin-top: 0;
   margin-bottom: 8px;
 }
 
-.performance-monitor--top-left .performance-monitor__expanded,
-.performance-monitor--bottom-left .performance-monitor__expanded {
+.performanceMonitor--top-left .performance-monitor__expanded,
+.performanceMonitor--bottom-left .performance-monitor__expanded {
   right: auto;
   left: 0;
 }
@@ -158,7 +158,7 @@
   padding: 12px;
 }
 
-.metric-label {
+.metricLabel {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;

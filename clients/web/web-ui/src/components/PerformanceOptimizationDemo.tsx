@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { combatOptimizer, performanceUtils } from '../services/performanceOptimization.service';
 import type { WizardFormData } from './CharacterWizard/WizardFormData';
-import './PerformanceOptimizationDemo.css';
+import styles from './PerformanceOptimizationDemo.module.css';
 
 // Test character for performance testing
 const testCharacter: WizardFormData = {
@@ -519,7 +519,7 @@ export const PerformanceOptimizationDemo: React.FC = () => {
       {/* Interactive Demo Controls */}
       <div className="interactive-demo">
         <h3>🎮 Interactive Optimization Demo</h3>
-        <div className="demo-controls">
+        <div className={styles.demoControls}>
           <div className="demo-section">
             <h4>Debounced Input</h4>
             <input

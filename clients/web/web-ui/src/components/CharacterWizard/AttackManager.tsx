@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import './AttackManager.css';
+import styles from './AttackManager.module.css';
 import { DiceRoller } from './DiceRoller';
 import type { WizardFormData } from './WizardFormData';
 
@@ -493,7 +493,7 @@ export const AttackManager: React.FC<AttackManagerProps> = ({
   );
 
   return (
-    <div className="attack-manager">
+    <div className={styles.attackManager}>
       {/* Header */}
       <div className="manager-header">
         <div className="manager-title">

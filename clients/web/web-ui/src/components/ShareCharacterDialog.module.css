@@ -1,6 +1,6 @@
 /* Share Character Dialog Styles */
 
-.share-dialog-overlay {
+.shareDialogOverlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -14,7 +14,7 @@
   animation: fadeIn 0.2s ease-out;
 }
 
-.share-dialog {
+.shareDialog {
   background: #1e1e1e;
   border: 1px solid #444;
   border-radius: 8px;
@@ -38,7 +38,7 @@
   }
 }
 
-.share-dialog-header {
+.shareDialog-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -46,13 +46,13 @@
   border-bottom: 1px solid #333;
 }
 
-.share-dialog-header h3 {
+.shareDialog-header h3 {
   margin: 0;
   font-size: 18px;
   color: #fff;
 }
 
-.close-btn {
+.closeBtn {
   background: none;
   border: none;
   color: #888;
@@ -69,12 +69,12 @@
   transition: all 0.2s;
 }
 
-.close-btn:hover {
+.closeBtn:hover {
   background: #333;
   color: #fff;
 }
 
-.share-dialog-content {
+.shareDialog-content {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
@@ -105,7 +105,7 @@
   font-weight: 600;
 }
 
-.permissions-section {
+.permissionsSection {
   margin-bottom: 16px;
 }
 
@@ -215,7 +215,7 @@
   margin-bottom: 4px;
 }
 
-.share-dialog-footer {
+.shareDialog-footer {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
@@ -254,22 +254,22 @@
 
 /* Scrollbar Styling */
 .user-list::-webkit-scrollbar,
-.share-dialog-content::-webkit-scrollbar {
+.shareDialog-content::-webkit-scrollbar {
   width: 6px;
 }
 
 .user-list::-webkit-scrollbar-track,
-.share-dialog-content::-webkit-scrollbar-track {
+.shareDialog-content::-webkit-scrollbar-track {
   background: #1e1e1e;
 }
 
 .user-list::-webkit-scrollbar-thumb,
-.share-dialog-content::-webkit-scrollbar-thumb {
+.shareDialog-content::-webkit-scrollbar-thumb {
   background: #444;
   border-radius: 3px;
 }
 
 .user-list::-webkit-scrollbar-thumb:hover,
-.share-dialog-content::-webkit-scrollbar-thumb:hover {
+.shareDialog-content::-webkit-scrollbar-thumb:hover {
   background: #555;
 }

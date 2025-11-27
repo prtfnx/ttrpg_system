@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import './ShareCharacterDialog.css';
+import styles from './ShareCharacterDialog.module.css';
 
 interface ShareCharacterDialogProps {
   characterId: string;
@@ -48,11 +48,11 @@ export const ShareCharacterDialog: React.FC<ShareCharacterDialogProps> = ({
   };
 
   return (
-    <div className="share-dialog-overlay" onClick={onClose}>
-      <div className="share-dialog" onClick={e => e.stopPropagation()}>
+    <div className={styles.shareDialogOverlay} onClick={onClose}>
+      <div className={styles.shareDialog} onClick={e => e.stopPropagation()}>
         <div className="share-dialog-header">
           <h3>Share Character</h3>
-          <button className="close-btn" onClick={onClose} title="Close">
+          <button className={styles.closeBtn} onClick={onClose} title="Close">
             ×
           </button>
         </div>
@@ -69,7 +69,7 @@ export const ShareCharacterDialog: React.FC<ShareCharacterDialogProps> = ({
             </div>
           </div>
 
-          <div className="permissions-section">
+          <div className={styles.permissionsSection}>
             <div className="section-header">
               <h4>Grant Control To:</h4>
               <div className="bulk-actions">

@@ -4,6 +4,7 @@
  * and geometric shape creation with D&D 5e integration
  */
 
+import clsx from 'clsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     advancedMeasurementSystem,
@@ -14,7 +15,7 @@ import {
     type MeasurementSettings,
     type MeasurementTemplate
 } from '../services/advancedMeasurement.service';
-import './AdvancedMeasurementPanel.css';
+import styles from './AdvancedMeasurementPanel.module.css';
 import { ErrorBoundary } from './common/ErrorBoundary';
 
 interface AdvancedMeasurementPanelProps {
@@ -309,26 +310,26 @@ const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> = ({
 
   return (
     <ErrorBoundary>
-      <div className="measurement-panel-overlay">
-        <div className="measurement-panel">
-          <div className="panel-header">
+      <div className={styles.measurementPanelOverlay}>
+        <div className={styles.measurementPanel}>
+          <div className={styles.panelHeader}>
             <h2>📏 Advanced Measurement & Grid System</h2>
-            <button className="close-btn" onClick={onClose} aria-label="Close panel">
+            <button className={styles.closeBtn} onClick={onClose} aria-label="Close panel">
               ✕
             </button>
           </div>
 
           {error && (
-            <div className="error-message" role="alert">
-              <span className="error-icon">⚠️</span>
+            <div className={styles.errorMessage} role="alert">
+              <span className={styles.errorIcon}>⚠️</span>
               {error}
-              <button className="error-dismiss" onClick={() => setError(null)}>✕</button>
+              <button className={styles.errorDismiss} onClick={() => setError(null)}>✕</button>
             </div>
           )}
 
-          <div className="panel-content">
+          <div className={styles.panelContent}>
             {/* Tool Selection */}
-            <div className="tool-selection">
+            <div className={styles.toolSelection}>
               <button 
                 className={`tool-btn ${activeTool === 'measure' ? 'active' : ''}`}
                 onClick={() => handleToolSelect('measure')}
@@ -361,21 +362,21 @@ const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> = ({
 
             {/* Active Tool Status */}
             {activeTool && (
-              <div className="active-tool-status">
-                <div className="status-indicator">
-                  <span className="status-dot active"></span>
+              <div className={styles.activeToolStatus}>
+                <div className={styles.statusIndicator}>
+                  <span className={clsx(styles.statusDot, styles.active)}></span>
                   Active Tool: <strong>{activeTool.charAt(0).toUpperCase() + activeTool.slice(1)}</strong>
                 </div>
                 {activeMeasurement && (
-                  <div className="measurement-status">
+                  <div className={styles.measurementStatus}>
                     <span>📏 Measuring... Click to complete</span>
                   </div>
                 )}
                 {isCreatingShape && (
-                  <div className="shape-status">
+                  <div className={styles.shapeStatus}>
                     <span>📐 Creating {selectedShapeType}... {shapePoints.length} points</span>
                     {selectedShapeType === 'polygon' && (
-                      <span className="shape-help">Double-click to complete</span>
+                      <span className={styles.shapeHelp}>Double-click to complete</span>
                     )}
                   </div>
                 )}
@@ -383,7 +384,7 @@ const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> = ({
             )}
 
             {/* Tab Navigation */}
-            <div className="tab-navigation">
+            <div className={styles.tabNavigation}>
               {['measure', 'shapes', 'grids', 'templates', 'settings'].map(tab => (
                 <button
                   key={tab}
@@ -396,33 +397,33 @@ const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> = ({
             </div>
 
             {/* Search */}
-            <div className="search-section">
+            <div className={styles.searchSection}>
               <input
                 type="text"
                 placeholder="Search measurements, shapes, templates..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="search-input"
+                className={styles.searchInput}
               />
             </div>
 
             {/* Tab Content */}
-            <div className="tab-content">
+            <div className={styles.tabContent}>
               {selectedTab === 'measure' && (
-                <div className="measurements-tab">
-                  <div className="section-header">
+                <div className={styles.measurementsTab}>
+                  <div className={styles.sectionHeader}>
                     <h3>Measurements ({filteredMeasurements.length})</h3>
-                    <div className="section-controls">
-                      <button onClick={handleClearMeasurements} className="clear-btn">
+                    <div className={styles.sectionControls}>
+                      <button onClick={handleClearMeasurements} className={styles.clearBtn}>
                         Clear All
                       </button>
                     </div>
                   </div>
 
                   {activeTool === 'measure' && (
-                    <div className="tool-options">
+                    <div className={styles.toolOptions}>
                       <h4>Measurement Options</h4>
-                      <div className="options-grid">
+                      <div className={styles.optionsGrid}>
                         <label>
                           <input
                             type="checkbox"
@@ -451,19 +452,19 @@ const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> = ({
                     </div>
                   )}
 
-                  <div className="measurements-list">
+                  <div className={styles.measurementsList}>
                     {filteredMeasurements.map(measurement => (
-                      <div key={measurement.id} className="measurement-item">
-                        <div className="measurement-info">
-                          <div className="measurement-distance">
+                      <div key={measurement.id} className={styles.measurementItem}>
+                        <div className={styles.measurementInfo}>
+                          <div className={styles.measurementDistance}>
                             {advancedMeasurementSystem.formatDistance(measurement.distance)}
                             {measurement.gridDistance !== measurement.distance && (
-                              <span className="grid-distance">
+                              <span className={styles.gridDistance}>
                                 ({advancedMeasurementSystem.formatDistance(measurement.gridDistance)} grid)
                               </span>
                             )}
                           </div>
-                          <div className="measurement-details">
+                          <div className={styles.measurementDetails}>
                             Angle: {measurement.angle.toFixed(1)}° | 
                             Length: {measurement.distance.toFixed(1)}px
                             {measurement.label && <span className="measurement-label"> | {measurement.label}</span>}
@@ -475,7 +476,7 @@ const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> = ({
                             style={{ backgroundColor: measurement.color }}
                           ></div>
                           <button 
-                            className="delete-btn"
+                            className={styles.deleteBtn}
                             onClick={() => {
                               // Remove measurement (this would need to be implemented in the service)
                               console.log('Remove measurement:', measurement.id);
@@ -489,7 +490,7 @@ const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> = ({
                     ))}
                     
                     {filteredMeasurements.length === 0 && (
-                      <div className="empty-state">
+                      <div className={styles.emptyState}>
                         <p>No measurements yet.</p>
                         {activeTool === 'measure' ? (
                           <p>Click on the canvas to start measuring.</p>
@@ -503,13 +504,13 @@ const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> = ({
               )}
 
               {selectedTab === 'shapes' && (
-                <div className="shapes-tab">
-                  <div className="section-header">
+                <div className={styles.shapesTab}>
+                  <div className={styles.sectionHeader}>
                     <h3>Geometric Shapes ({filteredShapes.length})</h3>
                   </div>
 
                   {activeTool === 'shape' && (
-                    <div className="tool-options">
+                    <div className={styles.toolOptions}>
                       <h4>Shape Type</h4>
                       <div className="shape-type-selector">
                         {(['rectangle', 'circle', 'polygon', 'ellipse', 'arc'] as ShapeType[]).map(type => (
@@ -530,15 +531,15 @@ const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> = ({
                     </div>
                   )}
 
-                  <div className="shapes-list">
+                  <div className={styles.shapesList}>
                     {filteredShapes.map(shape => (
-                      <div key={shape.id} className="shape-item">
-                        <div className="shape-info">
-                          <div className="shape-type">
+                      <div key={shape.id} className={styles.shapeItem}>
+                        <div className={styles.shapeInfo}>
+                          <div className={styles.shapeType}>
                             {shape.type.charAt(0).toUpperCase() + shape.type.slice(1)}
                             {shape.label && <span className="shape-label"> - {shape.label}</span>}
                           </div>
-                          <div className="shape-details">
+                          <div className={styles.shapeDetails}>
                             {shape.area && <span>Area: {shape.area.toFixed(1)}</span>}
                             {shape.perimeter && <span> | Perimeter: {shape.perimeter.toFixed(1)}</span>}
                           </div>
@@ -559,7 +560,7 @@ const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> = ({
                     ))}
                     
                     {filteredShapes.length === 0 && (
-                      <div className="empty-state">
+                      <div className={styles.emptyState}>
                         <p>No shapes created yet.</p>
                         {activeTool === 'shape' ? (
                           <p>Select a shape type and click on the canvas to start drawing.</p>
@@ -574,7 +575,7 @@ const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> = ({
 
               {selectedTab === 'grids' && (
                 <div className="grids-tab">
-                  <div className="section-header">
+                  <div className={styles.sectionHeader}>
                     <h3>Grid Configuration</h3>
                   </div>
 
@@ -596,7 +597,7 @@ const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> = ({
                   {activeGrid && (
                     <div className="grid-settings">
                       <h4>Grid Settings</h4>
-                      <div className="settings-grid">
+                      <div className={styles.settingsGrid}>
                         <div className="setting">
                           <label>Visible:</label>
                           <input
@@ -692,7 +693,7 @@ const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> = ({
 
               {selectedTab === 'templates' && (
                 <div className="templates-tab">
-                  <div className="section-header">
+                  <div className={styles.sectionHeader}>
                     <h3>Measurement Templates</h3>
                     <button onClick={handleCreateCustomTemplate} className="create-btn">
                       + Create Template
@@ -734,15 +735,15 @@ const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> = ({
               )}
 
               {selectedTab === 'settings' && settings && (
-                <div className="settings-tab">
-                  <div className="section-header">
+                <div className={styles.settingsTab}>
+                  <div className={styles.sectionHeader}>
                     <h3>System Settings</h3>
                   </div>
 
                   <div className="settings-sections">
                     <div className="settings-section">
                       <h4>Display Settings</h4>
-                      <div className="settings-grid">
+                      <div className={styles.settingsGrid}>
                         <div className="setting">
                           <label>Default Unit:</label>
                           <select
@@ -786,7 +787,7 @@ const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> = ({
 
                     <div className="settings-section">
                       <h4>Measurement Line Style</h4>
-                      <div className="settings-grid">
+                      <div className={styles.settingsGrid}>
                         <div className="setting">
                           <label>Line Color:</label>
                           <input
@@ -827,7 +828,7 @@ const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> = ({
                       </button>
                       
                       {showAdvancedSettings && (
-                        <div className="settings-grid">
+                        <div className={styles.settingsGrid}>
                           <div className="setting">
                             <label>Snap Tolerance:</label>
                             <input

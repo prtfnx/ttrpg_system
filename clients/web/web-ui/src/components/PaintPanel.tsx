@@ -1,8 +1,8 @@
+import clsx from 'clsx';
 import React, { useEffect, useRef, useState } from 'react';
 import { useBrushPresets, usePaintInteraction, usePaintSystem } from '../hooks/usePaintSystem';
 import { useRenderEngine } from '../hooks/useRenderEngine';
 import { paintTemplateService, type TemplateMetadata } from '../services/paintTemplate.service';
-import clsx from 'clsx';
 import styles from './PaintPanel.module.css';
 
 interface PanelDimensions {

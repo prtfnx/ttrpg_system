@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { PerformanceSettings } from '../services/performance.service';
 import { PerformanceLevel, performanceService } from '../services/performance.service';
-import './PerformanceSettingsPanel.css';
+import styles from './PerformanceSettingsPanel.module.css';
 
 interface PerformanceSettingsPanelProps {
   isVisible: boolean;
@@ -116,7 +116,7 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
         <div className="settings-content">
           {/* Performance Level */}
           <div className="setting-group">
-            <label className="setting-label">Performance Level</label>
+            <label className={styles.settingLabel}>Performance Level</label>
             <select
               value={tempSettings.level}
               onChange={(e) => {
@@ -134,7 +134,7 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
 
           {/* Sprite Settings */}
           <div className="setting-group">
-            <label className="setting-label">
+            <label className={styles.settingLabel}>
               Max Sprites: {tempSettings.maxSprites.toLocaleString()}
             </label>
             <input
@@ -150,7 +150,7 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
 
           {/* Texture Quality */}
           <div className="setting-group">
-            <label className="setting-label">
+            <label className={styles.settingLabel}>
               Texture Quality: {Math.round(tempSettings.textureQuality * 100)}%
             </label>
             <input
@@ -166,7 +166,7 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
 
           {/* Shadow Quality */}
           <div className="setting-group">
-            <label className="setting-label">Shadow Quality</label>
+            <label className={styles.settingLabel}>Shadow Quality</label>
             <select
               value={tempSettings.shadowQuality}
               onChange={(e) => handleSettingChange('shadowQuality', parseInt(e.target.value))}
@@ -181,7 +181,7 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
 
           {/* Render Distance */}
           <div className="setting-group">
-            <label className="setting-label">
+            <label className={styles.settingLabel}>
               Max Render Distance: {tempSettings.maxRenderDistance.toLocaleString()}px
             </label>
             <input
@@ -196,7 +196,7 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
           </div>
 
           {/* Feature Toggles */}
-          <div className="settings-section">
+          <div className={styles.settingsSection}>
             <h3>Advanced Features</h3>
             
             <div className="setting-toggle">

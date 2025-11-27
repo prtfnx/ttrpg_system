@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import './SpellManager.css';
+import styles from './SpellManager.module.css';
 import type { WizardFormData } from './WizardFormData';
 
 interface SpellManagerProps {
@@ -335,7 +335,7 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
       <div className="spell-categories">
         <div className="cantrips-section">
           <h4>Cantrips</h4>
-          <div className="spell-list">
+          <div className={styles.spellList}>
             {character.spells?.cantrips?.map((spell, index) => (
               <div key={index} className="prepared-spell cantrip">
                 <span className="spell-name">{spell}</span>
@@ -354,7 +354,7 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
 
         <div className="known-spells-section">
           <h4>Known Spells</h4>
-          <div className="spell-list">
+          <div className={styles.spellList}>
             {character.spells?.knownSpells?.map((spell, index) => (
               <div key={index} className="prepared-spell known">
                 <span className="spell-name">{spell}</span>
@@ -373,7 +373,7 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
 
         <div className="prepared-spells-section">
           <h4>Prepared Spells</h4>
-          <div className="spell-list">
+          <div className={styles.spellList}>
             {character.spells?.preparedSpells?.map((spell, index) => (
               <div key={index} className="prepared-spell prepared">
                 <span className="spell-name">{spell}</span>
@@ -545,7 +545,7 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
   );
 
   return (
-    <div className="spell-manager">
+    <div className={styles.spellManager}>
       {/* Header */}
       <div className="manager-header">
         <div className="manager-title">

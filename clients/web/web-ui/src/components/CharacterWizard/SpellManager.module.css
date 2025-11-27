@@ -1,6 +1,6 @@
 /* Spell Manager Styles */
 
-.spell-manager {
+.spellManager {
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
@@ -57,7 +57,7 @@
   overflow-x: auto;
 }
 
-.spell-manager .tab-button {
+.spellManager .tab-button {
   background: none;
   border: none;
   padding: 16px 24px;
@@ -70,12 +70,12 @@
   white-space: nowrap;
 }
 
-.spell-manager .tab-button:hover {
+.spellManager .tab-button:hover {
   background: #e9ecef;
   color: #333;
 }
 
-.spell-manager .tab-button.active {
+.spellManager .tab-button.active {
   color: #4a148c;
   border-bottom-color: #4a148c;
   background: white;
@@ -301,7 +301,7 @@
   font-size: 18px;
 }
 
-.spell-list {
+.spellList {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 12px;
@@ -729,7 +729,7 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .spell-manager {
+  .spellManager {
     margin: 0;
     border-radius: 0;
   }
@@ -784,13 +784,13 @@
     flex-direction: column;
   }
   
-  .spell-manager .tab-button {
+  .spellManager .tab-button {
     text-align: center;
     border-bottom: 1px solid #dee2e6;
     border-right: none;
   }
   
-  .spell-manager .tab-button.active {
+  .spellManager .tab-button.active {
     border-bottom: 1px solid #4a148c;
     border-right: none;
   }

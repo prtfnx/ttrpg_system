@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CombatLauncher } from './CharacterWizard/CombatLauncher';
 import type { WizardFormData } from './CharacterWizard/WizardFormData';
-import './CombatIntegrationTests.css';
+import styles from './CombatIntegrationTests.module.css';
 
 // Test characters with comprehensive data
 const testFighter: WizardFormData = {
@@ -710,7 +710,7 @@ export const CombatIntegrationTests: React.FC = () => {
       </div>
 
       {/* Test Controls */}
-      <div className="test-controls">
+      <div className={styles.testControls}>
         <button 
           className="run-tests-btn"
           onClick={runComprehensiveTests}
@@ -722,7 +722,7 @@ export const CombatIntegrationTests: React.FC = () => {
 
       {/* Test Results */}
       {testResults.length > 0 && (
-        <div className="test-results">
+        <div className={styles.testResults}>
           <h3>Test Results</h3>
           <div className="results-grid">
             {testResults.map((result, index) => (

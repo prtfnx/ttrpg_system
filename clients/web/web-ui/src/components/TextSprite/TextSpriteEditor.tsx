@@ -1,5 +1,6 @@
+import clsx from 'clsx';
 import { useEffect, useRef, useState } from 'react';
-import './TextSpriteEditor.css';
+import styles from './TextSpriteEditor.module.css';
 
 interface TextSpriteEditorProps {
   position: { x: number; y: number } | null;
@@ -111,7 +112,7 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
     <>
       {/* Text input cursor on canvas */}
       <div
-        className="text-sprite-input"
+        className={styles.textSpriteInput}
         style={{
           position: 'fixed',
           left: `${screenPos.x}px`,
@@ -142,7 +143,7 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
 
       {/* Floating toolbar above text */}
       <div
-        className="text-sprite-toolbar"
+        className={styles.textSpriteToolbar}
         style={{
           position: 'fixed',
           left: `${screenPos.x}px`,
@@ -150,14 +151,14 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
           zIndex: 10000,
         }}
       >
-        <div className="toolbar-container">
+        <div className={styles.toolbarContainer}>
           {/* Font size */}
-          <div className="toolbar-group">
+          <div className={styles.toolbarGroup}>
             <label>Size</label>
             <select 
               value={fontSize} 
               onChange={(e) => setFontSize(Number(e.target.value))}
-              className="toolbar-select"
+              className={styles.toolbarSelect}
             >
               <option value={12}>12</option>
               <option value={16}>16</option>
@@ -170,19 +171,19 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
           </div>
 
           {/* Color picker */}
-          <div className="toolbar-group">
+          <div className={styles.toolbarGroup}>
             <label>Color</label>
             <input
               type="color"
               value={color}
               onChange={(e) => setColor(e.target.value)}
-              className="toolbar-color"
+              className={styles.toolbarColor}
             />
           </div>
 
           {/* Bold toggle */}
           <button
-            className={`toolbar-button ${bold ? 'active' : ''}`}
+            className={clsx(styles.toolbarButton, {[styles.active]: bold})}
             onClick={() => setBold(!bold)}
             title="Bold (Ctrl+B)"
           >
@@ -190,11 +191,11 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
           </button>
 
           {/* Divider */}
-          <div className="toolbar-divider"></div>
+          <div className={styles.toolbarDivider}></div>
 
           {/* Finish button */}
           <button
-            className="toolbar-button finish"
+            className={clsx(styles.toolbarButton, styles.finish)}
             onClick={handleFinish}
             disabled={!text.trim()}
             title="Finish (Ctrl+Enter)"
@@ -204,7 +205,7 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
 
           {/* Cancel button */}
           <button
-            className="toolbar-button cancel"
+            className={clsx(styles.toolbarButton, styles.cancel)}
             onClick={handleCancel}
             title="Cancel (Esc)"
           >
@@ -213,7 +214,7 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
         </div>
 
         {/* Hint text */}
-        <div className="toolbar-hint">
+        <div className={styles.toolbarHint}>
           Press Enter to add line · Ctrl+Enter to finish · Esc to cancel
         </div>
       </div>

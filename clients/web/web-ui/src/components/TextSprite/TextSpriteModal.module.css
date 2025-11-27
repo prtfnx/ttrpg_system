@@ -1,5 +1,5 @@
 /* Text Sprite Modal Styles */
-.text-sprite-modal-overlay {
+.textSpriteModal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -13,7 +13,7 @@
   backdrop-filter: blur(4px);
 }
 
-.text-sprite-modal {
+.textSpriteModal {
   background: #1e1e1e;
   border-radius: 8px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
@@ -25,7 +25,7 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-.text-sprite-modal .modal-header {
+.textSpriteModal .modal-header {
   padding: 20px 24px;
   border-bottom: 1px solid #333;
   display: flex;
@@ -35,14 +35,14 @@
   border-radius: 8px 8px 0 0;
 }
 
-.text-sprite-modal .modal-header h3 {
+.textSpriteModal .modal-header h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: #fff;
 }
 
-.text-sprite-modal .close-btn {
+.textSpriteModal .close-btn {
   background: none;
   border: none;
   color: #999;
@@ -58,22 +58,22 @@
   transition: all 0.2s;
 }
 
-.text-sprite-modal .close-btn:hover {
+.textSpriteModal .close-btn:hover {
   background: #333;
   color: #fff;
 }
 
-.text-sprite-modal .modal-body {
+.textSpriteModal .modal-body {
   padding: 24px;
   overflow-y: auto;
   flex: 1;
 }
 
-.text-sprite-modal .form-group {
+.textSpriteModal .form-group {
   margin-bottom: 20px;
 }
 
-.text-sprite-modal .form-group label {
+.textSpriteModal .form-group label {
   display: block;
   margin-bottom: 8px;
   font-weight: 500;
@@ -81,7 +81,7 @@
   color: #cbd5e0;
 }
 
-.text-sprite-modal textarea {
+.textSpriteModal textarea {
   width: 100%;
   background: #2d2d2d;
   border: 1px solid #444;
@@ -94,32 +94,32 @@
   box-sizing: border-box;
 }
 
-.text-sprite-modal textarea:focus {
+.textSpriteModal textarea:focus {
   outline: none;
   border-color: #4299e1;
   box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
 }
 
-.text-sprite-modal .char-count {
+.textSpriteModal .char-count {
   text-align: right;
   font-size: 12px;
   color: #666;
   margin-top: 4px;
 }
 
-.text-sprite-modal .form-row {
+.textSpriteModal .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
 
-.text-sprite-modal .slider-container {
+.textSpriteModal .slider-container {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.text-sprite-modal input[type="range"] {
+.textSpriteModal input[type="range"] {
   flex: 1;
   height: 6px;
   background: #2d2d2d;
@@ -128,7 +128,7 @@
   -webkit-appearance: none;
 }
 
-.text-sprite-modal input[type="range"]::-webkit-slider-thumb {
+.textSpriteModal input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 18px;
   height: 18px;
@@ -138,12 +138,12 @@
   transition: all 0.2s;
 }
 
-.text-sprite-modal input[type="range"]::-webkit-slider-thumb:hover {
+.textSpriteModal input[type="range"]::-webkit-slider-thumb:hover {
   background: #3182ce;
   transform: scale(1.1);
 }
 
-.text-sprite-modal input[type="range"]::-moz-range-thumb {
+.textSpriteModal input[type="range"]::-moz-range-thumb {
   width: 18px;
   height: 18px;
   background: #4299e1;
@@ -153,25 +153,25 @@
   transition: all 0.2s;
 }
 
-.text-sprite-modal input[type="range"]::-moz-range-thumb:hover {
+.textSpriteModal input[type="range"]::-moz-range-thumb:hover {
   background: #3182ce;
   transform: scale(1.1);
 }
 
-.text-sprite-modal .slider-value {
+.textSpriteModal .slider-value {
   font-weight: 600;
   color: #4299e1;
   min-width: 50px;
   text-align: right;
 }
 
-.text-sprite-modal .color-picker-container {
+.textSpriteModal .color-picker-container {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.text-sprite-modal input[type="color"] {
+.textSpriteModal input[type="color"] {
   width: 60px;
   height: 40px;
   border: 2px solid #444;
@@ -180,28 +180,28 @@
   background: none;
 }
 
-.text-sprite-modal input[type="color"]::-webkit-color-swatch-wrapper {
+.textSpriteModal input[type="color"]::-webkit-color-swatch-wrapper {
   padding: 0;
 }
 
-.text-sprite-modal input[type="color"]::-webkit-color-swatch {
+.textSpriteModal input[type="color"]::-webkit-color-swatch {
   border: none;
   border-radius: 2px;
 }
 
-.text-sprite-modal .color-value {
+.textSpriteModal .color-value {
   font-family: Consolas, monospace;
   font-size: 14px;
   color: #cbd5e0;
   font-weight: 600;
 }
 
-.text-sprite-modal .preview-section {
+.textSpriteModal .preview-section {
   margin-top: 24px;
   margin-bottom: 20px;
 }
 
-.text-sprite-modal .preview-section label {
+.textSpriteModal .preview-section label {
   display: block;
   margin-bottom: 12px;
   font-weight: 500;
@@ -209,7 +209,7 @@
   color: #cbd5e0;
 }
 
-.text-sprite-modal .text-preview {
+.textSpriteModal .text-preview {
   min-height: 80px;
   display: flex;
   align-items: center;
@@ -217,7 +217,7 @@
   border: 2px dashed #444;
 }
 
-.text-sprite-modal .info-box {
+.textSpriteModal .info-box {
   background: #2d3748;
   border-left: 4px solid #4299e1;
   padding: 12px 16px;
@@ -228,11 +228,11 @@
   margin-top: 20px;
 }
 
-.text-sprite-modal .info-box strong {
+.textSpriteModal .info-box strong {
   color: #4299e1;
 }
 
-.text-sprite-modal .modal-footer {
+.textSpriteModal .modal-footer {
   padding: 16px 24px;
   border-top: 1px solid #333;
   display: flex;
@@ -242,7 +242,7 @@
   border-radius: 0 0 8px 8px;
 }
 
-.text-sprite-modal .btn {
+.textSpriteModal .btn {
   padding: 10px 24px;
   border-radius: 6px;
   font-size: 14px;
@@ -252,44 +252,44 @@
   border: none;
 }
 
-.text-sprite-modal .btn-cancel {
+.textSpriteModal .btn-cancel {
   background: #2d2d2d;
   color: #e0e0e0;
   border: 1px solid #444;
 }
 
-.text-sprite-modal .btn-cancel:hover {
+.textSpriteModal .btn-cancel:hover {
   background: #3d3d3d;
 }
 
-.text-sprite-modal .btn-confirm {
+.textSpriteModal .btn-confirm {
   background: #4299e1;
   color: white;
 }
 
-.text-sprite-modal .btn-confirm:hover:not(:disabled) {
+.textSpriteModal .btn-confirm:hover:not(:disabled) {
   background: #3182ce;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(66, 153, 225, 0.4);
 }
 
-.text-sprite-modal .btn-confirm:disabled {
+.textSpriteModal .btn-confirm:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 /* Mobile responsive */
 @media (max-width: 768px) {
-  .text-sprite-modal {
+  .textSpriteModal {
     width: 95vw;
     max-height: 95vh;
   }
 
-  .text-sprite-modal .form-row {
+  .textSpriteModal .form-row {
     grid-template-columns: 1fr;
   }
 
-  .text-sprite-modal .modal-body {
+  .textSpriteModal .modal-body {
     padding: 16px;
   }
 }

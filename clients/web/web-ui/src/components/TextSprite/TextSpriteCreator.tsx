@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { Modal } from '../common/Modal';
-import './TextSpriteCreator.css';
+import styles from './TextSpriteCreator.module.css';
 
 // Font families available for text sprites
 const FONT_FAMILIES = [
@@ -238,7 +238,7 @@ export function TextSpriteCreator({
       closeOnEscape={true}
     >
       <ErrorBoundary>
-        <div className="text-sprite-creator">
+        <div className={styles.textSpriteCreator}>
           <div className="creator-layout">
             {/* Left panel - Controls */}
             <div className="controls-panel">

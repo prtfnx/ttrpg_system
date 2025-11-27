@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import './TextSpriteModal.css';
+import styles from './TextSpriteModal.module.css';
 
 interface TextSpriteModalProps {
   isOpen: boolean;
@@ -42,7 +42,7 @@ export function TextSpriteModal({ isOpen, position, onConfirm, onCancel }: TextS
 
   return (
     <div className="text-sprite-modal-overlay" onClick={onCancel}>
-      <div className="text-sprite-modal" onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
+      <div className={styles.textSpriteModal} onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
         <div className="modal-header">
           <h3>Create Text Sprite</h3>
           <button className="close-btn" onClick={onCancel} title="Close (Esc)">×</button>

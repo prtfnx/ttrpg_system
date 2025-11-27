@@ -8,7 +8,7 @@ import { useFormContext } from 'react-hook-form';
 import { CharacterExportService } from '../../services/characterExport.service';
 import { CharacterImportService, type ImportResult } from '../../services/characterImport.service';
 import { PDFGenerationService, type PDFGenerationOptions } from '../../services/pdfGeneration.service';
-import './CharacterExportStep.css';
+import styles from './CharacterExportStep.module.css';
 import type { WizardFormData } from './WizardFormData';
 
 interface CharacterExportStepProps {
@@ -198,7 +198,7 @@ export function CharacterExportStep({ onNext: _onNext, onBack: _onBack }: Charac
         </label>
       </div>
       
-      <div className="export-preview">
+      <div className={styles.exportPreview}>
         <h5>Character Summary</h5>
         <div className="character-summary">
           <div><strong>Name:</strong> {characterData.name || 'Unnamed Character'}</div>

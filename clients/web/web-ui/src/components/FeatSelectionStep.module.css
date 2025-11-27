@@ -1,5 +1,5 @@
 /* Feat Selection Step Styles */
-.feat-selection-step {
+.featSelection-step {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
@@ -177,7 +177,7 @@
 }
 
 /* Feat Selection */
-.feat-selection {
+.featSelection {
   margin-bottom: 30px;
 }
 
@@ -240,7 +240,7 @@
 }
 
 /* Feat Cards */
-.feat-card {
+.featCard {
   border: 2px solid #e1e5e9;
   border-radius: 8px;
   padding: 20px;
@@ -249,12 +249,12 @@
   transition: all 0.2s ease;
 }
 
-.feat-card:hover {
+.featCard:hover {
   border-color: #3498db;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.feat-card.selected {
+.featCard.selected {
   border-color: #8b5cf6;
   background: #faf5ff;
   box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
@@ -271,7 +271,7 @@
   flex: 1;
 }
 
-.feat-name {
+.featName {
   color: #2c3e50;
   margin: 0 0 10px 0;
   font-size: 1.2em;
@@ -370,13 +370,13 @@
   background: #d5dbdb;
 }
 
-.feat-description {
+.featDescription {
   color: #34495e;
   line-height: 1.4;
   margin-bottom: 15px;
 }
 
-.feat-prerequisites {
+.featPrerequisites {
   background: #fff3cd;
   border: 1px solid #ffeaa7;
   border-radius: 6px;
@@ -384,12 +384,12 @@
   margin-bottom: 15px;
 }
 
-.feat-prerequisites h5 {
+.featPrerequisites h5 {
   color: #856404;
   margin: 0 0 8px 0;
 }
 
-.feat-prerequisites ul {
+.featPrerequisites ul {
   margin: 0;
   padding-left: 20px;
   color: #856404;

@@ -163,7 +163,7 @@
 }
 
 /* Step Navigation */
-.wizard-steps {
+.wizardSteps {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
@@ -242,7 +242,7 @@
 }
 
 /* Content */
-.wizard-content {
+.wizardContent {
   flex: 1;
   overflow-y: auto;
   display: flex;
@@ -457,7 +457,7 @@
     font-size: 1.5rem;
   }
   
-  .wizard-steps {
+  .wizardSteps {
     gap: 0.25rem;
   }
   

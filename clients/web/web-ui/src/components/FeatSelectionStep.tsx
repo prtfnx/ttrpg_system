@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import type { Feat, FeatChoice } from '../services/featSelection.service';
 import { featSelectionService } from '../services/featSelection.service';
-import './FeatSelectionStep.css';
+import styles from './FeatSelectionStep.module.css';
 
 // Character form data interface
 interface CharacterFormData {
@@ -44,7 +44,7 @@ const FeatDisplay: React.FC<FeatDisplayProps> = ({
     <div className={`feat-card ${isSelected ? 'selected' : ''}`}>
       <div className="feat-header" onClick={onSelect}>
         <div className="feat-info">
-          <h4 className="feat-name">{feat.name}</h4>
+          <h4 className={styles.featName}>{feat.name}</h4>
           <div className="feat-tags">
             {feat.tags.map((tag, index) => (
               <span key={index} className={`feat-tag feat-tag-${tag.toLowerCase()}`}>
@@ -71,10 +71,10 @@ const FeatDisplay: React.FC<FeatDisplayProps> = ({
         </div>
       </div>
 
-      <p className="feat-description">{feat.description}</p>
+      <p className={styles.featDescription}>{feat.description}</p>
 
       {feat.prerequisites.length > 0 && (
-        <div className="feat-prerequisites">
+        <div className={styles.featPrerequisites}>
           <h5>Prerequisites:</h5>
           <ul>
             {feat.prerequisites.map((prereq, index) => (
@@ -442,7 +442,7 @@ const FeatSelectionStep: React.FC<FeatSelectionStepProps> = ({ onNext, onBack })
       )}
 
       {selectionType === 'feat' && (
-        <div className="feat-selection">
+        <div className={styles.featSelection}>
           <div className="feat-filters">
             <div className="search-container">
               <input

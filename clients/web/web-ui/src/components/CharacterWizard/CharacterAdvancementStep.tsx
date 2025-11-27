@@ -1,7 +1,6 @@
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
 import { AdvancementSystemService } from '../../services/advancementSystem.service';
-import styles from './CharacterAdvancementStep.module.css';
 import { LevelUpWizard } from './LevelUpWizard';
 import type { WizardFormData } from './WizardFormData';
 import { XPTracker } from './XPTracker';

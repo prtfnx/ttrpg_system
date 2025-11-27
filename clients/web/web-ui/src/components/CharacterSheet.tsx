@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import type { Character } from "../types";
-import "./CharacterSheet.css";
+import styles from "./CharacterSheet.module.css";
 import type { WizardFormData } from "./CharacterWizard/WizardFormData";
 
 interface CharacterSheetProps {
@@ -293,7 +293,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
   };
 
   return (
-    <div className="character-sheet">
+    <div className={styles.characterSheet}>
       {lockedBy && lockedBy !== "me" ? (
         <div className="locked">Locked by {lockedBy}</div>
       ) : null}

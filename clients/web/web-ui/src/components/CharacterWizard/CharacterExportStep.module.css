@@ -127,7 +127,7 @@
   color: #666;
 }
 
-.export-preview {
+.exportPreview {
   background: #f8f9fa;
   padding: 20px;
   border-radius: 8px;
@@ -135,7 +135,7 @@
   border: 1px solid #dee2e6;
 }
 
-.export-preview h5 {
+.exportPreview h5 {
   color: #8b0000;
   margin-bottom: 15px;
   font-size: 16px;

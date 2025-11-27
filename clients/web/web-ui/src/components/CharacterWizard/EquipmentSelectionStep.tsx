@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import {
-  equipmentManagementService,
-  equipmentToWizardItem,
-  type Equipment,
-  type WizardEquipmentItem
+    equipmentManagementService,
+    equipmentToWizardItem,
+    type Equipment,
+    type WizardEquipmentItem
 } from '../../services/equipmentManagement.service';
 import { ErrorBoundary } from '../common/ErrorBoundary';
-import './EquipmentSelectionStep.css';
+import styles from './EquipmentSelectionStep.module.css';
 import type { WizardFormData } from './WizardFormData';
 
 interface EquipmentSelectionStepProps {
@@ -473,7 +473,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
           {/* Available Equipment - Left side */}
           <div className="available-equipment">
             <h3>Available Equipment ({filteredEquipment.length})</h3>
-            <div className="equipment-grid">
+            <div className={styles.equipmentGrid}>
               {filteredEquipment.map((equipment) => (
                 <div key={equipment.name} className="equipment-card">
                   <div className="equipment-header">

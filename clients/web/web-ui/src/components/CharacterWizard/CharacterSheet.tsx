@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { CombatSystemService } from '../../services/combatSystem.service';
-import './CharacterSheet.css';
 import type { WizardFormData } from './WizardFormData';
 
 interface CharacterSheetProps {

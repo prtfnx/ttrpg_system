@@ -20,7 +20,7 @@ import { BackgroundStep } from './BackgroundStep';
 import { CharacterAdvancementStep } from './CharacterAdvancementStep';
 import { CharacterExportStep } from './CharacterExportStep';
 import { ClassStep } from './ClassStep';
-import './EnhancedCharacterWizard.css';
+import styles from './EnhancedCharacterWizard.module.css';
 import { EquipmentSelectionStep } from './EquipmentSelectionStep';
 import { IdentityStep } from './IdentityStep';
 import { RaceStep } from './RaceStepImproved';
@@ -503,7 +503,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
               </div>
 
               {/* Step Navigation */}
-              <nav className="wizard-steps" aria-label="Wizard steps">
+              <nav className={styles.wizardSteps} aria-label="Wizard steps">
                 {WIZARD_STEPS.map((step, originalIndex) => {
                   // Skip steps that shouldn't be shown
                   if (!shouldShowStep(step, getValues())) {
@@ -539,7 +539,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
             </div>
 
             {/* Current Step Content */}
-            <div className="wizard-content">
+            <div className={styles.wizardContent}>
               <div className="step-header">
                 <h2>{currentStep.title}</h2>
                 <p>{currentStep.description}</p>

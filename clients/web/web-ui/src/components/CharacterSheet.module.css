@@ -1,5 +1,5 @@
 /* Character Sheet Styles */
-.character-sheet {
+.characterSheet {
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
@@ -28,7 +28,7 @@
 }
 
 /* Tab Navigation */
-.character-sheet-tabs {
+.characterSheet-tabs {
   display: flex;
   border-bottom: 2px solid #e0e0e0;
   margin-bottom: 20px;
@@ -37,7 +37,7 @@
   overflow: hidden;
 }
 
-.character-sheet .tab-button {
+.characterSheet .tab-button {
   background: none;
   border: none;
   padding: 15px 25px;
@@ -49,18 +49,18 @@
   position: relative;
 }
 
-.character-sheet .tab-button:hover {
+.characterSheet .tab-button:hover {
   background-color: #e9ecef;
   color: #333;
 }
 
-.character-sheet .tab-button.active {
+.characterSheet .tab-button.active {
   background-color: #fff;
   color: #007bff;
   font-weight: 600;
 }
 
-.character-sheet .tab-button.active::after {
+.characterSheet .tab-button.active::after {
   content: '';
   position: absolute;
   bottom: -2px;
@@ -71,7 +71,7 @@
 }
 
 /* Tab Content */
-.character-sheet-content {
+.characterSheet-content {
   background-color: #fff;
   border-radius: 0 0 8px 8px;
   padding: 20px;
@@ -514,11 +514,11 @@
     grid-template-columns: 1fr;
   }
   
-  .character-sheet-tabs {
+  .characterSheet-tabs {
     flex-wrap: wrap;
   }
   
-  .character-sheet .tab-button {
+  .characterSheet .tab-button {
     flex: 1;
     min-width: calc(50% - 1px);
   }

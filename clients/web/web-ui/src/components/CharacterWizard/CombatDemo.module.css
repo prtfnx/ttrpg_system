@@ -1,4 +1,4 @@
-.combat-demo {
+.combatDemo {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -258,7 +258,7 @@
 
 /* Dark Mode Support */
 @media (prefers-color-scheme: dark) {
-  .combat-demo {
+  .combatDemo {
     background: linear-gradient(135deg, #1f2937, #111827);
   }
 

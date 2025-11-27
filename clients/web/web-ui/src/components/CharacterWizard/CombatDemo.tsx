@@ -1,5 +1,5 @@
 import React from 'react';
-import './CombatDemo.css';
+import styles from './CombatDemo.module.css';
 import { CombatLauncher } from './CombatLauncher';
 import type { WizardFormData } from './WizardFormData';
 
@@ -134,7 +134,7 @@ interface CombatDemoProps {
 
 export const CombatDemo: React.FC<CombatDemoProps> = ({ onClose }) => {
   return (
-    <div className="combat-demo">
+    <div className={styles.combatDemo}>
       <div className="demo-header">
         <h2>Combat Integration System Demo</h2>
         <p>Test all combat features with these demo characters</p>

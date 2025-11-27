@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { UserInfo } from '../../services/auth.service';
 import { CombatSystemService, type CombatStats, type DiceResult } from '../../services/combatSystem.service';
-import './CombatTracker.css';
 import { InitiativeRoll } from './DiceRoller';
 import type { WizardFormData } from './WizardFormData';
 

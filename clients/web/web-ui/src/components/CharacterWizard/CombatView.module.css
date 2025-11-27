@@ -1,4 +1,4 @@
-.combat-view {
+.combatView {
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -6,7 +6,7 @@
   overflow: hidden;
 }
 
-.combat-view.fullscreen {
+.combatView.fullscreen {
   position: fixed;
   top: 0;
   left: 0;
@@ -265,7 +265,7 @@
 
 /* Dark Mode Support */
 @media (prefers-color-scheme: dark) {
-  .combat-view {
+  .combatView {
     --bg-primary: #1a1a1a;
     --bg-secondary: #2d2d2d;
     --bg-tertiary: #404040;
@@ -298,7 +298,7 @@
 
 /* Print Styles */
 @media print {
-  .combat-view {
+  .combatView {
     height: auto;
     overflow: visible;
   }

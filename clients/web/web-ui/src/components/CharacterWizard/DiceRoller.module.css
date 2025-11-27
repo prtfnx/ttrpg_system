@@ -1,19 +1,19 @@
 /* Dice Roller Component Styles */
 
-.dice-roller {
+.diceRoller {
   display: flex;
   flex-direction: column;
   gap: 12px;
   max-width: 300px;
 }
 
-.dice-roller.disabled {
+.diceRoller.disabled {
   opacity: 0.6;
   pointer-events: none;
 }
 
 /* Main dice button */
-.dice-roller-main {
+.diceRoller-main {
   position: relative;
 }
 
@@ -47,35 +47,35 @@
 }
 
 /* Variant styles */
-.dice-roller.primary .dice-button {
+.diceRoller.primary .dice-button {
   border-color: #8b0000;
   background: linear-gradient(135deg, #8b0000 0%, #a00000 100%);
   color: white;
 }
 
-.dice-roller.primary .dice-button:hover:not(:disabled) {
+.diceRoller.primary .dice-button:hover:not(:disabled) {
   background: linear-gradient(135deg, #a00000 0%, #b30000 100%);
 }
 
-.dice-roller.attack .dice-button {
+.diceRoller.attack .dice-button {
   border-color: #dc3545;
   background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
   color: white;
 }
 
-.dice-roller.damage .dice-button {
+.diceRoller.damage .dice-button {
   border-color: #fd7e14;
   background: linear-gradient(135deg, #fd7e14 0%, #e8590c 100%);
   color: white;
 }
 
-.dice-roller.save .dice-button {
+.diceRoller.save .dice-button {
   border-color: #6f42c1;
   background: linear-gradient(135deg, #6f42c1 0%, #5a359a 100%);
   color: white;
 }
 
-.dice-roller.secondary .dice-button {
+.diceRoller.secondary .dice-button {
   border-color: #6c757d;
   background: #f8f9fa;
   color: #495057;
@@ -131,7 +131,7 @@
 }
 
 /* Dice result */
-.dice-result {
+.diceResult {
   font-size: 32px;
   font-weight: 700;
   min-width: 60px;
@@ -141,18 +141,18 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
-.dice-result.critical {
+.diceResult.critical {
   background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
   color: #333;
   animation: criticalGlow 1s ease-in-out;
 }
 
-.dice-result.high {
+.diceResult.high {
   background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
   color: white;
 }
 
-.dice-result.low {
+.diceResult.low {
   background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
   color: white;
 }
@@ -354,7 +354,7 @@
 
 /* Responsive design */
 @media (max-width: 768px) {
-  .dice-roller {
+  .diceRoller {
     max-width: none;
   }
   
@@ -367,7 +367,7 @@
     font-size: 20px;
   }
   
-  .dice-result {
+  .diceResult {
     font-size: 24px;
     min-width: 50px;
     padding: 6px;
@@ -390,7 +390,7 @@
   100% { opacity: 0; transform: scale(1.5); }
 }
 
-.dice-result.critical::after {
+.diceResult.critical::after {
   content: '✨';
   position: absolute;
   top: -10px;

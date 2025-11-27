@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { AttackManager } from './AttackManager';
 import { CharacterSheet } from './CharacterSheet';
 import { CombatTracker } from './CombatTracker';
-import './CombatView.css';
 import { DiceRoller } from './DiceRoller';
 import { SpellManager } from './SpellManager';
 import type { WizardFormData } from './WizardFormData';

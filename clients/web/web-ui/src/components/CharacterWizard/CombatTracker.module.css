@@ -1,6 +1,6 @@
 /* Combat Tracker Styles */
 
-.combat-tracker {
+.combatTracker {
   max-width: 1400px;
   margin: 0 auto;
   background: white;
@@ -9,7 +9,7 @@
   overflow: hidden;
 }
 
-.combat-tracker.setup {
+.combatTracker.setup {
   max-width: 800px;
 }
 
@@ -514,7 +514,7 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .combat-tracker {
+  .combatTracker {
     margin: 0;
     border-radius: 0;
   }

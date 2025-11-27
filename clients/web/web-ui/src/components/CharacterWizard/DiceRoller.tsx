@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { CombatSystemService, type DiceResult } from '../../services/combatSystem.service';
-import './DiceRoller.css';
 
 interface DiceRollerProps {
   formula?: string;

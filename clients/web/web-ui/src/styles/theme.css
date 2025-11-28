@@ -35,7 +35,9 @@
   --bg-secondary: var(--gray-900);
   --bg-tertiary: var(--gray-800);
   --bg-elevated: var(--gray-700);
+  --bg-elevated-hover: var(--gray-600);
   --bg-overlay: rgba(0, 0, 0, 0.8);
+  --modal-overlay: rgba(0, 0, 0, 0.75);
   
   /* Text - Hierarchy for readability */
   --text-primary: var(--gray-50);
@@ -47,6 +49,7 @@
   /* Borders - Visual separation */
   --border-primary: var(--gray-700);
   --border-secondary: var(--gray-800);
+  --border-hover: var(--gray-600);
   --border-focus: var(--blue-500);
   --border-error: var(--red-500);
   --border-success: var(--green-500);
@@ -56,22 +59,31 @@
   --color-primary: var(--blue-600);
   --color-primary-hover: var(--blue-500);
   --color-primary-active: var(--blue-700);
+  --color-primary-light: var(--blue-400);
+  --color-primary-lighter: var(--blue-300);
+  --color-primary-glow: rgba(59, 130, 246, 0.3);
+  --color-primary-overlay: rgba(59, 130, 246, 0.1);
   
   --color-success: var(--green-600);
   --color-success-hover: var(--green-500);
   --color-success-active: var(--green-700);
+  --color-success-glow: rgba(5, 150, 105, 0.3);
   
   --color-danger: var(--red-600);
   --color-danger-hover: var(--red-500);
   --color-danger-active: var(--red-700);
+  --color-danger-glow: rgba(220, 38, 38, 0.3);
+  --color-danger-overlay: rgba(220, 53, 69, 0.1);
   
   --color-warning: var(--orange-500);
   --color-warning-hover: var(--orange-400);
   --color-warning-active: var(--orange-600);
+  --color-warning-overlay: rgba(255, 193, 7, 0.2);
   
   --color-info: var(--blue-500);
   --color-info-hover: var(--blue-400);
   --color-info-active: var(--blue-600);
+  --color-info-overlay: rgba(66, 135, 245, 0.05);
   
   --color-accent: var(--indigo-500);
   --color-accent-hover: var(--indigo-400);

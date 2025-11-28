@@ -11,33 +11,37 @@
   gap: 4px;
   padding: 6px;
   border-bottom: 1px solid #374151;
-  max-height: 96px;
-  overflow-y: auto;
+  /* Removed max-height and overflow-y - tabs should not scroll */
 }
 
 .tabButton {
   flex: 0 1 auto;
-  padding: 6px 8px;
-  background-color: #0b2740;
-  border: 0;
+  padding: 6px 12px;
+  background-color: var(--button-secondary-bg);
+  border: 1px solid var(--border-button);
   cursor: pointer;
   font-size: 12px;
-  color: #bcd7f8;
-  transition: background 0.12s ease, transform 0.12s ease;
+  font-weight: 500;
+  color: var(--button-secondary-text);
+  transition: all 0.2s ease;
   white-space: nowrap;
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   box-sizing: border-box;
-  border-bottom: 2px solid transparent;
 }
 
 .tabButton:hover {
-  background-color: #0f375e;
+  background-color: var(--button-secondary-hover);
+  border-color: var(--border-button-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .tabButton.active {
-  background-color: #0b3b7a;
-  border-bottom-color: #1e40af;
-  color: #ffffff;
+  background-color: var(--button-primary-bg);
+  border-color: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(14, 99, 156, 0.3);
 }
 
 .tabContent {

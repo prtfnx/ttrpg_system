@@ -20,39 +20,49 @@
 
 .mode-button {
   padding: 0.5rem 1rem;
-  border: 1px solid #555;
-  border-radius: 4px;
-  background: #444;
-  color: white;
+  border: 1px solid var(--border-button);
+  border-radius: var(--radius-md);
+  background: var(--button-secondary-bg);
+  color: var(--button-secondary-text);
   cursor: pointer;
-  transition: all 0.2s;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .mode-button.active {
-  background: #4a90e2;
-  border-color: #4a90e2;
+  background: var(--button-primary-bg);
+  border-color: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  box-shadow: 0 2px 8px rgba(14, 99, 156, 0.3);
 }
 
 .mode-button:hover {
-  background: #555;
+  background: var(--button-secondary-hover);
+  border-color: var(--border-button-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .mode-button.active:hover {
-  background: #357abd;
+  background: var(--button-primary-hover);
 }
 
 .cancel-button {
-  background: #ef4444;
-  color: white;
-  border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
+  background: var(--button-danger-bg);
+  color: var(--button-danger-text);
+  border: 1px solid var(--button-danger-bg);
+  padding: 4px 12px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .cancel-button:hover {
-  background: #dc2626;
+  background: var(--button-danger-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 @keyframes pulse {

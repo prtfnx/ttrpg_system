@@ -87,9 +87,12 @@
 }
 
 .layerItem.active {
-  background-color: var(--active-bg);
+  background: linear-gradient(135deg, rgba(100, 108, 255, 0.15) 0%, rgba(100, 108, 255, 0.05) 100%);
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 1px rgba(100, 108, 255, 0.3);
+  border-width: 2px;
+  padding: calc(var(--spacing-sm) - 1px);
+  box-shadow: 0 0 0 2px rgba(100, 108, 255, 0.3), 0 4px 12px rgba(100, 108, 255, 0.2);
+  transform: scale(1.02);
 }
 
 /* Layer Main Content - Horizontal Layout */

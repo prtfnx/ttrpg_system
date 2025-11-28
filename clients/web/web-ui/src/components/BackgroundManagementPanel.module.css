@@ -1,66 +1,43 @@
 /**
  * Background Management Panel Styles
- * Professional styling for the performance-optimized background management UI
- * with responsive design and accessibility features
+ * Uses PanelBase.module.css for shared panel patterns + Design Tokens
+ * Component-specific styles for background/weather management
  */
 
+/* Use shared modal overlay */
 .backgroundManagementOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  composes: panel-overlay from '../styles/PanelBase.module.css';
   z-index: 10000;
-  animation: fadeIn 0.3s ease-out;
 }
 
+/* Panel container with custom width */
 .backgroundManagementPanel {
-  background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
-  border-radius: 12px;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+  composes: panel-container extra-wide from '../styles/PanelBase.module.css';
   max-width: 90vw;
   max-height: 90vh;
   width: 1000px;
-  overflow: hidden;
-  border: 1px solid #4a5568;
 }
 
+/* Header with gradient accent */
 .panelHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  composes: panel-header from '../styles/PanelBase.module.css';
   padding: 1.5rem 2rem;
-  background: linear-gradient(135deg, #3182ce 0%, #2b77cb 100%);
-  color: white;
-  border-bottom: 1px solid #4a5568;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-hover));
+  color: var(--text-on-accent);
 }
 
 .panelHeader h2 {
   margin: 0;
   font-size: 1.5rem;
   font-weight: 600;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  text-shadow: 0 1px 2px var(--shadow-sm);
 }
 
 .closeBtn {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 4px;
-  transition: all 0.2s;
+  composes: close-button from '../styles/PanelBase.module.css';
+  color: var(--text-on-accent);
   width: 40px;
   height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .closeBtn:hover {
@@ -69,27 +46,25 @@
 }
 
 .closeBtn:focus {
-  outline: 2px solid #90cdf4;
+  outline: 2px solid var(--accent-glow);
   outline-offset: 2px;
 }
 
+/* Content area */
 .panelContent {
+  composes: panel-content from '../styles/PanelBase.module.css';
   max-height: calc(90vh - 120px);
-  overflow-y: auto;
   padding: 1.5rem 2rem;
-  color: #e2e8f0;
 }
 
+/* Error message */
 .errorMessage {
-  background: linear-gradient(135deg, #c53030 0%, #e53e3e 100%);
-  color: white;
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
+  composes: info-box error from '../styles/PanelBase.module.css';
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  border: 1px solid #feb2b2;
+  margin-bottom: 1rem;
+  padding: 1rem;
 }
 
 .errorIcon {
@@ -99,11 +74,11 @@
 .errorDismiss {
   background: none;
   border: none;
-  color: white;
+  color: var(--text-on-error);
   cursor: pointer;
   margin-left: auto;
   padding: 0.25rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition: background-color 0.2s;
 }
 
@@ -111,7 +86,9 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
+/* Sections */
 .section {
+  composes: settings-section from '../styles/PanelBase.module.css';
   margin-bottom: 2rem;
 }
 
@@ -119,8 +96,8 @@
   margin: 0 0 1rem 0;
   font-size: 1.25rem;
   font-weight: 600;
-  color: #90cdf4;
-  border-bottom: 2px solid #4a5568;
+  color: var(--accent-secondary);
+  border-bottom: 2px solid var(--border-primary);
   padding-bottom: 0.5rem;
 }
 
@@ -132,9 +109,9 @@
 }
 
 .config-option {
-  background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
-  border: 2px solid #4b5563;
-  border-radius: 8px;
+  background: linear-gradient(135deg, var(--gray-700) 0%, var(--gray-800) 100%);
+  border: 2px solid var(--border-primary);
+  border-radius: var(--radius-lg);
   padding: 1rem;
   cursor: pointer;
   transition: all 0.3s;
@@ -142,15 +119,15 @@
 }
 
 .config-option:hover {
-  border-color: #60a5fa;
+  border-color: var(--accent-primary);
   transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-xl);
 }
 
 .config-option.active {
-  border-color: #3b82f6;
-  background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  border-color: var(--accent-primary);
+  background: linear-gradient(135deg, var(--accent-bg), var(--accent-bg-subtle));
+  box-shadow: 0 0 20px var(--accent-glow);
 }
 
 .config-option:disabled {
@@ -162,55 +139,50 @@
 .configName {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #f1f5f9;
+  color: var(--text-primary);
   margin-bottom: 0.5rem;
 }
 
 .configDescription {
   font-size: 0.875rem;
-  color: #cbd5e1;
+  color: var(--text-secondary);
   line-height: 1.4;
 }
 
 /* Performance Metrics */
 .metricsGrid {
+  composes: info-grid from '../styles/PanelBase.module.css';
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
 }
 
 .metric {
-  background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
-  border: 1px solid #4b5563;
-  border-radius: 8px;
-  padding: 1rem;
+  composes: info-stat from '../styles/PanelBase.module.css';
+  background: linear-gradient(135deg, var(--gray-700) 0%, var(--gray-800) 100%);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .metricLabel {
-  font-size: 0.875rem;
-  color: #cbd5e1;
-  font-weight: 500;
+  composes: stat-label from '../styles/PanelBase.module.css';
 }
 
 .metricValue {
+  composes: stat-value from '../styles/PanelBase.module.css';
   font-size: 1.125rem;
-  font-weight: 700;
-  font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
 }
 
 .metricValue.good {
-  color: #34d399;
+  color: var(--status-success);
 }
 
 .metricValue.caution {
-  color: #fbbf24;
+  color: var(--status-warning);
 }
 
 .metricValue.warning {
-  color: #f87171;
+  color: var(--status-error);
 }
 
 /* Settings */
@@ -221,52 +193,39 @@
 }
 
 .setting {
+  composes: control-group from '../styles/PanelBase.module.css';
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
 
-.setting label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #e2e8f0;
-  display: flex;
-  align-items: center;
+.settingLabel {
+  composes: control-label from '../styles/PanelBase.module.css';
   gap: 0.5rem;
 }
 
-.setting select {
-  background: #374151;
-  border: 2px solid #4b5563;
-  border-radius: 6px;
-  padding: 0.5rem;
-  color: #f1f5f9;
-  font-size: 0.875rem;
+.settingSelect {
+  composes: setting-select from '../styles/PanelBase.module.css';
   min-width: 120px;
-  transition: border-color 0.2s;
 }
 
-.setting select:focus {
-  outline: none;
-  border-color: #60a5fa;
-}
-
-.setting input[type="checkbox"] {
+.settingCheckbox {
   width: 18px;
   height: 18px;
-  accent-color: #3b82f6;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
 }
 
 /* Background Layers */
 .layersList {
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 8px;
-  border: 1px solid #4b5563;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
   overflow: hidden;
 }
 
 .layer-item {
-  border-bottom: 1px solid #4b5563;
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .layer-item:last-child {
@@ -274,7 +233,7 @@
 }
 
 .layer-item.selected {
-  background: rgba(59, 130, 246, 0.1);
+  background: var(--accent-bg-subtle);
 }
 
 .layerHeader {
@@ -287,7 +246,7 @@
 }
 
 .layerHeader:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--hover-bg);
 }
 
 .layerInfo {
@@ -297,15 +256,15 @@
 .layerName {
   font-size: 1rem;
   font-weight: 600;
-  color: #f1f5f9;
+  color: var(--text-primary);
   display: block;
   margin-bottom: 0.25rem;
 }
 
 .layerDetails {
   font-size: 0.75rem;
-  color: #94a3b8;
-  font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono, 'Fira Code', 'Monaco', 'Consolas', monospace);
 }
 
 .layerControls {
@@ -320,21 +279,22 @@
   font-size: 1.125rem;
   cursor: pointer;
   padding: 0.5rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition: all 0.2s;
-  color: #cbd5e1;
+  color: var(--text-secondary);
 }
 
 .visibilityToggle:hover,
 .editBtn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--hover-bg);
   transform: scale(1.1);
+  color: var(--text-primary);
 }
 
 .layerDetails-panel {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg-tertiary);
   padding: 1rem;
-  border-top: 1px solid #4b5563;
+  border-top: 1px solid var(--border-primary);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
@@ -346,53 +306,22 @@
   gap: 0.5rem;
 }
 
-.layerProperty label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #cbd5e1;
+.layerPropertyLabel {
+  composes: setting-label from '../styles/PanelBase.module.css';
 }
 
-.layerProperty input[type="range"] {
-  background: #4b5563;
-  height: 6px;
-  border-radius: 3px;
-  outline: none;
-  appearance: none;
+.layerPropertySlider {
+  composes: setting-slider from '../styles/PanelBase.module.css';
 }
 
-.layerProperty input[type="range"]::-webkit-slider-thumb {
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #3b82f6;
-  cursor: pointer;
-  border: 2px solid #1e40af;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+.layerPropertySelect {
+  composes: setting-select from '../styles/PanelBase.module.css';
 }
 
-.layerProperty input[type="range"]::-webkit-slider-thumb:hover {
-  background: #60a5fa;
-}
-
-.layerProperty select {
-  background: #374151;
-  border: 2px solid #4b5563;
-  border-radius: 6px;
-  padding: 0.5rem;
-  color: #f1f5f9;
-  font-size: 0.875rem;
-}
-
-.layerProperty select:focus {
-  outline: none;
-  border-color: #60a5fa;
-}
-
-.layerProperty span {
+.layerPropertyValue {
   font-size: 0.75rem;
-  color: #94a3b8;
-  font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono, 'Fira Code', 'Monaco', 'Consolas', monospace);
   text-align: center;
 }
 
@@ -404,9 +333,9 @@
 }
 
 .weatherEffect {
-  background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
-  border: 1px solid #4b5563;
-  border-radius: 8px;
+  background: linear-gradient(135deg, var(--gray-700) 0%, var(--gray-800) 100%);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
   padding: 1rem;
   display: flex;
   justify-content: space-between;
@@ -422,14 +351,14 @@
 .effect-type {
   font-size: 1rem;
   font-weight: 600;
-  color: #f1f5f9;
+  color: var(--text-primary);
   text-transform: capitalize;
 }
 
 .effectIntensity {
   font-size: 0.75rem;
-  color: #94a3b8;
-  font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono, 'Fira Code', 'Monaco', 'Consolas', monospace);
 }
 
 .effect-controls {
@@ -438,23 +367,9 @@
   gap: 1rem;
 }
 
-.effect-controls input[type="range"] {
+.effectControlSlider {
+  composes: setting-slider from '../styles/PanelBase.module.css';
   width: 120px;
-  background: #4b5563;
-  height: 6px;
-  border-radius: 3px;
-  outline: none;
-  appearance: none;
-}
-
-.effect-controls input[type="range"]::-webkit-slider-thumb {
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #10b981;
-  cursor: pointer;
-  border: 2px solid #047857;
 }
 
 .remove-effect {
@@ -463,72 +378,41 @@
   font-size: 1.125rem;
   cursor: pointer;
   padding: 0.5rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition: all 0.2s;
-  color: #f87171;
+  color: var(--status-error);
 }
 
 .remove-effect:hover {
-  background: rgba(248, 113, 113, 0.1);
+  background: var(--status-error-bg);
   transform: scale(1.1);
 }
 
 .add-weather-btn {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  border: none;
-  color: white;
+  composes: panel-button success from '../styles/PanelBase.module.css';
   padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
   align-self: flex-start;
 }
 
-.add-weather-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
-}
-
-.add-weather-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .add-weather-form {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid #4b5563;
-  border-radius: 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
   padding: 1rem;
   display: flex;
   gap: 1rem;
   align-items: center;
 }
 
-.add-weather-form select {
-  background: #374151;
-  border: 2px solid #4b5563;
-  border-radius: 6px;
-  padding: 0.5rem;
-  color: #f1f5f9;
-  font-size: 0.875rem;
+.addWeatherFormSelect {
+  composes: setting-select from '../styles/PanelBase.module.css';
   min-width: 200px;
 }
 
-.add-weather-form button {
-  background: #6b7280;
-  border: none;
-  color: white;
+.addWeatherFormButton {
+  composes: panel-button secondary from '../styles/PanelBase.module.css';
   padding: 0.5rem 1rem;
-  border-radius: 6px;
   font-size: 0.875rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.add-weather-form button:hover {
-  background: #4b5563;
 }
 
 /* Loading Overlay */
@@ -538,30 +422,20 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: var(--modal-overlay);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 1rem;
-  color: white;
+  color: var(--text-on-overlay);
+  backdrop-filter: blur(8px);
 }
 
 .loading-overlay p {
   font-size: 1.125rem;
   font-weight: 500;
-}
-
-/* Animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  color: var(--text-primary);
 }
 
 /* Responsive Design */
@@ -621,67 +495,10 @@
   }
 }
 
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  .backgroundManagementPanel {
-    border: 2px solid #ffffff;
-  }
-  
-  .config-option {
-    border-width: 2px;
-  }
-  
-  .metric {
-    border-width: 2px;
-  }
-  
-  .layer-item {
-    border-bottom-width: 2px;
-  }
-}
-
-/* Reduced motion support */
+/* Accessibility - reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-  
-  .config-option:hover {
-    transform: none;
-  }
-  
+  .config-option:hover,
   .add-weather-btn:hover:not(:disabled) {
     transform: none;
   }
-}
-
-/* Focus indicators for keyboard navigation */
-.backgroundManagementPanel *:focus {
-  outline: 2px solid #60a5fa;
-  outline-offset: 2px;
-}
-
-.config-option:focus {
-  outline: 3px solid #60a5fa;
-  outline-offset: 4px;
-}
-
-/* Scrollbar styling */
-.panelContent::-webkit-scrollbar {
-  width: 8px;
-}
-
-.panelContent::-webkit-scrollbar-track {
-  background: #1f2937;
-}
-
-.panelContent::-webkit-scrollbar-thumb {
-  background: #4b5563;
-  border-radius: 4px;
-}
-
-.panelContent::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
 }

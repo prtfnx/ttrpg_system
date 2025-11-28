@@ -5,6 +5,14 @@
   background: var(--bg-primary);
 }
 
+.rightPanelContainer {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-primary);
+}
+
 .tabsContainer {
   display: flex;
   flex-wrap: wrap;

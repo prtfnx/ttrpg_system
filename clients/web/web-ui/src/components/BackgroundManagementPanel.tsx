@@ -414,9 +414,10 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
               <h3>Performance Settings</h3>
               <div className={styles.settingsGrid}>
                 <div className={styles.setting}>
-                  <label htmlFor="performance-profile">Performance Profile:</label>
+                  <label htmlFor="performance-profile" className={styles.settingLabel}>Performance Profile:</label>
                   <select
                     id="performance-profile"
+                    className={styles.settingSelect}
                     value={performanceProfile}
                     onChange={(e) => handlePerformanceProfileChange(e.target.value as any)}
                   >
@@ -427,10 +428,11 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                   </select>
                 </div>
                 <div className={styles.setting}>
-                  <label htmlFor="streaming-enabled">
+                  <label htmlFor="streaming-enabled" className={styles.settingLabel}>
                     <input
                       type="checkbox"
                       id="streaming-enabled"
+                      className={styles.settingCheckbox}
                       checked={isStreamingEnabled}
                       onChange={(e) => handleStreamingToggle(e.target.checked)}
                     />
@@ -483,32 +485,35 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                       {selectedLayerId === layer.id && (
                         <div className={styles.layerDetailsPanel}>
                           <div className={styles.layerProperty}>
-                            <label>Opacity:</label>
+                            <label className={styles.layerPropertyLabel}>Opacity:</label>
                             <input
                               type="range"
+                              className={styles.layerPropertySlider}
                               min="0"
                               max="1"
                               step="0.1"
                               value={layer.opacity}
                               onChange={(e) => handleLayerUpdate(layer.id, { opacity: parseFloat(e.target.value) })}
                             />
-                            <span>{(layer.opacity * 100).toFixed(0)}%</span>
+                            <span className={styles.layerPropertyValue}>{(layer.opacity * 100).toFixed(0)}%</span>
                           </div>
                           <div className={styles.layerProperty}>
-                            <label>Parallax Factor:</label>
+                            <label className={styles.layerPropertyLabel}>Parallax Factor:</label>
                             <input
                               type="range"
+                              className={styles.layerPropertySlider}
                               min="0"
                               max="2"
                               step="0.1"
                               value={layer.parallaxFactor}
                               onChange={(e) => handleLayerUpdate(layer.id, { parallaxFactor: parseFloat(e.target.value) })}
                             />
-                            <span>{layer.parallaxFactor.toFixed(1)}</span>
+                            <span className={styles.layerPropertyValue}>{layer.parallaxFactor.toFixed(1)}</span>
                           </div>
                           <div className={styles.layerProperty}>
-                            <label>Blend Mode:</label>
+                            <label className={styles.layerPropertyLabel}>Blend Mode:</label>
                             <select
+                              className={styles.layerPropertySelect}
                               value={layer.blendMode}
                               onChange={(e) => handleLayerUpdate(layer.id, { blendMode: e.target.value as any })}
                             >
@@ -521,16 +526,17 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                           </div>
                           {layer.animated && (
                             <div className={styles.layerProperty}>
-                              <label>Animation Speed:</label>
+                              <label className={styles.layerPropertyLabel}>Animation Speed:</label>
                               <input
                                 type="range"
+                                className={styles.layerPropertySlider}
                                 min="0"
                                 max="5"
                                 step="0.1"
                                 value={layer.animationSpeed || 1}
                                 onChange={(e) => handleLayerUpdate(layer.id, { animationSpeed: parseFloat(e.target.value) })}
                               />
-                              <span>{(layer.animationSpeed || 1).toFixed(1)}</span>
+                              <span className={styles.layerPropertyValue}>{(layer.animationSpeed || 1).toFixed(1)}</span>
                             </div>
                           )}
                         </div>
@@ -554,6 +560,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                     <div className="effect-controls">
                       <input
                         type="range"
+                        className={styles.effectControlSlider}
                         min="0"
                         max="1"
                         step="0.1"
@@ -583,8 +590,8 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                 </button>
                 
                 {isAddingWeatherEffect && (
-                  <div className="add-weather-form">
-                    <select onChange={(e) => {
+                  <div className={styles.addWeatherForm}>
+                    <select className={styles.addWeatherFormSelect} onChange={(e) => {
                       if (e.target.value) {
                         const newEffect: WeatherEffect = {
                           id: `${e.target.value}_${Date.now()}`,
@@ -608,7 +615,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                       <option value="wind">Wind</option>
                       <option value="particles">Particles</option>
                     </select>
-                    <button onClick={() => setIsAddingWeatherEffect(false)}>Cancel</button>
+                    <button className={styles.addWeatherFormButton} onClick={() => setIsAddingWeatherEffect(false)}>Cancel</button>
                   </div>
                 )}
               </div>

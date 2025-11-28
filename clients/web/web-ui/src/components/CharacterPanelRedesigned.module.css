@@ -134,7 +134,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--indigo-500) 0%, var(--purple-600) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -665,7 +665,7 @@
 .modalOverlay .modalContent {
   background: var(--bg-secondary);
   border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-2xl);
   max-height: 90vh;
   display: flex;
   flex-direction: column;

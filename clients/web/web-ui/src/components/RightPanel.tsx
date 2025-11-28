@@ -1,18 +1,22 @@
 import clsx from 'clsx';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActionQueuePanel } from './ActionQueuePanel';
 import { ActionsPanel } from './ActionsPanel';
 import { ActionsQuickPanel } from './ActionsQuickPanel';
+import AdvancedMeasurementPanel from './AdvancedMeasurementPanel';
 import { AssetPanel } from './AssetPanel';
+import BackgroundManagementPanel from './BackgroundManagementPanel';
 import CharacterPanelRedesigned from './CharacterPanelRedesigned';
 import ChatPanel from './ChatPanel';
 import { CompendiumPanel } from './CompendiumPanel';
 import { EntitiesPanel } from './EntitiesPanel';
 import { FogPanel } from './FogPanel';
 import InitiativeTracker from './InitiativeTracker';
+import { LayerPanel } from './LayerPanel';
 import { LightingPanel } from './LightingPanel';
 import { NetworkPanel } from './NetworkPanel';
 import { PaintPanel } from './PaintPanel';
+import PerformanceSettingsPanel from './PerformanceSettingsPanel';
 import { PlayerManagerPanel } from './PlayerManagerPanel';
 import styles from './RightPanel.module.css';
 import { TableManagementPanel } from './TableManagementPanel';
@@ -23,10 +27,11 @@ import TableSyncPanel from './TableSyncPanel';
 const isDevelopment = import.meta.env.DEV;
 
 export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
-  const [activeTab, setActiveTab] = useState<'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'paint' | 'sync' | 'players' | 'actions' | 'quick-actions' | 'queue' | 'compendium' | 'assets' | 'network' | 'initiative'>('tables');
+  const [activeTab, setActiveTab] = useState<'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'paint' | 'sync' | 'players' | 'actions' | 'quick-actions' | 'queue' | 'compendium' | 'assets' | 'network' | 'initiative' | 'layers' | 'performance' | 'backgrounds' | 'measurement'>('tables');
+  const canvasRef = useRef<HTMLCanvasElement>(null!);
 
   return (
-    <div className="game-panel right-panel" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#111827', borderLeft: '1px solid #374151' }}>
+    <div className={styles.rightPanelContainer}>
       <div className={styles.tabsContainer}>
         <button className={clsx(styles.tabButton, activeTab === 'compendium' && 'active')} onClick={() => setActiveTab('compendium')}>Compendium</button>
         <button className={clsx(styles.tabButton, activeTab === 'tables' && 'active')} onClick={() => setActiveTab('tables')}>Tables</button>
@@ -41,6 +46,10 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
         <button className={clsx(styles.tabButton, activeTab === 'lighting' && 'active')} onClick={() => setActiveTab('lighting')}>Lighting</button>
         <button className={clsx(styles.tabButton, activeTab === 'fog' && 'active')} onClick={() => setActiveTab('fog')}>Fog</button>
         <button className={clsx(styles.tabButton, activeTab === 'paint' && 'active')} onClick={() => setActiveTab('paint')}>Paint</button>
+        <button className={clsx(styles.tabButton, activeTab === 'layers' && 'active')} onClick={() => setActiveTab('layers')}>Layers</button>
+        {isDevelopment && <button className={clsx(styles.tabButton, activeTab === 'measurement' && 'active')} onClick={() => setActiveTab('measurement')}>Measurement</button>}
+        {isDevelopment && <button className={clsx(styles.tabButton, activeTab === 'backgrounds' && 'active')} onClick={() => setActiveTab('backgrounds')}>Backgrounds</button>}
+        {isDevelopment && <button className={clsx(styles.tabButton, activeTab === 'performance' && 'active')} onClick={() => setActiveTab('performance')}>Performance</button>}
         {isDevelopment && <button className={clsx(styles.tabButton, activeTab === 'actions' && 'active')} onClick={() => setActiveTab('actions')}>Actions</button>}
         {isDevelopment && <button className={clsx(styles.tabButton, activeTab === 'queue' && 'active')} onClick={() => setActiveTab('queue')}>Queue</button>}
         {isDevelopment && <button className={clsx(styles.tabButton, activeTab === 'assets' && 'active')} onClick={() => setActiveTab('assets')}>Assets</button>}
@@ -61,6 +70,10 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
         {activeTab === 'lighting' && <LightingPanel />}
         {activeTab === 'fog' && <FogPanel />}
         {activeTab === 'paint' && <PaintPanel />}
+        {activeTab === 'layers' && <LayerPanel />}
+        {isDevelopment && activeTab === 'measurement' && <AdvancedMeasurementPanel isOpen={true} onClose={() => setActiveTab('tables')} canvasRef={canvasRef} />}
+        {isDevelopment && activeTab === 'backgrounds' && <BackgroundManagementPanel isOpen={true} onClose={() => setActiveTab('tables')} renderEngine={window.rustRenderManager as any || null} />}
+        {isDevelopment && activeTab === 'performance' && <PerformanceSettingsPanel isVisible={true} onClose={() => setActiveTab('tables')} />}
         {activeTab === 'compendium' && <CompendiumPanel />}
         {isDevelopment && activeTab === 'assets' && <AssetPanel />}
         {isDevelopment && activeTab === 'network' && <NetworkPanel />}

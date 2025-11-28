@@ -427,7 +427,7 @@ export const AssetPanel: React.FC = () => {
                 {formatFileSize(asset.size)} • {asset.type}
               </div>
             </div>
-            <button onClick={() => handleRemove(asset.id)} className="remove-btn">
+            <button onClick={() => handleRemove(asset.id)} className={styles.assetButton}>
               Remove
             </button>
           </div>
@@ -448,7 +448,7 @@ export const AssetPanel: React.FC = () => {
             onChange={(e) => setDownloadUrl(e.target.value)}
             className="download-input"
           />
-          <button onClick={handleDownload} disabled={!downloadUrl.trim()}>
+          <button onClick={handleDownload} disabled={!downloadUrl.trim()} className={styles.assetButton}>
             Download
           </button>
         </div>
@@ -465,8 +465,8 @@ export const AssetPanel: React.FC = () => {
           <div>Downloads: {stats.total_downloads}</div>
           <div>Failed: {stats.failed_downloads}</div>
           <div className="cache-actions">
-            <button onClick={handleCleanup}>Cleanup</button>
-            <button onClick={handleClearAll}>Clear All</button>
+            <button onClick={handleCleanup} className={styles.assetButton}>Cleanup</button>
+            <button onClick={handleClearAll} className={styles.assetButton}>Clear All</button>
           </div>
         </div>
       )}
@@ -490,7 +490,7 @@ export const AssetPanel: React.FC = () => {
                     e.stopPropagation();
                     handleRemove(asset.id);
                   }}
-                  className="remove-btn"
+                  className={styles.assetButton}
                 >
                   Remove
                 </button>

@@ -222,11 +222,11 @@
   text-decoration: underline;
 }
 
-/* Buttons */
-button {
-  background: #007bff;
-  color: white;
-  border: none;
+/* Buttons - use scoped class and theme variables */
+.assetButton {
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  border: 1px solid var(--border-button);
   padding: 0.5rem 1rem;
   border-radius: 4px;
   cursor: pointer;
@@ -234,8 +234,8 @@ button {
   transition: background-color 0.2s;
 }
 
-button:hover {
-  background: #0056b3;
+.assetButton:hover {
+  background: var(--button-primary-hover);
 }
 
 button:disabled {

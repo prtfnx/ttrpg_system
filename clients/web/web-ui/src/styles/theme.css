@@ -1,112 +1,251 @@
-/* Unified TTRPG System Theme */
-
-/*
- * BEST PRACTICE: Single Source of Truth for Colors
- * ================================================
- * All color definitions are centralized in this file using CSS custom properties (variables).
- * This ensures:
- * - Consistent colors across all components
- * - Easy theme switching (just change root variables)
- * - Maintainability (change once, apply everywhere)
- * - No hardcoded colors in component CSS modules
+/**
+ * Theme System - Semantic & Component Tokens
+ * ==========================================
  * 
- * HOW TO USE IN COMPONENTS:
- * In your .module.css files, reference these variables:
+ * This file maps primitive tokens (from tokens.css) to semantic meanings.
+ * It provides THREE tiers of tokens:
+ * 
+ * TIER 2: Semantic Tokens (--bg-*, --text-*, --border-*, --color-*)
+ *   - Describe WHAT the color is used for, not what it looks like
+ *   - Example: --bg-primary (not --dark-gray-bg)
+ * 
+ * TIER 3: Component Tokens (--button-*, --input-*, --panel-*, --status-*)
+ *   - Specific to UI components
+ *   - Example: --button-primary-bg
+ * 
+ * USAGE IN COMPONENTS:
  *   background: var(--button-primary-bg);
- *   color: var(--button-primary-text);
- *   border: 1px solid var(--border-button);
+ *   color: var(--text-primary);
+ *   border: 1px solid var(--border-primary);
  * 
- * NEVER hardcode colors like #0e639c or rgb(14, 99, 156)
- * ALWAYS use the appropriate CSS variable from this file
+ * NEVER hardcode hex/rgb colors in component CSS!
+ * ALWAYS use tokens from this file.
+ * 
+ * @see tokens.css for primitive color palette
+ * @see docs/CSS_ARCHITECTURE_PLAN.md
  */
 
 :root {
-  /* Color Palette - Dark Theme Only */
-  --bg-primary: #0a0a0a;
-  --bg-secondary: #1a1a1a;
-  --bg-tertiary: #2a2a2a;
-  --bg-elevated: #3a3a3a;
+  /* ============================================
+     TIER 2: SEMANTIC TOKENS - Dark Theme
+     ============================================ */
   
-  /* Text Colors */
-  --text-primary: #ffffff;
-  --text-secondary: #b0b0b0;
-  --text-muted: #808080;
-  --text-disabled: #404040;
+  /* Backgrounds - Layered elevation system */
+  --bg-primary: var(--gray-950);
+  --bg-secondary: var(--gray-900);
+  --bg-tertiary: var(--gray-800);
+  --bg-elevated: var(--gray-700);
+  --bg-overlay: rgba(0, 0, 0, 0.8);
   
-  /* Accent Colors */
-  --accent-primary: #646cff;
-  --accent-secondary: #535bf2;
-  --accent-success: #10b981;
-  --accent-warning: #f59e0b;
-  --accent-error: #ef4444;
-  --accent-info: #3b82f6;
+  /* Text - Hierarchy for readability */
+  --text-primary: var(--gray-50);
+  --text-secondary: var(--gray-300);
+  --text-muted: var(--gray-500);
+  --text-disabled: var(--gray-700);
+  --text-inverse: var(--gray-900);
   
-  /* Button Colors - Primary Actions */
-  --button-primary-bg: #0e639c;
-  --button-primary-hover: #1177bb;
-  --button-primary-active: #0c5280;
-  --button-primary-text: #ffffff;
+  /* Borders - Visual separation */
+  --border-primary: var(--gray-700);
+  --border-secondary: var(--gray-800);
+  --border-focus: var(--blue-500);
+  --border-error: var(--red-500);
+  --border-success: var(--green-500);
+  --border-warning: var(--orange-500);
   
-  /* Button Colors - Success */
-  --button-success-bg: #10b981;
-  --button-success-hover: #14c997;
-  --button-success-active: #0d9668;
-  --button-success-text: #ffffff;
+  /* Brand/Accent Colors - Key UI elements */
+  --color-primary: var(--blue-600);
+  --color-primary-hover: var(--blue-500);
+  --color-primary-active: var(--blue-700);
   
-  /* Button Colors - Danger/Delete */
-  --button-danger-bg: #dc2626;
-  --button-danger-hover: #ef4444;
-  --button-danger-active: #b91c1c;
-  --button-danger-text: #ffffff;
+  --color-success: var(--green-600);
+  --color-success-hover: var(--green-500);
+  --color-success-active: var(--green-700);
   
-  /* Button Colors - Warning */
-  --button-warning-bg: #f59e0b;
-  --button-warning-hover: #fbbf24;
-  --button-warning-active: #d97706;
-  --button-warning-text: #ffffff;
+  --color-danger: var(--red-600);
+  --color-danger-hover: var(--red-500);
+  --color-danger-active: var(--red-700);
   
-  /* Button Colors - Info */
-  --button-info-bg: #3b82f6;
-  --button-info-hover: #60a5fa;
-  --button-info-active: #2563eb;
-  --button-info-text: #ffffff;
+  --color-warning: var(--orange-500);
+  --color-warning-hover: var(--orange-400);
+  --color-warning-active: var(--orange-600);
   
-  /* Button Colors - Secondary/Neutral */
-  --button-secondary-bg: #4b5563;
-  --button-secondary-hover: #6b7280;
-  --button-secondary-active: #374151;
-  --button-secondary-text: #e5e7eb;
+  --color-info: var(--blue-500);
+  --color-info-hover: var(--blue-400);
+  --color-info-active: var(--blue-600);
   
-  /* Button Colors - Ghost/Transparent */
+  --color-accent: var(--indigo-500);
+  --color-accent-hover: var(--indigo-400);
+  --color-accent-active: var(--indigo-600);
+  
+  /* Interactive States - Universal overlays */
+  --hover-overlay: rgba(255, 255, 255, 0.08);
+  --active-overlay: rgba(255, 255, 255, 0.12);
+  --focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.5);
+  
+  /* Legacy aliases (deprecated - use semantic tokens above) */
+  --accent-primary: var(--color-accent);
+  --accent-secondary: var(--indigo-600);
+  --accent-success: var(--color-success);
+  --accent-warning: var(--color-warning);
+  --accent-error: var(--color-danger);
+  --accent-info: var(--color-info);
+  
+  /* ============================================
+     TIER 3: COMPONENT TOKENS
+     ============================================ */
+  
+  /* Button - Primary */
+  --button-primary-bg: var(--color-primary);
+  --button-primary-hover: var(--color-primary-hover);
+  --button-primary-active: var(--color-primary-active);
+  --button-primary-text: var(--text-primary);
+  --button-primary-border: var(--color-primary);
+  
+  /* Button - Success */
+  --button-success-bg: var(--color-success);
+  --button-success-hover: var(--color-success-hover);
+  --button-success-active: var(--color-success-active);
+  --button-success-text: var(--text-primary);
+  --button-success-border: var(--color-success);
+  
+  /* Button - Danger */
+  --button-danger-bg: var(--color-danger);
+  --button-danger-hover: var(--color-danger-hover);
+  --button-danger-active: var(--color-danger-active);
+  --button-danger-text: var(--text-primary);
+  --button-danger-border: var(--color-danger);
+  
+  /* Button - Warning */
+  --button-warning-bg: var(--color-warning);
+  --button-warning-hover: var(--color-warning-hover);
+  --button-warning-active: var(--color-warning-active);
+  --button-warning-text: var(--text-primary);
+  --button-warning-border: var(--color-warning);
+  
+  /* Button - Info */
+  --button-info-bg: var(--color-info);
+  --button-info-hover: var(--color-info-hover);
+  --button-info-active: var(--color-info-active);
+  --button-info-text: var(--text-primary);
+  --button-info-border: var(--color-info);
+  
+  /* Button - Secondary */
+  --button-secondary-bg: var(--bg-tertiary);
+  --button-secondary-hover: var(--bg-elevated);
+  --button-secondary-active: var(--bg-secondary);
+  --button-secondary-text: var(--text-secondary);
+  --button-secondary-border: var(--border-primary);
+  
+  /* Button - Ghost */
   --button-ghost-bg: transparent;
-  --button-ghost-hover: rgba(75, 85, 99, 0.3);
-  --button-ghost-active: rgba(75, 85, 99, 0.5);
-  --button-ghost-text: #e5e7eb;
-  --button-ghost-border: #6b7280;
+  --button-ghost-hover: var(--hover-overlay);
+  --button-ghost-active: var(--active-overlay);
+  --button-ghost-text: var(--text-secondary);
+  --button-ghost-border: var(--gray-600);
   
-  /* Button Colors - Disabled */
-  --button-disabled-bg: #374151;
-  --button-disabled-text: #6b7280;
-  --button-disabled-border: #4b5563;
+  /* Button - Disabled */
+  --button-disabled-bg: var(--bg-tertiary);
+  --button-disabled-text: var(--text-disabled);
+  --button-disabled-border: var(--gray-700);
+  --button-disabled-opacity: 0.6;
   
-  /* Border Colors */
-  --border-primary: #404040;
-  --border-secondary: #2a2a2a;
-  --border-focus: var(--accent-primary);
-  --border-button: #4b5563;
-  --border-button-hover: #60a5fa;
+  /* Input Fields */
+  --input-bg: var(--bg-primary);
+  --input-border: var(--border-primary);
+  --input-border-hover: var(--gray-600);
+  --input-border-focus: var(--border-focus);
+  --input-text: var(--text-primary);
+  --input-placeholder: var(--text-muted);
+  --input-disabled-bg: var(--bg-secondary);
+  --input-disabled-text: var(--text-disabled);
   
-  /* Interactive States */
+  /* Panels/Cards */
+  --panel-bg: var(--bg-secondary);
+  --panel-border: var(--border-primary);
+  --panel-header-bg: var(--bg-tertiary);
+  --panel-header-text: var(--text-primary);
+  
+  /* Status Indicators */
+  --status-success-bg: rgba(22, 163, 74, 0.1);
+  --status-success-text: var(--green-400);
+  --status-success-border: var(--green-600);
+  
+  --status-error-bg: rgba(220, 38, 38, 0.1);
+  --status-error-text: var(--red-400);
+  --status-error-border: var(--red-600);
+  
+  --status-warning-bg: rgba(249, 115, 22, 0.1);
+  --status-warning-text: var(--orange-400);
+  --status-warning-border: var(--orange-500);
+  
+  --status-info-bg: rgba(59, 130, 246, 0.1);
+  --status-info-text: var(--blue-400);
+  --status-info-border: var(--blue-500);
+  
+  /* Legacy border tokens (kept for backwards compatibility) */
+  --border-button: var(--button-secondary-border);
+  --border-button-hover: var(--blue-400);
   --hover-bg: rgba(100, 108, 255, 0.1);
   --active-bg: rgba(100, 108, 255, 0.2);
-  --disabled-bg: #1a1a1a;
+  --disabled-bg: var(--bg-secondary);
   
-  /* Shadows */
+  /* Shadows - Dark theme */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
+}
+
+/* ============================================
+   LIGHT THEME (Future - Not Yet Implemented)
+   Toggle via [data-theme="light"] on <html> or <body>
+   ============================================ */
+
+[data-theme="light"] {
+  /* Backgrounds - Inverted for light mode */
+  --bg-primary: var(--gray-50);
+  --bg-secondary: var(--gray-100);
+  --bg-tertiary: var(--gray-200);
+  --bg-elevated: var(--gray-100);
+  --bg-overlay: rgba(255, 255, 255, 0.9);
   
-  /* Spacing */
+  /* Text - Inverted for light mode */
+  --text-primary: var(--gray-900);
+  --text-secondary: var(--gray-700);
+  --text-muted: var(--gray-500);
+  --text-disabled: var(--gray-400);
+  --text-inverse: var(--gray-50);
+  
+  /* Borders - Lighter for light mode */
+  --border-primary: var(--gray-300);
+  --border-secondary: var(--gray-200);
+  
+  /* Interactive States - Darker overlays for light mode */
+  --hover-overlay: rgba(0, 0, 0, 0.05);
+  --active-overlay: rgba(0, 0, 0, 0.08);
+  
+  /* Shadows - Softer for light mode */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+  
+  /* Button adjustments for light mode */
+  --button-secondary-bg: var(--gray-200);
+  --button-secondary-hover: var(--gray-300);
+  --button-secondary-active: var(--gray-400);
+  --button-secondary-text: var(--gray-900);
+  
+  --button-ghost-text: var(--gray-700);
+  --button-ghost-border: var(--gray-400);
+}
+
+/* ============================================
+   LEGACY/DEPRECATED TOKENS
+   Keep for backwards compatibility during migration
+   ============================================ */
+
+:root {
   --spacing-xs: 0.25rem;
   --spacing-sm: 0.5rem;
   --spacing-md: 0.75rem;

@@ -243,7 +243,7 @@ export const NetworkPanel: React.FC = () => {
               placeholder="Enter password"
             />
           </div>
-          <button onClick={handleAuthenticate} disabled={!username || !password}>
+          <button onClick={handleAuthenticate} disabled={!username || !password} className={styles.networkButton}>
             Authenticate
           </button>
         </div>
@@ -263,13 +263,13 @@ export const NetworkPanel: React.FC = () => {
             />
           </div>
           <div className={styles['button-group']}>
-            <button onClick={handleJoinSession} disabled={!sessionCode}>
+            <button onClick={handleJoinSession} disabled={!sessionCode} className={styles.networkButton}>
               Join Session
             </button>
-            <button onClick={requestTableList}>
+            <button onClick={requestTableList} className={styles.networkButton}>
               Request Tables
             </button>
-            <button onClick={requestPlayerList}>
+            <button onClick={requestPlayerList} className={styles.networkButton}>
               Request Players
             </button>
           </div>
@@ -313,7 +313,7 @@ export const NetworkPanel: React.FC = () => {
                 rows={3}
               />
             </div>
-            <button onClick={handleSendCustomMessage}>
+            <button onClick={handleSendCustomMessage} className={styles.networkButton}>
               Send Custom Message
             </button>
           </div>

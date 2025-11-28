@@ -141,13 +141,14 @@
 }
 
 .visibilityBtn {
-  background: none;
-  border: none;
+  background: var(--button-ghost-bg);
+  border: 1px solid var(--button-ghost-border);
   font-size: var(--font-size-base);
   cursor: pointer;
   padding: var(--spacing-xs);
   border-radius: var(--radius-sm);
-  transition: background-color var(--transition-fast);
+  transition: all var(--transition-fast);
+  color: var(--button-ghost-text);
   min-width: 28px;
   height: 28px;
   display: flex;
@@ -156,7 +157,8 @@
 }
 
 .visibilityBtn:hover {
-  background-color: var(--hover-bg);
+  background-color: var(--button-ghost-hover);
+  border-color: var(--border-button-hover);
 }
 
 .visibilityBtn.hidden {

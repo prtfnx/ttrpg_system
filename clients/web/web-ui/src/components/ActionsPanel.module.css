@@ -127,39 +127,51 @@
 
 .actionButton {
   padding: 6px 12px;
-  background: #0e639c;
-  border: none;
+  background: var(--button-primary-bg);
+  border: 1px solid var(--border-button);
   border-radius: 3px;
-  color: white;
+  color: var(--button-primary-text);
   font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 
 .actionButton:hover:not(:disabled) {
-  background: #1177bb;
+  background: var(--button-primary-hover);
+  border-color: var(--border-button-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .actionButton:disabled {
-  background: #666666;
+  background: var(--button-disabled-bg);
+  color: var(--button-disabled-text);
+  border-color: var(--button-disabled-border);
   cursor: not-allowed;
   opacity: 0.6;
 }
 
 .actionButton.primary {
-  background: #16825d;
+  background: var(--button-success-bg);
+  border-color: var(--button-success-bg);
 }
 
 .actionButton.primary:hover:not(:disabled) {
-  background: #1e9750;
+  background: var(--button-success-hover);
 }
 
 .actionButton.danger {
-  background: #d32f2f;
+  background: var(--button-danger-bg);
+  border-color: var(--button-danger-bg);
 }
 
 .actionButton.danger:hover:not(:disabled) {
-  background: #f44336;
+  background: var(--button-danger-hover);
 }
 
 .actionButton.small {

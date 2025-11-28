@@ -38,13 +38,14 @@
 .refreshButton,
 .createButton,
 .settingsToggleButton {
-  background: #3a3a3a;
-  border: 1px solid #555;
+  background: var(--button-secondary-bg);
+  border: 1px solid var(--border-button);
   border-radius: 4px;
-  color: #e0e0e0;
+  color: var(--button-secondary-text);
   padding: 6px 12px;
   cursor: pointer;
   font-size: 14px;
+  font-weight: 500;
   transition: all 0.2s ease;
 }
 
@@ -53,33 +54,38 @@
 .settingsToggleButton:hover,
 .importButton:hover,
 .bulkModeButton:hover {
-  background: #4a4a4a;
-  border-color: #666;
+  background: var(--button-secondary-hover);
+  border-color: var(--border-button-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .settingsToggleButton.active,
 .bulkModeButton.active {
-  background: #0078d4;
-  border-color: #0078d4;
+  background: var(--button-info-bg);
+  border-color: var(--button-info-bg);
+  color: var(--button-info-text);
 }
 
 .importButton {
-  background: #1a1a1a;
-  border: 1px solid #555;
-  color: #e0e0e0;
+  background: var(--button-secondary-bg);
+  border: 1px solid var(--border-button);
+  color: var(--button-secondary-text);
   border-radius: 4px;
   padding: 6px 12px;
   cursor: pointer;
+  font-weight: 500;
   transition: all 0.2s;
 }
 
 .bulkModeButton {
-  background: #1a1a1a;
-  border: 1px solid #555;
-  color: #e0e0e0;
+  background: var(--button-secondary-bg);
+  border: 1px solid var(--border-button);
+  color: var(--button-secondary-text);
   border-radius: 4px;
   padding: 6px 12px;
   cursor: pointer;
+  font-weight: 500;
   transition: all 0.2s;
 }
 
@@ -130,25 +136,27 @@
 }
 
 .bulkDuplicateButton {
-  background: #1a4a4a;
-  border-color: #17a2b8;
-  color: #17a2b8;
+  background: var(--button-info-bg);
+  border-color: var(--button-info-bg);
+  color: var(--button-info-text);
 }
 
 .bulkDuplicateButton:hover {
-  background: #17a2b8;
-  color: #fff;
+  background: var(--button-info-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .bulkDeleteButton {
-  background: #4a1a1a;
-  border-color: #dc3545;
-  color: #dc3545;
+  background: var(--button-danger-bg);
+  border-color: var(--button-danger-bg);
+  color: var(--button-danger-text);
 }
 
 .bulkDeleteButton:hover {
-  background: #dc3545;
-  color: #fff;
+  background: var(--button-danger-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Panel Settings */
@@ -400,26 +408,32 @@
 
 .confirm-button,
 .cancel-button {
-  background: #0078d4;
+  background: var(--button-primary-bg);
   border: none;
   border-radius: 4px;
-  color: white;
+  color: var(--button-primary-text);
   padding: 8px 16px;
   cursor: pointer;
   font-size: 14px;
-  transition: background-color 0.2s ease;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .confirm-button:hover {
-  background: #106ebe;
+  background: var(--button-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .cancel-button {
-  background: #666;
+  background: var(--button-secondary-bg);
+  color: var(--button-secondary-text);
 }
 
 .cancel-button:hover {
-  background: #777;
+  background: var(--button-secondary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .tables-list {
@@ -663,10 +677,10 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  background: #3a3a3a;
-  border: 1px solid #555;
+  background: var(--button-secondary-bg);
+  border: 1px solid var(--border-button);
   border-radius: 6px;
-  color: #e0e0e0;
+  color: var(--button-secondary-text);
   padding: 8px 4px;
   cursor: pointer;
   font-size: 12px;
@@ -675,9 +689,10 @@
 }
 
 .action-btn:hover {
-  background: #4a4a4a;
-  border-color: #666;
+  background: var(--button-secondary-hover);
+  border-color: var(--border-button-hover);
   transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .action-btn:active {
@@ -690,63 +705,58 @@
 }
 
 .action-btn-open {
-  border-color: #0078d4;
+  border-color: var(--button-info-bg);
 }
 
 .action-btn-open:hover {
-  background: #0078d4;
-  border-color: #00bcf2;
-  color: white;
+  background: var(--button-info-bg);
+  border-color: var(--button-info-hover);
+  color: var(--button-info-text);
 }
 
 .action-btn-settings {
-  border-color: #6c757d;
+  border-color: var(--button-secondary-hover);
 }
 
 .action-btn-settings:hover {
-  background: #6c757d;
-  border-color: #5a6268;
+  background: var(--button-secondary-hover);
   color: white;
 }
 
 .action-btn-export {
-  border-color: #28a745;
+  border-color: var(--button-success-bg);
 }
 
 .action-btn-export:hover {
-  background: #28a745;
-  border-color: #218838;
-  color: white;
+  background: var(--button-success-bg);
+  color: var(--button-success-text);
 }
 
 .action-btn-duplicate {
-  border-color: #17a2b8;
+  border-color: var(--button-info-bg);
 }
 
 .action-btn-duplicate:hover {
-  background: #17a2b8;
-  border-color: #138496;
-  color: white;
+  background: var(--button-info-bg);
+  color: var(--button-info-text);
 }
 
 .action-btn-sync {
-  border-color: #00bcf2;
+  border-color: var(--button-info-hover);
 }
 
 .action-btn-sync:hover {
-  background: #00bcf2;
-  border-color: #00a8e0;
-  color: white;
+  background: var(--button-info-hover);
+  color: var(--button-info-text);
 }
 
 .action-btn-delete {
-  border-color: #dc3545;
+  border-color: var(--button-danger-bg);
 }
 
 .action-btn-delete:hover {
-  background: #dc3545;
-  border-color: #c82333;
-  color: white;
+  background: var(--button-danger-bg);
+  color: var(--button-danger-text);
 }
 
 .delete-confirmation-modal {
@@ -797,18 +807,21 @@
 }
 
 .confirm-delete-button {
-  background: #dc3545;
+  background: var(--button-danger-bg);
   border: none;
   border-radius: 4px;
-  color: white;
+  color: var(--button-danger-text);
   padding: 8px 16px;
   cursor: pointer;
   font-size: 14px;
-  transition: background-color 0.2s ease;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .confirm-delete-button:hover {
-  background: #c82333;
+  background: var(--button-danger-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Scrollbar Styling */

@@ -135,57 +135,57 @@ interface CombatDemoProps {
 export const CombatDemo: React.FC<CombatDemoProps> = ({ onClose }) => {
   return (
     <div className={styles.combatDemo}>
-      <div className="demo-header">
+      <div className={styles.demoHeader}>
         <h2>Combat Integration System Demo</h2>
         <p>Test all combat features with these demo characters</p>
         {onClose && (
-          <button className="close-demo" onClick={onClose}>
+          <button className={styles.closeDemo} onClick={onClose}>
             ×
           </button>
         )}
       </div>
 
-      <div className="demo-content">
-        <div className="demo-section">
+      <div className={styles.demoContent}>
+        <div className={styles.demoSection}>
           <h3>📋 What's Included</h3>
-          <div className="features-grid">
-            <div className="feature-card">
+          <div className={styles.featuresGrid}>
+            <div className={styles.featureCard}>
               <h4>⚔️ Attack Manager</h4>
               <p>Weapon parsing, attack rolls with advantage/disadvantage, damage calculations, attack history</p>
             </div>
-            <div className="feature-card">
+            <div className={styles.featureCard}>
               <h4>✨ Spell Manager</h4>
               <p>Spell slot tracking, casting interface, spell library, preparation management</p>
             </div>
-            <div className="feature-card">
+            <div className={styles.featureCard}>
               <h4>🎯 Combat Tracker</h4>
               <p>Initiative tracking, encounter management, turn-based combat, HP and condition tracking</p>
             </div>
-            <div className="feature-card">
+            <div className={styles.featureCard}>
               <h4>👤 Character Sheet</h4>
               <p>Tabbed character display with calculated combat stats, abilities, and equipment</p>
             </div>
-            <div className="feature-card">
+            <div className={styles.featureCard}>
               <h4>🎲 Dice Roller</h4>
               <p>Interactive dice with animations, roll history, attack/damage/saving throw variants</p>
             </div>
-            <div className="feature-card">
+            <div className={styles.featureCard}>
               <h4>🧮 Combat System</h4>
               <p>D&D 5e calculations: AC, HP, proficiency, spell progression, skill bonuses</p>
             </div>
           </div>
         </div>
 
-        <div className="demo-section">
+        <div className={styles.demoSection}>
           <h3>🧪 Try the Combat System</h3>
-          <div className="character-demos">
-            <div className="character-demo-card">
-              <div className="character-summary">
+          <div className={styles.characterDemos}>
+            <div className={styles.characterDemoCard}>
+              <div className={styles.characterSummary}>
                 <h4>{demoCharacter.name}</h4>
                 <p>{demoCharacter.race} {demoCharacter.class} - Level {demoCharacter.advancement?.currentLevel}</p>
-                <p className="character-description">Martial combat specialist with weapon mastery</p>
+                <p className={styles.characterDescription}>Martial combat specialist with weapon mastery</p>
               </div>
-              <div className="demo-actions">
+              <div className={styles.demoActions}>
                 <CombatLauncher 
                   character={demoCharacter}
                   buttonText="Launch Fighter Combat"
@@ -195,13 +195,13 @@ export const CombatDemo: React.FC<CombatDemoProps> = ({ onClose }) => {
               </div>
             </div>
 
-            <div className="character-demo-card">
-              <div className="character-summary">
+            <div className={styles.characterDemoCard}>
+              <div className={styles.characterSummary}>
                 <h4>{wizardCharacter.name}</h4>
                 <p>{wizardCharacter.race} {wizardCharacter.class} - Level {wizardCharacter.advancement?.currentLevel}</p>
-                <p className="character-description">Spellcaster with magical abilities and spell slot management</p>
+                <p className={styles.characterDescription}>Spellcaster with magical abilities and spell slot management</p>
               </div>
-              <div className="demo-actions">
+              <div className={styles.demoActions}>
                 <CombatLauncher 
                   character={wizardCharacter}
                   buttonText="Launch Wizard Combat"
@@ -213,9 +213,9 @@ export const CombatDemo: React.FC<CombatDemoProps> = ({ onClose }) => {
           </div>
         </div>
 
-        <div className="demo-section">
+        <div className={styles.demoSection}>
           <h3>🎮 How to Use</h3>
-          <div className="instructions">
+          <div className={styles.instructions}>
             <ol>
               <li>Click a "Launch Combat" button above to open the Combat Manager</li>
               <li>Navigate between tabs to explore different combat features</li>
@@ -226,9 +226,9 @@ export const CombatDemo: React.FC<CombatDemoProps> = ({ onClose }) => {
           </div>
         </div>
 
-        <div className="demo-section">
+        <div className={styles.demoSection}>
           <h3>⚙️ Integration</h3>
-          <div className="integration-info">
+          <div className={styles.integrationInfo}>
             <p>This Combat Integration System can be:</p>
             <ul>
               <li>Added to existing character creation workflows</li>

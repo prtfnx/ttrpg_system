@@ -1,133 +1,32 @@
-/* FogPanel.module.css - Complete self-contained panel styles */
+/* ===================================================================
+   Fog Panel - Component-Specific Styles
+   Uses PanelBase.module.css for shared panel styles
+   =================================================================== */
 
-/* Base panel structure */
+/* Use shared base components */
 .panelBase {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  height: 100%;
-  max-height: 100%;
-  overflow-y: auto;
-  padding: 0;
-  background: transparent;
-  color: var(--text-primary, #ffffff);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  composes: panel-content from '../styles/PanelBase.module.css';
 }
 
-/* Panel header */
 .panelHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 0;
-  margin-bottom: 16px;
-  border-bottom: 1px solid var(--border-color, #374151);
+  composes: panel-header from '../styles/PanelBase.module.css';
 }
 
-.panelHeader h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary, #ffffff);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Section grouping */
 .panelSection {
-  margin-bottom: 20px;
+  composes: settings-section from '../styles/PanelBase.module.css';
 }
 
-.panelSection h4 {
-  margin: 0 0 12px 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary, #ffffff);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-/* Control groups */
 .controlGroup {
-  margin-bottom: 16px;
-  padding: 12px;
-  background: var(--bg-secondary, #374151);
-  border-radius: 8px;
-  border: 1px solid var(--border-color, #4b5563);
+  composes: control-group from '../styles/PanelBase.module.css';
 }
 
-.controlGroup h5 {
-  margin: 0 0 8px 0;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary, #ffffff);
-}
-
-/* Button styling */
 .panelButton {
-  padding: 8px 16px;
-  border: 1px solid var(--border-color, #4b5563);
-  border-radius: 6px;
-  background: var(--bg-button, #374151);
-  color: var(--text-primary, #ffffff);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  composes: panel-button from '../styles/PanelBase.module.css';
 }
 
-.panelButton:hover {
-  background: var(--bg-button-hover, #4b5563);
-  border-color: var(--border-color-hover, #6b7280);
-}
-
-.panelButton:active {
-  transform: translateY(1px);
-}
-
-.panelButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* Button variants */
-.panelButton.success {
-  background: var(--success-color, #10b981);
-  border-color: var(--success-color, #10b981);
-  color: #ffffff;
-}
-
-.panelButton.success:hover {
-  background: var(--success-color-hover, #059669);
-  border-color: var(--success-color-hover, #059669);
-}
-
-.panelButton.danger {
-  background: var(--danger-color, #ef4444);
-  border-color: var(--danger-color, #ef4444);
-  color: #ffffff;
-}
-
-.panelButton.danger:hover {
-  background: var(--danger-color-hover, #dc2626);
-  border-color: var(--danger-color-hover, #dc2626);
-}
-
-.panelButton.small {
-  padding: 4px 8px;
-  font-size: 12px;
-}
-
-/* Activity log */
+/* Activity log - shared style with custom max-height */
 .activityLog {
-  background: var(--bg-tertiary, #1f2937);
-  border: 1px solid var(--border-color, #374151);
-  border-radius: 8px;
+  composes: section-group from '../styles/PanelBase.module.css';
   max-height: 300px;
   overflow-y: auto;
   padding: 8px;
@@ -140,15 +39,15 @@
   padding: 8px;
   margin-bottom: 4px;
   border-radius: 4px;
-  background: var(--bg-secondary, #374151);
+  background: var(--bg-secondary);
   transition: background-color 0.2s;
 }
 
 .activityItem:hover {
-  background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+  background: var(--gray-700);
 }
 
-/* Fog-specific styles */
+/* Fog-specific rectangle list */
 .fogRectangleList {
   max-height: 300px;
   overflow-y: auto;
@@ -163,25 +62,36 @@
   border-radius: 4px;
 }
 
+/* Fog mode status indicators using design tokens */
 .fogRectangleItem.hide {
-  background-color: #fff3cd;
+  background-color: var(--status-warning-bg);
+  color: var(--status-warning-text);
+  border-left: 3px solid var(--status-warning);
 }
 
 .fogRectangleItem.reveal {
-  background-color: #d4edda;
+  background-color: var(--status-success-bg);
+  color: var(--status-success-text);
+  border-left: 3px solid var(--status-success);
 }
 
 .fogModeActive {
   margin-top: 12px;
-  padding: 8px;
-  border-radius: 4px;
+  padding: 8px 12px;
+  border-radius: 6px;
   font-size: 13px;
+  font-weight: 500;
+  border: 1px solid transparent;
 }
 
 .fogModeActive.hide {
-  background-color: #fff3cd;
+  background-color: var(--status-warning-bg);
+  color: var(--status-warning-text);
+  border-color: var(--status-warning);
 }
 
 .fogModeActive.reveal {
-  background-color: #d4edda;
+  background-color: var(--status-success-bg);
+  color: var(--status-success-text);
+  border-color: var(--status-success);
 }

@@ -4,13 +4,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--indigo-500) 0%, var(--purple-600) 100%);
   padding: 2rem;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
 .auth-card {
-  background: #ffffff;
+  background: white;
   border-radius: 20px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
   padding: 3rem;
@@ -39,12 +39,12 @@
 .auth-header h2 {
   font-size: 2rem;
   font-weight: 700;
-  color: #2c3e50;
+  color: var(--gray-900);
   margin: 0 0 0.5rem 0;
 }
 
 .auth-header p {
-  color: #6c757d;
+  color: var(--gray-600);
   margin: 0;
   font-size: 1.1rem;
   line-height: 1.5;
@@ -64,15 +64,15 @@
 }
 
 .error-message {
-  background: #fff5f5;
-  color: #c53030;
-  border: 1px solid #fed7d7;
+  background: var(--status-error-bg);
+  color: var(--red-700);
+  border: 1px solid var(--status-error-border);
 }
 
 .success-message {
-  background: #f0fff4;
-  color: #2d7d32;
-  border: 1px solid #c6f6d5;
+  background: var(--status-success-bg);
+  color: var(--green-700);
+  border: 1px solid var(--status-success-border);
 }
 
 .error-icon,
@@ -103,12 +103,12 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: #e9ecef;
+  background: var(--gray-200);
 }
 
 .oauth-divider span {
-  background: #ffffff;
-  color: #6c757d;
+  background: white;
+  color: var(--gray-600);
   padding: 0 1rem;
   font-size: 0.9rem;
   position: relative;
@@ -127,10 +127,10 @@
   justify-content: center;
   gap: 0.75rem;
   padding: 0.875rem 1.5rem;
-  border: 2px solid #e9ecef;
+  border: 2px solid var(--gray-200);
   border-radius: 12px;
-  background: #ffffff;
-  color: #495057;
+  background: white;
+  color: var(--gray-700);
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
@@ -139,8 +139,8 @@
 }
 
 .oauth-btn:hover:not(:disabled) {
-  border-color: #667eea;
-  background: #f8f9fa;
+  border-color: var(--indigo-500);
+  background: var(--gray-50);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
 }
@@ -171,33 +171,33 @@
 
 .form-group label {
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--gray-900);
   font-size: 0.95rem;
 }
 
 .form-group input {
   padding: 0.875rem 1rem;
-  border: 2px solid #e9ecef;
+  border: 2px solid var(--gray-200);
   border-radius: 12px;
   font-size: 1rem;
   transition: all 0.3s ease;
-  background: #ffffff;
+  background: white;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--indigo-500);
   box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
 }
 
 .form-group input:disabled {
-  background: #f8f9fa;
-  color: #6c757d;
+  background: var(--gray-50);
+  color: var(--gray-600);
   cursor: not-allowed;
 }
 
 .form-group input::placeholder {
-  color: #adb5bd;
+  color: var(--gray-400);
 }
 
 /* Password Input Group */
@@ -219,13 +219,13 @@
   border: none;
   cursor: pointer;
   padding: 0.5rem;
-  color: #6c757d;
+  color: var(--gray-600);
   font-size: 1.2rem;
   transition: color 0.3s ease;
 }
 
 .password-toggle:hover:not(:disabled) {
-  color: #495057;
+  color: var(--gray-700);
 }
 
 .password-toggle:disabled {
@@ -241,7 +241,7 @@
 .strength-bar {
   width: 100%;
   height: 4px;
-  background: #e9ecef;
+  background: var(--gray-200);
   border-radius: 2px;
   overflow: hidden;
   margin-bottom: 0.5rem;
@@ -266,15 +266,15 @@
 }
 
 .strength-feedback .success {
-  color: #2d7d32;
+  color: var(--green-700);
 }
 
 .strength-feedback .warning {
-  color: #f57c00;
+  color: var(--orange-600);
 }
 
 .password-mismatch {
-  color: #c53030;
+  color: var(--red-700);
   font-size: 0.85rem;
   display: flex;
   align-items: center;
@@ -297,7 +297,7 @@
   gap: 0.75rem;
   cursor: pointer;
   font-size: 0.95rem;
-  color: #495057;
+  color: var(--gray-700);
   position: relative;
 }
 
@@ -305,9 +305,9 @@
   appearance: none;
   width: 18px;
   height: 18px;
-  border: 2px solid #dee2e6;
+  border: 2px solid var(--gray-300);
   border-radius: 4px;
-  background: #ffffff;
+  background: white;
   cursor: pointer;
   transition: all 0.3s ease;
   margin: 0;
@@ -315,8 +315,8 @@
 }
 
 .checkbox-label input[type="checkbox"]:checked {
-  background: #667eea;
-  border-color: #667eea;
+  background: var(--indigo-500);
+  border-color: var(--indigo-500);
 }
 
 .checkbox-label input[type="checkbox"]:checked::after {
@@ -336,7 +336,7 @@
 }
 
 .checkbox-label a {
-  color: #667eea;
+  color: var(--indigo-500);
   text-decoration: none;
 }
 
@@ -347,7 +347,7 @@
 .forgotPassword-link {
   background: none;
   border: none;
-  color: #667eea;
+  color: var(--indigo-500);
   cursor: pointer;
   font-size: 0.95rem;
   text-decoration: none;
@@ -355,7 +355,7 @@
 }
 
 .forgotPassword-link:hover:not(:disabled) {
-  color: #5a6fd8;
+  color: var(--indigo-600);
   text-decoration: underline;
 }
 
@@ -382,14 +382,14 @@
 }
 
 .primary-btn {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, var(--indigo-500), var(--purple-600));
   color: white;
-  border-color: #667eea;
+  border-color: var(--indigo-500);
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
 }
 
 .primary-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #5a6fd8, #6a42a0);
+  background: linear-gradient(135deg, var(--indigo-600), var(--purple-700));
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
@@ -402,13 +402,13 @@
 }
 
 .secondary-btn {
-  background: #ffffff;
-  color: #6c757d;
-  border-color: #6c757d;
+  background: white;
+  color: var(--gray-600);
+  border-color: var(--gray-600);
 }
 
 .secondary-btn:hover:not(:disabled) {
-  background: #6c757d;
+  background: var(--gray-600);
   color: white;
   transform: translateY(-1px);
 }
@@ -436,19 +436,19 @@
   text-align: center;
   margin-top: 2rem;
   padding-top: 2rem;
-  border-top: 1px solid #e9ecef;
+  border-top: 1px solid var(--gray-200);
 }
 
 .auth-toggle p {
   margin: 0;
-  color: #6c757d;
+  color: var(--gray-600);
   font-size: 0.95rem;
 }
 
 .toggle-btn {
   background: none;
   border: none;
-  color: #667eea;
+  color: var(--indigo-500);
   cursor: pointer;
   font-weight: 600;
   font-size: 0.95rem;
@@ -457,7 +457,7 @@
 }
 
 .toggle-btn:hover:not(:disabled) {
-  color: #5a6fd8;
+  color: var(--indigo-600);
   text-decoration: underline;
 }
 
@@ -522,102 +522,102 @@
 /* Dark Mode Support */
 @media (prefers-color-scheme: dark) {
   .auth-card {
-    background: #1a1a1a;
-    color: #ffffff;
+    background: var(--gray-950);
+    color: white;
   }
   
   .auth-header h2 {
-    color: #ffffff;
+    color: white;
   }
   
   .auth-header p {
-    color: #a0a0a0;
+    color: var(--gray-400);
   }
   
   .form-group label {
-    color: #ffffff;
+    color: white;
   }
   
   .form-group input {
-    background: #2a2a2a;
-    border-color: #404040;
-    color: #ffffff;
+    background: var(--gray-900);
+    border-color: var(--gray-700);
+    color: white;
   }
   
   .form-group input::placeholder {
-    color: #666666;
+    color: var(--gray-600);
   }
   
   .form-group input:focus {
-    border-color: #667eea;
-    background: #2a2a2a;
+    border-color: var(--indigo-500);
+    background: var(--gray-900);
   }
   
   .form-group input:disabled {
-    background: #3a3a3a;
-    color: #888888;
+    background: var(--gray-800);
+    color: var(--gray-500);
   }
   
   .oauth-btn {
-    background: #2a2a2a;
-    border-color: #404040;
-    color: #ffffff;
+    background: var(--gray-900);
+    border-color: var(--gray-700);
+    color: white;
   }
   
   .oauth-btn:hover:not(:disabled) {
-    background: #404040;
+    background: var(--gray-700);
   }
   
   .secondary-btn {
-    background: #2a2a2a;
-    border-color: #404040;
-    color: #ffffff;
+    background: var(--gray-900);
+    border-color: var(--gray-700);
+    color: white;
   }
   
   .secondary-btn:hover:not(:disabled) {
-    background: #404040;
+    background: var(--gray-700);
   }
   
   .checkbox-label {
-    color: #ffffff;
+    color: white;
   }
   
   .checkbox-label input[type="checkbox"] {
-    background: #2a2a2a;
-    border-color: #404040;
+    background: var(--gray-900);
+    border-color: var(--gray-700);
   }
   
   .forgotPassword-link,
   .toggle-btn {
-    color: #667eea;
+    color: var(--indigo-500);
   }
   
   .auth-toggle {
-    border-top-color: #404040;
+    border-top-color: var(--gray-700);
   }
   
   .auth-toggle p {
-    color: #a0a0a0;
+    color: var(--gray-400);
   }
   
   .strength-bar {
-    background: #404040;
+    background: var(--gray-700);
   }
   
   .oauth-divider::before {
-    background: #404040;
+    background: var(--gray-700);
   }
   
   .oauth-divider span {
-    background: #1a1a1a;
-    color: #a0a0a0;
+    background: var(--gray-950);
+    color: var(--gray-400);
   }
 }
 
 /* High Contrast Mode */
 @media (prefers-contrast: high) {
   .auth-card {
-    border: 3px solid #000000;
+    border: 3px solid black;
   }
   
   .form-group input,
@@ -628,8 +628,8 @@
   }
   
   .primary-btn {
-    background: #000000;
-    border-color: #000000;
+    background: black;
+    border-color: black;
   }
   
   .checkbox-label input[type="checkbox"] {
@@ -676,11 +676,11 @@
 
 /* Form Validation States */
 .form-group input:valid {
-  border-color: #28a745;
+  border-color: var(--green-500);
 }
 
 .form-group input:invalid:not(:focus):not(:placeholder-shown) {
-  border-color: #dc3545;
+  border-color: var(--red-500);
 }
 
 /* Smooth scrolling for mobile */

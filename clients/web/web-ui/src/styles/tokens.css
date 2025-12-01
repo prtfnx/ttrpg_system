@@ -155,6 +155,16 @@
   --space-2xl: clamp(2rem, 4vw, 3rem);            /* 32-48px */
   --space-3xl: clamp(2.5rem, 5vw, 4rem);          /* 40-64px */
   
+  /* ===== BORDER RADIUS SCALE ===== */
+  /* Rounded corners for UI elements */
+  --radius-none: 0;
+  --radius-sm: 0.25rem;    /* 4px - subtle rounding */
+  --radius-md: 0.5rem;     /* 8px - standard rounding */
+  --radius-lg: 0.75rem;    /* 12px - prominent rounding */
+  --radius-xl: 1rem;       /* 16px - large rounding */
+  --radius-2xl: 1.5rem;    /* 24px - very rounded */
+  --radius-full: 9999px;   /* pill/circle shape */
+  
   /* ===== FLUID TYPOGRAPHY ===== */
   /* Font sizes that scale smoothly with viewport */
   --text-xs: clamp(0.75rem, 0.85vw, 0.875rem);    /* 12-14px */
@@ -165,6 +175,26 @@
   --text-2xl: clamp(1.5rem, 2.5vw, 2rem);         /* 24-32px */
   --text-3xl: clamp(1.875rem, 3vw, 2.5rem);       /* 30-40px */
   --text-4xl: clamp(2.25rem, 4vw, 3rem);          /* 36-48px */
+  
+  /* ===== FONT WEIGHTS ===== */
+  /* Standard weight scale */
+  --font-thin: 100;
+  --font-light: 300;
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --font-extrabold: 800;
+  --font-black: 900;
+  
+  /* ===== LINE HEIGHTS ===== */
+  /* Vertical spacing for text readability */
+  --leading-none: 1;
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --leading-loose: 2;
   
   /* ===== COMPONENT SIZING ===== */
   /* Specific UI elements that need to scale */
@@ -225,6 +255,11 @@
   --duration-fast: 150ms;
   --duration-base: 250ms;
   --duration-slow: 350ms;
+  
+  /* ===== TRANSITION TIMINGS ===== */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 350ms ease;
   
   /* ===== RESPONSIVE BREAKPOINT HELPERS ===== */
   /* Use with container queries when available */

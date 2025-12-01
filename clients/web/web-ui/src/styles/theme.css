@@ -45,6 +45,7 @@
   --text-muted: var(--gray-500);
   --text-disabled: var(--gray-700);
   --text-inverse: var(--gray-900);
+  --text-inverse-primary: var(--gray-50);  /* Text on dark backgrounds */
   
   /* Borders - Visual separation */
   --border-primary: var(--gray-700);
@@ -92,6 +93,8 @@
   /* Interactive States - Universal overlays */
   --hover-overlay: rgba(255, 255, 255, 0.08);
   --active-overlay: rgba(255, 255, 255, 0.12);
+  --hover-overlay-light: rgba(255, 255, 255, 0.1);  /* For lighter hover on dark */
+  --active-overlay-light: rgba(255, 255, 255, 0.15); /* For lighter active on dark */
   --focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.5);
   
   /* Legacy aliases (deprecated - use semantic tokens above) */
@@ -193,6 +196,14 @@
   --status-info-bg: rgba(59, 130, 246, 0.1);
   --status-info-text: var(--blue-400);
   --status-info-border: var(--blue-500);
+  
+  --status-danger-bg: rgba(220, 38, 38, 0.1);
+  --status-danger-text: var(--red-400);
+  --status-danger-border: var(--red-600);
+  
+  /* Progress Bars */
+  --progress-bg: rgba(255, 255, 255, 0.3);
+  --progress-fill: var(--color-primary);
   
   /* Legacy border tokens (kept for backwards compatibility) */
   --border-button: var(--button-secondary-border);

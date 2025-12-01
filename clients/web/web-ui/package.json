@@ -11,34 +11,40 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "validate:css": "node scripts/validate-css.js",
+    "validate:css:verbose": "node scripts/validate-css.js --verbose"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
+    "clsx": "^2.1.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.51.3",
+    "react-toastify": "^11.0.5",
     "vite-plugin-wasm": "^3.5.0",
     "zod": "^3.23.8",
     "zustand": "^5.0.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
-    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
-    "@vitejs/plugin-react": "^4.6.0",
+    "@vitejs/plugin-react": "^4.7.0",
     "eslint": "^9.30.1",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
-    "jsdom": "^27.0.0",
+    "jsdom": "^21.1.0",
     "terser": "^5.43.1",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.35.1",
     "vite": "^7.0.4",
-    "vitest": "^3.2.4"
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^4.0.5"
   }
 }

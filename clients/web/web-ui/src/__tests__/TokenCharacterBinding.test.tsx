@@ -12,7 +12,7 @@
  */
 
 import { act, renderHook } from '@testing-library/react';
-import { describe, expect, it, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { useGameStore } from '../store';
 import type { Character, Sprite } from '../types';
 

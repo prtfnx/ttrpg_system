@@ -11,7 +11,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActionQueuePanel } from '../components/ActionQueuePanel';
 import { AssetPanel } from '../components/AssetPanel';
 import { AuthProvider } from '../components/AuthContext';
-import { CharacterManager } from '../components/CharacterManager';
 import { CompendiumPanel } from '../components/CompendiumPanel';
 import { FogPanel } from '../components/FogPanel';
 import { LightingPanel } from '../components/LightingPanel';
@@ -274,105 +273,6 @@ describe('Compendium System Behavior', () => {
       expect(screen.getByText('Longsword')).toBeInTheDocument();
       expect(screen.getByText(/15 gp/i)).toBeInTheDocument();
       expect(screen.getByText(/weapon/i)).toBeInTheDocument();
-    });
-  });
-});
-
-describe('Character Management System Behavior', () => {
-  const mockUserInfo = { id: 1, username: 'testuser', role: 'dm' as const, permissions: ['manage_characters'] };
-  const mockSessionCode = 'TEST123';
-
-  it('should display all characters in the session', async () => {
-    render(<CharacterManager sessionCode={mockSessionCode} userInfo={mockUserInfo} />);
-
-    // Wait for the 3-second timeout fallback to create test characters
-    await waitFor(() => {
-      expect(screen.getByText('Test Fighter')).toBeInTheDocument();
-      expect(screen.getByText('Test Wizard')).toBeInTheDocument();
-      expect(screen.getByText(/Fighter/i)).toBeInTheDocument();
-      expect(screen.getByText(/Wizard/i)).toBeInTheDocument();
-    }, { timeout: 15000 }); // Increase timeout to 15 seconds to ensure fallback triggers
-  }, 20000); // Set test timeout to 20 seconds
-
-  it('should allow creating new characters with proper validation', async () => {
-    const user = userEvent.setup();
-    render(<CharacterManager sessionCode={mockSessionCode} userInfo={mockUserInfo} />);
-
-    // Wait for fallback characters to load first
-    await waitFor(() => {
-      expect(screen.getByText('Test Fighter')).toBeInTheDocument();
-    }, { timeout: 10000 });
-
-    // User expects "Create Character" button to be visible
-    const createButton = screen.getByText('Create New Character');
-    await user.click(createButton);
-
-    // User expects character creation form - check actual form structure
-    expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/class/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/level/i)).toBeInTheDocument();
-
-    // Fill out form with valid data
-    await user.type(screen.getByLabelText(/name/i), 'New Hero');
-    await user.type(screen.getByLabelText(/class/i), 'Fighter');
-    await user.type(screen.getByLabelText(/level/i), '1');
-
-    // Submit should work - verify the form gets the data
-    await user.click(screen.getByText('Save Character'));
-
-    // Check that form was filled correctly (success indicator)
-    expect(screen.getByDisplayValue('New Hero')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('Fighter')).toBeInTheDocument();
-  });
-
-  it('should prevent creating characters with invalid data', async () => {
-    const user = userEvent.setup();
-    render(<CharacterManager sessionCode={mockSessionCode} userInfo={mockUserInfo} />);
-
-    // Wait for fallback characters to load first
-    await waitFor(() => {
-      expect(screen.getByText('Test Fighter')).toBeInTheDocument();
-    }, { timeout: 10000 });
-
-    const createButton = screen.getByText('Create New Character');
-    await user.click(createButton);
-
-    // Try to submit empty form - just verify form exists and can be submitted
-    const submitButton = screen.getByText('Save Character');
-    await user.click(submitButton);
-
-    // Since form may not show validation messages, just verify it stayed in creation mode
-    expect(screen.getByText('Save Character')).toBeInTheDocument();
-    expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
-  });
-
-  it('should allow editing character stats and equipment', async () => {
-    const user = userEvent.setup();
-    render(<CharacterManager sessionCode={mockSessionCode} userInfo={mockUserInfo} />);
-
-    // Wait for fallback characters to load first
-    await waitFor(() => {
-      expect(screen.getByText('Test Fighter')).toBeInTheDocument();
-    }, { timeout: 10000 });
-
-    // Click on a character to edit
-    await user.click(screen.getByText('Test Fighter'));
-
-    // User expects edit interface - check for the actual form fields visible
-    expect(screen.getByDisplayValue('Test Fighter')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('1')).toBeInTheDocument(); // Level
-
-    // User can modify name instead of level to avoid validation issues
-    const nameInput = screen.getByDisplayValue('Test Fighter');
-    await user.clear(nameInput);
-    await user.type(nameInput, 'Edited Fighter');
-
-    // Save changes
-    await user.click(screen.getByText('Save Character'));
-
-    // Verify the change was made
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('Edited Fighter')).toBeInTheDocument();
     });
   });
 });

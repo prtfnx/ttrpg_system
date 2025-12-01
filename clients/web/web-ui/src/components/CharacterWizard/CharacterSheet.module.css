@@ -1,98 +1,56 @@
-/* Character Sheet Styles */
+/**
+ * Character Sheet - Refactored to use CharacterWizardBase
+ */
 
 .character-sheet {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
-  max-width: 1200px;
-  margin: 0 auto;
-  min-height: 600px;
+  composes: wizard-panel from './CharacterWizardBase.module.css';
 }
 
 /* Header */
 .sheet-header {
-  background: linear-gradient(135deg, #8b0000 0%, #a00000 100%);
-  color: white;
-  padding: 24px 32px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  composes: wizard-header-primary from './CharacterWizardBase.module.css';
 }
 
 .character-title h1 {
-  margin: 0 0 8px 0;
-  font-size: 28px;
-  font-weight: 700;
+  margin: 0 0 var(--space-xs) 0;
+  font-size: var(--text-3xl);
+  font-weight: var(--font-bold);
+  color: var(--text-inverse-primary);
 }
 
 .character-subtitle {
-  font-size: 16px;
+  font-size: var(--text-base);
   opacity: 0.9;
-  font-weight: 500;
+  font-weight: var(--font-medium);
+  color: var(--text-inverse-primary);
 }
 
 .close-sheet {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 24px;
-  cursor: pointer;
-  padding: 4px;
-  opacity: 0.8;
-  transition: opacity 0.2s ease;
-  border-radius: 4px;
-}
-
-.close-sheet:hover {
-  opacity: 1;
-  background: rgba(255, 255, 255, 0.1);
+  composes: wizard-close-button from './CharacterWizardBase.module.css';
 }
 
 /* Tabs */
 .sheet-tabs {
-  display: flex;
-  background: #f8f9fa;
-  border-bottom: 2px solid #dee2e6;
-  overflow-x: auto;
+  composes: wizard-tabs from './CharacterWizardBase.module.css';
 }
 
 .character-sheet .tab-button {
-  background: none;
-  border: none;
-  padding: 16px 24px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: #666;
-  border-bottom: 3px solid transparent;
-  white-space: nowrap;
-}
-
-.character-sheet .tab-button:hover {
-  background: #e9ecef;
-  color: #333;
+  composes: wizard-tab-button from './CharacterWizardBase.module.css';
 }
 
 .character-sheet .tab-button.active {
-  color: #8b0000;
-  border-bottom-color: #8b0000;
-  background: white;
+  composes: wizard-tab-button-active-primary from './CharacterWizardBase.module.css';
 }
 
 /* Content */
 .sheet-content {
-  padding: 32px;
-  max-height: 70vh;
-  overflow-y: auto;
+  composes: wizard-content from './CharacterWizardBase.module.css';
 }
 
 /* Stats Tab */
 .stats-tab {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
+  composes: wizard-column from './CharacterWizardBase.module.css';
+  gap: var(--space-xl);
 }
 
 .ability-scores h3,

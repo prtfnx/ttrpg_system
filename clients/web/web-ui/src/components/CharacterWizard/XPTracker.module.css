@@ -199,41 +199,34 @@
 
 /* Progress Styles */
 .xp-progress {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 16px;
-  border: 1px solid #dee2e6;
-  margin-bottom: 24px;
+  composes: wizard-card from './CharacterWizardBase.module.css';
+  margin-bottom: var(--space-xl);
 }
 
 .progress-header {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-  font-weight: 600;
-  color: #333;
+  margin-bottom: var(--space-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
 }
 
 .progress-bar {
-  width: 100%;
+  composes: wizard-progress-bar from './CharacterWizardBase.module.css';
   height: 24px;
-  background: #e9ecef;
-  border-radius: 12px;
-  overflow: hidden;
-  position: relative;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #007bff 0%, #0056b3 100%);
-  transition: width 0.5s ease;
-  border-radius: 12px;
+  background: linear-gradient(90deg, var(--blue-600) 0%, var(--blue-700) 100%);
+  transition: width var(--transition-slow) ease;
+  border-radius: var(--radius-md);
   position: relative;
 }
 
 .progress-fill.ready {
-  background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+  background: linear-gradient(90deg, var(--green-600) 0%, var(--green-500) 100%);
   animation: ready-glow 2s infinite alternate;
 }
 
@@ -243,160 +236,156 @@
 }
 
 .progress-footer {
-  margin-top: 8px;
+  margin-top: var(--space-xs);
   text-align: center;
 }
 
 .xp-remaining {
-  color: #666;
-  font-size: 14px;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 .xp-ready {
-  color: #28a745;
-  font-weight: 600;
-  font-size: 16px;
+  color: var(--green-600);
+  font-weight: var(--font-semibold);
+  font-size: var(--text-base);
 }
 
 /* Max Level Indicator */
 .max-level-indicator {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   align-items: center;
-  gap: 16px;
-  padding: 20px;
-  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
-  border-radius: 8px;
-  border: 2px solid #f1c40f;
-  margin-bottom: 24px;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  background: linear-gradient(135deg, var(--yellow-500) 0%, var(--yellow-400) 100%);
+  border-radius: var(--radius-md);
+  border: 2px solid var(--yellow-600);
+  margin-bottom: var(--space-xl);
 }
 
 .max-level-icon {
-  font-size: 32px;
+  font-size: var(--text-3xl);
 }
 
 .max-level-text strong {
   display: block;
-  font-size: 18px;
-  color: #333;
-  margin-bottom: 4px;
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
 }
 
 .max-level-text p {
   margin: 0;
-  color: #666;
-  font-size: 14px;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 /* Milestones Styles */
 .xp-milestones {
-  border-top: 2px solid #dee2e6;
-  padding-top: 16px;
+  border-top: 2px solid var(--border-secondary);
+  padding-top: var(--space-md);
 }
 
 .milestone-header {
-  font-weight: 600;
-  color: #8b0000;
-  margin-bottom: 16px;
+  font-weight: var(--font-semibold);
+  color: var(--red-900);
+  margin-bottom: var(--space-md);
   text-align: center;
-  font-size: 16px;
+  font-size: var(--text-base);
 }
 
 .milestone-grid {
-  display: grid;
+  composes: wizard-grid from './CharacterWizardBase.module.css';
   grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: 12px;
 }
 
 .milestone {
-  display: flex;
-  flex-direction: column;
+  composes: wizard-column from './CharacterWizardBase.module.css';
   align-items: center;
-  gap: 4px;
-  padding: 12px;
-  background: #f8f9fa;
-  border: 2px solid #dee2e6;
-  border-radius: 8px;
-  transition: all 0.2s ease;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-normal) ease;
 }
 
 .milestone.reached {
-  background: #e8f5e8;
-  border-color: #28a745;
+  background: rgba(40, 167, 69, 0.1);
+  border-color: var(--green-600);
 }
 
 .milestone.current {
-  background: #fff3cd;
-  border-color: #ffc107;
+  background: rgba(255, 193, 7, 0.1);
+  border-color: var(--yellow-600);
   transform: scale(1.05);
 }
 
 .milestone-level {
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
 }
 
 .milestone.reached .milestone-level,
 .milestone.current .milestone-level {
-  color: #333;
+  color: var(--text-primary);
 }
 
 .milestone-xp {
-  font-size: 11px;
-  color: #999;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
 }
 
 .milestone.reached .milestone-xp,
 .milestone.current .milestone-xp {
-  color: #666;
+  color: var(--text-secondary);
 }
 
 /* Compact Styles */
-.xpTracker.compact .xp-display {
-  display: flex;
+.xp-display-compact {
+  composes: wizard-row from './CharacterWizardBase.module.css';
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-sm);
 }
 
-.xpTracker.compact .current-xp {
-  font-size: 18px;
-  font-weight: 700;
-  color: #007bff;
+.current-xp-compact {
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  color: var(--blue-600);
 }
 
-.xpTracker.compact .level-display {
-  background: #8b0000;
-  color: white;
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 600;
+.level-display-compact {
+  composes: wizard-badge-primary from './CharacterWizardBase.module.css';
+  background: var(--red-900);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-md);
 }
 
 .xp-progress-compact {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-xs);
 }
 
 .xp-progress-compact .progress-bar {
   height: 8px;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-xs);
 }
 
 .xp-progress-compact .progress-text {
-  font-size: 12px;
-  color: #666;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
   text-align: center;
 }
 
 .level-up-indicator {
-  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--green-600) 0%, var(--green-500) 100%);
+  color: var(--text-inverse-primary);
   text-align: center;
-  padding: 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
+  padding: var(--space-xs);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
   animation: pulse 2s infinite;
 }
 

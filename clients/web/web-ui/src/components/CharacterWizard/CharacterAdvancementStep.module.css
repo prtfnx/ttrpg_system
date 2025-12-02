@@ -1,231 +1,215 @@
-/* Character Advancement Step Styles */
+/* Character Advancement Step Styles - Refactored with CharacterWizardBase */
 
 .character-advancement-step {
-  padding: 32px;
+  padding: var(--space-2xl);
   max-width: 1200px;
   margin: 0 auto;
 }
 
 .advancement-header {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: var(--space-3xl);
 }
 
 .advancement-header h2 {
-  color: #8b0000;
-  font-size: 32px;
-  margin-bottom: 16px;
-  font-weight: 700;
+  color: var(--color-danger);
+  font-size: var(--text-3xl);
+  margin-bottom: var(--space-lg);
+  font-weight: var(--font-bold);
 }
 
 .advancement-header p {
-  color: #666;
-  font-size: 18px;
-  line-height: 1.5;
+  color: var(--text-secondary);
+  font-size: var(--text-lg);
+  line-height: var(--line-normal);
 }
 
 .advancement-content {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
+  composes: wizard-column from './CharacterWizardBase.module.css';
+  gap: var(--space-2xl);
 }
 
 .advancement-section {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e9ecef;
+  composes: wizard-card-elevated from './CharacterWizardBase.module.css';
 }
 
 .advancement-section h3 {
-  color: #8b0000;
-  font-size: 24px;
-  margin-bottom: 20px;
-  font-weight: 600;
-  border-bottom: 2px solid #8b0000;
-  padding-bottom: 8px;
+  color: var(--color-danger);
+  font-size: var(--text-2xl);
+  margin-bottom: var(--space-lg);
+  font-weight: var(--font-semibold);
+  border-bottom: 2px solid var(--color-danger);
+  padding-bottom: var(--space-xs);
 }
 
 /* Current Status Styles */
 .status-grid {
-  display: grid;
+  composes: wizard-grid from './CharacterWizardBase.module.css';
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
+  gap: var(--space-lg);
 }
 
 .status-item {
-  display: flex;
-  flex-direction: column;
+  composes: wizard-column from './CharacterWizardBase.module.css';
   align-items: center;
-  padding: 20px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #dee2e6;
+  padding: var(--space-lg);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-secondary);
   text-align: center;
 }
 
 .status-item label {
-  font-size: 14px;
-  font-weight: 600;
-  color: #666;
-  margin-bottom: 8px;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-xs);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .status-value {
-  font-size: 24px;
-  font-weight: 700;
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
 }
 
-.status-value.level {
-  color: #28a745;
+.status-value-level {
+  color: var(--green-600);
 }
 
-.status-value.xp {
-  color: #007bff;
+.status-value-xp {
+  color: var(--blue-600);
 }
 
-.status-value.next-level {
-  color: #ffc107;
+.status-value-next-level {
+  color: var(--color-warning);
 }
 
-.status-value.xp-needed {
-  color: #dc3545;
+.status-value-xp-needed {
+  color: var(--color-danger);
 }
 
 /* XP Management Styles */
 .xp-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+  composes: wizard-column from './CharacterWizardBase.module.css';
+  gap: var(--space-xl);
 }
 
 .xp-input-group {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   align-items: center;
-  gap: 16px;
 }
 
 .xp-input-group label {
-  font-weight: 600;
+  font-weight: var(--font-semibold);
   min-width: 100px;
 }
 
 .xp-input {
+  composes: wizard-input from './CharacterWizardBase.module.css';
   flex: 1;
-  padding: 12px;
-  border: 2px solid #dee2e6;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  transition: border-color 0.2s ease;
+  font-weight: var(--font-semibold);
 }
 
 .xp-input:focus {
-  outline: none;
-  border-color: #8b0000;
+  border-color: var(--color-danger);
   box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.1);
 }
 
 .xp-quick-actions h4 {
-  color: #8b0000;
-  margin-bottom: 12px;
+  color: var(--color-danger);
+  margin-bottom: var(--space-md);
 }
 
 .quick-xp-buttons {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   flex-wrap: wrap;
-  gap: 12px;
 }
 
 .quick-xp-btn {
-  padding: 10px 16px;
-  border: 2px solid #dee2e6;
-  background: white;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 600;
+  padding: var(--space-sm) var(--space-lg);
+  border: 2px solid var(--border-secondary);
+  background: var(--bg-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-normal) ease;
 }
 
-.quick-xp-btn.small {
-  border-color: #28a745;
-  color: #28a745;
+.quick-xp-btn-small {
+  border-color: var(--green-600);
+  color: var(--green-600);
 }
 
-.quick-xp-btn.small:hover {
-  background: #28a745;
-  color: white;
+.quick-xp-btn-small:hover {
+  background: var(--green-600);
+  color: var(--text-inverse-primary);
 }
 
-.quick-xp-btn.medium {
-  border-color: #007bff;
-  color: #007bff;
+.quick-xp-btn-medium {
+  border-color: var(--blue-600);
+  color: var(--blue-600);
 }
 
-.quick-xp-btn.medium:hover {
-  background: #007bff;
-  color: white;
+.quick-xp-btn-medium:hover {
+  background: var(--blue-600);
+  color: var(--text-inverse-primary);
 }
 
-.quick-xp-btn.large {
-  border-color: #dc3545;
-  color: #dc3545;
+.quick-xp-btn-large {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
-.quick-xp-btn.large:hover {
-  background: #dc3545;
-  color: white;
+.quick-xp-btn-large:hover {
+  background: var(--color-danger);
+  color: var(--text-inverse-primary);
 }
 
 /* XP Progress Bar Styles */
 .xp-progress {
-  margin-top: 20px;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #dee2e6;
+  margin-top: var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-secondary);
 }
 
 .progress-labels {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: space-between;
-  margin-bottom: 8px;
-  font-weight: 600;
-  color: #666;
+  margin-bottom: var(--space-xs);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
 }
 
 .progress-bar {
   width: 100%;
-  height: 20px;
-  background: #e9ecef;
-  border-radius: 10px;
+  height: var(--space-lg);
+  background: var(--border-secondary);
+  border-radius: var(--radius-full);
   overflow: hidden;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-xs);
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
-  transition: width 0.5s ease;
-  border-radius: 10px;
+  background: linear-gradient(90deg, var(--green-600) 0%, var(--green-500) 100%);
+  transition: width var(--duration-slow) ease;
+  border-radius: var(--radius-full);
 }
 
 .progress-info {
   text-align: center;
-  font-size: 14px;
-  color: #666;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
 }
 
 /* Level Up Controls Styles */
 .level-up-controls {
-  padding: 20px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #dee2e6;
+  composes: wizard-card from './CharacterWizardBase.module.css';
+  background: var(--bg-secondary);
 }
 
 .level-up-ready {
@@ -233,50 +217,51 @@
 }
 
 .level-up-notice {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-lg);
 }
 
 .level-up-notice h4 {
-  color: #28a745;
-  font-size: 20px;
-  margin-bottom: 8px;
+  color: var(--green-600);
+  font-size: var(--text-xl);
+  margin-bottom: var(--space-xs);
 }
 
 .level-up-notice p {
-  color: #666;
-  font-size: 16px;
+  color: var(--text-secondary);
+  font-size: var(--text-base);
 }
 
 .level-up-btn {
-  padding: 16px 32px;
-  border-radius: 8px;
-  font-size: 18px;
-  font-weight: 600;
+  padding: var(--space-lg) var(--space-2xl);
+  border-radius: var(--radius-md);
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-normal) ease;
   border: none;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-.level-up-btn.primary {
-  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-  color: white;
+.level-up-btn-primary {
+  background: linear-gradient(135deg, var(--green-600) 0%, var(--green-500) 100%);
+  color: var(--text-inverse-primary);
   box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
 }
 
-.level-up-btn.primary:hover {
+.level-up-btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
 }
 
-.level-up-btn.secondary {
-  background: #6c757d;
-  color: white;
+.level-up-btn-secondary {
+  composes: wizard-button-secondary from './CharacterWizardBase.module.css';
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.level-up-btn.secondary:hover {
-  background: #5a6268;
+.level-up-btn-secondary:hover {
+  background: var(--gray-700);
 }
 
 .level-up-waiting {
@@ -284,134 +269,123 @@
 }
 
 .level-up-waiting p {
-  color: #666;
-  font-size: 16px;
-  margin-bottom: 16px;
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  margin-bottom: var(--space-lg);
 }
 
 /* Level History Styles */
 .level-history {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  composes: wizard-column from './CharacterWizardBase.module.css';
+  gap: var(--space-md);
 }
 
 .history-entry {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   align-items: center;
-  gap: 20px;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #dee2e6;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-secondary);
 }
 
 .history-level {
-  font-weight: 700;
-  color: #8b0000;
+  font-weight: var(--font-bold);
+  color: var(--color-danger);
   min-width: 80px;
   text-align: center;
-  font-size: 16px;
+  font-size: var(--text-base);
 }
 
 .history-class {
-  font-weight: 600;
-  color: #333;
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
   min-width: 150px;
 }
 
 .history-details {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   flex-wrap: wrap;
-  gap: 16px;
   flex: 1;
 }
 
-.history-details span {
-  padding: 4px 12px;
-  background: white;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 500;
+.history-detail-badge {
+  composes: wizard-badge-secondary from './CharacterWizardBase.module.css';
+  font-weight: var(--font-medium);
 }
 
 /* Multiclassing Styles */
 .multiclass-info {
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
-  border: 1px solid #dee2e6;
+  composes: wizard-card from './CharacterWizardBase.module.css';
+  background: var(--bg-secondary);
 }
 
 .multiclass-info p {
-  color: #666;
-  margin-bottom: 16px;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-lg);
 }
 
 .multiclass-breakdown {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-lg);
 }
 
 .multiclass-entry {
-  display: flex;
-  flex-direction: column;
+  composes: wizard-column from './CharacterWizardBase.module.css';
   align-items: center;
-  padding: 16px;
-  background: white;
-  border: 2px solid #8b0000;
-  border-radius: 8px;
+  padding: var(--space-lg);
+  background: var(--bg-primary);
+  border: 2px solid var(--color-danger);
+  border-radius: var(--radius-md);
   min-width: 150px;
 }
 
 .multiclass-entry strong {
-  color: #8b0000;
-  font-size: 16px;
-  margin-bottom: 4px;
+  color: var(--color-danger);
+  font-size: var(--text-base);
+  margin-bottom: var(--space-xs);
 }
 
 .multiclass-entry span {
-  color: #666;
-  font-size: 14px;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 .total-level {
+  composes: wizard-badge-info from './CharacterWizardBase.module.css';
   text-align: center;
-  padding: 12px;
-  background: #e3f2fd;
-  border: 1px solid #2196f3;
-  border-radius: 6px;
-  color: #1976d2;
+  background: var(--status-info-bg);
+  border: 1px solid var(--status-info-border);
+  color: var(--status-info-text);
 }
 
 .total-level strong {
-  font-size: 18px;
+  font-size: var(--text-lg);
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
   .character-advancement-step {
-    padding: 20px;
+    padding: var(--space-lg);
   }
   
   .advancement-header h2 {
-    font-size: 24px;
+    font-size: var(--text-2xl);
   }
   
   .advancement-header p {
-    font-size: 16px;
+    font-size: var(--text-base);
   }
   
   .advancement-section {
-    padding: 16px;
+    padding: var(--space-lg);
   }
   
   .status-grid {
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
+    gap: var(--space-lg);
   }
   
   .xp-input-group {
@@ -430,7 +404,7 @@
   .history-entry {
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: var(--space-md);
   }
   
   .history-level,

@@ -21,15 +21,15 @@
 /* Header with gradient accent */
 .panelHeader {
   composes: panel-header from '../styles/PanelBase.module.css';
-  padding: 1.5rem 2rem;
+  padding: var(--space-lg) var(--space-2xl);
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-hover));
   color: var(--text-on-accent);
 }
 
 .panelHeader h2 {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: var(--text-2xl);
+  font-weight: var(--font-semibold);
   text-shadow: 0 1px 2px var(--shadow-sm);
 }
 
@@ -54,7 +54,7 @@
 .panelContent {
   composes: panel-content from '../styles/PanelBase.module.css';
   max-height: calc(90vh - 120px);
-  padding: 1.5rem 2rem;
+  padding: var(--space-lg) var(--space-2xl);
 }
 
 /* Error message */
@@ -62,13 +62,13 @@
   composes: info-box error from '../styles/PanelBase.module.css';
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-  padding: 1rem;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  padding: var(--space-md);
 }
 
 .errorIcon {
-  font-size: 1.25rem;
+  font-size: var(--text-xl);
 }
 
 .errorDismiss {
@@ -77,9 +77,9 @@
   color: var(--text-on-error);
   cursor: pointer;
   margin-left: auto;
-  padding: 0.25rem;
+  padding: var(--space-xs);
   border-radius: var(--radius-sm);
-  transition: background-color 0.2s;
+  transition: background-color var(--duration-base);
 }
 
 .errorDismiss:hover {
@@ -89,32 +89,32 @@
 /* Sections */
 .section {
   composes: settings-section from '../styles/PanelBase.module.css';
-  margin-bottom: 2rem;
+  margin-bottom: var(--space-2xl);
 }
 
 .section h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1.25rem;
-  font-weight: 600;
+  margin: 0 0 var(--space-md) 0;
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
   color: var(--accent-secondary);
   border-bottom: 2px solid var(--border-primary);
-  padding-bottom: 0.5rem;
+  padding-bottom: var(--space-sm);
 }
 
 /* Configuration Selection */
 .configSelector {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1rem;
+  gap: var(--space-md);
 }
 
 .config-option {
   background: linear-gradient(135deg, var(--gray-700) 0%, var(--gray-800) 100%);
   border: 2px solid var(--border-primary);
   border-radius: var(--radius-lg);
-  padding: 1rem;
+  padding: var(--space-md);
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all var(--duration-slow);
   text-align: left;
 }
 
@@ -137,14 +137,14 @@
 }
 
 .configName {
-  font-size: 1.125rem;
-  font-weight: 600;
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
   color: var(--text-primary);
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-sm);
 }
 
 .configDescription {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   line-height: 1.4;
 }
@@ -170,7 +170,7 @@
 
 .metricValue {
   composes: stat-value from '../styles/PanelBase.module.css';
-  font-size: 1.125rem;
+  font-size: var(--text-lg);
 }
 
 .metricValue.good {
@@ -189,19 +189,19 @@
 .settingsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
+  gap: var(--space-md);
 }
 
 .setting {
   composes: control-group from '../styles/PanelBase.module.css';
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-sm);
 }
 
 .settingLabel {
   composes: control-label from '../styles/PanelBase.module.css';
-  gap: 0.5rem;
+  gap: var(--space-sm);
 }
 
 .settingSelect {
@@ -210,8 +210,8 @@
 }
 
 .settingCheckbox {
-  width: 18px;
-  height: 18px;
+  width: var(--space-lg);
+  height: var(--space-lg);
   accent-color: var(--accent-primary);
   cursor: pointer;
 }
@@ -240,9 +240,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem;
+  padding: var(--space-md);
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color var(--duration-base);
 }
 
 .layerHeader:hover {
@@ -254,33 +254,33 @@
 }
 
 .layerName {
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
   color: var(--text-primary);
   display: block;
-  margin-bottom: 0.25rem;
+  margin-bottom: var(--space-xs);
 }
 
 .layerDetails {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text-tertiary);
   font-family: var(--font-mono, 'Fira Code', 'Monaco', 'Consolas', monospace);
 }
 
 .layerControls {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-sm);
 }
 
 .visibilityToggle,
 .editBtn {
   background: none;
   border: none;
-  font-size: 1.125rem;
+  font-size: var(--text-lg);
   cursor: pointer;
-  padding: 0.5rem;
+  padding: var(--space-sm);
   border-radius: var(--radius-sm);
-  transition: all 0.2s;
+  transition: all var(--duration-base);
   color: var(--text-secondary);
 }
 
@@ -293,17 +293,17 @@
 
 .layerDetails-panel {
   background: var(--bg-tertiary);
-  padding: 1rem;
+  padding: var(--space-md);
   border-top: 1px solid var(--border-primary);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
+  gap: var(--space-md);
 }
 
 .layerProperty {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-sm);
 }
 
 .layerPropertyLabel {
@@ -319,7 +319,7 @@
 }
 
 .layerPropertyValue {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text-tertiary);
   font-family: var(--font-mono, 'Fira Code', 'Monaco', 'Consolas', monospace);
   text-align: center;
@@ -329,14 +329,14 @@
 .weatherEffects {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-sm);
 }
 
 .weatherEffect {
   background: linear-gradient(135deg, var(--gray-700) 0%, var(--gray-800) 100%);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-lg);
-  padding: 1rem;
+  padding: var(--space-md);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -345,18 +345,18 @@
 .effect-info {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-xs);
 }
 
 .effect-type {
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
   color: var(--text-primary);
   text-transform: capitalize;
 }
 
 .effectIntensity {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text-tertiary);
   font-family: var(--font-mono, 'Fira Code', 'Monaco', 'Consolas', monospace);
 }
@@ -364,7 +364,7 @@
 .effect-controls {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--space-md);
 }
 
 .effectControlSlider {
@@ -375,11 +375,11 @@
 .remove-effect {
   background: none;
   border: none;
-  font-size: 1.125rem;
+  font-size: var(--text-lg);
   cursor: pointer;
-  padding: 0.5rem;
+  padding: var(--space-sm);
   border-radius: var(--radius-sm);
-  transition: all 0.2s;
+  transition: all var(--duration-base);
   color: var(--status-error);
 }
 
@@ -390,7 +390,7 @@
 
 .add-weather-btn {
   composes: panel-button success from '../styles/PanelBase.module.css';
-  padding: 0.75rem 1.5rem;
+  padding: var(--space-sm) var(--space-lg);
   align-self: flex-start;
 }
 
@@ -398,9 +398,9 @@
   background: var(--bg-tertiary);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-lg);
-  padding: 1rem;
+  padding: var(--space-md);
   display: flex;
-  gap: 1rem;
+  gap: var(--space-md);
   align-items: center;
 }
 
@@ -411,8 +411,8 @@
 
 .addWeatherFormButton {
   composes: panel-button secondary from '../styles/PanelBase.module.css';
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
 }
 
 /* Loading Overlay */

@@ -1,193 +1,125 @@
-/* Spell Manager Styles */
+/**
+ * Spell Manager - Refactored to use CharacterWizardBase
+ * Composes shared patterns from base, keeps only component-specific styles
+ */
 
 .spellManager {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
-  max-width: 1400px;
-  margin: 0 auto;
-  min-height: 700px;
+  composes: wizard-panel from './CharacterWizardBase.module.css';
 }
 
 /* Header */
 .manager-header {
-  background: linear-gradient(135deg, #4a148c 0%, #6a1b9a 100%);
-  color: white;
-  padding: 24px 32px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  composes: wizard-header-purple from './CharacterWizardBase.module.css';
 }
 
 .manager-title h2 {
-  margin: 0 0 8px 0;
-  font-size: 28px;
-  font-weight: 700;
+  composes: wizard-title from './CharacterWizardBase.module.css';
 }
 
 .character-info {
-  font-size: 16px;
-  opacity: 0.9;
-  font-weight: 500;
+  composes: wizard-subtitle from './CharacterWizardBase.module.css';
 }
 
 .close-manager {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 24px;
-  cursor: pointer;
-  padding: 4px;
-  opacity: 0.8;
-  transition: opacity 0.2s ease;
-  border-radius: 4px;
-}
-
-.close-manager:hover {
-  opacity: 1;
-  background: rgba(255, 255, 255, 0.1);
+  composes: wizard-close-button from './CharacterWizardBase.module.css';
 }
 
 /* Tabs */
 .manager-tabs {
-  display: flex;
-  background: #f8f9fa;
-  border-bottom: 2px solid #dee2e6;
-  overflow-x: auto;
+  composes: wizard-tabs from './CharacterWizardBase.module.css';
 }
 
 .spellManager .tab-button {
-  background: none;
-  border: none;
-  padding: 16px 24px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: #666;
-  border-bottom: 3px solid transparent;
-  white-space: nowrap;
-}
-
-.spellManager .tab-button:hover {
-  background: #e9ecef;
-  color: #333;
+  composes: wizard-tab-button from './CharacterWizardBase.module.css';
 }
 
 .spellManager .tab-button.active {
-  color: #4a148c;
-  border-bottom-color: #4a148c;
-  background: white;
+  composes: wizard-tab-button-active-purple from './CharacterWizardBase.module.css';
 }
 
 /* Content */
 .manager-content {
-  padding: 32px;
-  max-height: 70vh;
-  overflow-y: auto;
+  composes: wizard-content from './CharacterWizardBase.module.css';
 }
 
 /* Slots Tab */
 .slots-tab {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+  composes: wizard-column from './CharacterWizardBase.module.css';
 }
 
 .spell-slots-header {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: var(--space-lg);
 }
 
 .spell-slots-header h3 {
-  color: #4a148c;
+  color: var(--purple-950);
   margin: 0;
-  font-size: 24px;
-  border-bottom: 2px solid #4a148c;
-  padding-bottom: 8px;
+  font-size: var(--text-2xl);
+  border-bottom: 2px solid var(--purple-950);
+  padding-bottom: var(--space-xs);
+  font-weight: var(--font-bold);
 }
 
 .rest-buttons {
-  display: flex;
-  gap: 12px;
+  composes: wizard-row from './CharacterWizardBase.module.css';
 }
 
 .rest-btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  composes: wizard-button-secondary from './CharacterWizardBase.module.css';
 }
 
 .rest-btn.short {
-  background: #17a2b8;
-  color: white;
+  background: var(--blue-600);
+  color: var(--text-inverse-primary);
+  border: none;
 }
 
 .rest-btn.short:hover {
-  background: #138496;
+  background: var(--blue-500);
 }
 
 .rest-btn.long {
-  background: #28a745;
-  color: white;
-}
-
-.rest-btn.long:hover {
-  background: #218838;
+  composes: wizard-button-success from './CharacterWizardBase.module.css';
 }
 
 .spell-slots-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 24px;
+  composes: wizard-grid from './CharacterWizardBase.module.css';
 }
 
 .spell-slot-level {
-  background: #f8f9fa;
-  border: 2px solid #dee2e6;
-  border-radius: 12px;
-  padding: 20px;
+  composes: wizard-card from './CharacterWizardBase.module.css';
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  transition: all 0.2s ease;
+  gap: var(--space-md);
+  transition: all var(--transition-fast);
 }
 
 .spell-slot-level:hover {
-  border-color: #4a148c;
+  border-color: var(--purple-950);
   box-shadow: 0 4px 12px rgba(74, 20, 140, 0.1);
 }
 
 .slot-header {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: space-between;
-  align-items: center;
 }
 
 .slot-header h4 {
   margin: 0;
-  color: #4a148c;
-  font-size: 18px;
+  color: var(--purple-950);
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
 }
 
 .slot-counter {
-  background: #4a148c;
-  color: white;
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 600;
+  composes: wizard-badge-primary from './CharacterWizardBase.module.css';
+  background: var(--purple-950);
 }
 
 .slot-circles {
-  display: flex;
-  gap: 8px;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: center;
   flex-wrap: wrap;
 }
@@ -195,56 +127,51 @@
 .slot-circle {
   width: 32px;
   height: 32px;
-  border-radius: 50%;
-  border: 2px solid #4a148c;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--purple-950);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
-  color: white;
+  font-weight: var(--font-bold);
+  color: var(--text-inverse-primary);
 }
 
 .slot-circle.available {
-  background: #4a148c;
+  background: var(--purple-950);
 }
 
 .slot-circle.used {
-  background: #dc3545;
-  border-color: #dc3545;
+  background: var(--color-danger);
+  border-color: var(--color-danger);
 }
 
 .slot-circle:hover {
   transform: scale(1.1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-md);
 }
 
 .slot-controls {
-  display: flex;
-  gap: 8px;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: center;
 }
 
 .use-slot-btn,
 .restore-slot-btn {
   flex: 1;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 12px;
+  composes: wizard-button-small from './CharacterWizardBase.module.css';
 }
 
 .use-slot-btn {
-  background: #dc3545;
-  color: white;
+  composes: wizard-button-danger from './CharacterWizardBase.module.css';
+  composes: wizard-button-small from './CharacterWizardBase.module.css';
 }
 
-.use-slot-btn:hover:not(:disabled) {
-  background: #c82333;
+.restore-slot-btn {
+  composes: wizard-button-success from './CharacterWizardBase.module.css';
+  composes: wizard-button-small from './CharacterWizardBase.module.css';
+}
 }
 
 .restore-slot-btn {

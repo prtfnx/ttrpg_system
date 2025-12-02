@@ -1,124 +1,54 @@
-/* Enhanced Character Wizard Styles */
-.enhanced-wizard-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.75);
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  backdrop-filter: blur(8px);
-  animation: fadeIn 0.3s ease-out;
-}
+/**
+ * Enhanced Character Wizard - Refactored to use CharacterWizardBase
+ */
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    backdrop-filter: blur(0px);
-  }
-  to {
-    opacity: 1;
-    backdrop-filter: blur(8px);
-  }
+.enhanced-wizard-overlay {
+  composes: wizard-overlay from './CharacterWizardBase.module.css';
 }
 
 .enhanced-wizard-modal {
-  background: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  width: 100%;
-  max-width: 1200px;
-  max-height: 90vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  position: relative;
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateY(-40px) scale(0.95);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0) scale(1);
-    opacity: 1;
-  }
+  composes: wizard-modal from './CharacterWizardBase.module.css';
 }
 
 /* Wizard Initializing */
 .wizard-initializing {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem;
-  text-align: center;
-}
-
-.wizard-initializing p {
-  margin-top: 1rem;
-  font-size: 1.1rem;
-  color: #6c757d;
+  composes: wizard-loading from './CharacterWizardBase.module.css';
 }
 
 /* Header */
 .wizard-header {
-  background: #2c3e50;
-  color: white;
-  padding: 2.5rem 2rem 2rem 2rem;
-  position: relative;
-  border-bottom: 4px solid #3498db;
-}
-
-.wizard-header::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #3498db, #2ecc71, #f39c12, #e74c3c);
+  composes: wizard-header-neutral from './CharacterWizardBase.module.css';
 }
 
 .wizard-title-section {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
+  composes: wizard-header-title from './CharacterWizardBase.module.css';
+  margin-bottom: var(--space-lg);
 }
 
 .wizard-title-section h1 {
   margin: 0;
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: var(--text-3xl);
+  font-weight: var(--font-bold);
   letter-spacing: -0.5px;
-  color: #ffffff;
+  color: var(--text-inverse-primary);
 }
 
 .wizard-title-section p {
-  margin: 0.5rem 0 0 0;
+  margin: var(--space-sm) 0 0 0;
   opacity: 0.9;
-  font-size: 1rem;
-  color: #ecf0f1;
-  font-weight: 400;
+  font-size: var(--text-base);
+  color: var(--text-inverse-primary);
+  font-weight: var(--font-normal);
 }
 
 .wizard-close {
+  composes: wizard-close-button from './CharacterWizardBase.module.css';
   background: rgba(255, 255, 255, 0.15);
-  color: white;
   border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   width: 36px;
   height: 36px;
-  font-size: 1.2rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  font-size: var(--text-xl);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -133,7 +63,7 @@
 
 /* Progress Bar */
 .wizard-progress {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-lg);
 }
 
 .progress-bar {

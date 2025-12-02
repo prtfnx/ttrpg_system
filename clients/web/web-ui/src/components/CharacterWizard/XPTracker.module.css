@@ -1,41 +1,32 @@
-/* XP Tracker Component Styles */
+/**
+ * XP Tracker - Refactored to use CharacterWizardBase
+ */
 
 .xpTracker {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e9ecef;
+  composes: wizard-card-elevated from './CharacterWizardBase.module.css';
 }
 
-.xpTracker.compact {
-  padding: 16px;
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
+.xpTracker-compact {
+  composes: wizard-card from './CharacterWizardBase.module.css';
 }
 
 /* Header Styles */
 .xp-header {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: var(--space-lg);
 }
 
 .xp-header h3 {
   margin: 0;
-  color: #8b0000;
-  font-size: 20px;
-  font-weight: 600;
+  color: var(--red-900);
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
 }
 
 .level-up-badge {
-  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-  color: white;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 600;
+  composes: wizard-badge-success from './CharacterWizardBase.module.css';
+  background: linear-gradient(135deg, var(--green-700) 0%, var(--green-600) 100%);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   animation: pulse 2s infinite;
@@ -49,54 +40,42 @@
 
 /* Input Section Styles */
 .xp-input-section {
-  margin-bottom: 24px;
-  position: relative;
+  composes: wizard-form-group from './CharacterWizardBase.module.css';
+  margin-bottom: var(--space-lg);
 }
 
 .xp-input-section label {
   display: block;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 8px;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
 }
 
 .xp-input-container {
-  display: flex;
-  gap: 8px;
-  position: relative;
+  composes: wizard-row from './CharacterWizardBase.module.css';
 }
 
 .xp-input {
+  composes: wizard-input from './CharacterWizardBase.module.css';
   flex: 1;
-  padding: 12px;
-  border: 2px solid #dee2e6;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  transition: border-color 0.2s ease;
-}
-
-.xp-input:focus {
-  outline: none;
-  border-color: #8b0000;
-  box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.1);
 }
 
 .quick-add-toggle {
   width: 48px;
   height: 48px;
-  background: #007bff;
-  color: white;
+  background: var(--color-primary);
+  color: var(--text-inverse-primary);
   border: none;
-  border-radius: 8px;
-  font-size: 20px;
-  font-weight: 600;
+  border-radius: var(--radius-md);
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
 }
 
 .quick-add-toggle:hover {
-  background: #0056b3;
+  background: var(--color-primary-hover);
   transform: scale(1.05);
 }
 

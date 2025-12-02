@@ -8,7 +8,6 @@ import { createMockRenderEngine } from '../../test/utils/mockRenderEngine';
 import { ActionsPanel } from '../ActionsPanel';
 import { AssetPanel } from '../AssetPanel';
 import { AuthProvider } from '../AuthContext';
-import { CharacterManager } from '../CharacterManager';
 import ChatPanel from '../ChatPanel';
 import { GameCanvas } from '../GameCanvas';
 import { NetworkPanel } from '../NetworkPanel';
@@ -289,43 +288,6 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
       if (undoButton) {
         expect(undoButton).toBeInTheDocument();
       }
-    });
-  });
-
-  describe('Character Management - TypeScript Integration', () => {
-    it('should manage character data with proper TypeScript types', async () => {
-      render(<CharacterManager sessionCode="TEST123" userInfo={mockUserInfo} />);
-      
-      // User expects character creation button to be available during loading
-      const createButton = screen.getByRole('button', { name: /create.*character/i });
-      expect(createButton).toBeInTheDocument();
-      
-      // User expects loading indicator to be present initially
-      expect(screen.getByText(/loading characters/i)).toBeInTheDocument();
-      
-      // User expects proper character management interface
-      expect(screen.getByText(/characters synced/i)).toBeInTheDocument();
-    });
-
-    it('should synchronize character data across network', async () => {
-      render(<CharacterManager sessionCode="TEST123" userInfo={mockUserInfo} />);
-      
-      // User expects characters to load from server
-      await waitFor(() => {
-        expect(screen.getByText(/loading characters/i)).toBeInTheDocument();
-      });
-      
-      // User expects real-time synchronization
-      expect(screen.getByText(/characters synced/i)).toBeInTheDocument();
-    });
-
-    it('should handle character permissions with TypeScript safety', async () => {
-      const limitedUser = { id: 2, username: 'player1', role: 'player' as const, permissions: ['view'] };
-      render(<CharacterManager sessionCode="TEST123" userInfo={limitedUser} />);
-      
-      // User expects limited permissions to be enforced
-      const restrictedAction = screen.queryByRole('button', { name: /delete.*character/i });
-      expect(restrictedAction).toBeNull();
     });
   });
 

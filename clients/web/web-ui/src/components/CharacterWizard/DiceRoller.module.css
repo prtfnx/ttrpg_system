@@ -1,9 +1,9 @@
-/* Dice Roller Component Styles */
+/**
+ * Dice Roller - Refactored to use CharacterWizardBase
+ */
 
 .diceRoller {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  composes: wizard-column from './CharacterWizardBase.module.css';
   max-width: 300px;
 }
 
@@ -18,22 +18,15 @@
 }
 
 .dice-button {
+  composes: wizard-button-secondary from './CharacterWizardBase.module.css';
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-sm);
   width: 100%;
-  padding: 12px 16px;
-  background: white;
-  border: 2px solid #dee2e6;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: inherit;
 }
 
 .dice-button:hover:not(:disabled) {
-  border-color: #8b0000;
-  box-shadow: 0 2px 8px rgba(139, 0, 0, 0.1);
+  border-color: var(--red-900);
   transform: translateY(-1px);
 }
 
@@ -41,44 +34,39 @@
   transform: translateY(0);
 }
 
-.dice-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 /* Variant styles */
 .diceRoller.primary .dice-button {
-  border-color: #8b0000;
-  background: linear-gradient(135deg, #8b0000 0%, #a00000 100%);
-  color: white;
+  border-color: var(--red-900);
+  background: linear-gradient(135deg, var(--red-900) 0%, var(--red-800) 100%);
+  color: var(--text-inverse-primary);
 }
 
 .diceRoller.primary .dice-button:hover:not(:disabled) {
-  background: linear-gradient(135deg, #a00000 0%, #b30000 100%);
+  background: linear-gradient(135deg, var(--red-800) 0%, var(--red-700) 100%);
 }
 
 .diceRoller.attack .dice-button {
-  border-color: #dc3545;
-  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-  color: white;
+  border-color: var(--color-danger);
+  background: linear-gradient(135deg, var(--color-danger) 0%, var(--color-danger-active) 100%);
+  color: var(--text-inverse-primary);
 }
 
 .diceRoller.damage .dice-button {
-  border-color: #fd7e14;
-  background: linear-gradient(135deg, #fd7e14 0%, #e8590c 100%);
-  color: white;
+  border-color: var(--orange-600);
+  background: linear-gradient(135deg, var(--orange-600) 0%, var(--orange-700) 100%);
+  color: var(--text-inverse-primary);
 }
 
 .diceRoller.save .dice-button {
-  border-color: #6f42c1;
-  background: linear-gradient(135deg, #6f42c1 0%, #5a359a 100%);
-  color: white;
+  border-color: var(--purple-700);
+  background: linear-gradient(135deg, var(--purple-700) 0%, var(--purple-800) 100%);
+  color: var(--text-inverse-primary);
 }
 
 .diceRoller.secondary .dice-button {
-  border-color: #6c757d;
-  background: #f8f9fa;
-  color: #495057;
+  border-color: var(--gray-600);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
 }
 
 /* Rolling animation */

@@ -1,97 +1,73 @@
+/**
+ * Attack Manager - Refactored to use CharacterWizardBase
+ */
+
 .attackManager {
   display: flex;
   flex-direction: column;
   height: 100%;
   background: var(--bg-primary);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-lg);
 }
 
 /* Header */
 .manager-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.5rem;
-  background: linear-gradient(135deg, #8B0000, #A52A2A);
-  color: white;
-  border-bottom: 2px solid #654321;
+  composes: wizard-header-primary from './CharacterWizardBase.module.css';
+  border-bottom: 2px solid var(--brown-800);
+  padding: var(--space-lg);
 }
 
 .manager-title h2 {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: var(--text-2xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-inverse-primary);
 }
 
 .character-info {
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   opacity: 0.9;
-  margin-top: 0.25rem;
+  margin-top: var(--space-xs);
+  color: var(--text-inverse-primary);
 }
 
 .close-manager {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  border-radius: 4px;
-  color: white;
+  composes: wizard-close-button from './CharacterWizardBase.module.css';
+  background: var(--hover-overlay-light);
   width: 32px;
   height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 1.5rem;
-  transition: background 0.2s;
 }
 
 .close-manager:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--active-overlay-light);
 }
 
 /* Tabs */
 .manager-tabs {
-  display: flex;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
+  composes: wizard-tabs from './CharacterWizardBase.module.css';
 }
 
 .attackManager .tab-button {
+  composes: wizard-tab-button from './CharacterWizardBase.module.css';
   flex: 1;
-  padding: 1rem;
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  border-bottom: 3px solid transparent;
-}
-
-.attackManager .tab-button:hover {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
 }
 
 .attackManager .tab-button.active {
-  background: var(--bg-primary);
-  color: #8B0000;
-  border-bottom-color: #8B0000;
+  composes: wizard-tab-button-active-primary from './CharacterWizardBase.module.css';
 }
 
 /* Content */
 .manager-content {
   flex: 1;
-  padding: 1.5rem;
+  padding: var(--space-lg);
   overflow-y: auto;
 }
 
 /* Weapons Tab */
 .weapons-tab {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  composes: wizard-column from './CharacterWizardBase.module.css';
 }
 
 .weapons-header {

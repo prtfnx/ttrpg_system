@@ -99,50 +99,49 @@
 
 /* Dice info */
 .dice-info {
-  display: flex;
-  flex-direction: column;
+  composes: wizard-column from './CharacterWizardBase.module.css';
   align-items: flex-start;
   flex: 1;
-  gap: 2px;
+  gap: var(--space-2xs);
 }
 
 .dice-label {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
   opacity: 0.9;
 }
 
 .dice-formula {
-  font-size: 12px;
+  font-size: var(--text-xs);
   opacity: 0.8;
   font-family: 'Courier New', monospace;
 }
 
 /* Dice result */
 .diceResult {
-  font-size: 32px;
-  font-weight: 700;
+  font-size: var(--text-3xl);
+  font-weight: var(--font-bold);
   min-width: 60px;
   text-align: center;
-  padding: 8px;
-  border-radius: 6px;
+  padding: var(--space-xs);
+  border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.2);
 }
 
 .diceResult.critical {
-  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
-  color: #333;
+  background: linear-gradient(135deg, var(--yellow-400) 0%, var(--yellow-200) 100%);
+  color: var(--text-primary);
   animation: criticalGlow 1s ease-in-out;
 }
 
 .diceResult.high {
-  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--green-600) 0%, var(--green-500) 100%);
+  color: var(--text-inverse-primary);
 }
 
 .diceResult.low {
-  background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--gray-600) 0%, var(--gray-700) 100%);
+  color: var(--text-inverse-primary);
 }
 
 @keyframes criticalGlow {
@@ -157,14 +156,14 @@
   top: 100%;
   left: 50%;
   transform: translateX(-50%);
-  background: white;
-  border: 2px solid #dee2e6;
-  border-radius: 8px;
-  padding: 12px 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  background: var(--bg-primary);
+  border: 2px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  box-shadow: var(--shadow-lg);
   z-index: 10;
   min-width: 200px;
-  margin-top: 8px;
+  margin-top: var(--space-xs);
   animation: slideDown 0.3s ease-out;
 }
 
@@ -180,72 +179,63 @@
 }
 
 .roll-details.critical {
-  border-color: #ffd700;
-  background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
+  border-color: var(--yellow-400);
+  background: linear-gradient(135deg, var(--yellow-50) 0%, var(--yellow-100) 100%);
 }
 
 .roll-breakdown {
-  display: flex;
-  align-items: center;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: center;
-  gap: 8px;
   font-family: 'Courier New', monospace;
-  font-weight: 600;
+  font-weight: var(--font-semibold);
 }
 
 .formula-text {
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .equals {
-  color: #8b0000;
-  font-weight: 700;
+  color: var(--red-900);
+  font-weight: var(--font-bold);
 }
 
 .total {
-  font-size: 18px;
-  color: #8b0000;
-  font-weight: 700;
+  font-size: var(--text-lg);
+  color: var(--red-900);
+  font-weight: var(--font-bold);
 }
 
 .critical-indicator,
 .fumble-indicator {
-  text-align: center;
-  margin-top: 8px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
+  composes: wizard-badge from './CharacterWizardBase.module.css';
+  margin-top: var(--space-xs);
+  font-size: var(--text-xs);
 }
 
 .critical-indicator {
-  background: #ffd700;
-  color: #333;
+  background: var(--yellow-400);
+  color: var(--text-primary);
 }
 
 .fumble-indicator {
-  background: #dc3545;
-  color: white;
+  background: var(--red-600);
+  color: var(--text-inverse-primary);
 }
 
 /* Roll history */
 .dice-history {
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  padding: 12px;
+  composes: wizard-card-section from './CharacterWizardBase.module.css';
   max-height: 200px;
   overflow-y: auto;
 }
 
 .history-header {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
+  margin-bottom: var(--space-xs);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -253,89 +243,86 @@
 .clear-history {
   background: none;
   border: none;
-  color: #dc3545;
+  color: var(--red-600);
   cursor: pointer;
-  font-size: 12px;
-  padding: 2px 6px;
-  border-radius: 3px;
-  transition: background-color 0.2s ease;
+  font-size: var(--text-xs);
+  padding: var(--space-2xs) var(--space-xs);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-fast) ease;
 }
 
 .clear-history:hover {
-  background: #f5f5f5;
+  background: var(--gray-100);
 }
 
 .history-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  composes: wizard-column from './CharacterWizardBase.module.css';
+  gap: var(--space-2xs);
 }
 
 .history-item {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: space-between;
-  align-items: center;
-  padding: 6px 8px;
-  background: white;
-  border-radius: 4px;
-  font-size: 12px;
-  border-left: 3px solid #dee2e6;
-  transition: all 0.2s ease;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  border-left: 3px solid var(--border-secondary);
+  transition: all var(--transition-fast) ease;
 }
 
 .history-item:hover {
-  background: #f0f0f0;
+  background: var(--bg-tertiary);
 }
 
 .history-item.critical {
-  border-left-color: #ffd700;
-  background: #fffbf0;
+  border-left-color: var(--yellow-400);
+  background: var(--yellow-50);
 }
 
 .history-item.high {
-  border-left-color: #28a745;
-  background: #f0fff4;
+  border-left-color: var(--green-600);
+  background: var(--green-50);
 }
 
 .history-item.low {
-  border-left-color: #6c757d;
-  background: #f8f9fa;
+  border-left-color: var(--gray-600);
+  background: var(--bg-secondary);
 }
 
 .history-formula {
   font-family: 'Courier New', monospace;
-  font-weight: 600;
-  color: #666;
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
 }
 
 .history-result {
-  font-weight: 700;
-  color: #333;
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
   margin-left: auto;
-  margin-right: 8px;
+  margin-right: var(--space-xs);
 }
 
 .history-time {
-  color: #999;
-  font-size: 10px;
+  color: var(--gray-500);
+  font-size: var(--text-2xs);
 }
 
-/* Dice trigger button */
 .dice-trigger {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 3px;
-  color: #8b0000;
+  padding: var(--space-2xs) var(--space-2xs);
+  border-radius: var(--radius-sm);
+  color: var(--red-900);
   text-decoration: underline;
   text-decoration-style: dotted;
-  font-weight: 600;
-  transition: all 0.2s ease;
+  font-weight: var(--font-semibold);
+  transition: all var(--transition-fast) ease;
 }
 
 .dice-trigger:hover {
-  background: #f8f9fa;
+  background: var(--bg-secondary);
   text-decoration-style: solid;
   transform: scale(1.05);
 }

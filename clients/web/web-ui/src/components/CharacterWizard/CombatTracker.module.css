@@ -1,12 +1,9 @@
-/* Combat Tracker Styles */
+/**
+ * Combat Tracker - Refactored to use CharacterWizardBase
+ */
 
 .combatTracker {
-  max-width: 1400px;
-  margin: 0 auto;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
+  composes: wizard-panel from './CharacterWizardBase.module.css';
 }
 
 .combatTracker.setup {
@@ -15,120 +12,81 @@
 
 /* Header */
 .combat-header {
-  background: linear-gradient(135deg, #8b0000 0%, #a00000 100%);
-  color: white;
-  padding: 20px 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  composes: wizard-header-primary from './CharacterWizardBase.module.css';
+  padding: var(--space-lg) var(--space-xl);
 }
 
 .combat-info h2 {
-  margin: 0 0 8px 0;
-  font-size: 24px;
-  font-weight: 700;
+  margin: 0 0 var(--space-xs) 0;
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--text-inverse-primary);
 }
 
 .round-info {
-  display: flex;
-  gap: 16px;
-  font-size: 14px;
+  composes: wizard-row from './CharacterWizardBase.module.css';
+  font-size: var(--text-sm);
   opacity: 0.9;
 }
 
 .combat-controls {
-  display: flex;
-  gap: 12px;
-  align-items: center;
+  composes: wizard-row from './CharacterWizardBase.module.css';
 }
 
 .next-turn-btn {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  composes: wizard-button-secondary from './CharacterWizardBase.module.css';
+  background: var(--hover-overlay-light);
+  color: var(--text-inverse-primary);
+  border: 2px solid var(--hover-overlay-light);
 }
 
 .next-turn-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.5);
+  background: var(--active-overlay-light);
+  border-color: var(--active-overlay-light);
 }
 
 .reset-btn {
-  background: #dc3545;
-  color: white;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.reset-btn:hover {
-  background: #c82333;
+  composes: wizard-button-danger from './CharacterWizardBase.module.css';
+  composes: wizard-button-small from './CharacterWizardBase.module.css';
 }
 
 .close-button {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 20px;
-  cursor: pointer;
-  padding: 4px;
-  opacity: 0.8;
-  transition: opacity 0.2s ease;
-}
-
-.close-button:hover {
-  opacity: 1;
+  composes: wizard-close-button from './CharacterWizardBase.module.css';
 }
 
 /* Setup Content */
 .setup-content {
-  padding: 32px;
+  padding: var(--space-2xl);
 }
 
 .participants-setup {
-  margin-bottom: 32px;
+  margin-bottom: var(--space-2xl);
 }
 
 .setup-header {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-lg);
 }
 
 .setup-header h3 {
-  color: #8b0000;
+  color: var(--color-danger);
   margin: 0;
-  font-size: 20px;
+  font-size: var(--text-xl);
 }
 
 .add-participant-btn {
-  background: #28a745;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
+  composes: wizard-button-success from './CharacterWizardBase.module.css';
 }
 
 .add-participant-btn:hover {
-  background: #218838;
+  background: var(--green-700);
 }
 
 .participants-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  composes: wizard-column from './CharacterWizardBase.module.css';
+  gap: var(--space-lg);
 }
 
 .participant-setup {
@@ -168,32 +126,30 @@
 }
 
 .participant-controls {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   align-items: center;
-  gap: 16px;
 }
 
 .initiative-section {
-  display: flex;
-  flex-direction: column;
+  composes: wizard-column from './CharacterWizardBase.module.css';
   align-items: center;
-  gap: 8px;
+  gap: var(--space-xs);
 }
 
 .initiative-display {
-  font-size: 14px;
-  font-weight: 600;
-  color: #28a745;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--green-600);
 }
 
 .remove-participant {
   background: none;
   border: none;
-  font-size: 16px;
+  font-size: var(--text-base);
   cursor: pointer;
-  color: #dc3545;
-  padding: 4px;
-  transition: transform 0.2s ease;
+  color: var(--color-danger);
+  padding: var(--space-xs);
+  transition: transform var(--transition-normal) ease;
 }
 
 .remove-participant:hover {
@@ -202,37 +158,33 @@
 
 /* Add Participant Form */
 .add-participant-form {
-  background: white;
-  border: 2px solid #8b0000;
-  border-radius: 8px;
-  padding: 20px;
-  margin-top: 16px;
+  composes: wizard-card from './CharacterWizardBase.module.css';
+  background: var(--bg-primary);
+  border: 2px solid var(--color-danger);
+  margin-top: var(--space-lg);
 }
 
 .form-header {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-lg);
 }
 
 .form-header h4 {
-  color: #8b0000;
+  color: var(--color-danger);
   margin: 0;
 }
 
 .form-row {
-  display: grid;
+  composes: wizard-grid from './CharacterWizardBase.module.css';
   grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
 }
 
 .form-row input {
-  padding: 8px 12px;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  font-size: 14px;
+  composes: wizard-input from './CharacterWizardBase.module.css';
 }
 
 .form-row input:focus {

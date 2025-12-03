@@ -334,190 +334,148 @@
 }
 
 .featDescription {
-  color: #34495e;
-  line-height: 1.4;
-  margin-bottom: 15px;
+  color: var(--text-primary);
+  line-height: var(--line-height-relaxed);
+  margin-bottom: var(--space-md);
 }
 
 .featPrerequisites {
-  background: #fff3cd;
-  border: 1px solid #ffeaa7;
-  border-radius: 6px;
-  padding: 12px;
-  margin-bottom: 15px;
+  composes: wizard-badge-warning from './CharacterWizard/CharacterWizardBase.module.css';
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
 }
 
 .featPrerequisites h5 {
-  color: #856404;
-  margin: 0 0 8px 0;
+  color: var(--yellow-800);
+  margin: 0 0 var(--space-xs) 0;
 }
 
 .featPrerequisites ul {
   margin: 0;
-  padding-left: 20px;
-  color: #856404;
+  padding-left: var(--space-lg);
+  color: var(--yellow-800);
 }
 
 .feat-details {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #ecf0f1;
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--border-secondary);
 }
 
 .feat-benefits h5 {
-  color: #27ae60;
-  margin-bottom: 10px;
+  color: var(--green-600);
+  margin-bottom: var(--space-sm);
 }
 
 .feat-benefits ul {
-  margin: 0 0 20px 0;
-  padding-left: 20px;
+  margin: 0 0 var(--space-lg) 0;
+  padding-left: var(--space-lg);
 }
 
 .feat-benefits li {
-  margin-bottom: 8px;
-  line-height: 1.3;
+  margin-bottom: var(--space-xs);
+  line-height: var(--line-height-normal);
 }
 
 .benefit-choices {
-  margin-top: 5px;
+  margin-top: var(--space-xs);
   font-style: italic;
-  color: #7f8c8d;
-  font-size: 0.9em;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 .feat-analysis {
-  margin-top: 20px;
+  margin-top: var(--space-lg);
 }
 
 .analysis-toggle {
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-  padding: 10px 16px;
+  composes: wizard-button-secondary from './CharacterWizard/CharacterWizardBase.module.css';
   width: 100%;
-  cursor: pointer;
-  transition: background 0.2s;
-  color: #495057;
-  font-weight: 500;
-}
-
-.analysis-toggle:hover {
-  background: #e9ecef;
 }
 
 .analysis-content {
-  margin-top: 15px;
-  background: #f8f9fa;
-  border-radius: 6px;
-  padding: 20px;
+  composes: wizard-card-section from './CharacterWizard/CharacterWizardBase.module.css';
+  margin-top: var(--space-md);
 }
 
 .recommendation {
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-lg);
 }
 
 .recommendation h6 {
-  margin-bottom: 10px;
-  color: #2c3e50;
+  margin-bottom: var(--space-sm);
+  color: var(--text-primary);
 }
 
 .rec-feat {
-  color: #27ae60;
-  font-weight: bold;
+  color: var(--green-600);
+  font-weight: var(--font-bold);
 }
 
 .rec-asi {
-  color: #e74c3c;
-  font-weight: bold;
+  color: var(--color-danger);
+  font-weight: var(--font-bold);
 }
 
 .rec-either {
-  color: #f39c12;
-  font-weight: bold;
+  color: var(--yellow-600);
+  font-weight: var(--font-bold);
 }
 
 .reasoning {
-  color: #6c757d;
+  color: var(--text-secondary);
   font-style: italic;
 }
 
 .comparison {
-  display: grid;
+  composes: wizard-grid from './CharacterWizard/CharacterWizardBase.module.css';
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
 }
 
 .comparison-column h6 {
-  color: #2c3e50;
-  margin-bottom: 10px;
+  color: var(--text-primary);
+  margin-bottom: var(--space-sm);
   text-align: center;
 }
 
 .comparison-column ul {
   margin: 0;
-  padding-left: 20px;
+  padding-left: var(--space-lg);
 }
 
 .comparison-column li {
-  margin-bottom: 5px;
-  font-size: 0.9em;
-  line-height: 1.3;
+  margin-bottom: var(--space-xs);
+  font-size: var(--text-sm);
+  line-height: var(--line-height-normal);
 }
 
 /* Navigation */
 .step-navigation {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 40px;
-  padding-top: 20px;
-  border-top: 1px solid #ecf0f1;
+  composes: wizard-navigation from './CharacterWizard/CharacterWizardBase.module.css';
 }
 
 .btn {
-  padding: 12px 24px;
-  border: none;
-  border-radius: 6px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-decoration: none;
-  display: inline-block;
-  font-weight: 500;
+  composes: wizard-button-primary from './CharacterWizard/CharacterWizardBase.module.css';
 }
 
 .btn-primary {
-  background: #3498db;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #2980b9;
+  composes: wizard-button-primary from './CharacterWizard/CharacterWizardBase.module.css';
 }
 
 .btn-primary:disabled {
-  background: #bdc3c7;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .btn-secondary {
-  background: #ecf0f1;
-  color: #2c3e50;
-}
-
-.btn-secondary:hover {
-  background: #d5dbdb;
+  composes: wizard-button-secondary from './CharacterWizard/CharacterWizardBase.module.css';
 }
 
 .error-message {
-  background: #fee;
-  border: 1px solid #e74c3c;
-  color: #c0392b;
-  padding: 12px;
-  border-radius: 6px;
-  margin-top: 15px;
+  composes: wizard-badge-danger from './CharacterWizard/CharacterWizardBase.module.css';
+  padding: var(--space-md);
+  margin-top: var(--space-md);
   text-align: center;
 }
 
@@ -538,7 +496,7 @@
   
   .comparison {
     grid-template-columns: 1fr;
-    gap: 15px;
+    gap: var(--space-md);
   }
   
   .feat-filters {

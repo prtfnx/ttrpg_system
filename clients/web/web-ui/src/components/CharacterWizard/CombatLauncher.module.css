@@ -1,20 +1,12 @@
 .combatLauncher-btn {
+  composes: wizard-button-primary from './CharacterWizardBase.module.css';
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-decoration: none;
   user-select: none;
   outline: none;
 }
 
 .combatLauncher-btn:focus {
-  box-shadow: 0 0 0 2px rgba(139, 0, 0, 0.2);
+  box-shadow: var(--shadow-focus-ring);
 }
 
 .combatLauncher-btn:disabled {
@@ -24,33 +16,31 @@
 
 /* Button Styles */
 .combatLauncher-btn.primary {
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-  color: white;
-  border: 2px solid transparent;
+  background: linear-gradient(135deg, var(--blue-600), var(--blue-800));
+  color: var(--text-inverse-primary);
+  border: var(--border-width-md) solid transparent;
 }
 
 .combatLauncher-btn.primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #1d4ed8, #1e40af);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  background: linear-gradient(135deg, var(--blue-800), var(--blue-900));
+  transform: translateY(calc(-1 * var(--space-0-5)));
+  box-shadow: var(--shadow-lg);
 }
 
 .combatLauncher-btn.secondary {
-  background: var(--bg-secondary, #f8fafc);
-  color: var(--text-primary, #1f2937);
-  border: 2px solid var(--border, #e5e7eb);
+  composes: wizard-button-secondary from './CharacterWizardBase.module.css';
 }
 
 .combatLauncher-btn.secondary:hover:not(:disabled) {
-  background: var(--bg-tertiary, #f1f5f9);
-  border-color: var(--text-secondary, #6b7280);
-  transform: translateY(-1px);
+  background: var(--bg-tertiary);
+  border-color: var(--text-secondary);
+  transform: translateY(calc(-1 * var(--space-0-5)));
 }
 
 .combatLauncher-btn.combat {
-  background: linear-gradient(135deg, #8B0000, #A52A2A);
-  color: white;
-  border: 2px solid transparent;
+  background: linear-gradient(135deg, var(--red-900), var(--red-700));
+  color: var(--text-inverse-primary);
+  border: var(--border-width-md) solid transparent;
   position: relative;
   overflow: hidden;
 }
@@ -67,9 +57,9 @@
 }
 
 .combatLauncher-btn.combat:hover:not(:disabled) {
-  background: linear-gradient(135deg, #A52A2A, #DC143C);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(139, 0, 0, 0.4);
+  background: linear-gradient(135deg, var(--red-700), var(--red-600));
+  transform: translateY(calc(-1 * var(--space-1)));
+  box-shadow: var(--shadow-xl);
 }
 
 .combatLauncher-btn.combat:hover:not(:disabled)::before {
@@ -78,33 +68,33 @@
 
 /* Button Sizes */
 .combatLauncher-btn.small {
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  min-height: 32px;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+  min-height: var(--size-8);
 }
 
 .combatLauncher-btn.small .btn-icon {
-  font-size: 1rem;
+  font-size: var(--text-base);
 }
 
 .combatLauncher-btn.medium {
-  padding: 0.75rem 1.25rem;
-  font-size: 1rem;
-  min-height: 40px;
+  padding: var(--space-md) var(--space-lg);
+  font-size: var(--text-base);
+  min-height: var(--size-10);
 }
 
 .combatLauncher-btn.medium .btn-icon {
-  font-size: 1.1rem;
+  font-size: var(--text-lg);
 }
 
 .combatLauncher-btn.large {
-  padding: 1rem 1.5rem;
-  font-size: 1.125rem;
-  min-height: 48px;
+  padding: var(--space-md) var(--space-lg);
+  font-size: var(--text-lg);
+  min-height: var(--size-12);
 }
 
 .combatLauncher-btn.large .btn-icon {
-  font-size: 1.2rem;
+  font-size: var(--text-xl);
 }
 
 /* Button Content */
@@ -126,7 +116,7 @@
   bottom: 0;
   z-index: 1000;
   background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(var(--space-0-5));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -136,11 +126,11 @@
 @keyframes overlayFadeIn {
   from {
     opacity: 0;
-    backdrop-filter: blur(0px);
+    backdrop-filter: blur(0);
   }
   to {
     opacity: 1;
-    backdrop-filter: blur(2px);
+    backdrop-filter: blur(var(--space-0-5));
   }
 }
 
@@ -149,16 +139,16 @@
   height: 95vh;
   max-width: 1400px;
   max-height: 900px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-2xl);
   animation: combatViewSlideIn 0.4s ease-out;
 }
 
 @keyframes combatViewSlideIn {
   from {
     opacity: 0;
-    transform: scale(0.9) translateY(20px);
+    transform: scale(0.9) translateY(var(--space-lg));
   }
   to {
     opacity: 1;
@@ -169,21 +159,21 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .combatLauncher-btn.large {
-    padding: 0.75rem 1.25rem;
-    font-size: 1rem;
-    min-height: 44px;
+    padding: var(--space-md) var(--space-lg);
+    font-size: var(--text-base);
+    min-height: var(--size-11);
   }
 
   .combatLauncher-btn.medium {
-    padding: 0.625rem 1rem;
-    font-size: 0.9rem;
-    min-height: 36px;
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--text-sm);
+    min-height: var(--size-9);
   }
 
   .combatLauncher-btn.small {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.8rem;
-    min-height: 32px;
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--text-xs);
+    min-height: var(--size-8);
   }
 
   .combat-overlay .combat-view {
@@ -199,7 +189,7 @@
   }
 
   .combatLauncher-btn {
-    min-width: 40px;
+    min-width: var(--size-10);
     justify-content: center;
   }
 
@@ -211,13 +201,13 @@
 /* High Contrast Mode */
 @media (prefers-contrast: high) {
   .combatLauncher-btn.combat {
-    background: #000000;
-    border-color: #ffffff;
-    color: #ffffff;
+    background: var(--gray-950);
+    border-color: var(--gray-50);
+    color: var(--gray-50);
   }
 
   .combatLauncher-btn.combat:hover:not(:disabled) {
-    background: #333333;
+    background: var(--gray-800);
   }
 
   .combat-overlay {

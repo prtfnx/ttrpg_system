@@ -189,50 +189,34 @@
 
 .form-row input:focus {
   outline: none;
-  border-color: #8b0000;
+  border-color: var(--red-800);
   box-shadow: 0 0 0 2px rgba(139, 0, 0, 0.1);
 }
 
 .form-actions {
-  display: flex;
-  gap: 12px;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: flex-end;
 }
 
 .add-btn {
-  background: #8b0000;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.add-btn:hover {
-  background: #a00000;
+  composes: wizard-button-danger from './CharacterWizardBase.module.css';
 }
 
 /* Setup Actions */
 .setup-actions {
+  composes: wizard-card-section from './CharacterWizardBase.module.css';
   text-align: center;
-  padding: 20px;
-  background: #f8f9fa;
-  border-radius: 8px;
+  background: var(--bg-tertiary);
 }
 
 .start-combat-btn {
-  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-  color: white;
-  border: none;
-  padding: 16px 32px;
-  border-radius: 8px;
-  font-size: 18px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  composes: wizard-button-danger from './CharacterWizardBase.module.css';
+  padding: var(--space-lg) var(--space-3xl);
+  font-size: var(--text-lg);
+  background: linear-gradient(135deg, var(--red-600) 0%, var(--red-700) 100%);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  transition: var(--transition-normal);
 }
 
 .start-combat-btn:hover:not(:disabled) {
@@ -248,188 +232,172 @@
 }
 
 .setup-note {
-  margin-top: 12px;
-  color: #666;
-  font-size: 14px;
+  margin-top: var(--space-md);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 /* Active Combat */
 .combat-content {
-  padding: 24px;
+  padding: var(--space-2xl);
 }
 
 .initiative-order h3 {
-  color: #8b0000;
-  margin-bottom: 20px;
-  font-size: 18px;
+  color: var(--color-danger);
+  margin-bottom: var(--space-lg);
+  font-size: var(--text-lg);
 }
 
 .participants-active {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  composes: wizard-column from './CharacterWizardBase.module.css';
 }
 
 .participant-active {
-  background: #f8f9fa;
-  border: 2px solid #dee2e6;
-  border-radius: 12px;
-  padding: 20px;
-  transition: all 0.3s ease;
+  composes: wizard-card from './CharacterWizardBase.module.css';
+  border: 2px solid var(--border-primary);
+  transition: var(--transition-normal);
 }
 
-.participant-active.current-turn {
-  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
-  border-color: #ffc107;
+.participant-active-current {
+  composes: participant-active;
+  background: linear-gradient(135deg, var(--yellow-100) 0%, var(--yellow-200) 100%);
+  border-color: var(--yellow-600);
   box-shadow: 0 4px 20px rgba(255, 193, 7, 0.3);
   transform: scale(1.02);
 }
 
-.participant-active.unconscious {
-  background: #f8d7da;
-  border-color: #dc3545;
+.participant-active-unconscious {
+  composes: participant-active;
+  background: var(--status-danger-bg);
+  border-color: var(--color-danger);
   opacity: 0.8;
 }
 
 .participant-header {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-md);
 }
 
 .participant-basic {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   align-items: center;
-  gap: 12px;
 }
 
 .player-icon {
-  font-size: 20px;
-  color: #007bff;
+  font-size: var(--text-xl);
+  color: var(--blue-600);
 }
 
 .npc-icon {
-  font-size: 20px;
-  color: #dc3545;
+  font-size: var(--text-xl);
+  color: var(--color-danger);
 }
 
 .participant-details {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  composes: wizard-column from './CharacterWizardBase.module.css';
+  gap: var(--space-2xs);
 }
 
 .participant-name {
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
 }
 
 .initiative-display {
-  font-size: 14px;
-  color: #666;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
 }
 
 .participant-vital-stats {
-  display: flex;
-  gap: 20px;
-  align-items: center;
+  composes: wizard-row from './CharacterWizardBase.module.css';
+  gap: var(--space-lg);
 }
 
 .stat-group {
-  display: flex;
-  flex-direction: column;
+  composes: wizard-column from './CharacterWizardBase.module.css';
   align-items: center;
-  gap: 4px;
+  gap: var(--space-2xs);
 }
 
 .stat-group label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .stat-group span {
-  font-size: 18px;
-  font-weight: 700;
-  color: #333;
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
 }
 
 .hp-controls {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   align-items: center;
-  gap: 4px;
+  gap: var(--space-2xs);
 }
 
 .hp-input,
 .temp-hp-input {
+  composes: wizard-input from './CharacterWizardBase.module.css';
   width: 60px;
-  padding: 4px 8px;
   text-align: center;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  font-size: 16px;
-  font-weight: 600;
+  padding: var(--space-2xs) var(--space-xs);
 }
 
 .hp-input:focus,
 .temp-hp-input:focus {
   outline: none;
-  border-color: #8b0000;
+  border-color: var(--red-800);
 }
 
 .hp-max {
-  font-size: 16px;
-  font-weight: 600;
-  color: #666;
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
 }
 
 .temp-hp {
-  color: #17a2b8;
+  color: var(--teal-600);
 }
 
 /* Participant Status */
 .participant-status {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  composes: wizard-column from './CharacterWizardBase.module.css';
 }
 
 .conditions-section {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   flex-wrap: wrap;
-  gap: 8px;
   align-items: center;
 }
 
 .conditions-list {
-  display: flex;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-2xs);
 }
 
 .condition-tag {
-  background: #6f42c1;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
+  composes: wizard-badge-info from './CharacterWizardBase.module.css';
+  background: var(--purple-600);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-2xs);
 }
 
 .condition-tag button {
   background: none;
   border: none;
-  color: white;
+  color: var(--text-inverse-primary);
   cursor: pointer;
-  padding: 0 2px;
-  font-weight: 700;
+  padding: 0 var(--space-3xs);
+  font-weight: var(--font-bold);
 }
 
 .add-condition {
@@ -438,30 +406,27 @@
 }
 
 .condition-input {
+  composes: wizard-input from './CharacterWizardBase.module.css';
   width: 100%;
-  padding: 6px 12px;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  font-size: 12px;
 }
 
 .condition-input:focus {
   outline: none;
-  border-color: #6f42c1;
+  border-color: var(--purple-600);
 }
 
 .hp-bar {
   width: 100%;
   height: 8px;
-  background: #e9ecef;
-  border-radius: 4px;
+  background: var(--gray-200);
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
 .hp-fill {
   height: 100%;
-  background: linear-gradient(90deg, #dc3545 0%, #28a745 50%, #28a745 100%);
-  transition: width 0.3s ease;
+  background: linear-gradient(90deg, var(--red-600) 0%, var(--green-600) 50%, var(--green-600) 100%);
+  transition: width var(--transition-normal);
 }
 
 /* Responsive Design */
@@ -473,8 +438,8 @@
   
   .combat-header {
     flex-direction: column;
-    gap: 16px;
-    padding: 16px;
+    gap: var(--space-md);
+    padding: var(--space-md);
   }
   
   .combat-info {
@@ -483,12 +448,12 @@
   
   .setup-content,
   .combat-content {
-    padding: 16px;
+    padding: var(--space-md);
   }
   
   .participant-setup {
     flex-direction: column;
-    gap: 16px;
+    gap: var(--space-md);
   }
   
   .participant-controls {
@@ -498,8 +463,18 @@
   
   .participant-header {
     flex-direction: column;
-    gap: 12px;
+    gap: var(--space-md);
   }
+  
+  .participant-vital-stats {
+    width: 100%;
+    justify-content: space-around;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
   
   .participant-vital-stats {
     gap: 16px;

@@ -28,7 +28,7 @@
   composes: wizard-badge-success from './CharacterWizardBase.module.css';
   background: linear-gradient(135deg, var(--green-700) 0%, var(--green-600) 100%);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--tracking-wide);
   animation: pulse 2s infinite;
 }
 
@@ -62,8 +62,8 @@
 }
 
 .quick-add-toggle {
-  width: 48px;
-  height: 48px;
+  width: var(--size-12);
+  height: var(--size-12);
   background: var(--color-primary);
   color: var(--text-inverse-primary);
   border: none;
@@ -84,67 +84,63 @@
   top: 100%;
   right: 0;
   z-index: 10;
-  background: white;
-  border: 2px solid #dee2e6;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  padding: 16px;
-  margin-top: 8px;
-  min-width: 280px;
+  composes: wizard-card from './CharacterWizardBase.module.css';
+  box-shadow: var(--shadow-lg);
+  margin-top: var(--space-xs);
+  min-width: var(--size-70);
 }
 
 .quick-add-header {
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 12px;
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-sm);
   text-align: center;
 }
 
 .quick-add-buttons {
-  display: grid;
+  composes: wizard-grid from './CharacterWizardBase.module.css';
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
 }
 
 .quick-add-btn {
-  padding: 8px 12px;
-  border: 2px solid;
-  background: white;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 600;
+  padding: var(--space-xs) var(--space-sm);
+  border: var(--border-width-md) solid;
+  background: var(--bg-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-normal) ease;
 }
 
 .quick-add-btn.small {
-  border-color: #28a745;
-  color: #28a745;
+  border-color: var(--green-600);
+  color: var(--green-600);
 }
 
 .quick-add-btn.small:hover {
-  background: #28a745;
-  color: white;
+  background: var(--green-600);
+  color: var(--text-inverse-primary);
 }
 
 .quick-add-btn.medium {
-  border-color: #007bff;
-  color: #007bff;
+  border-color: var(--blue-600);
+  color: var(--blue-600);
 }
 
 .quick-add-btn.medium:hover {
-  background: #007bff;
-  color: white;
+  background: var(--blue-600);
+  color: var(--text-inverse-primary);
 }
 
 .quick-add-btn.large {
-  border-color: #dc3545;
-  color: #dc3545;
+  border-color: var(--red-600);
+  color: var(--red-600);
 }
 
 .quick-add-btn.large:hover {
-  background: #dc3545;
-  color: white;
+  background: var(--red-600);
+  color: var(--text-inverse-primary);
 }
 
 /* Level Info Styles */
@@ -152,8 +148,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 24px;
-  margin-bottom: 24px;
+  gap: var(--space-xl);
+  margin-bottom: var(--space-xl);
 }
 
 .current-level,
@@ -161,40 +157,40 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .level-number {
-  width: 80px;
-  height: 80px;
-  background: linear-gradient(135deg, #8b0000 0%, #a00000 100%);
-  color: white;
-  border-radius: 50%;
+  width: var(--size-20);
+  height: var(--size-20);
+  background: linear-gradient(135deg, var(--red-900) 0%, var(--red-800) 100%);
+  color: var(--text-inverse-primary);
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
-  font-weight: 700;
-  box-shadow: 0 4px 15px rgba(139, 0, 0, 0.3);
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  box-shadow: var(--shadow-lg);
 }
 
 .next-level .level-number {
-  background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
-  box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+  background: linear-gradient(135deg, var(--gray-600) 0%, var(--gray-700) 100%);
+  box-shadow: var(--shadow-lg);
 }
 
 .level-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: #666;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--tracking-wide);
 }
 
 .level-arrow {
-  font-size: 24px;
-  color: #8b0000;
-  font-weight: 700;
+  font-size: var(--text-2xl);
+  color: var(--red-900);
+  font-weight: var(--font-bold);
 }
 
 /* Progress Styles */
@@ -214,7 +210,7 @@
 
 .progress-bar {
   composes: wizard-progress-bar from './CharacterWizardBase.module.css';
-  height: 24px;
+  height: var(--size-6);
 }
 
 .progress-fill {
@@ -231,8 +227,8 @@
 }
 
 @keyframes ready-glow {
-  0% { box-shadow: 0 0 10px rgba(40, 167, 69, 0.5); }
-  100% { box-shadow: 0 0 20px rgba(40, 167, 69, 0.8); }
+  0% { box-shadow: var(--shadow-md); }
+  100% { box-shadow: var(--shadow-lg); }
 }
 
 .progress-footer {
@@ -259,7 +255,7 @@
   padding: var(--space-lg);
   background: linear-gradient(135deg, var(--yellow-500) 0%, var(--yellow-400) 100%);
   border-radius: var(--radius-md);
-  border: 2px solid var(--yellow-600);
+  border: var(--border-width-md) solid var(--yellow-600);
   margin-bottom: var(--space-xl);
 }
 
@@ -282,7 +278,7 @@
 
 /* Milestones Styles */
 .xp-milestones {
-  border-top: 2px solid var(--border-secondary);
+  border-top: var(--border-width-md) solid var(--border-secondary);
   padding-top: var(--space-md);
 }
 
@@ -296,7 +292,7 @@
 
 .milestone-grid {
   composes: wizard-grid from './CharacterWizardBase.module.css';
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-25), 1fr));
 }
 
 .milestone {
@@ -305,7 +301,7 @@
   gap: var(--space-xs);
   padding: var(--space-sm);
   background: var(--bg-secondary);
-  border: 2px solid var(--border-secondary);
+  border: var(--border-width-md) solid var(--border-secondary);
   border-radius: var(--radius-md);
   transition: all var(--transition-normal) ease;
 }
@@ -368,7 +364,7 @@
 }
 
 .xp-progress-compact .progress-bar {
-  height: 8px;
+  height: var(--size-2);
   margin-bottom: var(--space-xs);
 }
 
@@ -392,17 +388,17 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .xpTracker {
-    padding: 16px;
+    padding: var(--space-lg);
   }
   
   .level-info {
-    gap: 16px;
+    gap: var(--space-lg);
   }
   
   .level-number {
-    width: 60px;
-    height: 60px;
-    font-size: 20px;
+    width: var(--size-15);
+    height: var(--size-15);
+    font-size: var(--text-xl);
   }
   
   .quick-add-panel {
@@ -421,7 +417,7 @@
   
   .progress-header {
     flex-direction: column;
-    gap: 4px;
+    gap: var(--space-1);
     text-align: center;
   }
 }

@@ -15,7 +15,7 @@
 /* Header */
 .manager-header {
   composes: wizard-header-primary from './CharacterWizardBase.module.css';
-  border-bottom: 2px solid var(--brown-800);
+  border-bottom: var(--border-width-md) solid var(--brown-800);
   padding: var(--space-lg);
 }
 
@@ -36,8 +36,8 @@
 .close-manager {
   composes: wizard-close-button from './CharacterWizardBase.module.css';
   background: var(--hover-overlay-light);
-  width: 32px;
-  height: 32px;
+  width: var(--size-8);
+  height: var(--size-8);
 }
 
 .close-manager:hover {
@@ -71,48 +71,41 @@
 }
 
 .weapons-header {
-  display: flex;
-  align-items: center;
+  composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: space-between;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-lg);
 }
 
 .weapons-header h3 {
   margin: 0;
   color: var(--text-primary);
-  font-size: 1.3rem;
+  font-size: var(--text-xl);
 }
 
 .weapon-count {
+  composes: wizard-badge from './CharacterWizardBase.module.css';
   color: var(--text-secondary);
-  font-size: 0.9rem;
-  padding: 0.25rem 0.75rem;
+  font-size: var(--text-sm);
   background: var(--bg-secondary);
-  border-radius: 12px;
 }
 
 .weapons-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1rem;
+  composes: wizard-grid from './CharacterWizardBase.module.css';
+  grid-template-columns: repeat(auto-fill, minmax(var(--size-87), 1fr));
 }
 
 .weapon-card {
-  padding: 1rem;
-  background: var(--bg-secondary);
-  border: 2px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
+  composes: wizard-card-interactive from './CharacterWizardBase.module.css';
+  transition: all var(--transition-normal);
 }
 
 .weapon-card:hover {
-  border-color: #8B0000;
+  border-color: var(--red-900);
   box-shadow: 0 2px 8px rgba(139, 0, 0, 0.2);
 }
 
 .weapon-card.selected {
-  border-color: #8B0000;
+  border-color: var(--red-900);
   background: linear-gradient(135deg, rgba(139, 0, 0, 0.1), rgba(165, 42, 42, 0.05));
   box-shadow: 0 2px 8px rgba(139, 0, 0, 0.3);
 }
@@ -121,79 +114,79 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--space-md);
 }
 
 .weapon-header h4 {
   margin: 0;
   color: var(--text-primary);
-  font-size: 1.1rem;
+  font-size: var(--text-lg);
 }
 
 .weapon-type {
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  padding: var(--space-1) var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
   text-transform: uppercase;
 }
 
 .weapon-type.melee {
-  background: #8B4513;
-  color: white;
+  background: var(--brown-700);
+  color: var(--text-inverse-primary);
 }
 
 .weapon-type.ranged {
-  background: #2F4F4F;
-  color: white;
+  background: var(--gray-700);
+  color: var(--text-inverse-primary);
 }
 
 .weapon-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
 }
 
 .weapon-stat {
   display: flex;
   justify-content: space-between;
-  padding: 0.5rem;
+  padding: var(--space-sm);
   background: var(--bg-tertiary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .stat-label {
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
 }
 
 .stat-value {
   color: var(--text-primary);
-  font-weight: 600;
+  font-weight: var(--font-semibold);
 }
 
 .weapon-properties {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
-  margin-top: 0.5rem;
+  gap: var(--space-1);
+  margin-top: var(--space-sm);
 }
 
 .property-tag {
-  padding: 0.2rem 0.5rem;
+  padding: var(--space-0-5) var(--space-sm);
   background: var(--accent-primary);
-  color: white;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 500;
+  color: var(--text-inverse-primary);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
 }
 
 .versatile-damage {
-  margin-top: 0.5rem;
-  padding: 0.5rem;
+  margin-top: var(--space-sm);
+  padding: var(--space-sm);
   background: var(--bg-tertiary);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -201,7 +194,7 @@
 
 .no-weapons {
   text-align: center;
-  padding: 3rem;
+  padding: var(--space-3xl);
   color: var(--text-secondary);
   font-style: italic;
 }
@@ -210,23 +203,23 @@
 .attacks-tab {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: var(--space-lg);
 }
 
 .attack-controls h3 {
-  margin: 0 0 1rem 0;
+  margin: 0 0 var(--space-md) 0;
   color: var(--text-primary);
-  font-size: 1.3rem;
+  font-size: var(--text-xl);
 }
 
 .attack-settings {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr;
-  gap: 1rem;
-  padding: 1rem;
+  gap: var(--space-md);
+  padding: var(--space-md);
   background: var(--bg-secondary);
-  border-radius: 8px;
-  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  border: var(--border-width-sm) solid var(--border);
 }
 
 .weapon-selector,
@@ -234,105 +227,105 @@
 .advantage-selector {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-sm);
 }
 
 .attack-settings label {
   color: var(--text-secondary);
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
 }
 
 .attack-settings select,
 .attack-settings input {
-  padding: 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  padding: var(--space-sm);
+  border: var(--border-width-sm) solid var(--border);
+  border-radius: var(--radius-sm);
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
 }
 
 .attack-settings select:focus,
 .attack-settings input:focus {
   outline: none;
-  border-color: #8B0000;
-  box-shadow: 0 0 0 2px rgba(139, 0, 0, 0.2);
+  border-color: var(--red-900);
+  box-shadow: var(--shadow-focus-ring);
 }
 
 .selected-weapon-display {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.5rem;
-  background: linear-gradient(135deg, rgba(139, 0, 0, 0.1), rgba(165, 42, 42, 0.05));
-  border: 2px solid #8B0000;
-  border-radius: 8px;
+  padding: var(--space-lg);
+  background: linear-gradient(135deg, var(--red-100), var(--red-50));
+  border: var(--border-width-md) solid var(--red-900);
+  border-radius: var(--radius-md);
 }
 
 .weapon-info h4 {
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 var(--space-sm) 0;
   color: var(--text-primary);
-  font-size: 1.2rem;
+  font-size: var(--text-xl);
 }
 
 .weapon-details {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
 }
 
 .attack-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--space-md);
 }
 
 .attack-btn {
-  padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #8B0000, #A52A2A);
-  color: white;
+  padding: var(--space-md) var(--space-lg);
+  background: linear-gradient(135deg, var(--red-900), var(--red-800));
+  color: var(--text-inverse-primary);
   border: none;
-  border-radius: 6px;
-  font-weight: 600;
+  border-radius: var(--radius-md);
+  font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: all 0.2s;
-  font-size: 1rem;
+  transition: all var(--transition-fast);
+  font-size: var(--text-base);
 }
 
 .attack-btn:hover {
-  background: linear-gradient(135deg, #A52A2A, #CD5C5C);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(139, 0, 0, 0.3);
+  background: linear-gradient(135deg, var(--red-800), var(--red-700));
+  transform: translateY(calc(-1 * var(--space-0-5)));
+  box-shadow: var(--shadow-lg);
 }
 
 .dice-roller-btn {
-  padding: 0.75rem 1.5rem;
+  padding: var(--space-md) var(--space-lg);
   background: var(--bg-secondary);
   color: var(--text-primary);
-  border: 2px solid var(--border);
-  border-radius: 6px;
-  font-weight: 500;
+  border: var(--border-width-md) solid var(--border);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-medium);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
 }
 
 .dice-roller-btn:hover {
-  border-color: #8B0000;
+  border-color: var(--red-900);
   background: var(--bg-tertiary);
 }
 
 .dice-roller-container {
-  padding: 1rem;
+  padding: var(--space-md);
   background: var(--bg-secondary);
-  border-radius: 8px;
-  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  border: var(--border-width-sm) solid var(--border);
 }
 
 .no-weapon-selected {
   text-align: center;
-  padding: 3rem;
+  padding: var(--space-3xl);
   color: var(--text-secondary);
   font-style: italic;
 }
@@ -341,7 +334,7 @@
 .history-tab {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-md);
 }
 
 .history-header {
@@ -353,142 +346,142 @@
 .history-header h3 {
   margin: 0;
   color: var(--text-primary);
-  font-size: 1.3rem;
+  font-size: var(--text-xl);
 }
 
 .history-actions {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--space-md);
 }
 
 .history-count {
   color: var(--text-secondary);
-  font-size: 0.9rem;
-  padding: 0.25rem 0.75rem;
+  font-size: var(--text-sm);
+  padding: var(--space-1) var(--space-md);
   background: var(--bg-secondary);
-  border-radius: 12px;
+  border-radius: var(--radius-full);
 }
 
 .clear-history-btn {
-  padding: 0.5rem 1rem;
+  padding: var(--space-sm) var(--space-md);
   background: var(--bg-secondary);
   color: var(--text-primary);
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  border: var(--border-width-sm) solid var(--border);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.2s;
+  font-size: var(--text-sm);
+  transition: all var(--transition-fast);
 }
 
 .clear-history-btn:hover {
-  background: #dc3545;
-  color: white;
-  border-color: #dc3545;
+  background: var(--red-600);
+  color: var(--text-inverse-primary);
+  border-color: var(--red-600);
 }
 
 .history-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-md);
   max-height: 60vh;
   overflow-y: auto;
 }
 
 .attack-record {
-  padding: 1rem;
+  padding: var(--space-md);
   background: var(--bg-secondary);
-  border-radius: 8px;
-  border-left: 4px solid var(--border);
-  transition: all 0.2s;
+  border-radius: var(--radius-md);
+  border-left: var(--border-width-xl) solid var(--border);
+  transition: all var(--transition-fast);
 }
 
 .attack-record.hit {
-  border-left-color: #28a745;
-  background: linear-gradient(90deg, rgba(40, 167, 69, 0.1), var(--bg-secondary));
+  border-left-color: var(--green-600);
+  background: linear-gradient(90deg, var(--green-100), var(--bg-secondary));
 }
 
 .attack-record.miss {
-  border-left-color: #dc3545;
-  background: linear-gradient(90deg, rgba(220, 53, 69, 0.1), var(--bg-secondary));
+  border-left-color: var(--red-600);
+  background: linear-gradient(90deg, var(--red-100), var(--bg-secondary));
 }
 
 .attack-summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--space-md);
 }
 
 .attack-weapon {
-  font-weight: 600;
+  font-weight: var(--font-semibold);
   color: var(--text-primary);
-  font-size: 1rem;
+  font-size: var(--text-base);
 }
 
 .attack-time {
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-size: var(--text-xs);
 }
 
 .attack-result {
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 700;
+  padding: var(--space-1) var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
   text-transform: uppercase;
 }
 
 .attack-result.hit {
-  background: #28a745;
-  color: white;
+  background: var(--green-600);
+  color: var(--text-inverse-primary);
 }
 
 .attack-result.miss {
-  background: #dc3545;
-  color: white;
+  background: var(--red-600);
+  color: var(--text-inverse-primary);
 }
 
 .attack-details {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-sm);
 }
 
 .attack-roll,
 .damage-roll {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
 }
 
 .roll-label {
   color: var(--text-secondary);
-  font-weight: 500;
-  min-width: 60px;
+  font-weight: var(--font-medium);
+  min-width: var(--size-15);
 }
 
 .roll-value {
   color: var(--text-primary);
   font-family: 'Courier New', monospace;
-  font-weight: 600;
+  font-weight: var(--font-semibold);
 }
 
 .roll-value.critical {
-  color: #ffd700;
-  text-shadow: 0 0 4px rgba(255, 215, 0, 0.5);
+  color: var(--yellow-500);
+  text-shadow: var(--shadow-glow);
 }
 
 .vs-ac {
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-size: var(--text-xs);
   margin-left: auto;
 }
 
 .no-history {
   text-align: center;
-  padding: 3rem;
+  padding: var(--space-3xl);
   color: var(--text-secondary);
   font-style: italic;
 }
@@ -496,15 +489,15 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .manager-header {
-    padding: 1rem;
+    padding: var(--space-md);
   }
 
   .manager-title h2 {
-    font-size: 1.3rem;
+    font-size: var(--text-xl);
   }
 
   .manager-content {
-    padding: 1rem;
+    padding: var(--space-md);
   }
 
   .weapons-list {
@@ -513,13 +506,13 @@
 
   .attack-settings {
     grid-template-columns: 1fr;
-    gap: 0.75rem;
+    gap: var(--space-md);
   }
 
   .selected-weapon-display {
     flex-direction: column;
     align-items: stretch;
-    gap: 1rem;
+    gap: var(--space-md);
   }
 
   .attack-actions {
@@ -528,7 +521,7 @@
 
   .attack-summary {
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: var(--space-sm);
   }
 
   .attack-result {
@@ -544,7 +537,7 @@
 
   .attackManager .tab-button {
     white-space: nowrap;
-    min-width: 120px;
+    min-width: var(--size-30);
   }
 
   .attack-actions {

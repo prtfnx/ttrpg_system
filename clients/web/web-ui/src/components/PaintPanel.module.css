@@ -6,7 +6,7 @@
 /* Panel container with responsive variants */
 .paintPanel {
   composes: panel-container extra-wide from '../styles/PanelBase.module.css';
-  min-height: 400px;
+  min-height: var(--space-5xl);
   max-height: 90vh;
   transition: width var(--transition-normal);
 }
@@ -195,7 +195,7 @@
   padding: var(--spacing-md) var(--spacing-lg);
   background: var(--bg-tertiary);
   border-radius: var(--radius-md);
-  border-left: 4px solid var(--border-secondary);
+  border-left: var(--border-width-thick) solid var(--border-secondary);
   margin-bottom: var(--spacing-md);
   transition: all var(--transition-normal);
 }
@@ -225,10 +225,10 @@
 
 .paint-mode-indicator .mode-name {
   font-size: var(--font-size-sm);
-  font-weight: 700;
+  font-weight: var(--font-bold);
   color: var(--text-primary);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--tracking-wide);
 }
 
 .paint-mode-indicator .mode-settings {
@@ -257,21 +257,21 @@
   font-size: var(--text-2xs);
   font-weight: var(--font-bold);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  min-width: 40px;
+  letter-spacing: var(--tracking-wide);
+  min-width: var(--space-3xl);
   text-align: center;
 }
 
 .paint-mode-indicator .status-indicator.active {
   background: var(--status-success-bg);
   color: var(--status-success-text);
-  border: 1px solid var(--status-success-border);
+  border: var(--border-width) solid var(--status-success-border);
 }
 
 .paint-mode-indicator .status-indicator.inactive {
   background: var(--status-error-bg);
   color: var(--status-error-text);
-  border: 1px solid var(--status-error-border);
+  border: var(--border-width) solid var(--status-error-border);
 }
 
 /* Mode-specific styling */
@@ -329,17 +329,17 @@
 .status-indicator.active {
   background: var(--status-success-bg);
   color: var(--status-success-text);
-  border: 1px solid var(--status-success-border);
+  border: var(--border-width) solid var(--status-success-border);
 }
 
 .status-indicator.inactive {
   background: var(--status-error-bg);
   color: var(--status-error-text);
-  border: 1px solid var(--status-error-border);
+  border: var(--border-width) solid var(--status-error-border);
 }
 
 .drawing-indicator {
-  padding: 2px var(--space-sm);
+  padding: var(--space-2xs) var(--space-sm);
   background: var(--orange-500);
   color: var(--bg-primary);
   border-radius: var(--radius-full);
@@ -367,7 +367,7 @@
   margin: 0 0 var(--spacing-md) 0;
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
   padding-bottom: var(--spacing-xs);
 }
 
@@ -389,8 +389,8 @@
 }
 
 .color-input {
-  width: 60px;
-  height: 30px;
+  width: var(--space-4xl);
+  height: var(--space-2xl);
   border: none;
   border-radius: var(--radius-xs);
   cursor: pointer;
@@ -406,7 +406,7 @@
 .color-swatch {
   width: var(--space-xl);
   height: var(--space-xl);
-  border: 2px solid var(--border-secondary);
+  border: var(--border-width-thick) solid var(--border-secondary);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: transform var(--duration-fast), border-color var(--transition-fast);
@@ -493,7 +493,7 @@
   margin: 0 0 var(--spacing-md) 0;
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
   padding-bottom: var(--spacing-xs);
 }
 
@@ -528,7 +528,7 @@
   margin: 0 0 var(--spacing-md) 0;
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
   padding-bottom: var(--spacing-xs);
 }
 
@@ -546,7 +546,7 @@
   margin: 0 0 var(--spacing-md) 0;
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
   padding-bottom: var(--spacing-xs);
 }
 

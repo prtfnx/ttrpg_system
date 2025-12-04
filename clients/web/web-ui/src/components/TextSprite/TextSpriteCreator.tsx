@@ -243,7 +243,7 @@ export function TextSpriteCreator({
             {/* Left panel - Controls */}
             <div className="controls-panel">
               <div className="control-section">
-                <h3>Text Content</h3>
+                <h3 className={styles['control-section-title']}>Text Content</h3>
                 <div className="control-group">
                   <label htmlFor="text-content">Text:</label>
                   <textarea
@@ -258,7 +258,7 @@ export function TextSpriteCreator({
               </div>
 
               <div className="control-section">
-                <h3>Typography</h3>
+                <h3 className={styles['control-section-title']}>Typography</h3>
                 <div className="control-row">
                   <div className="control-group">
                     <label htmlFor="font-family">Font:</label>
@@ -334,7 +334,7 @@ export function TextSpriteCreator({
               </div>
 
               <div className="control-section">
-                <h3>Colors & Effects</h3>
+                <h3 className={styles['control-section-title']}>Colors & Effects</h3>
                 <div className="control-row">
                   <div className="control-group">
                     <label htmlFor="text-color">Text Color:</label>
@@ -438,7 +438,7 @@ export function TextSpriteCreator({
               </div>
 
               <div className="control-section">
-                <h3>Transform</h3>
+                <h3 className={styles['control-section-title']}>Transform</h3>
                 <div className="control-group">
                   <label htmlFor="rotation">Rotation: {config.rotation}°</label>
                   <input
@@ -466,7 +466,7 @@ export function TextSpriteCreator({
               </div>
 
               <div className="control-section">
-                <h3>Position</h3>
+                <h3 className={styles['control-section-title']}>Position</h3>
                 <div className="control-row">
                   <div className="control-group">
                     <label htmlFor="pos-x">X:</label>
@@ -492,7 +492,7 @@ export function TextSpriteCreator({
 
             {/* Right panel - Preview */}
             <div className="preview-panel">
-              <h3>Preview</h3>
+              <h3 className={styles['preview-panel-title']}>Preview</h3>
               <div className="preview-container">
                 <canvas
                   ref={canvasRef}

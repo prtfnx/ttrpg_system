@@ -1,179 +1,195 @@
-/* Text Sprite Creator Styles */
+/* Text Sprite Creator Styles - Using TextSpriteBase patterns */
+
 .textSpriteCreator {
   width: 100%;
-  max-width: 1000px;
+  max-width: var(--size-250);
   margin: 0 auto;
 }
 
 .creator-layout {
   display: flex;
-  gap: 2rem;
-  margin-bottom: 2rem;
+  gap: var(--space-2xl);
+  margin-bottom: var(--space-2xl);
 }
 
 /* Controls Panel */
 .controls-panel {
   flex: 1;
-  max-width: 400px;
+  max-width: var(--size-100);
 }
 
 .control-section {
-  margin-bottom: 2rem;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #e9ecef;
+  composes: control-section from './TextSpriteBase.module.css';
 }
 
-.control-section h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #495057;
-  border-bottom: 1px solid #dee2e6;
-  padding-bottom: 0.5rem;
+.control-section-title {
+  composes: control-section-header from './TextSpriteBase.module.css';
 }
 
 .control-group {
-  margin-bottom: 1rem;
+  composes: control-group from './TextSpriteBase.module.css';
 }
 
+/* Cannot compose on pseudo-selectors */
 .control-group:last-child {
   margin-bottom: 0;
 }
 
 .control-row {
-  display: flex;
-  gap: 1rem;
+  composes: control-row from './TextSpriteBase.module.css';
 }
 
+/* Cannot compose on child selectors - define directly */
 .control-row .control-group {
   flex: 1;
+  margin-bottom: 0;
 }
 
 .control-group label {
   display: block;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #495057;
-  margin-bottom: 0.5rem;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
 }
 
 .control-group input,
-.control-group select,
-.control-group textarea {
+.control-group select {
   width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  background: var(--gray-800);
+  border: var(--border-width-sm) solid var(--gray-700);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  outline: none;
+  transition: border-color var(--transition-fast);
 }
 
 .control-group input:focus,
-.control-group select:focus,
-.control-group textarea:focus {
+.control-group select:focus {
+  border-color: var(--blue-500);
+}
+
+.control-group textarea {
+  width: 100%;
+  min-height: var(--size-24);
+  background: var(--gray-800);
+  border: var(--border-width-sm) solid var(--gray-700);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  resize: vertical;
+  font-family: inherit;
+  transition: border-color var(--transition-fast);
+}
+
+.control-group textarea:focus {
+  border-color: var(--blue-500);
 }
 
 .text-input {
-  resize: vertical;
-  min-height: 80px;
-  font-family: inherit;
+  composes: textarea-input from './TextSpriteBase.module.css';
 }
 
 /* Color inputs */
 .color-input {
-  width: 50px !important;
-  height: 32px;
-  padding: 2px !important;
-  border-radius: 4px;
-  cursor: pointer;
+  composes: color-input from './TextSpriteBase.module.css';
 }
 
-/* Range sliders */
+/* Range sliders - cannot compose on element selectors */
 input[type="range"] {
+  width: 100%;
   -webkit-appearance: none;
   appearance: none;
-  height: 6px;
-  background: #e9ecef;
-  border-radius: 3px;
+  background: var(--gray-700);
   outline: none;
+  border-radius: var(--radius-full);
+  height: var(--size-1);
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 18px;
-  height: 18px;
-  background: #3b82f6;
-  border-radius: 50%;
+  width: var(--size-4-5);
+  height: var(--size-4-5);
+  background: var(--blue-500);
+  border-radius: var(--radius-full);
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background var(--transition-fast);
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
-  background: #2563eb;
+  background: var(--blue-600);
 }
 
 input[type="range"]::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  background: #3b82f6;
+  width: var(--size-4-5);
+  height: var(--size-4-5);
+  background: var(--blue-500);
   border: none;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background var(--transition-fast);
 }
 
 input[type="range"]::-moz-range-thumb:hover {
-  background: #2563eb;
+  background: var(--blue-600);
 }
 
 /* Alignment buttons */
 .alignment-buttons {
   display: flex;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .align-btn {
-  width: 40px;
-  height: 40px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  background: #fff;
+  width: var(--size-10);
+  height: var(--size-10);
+  border: var(--border-width-sm) solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
-  transition: all 0.15s ease;
+  font-size: var(--text-xl);
+  transition: all var(--transition-fast);
 }
 
 .align-btn:hover {
-  background: #f8f9fa;
-  border-color: #adb5bd;
+  background: var(--bg-secondary);
+  border-color: var(--border-secondary);
 }
 
 .align-btn.active {
-  background: #3b82f6;
-  border-color: #3b82f6;
-  color: white;
+  background: var(--blue-500);
+  border-color: var(--blue-500);
+  color: var(--white);
 }
 
 /* Shadow controls */
 .shadow-controls {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-sm);
   align-items: center;
-  margin-top: 0.5rem;
+  margin-top: var(--space-sm);
 }
 
+/* Cannot compose on child selectors */
 .shadow-controls input[type="color"] {
-  width: 40px !important;
-  height: 32px;
+  width: var(--size-9);
+  height: var(--size-7);
+  border: var(--border-width-sm) solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: none;
+}
+
+.shadow-controls input[type="color"]:hover {
+  border-color: var(--border-secondary);
 }
 
 .shadow-controls input[type="range"] {
@@ -183,96 +199,60 @@ input[type="range"]::-moz-range-thumb:hover {
 /* Preview Panel */
 .preview-panel {
   flex: 1;
-  min-width: 300px;
+  min-width: var(--size-75);
 }
 
-.preview-panel h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #495057;
+.preview-panel-title {
+  composes: control-section-header from './TextSpriteBase.module.css';
 }
 
 .preview-container {
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  padding: 1rem;
-  text-align: center;
-  min-height: 200px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  composes: preview-container from './TextSpriteBase.module.css';
 }
 
 .text-preview {
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  composes: preview-text from './TextSpriteBase.module.css';
 }
 
 .preview-info {
-  margin-top: 0.5rem;
+  margin-top: var(--space-sm);
   text-align: center;
-  color: #6c757d;
+  color: var(--text-secondary);
 }
 
 /* Action buttons */
 .creator-actions {
   display: flex;
-  gap: 1rem;
+  gap: var(--space-lg);
   justify-content: flex-end;
-  padding-top: 1rem;
-  border-top: 1px solid #e9ecef;
-}
-
-.btn-cancel,
-.btn-create {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
+  padding-top: var(--space-lg);
+  border-top: var(--border-width-sm) solid var(--border-primary);
 }
 
 .btn-cancel {
-  background: #6c757d;
-  color: white;
-}
-
-.btn-cancel:hover {
-  background: #5a6268;
+  composes: button-secondary from './TextSpriteBase.module.css';
 }
 
 .btn-create {
-  background: #28a745;
-  color: white;
+  composes: button-success from './TextSpriteBase.module.css';
 }
 
-.btn-create:hover:not(:disabled) {
-  background: #218838;
-}
-
+/* Cannot compose on pseudo-selectors */
 .btn-create:disabled {
-  background: #6c757d;
+  background: var(--gray-700);
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 /* Responsive design */
 @media (max-width: 768px) {
   .creator-layout {
     flex-direction: column;
-    gap: 1rem;
+    gap: var(--space-lg);
   }
   
   .controls-panel {
     max-width: none;
-  }
-  
-  .control-row {
-    flex-direction: column;
-    gap: 0.5rem;
   }
   
   .creator-actions {
@@ -287,8 +267,8 @@ input[type="range"]::-moz-range-thumb:hover {
 
 /* Checkboxes styling */
 input[type="checkbox"] {
-  width: auto !important;
-  margin-right: 0.5rem;
+  width: auto;
+  margin-right: var(--space-sm);
   cursor: pointer;
 }
 
@@ -300,5 +280,5 @@ input[type="checkbox"] {
 
 /* Number inputs */
 input[type="number"] {
-  width: 80px !important;
+  width: var(--size-20);
 }

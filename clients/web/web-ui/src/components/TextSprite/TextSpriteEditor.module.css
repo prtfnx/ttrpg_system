@@ -1,93 +1,58 @@
-/* Text Sprite Editor - Inline editing on canvas */
+/* Text Sprite Editor - Inline editing on canvas - Using TextSpriteBase patterns */
 
 .text-sprite-input input {
-  caret-color: #4299e1;
+  caret-color: var(--blue-500);
 }
 
 .text-sprite-input input::selection {
-  background: rgba(66, 153, 225, 0.3);
+  background: var(--blue-500-alpha-30);
 }
 
 /* Floating toolbar */
 .text-sprite-toolbar {
   pointer-events: all;
+  composes: fade-in from './TextSpriteBase.module.css';
 }
 
 .toolbar-container {
-  background: #1e1e1e;
-  border: 1px solid #333;
-  border-radius: 8px;
-  padding: 8px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  composes: toolbar-container from './TextSpriteBase.module.css';
 }
 
 .toolbar-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  composes: toolbar-group from './TextSpriteBase.module.css';
 }
 
+/* Cannot compose on child selectors - define directly */
 .toolbar-group label {
-  font-size: 12px;
-  color: #cbd5e0;
-  font-weight: 500;
+  font-size: var(--text-xs);
+  color: var(--gray-400);
+  font-weight: var(--font-medium);
 }
 
 .toolbar-select {
-  background: #2d2d2d;
-  border: 1px solid #444;
-  border-radius: 4px;
-  color: #e0e0e0;
-  padding: 4px 8px;
-  font-size: 13px;
-  outline: none;
-  cursor: pointer;
-  min-width: 60px;
-}
-
-.toolbar-select:hover {
-  border-color: #4299e1;
-}
-
-.toolbar-select:focus {
-  border-color: #4299e1;
-  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2);
+  composes: toolbar-select from './TextSpriteBase.module.css';
 }
 
 .toolbar-color {
-  width: 36px;
-  height: 28px;
-  border: 2px solid #444;
-  border-radius: 4px;
+  width: var(--size-9);
+  height: var(--size-7);
+  border: var(--border-width-md) solid var(--gray-700);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   background: none;
 }
 
 .toolbar-color:hover {
-  border-color: #4299e1;
+  border-color: var(--blue-500);
 }
 
 .toolbar-button {
-  background: #2d2d2d;
-  border: 1px solid #444;
-  border-radius: 4px;
-  color: #e0e0e0;
-  width: 32px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
+  composes: toolbar-button from './TextSpriteBase.module.css';
 }
 
 .toolbar-button:hover:not(:disabled) {
-  background: #3d3d3d;
-  border-color: #4299e1;
+  background: var(--gray-700);
+  border-color: var(--blue-500);
 }
 
 .toolbar-button:disabled {
@@ -96,40 +61,35 @@
 }
 
 .toolbar-button.active {
-  background: #4299e1;
-  border-color: #4299e1;
-  color: white;
+  composes: toolbar-button-active from './TextSpriteBase.module.css';
 }
 
 .toolbar-button.finish {
-  background: #48bb78;
-  border-color: #48bb78;
-  color: white;
-  font-weight: bold;
-  font-size: 16px;
+  background: var(--green-600);
+  border-color: var(--green-600);
+  color: var(--white);
+  font-weight: var(--font-bold);
+  font-size: var(--text-lg);
 }
 
 .toolbar-button.finish:hover:not(:disabled) {
-  background: #38a169;
-  transform: translateY(-1px);
+  background: var(--green-700);
+  transform: translateY(calc(-1 * var(--space-1)));
 }
 
 .toolbar-button.cancel {
-  background: #f56565;
-  border-color: #f56565;
-  color: white;
-  font-weight: bold;
+  background: var(--red-600);
+  border-color: var(--red-600);
+  color: var(--white);
+  font-weight: var(--font-bold);
 }
 
 .toolbar-button.cancel:hover {
-  background: #e53e3e;
+  background: var(--red-700);
 }
 
 .toolbar-divider {
-  width: 1px;
-  height: 24px;
-  background: #444;
-  margin: 0 4px;
+  composes: toolbar-divider from './TextSpriteBase.module.css';
 }
 
 .toolbar-hint {
@@ -137,10 +97,10 @@
   top: 100%;
   left: 0;
   right: 0;
-  margin-top: 4px;
+  margin-top: var(--space-1);
   text-align: center;
-  font-size: 11px;
-  color: #888;
+  font-size: var(--text-2xs);
+  color: var(--gray-500);
   white-space: nowrap;
   pointer-events: none;
 }
@@ -149,7 +109,7 @@
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(calc(-1 * var(--space-1)));
   }
   to {
     opacity: 1;
@@ -157,16 +117,15 @@
   }
 }
 
-.text-sprite-input,
-.text-sprite-toolbar {
-  animation: fadeIn 0.2s ease-out;
+.text-sprite-input {
+  animation: fadeIn var(--transition-fast) ease-out;
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .toolbar-container {
-    padding: 6px;
-    gap: 6px;
+    padding: var(--space-sm);
+    gap: var(--space-sm);
   }
 
   .toolbar-group label {

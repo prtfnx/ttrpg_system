@@ -60,8 +60,11 @@
   cursor: not-allowed;
 }
 
+/* Cannot compose on compound selectors */
 .toolbar-button.active {
-  composes: toolbar-button-active from './TextSpriteBase.module.css';
+  background: var(--blue-500);
+  border-color: var(--blue-500);
+  color: var(--white);
 }
 
 .toolbar-button.finish {

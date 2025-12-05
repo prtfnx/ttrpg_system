@@ -38,7 +38,7 @@
   font-size: var(--text-2xl);
   margin-bottom: var(--space-lg);
   font-weight: var(--font-semibold);
-  border-bottom: 2px solid var(--color-danger);
+  border-bottom: var(--border-width-thick) solid var(--color-danger);
   padding-bottom: var(--space-xs);
 }
 
@@ -55,7 +55,7 @@
   padding: var(--space-lg);
   background: var(--bg-secondary);
   border-radius: var(--radius-md);
-  border: 1px solid var(--border-secondary);
+  border: var(--border-width) solid var(--border-secondary);
   text-align: center;
 }
 
@@ -65,7 +65,7 @@
   color: var(--text-secondary);
   margin-bottom: var(--space-xs);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--tracking-wide);
 }
 
 .status-value {
@@ -113,7 +113,7 @@
 
 .xp-input:focus {
   border-color: var(--color-danger);
-  box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.1);
+  box-shadow: 0 0 0 var(--border-width-thick) var(--red-100);
 }
 
 .xp-quick-actions h4 {
@@ -128,7 +128,7 @@
 
 .quick-xp-btn {
   padding: var(--space-sm) var(--space-lg);
-  border: 2px solid var(--border-secondary);
+  border: var(--border-width-thick) solid var(--border-secondary);
   background: var(--bg-primary);
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
@@ -173,7 +173,7 @@
   padding: var(--space-lg);
   background: var(--bg-secondary);
   border-radius: var(--radius-md);
-  border: 1px solid var(--border-secondary);
+  border: var(--border-width) solid var(--border-secondary);
 }
 
 .progress-labels {
@@ -240,24 +240,24 @@
   transition: all var(--transition-normal) ease;
   border: none;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--tracking-wide);
 }
 
 .level-up-btn-primary {
   background: linear-gradient(135deg, var(--green-600) 0%, var(--green-500) 100%);
   color: var(--text-inverse-primary);
-  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+  box-shadow: var(--shadow-lg);
 }
 
 .level-up-btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+  transform: translateY(calc(var(--space-xs) * -0.5));
+  box-shadow: var(--shadow-xl);
 }
 
 .level-up-btn-secondary {
   composes: wizard-button-secondary from './CharacterWizardBase.module.css';
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--tracking-wide);
 }
 
 .level-up-btn-secondary:hover {

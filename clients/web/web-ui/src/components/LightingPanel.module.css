@@ -45,7 +45,7 @@
   background: var(--button-primary-bg);
   border-color: var(--button-primary-bg);
   color: var(--button-primary-text);
-  box-shadow: 0 2px 8px var(--accent-glow);
+  box-shadow: 0 var(--border-width-thick) var(--space-sm) var(--accent-glow);
 }
 
 .mode-button.active:hover {
@@ -55,7 +55,7 @@
 .cancel-button {
   background: var(--button-danger-bg);
   color: var(--button-danger-text);
-  border: 1px solid var(--button-danger-bg);
+  border: var(--border-width) solid var(--button-danger-bg);
   padding: var(--space-xs) var(--space-md);
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -91,7 +91,7 @@
   flex: 1;
   padding: var(--space-sm);
   background: var(--gray-900);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-md);
   color: var(--text-primary);
   transition: border-color var(--duration-base);
@@ -116,7 +116,7 @@
 
 .light-controls {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-sm);
 }
 
 /* Light list */
@@ -126,7 +126,7 @@
 
 .light-item {
   padding: var(--space-sm);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-md);
   margin-bottom: var(--space-sm);
   cursor: pointer;
@@ -142,7 +142,7 @@
 .light-item.selected {
   border-color: var(--accent-primary);
   background: var(--accent-bg-subtle);
-  box-shadow: 0 0 0 1px var(--accent-primary);
+  box-shadow: 0 0 0 var(--border-width) var(--accent-primary);
 }
 
 .light-header {
@@ -198,7 +198,7 @@
   width: var(--space-xl);
   height: var(--space-xl);
   border-radius: 50%;
-  border: 1px solid var(--border-secondary);
+  border: var(--border-width) solid var(--border-secondary);
 }
 
 .light-stats {
@@ -208,7 +208,7 @@
 
 /* Light properties */
 .light-properties {
-  border-top: 1px solid var(--border-primary);
+  border-top: var(--border-width) solid var(--border-primary);
   padding-top: var(--space-md);
 }
 
@@ -232,7 +232,7 @@
   flex: 1;
   padding: var(--space-xs);
   background: var(--gray-900);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   transition: border-color var(--duration-base);
@@ -253,7 +253,7 @@
 .color-controls input[type="color"] {
   width: 100%;
   height: var(--space-3xl);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-md);
   background: var(--gray-800);
   cursor: pointer;

@@ -42,7 +42,7 @@
 
 .demoSection h3 {
   composes: wizard-header-secondary from './CharacterWizardBase.module.css';
-  border-bottom: 3px solid var(--red-900);
+  border-bottom: var(--border-width-thick) solid var(--red-900);
 }
 
 /* Features Grid */
@@ -58,8 +58,8 @@
 
 .featureCard:hover {
   border-color: var(--red-900);
-  box-shadow: 0 4px 12px rgba(139, 0, 0, 0.15);
-  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(calc(var(--space-xs) * -1));
 }
 
 .featureCard h4 {
@@ -110,22 +110,22 @@
 
 /* Instructions */
 .instructions {
-  background: white;
-  padding: 2rem;
-  border-radius: 12px;
-  border: 2px solid #e5e7eb;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: var(--bg-primary);
+  padding: var(--space-2xl);
+  border-radius: var(--radius-lg);
+  border: var(--border-width-thick) solid var(--border-primary);
+  box-shadow: var(--shadow-md);
 }
 
 .instructions ol {
   margin: 0;
-  padding-left: 1.5rem;
+  padding-left: var(--space-xl);
 }
 
 .instructions li {
-  margin-bottom: 0.75rem;
-  line-height: 1.6;
-  color: #374151;
+  margin-bottom: var(--space-md);
+  line-height: var(--line-height-relaxed);
+  color: var(--text-primary);
 }
 
 .instructions li:last-child {
@@ -134,17 +134,17 @@
 
 /* Integration Info */
 .integrationInfo {
-  background: white;
-  padding: 2rem;
-  border-radius: 12px;
-  border: 2px solid #e5e7eb;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: var(--bg-primary);
+  padding: var(--space-2xl);
+  border-radius: var(--radius-lg);
+  border: var(--border-width-thick) solid var(--border-primary);
+  box-shadow: var(--shadow-md);
 }
 
 .integrationInfo p {
-  margin: 0 0 1rem 0;
-  color: #374151;
-  font-weight: 500;
+  margin: 0 0 var(--space-lg) 0;
+  color: var(--text-primary);
+  font-weight: var(--font-medium);
 }
 
 .integrationInfo ul {

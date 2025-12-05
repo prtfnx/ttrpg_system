@@ -26,14 +26,14 @@
   padding: var(--space-2xl);
   border-radius: var(--radius-md);
   background-color: var(--bg-elevated);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
 }
 
 .spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid var(--border-primary);
-  border-top: 4px solid var(--color-primary-light);
+  border: var(--border-width-thick) solid var(--border-primary);
+  border-top: var(--border-width-thick) solid var(--color-primary-light);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto var(--space-lg);
@@ -57,7 +57,7 @@
   align-items: center;
   margin-bottom: var(--space-2xl);
   padding-bottom: var(--space-lg);
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
 }
 
 .sessionHeader h2 {
@@ -74,7 +74,7 @@
 
 .sessionCard {
   background-color: var(--bg-elevated);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-md);
   padding: var(--space-xl);
   cursor: pointer;
@@ -88,11 +88,11 @@
 }
 
 .sessionCard.dm {
-  border-left: 4px solid var(--color-warning);
+  border-left: var(--border-width-thick) solid var(--color-warning);
 }
 
 .sessionCard.player {
-  border-left: 4px solid var(--color-success);
+  border-left: var(--border-width-thick) solid var(--color-success);
 }
 
 .sessionInfo h3 {
@@ -190,7 +190,7 @@
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-lg);
   background-color: var(--bg-elevated);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   font-size: var(--text-sm);
   z-index: var(--z-dropdown);

@@ -1,7 +1,7 @@
 /* LayerPanel Component Styles */
 .layerPanel {
   background-color: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-lg);
   padding: var(--spacing-md);
   /* Remove fixed height, now handled dynamically */
@@ -17,7 +17,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
   padding-bottom: var(--spacing-sm);
   margin-bottom: var(--spacing-sm);
 }
@@ -45,7 +45,7 @@
   padding: var(--space-sm);
   background-color: var(--bg-tertiary);
   border-radius: var(--radius-md);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
 }
 
 .activeLayerDisplay .label {
@@ -73,7 +73,7 @@
 .layerItem {
   position: relative;
   background-color: var(--bg-primary);
-  border: 1px solid var(--border-secondary);
+  border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-md);
   padding: var(--spacing-sm);
   cursor: pointer;
@@ -89,9 +89,9 @@
 .layerItem.active {
   background: linear-gradient(135deg, rgba(100, 108, 255, 0.15) 0%, rgba(100, 108, 255, 0.05) 100%);
   border-color: var(--accent-primary);
-  border-width: 2px;
-  padding: calc(var(--spacing-sm) - 1px);
-  box-shadow: 0 0 0 2px rgba(100, 108, 255, 0.3), 0 4px 12px rgba(100, 108, 255, 0.2);
+  border-width: var(--border-width-thick);
+  padding: calc(var(--spacing-sm) - var(--border-width));
+  box-shadow: 0 0 0 var(--border-width-thick) rgba(100, 108, 255, 0.3), 0 4px 12px rgba(100, 108, 255, 0.2);
   transform: scale(1.02);
 }
 
@@ -145,7 +145,7 @@
 
 .visibilityBtn {
   background: var(--button-ghost-bg);
-  border: 1px solid var(--button-ghost-border);
+  border: var(--border-width) solid var(--button-ghost-border);
   font-size: var(--text-base);
   cursor: pointer;
   padding: var(--space-xs);
@@ -175,7 +175,7 @@
   gap: var(--space-sm);
   margin-top: var(--space-xs);
   padding-top: var(--space-xs);
-  border-top: 1px solid var(--border-secondary);
+  border-top: var(--border-width) solid var(--border-secondary);
 }
 
 .opacityLabel {
@@ -228,7 +228,7 @@
 
 /* Footer */
 .layerPanelFooter {
-  border-top: 1px solid var(--border-primary);
+  border-top: var(--border-width) solid var(--border-primary);
   padding-top: var(--spacing-sm);
   margin-top: var(--spacing-sm);
 }

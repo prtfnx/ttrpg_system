@@ -13,7 +13,7 @@
 
 .assetManager {
   background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-md);
   width: 90vw;
   height: 90vh;
@@ -30,7 +30,7 @@
   justify-content: space-between;
   align-items: center;
   padding: var(--space-lg) var(--space-xl);
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
   background: var(--bg-tertiary);
 }
 
@@ -60,7 +60,7 @@
 .assetManagerTabs {
   display: flex;
   background: var(--bg-tertiary);
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
 }
 
 .tab {
@@ -69,7 +69,7 @@
   color: var(--text-secondary);
   padding: var(--space-md) var(--space-xl);
   cursor: pointer;
-  border-bottom: 2px solid transparent;
+  border-bottom: var(--border-width-thick) solid transparent;
   transition: all var(--duration-base) ease;
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
@@ -91,7 +91,7 @@
   color: var(--text-primary);
   padding: var(--space-md) var(--space-xl);
   margin: 0;
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
 }
 
 /* Cache Tab Styles */
@@ -111,7 +111,7 @@
   padding: var(--space-lg);
   background: var(--bg-tertiary);
   border-radius: var(--radius-md);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
 }
 
 .statItem {
@@ -158,7 +158,7 @@
   min-width: 200px;
   padding: var(--space-sm) var(--space-md);
   background: var(--bg-elevated);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--text-sm);
@@ -172,7 +172,7 @@
 .controlButton {
   padding: var(--space-sm) var(--space-lg);
   background: var(--bg-elevated);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   cursor: pointer;
@@ -205,7 +205,7 @@
 .assetList {
   flex: 1;
   overflow-y: auto;
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-md);
 }
 
@@ -214,7 +214,7 @@
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
   transition: background var(--duration-base) ease;
 }
 
@@ -244,7 +244,7 @@
 .removeAssetButton {
   padding: var(--space-xs) var(--space-md);
   background: var(--button-danger-bg);
-  border: 1px solid var(--button-danger-border);
+  border: var(--border-width) solid var(--button-danger-border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   cursor: pointer;
@@ -282,7 +282,7 @@
 .selectFilesButton {
   padding: var(--space-md) var(--space-xl);
   background: var(--button-success-bg);
-  border: 1px solid var(--button-success-border);
+  border: var(--border-width) solid var(--button-success-border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   cursor: pointer;
@@ -298,7 +298,7 @@
 .uploadList {
   flex: 1;
   overflow-y: auto;
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-md);
 }
 
@@ -307,7 +307,7 @@
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
 }
 
 .uploadItem:last-child {
@@ -319,7 +319,7 @@
   height: 48px;
   object-fit: cover;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
 }
 
 .uploadInfo {
@@ -351,7 +351,7 @@
 .uploadButton {
   padding: var(--space-xs) var(--space-md);
   background: var(--button-success-bg);
-  border: 1px solid var(--button-success-border);
+  border: var(--border-width) solid var(--button-success-border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   cursor: pointer;
@@ -366,7 +366,7 @@
 .cancel-button {
   padding: var(--space-xs) var(--space-md);
   background: var(--button-warning-bg);
-  border: 1px solid var(--button-warning-border);
+  border: var(--border-width) solid var(--button-warning-border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   cursor: pointer;
@@ -381,7 +381,7 @@
 .remove-button {
   padding: var(--space-xs) var(--space-md);
   background: var(--button-danger-bg);
-  border: 1px solid var(--button-danger-border);
+  border: var(--border-width) solid var(--button-danger-border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   cursor: pointer;
@@ -416,7 +416,7 @@
   margin: 0 0 var(--space-lg) 0;
   font-size: var(--text-lg);
   font-weight: var(--font-semibold);
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
   padding-bottom: var(--space-sm);
 }
 
@@ -424,7 +424,7 @@
   margin-bottom: var(--space-lg);
   padding: var(--space-md);
   background: var(--bg-tertiary);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-md);
 }
 

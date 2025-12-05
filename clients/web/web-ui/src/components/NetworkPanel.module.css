@@ -2,7 +2,7 @@
   max-width: 500px;
   margin: var(--space-xl);
   padding: var(--space-xl);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-lg);
   background-color: var(--bg-secondary);
   font-family: var(--font-family);
@@ -26,7 +26,7 @@
   padding: var(--space-md);
   background-color: var(--bg-tertiary);
   border-radius: var(--radius-md);
-  border: 1px solid var(--border-secondary);
+  border: var(--border-width) solid var(--border-secondary);
 }
 
 .status {
@@ -75,7 +75,7 @@
 .input-group textarea {
   width: 100%;
   padding: var(--space-sm);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
   box-sizing: border-box;

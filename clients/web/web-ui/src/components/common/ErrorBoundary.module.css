@@ -253,26 +253,26 @@
 
 .errorContent summary {
   cursor: pointer;
-  font-weight: 500;
-  color: #ffc107;
-  margin-bottom: 8px;
+  font-weight: var(--font-medium);
+  color: var(--yellow-500);
+  margin-bottom: var(--space-xs);
 }
 
 .errorContent .retryButton {
-  background: #007acc;
+  background: var(--blue-600);
   color: white;
   border: none;
-  border-radius: 6px;
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 500;
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
   cursor: pointer;
-  transition: background-color 0.2s ease;
-  margin-top: 16px;
+  transition: background-color var(--duration-fast) ease;
+  margin-top: var(--space-md);
 }
 
 .errorContent .retryButton:hover {
-  background: #005a9f;
+  background: var(--blue-700);
 }
 
 /* Responsive adjustments */
@@ -282,14 +282,14 @@
   .lightingPanelError,
   .fogPanelError,
   .compendiumPanelError {
-    margin: 8px;
-    padding: 16px;
-    min-height: 150px;
+    margin: var(--space-xs);
+    padding: var(--space-md);
+    min-height: var(--size-40);
   }
 
   .errorActions {
     flex-direction: column;
-    gap: 8px;
+    gap: var(--space-xs);
   }
 
   .retryButton,

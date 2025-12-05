@@ -27,7 +27,7 @@
 
 .dice-button:hover:not(:disabled) {
   border-color: var(--red-900);
-  transform: translateY(-1px);
+  transform: translateY(calc(var(--space-xs) * -0.25));
 }
 
 .dice-button:active:not(:disabled) {
@@ -84,7 +84,7 @@
 
 /* Dice icon */
 .dice-icon {
-  font-size: 24px;
+  font-size: var(--text-2xl);
   line-height: 1;
 }
 
@@ -94,7 +94,7 @@
 
 @keyframes bounce {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  50% { transform: translateY(calc(var(--space-sm) * -1)); }
 }
 
 /* Dice info */
@@ -121,11 +121,11 @@
 .diceResult {
   font-size: var(--text-3xl);
   font-weight: var(--font-bold);
-  min-width: 60px;
+  min-width: var(--space-4xl);
   text-align: center;
   padding: var(--space-xs);
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--bg-elevated-hover);
 }
 
 .diceResult.critical {
@@ -145,9 +145,9 @@
 }
 
 @keyframes criticalGlow {
-  0% { transform: scale(1); box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
-  50% { transform: scale(1.1); box-shadow: 0 0 20px rgba(255, 215, 0, 0.8); }
-  100% { transform: scale(1); box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+  0% { transform: scale(1); box-shadow: var(--shadow-md); }
+  50% { transform: scale(1.1); box-shadow: var(--shadow-xl); }
+  100% { transform: scale(1); box-shadow: var(--shadow-md); }
 }
 
 /* Roll details */
@@ -157,12 +157,12 @@
   left: 50%;
   transform: translateX(-50%);
   background: var(--bg-primary);
-  border: 2px solid var(--border-secondary);
+  border: var(--border-width-thick) solid var(--border-secondary);
   border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-md);
   box-shadow: var(--shadow-lg);
   z-index: 10;
-  min-width: 200px;
+  min-width: var(--size-50);
   margin-top: var(--space-xs);
   animation: slideDown 0.3s ease-out;
 }
@@ -170,7 +170,7 @@
 @keyframes slideDown {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(-10px);
+    transform: translateX(-50%) translateY(calc(var(--space-md) * -1));
   }
   to {
     opacity: 1;
@@ -237,7 +237,7 @@
   font-weight: var(--font-semibold);
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--tracking-wide);
 }
 
 .clear-history {
@@ -334,27 +334,27 @@
   }
   
   .dice-button {
-    padding: 10px 14px;
-    gap: 10px;
+    padding: var(--space-sm) var(--space-md);
+    gap: var(--space-sm);
   }
   
   .dice-icon {
-    font-size: 20px;
+    font-size: var(--text-lg);
   }
   
   .diceResult {
-    font-size: 24px;
-    min-width: 50px;
-    padding: 6px;
+    font-size: var(--text-2xl);
+    min-width: var(--space-3xl);
+    padding: var(--space-sm);
   }
   
   .roll-details {
-    min-width: 180px;
-    padding: 10px 12px;
+    min-width: var(--size-45);
+    padding: var(--space-sm) var(--space-md);
   }
   
   .dice-history {
-    max-height: 150px;
+    max-height: var(--size-37);
   }
 }
 

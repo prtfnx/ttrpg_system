@@ -5,13 +5,13 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--modal-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   opacity: 0;
-  transition: opacity 0.15s ease-in-out;
+  transition: opacity var(--duration-base) ease-in-out;
 }
 
 .modalOpen {
@@ -25,14 +25,14 @@
 /* Modal Content */
 .modalContent {
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2xl);
   max-height: 90vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transform: scale(0.9) translateY(-10px);
-  transition: transform 0.15s ease-in-out;
+  transform: scale(0.9) translateY(calc(var(--space-md) * -1));
+  transition: transform var(--duration-base) ease-in-out;
 }
 
 .modalOpen .modalContent {
@@ -40,7 +40,7 @@
 }
 
 .modalClosing .modalContent {
-  transform: scale(0.9) translateY(-10px);
+  transform: scale(0.9) translateY(calc(var(--space-md) * -1));
 }
 
 /* Modal Sizes */
@@ -71,46 +71,46 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  padding: var(--space-xl);
+  border-bottom: var(--border-width) solid var(--border-secondary);
   flex-shrink: 0;
 }
 
 .modalTitle {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1f2937;
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
 }
 
 .modalCloseButton {
   background: none;
   border: none;
-  font-size: 1.5rem;
-  width: 32px;
-  height: 32px;
+  font-size: var(--text-2xl);
+  width: var(--space-2xl);
+  height: var(--space-2xl);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #6b7280;
-  border-radius: 4px;
-  transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out;
+  color: var(--text-secondary);
+  border-radius: var(--radius-xs);
+  transition: background-color var(--duration-base) ease-in-out, color var(--duration-base) ease-in-out;
 }
 
 .modalCloseButton:hover {
-  background-color: #f3f4f6;
-  color: #374151;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 .modalCloseButton:focus {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
+  outline: var(--border-width-thick) solid var(--blue-600);
+  outline-offset: var(--space-xs);
 }
 
 /* Modal Body */
 .modalBody {
-  padding: 1.5rem;
+  padding: var(--space-xl);
   overflow-y: auto;
   flex: 1;
 }
@@ -118,22 +118,22 @@
 /* Responsive Design */
 @media (max-width: 640px) {
   .modalContent {
-    margin: 1rem;
-    width: calc(100% - 2rem);
-    max-height: calc(100vh - 2rem);
+    margin: var(--space-md);
+    width: calc(100% - var(--space-2xl));
+    max-height: calc(100vh - var(--space-2xl));
   }
   
   .modalHeader {
-    padding: 1rem;
+    padding: var(--space-md);
   }
   
   .modalBody {
-    padding: 1rem;
+    padding: var(--space-md);
   }
   
   .fullscreen {
-    margin: 0.5rem;
-    width: calc(100% - 1rem);
-    height: calc(100vh - 1rem);
+    margin: var(--space-sm);
+    width: calc(100% - var(--space-md));
+    height: calc(100vh - var(--space-md));
   }
 }

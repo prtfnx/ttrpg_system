@@ -46,8 +46,8 @@
 }
 
 .closeBtn:focus {
-  outline: 2px solid var(--accent-glow);
-  outline-offset: 2px;
+  outline: var(--border-width-thick) solid var(--accent-glow);
+  outline-offset: var(--border-width-thick);
 }
 
 /* Content area */
@@ -97,7 +97,7 @@
   font-size: var(--text-xl);
   font-weight: var(--font-semibold);
   color: var(--accent-secondary);
-  border-bottom: 2px solid var(--border-primary);
+  border-bottom: var(--border-width-thick) solid var(--border-primary);
   padding-bottom: var(--space-sm);
 }
 
@@ -110,7 +110,7 @@
 
 .config-option {
   background: linear-gradient(135deg, var(--gray-700) 0%, var(--gray-800) 100%);
-  border: 2px solid var(--border-primary);
+  border: var(--border-width-thick) solid var(--border-primary);
   border-radius: var(--radius-lg);
   padding: var(--space-md);
   cursor: pointer;
@@ -220,12 +220,12 @@
 .layersList {
   background: var(--bg-secondary);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   overflow: hidden;
 }
 
 .layer-item {
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
 }
 
 .layer-item:last-child {
@@ -294,7 +294,7 @@
 .layerDetails-panel {
   background: var(--bg-tertiary);
   padding: var(--space-md);
-  border-top: 1px solid var(--border-primary);
+  border-top: var(--border-width) solid var(--border-primary);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--space-md);
@@ -334,7 +334,7 @@
 
 .weatherEffect {
   background: linear-gradient(135deg, var(--gray-700) 0%, var(--gray-800) 100%);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-lg);
   padding: var(--space-md);
   display: flex;
@@ -396,7 +396,7 @@
 
 .add-weather-form {
   background: var(--bg-tertiary);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-lg);
   padding: var(--space-md);
   display: flex;
@@ -427,14 +427,14 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
+  gap: var(--space-lg);
   color: var(--text-on-overlay);
   backdrop-filter: blur(8px);
 }
 
 .loading-overlay p {
-  font-size: 1.125rem;
-  font-weight: 500;
+  font-size: var(--text-lg);
+  font-weight: var(--font-medium);
   color: var(--text-primary);
 }
 
@@ -446,11 +446,11 @@
   }
   
   .panelHeader {
-    padding: 1rem;
+    padding: var(--space-lg);
   }
   
   .panelContent {
-    padding: 1rem;
+    padding: var(--space-lg);
   }
   
   .configSelector {
@@ -459,7 +459,7 @@
   
   .metricsGrid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
+    gap: var(--space-md);
   }
   
   .settingsGrid {
@@ -468,7 +468,7 @@
   
   .layerDetails-panel {
     grid-template-columns: 1fr;
-    gap: 0.75rem;
+    gap: var(--space-md);
   }
 }
 
@@ -478,16 +478,16 @@
   }
   
   .layerHeader {
-    padding: 0.75rem;
+    padding: var(--space-md);
   }
   
   .layerDetails-panel {
-    padding: 0.75rem;
+    padding: var(--space-md);
   }
   
   .effect-controls {
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--space-sm);
   }
   
   .effect-controls input[type="range"] {

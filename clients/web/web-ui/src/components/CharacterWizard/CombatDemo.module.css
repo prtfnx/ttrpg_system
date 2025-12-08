@@ -155,7 +155,7 @@
 .integrationInfo li {
   margin-bottom: 0.5rem;
   line-height: 1.5;
-  color: #6b7280;
+  color: var(--gray-500);
 }
 
 .integrationInfo li:last-child {
@@ -222,58 +222,58 @@
 /* Dark Mode Support */
 @media (prefers-color-scheme: dark) {
   .combatDemo {
-    background: linear-gradient(135deg, #1f2937, #111827);
+    background: linear-gradient(135deg, var(--gray-800), var(--gray-900));
   }
 
   .featureCard,
   .characterDemoCard,
   .instructions,
   .integrationInfo {
-    background: #374151;
-    border-color: #4b5563;
-    color: #f9fafb;
+    background: var(--gray-700);
+    border-color: var(--gray-600);
+    color: var(--gray-50);
   }
 
   .demoSection h3 {
-    color: #f9fafb;
+    color: var(--gray-50);
   }
 
   .characterSummary h4 {
-    color: #f9fafb;
+    color: var(--gray-50);
   }
 
   .featureCard h4 {
-    color: #fca5a5;
+    color: var(--red-300);
   }
 
   .featureCard p,
   .characterSummary p,
   .instructions li,
   .integrationInfo li {
-    color: #d1d5db;
+    color: var(--gray-300);
   }
 
   .characterDescription {
-    color: #fca5a5 !important;
+    color: var(--red-300) !important;
   }
 }
 
 /* High Contrast Mode */
 @media (prefers-contrast: high) {
   .demoHeader {
-    background: #000000;
+    background: var(--gray-950);
   }
 
   .featureCard:hover {
-    border-color: #000000;
+    border-color: var(--gray-950);
   }
 
   .demoSection h3 {
-    border-bottom-color: #000000;
+    border-bottom-color: var(--gray-950);
   }
 
   .featureCard h4 {
-    color: #000000;
+    color: var(--gray-950);
   }
 }
 

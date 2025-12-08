@@ -35,7 +35,7 @@
 
 .choice-btn:hover {
   border-color: var(--blue-600);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .choice-btn-selected {
@@ -43,7 +43,7 @@
   border-color: var(--green-600);
   background: var(--green-50);
   color: var(--green-600);
-  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.2);
+  box-shadow: var(--shadow-lg);
 }
 
 /* ASI Selection */
@@ -123,7 +123,7 @@
 .improvement-btn {
   width: 35px;
   height: 35px;
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-full);
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -213,14 +213,14 @@
 
 .featCard:hover {
   border-color: var(--blue-600);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .featCard-selected {
   composes: featCard;
   border-color: var(--purple-600);
   background: var(--purple-50);
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+  box-shadow: var(--shadow-lg);
 }
 
 .feat-header {
@@ -359,7 +359,7 @@
 .feat-details {
   margin-top: var(--space-lg);
   padding-top: var(--space-lg);
-  border-top: 1px solid var(--border-secondary);
+  border-top: var(--border-width) solid var(--border-secondary);
 }
 
 .feat-benefits h5 {

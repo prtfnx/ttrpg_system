@@ -25,14 +25,14 @@
 
 .classCard:hover {
   border-color: var(--blue-600);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .classCard-selected {
   composes: classCard;
   border-color: var(--green-600);
   background: var(--green-50);
-  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.2);
+  box-shadow: var(--shadow-lg);
 }
 
 .class-header {
@@ -81,7 +81,7 @@
 .class-details {
   margin-top: var(--space-lg);
   padding-top: var(--space-lg);
-  border-top: 1px solid var(--border-secondary);
+  border-top: var(--border-width) solid var(--border-secondary);
 }
 
 .proficiencies-section {
@@ -167,7 +167,7 @@
 .selected-class-summary {
   composes: wizard-card from './CharacterWizard/CharacterWizardBase.module.css';
   background: var(--green-50);
-  border: 2px solid var(--green-600);
+  border: var(--border-width-thick) solid var(--green-600);
   margin: var(--space-lg) 0;
 }
 
@@ -215,14 +215,14 @@
 
 .subclass-card:hover {
   border-color: var(--blue-600);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .subclass-card-selected {
   composes: subclass-card;
   border-color: var(--purple-600);
   background: var(--purple-50);
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+  box-shadow: var(--shadow-lg);
 }
 
 .subclass-header {
@@ -250,7 +250,7 @@
 .subclass-features {
   margin-top: var(--space-lg);
   padding-top: var(--space-lg);
-  border-top: 1px solid var(--border-secondary);
+  border-top: var(--border-width) solid var(--border-secondary);
 }
 
 .subclass-features h5 {
@@ -293,7 +293,7 @@
   align-items: center;
   margin-top: 40px;
   padding-top: 20px;
-  border-top: 1px solid #ecf0f1;
+  border-top: var(--border-width) solid var(--border-secondary);
 }
 
 .btn {

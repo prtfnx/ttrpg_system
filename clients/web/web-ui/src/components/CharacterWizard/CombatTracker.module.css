@@ -94,8 +94,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
+  background: var(--gray-100);
+  border: 1px solid var(--border-secondary);
   border-radius: 8px;
 }
 
@@ -111,18 +111,18 @@
 }
 
 .participant-name .player {
-  color: #007bff;
+  color: var(--blue-600);
 }
 
 .participant-name .npc {
-  color: #dc3545;
+  color: var(--red-600);
 }
 
 .participant-stats {
   display: flex;
   gap: 16px;
   font-size: 14px;
-  color: #666;
+  color: var(--gray-600);
 }
 
 .participant-controls {
@@ -190,7 +190,7 @@
 .form-row input:focus {
   outline: none;
   border-color: var(--red-800);
-  box-shadow: 0 0 0 2px rgba(139, 0, 0, 0.1);
+  box-shadow: var(--focus-ring);
 }
 
 .form-actions {
@@ -221,7 +221,7 @@
 
 .start-combat-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(220, 53, 69, 0.3);
+  box-shadow: var(--shadow-xl);
 }
 
 .start-combat-btn:disabled {
@@ -262,7 +262,7 @@
   composes: participant-active;
   background: linear-gradient(135deg, var(--yellow-100) 0%, var(--yellow-200) 100%);
   border-color: var(--yellow-600);
-  box-shadow: 0 4px 20px rgba(255, 193, 7, 0.3);
+  box-shadow: var(--shadow-lg);
   transform: scale(1.02);
 }
 
@@ -496,9 +496,9 @@
 
 /* Animations */
 @keyframes turnHighlight {
-  0% { box-shadow: 0 4px 20px rgba(255, 193, 7, 0.3); }
-  50% { box-shadow: 0 6px 25px rgba(255, 193, 7, 0.5); }
-  100% { box-shadow: 0 4px 20px rgba(255, 193, 7, 0.3); }
+  0% { box-shadow: var(--shadow-lg); }
+  50% { box-shadow: var(--shadow-xl); }
+  100% { box-shadow: var(--shadow-lg); }
 }
 
 .participant-active.current-turn {

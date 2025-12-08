@@ -116,7 +116,7 @@
   justify-content: space-between;
   padding: var(--space-sm) var(--space-md);
   background: var(--bg-secondary);
-  border: 1px solid var(--border-secondary);
+  border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-md);
   transition: all var(--transition-normal) ease;
 }
@@ -309,7 +309,7 @@
   align-items: center;
   padding: var(--space-md) var(--space-lg);
   background: var(--bg-secondary);
-  border: 1px solid var(--border-secondary);
+  border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-md);
   transition: all var(--transition-normal) ease;
 }
@@ -411,7 +411,7 @@
   .sheet-header {
     padding: 16px 20px;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--space-sm);
     text-align: center;
   }
   
@@ -464,12 +464,12 @@
   
   .character-sheet .tab-button {
     text-align: center;
-    border-bottom: 1px solid #dee2e6;
+    border-bottom: var(--border-width) solid var(--border-secondary);
     border-right: none;
   }
   
   .character-sheet .tab-button.active {
-    border-bottom: 1px solid #8b0000;
+    border-bottom: var(--border-width) solid var(--red-800);
     border-right: none;
   }
   

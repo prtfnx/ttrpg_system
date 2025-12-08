@@ -298,7 +298,7 @@
   .instructions,
   .integrationInfo {
     box-shadow: none;
-    border: 1px solid #000000;
+    border: 1px solid var(--gray-950);
     break-inside: avoid;
   }
 }

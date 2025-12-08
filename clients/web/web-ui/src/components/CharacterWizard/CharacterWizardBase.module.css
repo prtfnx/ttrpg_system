@@ -580,7 +580,7 @@
 }
 
 .wizard-button-primary:hover {
-  transform: translateY(-1px);
+  transform: translateY(calc(var(--space-xs) * -0.25));
   box-shadow: var(--shadow-md);
 }
 

@@ -218,7 +218,7 @@
   margin-bottom: var(--spacing-lg);
   padding: var(--spacing-md);
   background: var(--bg-tertiary);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
 }
 
@@ -255,7 +255,7 @@
 .form-row input {
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--bg-tertiary);
-  border: 1px solid var(--border-secondary);
+  border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--font-size-sm);
@@ -319,7 +319,7 @@
   display: flex;
   flex-direction: column;
   background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-lg);
   overflow: hidden;
   cursor: pointer;
@@ -445,7 +445,7 @@
   max-height: 80px;
   height: 80px;
   background: var(--bg-primary);
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
   overflow: hidden;
   cursor: pointer;
   transition: background var(--transition-fast);
@@ -500,7 +500,7 @@
   gap: var(--space-xs);
   padding: var(--space-sm);
   background: var(--bg-tertiary);
-  border-top: 1px solid var(--border-primary);
+  border-top: var(--border-width) solid var(--border-primary);
 }
 
 .action-btn {
@@ -571,7 +571,7 @@
 
 .modal-content {
   background: var(--bg-secondary);
-  border: 1px solid var(--border-secondary);
+  border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-lg);
   padding: var(--spacing-2xl);
   max-width: 400px;
@@ -615,17 +615,17 @@
 }
 
 .tables-list::-webkit-scrollbar-track {
-  background: #1a1a1a;
+  background: var(--bg-primary);
   border-radius: var(--radius-xs);
 }
 
 .tables-list::-webkit-scrollbar-thumb {
-  background: #444;
+  background: var(--gray-600);
   border-radius: var(--radius-xs);
 }
 
 .tables-list::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: var(--gray-500);
 }
 
 /* Responsive Grid */
@@ -681,7 +681,7 @@
   overflow-y: auto;
   background: var(--bg-secondary) !important;
   color: var(--text-primary) !important;
-  border: 1px solid var(--border-secondary);
+  border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-lg);
   padding: var(--spacing-2xl);
 }
@@ -713,7 +713,7 @@
   width: 100%;
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--bg-tertiary);
-  border: 1px solid var(--border-secondary);
+  border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--font-size-sm);

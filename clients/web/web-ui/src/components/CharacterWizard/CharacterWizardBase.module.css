@@ -163,7 +163,7 @@
   color: var(--text-inverse-primary);
   padding: var(--space-xl) var(--space-lg) var(--space-lg) var(--space-lg);
   position: relative;
-  border-bottom: 4px solid var(--color-primary);
+  border-bottom: var(--border-width-thick) solid var(--color-primary);
 }
 
 /**
@@ -176,7 +176,7 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 4px;
+  height: var(--border-width-thick);
   background: linear-gradient(
     90deg,
     var(--color-primary),
@@ -206,7 +206,7 @@
   font-size: var(--text-3xl);
   font-weight: var(--font-bold);
   color: var(--text-inverse-primary);
-  letter-spacing: -0.5px;
+  letter-spacing: calc(var(--tracking-tight) * -0.25);
 }
 
 /**
@@ -252,7 +252,7 @@
  */
 .wizard-progress-bar {
   width: 100%;
-  height: 6px;
+  height: calc(var(--space-xs) * 1.5);
   background: var(--progress-bg);
   border-radius: var(--radius-sm);
   overflow: hidden;
@@ -281,7 +281,7 @@
 .wizard-tabs {
   display: flex;
   background: var(--bg-elevated);
-  border-bottom: 2px solid var(--border-primary);
+  border-bottom: var(--border-width-thick) solid var(--border-primary);
   overflow-x: auto;
 }
 
@@ -298,7 +298,7 @@
   cursor: pointer;
   transition: all var(--transition-fast);
   color: var(--text-secondary);
-  border-bottom: 3px solid transparent;
+  border-bottom: var(--border-width-thick) solid transparent;
   white-space: nowrap;
 }
 
@@ -370,7 +370,7 @@
   border-radius: var(--radius-md);
   padding: var(--space-lg);
   box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
 }
 
 /**
@@ -382,7 +382,7 @@
   border-radius: var(--radius-lg);
   padding: var(--space-xl);
   box-shadow: var(--shadow-md);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
 }
 
 /**
@@ -451,7 +451,7 @@
  * Used by: Content separation
  */
 .wizard-divider {
-  height: 1px;
+  height: var(--border-width);
   background: var(--border-primary);
   margin: var(--space-lg) 0;
 }
@@ -487,7 +487,7 @@
  */
 .wizard-input {
   padding: var(--space-sm) var(--space-md);
-  border: 2px solid var(--border-primary);
+  border: var(--border-width-thick) solid var(--border-primary);
   border-radius: var(--radius-md);
   font-size: var(--text-base);
   background: var(--input-bg);
@@ -517,7 +517,7 @@
  */
 .wizard-textarea {
   padding: var(--space-sm) var(--space-md);
-  border: 2px solid var(--border-primary);
+  border: var(--border-width-thick) solid var(--border-primary);
   border-radius: var(--radius-md);
   font-size: var(--text-base);
   background: var(--input-bg);
@@ -544,7 +544,7 @@
  */
 .wizard-select {
   padding: var(--space-sm) var(--space-md);
-  border: 2px solid var(--border-primary);
+  border: var(--border-width-thick) solid var(--border-primary);
   border-radius: var(--radius-md);
   font-size: var(--text-base);
   background: var(--input-bg);
@@ -604,7 +604,7 @@
   background: var(--bg-elevated);
   color: var(--text-primary);
   padding: var(--space-sm) var(--space-lg);
-  border: 2px solid var(--border-primary);
+  border: var(--border-width-thick) solid var(--border-primary);
   border-radius: var(--radius-md);
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
@@ -643,7 +643,7 @@
 }
 
 .wizard-button-success:hover {
-  transform: translateY(-1px);
+  transform: translateY(calc(var(--space-xs) * -0.25));
   box-shadow: var(--shadow-md);
 }
 
@@ -669,7 +669,7 @@
 }
 
 .wizard-button-danger:hover {
-  transform: translateY(-1px);
+  transform: translateY(calc(var(--space-xs) * -0.25));
   box-shadow: var(--shadow-md);
 }
 
@@ -787,11 +787,11 @@
  * Used by: Loading states, async operations
  */
 .wizard-spinner {
-  border: 3px solid var(--border-primary);
+  border: var(--border-width-thick) solid var(--border-primary);
   border-top-color: var(--color-primary);
   border-radius: 50%;
-  width: 40px;
-  height: 40px;
+  width: calc(var(--space-3xl) * 1.25);
+  height: calc(var(--space-3xl) * 1.25);
   animation: spin 0.8s linear infinite;
 }
 

@@ -59,7 +59,7 @@
   color: var(--red-900);
   margin-bottom: var(--space-md);
   font-size: var(--text-xl);
-  border-bottom: 2px solid var(--red-900);
+  border-bottom: var(--border-width-thick) solid var(--red-900);
   padding-bottom: var(--space-xs);
 }
 
@@ -77,8 +77,8 @@
 
 .ability-card:hover {
   border-color: var(--red-900);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(139, 0, 0, 0.1);
+  transform: translateY(calc(var(--space-xs) * -0.5));
+  box-shadow: var(--shadow-md);
 }
 
 .ability-name {
@@ -86,7 +86,7 @@
   font-weight: var(--font-bold);
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--tracking-wide);
   margin-bottom: var(--space-xs);
 }
 
@@ -101,7 +101,7 @@
   composes: wizard-badge from './CharacterWizardBase.module.css';
   font-weight: var(--font-semibold);
   color: var(--red-900);
-  background: rgba(139, 0, 0, 0.1);
+  background: var(--red-50);
 }
 
 .skills-grid,
@@ -143,7 +143,7 @@
 .save-bonus {
   composes: wizard-badge-primary from './CharacterWizardBase.module.css';
   font-weight: var(--font-bold);
-  background: rgba(139, 0, 0, 0.1);
+  background: var(--red-50);
   min-width: 40px;
   text-align: center;
 }
@@ -159,7 +159,7 @@
   color: var(--red-900);
   margin-bottom: var(--space-md);
   font-size: var(--text-xl);
-  border-bottom: 2px solid var(--red-900);
+  border-bottom: var(--border-width-thick) solid var(--red-900);
   padding-bottom: var(--space-xs);
 }
 
@@ -184,7 +184,7 @@
   font-weight: var(--font-bold);
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--tracking-wide);
   margin-bottom: var(--space-xs);
 }
 
@@ -204,7 +204,7 @@
   align-items: center;
   padding: var(--space-md) var(--space-lg);
   background: var(--bg-secondary);
-  border: 2px solid var(--border-secondary);
+  border: var(--border-width-thick) solid var(--border-secondary);
   border-radius: var(--radius-md);
   transition: all var(--transition-normal) ease;
 }
@@ -224,7 +224,7 @@
 .attack-damage {
   composes: wizard-badge-primary from './CharacterWizardBase.module.css';
   font-weight: var(--font-semibold);
-  background: rgba(139, 0, 0, 0.1);
+  background: var(--red-50);
 }
 
 /* Spells Tab */
@@ -238,7 +238,7 @@
   color: var(--red-900);
   margin-bottom: var(--space-md);
   font-size: var(--text-xl);
-  border-bottom: 2px solid var(--red-900);
+  border-bottom: var(--border-width-thick) solid var(--red-900);
   padding-bottom: var(--space-xs);
 }
 
@@ -294,7 +294,7 @@
   color: var(--red-900);
   margin-bottom: var(--space-md);
   font-size: var(--text-xl);
-  border-bottom: 2px solid var(--red-900);
+  border-bottom: var(--border-width-thick) solid var(--red-900);
   padding-bottom: var(--space-xs);
 }
 
@@ -378,7 +378,7 @@
   color: var(--red-900);
   margin-bottom: var(--space-md);
   font-size: var(--text-xl);
-  border-bottom: 2px solid var(--red-900);
+  border-bottom: var(--border-width-thick) solid var(--red-900);
   padding-bottom: var(--space-xs);
 }
 

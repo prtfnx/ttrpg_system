@@ -82,7 +82,7 @@
   align-items: flex-start;
   gap: var(--space-md);
   padding: var(--space-md);
-  border: 2px solid var(--border-secondary);
+  border: var(--border-width-thick) solid var(--border-secondary);
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all var(--transition-normal) ease;
@@ -211,7 +211,7 @@
 .import-status-loading {
   composes: wizard-badge-info from './CharacterWizardBase.module.css';
   background: var(--status-info-bg);
-  border: 1px solid var(--status-info-border);
+  border: var(--border-width) solid var(--status-info-border);
   color: var(--status-info-text);
   display: flex;
   align-items: center;
@@ -222,7 +222,7 @@
 .import-status-error {
   composes: wizard-badge-danger from './CharacterWizardBase.module.css';
   background: var(--status-danger-bg);
-  border: 1px solid var(--status-danger-border);
+  border: var(--border-width) solid var(--status-danger-border);
   color: var(--status-danger-text);
   padding: var(--space-md);
 }
@@ -240,8 +240,8 @@
 .spinner {
   width: var(--space-lg);
   height: var(--space-lg);
-  border: 2px solid var(--status-info-bg);
-  border-top: 2px solid var(--status-info-border);
+  border: var(--border-width-thick) solid var(--status-info-bg);
+  border-top: var(--border-width-thick) solid var(--status-info-border);
   border-radius: var(--radius-full);
   animation: spin var(--duration-normal) linear infinite;
 }
@@ -254,7 +254,7 @@
 .import-preview {
   composes: wizard-card from './CharacterWizardBase.module.css';
   background: var(--status-success-bg);
-  border: 1px solid var(--status-success-border);
+  border: var(--border-width) solid var(--status-success-border);
   margin-bottom: var(--space-lg);
 }
 
@@ -278,7 +278,7 @@
 .import-warnings {
   composes: wizard-badge-warning from './CharacterWizardBase.module.css';
   background: var(--status-warning-bg);
-  border: 1px solid var(--status-warning-border);
+  border: var(--border-width) solid var(--status-warning-border);
   padding: var(--space-sm);
   border-radius: var(--radius-sm);
   margin-bottom: var(--space-md);
@@ -330,7 +330,7 @@
   color: var(--color-danger);
   font-size: var(--text-base);
   margin-bottom: var(--space-md);
-  border-bottom: 1px solid var(--border-secondary);
+  border-bottom: var(--border-width) solid var(--border-secondary);
   padding-bottom: var(--space-xs);
 }
 
@@ -405,7 +405,7 @@
   justify-content: space-between;
   align-items: center;
   padding-top: var(--space-lg);
-  border-top: 1px solid var(--border-secondary);
+  border-top: var(--border-width) solid var(--border-secondary);
 }
 
 .nav-button-secondary {

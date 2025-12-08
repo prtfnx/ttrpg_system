@@ -106,7 +106,7 @@
 /* Removed global button selector - use scoped class instead */
 .networkButton {
   padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   background-color: var(--bg-tertiary);
   color: var(--text-primary);
@@ -132,7 +132,7 @@ button:disabled {
 }
 
 .connect:hover:not(:disabled) {
-  background-color: #059669;
+  background-color: var(--green-700);
 }
 
 .disconnect {
@@ -142,7 +142,7 @@ button:disabled {
 }
 
 .disconnect:hover:not(:disabled) {
-  background-color: #dc2626;
+  background-color: var(--red-700);
 }
 
 /* Sections */
@@ -154,12 +154,12 @@ button:disabled {
   padding: var(--space-lg);
   background-color: var(--bg-tertiary);
   border-radius: var(--radius-md);
-  border: 1px solid var(--border-secondary);
+  border: var(--border-width) solid var(--border-secondary);
 }
 
 /* Custom Message */
 .custom-message {
-  border-top: 1px solid var(--border-secondary);
+  border-top: var(--border-width) solid var(--border-secondary);
   padding-top: var(--space-lg);
   margin-top: var(--space-lg);
 }
@@ -191,14 +191,14 @@ button:disabled {
 .messages {
   max-height: 300px;
   overflow-y: auto;
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   background-color: var(--bg-tertiary);
 }
 
 .message {
   padding: var(--space-sm);
-  border-bottom: 1px solid var(--border-secondary);
+  border-bottom: var(--border-width) solid var(--border-secondary);
   font-size: var(--text-2xs);
 }
 

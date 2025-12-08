@@ -57,7 +57,7 @@
   color: var(--purple-950);
   margin: 0;
   font-size: var(--text-2xl);
-  border-bottom: 2px solid var(--purple-950);
+  border-bottom: var(--border-width-thick) solid var(--purple-950);
   padding-bottom: var(--space-xs);
   font-weight: var(--font-bold);
 }
@@ -98,7 +98,7 @@
 
 .spell-slot-level:hover {
   border-color: var(--purple-950);
-  box-shadow: 0 4px 12px rgba(74, 20, 140, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .slot-header {
@@ -128,7 +128,7 @@
   width: 32px;
   height: 32px;
   border-radius: var(--radius-full);
-  border: 2px solid var(--purple-950);
+  border: var(--border-width-thick) solid var(--purple-950);
   cursor: pointer;
   transition: all var(--transition-fast);
   display: flex;
@@ -199,7 +199,7 @@
   color: var(--purple-700);
   margin: 0 0 var(--space-xl) 0;
   font-size: var(--text-2xl);
-  border-bottom: 2px solid var(--purple-700);
+  border-bottom: var(--border-width-thick) solid var(--purple-700);
   padding-bottom: var(--space-xs);
 }
 
@@ -232,21 +232,21 @@
 
 .prepared-spell.cantrip {
   background: rgba(40, 167, 69, 0.1);
-  border: 2px solid var(--green-600);
+  border: var(--border-width-thick) solid var(--green-600);
 }
 
 .prepared-spell.known {
   background: rgba(33, 150, 243, 0.1);
-  border: 2px solid var(--blue-600);
+  border: var(--border-width-thick) solid var(--blue-600);
 }
 
 .prepared-spell.prepared {
   background: rgba(156, 39, 176, 0.1);
-  border: 2px solid var(--purple-600);
+  border: var(--border-width-thick) solid var(--purple-600);
 }
 
 .prepared-spell:hover {
-  transform: translateY(-2px);
+  transform: translateY(calc(var(--space-xs) * -0.5));
   box-shadow: var(--shadow-md);
 }
 
@@ -296,7 +296,7 @@
   justify-content: space-between;
   align-items: center;
   padding-bottom: var(--space-xl);
-  border-bottom: 2px solid var(--border-secondary);
+  border-bottom: var(--border-width-thick) solid var(--border-secondary);
 }
 
 .casting-controls h3 {
@@ -344,8 +344,8 @@
 
 .castable-spell-card:hover {
   border-color: var(--purple-700);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(74, 20, 140, 0.1);
+  transform: translateY(calc(var(--space-xs) * -0.5));
+  box-shadow: var(--shadow-lg);
 }
 
 .spell-header {
@@ -387,8 +387,8 @@
 }
 
 .cast-spell-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(74, 20, 140, 0.3);
+  transform: translateY(calc(var(--space-xs) * -0.25));
+  box-shadow: var(--shadow-lg);
 }
 
 .cast-spell-btn:disabled {
@@ -409,7 +409,7 @@
   composes: wizard-column from './CharacterWizardBase.module.css';
   gap: var(--space-lg);
   padding-bottom: var(--space-xl);
-  border-bottom: 2px solid var(--border-secondary);
+  border-bottom: var(--border-width-thick) solid var(--border-secondary);
 }
 
 .library-header h3 {
@@ -452,8 +452,8 @@
 
 .library-spell-card:hover {
   border-color: var(--purple-700);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(74, 20, 140, 0.1);
+  transform: translateY(calc(var(--space-xs) * -0.5));
+  box-shadow: var(--shadow-lg);
 }
 
 .library-spell-card .spell-header h4 {
@@ -629,12 +629,12 @@
   
   .spellManager .tab-button {
     text-align: center;
-    border-bottom: 1px solid #dee2e6;
+    border-bottom: var(--border-width) solid var(--border-secondary);
     border-right: none;
   }
   
   .spellManager .tab-button.active {
-    border-bottom: 1px solid #4a148c;
+    border-bottom: var(--border-width) solid var(--purple-900);
     border-right: none;
   }
   

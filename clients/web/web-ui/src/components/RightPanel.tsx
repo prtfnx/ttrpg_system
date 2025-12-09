@@ -9,6 +9,7 @@ import BackgroundManagementPanel from './BackgroundManagementPanel';
 import CharacterPanelRedesigned from './CharacterPanelRedesigned';
 import ChatPanel from './ChatPanel';
 import { CompendiumPanel } from './CompendiumPanel';
+import { CustomizePanel } from './CustomizePanel';
 import { EntitiesPanel } from './EntitiesPanel';
 import { FogPanel } from './FogPanel';
 import InitiativeTracker from './InitiativeTracker';
@@ -25,7 +26,7 @@ import TableSyncPanel from './TableSyncPanel';
 const isDevelopment = import.meta.env.DEV;
 
 export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
-  const [activeTab, setActiveTab] = useState<'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'sync' | 'players' | 'actions' | 'quick-actions' | 'queue' | 'compendium' | 'assets' | 'network' | 'initiative' | 'performance' | 'backgrounds' | 'measurement'>('tables');
+  const [activeTab, setActiveTab] = useState<'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'sync' | 'players' | 'actions' | 'quick-actions' | 'queue' | 'compendium' | 'assets' | 'network' | 'initiative' | 'performance' | 'backgrounds' | 'measurement' | 'customize'>('tables');
   const canvasRef = useRef<HTMLCanvasElement>(null!);
 
   return (
@@ -44,6 +45,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
         <button className={clsx(styles.tabButton, activeTab === 'measurement' && 'active')} onClick={() => setActiveTab('measurement')}>Measurement</button>
         <button className={clsx(styles.tabButton, activeTab === 'backgrounds' && 'active')} onClick={() => setActiveTab('backgrounds')}>Backgrounds</button>
         <button className={clsx(styles.tabButton, activeTab === 'performance' && 'active')} onClick={() => setActiveTab('performance')}>Performance</button>
+        <button className={clsx(styles.tabButton, activeTab === 'customize' && 'active')} onClick={() => setActiveTab('customize')}>Customize</button>
         {isDevelopment && <button className={clsx(styles.tabButton, activeTab === 'table-tools' && 'active')} onClick={() => setActiveTab('table-tools')}>Table Tools</button>}
         {isDevelopment && <button className={clsx(styles.tabButton, activeTab === 'sync' && 'active')} onClick={() => setActiveTab('sync')}>Sync</button>}
         {isDevelopment && <button className={clsx(styles.tabButton, activeTab === 'actions' && 'active')} onClick={() => setActiveTab('actions')}>Actions</button>}
@@ -68,6 +70,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
         {activeTab === 'measurement' && <AdvancedMeasurementPanel isOpen={true} onClose={() => setActiveTab('tables')} canvasRef={canvasRef} />}
         {activeTab === 'backgrounds' && <BackgroundManagementPanel isOpen={true} onClose={() => setActiveTab('tables')} renderEngine={window.rustRenderManager as any || null} />}
         {activeTab === 'performance' && <PerformanceSettingsPanel isVisible={true} onClose={() => setActiveTab('tables')} />}
+        {activeTab === 'customize' && <CustomizePanel />}
         {activeTab === 'compendium' && <CompendiumPanel />}
         {isDevelopment && activeTab === 'assets' && <AssetPanel />}
         {isDevelopment && activeTab === 'network' && <NetworkPanel />}

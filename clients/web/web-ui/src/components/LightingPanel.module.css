@@ -456,7 +456,7 @@ input[type="range"] {
   color: var(--text-primary);
   font-size: var(--text-sm);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--letter-spacing-wide);
   font-weight: var(--font-semibold);
 }
 
@@ -525,7 +525,7 @@ input[type="range"] {
   color: var(--text-primary);
   font-size: var(--text-sm);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--letter-spacing-wide);
   font-weight: var(--font-semibold);
 }
 

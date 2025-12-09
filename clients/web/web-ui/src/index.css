@@ -4,7 +4,7 @@
 :root {
   font-family: var(--font-family);
   line-height: 1.5;
-  font-weight: 400;
+  font-weight: var(--font-normal);
   color: var(--text-primary);
   background-color: var(--bg-primary);
   font-synthesis: none;
@@ -14,7 +14,7 @@
 }
 
 a {
-  font-weight: 500;
+  font-weight: var(--font-medium);
   color: var(--accent-primary);
   text-decoration: inherit;
 }
@@ -48,7 +48,7 @@ button {
 }
 button:focus,
 button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  outline: var(--space-xs) auto -webkit-focus-ring-color;
 }
 
 /* Force dark theme - disable light mode media query */

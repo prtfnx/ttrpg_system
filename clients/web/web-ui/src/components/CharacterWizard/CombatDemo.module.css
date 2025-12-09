@@ -149,11 +149,11 @@
 
 .integrationInfo ul {
   margin: 0;
-  padding-left: 1.5rem;
+  padding-left: var(--space-lg);
 }
 
 .integrationInfo li {
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-sm);
   line-height: 1.5;
   color: var(--gray-500);
 }
@@ -165,19 +165,19 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .demoHeader {
-    padding: 1.5rem;
+    padding: var(--space-lg);
   }
 
   .demoHeader h2 {
-    font-size: 2rem;
+    font-size: var(--text-3xl);
   }
 
   .demoHeader p {
-    font-size: 1rem;
+    font-size: var(--text-base);
   }
 
   .demoContent {
-    padding: 1rem;
+    padding: var(--space-md);
   }
 
   .featuresGrid {
@@ -189,33 +189,33 @@
   }
 
   .characterDemoCard {
-    padding: 1.5rem;
+    padding: var(--space-lg);
   }
 
   .closeDemo {
     width: 36px;
     height: 36px;
-    font-size: 1.3rem;
+    font-size: var(--text-lg);
   }
 }
 
 @media (max-width: 480px) {
   .demoHeader h2 {
-    font-size: 1.8rem;
+    font-size: var(--text-2xl);
   }
 
   .demoSection h3 {
-    font-size: 1.5rem;
+    font-size: var(--text-xl);
   }
 
   .featureCard,
   .instructions,
   .integrationInfo {
-    padding: 1rem;
+    padding: var(--space-md);
   }
 
   .characterDemoCard {
-    padding: 1rem;
+    padding: var(--space-md);
   }
 }
 
@@ -298,7 +298,7 @@
   .instructions,
   .integrationInfo {
     box-shadow: none;
-    border: 1px solid var(--gray-950);
+    border: var(--border-width) solid var(--gray-950);
     break-inside: avoid;
   }
 }

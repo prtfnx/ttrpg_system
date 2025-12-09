@@ -101,13 +101,13 @@
 
 .weapon-card:hover {
   border-color: var(--red-900);
-  box-shadow: 0 2px 8px rgba(139, 0, 0, 0.2);
+  box-shadow: var(--shadow-sm);
 }
 
 .weapon-card.selected {
   border-color: var(--red-900);
   background: linear-gradient(135deg, rgba(139, 0, 0, 0.1), rgba(165, 42, 42, 0.05));
-  box-shadow: 0 2px 8px rgba(139, 0, 0, 0.3);
+  box-shadow: var(--shadow-md);
 }
 
 .weapon-header {

@@ -267,7 +267,7 @@
   background: var(--bg-primary);
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
-  border-left: 3px solid var(--border-secondary);
+  border-left: calc(var(--border-width) * 3) solid var(--border-secondary);
   transition: all var(--transition-fast) ease;
 }
 

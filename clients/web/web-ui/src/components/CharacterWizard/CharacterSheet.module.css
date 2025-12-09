@@ -409,18 +409,18 @@
   }
   
   .sheet-header {
-    padding: 16px 20px;
+    padding: var(--space-md) var(--space-lg);
     flex-direction: column;
     gap: var(--space-sm);
     text-align: center;
   }
   
   .character-title h1 {
-    font-size: 24px;
+    font-size: var(--text-xl);
   }
   
   .sheet-content {
-    padding: 20px;
+    padding: var(--space-lg);
   }
   
   .abilities-grid {

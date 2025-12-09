@@ -135,7 +135,7 @@
 }
 
 .method-info span {
-  font-size: 14px;
+  font-size: var(--text-sm);
   color: var(--gray-600);
 }
 

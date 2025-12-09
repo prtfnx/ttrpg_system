@@ -215,7 +215,7 @@
   font-size: var(--text-lg);
   background: linear-gradient(135deg, var(--red-600) 0%, var(--red-700) 100%);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--letter-spacing-wide);
   transition: var(--transition-normal);
 }
 
@@ -327,7 +327,7 @@
   font-weight: var(--font-semibold);
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--letter-spacing-wide);
 }
 
 .stat-group span {

@@ -68,6 +68,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
 
   const [layers, setLayers] = useState<Layer[]>(initialLayers ?? []);
   const [isLoading, setIsLoading] = useState(true);
+  const [expandedLayer, setExpandedLayer] = useState<string | null>(null);
 
   // Calculate dynamic dimensions
   const dynamicDimensions = useMemo(() => {
@@ -170,6 +171,8 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
 
   const handleLayerClick = (layerId: string) => {
     setActiveLayer(layerId);
+    // Toggle expansion: if clicking the same layer, toggle it; if different, expand new one
+    setExpandedLayer(prevExpanded => prevExpanded === layerId ? null : layerId);
   };
 
   const handleVisibilityToggle = (layerId: string, event: React.MouseEvent) => {
@@ -265,6 +268,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
           const isActive = activeLayer === layer.id;
           const isVisible = layerVisibility[layer.id] ?? true;
           const opacity = layerOpacity[layer.id] ?? 1;
+          const isExpanded = expandedLayer === layer.id;
 
           return (
             <div
@@ -295,21 +299,23 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
                 </div>
               </div>
 
-              <div className={styles.layerOpacity}>
-                <label className={styles.opacityLabel}>
-                  Opacity: {Math.round(opacity * 100)}%
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={opacity}
-                  onChange={(e) => handleOpacityChange(layer.id, parseFloat(e.target.value))}
-                  className={styles.opacitySlider}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </div>
+              {isExpanded && (
+                <div className={styles.layerOpacity}>
+                  <label className={styles.opacityLabel}>
+                    Opacity: {Math.round(opacity * 100)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={opacity}
+                    onChange={(e) => handleOpacityChange(layer.id, parseFloat(e.target.value))}
+                    className={styles.opacitySlider}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+              )}
 
               <div 
                 className={styles.layerColorIndicator} 

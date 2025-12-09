@@ -128,16 +128,16 @@
   }
 
   .settings-header {
-    padding: 16px 20px;
+    padding: var(--space-md) var(--space-lg);
   }
 
   .settings-content {
-    padding: 20px;
+    padding: var(--space-lg);
   }
 
   .settings-actions {
     flex-direction: column;
-    padding: 16px 20px;
+    padding: var(--space-md) var(--space-lg);
   }
 
   .action-button {

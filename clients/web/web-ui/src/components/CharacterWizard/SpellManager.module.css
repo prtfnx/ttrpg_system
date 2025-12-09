@@ -125,8 +125,8 @@
 }
 
 .slot-circle {
-  width: 32px;
-  height: 32px;
+  width: calc(var(--space-md) * 2);
+  height: calc(var(--space-md) * 2);
   border-radius: var(--radius-full);
   border: var(--border-width-thick) solid var(--purple-950);
   cursor: pointer;
@@ -259,8 +259,8 @@
   background: var(--color-danger);
   color: var(--text-inverse-primary);
   border: none;
-  width: 24px;
-  height: 24px;
+  width: var(--space-xl);
+  height: var(--space-xl);
   border-radius: var(--radius-full);
   cursor: pointer;
   font-weight: var(--font-bold);
@@ -578,14 +578,14 @@
   }
   
   .manager-header {
-    padding: 16px 20px;
+    padding: var(--space-md) var(--space-lg);
     flex-direction: column;
-    gap: 12px;
+    gap: var(--space-sm);
     text-align: center;
   }
   
   .manager-content {
-    padding: 20px;
+    padding: var(--space-lg);
   }
   
   .spell-slots-grid {
@@ -608,13 +608,13 @@
   
   .casting-controls {
     flex-direction: column;
-    gap: 16px;
+    gap: var(--space-md);
     align-items: stretch;
   }
   
   .spell-modal {
-    margin: 20px;
-    max-height: calc(100vh - 40px);
+    margin: var(--space-lg);
+    max-height: calc(100vh - var(--space-2xl));
   }
   
   .spell-stats-detailed {
@@ -640,7 +640,7 @@
   
   .spell-slots-header {
     flex-direction: column;
-    gap: 16px;
+    gap: var(--space-md);
     align-items: stretch;
   }
   

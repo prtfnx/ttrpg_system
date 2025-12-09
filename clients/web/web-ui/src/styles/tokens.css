@@ -196,6 +196,15 @@
   --leading-relaxed: 1.625;
   --leading-loose: 2;
   
+  /* ===== LETTER SPACING ===== */
+  /* Character spacing for headings and labels */
+  --letter-spacing-tighter: -0.05em;
+  --letter-spacing-tight: -0.025em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.025em;    /* 0.5px equivalent */
+  --letter-spacing-wider: 0.05em;
+  --letter-spacing-widest: 0.1em;
+  
   /* ===== COMPONENT SIZING ===== */
   /* Specific UI elements that need to scale */
   --button-height: clamp(32px, 4vh, 44px);

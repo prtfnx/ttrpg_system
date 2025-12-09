@@ -473,7 +473,7 @@ input[type="range"] {
   align-items: center;
   gap: var(--space-xs);
   padding: var(--space-sm);
-  border: 2px solid transparent;
+  border: var(--border-width-thick) solid transparent;
   border-radius: var(--radius-lg);
   cursor: pointer;
   transition: all var(--duration-base);

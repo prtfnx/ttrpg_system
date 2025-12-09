@@ -10,7 +10,7 @@
   display: flex;
   flex-direction: column;
   background: var(--bg-secondary);
-  border-left: 1px solid var(--border-primary);
+  border-left: var(--border-width) solid var(--border-primary);
 }
 
 .tabsContainer {
@@ -18,7 +18,7 @@
   flex-wrap: wrap;
   gap: var(--spacing-xs);
   padding: var(--spacing-sm);
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
 }
 
 .tabButton {

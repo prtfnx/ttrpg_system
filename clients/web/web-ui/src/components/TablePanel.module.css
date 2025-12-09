@@ -27,7 +27,7 @@
   margin-bottom: var(--spacing-sm);
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--bg-tertiary);
-  border: 1px solid var(--border-secondary);
+  border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--font-size-sm);
@@ -47,7 +47,7 @@
   width: 100%;
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--bg-tertiary);
-  border: 1px solid var(--border-secondary);
+  border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--font-size-sm);
@@ -57,7 +57,7 @@
   flex: 1;
   padding: var(--spacing-sm) var(--spacing-lg);
   background: var(--button-primary-bg);
-  border: 1px solid var(--button-primary-bg);
+  border: var(--border-width) solid var(--button-primary-bg);
   border-radius: var(--radius-sm);
   color: var(--button-primary-text);
   cursor: pointer;
@@ -93,7 +93,7 @@
 
 .tableItem {
   background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   padding: var(--spacing-sm);
   transition: border-color var(--transition-fast);
@@ -132,7 +132,7 @@
 }
 
 .tableControls {
-  border-top: 1px solid var(--border-primary);
+  border-top: var(--border-width) solid var(--border-primary);
   padding-top: var(--spacing-sm);
   display: flex;
   flex-direction: column;
@@ -151,7 +151,7 @@
   padding: var(--space-xs);
   font-size: var(--text-2xs);
   background: var(--bg-tertiary);
-  border: 1px solid var(--border-secondary);
+  border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
 }
@@ -163,7 +163,7 @@
   font-size: var(--font-size-xs);
   padding: 0;
   background: var(--button-secondary-bg);
-  border: 1px solid var(--button-secondary-bg);
+  border: var(--border-width) solid var(--button-secondary-bg);
   border-radius: var(--radius-sm);
   color: var(--button-secondary-text);
   cursor: pointer;

@@ -5,12 +5,20 @@
  * ======================
  * 
  * Enforces CSS architecture best practices:
- * - No hardcoded hex colors (except in tokens.css)
- * - No hardcoded px/rem spacing (except in tokens.css, theme.css)
+ * - No hardcoded hex colors (except in tokens.css and comments)
+ * - No hardcoded px/rem spacing for actionable properties (excludes functional values)
  * - No numeric font-weight values (except in tokens.css)
  * 
+ * EXCLUDES (functional CSS that should use px):
+ * - Grid minmax() values: minmax(200px, 1fr)
+ * - Media query breakpoints: @media (max-width: 768px)
+ * - Viewport calculations: calc(100vh - 140px)
+ * - Container max/min dimensions
+ * - Box-shadow spread values
+ * - Border-width (should use design tokens)
+ * 
  * Usage:
- *   node scripts/validate-css.js [--fix] [--verbose]
+ *   node scripts/validate-css.js [--verbose]
  * 
  * Exit codes:
  *   0 - No violations found
@@ -34,10 +42,58 @@ const ALLOWED_FILES = [
 
 const SRC_DIR = path.join(__dirname, '../src');
 
-// Regex patterns
+// Regex patterns for violations
 const HEX_COLOR_REGEX = /#[0-9a-fA-F]{3,8}\b/g;
-const PX_VALUE_REGEX = /:\s*(-?\d+\.?\d*)px/g;
-const REM_VALUE_REGEX = /:\s*(-?\d+\.?\d*)rem/g;
+
+// Functional CSS patterns to EXCLUDE from violations
+const FUNCTIONAL_PX_PATTERNS = [
+  /minmax\([^)]*px[^)]*\)/,           // Grid minmax(200px, 1fr)
+  /@media[^{]*\d+px/,                  // Media queries
+  /calc\([^)]*vh[^)]*px[^)]*\)/,       // Viewport calculations: calc(100vh - 140px)
+  /calc\([^)]*vw[^)]*px[^)]*\)/,       // Viewport calculations: calc(100vw - 40px)
+  /max-width:\s*\d+px/,                // Container constraints
+  /min-width:\s*\d+px/,                // Container constraints  
+  /max-height:\s*\d+px/,               // Container constraints
+  /min-height:\s*\d+px/,               // Container constraints
+  /width:\s*\d+px\s*$/,                // Fixed widths (usually container constraints)
+  /height:\s*\d+px\s*$/,               // Fixed heights (usually container constraints)
+  /box-shadow:[^;]*\d+px/,             // Box shadow spread values
+  /text-shadow:[^;]*\d+px/,            // Text shadow spread values
+  /filter:[^;]*blur\(\d+px\)/,         // Blur filters
+  /backdrop-filter:[^;]*blur\(\d+px\)/, // Backdrop blur filters
+];
+
+// Properties that should use design tokens
+const ACTIONABLE_PX_PROPERTIES = [
+  'padding',
+  'padding-top',
+  'padding-right', 
+  'padding-bottom',
+  'padding-left',
+  'margin',
+  'margin-top',
+  'margin-right',
+  'margin-bottom',
+  'margin-left',
+  'gap',
+  'row-gap',
+  'column-gap',
+  'border-radius',
+  'font-size',
+  'line-height',
+  'letter-spacing',
+  'border',
+  'border-top',
+  'border-right',
+  'border-bottom',
+  'border-left',
+  'outline',
+  'top',
+  'right',
+  'bottom',
+  'left',
+];
+
 const NUMERIC_FONT_WEIGHT_REGEX = /font-weight:\s*([1-9]00)\b/g;
 
 // Results tracking
@@ -62,6 +118,35 @@ function isExcludedFile(filePath) {
 }
 
 /**
+ * Check if a line contains functional CSS that should use px
+ */
+function isFunctionalPxUsage(line) {
+  return FUNCTIONAL_PX_PATTERNS.some(pattern => pattern.test(line));
+}
+
+/**
+ * Check if a line is a comment
+ */
+function isComment(line) {
+  const trimmed = line.trim();
+  return trimmed.startsWith('//') || 
+         trimmed.startsWith('/*') || 
+         trimmed.startsWith('*') ||
+         trimmed.includes('/* ') ||
+         trimmed.endsWith('*/');
+}
+
+/**
+ * Check if line contains actionable px/rem property
+ */
+function hasActionableProperty(line) {
+  return ACTIONABLE_PX_PROPERTIES.some(prop => {
+    const regex = new RegExp(`\\b${prop}\\s*:`);
+    return regex.test(line);
+  });
+}
+
+/**
  * Scan a single CSS file for violations
  */
 function scanFile(filePath) {
@@ -73,8 +158,13 @@ function scanFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf8');
   const lines = content.split('\n');
   
-  // Check for hex colors
   lines.forEach((line, index) => {
+    // Skip comments
+    if (isComment(line)) {
+      return;
+    }
+
+    // Check for hex colors (not in comments)
     const hexMatches = line.match(HEX_COLOR_REGEX);
     if (hexMatches) {
       violations.hexColors.push({
@@ -85,37 +175,39 @@ function scanFile(filePath) {
       });
     }
     
-    // Check for px spacing values
-    const pxMatches = line.match(PX_VALUE_REGEX);
-    if (pxMatches && !line.includes('/* allow-px */')) {
-      // Exclude certain properties that legitimately use px
-      const excludedProps = ['border-width', 'stroke-width', 'outline-width'];
-      const hasExcludedProp = excludedProps.some(prop => line.includes(prop));
-      
-      if (!hasExcludedProp) {
-        violations.pxSpacing.push({
-          file: path.relative(process.cwd(), filePath),
-          line: index + 1,
-          code: line.trim(),
-          values: pxMatches
-        });
+    // Check for actionable px spacing values
+    if (line.includes('px') && !isFunctionalPxUsage(line)) {
+      if (hasActionableProperty(line)) {
+        const pxMatch = line.match(/:\s*[^;]*(\d+\.?\d*)px/);
+        if (pxMatch) {
+          violations.pxSpacing.push({
+            file: path.relative(process.cwd(), filePath),
+            line: index + 1,
+            code: line.trim(),
+            value: pxMatch[1] + 'px'
+          });
+        }
       }
     }
     
-    // Check for rem spacing values
-    const remMatches = line.match(REM_VALUE_REGEX);
-    if (remMatches && !line.includes('/* allow-rem */')) {
-      violations.remSpacing.push({
-        file: path.relative(process.cwd(), filePath),
-        line: index + 1,
-        code: line.trim(),
-        values: remMatches
-      });
+    // Check for rem spacing values on actionable properties
+    if (line.includes('rem')) {
+      if (hasActionableProperty(line)) {
+        const remMatch = line.match(/:\s*[^;]*(\d+\.?\d*)rem/);
+        if (remMatch) {
+          violations.remSpacing.push({
+            file: path.relative(process.cwd(), filePath),
+            line: index + 1,
+            code: line.trim(),
+            value: remMatch[1] + 'rem'
+          });
+        }
+      }
     }
     
     // Check for numeric font-weight
     const fontWeightMatches = line.match(NUMERIC_FONT_WEIGHT_REGEX);
-    if (fontWeightMatches && !line.includes('/* allow-numeric */')) {
+    if (fontWeightMatches) {
       violations.numericFontWeight.push({
         file: path.relative(process.cwd(), filePath),
         line: index + 1,
@@ -187,14 +279,15 @@ function printReport(verbose = false) {
   
   // PX spacing
   if (violations.pxSpacing.length > 0) {
-    console.log(`\n⚠️  Hardcoded px Spacing: ${violations.pxSpacing.length}`);
+    console.log(`\n⚠️  Hardcoded px Values: ${violations.pxSpacing.length}`);
     console.log('─'.repeat(60));
-    console.log('Use spacing tokens (--space-xs, --space-sm, etc.) instead.\n');
+    console.log('Use design tokens for spacing/sizing (--space-xs, --space-md, etc.).\n');
     
     if (verbose) {
       violations.pxSpacing.forEach(v => {
         console.log(`  ${v.file}:${v.line}`);
         console.log(`    ${v.code}`);
+        console.log(`    Value: ${v.value}`);
         console.log();
       });
     } else {
@@ -210,14 +303,15 @@ function printReport(verbose = false) {
   
   // REM spacing
   if (violations.remSpacing.length > 0) {
-    console.log(`\n⚠️  Hardcoded rem Spacing: ${violations.remSpacing.length}`);
+    console.log(`\n⚠️  Hardcoded rem Values: ${violations.remSpacing.length}`);
     console.log('─'.repeat(60));
-    console.log('Use spacing tokens (--space-xs, --space-sm, etc.) instead.\n');
+    console.log('Use design tokens for spacing/sizing (--space-xs, --text-lg, etc.).\n');
     
     if (verbose) {
       violations.remSpacing.forEach(v => {
         console.log(`  ${v.file}:${v.line}`);
         console.log(`    ${v.code}`);
+        console.log(`    Value: ${v.value}`);
         console.log();
       });
     } else {
@@ -259,11 +353,13 @@ function printReport(verbose = false) {
     console.log('\n✅ No violations found! CSS architecture is clean.\n');
   } else {
     console.log(`\n💡 Run with --verbose flag to see detailed line-by-line violations.`);
-    console.log(`\n❌ ${totalViolations} total violations found.\n`);
+    console.log(`\n❌ ${totalViolations} actionable violations found.\n`);
     console.log('Fix Guide:');
     console.log('  • Colors: Use var(--bg-primary), var(--text-secondary), etc.');
     console.log('  • Spacing: Use var(--space-xs), var(--space-sm), var(--space-md), etc.');
-    console.log('  • Font weights: Use var(--font-normal), var(--font-medium), etc.\n');
+    console.log('  • Typography: Use var(--text-xs), var(--text-lg), etc.');
+    console.log('  • Font weights: Use var(--font-normal), var(--font-medium), etc.');
+    console.log('\nNote: Functional values are excluded (grid minmax, media queries, etc.)\n');
   }
 }
 

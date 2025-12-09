@@ -283,14 +283,7 @@ export function useWebSocket(url: string) {
         updateConnectionState('connected');
         setConnection(true);
         flushMessageQueue();
-
-        const pingInterval = setInterval(() => {
-          if (wsRef.current?.readyState === WebSocket.OPEN) {
-            sendMessage(createMessage('ping'));
-          } else {
-            clearInterval(pingInterval);
-          }
-        }, 30000);
+        // Note: Ping interval controlled by user via Tools Panel, not auto-started
       };
 
       wsRef.current.onmessage = (e) => handleMessage(e.data);

@@ -288,12 +288,13 @@
 
 .tables-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: var(--space-md);
   flex: 1;
   overflow-y: auto;
   padding: var(--space-sm);
   min-height: 0;
+  align-content: start;
 }
 
 .loading-indicator {
@@ -325,9 +326,7 @@
   cursor: pointer;
   transition: all var(--transition-normal);
   box-shadow: var(--shadow-sm);
-  min-height: 200px;
-  max-height: 200px;
-  height: 200px;
+  min-height: 180px;
 }
 
 .tableCard:hover {
@@ -690,7 +689,7 @@
   composes: settings-section from '../styles/PanelBase.module.css';
   margin-bottom: var(--spacing-xl);
   padding-bottom: var(--spacing-lg);
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
 }
 
 .settings-section h5 {

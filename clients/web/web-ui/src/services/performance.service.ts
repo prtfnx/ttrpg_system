@@ -148,12 +148,21 @@ class PerformanceService {
     const currentTime = performance.now();
     const deltaTime = currentTime - this.lastFrameTime;
     
-    // Update FPS calculations
-    this.frameCount++;
-    const elapsedTime = currentTime - this.startTime;
-    
-    if (elapsedTime > 0) {
-      this.metrics.fps = this.frameCount / (elapsedTime / 1000);
+    // Calculate FPS based on actual render engine frame rate
+    // Query WASM render engine for accurate frame timing
+    if (this.renderEngine && typeof this.renderEngine.get_fps === 'function') {
+      try {
+        this.metrics.fps = this.renderEngine.get_fps();
+        this.metrics.averageFPS = this.metrics.fps; // Use engine FPS as average
+      } catch (error) {
+        // Fallback to estimation if WASM not available
+        this.metrics.fps = deltaTime > 0 ? 1000 / deltaTime : 0;
+      }
+    } else {
+      // Fallback: estimate from monitoring interval (should be updated by actual render loop)
+      // This monitoring runs at 4Hz, so we can't measure actual FPS here
+      // Instead, default to expected performance level target
+      this.metrics.fps = this.getTargetFPS();
     }
 
     // Update frame time
@@ -167,7 +176,10 @@ class PerformanceService {
     if (this.frameTimeHistory.length > 0) {
       this.metrics.averageFrameTime = 
         this.frameTimeHistory.reduce((a, b) => a + b, 0) / this.frameTimeHistory.length;
-      this.metrics.averageFPS = 1000 / this.metrics.averageFrameTime;
+      // Only update averageFPS from frameTime if we don't have engine FPS
+      if (!this.renderEngine || typeof this.renderEngine.get_fps !== 'function') {
+        this.metrics.averageFPS = 1000 / this.metrics.averageFrameTime;
+      }
     }
 
     // Update memory metrics

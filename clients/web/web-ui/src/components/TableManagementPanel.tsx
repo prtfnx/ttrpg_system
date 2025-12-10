@@ -742,7 +742,7 @@ export const TableManagementPanel: React.FC = () => {
               className={styles.tablePreview}
               onClick={() => bulkMode ? toggleTableSelection(table.table_id) : handleTableSelect(table.table_id)}
             >
-              <TablePreview table={table} width={160} height={60} />
+              <TablePreview table={table} width={160} height={120} />
             </div>
 
             {/* Table Info */}

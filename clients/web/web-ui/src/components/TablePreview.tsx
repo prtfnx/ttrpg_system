@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { TableInfo } from '../store';
 import { tableThumbnailService } from '../services/tableThumbnail.service';
 import { wasmIntegrationService } from '../services/wasmIntegration.service';
+import type { TableInfo } from '../store';
 
 interface TablePreviewProps {
   table: TableInfo;
@@ -12,7 +12,7 @@ interface TablePreviewProps {
 export const TablePreview: React.FC<TablePreviewProps> = ({ 
   table, 
   width = 160, 
-  height = 60 
+  height = 120 
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,6 +30,20 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
     const renderThumbnail = async () => {
       setIsLoading(true);
       setError(null);
+      
+      // Draw loading state immediately
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(0, 0, width, height);
+      
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, width - 2, height - 2);
+      
+      ctx.fillStyle = '#888';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Loading...', width / 2, height / 2);
 
       try {
         // Get the render engine
@@ -45,7 +59,7 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
 
         // Generate thumbnail using real WASM rendering
         const imageData = await tableThumbnailService.generateThumbnail(
-          table.id,
+          table.table_id,
           table.width,
           table.height,
           width,
@@ -63,7 +77,7 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
         if (!isCancelled) {
           setError(err instanceof Error ? err.message : 'Failed to render thumbnail');
           
-          // Draw error state
+          // Draw error state - red border
           ctx.fillStyle = '#1a1a1a';
           ctx.fillRect(0, 0, width, height);
           
@@ -87,7 +101,7 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [table.id, table.width, table.height, width, height]);
+  }, [table.table_id, table.width, table.height, width, height]);
 
   return (
     <canvas
@@ -104,7 +118,7 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
         opacity: isLoading ? 0.5 : 1,
         transition: 'opacity 0.2s ease-in-out'
       }}
-      title={error || (isLoading ? 'Loading thumbnail...' : `Table: ${table.name}`)}
+      title={error || (isLoading ? 'Loading thumbnail...' : `Table: ${table.table_name}`)}
     />
   );
 };

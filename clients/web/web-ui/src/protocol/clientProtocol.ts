@@ -429,8 +429,12 @@ export class WebClientProtocol {
   private async handleSuccess(message: Message): Promise<void> {
     protocolLogger.message('received', { type: 'success', data: message.data });
     
-    // Check if this is a table-related success message
-    if (message.data && message.data.table_id) {
+    // Only dispatch table-deleted for actual table deletion messages
+    // NOT for sprite operations that happen to include table_id
+    if (message.data && 
+        typeof message.data.message === 'string' && 
+        message.data.message.toLowerCase().includes('delet') && 
+        message.data.table_id) {
       window.dispatchEvent(new CustomEvent('table-deleted', { detail: message.data }));
     }
     

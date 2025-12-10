@@ -798,6 +798,10 @@ export const GameCanvas: React.FC = () => {
         }
         try { window.addEventListener('resize', scheduleResize); } catch (e) { /* ignore */ }
 
+        // Mark WASM as initialized for thumbnail service
+        (window as any).wasmInitialized = true;
+        console.log('[WASM] window.wasmInitialized = true');
+
         // Start render loop
         const renderLoop = () => {
           try {
@@ -858,6 +862,10 @@ export const GameCanvas: React.FC = () => {
     // Cleanup on unmount
     return () => {
       mounted = false;
+      
+      // Mark WASM as no longer initialized
+      (window as any).wasmInitialized = false;
+      
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
       disconnectWebSocket();
       

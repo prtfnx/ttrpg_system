@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import fpsService, { type FPSMetrics } from '../services/fps.service';
 import type { PerformanceMetrics } from '../services/performance.service';
 import { performanceService } from '../services/performance.service';
 import styles from './PerformanceMonitor.module.css';
@@ -15,7 +16,20 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
   position = 'top-right'
 }) => {
   const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);
+  const [fpsMetrics, setFpsMetrics] = useState<FPSMetrics>({
+    current: 0,
+    average: 0,
+    min: 0,
+    max: 0,
+    frameTime: 0
+  });
   const [expanded, setExpanded] = useState(false);
+
+  // Subscribe to unified FPS service
+  useEffect(() => {
+    const unsubscribe = fpsService.subscribe(setFpsMetrics);
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     if (!isVisible) return;
@@ -41,7 +55,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
   };
 
   const getMemoryUsagePercent = (): number => {
-    if (metrics.memoryUsage.jsHeapSizeLimit === 0) return 0;
+    if (!metrics || metrics.memoryUsage.jsHeapSizeLimit === 0) return 0;
     return (metrics.memoryUsage.usedJSHeapSize / metrics.memoryUsage.jsHeapSizeLimit) * 100;
   };
 
@@ -61,9 +75,9 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
         <div className="fps-display">
           <span 
             className="fps-value" 
-            style={{ color: getFPSColor(metrics.averageFPS) }}
+            style={{ color: getFPSColor(fpsMetrics.average) }}
           >
-            {Math.round(metrics.averageFPS)}
+            {Math.round(fpsMetrics.average)}
           </span>
           <span className="fps-label">FPS</span>
         </div>
@@ -80,7 +94,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
         </div>
         
         <div className="frame-time-display">
-          <span className="frame-time-label">Frame Time: {metrics.frameTime.toFixed(1)}ms</span>
+          <span className="frame-time-label">Frame Time: {fpsMetrics.frameTime.toFixed(1)}ms</span>
         </div>
       </div>
 
@@ -100,60 +114,80 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
               <div className={styles.metricLabel}>Frame Rate</div>
               <div className="metric-row">
                 <span>Current:</span>
-                <span style={{ color: getFPSColor(metrics.fps) }}>
-                  {Math.round(metrics.fps)} FPS
+                <span style={{ color: getFPSColor(fpsMetrics.current) }}>
+                  {Math.round(fpsMetrics.current)} FPS
                 </span>
               </div>
               <div className="metric-row">
                 <span>Average:</span>
-                <span style={{ color: getFPSColor(metrics.averageFPS) }}>
-                  {Math.round(metrics.averageFPS)} FPS
+                <span style={{ color: getFPSColor(fpsMetrics.average) }}>
+                  {Math.round(fpsMetrics.average)} FPS
+                </span>
+              </div>
+              <div className="metric-row">
+                <span>Min:</span>
+                <span style={{ color: getFPSColor(fpsMetrics.min) }}>
+                  {Math.round(fpsMetrics.min)} FPS
+                </span>
+              </div>
+              <div className="metric-row">
+                <span>Max:</span>
+                <span style={{ color: getFPSColor(fpsMetrics.max) }}>
+                  {Math.round(fpsMetrics.max)} FPS
                 </span>
               </div>
               <div className="metric-row">
                 <span>Frame Time:</span>
-                <span>{metrics.frameTime.toFixed(2)}ms</span>
+                <span>{fpsMetrics.frameTime.toFixed(2)}ms</span>
               </div>
             </div>
 
             {/* Memory Section */}
             <div className="metric-group">
               <div className={styles.metricLabel}>Memory Usage</div>
-              <div className="metric-row">
-                <span>JS Heap:</span>
-                <span>{formatBytes(metrics.memoryUsage.usedJSHeapSize)}</span>
-              </div>
-              <div className="metric-row">
-                <span>Total:</span>
-                <span>{formatBytes(metrics.memoryUsage.totalJSHeapSize)}</span>
-              </div>
-              <div className="metric-row">
-                <span>Limit:</span>
-                <span>{formatBytes(metrics.memoryUsage.jsHeapSizeLimit)}</span>
-              </div>
-              {metrics.wasmMemoryUsage > 0 && (
-                <div className="metric-row">
-                  <span>WASM:</span>
-                  <span>{formatBytes(metrics.wasmMemoryUsage)}</span>
-                </div>
+              {metrics && (
+                <>
+                  <div className="metric-row">
+                    <span>JS Heap:</span>
+                    <span>{formatBytes(metrics.memoryUsage.usedJSHeapSize)}</span>
+                  </div>
+                  <div className="metric-row">
+                    <span>Total:</span>
+                    <span>{formatBytes(metrics.memoryUsage.totalJSHeapSize)}</span>
+                  </div>
+                  <div className="metric-row">
+                    <span>Limit:</span>
+                    <span>{formatBytes(metrics.memoryUsage.jsHeapSizeLimit)}</span>
+                  </div>
+                  {metrics.wasmMemoryUsage > 0 && (
+                    <div className="metric-row">
+                      <span>WASM:</span>
+                      <span>{formatBytes(metrics.wasmMemoryUsage)}</span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
             {/* Rendering Section */}
             <div className="metric-group">
               <div className={styles.metricLabel}>Rendering</div>
-              <div className="metric-row">
-                <span>Sprites:</span>
-                <span>{metrics.spriteCount.toLocaleString()}</span>
-              </div>
-              <div className="metric-row">
-                <span>Textures:</span>
-                <span>{metrics.textureCount.toLocaleString()}</span>
-              </div>
-              <div className="metric-row">
-                <span>Cache Hit:</span>
-                <span>{metrics.cacheHitRate.toFixed(1)}%</span>
-              </div>
+              {metrics && (
+                <>
+                  <div className="metric-row">
+                    <span>Sprites:</span>
+                    <span>{metrics.spriteCount.toLocaleString()}</span>
+                  </div>
+                  <div className="metric-row">
+                    <span>Textures:</span>
+                    <span>{metrics.textureCount.toLocaleString()}</span>
+                  </div>
+                  <div className="metric-row">
+                    <span>Cache Hit:</span>
+                    <span>{metrics.cacheHitRate.toFixed(1)}%</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

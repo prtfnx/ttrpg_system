@@ -683,9 +683,13 @@ class WasmIntegrationService {
       }
 
       // Use efficient position update if we have position data
-      if (data.position || (data.x !== undefined && data.y !== undefined)) {
-        const position = data.position || { x: data.x, y: data.y };
-        this.updateSpritePosition(spriteId, position);
+      // Handle both server response format (data.to) and direct format (data.x/y)
+      if (data.to) {
+        this.updateSpritePosition(spriteId, data.to);
+      } else if (data.position) {
+        this.updateSpritePosition(spriteId, data.position);
+      } else if (data.x !== undefined && data.y !== undefined) {
+        this.updateSpritePosition(spriteId, { x: data.x, y: data.y });
       } else {
         // Fallback to full update
         this.updateSpriteInWasm(data);

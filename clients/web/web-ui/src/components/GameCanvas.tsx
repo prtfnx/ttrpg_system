@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { assetIntegrationService } from '../services/assetIntegration.service';
+import fpsService from '../services/fps.service';
 import { performanceService } from '../services/performance.service';
 import { useProtocol } from '../services/ProtocolContext';
 import { useWasmBridge } from '../services/wasmBridge';
@@ -97,9 +98,15 @@ export const GameCanvas: React.FC = () => {
   useWasmBridge();
   const debugPanel = useCanvasDebug(canvasRef as React.RefObject<HTMLCanvasElement | null>, rustRenderManagerRef, dprRef);
   
-  // FPS Counter
+  // FPS Counter - Subscribe to unified FPS service
   const [fps, setFps] = useState(0);
-  const fpsRef = useRef({ frameCount: 0, lastTime: performance.now() });
+  
+  useEffect(() => {
+    const unsubscribe = fpsService.subscribe((metrics) => {
+      setFps(metrics.current);
+    });
+    return unsubscribe;
+  }, []);
   
   // Performance Monitor
   const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false);
@@ -798,14 +805,8 @@ export const GameCanvas: React.FC = () => {
               rustRenderManagerRef.current.render();
             }
             
-            // Calculate FPS
-            fpsRef.current.frameCount++;
-            const currentTime = performance.now();
-            if (currentTime - fpsRef.current.lastTime >= 1000) { // Update every second
-              setFps(Math.round(fpsRef.current.frameCount * 1000 / (currentTime - fpsRef.current.lastTime)));
-              fpsRef.current.frameCount = 0;
-              fpsRef.current.lastTime = currentTime;
-            }
+            // Record frame for unified FPS service
+            fpsService.recordFrame();
           } catch (error) {
             console.error('Rust WASM render error:', error);
           }

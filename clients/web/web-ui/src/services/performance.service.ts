@@ -3,6 +3,8 @@
  * Provides FPS monitoring, memory tracking, sprite caching, and performance analytics
  */
 
+import fpsService from './fps.service';
+
 // Performance metrics interface
 export interface PerformanceMetrics {
   fps: number;
@@ -50,8 +52,6 @@ class PerformanceService {
   private settings: PerformanceSettings;
   private frameTimeHistory: number[] = [];
   private lastFrameTime: number = 0;
-  private frameCount: number = 0;
-  private startTime: number = 0;
   private isMonitoring: boolean = false;
   private monitoringInterval: number | null = null;
   private renderEngine: any = null;
@@ -73,7 +73,6 @@ class PerformanceService {
   constructor() {
     this.metrics = this.initializeMetrics();
     this.settings = this.getOptimalSettings();
-    this.startTime = performance.now();
   }
 
   private initializeMetrics(): PerformanceMetrics {
@@ -148,22 +147,10 @@ class PerformanceService {
     const currentTime = performance.now();
     const deltaTime = currentTime - this.lastFrameTime;
     
-    // Calculate FPS based on actual render engine frame rate
-    // Query WASM render engine for accurate frame timing
-    if (this.renderEngine && typeof this.renderEngine.get_fps === 'function') {
-      try {
-        this.metrics.fps = this.renderEngine.get_fps();
-        this.metrics.averageFPS = this.metrics.fps; // Use engine FPS as average
-      } catch (error) {
-        // Fallback to estimation if WASM not available
-        this.metrics.fps = deltaTime > 0 ? 1000 / deltaTime : 0;
-      }
-    } else {
-      // Fallback: estimate from monitoring interval (should be updated by actual render loop)
-      // This monitoring runs at 4Hz, so we can't measure actual FPS here
-      // Instead, default to expected performance level target
-      this.metrics.fps = this.getTargetFPS();
-    }
+    // Get FPS from unified FPS service
+    const fpsMetrics = fpsService.getMetrics();
+    this.metrics.fps = fpsMetrics.current;
+    this.metrics.averageFPS = fpsMetrics.average;
 
     // Update frame time
     this.metrics.frameTime = deltaTime;
@@ -176,10 +163,6 @@ class PerformanceService {
     if (this.frameTimeHistory.length > 0) {
       this.metrics.averageFrameTime = 
         this.frameTimeHistory.reduce((a, b) => a + b, 0) / this.frameTimeHistory.length;
-      // Only update averageFPS from frameTime if we don't have engine FPS
-      if (!this.renderEngine || typeof this.renderEngine.get_fps !== 'function') {
-        this.metrics.averageFPS = 1000 / this.metrics.averageFrameTime;
-      }
     }
 
     // Update memory metrics

@@ -15,8 +15,7 @@ export const TableManagementPanel: React.FC = () => {
     requestTableList,
     createNewTable,
     deleteTable,
-    switchToTable,
-    syncTableToServer
+    switchToTable
   } = useGameStore();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -410,27 +409,27 @@ export const TableManagementPanel: React.FC = () => {
     setSelectedTables(new Set());
   };
 
-  // NEW: Export/Import
-  const handleExportTable = (tableId: string) => {
-    const table = tables.find(t => t.table_id === tableId);
-    if (!table) return;
-
-    const exportData = {
-      table_name: table.table_name,
-      width: table.width,
-      height: table.height,
-      exported_at: new Date().toISOString(),
-      version: '1.0'
-    };
-
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${table.table_name || 'table'}_export.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  // NEW: Export/Import (currently disabled - export button removed)
+  // const handleExportTable = (tableId: string) => {
+  //   const table = tables.find(t => t.table_id === tableId);
+  //   if (!table) return;
+  //
+  //   const exportData = {
+  //     table_name: table.table_name,
+  //     width: table.width,
+  //     height: table.height,
+  //     exported_at: new Date().toISOString(),
+  //     version: '1.0'
+  //   };
+  //
+  //   const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+  //   const url = URL.createObjectURL(blob);
+  //   const a = document.createElement('a');
+  //   a.href = url;
+  //   a.download = `${table.table_name || 'table'}_export.json`;
+  //   a.click();
+  //   URL.revokeObjectURL(url);
+  // };
 
   const handleImportTable = () => {
     const input = document.createElement('input');
@@ -577,18 +576,18 @@ export const TableManagementPanel: React.FC = () => {
           {searchQuery && (
             <button 
               onClick={() => setSearchQuery('')}
-              className="clear-search"
+              className={styles.clearSearch}
               title="Clear search"
             >
               ×
             </button>
           )}
         </div>
-        <div className="sort-controls">
+        <div className={styles.sortControls}>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as 'name' | 'date' | 'size')}
-            className="sort-select"
+            className={styles.sortSelect}
           >
             <option value="name">Name</option>
             <option value="date">Date</option>
@@ -596,39 +595,39 @@ export const TableManagementPanel: React.FC = () => {
           </select>
           <button
             onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-            className="sort-order-button"
+            className={styles.sortOrderButton}
             title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
           >
             {sortOrder === 'asc' ? '↑' : '↓'}
           </button>
         </div>
-        <div className="table-count">
+        <div className={styles.tableCount}>
           {filteredAndSortedTables.length} / {tables.length}
         </div>
       </div>
 
       {showCreateForm && (
-        <div className="create-table-form">
+        <div className={styles.createTableForm}>
           <h4>Create New Table</h4>
           
           {/* Template buttons */}
-          <div className="template-buttons">
-            <span className="template-label">Quick Templates:</span>
-            <button onClick={() => applyTemplate('small')} className="template-button">
+          <div className={styles.templateButtons}>
+            <span className={styles.templateLabel}>Quick Templates:</span>
+            <button onClick={() => applyTemplate('small')} className={styles.templateButton}>
               Small (1000×1000)
             </button>
-            <button onClick={() => applyTemplate('medium')} className="template-button">
+            <button onClick={() => applyTemplate('medium')} className={styles.templateButton}>
               Medium (2000×2000)
             </button>
-            <button onClick={() => applyTemplate('large')} className="template-button">
+            <button onClick={() => applyTemplate('large')} className={styles.templateButton}>
               Large (4000×4000)
             </button>
-            <button onClick={() => applyTemplate('huge')} className="template-button">
+            <button onClick={() => applyTemplate('huge')} className={styles.templateButton}>
               Huge (8000×8000)
             </button>
           </div>
 
-          <div className="form-row">
+          <div className={styles.formRow}>
             <label>
               Name:
               <input
@@ -640,7 +639,7 @@ export const TableManagementPanel: React.FC = () => {
               />
             </label>
           </div>
-          <div className="form-row">
+          <div className={styles.formRow}>
             <label>
               Width:
               <input
@@ -664,13 +663,13 @@ export const TableManagementPanel: React.FC = () => {
               />
             </label>
           </div>
-          <div className="form-actions">
-            <button onClick={handleCreateTable} className="confirm-button">
+          <div className={styles.formActions}>
+            <button onClick={handleCreateTable} className={styles.confirmButton}>
               Create Table
             </button>
             <button 
               onClick={() => setShowCreateForm(false)} 
-              className="cancel-button"
+              className={styles.cancelButton}
             >
               Cancel
             </button>
@@ -678,8 +677,8 @@ export const TableManagementPanel: React.FC = () => {
         </div>
       )}
 
-      <div className="tables-list">
-        {tablesLoading && <div className="loading-indicator">Loading tables...</div>}
+      <div className={styles.tablesList}>
+        {tablesLoading && <div className={styles.loadingIndicator}>Loading tables...</div>}
         
         {!tablesLoading && filteredAndSortedTables.length === 0 && tables.length === 0 && (
           <div className={styles.emptyState}>
@@ -698,23 +697,31 @@ export const TableManagementPanel: React.FC = () => {
         {!tablesLoading && filteredAndSortedTables.map((table) => (
           <div 
             key={table.table_id} 
-            className={`table-card ${activeTableId === table.table_id ? 'active' : ''} ${bulkMode ? 'bulk-mode' : ''} ${selectedTables.has(table.table_id) ? 'selected' : ''}`}
+            className={clsx(
+              styles.tableCard,
+              activeTableId === table.table_id && styles.active,
+              bulkMode && styles.bulkMode,
+              selectedTables.has(table.table_id) && styles.selected
+            )}
           >
             {/* Bulk Selection Checkbox */}
             {bulkMode && (
-              <div className="bulk-checkbox-wrapper">
+              <div className={styles.bulkCheckboxWrapper}>
                 <input
                   type="checkbox"
                   checked={selectedTables.has(table.table_id)}
                   onChange={() => toggleTableSelection(table.table_id)}
-                  className="bulk-checkbox"
+                  className={styles.bulkCheckbox}
                 />
               </div>
             )}
 
             {/* Sync Status Badge */}
             <div 
-              className={`sync-badge sync-badge-${table.syncStatus || 'synced'}`}
+              className={clsx(
+                styles.syncBadge,
+                table.syncStatus && styles[`syncBadge${table.syncStatus.charAt(0).toUpperCase() + table.syncStatus.slice(1)}`]
+              )}
               title={
                 table.syncStatus === 'local' ? 'Local only - not synced to server' :
                 table.syncStatus === 'syncing' ? 'Syncing with server...' :
@@ -732,39 +739,42 @@ export const TableManagementPanel: React.FC = () => {
 
             {/* Table Preview */}
             <div 
-              className="table-preview" 
+              className={styles.tablePreview}
               onClick={() => bulkMode ? toggleTableSelection(table.table_id) : handleTableSelect(table.table_id)}
             >
-              <TablePreview table={table} width={160} height={120} />
+              <TablePreview table={table} width={160} height={60} />
             </div>
 
             {/* Table Info */}
             <div 
-              className="table-card-info" 
+              className={styles.tableCardInfo}
               onClick={() => bulkMode ? toggleTableSelection(table.table_id) : handleTableSelect(table.table_id)}
             >
-              <div className="table-card-name" title={table.table_name}>
+              <h4 className={styles.tableCardName} title={table.table_name}>
                 {table.table_name}
-              </div>
-              <div className="table-card-meta">
-                <span className="meta-item">
-                  <span className="meta-icon">📐</span>
-                  {table.width} × {table.height}
+              </h4>
+              <div className={styles.tableCardMeta}>
+                <span className={styles.metaItem}>
+                  <span className={styles.metaIcon}>📐</span>
+                  <span>{table.width} × {table.height}</span>
                 </span>
-                {table.entity_count !== undefined && (
-                  <span className="meta-item">
-                    <span className="meta-icon">🎭</span>
-                    {table.entity_count}
-                  </span>
+                {table.entity_count !== undefined && table.entity_count > 0 && (
+                  <>
+                    <span className={styles.metaSeparator}>•</span>
+                    <span className={styles.metaItem}>
+                      <span className={styles.metaIcon}>🎭</span>
+                      <span>{table.entity_count}</span>
+                    </span>
+                  </>
                 )}
               </div>
-              <div className="table-card-date">
+              <div className={styles.tableCardDate}>
                 {formatDate(table.created_at)}
               </div>
             </div>
 
             {/* Action Bar */}
-            <div className="table-card-actions">
+            <div className={styles.tableCardActions}>
               {!bulkMode && (
                 <>
                   <button
@@ -772,68 +782,41 @@ export const TableManagementPanel: React.FC = () => {
                       e.stopPropagation();
                       handleTableSelect(table.table_id);
                     }}
-                    className="action-btn action-btn-open"
+                    className={clsx(styles.actionBtn, styles.actionBtnOpen)}
                     title="Open table"
                   >
-                    <span className="action-icon">↗</span>
-                    Open
+                    <span className={styles.actionIcon}>↗</span>
+                    <span className={styles.actionText}>Open</span>
                   </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleOpenSettings(table.table_id);
                     }}
-                    className="action-btn action-btn-settings"
-                    title="Table settings"
+                    className={clsx(styles.actionBtn, styles.actionBtnSettings)}
+                    title="Settings"
                   >
-                    <span className="action-icon">⚙️</span>
-                    Settings
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleExportTable(table.table_id);
-                    }}
-                    className="action-btn action-btn-export"
-                    title="Export table"
-                  >
-                    <span className="action-icon">📤</span>
-                    Export
+                    <span className={styles.actionIcon}>⚙️</span>
                   </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDuplicateTable(table.table_id);
                     }}
-                    className="action-btn action-btn-duplicate"
-                    title="Duplicate table"
+                    className={clsx(styles.actionBtn, styles.actionBtnDuplicate)}
+                    title="Duplicate"
                   >
-                    <span className="action-icon">📋</span>
-                    Copy
+                    <span className={styles.actionIcon}>📋</span>
                   </button>
-                  {table.syncStatus === 'local' && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        syncTableToServer(table.table_id);
-                      }}
-                      className="action-btn action-btn-sync"
-                      title="Sync to server"
-                    >
-                      <span className="action-icon">↑</span>
-                      Sync
-                    </button>
-                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDeleteTable(table.table_id);
                     }}
-                    className="action-btn action-btn-delete"
-                    title="Delete table"
+                    className={clsx(styles.actionBtn, styles.actionBtnDelete)}
+                    title="Delete"
                   >
-                    <span className="action-icon">🗑️</span>
-                    Delete
+                    <span className={styles.actionIcon}>🗑️</span>
                   </button>
                 </>
               )}

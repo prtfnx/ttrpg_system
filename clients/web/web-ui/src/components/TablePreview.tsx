@@ -10,7 +10,7 @@ interface TablePreviewProps {
 export const TablePreview: React.FC<TablePreviewProps> = ({ 
   table, 
   width = 160, 
-  height = 120 
+  height = 60 
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -50,7 +50,7 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
     ctx.strokeStyle = '#2a2a2a';
     ctx.lineWidth = 1;
     
-    const gridSize = 10; // Number of grid lines
+    const gridSize = 6; // Number of grid lines
     const cellWidth = renderWidth / gridSize;
     const cellHeight = renderHeight / gridSize;
 
@@ -109,8 +109,8 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
         display: 'block',
         width: '100%',
         height: '100%',
-        minHeight: '120px',
-        imageRendering: 'crisp-edges'
+        objectFit: 'contain',
+        imageRendering: 'auto'
       }}
     />
   );

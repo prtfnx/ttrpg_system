@@ -1,5 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { TableInfo } from '../store';
+import { tableThumbnailService } from '../services/tableThumbnail.service';
+import { wasmIntegrationService } from '../services/wasmIntegration.service';
 
 interface TablePreviewProps {
   table: TableInfo;
@@ -13,6 +15,8 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
   height = 60 
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -21,83 +25,69 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
+    let isCancelled = false;
 
-    // Calculate aspect ratio
-    const tableAspect = table.width / table.height;
-    const canvasAspect = width / height;
-    
-    let renderWidth = width;
-    let renderHeight = height;
-    let offsetX = 0;
-    let offsetY = 0;
+    const renderThumbnail = async () => {
+      setIsLoading(true);
+      setError(null);
 
-    // Fit to canvas while maintaining aspect ratio
-    if (tableAspect > canvasAspect) {
-      renderHeight = width / tableAspect;
-      offsetY = (height - renderHeight) / 2;
-    } else {
-      renderWidth = height * tableAspect;
-      offsetX = (width - renderWidth) / 2;
-    }
+      try {
+        // Get the render engine
+        const renderEngine = wasmIntegrationService.getRenderEngine();
+        if (!renderEngine) {
+          throw new Error('Render engine not initialized');
+        }
 
-    // Draw background
-    ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(offsetX, offsetY, renderWidth, renderHeight);
+        // Initialize the thumbnail service if needed
+        if (!tableThumbnailService.isInitialized()) {
+          tableThumbnailService.initialize(renderEngine);
+        }
 
-    // Draw grid pattern (subtle)
-    ctx.strokeStyle = '#2a2a2a';
-    ctx.lineWidth = 1;
-    
-    const gridSize = 6; // Number of grid lines
-    const cellWidth = renderWidth / gridSize;
-    const cellHeight = renderHeight / gridSize;
+        // Generate thumbnail using real WASM rendering
+        const imageData = await tableThumbnailService.generateThumbnail(
+          table.id,
+          table.width,
+          table.height,
+          width,
+          height,
+          false // Don't force refresh, use cache if available
+        );
 
-    // Vertical lines
-    for (let i = 0; i <= gridSize; i++) {
-      const x = offsetX + i * cellWidth;
-      ctx.beginPath();
-      ctx.moveTo(x, offsetY);
-      ctx.lineTo(x, offsetY + renderHeight);
-      ctx.stroke();
-    }
-
-    // Horizontal lines
-    for (let i = 0; i <= gridSize; i++) {
-      const y = offsetY + i * cellHeight;
-      ctx.beginPath();
-      ctx.moveTo(offsetX, y);
-      ctx.lineTo(offsetX + renderWidth, y);
-      ctx.stroke();
-    }
-
-    // Draw border
-    ctx.strokeStyle = '#444';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(offsetX, offsetY, renderWidth, renderHeight);
-
-    // Draw entities as dots (if we have entity data)
-    // Note: This would require entity data to be passed in the table info
-    // For now, we'll show a placeholder pattern
-    if (table.entity_count && table.entity_count > 0) {
-      ctx.fillStyle = '#0078d4';
-      
-      // Draw some sample entity dots (in a real implementation, 
-      // we'd get actual entity positions)
-      const dotCount = Math.min(table.entity_count, 20);
-      for (let i = 0; i < dotCount; i++) {
-        const x = offsetX + Math.random() * renderWidth;
-        const y = offsetY + Math.random() * renderHeight;
-        const radius = 3;
-        
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fill();
+        // Only update if not cancelled
+        if (!isCancelled) {
+          ctx.putImageData(imageData, 0, 0);
+          setIsLoading(false);
+        }
+      } catch (err) {
+        console.error('Failed to render table thumbnail:', err);
+        if (!isCancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to render thumbnail');
+          
+          // Draw error state
+          ctx.fillStyle = '#1a1a1a';
+          ctx.fillRect(0, 0, width, height);
+          
+          ctx.strokeStyle = '#ff4444';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(1, 1, width - 2, height - 2);
+          
+          ctx.fillStyle = '#ff4444';
+          ctx.font = '12px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('Error', width / 2, height / 2);
+          
+          setIsLoading(false);
+        }
       }
-    }
+    };
 
-  }, [table, width, height]);
+    renderThumbnail();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [table.id, table.width, table.height, width, height]);
 
   return (
     <canvas
@@ -110,8 +100,11 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
         width: '100%',
         height: '100%',
         objectFit: 'contain',
-        imageRendering: 'auto'
+        imageRendering: 'auto',
+        opacity: isLoading ? 0.5 : 1,
+        transition: 'opacity 0.2s ease-in-out'
       }}
+      title={error || (isLoading ? 'Loading thumbnail...' : `Table: ${table.name}`)}
     />
   );
 };

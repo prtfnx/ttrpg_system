@@ -29,9 +29,16 @@ class TableThumbnailService {
    * Set the WASM RenderEngine instance
    * Must be called before generating thumbnails
    */
-  setRenderEngine(engine: RenderEngine | null): void {
+  initialize(engine: RenderEngine): void {
     this.renderEngine = engine;
-    console.log('[ThumbnailService] RenderEngine', engine ? 'set' : 'cleared');
+    console.log('[ThumbnailService] RenderEngine initialized');
+  }
+  
+  /**
+   * Check if the service is initialized with a RenderEngine
+   */
+  isInitialized(): boolean {
+    return this.renderEngine !== null;
   }
   
   /**

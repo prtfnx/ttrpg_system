@@ -4,6 +4,7 @@
  */
 
 import type { RenderEngine } from '../types/wasm';
+import { tableThumbnailService } from './tableThumbnail.service';
 
 class WasmIntegrationService {
   private renderEngine: RenderEngine | null = null;
@@ -381,6 +382,12 @@ class WasmIntegrationService {
   private handleSpriteCreated(data: any): void {
     if (!this.renderEngine) return;
     this.addSpriteToWasm(data);
+    
+    // Invalidate thumbnail cache for the table
+    const tableId = data.table_id;
+    if (tableId) {
+      tableThumbnailService.invalidateTable(tableId);
+    }
   }
 
   private handleSpriteResponse(data: any): void {
@@ -664,6 +671,12 @@ class WasmIntegrationService {
         console.log('🗑️ WasmIntegration: Removing sprite from WASM:', spriteId);
         this.renderEngine.remove_sprite(spriteId);
         console.log('✅ WasmIntegration: Sprite removed from WASM:', spriteId);
+        
+        // Invalidate thumbnail cache for the table
+        const tableId = data.table_id;
+        if (tableId) {
+          tableThumbnailService.invalidateTable(tableId);
+        }
       } else {
         console.warn('⚠️ WasmIntegration: No sprite ID found in removal data:', data);
       }
@@ -694,6 +707,12 @@ class WasmIntegrationService {
         // Fallback to full update
         this.updateSpriteInWasm(data);
       }
+      
+      // Invalidate thumbnail cache for the table
+      const tableId = data.table_id;
+      if (tableId) {
+        tableThumbnailService.invalidateTable(tableId);
+      }
     } catch (error) {
       console.error('Failed to move sprite in WASM:', error);
     }
@@ -722,6 +741,12 @@ class WasmIntegrationService {
         this.updateSpriteInWasm(data);
       } else {
         console.warn('Scale update requires complete sprite data - operation will be skipped to prevent sprite corruption');
+      }
+      
+      // Invalidate thumbnail cache for the table
+      const tableId = data.table_id;
+      if (tableId) {
+        tableThumbnailService.invalidateTable(tableId);
       }
     } catch (error) {
       console.error('Failed to scale sprite in WASM:', error);

@@ -1,26 +1,5 @@
-/**
- * Table Thumbnail Service
- * 
- * Production-ready service for generating miniature previews of game tables
- * by capturing snapshots from the main game canvas (Figma-style approach).
- * 
- * Best Practices:
- * - Zero-copy pixel capture from main canvas (no duplicate rendering)
- * - Debounced regeneration (prevents thrashing during sprite drag)
- * - In-memory ImageData caching for instant display
- * - Automatic cache invalidation on table changes
- * - Proper error handling and logging
- * - Type-safe TypeScript implementation
- * 
- * Architecture Decision:
- * Copying from main canvas is CORRECT for real-time dynamic content because:
- * 1. No duplicate rendering overhead
- * 2. Always perfectly in sync with game view
- * 3. Minimal CPU usage (just pixel copy)
- * 4. Industry standard (Figma, Miro, etc. use this approach)
- */
-
 import type { RenderEngine } from '../types/wasm';
+import { isValidUUID } from '../protocol/tableProtocolAdapter';
 
 interface ThumbnailCacheEntry {
   imageData: ImageData;

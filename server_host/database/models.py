@@ -57,7 +57,7 @@ class VirtualTable(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     table_id = Column(String(36), unique=True, index=True, nullable=False)  # UUID
-    name = Column(String(100), nullable=False)
+    name = Column(String(100), nullable=False)  # display_name - keeping for backward compatibility
     width = Column(Integer, nullable=False)
     height = Column(Integer, nullable=False)
     session_id = Column(Integer, ForeignKey("game_sessions.id"), nullable=False)

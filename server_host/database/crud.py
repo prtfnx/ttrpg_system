@@ -401,7 +401,7 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> models.
     if existing_table:
         # Update existing table
         table_update = schemas.VirtualTableUpdate(
-            name=virtual_table_obj.name,
+            name=virtual_table_obj.display_name,
             width=virtual_table_obj.width,
             height=virtual_table_obj.height,
             position_x=virtual_table_obj.position[0],
@@ -415,7 +415,7 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> models.
         # Create new table
         table_data = schemas.VirtualTableCreate(
             table_id=table_id_str,
-            name=virtual_table_obj.name,
+            name=virtual_table_obj.display_name,
             width=virtual_table_obj.width,
             height=virtual_table_obj.height,
             session_id=session_id,
@@ -450,7 +450,7 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> models.
     
     # Commit all changes
     db.commit()
-    logger.info(f"Synchronized table {virtual_table_obj.name}: {len(entities_to_delete)} deleted, {len(virtual_table_obj.entities)} saved/updated")
+    logger.info(f"Synchronized table {virtual_table_obj.display_name}: {len(entities_to_delete)} deleted, {len(virtual_table_obj.entities)} saved/updated")
     
     return db_table
 

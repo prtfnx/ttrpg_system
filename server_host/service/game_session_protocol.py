@@ -67,10 +67,17 @@ class GameSessionProtocolService:
             if self.table_manager.load_from_database(self.game_session_db_id):
                 logger.info(f"Session {self.session_code} - Loaded tables from database")
                 logger.info(f"Session {self.session_code} - Available tables: {list(self.table_manager.tables.keys())}")
-                  # Ensure test tables exist for client compatibility
-                if 'large_table' not in self.table_manager.tables:
-                    logger.info(f"Session {self.session_code} - large_table not found in database, creating test tables")
+                
+                # Check if any tables were loaded (excluding the default table)
+                # tables dict uses UUID keys, so we need to count non-default tables
+                non_default_tables = [t for tid, t in self.table_manager.tables.items() 
+                                      if tid != str(self.table_manager.default_table.table_id)]
+                
+                if len(non_default_tables) == 0:
+                    logger.info(f"Session {self.session_code} - No tables loaded from database, creating test tables")
                     self._create_test_tables()
+                else:
+                    logger.info(f"Session {self.session_code} - Using {len(non_default_tables)} tables from database")
             else:
                 logger.warning(f"Session {self.session_code} - Failed to load tables, creating test tables")
                 self._create_test_tables()
@@ -120,11 +127,13 @@ class GameSessionProtocolService:
     def _create_test_tables(self):
         """Create test tables with entities for testing"""
         try:
+            logger.warning(f"Session {self.session_code} - Creating NEW test tables (this should only happen on first session creation)")
             # Import VirtualTable here to avoid circular imports
             from core_table.table import VirtualTable
             
             # Create small test table
             test_table = VirtualTable('test_table', 20, 20)
+            logger.info(f"Created test_table with UUID: {test_table.table_id}")
             self.table_manager.add_table(test_table)
             
             # Add some test entities
@@ -139,6 +148,7 @@ class GameSessionProtocolService:
             
             # Create large table for testing with multiple entities in different layers
             large_table = VirtualTable('large_table', 1080, 1920)
+            logger.info(f"Created large_table with UUID: {large_table.table_id}")
             self.table_manager.add_table(large_table)
             
             # Add entities across different layers

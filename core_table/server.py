@@ -32,8 +32,9 @@ class TableManager:
     def _create_default_table(self) -> VirtualTable:
         """Create a default table"""
         table = VirtualTable("default", 100, 100)
-        self.tables["default"] = table
-        self.tables_id[str(table.table_id)] = table  # Also add to tables_id
+        table_id = str(table.table_id)
+        self.tables[table_id] = table  # Use UUID as key, not "default"
+        self.tables_id[table_id] = table
         return table
     
     def get_table(self, table_id: str = None) -> VirtualTable:
@@ -100,10 +101,12 @@ class TableManager:
         try:
             from server_host.database import crud
             
-            for table_name, table in self.tables.items():
-                if table_name != "default":  # Skip default table for now
+            default_table_id = str(self.default_table.table_id)
+            for table_id, table in self.tables.items():
+                # Skip default table (compare by UUID, not name)
+                if table_id != default_table_id:
                     crud.save_table_to_db(self.db_session, table, session_id)
-                    logger.info(f"Saved table '{table_name}' to database")
+                    logger.info(f"Saved table '{table.display_name}' (ID: {table_id}) to database")
             
             return True
         except Exception as e:

@@ -101,7 +101,6 @@ class Entity:
 
 class VirtualTable:
     def __init__(self, name: str, width: int, height: int, table_id: Optional[str] = None):
-        # Validate parameters
         if not name or not name.strip():
             raise ValueError("Table name cannot be empty")
         if width <= 0:
@@ -109,30 +108,33 @@ class VirtualTable:
         if height <= 0:
             raise ValueError("Table height must be greater than 0")
             
-        self.name = name
+        if table_id:
+            if isinstance(table_id, uuid.UUID):
+                self.table_id = table_id
+            elif isinstance(table_id, str):
+                try:
+                    self.table_id = uuid.UUID(table_id)
+                except ValueError:
+                    raise ValueError(f"Invalid UUID format: {table_id}")
+            else:
+                raise ValueError(f"table_id must be UUID or string, got {type(table_id)}")
+        else:
+            self.table_id = uuid.uuid4()
+            
+        self.display_name = name
         self.width = width
         self.height = height
         self.layers = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles', 'fog_of_war']
         self.entities: Dict[int, Entity] = {}
         self.next_entity_id = 1
-        
-        # Sprite ID to entity ID mapping for quick lookup
         self.sprite_to_entity: Dict[str, int] = {}
-        
-        # Fog of war rectangles
         self.fog_rectangles: Dict[str, List[Tuple[Tuple[float, float], Tuple[float, float]]]] = {
             'hide': [],
             'reveal': []
         }
-        
-        # Add missing attributes for the protocol
         self.position = (0.0, 0.0)
         self.scale = (1.0, 1.0)
         self.layer_visibility = {layer: True for layer in self.layers}
-        if not table_id:
-            self.table_id = uuid.uuid4()
-        else:
-            self.table_id = table_id
 
         # Initialize grid
         self.grid = {}
@@ -281,10 +283,10 @@ class VirtualTable:
         return layers_dict
     
     def to_dict(self) -> Dict:
-        """Convert table to dictionary '"""
+        """Convert table to dictionary"""
         return {
-            'table_name': self.name,
             'table_id': str(self.table_id),
+            'table_name': self.display_name,
             'width': self.width,
             'height': self.height,
             'layers': self.table_to_layered_dict(),
@@ -298,7 +300,7 @@ class VirtualTable:
     
     def from_dict(self, data: Dict):
         """Load table from dictionary data"""
-        self.name = data.get('name', 'Unknown Table')
+        self.display_name = data.get('table_name', data.get('name', 'Unknown Table'))
         self.width = data.get('width', 100)
         self.height = data.get('height', 100)
         

@@ -762,7 +762,7 @@ class ServerProtocol:
                         logger.error(f"Missing 'from' or 'to' field in sprite move update from {client_id}: {update_data}")
                         return Message(MessageType.ERROR, {'error': 'Missing required fields: from, to'})
          
-                    await self.actions.move_sprite(table_name=update_data['table_name'],
+                    await self.actions.move_sprite(table_id=update_data['table_id'],
                                                    sprite_id=update_data['sprite_id'],
                                                    old_position=update_data['from'],
                                                    new_position=update_data['to'])

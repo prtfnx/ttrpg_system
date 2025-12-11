@@ -366,7 +366,7 @@ class VirtualTable:
             'reveal': fog_data.get('reveal', [])
         }
         
-        logger.info(f"Loaded table '{self.name}' with {len(self.entities)} entities and {len(self.fog_rectangles['hide'])} fog rectangles")
+        logger.info(f"Loaded table '{self.display_name}' with {len(self.entities)} entities and {len(self.fog_rectangles['hide'])} fog rectangles")
     
     def save_to_disk(self, file_path: str):
         """Save table to disk with 'layers' format"""
@@ -378,11 +378,11 @@ class VirtualTable:
             
             # Create save data with 'layers' instead of 'entities'
             save_data = {
-                'name': self.name,
+                'name': self.display_name,
                 'width': self.width,
                 'height': self.height,
-                'layers': self.table_to_layered_dict(),  # Changed from 'entities' to 'layers'
-                'fog_rectangles': self.fog_rectangles,  # Include fog rectangles
+                'layers': self.table_to_layered_dict(),
+                'fog_rectangles': self.fog_rectangles,
                 'metadata': {
                     'version': '1.0',
                     'entity_count': len(self.entities),
@@ -391,11 +391,10 @@ class VirtualTable:
                 }
             }
             
-            # Write to file
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(save_data, f, indent=2, ensure_ascii=False)
             
-            logger.info(f"Saved table '{self.name}' to {file_path} ({len(self.entities)} entities)")
+            logger.info(f"Saved table '{self.display_name}' to {file_path} ({len(self.entities)} entities)")
             
         except Exception as e:
             logger.error(f"Failed to save table to {file_path}: {e}")

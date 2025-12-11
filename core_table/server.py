@@ -36,44 +36,45 @@ class TableManager:
         self.tables_id[str(table.table_id)] = table  # Also add to tables_id
         return table
     
-    def get_table(self, name: str = None) -> VirtualTable:
-        """Get table by name or return default"""
-        if name and name in self.tables:
-            return self.tables[name]
+    def get_table(self, table_id: str = None) -> VirtualTable:
+        """Get table by UUID or return default"""
+        if table_id and table_id in self.tables:
+            return self.tables[table_id]
         return self.default_table
     def create_table(self, name: str, width: int, height: int) -> VirtualTable:        
         """Create a new table"""
         table = VirtualTable(name, width, height)
-        self.tables[name] = table
-        self.tables_id[str(table.table_id)] = table  # Also add to tables_id for UUID lookup
+        table_id = str(table.table_id)
+        self.tables[table_id] = table
+        self.tables_id[table_id] = table
         logger.info(f"Created table '{name}' ({width}x{height}) with ID {table.table_id}")
         return table
     
     def add_table(self, table: VirtualTable):
         """Add existing table to manager"""
-        self.tables[table.name] = table
-        self.tables_id[str(table.table_id)] = table
-        logger.info(f"Added table '{table.name}' (ID: {table.table_id}) to manager")
+        table_id = str(table.table_id)
+        self.tables[table_id] = table
+        self.tables_id[table_id] = table
+        logger.info(f"Added table '{table.display_name}' (ID: {table.table_id}) to manager")
     
-    def remove_table(self, table_name: str):
-        """Remove table from manager"""
-        if table_name in self.tables and table_name != "default":
-            table = self.tables[table_name]
-            table_id = str(table.table_id)
+    def remove_table(self, table_id: str):
+        """Remove table from manager by UUID"""
+        if table_id in self.tables and table_id != "default":
+            table = self.tables[table_id]
             
             # Remove from both dictionaries
-            del self.tables[table_name]
+            del self.tables[table_id]
             if table_id in self.tables_id:
                 del self.tables_id[table_id]
             
-            logger.info(f"Removed table '{table_name}' (ID: {table_id}) from manager")
+            logger.info(f"Removed table '{table.display_name}' (ID: {table_id}) from manager")
             return True
         return False
     
     def apply_update(self, data: Dict):
         """Apply general table updates"""
-        table_name = data.get('table_name', 'default')
-        table = self.get_table(table_name)
+        table_id = data.get('table_id', 'default')
+        table = self.get_table(table_id)
         
         update_type = data.get('type')
         if update_type == 'scale':
@@ -125,9 +126,10 @@ class TableManager:
             for db_table in db_tables:
                 virtual_table, success = crud.load_table_from_db(self.db_session, db_table.table_id)
                 if success and virtual_table:
-                    self.tables[virtual_table.name] = virtual_table
-                    self.tables_id[str(virtual_table.table_id)] = virtual_table
-                    logger.info(f"Loaded table '{virtual_table.name}' from database")
+                    table_id = str(virtual_table.table_id)
+                    self.tables[table_id] = virtual_table
+                    self.tables_id[table_id] = virtual_table
+                    logger.info(f"Loaded table '{virtual_table.display_name}' (ID: {table_id}) from database")
                 else:
                     logger.error(f"Failed to load table with ID {db_table.table_id}")
             
@@ -136,19 +138,19 @@ class TableManager:
             logger.error(f"Error loading tables from database: {e}")
             return False
     
-    def save_table(self, table_name: str, session_id: int) -> bool:
+    def save_table(self, table_id: str, session_id: int) -> bool:
         """Save a specific table to database"""
-        if not self.db_session or table_name not in self.tables:
+        if not self.db_session or table_id not in self.tables:
             return False
         
         try:
             from server_host.database import crud
-            table = self.tables[table_name]
+            table = self.tables[table_id]
             crud.save_table_to_db(self.db_session, table, session_id)
-            logger.info(f"Saved table '{table_name}' to database")
+            logger.info(f"Saved table '{table.display_name}' (ID: {table_id}) to database")
             return True
         except Exception as e:
-            logger.error(f"Error saving table '{table_name}' to database: {e}")
+            logger.error(f"Error saving table ID '{table_id}' to database: {e}")
             return False
     
     def load_table(self, table_id: str) -> bool:
@@ -160,8 +162,8 @@ class TableManager:
             from server_host.database import crud
             virtual_table, success = crud.load_table_from_db(self.db_session, table_id)
             if success and virtual_table:
-                self.tables[virtual_table.name] = virtual_table
-                logger.info(f"Loaded table '{virtual_table.name}' from database")
+                self.tables[str(virtual_table.table_id)] = virtual_table
+                logger.info(f"Loaded table '{virtual_table.display_name}' (ID: {virtual_table.table_id}) from database")
                 return True
             return False
         except Exception as e:

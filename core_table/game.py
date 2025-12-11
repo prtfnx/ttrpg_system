@@ -52,9 +52,9 @@ class Game:
         self.items[name] = item_data
         logger.info(f"Added item '{name}' to game")
 
-    def get_table(self, name: str) -> 'table.VirtualTable':
-        """Get table by name"""
-        return self.table_manager.get_table(name)
+    def get_table(self, table_id: str) -> 'table.VirtualTable':
+        """Get table by UUID"""
+        return self.table_manager.get_table(table_id)
 
     def get_character(self, name: str):
         """Get character by name"""
@@ -75,12 +75,13 @@ class Game:
         """Get list of table names"""
         return list(self.table_manager.tables.keys())
     
-    def get_table_info(self, name: str = None) -> Dict:
+    def get_table_info(self, table_id: str = None) -> Dict:
         """Get table information"""
-        table = self.get_table(name)
+        table = self.get_table(table_id)
         if table:
             return {
-                'name': table.name,
+                'table_id': str(table.table_id),
+                'table_name': table.display_name,
                 'width': table.width,
                 'height': table.height,
                 'entity_count': len(table.entities),

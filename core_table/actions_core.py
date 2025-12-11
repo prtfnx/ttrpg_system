@@ -59,7 +59,7 @@ class ActionsCore(AsyncActionsProtocol):
                     logger.warning(f"No session_id provided for {operation_name}, skipping database persistence")
                     return
                 
-                table_id = table.name
+                table_id = str(table.table_id)
                 logger.debug(f"Marking table dirty for batched save after {operation_name}: table_id={table_id}, session_id={session_id}")
                 
                 # Mark table as dirty and schedule a delayed save
@@ -116,7 +116,7 @@ class ActionsCore(AsyncActionsProtocol):
                     logger.warning(f"No session_id provided for {operation_name}, skipping database persistence")
                     return
                 
-                table_id = table.name
+                table_id = str(table.table_id)
                 logger.debug(f"Force persisting table state for {operation_name}: table_id={table_id}, session_id={session_id}")
                 
                 # Cancel any pending delayed save
@@ -230,19 +230,19 @@ class ActionsCore(AsyncActionsProtocol):
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
             
-            table_name = table.name
+            table_name = table.display_name
             
             # Store table data for undo
             table_data = {
                 'table_id': table_id,
-                'name': table.name,
+                'name': table.display_name,
                 'width': table.width,
                 'height': table.height,
                 'entities': copy.deepcopy(table.entities)
             }
             
             # Delete from memory FIRST (both dictionaries)
-            self.table_manager.remove_table(table_name)
+            self.table_manager.remove_table(table_id)
             
             # Then delete from database if session_id provided
             if session_id:
@@ -447,14 +447,14 @@ class ActionsCore(AsyncActionsProtocol):
             return ActionResult(False, f"Failed to delete sprite: {str(e)}")
 
 
-    async def move_sprite(self, table_name: str, sprite_id: str, old_position: Position, new_position: Position, session_id: Optional[int] = None) -> ActionResult:
+    async def move_sprite(self, table_id: str, sprite_id: str, old_position: Position, new_position: Position, session_id: Optional[int] = None) -> ActionResult:
         """Move sprite to new position"""
         try:
-            logger.info(f"Moving sprite {sprite_id} from {old_position} to {new_position} on table {table_name}")
-            table = await self._get_table(table_name)
+            logger.info(f"Moving sprite {sprite_id} from {old_position} to {new_position} on table {table_id}")
+            table = await self._get_table(table_id)
             if not table:
-                logger.error(f"Table {table_name} not found")
-                return ActionResult(False, f"Table {table_name} not found")
+                logger.error(f"Table {table_id} not found")
+                return ActionResult(False, f"Table {table_id} not found")
 
             entity = table.find_entity_by_sprite_id(sprite_id)
            
@@ -713,7 +713,7 @@ class ActionsCore(AsyncActionsProtocol):
             
             info = {
                 'table_id': table_id,
-                'name': table.name,
+                'name': table.display_name,
                 'width': table.width,
                 'height': table.height,
                 'entity_count': len(table.entities),
@@ -756,7 +756,8 @@ class ActionsCore(AsyncActionsProtocol):
             self.table_manager.tables_info = {}
             for table_id, table in self.table_manager.tables.items():
                 self.table_manager.tables_info[table_id] = {
-                    'name': table.name,
+                    'table_id': table_id,
+                    'table_name': table.display_name,
                     'width': table.width,
                     'height': table.height,
                     'entity_count': len(table.entities)

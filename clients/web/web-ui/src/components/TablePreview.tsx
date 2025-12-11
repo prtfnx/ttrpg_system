@@ -18,6 +18,28 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Add refresh trigger state
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // Listen for table switches to force thumbnail regeneration
+  useEffect(() => {
+    const handleTableSwitch = () => {
+      // Force regeneration by clearing cache
+      tableThumbnailService.invalidateThumbnail(table.table_id, width, height);
+      
+      // Trigger re-render with small delay to allow WASM table switch to complete
+      setTimeout(() => {
+        setRefreshTrigger(prev => prev + 1);
+      }, 100);
+    };
+    
+    window.addEventListener('table-data-received', handleTableSwitch);
+    
+    return () => {
+      window.removeEventListener('table-data-received', handleTableSwitch);
+    };
+  }, [table.table_id, width, height]);
+  
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -69,7 +91,46 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
 
         // Only update if not cancelled
         if (!isCancelled) {
-          ctx.putImageData(imageData, 0, 0);
+          if (imageData) {
+            // Real thumbnail captured from active table
+            ctx.putImageData(imageData, 0, 0);
+          } else {
+            // Table not currently active - draw placeholder
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Draw grid pattern
+            ctx.strokeStyle = '#2a2a2a';
+            ctx.lineWidth = 1;
+            
+            const gridSize = 6;
+            const cellWidth = width / gridSize;
+            const cellHeight = height / gridSize;
+
+            for (let i = 0; i <= gridSize; i++) {
+              ctx.beginPath();
+              ctx.moveTo(i * cellWidth, 0);
+              ctx.lineTo(i * cellWidth, height);
+              ctx.stroke();
+              
+              ctx.beginPath();
+              ctx.moveTo(0, i * cellHeight);
+              ctx.lineTo(width, i * cellHeight);
+              ctx.stroke();
+            }
+            
+            // Draw border
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(1, 1, width - 2, height - 2);
+            
+            // Show "Not Loaded" text
+            ctx.fillStyle = '#666';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Not Loaded', width / 2, height / 2);
+          }
           setIsLoading(false);
         }
       } catch (err) {
@@ -101,7 +162,7 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [table.table_id, table.width, table.height, width, height]);
+  }, [table.table_id, table.width, table.height, width, height, refreshTrigger]);
 
   return (
     <canvas

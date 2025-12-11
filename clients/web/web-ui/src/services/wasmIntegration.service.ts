@@ -5,6 +5,7 @@
 
 import type { RenderEngine } from '../types/wasm';
 import { tableThumbnailService } from './tableThumbnail.service';
+import { useGameStore } from '../store';
 
 class WasmIntegrationService {
   private renderEngine: RenderEngine | null = null;
@@ -233,6 +234,45 @@ class WasmIntegrationService {
       const tableData = data.table_data || data;
       console.log('Using tableData:', tableData);
       console.log('TableData keys:', Object.keys(tableData));
+      
+      // CRITICAL: Update store with server's UUID if table_id is a UUID
+      // This ensures thumbnail service can match against WASM's active table ID
+      const tableId = tableData.table_id;
+      const tableName = tableData.table_name;
+      
+      // Check if we received a UUID (server's authoritative ID)
+      // Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+      const isUUID = tableId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tableId);
+      
+      if (isUUID && tableName) {
+        // Server sent us the real UUID - update the store's table list
+        const gameStore = (window as any).gameStore || useGameStore?.getState();
+        if (gameStore) {
+          const currentTables = gameStore.tables || [];
+          const existingTable = currentTables.find((t: any) => 
+            t.table_name === tableName || t.table_id === tableName || t.table_id === tableId
+          );
+          
+          if (existingTable && existingTable.table_id !== tableId) {
+            console.log(`[TableSync] Updating table ID: '${existingTable.table_id}' → '${tableId}'`);
+            
+            // Update the table with the server's UUID
+            const updatedTables = currentTables.map((t: any) => 
+              (t.table_name === tableName || t.table_id === tableName || t.table_id === tableId)
+                ? { ...t, table_id: tableId }
+                : t
+            );
+            
+            gameStore.setTables?.(updatedTables);
+            
+            // Also update activeTableId if this is the active table
+            if (gameStore.activeTableId === tableName || gameStore.activeTableId === existingTable.table_id) {
+              console.log(`[TableSync] Updating activeTableId: '${gameStore.activeTableId}' → '${tableId}'`);
+              gameStore.switchToTable?.(tableId);
+            }
+          }
+        }
+      }
       
       // CRITICAL: Call handle_table_data to set the active table in WASM
       // Transform data to match Rust's TableData struct requirements

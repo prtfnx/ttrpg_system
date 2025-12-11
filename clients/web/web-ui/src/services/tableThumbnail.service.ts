@@ -67,7 +67,7 @@ class TableThumbnailService {
    * @param thumbnailWidth - Desired thumbnail width
    * @param thumbnailHeight - Desired thumbnail height
    * @param forceRefresh - Skip cache and regenerate
-   * @returns ImageData containing the rendered thumbnail
+   * @returns ImageData containing the rendered thumbnail, or null if table is not active
    * @throws Error if RenderEngine is not available
    */
   async generateThumbnail(
@@ -77,7 +77,7 @@ class TableThumbnailService {
     thumbnailWidth: number,
     thumbnailHeight: number,
     forceRefresh = false
-  ): Promise<ImageData> {
+  ): Promise<ImageData | null> {
     const cacheKey = `${tableId}_${thumbnailWidth}x${thumbnailHeight}`;
     
     // Return cached version if available
@@ -168,23 +168,18 @@ class TableThumbnailService {
         }
       }
       
-      // CRITICAL: Switch to the requested table before capturing
-      // The main canvas only shows ONE table at a time (the active table)
-      // We must switch to the correct table, capture, then switch back
-      const originalTableId = this.renderEngine.get_active_table_id?.();
-      const needsTableSwitch = originalTableId && originalTableId !== tableId;
+      // Check if this is the currently active table
+      // IMPORTANT: Only the active table is loaded in WASM memory
+      // Other tables exist in server state but are not rendered until switched to
+      const activeTableId = this.renderEngine.get_active_table_id?.();
       
-      if (needsTableSwitch) {
-        console.log(`[ThumbnailService] Switching from '${originalTableId}' to '${tableId}' for capture`);
-        const switched = this.renderEngine.set_active_table?.(tableId);
-        if (!switched) {
-          console.error(`[ThumbnailService] Failed to switch to table '${tableId}'`);
-          throw new Error(`Cannot switch to table ${tableId}`);
-        }
-        
-        // Wait for one render frame after table switch
-        await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+      if (activeTableId !== tableId) {
+        console.log(`[ThumbnailService] Skipping thumbnail for '${tableId}' - not active (active: '${activeTableId}')`);
+        // Return null - caller will handle placeholder rendering
+        return null;
       }
+      
+      console.log(`[ThumbnailService] Generating thumbnail for active table '${tableId}'`);
       
       console.log('[ThumbnailService] Capturing from canvas:', { 
         canvasWidth: mainCanvas.width, 
@@ -237,14 +232,6 @@ class TableThumbnailService {
         // Extract ImageData
         const imageData = ctx.getImageData(0, 0, thumbnailWidth, thumbnailHeight);
         
-        // Switch back to original table if we switched
-        if (needsTableSwitch && originalTableId) {
-          console.log(`[ThumbnailService] Switching back to original table '${originalTableId}'`);
-          this.renderEngine.set_active_table?.(originalTableId);
-          // Wait for one render frame after switching back
-          await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
-        }
-        
         // Cache the result
         const cacheEntry: ThumbnailCacheEntry = {
           imageData,
@@ -259,11 +246,6 @@ class TableThumbnailService {
         return imageData;
         
       } catch (error) {
-        // Make sure to switch back even if there's an error
-        if (needsTableSwitch && originalTableId) {
-          console.log(`[ThumbnailService] Error occurred, switching back to '${originalTableId}'`);
-          this.renderEngine.set_active_table?.(originalTableId);
-        }
         console.error('[ThumbnailService] Error during thumbnail generation:', error);
         throw error;
       }

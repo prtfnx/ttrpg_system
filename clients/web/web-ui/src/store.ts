@@ -3,6 +3,7 @@ import { devtools } from 'zustand/middleware';
 import { ProtocolService } from './services/ProtocolService';
 import type { Character, ConnectionState, GameState, Sprite } from './types';
 import type { ToolType } from './types/tools';
+import { transformServerTableToClient, transformServerTablesToClient, validateTableId } from './protocol/tableProtocolAdapter';
 
 // Change detection cache
 const spriteCache = new Map<string, Record<string, any>>();
@@ -447,8 +448,9 @@ export const useGameStore = create<GameStore>()(
       
       // Table management actions
       setTables: (tables: TableInfo[]) => {
+        const transformedTables = transformServerTablesToClient(tables);
         set(() => ({
-          tables,
+          tables: transformedTables,
         }));
       },
 
@@ -588,11 +590,11 @@ export const useGameStore = create<GameStore>()(
       },
 
       switchToTable: (tableId: string) => {
+        validateTableId(tableId);
+        
         set((state) => {
-          // Find the table info
           const table = state.tables.find(t => t.table_id === tableId);
           if (table) {
-            // Create basic table data structure for WASM rendering when switching locally
             const tableDataForWasm = {
               table_data: {
                 table_id: table.table_id,
@@ -614,7 +616,6 @@ export const useGameStore = create<GameStore>()(
               }
             };
             
-            // Emit table data event for WASM integration
             window.dispatchEvent(new CustomEvent('table-data-received', {
               detail: tableDataForWasm
             }));
@@ -623,7 +624,6 @@ export const useGameStore = create<GameStore>()(
           return { activeTableId: tableId };
         });
         
-        // Send message via protocol to request table data from server
         window.dispatchEvent(new CustomEvent('protocol-send-message', {
           detail: {
             type: 'table_request',

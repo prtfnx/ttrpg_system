@@ -57,6 +57,10 @@ class TableThumbnailService {
     thumbnailHeight: number,
     forceRefresh = false
   ): Promise<ImageData | null> {
+    if (!isValidUUID(tableId)) {
+      console.error(`[ThumbnailService] Invalid UUID: ${tableId}`);
+      return null;
+    }
     const cacheKey = `${tableId}_${thumbnailWidth}x${thumbnailHeight}`;
     
     // Return cached version if available
@@ -288,6 +292,7 @@ class TableThumbnailService {
    * Invalidate specific thumbnail by exact cache key
    */
   invalidateThumbnail(tableId: string, width: number, height: number): void {
+    if (!isValidUUID(tableId)) return;
     const cacheKey = `${tableId}_${width}x${height}`;
     if (this.cache.delete(cacheKey)) {
       console.log(`[ThumbnailService] Invalidated thumbnail: ${cacheKey}`);

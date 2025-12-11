@@ -1,4 +1,4 @@
-import { TableInfo } from '../store';
+import type { TableInfo } from '../store';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -24,12 +24,7 @@ export function transformServerTableToClient(serverTable: any): TableInfo {
     table_id: uuid,
     table_name: displayName,
     width: serverTable.width || 100,
-    height: serverTable.height || 100,
-    position: serverTable.position || [0, 0],
-    scale: serverTable.scale || [1, 1],
-    layers: serverTable.layers || ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles', 'fog_of_war'],
-    layer_visibility: serverTable.layer_visibility || {},
-    fog_rectangles: serverTable.fog_rectangles || { hide: [], reveal: [] }
+    height: serverTable.height || 100
   };
 }
 

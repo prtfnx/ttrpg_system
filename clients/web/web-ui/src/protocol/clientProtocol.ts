@@ -11,6 +11,7 @@ import { logger, protocolLogger } from '../utils/logger';
 import { showToast } from '../utils/toast';
 import type { Message, MessageHandler } from './message';
 import { MessageType, createMessage, parseMessage } from './message';
+import { validateTableId } from './tableProtocolAdapter';
 
 
 export class WebClientProtocol {
@@ -153,6 +154,7 @@ export class WebClientProtocol {
 
   // Compendium helpers
   addCompendiumSprite(tableId: string, spriteData: Record<string, unknown>): void {
+    validateTableId(tableId);
     this.sendMessage(createMessage(MessageType.COMPENDIUM_SPRITE_ADD, {
       table_id: tableId,
       sprite_data: spriteData,
@@ -844,9 +846,10 @@ export class WebClientProtocol {
     // Use table_id from spriteData if available, otherwise fall back to store
     const tableId = (spriteData.table_id as string) || useGameStore.getState().activeTableId;
     if (!tableId) {
-      console.error('[Protocol] No table ID available for sprite create (neither in spriteData nor store)');
+      console.error('[Protocol] No table ID available for sprite create');
       return;
     }
+    validateTableId(tableId);
     this.sendMessage(createMessage(MessageType.SPRITE_CREATE, { sprite_data: spriteData, table_id: tableId }, 2));
   }
 
@@ -856,6 +859,7 @@ export class WebClientProtocol {
       console.error('[Protocol] No active table ID available for sprite update');
       return;
     }
+    validateTableId(activeTableId);
     this.sendMessage(createMessage(MessageType.SPRITE_UPDATE, { sprite_id: spriteId, table_id: activeTableId, ...updates }, 2));
   }
 
@@ -865,6 +869,7 @@ export class WebClientProtocol {
       console.error('[Protocol] No active table ID available for sprite move');
       return;
     }
+    validateTableId(activeTableId);
     this.sendMessage(createMessage(MessageType.SPRITE_MOVE, { sprite_id: spriteId, x, y, table_id: activeTableId }, 1));
   }
 
@@ -874,6 +879,7 @@ export class WebClientProtocol {
       console.error('[Protocol] No active table ID available for sprite scale');
       return;
     }
+    validateTableId(activeTableId);
     console.log('📏 Protocol: Sending sprite scale:', { spriteId, scaleX, scaleY, activeTableId });
     this.sendMessage(createMessage(MessageType.SPRITE_SCALE, { 
       sprite_id: spriteId, 
@@ -889,6 +895,7 @@ export class WebClientProtocol {
       console.error('[Protocol] No active table ID available for sprite remove');
       return;
     }
+    validateTableId(activeTableId);
     this.sendMessage(createMessage(MessageType.SPRITE_REMOVE, { sprite_id: spriteId, table_id: activeTableId }, 2));
   }
 

@@ -3,9 +3,9 @@
  * Handles sprite synchronization, table updates, and asset management
  */
 
+import { useGameStore } from '../store';
 import type { RenderEngine } from '../types/wasm';
 import { tableThumbnailService } from './tableThumbnail.service';
-import { useGameStore } from '../store';
 
 class WasmIntegrationService {
   private renderEngine: RenderEngine | null = null;
@@ -393,6 +393,33 @@ class WasmIntegrationService {
 
       // NOTE: Fog is now handled via entities in the fog_of_war layer (processed above in layer handling)
       // The old fog_rectangles system has been removed in favor of entity-based fog
+
+      // CRITICAL: Emit event after ALL sprites have been loaded
+      // This allows thumbnail generation to wait for actual completion
+      if (tableData.table_id) {
+        // Count total sprites loaded
+        let spriteCount = 0;
+        if (tableData.layers) {
+          Object.values(tableData.layers).forEach((layerData: any) => {
+            if (Array.isArray(layerData)) {
+              spriteCount += layerData.length;
+            } else if (layerData && typeof layerData === 'object') {
+              spriteCount += Object.keys(layerData).length;
+            }
+          });
+        }
+        
+        console.log(`[TableSync] All sprites loaded for table ${tableData.table_id} (${spriteCount} sprites)`);
+        
+        // Emit completion event for thumbnail generation and other listeners
+        window.dispatchEvent(new CustomEvent('table-sprites-loaded', {
+          detail: { 
+            tableId: tableData.table_id, 
+            spriteCount,
+            timestamp: Date.now()
+          }
+        }));
+      }
 
     } catch (error) {
       console.error('Failed to process table data in WASM:', error);

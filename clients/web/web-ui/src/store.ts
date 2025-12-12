@@ -3,7 +3,7 @@ import { devtools } from 'zustand/middleware';
 import { ProtocolService } from './services/ProtocolService';
 import type { Character, ConnectionState, GameState, Sprite } from './types';
 import type { ToolType } from './types/tools';
-import { transformServerTableToClient, transformServerTablesToClient, validateTableId } from './protocol/tableProtocolAdapter';
+import { transformServerTablesToClient, validateTableId } from './protocol/tableProtocolAdapter';
 
 // Change detection cache
 const spriteCache = new Map<string, Record<string, any>>();

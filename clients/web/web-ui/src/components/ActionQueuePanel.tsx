@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useAuthenticatedWebSocket } from "../hooks/useAuthenticatedWebSocket";
 import { MessageType, createMessage } from "../protocol/message";
 import type { UserInfo } from "../services/auth.service";
+import styles from './ActionQueuePanel.module.css';
 
 export interface QueuedAction {
   id: string;
@@ -63,38 +64,38 @@ export const ActionQueuePanel: React.FC<ActionQueuePanelProps> = ({ sessionCode,
   }, [actionType, actionPayload, userInfo, protocol]);
 
   return (
-    <div className="game-panel action-queue-panel-minimal">
-      <div className="panel-header-compact">
-        <h3 className="panel-title">⚡ Actions</h3>
+    <div className={styles.actionQueuePanel}>
+      <div className={styles.panelHeaderCompact}>
+        <h3 className={styles.panelTitle}>⚡ Actions</h3>
       </div>
-      {error && <div className="error-message">{error}</div>}
-      <div className="action-form">
+      {error && <div className={styles.errorMessage}>{error}</div>}
+      <div className={styles.actionForm}>
         <input
           type="text"
           placeholder="Action (e.g. move, attack)"
           value={actionType}
           onChange={e => setActionType(e.target.value)}
-          className="action-input"
+          className={styles.actionInput}
         />
         <input
           type="text"
-          placeholder='Data: {"target":"orc"}'
+          placeholder='{"target":"orc"}'
           value={actionPayload}
           onChange={e => setActionPayload(e.target.value)}
-          className="action-input"
+          className={styles.actionInput}
         />
-        <button onClick={queueAction} className="queue-btn">
+        <button onClick={queueAction} className={styles.queueBtn}>
           Add
         </button>
       </div>
-      <div className="actions-list">
+      <div className={styles.actionsList}>
         {queue.map(action => (
-          <div key={action.id} className="action-item">
-            <div className="action-header">
-              <span className="action-type">{action.type}</span>
-              <span className={`action-status ${action.status}`}>{action.status}</span>
+          <div key={action.id} className={styles.actionItem}>
+            <div className={styles.actionHeader}>
+              <span className={styles.actionType}>{action.type}</span>
+              <span className={`${styles.actionStatus} ${styles[action.status]}`}>{action.status}</span>
             </div>
-            <div className="action-details">
+            <div className={styles.actionDetails}>
               {action.user} - {new Date(action.timestamp).toLocaleTimeString()}
             </div>
           </div>

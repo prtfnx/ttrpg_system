@@ -935,14 +935,14 @@ export const TableManagementPanel: React.FC = () => {
       )}
 
       {settingsTableId && (
-        <div className="settings-modal">
+        <div className={styles.settingsModal}>
           <div 
-            className="modal-content settings-modal-content"
+            className={`${styles.modalContent} ${styles.settingsModalContent}`}
             style={{ background: '#2a2a2a', color: '#e0e0e0' }}
           >
             <h4 style={{ color: '#fff' }}>Table Settings</h4>
             
-            <div className="settings-section" style={{ background: 'transparent' }}>
+            <div className={styles.settingsSection} style={{ background: 'transparent' }}>
               <label style={{ color: '#e0e0e0' }}>
                 Table Name:
                 <input
@@ -955,9 +955,9 @@ export const TableManagementPanel: React.FC = () => {
               </label>
             </div>
 
-            <div className="settings-section" style={{ background: 'transparent' }}>
+            <div className={styles.settingsSection} style={{ background: 'transparent' }}>
               <h5 style={{ color: '#fff' }}>Resolution</h5>
-              <div className="form-row">
+              <div className={styles.formRow}>
                 <label style={{ color: '#e0e0e0' }}>
                   Width (px):
                   <input
@@ -983,9 +983,9 @@ export const TableManagementPanel: React.FC = () => {
               </div>
             </div>
 
-            <div className="settings-section" style={{ background: 'transparent' }}>
+            <div className={styles.settingsSection} style={{ background: 'transparent' }}>
               <h5 style={{ color: '#fff' }}>Grid Settings</h5>
-              <div className="checkbox-row">
+              <div className={styles.checkboxRow}>
                 <label className={styles.checkboxLabel}>
                   <input
                     type="checkbox"
@@ -1009,13 +1009,13 @@ export const TableManagementPanel: React.FC = () => {
               </label>
             </div>
 
-            <div className="modal-actions">
-              <button onClick={handleSaveSettings} className="confirm-button">
+            <div className={styles.modalActions}>
+              <button onClick={handleSaveSettings} className={styles.confirmButton}>
                 Save Changes
               </button>
               <button 
                 onClick={handleCloseSettings} 
-                className="cancel-button"
+                className={styles.cancelButton}
               >
                 Cancel
               </button>

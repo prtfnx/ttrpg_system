@@ -802,3 +802,29 @@
   font-size: var(--font-size-sm);
 }
 
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+}
+
+.checkboxRow {
+  margin-bottom: var(--spacing-md);
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: var(--border-width) solid var(--border-primary);
+}
+
+.confirmButton {
+  composes: panel-button success from '../styles/PanelBase.module.css';
+}
+
+.cancelButton {
+  composes: panel-button secondary from '../styles/PanelBase.module.css';
+}

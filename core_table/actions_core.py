@@ -482,7 +482,8 @@ class ActionsCore(AsyncActionsProtocol):
             
             action = {
                 'type': 'move_sprite',
-                'table_name': table_name,
+                'table_id': table_id,
+                'table_name': table.display_name,
                 'sprite_id': sprite_id,
                 'old_position': old_position,
                 'new_position': new_position

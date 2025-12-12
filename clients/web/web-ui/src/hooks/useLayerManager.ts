@@ -35,20 +35,35 @@ export const useLayerManager = () => {
   useEffect(() => {
     const initLayerManager = async () => {
       try {
-        // Wait for the global WASM module to be ready
-        const waitForWasm = () => {
-          return new Promise<void>((resolve, reject) => {
-            const checkWasm = () => {
-              if (window.ttrpg_rust_core && (window as any).gameAPI?.renderManager) {
-                resolve();
-              } else if (Date.now() - startTime > 10000) { // 10 second timeout
-                reject(new Error('WASM module not available after timeout'));
-              } else {
-                setTimeout(checkWasm, 100);
-              }
+        // Wait for the global WASM module to be ready using event-based approach
+        const waitForWasm = (): Promise<void> => {
+          return new Promise((resolve, reject) => {
+            // Check if already loaded
+            if (window.ttrpg_rust_core && (window as any).gameAPI?.renderManager) {
+              resolve();
+              return;
+            }
+            
+            // Set timeout for safety
+            const timeoutId = setTimeout(() => {
+              window.removeEventListener('wasm-ready', handleReady);
+              reject(new Error('WASM initialization timeout (10s)'));
+            }, 10000);
+            
+            // Listen for ready event
+            const handleReady = () => {
+              clearTimeout(timeoutId);
+              // Give gameAPI a moment to be set up after WASM is ready
+              queueMicrotask(() => {
+                if (window.ttrpg_rust_core && (window as any).gameAPI?.renderManager) {
+                  resolve();
+                } else {
+                  reject(new Error('gameAPI.renderManager not available after WASM ready'));
+                }
+              });
             };
-            const startTime = Date.now();
-            checkWasm();
+            
+            window.addEventListener('wasm-ready', handleReady, { once: true });
           });
         };
 

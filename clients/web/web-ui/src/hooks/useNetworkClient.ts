@@ -72,11 +72,11 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
               const msg = `Connection failed: ${shortMsg}`;
               console.error(shortMsg);
               setNetworkState(prev => ({ ...prev, connectionState: 'error', isConnected: false, lastError: msg }));
-              // Call callbacks asynchronously to avoid React act(...) warning in tests
-              setTimeout(() => {
+              // Call callbacks asynchronously using microtask queue
+              queueMicrotask(() => {
                 if (options.onError) options.onError(msg);
                 if (options.onConnectionChange) options.onConnectionChange('error', msg);
-              }, 0);
+              });
               // Do not proceed further with initialization
               return;
             }

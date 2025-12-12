@@ -79,31 +79,41 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
     try {
       console.log('Initializing WASM module...');
       
-      // Wait for the global WASM module to be ready
-      const waitForWasm = () => {
-        return new Promise<void>((resolve, reject) => {
-          const checkWasm = () => {
-            if (typeof window !== 'undefined' && window.ttrpg_rust_core && (window.ttrpg_rust_core as any).AssetManager) {
-              resolve();
-            } else if (Date.now() - startTime > 10000) { // 10 second timeout
-              reject(new Error('WASM module not available after timeout'));
-            } else if (typeof window === 'undefined') {
-              // In test environment, resolve immediately
-              resolve();
-            } else {
-              setTimeout(checkWasm, 100);
-            }
+      // Wait for the global WASM module to be ready using event-based approach
+      const waitForWasm = (): Promise<void> => {
+        return new Promise((resolve, reject) => {
+          // Check if already loaded
+          if (typeof window !== 'undefined' && window.ttrpg_rust_core?.AssetManager) {
+            console.log('WASM already initialized');
+            resolve();
+            return;
+          }
+          
+          // Test environment check
+          if (typeof window === 'undefined') {
+            resolve();
+            return;
+          }
+          
+          // Set timeout for safety
+          const timeoutId = setTimeout(() => {
+            window.removeEventListener('wasm-ready', handleReady);
+            reject(new Error('WASM initialization timeout (10s)'));
+          }, 10000);
+          
+          // Listen for ready event
+          const handleReady = () => {
+            clearTimeout(timeoutId);
+            console.log('WASM ready event received');
+            resolve();
           };
-          const startTime = Date.now();
-          checkWasm();
+          
+          window.addEventListener('wasm-ready', handleReady, { once: true });
         });
       };
 
       await waitForWasm();
       console.log('Global WASM module is ready');
-      
-      // Small delay to ensure WASM is fully ready
-      await new Promise(resolve => setTimeout(resolve, 100));
       
       console.log('Initializing Enhanced Asset Manager...');
       const AssetManagerClass = (window.ttrpg_rust_core as any).AssetManager as typeof AssetManager;

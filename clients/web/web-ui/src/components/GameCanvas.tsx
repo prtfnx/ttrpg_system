@@ -731,6 +731,15 @@ export const GameCanvas: React.FC = () => {
         await initWasm();
         console.log('[WASM] initWasm completed');
         
+        // Dispatch wasm-ready event for other services to listen
+        window.dispatchEvent(new CustomEvent('wasm-ready', { 
+          detail: { 
+            timestamp: Date.now(),
+            module: wasmModule 
+          } 
+        }));
+        console.log('[WASM] wasm-ready event dispatched');
+        
         if (!mounted) {
           console.warn('Component not mounted, aborting WASM init');
           return;

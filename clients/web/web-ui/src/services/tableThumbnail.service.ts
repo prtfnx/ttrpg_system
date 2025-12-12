@@ -1,5 +1,5 @@
-import type { RenderEngine } from '../types/wasm';
 import { isValidUUID } from '../protocol/tableProtocolAdapter';
+import type { RenderEngine } from '../types/wasm';
 
 interface ThumbnailCacheEntry {
   imageData: ImageData;
@@ -164,6 +164,18 @@ class TableThumbnailService {
       
       console.log(`[ThumbnailService] Generating thumbnail for active table '${tableId}'`);
       
+      // CRITICAL: Trigger a render frame before capturing
+      // The render loop runs in WASM Rust and may not be producing frames
+      // when the GameCanvas is not visible (e.g., on Tables tab)
+      console.log('[ThumbnailService] Triggering render frame before capture');
+      try {
+        this.renderEngine.render();
+        // Wait for the render to complete (WebGL/WASM operations)
+        await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+      } catch (renderError) {
+        console.warn('[ThumbnailService] Failed to trigger render:', renderError);
+      }
+      
       console.log('[ThumbnailService] Capturing from canvas:', { 
         canvasWidth: mainCanvas.width, 
         canvasHeight: mainCanvas.height,
@@ -206,6 +218,12 @@ class TableThumbnailService {
         
         // Draw scaled version of main canvas (zero-copy approach like Figma)
         // This captures the current rendered state without re-rendering
+        console.log('[ThumbnailService] Drawing canvas:', {
+          source: { x: 0, y: 0, w: mainCanvas.width, h: mainCanvas.height },
+          dest: { x: offsetX, y: offsetY, w: scaledWidth, h: scaledHeight },
+          scale
+        });
+        
         ctx.drawImage(
           mainCanvas,
           0, 0, mainCanvas.width, mainCanvas.height,
@@ -214,6 +232,25 @@ class TableThumbnailService {
         
         // Extract ImageData
         const imageData = ctx.getImageData(0, 0, thumbnailWidth, thumbnailHeight);
+        
+        // Diagnostic: Check if thumbnail is all black
+        let nonBlackPixels = 0;
+        for (let i = 0; i < imageData.data.length; i += 4) {
+          const r = imageData.data[i];
+          const g = imageData.data[i + 1];
+          const b = imageData.data[i + 2];
+          if (r > 30 || g > 30 || b > 30) {
+            nonBlackPixels++;
+          }
+        }
+        const totalPixels = (imageData.width * imageData.height);
+        const percentVisible = (nonBlackPixels / totalPixels * 100).toFixed(1);
+        console.log('[ThumbnailService] Content analysis:', {
+          totalPixels,
+          nonBlackPixels,
+          percentVisible: `${percentVisible}%`,
+          status: nonBlackPixels > 0 ? '✅ Has content' : '⚠️ All black/empty'
+        });
         
         // Cache the result
         const cacheEntry: ThumbnailCacheEntry = {

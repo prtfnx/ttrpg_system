@@ -134,9 +134,6 @@ const mockEquipment: Equipment[] = [
 
 export const compendiumService = {
   async searchMonsters(query?: string): Promise<Monster[]> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
     if (!query) return mockMonsters;
     
     const lowerQuery = query.toLowerCase();
@@ -147,8 +144,6 @@ export const compendiumService = {
   },
 
   async searchSpells(query?: string): Promise<Spell[]> {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
     if (!query) return mockSpells;
     
     const lowerQuery = query.toLowerCase();
@@ -159,8 +154,6 @@ export const compendiumService = {
   },
 
   async searchEquipment(query?: string): Promise<Equipment[]> {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
     if (!query) return mockEquipment;
     
     const lowerQuery = query.toLowerCase();
@@ -171,7 +164,6 @@ export const compendiumService = {
   },
 
   async getMonsterDetails(id: string): Promise<Monster | null> {
-    await new Promise(resolve => setTimeout(resolve, 50));
     return mockMonsters.find(monster => monster.id === id) || null;
   }
 };

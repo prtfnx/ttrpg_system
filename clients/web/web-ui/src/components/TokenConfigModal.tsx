@@ -180,7 +180,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
   console.log('[TokenConfigModal] Available characters:', sessionCharacters.length);
 
   return (
-    <div className="token-config-modal-overlay" onClick={onClose}>
+    <div className={styles.tokenConfigModalOverlay} onClick={onClose}>
       <div className={styles.tokenConfigModal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <h2>Token Configuration</h2>
@@ -195,7 +195,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
               id="character-select"
               value={selectedCharacterId}
               onChange={(e) => handleCharacterLink(e.target.value)}
-              className="character-select"
+              className={styles.characterSelect}
             >
               <option value="">-- No Character --</option>
               {sessionCharacters.map(char => (
@@ -208,11 +208,11 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
 
           {/* Token Stats - Always visible */}
           <div className={styles.configSection}>
-            <div className="stat-row">
-              <label>Current HP:</label>
-              <div className="hp-input-group">
+            <div className={styles.statRow}>
+              <label>HP:</label>
+              <div className={styles.hpInputGroup}>
                 <button
-                  className="hp-button"
+                  className={styles.hpButton}
                   onClick={() => handleHpChange(Math.max(0, localHp - 1))}
                 >
                   −
@@ -221,12 +221,12 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
                   type="number"
                   value={localHp}
                   onChange={(e) => handleHpChange(Math.max(0, parseInt(e.target.value) || 0))}
-                  className="hp-input"
+                  className={styles.hpInput}
                   min="0"
                   max={localMaxHp}
                 />
                 <button
-                  className="hp-button"
+                  className={styles.hpButton}
                   onClick={() => handleHpChange(Math.min(localMaxHp, localHp + 1))}
                 >
                   +
@@ -234,52 +234,52 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
               </div>
             </div>
             
-            <div className="hp-bar-container">
-              <div 
-                className="hp-bar-fill"
+            <div className={styles.hpBarContainer}>
+              <div
+                className={styles.hpBarFill}
                 style={{ 
                   width: `${hpPercentage}%`,
                   backgroundColor: hpPercentage > 50 ? '#4ade80' : hpPercentage > 25 ? '#fbbf24' : '#ef4444'
                 }}
               />
-              <span className="hp-bar-text">{localHp} / {localMaxHp}</span>
+              <span className={styles.hpBarText}>{localHp} / {localMaxHp}</span>
             </div>
           </div>
 
           <div className={styles.configSection}>
-            <div className="stat-row">
+            <div className={styles.statRow}>
               <label>Max HP:</label>
               <input
                 type="number"
                 value={localMaxHp}
                 onChange={(e) => handleMaxHpChange(Math.max(1, parseInt(e.target.value) || 1))}
-                className="hp-input"
+                className={styles.hpInput}
                 min="1"
               />
             </div>
           </div>
 
           <div className={styles.configSection}>
-            <div className="stat-row">
+            <div className={styles.statRow}>
               <label>Armor Class (AC):</label>
               <input
                 type="number"
                 value={localAc}
                 onChange={(e) => handleAcChange(Math.max(0, parseInt(e.target.value) || 10))}
-                className="hp-input"
+                className={styles.hpInput}
                 min="0"
               />
             </div>
           </div>
 
           <div className={styles.configSection}>
-            <div className="stat-row">
+            <div className={styles.statRow}>
               <label>Aura Radius:</label>
               <input
                 type="number"
                 value={localAuraRadius}
                 onChange={(e) => handleAuraRadiusChange(Math.max(0, parseFloat(e.target.value) || 0))}
-                className="hp-input"
+                className={styles.hpInput}
                 min="0"
                 step="5"
               />
@@ -289,19 +289,19 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
 
           {/* Character Info - Only show if linked */}
           {linkedCharacter && (
-            <div className="character-info">
+            <div className={styles.characterInfo}>
               <h3>{linkedCharacter.name}</h3>
-              <p className="character-details">
+              <p className={styles.characterDetails}>
                 Level {linkedCharacter.data?.level || 1} {linkedCharacter.data?.race || 'Unknown'} {linkedCharacter.data?.class || 'Unknown'}
               </p>
-              <p className="sync-note" style={{ fontSize: '12px', color: '#888', marginTop: '8px' }}>
+              <p className={styles.syncNote} style={{ fontSize: '12px', color: '#888', marginTop: '8px' }}>
                 ✓ Token stats synced with character
               </p>
             </div>
           )}
           
           {!linkedCharacter && (
-            <div className="no-character-message">
+            <div className={styles.noCharacterMessage}>
               <p style={{ color: '#888', fontStyle: 'italic' }}>
                 No character linked - token stats are independent
               </p>
@@ -309,8 +309,8 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
           )}
         </div>
         
-        <div className="modal-footer">
-          <button className="done-button" onClick={onClose}>Done</button>
+        <div className={styles.modalFooter}>
+          <button className={styles.doneButton} onClick={onClose}>Done</button>
         </div>
       </div>
     </div>

@@ -348,7 +348,7 @@ class ServerProtocol:
         
         # Use the existing move_sprite method from actions
         result = await self.actions.move_sprite(
-            table_name=table_id,  # Note: this might need to be table_name instead
+            table_id=table_id,  
             sprite_id=sprite_id,
             old_position=from_pos,
             new_position=to_pos,

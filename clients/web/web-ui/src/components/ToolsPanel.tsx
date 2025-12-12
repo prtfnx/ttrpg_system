@@ -265,6 +265,47 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         </div>
       </div>
 
+      {/* Development Mode Controls - Only visible in dev builds */}
+      {import.meta.env.DEV && (
+        <div className={styles.devControls}>
+          <h4>Development Mode</h4>
+          <div className={styles.devToggle}>
+            <label>
+              <input
+                type="checkbox"
+                checked={import.meta.env.DEV}
+                disabled
+              />
+              <span>Development Build</span>
+            </label>
+            <span className={styles.devBadge}>🔧 ACTIVE</span>
+          </div>
+          <div className={styles.networkDescription}>
+            Running in development mode - extra debugging tools enabled
+          </div>
+          
+          <div className={styles.roleToggle}>
+            <label htmlFor="role-toggle">Role:</label>
+            <select 
+              id="role-toggle"
+              value={userInfo.role}
+              onChange={(e) => {
+                // Update role in userInfo - this would require auth service update
+                console.log('Role change requested:', e.target.value);
+                alert(`Role switching: ${e.target.value}\n\nNote: Full role switching requires server support.\nCurrently for UI testing only.`);
+              }}
+              className={styles.roleSelect}
+            >
+              <option value="dm">DM (Dungeon Master)</option>
+              <option value="player">Player</option>
+            </select>
+            <span className={styles.currentRole}>
+              Current: {userInfo.role === 'dm' ? '👑 DM' : '🎭 Player'}
+            </span>
+          </div>
+        </div>
+      )}
+
       <h2>Tools</h2>
 
       {/* Enhanced Toolbar Section */}

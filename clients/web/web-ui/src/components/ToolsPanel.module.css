@@ -94,6 +94,96 @@
   margin-top: var(--space-xs);
 }
 
+/* Development Controls */
+.devControls {
+  background: var(--bg-tertiary);
+  border: 2px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.devControls h4 {
+  color: var(--color-warning);
+  font-size: var(--font-size-sm);
+  margin: 0 0 var(--spacing-sm) 0;
+  font-weight: var(--font-semibold);
+}
+
+.devToggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.devToggle label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.devToggle input[type="checkbox"] {
+  cursor: not-allowed;
+}
+
+.devBadge {
+  background: var(--color-warning);
+  color: var(--bg-primary);
+  padding: var(--space-xs) var(--spacing-sm);
+  border-radius: var(--radius-xs);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-semibold);
+}
+
+.roleToggle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-primary);
+}
+
+.roleToggle label {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  font-weight: var(--font-medium);
+}
+
+.roleSelect {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  border: var(--border-width) solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.roleSelect:hover {
+  border-color: var(--color-info);
+}
+
+.roleSelect:focus {
+  outline: none;
+  border-color: var(--color-info);
+  box-shadow: var(--focus-ring);
+}
+
+.currentRole {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  padding: var(--space-xs) var(--spacing-sm);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-xs);
+  text-align: center;
+}
+
 /* Toolbar section */
 .toolbar {
   display: grid;

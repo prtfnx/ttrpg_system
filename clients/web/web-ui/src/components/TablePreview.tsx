@@ -21,22 +21,39 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
   // Add refresh trigger state
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
-  // Listen for table switches to force thumbnail regeneration
-  useEffect(() => {
-    const handleTableSwitch = () => {
-      // Force regeneration by clearing cache
-      tableThumbnailService.invalidateThumbnail(table.table_id, width, height);
-      
-      // Trigger re-render with small delay to allow WASM table switch to complete
-      setTimeout(() => {
+  // Expose regenerate method globally for debugging
+  React.useEffect(() => {
+    (window as any).__regenerateThumbnail = (tableId: string) => {
+      if (tableId === table.table_id) {
+        console.log(`[TablePreview] Manual regeneration triggered for ${tableId}`);
+        tableThumbnailService.invalidateThumbnail(table.table_id, width, height);
         setRefreshTrigger(prev => prev + 1);
-      }, 100);
+      }
+    };
+  }, [table.table_id, width, height]);
+  
+  // Listen for sprite loading completion to trigger thumbnail regeneration
+  useEffect(() => {
+    const handleSpritesLoaded = (event: Event) => {
+      const customEvent = event as CustomEvent<{ tableId: string; spriteCount: number; timestamp: number }>;
+      const { tableId, spriteCount } = customEvent.detail;
+      
+      // Only regenerate thumbnail if this event is for our table
+      if (tableId === table.table_id) {
+        console.log(`[TablePreview] Sprites loaded for table ${tableId} (${spriteCount} sprites), regenerating thumbnail`);
+        
+        // Force regeneration by clearing cache
+        tableThumbnailService.invalidateThumbnail(table.table_id, width, height);
+        
+        // Trigger immediate thumbnail generation
+        setRefreshTrigger(prev => prev + 1);
+      }
     };
     
-    window.addEventListener('table-data-received', handleTableSwitch);
+    window.addEventListener('table-sprites-loaded', handleSpritesLoaded);
     
     return () => {
-      window.removeEventListener('table-data-received', handleTableSwitch);
+      window.removeEventListener('table-sprites-loaded', handleSpritesLoaded);
     };
   }, [table.table_id, width, height]);
   
@@ -92,44 +109,51 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
         // Only update if not cancelled
         if (!isCancelled) {
           if (imageData) {
-            // Real thumbnail captured from active table
+            console.log(`[TablePreview] Rendering thumbnail for ${table.table_id}: ${imageData.width}x${imageData.height}`);
             ctx.putImageData(imageData, 0, 0);
           } else {
-            // Table not currently active - draw placeholder
+            // Table not active - show "Not Loaded" placeholder
+            console.log(`[TablePreview] Table ${table.table_id} not active, showing placeholder`);
+            
             ctx.fillStyle = '#1a1a1a';
             ctx.fillRect(0, 0, width, height);
             
-            // Draw grid pattern
-            ctx.strokeStyle = '#2a2a2a';
-            ctx.lineWidth = 1;
-            
-            const gridSize = 6;
-            const cellWidth = width / gridSize;
-            const cellHeight = height / gridSize;
-
-            for (let i = 0; i <= gridSize; i++) {
-              ctx.beginPath();
-              ctx.moveTo(i * cellWidth, 0);
-              ctx.lineTo(i * cellWidth, height);
-              ctx.stroke();
-              
-              ctx.beginPath();
-              ctx.moveTo(0, i * cellHeight);
-              ctx.lineTo(width, i * cellHeight);
-              ctx.stroke();
-            }
-            
-            // Draw border
-            ctx.strokeStyle = '#444';
+            // Draw dashed border
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = '#666';
             ctx.lineWidth = 2;
-            ctx.strokeRect(1, 1, width - 2, height - 2);
+            ctx.strokeRect(2, 2, width - 4, height - 4);
+            ctx.setLineDash([]);
             
-            // Show "Not Loaded" text
-            ctx.fillStyle = '#666';
+            // Draw icon (table symbol)
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 2;
+            const iconSize = 32;
+            const iconX = width / 2;
+            const iconY = height / 2 - 10;
+            
+            // Draw simple table icon (grid)
+            ctx.strokeRect(iconX - iconSize/2, iconY - iconSize/2, iconSize, iconSize);
+            ctx.beginPath();
+            ctx.moveTo(iconX - iconSize/2, iconY - iconSize/6);
+            ctx.lineTo(iconX + iconSize/2, iconY - iconSize/6);
+            ctx.moveTo(iconX - iconSize/2, iconY + iconSize/6);
+            ctx.lineTo(iconX + iconSize/2, iconY + iconSize/6);
+            ctx.moveTo(iconX - iconSize/6, iconY - iconSize/2);
+            ctx.lineTo(iconX - iconSize/6, iconY + iconSize/2);
+            ctx.moveTo(iconX + iconSize/6, iconY - iconSize/2);
+            ctx.lineTo(iconX + iconSize/6, iconY + iconSize/2);
+            ctx.stroke();
+            
+            // Draw text
+            ctx.fillStyle = '#888';
             ctx.font = '11px sans-serif';
             ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('Not Loaded', width / 2, height / 2);
+            ctx.textBaseline = 'top';
+            ctx.fillText('Not Loaded', width / 2, height / 2 + 20);
+            ctx.font = '9px sans-serif';
+            ctx.fillStyle = '#666';
+            ctx.fillText('(Switch to table to preview)', width / 2, height / 2 + 34);
           }
           setIsLoading(false);
         }

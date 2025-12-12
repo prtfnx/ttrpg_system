@@ -219,6 +219,79 @@ export const TableManagementPanel: React.FC = () => {
     return `${days}d ago`;
   };
 
+  const handleDiagnoseThumbnails = async () => {
+    console.group('🔍 Thumbnail Diagnostic Report');
+    
+    // Check WASM initialization
+    const wasmReady = (window as any).wasmInitialized;
+    console.log('1. WASM Status:', wasmReady ? '✅ Initialized' : '❌ Not Initialized');
+    
+    // Check canvas
+    const mainCanvas = document.querySelector('[data-testid="game-canvas"]') as HTMLCanvasElement;
+    console.log('2. Main Canvas:', mainCanvas ? {
+      found: '✅ Yes',
+      dimensions: `${mainCanvas.width}x${mainCanvas.height}`,
+      inDOM: mainCanvas.parentElement ? '✅ In DOM' : '❌ Not in DOM'
+    } : '❌ Not Found');
+    
+    // Check active table
+    const { tableThumbnailService } = await import('../services/tableThumbnail.service');
+    const renderEngine = tableThumbnailService.getRenderEngine();
+    const activeTableId = renderEngine?.get_active_table_id?.();
+    console.log('3. Active Table ID:', activeTableId || '❌ None');
+    console.log('4. Active Table in List:', tables.find(t => t.table_id === activeTableId)?.table_name || '❌ Not Found');
+    
+    // Check render engine
+    console.log('5. Render Engine:', renderEngine ? '✅ Available' : '❌ Not Available');
+    
+    // Sample canvas content
+    if (mainCanvas) {
+      const ctx = mainCanvas.getContext('2d');
+      if (ctx) {
+        const centerPixel = ctx.getImageData(
+          Math.floor(mainCanvas.width / 2),
+          Math.floor(mainCanvas.height / 2),
+          1, 1
+        ).data;
+        const isBlack = centerPixel[0] === 0 && centerPixel[1] === 0 && centerPixel[2] === 0;
+        console.log('6. Canvas Content (center pixel):', isBlack ? '⚠️ Black (empty?)' : '✅ Has Content', centerPixel);
+      }
+    }
+    
+    // Try regenerating thumbnail for active table
+    if (activeTableId) {
+      const table = tables.find(t => t.table_id === activeTableId);
+      if (table) {
+        console.log('7. Attempting to regenerate thumbnail for active table:', table.table_name);
+        try {
+          const imageData = await tableThumbnailService.generateThumbnail(
+            table.table_id,
+            table.width,
+            table.height,
+            160,
+            120,
+            true // Force refresh
+          );
+          console.log('   Result:', imageData ? `✅ Generated ${imageData.width}x${imageData.height}` : '❌ Returned null');
+        } catch (error) {
+          console.error('   ❌ Error:', error);
+        }
+      }
+    }
+    
+    // Cache stats
+    const cacheStats = tableThumbnailService.getCacheStats();
+    console.log('8. Cache Statistics:', {
+      totalCached: cacheStats.size,
+      tablesWithCache: cacheStats.tables
+    });
+    
+    console.groupEnd();
+    
+    // Show alert with summary
+    alert(`Thumbnail Diagnostic Complete\n\nCheck browser console (F12) for detailed report.\n\nQuick Summary:\n- WASM: ${wasmReady ? '✅' : '❌'}\n- Canvas: ${mainCanvas ? '✅' : '❌'}\n- Active Table: ${activeTableId ? '✅' : '❌'}\n- Cached: ${cacheStats.size} thumbnails`);
+  };
+
   const handleOpenSettings = (tableId: string) => {
     const table = tables.find(t => t.table_id === tableId);
     if (table) {
@@ -500,6 +573,13 @@ export const TableManagementPanel: React.FC = () => {
             title="Refresh table list"
           >
             {tablesLoading ? '⟳' : '↻'}
+          </button>
+          <button 
+            onClick={handleDiagnoseThumbnails}
+            className={styles.debugButton}
+            title="Diagnose thumbnail rendering"
+          >
+            🔍
           </button>
           <button 
             onClick={() => setShowCreateForm(!showCreateForm)}
@@ -826,20 +906,26 @@ export const TableManagementPanel: React.FC = () => {
       </div>
 
       {deleteConfirmId && (
-        <div className="delete-confirmation-modal">
-          <div className="modal-content">
+        <div 
+          className={styles.deleteConfirmationModal}
+          onClick={() => setDeleteConfirmId(null)}
+        >
+          <div 
+            className={styles.modalContent}
+            onClick={(e) => e.stopPropagation()}
+          >
             <h4>Confirm Delete</h4>
             <p>Are you sure you want to delete this table?</p>
-            <p className="table-name">
+            <p className={styles.tableName}>
               {tables.find(t => t.table_id === deleteConfirmId)?.table_name}
             </p>
-            <div className="modal-actions">
-              <button onClick={confirmDeleteTable} className="confirm-delete-button">
+            <div className={styles.modalActions}>
+              <button onClick={confirmDeleteTable} className={styles.confirmDeleteButton}>
                 Delete
               </button>
               <button 
                 onClick={() => setDeleteConfirmId(null)} 
-                className="cancel-button"
+                className={styles.cancelButton}
               >
                 Cancel
               </button>

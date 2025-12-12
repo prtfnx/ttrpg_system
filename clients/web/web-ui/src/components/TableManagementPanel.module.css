@@ -23,8 +23,9 @@
 .createButton,
 .settingsToggleButton {
   composes: panel-button secondary from '../styles/PanelBase.module.css';
-  padding: var(--spacing-xs) var(--spacing-md);
-  font-size: var(--font-size-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  min-width: 32px;
 }
 
 .settingsToggleButton.active,
@@ -37,8 +38,9 @@
 .importButton,
 .bulkModeButton {
   composes: panel-button secondary from '../styles/PanelBase.module.css';
-  padding: var(--spacing-xs) var(--spacing-md);
-  font-size: var(--font-size-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  min-width: 32px;
 }
 
 .refreshButton:disabled {
@@ -593,48 +595,80 @@
   color: var(--button-danger-text);
 }
 
-.delete-confirmation-modal {
+.deleteConfirmationModal {
   composes: panel-overlay from '../styles/PanelBase.module.css';
+  animation: fadeIn 0.15s ease-out;
 }
 
-.modal-content {
+.modalContent {
   background: var(--bg-secondary);
   border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-lg);
   padding: var(--spacing-2xl);
-  max-width: 400px;
+  max-width: 440px;
   width: 90%;
   text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.2s ease-out;
+  position: relative;
 }
 
-.modal-content h4 {
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modalContent h4 {
   margin: 0 0 var(--spacing-lg) 0;
   color: var(--text-primary);
   font-size: var(--font-size-xl);
+  font-weight: var(--font-semibold);
 }
 
-.modal-content p {
+.modalContent p {
   margin: var(--spacing-sm) 0;
   color: var(--text-secondary);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
 }
 
-.modal-content .table-name {
+.tableName {
   font-weight: var(--font-semibold);
   color: var(--text-primary);
   font-size: var(--font-size-lg);
+  padding: var(--spacing-md);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  margin-top: var(--spacing-md) !important;
 }
 
-.modal-actions {
+.modalActions {
   display: flex;
   gap: var(--space-md);
   justify-content: center;
   margin-top: var(--space-xl);
 }
 
-.confirm-delete-button {
+.confirmDeleteButton {
   composes: panel-button danger from '../styles/PanelBase.module.css';
-  padding: var(--spacing-sm) var(--spacing-lg);
-  font-size: var(--font-size-sm);
+  padding: var(--spacing-md) var(--spacing-xl);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-medium);
+  min-width: 100px;
+}
+
+.cancelButton {
+  composes: panel-button secondary from '../styles/PanelBase.module.css';
+  padding: var(--spacing-md) var(--spacing-xl);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-medium);
+  min-width: 100px;
 }
 
 /* Scrollbar Styling */

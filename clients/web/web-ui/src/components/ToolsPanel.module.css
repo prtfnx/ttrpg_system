@@ -1,0 +1,286 @@
+/**
+ * ToolsPanel Styles
+ * Theme-aware styles using CSS modules for proper styling across all themes
+ */
+
+/* Main panel container */
+.gamePanel {
+  background: var(--bg-primary);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  color: var(--text-primary);
+  max-height: 100vh;
+  overflow-y: auto;
+}
+
+.gamePanel h2 {
+  margin: var(--space-lg) 0 var(--space-md) 0;
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.gamePanel h4 {
+  margin: var(--space-md) 0;
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.gamePanel h5 {
+  margin: var(--space-sm) 0;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+}
+
+/* Quick test buttons section */
+.quickTestButtons {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+/* Network settings section */
+.networkSettings {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+}
+
+.networkSettings h4 {
+  margin-top: 0;
+  margin-bottom: var(--space-sm);
+  font-size: var(--text-sm);
+}
+
+.networkToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.networkToggle label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  cursor: pointer;
+}
+
+.networkToggle input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.networkStatus {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+}
+
+.networkStatus.active {
+  color: var(--color-success);
+}
+
+.networkStatus.inactive {
+  color: var(--text-muted);
+}
+
+.networkDescription {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: var(--space-xs);
+}
+
+/* Toolbar section */
+.toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+/* Button base styles using PanelBase composition */
+.toolButton {
+  composes: panel-button secondary from '../styles/PanelBase.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-md) var(--space-sm);
+  font-size: var(--text-sm);
+}
+
+.active {
+  composes: panel-button primary from '../styles/PanelBase.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-md) var(--space-sm);
+  font-size: var(--text-sm);
+}
+
+/* Creation toolbar section */
+.creationToolbar {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+}
+
+.creationButtons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+/* Shape settings section */
+.shapeSettings {
+  padding: var(--space-md);
+  background: var(--bg-primary);
+  border: var(--border-width) solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.settingRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.settingRow label {
+  min-width: 80px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.settingRow input[type="color"] {
+  cursor: pointer;
+  height: var(--space-2xl);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-sm);
+}
+
+.settingRow input[type="range"] {
+  flex: 1;
+  cursor: pointer;
+}
+
+.settingRow span {
+  min-width: 40px;
+  text-align: right;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* Test buttons */
+.testButton {
+  composes: panel-button secondary from '../styles/PanelBase.module.css';
+}
+
+/* Text settings section */
+.textSettings {
+  padding: var(--space-md);
+  background: var(--bg-elevated);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-lg);
+}
+
+/* Drawing settings section */
+.drawingSettings {
+  padding: var(--space-md);
+  background: var(--bg-elevated);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-lg);
+}
+
+.colorPresets {
+  display: flex;
+  gap: var(--space-xs);
+  margin-left: var(--space-sm);
+}
+
+.colorPresets button {
+  width: 20px;
+  height: 20px;
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.colorPresets button:hover {
+  transform: scale(1.1);
+}
+
+/* Spell templates section */
+.spellTemplatesSection {
+  padding: var(--space-md);
+  background: var(--bg-elevated);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-lg);
+}
+
+.templateButtons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.templateInfo {
+  padding: var(--space-md);
+  background: var(--bg-primary);
+  border: var(--border-width) solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* Controls section */
+.panelTitle {
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-md);
+}
+
+.controlsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.controlsList li {
+  padding: var(--space-xs) 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* Scrollbar styling */
+.gamePanel::-webkit-scrollbar {
+  width: var(--space-sm);
+}
+
+.gamePanel::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+}
+
+.gamePanel::-webkit-scrollbar-thumb {
+  background: var(--gray-600);
+  border-radius: var(--radius-sm);
+}
+
+.gamePanel::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-500);
+}

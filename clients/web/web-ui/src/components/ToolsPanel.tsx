@@ -10,6 +10,7 @@ import { LayerPanel } from './LayerPanel';
 import { MeasurementTool } from './MeasurementTool';
 import { PaintPanel } from './PaintPanel';
 import { TextSpriteTool } from './TextSprite';
+import styles from './ToolsPanel.module.css';
 
 // Global type declarations
 declare global {
@@ -234,44 +235,32 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
 
   // Use different WebSocket approaches based on mode
   return (
-    <div className="game-panel">
+    <div className={styles.gamePanel}>
       {/* Quick Test Buttons */}
-      <div className="quick-test-buttons" style={{ marginBottom: '16px' }}>
-        <button onClick={handleAddSprite} style={{ marginRight: '8px' }}>Add Sprite</button>
-        <button onClick={handleAddCharacter} style={{ marginRight: '8px' }}>Add Character</button>
-        <button onClick={handleAddTestSprites}>Add Test Sprites</button>
+      <div className={styles.quickTestButtons}>
+        <button className={styles.testButton} onClick={handleAddSprite}>Add Sprite</button>
+        <button className={styles.testButton} onClick={handleAddCharacter}>Add Character</button>
+        <button className={styles.testButton} onClick={handleAddTestSprites}>Add Test Sprites</button>
       </div>
 
       {/* Network Settings */}
-      <div className="network-settings" style={{ 
-        marginBottom: '16px', 
-        padding: '12px', 
-        border: '1px solid #444', 
-        borderRadius: '4px',
-        backgroundColor: '#2a2a2a'
-      }}>
-        <h4 style={{ marginTop: 0, marginBottom: '8px', fontSize: '14px' }}>Network Settings</h4>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <label htmlFor="ping-toggle" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+      <div className={styles.networkSettings}>
+        <h4>Network Settings</h4>
+        <div className={styles.networkToggle}>
+          <label htmlFor="ping-toggle">
             <input
               id="ping-toggle"
               type="checkbox"
               checked={pingEnabled}
               onChange={(e) => handlePingToggle(e.target.checked)}
-              style={{ cursor: 'pointer' }}
             />
             <span>Keep-Alive Ping (30s)</span>
           </label>
-          <span style={{ 
-            marginLeft: 'auto',
-            fontSize: '12px',
-            color: pingEnabled ? '#4CAF50' : '#888',
-            fontWeight: pingEnabled ? 'bold' : 'normal'
-          }}>
+          <span className={`${styles.networkStatus} ${pingEnabled ? styles.active : styles.inactive}`}>
             {pingEnabled ? '● Active' : '○ Inactive'}
           </span>
         </div>
-        <div style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
+        <div className={styles.networkDescription}>
           Enable to send periodic pings to keep connection alive
         </div>
       </div>
@@ -279,44 +268,44 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
       <h2>Tools</h2>
 
       {/* Enhanced Toolbar Section */}
-      <div className="toolbar">
+      <div className={styles.toolbar}>
         <button 
-          className={activeTool === 'select' ? 'active' : ''} 
+          className={`${styles.toolButton} ${activeTool === 'select' ? styles.active : ''}`}
           onClick={() => setActiveTool('select')}
           title="Select Tool"
         >
           🔍 Select
         </button>
         <button 
-          className={activeTool === 'move' ? 'active' : ''} 
+          className={`${styles.toolButton} ${activeTool === 'move' ? styles.active : ''}`}
           onClick={() => setActiveTool('move')}
           title="Move Tool"
         >
           ✋ Move
         </button>
         <button 
-          className={activeTool === 'measure' ? 'active' : ''} 
+          className={`${styles.toolButton} ${activeTool === 'measure' ? styles.active : ''}`}
           onClick={() => setActiveTool('measure')}
           title="Measurement Tool"
         >
           📏 Measure
         </button>
         <button 
-          className={activeTool === 'align' ? 'active' : ''} 
+          className={`${styles.toolButton} ${activeTool === 'align' ? styles.active : ''}`}
           onClick={() => setActiveTool('align')}
           title="Alignment Helper"
         >
           📐 Align
         </button>
         <button 
-          className={activeTool === 'draw_shapes' ? 'active' : ''} 
+          className={`${styles.toolButton} ${activeTool === 'draw_shapes' ? styles.active : ''}`}
           onClick={() => setActiveTool('draw_shapes')}
           title="Draw Shapes"
         >
           ✏️ Draw Shapes
         </button>
         <button 
-          className={activeTool === 'spell_templates' ? 'active' : ''} 
+          className={`${styles.toolButton} ${activeTool === 'spell_templates' ? styles.active : ''}`}
           onClick={() => setActiveTool('spell_templates')}
           title="Spell Templates"
         >
@@ -325,11 +314,11 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
       </div>
 
       {/* Sprite Creation Tools */}
-      <div className="creation-toolbar">
+      <div className={styles.creationToolbar}>
         <h4>Create Sprites</h4>
-        <div className="creation-buttons">
+        <div className={styles.creationButtons}>
           <button 
-            className={activeTool === 'rectangle' ? 'active' : ''} 
+            className={`${styles.toolButton} ${activeTool === 'rectangle' ? styles.active : ''}`}
             onClick={() => {
               setActiveTool('rectangle');
               (window as any).fromDrawShapes = true;
@@ -339,21 +328,21 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
             ⬛ Rectangle
           </button>
           <button 
-            className={activeTool === 'circle' ? 'active' : ''} 
+            className={`${styles.toolButton} ${activeTool === 'circle' ? styles.active : ''}`}
             onClick={() => setActiveTool('circle')}
             title="Create Circle"
           >
             ⭕ Circle
           </button>
           <button 
-            className={activeTool === 'line' ? 'active' : ''} 
+            className={`${styles.toolButton} ${activeTool === 'line' ? styles.active : ''}`}
             onClick={() => setActiveTool('line')}
             title="Create Line"
           >
             📏 Line
           </button>
           <button 
-            className={activeTool === 'text' ? 'active' : ''} 
+            className={`${styles.toolButton} ${activeTool === 'text' ? styles.active : ''}`}
             onClick={() => setActiveTool('text')}
             title="Create Text"
           >
@@ -363,9 +352,9 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         
         {/* Shape Creation Settings */}
         {(['rectangle', 'circle', 'line'].includes(activeTool)) && (
-          <div className="shape-settings">
+          <div className={styles.shapeSettings}>
             <h5>Shape Settings</h5>
-            <div className="setting-row">
+            <div className={styles.settingRow}>
               <label htmlFor="shape-color">Color:</label>
               <input
                 id="shape-color"
@@ -374,7 +363,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
                 onChange={(e) => setShapeColor(e.target.value)}
               />
             </div>
-            <div className="setting-row">
+            <div className={styles.settingRow}>
               <label htmlFor="shape-opacity">Opacity:</label>
               <input
                 id="shape-opacity"
@@ -387,7 +376,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
               />
               <span>{Math.round(shapeOpacity * 100)}%</span>
             </div>
-            <div className="setting-row">
+            <div className={styles.settingRow}>
               <label htmlFor="shape-filled">
                 <input
                   id="shape-filled"
@@ -403,16 +392,16 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
       </div>
 
       <div>
-        <div className="creation-buttons">
+        <div className={styles.creationButtons}>
           <button
-            className="tool-button"
+            className={styles.toolButton}
             onClick={() => setAssetManagerVisible(true)}
             title="Asset Manager"
           >
             📁 Assets
           </button>
           <button
-            className={`tool-button ${activeTool === 'paint' ? 'active' : ''}`}
+            className={`${styles.toolButton} ${activeTool === 'paint' ? styles.active : ''}`}
             onClick={() => {
               if (window.rustRenderManager) {
                 console.log('[ToolsPanel] Activating paint tool');
@@ -440,9 +429,9 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
 
         {/* Text creation - Modern UI */}
         {activeTool === 'text' && (
-          <div className="text-settings">
+          <div className={styles.textSettings}>
             <h5>Text Sprites</h5>
-            <div className="setting-row">
+            <div className={styles.settingRow}>
               <TextSpriteTool 
                 activeLayer={activeLayer}
                 activeTool={activeTool}
@@ -460,9 +449,9 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         
         {/* Drawing Tools Settings */}
         {(activeTool === 'draw_shapes' || (activeTool === 'rectangle' && (window as any).fromDrawShapes)) && (
-          <div className="drawing-settings">
+          <div className={styles.drawingSettings}>
             <h5>Drawing Tools</h5>
-            <div className="setting-row">
+            <div className={styles.settingRow}>
               <label htmlFor="drawing-color">Drawing Color:</label>
               <input
                 id="drawing-color"
@@ -471,7 +460,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
                 onChange={(e) => setShapeColor(e.target.value)}
                 aria-label="Drawing Color"
               />
-              <div className="color-presets">
+              <div className={styles.colorPresets}>
                 <button 
                   data-testid="color-gray"
                   onClick={() => setShapeColor('#808080')}
@@ -492,7 +481,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
                 />
               </div>
             </div>
-            <div className="setting-row">
+            <div className={styles.settingRow}>
               <label htmlFor="brush-size">Brush Size:</label>
               <input
                 id="brush-size"
@@ -504,7 +493,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
               />
               <span>px</span>
             </div>
-            <div className="setting-row">
+            <div className={styles.settingRow}>
               <label htmlFor="draw-filled">
                 <input
                   id="draw-filled"
@@ -520,9 +509,9 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         
         {/* Spell Templates Settings */}
         {activeTool === 'spell_templates' && (
-          <div className="spell-templates-section">
+          <div className={styles.spellTemplatesSection}>
             <h5>Spell Templates</h5>
-            <div className="template-buttons">
+            <div className={styles.templateButtons}>
               <button
                 onClick={() => {
                   console.log('[ToolsPanel] Fireball template selected');
@@ -567,7 +556,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
               </button>
             </div>
             {(window as any).selectedSpellTemplate && (
-              <div className="template-info">
+              <div className={styles.templateInfo}>
                 <p>Selected: {(window as any).selectedSpellTemplate.name}</p>
                 <p>Click on the map to place template</p>
               </div>
@@ -585,9 +574,9 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
       <DiceRoller />
 
       {/* Controls Help Section */}
-      <div className="game-panel">
-        <h3 className="panel-title">Controls</h3>
-        <ul className="controls-list">
+      <div className={styles.gamePanel}>
+        <h3 className={styles.panelTitle}>Controls</h3>
+        <ul className={styles.controlsList}>
           <li>Click & drag sprites to move</li>
           <li>Drag empty space to pan camera</li>
           <li>Mouse wheel to zoom in/out</li>

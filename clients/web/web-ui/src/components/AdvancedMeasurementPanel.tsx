@@ -695,7 +695,7 @@ const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> = ({
                 <div className="templates-tab">
                   <div className={styles.sectionHeader}>
                     <h3>Measurement Templates</h3>
-                    <button onClick={handleCreateCustomTemplate} className="create-btn">
+                    <button onClick={handleCreateCustomTemplate} className={styles.createBtn}>
                       + Create Template
                     </button>
                   </div>
@@ -865,10 +865,10 @@ const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> = ({
                   <div className="data-management">
                     <h4>Data Management</h4>
                     <div className="data-controls">
-                      <button onClick={handleExportData} className="export-btn">
+                      <button onClick={handleExportData} className={styles.exportBtn}>
                         📥 Export Data
                       </button>
-                      <button onClick={handleImportData} className="import-btn">
+                      <button onClick={handleImportData} className={styles.importBtn}>
                         📤 Import Data
                       </button>
                       <input

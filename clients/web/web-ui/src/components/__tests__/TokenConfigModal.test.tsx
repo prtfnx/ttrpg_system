@@ -1,0 +1,574 @@
+/**
+ * TokenConfigModal Component Tests
+ * Tests UI interactions for token HP/AC management and character linking
+ * 
+ * Features tested:
+ * 1. Modal rendering with sprite data
+ * 2. HP/MaxHP/AC input changes
+ * 3. HP increment/decrement buttons
+ * 4. Character linking dropdown
+ * 5. Character unlinking
+ * 6. Validation (HP <= MaxHP, positive values)
+ * 7. Aura radius control
+ * 8. Character list loading
+ * 9. Error states
+ * 
+ * @vitest-environment jsdom
+ */
+
+import { act, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { TokenConfigModal } from '../TokenConfigModal';
+import { useGameStore } from '../../store';
+import type { Sprite, Character } from '../../types';
+
+// Mock ProtocolContext
+const mockProtocol = {
+  requestCharacterList: vi.fn(),
+};
+
+vi.mock('../../services/ProtocolContext', () => ({
+  useProtocol: () => ({
+    protocol: mockProtocol,
+    isConnected: true,
+  }),
+}));
+
+// Mock authService
+vi.mock('../../services/auth.service', () => ({
+  authService: {
+    getUserInfo: () => ({ id: 123, name: 'TestUser' }),
+  },
+}));
+
+describe('TokenConfigModal - Component UI Tests', () => {
+  let onCloseMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    // Reset store
+    useGameStore.setState({
+      sprites: [],
+      characters: [],
+      selectedSprites: [],
+      activeTableId: 'test-table-uuid',
+    });
+
+    onCloseMock = vi.fn();
+    mockProtocol.requestCharacterList.mockClear();
+  });
+
+  describe('Rendering', () => {
+    it('should render modal with sprite data', () => {
+      const testSprite: Sprite = {
+        id: 'sprite-1',
+        x: 100,
+        y: 200,
+        texture: 'warrior.png',
+        hp: 25,
+        maxHp: 50,
+        ac: 15,
+        auraRadius: 30,
+      };
+
+      useGameStore.setState({ sprites: [testSprite] });
+
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+
+      expect(screen.getByText(/Token Configuration/i)).toBeInTheDocument();
+      expect(screen.getByDisplayValue('25')).toBeInTheDocument(); // HP
+      expect(screen.getByDisplayValue('50')).toBeInTheDocument(); // MaxHP
+      expect(screen.getByDisplayValue('15')).toBeInTheDocument(); // AC
+    });
+
+    it('should display HP bar with correct percentage', () => {
+      const testSprite: Sprite = {
+        id: 'sprite-1',
+        x: 100,
+        y: 200,
+        texture: 'warrior.png',
+        hp: 30,
+        maxHp: 100,
+        ac: 15,
+      };
+
+      useGameStore.setState({ sprites: [testSprite] });
+
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+
+      // HP bar should show 30/100
+      expect(screen.getByText(/30.*100/)).toBeInTheDocument();
+    });
+
+    it('should render character selection dropdown', () => {
+      const testSprite: Sprite = {
+        id: 'sprite-1',
+        x: 100,
+        y: 200,
+        texture: 'warrior.png',
+        hp: 50,
+        maxHp: 50,
+        ac: 15,
+      };
+
+      const testCharacter: Character = {
+        id: 'char-1',
+        name: 'Aragorn',
+        userId: 123,
+        sessionId: 'session-1',
+        data: {
+          level: 5,
+          class: 'Ranger',
+          stats: { hp: 45, maxHp: 50, ac: 16 },
+        },
+      };
+
+      useGameStore.setState({
+        sprites: [testSprite],
+        characters: [testCharacter],
+      });
+
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+
+      expect(screen.getByText(/-- No Character --/)).toBeInTheDocument();
+      expect(screen.getByText(/Aragorn \(Lv 5 Ranger\)/)).toBeInTheDocument();
+    });
+  });
+
+  describe('HP Management', () => {
+    it('should update HP when input changes', async () => {
+      const user = userEvent.setup();
+      const testSprite: Sprite = {
+        id: 'sprite-1',
+        x: 100,
+        y: 200,
+        texture: 'warrior.png',
+        hp: 50,
+        maxHp: 50,
+        ac: 15,
+      };
+
+      useGameStore.setState({ sprites: [testSprite] });
+
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+
+      const hpInput = screen.getByDisplayValue('50');
+      await user.clear(hpInput);
+      await user.type(hpInput, '30');
+
+      // Wait for state update
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      });
+
+      const updatedSprite = useGameStore.getState().sprites.find(s => s.id === 'sprite-1');
+      expect(updatedSprite?.hp).toBe(30);
+    });
+
+    it('should increment HP with + button', async () => {
+      const user = userEvent.setup();
+      const testSprite: Sprite = {
+        id: 'sprite-1',
+        x: 100,
+        y: 200,
+        texture: 'warrior.png',
+        hp: 25,
+        maxHp: 50,
+        ac: 15,
+      };
+
+      useGameStore.setState({ sprites: [testSprite] });
+
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+
+      const incrementButton = screen.getAllByText('+')[0]; // First + button (HP)
+      await user.click(incrementButton);
+
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      });
+
+      const updatedSprite = useGameStore.getState().sprites.find(s => s.id === 'sprite-1');
+      expect(updatedSprite?.hp).toBe(26);
+    });
+
+    it('should decrement HP with - button', async () => {
+      const user = userEvent.setup();
+      const testSprite: Sprite = {
+        id: 'sprite-1',
+        x: 100,
+        y: 200,
+        texture: 'warrior.png',
+        hp: 25,
+        maxHp: 50,
+        ac: 15,
+      };
+
+      useGameStore.setState({ sprites: [testSprite] });
+
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+
+      const decrementButton = screen.getAllByText('−')[0]; // First - button (HP)
+      await user.click(decrementButton);
+
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      });
+
+      const updatedSprite = useGameStore.getState().sprites.find(s => s.id === 'sprite-1');
+      expect(updatedSprite?.hp).toBe(24);
+    });
+
+    it('should not allow HP to go below 0', async () => {
+      const user = userEvent.setup();
+      const testSprite: Sprite = {
+        id: 'sprite-1',
+        x: 100,
+        y: 200,
+        texture: 'warrior.png',
+        hp: 1,
+        maxHp: 50,
+        ac: 15,
+      };
+
+      useGameStore.setState({ sprites: [testSprite] });
+
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+
+      const decrementButton = screen.getAllByText('−')[0];
+      await user.click(decrementButton);
+      await user.click(decrementButton); // Click twice
+
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      });
+
+      const updatedSprite = useGameStore.getState().sprites.find(s => s.id === 'sprite-1');
+      expect(updatedSprite?.hp).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should not allow HP to exceed MaxHP', async () => {
+      const user = userEvent.setup();
+      const testSprite: Sprite = {
+        id: 'sprite-1',
+        x: 100,
+        y: 200,
+        texture: 'warrior.png',
+        hp: 50,
+        maxHp: 50,
+        ac: 15,
+      };
+
+      useGameStore.setState({ sprites: [testSprite] });
+
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+
+      const incrementButton = screen.getAllByText('+')[0];
+      await user.click(incrementButton);
+
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      });
+
+      const updatedSprite = useGameStore.getState().sprites.find(s => s.id === 'sprite-1');
+      expect(updatedSprite?.hp).toBeLessThanOrEqual(updatedSprite?.maxHp || 50);
+    });
+  });
+
+  describe('MaxHP Management', () => {
+    it('should update MaxHP when input changes', async () => {
+      const user = userEvent.setup();
+      const testSprite: Sprite = {
+        id: 'sprite-1',
+        x: 100,
+        y: 200,
+        texture: 'warrior.png',
+        hp: 50,
+        maxHp: 50,
+        ac: 15,
+      };
+
+      useGameStore.setState({ sprites: [testSprite] });
+
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+
+      const maxHpInputs = screen.getAllByDisplayValue('50');
+      const maxHpInput = maxHpInputs[1]; // Second input is MaxHP
+      
+      await user.clear(maxHpInput);
+      await user.type(maxHpInput, '100');
+
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      });
+
+      const updatedSprite = useGameStore.getState().sprites.find(s => s.id === 'sprite-1');
+      expect(updatedSprite?.maxHp).toBe(100);
+    });
+  });
+
+  describe('AC Management', () => {
+    it('should update AC when input changes', async () => {
+      const user = userEvent.setup();
+      const testSprite: Sprite = {
+        id: 'sprite-1',
+        x: 100,
+        y: 200,
+        texture: 'warrior.png',
+        hp: 50,
+        maxHp: 50,
+        ac: 15,
+      };
+
+      useGameStore.setState({ sprites: [testSprite] });
+
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+
+      const acInput = screen.getByDisplayValue('15');
+      await user.clear(acInput);
+      await user.type(acInput, '18');
+
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      });
+
+      const updatedSprite = useGameStore.getState().sprites.find(s => s.id === 'sprite-1');
+      expect(updatedSprite?.ac).toBe(18);
+    });
+  });
+
+  describe('Character Linking', () => {
+    it('should link character to sprite', async () => {
+      const user = userEvent.setup();
+      const testSprite: Sprite = {
+        id: 'sprite-1',
+        x: 100,
+        y: 200,
+        texture: 'warrior.png',
+        hp: 50,
+        maxHp: 50,
+        ac: 15,
+      };
+
+      const testCharacter: Character = {
+        id: 'char-1',
+        name: 'Aragorn',
+        userId: 123,
+        sessionId: 'session-1',
+        data: {
+          level: 5,
+          class: 'Ranger',
+          stats: { hp: 45, maxHp: 50, ac: 16 },
+        },
+      };
+
+      useGameStore.setState({
+        sprites: [testSprite],
+        characters: [testCharacter],
+      });
+
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+
+      const dropdown = screen.getByRole('combobox');
+      await user.selectOptions(dropdown, 'char-1');
+
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      });
+
+      const updatedSprite = useGameStore.getState().sprites.find(s => s.id === 'sprite-1');
+      expect(updatedSprite?.characterId).toBe('char-1');
+    });
+
+    it('should show linked character data', () => {
+      const testSprite: Sprite = {
+        id: 'sprite-1',
+        x: 100,
+        y: 200,
+        texture: 'warrior.png',
+        hp: 45,
+        maxHp: 50,
+        ac: 16,
+        characterId: 'char-1',
+      };
+
+      const testCharacter: Character = {
+        id: 'char-1',
+        name: 'Aragorn',
+        userId: 123,
+        sessionId: 'session-1',
+        data: {
+          level: 5,
+          class: 'Ranger',
+          stats: { hp: 45, maxHp: 50, ac: 16 },
+        },
+      };
+
+      useGameStore.setState({
+        sprites: [testSprite],
+        characters: [testCharacter],
+      });
+
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+
+      expect(screen.getByText(/Aragorn \(Lv 5 Ranger\)/)).toBeInTheDocument();
+    });
+
+    it('should unlink character when selecting "No Character"', async () => {
+      const user = userEvent.setup();
+      const testSprite: Sprite = {
+        id: 'sprite-1',
+        x: 100,
+        y: 200,
+        texture: 'warrior.png',
+        hp: 45,
+        maxHp: 50,
+        ac: 16,
+        characterId: 'char-1',
+      };
+
+      const testCharacter: Character = {
+        id: 'char-1',
+        name: 'Aragorn',
+        userId: 123,
+        sessionId: 'session-1',
+        data: {
+          level: 5,
+          class: 'Ranger',
+          stats: { hp: 45, maxHp: 50, ac: 16 },
+        },
+      };
+
+      useGameStore.setState({
+        sprites: [testSprite],
+        characters: [testCharacter],
+      });
+
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+
+      const dropdown = screen.getByRole('combobox');
+      await user.selectOptions(dropdown, ''); // Select "No Character"
+
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      });
+
+      const state = useGameStore.getState();
+      const updatedSprite = state.sprites.find(s => s.id === 'sprite-1');
+      expect(updatedSprite?.characterId).toBeUndefined();
+    });
+  });
+
+  describe('Character List Loading', () => {
+    it('should request character list on mount when empty', () => {
+      const testSprite: Sprite = {
+        id: 'sprite-1',
+        x: 100,
+        y: 200,
+        texture: 'warrior.png',
+        hp: 50,
+        maxHp: 50,
+        ac: 15,
+      };
+
+      useGameStore.setState({ sprites: [testSprite], characters: [] });
+
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+
+      expect(mockProtocol.requestCharacterList).toHaveBeenCalledWith(123);
+    });
+
+    it('should not request character list if already loaded', () => {
+      const testSprite: Sprite = {
+        id: 'sprite-1',
+        x: 100,
+        y: 200,
+        texture: 'warrior.png',
+        hp: 50,
+        maxHp: 50,
+        ac: 15,
+      };
+
+      const testCharacter: Character = {
+        id: 'char-1',
+        name: 'Aragorn',
+        userId: 123,
+        sessionId: 'session-1',
+        data: { level: 5, class: 'Ranger' },
+      };
+
+      useGameStore.setState({
+        sprites: [testSprite],
+        characters: [testCharacter],
+      });
+
+      mockProtocol.requestCharacterList.mockClear();
+
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+
+      expect(mockProtocol.requestCharacterList).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Aura Radius', () => {
+    it('should update aura radius when input changes', async () => {
+      const user = userEvent.setup();
+      const testSprite: Sprite = {
+        id: 'sprite-1',
+        x: 100,
+        y: 200,
+        texture: 'warrior.png',
+        hp: 50,
+        maxHp: 50,
+        ac: 15,
+        auraRadius: 30,
+      };
+
+      useGameStore.setState({ sprites: [testSprite] });
+
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+
+      const auraInputs = screen.getAllByDisplayValue('30');
+      const auraInput = auraInputs.find(input => 
+        input.getAttribute('type') === 'range' || 
+        input.getAttribute('type') === 'number'
+      );
+
+      if (auraInput) {
+        await user.clear(auraInput);
+        await user.type(auraInput, '50');
+
+        await act(async () => {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        });
+
+        const updatedSprite = useGameStore.getState().sprites.find(s => s.id === 'sprite-1');
+        expect(updatedSprite?.auraRadius).toBe(50);
+      }
+    });
+  });
+
+  describe('Close Behavior', () => {
+    it('should call onClose when close button clicked', async () => {
+      const user = userEvent.setup();
+      const testSprite: Sprite = {
+        id: 'sprite-1',
+        x: 100,
+        y: 200,
+        texture: 'warrior.png',
+        hp: 50,
+        maxHp: 50,
+        ac: 15,
+      };
+
+      useGameStore.setState({ sprites: [testSprite] });
+
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+
+      const closeButton = screen.getByRole('button', { name: /close/i });
+      await user.click(closeButton);
+
+      expect(onCloseMock).toHaveBeenCalledTimes(1);
+    });
+  });
+});

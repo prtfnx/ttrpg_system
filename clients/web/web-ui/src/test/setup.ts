@@ -1,3 +1,14 @@
+// --- Mock react-toastify to avoid dependency issues in tests ---
+vi.mock('react-toastify', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+  },
+  ToastContainer: () => null,
+}));
+
 // --- Global fetch mock for OAuth and API endpoints ---
 if (!globalThis.fetch || typeof globalThis.fetch !== 'function') {
   globalThis.fetch = vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {

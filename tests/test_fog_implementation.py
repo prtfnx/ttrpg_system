@@ -18,7 +18,8 @@ def test_fog_implementation():
     try:
         # Test 1: VirtualTable fog storage
         print("\n1. Testing VirtualTable fog storage...")
-        table = VirtualTable("test_table", 10, 10)
+        test_table_uuid = "0a577ca2-7f6a-400d-9758-26f232003cc5"
+        table = VirtualTable(table_id=test_table_uuid, width=10, height=10, name="test_table")
         
         # Check initial fog state
         print(f"   Initial fog rectangles: {table.fog_rectangles}")
@@ -37,7 +38,8 @@ def test_fog_implementation():
         
         # Test 3: Fog deserialization
         print("\n3. Testing fog deserialization...")
-        new_table = VirtualTable("new_table", 10, 10)
+        new_table_uuid = "9a7a3180-0c2a-4e91-9158-58071a1241cb"
+        new_table = VirtualTable(table_id=new_table_uuid, width=10, height=10, name="new_table")
         test_data = {
             'name': 'loaded_table',
             'width': 10,

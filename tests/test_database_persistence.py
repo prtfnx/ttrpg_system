@@ -79,23 +79,26 @@ class TestDatabasePersistence:
         initial_table_count = len(protocol_service.table_manager.tables)
         logger.info(f"Initial tables: {list(protocol_service.table_manager.tables.keys())}")
         
-        # Step 2: Create 3 new tables
+        # Step 2: Create 3 new tables with proper UUIDs
         logger.info("Step 2: Creating 3 new tables")
         
         # Table 1: Battle Map
-        battle_map = VirtualTable("battle_map", 50, 30)
+        battle_map_uuid = "550e8400-e29b-41d4-a716-446655440001"
+        battle_map = VirtualTable(table_id=battle_map_uuid, width=50, height=30, name="battle_map")
         protocol_service.table_manager.add_table(battle_map)
         
         # Table 2: Town Square  
-        town_square = VirtualTable("town_square", 40, 40)
+        town_square_uuid = "550e8400-e29b-41d4-a716-446655440002"
+        town_square = VirtualTable(table_id=town_square_uuid, width=40, height=40, name="town_square")
         protocol_service.table_manager.add_table(town_square)
         
         # Table 3: Dungeon Level 1
-        dungeon_l1 = VirtualTable("dungeon_level_1", 60, 35)
+        dungeon_l1_uuid = "550e8400-e29b-41d4-a716-446655440003"
+        dungeon_l1 = VirtualTable(table_id=dungeon_l1_uuid, width=60, height=35, name="dungeon_level_1")
         protocol_service.table_manager.add_table(dungeon_l1)
         
-        # Verify tables created
-        expected_tables = {'battle_map', 'town_square', 'dungeon_level_1'}
+        # Verify tables created by UUID
+        expected_tables = {battle_map_uuid, town_square_uuid, dungeon_l1_uuid}
         actual_tables = set(protocol_service.table_manager.tables.keys())
         assert expected_tables.issubset(actual_tables), f"Missing tables. Expected: {expected_tables}, Got: {actual_tables}"
         logger.info(f"Created tables: {list(expected_tables)}")

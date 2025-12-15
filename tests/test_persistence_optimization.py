@@ -45,10 +45,11 @@ async def test_sprite_deletion_performance():
     table_manager = MockTableManager()
     actions = ActionsCore(table_manager)
     
-    # Create a test table with multiple sprites
-    table = VirtualTable("test_table", 100, 100)
-    table_manager.tables["test_table"] = table
-    table_manager.tables_id[str(table.table_id)] = table
+    # Create a test table with proper UUID
+    test_table_uuid = "550e8400-e29b-41d4-a716-446655440000"
+    table = VirtualTable(table_id=test_table_uuid, width=100, height=100, name="test_table")
+    table_manager.tables[test_table_uuid] = table
+    table_manager.tables_id[test_table_uuid] = table
     
     # Add test sprites using proper table method
     sprite_ids = []

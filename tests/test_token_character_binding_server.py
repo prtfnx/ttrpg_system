@@ -187,8 +187,9 @@ async def test_character_stats_sync_to_tokens(protocol):
         mock_query.filter.return_value.all.return_value = [mock_entity1, mock_entity2]
         mock_db.query.return_value = mock_query
         
-        # Create in-memory table with entities
-        table = VirtualTable(table_id="1", width=1000, height=1000, name="test_table")
+        # Create in-memory table with entities using proper UUID
+        test_table_uuid = "550e8400-e29b-41d4-a716-446655440000"
+        table = VirtualTable(table_id=test_table_uuid, width=1000, height=1000, name="test_table")
         table.entities[1] = Entity(
             name='token_1', position=(100, 100), layer='tokens', entity_id=1,
             character_id='char-123',

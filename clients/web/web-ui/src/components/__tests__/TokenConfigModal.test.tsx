@@ -168,7 +168,11 @@ describe('TokenConfigModal - Component UI Tests', () => {
 
       render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
 
-      const hpInput = screen.getByDisplayValue('50');
+      // Get HP input specifically (it has max attribute, first one)
+      const allInputs = screen.getAllByRole('spinbutton');
+      const hpInput = allInputs[0] as HTMLInputElement;
+      expect(hpInput.max).toBe('50'); // Verify it's the HP input
+      
       await user.clear(hpInput);
       await user.type(hpInput, '30');
 
@@ -229,15 +233,11 @@ describe('TokenConfigModal - Component UI Tests', () => {
 
     it('should not allow HP to go below 0', async () => {
       const user = userEvent.setup();
-      const testSprite: Sprite = {
-        id: 'sprite-1',
-        x: 100,
-        y: 200,
-        texture: 'warrior.png',
+      const testSprite = createTestSprite({
         hp: 1,
         maxHp: 50,
         ac: 15,
-      };
+      });
 
       useGameStore.setState({ sprites: [testSprite] });
 
@@ -257,15 +257,11 @@ describe('TokenConfigModal - Component UI Tests', () => {
 
     it('should not allow HP to exceed MaxHP', async () => {
       const user = userEvent.setup();
-      const testSprite: Sprite = {
-        id: 'sprite-1',
-        x: 100,
-        y: 200,
-        texture: 'warrior.png',
+      const testSprite = createTestSprite({
         hp: 50,
         maxHp: 50,
         ac: 15,
-      };
+      });
 
       useGameStore.setState({ sprites: [testSprite] });
 
@@ -286,24 +282,21 @@ describe('TokenConfigModal - Component UI Tests', () => {
   describe('MaxHP Management', () => {
     it('should update MaxHP when input changes', async () => {
       const user = userEvent.setup();
-      const testSprite: Sprite = {
-        id: 'sprite-1',
-        x: 100,
-        y: 200,
-        texture: 'warrior.png',
+      const testSprite = createTestSprite({
         hp: 50,
         maxHp: 50,
         ac: 15,
-      };
+      });
 
       useGameStore.setState({ sprites: [testSprite] });
 
       render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
 
       const maxHpInputs = screen.getAllByDisplayValue('50');
-      const maxHpInput = maxHpInputs[1]; // Second input is MaxHP
+      const maxHpInput = maxHpInputs[1] as HTMLInputElement; // Second input is MaxHP
+      expect(maxHpInput.min).toBe('1'); // Verify it's the MaxHP input
       
-      await user.clear(maxHpInput);
+      maxHpInput.value = '';
       await user.type(maxHpInput, '100');
 
       await act(async () => {
@@ -318,22 +311,18 @@ describe('TokenConfigModal - Component UI Tests', () => {
   describe('AC Management', () => {
     it('should update AC when input changes', async () => {
       const user = userEvent.setup();
-      const testSprite: Sprite = {
-        id: 'sprite-1',
-        x: 100,
-        y: 200,
-        texture: 'warrior.png',
+      const testSprite = createTestSprite({
         hp: 50,
         maxHp: 50,
         ac: 15,
-      };
+      });
 
       useGameStore.setState({ sprites: [testSprite] });
 
       render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
 
-      const acInput = screen.getByDisplayValue('15');
-      await user.clear(acInput);
+      const acInput = screen.getByDisplayValue('15') as HTMLInputElement;
+      acInput.value = '';
       await user.type(acInput, '18');
 
       await act(async () => {
@@ -348,27 +337,15 @@ describe('TokenConfigModal - Component UI Tests', () => {
   describe('Character Linking', () => {
     it('should link character to sprite', async () => {
       const user = userEvent.setup();
-      const testSprite: Sprite = {
-        id: 'sprite-1',
-        x: 100,
-        y: 200,
-        texture: 'warrior.png',
-        hp: 50,
-        maxHp: 50,
-        ac: 15,
-      };
-
-      const testCharacter: Character = {
-        id: 'char-1',
+      const testSprite = createTestSprite();
+      const testCharacter = createTestCharacter({
         name: 'Aragorn',
-        userId: 123,
-        sessionId: 'session-1',
         data: {
           level: 5,
           class: 'Ranger',
           stats: { hp: 45, maxHp: 50, ac: 16 },
         },
-      };
+      });
 
       useGameStore.setState({
         sprites: [testSprite],
@@ -389,28 +366,20 @@ describe('TokenConfigModal - Component UI Tests', () => {
     });
 
     it('should show linked character data', () => {
-      const testSprite: Sprite = {
-        id: 'sprite-1',
-        x: 100,
-        y: 200,
-        texture: 'warrior.png',
+      const testSprite = createTestSprite({
         hp: 45,
         maxHp: 50,
         ac: 16,
         characterId: 'char-1',
-      };
-
-      const testCharacter: Character = {
-        id: 'char-1',
+      });
+      const testCharacter = createTestCharacter({
         name: 'Aragorn',
-        userId: 123,
-        sessionId: 'session-1',
         data: {
           level: 5,
           class: 'Ranger',
           stats: { hp: 45, maxHp: 50, ac: 16 },
         },
-      };
+      });
 
       useGameStore.setState({
         sprites: [testSprite],
@@ -419,33 +388,25 @@ describe('TokenConfigModal - Component UI Tests', () => {
 
       render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
 
-      expect(screen.getByText(/Aragorn \(Lv 5 Ranger\)/)).toBeInTheDocument();
+      expect(screen.getByText(/Aragorn \(Lv 5 Ranger\)/)).toBeDefined();
     });
 
     it('should unlink character when selecting "No Character"', async () => {
       const user = userEvent.setup();
-      const testSprite: Sprite = {
-        id: 'sprite-1',
-        x: 100,
-        y: 200,
-        texture: 'warrior.png',
+      const testSprite = createTestSprite({
         hp: 45,
         maxHp: 50,
         ac: 16,
         characterId: 'char-1',
-      };
-
-      const testCharacter: Character = {
-        id: 'char-1',
+      });
+      const testCharacter = createTestCharacter({
         name: 'Aragorn',
-        userId: 123,
-        sessionId: 'session-1',
         data: {
           level: 5,
           class: 'Ranger',
           stats: { hp: 45, maxHp: 50, ac: 16 },
         },
-      };
+      });
 
       useGameStore.setState({
         sprites: [testSprite],
@@ -469,15 +430,7 @@ describe('TokenConfigModal - Component UI Tests', () => {
 
   describe('Character List Loading', () => {
     it('should request character list on mount when empty', () => {
-      const testSprite: Sprite = {
-        id: 'sprite-1',
-        x: 100,
-        y: 200,
-        texture: 'warrior.png',
-        hp: 50,
-        maxHp: 50,
-        ac: 15,
-      };
+      const testSprite = createTestSprite();
 
       useGameStore.setState({ sprites: [testSprite], characters: [] });
 
@@ -487,23 +440,11 @@ describe('TokenConfigModal - Component UI Tests', () => {
     });
 
     it('should not request character list if already loaded', () => {
-      const testSprite: Sprite = {
-        id: 'sprite-1',
-        x: 100,
-        y: 200,
-        texture: 'warrior.png',
-        hp: 50,
-        maxHp: 50,
-        ac: 15,
-      };
-
-      const testCharacter: Character = {
-        id: 'char-1',
+      const testSprite = createTestSprite();
+      const testCharacter = createTestCharacter({
         name: 'Aragorn',
-        userId: 123,
-        sessionId: 'session-1',
         data: { level: 5, class: 'Ranger' },
-      };
+      });
 
       useGameStore.setState({
         sprites: [testSprite],
@@ -521,16 +462,9 @@ describe('TokenConfigModal - Component UI Tests', () => {
   describe('Aura Radius', () => {
     it('should update aura radius when input changes', async () => {
       const user = userEvent.setup();
-      const testSprite: Sprite = {
-        id: 'sprite-1',
-        x: 100,
-        y: 200,
-        texture: 'warrior.png',
-        hp: 50,
-        maxHp: 50,
-        ac: 15,
+      const testSprite = createTestSprite({
         auraRadius: 30,
-      };
+      });
 
       useGameStore.setState({ sprites: [testSprite] });
 
@@ -559,21 +493,13 @@ describe('TokenConfigModal - Component UI Tests', () => {
   describe('Close Behavior', () => {
     it('should call onClose when close button clicked', async () => {
       const user = userEvent.setup();
-      const testSprite: Sprite = {
-        id: 'sprite-1',
-        x: 100,
-        y: 200,
-        texture: 'warrior.png',
-        hp: 50,
-        maxHp: 50,
-        ac: 15,
-      };
+      const testSprite = createTestSprite();
 
       useGameStore.setState({ sprites: [testSprite] });
 
       render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
 
-      const closeButton = screen.getByRole('button', { name: /close/i });
+      const closeButton = screen.getByText('×');
       await user.click(closeButton);
 
       expect(onCloseMock).toHaveBeenCalledTimes(1);

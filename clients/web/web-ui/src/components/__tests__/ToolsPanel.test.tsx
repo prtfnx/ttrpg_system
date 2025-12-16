@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import ToolsPanel from '../ToolsPanel';
+import { ToolsPanel } from '../ToolsPanel';
 import { ProtocolService } from '../../services/ProtocolService';
 import { useGameStore } from '../../stores/gameStore';
 
@@ -16,7 +16,7 @@ vi.mock('../../services/ProtocolService', () => ({
 describe('ToolsPanel - Ping Toggle Tests', () => {
   let mockStartPing: ReturnType<typeof vi.fn>;
   let mockStopPing: ReturnType<typeof vi.fn>;
-  const mockUserInfo = { id: 123, username: 'testuser', email: 'test@test.com', role: 'user' };
+  const mockUserInfo = { id: 123, username: 'testuser', role: 'player' as const, permissions: [] };
 
   beforeEach(() => {
     // Reset store
@@ -42,7 +42,6 @@ describe('ToolsPanel - Ping Toggle Tests', () => {
 
   describe('Ping Toggle Interaction', () => {
     it('should render ping toggle checkbox in inactive state by default', () => {
-      const mockUserInfo = { id: 123, username: 'testuser', email: 'test@test.com', role: 'user' };
       render(<ToolsPanel userInfo={mockUserInfo} />);
 
       const pingCheckbox = screen.getByLabelText(/keep-alive ping/i);

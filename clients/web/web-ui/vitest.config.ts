@@ -43,6 +43,9 @@ export default defineConfig({
     alias: {
       // During tests, resolve the dynamic WASM import path to a local test stub
       '/static/ui/wasm/ttrpg_rust_core.js': '/src/test/mocks/ttrpg_rust_core.mock.ts',
+      // Mock WASM core module
+      '../wasm/ttrpg_rust_core': '/src/test/mocks/wasm.mock.ts',
+      '../../wasm/ttrpg_rust_core': '/src/test/mocks/wasm.mock.ts',
       // Mock react-toastify to avoid missing dependency errors
       'react-toastify': '/src/test/mocks/react-toastify.mock.ts'
     }

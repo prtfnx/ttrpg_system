@@ -54,7 +54,7 @@ describe('ToolsPanel - Ping Toggle Tests', () => {
 
     it('should call startPing when toggle is enabled', async () => {
       const user = userEvent.setup();
-      render(<ToolsPanel />);
+      render(<ToolsPanel userInfo={mockUserInfo} />);
 
       const pingCheckbox = screen.getByLabelText(/keep-alive ping/i);
       await user.click(pingCheckbox);
@@ -67,7 +67,7 @@ describe('ToolsPanel - Ping Toggle Tests', () => {
 
     it('should call stopPing when toggle is disabled', async () => {
       const user = userEvent.setup();
-      render(<ToolsPanel />);
+      render(<ToolsPanel userInfo={mockUserInfo} />);
 
       const pingCheckbox = screen.getByLabelText(/keep-alive ping/i);
       
@@ -82,7 +82,7 @@ describe('ToolsPanel - Ping Toggle Tests', () => {
 
     it('should update visual status indicator when toggle changes', async () => {
       const user = userEvent.setup();
-      render(<ToolsPanel />);
+      render(<ToolsPanel userInfo={mockUserInfo} />);
 
       const pingCheckbox = screen.getByLabelText(/keep-alive ping/i);
       
@@ -107,7 +107,7 @@ describe('ToolsPanel - Ping Toggle Tests', () => {
       // Mock protocol not available
       vi.mocked(ProtocolService.hasProtocol).mockReturnValue(false);
       
-      render(<ToolsPanel />);
+      render(<ToolsPanel userInfo={mockUserInfo} />);
 
       const pingCheckbox = screen.getByLabelText(/keep-alive ping/i);
       await user.click(pingCheckbox);
@@ -119,7 +119,7 @@ describe('ToolsPanel - Ping Toggle Tests', () => {
 
     it('should toggle ping multiple times correctly', async () => {
       const user = userEvent.setup();
-      render(<ToolsPanel />);
+      render(<ToolsPanel userInfo={mockUserInfo} />);
 
       const pingCheckbox = screen.getByLabelText(/keep-alive ping/i);
       
@@ -146,7 +146,7 @@ describe('ToolsPanel - Ping Toggle Tests', () => {
 
     it('should maintain checkbox state across re-renders', async () => {
       const user = userEvent.setup();
-      const { rerender } = render(<ToolsPanel />);
+      const { rerender } = render(<ToolsPanel userInfo={mockUserInfo} />);
 
       const pingCheckbox = screen.getByLabelText(/keep-alive ping/i) as HTMLInputElement;
       
@@ -155,14 +155,14 @@ describe('ToolsPanel - Ping Toggle Tests', () => {
       expect(pingCheckbox.checked).toBe(true);
 
       // Force re-render
-      rerender(<ToolsPanel />);
+      rerender(<ToolsPanel userInfo={mockUserInfo} />);
       
       const pingCheckboxAfterRerender = screen.getByLabelText(/keep-alive ping/i) as HTMLInputElement;
       expect(pingCheckboxAfterRerender.checked).toBe(true);
     });
 
     it('should display correct 30s interval label', () => {
-      render(<ToolsPanel />);
+      render(<ToolsPanel userInfo={mockUserInfo} />);
 
       const label = screen.getByText(/keep-alive ping \(30s\)/i);
       expect(label).toBeDefined();
@@ -171,7 +171,7 @@ describe('ToolsPanel - Ping Toggle Tests', () => {
 
   describe('Ping Toggle Accessibility', () => {
     it('should have proper label association with input', () => {
-      render(<ToolsPanel />);
+      render(<ToolsPanel userInfo={mockUserInfo} />);
 
       const pingCheckbox = screen.getByLabelText(/keep-alive ping/i);
       expect((pingCheckbox as HTMLInputElement).id).toBe('ping-toggle');
@@ -179,7 +179,7 @@ describe('ToolsPanel - Ping Toggle Tests', () => {
 
     it('should be keyboard accessible', async () => {
       const user = userEvent.setup();
-      render(<ToolsPanel />);
+      render(<ToolsPanel userInfo={mockUserInfo} />);
 
       const pingCheckbox = screen.getByLabelText(/keep-alive ping/i);
       

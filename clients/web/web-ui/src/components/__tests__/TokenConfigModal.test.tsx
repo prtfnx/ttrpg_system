@@ -16,7 +16,7 @@
  * @vitest-environment jsdom
  */
 
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TokenConfigModal } from '../TokenConfigModal';
@@ -42,6 +42,46 @@ vi.mock('../../services/auth.service', () => ({
   },
 }));
 
+// Test helper: Create a complete Sprite with all required fields
+function createTestSprite(overrides: Partial<Sprite> = {}): Sprite {
+  return {
+    id: 'sprite-1',
+    name: 'Test Token',
+    tableId: 'test-table-uuid',
+    x: 100,
+    y: 200,
+    layer: 'tokens',
+    texture: 'warrior.png',
+    scale: { x: 1, y: 1 },
+    rotation: 0,
+    hp: 50,
+    maxHp: 50,
+    ac: 15,
+    auraRadius: 0,
+    ...overrides,
+  };
+}
+
+// Test helper: Create a complete Character with all required fields
+function createTestCharacter(overrides: Partial<Character> = {}): Character {
+  return {
+    id: 'char-1',
+    sessionId: 'session-1',
+    name: 'Aragorn',
+    ownerId: 123,
+    controlledBy: [123],
+    data: {
+      level: 5,
+      class: 'Ranger',
+      stats: { hp: 45, maxHp: 50, ac: 16 },
+    },
+    version: 1,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
 describe('TokenConfigModal - Component UI Tests', () => {
   let onCloseMock: ReturnType<typeof vi.fn>;
 
@@ -60,68 +100,48 @@ describe('TokenConfigModal - Component UI Tests', () => {
 
   describe('Rendering', () => {
     it('should render modal with sprite data', () => {
-      const testSprite: Sprite = {
-        id: 'sprite-1',
-        x: 100,
-        y: 200,
-        texture: 'warrior.png',
+      const testSprite = createTestSprite({
         hp: 25,
         maxHp: 50,
         ac: 15,
         auraRadius: 30,
-      };
+      });
 
       useGameStore.setState({ sprites: [testSprite] });
 
       render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
 
-      expect(screen.getByText(/Token Configuration/i)).toBeInTheDocument();
-      expect(screen.getByDisplayValue('25')).toBeInTheDocument(); // HP
-      expect(screen.getByDisplayValue('50')).toBeInTheDocument(); // MaxHP
-      expect(screen.getByDisplayValue('15')).toBeInTheDocument(); // AC
+      expect(screen.getByText(/Token Configuration/i)).toBeDefined();
+      expect(screen.getByDisplayValue('25')).toBeDefined(); // HP
+      expect(screen.getByDisplayValue('50')).toBeDefined(); // MaxHP
+      expect(screen.getByDisplayValue('15')).toBeDefined(); // AC
     });
 
     it('should display HP bar with correct percentage', () => {
-      const testSprite: Sprite = {
-        id: 'sprite-1',
-        x: 100,
-        y: 200,
-        texture: 'warrior.png',
+      const testSprite = createTestSprite({
         hp: 30,
         maxHp: 100,
         ac: 15,
-      };
+      });
 
       useGameStore.setState({ sprites: [testSprite] });
 
       render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
 
       // HP bar should show 30/100
-      expect(screen.getByText(/30.*100/)).toBeInTheDocument();
+      expect(screen.getByText(/30.*100/)).toBeDefined();
     });
 
     it('should render character selection dropdown', () => {
-      const testSprite: Sprite = {
-        id: 'sprite-1',
-        x: 100,
-        y: 200,
-        texture: 'warrior.png',
-        hp: 50,
-        maxHp: 50,
-        ac: 15,
-      };
-
-      const testCharacter: Character = {
-        id: 'char-1',
+      const testSprite = createTestSprite();
+      const testCharacter = createTestCharacter({
         name: 'Aragorn',
-        userId: 123,
-        sessionId: 'session-1',
         data: {
           level: 5,
           class: 'Ranger',
           stats: { hp: 45, maxHp: 50, ac: 16 },
         },
-      };
+      });
 
       useGameStore.setState({
         sprites: [testSprite],
@@ -130,23 +150,19 @@ describe('TokenConfigModal - Component UI Tests', () => {
 
       render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
 
-      expect(screen.getByText(/-- No Character --/)).toBeInTheDocument();
-      expect(screen.getByText(/Aragorn \(Lv 5 Ranger\)/)).toBeInTheDocument();
+      expect(screen.getByText(/-- No Character --/)).toBeDefined();
+      expect(screen.getByText(/Aragorn \(Lv 5 Ranger\)/)).toBeDefined();
     });
   });
 
   describe('HP Management', () => {
     it('should update HP when input changes', async () => {
       const user = userEvent.setup();
-      const testSprite: Sprite = {
-        id: 'sprite-1',
-        x: 100,
-        y: 200,
-        texture: 'warrior.png',
+      const testSprite = createTestSprite({
         hp: 50,
         maxHp: 50,
         ac: 15,
-      };
+      });
 
       useGameStore.setState({ sprites: [testSprite] });
 
@@ -167,15 +183,11 @@ describe('TokenConfigModal - Component UI Tests', () => {
 
     it('should increment HP with + button', async () => {
       const user = userEvent.setup();
-      const testSprite: Sprite = {
-        id: 'sprite-1',
-        x: 100,
-        y: 200,
-        texture: 'warrior.png',
+      const testSprite = createTestSprite({
         hp: 25,
         maxHp: 50,
         ac: 15,
-      };
+      });
 
       useGameStore.setState({ sprites: [testSprite] });
 
@@ -194,15 +206,11 @@ describe('TokenConfigModal - Component UI Tests', () => {
 
     it('should decrement HP with - button', async () => {
       const user = userEvent.setup();
-      const testSprite: Sprite = {
-        id: 'sprite-1',
-        x: 100,
-        y: 200,
-        texture: 'warrior.png',
+      const testSprite = createTestSprite({
         hp: 25,
         maxHp: 50,
         ac: 15,
-      };
+      });
 
       useGameStore.setState({ sprites: [testSprite] });
 

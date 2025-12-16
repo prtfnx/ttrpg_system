@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-// Ensure wasmManager is mocked before importing the hook (vi.mock is hoisted)
+// WASM is auto-mocked via vitest.config.ts
+// wasmManager mock for specific test behavior
 vi.mock('../utils/wasmManager', () => ({
   wasmManager: {
     // getNetworkClient resolves to an object WITHOUT set_message_handler

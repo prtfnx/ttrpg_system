@@ -5,7 +5,7 @@ import ToolsPanel from '../ToolsPanel';
 import { ProtocolService } from '../../services/ProtocolService';
 import { useGameStore } from '../../stores/gameStore';
 
-// Mock ProtocolService
+// Mock ProtocolService only (WASM is auto-mocked via vitest.config.ts)
 vi.mock('../../services/ProtocolService', () => ({
   ProtocolService: {
     hasProtocol: vi.fn(),
@@ -16,13 +16,14 @@ vi.mock('../../services/ProtocolService', () => ({
 describe('ToolsPanel - Ping Toggle Tests', () => {
   let mockStartPing: ReturnType<typeof vi.fn>;
   let mockStopPing: ReturnType<typeof vi.fn>;
+  const mockUserInfo = { id: 123, username: 'testuser', email: 'test@test.com', role: 'user' };
 
   beforeEach(() => {
     // Reset store
     useGameStore.setState({
       sprites: [],
       characters: [],
-      currentUserId: 123,
+      user: { id: 123, username: 'testuser', email: 'test@example.com' },
     });
 
     // Create mock protocol methods
@@ -41,7 +42,8 @@ describe('ToolsPanel - Ping Toggle Tests', () => {
 
   describe('Ping Toggle Interaction', () => {
     it('should render ping toggle checkbox in inactive state by default', () => {
-      render(<ToolsPanel />);
+      const mockUserInfo = { id: 123, username: 'testuser', email: 'test@test.com', role: 'user' };
+      render(<ToolsPanel userInfo={mockUserInfo} />);
 
       const pingCheckbox = screen.getByLabelText(/keep-alive ping/i);
       expect(pingCheckbox).toBeDefined();

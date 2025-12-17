@@ -86,18 +86,18 @@ describe('ToolsPanel - Ping Toggle Tests', () => {
 
       const pingCheckbox = screen.getByLabelText(/keep-alive ping/i);
       
-      // Initial state - inactive
-      let statusText = screen.getByText(/● inactive/i);
+      // Initial state - inactive (○ symbol for inactive)
+      let statusText = screen.getByText(/○ inactive/i);
       expect(statusText).toBeDefined();
 
-      // Enable ping
+      // Enable ping (● symbol for active)
       await user.click(pingCheckbox);
       statusText = screen.getByText(/● active/i);
       expect(statusText).toBeDefined();
 
-      // Disable ping
+      // Disable ping (○ symbol for inactive)
       await user.click(pingCheckbox);
-      statusText = screen.getByText(/● inactive/i);
+      statusText = screen.getByText(/○ inactive/i);
       expect(statusText).toBeDefined();
     });
 

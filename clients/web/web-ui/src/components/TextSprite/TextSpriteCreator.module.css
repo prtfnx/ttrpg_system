@@ -6,46 +6,46 @@
   margin: 0 auto;
 }
 
-.creator-layout {
+.creatorLayout {
   display: flex;
   gap: var(--space-2xl);
   margin-bottom: var(--space-2xl);
 }
 
 /* Controls Panel */
-.controls-panel {
+.controlsPanel {
   flex: 1;
   max-width: var(--size-100);
 }
 
-.control-section {
+.controlSection {
   composes: control-section from './TextSpriteBase.module.css';
 }
 
-.control-section-title {
+.controlSectionTitle {
   composes: control-section-header from './TextSpriteBase.module.css';
 }
 
-.control-group {
+.controlGroup {
   composes: control-group from './TextSpriteBase.module.css';
 }
 
 /* Cannot compose on pseudo-selectors */
-.control-group:last-child {
+.controlGroup:last-child {
   margin-bottom: 0;
 }
 
-.control-row {
+.controlRow {
   composes: control-row from './TextSpriteBase.module.css';
 }
 
 /* Cannot compose on child selectors - define directly */
-.control-row .control-group {
+.controlRow .controlGroup {
   flex: 1;
   margin-bottom: 0;
 }
 
-.control-group label {
+.controlGroup label {
   display: block;
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
@@ -53,8 +53,8 @@
   margin-bottom: var(--space-1);
 }
 
-.control-group input,
-.control-group select {
+.controlGroup input,
+.controlGroup select {
   width: 100%;
   background: var(--gray-800);
   border: var(--border-width-sm) solid var(--gray-700);
@@ -66,12 +66,12 @@
   transition: border-color var(--transition-fast);
 }
 
-.control-group input:focus,
-.control-group select:focus {
+.controlGroup input:focus,
+.controlGroup select:focus {
   border-color: var(--blue-500);
 }
 
-.control-group textarea {
+.controlGroup textarea {
   width: 100%;
   min-height: var(--size-24);
   background: var(--gray-800);
@@ -86,16 +86,16 @@
   transition: border-color var(--transition-fast);
 }
 
-.control-group textarea:focus {
+.controlGroup textarea:focus {
   border-color: var(--blue-500);
 }
 
-.text-input {
+.textInput {
   composes: textarea-input from './TextSpriteBase.module.css';
 }
 
 /* Color inputs */
-.color-input {
+.colorInput {
   composes: color-input from './TextSpriteBase.module.css';
 }
 
@@ -140,12 +140,12 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
 /* Alignment buttons */
-.alignment-buttons {
+.alignmentButtons {
   display: flex;
   gap: var(--space-1);
 }
 
-.align-btn {
+.alignBtn {
   width: var(--size-10);
   height: var(--size-10);
   border: var(--border-width-sm) solid var(--border-primary);
@@ -159,19 +159,19 @@ input[type="range"]::-moz-range-thumb:hover {
   transition: all var(--transition-fast);
 }
 
-.align-btn:hover {
+.alignBtn:hover {
   background: var(--bg-secondary);
   border-color: var(--border-secondary);
 }
 
-.align-btn.active {
+.alignBtn.active {
   background: var(--blue-500);
   border-color: var(--blue-500);
   color: var(--white);
 }
 
 /* Shadow controls */
-.shadow-controls {
+.shadowControls {
   display: flex;
   gap: var(--space-sm);
   align-items: center;
@@ -179,7 +179,7 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
 /* Cannot compose on child selectors */
-.shadow-controls input[type="color"] {
+.shadowControls input[type="color"] {
   width: var(--size-9);
   height: var(--size-7);
   border: var(--border-width-sm) solid var(--border-primary);
@@ -188,40 +188,40 @@ input[type="range"]::-moz-range-thumb:hover {
   background: none;
 }
 
-.shadow-controls input[type="color"]:hover {
+.shadowControls input[type="color"]:hover {
   border-color: var(--border-secondary);
 }
 
-.shadow-controls input[type="range"] {
+.shadowControls input[type="range"] {
   flex: 1;
 }
 
 /* Preview Panel */
-.preview-panel {
+.previewPanel {
   flex: 1;
   min-width: var(--size-75);
 }
 
-.preview-panel-title {
+.previewPanelTitle {
   composes: control-section-header from './TextSpriteBase.module.css';
 }
 
-.preview-container {
+.previewContainer {
   composes: preview-container from './TextSpriteBase.module.css';
 }
 
-.text-preview {
+.textPreview {
   composes: preview-text from './TextSpriteBase.module.css';
 }
 
-.preview-info {
+.previewInfo {
   margin-top: var(--space-sm);
   text-align: center;
   color: var(--text-secondary);
 }
 
 /* Action buttons */
-.creator-actions {
+.creatorActions {
   display: flex;
   gap: var(--space-lg);
   justify-content: flex-end;
@@ -229,16 +229,38 @@ input[type="range"]::-moz-range-thumb:hover {
   border-top: var(--border-width-sm) solid var(--border-primary);
 }
 
-.btn-cancel {
+.btnCancel {
   composes: button-secondary from './TextSpriteBase.module.css';
 }
 
-.btn-create {
+.btnCreate {
   composes: button-success from './TextSpriteBase.module.css';
 }
 
+.btnDelete {
+  background: var(--red-600);
+  color: var(--white);
+  padding: var(--space-3) var(--space-6);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.btnDelete:hover {
+  background: var(--red-700);
+}
+
+.btnDelete:disabled {
+  background: var(--gray-700);
+  cursor: wait;
+  opacity: 0.6;
+}
+
 /* Cannot compose on pseudo-selectors */
-.btn-create:disabled {
+.btnCreate:disabled {
   background: var(--gray-700);
   cursor: not-allowed;
   opacity: 0.5;
@@ -246,21 +268,21 @@ input[type="range"]::-moz-range-thumb:hover {
 
 /* Responsive design */
 @media (max-width: 768px) {
-  .creator-layout {
+  .creatorLayout {
     flex-direction: column;
     gap: var(--space-lg);
   }
   
-  .controls-panel {
+  .controlsPanel {
     max-width: none;
   }
   
-  .creator-actions {
+  .creatorActions {
     justify-content: stretch;
   }
   
-  .btn-cancel,
-  .btn-create {
+  .btnCancel,
+  .btnCreate {
     flex: 1;
   }
 }
@@ -272,7 +294,7 @@ input[type="checkbox"] {
   cursor: pointer;
 }
 
-.control-group label:has(input[type="checkbox"]) {
+.controlGroup label:has(input[type="checkbox"]) {
   display: flex;
   align-items: center;
   cursor: pointer;

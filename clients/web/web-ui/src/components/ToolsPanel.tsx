@@ -289,10 +289,29 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
             <select 
               id="role-toggle"
               value={userInfo.role}
-              onChange={(e) => {
-                // Update role in userInfo - this would require auth service update
-                console.log('Role change requested:', e.target.value);
-                alert(`Role switching: ${e.target.value}\n\nNote: Full role switching requires server support.\nCurrently for UI testing only.`);
+              onChange={async (e) => {
+                const newRole = e.target.value as 'dm' | 'player';
+                console.log('Role change requested:', newRole);
+                
+                // OWASP best practice: Server-side authorization checks
+                // Only session owner can change roles
+                const { authService } = await import('../services/auth.service');
+                
+                if (!sessionId) {
+                  alert('Cannot change role: No active session');
+                  return;
+                }
+                
+                const result = await authService.updateRole(sessionId, userInfo.id, newRole);
+                
+                if (result.success) {
+                  alert(`✓ Role updated to ${newRole === 'dm' ? 'DM (Dungeon Master)' : 'Player'}\n\nPage will reload to apply changes.`);
+                  window.location.reload();
+                } else {
+                  alert(`✗ Role update failed:\n${result.message}`);
+                  // Revert the select back to current role
+                  (e.target as HTMLSelectElement).value = userInfo.role;
+                }
               }}
               className={styles.roleSelect}
             >

@@ -256,6 +256,107 @@ class AuthService {
     console.log('👤 Current user info:', this.userInfo);
     return true;
   }
+
+  /**
+   * Get user's role in a specific session
+   * OWASP best practice: Validate permissions on every request
+   */
+  async getRole(sessionCode: string): Promise<'dm' | 'player' | null> {
+    try {
+      const response = await fetch(`/users/me/role/${sessionCode}`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.role;
+      }
+      
+      if (response.status === 404) {
+        console.warn(`User is not a member of session: ${sessionCode}`);
+        return null;
+      }
+      
+      throw new Error(`Failed to get role: ${response.statusText}`);
+    } catch (error) {
+      console.error('Failed to get user role:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Update a user's role in a session (owner only)
+   * 
+   * OWASP best practices:
+   * - Server-side authorization checks
+   * - Input validation
+   * - Appropriate error handling
+   * 
+   * @param sessionCode - The session code
+   * @param userId - The ID of the user to update
+   * @param newRole - The new role ('dm' or 'player')
+   * @returns Success status and message
+   */
+  async updateRole(
+    sessionCode: string, 
+    userId: number, 
+    newRole: 'dm' | 'player'
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch('/users/me/role', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          session_code: sessionCode,
+          user_id: userId,
+          new_role: newRole
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        console.log(`✓ Role updated: user ${userId} -> ${newRole} in session ${sessionCode}`);
+        
+        // Update local userInfo if we changed our own role
+        if (this.userInfo && this.userInfo.id === userId) {
+          this.userInfo.role = newRole;
+        }
+        
+        return { 
+          success: true, 
+          message: data.message || 'Role updated successfully' 
+        };
+      } else {
+        // Handle specific error codes
+        let errorMessage = data.detail || 'Failed to update role';
+        
+        if (response.status === 403) {
+          errorMessage = 'You do not have permission to change roles (owner only)';
+        } else if (response.status === 404) {
+          errorMessage = 'Session or user not found';
+        } else if (response.status === 400) {
+          errorMessage = data.detail || 'Invalid request';
+        }
+        
+        console.warn(`✗ Role update failed: ${errorMessage}`);
+        return { success: false, message: errorMessage };
+      }
+    } catch (error) {
+      console.error('Failed to update role:', error);
+      return { 
+        success: false, 
+        message: 'Network error occurred while updating role' 
+      };
+    }
+  }
 }
 
 export const authService = new AuthService();

@@ -47,6 +47,7 @@ class GamePlayer(Base):
     character_name = Column(String(100))
     joined_at = Column(DateTime, default=datetime.utcnow)
     is_connected = Column(Boolean, default=False)
+    role = Column(String(20), nullable=False, default="player")  # Session-based role: 'dm' or 'player'
     
     # Relationships
     session = relationship("GameSession", back_populates="players")

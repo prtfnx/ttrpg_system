@@ -239,16 +239,23 @@ def join_game_session(db: Session, session_code: str, user_id: int, character_na
         db.commit()
         return existing_player
     
+    # OWASP best practice: Enforce least privileges (default to player)
+    # Session owner gets DM role, others get player role
+    role = 'dm' if session.owner_id == user_id else 'player'
+    
     # Create new player
     db_player = models.GamePlayer(
         session_id=session.id,
         user_id=user_id,
         character_name=character_name,
-        is_connected=True
+        is_connected=True,
+        role=role
     )
     db.add(db_player)
     db.commit()
     db.refresh(db_player)
+    
+    logger.info(f"User {user_id} joined session {session_code} with role: {role}")
     return db_player
 
 def disconnect_player(db: Session, session_id: int, user_id: int):
@@ -597,3 +604,108 @@ def load_table_from_db(db: Session, table_id: str):
     except Exception as e:
         print(f"Error loading table from database: {e}")
         return None, False
+
+# Role management operations (OWASP RBAC best practices)
+def get_player_role(db: Session, session_code: str, user_id: int) -> Optional[str]:
+    """
+    Get the role of a player in a specific session.
+    Returns 'dm', 'player', or None if not in session.
+    
+    OWASP best practice: Validate permissions on every request
+    """
+    session = get_game_session_by_code(db, session_code)
+    if not session:
+        return None
+    
+    player = db.query(models.GamePlayer).filter(
+        models.GamePlayer.session_id == session.id,
+        models.GamePlayer.user_id == user_id
+    ).first()
+    
+    if not player:
+        return None
+    
+    return player.role
+
+def update_player_role(db: Session, session_code: str, user_id: int, new_role: str, requester_id: int) -> tuple[bool, str]:
+    """
+    Update a player's role in a session.
+    
+    Args:
+        session_code: The session code
+        user_id: The user whose role to update
+        new_role: The new role ('dm' or 'player')
+        requester_id: The user making the request (for authorization)
+    
+    Returns:
+        Tuple of (success, message)
+    
+    OWASP best practices applied:
+    - Deny by default (least privilege)
+    - Validate permissions on every request
+    - Server-side authorization checks
+    - Appropriate logging
+    - Input validation
+    """
+    # Input validation
+    if new_role not in ['dm', 'player']:
+        logger.warning(f"Invalid role change attempt: {new_role} by user {requester_id}")
+        return False, "Invalid role. Must be 'dm' or 'player'"
+    
+    # Get session
+    session = get_game_session_by_code(db, session_code)
+    if not session:
+        logger.warning(f"Role change attempted for non-existent session: {session_code}")
+        return False, "Session not found"
+    
+    # Authorization check: Only session owner can change roles
+    # OWASP: Verify that authorization checks are performed in the right location (server-side)
+    if session.owner_id != requester_id:
+        logger.warning(f"Unauthorized role change attempt by user {requester_id} in session {session_code}")
+        return False, "Only the session owner can change roles"
+    
+    # Get the player record
+    player = db.query(models.GamePlayer).filter(
+        models.GamePlayer.session_id == session.id,
+        models.GamePlayer.user_id == user_id
+    ).first()
+    
+    if not player:
+        logger.warning(f"Role change attempted for user {user_id} not in session {session_code}")
+        return False, "User is not in this session"
+    
+    # Prevent owner from demoting themselves (safety check)
+    if user_id == session.owner_id and new_role == 'player':
+        logger.warning(f"Session owner {user_id} attempted to demote themselves in session {session_code}")
+        return False, "Session owner cannot demote themselves"
+    
+    # Update role
+    old_role = player.role
+    player.role = new_role
+    db.commit()
+    
+    # Logging (OWASP: Implement appropriate logging)
+    logger.info(f"Role changed for user {user_id} in session {session_code}: {old_role} -> {new_role} by {requester_id}")
+    
+    return True, f"Role updated to {new_role}"
+
+def ensure_owner_is_dm(db: Session, session_id: int) -> None:
+    """
+    Ensure the session owner has DM role.
+    Called after session creation.
+    
+    OWASP best practice: Enforce least privileges (owner should have DM)
+    """
+    session = db.query(models.GameSession).filter(models.GameSession.id == session_id).first()
+    if not session:
+        return
+    
+    owner_player = db.query(models.GamePlayer).filter(
+        models.GamePlayer.session_id == session_id,
+        models.GamePlayer.user_id == session.owner_id
+    ).first()
+    
+    if owner_player and owner_player.role != 'dm':
+        owner_player.role = 'dm'
+        db.commit()
+        logger.info(f"Ensured session owner {session.owner_id} has DM role in session {session_id}")

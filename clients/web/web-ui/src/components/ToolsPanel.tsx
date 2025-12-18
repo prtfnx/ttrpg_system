@@ -42,7 +42,9 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
     activeTool, 
     measurementActive, 
     alignmentActive, 
-    setActiveTool 
+    setActiveTool,
+    isConnected,
+    connectionState
   } = useGameStore();
   
   // Handle tool changes and communicate with Rust backend
@@ -246,6 +248,19 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
       {/* Network Settings */}
       <div className={styles.networkSettings}>
         <h4>Network Settings</h4>
+        
+        {/* Connection Status Display */}
+        <div className={styles.networkToggle}>
+          <label>Connection Status:</label>
+          <span className={`${styles.networkStatus} ${isConnected ? styles.active : styles.inactive}`}>
+            {isConnected ? '● Connected' : '○ Disconnected'}
+          </span>
+          <span style={{ marginLeft: '8px', fontSize: '0.85em', opacity: 0.7 }}>
+            ({connectionState})
+          </span>
+        </div>
+        
+        {/* Ping Toggle */}
         <div className={styles.networkToggle}>
           <label htmlFor="ping-toggle">
             <input

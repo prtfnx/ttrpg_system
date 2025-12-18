@@ -347,3 +347,116 @@ def logout():
     response = RedirectResponse(url="/users/login", status_code=status.HTTP_302_FOUND)
     response.delete_cookie(key="token", path="/", samesite="lax")
     return response
+
+# Role management endpoints (OWASP RBAC best practices)
+@router.get("/me/role/{session_code}", response_model=dict)
+async def get_my_role(
+    session_code: str,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
+    db: Session = Depends(get_db)
+):
+    """
+    Get current user's role in a specific session.
+    
+    OWASP best practices:
+    - Validate permissions on every request
+    - Server-side authorization checks
+    """
+    role = crud.get_player_role(db, session_code, current_user.id)
+    
+    if role is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User is not a member of this session"
+        )
+    
+    return {
+        "session_code": session_code,
+        "role": role,
+        "user_id": current_user.id,
+        "username": current_user.username
+    }
+
+@router.post("/me/role", response_model=dict)
+async def update_my_role(
+    request: Request,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
+    db: Session = Depends(get_db)
+):
+    """
+    Update role for a user in a session.
+    Only the session owner can update roles.
+    
+    Request body:
+    {
+        "session_code": "ABC123",
+        "user_id": 5,
+        "new_role": "dm"
+    }
+    
+    OWASP best practices applied:
+    - Deny by default
+    - Validate permissions on every request
+    - Server-side authorization
+    - Input validation
+    - Appropriate logging
+    - Safe error handling
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid JSON body"
+        )
+    
+    session_code = body.get("session_code")
+    target_user_id = body.get("user_id")
+    new_role = body.get("new_role")
+    
+    # Input validation
+    if not session_code or not isinstance(session_code, str):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="session_code is required and must be a string"
+        )
+    
+    if not target_user_id or not isinstance(target_user_id, int):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="user_id is required and must be an integer"
+        )
+    
+    if not new_role or new_role not in ['dm', 'player']:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="new_role must be 'dm' or 'player'"
+        )
+    
+    # Call CRUD function with authorization
+    success, message = crud.update_player_role(
+        db, 
+        session_code, 
+        target_user_id, 
+        new_role, 
+        current_user.id  # requester_id for authorization
+    )
+    
+    if not success:
+        # Different status codes based on error type
+        if "not found" in message.lower():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message)
+        elif "only the session owner" in message.lower() or "unauthorized" in message.lower():
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=message)
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
+    
+    logger.info(f"Role update successful: user {target_user_id} -> {new_role} in session {session_code}")
+    
+    return {
+        "success": True,
+        "message": message,
+        "session_code": session_code,
+        "user_id": target_user_id,
+        "new_role": new_role
+    }

@@ -124,22 +124,11 @@ async def game_session_page(
         logger.debug(f"game_session_page: Failed to join session")
         raise HTTPException(status_code=403, detail="Not authorized to join this session")
     
-    # Determine user role - DM if they own the session, otherwise player
-    # Debug: Check what we actually have
-    logger.debug(f"game_session: {game_session}")
-    logger.debug(f"game_session type: {type(game_session)}")
-    logger.debug(f"game_session.__dict__: {game_session.__dict__}")
+    # OWASP best practice: Get role from database (session-based RBAC)
+    # Role is now stored in the database and can be changed by session owner
+    user_role = player.role
     
-    # Try accessing using getattr safely
-    session_owner_id = getattr(game_session, 'owner_id', None)
-    current_user_id = getattr(current_user, 'id', None)
-    
-    logger.debug(f"session_owner_id: {session_owner_id}, type: {type(session_owner_id)}")
-    logger.debug(f"current_user_id: {current_user_id}, type: {type(current_user_id)}")
-    
-    user_role = "dm" if session_owner_id == current_user_id else "player"
-    
-    logger.debug(f"user_role determined: {user_role}")
+    logger.debug(f"user_role from database: {user_role}")
     
     # Serve the React web client - user is already authenticated
     # The existing token cookie from their login will be used by the React client

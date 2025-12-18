@@ -237,9 +237,9 @@ export default function TableSyncPanel() {
 
   if (isLoading) {
     return (
-      <div className="panel-base">
-        <div className="loading-state">
-          <div className="loading-spinner">⏳</div>
+      <div className={styles.panelBase}>
+        <div className={styles.loadingState}>
+          <div className={styles.loadingSpinner}>⏳</div>
           <p>Loading table sync...</p>
         </div>
       </div>
@@ -247,7 +247,7 @@ export default function TableSyncPanel() {
   }
 
   return (
-    <div className="panel-base">
+    <div className={styles.panelBase}>
       <div className={styles.panelHeader}>
         <h3>🎲 Table Sync</h3>
         <div className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
@@ -257,132 +257,132 @@ export default function TableSyncPanel() {
       </div>
 
       {error && (
-        <div className="error-banner">
+        <div className={styles.errorBanner}>
           <span>❌ {error}</span>
         </div>
       )}
 
-      <div className="panel-section">
+      <div className={styles.panelSection}>
         <h4>📡 Table Operations</h4>
-        <div className="control-group">
-          <div className="input-group">
+        <div className={styles.controlGroup}>
+          <div className={styles.inputGroup}>
             <label>Table ID</label>
             <input
               type="text"
               placeholder="Enter table ID"
               value={currentTableId}
               onChange={(e) => setCurrentTableId(e.target.value)}
-              className="panel-input"
+              className={styles.panelInput}
             />
           </div>
           <button 
             onClick={handleRequestTable}
             disabled={!tableSync || !isConnected}
-            className="panel-button primary"
+            className={`${styles.panelButton} ${styles.primary}`}
           >
             📡 Request Table
           </button>
         </div>
         
-        <div className="control-group">
-          <div className="input-group">
+        <div className={styles.controlGroup}>
+          <div className={styles.inputGroup}>
             <label>New Table Name</label>
             <input
               type="text"
               placeholder="Enter new table name"
               value={newTableName}
               onChange={(e) => setNewTableName(e.target.value)}
-              className="panel-input"
+              className={styles.panelInput}
             />
           </div>
           <button 
             onClick={handleCreateNewTable}
             disabled={!tableSync || !isConnected}
-            className="panel-button success"
+            className={`${styles.panelButton} ${styles.success}`}
           >
             🆕 Create New Table
           </button>
         </div>
       </div>
 
-      <div className="panel-section">
+      <div className={styles.panelSection}>
         <h4>🎨 Sprite Operations</h4>
-        <div className="control-group">
-          <div className="input-grid">
-            <div className="input-group">
+        <div className={styles.controlGroup}>
+          <div className={styles.inputGrid}>
+            <div className={styles.inputGroup}>
               <label>Name</label>
               <input
                 type="text"
                 placeholder="Sprite name"
                 value={spriteData.name}
                 onChange={(e) => setSpriteData(prev => ({ ...prev, name: e.target.value }))}
-                className="panel-input"
+                className={styles.panelInput}
               />
             </div>
-            <div className="input-group">
+            <div className={styles.inputGroup}>
               <label>Image URL</label>
               <input
                 type="text"
                 placeholder="Image URL (optional)"
                 value={spriteData.imageUrl}
                 onChange={(e) => setSpriteData(prev => ({ ...prev, imageUrl: e.target.value }))}
-                className="panel-input"
+                className={styles.panelInput}
               />
             </div>
           </div>
           
-          <div className="input-grid">
-            <div className="input-group">
+          <div className={styles.inputGrid}>
+            <div className={styles.inputGroup}>
               <label>X Position</label>
               <input
                 type="number"
                 placeholder="X"
                 value={spriteData.x}
                 onChange={(e) => setSpriteData(prev => ({ ...prev, x: parseInt(e.target.value) || 0 }))}
-                className="panel-input"
+                className={styles.panelInput}
               />
             </div>
-            <div className="input-group">
+            <div className={styles.inputGroup}>
               <label>Y Position</label>
               <input
                 type="number"
                 placeholder="Y"
                 value={spriteData.y}
                 onChange={(e) => setSpriteData(prev => ({ ...prev, y: parseInt(e.target.value) || 0 }))}
-                className="panel-input"
+                className={styles.panelInput}
               />
             </div>
           </div>
           
-          <div className="input-grid three-col">
-            <div className="input-group">
+          <div className={`${styles.inputGrid} ${styles.threeCol}`}>
+            <div className={styles.inputGroup}>
               <label>Width</label>
               <input
                 type="number"
                 placeholder="Width"
                 value={spriteData.width}
                 onChange={(e) => setSpriteData(prev => ({ ...prev, width: parseInt(e.target.value) || 0 }))}
-                className="panel-input"
+                className={styles.panelInput}
               />
             </div>
-            <div className="input-group">
+            <div className={styles.inputGroup}>
               <label>Height</label>
               <input
                 type="number"
                 placeholder="Height"
                 value={spriteData.height}
                 onChange={(e) => setSpriteData(prev => ({ ...prev, height: parseInt(e.target.value) || 0 }))}
-                className="panel-input"
+                className={styles.panelInput}
               />
             </div>
-            <div className="input-group">
+            <div className={styles.inputGroup}>
               <label>Rotation</label>
               <input
                 type="number"
                 placeholder="Degrees"
                 value={spriteData.rotation}
                 onChange={(e) => setSpriteData(prev => ({ ...prev, rotation: parseInt(e.target.value) || 0 }))}
-                className="panel-input"
+                className={styles.panelInput}
               />
             </div>
           </div>
@@ -391,21 +391,21 @@ export default function TableSyncPanel() {
             <button 
               onClick={handleAddSprite}
               disabled={!tableSync || !isConnected}
-              className="panel-button success"
+              className={`${styles.panelButton} ${styles.success}`}
             >
               ➕ Add Sprite
             </button>
             <button 
               onClick={handleUpdateSprite}
               disabled={!tableSync || !isConnected}
-              className="panel-button primary"
+              className={`${styles.panelButton} ${styles.primary}`}
             >
               📝 Update Sprite
             </button>
             <button 
               onClick={handleRemoveSprite}
               disabled={!tableSync || !isConnected}
-              className="panel-button danger"
+              className={`${styles.panelButton} ${styles.danger}`}
             >
               🗑️ Remove Sprite
             </button>
@@ -419,7 +419,7 @@ export default function TableSyncPanel() {
               <button 
                 onClick={handleAddTestLine}
                 disabled={!tableSync || !isConnected}
-                className="panel-button"
+                className={styles.panelButton}
                 title="Add horizontal line segment (100x5)"
               >
                 📏 Line Segment
@@ -427,7 +427,7 @@ export default function TableSyncPanel() {
               <button 
                 onClick={handleAddTestCircle}
                 disabled={!tableSync || !isConnected}
-                className="panel-button"
+                className={styles.panelButton}
                 title="Add circle (60px diameter)"
               >
                 ⭕ Circle
@@ -437,27 +437,27 @@ export default function TableSyncPanel() {
         </div>
       </div>
 
-      <div className="panel-section">
+      <div className={styles.panelSection}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <h4>📋 Activity Log</h4>
-          <button onClick={clearLog} className="panel-button">
+          <button onClick={clearLog} className={styles.panelButton}>
             🧹 Clear
           </button>
         </div>
         
-        <div className="activity-log">
+        <div className={styles.activityLog}>
           {activityLog.length === 0 ? (
-            <div className="empty-state">
+            <div className={styles.emptyState}>
               <span>📝 No activity yet. Try requesting a table or adding a sprite!</span>
             </div>
           ) : (
             activityLog.map((log) => (
-              <div key={log.id} className={`log-entry ${log.type}`}>
+              <div key={log.id} className={`${styles.logEntry} ${log.type}`}>
                 <span>{log.emoji}</span>
-                <span className="log-timestamp">
+                <span className={styles.logTimestamp}>
                   {log.timestamp.toLocaleTimeString()}
                 </span>
-                <span className="log-message">{log.message}</span>
+                <span className={styles.logMessage}>{log.message}</span>
               </div>
             ))
           )}

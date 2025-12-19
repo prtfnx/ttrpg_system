@@ -5,8 +5,10 @@
 
 import React, { useState } from 'react';
 import { useFormContext } from 'react-hook-form';
+import clsx from 'clsx';
 import { ALL_TEMPLATES, getTemplatesByType, type CharacterTemplate } from '../../data/characterTemplates';
 import type { WizardFormData } from './WizardFormData';
+import styles from './TemplateSelectionStep.module.css';
 
 export const TemplateSelectionStep: React.FC = () => {
   const { setValue } = useFormContext<WizardFormData>();
@@ -31,68 +33,68 @@ export const TemplateSelectionStep: React.FC = () => {
   const npcTemplates = getTemplatesByType('npc');
 
   return (
-    <div className="template-selection-step">
-      <div className="step-header">
+    <div className={styles.templateSelectionStep}>
+      <div className={styles.stepHeader}>
         <h3>Choose a Template</h3>
-        <p className="step-description">
+        <p className={styles.stepDescription}>
           Start with a template or create from scratch. Templates pre-fill common character data.
         </p>
       </div>
 
       {/* Template Type Selector */}
-      <div className="template-type-selector">
+      <div className={styles.templateTypeSelector}>
         <button
           type="button"
-          className={`template-type-btn ${templateType === 'scratch' ? 'active' : ''}`}
+          className={clsx(styles.templateTypeBtn, templateType === 'scratch' && styles.active)}
           onClick={() => handleTemplateTypeChange('scratch')}
         >
-          <div className="template-type-icon">✨</div>
-          <div className="template-type-info">
-            <div className="template-type-title">Start from Scratch</div>
-            <div className="template-type-desc">Build your character step by step</div>
+          <div className={styles.templateTypeIcon}>✨</div>
+          <div className={styles.templateTypeInfo}>
+            <div className={styles.templateTypeTitle}>Start from Scratch</div>
+            <div className={styles.templateTypeDesc}>Build your character step by step</div>
           </div>
         </button>
 
         <button
           type="button"
-          className={`template-type-btn ${templateType === 'pc' ? 'active' : ''}`}
+          className={clsx(styles.templateTypeBtn, templateType === 'pc' && styles.active)}
           onClick={() => handleTemplateTypeChange('pc')}
         >
-          <div className="template-type-icon">🎭</div>
-          <div className="template-type-info">
-            <div className="template-type-title">Player Character</div>
-            <div className="template-type-desc">Full character sheet for PCs</div>
+          <div className={styles.templateTypeIcon}>🎭</div>
+          <div className={styles.templateTypeInfo}>
+            <div className={styles.templateTypeTitle}>Player Character</div>
+            <div className={styles.templateTypeDesc}>Full character sheet for PCs</div>
           </div>
         </button>
 
         <button
           type="button"
-          className={`template-type-btn ${templateType === 'npc' ? 'active' : ''}`}
+          className={clsx(styles.templateTypeBtn, templateType === 'npc' && styles.active)}
           onClick={() => handleTemplateTypeChange('npc')}
         >
-          <div className="template-type-icon">👥</div>
-          <div className="template-type-info">
-            <div className="template-type-title">NPC/Monster</div>
-            <div className="template-type-desc">Simplified stat block for NPCs</div>
+          <div className={styles.templateTypeIcon}>👥</div>
+          <div className={styles.templateTypeInfo}>
+            <div className={styles.templateTypeTitle}>NPC/Monster</div>
+            <div className={styles.templateTypeDesc}>Simplified stat block for NPCs</div>
           </div>
         </button>
       </div>
 
       {/* Template List */}
       {templateType === 'pc' && (
-        <div className="template-list">
+        <div className={styles.templateList}>
           <h4>Player Character Templates</h4>
-          <div className="template-grid">
+          <div className={styles.templateGrid}>
             {pcTemplates.map(template => (
               <button
                 key={template.id}
                 type="button"
-                className={`template-card ${selectedTemplate === template.id ? 'selected' : ''}`}
+                className={clsx(styles.templateCard, selectedTemplate === template.id && styles.selected)}
                 onClick={() => handleTemplateSelect(template)}
               >
-                <div className="template-icon">{template.icon}</div>
-                <div className="template-name">{template.name}</div>
-                <div className="template-description">{template.description}</div>
+                <div className={styles.templateIcon}>{template.icon}</div>
+                <div className={styles.templateName}>{template.name}</div>
+                <div className={styles.templateDescription}>{template.description}</div>
               </button>
             ))}
           </div>
@@ -100,19 +102,19 @@ export const TemplateSelectionStep: React.FC = () => {
       )}
 
       {templateType === 'npc' && (
-        <div className="template-list">
+        <div className={styles.templateList}>
           <h4>NPC/Monster Templates</h4>
-          <div className="template-grid">
+          <div className={styles.templateGrid}>
             {npcTemplates.map(template => (
               <button
                 key={template.id}
                 type="button"
-                className={`template-card ${selectedTemplate === template.id ? 'selected' : ''}`}
+                className={clsx(styles.templateCard, selectedTemplate === template.id && styles.selected)}
                 onClick={() => handleTemplateSelect(template)}
               >
-                <div className="template-icon">{template.icon}</div>
-                <div className="template-name">{template.name}</div>
-                <div className="template-description">{template.description}</div>
+                <div className={styles.templateIcon}>{template.icon}</div>
+                <div className={styles.templateName}>{template.name}</div>
+                <div className={styles.templateDescription}>{template.description}</div>
               </button>
             ))}
           </div>
@@ -120,8 +122,8 @@ export const TemplateSelectionStep: React.FC = () => {
       )}
 
       {templateType === 'scratch' && (
-        <div className="template-scratch-info">
-          <div className="info-box">
+        <div className={styles.templateScratchInfo}>
+          <div className={styles.infoBox}>
             <p>
               <strong>Starting from scratch</strong> will guide you through each step of character creation
               with empty fields. This gives you complete control but takes more time.
@@ -134,17 +136,17 @@ export const TemplateSelectionStep: React.FC = () => {
       )}
 
       {/* Selection Summary */}
-      <div className="selection-summary">
+      <div className={styles.selectionSummary}>
         {selectedTemplate ? (
-          <div className="summary-box success">
+          <div className={clsx(styles.summaryBox, styles.success)}>
             ✅ Template selected: <strong>{ALL_TEMPLATES.find(t => t.id === selectedTemplate)?.name}</strong>
           </div>
         ) : templateType === 'scratch' ? (
-          <div className="summary-box info">
+          <div className={clsx(styles.summaryBox, styles.info)}>
             ℹ️ Starting from scratch - all fields will be empty
           </div>
         ) : (
-          <div className="summary-box warning">
+          <div className={clsx(styles.summaryBox, styles.warning)}>
             ⚠️ Please select a template from the list above
           </div>
         )}

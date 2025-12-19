@@ -1,0 +1,179 @@
+/**
+ * Template Selection Step - Component-Specific Styles
+ * Uses CharacterWizardBase.module.css for shared patterns + Design Tokens
+ */
+
+.templateSelectionStep {
+  composes: wizard-column from './CharacterWizardBase.module.css';
+}
+
+.stepHeader {
+  composes: wizard-header-centered from './CharacterWizardBase.module.css';
+  margin-bottom: var(--space-2xl);
+}
+
+.stepHeader h3 {
+  margin: 0 0 var(--space-sm) 0;
+  color: var(--text-primary);
+  font-size: var(--text-2xl);
+}
+
+.stepDescription {
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  margin: 0;
+}
+
+/* Template Type Selector */
+.templateTypeSelector {
+  composes: wizard-grid from './CharacterWizardBase.module.css';
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  margin-bottom: var(--space-2xl);
+}
+
+.templateTypeBtn {
+  composes: wizard-card-interactive from './CharacterWizardBase.module.css';
+  padding: var(--space-lg);
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.templateTypeBtn:hover {
+  border-color: var(--blue-600);
+  transform: translateY(-2px);
+}
+
+.templateTypeBtn.active {
+  border-color: var(--green-600);
+  background: var(--green-50);
+  box-shadow: var(--shadow-lg);
+}
+
+.templateTypeIcon {
+  font-size: var(--text-4xl);
+  margin-bottom: var(--space-md);
+}
+
+.templateTypeInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.templateTypeTitle {
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.templateTypeDesc {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* Template List */
+.templateList {
+  margin-bottom: var(--space-2xl);
+}
+
+.templateList h4 {
+  margin: 0 0 var(--space-lg) 0;
+  color: var(--text-primary);
+  font-size: var(--text-xl);
+  text-align: center;
+}
+
+.templateGrid {
+  composes: wizard-grid from './CharacterWizardBase.module.css';
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+}
+
+.templateCard {
+  composes: wizard-card-interactive from './CharacterWizardBase.module.css';
+  padding: var(--space-lg);
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.templateCard:hover {
+  border-color: var(--blue-600);
+  transform: translateY(-2px);
+}
+
+.templateCard.selected {
+  border-color: var(--green-600);
+  background: var(--green-50);
+  box-shadow: var(--shadow-lg);
+}
+
+.templateIcon {
+  font-size: var(--text-3xl);
+  margin-bottom: var(--space-md);
+}
+
+.templateName {
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-sm);
+}
+
+.templateDescription {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* Scratch Info */
+.templateScratchInfo {
+  margin-bottom: var(--space-2xl);
+}
+
+.infoBox {
+  composes: wizard-card from './CharacterWizardBase.module.css';
+  padding: var(--space-xl);
+  background: var(--bg-secondary);
+}
+
+.infoBox p {
+  margin: 0 0 var(--space-md) 0;
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  line-height: var(--leading-relaxed);
+}
+
+.infoBox p:last-child {
+  margin-bottom: 0;
+}
+
+/* Selection Summary */
+.selectionSummary {
+  margin-top: var(--space-2xl);
+  text-align: center;
+}
+
+.summaryBox {
+  composes: wizard-card from './CharacterWizardBase.module.css';
+  padding: var(--space-lg);
+  font-size: var(--text-base);
+  font-weight: var(--font-medium);
+}
+
+.summaryBox.success {
+  background: var(--status-success-bg);
+  border-color: var(--status-success-border);
+  color: var(--status-success-text);
+}
+
+.summaryBox.info {
+  background: var(--status-info-bg);
+  border-color: var(--status-info-border);
+  color: var(--status-info-text);
+}
+
+.summaryBox.warning {
+  background: var(--status-warning-bg);
+  border-color: var(--status-warning-border);
+  color: var(--status-warning-text);
+}

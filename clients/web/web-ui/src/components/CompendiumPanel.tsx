@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import clsx from 'clsx';
 import { useAuth } from '../components/AuthContext';
 import type { Equipment, Monster, Spell } from '../services/compendium.service';
 import { compendiumService } from '../services/compendium.service';
+import styles from './CompendiumPanel.module.css';
 
 interface CompendiumEntry {
   id: string;
@@ -198,54 +200,52 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
 
   return (
     <div 
-      className={`compendium-panel ${className || ''}`} 
+      className={clsx(styles.compendiumPanel, className)} 
       style={style} 
       id={id}
       onDrop={onDropToTable}
       onDragOver={(e) => e.preventDefault()}
       {...otherProps}
     >
-      <div className="compendium-header">
+      <div className={styles.compendiumHeader}>
         <h3>📚 Compendium</h3>
         {!isAuthenticated && (
-          <div className="auth-warning">
+          <div className={styles.authWarning}>
             ⚠️ Login required for compendium access
           </div>
         )}
         {isAuthenticated && !hasPermission('compendium:read') && (
-          <div className="permission-warning">
+          <div className={styles.permissionWarning}>
             ⚠️ Insufficient permissions for compendium access
           </div>
         )}
         {user && (
-          <div className="user-info">
+          <div className={styles.userInfo}>
             Welcome, {user.username}
           </div>
         )}
       </div>
 
       {error && (
-        <div className="error-message" style={{ color: 'red', padding: '8px', margin: '8px 0' }}>
+        <div className={styles.errorMessage}>
           {error}
         </div>
       )}
 
-      <div className="search-section">
+      <div className={styles.searchSection}>
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search compendium..."
           disabled={!isAuthenticated || !hasPermission('compendium:read')}
-          style={{ width: '100%', padding: '8px', margin: '8px 0' }}
         />
 
-        <div className="filters">
+        <div className={styles.filters}>
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value as any)}
             disabled={!isAuthenticated || !hasPermission('compendium:read')}
-            style={{ margin: '4px' }}
           >
             <option value="all">All Types</option>
             <option value="monster">Monsters</option>
@@ -254,8 +254,8 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
           </select>
 
           {typeFilter === 'spell' && (
-            <div style={{ display: 'flex', flexDirection: 'column', margin: '4px' }}>
-              <label htmlFor="spell-level-filter" style={{ fontSize: '12px', marginBottom: '2px' }}>
+            <div>
+              <label htmlFor="spell-level-filter">
                 Spell Level
               </label>
               <select
@@ -263,7 +263,6 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
                 value={spellLevel}
                 onChange={(e) => setSpellLevel(e.target.value)}
                 disabled={!isAuthenticated || !hasPermission('compendium:read')}
-                style={{ margin: '0' }}
               >
                 <option value="">All Levels</option>
                 {[0,1,2,3,4,5,6,7,8,9].map(level => (
@@ -275,15 +274,15 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
         </div>
       </div>
 
-      <div className="entries-list">
+      <div className={styles.entriesList}>
         {loading && (
-          <div className="loading-indicator" style={{ padding: '16px', textAlign: 'center' }}>
+          <div className={styles.loadingIndicator}>
             Loading compendium data...
           </div>
         )}
 
         {!loading && filtered.length === 0 && !error && (
-          <div className="no-results" style={{ padding: '16px', textAlign: 'center', color: '#999' }}>
+          <div className={styles.noResults}>
             {debounced ? 'No entries found' : 'Enter search terms to find compendium entries'}
           </div>
         )}
@@ -291,43 +290,25 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
         {!loading && filtered.map(entry => (
           <div
             key={`${entry.type}-${entry.id}`}
-            className={`entry-item ${selectedEntry?.id === entry.id ? 'selected' : ''}`}
+            className={clsx(styles.entryItem, selectedEntry?.id === entry.id && styles.selected)}
             draggable={isAuthenticated && hasPermission('compendium:read')}
             onDragStart={() => onDragStart(entry)}
             onDragEnd={onDragEnd}
             onClick={() => insertEntry(entry)}
-            style={{
-              padding: '8px',
-              margin: '4px 0',
-              border: '1px solid #404040',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              backgroundColor: selectedEntry?.id === entry.id ? '#2a2a3a' : '#1a1a1a',
-              color: '#ffffff'
-            }}
           >
-            <div className="entry-header">
-              <span className="entry-type" style={{ 
-                backgroundColor: entry.type === 'monster' ? '#f44336' : 
-                               entry.type === 'spell' ? '#2196f3' : '#4caf50',
-                color: 'white',
-                padding: '2px 6px',
-                borderRadius: '12px',
-                fontSize: '10px',
-                textTransform: 'uppercase',
-                marginRight: '8px'
-              }}>
+            <div className={styles.entryHeader}>
+              <span className={clsx(styles.entryType, styles[entry.type])}>
                 {entry.type}
               </span>
               <strong>{entry.name}</strong>
               {entry.level !== undefined && (
-                <span style={{ marginLeft: '8px', color: '#999' }}>Lv.{entry.level}</span>
+                <span style={{ marginLeft: 'var(--space-sm)', color: 'var(--text-tertiary)' }}>Lv.{entry.level}</span>
               )}
               {entry.challenge_rating !== undefined && (
-                <span style={{ marginLeft: '8px', color: '#999' }}>CR {entry.challenge_rating}</span>
+                <span style={{ marginLeft: 'var(--space-sm)', color: 'var(--text-tertiary)' }}>CR {entry.challenge_rating}</span>
               )}
             </div>
-            <div className="entry-description" style={{ fontSize: '12px', color: '#bbb', marginTop: '4px' }}>
+            <div className={styles.entryDescription}>
               {entry.description}
             </div>
           </div>
@@ -335,25 +316,12 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
       </div>
 
       {selectedEntry && (
-        <div className="entry-details" style={{ 
-          position: 'fixed', 
-          top: '50%', 
-          left: '50%', 
-          transform: 'translate(-50%, -50%)',
-          background: '#1a1a1a',
-          color: '#ffffff',
-          border: '2px solid #404040',
-          borderRadius: '8px',
-          padding: '16px',
-          maxWidth: '400px',
-          zIndex: 1000,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-        }}>
+        <div className={styles.entryDetails}>
           <h4>{selectedEntry.name}</h4>
           <p>{selectedEntry.description}</p>
           <button 
             onClick={() => setSelectedEntry(null)}
-            style={{ marginTop: '8px', padding: '4px 8px' }}
+            style={{ marginTop: 'var(--space-sm)', padding: 'var(--space-xs) var(--space-sm)' }}
           >
             Close
           </button>

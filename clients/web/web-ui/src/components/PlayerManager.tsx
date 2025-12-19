@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useAuthenticatedWebSocket } from "../hooks/useAuthenticatedWebSocket";
 import { MessageType, createMessage } from "../protocol/message";
 import type { UserInfo } from "../services/auth.service";
+import styles from './PlayerManager.module.css';
 
 export interface Player {
   id: string;
@@ -66,11 +67,11 @@ export const PlayerManager: React.FC<PlayerManagerProps> = ({ sessionCode, userI
     }
   }, [protocol]);
 
-  if (loading) return <div className="loading">Loading players...</div>;
-  if (error) return <div className="error">{error}</div>;
+  if (loading) return <div className={styles.loading}>Loading players...</div>;
+  if (error) return <div className={styles.error}>{error}</div>;
 
   return (
-    <div className="player-manager">
+    <div className={styles.playerManager}>
       <h2>Players</h2>
       <ul>
         {players.map((player) => (

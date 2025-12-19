@@ -1,5 +1,5 @@
-import React from 'react';
 import clsx from 'clsx';
+import React from 'react';
 import './Auth.css';
 import { useAuth } from './AuthContext';
 import styles from './UserMenu.module.css';

@@ -479,6 +479,49 @@
   text-align: center;
 }
 
+/* CamelCase Aliases for TypeScript CSS Modules */
+.featSelectionStep { composes: featSelection-step; }
+.stepHeader { composes: step-header; }
+.choiceSelector { composes: choice-selector; }
+.asiSelection { composes: asi-selection; }
+.asiDescription { composes: asi-description; }
+.pointsDisplay { composes: points-display; }
+.pointsUsed { composes: points-used; }
+.pointsTotal { composes: points-total; }
+.abilitiesGrid { composes: abilities-grid; }
+.abilityImprovement { composes: ability-improvement; }
+.abilityName { composes: ability-name; }
+.abilityScores { composes: ability-scores; }
+.currentScore { composes: current-score; }
+.newScore { composes: new-score; }
+.modifierIncrease { composes: modifier-increase; }
+.improvementControls { composes: improvement-controls; }
+.improvementBtn { composes: improvement-btn; }
+.improvementValue { composes: improvement-value; }
+.abilityWarning { composes: ability-warning; }
+.featFilters { composes: feat-filters; }
+.searchContainer { composes: search-container; }
+.featSearch { composes: feat-search; }
+.featFilter { composes: feat-filter; }
+.featRecommendations { composes: feat-recommendations; }
+.allFeats { composes: all-feats; }
+.featsGrid { composes: feats-grid; }
+.featHeader { composes: feat-header; }
+.featInfo { composes: feat-info; }
+.featTags { composes: feat-tags; }
+.featSource { composes: feat-source; }
+.featControls { composes: feat-controls; }
+.detailsToggle { composes: details-toggle; }
+.featDetails { composes: feat-details; }
+.featBenefits { composes: feat-benefits; }
+.benefitChoices { composes: benefit-choices; }
+.featAnalysis { composes: feat-analysis; }
+.analysisToggle { composes: analysis-toggle; }
+.analysisContent { composes: analysis-content; }
+.comparisonColumn { composes: comparison-column; }
+.stepNavigation { composes: step-navigation; }
+.errorMessage { composes: error-message; }
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .feats-grid {

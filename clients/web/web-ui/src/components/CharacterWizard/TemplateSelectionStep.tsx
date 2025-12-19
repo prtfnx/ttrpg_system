@@ -3,12 +3,12 @@
  * Allows users to choose between PC templates, NPC templates, or start from scratch
  */
 
+import clsx from 'clsx';
 import React, { useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import clsx from 'clsx';
 import { ALL_TEMPLATES, getTemplatesByType, type CharacterTemplate } from '../../data/characterTemplates';
-import type { WizardFormData } from './WizardFormData';
 import styles from './TemplateSelectionStep.module.css';
+import type { WizardFormData } from './WizardFormData';
 
 export const TemplateSelectionStep: React.FC = () => {
   const { setValue } = useFormContext<WizardFormData>();

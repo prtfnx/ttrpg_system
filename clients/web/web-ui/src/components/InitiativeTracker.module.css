@@ -1,0 +1,366 @@
+/**
+ * Initiative Tracker - Component-Specific Styles
+ * Combat management panel with design tokens
+ */
+
+.initiativeTracker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+}
+
+.trackerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.trackerHeader h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--text-xl);
+}
+
+.combatControls {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.activeControls {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.btnPrimary {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--blue-600);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btnPrimary:hover {
+  background: var(--blue-700);
+}
+
+.btnSecondary {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--gray-600);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btnSecondary:hover {
+  background: var(--gray-700);
+}
+
+.btnSmall {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-xs);
+}
+
+.combatStatus {
+  display: flex;
+  gap: var(--space-lg);
+  padding: var(--space-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.roundInfo,
+.turnInfo {
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  font-weight: var(--font-medium);
+}
+
+.turnInfo strong {
+  color: var(--blue-400);
+}
+
+/* Add Initiative Form */
+.addInitiative {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-md);
+}
+
+.addForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-md);
+}
+
+.formRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.formRow label {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+}
+
+.formRow input,
+.formRow select {
+  padding: var(--space-sm);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: var(--text-base);
+}
+
+.formRow input:focus,
+.formRow select:focus {
+  outline: none;
+  border-color: var(--blue-600);
+}
+
+.formButtons {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+}
+
+/* Initiative List */
+.initiativeList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.initItem {
+  padding: var(--space-md);
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.initItem.active {
+  border-color: var(--green-600);
+  background: var(--green-950);
+  box-shadow: 0 0 0 2px var(--green-900);
+}
+
+.initHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+
+.initInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.initName {
+  color: var(--text-primary);
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+}
+
+.initValue {
+  color: var(--blue-400);
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  min-width: 40px;
+  text-align: center;
+}
+
+.rollInitBtn {
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--purple-600);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.rollInitBtn:hover {
+  background: var(--purple-700);
+}
+
+.removeBtn {
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--red-600);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.removeBtn:hover {
+  background: var(--red-700);
+}
+
+/* Initiative Stats */
+.initStats {
+  display: flex;
+  gap: var(--space-lg);
+  padding: var(--space-sm) 0;
+}
+
+.statGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.statGroup label {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.statGroup input {
+  width: 60px;
+  padding: var(--space-xs);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  text-align: center;
+  font-size: var(--text-base);
+}
+
+.maxHp {
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.acInput {
+  width: 50px;
+  padding: var(--space-xs);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  text-align: center;
+  font-size: var(--text-base);
+}
+
+/* Conditions */
+.conditions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.conditionTag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--yellow-900);
+  color: var(--yellow-400);
+  border: 1px solid var(--yellow-700);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+}
+
+.removeCondition {
+  background: none;
+  border: none;
+  color: var(--yellow-400);
+  cursor: pointer;
+  padding: 0;
+  font-size: var(--text-sm);
+  line-height: 1;
+}
+
+.removeCondition:hover {
+  color: var(--red-400);
+}
+
+.conditionInput {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.conditionInput input {
+  flex: 1;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.conditionInput button {
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--yellow-600);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.conditionInput button:hover {
+  background: var(--yellow-700);
+}
+
+/* Notes */
+.notes {
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.notes label {
+  display: block;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.notes textarea {
+  width: 100%;
+  padding: var(--space-sm);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  resize: vertical;
+  min-height: 60px;
+}
+
+.notes textarea:focus {
+  outline: none;
+  border-color: var(--blue-600);
+}

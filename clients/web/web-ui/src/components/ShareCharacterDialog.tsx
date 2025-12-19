@@ -60,12 +60,12 @@ export const ShareCharacterDialog: React.FC<ShareCharacterDialogProps> = ({
         <div className={styles.shareDialogContent}>
           <div className={styles.characterInfo}>
             <div className={styles.infoRow}>
-              <span className="label">Character:</span>
-              <span className="value">{characterName}</span>
+              <span className={styles.label}>Character:</span>
+              <span className={styles.value}>{characterName}</span>
             </div>
             <div className={styles.infoRow}>
-              <span className="label">Owner:</span>
-              <span className="value">User {ownerId}</span>
+              <span className={styles.label}>Owner:</span>
+              <span className={styles.value}>User {ownerId}</span>
             </div>
           </div>
 

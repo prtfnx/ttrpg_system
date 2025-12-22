@@ -394,14 +394,14 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
                     {fileInfo.status === 'uploading' && (
                       <button
                         onClick={() => cancelUpload(fileId)}
-                        className="cancel-button"
+                        className={styles.cancelButton}
                       >
                         Cancel
                       </button>
                     )}
                     <button
                       onClick={() => handleRemoveUploadFile(fileId)}
-                      className="remove-button"
+                      className={styles.removeButton}
                     >
                       Remove
                     </button>
@@ -409,7 +409,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
                 </div>
               ))}
               {uploadFiles.size === 0 && (
-                <div className="no-uploads">
+                <div className={styles.noUploads}>
                   No files selected for upload. Click "Select Files" to choose files.
                 </div>
               )}
@@ -419,43 +419,43 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
 
         {activeTab === 'settings' && (
           <div className={styles.settingsTab}>
-            <div className="setting-group">
+            <div className={styles.settingGroup}>
               <h3>Cache Configuration</h3>
               <div className={styles.settingItem}>
                 <label>Maximum Cache Size: 100 MB</label>
-                <div className="setting-description">
+                <div className={styles.settingDescription}>
                   Maximum amount of storage used for cached assets
                 </div>
               </div>
               <div className={styles.settingItem}>
                 <label>Maximum Age: 24 hours</label>
-                <div className="setting-description">
+                <div className={styles.settingDescription}>
                   Assets older than this will be removed during cleanup
                 </div>
               </div>
               <div className={styles.settingItem}>
                 <label>Auto Cleanup: Enabled</label>
-                <div className="setting-description">
+                <div className={styles.settingDescription}>
                   Automatically remove old assets every 30 minutes
                 </div>
               </div>
             </div>
 
-            <div className="setting-group">
+            <div className={styles.settingGroup}>
               <h3>Upload Configuration</h3>
               <div className={styles.settingItem}>
                 <label>Max Concurrent Uploads: 3</label>
-                <div className="setting-description">
+                <div className={styles.settingDescription}>
                   Maximum number of files that can be uploaded simultaneously
                 </div>
               </div>
             </div>
 
-            <div className="setting-group">
+            <div className={styles.settingGroup}>
               <h3>Storage Information</h3>
               <div className={styles.settingItem}>
                 <label>IndexedDB Support: Available</label>
-                <div className="setting-description">
+                <div className={styles.settingDescription}>
                   Browser supports persistent local storage for assets
                 </div>
               </div>
@@ -464,8 +464,8 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
         )}
 
         {isLoading && (
-          <div className="loading-overlay">
-            <div className="loading-spinner">Loading...</div>
+          <div className={styles.loadingOverlay}>
+            <div className={styles.loadingSpinner}>Loading...</div>
           </div>
         )}
       </div>
@@ -474,3 +474,4 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
 }
 
 // Removed duplicate export
+

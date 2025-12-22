@@ -438,15 +438,15 @@ export const AssetPanel: React.FC = () => {
       </div>
 
       {/* Download Section */}
-      <div className="download-section">
+      <div className={styles.downloadSection}>
         <h4>Download Asset</h4>
-        <div className="download-form">
+        <div className={styles.downloadForm}>
           <input
             type="url"
             placeholder="Enter asset URL"
             value={downloadUrl}
             onChange={(e) => setDownloadUrl(e.target.value)}
-            className="download-input"
+            className={styles.downloadInput}
           />
           <button onClick={handleDownload} disabled={!downloadUrl.trim()} className={styles.assetButton}>
             Download
@@ -456,7 +456,7 @@ export const AssetPanel: React.FC = () => {
 
       {/* Cache Stats */}
       {stats && (
-        <div className="cache-stats">
+        <div className={styles.cacheStats}>
           <h4>Cache Statistics</h4>
           <div>Assets: {stats.total_assets}</div>
           <div>Size: {formatFileSize(stats.total_size)}</div>
@@ -464,7 +464,7 @@ export const AssetPanel: React.FC = () => {
           <div>Misses: {stats.cache_misses}</div>
           <div>Downloads: {stats.total_downloads}</div>
           <div>Failed: {stats.failed_downloads}</div>
-          <div className="cache-actions">
+          <div className={styles.cacheActions}>
             <button onClick={handleCleanup} className={styles.assetButton}>Cleanup</button>
             <button onClick={handleClearAll} className={styles.assetButton}>Clear All</button>
           </div>
@@ -474,7 +474,7 @@ export const AssetPanel: React.FC = () => {
       {/* Asset List */}
       <div className={styles.assetList}>
         <h4>Cached Assets ({assets.length})</h4>
-        <div className="assets-container">
+        <div className={styles.assetsContainer}>
           {assets.map(asset => {
             const info = getAssetInfo(asset.id);
             return (
@@ -520,3 +520,4 @@ export const AssetPanel: React.FC = () => {
     </div>
   );
 };
+

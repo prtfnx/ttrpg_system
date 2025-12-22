@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useAuthenticatedWebSocket } from "../hooks/useAuthenticatedWebSocket";
 import { createMessage, MessageType } from "../protocol/message";
 import type { UserInfo } from "../services/auth.service";
+import styles from './PlayerManagerPanel.module.css';
 
 interface Player {
   id: string;
@@ -58,9 +59,9 @@ export const PlayerManagerPanel: React.FC<{ sessionCode: string; userInfo: UserI
   if (userInfo.role !== "dm") return null;
 
   return (
-    <div className="panel">
+    <div className={styles.panel}>
       <h3>Player Management</h3>
-      {error && <div className="error">{error}</div>}
+      {error && <div className={styles.error}>{error}</div>}
       <ul>
         {players.map((p) => (
           <li key={p.id}>
@@ -77,3 +78,5 @@ export const PlayerManagerPanel: React.FC<{ sessionCode: string; userInfo: UserI
     </div>
   );
 };
+
+

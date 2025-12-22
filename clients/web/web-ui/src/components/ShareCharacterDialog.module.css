@@ -53,20 +53,11 @@
 }
 
 .closeBtn {
-  background: none;
-  border: none;
+  composes: btnClose from '../styles/buttons.module.css';
   color: var(--gray-500);
   font-size: var(--text-3xl);
-  line-height: 1;
-  cursor: pointer;
-  padding: 0;
   width: var(--size-8);
   height: var(--size-8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
 }
 
 .closeBtn:hover {

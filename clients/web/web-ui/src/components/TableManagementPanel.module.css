@@ -22,24 +22,20 @@
 .refreshButton,
 .createButton,
 .settingsToggleButton {
-  composes: panel-button secondary from '../styles/PanelBase.module.css';
-  padding: var(--spacing-xs) var(--spacing-sm);
-  font-size: var(--font-size-xs);
+  composes: btnSecondary btnSm from '../styles/buttons.module.css';
   min-width: 32px;
 }
 
 .settingsToggleButton.active,
 .bulkModeButton.active {
-  background: var(--button-primary-bg);
-  border-color: var(--button-primary-border);
-  color: var(--button-primary-text);
+  background: var(--blue-600);
+  border-color: var(--blue-600);
+  color: white;
 }
 
 .importButton,
 .bulkModeButton {
-  composes: panel-button secondary from '../styles/PanelBase.module.css';
-  padding: var(--spacing-xs) var(--spacing-sm);
-  font-size: var(--font-size-xs);
+  composes: btnSecondary btnSm from '../styles/buttons.module.css';
   min-width: 32px;
 }
 

@@ -72,20 +72,20 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
         onClick={() => setExpanded(!expanded)}
         style={{ cursor: 'pointer' }}
       >
-        <div className="fps-display">
+        <div className={styles.fpsDisplay}>
           <span 
-            className="fps-value" 
+            className={styles.fpsValue} 
             style={{ color: getFPSColor(fpsMetrics.average) }}
           >
             {Math.round(fpsMetrics.average)}
           </span>
-          <span className="fps-label">FPS</span>
+          <span className={styles.fpsLabel}>FPS</span>
         </div>
         
-        <div className="memory-bar">
-          <span className="memory-label">Memory</span>
+        <div className={styles.memoryBar}>
+          <span className={styles.memoryLabel}>Memory</span>
           <div 
-            className="memory-fill"
+            className={styles.memoryFill}
             style={{ 
               width: `${Math.min(100, getMemoryUsagePercent())}%`,
               backgroundColor: getMemoryUsagePercent() > 80 ? '#ef4444' : '#4ade80'
@@ -93,74 +93,74 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
           />
         </div>
         
-        <div className="frame-time-display">
-          <span className="frame-time-label">Frame Time: {fpsMetrics.frameTime.toFixed(1)}ms</span>
+        <div className={styles.frameTimeDisplay}>
+          <span className={styles.frameTimeLabel}>Frame Time: {fpsMetrics.frameTime.toFixed(1)}ms</span>
         </div>
       </div>
 
       {/* Expanded Performance Panel */}
       {expanded && (
         <div className="performance-monitor__expanded">
-          <div className="performance-header">
+          <div className={styles.performanceHeader}>
             <h3>Performance Monitor</h3>
             {onToggle && (
-              <button onClick={onToggle} className="close-btn">×</button>
+              <button onClick={onToggle} className={styles.closeBtn}>×</button>
             )}
           </div>
 
-          <div className="performance-grid">
+          <div className={styles.performanceGrid}>
             {/* FPS Section */}
-            <div className="metric-group">
+            <div className={styles.metricGroup}>
               <div className={styles.metricLabel}>Frame Rate</div>
-              <div className="metric-row">
+              <div className={styles.metricRow}>
                 <span>Current:</span>
                 <span style={{ color: getFPSColor(fpsMetrics.current) }}>
                   {Math.round(fpsMetrics.current)} FPS
                 </span>
               </div>
-              <div className="metric-row">
+              <div className={styles.metricRow}>
                 <span>Average:</span>
                 <span style={{ color: getFPSColor(fpsMetrics.average) }}>
                   {Math.round(fpsMetrics.average)} FPS
                 </span>
               </div>
-              <div className="metric-row">
+              <div className={styles.metricRow}>
                 <span>Min:</span>
                 <span style={{ color: getFPSColor(fpsMetrics.min) }}>
                   {Math.round(fpsMetrics.min)} FPS
                 </span>
               </div>
-              <div className="metric-row">
+              <div className={styles.metricRow}>
                 <span>Max:</span>
                 <span style={{ color: getFPSColor(fpsMetrics.max) }}>
                   {Math.round(fpsMetrics.max)} FPS
                 </span>
               </div>
-              <div className="metric-row">
+              <div className={styles.metricRow}>
                 <span>Frame Time:</span>
                 <span>{fpsMetrics.frameTime.toFixed(2)}ms</span>
               </div>
             </div>
 
             {/* Memory Section */}
-            <div className="metric-group">
+            <div className={styles.metricGroup}>
               <div className={styles.metricLabel}>Memory Usage</div>
               {metrics && (
                 <>
-                  <div className="metric-row">
+                  <div className={styles.metricRow}>
                     <span>JS Heap:</span>
                     <span>{formatBytes(metrics.memoryUsage.usedJSHeapSize)}</span>
                   </div>
-                  <div className="metric-row">
+                  <div className={styles.metricRow}>
                     <span>Total:</span>
                     <span>{formatBytes(metrics.memoryUsage.totalJSHeapSize)}</span>
                   </div>
-                  <div className="metric-row">
+                  <div className={styles.metricRow}>
                     <span>Limit:</span>
                     <span>{formatBytes(metrics.memoryUsage.jsHeapSizeLimit)}</span>
                   </div>
                   {metrics.wasmMemoryUsage > 0 && (
-                    <div className="metric-row">
+                    <div className={styles.metricRow}>
                       <span>WASM:</span>
                       <span>{formatBytes(metrics.wasmMemoryUsage)}</span>
                     </div>
@@ -170,19 +170,19 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
             </div>
 
             {/* Rendering Section */}
-            <div className="metric-group">
+            <div className={styles.metricGroup}>
               <div className={styles.metricLabel}>Rendering</div>
               {metrics && (
                 <>
-                  <div className="metric-row">
+                  <div className={styles.metricRow}>
                     <span>Sprites:</span>
                     <span>{metrics.spriteCount.toLocaleString()}</span>
                   </div>
-                  <div className="metric-row">
+                  <div className={styles.metricRow}>
                     <span>Textures:</span>
                     <span>{metrics.textureCount.toLocaleString()}</span>
                   </div>
-                  <div className="metric-row">
+                  <div className={styles.metricRow}>
                     <span>Cache Hit:</span>
                     <span>{metrics.cacheHitRate.toFixed(1)}%</span>
                   </div>
@@ -192,16 +192,16 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
           </div>
 
           {/* Performance Actions */}
-          <div className="performance-actions">
+          <div className={styles.performanceActions}>
             <button 
               onClick={() => performanceService.clearSpriteCache()}
-              className="action-btn"
+              className={styles.actionBtn}
             >
               Clear Sprite Cache
             </button>
             <button 
               onClick={() => performanceService.clearTextureCache()}
-              className="action-btn"
+              className={styles.actionBtn}
             >
               Clear Texture Cache
             </button>
@@ -211,7 +211,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
                 console.log(report);
                 navigator.clipboard?.writeText(report);
               }}
-              className="action-btn"
+              className={styles.actionBtn}
             >
               Copy Report
             </button>
@@ -223,3 +223,4 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
 };
 
 export default PerformanceMonitor;
+

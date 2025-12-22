@@ -22,11 +22,7 @@
 
 .authWarning,
 .permissionWarning {
-  background: var(--status-warning-bg);
-  border: 1px solid var(--status-warning-border);
-  color: var(--status-warning-text);
-  border-radius: var(--radius-md);
-  padding: var(--space-sm);
+  composes: statusWarning from '../styles/status.module.css';
   font-size: var(--text-sm);
 }
 
@@ -36,11 +32,7 @@
 }
 
 .errorMessage {
-  background: var(--status-error-bg);
-  border: 1px solid var(--status-error-border);
-  color: var(--status-error-text);
-  border-radius: var(--radius-md);
-  padding: var(--space-sm);
+  composes: statusError from '../styles/status.module.css';
   margin: var(--space-sm) 0;
 }
 

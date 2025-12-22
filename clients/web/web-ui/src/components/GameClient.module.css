@@ -79,6 +79,7 @@
   right: var(--space-sm);
 }
 
+/* Connection status bar - uses status tokens from design system */
 .connectionStatus {
   display: flex;
   align-items: center;

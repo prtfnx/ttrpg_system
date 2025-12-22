@@ -1032,7 +1032,7 @@ export function CharacterPanelRedesigned() {
                   <div className={styles.charDetails}>Owner: {char.ownerId}</div>
                 </div>
                 {/* Badges for linked tokens */}
-                <div className="char-badges">
+                <div className={styles.charBadges}>
                   {linkedSprites.map((s: typeof linkedSprites[0]) => {
                     const canControlToken = canControlSprite(s.id, currentUserId);
                     return (
@@ -1040,7 +1040,7 @@ export function CharacterPanelRedesigned() {
                         Token
                         <SyncStatusIcon status={s.syncStatus} />
                         {!canControlToken && (
-                          <span className="permission-warning" title="No control permission">🚫</span>
+                          <span className={styles.permissionWarning} title="No control permission">🚫</span>
                         )}
                       </span>
                     );
@@ -1301,3 +1301,4 @@ export function CharacterPanelRedesigned() {
 }
 
 export default CharacterPanelRedesigned;
+

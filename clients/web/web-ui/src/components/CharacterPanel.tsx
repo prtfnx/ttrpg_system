@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../store';
 import './CharacterPanelRedesigned.css';
+import styles from './CharacterPanel.module.css';
 import { CharacterSheet } from './CharacterWizard/CharacterSheet';
 import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 import type { WizardFormData } from './CharacterWizard/WizardFormData';
@@ -95,19 +96,19 @@ function CharacterPanel() {
   };
 
   return (
-    <div className="character-panel-redesigned">
+    <div className={styles.characterPanelRedesigned}>
       {/* Header with single create button */}
-      <div className="panel-header">
+      <div className={styles.panelHeader}>
         <h2>Characters</h2>
-        <button className="create-btn" onClick={handleCreateCharacter} title="Create New Character">
+        <button className={styles.createBtn} onClick={handleCreateCharacter} title="Create New Character">
           +
         </button>
       </div>
 
       {/* Character List */}
-      <div className="character-list">
+      <div className={styles.characterList}>
         {characters.length === 0 && (
-          <div className="empty-state">
+          <div className={styles.emptyState}>
             No characters yet. Click <strong>+</strong> to create one.
           </div>
         )}
@@ -124,30 +125,30 @@ function CharacterPanel() {
             >
               {/* Compact Header - Always Visible */}
               <div
-                className="character-header"
+                className={styles.characterHeader}
                 onClick={() => handleCharacterClick(char.id)}
               >
-                <div className="char-avatar">
+                <div className={styles.charAvatar}>
                   {char.name.charAt(0).toUpperCase()}
                 </div>
-                <div className="char-info">
-                  <div className="char-name">{char.name}</div>
-                  <div className="char-details">
+                <div className={styles.charInfo}>
+                  <div className={styles.charName}>{char.name}</div>
+                  <div className={styles.charDetails}>
                     Lv{data.level} {data.race} {data.class}
                   </div>
                 </div>
-                <div className="char-stats-compact">
-                  <div className="stat-pill">
-                    <span className="stat-label">HP</span>
-                    <span className="stat-value">{stats.hp}/{stats.maxHp}</span>
+                <div className={styles.charStatsCompact}>
+                  <div className={styles.statPill}>
+                    <span className={styles.statLabel}>HP</span>
+                    <span className={styles.statValue}>{stats.hp}/{stats.maxHp}</span>
                   </div>
-                  <div className="stat-pill">
-                    <span className="stat-label">AC</span>
-                    <span className="stat-value">{stats.ac}</span>
+                  <div className={styles.statPill}>
+                    <span className={styles.statLabel}>AC</span>
+                    <span className={styles.statValue}>{stats.ac}</span>
                   </div>
                 </div>
                 <button
-                  className="char-expand-btn"
+                  className={styles.charExpandBtn}
                   onClick={(e) => { e.stopPropagation(); handleCharacterClick(char.id); }}
                 >
                   {isExpanded ? '▼' : '▶'}
@@ -156,18 +157,18 @@ function CharacterPanel() {
 
               {/* Expanded Details - Shown when clicked */}
               {isExpanded && (
-                <div className="character-details">
-                  <div className="details-section">
-                    <div className="stat-row">
+                <div className={styles.characterDetails}>
+                  <div className={styles.detailsSection}>
+                    <div className={styles.statRow}>
                       <span>Speed:</span>
                       <span>{stats.speed} ft</span>
                     </div>
                     {data.conditions && data.conditions.length > 0 && (
-                      <div className="conditions">
+                      <div className={styles.conditions}>
                         <strong>Conditions:</strong>
-                        <div className="condition-tags">
+                        <div className={styles.conditionTags}>
                           {data.conditions.map((cond: string, idx: number) => (
-                            <span key={idx} className="condition-tag">{cond}</span>
+                            <span key={idx} className={styles.conditionTag}>{cond}</span>
                           ))}
                         </div>
                       </div>
@@ -175,7 +176,7 @@ function CharacterPanel() {
                   </div>
 
                   {/* Quick Actions */}
-                  <div className="char-actions">
+                  <div className={styles.charActions}>
                     <button className="action-btn edit" onClick={(e) => handleEditCharacter(char.id, e)}>Edit</button>
                     <button
                       className="action-btn delete"
@@ -183,7 +184,7 @@ function CharacterPanel() {
                     >
                       Delete
                     </button>
-                    <button className="action-btn" onClick={(e) => handleViewSheet(char.id, e)}>Sheet</button>
+                    <button className={styles.actionBtn} onClick={(e) => handleViewSheet(char.id, e)}>Sheet</button>
                   </div>
                 </div>
               )}
@@ -247,6 +248,7 @@ function CharacterPanel() {
 }
 
 export default CharacterPanel;
+
 
 
 

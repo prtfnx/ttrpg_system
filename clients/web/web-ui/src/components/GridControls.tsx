@@ -1,4 +1,5 @@
 import { useGameStore } from '../store';
+import styles from './GridControls.module.css';
 
 export function GridControls() {
   const { 
@@ -34,14 +35,14 @@ export function GridControls() {
   };
 
   return (
-    <div className="game-panel">
-      <h3 className="panel-title">
+    <div className={styles.gamePanel}>
+      <h3 className={styles.panelTitle}>
         Grid Controls
       </h3>
       
-      <div className="form-container">
+      <div className={styles.formContainer}>
         {/* Grid Visibility */}
-        <label className="checkbox-label">
+        <label className={styles.checkboxLabel}>
           <input
             type="checkbox"
             checked={gridEnabled}
@@ -51,7 +52,7 @@ export function GridControls() {
         </label>
 
         {/* Grid Snapping */}
-        <label className="checkbox-label">
+        <label className={styles.checkboxLabel}>
           <input
             type="checkbox"
             checked={gridSnapping}
@@ -61,8 +62,8 @@ export function GridControls() {
         </label>
 
         {/* Grid Size */}
-        <div className="form-group">
-          <label className="form-label">
+        <div className={styles.formGroup}>
+          <label className={styles.formLabel}>
             Grid Size: {gridSize}px
           </label>
           <input
@@ -72,9 +73,9 @@ export function GridControls() {
             step="10"
             value={gridSize}
             onChange={(e) => handleSizeChange(Number(e.target.value))}
-            className="range-input"
+            className={styles.rangeInput}
           />
-          <div className="range-labels">
+          <div className={styles.rangeLabels}>
             <span>20px</span>
             <span>100px</span>
           </div>
@@ -83,3 +84,4 @@ export function GridControls() {
     </div>
   );
 }
+

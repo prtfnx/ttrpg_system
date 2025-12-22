@@ -37,41 +37,17 @@
   gap: var(--space-sm);
 }
 
+/* Use global button utilities */
 .btnPrimary {
-  padding: var(--space-sm) var(--space-md);
-  background: var(--blue-600);
-  color: white;
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.btnPrimary:hover {
-  background: var(--blue-700);
+  composes: btnPrimary from '../styles/buttons.module.css';
 }
 
 .btnSecondary {
-  padding: var(--space-sm) var(--space-md);
-  background: var(--gray-600);
-  color: white;
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.btnSecondary:hover {
-  background: var(--gray-700);
+  composes: btnSecondary from '../styles/buttons.module.css';
 }
 
 .btnSmall {
-  padding: var(--space-xs) var(--space-sm);
-  font-size: var(--text-xs);
+  composes: btnSm from '../styles/buttons.module.css';
 }
 
 .combatStatus {

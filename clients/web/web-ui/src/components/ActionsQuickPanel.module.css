@@ -24,9 +24,8 @@
 /* Content */
 .actionsQuickContent {
   composes: panel-content from '../styles/PanelBase.module.css';
+  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
   padding: var(--space-md);
-  display: flex;
-  flex-direction: column;
   gap: var(--space-lg);
 }
 
@@ -44,8 +43,7 @@
 
 /* Form compact */
 .formCompact {
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
   gap: var(--space-xs);
 }
 
@@ -67,7 +65,7 @@
 }
 
 .inputRow {
-  display: flex;
+  composes: flex from '../styles/7-utilities/layout.module.css';
   gap: var(--space-xs);
 }
 
@@ -75,27 +73,10 @@
   flex: 1;
 }
 
-/* Buttons */
+/* Buttons - use global utilities */
 .createButton {
+  composes: btnSuccess btnSm from '../styles/buttons.module.css';
   width: 100%;
-  padding: var(--space-sm);
-  font-size: var(--text-xs);
-  font-weight: var(--font-medium);
-  background: var(--status-success-bg);
-  color: var(--status-success-text);
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background var(--transition-fast);
-}
-
-.createButton:hover:not(:disabled) {
-  background: var(--status-success-hover);
-}
-
-.createButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 /* Button grid */
@@ -106,66 +87,15 @@
 }
 
 .deleteButton {
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--text-xs);
-  font-weight: var(--font-medium);
-  background: var(--status-error-bg);
-  color: var(--status-error-text);
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background var(--transition-fast);
-}
-
-.deleteButton:hover:not(:disabled) {
-  background: var(--status-error-hover);
-}
-
-.deleteButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  composes: btnDanger btnSm from '../styles/buttons.module.css';
 }
 
 .refreshButton {
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--text-xs);
-  font-weight: var(--font-medium);
-  background: var(--accent-primary);
-  color: var(--text-on-accent);
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background var(--transition-fast);
-}
-
-.refreshButton:hover:not(:disabled) {
-  background: var(--accent-secondary);
-}
-
-.refreshButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  composes: btnPrimary btnSm from '../styles/buttons.module.css';
 }
 
 .historyButton {
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--text-xs);
-  font-weight: var(--font-medium);
-  background: var(--status-warning-bg);
-  color: var(--status-warning-text);
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background var(--transition-fast);
-}
-
-.historyButton:hover:not(:disabled) {
-  background: var(--status-warning-hover);
-}
-
-.historyButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  composes: btnSecondary btnSm from '../styles/buttons.module.css';
 }
 
 /* Status */

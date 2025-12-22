@@ -191,8 +191,7 @@
 
 /* Layer controls */
 .layerControls {
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 

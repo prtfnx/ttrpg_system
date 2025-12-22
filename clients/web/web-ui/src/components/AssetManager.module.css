@@ -165,32 +165,13 @@
 }
 
 .controlButton {
+  composes: btnSecondary from '../styles/buttons.module.css';
   padding: var(--space-sm) var(--space-lg);
-  background: var(--bg-elevated);
-  border: var(--border-width) solid var(--border-primary);
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  transition: all var(--duration-base) ease;
-}
-
-.controlButton:hover {
-  background: var(--bg-elevated-hover);
 }
 
 .controlButton.danger {
-  background: var(--button-danger-bg);
-  border-color: var(--button-danger-border);
-}
-
-.controlButton.danger:hover {
-  background: var(--button-danger-hover);
-}
-
-.controlButton:disabled {
-  opacity: var(--button-disabled-opacity);
-  cursor: not-allowed;
+  composes: btnDanger from '../styles/buttons.module.css';
+  padding: var(--space-sm) var(--space-lg);
 }
 
 .controlButton:disabled:hover {

@@ -44,25 +44,18 @@
 }
 
 .buttonGroup {
-  display: flex;
+  composes: flex from '../styles/7-utilities/layout.module.css';
   gap: var(--space-xs);
 }
 
 .buttonGroup button {
+  composes: btnSecondary from '../styles/buttons.module.css';
   flex: 1;
-  padding: var(--space-sm);
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
   font-size: var(--text-xl);
-  cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .buttonGroup button:hover {
-  background: var(--blue-600);
-  border-color: var(--blue-700);
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }

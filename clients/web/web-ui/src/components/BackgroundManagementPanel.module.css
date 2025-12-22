@@ -72,14 +72,9 @@
 }
 
 .errorDismiss {
-  background: none;
-  border: none;
+  composes: statusDismiss from '../styles/status.module.css';
   color: var(--text-on-error);
-  cursor: pointer;
   margin-left: auto;
-  padding: var(--space-xs);
-  border-radius: var(--radius-sm);
-  transition: background-color var(--duration-base);
 }
 
 .errorDismiss:hover {

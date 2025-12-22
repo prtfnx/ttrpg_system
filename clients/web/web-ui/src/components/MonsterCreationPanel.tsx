@@ -14,6 +14,7 @@ import {
     type MonsterTemplate
 } from '../services/monsterCreation.service';
 import '../styles/MonsterCreationPanel.css';
+import styles from './MonsterCreationPanel.module.css';
 
 interface MonsterCreationPanelProps {
   isOpen: boolean;
@@ -213,12 +214,12 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
   // === Render Helpers ===
 
   const renderStatBlock = (stats: MonsterStats) => (
-    <div className="monster-stat-block">
+    <div className={styles.monsterStatBlock}>
       {Object.entries(stats).map(([stat, value]) => (
-        <div key={stat} className="monster-stat">
-          <span className="monster-stat-name">{stat.substring(0, 3).toUpperCase()}</span>
-          <span className="monster-stat-value">{value}</span>
-          <span className="monster-stat-modifier">
+        <div key={stat} className={styles.monsterStat}>
+          <span className={styles.monsterStatName}>{stat.substring(0, 3).toUpperCase()}</span>
+          <span className={styles.monsterStatValue}>{value}</span>
+          <span className={styles.monsterStatModifier}>
             {value >= 10 ? `+${Math.floor((value - 10) / 2)}` : `${Math.floor((value - 10) / 2)}`}
           </span>
         </div>
@@ -232,39 +233,39 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
       className={`monster-card ${selectedTemplate?.id === template.id ? 'selected' : ''}`}
       onClick={() => setSelectedTemplate(template)}
     >
-      <div className="monster-card-header">
-        <h4 className="monster-name">{template.name}</h4>
-        <span className="monster-cr">CR {template.challengeRating}</span>
+      <div className={styles.monsterCardHeader}>
+        <h4 className={styles.monsterName}>{template.name}</h4>
+        <span className={styles.monsterCr}>CR {template.challengeRating}</span>
       </div>
       
-      <div className="monster-basic-info">
-        <span className="monster-type">{template.size} {template.type}</span>
-        {template.subtype && <span className="monster-subtype">({template.subtype})</span>}
+      <div className={styles.monsterBasicInfo}>
+        <span className={styles.monsterType}>{template.size} {template.type}</span>
+        {template.subtype && <span className={styles.monsterSubtype}>({template.subtype})</span>}
       </div>
       
-      <div className="monster-vital-stats">
-        <div className="monster-vital-stat">
-          <span className="label">AC</span>
-          <span className="value">{template.armorClass}</span>
+      <div className={styles.monsterVitalStats}>
+        <div className={styles.monsterVitalStat}>
+          <span className={styles.label}>AC</span>
+          <span className={styles.value}>{template.armorClass}</span>
         </div>
-        <div className="monster-vital-stat">
-          <span className="label">HP</span>
-          <span className="value">{template.hitPoints.average}</span>
+        <div className={styles.monsterVitalStat}>
+          <span className={styles.label}>HP</span>
+          <span className={styles.value}>{template.hitPoints.average}</span>
         </div>
-        <div className="monster-vital-stat">
-          <span className="label">Speed</span>
-          <span className="value">{template.speed.walk} ft.</span>
+        <div className={styles.monsterVitalStat}>
+          <span className={styles.label}>Speed</span>
+          <span className={styles.value}>{template.speed.walk} ft.</span>
         </div>
       </div>
       
-      <div className="monster-tags">
+      <div className={styles.monsterTags}>
         {template.tags.slice(0, 3).map(tag => (
-          <span key={tag} className="monster-tag">{tag}</span>
+          <span key={tag} className={styles.monsterTag}>{tag}</span>
         ))}
-        {template.tags.length > 3 && <span className="monster-tag-more">+{template.tags.length - 3}</span>}
+        {template.tags.length > 3 && <span className={styles.monsterTagMore}>+{template.tags.length - 3}</span>}
       </div>
       
-      <div className="monster-card-actions">
+      <div className={styles.monsterCardActions}>
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -275,10 +276,10 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
           Create Instance
         </button>
         {template.spells && (
-          <span className="monster-feature-icon" title="Spellcaster">🔮</span>
+          <span className={styles.monsterFeatureIcon} title="Spellcaster">🔮</span>
         )}
         {template.legendary && (
-          <span className="monster-feature-icon" title="Legendary">⭐</span>
+          <span className={styles.monsterFeatureIcon} title="Legendary">⭐</span>
         )}
       </div>
     </div>
@@ -290,9 +291,9 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
       className={`monster-instance-card ${selectedInstance?.id === instance.id ? 'selected' : ''} ${instance.isDefeated ? 'defeated' : ''}`}
       onClick={() => setSelectedInstance(instance)}
     >
-      <div className="monster-instance-header">
-        <h4 className="monster-instance-name">{instance.name}</h4>
-        <div className="monster-instance-actions">
+      <div className={styles.monsterInstanceHeader}>
+        <h4 className={styles.monsterInstanceName}>{instance.name}</h4>
+        <div className={styles.monsterInstanceActions}>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -316,15 +317,15 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
         </div>
       </div>
       
-      <div className="monster-instance-info">
-        <span className="monster-instance-template">{instance.template.name}</span>
-        <span className="monster-instance-cr">CR {instance.template.challengeRating}</span>
+      <div className={styles.monsterInstanceInfo}>
+        <span className={styles.monsterInstanceTemplate}>{instance.template.name}</span>
+        <span className={styles.monsterInstanceCr}>CR {instance.template.challengeRating}</span>
       </div>
       
-      <div className="monster-instance-health">
-        <div className="monster-health-bar">
+      <div className={styles.monsterInstanceHealth}>
+        <div className={styles.monsterHealthBar}>
           <div 
-            className="monster-health-fill"
+            className={styles.monsterHealthFill}
             style={{ 
               width: `${(instance.currentHitPoints / instance.maxHitPoints) * 100}%`,
               backgroundColor: instance.currentHitPoints > instance.maxHitPoints * 0.5 ? '#4caf50' :
@@ -332,12 +333,12 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
             }}
           />
         </div>
-        <div className="monster-health-text">
+        <div className={styles.monsterHealthText}>
           <input
             type="number"
             value={instance.currentHitPoints}
             onChange={(e) => updateInstanceHP(instance.id, parseInt(e.target.value) || 0)}
-            className="monster-hp-input"
+            className={styles.monsterHpInput}
             min="0"
             max={instance.maxHitPoints + instance.temporaryHitPoints}
           />
@@ -346,9 +347,9 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
       </div>
       
       {instance.conditions.length > 0 && (
-        <div className="monster-conditions">
+        <div className={styles.monsterConditions}>
           {instance.conditions.map(condition => (
-            <span key={condition} className="monster-condition">{condition}</span>
+            <span key={condition} className={styles.monsterCondition}>{condition}</span>
           ))}
         </div>
       )}
@@ -357,7 +358,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
 
   const renderFiltersPanel = () => (
     <div className={`monster-filters-panel ${showFilters ? 'visible' : ''}`}>
-      <div className="monster-filter-group">
+      <div className={styles.monsterFilterGroup}>
         <label>Monster Type:</label>
         <select
           value={filters.type || ''}
@@ -370,11 +371,11 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
         </select>
       </div>
       
-      <div className="monster-filter-group">
+      <div className={styles.monsterFilterGroup}>
         <label>Size:</label>
-        <div className="monster-filter-checkboxes">
+        <div className={styles.monsterFilterCheckboxes}>
           {MONSTER_SIZES.map(size => (
-            <label key={size} className="monster-checkbox">
+            <label key={size} className={styles.monsterCheckbox}>
               <input
                 type="checkbox"
                 checked={filters.size?.includes(size) || false}
@@ -392,9 +393,9 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
         </div>
       </div>
       
-      <div className="monster-filter-group">
+      <div className={styles.monsterFilterGroup}>
         <label>Challenge Rating:</label>
-        <div className="monster-filter-range">
+        <div className={styles.monsterFilterRange}>
           <input
             type="number"
             placeholder="Min CR"
@@ -429,8 +430,8 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
         </div>
       </div>
       
-      <div className="monster-filter-group">
-        <label className="monster-checkbox">
+      <div className={styles.monsterFilterGroup}>
+        <label className={styles.monsterCheckbox}>
           <input
             type="checkbox"
             checked={filters.hasSpells || false}
@@ -440,8 +441,8 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
         </label>
       </div>
       
-      <div className="monster-filter-group">
-        <label className="monster-checkbox">
+      <div className={styles.monsterFilterGroup}>
+        <label className={styles.monsterCheckbox}>
           <input
             type="checkbox"
             checked={filters.hasLegendaryActions || false}
@@ -451,7 +452,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
         </label>
       </div>
       
-      <div className="monster-filter-actions">
+      <div className={styles.monsterFilterActions}>
         <button
           onClick={clearFilters}
           className="monster-btn monster-btn-secondary"
@@ -463,15 +464,15 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
   );
 
   const renderBrowseTab = () => (
-    <div className="monster-browse-tab">
-      <div className="monster-search-header">
-        <div className="monster-search-bar">
+    <div className={styles.monsterBrowseTab}>
+      <div className={styles.monsterSearchHeader}>
+        <div className={styles.monsterSearchBar}>
           <input
             type="text"
             placeholder="Search monsters..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="monster-search-input"
+            className={styles.monsterSearchInput}
           />
           <button
             onClick={() => setShowFilters(!showFilters)}
@@ -481,8 +482,8 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
           </button>
         </div>
         
-        <div className="monster-search-controls">
-          <div className="monster-sort-controls">
+        <div className={styles.monsterSearchControls}>
+          <div className={styles.monsterSortControls}>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
@@ -501,7 +502,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
             </button>
           </div>
           
-          <div className="monster-view-controls">
+          <div className={styles.monsterViewControls}>
             <button
               onClick={() => setPreviewMode('card')}
               className={`monster-btn monster-btn-small ${previewMode === 'card' ? 'active' : ''}`}
@@ -520,8 +521,8 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
       
       {renderFiltersPanel()}
       
-      <div className="monster-search-results">
-        <div className="monster-results-info">
+      <div className={styles.monsterSearchResults}>
+        <div className={styles.monsterResultsInfo}>
           <span>Found {searchResults.length} monsters</span>
           {searchResults.length > itemsPerPage && (
             <span>Showing {startIndex + 1}-{Math.min(endIndex, searchResults.length)}</span>
@@ -529,7 +530,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
         </div>
         
         {loading ? (
-          <div className="monster-loading">Loading monsters...</div>
+          <div className={styles.monsterLoading}>Loading monsters...</div>
         ) : (
           <div className={`monster-results-grid ${previewMode === 'list' ? 'list-view' : 'card-view'}`}>
             {currentResults.map(renderMonsterCard)}
@@ -537,7 +538,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
         )}
         
         {totalPages > 1 && (
-          <div className="monster-pagination">
+          <div className={styles.monsterPagination}>
             <button
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
@@ -546,7 +547,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
               Previous
             </button>
             
-            <span className="monster-page-info">
+            <span className={styles.monsterPageInfo}>
               Page {currentPage} of {totalPages}
             </span>
             
@@ -564,10 +565,10 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
   );
 
   const renderInstancesTab = () => (
-    <div className="monster-instances-tab">
-      <div className="monster-instances-header">
+    <div className={styles.monsterInstancesTab}>
+      <div className={styles.monsterInstancesHeader}>
         <h4>Monster Instances ({instances.length})</h4>
-        <div className="monster-instances-actions">
+        <div className={styles.monsterInstancesActions}>
           <button
             onClick={() => console.log('Custom instance creation coming soon!')}
             className="monster-btn monster-btn-primary"
@@ -578,12 +579,12 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
       </div>
       
       {instances.length === 0 ? (
-        <div className="monster-empty-state">
+        <div className={styles.monsterEmptyState}>
           <p>No monster instances created yet.</p>
           <p>Create instances from the Browse tab or create custom ones here.</p>
         </div>
       ) : (
-        <div className="monster-instances-grid">
+        <div className={styles.monsterInstancesGrid}>
           {instances.map(renderInstanceCard)}
         </div>
       )}
@@ -594,8 +595,8 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
     if (!selectedTemplate) return null;
     
     return (
-      <div className="monster-details-panel">
-        <div className="monster-details-header">
+      <div className={styles.monsterDetailsPanel}>
+        <div className={styles.monsterDetailsHeader}>
           <h3>{selectedTemplate.name}</h3>
           <button
             onClick={() => setSelectedTemplate(null)}
@@ -605,8 +606,8 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
           </button>
         </div>
         
-        <div className="monster-details-content">
-          <div className="monster-details-basic">
+        <div className={styles.monsterDetailsContent}>
+          <div className={styles.monsterDetailsBasic}>
             <p><strong>Type:</strong> {selectedTemplate.size} {selectedTemplate.type}
               {selectedTemplate.subtype && ` (${selectedTemplate.subtype})`}, {selectedTemplate.alignment}
             </p>
@@ -621,18 +622,18 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
           {renderStatBlock(selectedTemplate.stats)}
           
           {selectedTemplate.abilities.length > 0 && (
-            <div className="monster-abilities">
+            <div className={styles.monsterAbilities}>
               <h4>Abilities</h4>
               {selectedTemplate.abilities.map(ability => (
-                <div key={ability.id} className="monster-ability">
-                  <h5>{ability.name} <span className="ability-type">({ability.type.replace('_', ' ')})</span></h5>
+                <div key={ability.id} className={styles.monsterAbility}>
+                  <h5>{ability.name} <span className={styles.abilityType}>({ability.type.replace('_', ' ')})</span></h5>
                   <p>{ability.description}</p>
                 </div>
               ))}
             </div>
           )}
           
-          <div className="monster-details-actions">
+          <div className={styles.monsterDetailsActions}>
             <button
               onClick={() => createInstance(selectedTemplate)}
               className="monster-btn monster-btn-primary"
@@ -659,14 +660,14 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="monster-panel-overlay" onClick={onClose}>
-      <div className="monster-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="monster-panel-header">
+    <div className={styles.monsterPanelOverlay} onClick={onClose}>
+      <div className={styles.monsterPanel} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.monsterPanelHeader}>
           <h3>Monster Creation & Management</h3>
-          <button onClick={onClose} className="monster-panel-close">×</button>
+          <button onClick={onClose} className={styles.monsterPanelClose}>×</button>
         </div>
 
-        <div className="monster-panel-tabs">
+        <div className={styles.monsterPanelTabs}>
           {[
             { id: 'browse', label: 'Browse Monsters', icon: '📚', count: searchResults.length },
             { id: 'instances', label: 'Instances', icon: '⚔️', count: instances.length },
@@ -678,26 +679,26 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
               className={`monster-tab ${activeTab === tab.id ? 'active' : ''}`}
               onClick={() => setActiveTab(tab.id as ActiveTab)}
             >
-              <span className="monster-tab-icon">{tab.icon}</span>
-              <span className="monster-tab-label">{tab.label}</span>
+              <span className={styles.monsterTabIcon}>{tab.icon}</span>
+              <span className={styles.monsterTabLabel}>{tab.label}</span>
               {tab.count !== undefined && tab.count > 0 && (
-                <span className="monster-tab-count">{tab.count}</span>
+                <span className={styles.monsterTabCount}>{tab.count}</span>
               )}
             </button>
           ))}
         </div>
 
-        <div className="monster-panel-content">
-          <div className="monster-main-content">
+        <div className={styles.monsterPanelContent}>
+          <div className={styles.monsterMainContent}>
             {activeTab === 'browse' && renderBrowseTab()}
             {activeTab === 'instances' && renderInstancesTab()}
             {activeTab === 'create' && (
-              <div className="monster-create-tab">
+              <div className={styles.monsterCreateTab}>
                 <p>Custom monster creation coming soon!</p>
               </div>
             )}
             {activeTab === 'encounters' && (
-              <div className="monster-encounters-tab">
+              <div className={styles.monsterEncountersTab}>
                 <p>Encounter builder coming soon!</p>
               </div>
             )}
@@ -712,3 +713,5 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
 };
 
 export default MonsterCreationPanel;
+
+

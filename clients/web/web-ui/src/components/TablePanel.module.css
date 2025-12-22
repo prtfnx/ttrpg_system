@@ -35,8 +35,7 @@
 
 .sizeInputs label {
   flex: 1;
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
   gap: var(--spacing-xs);
   font-size: var(--font-size-xs);
   color: var(--text-secondary);

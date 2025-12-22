@@ -5,9 +5,7 @@
   right: 0;
   bottom: 0;
   background-color: var(--overlay-dark);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  composes: flex items-center justify-center from '../styles/7-utilities/layout.module.css';
   z-index: 10000;
 }
 
@@ -24,9 +22,7 @@
 }
 
 .modalHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
   padding: var(--space-xl) var(--space-2xl);
   border-bottom: var(--border-width) solid var(--slate-400-alpha-20);
 }
@@ -47,9 +43,7 @@
   padding: 0;
   width: var(--space-3xl);
   height: var(--space-3xl);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  composes: flex items-center justify-center from '../styles/7-utilities/layout.module.css';
   border-radius: var(--radius-xs);
   transition: var(--transition-fast);
 }
@@ -98,9 +92,7 @@
 }
 
 .statRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
   margin-bottom: var(--space-lg);
 }
 
@@ -119,8 +111,7 @@
 }
 
 .hpInputGroup {
-  display: flex;
-  align-items: center;
+  composes: flex items-center from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 
@@ -135,9 +126,7 @@
   font-weight: var(--font-semibold);
   cursor: pointer;
   transition: var(--transition-fast);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  composes: flex items-center justify-center from '../styles/7-utilities/layout.module.css';
 }
 
 .hpButton:hover {

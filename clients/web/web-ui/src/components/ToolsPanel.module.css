@@ -37,7 +37,7 @@
 
 /* Quick test buttons section */
 .quickTestButtons {
-  display: flex;
+  composes: flex from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
   margin-bottom: var(--space-lg);
 }
@@ -58,14 +58,12 @@
 }
 
 .networkToggle {
-  display: flex;
-  align-items: center;
+  composes: flex items-center from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 
 .networkToggle label {
-  display: flex;
-  align-items: center;
+  composes: flex items-center from '../styles/7-utilities/layout.module.css';
   gap: var(--space-xs);
   cursor: pointer;
 }
@@ -111,9 +109,7 @@
 }
 
 .devToggle {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
   margin-bottom: var(--spacing-sm);
 }
 
@@ -139,8 +135,7 @@
 }
 
 .roleToggle {
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
   gap: var(--spacing-xs);
   margin-top: var(--spacing-md);
   padding-top: var(--spacing-md);
@@ -195,9 +190,7 @@
 /* Button base styles using PanelBase composition */
 .toolButton {
   composes: panel-button secondary from '../styles/PanelBase.module.css';
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  composes: flex items-center justify-center from '../styles/7-utilities/layout.module.css';
   gap: var(--space-xs);
   padding: var(--space-md) var(--space-sm);
   font-size: var(--text-sm);
@@ -205,9 +198,7 @@
 
 .active {
   composes: panel-button primary from '../styles/PanelBase.module.css';
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  composes: flex items-center justify-center from '../styles/7-utilities/layout.module.css';
   gap: var(--space-xs);
   padding: var(--space-md) var(--space-sm);
   font-size: var(--text-sm);
@@ -238,8 +229,7 @@
 }
 
 .settingRow {
-  display: flex;
-  align-items: center;
+  composes: flex items-center from '../styles/7-utilities/layout.module.css';
   gap: var(--space-md);
   margin-bottom: var(--space-sm);
 }

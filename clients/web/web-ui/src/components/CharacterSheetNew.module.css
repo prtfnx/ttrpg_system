@@ -8,8 +8,7 @@
   background: var(--bg-secondary);
   color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
   overflow: hidden;
   font-size: var(--text-base);
 }
@@ -25,22 +24,18 @@
   background: linear-gradient(135deg, var(--gray-700) 0%, var(--gray-900) 100%);
   border-bottom: var(--border-width-thick) solid var(--border-primary);
   padding: var(--space-lg) var(--space-xl);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
   flex-shrink: 0;
   gap: var(--space-md);
 }
 
 .headerRight {
-  display: flex;
-  align-items: center;
+  composes: flex items-center from '../styles/7-utilities/layout.module.css';
   gap: var(--space-md);
 }
 
 .popoutBtn {
-  display: flex;
-  align-items: center;
+  composes: flex items-center from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
   background: var(--color-primary);
   color: var(--text-primary);
@@ -72,12 +67,10 @@
 }
 
 .charSubtitle {
-  display: flex;
+  composes: flex items-center flex-wrap from '../styles/7-utilities/layout.module.css';
   gap: var(--space-md);
   font-size: var(--text-base);
   color: var(--text-secondary);
-  align-items: center;
-  flex-wrap: wrap;
 }
 
 .charClass {
@@ -123,7 +116,7 @@
 
 /* ===== TABS ===== */
 .sheetTabs {
-  display: flex;
+  composes: flex from '../styles/7-utilities/layout.module.css';
   background: var(--bg-tertiary);
   border-bottom: var(--border-width) solid var(--border-primary);
   flex-shrink: 0;
@@ -181,24 +174,21 @@
 
 .leftColumn {
   grid-column: 1;
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
   gap: var(--card-gap);
   min-width: 0;
 }
 
 .centerColumn {
   grid-column: 2;
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
   gap: var(--card-gap);
   min-width: 0;
 }
 
 .rightColumn {
   grid-column: 3;
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
   gap: var(--card-gap);
   min-width: 0;
 }
@@ -327,9 +317,7 @@
 }
 
 .savingThrow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  composes: flex items-center justify-center from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
   font-size: var(--text-sm);
   color: var(--text-secondary);
@@ -372,8 +360,7 @@
 }
 
 .skillRow {
-  display: flex;
-  align-items: center;
+  composes: flex items-center from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
   padding: var(--space-sm);
   margin-bottom: var(--space-xs);

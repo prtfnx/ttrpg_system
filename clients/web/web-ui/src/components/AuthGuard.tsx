@@ -1,5 +1,6 @@
 import React from 'react';
 import './Auth.css';
+import styles from './AuthGuard.module.css';
 import { useAuth } from './AuthContext';
 import LoginModal from './LoginModal';
 
@@ -24,7 +25,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
   // Show loading state while auth is being initialized
   if (loading) {
     return (
-      <div className="auth-loading">
+      <div className={styles.authLoading}>
         Authenticating...
       </div>
     );
@@ -38,12 +39,12 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
     
     return (
       <>
-        <div className="auth-guard-message">
+        <div className={styles.authGuardMessage}>
           <h3>Authentication Required</h3>
           <p>You must be logged in to access this content.</p>
           <button 
             onClick={() => setShowLoginModal(true)}
-            className="login-button"
+            className={styles.loginButton}
           >
             Login
           </button>
@@ -59,7 +60,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
   // If role is required and user doesn't have it
   if (requireRole && user?.role !== requireRole) {
     return (
-      <div className="auth-guard-message">
+      <div className={styles.authGuardMessage}>
         <h3>Access Denied</h3>
         <p>
           You need {requireRole === 'dm' ? 'Dungeon Master' : 'Player'} 
@@ -75,3 +76,4 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
 };
 
 export default AuthGuard;
+

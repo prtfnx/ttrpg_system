@@ -219,26 +219,26 @@ export function AlignmentHelper({ isActive }: AlignmentHelperProps) {
         <div className={styles.alignmentGroup}>
           <label>Horizontal:</label>
           <div className={styles.buttonGroup}>
-            <button onClick={() => alignSprites('left')} title="Align Left">⬅️</button>
-            <button onClick={() => alignSprites('center')} title="Align Center">↔️</button>
-            <button onClick={() => alignSprites('right')} title="Align Right">➡️</button>
+            <button className={styles.alignmentButton} onClick={() => alignSprites('left')} title="Align Left">⬅️</button>
+            <button className={styles.alignmentButton} onClick={() => alignSprites('center')} title="Align Center">↔️</button>
+            <button className={styles.alignmentButton} onClick={() => alignSprites('right')} title="Align Right">➡️</button>
           </div>
         </div>
         
         <div className={styles.alignmentGroup}>
           <label>Vertical:</label>
           <div className={styles.buttonGroup}>
-            <button onClick={() => alignSprites('top')} title="Align Top">⬆️</button>
-            <button onClick={() => alignSprites('middle')} title="Align Middle">↕️</button>
-            <button onClick={() => alignSprites('bottom')} title="Align Bottom">⬇️</button>
+            <button className={styles.alignmentButton} onClick={() => alignSprites('top')} title="Align Top">⬆️</button>
+            <button className={styles.alignmentButton} onClick={() => alignSprites('middle')} title="Align Middle">↕️</button>
+            <button className={styles.alignmentButton} onClick={() => alignSprites('bottom')} title="Align Bottom">⬇️</button>
           </div>
         </div>
         
         <div className={styles.alignmentGroup}>
           <label>Distribute:</label>
           <div className={styles.buttonGroup}>
-            <button onClick={() => alignSprites('distribute-h')} title="Distribute Horizontally">📐</button>
-            <button onClick={() => alignSprites('distribute-v')} title="Distribute Vertically">📏</button>
+            <button className={styles.alignmentButton} onClick={() => alignSprites('distribute-h')} title="Distribute Horizontally">📐</button>
+            <button className={styles.alignmentButton} onClick={() => alignSprites('distribute-v')} title="Distribute Vertically">📏</button>
           </div>
         </div>
         

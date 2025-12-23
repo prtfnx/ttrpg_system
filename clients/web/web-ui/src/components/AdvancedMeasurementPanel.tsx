@@ -313,7 +313,7 @@ const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> = ({
       <div className={styles.measurementPanelOverlay}>
         <div className={styles.measurementPanel}>
           <div className={styles.panelHeader}>
-            <h2>📏 Advanced Measurement & Grid System</h2>
+            <h2 className={styles.panelTitle}>📏 Advanced Measurement & Grid System</h2>
             <button className={styles.closeBtn} onClick={onClose} aria-label="Close panel">
               ✕
             </button>

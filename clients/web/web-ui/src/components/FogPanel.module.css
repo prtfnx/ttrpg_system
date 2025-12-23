@@ -33,9 +33,7 @@
 }
 
 .activityItem {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
   padding: var(--space-sm);
   margin-bottom: var(--space-xs);
   border-radius: var(--radius-xs);
@@ -54,9 +52,7 @@
 }
 
 .fogRectangleItem {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
   padding: var(--space-sm);
   margin-bottom: var(--space-xs);
   border-radius: var(--radius-xs);

@@ -44,23 +44,23 @@
 }
 
 .buttonGroup {
-  composes: flex from '../styles/7-utilities/layout.module.css';
+  display: flex;
   gap: var(--space-xs);
 }
 
-.buttonGroup button {
+.alignmentButton {
   composes: btnSecondary from '../styles/buttons.module.css';
   flex: 1;
   font-size: var(--text-xl);
   transition: all var(--transition-fast);
 }
 
-.buttonGroup button:hover {
+.alignmentButton:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
-.buttonGroup button:active {
+.alignmentButton:active {
   transform: translateY(0);
 }
 

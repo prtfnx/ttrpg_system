@@ -4,23 +4,24 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: var(--overlay-dark);
+  background: var(--modal-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10000;
+  backdrop-filter: blur(4px);
 }
 
 .tokenConfigModal {
-  background: linear-gradient(135deg, var(--slate-800) 0%, var(--slate-900) 100%);
+  background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary));
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-2xl);
-  border: var(--border-width) solid var(--slate-400-alpha-20);
+  border: var(--border-width) solid var(--border-primary);
   width: 90%;
   max-width: 480px;
   max-height: 85vh;
   overflow-y: auto;
-  color: var(--slate-200);
+  color: var(--text-primary);
 }
 
 .modalHeader {
@@ -28,21 +29,21 @@
   justify-content: space-between;
   align-items: center;
   padding: var(--space-xl) var(--space-2xl);
-  border-bottom: var(--border-width) solid var(--slate-400-alpha-20);
+  border-bottom: var(--border-width) solid var(--border-primary);
 }
 
 .modalHeader h2 {
   margin: 0;
   font-size: var(--text-xl);
   font-weight: var(--font-semibold);
-  color: var(--slate-100);
+  color: var(--text-primary);
 }
 
 .closeButton {
   background: none;
   border: none;
   font-size: var(--text-3xl);
-  color: var(--slate-400);
+  color: var(--text-muted);
   cursor: pointer;
   padding: 0;
   width: var(--space-3xl);
@@ -55,8 +56,8 @@
 }
 
 .closeButton:hover {
-  background: var(--slate-400-alpha-10);
-  color: var(--slate-100);
+  background: var(--hover-overlay);
+  color: var(--text-primary);
 }
 
 .modalContent {
@@ -72,29 +73,35 @@
   margin-bottom: var(--space-sm);
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
-  color: var(--slate-300);
+  color: var(--text-secondary);
 }
 
 .characterSelect {
   width: 100%;
   padding: var(--space-md) var(--space-lg);
-  background: var(--slate-900);
-  border: var(--border-width) solid var(--slate-400-alpha-30);
+  background: var(--input-bg);
+  border: var(--border-width) solid var(--input-border);
   border-radius: var(--radius-md);
-  color: var(--slate-200);
+  color: var(--input-text);
   font-size: var(--text-sm);
   cursor: pointer;
   transition: var(--transition-fast);
 }
 
+.characterSelect option {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: var(--space-sm);
+}
+
 .characterSelect:hover {
-  border-color: var(--blue-500-alpha-50);
+  border-color: var(--input-border-hover);
 }
 
 .characterSelect:focus {
   outline: none;
-  border-color: var(--blue-500);
-  box-shadow: var(--focus-ring-blue);
+  border-color: var(--input-border-focus);
+  box-shadow: var(--focus-ring);
 }
 
 .statRow {
@@ -111,11 +118,11 @@
 .statDisplay {
   font-size: var(--text-lg);
   font-weight: var(--font-semibold);
-  color: var(--slate-100);
-  background: var(--blue-500-alpha-10);
+  color: var(--text-primary);
+  background: var(--color-primary-overlay);
   padding: var(--space-sm) var(--space-xl);
   border-radius: var(--radius-md);
-  border: var(--border-width) solid var(--blue-500-alpha-30);
+  border: var(--border-width) solid var(--border-primary);
 }
 
 .hpInputGroup {
@@ -127,10 +134,10 @@
 .hpButton {
   width: var(--space-3xl);
   height: var(--space-3xl);
-  background: var(--slate-900);
-  border: var(--border-width) solid var(--slate-400-alpha-30);
+  background: var(--input-bg);
+  border: var(--border-width) solid var(--input-border);
   border-radius: var(--radius-md);
-  color: var(--slate-200);
+  color: var(--input-text);
   font-size: var(--text-lg);
   font-weight: var(--font-semibold);
   cursor: pointer;
@@ -141,9 +148,9 @@
 }
 
 .hpButton:hover {
-  background: var(--blue-500-alpha-20);
-  border-color: var(--blue-500);
-  color: var(--slate-100);
+  background: var(--color-primary-overlay);
+  border-color: var(--border-focus);
+  color: var(--text-primary);
 }
 
 .hpButton:active {
@@ -153,10 +160,10 @@
 .hpInput {
   width: 80px;
   padding: var(--space-sm);
-  background: var(--slate-900);
-  border: var(--border-width) solid var(--slate-400-alpha-30);
+  background: var(--input-bg);
+  border: var(--border-width) solid var(--input-border);
   border-radius: var(--radius-md);
-  color: var(--slate-200);
+  color: var(--input-text);
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
   text-align: center;
@@ -165,8 +172,8 @@
 
 .hpInput:focus {
   outline: none;
-  border-color: var(--blue-500);
-  box-shadow: var(--focus-ring-blue);
+  border-color: var(--input-border-focus);
+  box-shadow: var(--focus-ring);
 }
 
 /* Remove spinner buttons in number inputs */
@@ -184,9 +191,9 @@
   position: relative;
   width: 100%;
   height: var(--space-3xl);
-  background: var(--slate-900-alpha-80);
+  background: var(--bg-secondary);
   border-radius: var(--radius-md);
-  border: var(--border-width) solid var(--slate-400-alpha-30);
+  border: var(--border-width) solid var(--border-primary);
   overflow: hidden;
 }
 
@@ -203,15 +210,15 @@
   transform: translate(-50%, -50%);
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
-  color: var(--slate-100);
-  text-shadow: var(--shadow-text-sm);
+  color: var(--text-primary);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 .characterInfo {
   margin-top: var(--space-2xl);
   padding: var(--space-xl);
-  background: var(--blue-500-alpha-10);
-  border: var(--border-width) solid var(--blue-500-alpha-30);
+  background: var(--color-info-overlay);
+  border: var(--border-width) solid var(--status-info-border);
   border-radius: var(--radius-lg);
 }
 
@@ -219,20 +226,20 @@
   margin: 0 0 var(--space-sm) 0;
   font-size: var(--text-lg);
   font-weight: var(--font-semibold);
-  color: var(--slate-100);
+  color: var(--text-primary);
 }
 
 .characterDetails {
   margin: 0;
   font-size: var(--text-sm);
-  color: var(--slate-300);
+  color: var(--text-secondary);
 }
 
 .syncNote {
   margin: 0;
   margin-top: var(--space-sm);
   font-size: var(--text-xs);
-  color: var(--slate-400);
+  color: var(--text-muted);
 }
 
 .noCharacterMessage {
@@ -242,23 +249,23 @@
 
 .noCharacterMessage p {
   margin: 0;
-  color: var(--slate-400);
+  color: var(--text-muted);
   font-size: var(--text-sm);
 }
 
 .modalFooter {
   padding: var(--space-xl) var(--space-2xl);
-  border-top: var(--border-width) solid var(--slate-400-alpha-20);
+  border-top: var(--border-width) solid var(--border-primary);
   display: flex;
   justify-content: flex-end;
 }
 
 .doneButton {
   padding: var(--space-md) var(--space-2xl);
-  background: var(--blue-500);
+  background: var(--button-primary-bg);
   border: none;
   border-radius: var(--radius-md);
-  color: white;
+  color: var(--button-primary-text);
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   cursor: pointer;
@@ -266,9 +273,9 @@
 }
 
 .doneButton:hover {
-  background: var(--blue-600);
+  background: var(--button-primary-hover);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-glow-blue);
+  box-shadow: var(--shadow-lg);
 }
 
 .doneButton:active {
@@ -281,15 +288,15 @@
 }
 
 .tokenConfigModal::-webkit-scrollbar-track {
-  background: var(--slate-900-alpha-50);
+  background: var(--bg-secondary);
   border-radius: var(--radius-xs);
 }
 
 .tokenConfigModal::-webkit-scrollbar-thumb {
-  background: var(--slate-400-alpha-30);
+  background: var(--border-primary);
   border-radius: var(--radius-xs);
 }
 
 .tokenConfigModal::-webkit-scrollbar-thumb:hover {
-  background: var(--slate-400-alpha-50);
+  background: var(--border-hover);
 }

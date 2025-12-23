@@ -37,12 +37,15 @@
   list-style: none;
   padding: 0;
   margin: 0;
-  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
   gap: var(--space-sm);
 }
 
 .playerManager li {
-  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: var(--space-md);
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);

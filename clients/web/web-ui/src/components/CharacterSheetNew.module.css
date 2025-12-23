@@ -634,15 +634,12 @@
 }
 
 .deathSavesGrid {
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
   gap: var(--space-md);
 }
 
 .deathSavesRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
 }
 
 .saveLabel {
@@ -661,7 +658,7 @@
 }
 
 .saveBoxes {
-  display: flex;
+  composes: flex from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 
@@ -681,8 +678,7 @@
 
 /* ===== CONDITIONS ===== */
 .conditionsList {
-  display: flex;
-  flex-wrap: wrap;
+  composes: flex flex-wrap from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 
@@ -705,9 +701,7 @@
 
 /* ===== HIT DICE ===== */
 .hitDiceDisplay {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
 }
 
 .hitDiceCount {
@@ -735,8 +729,7 @@
 
 /* ===== INSPIRATION ===== */
 .inspirationCheck {
-  display: flex;
-  align-items: center;
+  composes: flex items-center from '../styles/7-utilities/layout.module.css';
   gap: var(--space-md);
   cursor: pointer;
 }
@@ -756,15 +749,12 @@
 
 /* ===== ATTACKS ===== */
 .attackInfo {
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
   gap: var(--space-md);
 }
 
 .attackRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
   padding: var(--space-sm);
   background: var(--bg-secondary);
   border-radius: var(--radius-md);
@@ -831,9 +821,8 @@
 }
 
 .tokenGrid {
-  display: flex;
+  composes: flex flex-wrap from '../styles/7-utilities/layout.module.css';
   gap: var(--space-md);
-  flex-wrap: wrap;
 }
 
 .tokenItem {
@@ -841,8 +830,7 @@
   background: var(--bg-tertiary);
   border-radius: var(--radius-md);
   border: var(--border-width) solid var(--border-secondary);
-  display: flex;
-  align-items: center;
+  composes: flex items-center from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 
@@ -880,9 +868,8 @@
 }
 
 .tokenControls {
-  display: flex;
+  composes: flex items-center from '../styles/7-utilities/layout.module.css';
   gap: var(--space-md);
-  align-items: center;
 }
 
 .tokenSelect {

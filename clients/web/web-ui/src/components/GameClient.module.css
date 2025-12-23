@@ -1,6 +1,5 @@
 .gameLayout {
-  display: flex;
-  flex-direction: row;
+  composes: flex flex-row from '../styles/7-utilities/layout.module.css';
   width: 100vw;
   height: 100vh;
   background: var(--bg-primary);
@@ -9,8 +8,7 @@
 }
 
 .leftPanel {
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
   background: var(--bg-secondary);
   border-right: var(--border-width) solid var(--border-primary);
   overflow-y: auto;
@@ -21,8 +19,7 @@
 }
 
 .rightPanel {
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
   background: var(--bg-tertiary);
   border-left: var(--border-width) solid var(--border-primary);
   min-width: 250px;
@@ -34,9 +31,7 @@
   flex: 1;
   position: relative;
   background: var(--bg-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  composes: flex items-center justify-center from '../styles/7-utilities/layout.module.css';
   overflow: hidden;
   min-width: 0;
 }
@@ -46,7 +41,7 @@
   top: var(--space-sm);
   right: var(--space-sm);
   z-index: 20;
-  display: flex;
+  composes: flex from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 
@@ -81,8 +76,7 @@
 
 /* Connection status bar - uses status tokens from design system */
 .connectionStatus {
-  display: flex;
-  align-items: center;
+  composes: flex items-center from '../styles/7-utilities/layout.module.css';
   padding: var(--space-xs) var(--space-sm);
   background: var(--bg-tertiary);
   border-bottom: var(--border-width) solid var(--border-secondary);

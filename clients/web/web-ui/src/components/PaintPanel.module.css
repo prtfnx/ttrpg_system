@@ -189,8 +189,7 @@
 
 /* Enhanced Paint Mode Indicator */
 .paint-mode-indicator {
-  display: flex;
-  align-items: center;
+  composes: flex items-center from '../styles/7-utilities/layout.module.css';
   gap: var(--spacing-md);
   padding: var(--spacing-md) var(--spacing-lg);
   background: var(--bg-tertiary);
@@ -312,8 +311,7 @@
 
 /* Legacy paint mode status (keeping for fallback) */
 .paint-mode-status {
-  display: flex;
-  align-items: center;
+  composes: flex items-center from '../styles/7-utilities/layout.module.css';
   gap: var(--space-md);
   margin-bottom: var(--space-md);
 }
@@ -354,7 +352,7 @@
 }
 
 .paint-mode-controls {
-  display: flex;
+  composes: flex from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 
@@ -383,8 +381,7 @@
 }
 
 .color-controls {
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 
@@ -533,7 +530,7 @@
 }
 
 .action-buttons {
-  display: flex;
+  composes: flex from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 
@@ -557,8 +554,7 @@
 }
 
 .stat {
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
   padding: var(--spacing-sm);
   background: var(--bg-tertiary);
   border-radius: var(--radius-sm);
@@ -644,9 +640,7 @@
 }
 
 .template-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
   padding: var(--spacing-sm) var(--spacing-md);
   margin-bottom: var(--spacing-sm);
   background: var(--bg-tertiary);
@@ -656,8 +650,7 @@
 
 .template-info {
   flex: 1;
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
   gap: var(--space-xs);
 }
 
@@ -672,7 +665,7 @@
 }
 
 .template-actions {
-  display: flex;
+  composes: flex from '../styles/7-utilities/layout.module.css';
   gap: var(--space-xs);
 }
 
@@ -731,9 +724,8 @@
 }
 
 .modal-actions {
-  display: flex;
+  composes: flex justify-end from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
-  justify-content: flex-end;
 }
 
 /* Paint Target Mode Selector Styles */
@@ -749,12 +741,13 @@
 }
 
 .paint-mode-selector {
-  display: flex;
+  composes: flex from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
   margin-bottom: var(--space-md);
 }
 
-.paint-mode-selector .mode-button {
+.mode-button {
+  composes: flex items-center justify-center from '../styles/7-utilities/layout.module.css';
   flex: 1;
   padding: var(--spacing-sm) var(--spacing-md);
   border: var(--border-width) solid var(--border-secondary);
@@ -765,18 +758,15 @@
   font-size: var(--font-size-xs);
   font-weight: var(--font-medium);
   transition: all var(--transition-fast);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: var(--spacing-xs);
 }
 
-.paint-mode-selector .mode-button:hover:not(:disabled) {
+.mode-button:hover:not(:disabled) {
   background: var(--hover-bg);
   border-color: var(--border-hover);
 }
 
-.paint-mode-selector .mode-button.active {
+.mode-button.active {
   background: var(--color-info);
   border-color: var(--color-info);
   color: white;
@@ -817,8 +807,7 @@
 }
 
 .status-indicator {
-  display: flex;
-  align-items: center;
+  composes: flex items-center from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 

@@ -289,7 +289,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
               </button>
               <button 
                 onClick={handleRemoveSelected} 
-                className={clsx(styles.controlButton, styles.danger)}
+                className={styles.dangerButton}
                 disabled={selectedAssets.size === 0}
               >
                 Remove Selected ({selectedAssets.size})
@@ -297,7 +297,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
               <button onClick={performCleanup} className={styles.controlButton}>
                 Cleanup Cache
               </button>
-              <button onClick={clearCache} className={clsx(styles.controlButton, styles.danger)}>
+              <button onClick={clearCache} className={styles.dangerButton}>
                 Clear All
               </button>
             </div>

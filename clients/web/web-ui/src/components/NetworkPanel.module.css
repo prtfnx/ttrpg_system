@@ -97,9 +97,8 @@
 
 /* Buttons */
 .button-group {
-  display: flex;
+  composes: flex flex-wrap from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
-  flex-wrap: wrap;
   margin-bottom: var(--space-lg);
 }
 

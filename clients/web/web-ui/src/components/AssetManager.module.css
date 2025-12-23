@@ -169,7 +169,7 @@
   padding: var(--space-sm) var(--space-lg);
 }
 
-.controlButton.danger {
+.dangerButton {
   composes: btnDanger from '../styles/buttons.module.css';
   padding: var(--space-sm) var(--space-lg);
 }

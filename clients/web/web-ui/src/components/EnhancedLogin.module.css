@@ -248,7 +248,8 @@
 }
 
 .strength-feedback div {
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
   gap: var(--space-xs);
   margin-bottom: var(--space-xs);
 }

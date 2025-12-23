@@ -82,7 +82,7 @@
 }
 
 .add-light {
-  display: flex;
+  composes: flex from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
   margin-bottom: var(--space-sm);
 }
@@ -115,7 +115,7 @@
 }
 
 .light-controls {
-  display: flex;
+  composes: flex from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 
@@ -152,17 +152,10 @@
   margin-bottom: var(--space-xs);
 }
 
-.light-name {
-  font-weight: var(--font-bold);
-  color: var(--text-primary);
-}
-
 .light-actions {
-  display: flex;
+  composes: flex from '../styles/7-utilities/layout.module.css';
   gap: var(--space-xs);
-}
-
-.move-button, 
+} 
 .toggle-button, 
 .remove-button {
   border: none;
@@ -189,8 +182,7 @@
 }
 
 .light-preview {
-  display: flex;
-  align-items: center;
+  composes: flex items-center from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 
@@ -224,7 +216,7 @@
 }
 
 .position-controls {
-  display: flex;
+  composes: flex from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 
@@ -245,8 +237,7 @@
 }
 
 .color-controls {
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 
@@ -260,7 +251,7 @@
 }
 
 .rgba-inputs {
-  display: flex;
+  composes: flex from '../styles/7-utilities/layout.module.css';
   gap: var(--space-xs);
 }
 

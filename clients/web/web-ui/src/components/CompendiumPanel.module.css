@@ -9,8 +9,7 @@
 
 .compendiumHeader {
   composes: panel-header from '../styles/PanelBase.module.css';
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 
@@ -59,8 +58,7 @@
 }
 
 .filters {
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
   margin-top: var(--space-sm);
 }
@@ -126,8 +124,7 @@
 }
 
 .entryHeader {
-  display: flex;
-  align-items: center;
+  composes: flex items-center from '../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 

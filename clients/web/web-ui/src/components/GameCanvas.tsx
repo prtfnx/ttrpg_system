@@ -1269,57 +1269,7 @@ export const GameCanvas: React.FC = () => {
         </div>
       )}
 
-      {/* Zoom Controls */}
-      <div style={{
-        position: 'absolute', 
-        bottom: 20, 
-        right: 20, 
-        display: 'flex', 
-        flexDirection: 'column', 
-        gap: '8px',
-        zIndex: 1000
-      }}>
-        <button 
-          role="button"
-          aria-label="Zoom in"
-          style={{
-            width: 40,
-            height: 40,
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            background: 'rgba(255,255,255,0.9)',
-            cursor: 'pointer',
-            fontSize: '18px',
-            fontWeight: 'bold'
-          }}
-          onClick={() => {
-            // Zoom in functionality
-            console.log('Zoom in');
-          }}
-        >
-          +
-        </button>
-        <button 
-          role="button"
-          aria-label="Zoom out"
-          style={{
-            width: 40,
-            height: 40,
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            background: 'rgba(255,255,255,0.9)',
-            cursor: 'pointer',
-            fontSize: '18px',
-            fontWeight: 'bold'
-          }}
-          onClick={() => {
-            // Zoom out functionality
-            console.log('Zoom out');
-          }}
-        >
-          -
-        </button>
-      </div>
+
     </div>
     </DragDropImageHandler>
   );

@@ -12,6 +12,7 @@
   background: var(--bg-secondary);
   border-right: var(--border-width) solid var(--border-primary);
   overflow-y: auto;
+  overflow-x: visible;
   padding: var(--space-lg);
   min-width: 200px;
   max-width: 600px;
@@ -36,42 +37,95 @@
   min-width: 0;
 }
 
-.canvasControls {
+.collapseBtn {
   position: absolute;
-  top: var(--space-sm);
-  right: var(--space-sm);
-  z-index: 20;
-  composes: flex from '../styles/7-utilities/layout.module.css';
-  gap: var(--space-sm);
-}
-
-.collapseBtn,
-.expandBtn {
-  padding: var(--space-xs) var(--space-sm);
-  font-size: var(--text-xs);
-  background: var(--button-secondary-bg);
+  bottom: var(--space-xl);
+  left: var(--space-xl);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  background: var(--bg-overlay);
   color: var(--text-primary);
-  border: none;
-  border-radius: var(--radius-sm);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: var(--transition-fast);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
 }
 
-.collapseBtn:hover,
+.expandBtn {
+  position: absolute;
+  padding: var(--space-md) var(--space-lg);
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  border: calc(var(--border-width) * 2) solid var(--button-primary-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  box-shadow: var(--shadow-lg);
+  z-index: 150;
+}
+
+.collapseBtn:hover {
+  background: var(--bg-secondary);
+  border-color: var(--border-focus);
+  transform: scale(1.05);
+  box-shadow: var(--shadow-xl);
+}
+
+.collapseBtnRight {
+  position: absolute;
+  bottom: var(--space-xl);
+  right: var(--space-xl);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  background: var(--bg-overlay);
+  color: var(--text-primary);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+}
+
+.collapseBtnRight:hover {
+  background: var(--bg-secondary);
+  border-color: var(--border-focus);
+  transform: scale(1.05);
+  box-shadow: var(--shadow-xl);
+}
+
 .expandBtn:hover {
-  background: var(--button-secondary-hover);
+  background: var(--button-primary-hover);
+  color: var(--button-primary-text);
+  border-color: var(--button-primary-hover);
+  transform: scale(1.1);
+  box-shadow: var(--shadow-xl);
 }
 
 .expandBtn.left {
-  position: absolute;
-  top: var(--space-sm);
-  left: var(--space-sm);
+  top: 50%;
+  left: var(--space-lg);
+  transform: translateY(-50%);
+}
+
+.expandBtn.left:hover {
+  transform: translateY(-50%) scale(1.1);
 }
 
 .expandBtn.right {
-  position: absolute;
-  top: var(--space-sm);
-  right: var(--space-sm);
+  top: 50%;
+  right: var(--space-lg);
+  transform: translateY(-50%);
+}
+
+.expandBtn.right:hover {
+  transform: translateY(-50%) scale(1.1);
 }
 
 /* Connection status bar - uses status tokens from design system */

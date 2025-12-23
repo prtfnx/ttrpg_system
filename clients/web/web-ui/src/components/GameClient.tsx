@@ -212,7 +212,6 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
               </span>
             </div>
             <ToolsPanel userInfo={userInfo} />
-            <button className={styles.collapseBtn} onClick={toggleLeft}>◀</button>
           </div>
         )}
         
@@ -225,14 +224,18 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
         
         <div className={styles.canvasContainer}>
           <GameCanvas />
-          <div className={styles.canvasControls}>
-            {!leftVisible && (
-              <button className={clsx(styles.expandBtn, styles.left)} onClick={toggleLeft}>▶</button>
-            )}
-            {!rightVisible && (
-              <button className={clsx(styles.expandBtn, styles.right)} onClick={toggleRight}>◀</button>
-            )}
-          </div>
+          {!leftVisible && (
+            <button className={clsx(styles.expandBtn, styles.left)} onClick={toggleLeft}>▶</button>
+          )}
+          {!rightVisible && (
+            <button className={clsx(styles.expandBtn, styles.right)} onClick={toggleRight}>◀</button>
+          )}
+          {leftVisible && (
+            <button className={styles.collapseBtn} onClick={toggleLeft}>◀</button>
+          )}
+          {rightVisible && (
+            <button className={styles.collapseBtnRight} onClick={toggleRight}>▶</button>
+          )}
         </div>
         
         {rightVisible && (
@@ -245,7 +248,6 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
         {rightVisible && (
           <div className={styles.rightPanel} style={{ width: rightWidth }}>
             <RightPanel sessionCode={sessionCode} userInfo={userInfo} />
-            <button className={styles.collapseBtn} onClick={toggleRight}>▶</button>
           </div>
         )}
 

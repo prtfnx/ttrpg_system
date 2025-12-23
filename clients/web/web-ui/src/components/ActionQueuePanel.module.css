@@ -83,7 +83,9 @@
 }
 
 .actionHeader {
-  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: var(--spacing-xs);
 }
 

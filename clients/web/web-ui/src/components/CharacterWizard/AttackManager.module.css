@@ -3,8 +3,7 @@
  */
 
 .attackManager {
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../../styles/7-utilities/layout.module.css';
   height: 100%;
   background: var(--bg-primary);
   border-radius: var(--radius-md);
@@ -50,12 +49,22 @@
 }
 
 .attackManager .tab-button {
-  composes: wizard-tab-button from './CharacterWizardBase.module.css';
+  padding: var(--space-md) var(--space-lg);
+  background: transparent;
+  border: none;
+  border-bottom: var(--border-width-md) solid transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+  transition: all var(--transition-normal);
   flex: 1;
 }
 
 .attackManager .tab-button.active {
-  composes: wizard-tab-button-active-primary from './CharacterWizardBase.module.css';
+  color: var(--brown-500);
+  border-bottom-color: var(--brown-500);
+  background: var(--hover-overlay-light);
 }
 
 /* Content */
@@ -111,9 +120,7 @@
 }
 
 .weapon-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  composes: flex items-center justify-between from '../../styles/7-utilities/layout.module.css';
   margin-bottom: var(--space-md);
 }
 
@@ -149,8 +156,7 @@
 }
 
 .weapon-stat {
-  display: flex;
-  justify-content: space-between;
+  composes: flex justify-between from '../../styles/7-utilities/layout.module.css';
   padding: var(--space-sm);
   background: var(--bg-tertiary);
   border-radius: var(--radius-sm);
@@ -167,8 +173,7 @@
 }
 
 .weapon-properties {
-  display: flex;
-  flex-wrap: wrap;
+  composes: flex flex-wrap from '../../styles/7-utilities/layout.module.css';
   gap: var(--space-1);
   margin-top: var(--space-sm);
 }
@@ -187,9 +192,7 @@
   padding: var(--space-sm);
   background: var(--bg-tertiary);
   border-radius: var(--radius-sm);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  composes: flex justify-between items-center from '../../styles/7-utilities/layout.module.css';
 }
 
 .no-weapons {
@@ -201,8 +204,7 @@
 
 /* Attacks Tab */
 .attacks-tab {
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../../styles/7-utilities/layout.module.css';
   gap: var(--space-lg);
 }
 
@@ -225,8 +227,7 @@
 .weapon-selector,
 .target-ac,
 .advantage-selector {
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 
@@ -270,15 +271,14 @@
 }
 
 .weapon-details {
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../../styles/7-utilities/layout.module.css';
   gap: var(--space-1);
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }
 
 .attack-actions {
-  display: flex;
+  composes: flex from '../../styles/7-utilities/layout.module.css';
   gap: var(--space-md);
 }
 
@@ -332,15 +332,12 @@
 
 /* History Tab */
 .history-tab {
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../../styles/7-utilities/layout.module.css';
   gap: var(--space-md);
 }
 
 .history-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  composes: flex items-center justify-between from '../../styles/7-utilities/layout.module.css';
 }
 
 .history-header h3 {
@@ -350,8 +347,7 @@
 }
 
 .history-actions {
-  display: flex;
-  align-items: center;
+  composes: flex items-center from '../../styles/7-utilities/layout.module.css';
   gap: var(--space-md);
 }
 
@@ -381,8 +377,7 @@
 }
 
 .history-list {
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../../styles/7-utilities/layout.module.css';
   gap: var(--space-md);
   max-height: 60vh;
   overflow-y: auto;
@@ -407,9 +402,7 @@
 }
 
 .attack-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  composes: flex items-center justify-between from '../../styles/7-utilities/layout.module.css';
   margin-bottom: var(--space-md);
 }
 
@@ -443,15 +436,13 @@
 }
 
 .attack-details {
-  display: flex;
-  flex-direction: column;
+  composes: flex flex-col from '../../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 
 .attack-roll,
 .damage-roll {
-  display: flex;
-  align-items: center;
+  composes: flex items-center from '../../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
   font-size: var(--text-sm);
 }

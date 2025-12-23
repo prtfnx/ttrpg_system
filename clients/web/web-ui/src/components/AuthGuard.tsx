@@ -1,7 +1,7 @@
 import React from 'react';
 import './Auth.css';
-import styles from './AuthGuard.module.css';
 import { useAuth } from './AuthContext';
+import styles from './AuthGuard.module.css';
 import LoginModal from './LoginModal';
 
 interface AuthGuardProps {

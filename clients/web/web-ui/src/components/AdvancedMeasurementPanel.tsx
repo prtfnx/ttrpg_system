@@ -7,13 +7,13 @@
 import clsx from 'clsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  advancedMeasurementSystem,
-  type GeometricShape,
-  type GridConfiguration,
-  type HexGridConfiguration,
-  type MeasurementLine,
-  type MeasurementSettings,
-  type MeasurementTemplate
+    advancedMeasurementSystem,
+    type GeometricShape,
+    type GridConfiguration,
+    type HexGridConfiguration,
+    type MeasurementLine,
+    type MeasurementSettings,
+    type MeasurementTemplate
 } from '../services/advancedMeasurement.service';
 import styles from './AdvancedMeasurementPanel.module.css';
 import { ErrorBoundary } from './common/ErrorBoundary';

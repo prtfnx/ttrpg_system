@@ -13,7 +13,11 @@
 }
 
 .manager-title h2 {
-  composes: wizard-title from './CharacterWizardBase.module.css';
+  margin: 0 0 var(--space-xs) 0;
+  font-size: var(--text-3xl);
+  font-weight: var(--font-bold);
+  color: var(--text-inverse-primary);
+  letter-spacing: calc(var(--tracking-tight) * -0.25);
 }
 
 .character-info {
@@ -30,11 +34,21 @@
 }
 
 .spellManager .tab-button {
-  composes: wizard-tab-button from './CharacterWizardBase.module.css';
+  padding: var(--space-md) var(--space-lg);
+  background: transparent;
+  border: none;
+  border-bottom: var(--border-width-md) solid transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+  transition: all var(--transition-normal);
 }
 
 .spellManager .tab-button.active {
-  composes: wizard-tab-button-active-purple from './CharacterWizardBase.module.css';
+  color: var(--purple-500);
+  border-bottom-color: var(--purple-500);
+  background: var(--hover-overlay-light);
 }
 
 /* Content */
@@ -81,7 +95,15 @@
 }
 
 .rest-btn.long {
-  composes: wizard-button-success from './CharacterWizardBase.module.css';
+  background: linear-gradient(135deg, var(--green-700) 0%, var(--green-600) 100%);
+  color: var(--text-inverse-primary);
+  padding: var(--space-sm) var(--space-lg);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
 }
 
 .spell-slots-grid {

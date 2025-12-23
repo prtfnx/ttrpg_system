@@ -9,10 +9,7 @@
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   text-align: center;
   min-height: var(--size-50);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  composes: flex flex-col items-center justify-center from '../../styles/7-utilities/layout.module.css';
   gap: var(--space-md);
 }
 
@@ -75,11 +72,9 @@
 }
 
 .errorActions {
-  display: flex;
+  composes: flex flex-wrap justify-center from '../../styles/7-utilities/layout.module.css';
   gap: var(--space-md);
   margin-top: var(--space-lg);
-  flex-wrap: wrap;
-  justify-content: center;
 }
 
 .retryButton,
@@ -95,8 +90,7 @@
   font-weight: var(--font-medium);
   cursor: pointer;
   transition: background-color var(--transition-fast) ease;
-  display: flex;
-  align-items: center;
+  composes: flex items-center from '../../styles/7-utilities/layout.module.css';
   gap: var(--space-sm);
 }
 
@@ -143,10 +137,7 @@
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   text-align: center;
   min-height: var(--size-50);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  composes: flex flex-col items-center justify-center from '../../styles/7-utilities/layout.module.css';
   gap: var(--space-md);
 }
 

@@ -1,0 +1,64 @@
+/**
+ * MonsterFilters Styles
+ */
+
+.filtersContainer {
+  background: rgba(255, 255, 255, 0.05);
+  padding: var(--space-md);
+  border-radius: 4px;
+  margin-bottom: var(--space-md);
+}
+
+.filtersGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-sm);
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filterGroup label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.filterGroup select {
+  padding: 6px 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.filterGroup select:hover {
+  border-color: var(--primary-color);
+}
+
+.filterGroup select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+}
+
+.resetBtn {
+  padding: 6px 12px;
+  background: var(--danger-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.resetBtn:hover {
+  opacity: 0.9;
+}

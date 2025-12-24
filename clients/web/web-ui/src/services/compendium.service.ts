@@ -14,6 +14,7 @@ export interface Monster {
   size?: string;
   alignment?: string;
   description?: string;
+  environment?: string;
 }
 
 export interface Spell {
@@ -112,11 +113,26 @@ class CompendiumServiceAPI {
   }
 
   async searchEquipment(query?: string): Promise<Equipment[]> {
-    const response = await this.fetchAPI<{equipment?: any[], items?: any[]}>('/equipment');
-    const equipmentList = response.equipment || response.items || [];
+    const response = await this.fetchAPI<any>('/equipment');
     
-    if (!Array.isArray(equipmentList)) {
-      console.warn('Equipment data is not an array:', equipmentList);
+    // Equipment API returns {metadata: {...}, equipment: {items: [], weapons: [], ...}}
+    // Extract equipment object first, then flatten category arrays
+    let equipmentList: any[] = [];
+    
+    // Handle {metadata, equipment} wrapper
+    const equipmentData = response.equipment || response;
+    
+    if (Array.isArray(equipmentData)) {
+      equipmentList = equipmentData;
+    } else if (typeof equipmentData === 'object' && equipmentData !== null) {
+      // Flatten all category arrays from equipment object
+      equipmentList = Object.values(equipmentData).flatMap((category: any) => 
+        Array.isArray(category) ? category : []
+      );
+    }
+    
+    if (equipmentList.length === 0) {
+      console.warn('No equipment data found in response:', response);
       return [];
     }
     

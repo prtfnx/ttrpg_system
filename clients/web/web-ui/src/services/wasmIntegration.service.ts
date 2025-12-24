@@ -264,13 +264,12 @@ class WasmIntegrationService {
             );
             
             gameStore.setTables?.(updatedTables);
-            
-            // Also update activeTableId if this is the active table
-            if (gameStore.activeTableId === tableName || gameStore.activeTableId === existingTable.table_id) {
-              console.log(`[TableSync] Updating activeTableId: '${gameStore.activeTableId}' → '${tableId}'`);
-              gameStore.switchToTable?.(tableId);
-            }
           }
+          
+          // CRITICAL: ALWAYS set activeTableId when receiving table data
+          // This is the table the server is sending us, so it's the active table
+          console.log(`[TableSync] Setting activeTableId to: '${tableId}'`);
+          gameStore.setActiveTableId?.(tableId);
         }
       }
       

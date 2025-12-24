@@ -1,9 +1,12 @@
 import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { useAuth } from '../components/AuthContext';
 import type { Equipment, Monster, Spell } from '../services/compendium.service';
 import { compendiumService } from '../services/compendium.service';
+import type { ExtendedMonster } from '../services/npcCharacter.service';
 import styles from './CompendiumPanel.module.css';
+import { MonsterStatBlock } from './MonsterStatBlock';
 
 interface CompendiumEntry {
   id: string;
@@ -140,6 +143,7 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
       if (!accessCheck.hasAccess) {
         setError(accessCheck.error);
         setEntries([]);
+        setLoading(false);
         return;
       }
 
@@ -156,7 +160,21 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
         const results = await performAuthenticatedSearch(debounced, searchFilters);
         setEntries(results);
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load compendium data';
+        // Improved error handling for different scenarios
+        let errorMessage = 'Failed to load compendium data';
+        
+        if (err instanceof Error) {
+          if (err.message.includes('Authentication required')) {
+            errorMessage = 'Please log in to access the compendium';
+          } else if (err.message.includes('Permission denied')) {
+            errorMessage = 'Upgrade your account for full compendium access';
+          } else if (err.message.includes('API error')) {
+            errorMessage = 'Server error - please try again later';
+          } else {
+            errorMessage = err.message;
+          }
+        }
+        
         setError(errorMessage);
         setEntries([]);
         console.error('Compendium search error:', err);
@@ -169,8 +187,27 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
   }, [debounced, typeFilter, spellLevel, isAuthenticated]);
 
   // Drag handlers
-  const onDragStart = (entry: CompendiumEntry) => {
+  const onDragStart = (entry: CompendiumEntry, e: React.DragEvent) => {
     setDragged(entry);
+    
+    // Set drag data for drop handling
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('application/json', JSON.stringify({
+      type: 'compendium',
+      entryType: entry.type,
+      entry: entry
+    }));
+    
+    // For monsters, include additional context for NPC creation
+    if (entry.type === 'monster' && entry.stats) {
+      e.dataTransfer.setData('compendium/monster', JSON.stringify({
+        monster: entry.stats,
+        name: entry.name,
+        id: entry.id
+      }));
+    }
+    
+    console.log('Drag start:', entry.name, entry.type);
   };
 
   const onDragEnd = () => {
@@ -184,9 +221,18 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
     }
   };
 
+  const [previewMonster, setPreviewMonster] = useState<{ name: string; data: ExtendedMonster } | null>(null);
+
   const insertEntry = (entry: CompendiumEntry) => {
     console.log('Insert:', entry.name);
-    setSelectedEntry(entry);
+    
+    // If it's a monster, show preview UI (don't create character yet)
+    if (entry.type === 'monster' && entry.stats) {
+      setPreviewMonster({ name: entry.name, data: entry.stats as ExtendedMonster });
+    } else {
+      // For spells and equipment, use the old selectedEntry display
+      setSelectedEntry(entry);
+    }
   };
 
   // Filter entries based on additional criteria
@@ -292,7 +338,7 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
             key={`${entry.type}-${entry.id}`}
             className={clsx(styles.entryItem, selectedEntry?.id === entry.id && styles.selected)}
             draggable={isAuthenticated && hasPermission('compendium:read')}
-            onDragStart={() => onDragStart(entry)}
+            onDragStart={(e) => onDragStart(entry, e)}
             onDragEnd={onDragEnd}
             onClick={() => insertEntry(entry)}
           >
@@ -327,6 +373,90 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
           </button>
         </div>
       )}
+
+      {/* Monster Preview Modal - Shows monster stat block without creating character */}
+      {previewMonster && (() => {
+        const handleCloseModal = (e: React.MouseEvent) => {
+          if (e.target === e.currentTarget) {
+            setPreviewMonster(null);
+          }
+        };
+        
+        // Create temporary character object for MonsterStatBlock display only
+        const tempCharacter = {
+          id: 'preview',
+          sessionId: 'preview',
+          name: previewMonster.name,
+          ownerId: 0,
+          controlledBy: [],
+          data: previewMonster.data,
+          version: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        
+        const modalContent = (
+          <div 
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.7)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+            }}
+            onClick={handleCloseModal}
+          >
+            <div 
+              style={{
+                background: 'var(--bg-secondary)',
+                borderRadius: 'var(--radius-md)',
+                boxShadow: 'var(--shadow-2xl)',
+                maxHeight: '90vh',
+                width: 'clamp(320px, 95vw, 800px)',
+                maxWidth: '98vw',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{
+                padding: 'var(--space-md)',
+                borderBottom: '1px solid var(--border-primary)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}>
+                <h2 style={{ margin: 0 }}>{previewMonster.name} - Preview</h2>
+                <button 
+                  onClick={() => setPreviewMonster(null)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    fontSize: '24px',
+                    cursor: 'pointer',
+                    padding: 'var(--space-xs)',
+                    color: 'var(--text-primary)',
+                  }}
+                  aria-label="Close preview"
+                  type="button"
+                >
+                  ✕
+                </button>
+              </div>
+              <div style={{ flex: 1, overflow: 'auto', padding: 'var(--space-md)' }}>
+                <MonsterStatBlock character={tempCharacter} onClose={() => setPreviewMonster(null)} />
+              </div>
+            </div>
+          </div>
+        );
+        
+        return ReactDOM.createPortal(modalContent, document.body);
+      })()}
     </div>
   );
 };

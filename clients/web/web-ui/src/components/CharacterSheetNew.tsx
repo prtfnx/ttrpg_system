@@ -6,6 +6,7 @@ import { useGameStore } from "../store";
 import type { Character } from "../types";
 import { showToast } from "../utils/toast";
 import styles from "./CharacterSheetNew.module.css";
+import { MonsterStatBlock } from "./MonsterStatBlock";
 
 interface CharacterSheetProps {
   character: Character | null;
@@ -45,6 +46,12 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
   
   if (!character) {
     return <div className={styles.characterSheetEmpty}>No character data</div>;
+  }
+
+  // Check if this is an NPC/Monster - render stat block instead
+  const characterType = character.data?.characterType || character.data?.type;
+  if (characterType === 'npc') {
+    return <MonsterStatBlock character={character} />;
   }
 
   const data = character.data || {};

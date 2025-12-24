@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useAuth } from '../components/AuthContext';
 import { useAssetManager } from '../hooks/useAssetManager';
 import { createMessage, MessageType } from '../protocol/message';
 import { assetIntegrationService } from '../services/assetIntegration.service';
+import type { ExtendedMonster } from '../services/npcCharacter.service';
+import { NPCCharacterService } from '../services/npcCharacter.service';
 import { useProtocol } from '../services/ProtocolContext';
 import { spriteCreationService } from '../services/spriteCreation.service';
 import { useGameStore } from '../store';
@@ -29,8 +32,9 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
 }) => {
   const _protocolCtx = useProtocol();
   const protocol = _protocolCtx?.protocol ?? null;
-  const { camera, sessionId } = useGameStore();
+  const { camera, sessionId, activeTableId, addCharacter, addSprite } = useGameStore();
   const { calculateHash } = useAssetManager();
+  const { user } = useAuth();
   
   const [uploadState, setUploadState] = useState<UploadState>({
     status: 'idle',
@@ -274,6 +278,144 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
     e.stopPropagation();
     setDragOver(false);
 
+    // Get drop position relative to the container
+    const rect = e.currentTarget.getBoundingClientRect();
+    const dropX = e.clientX - rect.left;
+    const dropY = e.clientY - rect.top;
+    
+    // Convert screen coordinates to world coordinates accounting for camera
+    const worldX = (dropX / camera.zoom) + camera.x;
+    const worldY = (dropY / camera.zoom) + camera.y;
+
+    console.log('🎯 Drop at screen:', { dropX, dropY }, 'world:', { worldX, worldY });
+
+    // Check for compendium monster drop
+    const compendiumData = e.dataTransfer.getData('compendium/monster');
+    if (compendiumData) {
+      console.log('📚 Compendium monster drop detected');
+      try {
+        const { monster, name } = JSON.parse(compendiumData);
+        
+        if (!user) {
+          console.error('Cannot create NPC: No authenticated user');
+          return;
+        }
+        
+        // Create NPC character
+        const npcCharacter = NPCCharacterService.createNPCFromMonster(
+          monster as ExtendedMonster,
+          {
+            userId: user.id,
+            sessionId: sessionId || 'default-session',
+            position: { x: worldX, y: worldY }
+          }
+        );
+        
+        // Add character to store
+        addCharacter(npcCharacter);
+        
+        // Sync character to server
+        if (protocol) {
+          try {
+            protocol.saveCharacter(npcCharacter as any, user.id);
+            console.log('📡 Synced NPC character to server:', npcCharacter.id);
+          } catch (error) {
+            console.error('Failed to sync character to server:', error);
+          }
+        }
+        
+        // Get the correct table ID from store (must be set by wasmIntegration when table data is received)
+        const tableId = activeTableId;
+        
+        if (!tableId) {
+          console.error('❌ Cannot create sprite: activeTableId is not set in store');
+          console.error('This indicates table data was not properly loaded from server');
+          return;
+        }
+        
+        console.log('🔍 Using table ID:', tableId);
+        
+        // Create sprite/token for the NPC
+        const spriteId = `sprite-${npcCharacter.id}`;
+        const sprite = {
+          id: spriteId,
+          name: name,
+          tableId: tableId,
+          x: worldX,
+          y: worldY,
+          characterId: npcCharacter.id,
+          texture: '/assets/default-token.png', // Default token image
+          scale: { x: 1, y: 1 },
+          rotation: 0,
+          layer: 'tokens',
+          hp: monster.hp || 1,
+          maxHp: monster.hp || 1,
+          ac: monster.ac || 10,
+          controlledBy: [String(user.id)],
+          auraRadius: 0
+        };  
+        
+        addSprite(sprite);
+        
+        // Sync sprite to server via protocol
+        // tableId already declared above, using activeTableId (actual table UUID) instead of sessionId (session code)
+        if (protocol && tableId) {
+          try {
+            protocol.sendMessage(createMessage(MessageType.SPRITE_CREATE, {
+              table_id: tableId,
+              character_id: npcCharacter.id,
+              sprite_data: {
+                id: spriteId,
+                name: name,
+                table_id: tableId,
+                x: worldX,
+                y: worldY,
+                character_id: npcCharacter.id,
+                texture: sprite.texture,
+                scale_x: sprite.scale.x,
+                scale_y: sprite.scale.y,
+                rotation: sprite.rotation,
+                layer: sprite.layer,
+                hp: sprite.hp,
+                max_hp: sprite.maxHp,
+                ac: sprite.ac,
+                controlled_by: sprite.controlledBy,
+                aura_radius: sprite.auraRadius
+              }
+            }));
+            console.log('📡 Synced sprite to server:', spriteId);
+          } catch (error) {
+            console.error('Failed to sync sprite to server:', error);
+          }
+        }
+        
+        console.log('✅ Created NPC character and token:', { character: npcCharacter, sprite });
+        
+        // Show success notification
+        setUploadState({
+          status: 'completed',
+          progress: 100,
+          message: `Created NPC: ${name}`,
+          fileName: name
+        });
+        
+        setTimeout(() => {
+          setUploadState({ status: 'idle', progress: 0, message: '' });
+        }, 3000);
+        
+        return;
+      } catch (error) {
+        console.error('Failed to create NPC from compendium monster:', error);
+        setUploadState({
+          status: 'failed',
+          progress: 0,
+          message: 'Failed to create NPC character'
+        });
+        return;
+      }
+    }
+
+    // Handle image file drops
     const files = Array.from(e.dataTransfer.files);
     const imageFiles = files.filter(file => file.type.startsWith('image/'));
     
@@ -287,12 +429,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
       return;
     }
 
-    // Get drop position relative to the container
-    const rect = e.currentTarget.getBoundingClientRect();
-    const dropPosition = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    };
+    const dropPosition = { x: worldX, y: worldY };
 
     // Process first image file
     const file = imageFiles[0];
@@ -351,7 +488,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         fileName: file.name
       });
     }
-  }, [protocol, camera, sessionId, calculateHash]);
+  }, [protocol, camera, sessionId, calculateHash, user, addCharacter, addSprite]);
 
   // Listen for asset upload responses and sprite creation broadcasts
   useEffect(() => {

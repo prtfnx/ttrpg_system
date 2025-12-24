@@ -17,10 +17,60 @@ class User(Base):
     full_name = Column(String(100), nullable=True)
     hashed_password = Column(String(255), nullable=False)
     disabled = Column(Boolean, default=False)
+    role = Column(String(20), default="player", nullable=False)  # player, dm, admin
+    tier = Column(String(20), default="free", nullable=False)  # free, premium
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
     game_sessions = relationship("GameSession", back_populates="owner")
+    
+    def get_permissions(self):
+        """
+        Calculate user permissions based on role and tier
+        Returns list of permission strings
+        """
+        permissions = set()
+        
+        # Base permissions for all authenticated users
+        permissions.add("compendium:read")
+        
+        # Get actual values (not Column objects)
+        user_role = self.role if isinstance(self.role, str) else "player"
+        user_tier = self.tier if isinstance(self.tier, str) else "free"
+        
+        # Role-based permissions
+        if user_role == "admin":
+            permissions.update([
+                "admin:manage_users",
+                "admin:manage_sessions",
+                "admin:system_config",
+                "dm:manage_game",
+                "dm:create_npcs",
+                "dm:edit_world",
+                "user:manage_characters",
+                "compendium:read",
+                "compendium:write",
+                "compendium:export"
+            ])
+        elif user_role == "dm":
+            permissions.update([
+                "dm:manage_game",
+                "dm:create_npcs",
+                "dm:edit_world",
+                "user:manage_characters"
+            ])
+        elif user_role == "player":
+            permissions.add("user:manage_characters")
+        
+        # Tier-based permissions
+        if user_tier == "premium":
+            permissions.update([
+                "premium:features",
+                "compendium:export",
+                "advanced:tools"
+            ])
+        
+        return sorted(list(permissions))
 
 class GameSession(Base):
     __tablename__ = "game_sessions"

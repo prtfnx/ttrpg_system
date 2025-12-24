@@ -97,14 +97,15 @@ async def users_me(
     # Check if this is an API request (JSON) vs web request (HTML)
     accept_header = request.headers.get("accept", "")
     if "application/json" in accept_header:
-        # Return JSON for API requests with additional fields needed by client
+        # Return JSON for API requests with permissions
         return {
             "id": current_user.id,
             "username": current_user.username,
             "email": getattr(current_user, 'email', None),
             "disabled": current_user.disabled,
-            "role": "player",  # Default role, will be determined per session
-            "permissions": [],  # Add permissions if you have a permissions system
+            "role": getattr(current_user, 'role', 'player'),
+            "tier": getattr(current_user, 'tier', 'free'),
+            "permissions": current_user.get_permissions(),
             "created_at": getattr(current_user, 'created_at', None)
         }
     else:

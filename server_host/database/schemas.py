@@ -4,6 +4,17 @@ Pydantic schemas for API models
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List, Dict, Tuple
 from datetime import datetime
+from enum import Enum
+
+# Permission enums
+class UserRole(str, Enum):
+    PLAYER = "player"
+    DM = "dm"
+    ADMIN = "admin"
+
+class UserTier(str, Enum):
+    FREE = "free"
+    PREMIUM = "premium"
 
 # User schemas
 class UserBase(BaseModel):
@@ -13,17 +24,62 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    role: UserRole = UserRole.PLAYER
+    tier: UserTier = UserTier.FREE
 
 class UserUpdate(UserBase):
     password: Optional[str] = None
+    role: Optional[UserRole] = None
+    tier: Optional[UserTier] = None
 
 class User(UserBase):
     id: int
     disabled: bool = False
     created_at: datetime
+    role: UserRole = UserRole.PLAYER
+    tier: UserTier = UserTier.FREE
     
     class Config:
         from_attributes = True
+    
+    def get_permissions(self) -> List[str]:
+        """Calculate user permissions based on role and tier"""
+        permissions = []
+        
+        # Base permissions for authenticated users
+        permissions.extend([
+            "characters:read",
+            "compendium:read"
+        ])
+        
+        # Premium tier permissions
+        if self.tier == UserTier.PREMIUM:
+            permissions.extend([
+                "compendium:write",
+                "homebrew:create"
+            ])
+        
+        # DM permissions
+        if self.role == UserRole.DM:
+            permissions.extend([
+                "compendium:write",
+                "compendium:share",
+                "compendium:manage",
+                "characters:write",
+                "session:manage",
+                "homebrew:create",
+                "homebrew:share"
+            ])
+        
+        # Admin permissions
+        if self.role == UserRole.ADMIN:
+            permissions.extend([
+                "admin:users",
+                "admin:content",
+                "admin:system"
+            ])
+        
+        return list(set(permissions))  # Remove duplicates
 
 class UserInDB(User):
     hashed_password: str

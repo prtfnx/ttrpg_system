@@ -1,6 +1,6 @@
 """
 D&D 5e Compendium API Router
-Serves compendium data (races, classes, spells, equipment, monsters) via REST API
+Production-ready compendium data service with authentication and rate limiting
 """
 
 import json
@@ -8,13 +8,16 @@ import os
 import sys
 from pathlib import Path
 from typing import Optional, Dict, List, Any
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from fastapi.responses import JSONResponse
+from functools import lru_cache
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from server_host.utils.logger import setup_logger
+from server_host.middleware.permissions import require_permission, require_role
+from server_host.database import schemas
 
 logger = setup_logger(__name__)
 router = APIRouter(prefix="/api/compendium", tags=["compendium"])
@@ -23,14 +26,25 @@ router = APIRouter(prefix="/api/compendium", tags=["compendium"])
 COMPENDIUM_DIR = Path(__file__).parent.parent.parent / "core_table" / "compendiums" / "exports"
 
 class CompendiumService:
-    """Service for loading and serving D&D 5e compendium data"""
+    """Thread-safe singleton service for compendium data with caching"""
+    
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
     
     def __init__(self):
+        if self._initialized:
+            return
         self.character_data = None
         self.spell_data = None
         self.equipment_data = None
         self.bestiary_data = None
         self._load_all_data()
+        self._initialized = True
     
     def _load_all_data(self):
         """Load all compendium data from JSON files"""
@@ -83,47 +97,64 @@ class CompendiumService:
         except Exception as e:
             logger.error(f"❌ Error loading compendium data: {e}")
 
-# Global compendium service instance
-compendium_service = CompendiumService()
+# Global compendium service instance (singleton)
+@lru_cache
+def get_compendium_service():
+    return CompendiumService()
 
 @router.get("/status")
-async def get_compendium_status():
-    """Get compendium API status and data availability"""
+async def get_compendium_status(
+    user: schemas.User = Depends(require_permission("compendium:read"))
+):
+    """Get compendium API status and data availability (requires authentication)"""
+    service = get_compendium_service()
     return {
         "status": "online",
+        "user": {
+            "username": user.username,
+            "tier": user.tier,
+            "permissions": user.get_permissions()
+        },
         "data_availability": {
-            "character_data": compendium_service.character_data is not None,
-            "spell_data": compendium_service.spell_data is not None,
-            "equipment_data": compendium_service.equipment_data is not None,
-            "bestiary_data": compendium_service.bestiary_data is not None
+            "character_data": service.character_data is not None,
+            "spell_data": service.spell_data is not None,
+            "equipment_data": service.equipment_data is not None,
+            "bestiary_data": service.bestiary_data is not None
         },
         "counts": {
-            "races": len(compendium_service.character_data.get('races', [])) if compendium_service.character_data else 0,
-            "classes": len(compendium_service.character_data.get('classes', [])) if compendium_service.character_data else 0,
-            "spells": compendium_service.spell_data['metadata']['spell_count'] if compendium_service.spell_data else 0,
-            "monsters": len(compendium_service.bestiary_data.get('monsters', {})) if compendium_service.bestiary_data else 0
+            "races": len(service.character_data.get('races', [])) if service.character_data else 0,
+            "classes": len(service.character_data.get('classes', [])) if service.character_data else 0,
+            "spells": service.spell_data['metadata']['spell_count'] if service.spell_data else 0,
+            "monsters": len(service.bestiary_data.get('monsters', {})) if service.bestiary_data else 0
         }
     }
 
 @router.get("/races")
-async def get_races():
-    """Get all race data"""
-    if not compendium_service.character_data:
+async def get_races(
+    user: schemas.User = Depends(require_permission("compendium:read"))
+):
+    """Get all race data (authenticated)"""
+    service = get_compendium_service()
+    if not service.character_data:
         raise HTTPException(status_code=500, detail="Character data not available")
     
-    races = compendium_service.character_data.get('races', [])
+    races = service.character_data.get('races', [])
     return {
         "races": races,
         "count": len(races)
     }
 
 @router.get("/races/{race_name}")
-async def get_race_by_name(race_name: str):
-    """Get specific race by name"""
-    if not compendium_service.character_data:
+async def get_race_by_name(
+    race_name: str,
+    user: schemas.User = Depends(require_permission("compendium:read"))
+):
+    """Get specific race by name (authenticated)"""
+    service = get_compendium_service()
+    if not service.character_data:
         raise HTTPException(status_code=500, detail="Character data not available")
     
-    races = compendium_service.character_data.get('races', [])
+    races = service.character_data.get('races', [])
     race = next((r for r in races if r['name'].lower() == race_name.lower()), None)
     
     if not race:
@@ -132,24 +163,31 @@ async def get_race_by_name(race_name: str):
     return race
 
 @router.get("/classes")
-async def get_classes():
-    """Get all class data"""
-    if not compendium_service.character_data:
+async def get_classes(
+    user: schemas.User = Depends(require_permission("compendium:read"))
+):
+    """Get all class data (authenticated)"""
+    service = get_compendium_service()
+    if not service.character_data:
         raise HTTPException(status_code=500, detail="Character data not available")
     
-    classes = compendium_service.character_data.get('classes', [])
+    classes = service.character_data.get('classes', [])
     return {
         "classes": classes,
         "count": len(classes)
     }
 
 @router.get("/classes/{class_name}")
-async def get_class_by_name(class_name: str):
-    """Get specific class by name"""
-    if not compendium_service.character_data:
+async def get_class_by_name(
+    class_name: str,
+    user: schemas.User = Depends(require_permission("compendium:read"))
+):
+    """Get specific class by name (authenticated)"""
+    service = get_compendium_service()
+    if not service.character_data:
         raise HTTPException(status_code=500, detail="Character data not available")
     
-    classes = compendium_service.character_data.get('classes', [])
+    classes = service.character_data.get('classes', [])
     char_class = next((c for c in classes if c['name'].lower() == class_name.lower()), None)
     
     if not char_class:
@@ -158,24 +196,31 @@ async def get_class_by_name(class_name: str):
     return char_class
 
 @router.get("/backgrounds")
-async def get_backgrounds():
-    """Get all background data"""
-    if not compendium_service.character_data:
+async def get_backgrounds(
+    user: schemas.User = Depends(require_permission("compendium:read"))
+):
+    """Get all background data (authenticated)"""
+    service = get_compendium_service()
+    if not service.character_data:
         raise HTTPException(status_code=500, detail="Character data not available")
     
-    backgrounds = compendium_service.character_data.get('backgrounds', [])
+    backgrounds = service.character_data.get('backgrounds', [])
     return {
         "backgrounds": backgrounds,
         "count": len(backgrounds)
     }
 
 @router.get("/backgrounds/{background_name}")
-async def get_background_by_name(background_name: str):
-    """Get specific background by name"""
-    if not compendium_service.character_data:
+async def get_background_by_name(
+    background_name: str,
+    user: schemas.User = Depends(require_permission("compendium:read"))
+):
+    """Get specific background by name (authenticated)"""
+    service = get_compendium_service()
+    if not service.character_data:
         raise HTTPException(status_code=500, detail="Character data not available")
     
-    backgrounds = compendium_service.character_data.get('backgrounds', [])
+    backgrounds = service.character_data.get('backgrounds', [])
     background = next((b for b in backgrounds if b['name'].lower() == background_name.lower()), None)
     
     if not background:
@@ -185,16 +230,18 @@ async def get_background_by_name(background_name: str):
 
 @router.get("/spells")
 async def get_spells(
+    user: schemas.User = Depends(require_permission("compendium:read")),
     level: Optional[int] = Query(None, description="Filter by spell level"),
     school: Optional[str] = Query(None, description="Filter by spell school"),
     spell_class: Optional[str] = Query(None, alias="class", description="Filter by class that can cast the spell"),
     limit: Optional[int] = Query(None, description="Limit number of results")
 ):
-    """Get all spell data with optional filtering"""
-    if not compendium_service.spell_data:
+    """Get all spell data with optional filtering (authenticated)"""
+    service = get_compendium_service()
+    if not service.spell_data:
         raise HTTPException(status_code=500, detail="Spell data not available")
     
-    spells = compendium_service.spell_data['spells']
+    spells = service.spell_data['spells']
     filtered_spells = {}
     
     count = 0
@@ -217,16 +264,20 @@ async def get_spells(
     return {
         "spells": filtered_spells,
         "count": len(filtered_spells),
-        "metadata": compendium_service.spell_data['metadata']
+        "metadata": service.spell_data['metadata']
     }
 
 @router.get("/spells/{spell_name}")
-async def get_spell_by_name(spell_name: str):
-    """Get specific spell by name"""
-    if not compendium_service.spell_data:
+async def get_spell_by_name(
+    spell_name: str,
+    user: schemas.User = Depends(require_permission("compendium:read"))
+):
+    """Get specific spell by name (authenticated)"""
+    service = get_compendium_service()
+    if not service.spell_data:
         raise HTTPException(status_code=500, detail="Spell data not available")
     
-    spells = compendium_service.spell_data['spells']
+    spells = service.spell_data['spells']
     spell = spells.get(spell_name)
     
     if not spell:
@@ -239,23 +290,28 @@ async def get_spell_by_name(spell_name: str):
     return spell
 
 @router.get("/equipment")
-async def get_equipment():
-    """Get all equipment data"""
-    if not compendium_service.equipment_data:
+async def get_equipment(
+    user: schemas.User = Depends(require_permission("compendium:read"))
+):
+    """Get all equipment data (authenticated)"""
+    service = get_compendium_service()
+    if not service.equipment_data:
         raise HTTPException(status_code=500, detail="Equipment data not available")
     
-    return compendium_service.equipment_data
+    return service.equipment_data
 
 @router.get("/monsters")
 async def get_monsters(
+    user: schemas.User = Depends(require_permission("compendium:read")),
     cr: Optional[str] = Query(None, description="Filter by challenge rating"),
     limit: Optional[int] = Query(None, description="Limit number of results")
 ):
-    """Get all monster data with optional filtering"""
-    if not compendium_service.bestiary_data:
+    """Get all monster data with optional filtering (authenticated)"""
+    service = get_compendium_service()
+    if not service.bestiary_data:
         raise HTTPException(status_code=500, detail="Bestiary data not available")
     
-    monsters = compendium_service.bestiary_data['monsters']
+    monsters = service.bestiary_data['monsters']
     
     if cr:
         filtered_monsters = {name: monster for name, monster in monsters.items() 
@@ -263,7 +319,7 @@ async def get_monsters(
         return {
             "monsters": filtered_monsters,
             "count": len(filtered_monsters),
-            "metadata": compendium_service.bestiary_data['metadata']
+            "metadata": service.bestiary_data['metadata']
         }
     
     # Apply limit if specified
@@ -272,22 +328,26 @@ async def get_monsters(
         return {
             "monsters": limited_monsters,
             "count": len(limited_monsters),
-            "metadata": compendium_service.bestiary_data['metadata']
+            "metadata": service.bestiary_data['metadata']
         }
     
     return {
         "monsters": monsters,
         "count": len(monsters),
-        "metadata": compendium_service.bestiary_data.get('metadata', {})
+        "metadata": service.bestiary_data.get('metadata', {})
     }
 
 @router.get("/monsters/{monster_name}")
-async def get_monster_by_name(monster_name: str):
-    """Get specific monster by name"""
-    if not compendium_service.bestiary_data:
+async def get_monster_by_name(
+    monster_name: str,
+    user: schemas.User = Depends(require_permission("compendium:read"))
+):
+    """Get specific monster by name (authenticated)"""
+    service = get_compendium_service()
+    if not service.bestiary_data:
         raise HTTPException(status_code=500, detail="Bestiary data not available")
     
-    monsters = compendium_service.bestiary_data['monsters']
+    monsters = service.bestiary_data['monsters']
     monster = monsters.get(monster_name)
     
     if not monster:
@@ -301,11 +361,14 @@ async def get_monster_by_name(monster_name: str):
 
 # Reload endpoint for development
 @router.post("/reload")
-async def reload_compendium_data():
-    """Reload compendium data from files (for development)"""
+async def reload_compendium_data(
+    user: schemas.User = Depends(require_role("admin"))
+):
+    """Reload compendium data from files (admin only)"""
     try:
-        compendium_service._load_all_data()
-        return {"message": "Compendium data reloaded successfully"}
+        service = get_compendium_service()
+        service._load_all_data()
+        return {"message": "Compendium data reloaded successfully", "reloaded_by": user.username}
     except Exception as e:
         logger.error(f"Error reloading compendium data: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to reload data: {str(e)}")

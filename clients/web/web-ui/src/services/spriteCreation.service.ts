@@ -5,7 +5,7 @@
 
 import type { WebClientProtocol } from '../protocol/clientProtocol';
 import { createMessage, MessageType } from '../protocol/message';
-import { useGameStore } from '../store';
+import { validateTableReady } from '../hooks/useTableReady';
 
 export interface SpriteCreationRequest {
   assetId: string;
@@ -72,13 +72,10 @@ class SpriteCreationService {
     
     console.log('📡 SpriteCreation: Requesting server to create sprite:', spriteData);
     
-    // Get the actual table ID from the game store
-    const activeTableId = useGameStore.getState().activeTableId;
-    if (!activeTableId) {
-      console.error('[SpriteCreation] No active table ID available for sprite creation');
-      return;
-    }
-
+    // SSoT: Validate table is ready using centralized validation
+    const activeTableId = validateTableReady();
+    console.log(`✅ Table validated and ready: '${activeTableId}'`);
+    
     this.protocol.sendMessage(createMessage(MessageType.SPRITE_CREATE, { 
       sprite_data: spriteData, 
       table_id: activeTableId 

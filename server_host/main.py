@@ -33,6 +33,10 @@ from server_host.utils.rate_limiter import registration_limiter, login_limiter
 # Import table manager for WebSocket protocol
 from core_table.server import TableManager
 
+# Import token API and R2 manager
+from core_table.api.token_api import router as token_router, init_token_api
+from storage.r2_manager import R2AssetManager
+
 
 logger = setup_logger("main.py" ) # set level in logger.py to DEBUG for detailed logs
 
@@ -41,6 +45,7 @@ class AppState:
     def __init__(self):
         self.connection_manager = ConnectionManager()
         self.table_manager = TableManager()
+        self.r2_manager = R2AssetManager()
 
 app_state = AppState()
 
@@ -56,6 +61,11 @@ async def lifespan(app: FastAPI):
     
     # Store app state in FastAPI app
     app.state.connection_manager = app_state.connection_manager
+    app.state.r2_manager = app_state.r2_manager
+    
+    # Initialize token API with R2 manager
+    init_token_api(app_state.r2_manager)
+    logger.info("Token API initialized with R2 manager")
     app.state.table_manager = app_state.table_manager
     
     # Start cleanup task for rate limiters
@@ -148,6 +158,7 @@ async def forbidden_handler(request: Request, exc: HTTPException):
     else:
         return RedirectResponse(url="/users/auth-error", status_code=302)
 
+app.include_router(token_router)  # Token resolution API
 # Include routers
 app.include_router(users.router)
 app.include_router(game.router)

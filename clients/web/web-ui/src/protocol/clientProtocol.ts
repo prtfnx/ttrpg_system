@@ -286,6 +286,10 @@ export class WebClientProtocol {
           this.flushPendingBatches(); // Flush any batched messages that were queued during disconnection
           // Don't auto-start ping - let user control it via UI
           this.connecting = false;
+          
+          // Initialize table from localStorage after connection is established
+          this.initializeTableFromLocalStorage();
+          
           resolve();
         };
 
@@ -1015,6 +1019,26 @@ export class WebClientProtocol {
 
   isConnected(): boolean {
     return this.websocket?.readyState === WebSocket.OPEN;
+  }
+
+  /**
+   * Initialize table from localStorage after WebSocket connection is established
+   * This ensures table_request is sent only after protocol is ready
+   */
+  private initializeTableFromLocalStorage(): void {
+    const savedTableId = localStorage.getItem('lastActiveTableId');
+    if (savedTableId) {
+      console.log(`[Protocol] 🔄 Restoring table from localStorage: '${savedTableId}'`);
+      // Set the activeTableId but mark as not ready until we receive data from server
+      useGameStore.setState({ 
+        activeTableId: savedTableId,
+        tableReady: false 
+      });
+      // Request table data from server (now that WebSocket is connected)
+      useGameStore.getState().switchToTable(savedTableId);
+    } else {
+      console.log('[Protocol] 📭 No saved table found in localStorage');
+    }
   }
 
   // =========================================================================

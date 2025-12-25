@@ -266,10 +266,11 @@ class WasmIntegrationService {
             gameStore.setTables?.(updatedTables);
           }
           
-          // CRITICAL: ALWAYS set activeTableId when receiving table data
-          // This is the table the server is sending us, so it's the active table
-          console.log(`[TableSync] Setting activeTableId to: '${tableId}'`);
+          // SSoT: ALWAYS set activeTableId when receiving table data from server
+          // This is the authoritative source - server tells us which table is active
+          console.log(`[TableSync] Setting activeTableId in store: '${tableId}'`);
           gameStore.setActiveTableId?.(tableId);
+          console.log(`[TableSync] ✅ activeTableId set, tableReady: ${gameStore.tableReady}`);
         }
       }
       
@@ -461,9 +462,8 @@ class WasmIntegrationService {
     
     if (!this.renderEngine) return;
 
-    // Only handle sprite creation responses (which have sprite_data)
-    // Move/Scale/Rotate operations are handled by direct WASM updates and don't need this fallback
-    if (data.operation === 'create' || (data.sprite_id && data.sprite_data)) {
+    // Handle sprite creation responses (have sprite_data even if sprite_id might be null initially)
+    if (data.sprite_data) {
       console.log('✅ WasmIntegration: Adding sprite to WASM engine:', data.sprite_data);
       try {
         this.addSpriteToWasm(data.sprite_data);
@@ -473,7 +473,7 @@ class WasmIntegrationService {
     } else if (data.operation === 'move' || data.operation === 'scale' || data.operation === 'rotate' || data.operation === 'remove') {
       // These operations are handled directly by WASM updates, no fallback needed
       console.log('✅ WasmIntegration: Sprite operation confirmed by server:', data.operation, data.sprite_id);
-    } else if (data.sprite_id === null) {
+    } else if (!data.sprite_data && !data.operation) {
       console.warn('⚠️ WasmIntegration: Sprite operation failed on server:', data);
     } else {
       console.warn('⚠️ WasmIntegration: Unknown sprite response type:', data);

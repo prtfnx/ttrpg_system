@@ -32,7 +32,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
 }) => {
   const _protocolCtx = useProtocol();
   const protocol = _protocolCtx?.protocol ?? null;
-  const { camera, sessionId, activeTableId, addCharacter, addSprite } = useGameStore();
+  const { camera, sessionId, addCharacter, addSprite } = useGameStore();
   const { calculateHash } = useAssetManager();
   const { user } = useAuth();
   
@@ -324,16 +324,15 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
           }
         }
         
-        // Get the correct table ID from store (must be set by wasmIntegration when table data is received)
-        const tableId = activeTableId;
-        
-        if (!tableId) {
-          console.error('❌ Cannot create sprite: activeTableId is not set in store');
-          console.error('This indicates table data was not properly loaded from server');
+        // SSoT: Ensure table is loaded with auto-recovery
+        let tableId: string;
+        try {
+          tableId = await useGameStore.getState().ensureTableLoaded();
+          console.log(`✅ Table ready: '${tableId}'`);
+        } catch (error) {
+          console.error('❌ Cannot create sprite:', error);
           return;
         }
-        
-        console.log('🔍 Using table ID:', tableId);
         
         // Create sprite/token for the NPC
         const spriteId = `sprite-${npcCharacter.id}`;
@@ -344,7 +343,8 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
           x: worldX,
           y: worldY,
           characterId: npcCharacter.id,
-          texture: '/assets/default-token.png', // Default token image
+          // Use simple data URL for default NPC token (gray circle)
+          texture: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjAiIGZpbGw9IiM2NjY2NjYiIHN0cm9rZT0iIzMzMzMzMyIgc3Ryb2tlLXdpZHRoPSIyIi8+PHRleHQgeD0iMjUiIHk9IjMwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMjAiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4/PC90ZXh0Pjwvc3ZnPg==',
           scale: { x: 1, y: 1 },
           rotation: 0,
           layer: 'tokens',

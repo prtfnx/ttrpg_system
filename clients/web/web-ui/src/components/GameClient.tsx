@@ -51,22 +51,15 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     userInfo
   });
 
-  // Expose protocol and active table id globally for integration points (read-only usage by components)
+  // Expose protocol globally for integration points (read-only usage by components)
   useEffect(() => {
     if (protocol) (window as any).protocol = protocol;
     return () => { if ((window as any).protocol === protocol) delete (window as any).protocol; };
   }, [protocol]);
 
-  // Expose activeTableId for components that need the current table context (e.g. Compendium drag)
-  useEffect(() => {
-    const handler = (e: Event) => {
-      // update when table is switched by store events
-      const custom = e as CustomEvent;
-      (window as any).activeTableId = custom.detail?.table_id || null;
-    };
-    window.addEventListener('table-data-received', handler);
-    return () => window.removeEventListener('table-data-received', handler);
-  }, []);
+  // SSoT Pattern: activeTableId lives ONLY in Zustand store
+  // Components should use: const { activeTableId } = useGameStore();
+  // Services should use: useGameStore.getState().activeTableId
 
   // Handle asset download requests from WASM integration service
   useEffect(() => {

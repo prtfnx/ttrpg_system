@@ -47,6 +47,8 @@ class TokenInfo(BaseModel):
     url: str
     local_path: Optional[str] = None
     r2_key: Optional[str] = None
+    asset_id: Optional[str] = None  # Asset ID for database lookup
+    asset_xxhash: Optional[str] = None  # xxHash for integrity verification
 
 
 @router.get("/resolve/{monster_name}")

@@ -290,7 +290,7 @@ export class NPCCharacterService {
       name: customName || monster.name,
       ownerId: userId,
       controlledBy: [userId],
-      data: npcData,
+      data: { ...npcData, characterType: 'npc' },
       version: 1,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

@@ -3,9 +3,9 @@
  * Handles the sprite creation flow after asset upload
  */
 
+import { validateTableReady } from '../hooks/useTableReady';
 import type { WebClientProtocol } from '../protocol/clientProtocol';
 import { createMessage, MessageType } from '../protocol/message';
-import { validateTableReady } from '../hooks/useTableReady';
 
 export interface SpriteCreationRequest {
   assetId: string;

@@ -300,3 +300,87 @@
 .tokenConfigModal::-webkit-scrollbar-thumb:hover {
   background: var(--border-hover);
 }
+/* Debug Panel Styles */
+.debugPanel {
+  padding: var(--space-md);
+}
+
+.debugPanel h3 {
+  margin: 0 0 var(--space-lg) 0;
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+}
+
+.debugSection {
+  margin-bottom: var(--space-xl);
+  padding: var(--space-lg);
+  background: var(--bg-secondary);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-md);
+}
+
+.debugSection h4 {
+  margin: 0 0 var(--space-md) 0;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--color-info);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.debugGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-md);
+}
+
+.debugItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.debugLabel {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.debugValue {
+  font-family: 'Courier New', monospace;
+  font-size: var(--text-sm);
+  color: var(--color-success);
+  background: var(--bg-primary);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-xs);
+  border: var(--border-width) solid var(--border-primary);
+  overflow-wrap: break-word;
+}
+
+.debugJson {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  padding: var(--space-md);
+  border-radius: var(--radius-xs);
+  border: var(--border-width) solid var(--border-primary);
+  overflow-x: auto;
+  max-height: 400px;
+  margin: 0;
+}
+
+.debugJson::-webkit-scrollbar {
+  width: var(--space-xs);
+  height: var(--space-xs);
+}
+
+.debugJson::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+.debugJson::-webkit-scrollbar-thumb {
+  background: var(--border-primary);
+  border-radius: var(--radius-xs);
+}

@@ -163,19 +163,53 @@ async def serve_local_token(filename: str):
 @router.get("/defaults/{type_name}")
 async def serve_default_token(type_name: str):
     """
-    Serve a type-based default token
+    Serve a type-based default token (SVG format)
     
-    - **type_name**: Creature type (aberration, dragon, etc.)
+    - **type_name**: Creature type (aberration, dragon, etc.) - without extension
+    
+    Returns either a redirect to R2 or serves local SVG file
     """
-    base_dir = Path(__file__).parent.parent
-    token_path = base_dir / "core_table" / "compendiums" / "tokens" / "defaults" / f"{type_name}.webp"
+    type_name_lower = type_name.lower().replace('.svg', '')  # Remove extension if present
+    
+    # Try R2 first
+    if r2_manager:
+        # R2 tokens are stored as: image/svg+xml/YYYYMMDD_HHMMSS_hash_{type}.svg
+        # We need to search for the file by type suffix
+        # For now, generate presigned URL by listing or use known pattern
+        
+        # Attempt direct key pattern (will need adjustment if upload pattern changes)
+        # Better approach: search R2 for files matching pattern *_{type_name}.svg
+        import re
+        try:
+            # List all objects in the image/svg+xml/ prefix
+            response = r2_manager.s3_client.list_objects_v2(
+                Bucket=r2_manager.bucket_name,
+                Prefix='image/svg+xml/'
+            )
+            
+            if 'Contents' in response:
+                # Find file ending with _{type_name}.svg
+                pattern = re.compile(rf'.*_{type_name_lower}\.svg$')
+                for obj in response['Contents']:
+                    if pattern.match(obj['Key']):
+                        # Generate presigned URL
+                        presigned_url = r2_manager.get_presigned_url(obj['Key'], expiration=2592000)  # 30 days
+                        if presigned_url:
+                            return RedirectResponse(url=presigned_url)
+                        break
+        except Exception as e:
+            logger.warning(f"Failed to fetch default token from R2 for '{type_name}': {e}")
+    
+    # Fallback to local file
+    base_dir = Path(__file__).parent.parent.parent
+    token_path = base_dir / "core_table" / "compendiums" / "tokens" / "defaults" / f"{type_name_lower}.svg"
     
     if not token_path.exists():
-        raise HTTPException(status_code=404, detail="Default token not found for this type")
+        raise HTTPException(status_code=404, detail=f"Default token not found for type: {type_name}")
     
     return FileResponse(
         token_path,
-        media_type="image/webp",
+        media_type="image/svg+xml",
         headers={"Cache-Control": "public, max-age=2592000"}  # 30 days
     )
 

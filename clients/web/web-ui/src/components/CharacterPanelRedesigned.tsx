@@ -358,10 +358,17 @@ export function CharacterPanelRedesigned() {
 
   const handleDeleteCharacter = async (charId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    console.log('[CharacterPanel] Delete character clicked:', charId);
+    
     if (!window.confirm('Delete this character?')) return;
     
     const character = characters.find(c => c.id === charId);
-    if (!character) return;
+    if (!character) {
+      console.warn('[CharacterPanel] Character not found for deletion:', charId);
+      return;
+    }
+    
+    console.log('[CharacterPanel] Deleting character:', { id: charId, name: character.name, ownerId: character.ownerId, currentUserId });
     
     // Optimistic update: Remove from UI immediately
     removeCharacter(charId);
@@ -373,11 +380,12 @@ export function CharacterPanelRedesigned() {
         // Register pending delete operation with automatic rollback
         registerPendingOperation(charId, 'delete', character);
         
-        protocol.deleteCharacter(charId);
+        console.log('[CharacterPanel] Calling protocol.deleteCharacter with userId:', currentUserId);
+        protocol.deleteCharacter(charId, currentUserId);
         // Server will broadcast CHARACTER_UPDATE with operation:'delete'
         // Pending operation will be confirmed when server responds
       } catch (error) {
-        console.error('Failed to delete character:', error);
+        console.error('[CharacterPanel] Failed to delete character:', error);
         // Clear pending operation and rollback immediately
         confirmPendingOperation(charId);
         addCharacter(character);
@@ -385,7 +393,7 @@ export function CharacterPanelRedesigned() {
       }
     } else if (charId.startsWith('temp-')) {
       // Temp character - just remove locally
-      console.log('Removed local-only character');
+      console.log('[CharacterPanel] Removed local-only character');
     }
   };
 
@@ -543,12 +551,15 @@ export function CharacterPanelRedesigned() {
     let successCount = 0;
     let errorCount = 0;
 
+    console.log('[CharacterPanel] Bulk delete starting for', count, 'characters');
+
     for (const charId of selectedCharacterIds) {
       const char = characters.find(c => c.id === charId);
       if (!char) continue;
 
       // Check permissions
       if (!canEditCharacter(charId, currentUserId)) {
+        console.warn('[CharacterPanel] No permission to delete:', charId);
         errorCount++;
         continue;
       }
@@ -560,11 +571,12 @@ export function CharacterPanelRedesigned() {
         // Send to server if connected and not a temp ID
         if (isConnected && protocol && !charId.startsWith('temp-')) {
           registerPendingOperation(charId, 'delete', char);
-          protocol.deleteCharacter(charId);
+          console.log('[CharacterPanel] Bulk deleting character:', charId, 'userId:', currentUserId);
+          protocol.deleteCharacter(charId, currentUserId);
         }
         successCount++;
       } catch (error) {
-        console.error(`Failed to delete character ${charId}:`, error);
+        console.error(`[CharacterPanel] Failed to delete character ${charId}:`, error);
         // Rollback on error
         addCharacter(char);
         errorCount++;
@@ -826,32 +838,29 @@ export function CharacterPanelRedesigned() {
         {isConnected && (
           <span className={clsx(styles.connectionStatus, 'connected')} title="Connected to server">🟢</span>
         )}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
           <button
-            className={styles.actionBtn}
+            className={styles.toolbarBtn}
             onClick={handleImportCharacter}
             title="Import character from JSON file"
-            style={{ fontSize: '12px', padding: '6px 12px' }}
           >
-            📤 Import
+            Import
           </button>
           {characters.length > 0 && (
             <>
               <button
-                className={styles.actionBtn}
+                className={styles.toolbarBtn}
                 onClick={handleExportAllCharacters}
                 title="Export all characters to JSON file"
-                style={{ fontSize: '12px', padding: '6px 12px' }}
               >
-                📥 Export All
+                Export All
               </button>
               <button
-                className={clsx(styles.actionBtn, bulkSelectMode && 'active')}
+                className={clsx(styles.toolbarBtn, bulkSelectMode && styles.toolbarBtnActive)}
                 onClick={handleToggleBulkMode}
                 title={bulkSelectMode ? "Exit bulk selection mode" : "Enter bulk selection mode"}
-                style={{ fontSize: '12px', padding: '6px 12px' }}
               >
-                {bulkSelectMode ? '✓ Done' : '☑ Select'}
+                {bulkSelectMode ? 'Done' : 'Select'}
               </button>
             </>
           )}
@@ -870,32 +879,24 @@ export function CharacterPanelRedesigned() {
       {/* Bulk Actions Bar */}
       {bulkSelectMode && (
         <div className={styles.bulkActionsBar}>
-          <div className={styles.bulkActionsLeft}>
-            <span className={styles.bulkSelectionCount}>
-              {selectedCharacterIds.size} selected
-            </span>
-            <button className={styles.bulkActionLink} onClick={handleSelectAllCharacters}>
-              Select All
-            </button>
-            <button className={styles.bulkActionLink} onClick={handleDeselectAllCharacters}>
-              Deselect All
-            </button>
-          </div>
-          <div className={styles.bulkActionsRight}>
-            {selectedCharacterIds.size > 0 && (
-              <>
-                <button className={clsx(styles.bulkActionBtn, "export")} onClick={handleBulkExport}>
-                  📥 Export Selected
-                </button>
-                <button className={clsx(styles.bulkActionBtn, "share")} onClick={handleBulkShare}>
-                  👥 Share Selected
-                </button>
-                <button className={clsx(styles.bulkActionBtn, "delete")} onClick={handleBulkDelete}>
-                  🗑️ Delete Selected
-                </button>
-              </>
-            )}
-          </div>
+          <span className={styles.bulkSelectionCount}>
+            {selectedCharacterIds.size} selected
+          </span>
+          <button className={styles.bulkActionLink} onClick={handleSelectAllCharacters}>All</button>
+          <button className={styles.bulkActionLink} onClick={handleDeselectAllCharacters}>None</button>
+          {selectedCharacterIds.size > 0 && (
+            <>
+              <button className={clsx(styles.bulkActionBtn, styles.bulkExport)} onClick={handleBulkExport}>
+                Export
+              </button>
+              <button className={clsx(styles.bulkActionBtn, styles.bulkShare)} onClick={handleBulkShare}>
+                Share
+              </button>
+              <button className={clsx(styles.bulkActionBtn, styles.bulkDelete)} onClick={handleBulkDelete}>
+                Delete
+              </button>
+            </>
+          )}
         </div>
       )}
 

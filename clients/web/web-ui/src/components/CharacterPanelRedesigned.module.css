@@ -63,18 +63,47 @@
   50% { opacity: 0.6; }
 }
 
+.toolbarBtn {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: var(--font-medium);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--duration-base);
+  white-space: nowrap;
+}
+
+.toolbarBtn:hover {
+  background: var(--bg-elevated-hover);
+  border-color: var(--border-hover);
+}
+
+.toolbarBtnActive {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.toolbarBtnActive:hover {
+  background: var(--color-primary-active);
+}
+
 .createBtn {
-  width: var(--space-2xl);
-  height: var(--space-2xl);
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-sm);
   background: var(--button-primary-bg);
   color: white;
   border: none;
-  font-size: var(--text-xl);
+  font-size: 18px;
   font-weight: var(--font-bold);
   cursor: pointer;
   transition: all var(--duration-base);
   composes: flex items-center justify-center from '../styles/7-utilities/layout.module.css';
+  flex-shrink: 0;
 }
 
 .createBtn:hover {
@@ -114,8 +143,8 @@
 
 .characterHeader {
   composes: flex items-center from '../styles/7-utilities/layout.module.css';
-  gap: var(--space-md);
-  padding: var(--space-md);
+  gap: 10px;
+  padding: 10px;
   cursor: pointer;
   transition: background var(--duration-fast);
 }
@@ -125,13 +154,13 @@
 }
 
 .charAvatar {
-  width: var(--space-3xl);
-  height: var(--space-3xl);
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--indigo-500) 0%, var(--purple-600) 100%);
   composes: flex items-center justify-center from '../styles/7-utilities/layout.module.css';
   font-weight: var(--font-bold);
-  font-size: var(--text-lg);
+  font-size: 14px;
   color: white;
   flex-shrink: 0;
 }
@@ -529,32 +558,30 @@
 }
 
 .bulkActionsBar {
-  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
-  padding: var(--space-md) var(--space-lg);
+  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+  gap: 8px;
+  padding: 8px 12px;
   background: var(--bg-tertiary);
   border-bottom: var(--border-width) solid var(--border-secondary);
   animation: slideDown var(--duration-slow) ease-out;
-}
-
-.bulkActionsLeft {
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
-  gap: var(--space-lg);
+  flex-wrap: wrap;
 }
 
 .bulkSelectionCount {
-  font-size: var(--text-sm);
+  font-size: 11px;
   font-weight: var(--font-semibold);
   color: var(--color-primary);
+  margin-right: 4px;
 }
 
 .bulkActionLink {
   background: none;
   border: none;
   color: var(--color-primary-light);
-  font-size: var(--text-sm);
+  font-size: 11px;
   cursor: pointer;
   text-decoration: underline;
-  padding: var(--space-xs) var(--space-sm);
+  padding: 2px 6px;
   transition: color var(--duration-base);
 }
 
@@ -562,55 +589,42 @@
   color: var(--color-primary-lighter);
 }
 
-.bulkActionsRight {
-  composes: flex from '../styles/7-utilities/layout.module.css';
-  gap: var(--space-sm);
-}
-
 .bulkActionBtn {
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--text-xs);
+  padding: 4px 10px;
+  font-size: 11px;
   font-weight: var(--font-medium);
-  border: var(--border-width) solid;
+  border: 1px solid;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all var(--duration-base);
+  color: white;
 }
 
-.bulkActionBtn.export {
+.bulkExport {
   background: var(--color-success);
   border-color: var(--color-success-active);
-  color: white;
 }
 
-.bulkActionBtn.export:hover {
+.bulkExport:hover {
   background: var(--color-success-active);
-  transform: translateY(calc(var(--space-xs) * -0.25));
-  box-shadow: 0 var(--space-xs) var(--space-sm) var(--color-success-glow);
 }
 
-.bulkActionBtn.share {
+.bulkShare {
   background: var(--color-primary);
   border-color: var(--color-primary-active);
-  color: white;
 }
 
-.bulkActionBtn.share:hover {
+.bulkShare:hover {
   background: var(--color-primary-active);
-  transform: translateY(calc(var(--space-xs) * -0.25));
-  box-shadow: 0 var(--space-xs) var(--space-sm) var(--color-primary-glow);
 }
 
-.bulkActionBtn.delete {
+.bulkDelete {
   background: var(--color-danger);
   border-color: var(--color-danger-active);
-  color: white;
 }
 
-.bulkActionBtn.delete:hover {
+.bulkDelete:hover {
   background: var(--color-danger-active);
-  transform: translateY(calc(var(--space-xs) * -0.25));
-  box-shadow: 0 var(--space-xs) var(--space-sm) var(--color-danger-glow);
 }
 
 .bulkCheckboxWrapper {

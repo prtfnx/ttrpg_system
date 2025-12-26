@@ -301,16 +301,32 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         let tokenUrl: string | null = null;
         let tokenSource = 'none';
         let textureName: string | undefined = undefined;
+        let assetId: string | undefined = undefined;
+        let assetXxhash: string | undefined = undefined;
         
         try {
-          tokenUrl = await NPCCharacterService.resolveTokenUrl(
-            monster.name,
-            monster.type || 'humanoid'
+          // Fetch full token info from backend (includes asset_id and asset_xxhash)
+          const response = await fetch(
+            `/api/tokens/resolve/${encodeURIComponent(monster.name)}?monster_type=${encodeURIComponent(monster.type || 'humanoid')}&redirect=false`
           );
-          if (tokenUrl) {
-            tokenSource = 'r2';
-            console.log('🎨 Resolved token URL:', { name: monster.name, tokenUrl, tokenSource });
+          
+          if (response.ok) {
+            const tokenInfo = await response.json();
+            tokenUrl = tokenInfo.url;
+            assetId = tokenInfo.asset_id;
+            assetXxhash = tokenInfo.asset_xxhash;
+            tokenSource = tokenInfo.source || 'r2';
             
+            console.log('🎨 Resolved token info:', {
+              name: monster.name,
+              tokenUrl,
+              assetId,
+              assetXxhash: assetXxhash?.substring(0, 8) + '...',
+              tokenSource
+            });
+          }
+          
+          if (tokenUrl) {
             // Load texture directly into WASM
             textureName = `npc-${monster.name.toLowerCase().replace(/\s+/g, '-')}`;
             const img = new Image();

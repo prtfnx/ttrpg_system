@@ -50,7 +50,16 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
 
   // Check if this is an NPC/Monster - render stat block instead
   const characterType = character.data?.characterType || character.data?.type;
+  console.log('[CharacterSheet] Character type check:', {
+    id: character.id,
+    name: character.name,
+    characterType,
+    dataKeys: Object.keys(character.data || {}),
+    fullData: character.data
+  });
+  
   if (characterType === 'npc') {
+    console.log('[CharacterSheet] Rendering MonsterStatBlock for NPC:', character.name);
     return <MonsterStatBlock character={character} />;
   }
 

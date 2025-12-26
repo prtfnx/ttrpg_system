@@ -409,6 +409,9 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
           characterId: npcCharacter.id,
           // Use the texture name we loaded into WASM, or fallback
           texture: textureName || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjAiIGZpbGw9IiM2NjY2NjYiIHN0cm9rZT0iIzMzMzMzMyIgc3Ryb2tlLXdpZHRoPSIyIi8+PHRleHQgeD0iMjUiIHk9IjMwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMjAiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4/PC90ZXh0Pjwvc3ZnPg==',
+          // Include asset information for multi-client synchronization
+          asset_xxhash: assetXxhash,
+          asset_id: assetId,
           scale: { x: 1, y: 1 },
           rotation: 0,
           layer: 'tokens',
@@ -444,7 +447,10 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
                 max_hp: sprite.maxHp,
                 ac: sprite.ac,
                 controlled_by: sprite.controlledBy,
-                aura_radius: sprite.auraRadius
+                aura_radius: sprite.auraRadius,
+                // Include asset tracking fields (may be null for fallback tokens)
+                asset_id: assetId || null,
+                asset_xxhash: assetXxhash || null
               }
             }));
             console.log('📡 Synced sprite to server:', spriteId);

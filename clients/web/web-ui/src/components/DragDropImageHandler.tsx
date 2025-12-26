@@ -283,11 +283,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
     const dropX = e.clientX - rect.left;
     const dropY = e.clientY - rect.top;
     
-    // Convert screen coordinates to world coordinates accounting for camera
-    const worldX = (dropX / camera.zoom) + camera.x;
-    const worldY = (dropY / camera.zoom) + camera.y;
-
-    console.log('🎯 Drop at screen:', { dropX, dropY }, 'world:', { worldX, worldY });
+    console.log('🎯 Drop at screen:', { dropX, dropY });
 
     // Check for compendium monster drop
     const compendiumData = e.dataTransfer.getData('compendium/monster');
@@ -301,13 +297,65 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
           return;
         }
         
-        // Create NPC character
+        // Resolve token URL and load texture into WASM
+        let tokenUrl: string | null = null;
+        let tokenSource = 'none';
+        let textureName: string | undefined = undefined;
+        
+        try {
+          tokenUrl = await NPCCharacterService.resolveTokenUrl(
+            monster.name,
+            monster.type || 'humanoid'
+          );
+          if (tokenUrl) {
+            tokenSource = 'r2';
+            console.log('🎨 Resolved token URL:', { name: monster.name, tokenUrl, tokenSource });
+            
+            // Load texture directly into WASM
+            textureName = `npc-${monster.name.toLowerCase().replace(/\s+/g, '-')}`;
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            await new Promise<void>((resolve, reject) => {
+              img.onload = () => {
+                if (window.rustRenderManager?.load_texture) {
+                  try {
+                    window.rustRenderManager.load_texture(textureName!, img);
+                    console.log('✅ Texture loaded into WASM:', textureName);
+                    resolve();
+                  } catch (err) {
+                    console.error('Failed to load texture into WASM:', err);
+                    reject(err);
+                  }
+                } else {
+                  console.warn('WASM render manager not available');
+                  resolve(); // Continue anyway
+                }
+              };
+              img.onerror = (err) => {
+                console.error('Failed to load image:', err);
+                reject(err);
+              };
+              img.src = tokenUrl!;
+            });
+          }
+        } catch (error) {
+          console.warn('Failed to resolve/load token, using fallback:', error);
+        }
+        
+        // Create NPC character with resolved token
+        const monsterWithToken = {
+          ...monster,
+          token_url: tokenUrl,
+          token_source: tokenSource
+        };
+        
         const npcCharacter = NPCCharacterService.createNPCFromMonster(
-          monster as ExtendedMonster,
+          monsterWithToken as ExtendedMonster,
           {
             userId: user.id,
             sessionId: sessionId || 'default-session',
-            position: { x: worldX, y: worldY }
+            position: { x: dropX, y: dropY }
           }
         );
         
@@ -340,11 +388,11 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
           id: spriteId,
           name: name,
           tableId: tableId,
-          x: worldX,
-          y: worldY,
+          x: dropX,
+          y: dropY,
           characterId: npcCharacter.id,
-          // Use simple data URL for default NPC token (gray circle)
-          texture: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjAiIGZpbGw9IiM2NjY2NjYiIHN0cm9rZT0iIzMzMzMzMyIgc3Ryb2tlLXdpZHRoPSIyIi8+PHRleHQgeD0iMjUiIHk9IjMwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMjAiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4/PC90ZXh0Pjwvc3ZnPg==',
+          // Use the texture name we loaded into WASM, or fallback
+          texture: textureName || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjAiIGZpbGw9IiM2NjY2NjYiIHN0cm9rZT0iIzMzMzMzMyIgc3Ryb2tlLXdpZHRoPSIyIi8+PHRleHQgeD0iMjUiIHk9IjMwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMjAiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4/PC90ZXh0Pjwvc3ZnPg==',
           scale: { x: 1, y: 1 },
           rotation: 0,
           layer: 'tokens',
@@ -368,8 +416,8 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
                 id: spriteId,
                 name: name,
                 table_id: tableId,
-                x: worldX,
-                y: worldY,
+                x: dropX,
+                y: dropY,
                 character_id: npcCharacter.id,
                 texture: sprite.texture,
                 scale_x: sprite.scale.x,
@@ -429,7 +477,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
       return;
     }
 
-    const dropPosition = { x: worldX, y: worldY };
+    const dropPosition = { x: dropX, y: dropY };
 
     // Process first image file
     const file = imageFiles[0];

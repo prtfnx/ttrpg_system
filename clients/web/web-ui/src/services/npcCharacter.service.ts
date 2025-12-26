@@ -17,6 +17,8 @@ export interface ExtendedMonster {
   size?: string;
   alignment?: string;
   description?: string;
+  token_url?: string;  // Token image URL from backend
+  token_source?: string;  // Source of token: "r2" | "local" | "fallback" | "none"
   
   // Extended attributes from compendium
   [key: string]: any; // Allow any additional properties from compendium
@@ -30,6 +32,27 @@ export interface NPCCreationOptions {
 }
 
 export class NPCCharacterService {
+  /**
+   * Resolve token URL for a monster
+   * Uses backend API to get the correct token with fallback chain
+   */
+  static async resolveTokenUrl(monsterName: string, monsterType: string): Promise<string | null> {
+    try {
+      const response = await fetch(`/api/tokens/resolve/${encodeURIComponent(monsterName)}?monster_type=${encodeURIComponent(monsterType)}&redirect=false`);
+      
+      if (!response.ok) {
+        console.warn(`Failed to resolve token for ${monsterName}: ${response.statusText}`);
+        return null;
+      }
+      
+      const data = await response.json();
+      return data.url || null;
+    } catch (error) {
+      console.error(`Error resolving token for ${monsterName}:`, error);
+      return null;
+    }
+  }
+
   /**
    * Convert compendium monster to NPC character
    * Maps monster stat block format to character data structure
@@ -251,6 +274,10 @@ export class NPCCharacterService {
       
       // Description
       description: monster.description || `A ${monster.type} of ${monster.size} size.`,
+      
+      // Token image URL (use from monster data if available)
+      tokenUrl: monster.token_url || undefined,
+      tokenSource: monster.token_source || 'none',
       
       // Position (if provided)
       ...(position && { position })

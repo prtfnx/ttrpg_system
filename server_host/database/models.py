@@ -148,6 +148,10 @@ class Entity(Base):
     # JSON array of user ids who can control this token (nullable)
     controlled_by = Column(Text, nullable=True)
     
+    # Asset tracking for multi-client synchronization
+    asset_id = Column(String(16), nullable=True)  # First 16 chars of xxhash
+    asset_xxhash = Column(String(32), nullable=True)  # Full xxhash for integrity
+    
     # Transform properties
     scale_x = Column(Float, default=1.0)
     scale_y = Column(Float, default=1.0)

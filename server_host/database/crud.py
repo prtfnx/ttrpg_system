@@ -351,6 +351,9 @@ def create_entity(db: Session, entity_data: schemas.EntityCreate, table_db_id: i
         # Character binding
         character_id=entity_data.character_id,
         controlled_by=entity_data.controlled_by,
+        # Asset tracking
+        asset_id=entity_data.asset_id,
+        asset_xxhash=entity_data.asset_xxhash,
         # Token stats
         hp=entity_data.hp,
         max_hp=entity_data.max_hp,
@@ -489,6 +492,9 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             # Character binding
             character_id=getattr(entity_obj, 'character_id', None),
             controlled_by=controlled_by_json,
+            # Asset tracking
+            asset_id=getattr(entity_obj, 'asset_id', None),
+            asset_xxhash=getattr(entity_obj, 'asset_xxhash', None),
             # Token stats
             hp=getattr(entity_obj, 'hp', None),
             max_hp=getattr(entity_obj, 'max_hp', None),
@@ -514,6 +520,9 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             # Character binding
             character_id=getattr(entity_obj, 'character_id', None),
             controlled_by=controlled_by_json,
+            # Asset tracking
+            asset_id=getattr(entity_obj, 'asset_id', None),
+            asset_xxhash=getattr(entity_obj, 'asset_xxhash', None),
             # Token stats
             hp=getattr(entity_obj, 'hp', None),
             max_hp=getattr(entity_obj, 'max_hp', None),

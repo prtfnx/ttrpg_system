@@ -12,6 +12,7 @@ from pathlib import Path
 from core_table.compendiums.token_resolution_service import get_token_service
 from storage.r2_manager import R2AssetManager
 from logger import setup_logger
+import re
 
 logger = setup_logger(__name__)
 
@@ -81,7 +82,7 @@ async def resolve_token(
             return RedirectResponse(url=token_url)
         else:
             # Return JSON with URL
-            info = token_service.get_token_info(monster_name)
+            info = token_service.get_token_info(monster_name, monster_type)
             return {
                 **info,
                 "url": token_url
@@ -181,7 +182,7 @@ async def serve_default_token(type_name: str):
         
         # Attempt direct key pattern (will need adjustment if upload pattern changes)
         # Better approach: search R2 for files matching pattern *_{type_name}.svg
-        import re
+        
         try:
             # List all objects in the image/svg+xml/ prefix
             response = r2_manager.s3_client.list_objects_v2(

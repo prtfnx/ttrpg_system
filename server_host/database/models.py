@@ -212,6 +212,9 @@ class SessionCharacter(Base):
     character_data = Column(Text, nullable=False)  # JSON blob of character data
     owner_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     
+    # Token/portrait asset (direct FK to Asset table)
+    token_asset_id = Column(String(100), ForeignKey("assets.r2_asset_id"), nullable=True)
+    
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -224,6 +227,8 @@ class SessionCharacter(Base):
     owner = relationship("User", foreign_keys=[owner_user_id])
     # Tokens (entities) that reference this character
     tokens = relationship("Entity", back_populates="character")
+    # Token/portrait asset
+    token_asset = relationship("Asset", foreign_keys=[token_asset_id])
 
     # Explicit relationship for last modifier to avoid FK ambiguity
     last_modified_by_user = relationship("User", foreign_keys=[last_modified_by])

@@ -109,6 +109,9 @@ class EntityBase(BaseModel):
     # Character binding
     character_id: Optional[str] = None
     controlled_by: Optional[str] = None  # JSON array as string
+    # Asset tracking
+    asset_id: Optional[str] = None
+    asset_xxhash: Optional[str] = None
     # Token stats
     hp: Optional[int] = None
     max_hp: Optional[int] = None

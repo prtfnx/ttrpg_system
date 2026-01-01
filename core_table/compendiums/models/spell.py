@@ -194,7 +194,9 @@ class Spell:
     
     def get_description(self) -> str:
         """Get full spell description"""
-        return "\n\n".join(self.entries)
+        if not self.entries:
+            return ""
+        return "\n\n".join([e for e in self.entries if isinstance(e, str)])
     
     def has_component(self, component: str) -> bool:
         """Check for specific component (V, S, M)"""

@@ -5,6 +5,7 @@ import { ProtocolService } from "../services/ProtocolService";
 import { useGameStore } from "../store";
 import type { Character } from "../types";
 import { showToast } from "../utils/toast";
+import { SpellsTab } from "./CharacterSheet/SpellsTab";
 import styles from "./CharacterSheetNew.module.css";
 import { MonsterStatBlock } from "./MonsterStatBlock";
 
@@ -621,10 +622,10 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
         )}
 
         {activeTab === 'spells' && (
-          <div className={styles.spellsTabContent}>
-            <h3>Spells & Magical Abilities</h3>
-            <p>Spell list will appear here</p>
-          </div>
+          <SpellsTab 
+            character={character}
+            onSave={onSave}
+          />
         )}
 
         {activeTab === 'inventory' && (

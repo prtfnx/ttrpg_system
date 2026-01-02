@@ -3,17 +3,9 @@ Bestiary manager for D&D 5e Virtual Tabletop
 DEPRECATED: Use models.monster and services.monster_service instead
 """
 
-import sys
-from pathlib import Path
-
 # Redirect to new enhanced models
-models_dir = Path(__file__).parent.parent / "models"
-services_dir = Path(__file__).parent.parent / "services"
-sys.path.insert(0, str(models_dir))
-sys.path.insert(0, str(services_dir))
-
-from monster import Monster, MonsterAction, LegendaryAction
-from monster_service import MonsterService
+from ..models.monster import Monster, MonsterAction, LegendaryAction
+from ..services.monster_service import MonsterService
 
 __all__ = ['Monster', 'MonsterAction', 'LegendaryAction', 'MonsterService']
     """

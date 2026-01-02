@@ -14,13 +14,10 @@ from .equipment_service import EquipmentService
 from .monster_service import MonsterService
 
 # Import models
-models_dir = Path(__file__).parent.parent / "models"
-sys.path.insert(0, str(models_dir))
-
-from spell import Spell
-from character_class import CharacterClass
-from equipment import Equipment
-from monster import Monster
+from ..models.spell import Spell
+from ..models.character_class import CharacterClass
+from ..models.equipment import Equipment
+from ..models.monster import Monster
 
 
 class CompendiumService:

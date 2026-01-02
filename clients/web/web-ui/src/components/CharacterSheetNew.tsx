@@ -189,61 +189,10 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
 
 
   const openInNewWindow = () => {
-    const newWindow = window.open(
-      '',
-      'character-sheet',
-      'width=1400,height=900,scrollbars=yes,resizable=yes'
-    );
-    
-    if (newWindow) {
-      // Get all stylesheets from current document
-      const styles = Array.from(document.styleSheets)
-        .map(sheet => {
-          try {
-            return Array.from(sheet.cssRules)
-              .map(rule => rule.cssText)
-              .join('\n');
-          } catch (e) {
-            // Cross-origin stylesheets will throw, skip them
-            return '';
-          }
-        })
-        .join('\n');
-
-      // Get the character sheet HTML
-      const sheetHTML = document.querySelector('.character-sheet-redesigned')?.outerHTML || '<p>Error loading character sheet</p>';
-      
-      newWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>${character.name} - Character Sheet</title>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-              ${styles}
-              body { 
-                margin: 0; 
-                padding: 0; 
-                background: #1a1a1a;
-                overflow: auto;
-              }
-              .character-sheet-redesigned {
-                height: 100vh;
-              }
-              /* Hide pop-out button in pop-out window */
-              .popout-btn {
-                display: none !important;
-              }
-            </style>
-          </head>
-          <body>
-            ${sheetHTML}
-          </body>
-        </html>
-      `);
-      newWindow.document.close();
-    }
+    // Pop-out doesn't work properly because it copies static HTML without React state
+    // Tabs won't work because there's no React component mounted
+    showToast.warning('Pop-out feature temporarily disabled - tabs require React functionality');
+    return;
   };
 
   return (

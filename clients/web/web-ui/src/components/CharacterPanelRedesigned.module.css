@@ -669,25 +669,48 @@
 }
 
 .modalOverlay .modalContent.characterSheetModal {
-  /* Side drawer positioning */
+  /* Side drawer positioning - left side to not block compendium on right */
   position: fixed;
-  right: 0;
+  left: 0;
   top: 0;
   bottom: 0;
-  width: clamp(600px, 60vw, 1400px) !important;
-  max-width: none !important;
-  min-width: 600px;
+  /* Width controlled by React state, not CSS */
+  min-width: 400px;
+  max-width: 80vw;
   height: 100vh;
   max-height: 100vh;
   border-radius: 0;
-  /* Slide in from right animation */
-  animation: slideInFromRight var(--duration-slow) ease-out;
-  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+  /* Slide in from left animation */
+  animation: slideInFromLeft var(--duration-slow) ease-out;
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
 }
 
-@keyframes slideInFromRight {
+.resizeHandle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  background: transparent;
+  z-index: 1001;
+  transition: background var(--duration-base);
+}
+
+.resizeHandle:hover {
+  background: var(--accent-primary);
+  opacity: 0.5;
+}
+
+.resizeHandle:active {
+  background: var(--accent-primary);
+  opacity: 0.8;
+}
+
+@keyframes slideInFromLeft {
   from {
-    transform: translateX(100%);
+    transform: translateX(-100%);
   }
   to {
     transform: translateX(0);

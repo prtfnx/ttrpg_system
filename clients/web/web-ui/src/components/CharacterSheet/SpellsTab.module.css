@@ -7,6 +7,135 @@
   padding: var(--space-md);
 }
 
+/* Tab Header */
+.tabHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.tabHeader h3 {
+  margin: 0;
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+}
+
+.browseBtn {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.browseBtn:hover {
+  background: var(--accent-primary-hover);
+}
+
+/* Spell Browser */
+.spellBrowser {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  max-height: 300px;
+  display: flex;
+  flex-direction: column;
+}
+
+.browserHeader {
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.searchInput {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.browserResults {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-sm);
+}
+
+.browserItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.browserItem:hover {
+  background: var(--bg-secondary);
+}
+
+.browserItemInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.browserItemName {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+}
+
+.browserItemMeta {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.addBtn {
+  padding: 4px 12px;
+  background: var(--color-success);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  white-space: nowrap;
+}
+
+.addBtn:hover:not(:disabled) {
+  background: var(--color-success-hover);
+}
+
+.addBtn:disabled {
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.browserLoading,
+.browserEmpty,
+.browserHint {
+  text-align: center;
+  padding: var(--space-lg);
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
 /* Spellcasting Stats */
 .spellcastingStats {
   display: grid;

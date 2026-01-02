@@ -4,8 +4,8 @@
  * Uses WebSocket protocol for all operations (Phase 2.2)
  */
 
-import React, { useState } from 'react';
-import { MessageType } from '../../protocol/message';
+import React, { useEffect, useState } from 'react';
+import { createMessage, MessageType } from '../../protocol/message';
 import { useProtocol } from '../../services/ProtocolContext';
 import type { Character } from '../../types';
 import { showToast } from '../../utils/toast';
@@ -26,6 +26,10 @@ interface CharacterSpell {
 export const SpellsTab: React.FC<SpellsTabProps> = ({ character, onSave }) => {
   const { protocol } = useProtocol();
   const [dragOver, setDragOver] = useState(false);
+  const [showBrowser, setShowBrowser] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [availableSpells, setAvailableSpells] = useState<CharacterSpell[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Get spells from character data
   const spells: CharacterSpell[] = character.data?.spells || [];
@@ -67,7 +71,7 @@ export const SpellsTab: React.FC<SpellsTabProps> = ({ character, onSave }) => {
       
       // Only handle spell drops
       if (dragData.type !== 'spell') {
-        showToast('Only spells can be added to the spell list', 'error');
+        showToast.error('Only spells can be added to the spell list');
         return;
       }
 
@@ -75,7 +79,7 @@ export const SpellsTab: React.FC<SpellsTabProps> = ({ character, onSave }) => {
       
       // Check if spell already exists
       if (spells.some(s => s.name === spell.name)) {
-        showToast(`${spell.name} is already in your spell list`, 'warning');
+        showToast.warning(`${spell.name} is already in your spell list`);
         return;
       }
 
@@ -91,17 +95,11 @@ export const SpellsTab: React.FC<SpellsTabProps> = ({ character, onSave }) => {
 
       // Send CHARACTER_UPDATE via WebSocket
       if (protocol) {
-        const updateMessage = {
-          type: MessageType.CHARACTER_UPDATE,
-          data: {
-            character_id: character.id,
-            updates: {
-              spells: updatedSpells
-            }
-          }
-        };
-
-        protocol.send(updateMessage);
+        protocol.updateCharacter(
+          character.id,
+          { spells: updatedSpells },
+          character.version
+        );
       }
 
       // Update local state
@@ -112,10 +110,10 @@ export const SpellsTab: React.FC<SpellsTabProps> = ({ character, onSave }) => {
         }
       });
 
-      showToast(`Added ${spell.name} to spell list`, 'success');
+      showToast.success(`Added ${spell.name} to spell list`);
     } catch (error) {
       console.error('Error handling spell drop:', error);
-      showToast('Failed to add spell', 'error');
+      showToast.error('Failed to add spell');
     }
   };
 
@@ -124,17 +122,11 @@ export const SpellsTab: React.FC<SpellsTabProps> = ({ character, onSave }) => {
 
     // Send update via WebSocket
     if (protocol) {
-      const updateMessage = {
-        type: MessageType.CHARACTER_UPDATE,
-        data: {
-          character_id: character.id,
-          updates: {
-            spells: updatedSpells
-          }
-        }
-      };
-
-      protocol.send(updateMessage);
+      protocol.updateCharacter(
+        character.id,
+        { spells: updatedSpells },
+        character.version
+      );
     }
 
     onSave({
@@ -144,7 +136,7 @@ export const SpellsTab: React.FC<SpellsTabProps> = ({ character, onSave }) => {
       }
     });
 
-    showToast(`Removed ${spellName}`, 'success');
+    showToast.success(`Removed ${spellName}`);
   };
 
   const handleTogglePrepared = (spellName: string) => {
@@ -160,6 +152,97 @@ export const SpellsTab: React.FC<SpellsTabProps> = ({ character, onSave }) => {
     });
   };
 
+  const handleAddSpellFromBrowser = (spell: CharacterSpell) => {
+    // Check if spell already exists
+    if (spells.some(s => s.name === spell.name)) {
+      showToast.warning(`${spell.name} is already in your spell list`);
+      return;
+    }
+
+    const newSpell: CharacterSpell = {
+      ...spell,
+      prepared: false
+    };
+
+    const updatedSpells = [...spells, newSpell];
+
+    // Send update via WebSocket
+    if (protocol) {
+      protocol.updateCharacter(
+        character.id,
+        { spells: updatedSpells },
+        character.version
+      );
+    }
+
+    onSave({
+      data: {
+        ...character.data,
+        spells: updatedSpells
+      }
+    });
+
+    showToast.success(`Added ${spell.name}`);
+  };
+
+  const searchSpells = async () => {
+    if (!searchQuery.trim()) {
+      setAvailableSpells([]);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      if (protocol) {
+        // Send COMPENDIUM_SEARCH message via WebSocket
+        const message = createMessage(MessageType.COMPENDIUM_SEARCH, {
+          query: searchQuery,
+          category: 'spell'
+        });
+
+        // Send search request
+        protocol.sendMessage(message);
+
+        // Listen for response
+        const handleSearchResponse = (event: CustomEvent) => {
+          const response = event.detail;
+          if (response.results && response.results.spells) {
+            const spellResults: CharacterSpell[] = response.results.spells.map((spell: any) => ({
+              name: spell.name,
+              level: spell.level,
+              school: spell.school
+            }));
+            setAvailableSpells(spellResults);
+          }
+          setIsLoading(false);
+          window.removeEventListener('compendium-search-response', handleSearchResponse as EventListener);
+        };
+
+        window.addEventListener('compendium-search-response', handleSearchResponse as EventListener);
+
+        // Timeout after 5 seconds
+        setTimeout(() => {
+          window.removeEventListener('compendium-search-response', handleSearchResponse as EventListener);
+          if (isLoading) {
+            setIsLoading(false);
+            showToast.error('Search timeout');
+          }
+        }, 5000);
+      }
+    } catch (error) {
+      console.error('Error searching spells:', error);
+      showToast.error('Failed to search spells');
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showBrowser && searchQuery) {
+      const debounce = setTimeout(searchSpells, 300);
+      return () => clearTimeout(debounce);
+    }
+  }, [searchQuery, showBrowser]);
+
   const getLevelLabel = (level: number): string => {
     if (level === 0) return 'Cantrips';
     if (level === 1) return '1st Level';
@@ -170,6 +253,59 @@ export const SpellsTab: React.FC<SpellsTabProps> = ({ character, onSave }) => {
 
   return (
     <div className={styles.spellsTab}>
+      {/* Header with Browse Button */}
+      <div className={styles.tabHeader}>
+        <h3>Spells</h3>
+        <button 
+          onClick={() => setShowBrowser(!showBrowser)}
+          className={styles.browseBtn}
+        >
+          {showBrowser ? '✕ Close Browser' : '🔍 Browse Spells'}
+        </button>
+      </div>
+
+      {/* Mini Spell Browser */}
+      {showBrowser && (
+        <div className={styles.spellBrowser}>
+          <div className={styles.browserHeader}>
+            <input
+              type="text"
+              placeholder="Search spells..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={styles.searchInput}
+              autoFocus
+            />
+          </div>
+          <div className={styles.browserResults}>
+            {isLoading && <p className={styles.browserLoading}>Searching...</p>}
+            {!isLoading && searchQuery && availableSpells.length === 0 && (
+              <p className={styles.browserEmpty}>No spells found</p>
+            )}
+            {!isLoading && !searchQuery && (
+              <p className={styles.browserHint}>Type to search for spells</p>
+            )}
+            {!isLoading && availableSpells.map(spell => (
+              <div key={spell.name} className={styles.browserItem}>
+                <div className={styles.browserItemInfo}>
+                  <span className={styles.browserItemName}>{spell.name}</span>
+                  <span className={styles.browserItemMeta}>
+                    Level {spell.level} • {spell.school}
+                  </span>
+                </div>
+                <button
+                  onClick={() => handleAddSpellFromBrowser(spell)}
+                  className={styles.addBtn}
+                  disabled={spells.some(s => s.name === spell.name)}
+                >
+                  {spells.some(s => s.name === spell.name) ? '✓ Added' : '+ Add'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Spellcasting Stats */}
       <div className={styles.spellcastingStats}>
         <div className={styles.statBox}>
@@ -197,7 +333,7 @@ export const SpellsTab: React.FC<SpellsTabProps> = ({ character, onSave }) => {
           <div className={styles.emptyState}>
             <p className={styles.emptyIcon}>📜</p>
             <p className={styles.emptyText}>No spells yet</p>
-            <p className={styles.emptyHint}>Drag spells from the compendium to add them</p>
+            <p className={styles.emptyHint}>Drag spells from the compendium or use the browser above</p>
           </div>
         ) : (
           <div className={styles.spellList}>
@@ -246,7 +382,7 @@ export const SpellsTab: React.FC<SpellsTabProps> = ({ character, onSave }) => {
 
       {/* Instructions */}
       <div className={styles.instructions}>
-        <p>💡 <strong>Tip:</strong> Open the compendium search and drag spells here to add them to your spell list.</p>
+        <p>💡 <strong>Tip:</strong> Use the spell browser above or open the compendium panel to drag spells here.</p>
       </div>
     </div>
   );

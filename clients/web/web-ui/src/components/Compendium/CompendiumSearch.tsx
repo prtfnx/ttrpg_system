@@ -3,10 +3,10 @@
  * Uses WebSocket protocol for all searches
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useCompendiumSearch } from '../../hooks/useCompendium';
-import { SpellCard } from './SpellCard';
 import styles from './CompendiumSearch.module.css';
+import { SpellCard } from './SpellCard';
 
 export const CompendiumSearch: React.FC = () => {
   const [query, setQuery] = useState('');
@@ -70,7 +70,7 @@ export const CompendiumSearch: React.FC = () => {
             <section className={styles.section}>
               <h2>Spells ({results.spells.length})</h2>
               <div className={styles.grid}>
-                {results.spells.map((spell) => (
+                {results.spells.map((spell: any) => (
                   <SpellCard key={spell.name} spell={spell} />
                 ))}
               </div>
@@ -81,7 +81,7 @@ export const CompendiumSearch: React.FC = () => {
             <section className={styles.section}>
               <h2>Monsters ({results.monsters.length})</h2>
               <div className={styles.list}>
-                {results.monsters.map((monster) => (
+                {results.monsters.map((monster: any) => (
                   <div key={monster.name} className={styles.monsterItem}>
                     <strong>{monster.name}</strong>
                     <span>{monster.size} {monster.type}</span>
@@ -97,7 +97,7 @@ export const CompendiumSearch: React.FC = () => {
             <section className={styles.section}>
               <h2>Equipment ({results.equipment.length})</h2>
               <div className={styles.list}>
-                {results.equipment.map((item) => (
+                {results.equipment.map((item: any) => (
                   <div key={item.name} className={styles.equipmentItem}>
                     <strong>{item.name}</strong>
                     <span>{item.type}</span>

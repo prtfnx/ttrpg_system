@@ -21,6 +21,7 @@ sys.path.append(parent_dir)
 from net.protocol import Message, MessageType, ProtocolHandler
 from core_table.server_protocol import ServerProtocol
 from core_table.server import TableManager
+from core_table.compendiums.services.compendium_service import CompendiumService
 from .asset_manager import get_server_asset_manager
 from server_host.utils.logger import setup_logger
 logger = setup_logger(__name__)
@@ -58,6 +59,11 @@ class GameSessionProtocolService:
         
         
         self.asset_manager = get_server_asset_manager()
+        
+        # Initialize compendium service
+        self.compendium = CompendiumService()
+        self.compendium.load_all()
+        logger.info(f"CompendiumService initialized for session {session_code}")
         
         logger.info(f"GameSessionProtocolService created for session {session_code}")
     
@@ -260,6 +266,16 @@ class GameSessionProtocolService:
                 # NOTE: Broadcasting is now handled by individual handlers in ServerProtocol
                 # Each handler (move_sprite, scale_sprite, etc.) broadcasts SPRITE_UPDATE messages
                 # to other clients after successful operations
+            elif message_type in [
+                MessageType.COMPENDIUM_SEARCH,
+                MessageType.COMPENDIUM_GET_SPELL,
+                MessageType.COMPENDIUM_GET_CLASS,
+                MessageType.COMPENDIUM_GET_EQUIPMENT,
+                MessageType.COMPENDIUM_GET_MONSTER,
+                MessageType.COMPENDIUM_GET_STATS,
+                MessageType.COMPENDIUM_GET_CHARACTER_DATA
+            ]:
+                await self._handle_compendium_message(websocket, message, message_type, client_id)
             else:
                 logger.warning(f"Unknown message type: {message_type}, available handlers: {list(self.server_protocol.handlers.keys())}")
                 logger.info(f"message: {message}, client_id: {client_id}")
@@ -511,6 +527,103 @@ class GameSessionProtocolService:
                 'last_ping': info.get('last_ping', 0)
             })
         return players
+
+    async def _handle_compendium_message(self, websocket: WebSocket, message: Message, message_type: MessageType, client_id: str):
+        """Handle compendium-related messages"""
+        try:
+            data = message.data or {}
+            
+            if message_type == MessageType.COMPENDIUM_SEARCH:
+                query = data.get('query', '')
+                category = data.get('category')
+                results = self.compendium.search(query, category)
+                
+                response = Message(
+                    MessageType.COMPENDIUM_SEARCH_RESPONSE,
+                    {
+                        'query': query,
+                        'category': category,
+                        'results': results,
+                        'total': sum(len(v) for v in results.values())
+                    }
+                )
+                await self._send_message(websocket, response)
+                
+            elif message_type == MessageType.COMPENDIUM_GET_SPELL:
+                spell_name = data.get('name', '')
+                spell = self.compendium.get_spell(spell_name)
+                
+                response = Message(
+                    MessageType.COMPENDIUM_GET_SPELL_RESPONSE,
+                    {
+                        'spell': spell.to_dict() if spell else None,
+                        'found': spell is not None
+                    }
+                )
+                await self._send_message(websocket, response)
+                
+            elif message_type == MessageType.COMPENDIUM_GET_CLASS:
+                class_name = data.get('name', '')
+                char_class = self.compendium.get_class(class_name)
+                
+                response = Message(
+                    MessageType.COMPENDIUM_GET_CLASS_RESPONSE,
+                    {
+                        'class': char_class.to_dict() if char_class else None,
+                        'found': char_class is not None
+                    }
+                )
+                await self._send_message(websocket, response)
+                
+            elif message_type == MessageType.COMPENDIUM_GET_EQUIPMENT:
+                item_name = data.get('name', '')
+                equipment = self.compendium.get_equipment(item_name)
+                
+                response = Message(
+                    MessageType.COMPENDIUM_GET_EQUIPMENT_RESPONSE,
+                    {
+                        'equipment': equipment.to_dict() if equipment else None,
+                        'found': equipment is not None
+                    }
+                )
+                await self._send_message(websocket, response)
+                
+            elif message_type == MessageType.COMPENDIUM_GET_MONSTER:
+                monster_name = data.get('name', '')
+                monster = self.compendium.get_monster(monster_name)
+                
+                response = Message(
+                    MessageType.COMPENDIUM_GET_MONSTER_RESPONSE,
+                    {
+                        'monster': monster.to_dict() if monster else None,
+                        'found': monster is not None
+                    }
+                )
+                await self._send_message(websocket, response)
+                
+            elif message_type == MessageType.COMPENDIUM_GET_STATS:
+                stats = self.compendium.get_stats()
+                
+                response = Message(
+                    MessageType.COMPENDIUM_GET_STATS_RESPONSE,
+                    {'stats': stats}
+                )
+                await self._send_message(websocket, response)
+                
+            elif message_type == MessageType.COMPENDIUM_GET_CHARACTER_DATA:
+                char_data = self.compendium.get_for_character_creation()
+                
+                response = Message(
+                    MessageType.COMPENDIUM_GET_CHARACTER_DATA_RESPONSE,
+                    {'data': char_data}
+                )
+                await self._send_message(websocket, response)
+            
+            logger.debug(f"Handled compendium message {message_type.value} for client {client_id}")
+            
+        except Exception as e:
+            logger.error(f"Error handling compendium message {message_type.value}: {e}")
+            await self._send_error(websocket, f"Compendium error: {str(e)}")
 
 
 

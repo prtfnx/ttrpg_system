@@ -37,8 +37,25 @@ export const SpellCard: React.FC<SpellCardProps> = ({ spell, onClose }) => {
   const schoolIcon = SCHOOL_ICONS[spell.school?.toLowerCase()] || '📜';
   const levelText = spell.level === 0 ? 'Cantrip' : `Level ${spell.level}`;
   
+  const handleDragStart = (e: React.DragEvent) => {
+    const dragData = {
+      type: 'spell',
+      data: {
+        name: spell.name,
+        level: spell.level,
+        school: spell.school
+      }
+    };
+    e.dataTransfer.setData('application/json', JSON.stringify(dragData));
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+  
   return (
-    <div className={styles.spellCard}>
+    <div 
+      className={styles.spellCard}
+      draggable={true}
+      onDragStart={handleDragStart}
+    >
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.titleSection}>

@@ -11,6 +11,17 @@
   font-family: 'Bookman Old Style', 'Book Antiqua', serif;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
   max-width: 600px;
+  cursor: grab;
+  transition: transform 0.2s ease;
+}
+
+.spellCard:active {
+  cursor: grabbing;
+}
+
+.spellCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.7);
 }
 
 .header {

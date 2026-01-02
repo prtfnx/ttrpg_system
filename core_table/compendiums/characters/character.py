@@ -4,14 +4,8 @@ D&D 5e Character System - Core Classes
 DEPRECATED: Use models.character_class instead for enhanced models
 """
 
-import sys
-from pathlib import Path
-
 # Redirect to new enhanced models
-models_dir = Path(__file__).parent.parent / "models"
-sys.path.insert(0, str(models_dir))
-
-from character_class import CharacterClass, Subclass, ClassFeature, LevelProgression, AbilityScore
+from ..models.character_class import CharacterClass, Subclass, ClassFeature, LevelProgression, AbilityScore
 
 __all__ = ['CharacterClass', 'Subclass', 'ClassFeature', 'LevelProgression', 'AbilityScore']
 

@@ -1,11 +1,14 @@
 /**
  * Compendium WebSocket hooks
  * Uses protocol for all compendium operations (Phase 2.1)
+ * 
+ * NOTE: These hooks are not currently used by SpellsTab.
+ * SpellsTab uses protocol.updateCharacter() directly.
+ * This file will be implemented properly in Phase 3.
  */
 
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useProtocol } from '../services/ProtocolContext';
-import { MessageType } from '../protocol/message';
 
 interface Spell {
   name: string;
@@ -77,7 +80,7 @@ export function useCompendiumSearch() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const search = useCallback(async (query: string, category?: string) => {
+  const search = useCallback(async (_query: string, _category?: string) => {
     if (!protocol) {
       setError('Protocol not connected');
       return;
@@ -87,14 +90,10 @@ export function useCompendiumSearch() {
     setError(null);
 
     try {
-      const response = await protocol.sendRequest(
-        MessageType.COMPENDIUM_SEARCH,
-        { query, category }
-      );
-
-      if (response.type === MessageType.COMPENDIUM_SEARCH_RESPONSE) {
-        setResults(response.data.results as SearchResults);
-      }
+      // TODO: Implement using protocol.sendMessage() and event listeners
+      // For now, this is a stub - SpellsTab doesn't use this hook
+      console.warn('useCompendiumSearch not yet implemented');
+      setResults({ spells: [], monsters: [], equipment: [], classes: [] });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed');
     } finally {
@@ -119,14 +118,9 @@ export function useSpellDetail(spellName: string | null) {
       setError(null);
 
       try {
-        const response = await protocol.sendRequest(
-          MessageType.COMPENDIUM_GET_SPELL,
-          { name: spellName }
-        );
-
-        if (response.type === MessageType.COMPENDIUM_GET_SPELL_RESPONSE) {
-          setSpell(response.data.spell as Spell);
-        }
+        // TODO: Implement using protocol.sendMessage() and event listeners
+        console.warn('useSpellDetail not yet implemented');
+        setSpell(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch spell');
       } finally {
@@ -154,14 +148,9 @@ export function useMonsterDetail(monsterName: string | null) {
       setError(null);
 
       try {
-        const response = await protocol.sendRequest(
-          MessageType.COMPENDIUM_GET_MONSTER,
-          { name: monsterName }
-        );
-
-        if (response.type === MessageType.COMPENDIUM_GET_MONSTER_RESPONSE) {
-          setMonster(response.data.monster as Monster);
-        }
+        // TODO: Implement using protocol.sendMessage() and event listeners
+        console.warn('useMonsterDetail not yet implemented');
+        setMonster(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch monster');
       } finally {
@@ -191,14 +180,9 @@ export function useCompendiumStats() {
     setError(null);
 
     try {
-      const response = await protocol.sendRequest(
-        MessageType.COMPENDIUM_GET_STATS,
-        {}
-      );
-
-      if (response.type === MessageType.COMPENDIUM_GET_STATS_RESPONSE) {
-        setStats(response.data.stats as CompendiumStats);
-      }
+      // TODO: Implement using protocol.sendMessage() and event listeners
+      console.warn('useCompendiumStats not yet implemented');
+      setStats(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch stats');
     } finally {
@@ -233,14 +217,9 @@ export function useCharacterCreationData() {
     setError(null);
 
     try {
-      const response = await protocol.sendRequest(
-        MessageType.COMPENDIUM_GET_CHARACTER_DATA,
-        {}
-      );
-
-      if (response.type === MessageType.COMPENDIUM_GET_CHARACTER_DATA_RESPONSE) {
-        setData(response.data.data);
-      }
+      // TODO: Implement using protocol.sendMessage() and event listeners
+      console.warn('useCharacterCreationData not yet implemented');
+      setData(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch character data');
     } finally {

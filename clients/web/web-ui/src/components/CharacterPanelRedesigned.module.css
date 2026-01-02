@@ -647,8 +647,10 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: var(--modal-overlay);
-  composes: flex items-center justify-center from '../styles/7-utilities/layout.module.css';
+  /* Semi-transparent overlay that doesn't block interaction */
+  background: rgba(0, 0, 0, 0.3);
+  /* Don't block pointer events - allow clicking through to compendium */
+  pointer-events: none;
   z-index: 1000;
   opacity: 1 !important;
   animation: fadeIn var(--duration-base) ease-out;
@@ -662,17 +664,40 @@
   display: flex;
   flex-direction: column;
   animation: slideUp var(--duration-slow) ease-out;
+  /* Re-enable pointer events on the actual content */
+  pointer-events: auto;
 }
 
 .modalOverlay .modalContent.characterSheetModal {
-  width: clamp(320px, 95vw, 1600px) !important;
-  max-width: 98vw !important;
-  min-width: 320px;
+  /* Side drawer positioning */
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: clamp(600px, 60vw, 1400px) !important;
+  max-width: none !important;
+  min-width: 600px;
+  height: 100vh;
+  max-height: 100vh;
+  border-radius: 0;
+  /* Slide in from right animation */
+  animation: slideInFromRight var(--duration-slow) ease-out;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 @media (max-width: 768px) {
   .modalOverlay .modalContent.characterSheetModal {
     width: 100vw !important;
+    min-width: 100vw;
     height: 100vh;
     max-height: 100vh;
     border-radius: 0;
@@ -681,7 +706,7 @@
 
 @media (min-width: 1920px) {
   .modalOverlay .modalContent.characterSheetModal {
-    max-width: 1800px !important;
+    width: clamp(600px, 50vw, 1600px) !important;
   }
 }
 

@@ -1262,14 +1262,16 @@ export function CharacterPanelRedesigned() {
           }
         };
         
-        const handleCloseModal = (e: React.MouseEvent) => {
+        // Close drawer when clicking the semi-transparent left area
+        const handleOverlayClick = (e: React.MouseEvent) => {
+          // Only close if clicking directly on the overlay (left side), not on the drawer
           if (e.target === e.currentTarget) {
             setViewSheetCharId(null);
           }
         };
         
         const modalContent = (
-          <div className={styles.modalOverlay} onClick={handleCloseModal}>
+          <div className={styles.modalOverlay} onClick={handleOverlayClick}>
             <div 
               className={clsx(styles.modalContent, "characterSheetModal")}
               onClick={(e) => e.stopPropagation()}

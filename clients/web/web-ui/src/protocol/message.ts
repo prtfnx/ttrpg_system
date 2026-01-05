@@ -96,12 +96,16 @@ export const MessageType = {
   COMPENDIUM_GET_CLASS_FEATURES_RESPONSE: "compendium_get_class_features_response",
   COMPENDIUM_GET_EQUIPMENT: "compendium_get_equipment",
   COMPENDIUM_GET_EQUIPMENT_RESPONSE: "compendium_get_equipment_response",
+  COMPENDIUM_SEARCH_EQUIPMENT: "compendium_search_equipment",
+  COMPENDIUM_SEARCH_EQUIPMENT_RESPONSE: "compendium_search_equipment_response",
   COMPENDIUM_GET_MONSTER: "compendium_get_monster",
   COMPENDIUM_GET_MONSTER_RESPONSE: "compendium_get_monster_response",
   COMPENDIUM_GET_STATS: "compendium_get_stats",
   COMPENDIUM_GET_STATS_RESPONSE: "compendium_get_stats_response",
   COMPENDIUM_GET_CHARACTER_DATA: "compendium_get_character_data",
   COMPENDIUM_GET_CHARACTER_DATA_RESPONSE: "compendium_get_character_data_response",
+  COMPENDIUM_GENERATE_TREASURE: "compendium_generate_treasure",
+  COMPENDIUM_GENERATE_TREASURE_RESPONSE: "compendium_generate_treasure_response",
   
   // Character management
   CHARACTER_SAVE_REQUEST: "character_save_request",

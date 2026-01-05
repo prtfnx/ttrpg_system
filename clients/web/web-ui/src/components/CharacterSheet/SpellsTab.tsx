@@ -21,6 +21,11 @@ interface CharacterSpell {
   level: number;
   school: string;
   prepared?: boolean;
+  damage?: string;
+  attack_type?: string;
+  casting_time?: string;
+  range?: string;
+  higher_level_description?: string;
 }
 
 export const SpellsTab: React.FC<SpellsTabProps> = ({ character, onSave }) => {
@@ -36,6 +41,13 @@ export const SpellsTab: React.FC<SpellsTabProps> = ({ character, onSave }) => {
   const spellcastingAbility = character.data?.spellcastingAbility || 'int';
   const spellSaveDC = character.data?.spellSaveDC || 8;
   const spellAttackBonus = character.data?.spellAttackBonus || 0;
+  const characterLevel = character.data?.level || 1;
+
+  // Ability modifiers for spell calculations
+  const getAbilityMod = (ability: string): number => {
+    const stat = character.data?.abilities?.[ability] || 10;
+    return Math.floor((stat - 10) / 2);
+  };
 
   // Group spells by level
   const spellsByLevel: Record<number, CharacterSpell[]> = {};
@@ -88,7 +100,12 @@ export const SpellsTab: React.FC<SpellsTabProps> = ({ character, onSave }) => {
         name: spell.name,
         level: spell.level,
         school: spell.school,
-        prepared: false
+        prepared: false,
+        damage: spell.damage,
+        attack_type: spell.attack_type,
+        casting_time: spell.casting_time,
+        range: spell.range,
+        higher_level_description: spell.higher_level_description
       };
 
       const updatedSpells = [...spells, newSpell];
@@ -348,30 +365,64 @@ export const SpellsTab: React.FC<SpellsTabProps> = ({ character, onSave }) => {
                     <span className={styles.spellCount}>({levelSpells.length})</span>
                   </h4>
                   <div className={styles.spellGrid}>
-                    {levelSpells.map(spell => (
-                      <div key={spell.name} className={styles.spellItem}>
-                        {level > 0 && (
-                          <input
-                            type="checkbox"
-                            checked={spell.prepared || false}
-                            onChange={() => handleTogglePrepared(spell.name)}
-                            className={styles.preparedCheckbox}
-                            title="Prepared"
-                          />
-                        )}
-                        <div className={styles.spellInfo}>
-                          <span className={styles.spellName}>{spell.name}</span>
-                          <span className={styles.spellSchool}>{spell.school}</span>
+                    {levelSpells.map(spell => {
+                      const spellAbility = getAbilityMod(spellcastingAbility);
+                      const profBonus = Math.floor((characterLevel - 1) / 4) + 2;
+                      const spellAttack = profBonus + spellAbility;
+                      const spellDC = 8 + profBonus + spellAbility;
+                      
+                      // Calculate upcast damage for current level
+                      const upcastLevel = Math.max(spell.level, Number(level));
+                      let upcastDisplay = spell.damage || '';
+                      if (spell.damage && upcastLevel > spell.level) {
+                        const match = spell.damage.match(/(\d+)d(\d+)/);
+                        if (match) {
+                          const baseDice = parseInt(match[1]);
+                          const diceSize = match[2];
+                          const levelsAbove = upcastLevel - spell.level;
+                          const upcastDice = baseDice + levelsAbove;
+                          upcastDisplay = `${upcastDice}d${diceSize} (+${levelsAbove}d${diceSize})`;
+                        }
+                      }
+
+                      return (
+                        <div key={spell.name} className={styles.spellItem}>
+                          {level > 0 && (
+                            <input
+                              type="checkbox"
+                              checked={spell.prepared || false}
+                              onChange={() => handleTogglePrepared(spell.name)}
+                              className={styles.preparedCheckbox}
+                              title="Prepared"
+                            />
+                          )}
+                          <div className={styles.spellInfo}>
+                            <span className={styles.spellName}>{spell.name}</span>
+                            <div className={styles.spellDetails}>
+                              <span className={styles.spellSchool}>{spell.school}</span>
+                              {spell.attack_type && (
+                                <span className={styles.attackType}>
+                                  {spell.attack_type === 'ranged' ? `+${spellAttack}` : `DC ${spellDC}`}
+                                </span>
+                              )}
+                              {upcastDisplay && upcastLevel > spell.level && (
+                                <span className={styles.upcastDamage}>{upcastDisplay}</span>
+                              )}
+                              {spell.damage && upcastLevel === spell.level && (
+                                <span className={styles.damage}>{spell.damage}</span>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleRemoveSpell(spell.name)}
+                            className={styles.removeBtn}
+                            title="Remove spell"
+                          >
+                            ✕
+                          </button>
                         </div>
-                        <button
-                          onClick={() => handleRemoveSpell(spell.name)}
-                          className={styles.removeBtn}
-                          title="Remove spell"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               );

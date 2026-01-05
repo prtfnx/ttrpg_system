@@ -297,6 +297,27 @@
   text-transform: capitalize;
 }
 
+.spellDetails {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  font-size: var(--text-xs);
+}
+
+.attackType {
+  color: var(--color-info);
+  font-weight: var(--font-medium);
+}
+
+.damage {
+  color: var(--text-secondary);
+}
+
+.upcastDamage {
+  color: var(--color-warning);
+  font-weight: var(--font-medium);
+}
+
 .removeBtn {
   width: 24px;
   height: 24px;

@@ -245,6 +245,8 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.COMPENDIUM_SEARCH_RESPONSE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-search-response', { detail: m.data })); });
     this.registerHandler(MessageType.COMPENDIUM_GET_SPELL_RESPONSE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-spell-response', { detail: m.data })); });
     this.registerHandler(MessageType.COMPENDIUM_GET_STATS_RESPONSE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-stats-response', { detail: m.data })); });
+    this.registerHandler(MessageType.COMPENDIUM_GET_SUBCLASSES_RESPONSE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-subclasses-response', { detail: m.data })); });
+    this.registerHandler(MessageType.COMPENDIUM_GET_CLASS_FEATURES_RESPONSE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-class-features-response', { detail: m.data })); });
 
     // Character management
     this.registerHandler(MessageType.CHARACTER_LOAD_RESPONSE, this.handleCharacterLoadResponse.bind(this));

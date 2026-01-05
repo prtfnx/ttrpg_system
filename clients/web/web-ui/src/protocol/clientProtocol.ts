@@ -249,6 +249,7 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.COMPENDIUM_GET_CLASS_FEATURES_RESPONSE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-class-features-response', { detail: m.data })); });
     this.registerHandler(MessageType.COMPENDIUM_SEARCH_EQUIPMENT_RESPONSE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-equipment-search-response', { detail: m.data })); });
     this.registerHandler(MessageType.COMPENDIUM_GENERATE_TREASURE_RESPONSE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-treasure-response', { detail: m.data })); });
+    this.registerHandler(MessageType.COMPENDIUM_GET_MONSTER_RESPONSE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-monster-response', { detail: m.data })); });
 
     // Character management
     this.registerHandler(MessageType.CHARACTER_LOAD_RESPONSE, this.handleCharacterLoadResponse.bind(this));

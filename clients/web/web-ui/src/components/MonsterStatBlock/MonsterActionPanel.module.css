@@ -1,0 +1,139 @@
+.monsterActionPanel {
+  padding: 20px;
+  max-width: 800px;
+}
+
+.loading,
+.error {
+  padding: 40px;
+  text-align: center;
+  font-size: 16px;
+}
+
+.error {
+  color: #f44336;
+}
+
+.monsterName {
+  color: var(--text-primary, #fff);
+  margin: 0 0 24px 0;
+  font-size: 28px;
+  border-bottom: 2px solid #d4af37;
+  padding-bottom: 8px;
+}
+
+.section {
+  margin-top: 24px;
+}
+
+.section h3 {
+  color: #8b4513;
+  font-size: 20px;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.actionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.action {
+  padding: 12px;
+  background: var(--bg-secondary, #2a2a2a);
+  border-radius: 6px;
+  border-left: 3px solid #8b4513;
+}
+
+.actionHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.actionName {
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+  font-style: italic;
+  flex: 1;
+}
+
+.attackBonus {
+  background: #4caf50;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.actionDescription {
+  font-size: 14px;
+  color: var(--text-secondary, #ccc);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.damage {
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(244, 67, 54, 0.1);
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.damageDice {
+  font-weight: bold;
+  color: #f44336;
+  font-family: monospace;
+}
+
+.damageType {
+  color: var(--text-secondary, #aaa);
+  font-size: 13px;
+  text-transform: capitalize;
+}
+
+.lairHeader {
+  color: #7b2d90 !important;
+}
+
+.lairDescription {
+  font-size: 13px;
+  color: var(--text-secondary, #aaa);
+  font-style: italic;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.lairActionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-left: 0;
+}
+
+.lairAction {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  background: rgba(123, 45, 144, 0.1);
+  border-radius: 4px;
+}
+
+.bullet {
+  color: #7b2d90;
+  font-size: 20px;
+  line-height: 1.5;
+}
+
+.lairAction p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary, #ccc);
+  line-height: 1.5;
+  flex: 1;
+}

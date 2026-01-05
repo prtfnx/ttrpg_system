@@ -1,12 +1,12 @@
 """
 Class loader service
-Handles loading, caching, and querying character classes
+Handles loading, caching, and querying character classes with subclass support
 """
 
 import json
 import sys
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 models_dir = Path(__file__).parent.parent / "models"
 sys.path.insert(0, str(models_dir))
@@ -67,6 +67,55 @@ class ClassService:
             results = [c for c in results if q in c.name.lower()]
         
         return results
+    
+    def get_subclasses(self, class_name: str) -> List[Dict[str, Any]]:
+        """Get all subclasses for a class"""
+        char_class = self.get_class(class_name)
+        if not char_class or not hasattr(char_class, 'subclasses'):
+            return []
+        return [s.__dict__ if hasattr(s, '__dict__') else s for s in char_class.subclasses]
+    
+    def get_features_at_level(self, class_name: str, level: int, 
+                             subclass_name: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get features available at specific level"""
+        char_class = self.get_class(class_name)
+        if not char_class:
+            return []
+        
+        features = []
+        
+        # Get class features up to level
+        if hasattr(char_class, 'features'):
+            for feature in char_class.features:
+                if hasattr(feature, 'level') and feature.level <= level:
+                    features.append(feature.to_dict() if hasattr(feature, 'to_dict') else feature.__dict__)
+        
+        # Get subclass features if subclass specified
+        if subclass_name and hasattr(char_class, 'subclasses'):
+            for subclass in char_class.subclasses:
+                subclass_name_match = (
+                    (hasattr(subclass, 'name') and subclass.name.lower() == subclass_name.lower()) or
+                    (isinstance(subclass, dict) and subclass.get('name', '').lower() == subclass_name.lower())
+                )
+                if subclass_name_match:
+                    subclass_features = (
+                        subclass.get('features', []) if isinstance(subclass, dict)
+                        else getattr(subclass, 'features', [])
+                    )
+                    for feature in subclass_features:
+                        feature_level = (
+                            feature.get('level', 0) if isinstance(feature, dict)
+                            else getattr(feature, 'level', 0)
+                        )
+                        if feature_level <= level:
+                            features.append(feature if isinstance(feature, dict) else feature.__dict__)
+                    break
+        
+        return features
+    
+    def get_proficiency_bonus(self, level: int) -> int:
+        """Calculate proficiency bonus for level"""
+        return 2 + (level - 1) // 4
     
     def to_dict_list(self, classes: List[CharacterClass]) -> List[Dict]:
         """Convert class list to dict list for serialization"""

@@ -352,6 +352,7 @@ class Character(DnD5eCharacter):
             'expertise': [skill.value for skill in self.expertise],
             'spells': [getattr(spell, 'name', str(spell)) for spell in self.spells],
             'inventory': self.inventory.copy(),
+            'attuned_items': self.attuned_items.copy(),
             'alignment': self.alignment,
             'experience_points': self.experience_points,
             'backstory': self.backstory,
@@ -396,6 +397,7 @@ class Character(DnD5eCharacter):
         character.experience_points = data.get('experience_points', 0)
         character.backstory = data.get('backstory', '')
         character.inventory = data.get('inventory', [])
+        character.attuned_items = data.get('attuned_items', [])
         
         # VTT-specific attributes
         character.sprite_id = data.get('sprite_id')

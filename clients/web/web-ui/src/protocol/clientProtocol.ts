@@ -228,6 +228,10 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.SPRITE_RESPONSE, this.handleSpriteResponse.bind(this));
     this.registerHandler(MessageType.SPRITE_DATA, this.handleSpriteData.bind(this));
 
+    // Character management
+    this.registerHandler(MessageType.CHARACTER_UPDATE, this.handleCharacterUpdate.bind(this));
+    this.registerHandler(MessageType.CHARACTER_ATTUNE_RESPONSE, this.handleAttuneResponse.bind(this));
+
     // File transfer
     this.registerHandler(MessageType.FILE_DATA, this.handleFileData.bind(this));
     
@@ -512,6 +516,19 @@ export class WebClientProtocol {
   private async handleTableResponse(message: Message): Promise<void> {
     console.log('Table response received:', message.data);
     window.dispatchEvent(new CustomEvent('table-response', { detail: message.data }));
+  }
+
+  private async handleAttuneResponse(message: Message): Promise<void> {
+    const data: any = message.data || {};
+    const { success, error, attuned_count, item_name } = data;
+    
+    if (success) {
+      showToast.success(`Successfully updated attunement for ${item_name}`);
+      protocolLogger.message('received', `Attunement updated: ${item_name}, count: ${attuned_count}`);
+    } else {
+      showToast.error(error || 'Failed to update attunement');
+      logger.error('Attunement failed:', error);
+    }
   }
 
   // Sprite handlers - integrate with existing store/WASM

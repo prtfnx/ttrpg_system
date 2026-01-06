@@ -5,6 +5,7 @@ import { ProtocolService } from "../services/ProtocolService";
 import { useGameStore } from "../store";
 import type { Character } from "../types";
 import { showToast } from "../utils/toast";
+import { CharacterInventory } from "./CharacterInventory";
 import { SpellsTab } from "./CharacterSheet/SpellsTab";
 import styles from "./CharacterSheetNew.module.css";
 import { MonsterStatBlock } from "./MonsterStatBlock";
@@ -578,10 +579,10 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
         )}
 
         {activeTab === 'inventory' && (
-          <div className={styles.inventoryTabContent}>
-            <h3>Equipment & Inventory</h3>
-            <p>Inventory system will appear here</p>
-          </div>
+          <CharacterInventory
+            character={character}
+            onSave={onSave}
+          />
         )}
 
         {activeTab === 'bio' && (

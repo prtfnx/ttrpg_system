@@ -1,0 +1,209 @@
+.inventory {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md, 12px);
+  height: 100%;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: var(--space-sm, 8px);
+  border-bottom: 2px solid var(--border-primary, #333);
+}
+
+.header h3 {
+  margin: 0;
+  color: var(--text-primary, #fff);
+  font-size: var(--text-lg, 18px);
+}
+
+.attunementTracker {
+  display: flex;
+  gap: var(--space-xs, 4px);
+  align-items: center;
+  padding: var(--space-xs, 4px) var(--space-sm, 8px);
+  background: var(--bg-tertiary, #1a1a1a);
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid var(--border-primary, #333);
+}
+
+.attunementLabel {
+  font-size: var(--text-sm, 14px);
+  color: var(--text-secondary, #999);
+}
+
+.attunementCount {
+  font-weight: 600;
+  color: var(--text-brand, #4a9eff);
+  font-size: var(--text-sm, 14px);
+}
+
+.dropZone {
+  flex: 1;
+  border: 2px dashed var(--border-primary, #333);
+  border-radius: var(--radius-md, 8px);
+  padding: var(--space-md, 12px);
+  background: var(--bg-secondary, #2a2a2a);
+  min-height: 200px;
+  overflow-y: auto;
+}
+
+.dropHint {
+  font-size: var(--text-xs, 12px);
+  color: var(--text-secondary, #999);
+  text-align: center;
+  margin: 0 0 var(--space-sm, 8px) 0;
+  font-style: italic;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4xl, 48px);
+  color: var(--text-secondary, #999);
+  text-align: center;
+}
+
+.emptyState p {
+  margin: var(--space-xs, 4px) 0;
+}
+
+.helpText {
+  font-size: var(--text-sm, 14px);
+  color: var(--text-tertiary, #666);
+}
+
+.itemList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm, 8px);
+}
+
+.inventoryItem {
+  display: flex;
+  gap: var(--space-md, 12px);
+  padding: var(--space-sm, 8px);
+  background: var(--bg-tertiary, #1a1a1a);
+  border: 1px solid var(--border-primary, #333);
+  border-radius: var(--radius-md, 8px);
+  transition: all 0.2s ease;
+}
+
+.inventoryItem:hover {
+  border-color: var(--border-brand, #4a9eff);
+  background: var(--bg-hover, rgba(74, 158, 255, 0.05));
+}
+
+.itemIcon {
+  flex-shrink: 0;
+  width: 60px;
+}
+
+.itemDetails {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs, 4px);
+}
+
+.itemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.itemName {
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+  font-size: var(--text-base, 16px);
+}
+
+.quantity {
+  font-size: var(--text-sm, 14px);
+  color: var(--text-secondary, #999);
+  background: var(--bg-secondary, #2a2a2a);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm, 4px);
+}
+
+.itemMeta {
+  display: flex;
+  gap: var(--space-sm, 8px);
+  align-items: center;
+}
+
+.itemType {
+  font-size: var(--text-sm, 14px);
+  color: var(--text-secondary, #999);
+  text-transform: capitalize;
+}
+
+.rarity {
+  font-size: var(--text-xs, 12px);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm, 4px);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.rarity.common { background: #1a1a1a; color: #999; }
+.rarity.uncommon { background: #1eff0020; color: #1eff00; }
+.rarity.rare { background: #0070dd20; color: #2090ff; }
+.rarity.veryrare { background: #a335ee20; color: #c355ff; }
+.rarity.legendary { background: #ff800020; color: #ffa040; }
+.rarity.artifact { background: #e6cc8020; color: #f0e0a0; }
+
+.itemActions {
+  display: flex;
+  gap: var(--space-xs, 4px);
+  margin-top: var(--space-xs, 4px);
+}
+
+.actionBtn {
+  padding: 4px 12px;
+  border: 1px solid var(--border-primary, #333);
+  background: var(--bg-secondary, #2a2a2a);
+  color: var(--text-primary, #fff);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  font-size: var(--text-sm, 14px);
+  transition: all 0.15s ease;
+}
+
+.actionBtn:hover {
+  border-color: var(--border-brand, #4a9eff);
+  background: var(--bg-brand, #2a5a9a);
+}
+
+.actionBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: var(--border-primary, #333);
+  background: var(--bg-secondary, #2a2a2a);
+}
+
+.actionBtn.active {
+  border-color: var(--text-success, #1eff00);
+  background: rgba(30, 255, 0, 0.1);
+  color: var(--text-success, #1eff00);
+}
+
+.attunementBtn.active {
+  border-color: var(--text-brand, #4a9eff);
+  background: rgba(74, 158, 255, 0.2);
+  color: var(--text-brand, #4a9eff);
+}
+
+.removeBtn {
+  margin-left: auto;
+}
+
+.removeBtn:hover {
+  border-color: var(--text-error, #dc2626);
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--text-error, #dc2626);
+}

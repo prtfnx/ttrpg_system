@@ -42,7 +42,8 @@ class Character(DnD5eCharacter):
         self.token_size: int = 1  # Grid squares
         self.visibility: bool = True
         self.spells: List[Any] = []  # For spell objects
-        self.inventory: List[str] = []
+        self.inventory: List[Dict[str, Any]] = []  # Equipment objects with {name, type, rarity, equipped, attuned, quantity}
+        self.attuned_items: List[str] = []  # Track attuned item names (max 3)
         
         # Combat-specific attributes
         self.temporary_hit_points: int = 0
@@ -242,16 +243,66 @@ class Character(DnD5eCharacter):
             return True
         return False
     
-    def add_item(self, item: str) -> None:
+    def add_item(self, item: Union[str, Dict[str, Any]]) -> None:
         """Add an item to the character's inventory"""
+        if isinstance(item, str):
+            # Legacy support - convert string to dict
+            item = {"name": item, "type": "misc", "quantity": 1, "equipped": False, "attuned": False}
         self.inventory.append(item)
     
-    def remove_item(self, item: str) -> bool:
-        """Remove an item from the character's inventory"""
-        if item in self.inventory:
-            self.inventory.remove(item)
-            return True
+    def remove_item(self, item_name: str) -> bool:
+        """Remove an item from the character's inventory by name"""
+        for idx, inv_item in enumerate(self.inventory):
+            item_dict_name = inv_item if isinstance(inv_item, str) else inv_item.get('name', '')
+            if item_dict_name == item_name:
+                self.inventory.pop(idx)
+                # Remove from attuned if it was attuned
+                if item_name in self.attuned_items:
+                    self.attuned_items.remove(item_name)
+                return True
         return False
+    
+    def attune_item(self, item_name: str) -> Dict[str, Any]:
+        """Attune to a magic item (max 3 attunements per D&D 5e rules)"""
+        # Check attunement limit
+        if len(self.attuned_items) >= 3 and item_name not in self.attuned_items:
+            return {"success": False, "error": "Cannot attune to more than 3 items (D&D 5e rule)"}
+        
+        # Find item in inventory
+        for inv_item in self.inventory:
+            if isinstance(inv_item, dict) and inv_item.get('name') == item_name:
+                if not inv_item.get('requires_attunement', False):
+                    return {"success": False, "error": f"{item_name} does not require attunement"}
+                
+                # Attune
+                inv_item['attuned'] = True
+                if item_name not in self.attuned_items:
+                    self.attuned_items.append(item_name)
+                return {"success": True, "attuned_count": len(self.attuned_items)}
+        
+        return {"success": False, "error": f"{item_name} not found in inventory"}
+    
+    def unattune_item(self, item_name: str) -> Dict[str, Any]:
+        """Remove attunement from an item"""
+        if item_name in self.attuned_items:
+            self.attuned_items.remove(item_name)
+            
+            # Update inventory item
+            for inv_item in self.inventory:
+                if isinstance(inv_item, dict) and inv_item.get('name') == item_name:
+                    inv_item['attuned'] = False
+                    break
+            
+            return {"success": True, "attuned_count": len(self.attuned_items)}
+        return {"success": False, "error": f"{item_name} is not attuned"}
+    
+    def get_attuned_items(self) -> List[Dict[str, Any]]:
+        """Get all currently attuned items"""
+        attuned = []
+        for inv_item in self.inventory:
+            if isinstance(inv_item, dict) and inv_item.get('attuned', False):
+                attuned.append(inv_item)
+        return attuned
     
     def get_spellcasting_ability(self) -> Optional[AbilityScore]:
         """Get the character's primary spellcasting ability"""

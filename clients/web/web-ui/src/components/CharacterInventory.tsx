@@ -76,21 +76,24 @@ export const CharacterInventory: React.FC<CharacterInventoryProps> = ({
     const item = inventory[index];
     if (!item.requires_attunement) return;
     
-    // Check attunement limit (3 items)
+    // Check attunement limit client-side (server also validates)
     const attunedCount = inventory.filter((i: Equipment) => i.attuned).length;
     if (!item.attuned && attunedCount >= 3) {
       alert('You can only attune to 3 items at a time (D&D 5e rule)');
       return;
     }
     
-    const updatedInventory = [...inventory];
-    updatedInventory[index] = {
-      ...updatedInventory[index],
-      attuned: !updatedInventory[index].attuned
-    };
-    onSave({
-      data: { ...character.data, inventory: updatedInventory }
-    });
+    // Send WebSocket message to server
+    const messageType = item.attuned ? 'character_unattune_item' : 'character_attune_item';
+    window.dispatchEvent(new CustomEvent('protocol-send-message', {
+      detail: {
+        type: messageType,
+        data: {
+          character_id: character.character_id,
+          item_name: item.name
+        }
+      }
+    }));
   };
 
   const handleRemove = (index: number) => {

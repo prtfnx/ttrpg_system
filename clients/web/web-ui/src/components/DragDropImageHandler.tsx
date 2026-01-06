@@ -485,6 +485,102 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
       }
     }
 
+    // Check for equipment token drop
+    try {
+      const equipmentData = e.dataTransfer.getData('application/json');
+      if (equipmentData) {
+        const parsed = JSON.parse(equipmentData);
+        if (parsed.type === 'equipment-token' && parsed.data) {
+          console.log('📦 Equipment token drop detected:', parsed.data);
+          
+          // SSoT: Ensure table is loaded
+          let tableId: string;
+          try {
+            tableId = await useGameStore.getState().ensureTableLoaded();
+          } catch (error) {
+            console.error('❌ Cannot create equipment sprite:', error);
+            return;
+          }
+          
+          // Create equipment sprite on map
+          const equipment = parsed.data;
+          const spriteId = `equipment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          
+          // Get equipment emoji for texture fallback
+          const getEquipmentEmoji = (type: string) => {
+            const t = type?.toLowerCase() || '';
+            if (t.includes('weapon')) return '⚔️';
+            if (t.includes('armor')) return '🛡️';
+            if (t.includes('potion')) return '🧪';
+            if (t.includes('scroll')) return '📜';
+            if (t.includes('ring')) return '💍';
+            if (t.includes('wand') || t.includes('staff') || t.includes('rod')) return '🪄';
+            return '📦';
+          };
+          
+          // Create simple SVG texture with emoji
+          const emoji = getEquipmentEmoji(equipment.type);
+          const svgTexture = `data:image/svg+xml;base64,${btoa(`
+            <svg width="50" height="50" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="25" cy="25" r="22" fill="#2a2a2a" stroke="#4a4a4a" stroke-width="2"/>
+              <text x="25" y="35" font-family="Arial" font-size="28" fill="white" text-anchor="middle">${emoji}</text>
+            </svg>
+          `)}`;
+          
+          const sprite = {
+            id: spriteId,
+            name: equipment.name,
+            tableId: tableId,
+            x: dropX,
+            y: dropY,
+            texture: equipment.image_url || svgTexture,
+            scale: { x: 0.5, y: 0.5 }, // Smaller than character tokens
+            rotation: 0,
+            layer: 'tokens',
+            controlledBy: user ? [String(user.id)] : []
+          };
+          
+          addSprite(sprite);
+          
+          // Sync to server
+          if (protocol && tableId) {
+            protocol.sendMessage(createMessage(MessageType.SPRITE_CREATE, {
+              table_id: tableId,
+              sprite_data: {
+                id: spriteId,
+                name: equipment.name,
+                table_id: tableId,
+                x: dropX,
+                y: dropY,
+                texture: sprite.texture,
+                scale_x: sprite.scale.x,
+                scale_y: sprite.scale.y,
+                rotation: sprite.rotation,
+                layer: sprite.layer,
+                controlled_by: sprite.controlledBy
+              }
+            }));
+          }
+          
+          setUploadState({
+            status: 'completed',
+            progress: 100,
+            message: `Placed ${equipment.name} on map`,
+            fileName: equipment.name
+          });
+          
+          setTimeout(() => {
+            setUploadState({ status: 'idle', progress: 0, message: '' });
+          }, 2000);
+          
+          return;
+        }
+      }
+    } catch (error) {
+      // Not equipment data, continue to file handling
+      console.log('Not equipment token data');
+    }
+
     // Handle image file drops
     const files = Array.from(e.dataTransfer.files);
     const imageFiles = files.filter(file => file.type.startsWith('image/'));

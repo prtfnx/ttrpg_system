@@ -1,28 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { LegendaryActions } from './LegendaryActions';
+import React, { useEffect, useState } from 'react';
 import { MessageType, createMessage } from '../../protocol/message';
 import { useProtocol } from '../../services/ProtocolContext';
+import type { Monster } from '../../types/compendium';
+import { LegendaryActions } from './LegendaryActions';
 import styles from './MonsterActionPanel.module.css';
-
-interface MonsterAction {
-  name: string;
-  description: string;
-  attack_bonus?: number;
-  damage_dice?: string;
-  damage_type?: string;
-}
-
-interface LairAction {
-  description: string;
-}
-
-interface Monster {
-  name: string;
-  actions?: MonsterAction[];
-  legendary_actions?: Array<{ name: string; description: string; cost: number }>;
-  lair_actions?: LairAction[];
-  legendary_actions_per_round?: number;
-}
 
 interface MonsterActionPanelProps {
   monsterName: string;

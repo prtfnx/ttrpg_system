@@ -22,6 +22,8 @@ from net.protocol import Message, MessageType, ProtocolHandler
 from core_table.server_protocol import ServerProtocol
 from core_table.server import TableManager
 from core_table.compendiums.services.compendium_service import CompendiumService
+from core_table.compendiums.services.spell_calculator import SpellCalculator
+from core_table.compendiums.services.treasure_generator import TreasureGenerator
 from .asset_manager import get_server_asset_manager
 from server_host.utils.logger import setup_logger
 logger = setup_logger(__name__)
@@ -63,6 +65,8 @@ class GameSessionProtocolService:
         # Initialize compendium service
         self.compendium = CompendiumService()
         self.compendium.load_all()
+        self.spell_calculator = SpellCalculator()
+        self.treasure_generator = TreasureGenerator(self.compendium.equipment)
         logger.info(f"CompendiumService initialized for session {session_code}")
         
         logger.info(f"GameSessionProtocolService created for session {session_code}")
@@ -553,10 +557,17 @@ class GameSessionProtocolService:
                 spell_name = data.get('name', '')
                 spell = self.compendium.get_spell(spell_name)
                 
+                # Add upcast info if requested
+                spell_dict = spell.to_dict() if spell else None
+                if spell_dict and data.get('calculate_upcast'):
+                    slot_level = data.get('slot_level', spell.level)
+                    upcast_info = self.spell_calculator.calculate_upcast_damage(spell, slot_level)
+                    spell_dict['upcast_info'] = upcast_info
+                
                 response = Message(
                     MessageType.COMPENDIUM_GET_SPELL_RESPONSE,
                     {
-                        'spell': spell.to_dict() if spell else None,
+                        'spell': spell_dict,
                         'found': spell is not None
                     }
                 )
@@ -574,6 +585,42 @@ class GameSessionProtocolService:
                     }
                 )
                 await self._send_message(websocket, response)
+            
+            elif message_type == MessageType.COMPENDIUM_GET_SUBCLASSES:
+                class_name = data.get('class_name', '')
+                subclasses = self.compendium.classes.get_subclasses(class_name)
+                
+                response = Message(
+                    MessageType.COMPENDIUM_GET_SUBCLASSES_RESPONSE,
+                    {
+                        'class_name': class_name,
+                        'subclasses': subclasses,
+                        'count': len(subclasses)
+                    }
+                )
+                await self._send_message(websocket, response)
+            
+            elif message_type == MessageType.COMPENDIUM_GET_CLASS_FEATURES:
+                class_name = data.get('class_name', '')
+                level = data.get('level', 1)
+                subclass_name = data.get('subclass_name')
+                
+                features = self.compendium.classes.get_features_at_level(
+                    class_name, level, subclass_name
+                )
+                prof_bonus = self.compendium.classes.get_proficiency_bonus(level)
+                
+                response = Message(
+                    MessageType.COMPENDIUM_GET_CLASS_FEATURES_RESPONSE,
+                    {
+                        'class_name': class_name,
+                        'level': level,
+                        'subclass_name': subclass_name,
+                        'features': features,
+                        'proficiency_bonus': prof_bonus
+                    }
+                )
+                await self._send_message(websocket, response)
                 
             elif message_type == MessageType.COMPENDIUM_GET_EQUIPMENT:
                 item_name = data.get('name', '')
@@ -584,6 +631,29 @@ class GameSessionProtocolService:
                     {
                         'equipment': equipment.to_dict() if equipment else None,
                         'found': equipment is not None
+                    }
+                )
+                await self._send_message(websocket, response)
+            
+            elif message_type == MessageType.COMPENDIUM_SEARCH_EQUIPMENT:
+                query = data.get('query', '')
+                magic_only = data.get('magic_only', False)
+                requires_attunement = data.get('requires_attunement')
+                rarity = data.get('rarity')
+                
+                results = self.compendium.equipment.search_equipment(
+                    query=query,
+                    magic_only=magic_only,
+                    requires_attunement=requires_attunement,
+                    rarity=rarity
+                )
+                
+                response = Message(
+                    MessageType.COMPENDIUM_SEARCH_EQUIPMENT_RESPONSE,
+                    {
+                        'query': query,
+                        'equipment': [e.to_dict() for e in results],
+                        'count': len(results)
                     }
                 )
                 await self._send_message(websocket, response)
@@ -616,6 +686,31 @@ class GameSessionProtocolService:
                 response = Message(
                     MessageType.COMPENDIUM_GET_CHARACTER_DATA_RESPONSE,
                     {'data': char_data}
+                )
+                await self._send_message(websocket, response)
+            
+            elif message_type == MessageType.COMPENDIUM_GENERATE_TREASURE:
+                cr = data.get('cr', 1)
+                num_creatures = data.get('num_creatures', 1)
+                hoard = data.get('hoard', False)
+                
+                treasure = self.treasure_generator.generate_treasure(
+                    cr=cr,
+                    num_creatures=num_creatures,
+                    hoard=hoard
+                )
+                
+                summary = self.treasure_generator.treasure_to_summary(treasure)
+                
+                response = Message(
+                    MessageType.COMPENDIUM_GENERATE_TREASURE_RESPONSE,
+                    {
+                        'cr': cr,
+                        'num_creatures': num_creatures,
+                        'hoard': hoard,
+                        'treasure': treasure,
+                        'summary': summary
+                    }
                 )
                 await self._send_message(websocket, response)
             

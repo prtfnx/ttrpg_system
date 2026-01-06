@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { useAuthenticatedWebSocket } from '../hooks/useAuthenticatedWebSocket';
 import type { UserInfo } from '../services/auth.service';
 import { GameCanvas } from './GameCanvas';
+import { MonsterQuickActions } from './GameCanvas/MonsterQuickActions';
 import styles from './GameClient.module.css';
 import { RightPanel } from './RightPanel';
 import { TokenConfigModal } from './TokenConfigModal';
@@ -107,6 +108,13 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
 
   // Token config modal state
   const [tokenConfigSpriteId, setTokenConfigSpriteId] = React.useState<string | null>(null);
+  
+  // Monster quick actions state
+  const [monsterQuickActionsSprite, setMonsterQuickActionsSprite] = React.useState<{
+    spriteId: string;
+    characterId: string;
+    position: { x: number; y: number };
+  } | null>(null);
 
   // Listen for double-click events from Rust WASM
   useEffect(() => {
@@ -120,6 +128,29 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     window.addEventListener('tokenDoubleClick', handleTokenDoubleClick);
     return () => {
       window.removeEventListener('tokenDoubleClick', handleTokenDoubleClick);
+    };
+  }, []);
+  
+  // Listen for right-click events on monster tokens (for quick actions)
+  useEffect(() => {
+    const handleTokenRightClick = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { spriteId, characterId, x, y } = customEvent.detail;
+      
+      // Only show for monster/NPC tokens
+      if (characterId) {
+        console.log('[GameClient] Monster token right-click:', { spriteId, characterId });
+        setMonsterQuickActionsSprite({
+          spriteId,
+          characterId,
+          position: { x, y }
+        });
+      }
+    };
+
+    window.addEventListener('tokenRightClick', handleTokenRightClick);
+    return () => {
+      window.removeEventListener('tokenRightClick', handleTokenRightClick);
     };
   }, []);
 
@@ -249,6 +280,15 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
           <TokenConfigModal
             spriteId={tokenConfigSpriteId}
             onClose={() => setTokenConfigSpriteId(null)}
+          />
+        )}
+        
+        {/* Monster Quick Actions Overlay */}
+        {monsterQuickActionsSprite && (
+          <MonsterQuickActions
+            characterId={monsterQuickActionsSprite.characterId}
+            spritePosition={monsterQuickActionsSprite.position}
+            onClose={() => setMonsterQuickActionsSprite(null)}
           />
         )}
       </div>

@@ -6,12 +6,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { compendiumService, type Background, type CharacterClass, type CompendiumStatus, type Race, type Spell } from '../services/compendiumService';
 
 // Re-export WebSocket hooks for compendium (Phase 2.1)
-export { 
-  useCompendiumSearch, 
-  useSpellDetail, 
-  useMonsterDetail, 
-  useCompendiumStats, 
-  useCharacterCreationData 
+export {
+    useCharacterCreationData, useCompendiumSearch, useCompendiumStats, useMonsterDetail, useSpellDetail
 } from './useCompendiumWebSocket';
 
 export interface UseCompendiumDataState<T> {

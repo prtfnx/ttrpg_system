@@ -97,11 +97,21 @@ class GamePlayer(Base):
     character_name = Column(String(100))
     joined_at = Column(DateTime, default=datetime.utcnow)
     is_connected = Column(Boolean, default=False)
-    role = Column(String(20), nullable=False, default="player")  # Session-based role: 'dm' or 'player'
+    role = Column(String(20), nullable=False, default="player")
+    role_updated_at = Column(DateTime, nullable=True)
+    role_updated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     
     # Relationships
     session = relationship("GameSession", back_populates="players")
-    user = relationship("User")
+    user = relationship("User", foreign_keys=[user_id])
+    role_updater = relationship("User", foreign_keys=[role_updated_by])
+    
+    def get_permissions(self):
+        from server_host.utils.permissions import get_role_permissions
+        return get_role_permissions(self.role)
+    
+    def has_permission(self, permission: str) -> bool:
+        return permission in self.get_permissions()
 
 class VirtualTable(Base):
     __tablename__ = "virtual_tables"
@@ -201,6 +211,63 @@ class Asset(Base):
     # Relationships
     uploader = relationship("User")
     session = relationship("GameSession")
+
+class SessionPermission(Base):
+    __tablename__ = "session_permissions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("game_sessions.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    permission = Column(String(50), nullable=False)
+    granted_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    granted_at = Column(DateTime, default=datetime.utcnow)
+    revoked_at = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True)
+    
+    session = relationship("GameSession")
+    user = relationship("User", foreign_keys=[user_id])
+    granter = relationship("User", foreign_keys=[granted_by])
+
+class SessionInvitation(Base):
+    __tablename__ = "session_invitations"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("game_sessions.id"), nullable=False)
+    invite_code = Column(String(32), unique=True, index=True, nullable=False)
+    pre_assigned_role = Column(String(20), nullable=False, default="player")
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=True)
+    max_uses = Column(Integer, default=1)
+    uses_count = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    
+    session = relationship("GameSession")
+    creator = relationship("User")
+    
+    def is_valid(self) -> bool:
+        if not self.is_active:
+            return False
+        if self.expires_at and datetime.utcnow() > self.expires_at:
+            return False
+        if self.max_uses > 0 and self.uses_count >= self.max_uses:
+            return False
+        return True
+
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    event_type = Column(String(50), nullable=False)
+    session_code = Column(String(20), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    target_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    details = Column(Text, nullable=True)
+    ip_address = Column(String(45), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    user = relationship("User", foreign_keys=[user_id])
+    target_user = relationship("User", foreign_keys=[target_user_id])
 
 class SessionCharacter(Base):
     __tablename__ = "session_characters"

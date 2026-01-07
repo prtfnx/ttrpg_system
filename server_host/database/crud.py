@@ -12,7 +12,17 @@ import string
 import re
 import json
 import uuid
-from server_host.utils.logger import setup_logger
+import sys
+import os
+
+# Add parent directory to path for imports
+if __name__ == "__main__":
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+try:
+    from utils.logger import setup_logger
+except ImportError:
+    from server_host.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

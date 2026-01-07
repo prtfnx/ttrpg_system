@@ -378,7 +378,13 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
               >
                 <div className={styles.entryHeader}>
                   <span className={styles.entryName}>{item.name}</span>
-                  <span className={styles.equipmentCost}>{item.cost}</span>
+                  <span className={styles.equipmentCost}>
+                    {typeof item.cost === 'number' 
+                      ? `${item.cost} ${(item as any).cost_unit || 'gp'}`
+                      : typeof item.cost === 'object' && item.cost !== null
+                        ? `${(item.cost as any).quantity || 0} ${(item.cost as any).unit || 'gp'}`
+                        : 'N/A'}
+                  </span>
                 </div>
                 <div className={styles.entryMeta}>
                   {item.type}

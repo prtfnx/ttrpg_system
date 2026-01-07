@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+// @ts-ignore - react-window types may not be available
+import { FixedSizeList as VirtualList } from 'react-window';
 import { MessageType, createMessage } from '../../protocol/message';
 import { useProtocol } from '../../services/ProtocolContext';
 import type { CompendiumSearchResult } from '../../types/compendium';
@@ -71,20 +73,29 @@ export const CompendiumBrowser: React.FC = () => {
         {results.spells && results.spells.length > 0 && (
           <div className={styles.section}>
             <h3>Spells ({results.spells.length})</h3>
-            <div className={styles.itemList}>
-              {results.spells.map((spell, idx) => (
-                <div
-                  key={idx}
-                  className={styles.item}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, spell, 'spell')}
-                >
-                  <span className={styles.itemName}>{spell.name}</span>
-                  <span className={styles.itemLevel}>Level {spell.level}</span>
-                  <span className={styles.itemSchool}>{spell.school}</span>
-                </div>
-              ))}
-            </div>
+            <VirtualList
+              height={400}
+              itemCount={results.spells.length}
+              itemSize={60}
+              width="100%"
+            >
+              {({ index, style }: { index: number; style: React.CSSProperties }) => {
+                const spell = results.spells![index];
+                return (
+                  <div
+                    key={index}
+                    className={styles.item}
+                    style={style}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, spell, 'spell')}
+                  >
+                    <span className={styles.itemName}>{spell.name}</span>
+                    <span className={styles.itemLevel}>Level {spell.level}</span>
+                    <span className={styles.itemSchool}>{spell.school}</span>
+                  </div>
+                );
+              }}
+            </VirtualList>
           </div>
         )}
 
@@ -106,15 +117,29 @@ export const CompendiumBrowser: React.FC = () => {
         {results.monsters && results.monsters.length > 0 && (
           <div className={styles.section}>
             <h3>Monsters ({results.monsters.length})</h3>
-            <div className={styles.itemList}>
-              {results.monsters.map((monster, idx) => (
-                <div key={idx} className={styles.item}>
-                  <span className={styles.itemName}>{monster.name}</span>
-                  <span className={styles.itemCR}>CR {monster.cr}</span>
-                  <span className={styles.itemType}>{monster.type}</span>
-                </div>
-              ))}
-            </div>
+            <VirtualList
+              height={400}
+              itemCount={results.monsters.length}
+              itemSize={60}
+              width="100%"
+            >
+              {({ index, style }: { index: number; style: React.CSSProperties }) => {
+                const monster = results.monsters![index];
+                return (
+                  <div
+                    key={index}
+                    className={styles.item}
+                    style={style}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, monster, 'monster')}
+                  >
+                    <span className={styles.itemName}>{monster.name}</span>
+                    <span className={styles.itemCR}>CR {monster.cr}</span>
+                    <span className={styles.itemType}>{monster.type}</span>
+                  </div>
+                );
+              }}
+            </VirtualList>
           </div>
         )}
 

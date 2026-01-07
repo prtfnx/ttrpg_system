@@ -1,6 +1,7 @@
 import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
+import { useCharacterSheet } from '../contexts/CharacterSheetContext';
 import { authService } from '../services/auth.service';
 import { useProtocol } from '../services/ProtocolContext';
 import { useGameStore } from '../store';
@@ -233,39 +234,11 @@ export function CharacterPanelRedesigned() {
   const [searchFilter, setSearchFilter] = useState<string>('');
   const [selectedCharacterIds, setSelectedCharacterIds] = useState<Set<string>>(new Set());
   const [bulkSelectMode, setBulkSelectMode] = useState<boolean>(false);
-  const [viewSheetCharId, setViewSheetCharId] = useState<string | null>(null);
+  const { viewSheetCharId, setViewSheetCharId } = useCharacterSheet();
 
   const selectedCharacter = characters.find(c => {
     return getSpritesForCharacter(c.id).some(s => selectedSprites.includes(s.id));
   }) || null;
-
-  // Drawer resize handlers
-  const handleResizeStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-  };
-
-  useEffect(() => {
-    if (!isResizing) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const newWidth = e.clientX;
-      const maxWidth = window.innerWidth * 0.8;
-      setDrawerWidth(Math.max(400, Math.min(newWidth, maxWidth)));
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizing]);
 
   const handleCharacterClick = (charId: string) => {
     setExpandedCharId(expandedCharId === charId ? null : charId);
@@ -1293,7 +1266,6 @@ export function CharacterPanelRedesigned() {
         // Portal to #modal-root to decouple from CharacterPanel
         const modalContent = (
           <div className={styles.floatingSheetContainer}>
-            <div className={styles.floatingSheetBackdrop} onClick={() => setViewSheetCharId(null)} />
             <div className={styles.floatingSheet}>
               <div className={styles.floatingSheetHeader}>
                 <h2>{char.name} - Character Sheet</h2>

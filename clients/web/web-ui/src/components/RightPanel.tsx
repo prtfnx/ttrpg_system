@@ -1,5 +1,6 @@
 import clsx from 'clsx';
 import { useRef, useState } from 'react';
+import { CharacterSheetProvider } from '../contexts/CharacterSheetContext';
 import { ActionQueuePanel } from './ActionQueuePanel';
 import { ActionsPanel } from './ActionsPanel';
 import { ActionsQuickPanel } from './ActionsQuickPanel';
@@ -30,8 +31,9 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
   const canvasRef = useRef<HTMLCanvasElement>(null!);
 
   return (
-    <div className={styles.rightPanelContainer}>
-      <div className={styles.tabsContainer}>
+    <CharacterSheetProvider>
+      <div className={styles.rightPanelContainer}>
+        <div className={styles.tabsContainer}>
         <button className={clsx(styles.tabButton, activeTab === 'compendium' && 'active')} onClick={() => setActiveTab('compendium')}>Compendium</button>
         <button className={clsx(styles.tabButton, activeTab === 'tables' && 'active')} onClick={() => setActiveTab('tables')}>Tables</button>
         <button className={clsx(styles.tabButton, activeTab === 'quick-actions' && 'active')} onClick={() => setActiveTab('quick-actions')}>Quick Actions</button>
@@ -75,6 +77,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
         {isDevelopment && activeTab === 'assets' && <AssetPanel />}
         {isDevelopment && activeTab === 'network' && <NetworkPanel />}
       </div>
-    </div>
+      </div>
+    </CharacterSheetProvider>
   );
 }

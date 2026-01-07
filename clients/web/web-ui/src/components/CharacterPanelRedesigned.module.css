@@ -644,6 +644,8 @@
 /* Floating Sheet - renders via portal outside component tree */
 .floatingSheetContainer {
   /* Container is rendered at #modal-root via portal */
+  /* No backdrop - clicking outside doesn't close the sheet */
+  pointer-events: none;
   position: fixed;
   top: 0;
   left: 0;
@@ -655,19 +657,10 @@
   justify-content: flex-start;
 }
 
-.floatingSheetBackdrop {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
-  animation: fadeIn var(--duration-base) ease-out;
-}
-
 .floatingSheet {
   position: relative;
   z-index: 1001;
+  pointer-events: auto; /* Re-enable interaction on the sheet itself */
   background: var(--bg-secondary);
   height: 100vh;
   width: 800px;

@@ -8,11 +8,11 @@ from sqlalchemy.orm import Session
 from typing import Annotated, List
 import secrets
 import string
-from ..database.database import get_db
-from ..database import crud, schemas
-from ..models import game as game_models
-from ..utils.logger import setup_logger
-from .users import get_current_active_user
+from server_host.database.database import get_db
+from server_host.database import crud, schemas
+from server_host.models import game as game_models
+from server_host.utils.logger import setup_logger
+from server_host.routers.users import get_current_active_user
 
 logger = setup_logger(__name__)
 router = APIRouter(prefix="/game", tags=["game"])

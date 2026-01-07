@@ -11,19 +11,19 @@ from datetime import datetime, timedelta, timezone
 from jwt.exceptions import InvalidTokenError
 import jwt
 
-from ..database.database import get_db
-from ..database import crud
-from ..database import schemas
-from ..models import auth as auth_models
-from ..utils.rate_limiter import registration_limiter, login_limiter, get_client_ip
-from ..utils.logger import setup_logger
+from server_host.database.database import get_db
+from server_host.database import crud
+from server_host.database import schemas
+from server_host.models import auth as auth_models
+from server_host.utils.rate_limiter import registration_limiter, login_limiter, get_client_ip
+from server_host.utils.logger import setup_logger
 from functools import lru_cache
 
 logger = setup_logger(__name__)
 
 router = APIRouter(prefix="/users", tags=["users"])
 templates = Jinja2Templates(directory="templates")
-from .. import config
+from server_host import config
 
 @lru_cache
 def get_settings():

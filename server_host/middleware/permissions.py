@@ -7,10 +7,10 @@ from typing import List, Annotated
 from sqlalchemy.orm import Session
 from functools import wraps
 
-from ..database.database import get_db
-from ..database import schemas
-from ..routers.users import get_current_user
-from ..utils.logger import setup_logger
+from server_host.database.database import get_db
+from server_host.database import schemas
+from server_host.routers.users import get_current_user
+from server_host.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 

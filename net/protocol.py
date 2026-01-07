@@ -121,6 +121,9 @@ class MessageType(enum.Enum):    # Core messages
     # Delta/real-time character update
     CHARACTER_UPDATE = "character_update"
     CHARACTER_UPDATE_RESPONSE = "character_update_response"
+    CHARACTER_ATTUNE_ITEM = "character_attune_item"
+    CHARACTER_UNATTUNE_ITEM = "character_unattune_item"
+    CHARACTER_ATTUNE_RESPONSE = "character_attune_response"
       
     
     # Batch messaging for performance

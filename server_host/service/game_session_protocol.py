@@ -24,6 +24,11 @@ from core_table.server import TableManager
 from core_table.compendiums.services.compendium_service import CompendiumService
 from core_table.compendiums.services.spell_calculator import SpellCalculator
 from core_table.compendiums.services.treasure_generator import TreasureGenerator
+from core_table.compendiums.exceptions import CompendiumError, DataNotFoundError, AttunementError
+from core_table.compendiums.validators import (
+    AttuneItemRequest, CompendiumSearchRequest, SpellSearchRequest,
+    MonsterSearchRequest, EquipmentSearchRequest, TreasureGenerateRequest
+)
 from .asset_manager import get_server_asset_manager
 from server_host.utils.logger import setup_logger
 logger = setup_logger(__name__)
@@ -277,9 +282,15 @@ class GameSessionProtocolService:
                 MessageType.COMPENDIUM_GET_EQUIPMENT,
                 MessageType.COMPENDIUM_GET_MONSTER,
                 MessageType.COMPENDIUM_GET_STATS,
-                MessageType.COMPENDIUM_GET_CHARACTER_DATA
+                MessageType.COMPENDIUM_GET_CHARACTER_DATA,
+                MessageType.COMPENDIUM_GENERATE_TREASURE
             ]:
                 await self._handle_compendium_message(websocket, message, message_type, client_id)
+            elif message_type in [
+                MessageType.CHARACTER_ATTUNE_ITEM,
+                MessageType.CHARACTER_UNATTUNE_ITEM
+            ]:
+                await self._handle_character_attunement(websocket, message, message_type, client_id)
             else:
                 logger.warning(f"Unknown message type: {message_type}, available handlers: {list(self.server_protocol.handlers.keys())}")
                 logger.info(f"message: {message}, client_id: {client_id}")
@@ -690,14 +701,13 @@ class GameSessionProtocolService:
                 await self._send_message(websocket, response)
             
             elif message_type == MessageType.COMPENDIUM_GENERATE_TREASURE:
-                cr = data.get('cr', 1)
-                num_creatures = data.get('num_creatures', 1)
-                hoard = data.get('hoard', False)
+                # Validate treasure generation request
+                treasure_request = TreasureGenerateRequest(**data)
                 
                 treasure = self.treasure_generator.generate_treasure(
-                    cr=cr,
-                    num_creatures=num_creatures,
-                    hoard=hoard
+                    cr=treasure_request.cr,
+                    num_creatures=treasure_request.num_creatures,
+                    hoard=treasure_request.hoard
                 )
                 
                 summary = self.treasure_generator.treasure_to_summary(treasure)
@@ -705,9 +715,9 @@ class GameSessionProtocolService:
                 response = Message(
                     MessageType.COMPENDIUM_GENERATE_TREASURE_RESPONSE,
                     {
-                        'cr': cr,
-                        'num_creatures': num_creatures,
-                        'hoard': hoard,
+                        'cr': treasure_request.cr,
+                        'num_creatures': treasure_request.num_creatures,
+                        'hoard': treasure_request.hoard,
                         'treasure': treasure,
                         'summary': summary
                     }
@@ -716,9 +726,80 @@ class GameSessionProtocolService:
             
             logger.debug(f"Handled compendium message {message_type.value} for client {client_id}")
             
+        except CompendiumError as e:
+            logger.warning(f"Compendium error: {e.message}")
+            await self._send_error(websocket, e.to_dict())
         except Exception as e:
-            logger.error(f"Error handling compendium message {message_type.value}: {e}")
-            await self._send_error(websocket, f"Compendium error: {str(e)}")
+            logger.error(f"Error handling compendium message {message_type.value}: {e}", exc_info=True)
+            error = CompendiumError(f"Compendium error: {str(e)}")
+            await self._send_error(websocket, error.to_dict())
 
-
-
+    async def _handle_character_attunement(self, websocket: WebSocket, message: Message, message_type: MessageType, client_id: str):
+        """Handle character attunement operations with validation"""
+        try:
+            # Validate request payload
+            request = AttuneItemRequest(**message.data)
+            
+            # Find character in table manager
+            character = None
+            for table in self.table_manager.tables.values():
+                char = table.get_character(request.character_id)
+                if char:
+                    character = char
+                    break
+            
+            if not character:
+                raise DataNotFoundError('Character', request.character_id)
+            
+            # Execute attunement operation
+            if message_type == MessageType.CHARACTER_ATTUNE_ITEM:
+                result = character.attune_item(request.item_name)
+                response_type = MessageType.CHARACTER_ATTUNE_RESPONSE
+            else:  # UNATTUNE
+                result = character.unattune_item(request.item_name)
+                response_type = MessageType.CHARACTER_ATTUNE_RESPONSE
+            
+            # Check for errors from Character model
+            if not result.get('success'):
+                raise AttunementError(
+                    request.character_id,
+                    request.item_name,
+                    result.get('error', 'Unknown error')
+                )
+            
+            # Send response to requesting client
+            response = Message(
+                response_type,
+                {
+                    'character_id': request.character_id,
+                    'item_name': request.item_name,
+                    **result
+                }
+            )
+            await self._send_message(websocket, response)
+            
+            # Broadcast character update to all clients
+            update_message = Message(
+                MessageType.CHARACTER_UPDATE,
+                {
+                    'character_id': request.character_id,
+                    'inventory': character.inventory,
+                    'attuned_items': character.attuned_items
+                }
+            )
+            await self.broadcast_to_session(update_message, exclude_client=None)
+            
+            # Auto-save after inventory change
+            self.auto_save()
+            
+        except (CompendiumError, DataNotFoundError, AttunementError) as e:
+            logger.warning(f"Attunement error: {e.message}")
+            await self._send_error(websocket, e.to_dict())
+        except Exception as e:
+            logger.error(f"Unexpected error in attunement: {e}", exc_info=True)
+            error = CompendiumError(f"Attunement failed: {str(e)}")
+            await self._send_error(websocket, error.to_dict())
+                
+        except Exception as e:
+            logger.error(f"Error handling character attunement: {e}")
+            await self._send_error(websocket, f"Attunement error: {str(e)}")

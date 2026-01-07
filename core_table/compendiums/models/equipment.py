@@ -135,13 +135,28 @@ class Equipment:
     
     def to_dict(self) -> Dict[str, Any]:
         """Serialize for WebSocket transmission"""
+        # Handle cost - convert Money object to float if necessary
+        cost_value = self.cost
+        if hasattr(cost_value, 'to_gold'):
+            # It's a Money object from equipment.py
+            cost_value = cost_value.to_gold()
+        elif isinstance(cost_value, dict):
+            # It's a currency dict {copper: ..., silver: ..., gold: ...}
+            cost_value = (
+                cost_value.get('copper', 0) * 0.01 +
+                cost_value.get('silver', 0) * 0.1 +
+                cost_value.get('electrum', 0) * 0.5 +
+                cost_value.get('gold', 0) +
+                cost_value.get('platinum', 0) * 10
+            )
+        
         return {
             'name': self.name,
             'type': self.type.value,
             'source': self.source,
             'page': self.page,
             'weight': self.weight,
-            'cost': self.cost,
+            'cost': cost_value,
             'cost_unit': self.cost_unit,
             'desc': self.description,
             'is_magic': self.is_magic,

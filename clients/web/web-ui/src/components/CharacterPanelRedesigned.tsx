@@ -1,6 +1,7 @@
 import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
+import { Rnd } from 'react-rnd';
 import { useCharacterSheet } from '../contexts/CharacterSheetContext';
 import { authService } from '../services/auth.service';
 import { useProtocol } from '../services/ProtocolContext';
@@ -1263,9 +1264,23 @@ export function CharacterPanelRedesigned() {
           }
         };
         
-        // Portal to #modal-root to decouple from CharacterPanel
+        // Portal to #modal-root with Rnd for drag/resize
         const modalContent = (
-          <div className={styles.floatingSheetContainer}>
+          <Rnd
+            default={{
+              x: 0,
+              y: 50,
+              width: 800,
+              height: window.innerHeight - 100,
+            }}
+            minWidth={400}
+            minHeight={300}
+            maxWidth={window.innerWidth * 0.95}
+            maxHeight={window.innerHeight * 0.95}
+            bounds="window"
+            dragHandleClassName={styles.floatingSheetHeader}
+            style={{ zIndex: 10000 }}
+          >
             <div className={styles.floatingSheet}>
               <div className={styles.floatingSheetHeader}>
                 <h2>{char.name} - Character Sheet</h2>
@@ -1282,7 +1297,7 @@ export function CharacterPanelRedesigned() {
                 <CharacterSheet character={char} onSave={handleSheetSave} />
               </div>
             </div>
-          </div>
+          </Rnd>
         );
         
         const modalRoot = document.getElementById('modal-root') || document.body;

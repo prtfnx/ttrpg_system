@@ -641,71 +641,84 @@
   accent-color: var(--color-primary);
 }
 
-.modalOverlay {
+/* Floating Sheet - renders via portal outside component tree */
+.floatingSheetContainer {
+  /* Container is rendered at #modal-root via portal */
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  /* Semi-transparent overlay that doesn't block interaction */
-  background: rgba(0, 0, 0, 0.3);
-  /* Don't block pointer events - allow clicking through to compendium */
-  pointer-events: none;
   z-index: 1000;
-  opacity: 1 !important;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.floatingSheetBackdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
   animation: fadeIn var(--duration-base) ease-out;
 }
 
-.modalOverlay .modalContent {
+.floatingSheet {
+  position: relative;
+  z-index: 1001;
   background: var(--bg-secondary);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-2xl);
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  animation: slideUp var(--duration-slow) ease-out;
-  /* Re-enable pointer events on the actual content */
-  pointer-events: auto;
-}
-
-.modalOverlay .modalContent.characterSheetModal {
-  /* Side drawer positioning - left side to not block compendium on right */
-  position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  /* Width controlled by React state, not CSS */
+  height: 100vh;
+  width: 800px;
   min-width: 400px;
   max-width: 80vw;
-  height: 100vh;
-  max-height: 100vh;
-  border-radius: 0;
-  /* Slide in from left animation */
-  animation: slideInFromLeft var(--duration-slow) ease-out;
   box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+  animation: slideInFromLeft var(--duration-slow) ease-out;
 }
 
-.resizeHandle {
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 8px;
-  cursor: ew-resize;
-  background: transparent;
-  z-index: 1001;
-  transition: background var(--duration-base);
+.floatingSheetHeader {
+  composes: flex items-center justify-between from '../styles/7-utilities/layout.module.css';
+  padding: var(--space-lg) var(--space-xl);
+  border-bottom: var(--border-width) solid var(--border-primary);
+  background: var(--bg-tertiary);
+  flex-shrink: 0;
 }
 
-.resizeHandle:hover {
-  background: var(--accent-primary);
-  opacity: 0.5;
+.floatingSheetHeader h2 {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
 }
 
-.resizeHandle:active {
-  background: var(--accent-primary);
-  opacity: 0.8;
+.floatingSheetClose {
+  background: none;
+  border: none;
+  font-size: var(--text-2xl);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: var(--space-xs);
+  line-height: 1;
+  transition: color var(--duration-base);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.floatingSheetClose:hover {
+  color: var(--text-primary);
+}
+
+.floatingSheetBody {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 @keyframes slideInFromLeft {
@@ -718,18 +731,16 @@
 }
 
 @media (max-width: 768px) {
-  .modalOverlay .modalContent.characterSheetModal {
+  .floatingSheet {
     width: 100vw !important;
     min-width: 100vw;
-    height: 100vh;
-    max-height: 100vh;
-    border-radius: 0;
+    max-width: 100vw;
   }
 }
 
 @media (min-width: 1920px) {
-  .modalOverlay .modalContent.characterSheetModal {
-    width: clamp(600px, 50vw, 1600px) !important;
+  .floatingSheet {
+    width: clamp(600px, 50vw, 1600px);
   }
 }
 

@@ -6,10 +6,10 @@ import { useProtocol } from '../services/ProtocolContext';
 import { useGameStore } from '../store';
 import type { Character } from '../types';
 import {
-    cloneCharacter,
-    downloadCharacterAsJSON,
-    downloadMultipleCharactersAsJSON,
-    pickAndImportCharacter
+  cloneCharacter,
+  downloadCharacterAsJSON,
+  downloadMultipleCharactersAsJSON,
+  pickAndImportCharacter
 } from '../utils/characterImportExport';
 import { showToast } from '../utils/toast';
 import styles from './CharacterPanelRedesigned.module.css';
@@ -234,8 +234,6 @@ export function CharacterPanelRedesigned() {
   const [selectedCharacterIds, setSelectedCharacterIds] = useState<Set<string>>(new Set());
   const [bulkSelectMode, setBulkSelectMode] = useState<boolean>(false);
   const [viewSheetCharId, setViewSheetCharId] = useState<string | null>(null);
-  const [drawerWidth, setDrawerWidth] = useState(800);
-  const [isResizing, setIsResizing] = useState(false);
 
   const selectedCharacter = characters.find(c => {
     return getSpritesForCharacter(c.id).some(s => selectedSprites.includes(s.id));
@@ -1278,7 +1276,7 @@ export function CharacterPanelRedesigned() {
         );
       })()}
 
-      {/* Character Sheet Modal */}
+      {/* Character Sheet Modal - Rendered via Portal */}
       {viewSheetCharId && (() => {
         const char = characters.find(c => c.id === viewSheetCharId);
         if (!char) return null;
@@ -1292,44 +1290,31 @@ export function CharacterPanelRedesigned() {
           }
         };
         
-        // Close drawer when clicking the semi-transparent left area
-        const handleOverlayClick = (e: React.MouseEvent) => {
-          // Only close if clicking directly on the overlay (left side), not on the drawer
-          if (e.target === e.currentTarget) {
-            setViewSheetCharId(null);
-          }
-        };
-        
+        // Portal to #modal-root to decouple from CharacterPanel
         const modalContent = (
-          <div className={styles.modalOverlay} onClick={handleOverlayClick}>
-            <div 
-              className={clsx(styles.modalContent, styles.characterSheetModal)}
-              onClick={(e) => e.stopPropagation()}
-              style={{ width: `${drawerWidth}px` }}
-            >
-              <div className={styles.resizeHandle} onMouseDown={handleResizeStart} />
-              <div className={styles.modalHeader}>
+          <div className={styles.floatingSheetContainer}>
+            <div className={styles.floatingSheetBackdrop} onClick={() => setViewSheetCharId(null)} />
+            <div className={styles.floatingSheet}>
+              <div className={styles.floatingSheetHeader}>
                 <h2>{char.name} - Character Sheet</h2>
                 <button 
-                  className={styles.modalCloseBtn} 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setViewSheetCharId(null);
-                  }}
+                  className={styles.floatingSheetClose} 
+                  onClick={() => setViewSheetCharId(null)}
                   aria-label="Close character sheet"
                   type="button"
                 >
                   ✕
                 </button>
               </div>
-              <div className={styles.modalBody}>
+              <div className={styles.floatingSheetBody}>
                 <CharacterSheet character={char} onSave={handleSheetSave} />
               </div>
             </div>
           </div>
         );
         
-        return ReactDOM.createPortal(modalContent, document.body);
+        const modalRoot = document.getElementById('modal-root') || document.body;
+        return ReactDOM.createPortal(modalContent, modalRoot);
       })()}
     </div>
   );

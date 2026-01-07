@@ -234,28 +234,28 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
         <button
           type="button"
           className={clsx(styles.sheetTab, activeTab === "core" && styles.active)}
-          onClick={() => setActiveTab('core')}
+          onClick={(e) => { e.stopPropagation(); setActiveTab('core'); }}
         >
           Core Stats
         </button>
         <button
           type="button"
           className={clsx(styles.sheetTab, activeTab === "spells" && styles.active)}
-          onClick={() => setActiveTab('spells')}
+          onClick={(e) => { e.stopPropagation(); setActiveTab('spells'); }}
         >
           Spells & Features
         </button>
         <button
           type="button"
           className={clsx(styles.sheetTab, activeTab === "inventory" && styles.active)}
-          onClick={() => setActiveTab('inventory')}
+          onClick={(e) => { e.stopPropagation(); setActiveTab('inventory'); }}
         >
           Inventory
         </button>
         <button
           type="button"
           className={clsx(styles.sheetTab, activeTab === "bio" && styles.active)}
-          onClick={() => setActiveTab('bio')}
+          onClick={(e) => { e.stopPropagation(); setActiveTab('bio'); }}
         >
           Notes & Bio
         </button>

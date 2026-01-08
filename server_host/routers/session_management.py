@@ -17,9 +17,14 @@ from server_host.middleware.session_permissions import (
 )
 from server_host.utils.permissions import SessionPermission, get_permission_diff, get_role_permissions
 from server_host.utils.logger import setup_logger
+from server_host.service.game_session import ConnectionManager
+from net.protocol import Message, MessageType
 
 logger = setup_logger(__name__)
 router = APIRouter(prefix="/game/session", tags=["session-management"])
+
+# WebSocket manager for real-time events
+connection_manager = ConnectionManager()
 
 class PlayerResponse(BaseModel):
     id: int
@@ -147,6 +152,23 @@ async def change_player_role(
         f"{old_role} -> {new_role} by user={current_user.id}"
     )
     
+    # Broadcast WebSocket event to all clients
+    try:
+        message = Message(
+            type=MessageType.CUSTOM,
+            data={
+                "event": "PLAYER_ROLE_CHANGED",
+                "user_id": target_user_id,
+                "old_role": old_role,
+                "new_role": new_role,
+                "permissions_gained": list(perm_diff["gained"]),
+                "permissions_lost": list(perm_diff["lost"])
+            }
+        )
+        await connection_manager.broadcast_to_session(session_code, message)
+    except Exception as e:
+        logger.error(f"Failed to broadcast role change: {e}")
+    
     return RoleChangeResponse(
         success=True,
         old_role=old_role,
@@ -203,6 +225,20 @@ async def kick_player(
         f"Player kicked: session={session_code} target={target_user_id} "
         f"by={current_user.id}"
     )
+    
+    # Broadcast WebSocket event
+    try:
+        message = Message(
+            type=MessageType.CUSTOM,
+            data={
+                "event": "PLAYER_KICKED",
+                "user_id": target_user_id,
+                "kicked_by": current_user.id
+            }
+        )
+        await connection_manager.broadcast_to_session(session_code, message)
+    except Exception as e:
+        logger.error(f"Failed to broadcast player kick: {e}")
     
     return {"success": True, "message": "Player kicked"}
 

@@ -9,11 +9,11 @@ import logging
 import jwt
 import time
 
-from ..database.database import get_db
-from ..database import crud
-from ..service.game_session import ConnectionManager, get_connection_manager
-from ..routers.users import SECRET_KEY, ALGORITHM
-from ..utils.logger import setup_logger
+from server_host.database.database import get_db
+from server_host.database import crud
+from server_host.service.game_session import ConnectionManager, get_connection_manager
+from server_host.routers.users import SECRET_KEY, ALGORITHM
+from server_host.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 router = APIRouter()

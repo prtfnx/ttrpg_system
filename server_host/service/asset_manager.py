@@ -13,8 +13,8 @@ import os
 import xxhash
 
 from storage.r2_manager import R2AssetManager
-from ..database.database import SessionLocal
-from ..database.models import Asset, GameSession
+from server_host.database.database import SessionLocal
+from server_host.database.models import Asset, GameSession
 import settings
 
 logger = logging.getLogger(__name__)

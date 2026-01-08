@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { invitationService } from '../services/invitation.service';
-import type { SessionInvitation, CreateInvitationRequest } from '../types/invitations';
+import type { CreateInvitationRequest, SessionInvitation } from '../types/invitations';
 
 export const useInvitations = (sessionCode: string | null) => {
   const [invitations, setInvitations] = useState<SessionInvitation[]>([]);

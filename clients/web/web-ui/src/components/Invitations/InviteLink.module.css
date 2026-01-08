@@ -1,0 +1,107 @@
+.container {
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.container.invalid {
+  opacity: 0.6;
+  background: var(--bg-tertiary);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.role {
+  padding: 4px 8px;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.linkBox {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.linkInput {
+  flex: 1;
+  padding: 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--text-primary);
+}
+
+.linkInput:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -1px;
+}
+
+.copyBtn {
+  padding: 8px 12px;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.copyBtn:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.copyBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+}
+
+.revokeBtn {
+  width: 100%;
+  padding: 6px;
+  background: transparent;
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.revokeBtn:hover {
+  background: #ef4444;
+  color: white;
+}

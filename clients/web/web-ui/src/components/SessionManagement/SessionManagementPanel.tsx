@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSessionPlayers } from '../../hooks/useSessionPlayers';
-import { PlayerList } from './PlayerList';
 import { InvitationManager } from '../Invitations/InvitationManager';
+import { PlayerList } from './PlayerList';
 import styles from './SessionManagementPanel.module.css';
 
 interface SessionManagementPanelProps {

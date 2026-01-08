@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import { useInvitations } from '../../hooks/useInvitations';
-import { InviteLink } from './InviteLink';
 import type { SessionRole } from '../../types/roles';
 import styles from './InvitationManager.module.css';
+import { InviteLink } from './InviteLink';
 
 interface InvitationManagerProps {
   sessionCode: string;

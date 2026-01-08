@@ -1,10 +1,10 @@
 import React from 'react';
 import { toast } from 'react-toastify';
-import { useAuth } from '../AuthContext';
-import type { SessionPlayer } from '../../types/roles';
 import { useRoleManagement } from '../../hooks/useRoleManagement';
-import { PlayerRoleSelector } from './PlayerRoleSelector';
+import type { SessionPlayer } from '../../types/roles';
+import { useAuth } from '../AuthContext';
 import styles from './PlayerList.module.css';
+import { PlayerRoleSelector } from './PlayerRoleSelector';
 
 interface PlayerListProps {
   players: SessionPlayer[];

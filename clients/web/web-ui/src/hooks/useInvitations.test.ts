@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { useInvitations } from './useInvitations';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as invitationAPI from '../api/invitations';
+import { useInvitations } from './useInvitations';
 
 vi.mock('../api/invitations');
 

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSessionPlayers } from '../../hooks/useSessionPlayers';
 import { InvitationManager } from '../Invitations/InvitationManager';
 import { PlayerList } from './PlayerList';
+import { useProtocol } from '../../services/ProtocolContext';
 import styles from './SessionManagementPanel.module.css';
 
 interface SessionManagementPanelProps {
@@ -12,6 +13,26 @@ export const SessionManagementPanel: React.FC<SessionManagementPanelProps> = ({ 
   const { players, loading, error, refetch } = useSessionPlayers(sessionCode);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showInvites, setShowInvites] = useState(false);
+  const { protocol } = useProtocol();
+
+  useEffect(() => {
+    if (!protocol) return;
+
+    const handlePlayerEvent = (message: any) => {
+      const eventType = message.data?.event;
+      if (eventType === 'PLAYER_JOINED' || 
+          eventType === 'PLAYER_ROLE_CHANGED' || 
+          eventType === 'PLAYER_KICKED') {
+        refetch();
+      }
+    };
+
+    protocol.registerHandler('CUSTOM', handlePlayerEvent);
+
+    return () => {
+      protocol.unregisterHandler('CUSTOM');
+    };
+  }, [protocol, refetch]);
 
   if (!isExpanded) {
     return (

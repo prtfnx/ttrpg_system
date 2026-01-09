@@ -8,6 +8,7 @@ import styles from './GameClient.module.css';
 import { RightPanel } from './RightPanel';
 import { TokenConfigModal } from './TokenConfigModal';
 import { ToolsPanel } from './ToolsPanel';
+import { SessionManagementPanel } from './SessionManagement/SessionManagementPanel';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -247,7 +248,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
         )}
         
         <div className={styles.canvasContainer}>
-          <GameCanvas />
+          <GameCanvas sessionCode={sessionCode} userInfo={userInfo} />
           {!leftVisible && (
             <button className={clsx(styles.expandBtn, styles.left)} onClick={toggleLeft}>▶</button>
           )}
@@ -291,6 +292,9 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
             onClose={() => setMonsterQuickActionsSprite(null)}
           />
         )}
+
+        {/* Session Management Panel (DM only) */}
+        {userRole === 'dm' && <SessionManagementPanel sessionCode={sessionCode} />}
       </div>
     </DebugErrorBoundary>
   );

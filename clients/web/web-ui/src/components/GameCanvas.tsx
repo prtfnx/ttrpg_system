@@ -1,8 +1,10 @@
 import type { RefObject } from 'react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useSessionPermissions } from '../hooks/useSessionPermissions';
 import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { assetIntegrationService } from '../services/assetIntegration.service';
+import type { UserInfo } from '../services/auth.service';
 import fpsService from '../services/fps.service';
 import { performanceService } from '../services/performance.service';
 import { useProtocol } from '../services/ProtocolContext';
@@ -15,6 +17,11 @@ import { DragDropImageHandler } from './DragDropImageHandler';
 import styles from './GameCanvas.module.css';
 import { CanvasRenderer } from './GameCanvas/CanvasRenderer';
 import PerformanceMonitor from './PerformanceMonitor';
+
+interface GameCanvasProps {
+  sessionCode: string;
+  userInfo: UserInfo;
+}
 
 declare global {
   interface Window {
@@ -72,7 +79,7 @@ function useCanvasDebug(
   return debug;
 }
 
-export const GameCanvas: React.FC = () => {
+export const GameCanvas: React.FC<GameCanvasProps> = ({ sessionCode, userInfo }) => {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rustRenderManagerRef = useRef<RenderEngine | null>(null);
@@ -284,6 +291,8 @@ export const GameCanvas: React.FC = () => {
     }
   }, [showPerformanceMonitor]);
 
+  const { hasPermission } = useSessionPermissions(sessionCode, userInfo.id);
+
   const handleContextMenuAction = useCallback((action: string) => {
     if (!rustRenderManagerRef.current) return;
     
@@ -291,6 +300,10 @@ export const GameCanvas: React.FC = () => {
     
     switch (action) {
       case 'delete':
+        if (!hasPermission('delete_tokens')) {
+          console.warn('⛔ Permission denied: delete_tokens');
+          return;
+        }
         if (spriteId && protocol) {
           console.log('🗑️ GameCanvas: Sending sprite delete request to server:', spriteId);
           try {

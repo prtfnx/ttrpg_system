@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSessionPlayers } from '../../hooks/useSessionPlayers';
+import { useProtocol } from '../../services/ProtocolContext';
 import { InvitationManager } from '../Invitations/InvitationManager';
 import { PlayerList } from './PlayerList';
-import { useProtocol } from '../../services/ProtocolContext';
 import styles from './SessionManagementPanel.module.css';
 
 interface SessionManagementPanelProps {

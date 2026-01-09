@@ -1,10 +1,9 @@
 /**
  * Tests for SessionManagementPanel component
  */
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { SessionManagementPanel } from '../SessionManagementPanel';
-import { ProtocolProvider } from '../../../services/ProtocolContext';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import * as sessionManagementService from '../../../services/sessionManagement.service';
+import { SessionManagementPanel } from '../SessionManagementPanel';
 
 jest.mock('../../../services/sessionManagement.service');
 jest.mock('../../../hooks/useSessionPlayers');

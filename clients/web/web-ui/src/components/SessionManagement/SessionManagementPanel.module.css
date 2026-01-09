@@ -1,66 +1,58 @@
+/**
+ * Session Management Panel Styles
+ * Follows project CSS composition pattern
+ */
+
 .toggle {
+  composes: btnPrimary from '../../styles/buttons.module.css';
   position: fixed;
-  bottom: 20px;
-  right: 20px;
-  padding: 12px 20px;
-  background: var(--color-primary);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: transform 0.2s, box-shadow 0.2s;
+  bottom: var(--space-xl);
+  right: var(--space-xl);
+  box-shadow: var(--shadow-lg);
   z-index: 100;
 }
 
 .toggle:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  transform: translateY(calc(var(--space-xs) * -1));
+  box-shadow: var(--shadow-xl);
 }
 
 .panel {
+  composes: flex flex-col from '../../styles/7-utilities/layout.module.css';
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  bottom: var(--space-xl);
+  right: var(--space-xl);
   width: 400px;
   max-height: 600px;
   background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  display: flex;
-  flex-direction: column;
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
   z-index: 100;
   overflow: hidden;
 }
 
 .header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border-color);
+  composes: flex items-center justify-between from '../../styles/7-utilities/layout.module.css';
+  padding: var(--space-lg) var(--space-xl);
+  border-bottom: var(--border-width) solid var(--border-primary);
   background: var(--bg-secondary);
 }
 
 .title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
   color: var(--text-primary);
 }
 
 .closeBtn {
-  padding: 6px 10px;
+  composes: btn from '../../styles/buttons.module.css';
+  padding: var(--space-xs) var(--space-sm);
   background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 16px;
+  border-color: var(--border-primary);
+  font-size: var(--text-lg);
   line-height: 1;
-  transition: all 0.2s;
 }
 
 .closeBtn:hover {
@@ -68,28 +60,21 @@
 }
 
 .inviteBtn {
-  margin: 16px 20px 0;
-  padding: 10px;
-  background: var(--color-primary);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s;
+  composes: btnPrimary from '../../styles/buttons.module.css';
+  margin: var(--space-lg) var(--space-xl) 0;
 }
 
 .inviteBtn:hover {
-  background: var(--color-primary-hover);
+  background: var(--button-primary-hover);
 }
 
 .loading,
 .error {
-  padding: 20px;
+  padding: var(--space-xl);
   text-align: center;
+  font-size: var(--text-sm);
 }
 
 .error {
-  color: #ef4444;
+  color: var(--color-danger);
 }

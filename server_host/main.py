@@ -166,6 +166,9 @@ app.include_router(session_management.router)
 app.include_router(compendium.router)
 app.include_router(game_ws.router)
 
+from server_host.routers import invitations
+app.include_router(invitations.router)
+
 @app.get("/")
 async def root():
     """Root endpoint - redirect to login"""

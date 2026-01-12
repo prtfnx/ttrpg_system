@@ -401,6 +401,7 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
           <label htmlFor="casting-level">Casting Level:</label>
           <select 
             id="casting-level"
+            className={styles.castingLevelSelect}
             value={castingLevel} 
             onChange={(e) => setCastingLevel(parseInt(e.target.value))}
           >

@@ -2,11 +2,12 @@
  * Tests for SessionManagementPanel component
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as sessionManagementService from '../../../services/sessionManagement.service';
 import { SessionManagementPanel } from '../SessionManagementPanel';
 
-jest.mock('../../../services/sessionManagement.service');
-jest.mock('../../../hooks/useSessionPlayers');
+vi.mock('../../../services/sessionManagement.service');
+vi.mock('../../../hooks/useSessionPlayers');
 
 const mockPlayers = [
   {
@@ -31,7 +32,7 @@ const mockPlayers = [
 
 describe('SessionManagementPanel', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('renders collapsed by default', () => {
@@ -47,7 +48,7 @@ describe('SessionManagementPanel', () => {
   });
 
   it('displays player list when expanded', async () => {
-    (sessionManagementService.getPlayers as jest.Mock).mockResolvedValue(mockPlayers);
+    (sessionManagementService.getPlayers as any).mockResolvedValue(mockPlayers);
     
     render(<SessionManagementPanel sessionCode="TEST123" />);
     const toggleButton = screen.getByText('👥 Manage Players');

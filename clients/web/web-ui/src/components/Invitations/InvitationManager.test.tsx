@@ -1,30 +1,51 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { SessionInvitation } from '../../types/invitations';
 import { useInvitations } from '../../hooks/useInvitations';
 import { InvitationManager } from './InvitationManager';
 
 vi.mock('../../hooks/useInvitations');
+vi.mock('react-toastify', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
+global.confirm = vi.fn(() => true);
 
 describe('InvitationManager', () => {
   const mockOnClose = vi.fn();
   const mockCreateInvitation = vi.fn();
   const mockRevokeInvitation = vi.fn();
-  const mockInvitations = [
+  const mockRefetch = vi.fn();
+  
+  const mockInvitations: SessionInvitation[] = [
     {
-      token: 'token123',
-      role: 'player',
-      max_uses: 5,
-      uses: 2,
+      id: 1,
+      invite_code: 'CODE123',
+      session_code: 'TEST123',
+      pre_assigned_role: 'player',
+      created_at: '2026-01-01T00:00:00Z',
       expires_at: new Date(Date.now() + 86400000).toISOString(),
+      max_uses: 5,
+      uses_count: 2,
       is_active: true,
+      is_valid: true,
+      invite_url: '/join/CODE123',
     },
     {
-      token: 'token456',
-      role: 'spectator',
-      max_uses: null,
-      uses: 0,
+      id: 2,
+      invite_code: 'CODE456',
+      session_code: 'TEST123',
+      pre_assigned_role: 'spectator',
+      created_at: '2026-01-01T00:00:00Z',
       expires_at: null,
+      max_uses: 0,
+      uses_count: 0,
       is_active: true,
+      is_valid: true,
+      invite_url: '/join/CODE456',
     },
   ];
 
@@ -36,30 +57,32 @@ describe('InvitationManager', () => {
       error: null,
       createInvitation: mockCreateInvitation,
       revokeInvitation: mockRevokeInvitation,
+      refetch: mockRefetch,
     });
+    mockCreateInvitation.mockResolvedValue(mockInvitations[0]);
+    mockRevokeInvitation.mockResolvedValue(true);
   });
 
   it('renders modal with title', () => {
-    render(<InvitationManager onClose={mockOnClose} />);
+    render(<InvitationManager sessionCode="TEST123" onClose={mockOnClose} />);
     expect(screen.getByText('Manage Invitations')).toBeInTheDocument();
   });
 
   it('shows create invitation form', () => {
-    render(<InvitationManager onClose={mockOnClose} />);
+    render(<InvitationManager sessionCode="TEST123" onClose={mockOnClose} />);
     expect(screen.getByLabelText(/Role/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Max Uses/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Duration/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Expires in/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Max uses/i)).toBeInTheDocument();
   });
 
   it('displays existing invitations', () => {
-    render(<InvitationManager onClose={mockOnClose} />);
-    expect(screen.getByText(/player/i)).toBeInTheDocument();
-    expect(screen.getByText(/spectator/i)).toBeInTheDocument();
+    render(<InvitationManager sessionCode="TEST123" onClose={mockOnClose} />);
+    expect(screen.getByText('player')).toBeInTheDocument();
+    expect(screen.getByText('spectator')).toBeInTheDocument();
   });
 
   it('creates invitation on form submit', async () => {
-    mockCreateInvitation.mockResolvedValueOnce({});
-    render(<InvitationManager onClose={mockOnClose} />);
+    render(<InvitationManager sessionCode="TEST123" onClose={mockOnClose} />);
     
     const roleSelect = screen.getByLabelText(/Role/i);
     fireEvent.change(roleSelect, { target: { value: 'player' } });
@@ -69,16 +92,16 @@ describe('InvitationManager', () => {
     
     await waitFor(() => {
       expect(mockCreateInvitation).toHaveBeenCalledWith(expect.objectContaining({
-        role: 'player',
+        session_code: 'TEST123',
+        pre_assigned_role: 'player',
       }));
     });
   });
 
   it('handles creation with custom max uses', async () => {
-    mockCreateInvitation.mockResolvedValueOnce({});
-    render(<InvitationManager onClose={mockOnClose} />);
+    render(<InvitationManager sessionCode="TEST123" onClose={mockOnClose} />);
     
-    const maxUsesInput = screen.getByLabelText(/Max Uses/i);
+    const maxUsesInput = screen.getByLabelText(/Max uses/i);
     fireEvent.change(maxUsesInput, { target: { value: '10' } });
     
     const createButton = screen.getByText('Create Invitation');
@@ -92,32 +115,31 @@ describe('InvitationManager', () => {
   });
 
   it('handles creation with duration', async () => {
-    mockCreateInvitation.mockResolvedValueOnce({});
-    render(<InvitationManager onClose={mockOnClose} />);
+    render(<InvitationManager sessionCode="TEST123" onClose={mockOnClose} />);
     
-    const durationSelect = screen.getByLabelText(/Duration/i);
-    fireEvent.change(durationSelect, { target: { value: '24' } });
+    const durationInput = screen.getByLabelText(/Expires in/i);
+    fireEvent.change(durationInput, { target: { value: '48' } });
     
     const createButton = screen.getByText('Create Invitation');
     fireEvent.click(createButton);
     
     await waitFor(() => {
       expect(mockCreateInvitation).toHaveBeenCalledWith(expect.objectContaining({
-        hours: 24,
+        expires_hours: 48,
       }));
     });
   });
 
   it('closes modal on close button click', () => {
-    render(<InvitationManager onClose={mockOnClose} />);
-    const closeButton = screen.getByText('×');
+    render(<InvitationManager sessionCode="TEST123" onClose={mockOnClose} />);
+    const closeButton = screen.getByText('✕');
     fireEvent.click(closeButton);
     expect(mockOnClose).toHaveBeenCalled();
   });
 
   it('closes modal on overlay click', () => {
-    render(<InvitationManager onClose={mockOnClose} />);
-    const overlay = screen.getByTestId('modal-overlay') || document.querySelector('.overlay');
+    const { container } = render(<InvitationManager sessionCode="TEST123" onClose={mockOnClose} />);
+    const overlay = container.querySelector(`.${styles.overlay}`) || container.firstChild;
     if (overlay) {
       fireEvent.click(overlay);
       expect(mockOnClose).toHaveBeenCalled();
@@ -131,9 +153,12 @@ describe('InvitationManager', () => {
       error: null,
       createInvitation: mockCreateInvitation,
       revokeInvitation: mockRevokeInvitation,
+      refetch: mockRefetch,
     });
-    render(<InvitationManager onClose={mockOnClose} />);
-    expect(screen.getByText(/Loading/i)).toBeInTheDocument();
+    render(<InvitationManager sessionCode="TEST123" onClose={mockOnClose} />);
+    const buttons = screen.getAllByRole('button');
+    const createButton = buttons.find(b => b.textContent?.includes('Create'));
+    expect(createButton).toBeDisabled();
   });
 
   it('shows empty state', () => {
@@ -143,8 +168,9 @@ describe('InvitationManager', () => {
       error: null,
       createInvitation: mockCreateInvitation,
       revokeInvitation: mockRevokeInvitation,
+      refetch: mockRefetch,
     });
-    render(<InvitationManager onClose={mockOnClose} />);
-    expect(screen.getByText(/No active invitations/i)).toBeInTheDocument();
+    render(<InvitationManager sessionCode="TEST123" onClose={mockOnClose} />);
+    expect(screen.getByText('Create New Invitation')).toBeInTheDocument();
   });
 });

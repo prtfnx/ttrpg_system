@@ -2,10 +2,11 @@
  * Tests for useSessionPermissions hook
  */
 import { renderHook, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as sessionManagementService from '../../services/sessionManagement.service';
 import { useSessionPermissions } from '../useSessionPermissions';
 
-jest.mock('../../services/sessionManagement.service');
+vi.mock('../../services/sessionManagement.service');
 
 describe('useSessionPermissions', () => {
   const mockPermissions = {
@@ -16,11 +17,11 @@ describe('useSessionPermissions', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('fetches permissions on mount', async () => {
-    (sessionManagementService.getPlayerPermissions as jest.Mock)
+    (sessionManagementService.getPlayerPermissions as any)
       .mockResolvedValue(mockPermissions);
 
     const { result } = renderHook(() => 
@@ -37,7 +38,7 @@ describe('useSessionPermissions', () => {
   });
 
   it('hasPermission returns true for granted permissions', async () => {
-    (sessionManagementService.getPlayerPermissions as jest.Mock)
+    (sessionManagementService.getPlayerPermissions as any)
       .mockResolvedValue(mockPermissions);
 
     const { result } = renderHook(() => 
@@ -53,7 +54,7 @@ describe('useSessionPermissions', () => {
   });
 
   it('handles fetch errors gracefully', async () => {
-    (sessionManagementService.getPlayerPermissions as jest.Mock)
+    (sessionManagementService.getPlayerPermissions as any)
       .mockRejectedValue(new Error('Network error'));
 
     const { result } = renderHook(() => 

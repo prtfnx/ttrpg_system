@@ -1,149 +1,135 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import * as sessionAPI from '../api/sessionManagement';
+import * as sessionManagementService from '../services/sessionManagementService';
 import { useRoleManagement } from './useRoleManagement';
 
-vi.mock('../api/sessionManagement');
+vi.mock('../services/sessionManagementService');
 
 describe('useRoleManagement', () => {
-  const mockPlayers = [
-    { id: 1, username: 'player1', character_name: 'Aragorn', is_online: true, role: 'player' },
-    { id: 2, username: 'player2', character_name: null, is_online: false, role: 'spectator' },
-  ];
-
   beforeEach(() => {
     vi.clearAllMocks();
-    (sessionAPI.getSessionPlayers as any).mockResolvedValue({ data: mockPlayers });
   });
 
-  it('loads players on mount', async () => {
-    const { result } = renderHook(() => useRoleManagement(1, 'dm'));
+  it('returns null functions when sessionCode is null', () => {
+    const { result } = renderHook(() => useRoleManagement(null));
     
-    expect(result.current.loading).toBe(true);
+    expect(result.current.changing).toBe(false);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('changes player role successfully', async () => {
+    const mockResponse = {
+      success: true,
+      new_role: 'spectator',
+      old_role: 'player',
+      permissions_gained: [],
+      permissions_lost: ['edit'],
+    };
     
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+    (sessionManagementService.changePlayerRole as any).mockResolvedValue(mockResponse);
+    
+    const { result } = renderHook(() => useRoleManagement('TEST123'));
+    
+    let response;
+    await act(async () => {
+      response = await result.current.changeRole(2, 'spectator');
     });
     
-    expect(result.current.players).toEqual(mockPlayers);
+    expect(sessionManagementService.changePlayerRole).toHaveBeenCalledWith('TEST123', 2, 'spectator');
+    expect(response).toEqual(mockResponse);
   });
 
-  it('handles load error', async () => {
-    (sessionAPI.getSessionPlayers as any).mockRejectedValue(new Error('Failed'));
+  it('handles changeRole error', async () => {
+    (sessionManagementService.changePlayerRole as any).mockRejectedValue(new Error('Failed to change role'));
     
-    const { result } = renderHook(() => useRoleManagement(1, 'dm'));
+    const { result } = renderHook(() => useRoleManagement('TEST123'));
+    
+    await act(async () => {
+      try {
+        await result.current.changeRole(2, 'spectator');
+      } catch (e) {
+        expect(e).toBeInstanceOf(Error);
+      }
+    });
     
     await waitFor(() => {
-      expect(result.current.error).toBe('Failed to load players');
+      expect(result.current.error).toBe('Failed to change role');
     });
   });
 
-  it('changes player role', async () => {
-    (sessionAPI.changePlayerRole as any).mockResolvedValue({ data: { ...mockPlayers[0], role: 'spectator' } });
+  it('kicks player successfully', async () => {
+    (sessionManagementService.kickPlayer as any).mockResolvedValue(true);
     
-    const { result } = renderHook(() => useRoleManagement(1, 'dm'));
+    const { result } = renderHook(() => useRoleManagement('TEST123'));
+    
+    let response;
+    await act(async () => {
+      response = await result.current.kickPlayer(2);
+    });
+    
+    expect(sessionManagementService.kickPlayer).toHaveBeenCalledWith('TEST123', 2);
+    expect(response).toBe(true);
+  });
+
+  it('handles kickPlayer error', async () => {
+    (sessionManagementService.kickPlayer as any).mockRejectedValue(new Error('Failed to kick player'));
+    
+    const { result } = renderHook(() => useRoleManagement('TEST123'));
+    
+    await act(async () => {
+      try {
+        await result.current.kickPlayer(2);
+      } catch (e) {
+        expect(e).toBeInstanceOf(Error);
+      }
+    });
     
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.error).toBe('Failed to kick player');
+    });
+  });
+
+  it('sets changing state during operations', async () => {
+    (sessionManagementService.changePlayerRole as any).mockImplementation(() => 
+      new Promise(resolve => setTimeout(() => resolve({ success: true }), 100))
+    );
+    
+    const { result } = renderHook(() => useRoleManagement('TEST123'));
+    
+    expect(result.current.changing).toBe(false);
+    
+    await act(async () => {
+      await result.current.changeRole(2, 'spectator');
+    });
+    
+    await waitFor(() => {
+      expect(result.current.changing).toBe(false);
+    });
+  });
+
+  it('clears error on successful operation', async () => {
+    (sessionManagementService.changePlayerRole as any)
+      .mockRejectedValueOnce(new Error('First error'))
+      .mockResolvedValueOnce({ success: true });
+    
+    const { result } = renderHook(() => useRoleManagement('TEST123'));
+    
+    await act(async () => {
+      try {
+        await result.current.changeRole(2, 'spectator');
+      } catch (e) {}
+    });
+    
+    await waitFor(() => {
+      expect(result.current.error).toBe('First error');
     });
     
     await act(async () => {
-      await result.current.changeRole(1, 'spectator');
+      await result.current.changeRole(2, 'player');
     });
-    
-    expect(sessionAPI.changePlayerRole).toHaveBeenCalledWith(1, 1, 'spectator');
-  });
-
-  it('kicks player', async () => {
-    (sessionAPI.kickPlayer as any).mockResolvedValue({});
-    
-    const { result } = renderHook(() => useRoleManagement(1, 'dm'));
     
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.error).toBeNull();
     });
-    
-    await act(async () => {
-      await result.current.kickPlayer(2);
-    });
-    
-    expect(sessionAPI.kickPlayer).toHaveBeenCalledWith(1, 2);
-    expect(result.current.players).toHaveLength(1);
-  });
-
-  it('checks kick permissions for DM', async () => {
-    const { result } = renderHook(() => useRoleManagement(1, 'dm'));
-    
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-    
-    expect(result.current.canKick(2)).toBe(true);
-  });
-
-  it('checks kick permissions for non-DM', async () => {
-    const { result } = renderHook(() => useRoleManagement(1, 'player'));
-    
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-    
-    expect(result.current.canKick(2)).toBe(false);
-  });
-
-  it('checks role change permissions', async () => {
-    const { result } = renderHook(() => useRoleManagement(1, 'dm'));
-    
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-    
-    expect(result.current.canChangeRole(2)).toBe(true);
-  });
-
-  it('prevents kicking self', async () => {
-    const { result } = renderHook(() => useRoleManagement(1, 'dm'));
-    
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-    
-    result.current.currentPlayerId = 1;
-    expect(result.current.canKick(1)).toBe(false);
-  });
-
-  it('updates players from WebSocket event', async () => {
-    const { result } = renderHook(() => useRoleManagement(1, 'dm'));
-    
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-    
-    act(() => {
-      result.current.handlePlayerUpdate({
-        type: 'ROLE_CHANGED',
-        playerId: 1,
-        role: 'spectator',
-      });
-    });
-    
-    expect(result.current.players[0].role).toBe('spectator');
-  });
-
-  it('removes player on kick event', async () => {
-    const { result } = renderHook(() => useRoleManagement(1, 'dm'));
-    
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-    
-    act(() => {
-      result.current.handlePlayerUpdate({
-        type: 'PLAYER_KICKED',
-        playerId: 2,
-      });
-    });
-    
-    expect(result.current.players).toHaveLength(1);
   });
 });

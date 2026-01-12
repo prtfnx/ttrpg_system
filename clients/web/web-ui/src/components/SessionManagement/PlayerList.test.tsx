@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useAuth } from '../AuthContext';
 import { useRoleManagement } from '../../hooks/useRoleManagement';
-import { PlayerList } from './PlayerList';
 import type { SessionPlayer } from '../../types/roles';
+import { useAuth } from '../AuthContext';
+import { PlayerList } from './PlayerList';
 
 vi.mock('../../hooks/useRoleManagement');
 vi.mock('../AuthContext');

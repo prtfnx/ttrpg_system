@@ -3,11 +3,14 @@
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import * as sessionManagementService from '../../../services/sessionManagement.service';
 import { SessionManagementPanel } from '../SessionManagementPanel';
 
-vi.mock('../../../services/sessionManagement.service');
-vi.mock('../../../hooks/useSessionPlayers');
+vi.mock('../../../hooks/useSessionPlayers', () => ({
+  useSessionPlayers: vi.fn()
+}));
+vi.mock('../../../services/ProtocolContext', () => ({
+  useProtocol: () => ({ protocol: null })
+}));
 
 const mockPlayers = [
   {
@@ -31,8 +34,15 @@ const mockPlayers = [
 ];
 
 describe('SessionManagementPanel', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    const { useSessionPlayers } = await import('../../../hooks/useSessionPlayers');
+    (useSessionPlayers as any).mockReturnValue({
+      players: [],
+      loading: false,
+      error: null,
+      refetch: vi.fn()
+    });
   });
 
   it('renders collapsed by default', () => {
@@ -48,7 +58,13 @@ describe('SessionManagementPanel', () => {
   });
 
   it('displays player list when expanded', async () => {
-    (sessionManagementService.getPlayers as any).mockResolvedValue(mockPlayers);
+    const { useSessionPlayers } = await import('../../../hooks/useSessionPlayers');
+    (useSessionPlayers as any).mockReturnValue({
+      players: mockPlayers,
+      loading: false,
+      error: null,
+      refetch: vi.fn()
+    });
     
     render(<SessionManagementPanel sessionCode="TEST123" />);
     const toggleButton = screen.getByText('👥 Manage Players');

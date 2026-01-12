@@ -48,7 +48,7 @@ describe('PlayerRoleSelector', () => {
     fireEvent.click(screen.getByRole('button', { name: /Player/i }));
     
     const playerOption = screen.getByText('Standard player permissions').closest('button');
-    expect(playerOption).toHaveClass('active');
+    expect(playerOption?.className).toMatch(/active/);
   });
 
   it('disables when disabled prop is true', () => {

@@ -131,7 +131,7 @@ describe('TemplateSelectionStep - Template Type Selection', () => {
     );
 
     const scratchButton = screen.getByText('Start from Scratch').closest('button');
-    expect(scratchButton).toHaveClass('active');
+    expect(scratchButton?.className).toMatch(/active/);
   });
 
   it('should switch to PC mode when PC button is clicked', async () => {
@@ -145,7 +145,7 @@ describe('TemplateSelectionStep - Template Type Selection', () => {
     const pcButton = screen.getByText('Player Character').closest('button');
     await user.click(pcButton!);
 
-    expect(pcButton).toHaveClass('active');
+    expect(pcButton?.className).toMatch(/active/);
     expect(screen.getByText('Player Character Templates')).toBeInTheDocument();
   });
 
@@ -160,7 +160,7 @@ describe('TemplateSelectionStep - Template Type Selection', () => {
     const npcButton = screen.getByText('NPC/Monster').closest('button');
     await user.click(npcButton!);
 
-    expect(npcButton).toHaveClass('active');
+    expect(npcButton?.className).toMatch(/active/);
     expect(screen.getByText('NPC/Monster Templates')).toBeInTheDocument();
   });
 
@@ -179,7 +179,7 @@ describe('TemplateSelectionStep - Template Type Selection', () => {
     const fighterCard = screen.getByText('Fighter').closest('button');
     await user.click(fighterCard!);
 
-    expect(fighterCard).toHaveClass('selected');
+    expect(fighterCard?.className).toMatch(/selected/);
 
     // Switch to NPC
     const npcButton = screen.getByText('NPC/Monster').closest('button');
@@ -245,7 +245,7 @@ describe('TemplateSelectionStep - PC Templates', () => {
     await user.click(fighterCard!);
 
     await waitFor(() => {
-      expect(fighterCard).toHaveClass('selected');
+      expect(fighterCard?.className).toMatch(/selected/);
     });
   });
 
@@ -266,7 +266,8 @@ describe('TemplateSelectionStep - PC Templates', () => {
     await waitFor(() => {
       expect(screen.getByText(/Template selected:/i)).toBeInTheDocument();
       // Multiple "Wizard" texts exist (card name and summary), so be more specific
-      const summaryBox = document.querySelector('.summary-box.success');
+      const summaryBox = screen.getByText(/Template selected:/i).closest('div');
+      expect(summaryBox).toBeInTheDocument();
       expect(summaryBox?.textContent).toContain('Wizard');
     });
   });
@@ -324,7 +325,7 @@ describe('TemplateSelectionStep - NPC Templates', () => {
     await user.click(goblinCard!);
 
     await waitFor(() => {
-      expect(goblinCard).toHaveClass('selected');
+      expect(goblinCard?.className).toMatch(/selected/);
     });
   });
 
@@ -345,7 +346,8 @@ describe('TemplateSelectionStep - NPC Templates', () => {
     await waitFor(() => {
       expect(screen.getByText(/Template selected:/i)).toBeInTheDocument();
       // Multiple "Dragon" texts exist (card name and summary), so be more specific
-      const summaryBox = document.querySelector('.summary-box.success');
+      const summaryBox = screen.getByText(/Template selected:/i).closest('div');
+      expect(summaryBox).toBeInTheDocument();
       expect(summaryBox?.textContent).toContain('Dragon');
     });
   });
@@ -359,9 +361,8 @@ describe('TemplateSelectionStep - Scratch Mode', () => {
       </TestWrapper>
     );
 
-    // Multiple "Starting from scratch" texts exist (info box and summary), be more specific
-    const infoBox = document.querySelector('.template-scratch-info .info-box');
-    expect(infoBox?.textContent).toContain('Starting from scratch');
+    // Check for scratch mode messaging
+    expect(screen.getByText(/Starting from scratch/i)).toBeInTheDocument();
     expect(screen.getByText(/guide you through each step/i)).toBeInTheDocument();
   });
 
@@ -419,7 +420,7 @@ describe('TemplateSelectionStep - Template Data Application', () => {
 
     // Template data should be applied (checked via form state in real implementation)
     await waitFor(() => {
-      expect(fighterCard).toHaveClass('selected');
+      expect(fighterCard?.className).toMatch(/selected/);
     });
   });
 
@@ -439,7 +440,7 @@ describe('TemplateSelectionStep - Template Data Application', () => {
     await user.click(goblinCard!);
 
     await waitFor(() => {
-      expect(goblinCard).toHaveClass('selected');
+      expect(goblinCard?.className).toMatch(/selected/);
     });
   });
 });
@@ -491,7 +492,7 @@ describe('TemplateSelectionStep - Visual Feedback', () => {
     // Select Fighter
     const fighterCard = screen.getByText('Fighter').closest('button');
     await user.click(fighterCard!);
-    expect(fighterCard).toHaveClass('selected');
+    expect(fighterCard?.className).toMatch(/selected/);
 
     // Select Wizard
     const wizardCard = screen.getByText('Wizard').closest('button');

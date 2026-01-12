@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SessionInvitation } from '../../types/invitations';
 import { useInvitations } from '../../hooks/useInvitations';
+import type { SessionInvitation } from '../../types/invitations';
 import { InvitationManager } from './InvitationManager';
 
 vi.mock('../../hooks/useInvitations');

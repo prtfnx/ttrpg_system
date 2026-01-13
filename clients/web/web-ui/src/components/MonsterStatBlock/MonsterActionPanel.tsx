@@ -1,116 +1,110 @@
-import React, { useEffect, useState } from 'react';
-import { MessageType, createMessage } from '../../protocol/message';
-import { useProtocol } from '../../services/ProtocolContext';
-import type { Monster } from '../../types/compendium';
-import { LegendaryActions } from './LegendaryActions';
+import React, { useState } from 'react';
 import styles from './MonsterActionPanel.module.css';
 
-interface MonsterActionPanelProps {
-  monsterName: string;
+interface MonsterAction {
+  name: string;
+  attackBonus?: number;
+  damage?: string;
+  damageType?: string;
+  range?: string;
+  description: string;
 }
 
-export const MonsterActionPanel: React.FC<MonsterActionPanelProps> = ({ monsterName }) => {
-  const { protocol } = useProtocol();
-  const [monster, setMonster] = useState<Monster | null>(null);
-  const [loading, setLoading] = useState(false);
+interface MonsterActionPanelProps {
+  monster: {
+    name: string;
+    actions: MonsterAction[];
+    reactions?: MonsterAction[];
+    legendaryActions?: Array<{name: string; description: string; cost: number}>;
+  };
+  onUseAction?: (action: MonsterAction) => void;
+}
 
-  useEffect(() => {
-    if (!protocol || !monsterName) return;
+export const MonsterActionPanel: React.FC<MonsterActionPanelProps> = ({
+  monster,
+  onUseAction
+}) => {
+  const [activeTab, setActiveTab] = useState<'actions' | 'reactions' | 'legendary'>('actions');
 
-    const fetchMonster = () => {
-      setLoading(true);
-      protocol.sendMessage(createMessage(
-        MessageType.COMPENDIUM_GET_MONSTER,
-        { name: monsterName }
-      ));
-    };
-
-    const handleResponse = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const { monster: monsterData, found } = customEvent.detail;
-      
-      if (found && monsterData) {
-        setMonster(monsterData);
+  const handleActionClick = (action: MonsterAction) => {
+    if (action.attackBonus !== undefined) {
+      const roll = Math.floor(Math.random() * 20) + 1;
+      const total = roll + action.attackBonus;
+      // Optionally, display or log the roll
+      if (action.damage) {
+        const damageRoll = rollDice(action.damage);
+        // Optionally, display or log the damage
       }
-      setLoading(false);
-    };
-
-    window.addEventListener('compendium-monster-response', handleResponse);
-    fetchMonster();
-
-    return () => {
-      window.removeEventListener('compendium-monster-response', handleResponse);
-    };
-  }, [protocol, monsterName]);
-
-  const handleUseAction = (action: { name: string; description: string; cost: number }) => {
-    console.log(`Used legendary action: ${action.name} (cost: ${action.cost})`);
+    }
+    onUseAction?.(action);
   };
 
-  if (loading) {
-    return <div className={styles.loading}>Loading monster data...</div>;
-  }
-
-  if (!monster) {
-    return <div className={styles.error}>Monster not found</div>;
-  }
+  const rollDice = (diceStr: string): number => {
+    const match = diceStr.match(/(\d+)d(\d+)([+-]\d+)?/);
+    if (!match) return 0;
+    const [, numDice, diceType, modifier] = match;
+    let total = 0;
+    for (let i = 0; i < parseInt(numDice); i++) {
+      total += Math.floor(Math.random() * parseInt(diceType)) + 1;
+    }
+    if (modifier) {
+      total += parseInt(modifier);
+    }
+    return total;
+  };
 
   return (
-    <div className={styles.monsterActionPanel}>
-      <h2 className={styles.monsterName}>{monster.name}</h2>
-
-      {monster.actions && monster.actions.length > 0 && (
-        <div className={styles.section}>
-          <h3>Actions</h3>
-          <div className={styles.actionsList}>
-            {monster.actions.map((action, idx) => (
-              <div key={idx} className={styles.action}>
-                <div className={styles.actionHeader}>
-                  <span className={styles.actionName}>{action.name}</span>
-                  {action.attack_bonus !== undefined && (
-                    <span className={styles.attackBonus}>+{action.attack_bonus}</span>
-                  )}
-                </div>
-                <p className={styles.actionDescription}>{action.description}</p>
-                {action.damage_dice && (
-                  <div className={styles.damage}>
-                    <span className={styles.damageDice}>{action.damage_dice}</span>
-                    {action.damage_type && (
-                      <span className={styles.damageType}> {action.damage_type}</span>
-                    )}
-                  </div>
-                )}
+    <div className={styles.actionPanel}>
+      <h2>{monster.name} Actions</h2>
+      <div className={styles.tabs}>
+        <button 
+          className={activeTab === 'actions' ? styles.active : ''}
+          onClick={() => setActiveTab('actions')}
+        >
+          Actions ({monster.actions.length})
+        </button>
+        {monster.reactions && monster.reactions.length > 0 && (
+          <button 
+            className={activeTab === 'reactions' ? styles.active : ''}
+            onClick={() => setActiveTab('reactions')}
+          >
+            Reactions ({monster.reactions.length})
+          </button>
+        )}
+        {monster.legendaryActions && monster.legendaryActions.length > 0 && (
+          <button 
+            className={activeTab === 'legendary' ? styles.active : ''}
+            onClick={() => setActiveTab('legendary')}
+          >
+            Legendary ({monster.legendaryActions.length})
+          </button>
+        )}
+      </div>
+      <div className={styles.actionList}>
+        {activeTab === 'actions' && monster.actions.map((action, idx) => (
+          <div key={idx} className={styles.action}>
+            <div className={styles.actionHeader}>
+              <h4>{action.name}</h4>
+              {action.attackBonus && (
+                <span className={styles.attackBonus}>+{action.attackBonus}</span>
+              )}
+            </div>
+            {action.damage && (
+              <div className={styles.damageInfo}>
+                <span>{action.damage}</span>
+                {action.damageType && <span className={styles.damageType}>{action.damageType}</span>}
               </div>
-            ))}
+            )}
+            <p className={styles.description}>{action.description}</p>
+            <button 
+              className={styles.useActionBtn}
+              onClick={() => handleActionClick(action)}
+            >
+              Use Action
+            </button>
           </div>
-        </div>
-      )}
-
-      {monster.legendary_actions && monster.legendary_actions.length > 0 && (
-        <LegendaryActions
-          actions={monster.legendary_actions}
-          actionsPerRound={monster.legendary_actions_per_round || 3}
-          onUseAction={handleUseAction}
-        />
-      )}
-
-      {monster.lair_actions && monster.lair_actions.length > 0 && (
-        <div className={styles.section}>
-          <h3 className={styles.lairHeader}>Lair Actions (Initiative 20)</h3>
-          <p className={styles.lairDescription}>
-            On initiative count 20 (losing initiative ties), the creature can take a lair action 
-            to cause one of the following effects:
-          </p>
-          <div className={styles.lairActionsList}>
-            {monster.lair_actions.map((action, idx) => (
-              <div key={idx} className={styles.lairAction}>
-                <span className={styles.bullet}>•</span>
-                <p>{action.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   );
 };

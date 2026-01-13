@@ -1,9 +1,9 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import * as sessionManagementService from '../services/sessionManagementService';
+import * as sessionManagementService from '../services/sessionManagement.service';
 import { useRoleManagement } from './useRoleManagement';
 
-vi.mock('../services/sessionManagementService');
+vi.mock('../services/sessionManagement.service');
 
 describe('useRoleManagement', () => {
   beforeEach(() => {

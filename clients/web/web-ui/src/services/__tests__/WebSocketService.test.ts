@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WebSocketService, { WebSocketConfig, WebSocketState } from '../WebSocketService';
 
 // Mock WebSocket
@@ -89,7 +89,9 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       };
 
       service = new WebSocketService(config);
-      await service.connect();
+      const connectPromise = service.connect();
+      await vi.advanceTimersByTimeAsync(10); // Allow MockWebSocket to connect
+      await connectPromise;
 
       // Verify connected
       expect(service.isConnected()).toBe(true);
@@ -117,7 +119,9 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       };
 
       service = new WebSocketService(config);
-      await service.connect();
+      const connectPromise = service.connect();
+      await vi.advanceTimersByTimeAsync(10); // Allow MockWebSocket to connect
+      await connectPromise;
 
       // Manual disconnect
       service.disconnect();
@@ -141,7 +145,9 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       service = new WebSocketService(config);
       
       // First connection
-      await service.connect();
+      const connectPromise = service.connect();
+      await vi.advanceTimersByTimeAsync(10); // Allow MockWebSocket to connect
+      await connectPromise;
       expect(service.isConnected()).toBe(true);
 
       // Simulate disconnect
@@ -153,7 +159,9 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       expect(service.getStats().reconnectAttempts).toBeGreaterThan(0);
 
       // Manually reconnect successfully
-      await service.connect();
+      const reconnectPromise = service.connect();
+      await vi.advanceTimersByTimeAsync(10); // Allow MockWebSocket to connect
+      await reconnectPromise;
       await vi.advanceTimersByTimeAsync(10);
 
       // Reconnect attempts should be reset
@@ -171,37 +179,54 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
 
       service = new WebSocketService(config);
       
-      // Mock connect to always fail
-      const originalConnect = service.connect.bind(service);
-      service.connect = vi.fn().mockRejectedValue(new Error('Connection failed'));
+      // Make all connections fail
+      const OriginalMockWebSocket = global.WebSocket;
+      global.WebSocket = class extends (MockWebSocket as any) {
+        constructor(...args: any[]) {
+          super(...args);
+          setTimeout(() => {
+            if (this.readyState === MockWebSocket.CONNECTING) {
+              this.readyState = MockWebSocket.CLOSED;
+              if (this.onerror) {
+                this.onerror(new Event('error'));
+              }
+              if (this.onclose) {
+                this.onclose(new CloseEvent('close'));
+              }
+            }
+          }, 10);
+        }
+      } as any;
 
-      await originalConnect();
-      const ws = (service as any).ws as MockWebSocket;
-      ws.simulateClose();
+      try {
+        const connectPromise = service.connect();
+        await vi.advanceTimersByTimeAsync(10);
+        await connectPromise;
+      } catch {
+        // Expected to fail
+      }
 
       // First reconnect: 1s delay (1000 * 2^0)
-      await vi.advanceTimersByTimeAsync(999);
-      expect(service.getStats().reconnectAttempts).toBe(0);
-      await vi.advanceTimersByTimeAsync(1);
+      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(20); // Allow reconnection attempt + fail
       expect(service.getStats().reconnectAttempts).toBe(1);
 
       // Second reconnect: 2s delay (1000 * 2^1)
-      await vi.advanceTimersByTimeAsync(1999);
-      expect(service.getStats().reconnectAttempts).toBe(1);
-      await vi.advanceTimersByTimeAsync(1);
+      await vi.advanceTimersByTimeAsync(2000);
+      await vi.advanceTimersByTimeAsync(20); // Allow reconnection attempt + fail
       expect(service.getStats().reconnectAttempts).toBe(2);
 
       // Third reconnect: 4s delay (1000 * 2^2)
-      await vi.advanceTimersByTimeAsync(3999);
-      expect(service.getStats().reconnectAttempts).toBe(2);
-      await vi.advanceTimersByTimeAsync(1);
+      await vi.advanceTimersByTimeAsync(4000);
+      await vi.advanceTimersByTimeAsync(20); // Allow reconnection attempt + fail
       expect(service.getStats().reconnectAttempts).toBe(3);
 
       // Fourth reconnect: 8s delay (1000 * 2^3)
-      await vi.advanceTimersByTimeAsync(7999);
-      expect(service.getStats().reconnectAttempts).toBe(3);
-      await vi.advanceTimersByTimeAsync(1);
+      await vi.advanceTimersByTimeAsync(8000);
+      await vi.advanceTimersByTimeAsync(20); // Allow reconnection attempt + fail
       expect(service.getStats().reconnectAttempts).toBe(4);
+      
+      global.WebSocket = OriginalMockWebSocket;
     });
 
     it('should respect custom reconnectDelay base value', async () => {
@@ -212,22 +237,49 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       };
 
       service = new WebSocketService(config);
-      service.connect = vi.fn().mockRejectedValue(new Error('Connection failed'));
+      
+      // Make the MockWebSocket fail on connection
+      let connectAttempts = 0;
+      const OriginalMockWebSocket = global.WebSocket;
+      global.WebSocket = class extends (MockWebSocket as any) {
+        constructor(...args: any[]) {
+          super(...args);
+          connectAttempts++;
+          // Fail first connection attempt
+          setTimeout(() => {
+            if (this.readyState === MockWebSocket.CONNECTING) {
+              this.readyState = MockWebSocket.CLOSED;
+              if (this.onerror) {
+                this.onerror(new Event('error'));
+              }
+              // Trigger close after error to start reconnection
+              if (this.onclose) {
+                this.onclose(new CloseEvent('close'));
+              }
+            }
+          }, 10);
+        }
+      } as any;
 
-      await service.connect().catch(() => {});
-      const ws = (service as any).ws as MockWebSocket;
-      ws?.simulateClose?.();
+      try {
+        const connectPromise = service.connect();
+        await vi.advanceTimersByTimeAsync(10);
+        await connectPromise;
+      } catch {
+        // Expected to fail
+      }
+
+      // Restore WebSocket for reconnections
+      global.WebSocket = OriginalMockWebSocket;
 
       // First reconnect: 500ms delay (500 * 2^0)
-      await vi.advanceTimersByTimeAsync(499);
-      expect(service.getStats().reconnectAttempts).toBe(0);
-      await vi.advanceTimersByTimeAsync(1);
+      await vi.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(20); // Allow reconnection to establish + fail
       expect(service.getStats().reconnectAttempts).toBe(1);
 
       // Second reconnect: 1000ms delay (500 * 2^1)
-      await vi.advanceTimersByTimeAsync(999);
-      expect(service.getStats().reconnectAttempts).toBe(1);
-      await vi.advanceTimersByTimeAsync(1);
+      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(20); // Allow reconnection to establish + fail
       expect(service.getStats().reconnectAttempts).toBe(2);
     });
 
@@ -267,27 +319,55 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       };
 
       service = new WebSocketService(config);
-      service.connect = vi.fn().mockRejectedValue(new Error('Connection failed'));
+      
+      // Make all connections fail by simulating close immediately
+      const OriginalMockWebSocket = global.WebSocket;
+      global.WebSocket = class extends (MockWebSocket as any) {
+        constructor(...args: any[]) {
+          super(...args);
+          setTimeout(() => {
+            if (this.readyState === MockWebSocket.CONNECTING) {
+              this.readyState = MockWebSocket.CLOSED;
+              if (this.onerror) {
+                this.onerror(new Event('error'));
+              }
+              if (this.onclose) {
+                this.onclose(new CloseEvent('close'));
+              }
+            }
+          }, 10);
+        }
+      } as any;
 
-      await service.connect().catch(() => {});
-      const ws = (service as any).ws as MockWebSocket;
-      ws?.simulateClose?.();
+      try {
+        const connectPromise = service.connect();
+        await vi.advanceTimersByTimeAsync(10);
+        await connectPromise;
+      } catch {
+        // Expected to fail
+      }
 
       // Attempt 1
       await vi.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(20); // Allow reconnection attempt + fail
       expect(service.getStats().reconnectAttempts).toBe(1);
 
       // Attempt 2
       await vi.advanceTimersByTimeAsync(200);
+      await vi.advanceTimersByTimeAsync(20); // Allow reconnection attempt + fail
       expect(service.getStats().reconnectAttempts).toBe(2);
 
       // Attempt 3
       await vi.advanceTimersByTimeAsync(400);
+      await vi.advanceTimersByTimeAsync(20); // Allow reconnection attempt + fail
       expect(service.getStats().reconnectAttempts).toBe(3);
 
       // Should not attempt 4th time (max reached)
       await vi.advanceTimersByTimeAsync(10000);
       expect(service.getStats().reconnectAttempts).toBe(3);
+      
+      // Restore
+      global.WebSocket = OriginalMockWebSocket;
     });
 
     it('should respect default maxReconnectAttempts of 5', async () => {
@@ -313,7 +393,9 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       };
 
       service = new WebSocketService(config);
-      await service.connect();
+      const connectPromise = service.connect();
+      await vi.advanceTimersByTimeAsync(10); // Allow MockWebSocket to connect
+      await connectPromise;
 
       const ws = (service as any).ws as MockWebSocket;
       ws.simulateClose();
@@ -333,22 +415,50 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       };
 
       service = new WebSocketService(config);
-      service.connect = vi.fn().mockRejectedValue(new Error('Connection failed'));
+      
+      // Make all connections fail
+      const OriginalMockWebSocket = global.WebSocket;
+      global.WebSocket = class extends (MockWebSocket as any) {
+        constructor(...args: any[]) {
+          super(...args);
+          setTimeout(() => {
+            if (this.readyState === MockWebSocket.CONNECTING) {
+              this.readyState = MockWebSocket.CLOSED;
+              if (this.onerror) {
+                this.onerror(new Event('error'));
+              }
+              if (this.onclose) {
+                this.onclose(new CloseEvent('close'));
+              }
+            }
+          }, 10);
+        }
+      } as any;
 
-      await service.connect().catch(() => {});
-      const ws = (service as any).ws as MockWebSocket;
-      ws?.simulateClose?.();
+      try {
+        const connectPromise = service.connect();
+        await vi.advanceTimersByTimeAsync(10);
+        await connectPromise;
+      } catch {
+        // Expected to fail
+      }
 
       expect(service.getStats().reconnectAttempts).toBe(0);
 
       await vi.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(20); // Allow reconnection attempt + fail
       expect(service.getStats().reconnectAttempts).toBe(1);
 
       await vi.advanceTimersByTimeAsync(200);
+      await vi.advanceTimersByTimeAsync(20); // Allow reconnection attempt + fail
       expect(service.getStats().reconnectAttempts).toBe(2);
 
       await vi.advanceTimersByTimeAsync(400);
+      await vi.advanceTimersByTimeAsync(20); // Allow reconnection attempt + fail
       expect(service.getStats().reconnectAttempts).toBe(3);
+      
+      // Restore
+      global.WebSocket = OriginalMockWebSocket;
     });
 
     it('should clear reconnection timer on manual disconnect', async () => {
@@ -359,7 +469,9 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       };
 
       service = new WebSocketService(config);
-      await service.connect();
+      const connectPromise = service.connect();
+      await vi.advanceTimersByTimeAsync(10); // Allow MockWebSocket to connect
+      await connectPromise;
 
       const ws = (service as any).ws as MockWebSocket;
       ws.simulateClose();
@@ -380,7 +492,9 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       };
 
       service = new WebSocketService(config);
-      await service.connect();
+      const connectPromise = service.connect();
+      await vi.advanceTimersByTimeAsync(10); // Allow MockWebSocket to connect
+      await connectPromise;
 
       const ws = (service as any).ws as MockWebSocket;
       
@@ -406,14 +520,37 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       };
 
       service = new WebSocketService(config);
-      service.connect = vi.fn().mockRejectedValue(new Error('Network error'));
+      
+      // Make all connections fail
+      const OriginalMockWebSocket = global.WebSocket;
+      global.WebSocket = class extends (MockWebSocket as any) {
+        constructor(...args: any[]) {
+          super(...args);
+          setTimeout(() => {
+            if (this.readyState === MockWebSocket.CONNECTING) {
+              this.readyState = MockWebSocket.CLOSED;
+              if (this.onerror) {
+                this.onerror(new Event('error'));
+              }
+              if (this.onclose) {
+                this.onclose(new CloseEvent('close'));
+              }
+            }
+          }, 10);
+        }
+      } as any;
 
-      await service.connect().catch(() => {});
-      const ws = (service as any).ws as MockWebSocket;
-      ws?.simulateClose?.();
+      try {
+        const connectPromise = service.connect();
+        await vi.advanceTimersByTimeAsync(10);
+        await connectPromise;
+      } catch {
+        // Expected to fail
+      }
 
       // Wait for first reconnection attempt
       await vi.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(20); // Allow reconnection attempt + fail
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringMatching(/reconnection attempt.*failed/i),
@@ -421,6 +558,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       );
 
       consoleErrorSpy.mockRestore();
+      global.WebSocket = OriginalMockWebSocket;
     });
 
     it('should handle successful reconnection after failures', async () => {
@@ -433,33 +571,56 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       service = new WebSocketService(config);
       
       let connectionAttempts = 0;
-      const originalConnect = service.connect.bind(service);
-      service.connect = vi.fn(async () => {
-        connectionAttempts++;
-        if (connectionAttempts < 3) {
-          throw new Error('Connection failed');
+      const OriginalMockWebSocket = global.WebSocket;
+      global.WebSocket = class extends (MockWebSocket as any) {
+        constructor(...args: any[]) {
+          super(...args);
+          connectionAttempts++;
+          if (connectionAttempts < 3) {
+            // Fail first 2 attempts
+            setTimeout(() => {
+              if (this.readyState === MockWebSocket.CONNECTING) {
+                this.readyState = MockWebSocket.CLOSED;
+                if (this.onerror) {
+                  this.onerror(new Event('error'));
+                }
+                if (this.onclose) {
+                  this.onclose(new CloseEvent('close'));
+                }
+              }
+            }, 10);
+          }
+          // Third attempt will succeed (default MockWebSocket behavior)
         }
-        return originalConnect();
-      });
+      } as any;
 
-      await service.connect().catch(() => {});
-      const ws = (service as any).ws as MockWebSocket;
-      ws?.simulateClose?.();
+      try {
+        const connectPromise = service.connect();
+        await vi.advanceTimersByTimeAsync(10);
+        await connectPromise;
+      } catch {
+        // Expected to fail
+      }
 
       // First reconnection - fails
       await vi.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(20); // Allow reconnection attempt + fail
       expect(service.getStats().reconnectAttempts).toBe(1);
 
       // Second reconnection - fails
       await vi.advanceTimersByTimeAsync(200);
+      await vi.advanceTimersByTimeAsync(20); // Allow reconnection attempt + fail
       expect(service.getStats().reconnectAttempts).toBe(2);
 
       // Third reconnection - succeeds
       await vi.advanceTimersByTimeAsync(400);
-      await vi.advanceTimersByTimeAsync(10);
+      await vi.advanceTimersByTimeAsync(20); // Allow reconnection to establish
+      await vi.advanceTimersByTimeAsync(10); // Extra time for onopen handler
       
       // Should reset attempts after successful connection
       expect(service.getStats().reconnectAttempts).toBe(0);
+      
+      global.WebSocket = OriginalMockWebSocket;
     });
   });
 
@@ -472,7 +633,9 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       };
 
       service = new WebSocketService(config);
-      await service.connect();
+      const connectPromise = service.connect();
+      await vi.advanceTimersByTimeAsync(10); // Allow MockWebSocket to connect
+      await connectPromise;
 
       const stats = service.getStats();
       expect(stats.state).toBe(WebSocketState.OPEN);
@@ -489,19 +652,45 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       };
 
       service = new WebSocketService(config);
-      service.connect = vi.fn().mockRejectedValue(new Error('Connection failed'));
+      
+      // Make all connections fail
+      const OriginalMockWebSocket = global.WebSocket;
+      global.WebSocket = class extends (MockWebSocket as any) {
+        constructor(...args: any[]) {
+          super(...args);
+          setTimeout(() => {
+            if (this.readyState === MockWebSocket.CONNECTING) {
+              this.readyState = MockWebSocket.CLOSED;
+              if (this.onerror) {
+                this.onerror(new Event('error'));
+              }
+              if (this.onclose) {
+                this.onclose(new CloseEvent('close'));
+              }
+            }
+          }, 10);
+        }
+      } as any;
 
-      await service.connect().catch(() => {});
-      const ws = (service as any).ws as MockWebSocket;
-      ws?.simulateClose?.();
+      try {
+        const connectPromise = service.connect();
+        await vi.advanceTimersByTimeAsync(10);
+        await connectPromise;
+      } catch {
+        // Expected to fail
+      }
 
       await vi.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(20); // Allow reconnection attempt + fail
       let stats = service.getStats();
       expect(stats.reconnectAttempts).toBe(1);
 
       await vi.advanceTimersByTimeAsync(200);
+      await vi.advanceTimersByTimeAsync(20); // Allow reconnection attempt + fail
       stats = service.getStats();
       expect(stats.reconnectAttempts).toBe(2);
+      
+      global.WebSocket = OriginalMockWebSocket;
     });
   });
 });

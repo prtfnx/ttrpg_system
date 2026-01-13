@@ -30,10 +30,11 @@ export const MonsterActionPanel: React.FC<MonsterActionPanelProps> = ({
     if (action.attackBonus !== undefined) {
       const roll = Math.floor(Math.random() * 20) + 1;
       const total = roll + action.attackBonus;
-      // Optionally, display or log the roll
+      console.log(`Attack roll: ${roll} + ${action.attackBonus} = ${total}`);
+      
       if (action.damage) {
         const damageRoll = rollDice(action.damage);
-        // Optionally, display or log the damage
+        console.log(`Damage: ${damageRoll} ${action.damageType || ''}`);
       }
     }
     onUseAction?.(action);

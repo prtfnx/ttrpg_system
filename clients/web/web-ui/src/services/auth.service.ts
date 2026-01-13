@@ -6,14 +6,14 @@
 export interface UserInfo {
   id: number;
   username: string;
-  role: 'dm' | 'player';
+  role: 'dm' | 'player';  // Legacy mapped role for UI
   permissions: string[];
 }
 
 export interface SessionInfo {
   session_code: string;
   session_name: string;
-  role: 'dm' | 'player';
+  role: 'owner' | 'co_dm' | 'trusted_player' | 'player' | 'spectator';  // Actual role from server
   created_at: string;
 }
 
@@ -260,6 +260,9 @@ class AuthService {
   /**
    * Get user's role in a specific session
    * OWASP best practice: Validate permissions on every request
+   * 
+   * Maps new role system (owner, co_dm, trusted_player, player, spectator)
+   * to legacy role system (dm, player) for UI compatibility
    */
   async getRole(sessionCode: string): Promise<'dm' | 'player' | null> {
     try {
@@ -272,7 +275,19 @@ class AuthService {
 
       if (response.ok) {
         const data = await response.json();
-        return data.role;
+        const serverRole = data.role;
+        
+        // Map new role system to legacy dm/player system
+        // owner, co_dm -> dm (for legacy UI components)
+        // trusted_player, player, spectator -> player
+        if (serverRole === 'owner' || serverRole === 'co_dm') {
+          return 'dm';
+        } else if (serverRole === 'trusted_player' || serverRole === 'player' || serverRole === 'spectator') {
+          return 'player';
+        }
+        
+        // Fallback to direct mapping for old roles
+        return serverRole as 'dm' | 'player';
       }
       
       if (response.status === 404) {
@@ -287,76 +302,8 @@ class AuthService {
     }
   }
 
-  /**
-   * Update a user's role in a session (owner only)
-   * 
-   * OWASP best practices:
-   * - Server-side authorization checks
-   * - Input validation
-   * - Appropriate error handling
-   * 
-   * @param sessionCode - The session code
-   * @param userId - The ID of the user to update
-   * @param newRole - The new role ('dm' or 'player')
-   * @returns Success status and message
-   */
-  async updateRole(
-    sessionCode: string, 
-    userId: number, 
-    newRole: 'dm' | 'player'
-  ): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await fetch('/users/me/role', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          session_code: sessionCode,
-          user_id: userId,
-          new_role: newRole
-        })
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        console.log(`✓ Role updated: user ${userId} -> ${newRole} in session ${sessionCode}`);
-        
-        // Update local userInfo if we changed our own role
-        if (this.userInfo && this.userInfo.id === userId) {
-          this.userInfo.role = newRole;
-        }
-        
-        return { 
-          success: true, 
-          message: data.message || 'Role updated successfully' 
-        };
-      } else {
-        // Handle specific error codes
-        let errorMessage = data.detail || 'Failed to update role';
-        
-        if (response.status === 403) {
-          errorMessage = 'You do not have permission to change roles (owner only)';
-        } else if (response.status === 404) {
-          errorMessage = 'Session or user not found';
-        } else if (response.status === 400) {
-          errorMessage = data.detail || 'Invalid request';
-        }
-        
-        console.warn(`✗ Role update failed: ${errorMessage}`);
-        return { success: false, message: errorMessage };
-      }
-    } catch (error) {
-      console.error('Failed to update role:', error);
-      return { 
-        success: false, 
-        message: 'Network error occurred while updating role' 
-      };
-    }
-  }
+  // Legacy updateRole function removed - use SessionManagementService.changePlayerRole() instead
+  // New role management API: /game/session/{code}/players/{id}/role
 }
 
 export const authService = new AuthService();

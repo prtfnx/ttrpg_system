@@ -227,8 +227,12 @@ export class CompendiumManager {
 
   /**
    * Create custom entry (for DMs)
+   * 
+   * Note: Client-side role check for UX only.
+   * Backend MUST validate permissions (SessionPermission.MANAGE_COMPENDIUM)
    */
   async createCustomEntry(entry: Omit<CompendiumEntry, 'id'>, userInfo: UserInfo): Promise<CompendiumEntry> {
+    // Client-side check: role 'dm' = owner/co_dm in new system
     if (userInfo.role !== 'dm') {
       throw new Error('Only DMs can create custom compendium entries');
     }
@@ -265,8 +269,12 @@ export class CompendiumManager {
 
   /**
    * Update custom entry (for DMs)
+   * 
+   * Note: Client-side role check for UX only.
+   * Backend MUST validate permissions (SessionPermission.MANAGE_COMPENDIUM)
    */
   async updateCustomEntry(id: string, updates: Partial<CompendiumEntry>, userInfo: UserInfo): Promise<CompendiumEntry> {
+    // Client-side check: role 'dm' = owner/co_dm in new system
     if (userInfo.role !== 'dm') {
       throw new Error('Only DMs can update custom compendium entries');
     }
@@ -304,8 +312,12 @@ export class CompendiumManager {
 
   /**
    * Delete custom entry (for DMs)
+   * 
+   * Note: Client-side role check for UX only.
+   * Backend MUST validate permissions (SessionPermission.MANAGE_COMPENDIUM)
    */
   async deleteCustomEntry(id: string, userInfo: UserInfo): Promise<void> {
+    // Client-side check: role 'dm' = owner/co_dm in new system
     if (userInfo.role !== 'dm') {
       throw new Error('Only DMs can delete custom compendium entries');
     }

@@ -131,6 +131,7 @@ describe('TemplateSelectionStep - Template Type Selection', () => {
     );
 
     const scratchButton = screen.getByText('Start from Scratch').closest('button');
+    expect(scratchButton).toBeTruthy();
     expect(scratchButton?.className).toMatch(/active/);
   });
 
@@ -145,7 +146,9 @@ describe('TemplateSelectionStep - Template Type Selection', () => {
     const pcButton = screen.getByText('Player Character').closest('button');
     await user.click(pcButton!);
 
-    expect(pcButton?.className).toMatch(/active/);
+    await waitFor(() => {
+      expect(pcButton?.className).toMatch(/active/);
+    });
     expect(screen.getByText('Player Character Templates')).toBeInTheDocument();
   });
 
@@ -160,7 +163,9 @@ describe('TemplateSelectionStep - Template Type Selection', () => {
     const npcButton = screen.getByText('NPC/Monster').closest('button');
     await user.click(npcButton!);
 
-    expect(npcButton?.className).toMatch(/active/);
+    await waitFor(() => {
+      expect(npcButton?.className).toMatch(/active/);
+    });
     expect(screen.getByText('NPC/Monster Templates')).toBeInTheDocument();
   });
 
@@ -245,6 +250,7 @@ describe('TemplateSelectionStep - PC Templates', () => {
     await user.click(fighterCard!);
 
     await waitFor(() => {
+      expect(fighterCard).toBeTruthy();
       expect(fighterCard?.className).toMatch(/selected/);
     });
   });
@@ -268,7 +274,9 @@ describe('TemplateSelectionStep - PC Templates', () => {
       // Multiple "Wizard" texts exist (card name and summary), so be more specific
       const summaryBox = screen.getByText(/Template selected:/i).closest('div');
       expect(summaryBox).toBeInTheDocument();
-      expect(summaryBox?.textContent).toContain('Wizard');
+      if (summaryBox) {
+        expect(summaryBox.textContent).toContain('Wizard');
+      }
     });
   });
 });
@@ -325,6 +333,7 @@ describe('TemplateSelectionStep - NPC Templates', () => {
     await user.click(goblinCard!);
 
     await waitFor(() => {
+      expect(goblinCard).toBeTruthy();
       expect(goblinCard?.className).toMatch(/selected/);
     });
   });
@@ -348,7 +357,9 @@ describe('TemplateSelectionStep - NPC Templates', () => {
       // Multiple "Dragon" texts exist (card name and summary), so be more specific
       const summaryBox = screen.getByText(/Template selected:/i).closest('div');
       expect(summaryBox).toBeInTheDocument();
-      expect(summaryBox?.textContent).toContain('Dragon');
+      if (summaryBox) {
+        expect(summaryBox.textContent).toContain('Dragon');
+      }
     });
   });
 });
@@ -420,6 +431,7 @@ describe('TemplateSelectionStep - Template Data Application', () => {
 
     // Template data should be applied (checked via form state in real implementation)
     await waitFor(() => {
+      expect(fighterCard).toBeTruthy();
       expect(fighterCard?.className).toMatch(/selected/);
     });
   });
@@ -499,8 +511,8 @@ describe('TemplateSelectionStep - Visual Feedback', () => {
     await user.click(wizardCard!);
 
     await waitFor(() => {
-      expect(wizardCard).toHaveClass('selected');
-      expect(fighterCard).not.toHaveClass('selected');
+      expect(wizardCard?.className).toMatch(/selected/);
+      expect(fighterCard?.className).not.toMatch(/selected/);
     });
   });
 

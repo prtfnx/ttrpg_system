@@ -305,42 +305,13 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           </div>
           
           <div className={styles.roleToggle}>
-            <label htmlFor="role-toggle">Role:</label>
-            <select 
-              id="role-toggle"
-              value={userInfo.role}
-              onChange={async (e) => {
-                const newRole = e.target.value as 'dm' | 'player';
-                console.log('Role change requested:', newRole);
-                
-                // OWASP best practice: Server-side authorization checks
-                // Only session owner can change roles
-                const { authService } = await import('../services/auth.service');
-                
-                if (!sessionId) {
-                  alert('Cannot change role: No active session');
-                  return;
-                }
-                
-                const result = await authService.updateRole(sessionId, userInfo.id, newRole);
-                
-                if (result.success) {
-                  alert(`✓ Role updated to ${newRole === 'dm' ? 'DM (Dungeon Master)' : 'Player'}\n\nPage will reload to apply changes.`);
-                  window.location.reload();
-                } else {
-                  alert(`✗ Role update failed:\n${result.message}`);
-                  // Revert the select back to current role
-                  (e.target as HTMLSelectElement).value = userInfo.role;
-                }
-              }}
-              className={styles.roleSelect}
-            >
-              <option value="dm">DM (Dungeon Master)</option>
-              <option value="player">Player</option>
-            </select>
+            <label>Current Role:</label>
             <span className={styles.currentRole}>
-              Current: {userInfo.role === 'dm' ? '👑 DM' : '🎭 Player'}
+              {userInfo.role === 'dm' ? '👑 DM (Dungeon Master)' : '🎭 Player'}
             </span>
+            <p className={styles.roleNote} style={{ fontSize: '0.85em', color: '#888', margin: '4px 0 0 0' }}>
+              Role changes are now managed via the Session Management Panel (👥)
+            </p>
           </div>
         </div>
       )}

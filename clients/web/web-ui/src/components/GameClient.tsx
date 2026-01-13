@@ -6,9 +6,9 @@ import { GameCanvas } from './GameCanvas';
 import { MonsterQuickActions } from './GameCanvas/MonsterQuickActions';
 import styles from './GameClient.module.css';
 import { RightPanel } from './RightPanel';
+import { SessionManagementPanel } from './SessionManagement/SessionManagementPanel';
 import { TokenConfigModal } from './TokenConfigModal';
 import { ToolsPanel } from './ToolsPanel';
-import { SessionManagementPanel } from './SessionManagement/SessionManagementPanel';
 
 interface ErrorBoundaryState {
   hasError: boolean;

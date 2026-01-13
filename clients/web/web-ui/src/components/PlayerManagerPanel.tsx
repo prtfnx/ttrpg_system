@@ -1,4 +1,11 @@
-
+/**
+ * Legacy PlayerManagerPanel component
+ * 
+ * Note: This uses WebSocket protocol messages for player management.
+ * For REST API-based role management, see SessionManagementPanel.
+ * 
+ * Role check: userInfo.role === 'dm' maps to owner/co_dm in new role system
+ */
 
 import React, { useEffect, useState } from "react";
 import { useAuthenticatedWebSocket } from "../hooks/useAuthenticatedWebSocket";
@@ -10,7 +17,7 @@ interface Player {
   id: string;
   name: string;
   status: "connected" | "disconnected" | "kicked" | "banned";
-  role: "dm" | "player";
+  role: "dm" | "player";  // Legacy role type - mapped from new 5-tier system
 }
 
 export const PlayerManagerPanel: React.FC<{ sessionCode: string; userInfo: UserInfo }> = ({ sessionCode, userInfo }) => {

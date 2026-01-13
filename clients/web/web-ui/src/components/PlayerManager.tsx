@@ -4,11 +4,22 @@ import { MessageType, createMessage } from "../protocol/message";
 import type { UserInfo } from "../services/auth.service";
 import styles from './PlayerManager.module.css';
 
+/**
+ * Legacy PlayerManager component using WebSocket protocol messages
+ * 
+ * Note: This component coexists with SessionManagementPanel:
+ * - PlayerManager: Protocol-based player list/kick/ban (WebSocket events)
+ * - SessionManagementPanel: REST API-based role management (new system)
+ * 
+ * Role check: userInfo.role === 'dm' maps to owner/co_dm in new role system
+ * See auth.service.ts getRole() for role mapping logic
+ */
+
 export interface Player {
   id: string;
   username: string;
   status: string;
-  role: "dm" | "player";
+  role: "dm" | "player";  // Legacy role type - mapped from new 5-tier system
 }
 
 interface PlayerManagerProps {

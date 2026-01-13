@@ -37,7 +37,11 @@ export function SessionSelector({ onSessionSelected }: SessionSelectorProps) {
   };
 
   const handleSessionClick = (session: SessionInfo) => {
-    onSessionSelected(session.session_code, session.role);
+    // Map new role system to legacy 'dm'/'player' for UI
+    // owner, co_dm -> 'dm'
+    // trusted_player, player, spectator -> 'player'
+    const mappedRole = (session.role === 'owner' || session.role === 'co_dm') ? 'dm' : 'player';
+    onSessionSelected(session.session_code, mappedRole);
   };
 
   const handleRetry = () => {

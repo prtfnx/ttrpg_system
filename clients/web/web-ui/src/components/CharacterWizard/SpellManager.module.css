@@ -492,7 +492,7 @@
   font-size: var(--text-sm);
 }
 
-.spell-stats > div {
+.spellStatsItem {
   composes: wizard-row from './CharacterWizardBase.module.css';
   gap: var(--space-xs);
 }

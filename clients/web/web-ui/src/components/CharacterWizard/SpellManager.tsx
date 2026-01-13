@@ -521,10 +521,10 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
             </div>
             <div className="spell-school">{spell.school}</div>
             <div className="spell-stats">
-              <div><strong>Time:</strong> {spell.castingTime}</div>
-              <div><strong>Range:</strong> {spell.range}</div>
-              <div><strong>Duration:</strong> {spell.duration}</div>
-              <div><strong>Components:</strong> {spell.components}</div>
+              <div className={styles.spellStatsItem}><strong>Time:</strong> {spell.castingTime}</div>
+              <div className={styles.spellStatsItem}><strong>Range:</strong> {spell.range}</div>
+              <div className={styles.spellStatsItem}><strong>Duration:</strong> {spell.duration}</div>
+              <div className={styles.spellStatsItem}><strong>Components:</strong> {spell.components}</div>
             </div>
             {spell.damage && (
               <div className="spell-damage"><strong>Damage:</strong> {spell.damage}</div>

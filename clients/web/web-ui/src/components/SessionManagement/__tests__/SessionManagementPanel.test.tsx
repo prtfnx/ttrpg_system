@@ -34,10 +34,13 @@ const mockPlayers = [
 ];
 
 describe('SessionManagementPanel', () => {
+  let mockUseSessionPlayers: any;
+
   beforeEach(async () => {
     vi.clearAllMocks();
     const { useSessionPlayers } = await import('../../../hooks/useSessionPlayers');
-    (useSessionPlayers as any).mockReturnValue({
+    mockUseSessionPlayers = useSessionPlayers;
+    (mockUseSessionPlayers as any).mockReturnValue({
       players: [],
       loading: false,
       error: null,
@@ -58,8 +61,7 @@ describe('SessionManagementPanel', () => {
   });
 
   it('displays player list when expanded', async () => {
-    const { useSessionPlayers } = await import('../../../hooks/useSessionPlayers');
-    (useSessionPlayers as any).mockReturnValue({
+    (mockUseSessionPlayers as any).mockReturnValue({
       players: mockPlayers,
       loading: false,
       error: null,

@@ -48,6 +48,7 @@ describe('PlayerRoleSelector', () => {
     fireEvent.click(screen.getByRole('button', { name: /Player/i }));
     
     const playerOption = screen.getByText('Standard player permissions').closest('button');
+    expect(playerOption).toBeTruthy();
     expect(playerOption?.className).toMatch(/active/);
   });
 

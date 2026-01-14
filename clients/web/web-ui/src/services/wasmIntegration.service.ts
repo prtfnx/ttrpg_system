@@ -470,7 +470,16 @@ class WasmIntegrationService {
       } catch (error) {
         console.error('❌ WasmIntegration: Failed to add sprite to WASM:', error);
       }
-    } else if (data.operation === 'move' || data.operation === 'scale' || data.operation === 'rotate' || data.operation === 'remove') {
+    } else if (data.operation === 'remove' && data.success && data.sprite_id) {
+      // Handle sprite removal
+      console.log('🗑️ WasmIntegration: Removing sprite from WASM after server confirmation:', data.sprite_id);
+      try {
+        this.renderEngine.remove_sprite(data.sprite_id);
+        console.log('✅ WasmIntegration: Sprite removed from WASM:', data.sprite_id);
+      } catch (error) {
+        console.error('❌ WasmIntegration: Failed to remove sprite from WASM:', error);
+      }
+    } else if (data.operation === 'move' || data.operation === 'scale' || data.operation === 'rotate') {
       // These operations are handled directly by WASM updates, no fallback needed
       console.log('✅ WasmIntegration: Sprite operation confirmed by server:', data.operation, data.sprite_id);
     } else if (!data.sprite_data && !data.operation) {

@@ -4,15 +4,14 @@ import { MessageType, createMessage } from "../protocol/message";
 import type { UserInfo } from "../services/auth.service";
 import styles from './PlayerManager.module.css';
 
+import type { SessionRole } from '../types/roles';
+
 /**
  * Legacy PlayerManager component using WebSocket protocol messages
  * 
  * Note: This component coexists with SessionManagementPanel:
  * - PlayerManager: Protocol-based player list/kick/ban (WebSocket events)
  * - SessionManagementPanel: REST API-based role management (new system)
- * 
- * Role check: userInfo.role === 'dm' maps to owner/co_dm in new role system
- * See auth.service.ts getRole() for role mapping logic
  */
 
 export interface Player {
@@ -25,7 +24,7 @@ export interface Player {
 interface PlayerManagerProps {
   sessionCode: string;
   userInfo: UserInfo;
-  userRole: 'dm' | 'player';
+  userRole: SessionRole;
 }
 
 export const PlayerManager: React.FC<PlayerManagerProps> = ({ sessionCode, userInfo, userRole }) => {
@@ -89,7 +88,7 @@ export const PlayerManager: React.FC<PlayerManagerProps> = ({ sessionCode, userI
         {players.map((player) => (
           <li key={player.id}>
             <span>{player.username} ({player.role})</span>
-            {userRole === "dm" && player.role !== "dm" && (
+            {(userRole === 'owner' || userRole === 'co_dm') && player.role !== "dm" && (
               <>
                 <button onClick={() => handleKick(player.id)}>Kick</button>
                 <button onClick={() => handleBan(player.id)}>Ban</button>

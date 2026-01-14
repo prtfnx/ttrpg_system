@@ -6,9 +6,10 @@ import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 import styles from '../App.module.css';
 import { authService, type SessionInfo } from '../services/auth.service';
+import type { SessionRole } from '../types/roles';
 
 interface SessionSelectorProps {
-  onSessionSelected: (sessionCode: string, role: 'dm' | 'player') => void;
+  onSessionSelected: (sessionCode: string, role: SessionRole) => void;
 }
 
 export function SessionSelector({ onSessionSelected }: SessionSelectorProps) {
@@ -37,11 +38,7 @@ export function SessionSelector({ onSessionSelected }: SessionSelectorProps) {
   };
 
   const handleSessionClick = (session: SessionInfo) => {
-    // Map new role system to legacy 'dm'/'player' for UI
-    // owner, co_dm -> 'dm'
-    // trusted_player, player, spectator -> 'player'
-    const mappedRole = (session.role === 'owner' || session.role === 'co_dm') ? 'dm' : 'player';
-    onSessionSelected(session.session_code, mappedRole);
+    onSessionSelected(session.session_code, session.role);
   };
 
   const handleRetry = () => {

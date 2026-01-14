@@ -9,6 +9,7 @@ import React, { useEffect, useState } from "react";
 import { useAuthenticatedWebSocket } from "../hooks/useAuthenticatedWebSocket";
 import { createMessage, MessageType } from "../protocol/message";
 import type { UserInfo } from "../services/auth.service";
+import type { SessionRole } from '../types/roles';
 import styles from './PlayerManagerPanel.module.css';
 
 interface Player {
@@ -21,7 +22,7 @@ interface Player {
 interface PlayerManagerPanelProps {
   sessionCode: string;
   userInfo: UserInfo;
-  userRole: 'dm' | 'player';
+  userRole: SessionRole;
 }
 
 export const PlayerManagerPanel: React.FC<PlayerManagerPanelProps> = ({ sessionCode, userInfo, userRole }) => {
@@ -67,7 +68,8 @@ export const PlayerManagerPanel: React.FC<PlayerManagerPanelProps> = ({ sessionC
     protocol?.sendMessage(createMessage(MessageType.PLAYER_BAN_REQUEST, { id }, 1));
   };
 
-  if (userRole !== "dm") return null;
+  // Only show panel for owner and co_dm roles
+  if (userRole !== 'owner' && userRole !== 'co_dm') return null;
 
   return (
     <div className={styles.panel}>

@@ -2,6 +2,7 @@ import clsx from 'clsx';
 import React, { useEffect } from 'react';
 import { useAuthenticatedWebSocket } from '../hooks/useAuthenticatedWebSocket';
 import type { UserInfo } from '../services/auth.service';
+import type { SessionRole } from '../types/roles';
 import { GameCanvas } from './GameCanvas';
 import { MonsterQuickActions } from './GameCanvas/MonsterQuickActions';
 import styles from './GameClient.module.css';
@@ -22,7 +23,7 @@ interface ErrorBoundaryProps {
 interface GameClientProps {
   sessionCode: string;
   userInfo: UserInfo;
-  userRole: 'dm' | 'player';
+  userRole: SessionRole;
   onAuthError: () => void;
 }
 
@@ -294,7 +295,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
         )}
 
         {/* Session Management Panel (DM only) */}
-        {userRole === 'dm' && <SessionManagementPanel sessionCode={sessionCode} />}
+        {(userRole === 'owner' || userRole === 'co_dm') && <SessionManagementPanel sessionCode={sessionCode} />}
       </div>
     </DebugErrorBoundary>
   );

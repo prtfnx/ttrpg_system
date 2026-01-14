@@ -23,10 +23,12 @@ import { TableManagementPanel } from './TableManagementPanel';
 import TablePanel from './TablePanel';
 import TableSyncPanel from './TableSyncPanel';
 
+import type { SessionRole } from '../types/roles';
+
 // Development-only imports
 const isDevelopment = import.meta.env.DEV;
 
-export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRole?: 'dm' | 'player' }) {
+export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRole?: SessionRole }) {
   const [activeTab, setActiveTab] = useState<'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'sync' | 'players' | 'actions' | 'quick-actions' | 'queue' | 'compendium' | 'assets' | 'network' | 'initiative' | 'performance' | 'backgrounds' | 'measurement' | 'customize'>('tables');
   const canvasRef = useRef<HTMLCanvasElement>(null!);
 

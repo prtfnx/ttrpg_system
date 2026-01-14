@@ -281,22 +281,47 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ sessionCode, userInfo })
   const { hasPermission } = useSessionPermissions(sessionCode, userInfo.id);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    console.log('⌨️ KeyDown event:', {
+      key: e.key,
+      code: e.code,
+      ctrl: e.ctrlKey,
+      shift: e.shiftKey,
+      alt: e.altKey,
+      target: e.target
+    });
+    
+    // Ignore keyboard events when typing in input fields
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+      console.log('⌨️ Ignoring keyboard event - user is typing in input field');
+      return;
+    }
+    
     // Toggle performance monitor with F3 key
     if (e.key === 'F3') {
       e.preventDefault();
+      console.log('⌨️ F3 pressed - toggling performance monitor');
       setShowPerformanceMonitor(!showPerformanceMonitor);
     }
     // Toggle performance monitor with Ctrl+Shift+P
     else if (e.ctrlKey && e.shiftKey && e.key === 'P') {
       e.preventDefault();
+      console.log('⌨️ Ctrl+Shift+P pressed - toggling performance monitor');
       setShowPerformanceMonitor(!showPerformanceMonitor);
     }
     // Delete selected sprite with Delete key
     else if (e.key === 'Delete' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
-      if (!rustRenderManagerRef.current) return;
+      console.log('⌨️ Delete key pressed');
+      
+      if (!rustRenderManagerRef.current) {
+        console.warn('⌨️ No render engine available');
+        return;
+      }
       
       // Get selected sprites from store
       const selectedSprites = useGameStore.getState().selectedSprites;
+      console.log('⌨️ Currently selected sprites:', selectedSprites);
+      
       if (selectedSprites.length > 0) {
         e.preventDefault();
         
@@ -304,6 +329,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ sessionCode, userInfo })
           console.warn('⛔ Permission denied: delete_tokens');
           return;
         }
+        
+        console.log(`🗑️ GameCanvas: Deleting ${selectedSprites.length} selected sprite(s) via Delete key`);
         
         // Delete all selected sprites
         selectedSprites.forEach(spriteId => {
@@ -320,6 +347,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ sessionCode, userInfo })
             rustRenderManagerRef.current.delete_sprite(spriteId);
           }
         });
+      } else {
+        console.log('⌨️ No sprites selected to delete');
       }
     }
   }, [showPerformanceMonitor, hasPermission, protocol]);
@@ -825,6 +854,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ sessionCode, userInfo })
         canvas.addEventListener('wheel', stableWheel);
         canvas.addEventListener('contextmenu', stableRightClick);
         document.addEventListener('keydown', stableKeyDown);
+        console.log('⌨️ Keyboard event listener attached to document');
         // Set default cursor to grab
         canvas.style.cursor = 'grab';
 

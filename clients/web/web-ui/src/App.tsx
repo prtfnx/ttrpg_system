@@ -8,11 +8,12 @@ import { GameClient } from './components/GameClient';
 import { SessionSelector } from './components/SessionSelector';
 import { authService } from './services/auth.service';
 import { ProtocolProvider } from './services/ProtocolContext';
+import type { SessionRole } from './types/roles';
 import { logger } from './utils/logger';
 
 interface AppState {
   selectedSession: string | null;
-  userRole: 'dm' | 'player' | null;
+  userRole: SessionRole | null;
   loading: boolean;
   error: string | null;
 }
@@ -50,11 +51,10 @@ function App() {
           const matchedSession = byCode || byName;
           if (resolved && matchedSession) {
             logger.debug('🔎 App: Resolved initial session to code:', resolved);
-            const mappedRole = (matchedSession.role === 'owner' || matchedSession.role === 'co_dm') ? 'dm' : 'player';
             setState(prev => ({
               ...prev,
               selectedSession: resolved,
-              userRole: mappedRole,
+              userRole: matchedSession.role,
               loading: false
             }));
             return;
@@ -83,7 +83,7 @@ function App() {
     }
   };
 
-  const handleSessionSelected = (sessionCode: string, role: 'dm' | 'player') => {
+  const handleSessionSelected = (sessionCode: string, role: SessionRole) => {
     setState(prev => ({
       ...prev,
       selectedSession: sessionCode,

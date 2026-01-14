@@ -19,11 +19,12 @@ declare global {
   }
 }
 
+import type { SessionRole } from '../types/roles';
 import type { UserInfo } from '../services/auth.service';
 
 interface ToolsPanelProps {
   userInfo: UserInfo;
-  userRole?: 'dm' | 'player';
+  userRole?: SessionRole;
 }
 
 export function ToolsPanel({ userInfo, userRole = 'player' }: ToolsPanelProps) {
@@ -308,7 +309,12 @@ export function ToolsPanel({ userInfo, userRole = 'player' }: ToolsPanelProps) {
           <div className={styles.roleToggle}>
             <label>Current Role:</label>
             <span className={styles.currentRole}>
-              {userRole === 'dm' ? '👑 DM (Dungeon Master)' : '🎭 Player'}
+              {userRole === 'owner' && '👑 Owner'}
+              {userRole === 'co_dm' && '🎩 Co-DM'}
+              {userRole === 'trusted_player' && '⭐ Trusted Player'}
+              {userRole === 'player' && '🎭 Player'}
+              {userRole === 'spectator' && '👁️ Spectator'}
+              {!userRole && '🎭 Player'}
               {userInfo.is_admin && ' (Admin)'}
               {userInfo.tier === 'premium' && ' ⭐'}
             </span>

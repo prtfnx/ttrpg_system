@@ -23,9 +23,10 @@ import type { UserInfo } from '../services/auth.service';
 
 interface ToolsPanelProps {
   userInfo: UserInfo;
+  userRole?: 'dm' | 'player';
 }
 
-export function ToolsPanel({ userInfo }: ToolsPanelProps) {
+export function ToolsPanel({ userInfo, userRole = 'player' }: ToolsPanelProps) {
   // console.log('[ToolsPanel] Component mounted'); // Removed to reduce noise
   const [assetManagerVisible, setAssetManagerVisible] = useState(false);
   const [paintPanelVisible, setPaintPanelVisible] = useState(false);
@@ -307,7 +308,9 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           <div className={styles.roleToggle}>
             <label>Current Role:</label>
             <span className={styles.currentRole}>
-              {userInfo.role === 'dm' ? '👑 DM (Dungeon Master)' : '🎭 Player'}
+              {userRole === 'dm' ? '👑 DM (Dungeon Master)' : '🎭 Player'}
+              {userInfo.is_admin && ' (Admin)'}
+              {userInfo.tier === 'premium' && ' ⭐'}
             </span>
             <p className={styles.roleNote} style={{ fontSize: '0.85em', color: '#888', margin: '4px 0 0 0' }}>
               Role changes are now managed via the Session Management Panel (👥)

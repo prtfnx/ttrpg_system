@@ -25,9 +25,10 @@ export interface Player {
 interface PlayerManagerProps {
   sessionCode: string;
   userInfo: UserInfo;
+  userRole: 'dm' | 'player';
 }
 
-export const PlayerManager: React.FC<PlayerManagerProps> = ({ sessionCode, userInfo }) => {
+export const PlayerManager: React.FC<PlayerManagerProps> = ({ sessionCode, userInfo, userRole }) => {
   const { protocol } = useAuthenticatedWebSocket({ sessionCode, userInfo });
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -88,7 +89,7 @@ export const PlayerManager: React.FC<PlayerManagerProps> = ({ sessionCode, userI
         {players.map((player) => (
           <li key={player.id}>
             <span>{player.username} ({player.role})</span>
-            {userInfo.role === "dm" && player.role !== "dm" && (
+            {userRole === "dm" && player.role !== "dm" && (
               <>
                 <button onClick={() => handleKick(player.id)}>Kick</button>
                 <button onClick={() => handleBan(player.id)}>Ban</button>

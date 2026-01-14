@@ -352,7 +352,9 @@ export const useGameStore = create<GameStore>()(
       canEditCharacter: (characterId: string, userId?: number) => {
         const character = useGameStore.getState().characters.find((c: any) => c.id === characterId);
         if (!character) return false;
-        if (userId === undefined) return true;
+        // If no userId provided, deny edit by default (secure)
+        if (userId === undefined || userId === null) return false;
+        // Allow if user is owner or has control permission
         return character.ownerId === userId || (Array.isArray(character.controlledBy) && character.controlledBy.includes(userId));
       },
 

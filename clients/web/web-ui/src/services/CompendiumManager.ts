@@ -228,15 +228,10 @@ export class CompendiumManager {
   /**
    * Create custom entry (for DMs)
    * 
-   * Note: Client-side role check for UX only.
-   * Backend MUST validate permissions (SessionPermission.MANAGE_COMPENDIUM)
+   * Note: Backend validates permissions (SessionPermission.MANAGE_COMPENDIUM)
+   * Client-side validation removed - rely on backend authorization
    */
   async createCustomEntry(entry: Omit<CompendiumEntry, 'id'>, userInfo: UserInfo): Promise<CompendiumEntry> {
-    // Client-side check: role 'dm' = owner/co_dm in new system
-    if (userInfo.role !== 'dm') {
-      throw new Error('Only DMs can create custom compendium entries');
-    }
-
     try {
       const response = await fetch(`${this.baseUrl}/custom`, {
         method: 'POST',
@@ -274,11 +269,6 @@ export class CompendiumManager {
    * Backend MUST validate permissions (SessionPermission.MANAGE_COMPENDIUM)
    */
   async updateCustomEntry(id: string, updates: Partial<CompendiumEntry>, userInfo: UserInfo): Promise<CompendiumEntry> {
-    // Client-side check: role 'dm' = owner/co_dm in new system
-    if (userInfo.role !== 'dm') {
-      throw new Error('Only DMs can update custom compendium entries');
-    }
-
     try {
       const response = await fetch(`${this.baseUrl}/custom/${id}`, {
         method: 'PUT',
@@ -316,12 +306,7 @@ export class CompendiumManager {
    * Note: Client-side role check for UX only.
    * Backend MUST validate permissions (SessionPermission.MANAGE_COMPENDIUM)
    */
-  async deleteCustomEntry(id: string, userInfo: UserInfo): Promise<void> {
-    // Client-side check: role 'dm' = owner/co_dm in new system
-    if (userInfo.role !== 'dm') {
-      throw new Error('Only DMs can delete custom compendium entries');
-    }
-
+  async deleteCustomEntry(id: string): Promise<void> {
     try {
       const response = await fetch(`${this.baseUrl}/custom/${id}`, {
         method: 'DELETE',

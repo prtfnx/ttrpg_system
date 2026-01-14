@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { SessionRole } from '../../types/roles';
 import styles from './PlayerRoleSelector.module.css';
 
@@ -23,6 +23,34 @@ export const PlayerRoleSelector: React.FC<PlayerRoleSelectorProps> = ({
   disabled = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setDropdownStyle({
+        top: `${rect.bottom + 4}px`,
+        left: `${rect.left}px`,
+        minWidth: `${rect.width}px`
+      });
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+          triggerRef.current && !triggerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
 
   if (!canEdit) {
     const roleLabel = ROLE_OPTIONS.find(r => r.value === currentRole)?.label || currentRole;
@@ -32,6 +60,7 @@ export const PlayerRoleSelector: React.FC<PlayerRoleSelectorProps> = ({
   return (
     <div className={styles.selector}>
       <button
+        ref={triggerRef}
         className={styles.trigger}
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
@@ -40,7 +69,7 @@ export const PlayerRoleSelector: React.FC<PlayerRoleSelectorProps> = ({
       </button>
 
       {isOpen && (
-        <div className={styles.dropdown}>
+        <div ref={dropdownRef} className={styles.dropdown} style={dropdownStyle}>
           {ROLE_OPTIONS.map(option => (
             <button
               key={option.value}

@@ -236,7 +236,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
                 {connectionState === 'error' && `Error: ${error}`}
               </span>
             </div>
-            <ToolsPanel userInfo={userInfo} />
+            <ToolsPanel userInfo={userInfo} userRole={userRole} />
           </div>
         )}
         
@@ -272,7 +272,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
         
         {rightVisible && (
           <div className={styles.rightPanel} style={{ width: rightWidth }}>
-            <RightPanel sessionCode={sessionCode} userInfo={userInfo} />
+            <RightPanel sessionCode={sessionCode} userInfo={userInfo} userRole={userRole} />
           </div>
         )}
 

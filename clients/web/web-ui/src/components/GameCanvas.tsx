@@ -278,6 +278,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ sessionCode, userInfo })
     }
   }, [getRelativeCoords]);
 
+  const { hasPermission } = useSessionPermissions(sessionCode, userInfo.id);
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Toggle performance monitor with F3 key
     if (e.key === 'F3') {
@@ -289,9 +291,38 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ sessionCode, userInfo })
       e.preventDefault();
       setShowPerformanceMonitor(!showPerformanceMonitor);
     }
-  }, [showPerformanceMonitor]);
-
-  const { hasPermission } = useSessionPermissions(sessionCode, userInfo.id);
+    // Delete selected sprite with Delete key
+    else if (e.key === 'Delete' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+      if (!rustRenderManagerRef.current) return;
+      
+      // Get selected sprites from store
+      const selectedSprites = useGameStore.getState().selectedSprites;
+      if (selectedSprites.length > 0) {
+        e.preventDefault();
+        
+        if (!hasPermission('delete_tokens')) {
+          console.warn('⛔ Permission denied: delete_tokens');
+          return;
+        }
+        
+        // Delete all selected sprites
+        selectedSprites.forEach(spriteId => {
+          if (protocol) {
+            console.log('🗑️ GameCanvas: Deleting selected sprite via Delete key:', spriteId);
+            try {
+              protocol.removeSprite(spriteId);
+              console.log('✅ GameCanvas: Sprite delete request sent to server');
+            } catch (error) {
+              console.error('❌ GameCanvas: Failed to send sprite delete request:', error);
+            }
+          } else if (rustRenderManagerRef.current) {
+            console.warn('⚠️ GameCanvas: Protocol not available, deleting sprite locally only');
+            rustRenderManagerRef.current.delete_sprite(spriteId);
+          }
+        });
+      }
+    }
+  }, [showPerformanceMonitor, hasPermission, protocol]);
 
   const handleContextMenuAction = useCallback((action: string) => {
     if (!rustRenderManagerRef.current) return;

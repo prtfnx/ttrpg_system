@@ -207,9 +207,9 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
       // Click the fog toggle to hide it
       await user.click(fogToggle);
       
-      // Small delay to allow state to update
+      // State updates immediately in tests
       await act(async () => {
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await Promise.resolve();
       });
       
       // Log state after click

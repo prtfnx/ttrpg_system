@@ -260,52 +260,9 @@ class AuthService {
     return true;
   }
 
-  /**
-   * Get user's role in a specific session
-   * OWASP best practice: Validate permissions on every request
-   * 
-   * Maps new role system (owner, co_dm, trusted_player, player, spectator)
-   * to legacy role system (dm, player) for UI compatibility
-   */
-  async getRole(sessionCode: string): Promise<'dm' | 'player' | null> {
-    try {
-      const response = await fetch(`/users/me/role/${sessionCode}`, {
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const serverRole = data.role;
-        
-        // Map new role system to legacy dm/player system
-        // owner, co_dm -> dm (for legacy UI components)
-        // trusted_player, player, spectator -> player
-        if (serverRole === 'owner' || serverRole === 'co_dm') {
-          return 'dm';
-        } else if (serverRole === 'trusted_player' || serverRole === 'player' || serverRole === 'spectator') {
-          return 'player';
-        }
-        
-        // Fallback to direct mapping for old roles
-        return serverRole as 'dm' | 'player';
-      }
-      
-      if (response.status === 404) {
-        console.warn(`User is not a member of session: ${sessionCode}`);
-        return null;
-      }
-      
-      throw new Error(`Failed to get role: ${response.statusText}`);
-    } catch (error) {
-      console.error('Failed to get user role:', error);
-      return null;
-    }
-  }
-
-  // Legacy updateRole function removed - use SessionManagementService.changePlayerRole() instead
+  // Legacy functions removed:
+  // - getRole() - unused, role comes from getUserSessions()
+  // - updateRole() - replaced by SessionManagementService.changePlayerRole()
   // New role management API: /game/session/{code}/players/{id}/role
 }
 

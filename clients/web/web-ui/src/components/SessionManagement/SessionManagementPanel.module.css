@@ -49,14 +49,21 @@
 .closeBtn {
   composes: btn from '../../styles/buttons.module.css';
   padding: var(--space-xs) var(--space-sm);
-  background: transparent;
-  border-color: var(--border-primary);
+  background: rgba(239, 68, 68, 0.1);
+  border: 2px solid #ef4444;
+  color: #ef4444;
   font-size: var(--text-lg);
+  font-weight: bold;
   line-height: 1;
+  min-width: 32px;
+  transition: all 0.2s ease;
 }
 
 .closeBtn:hover {
-  background: var(--bg-tertiary);
+  background: #ef4444;
+  color: white;
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
 }
 
 .inviteBtn {

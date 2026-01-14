@@ -10,6 +10,7 @@ interface PlayerRoleSelectorProps {
 }
 
 const ROLE_OPTIONS: { value: SessionRole; label: string; description: string }[] = [
+  { value: 'owner', label: 'Owner', description: 'Session owner with full control' },
   { value: 'co_dm', label: 'Co-DM', description: 'Can control most game elements' },
   { value: 'trusted_player', label: 'Trusted Player', description: 'Extended permissions' },
   { value: 'player', label: 'Player', description: 'Standard player permissions' },

@@ -59,10 +59,6 @@ export const PlayerList: React.FC<PlayerListProps> = ({ players, sessionCode, on
                 </span>
               </div>
 
-              {player.character_name && (
-                <span className={styles.character}>{player.character_name}</span>
-              )}
-
               <div className={styles.roleRow}>
                 <PlayerRoleSelector
                   currentRole={player.role}

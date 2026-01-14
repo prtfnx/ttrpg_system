@@ -85,7 +85,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       const config: WebSocketConfig = {
         url: 'ws://localhost:8080',
         maxReconnectAttempts: 3,
-        reconnectDelay: 1000,
+        reconnectDelay: 10,
       };
 
       service = new WebSocketService(config);
@@ -105,7 +105,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       expect(stats.isManuallyDisconnected).toBe(false);
 
       // Fast forward to trigger reconnection
-      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(10);
 
       // Should have attempted reconnection
       expect(service.getStats().reconnectAttempts).toBe(1);
@@ -115,7 +115,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       const config: WebSocketConfig = {
         url: 'ws://localhost:8080',
         maxReconnectAttempts: 3,
-        reconnectDelay: 1000,
+        reconnectDelay: 10,
       };
 
       service = new WebSocketService(config);
@@ -130,7 +130,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       expect(stats.isManuallyDisconnected).toBe(true);
 
       // Fast forward - should not reconnect
-      await vi.advanceTimersByTimeAsync(5000);
+      await vi.advanceTimersByTimeAsync(50);
 
       expect(service.getStats().reconnectAttempts).toBe(0);
     });
@@ -174,7 +174,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       const config: WebSocketConfig = {
         url: 'ws://localhost:8080',
         maxReconnectAttempts: 5,
-        reconnectDelay: 1000,
+        reconnectDelay: 10,
       };
 
       service = new WebSocketService(config);
@@ -206,23 +206,23 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
         // Expected to fail
       }
 
-      // First reconnect: 1s delay (1000 * 2^0)
-      await vi.advanceTimersByTimeAsync(1000);
+      // First reconnect: 10ms delay (10 * 2^0)
+      await vi.advanceTimersByTimeAsync(10);
       await vi.advanceTimersByTimeAsync(20); // Allow reconnection attempt + fail
       expect(service.getStats().reconnectAttempts).toBe(1);
 
-      // Second reconnect: 2s delay (1000 * 2^1)
-      await vi.advanceTimersByTimeAsync(2000);
+      // Second reconnect: 20ms delay (10 * 2^1)
+      await vi.advanceTimersByTimeAsync(20);
       await vi.advanceTimersByTimeAsync(20); // Allow reconnection attempt + fail
       expect(service.getStats().reconnectAttempts).toBe(2);
 
-      // Third reconnect: 4s delay (1000 * 2^2)
-      await vi.advanceTimersByTimeAsync(4000);
+      // Third reconnect: 40ms delay (10 * 2^2)
+      await vi.advanceTimersByTimeAsync(40);
       await vi.advanceTimersByTimeAsync(20); // Allow reconnection attempt + fail
       expect(service.getStats().reconnectAttempts).toBe(3);
 
-      // Fourth reconnect: 8s delay (1000 * 2^3)
-      await vi.advanceTimersByTimeAsync(8000);
+      // Fourth reconnect: 80ms delay (10 * 2^3)
+      await vi.advanceTimersByTimeAsync(80);
       await vi.advanceTimersByTimeAsync(20); // Allow reconnection attempt + fail
       expect(service.getStats().reconnectAttempts).toBe(4);
       
@@ -233,7 +233,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       const config: WebSocketConfig = {
         url: 'ws://localhost:8080',
         maxReconnectAttempts: 3,
-        reconnectDelay: 500, // 500ms base
+        reconnectDelay: 5, // 5ms base
       };
 
       service = new WebSocketService(config);
@@ -272,19 +272,19 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       // Restore WebSocket for reconnections
       global.WebSocket = OriginalMockWebSocket;
 
-      // First reconnect: 500ms delay (500 * 2^0)
-      await vi.advanceTimersByTimeAsync(500);
+      // First reconnect: 5ms delay (5 * 2^0)
+      await vi.advanceTimersByTimeAsync(5);
       await vi.advanceTimersByTimeAsync(20); // Allow reconnection to establish + fail
       expect(service.getStats().reconnectAttempts).toBe(1);
 
-      // Second reconnect: 1000ms delay (500 * 2^1)
-      await vi.advanceTimersByTimeAsync(1000);
+      // Second reconnect: 10ms delay (5 * 2^1)
+      await vi.advanceTimersByTimeAsync(10);
       await vi.advanceTimersByTimeAsync(20); // Allow reconnection to establish + fail
       expect(service.getStats().reconnectAttempts).toBe(2);
     });
 
     it('should calculate correct delays for multiple reconnection attempts', async () => {
-      const baseDelay = 1000;
+      const baseDelay = 10;
       const config: WebSocketConfig = {
         url: 'ws://localhost:8080',
         maxReconnectAttempts: 10,
@@ -293,13 +293,13 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
 
       service = new WebSocketService(config);
 
-      // Expected delays: [1s, 2s, 4s, 8s, 16s, 32s, ...]
+      // Expected delays: [10ms, 20ms, 40ms, 80ms, 160ms, 320ms, ...]
       const expectedDelays = [
-        1000,   // 1000 * 2^0
-        2000,   // 1000 * 2^1
-        4000,   // 1000 * 2^2
-        8000,   // 1000 * 2^3
-        16000,  // 1000 * 2^4
+        10,   // 10 * 2^0
+        20,   // 10 * 2^1
+        40,   // 10 * 2^2
+        80,   // 10 * 2^3
+        160,  // 10 * 2^4
       ];
 
       // Validate exponential calculation

@@ -11,7 +11,7 @@ export function mountToolsPanel(container: HTMLElement) {
   const root = createRoot(container)
   root.render(
     <StrictMode>
-  <ToolsPanel userInfo={{ id: 0, username: "unknown", role: "player", permissions: [] }} />
+  <ToolsPanel userInfo={{ id: 0, username: "unknown", tier: "free", is_admin: false, permissions: [] }} />
     </StrictMode>
   )
   return root

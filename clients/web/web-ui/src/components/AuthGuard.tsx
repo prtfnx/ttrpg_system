@@ -7,19 +7,17 @@ import LoginModal from './LoginModal';
 interface AuthGuardProps {
   children: React.ReactNode;
   fallback?: React.ReactNode;
-  requireRole?: 'dm' | 'player';
 }
 
 /**
  * AuthGuard component that protects routes/components based on authentication status
- * and optionally role requirements
+ * Note: Role-based access control should be done at component level, not here
  */
 const AuthGuard: React.FC<AuthGuardProps> = ({ 
   children, 
-  fallback, 
-  requireRole 
+  fallback
 }) => {
-  const { user, isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const [showLoginModal, setShowLoginModal] = React.useState(false);
 
   // Show loading state while auth is being initialized
@@ -57,21 +55,6 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
     );
   }
 
-  // If role is required and user doesn't have it
-  if (requireRole && user?.role !== requireRole) {
-    return (
-      <div className={styles.authGuardMessage}>
-        <h3>Access Denied</h3>
-        <p>
-          You need {requireRole === 'dm' ? 'Dungeon Master' : 'Player'} 
-          {' '}permissions to access this content.
-        </p>
-        <p>Your current role: <span className={`role-indicator ${user?.role}`}>{user?.role}</span></p>
-      </div>
-    );
-  }
-
-  // User is authenticated and has required role (if any)
   return <>{children}</>;
 };
 

@@ -75,7 +75,7 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
 
       setConnectionState('connected');
       // Log the actual resolved canonical code we connected to (not the injected candidate)
-      console.log(`Connected to session ${resolvedCode} as ${userInfo.username} (${userInfo.role})`);
+      console.log(`Connected to session ${resolvedCode} as ${userInfo.username}`);
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Connection failed';

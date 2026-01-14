@@ -6,7 +6,8 @@
 export interface UserInfo {
   id: number;
   username: string;
-  role: 'dm' | 'player';  // Legacy mapped role for UI
+  tier: 'free' | 'premium';
+  is_admin: boolean;
   permissions: string[];
 }
 
@@ -120,7 +121,8 @@ class AuthService {
         this.userInfo = {
           id: userData.id,
           username: userData.username,
-          role: userData.role || 'player',
+          tier: userData.tier || 'free',
+          is_admin: userData.is_admin || false,
           permissions: userData.permissions || []
         };
         this.token = 'authenticated-via-cookie';
@@ -183,7 +185,8 @@ class AuthService {
         this.userInfo = {
           id: userData.id,
           username: userData.username,
-          role: userData.role || 'player',
+          tier: userData.tier || 'free',
+          is_admin: userData.is_admin || false,
           permissions: userData.permissions || []
         };
         return this.userInfo;

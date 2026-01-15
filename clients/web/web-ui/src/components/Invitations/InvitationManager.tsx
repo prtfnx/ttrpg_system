@@ -10,7 +10,7 @@ interface InvitationManagerProps {
   onClose: () => void;
 }
 
-export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCode, onClose }) => {
+export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCode, onClose, standalone = false }) => {
   const { invitations, loading, createInvitation, revokeInvitation } = useInvitations(sessionCode);
   const [selectedRole, setSelectedRole] = useState<SessionRole>('player');
   const [expiresHours, setExpiresHours] = useState(24);

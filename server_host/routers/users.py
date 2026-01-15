@@ -13,7 +13,7 @@ import jwt
 
 from server_host.database.database import get_db
 from server_host.database import crud
-from server_host.database import schemas
+from server_host.database import schemas, models
 from server_host.models import auth as auth_models
 from server_host.utils.rate_limiter import registration_limiter, login_limiter, get_client_ip
 from server_host.utils.logger import setup_logger
@@ -98,12 +98,14 @@ async def users_me(
     accept_header = request.headers.get("accept", "")
     if "application/json" in accept_header:
         # Return JSON for API requests with permissions
+        # Note: User object doesn't have a 'role' attribute
+        # Roles are session-specific (stored in GamePlayer table)
+        # Removed hardcoded 'player' role - client should fetch role per session
         return {
             "id": current_user.id,
             "username": current_user.username,
             "email": getattr(current_user, 'email', None),
             "disabled": current_user.disabled,
-            "role": getattr(current_user, 'role', 'player'),
             "tier": getattr(current_user, 'tier', 'free'),
             "permissions": current_user.get_permissions(),
             "created_at": getattr(current_user, 'created_at', None)
@@ -232,26 +234,43 @@ async def dashboard(
     # Check if this is an API request (JSON) vs web request (HTML)
     accept_header = request.headers.get("accept", "")
     
-    # Get user's game sessions
+    # Get user's game sessions with roles
     user_sessions = crud.get_user_game_sessions(db, current_user.id)
     
     if "application/json" in accept_header:
         # Return JSON for API requests
+        # user_sessions now returns list of (GameSession, role) tuples
         sessions_data = []
-        for session in user_sessions:
+        for session, role in user_sessions:
             sessions_data.append({
                 "session_code": session.session_code,
                 "session_name": session.name,
-                "role": "dm" if session.owner_id == current_user.id else "player",
+                "role": role,  # Use actual role from GamePlayer table
                 "created_at": session.created_at.isoformat() if hasattr(session, 'created_at') else None
             })
         return {"sessions": sessions_data}
     else:
-        # Return HTML page for browser requests
+        # Return HTML page for browser requests with enhanced session data
+        sessions_enhanced = []
+        for session, role in user_sessions:
+            # Get player count
+            player_count = db.query(models.GamePlayer).filter(
+                models.GamePlayer.session_id == session.id
+            ).count()
+            
+            sessions_enhanced.append({
+                "name": session.name,
+                "session_code": session.session_code,
+                "role": role,
+                "created_at": session.created_at,
+                "player_count": player_count,
+                "status": "Active"  # Can be enhanced with actual session status
+            })
+        
         return templates.TemplateResponse("dashboard.html", {
             "request": request,
             "user": current_user,
-            "sessions": user_sessions
+            "sessions": sessions_enhanced
         })
 
 @router.get("/register")
@@ -378,86 +397,5 @@ async def get_my_role(
         "username": current_user.username
     }
 
-@router.post("/me/role", response_model=dict)
-async def update_my_role(
-    request: Request,
-    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
-    db: Session = Depends(get_db)
-):
-    """
-    Update role for a user in a session.
-    Only the session owner can update roles.
-    
-    Request body:
-    {
-        "session_code": "ABC123",
-        "user_id": 5,
-        "new_role": "dm"
-    }
-    
-    OWASP best practices applied:
-    - Deny by default
-    - Validate permissions on every request
-    - Server-side authorization
-    - Input validation
-    - Appropriate logging
-    - Safe error handling
-    """
-    try:
-        body = await request.json()
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid JSON body"
-        )
-    
-    session_code = body.get("session_code")
-    target_user_id = body.get("user_id")
-    new_role = body.get("new_role")
-    
-    # Input validation
-    if not session_code or not isinstance(session_code, str):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="session_code is required and must be a string"
-        )
-    
-    if not target_user_id or not isinstance(target_user_id, int):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="user_id is required and must be an integer"
-        )
-    
-    if not new_role or new_role not in ['dm', 'player']:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="new_role must be 'dm' or 'player'"
-        )
-    
-    # Call CRUD function with authorization
-    success, message = crud.update_player_role(
-        db, 
-        session_code, 
-        target_user_id, 
-        new_role, 
-        current_user.id  # requester_id for authorization
-    )
-    
-    if not success:
-        # Different status codes based on error type
-        if "not found" in message.lower():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message)
-        elif "only the session owner" in message.lower() or "unauthorized" in message.lower():
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=message)
-        else:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
-    
-    logger.info(f"Role update successful: user {target_user_id} -> {new_role} in session {session_code}")
-    
-    return {
-        "success": True,
-        "message": message,
-        "session_code": session_code,
-        "user_id": target_user_id,
-        "new_role": new_role
-    }
+# Legacy role change endpoint removed - use /game/session/{code}/players/{id}/role instead
+# Kept GET endpoint for backwards compatibility with role mapping

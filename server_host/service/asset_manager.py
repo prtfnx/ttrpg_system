@@ -71,26 +71,49 @@ class ServerAssetManager:
         logger.info("ServerAssetManager initialized")
     
     def setup_session_permissions(self, session_code: str, user_id: int, username: str, role: str = "player"):
-        """Setup permissions for a user in a session"""
+        """
+        Setup permissions for a user in a session
+        
+        Note: This uses simplified role mapping for asset management.
+        Roles map as follows:
+        - 'owner', 'co_dm', 'dm' -> Full asset management permissions
+        - 'trusted_player' -> Upload and download permissions
+        - 'player' -> Limited upload (portraits) and download
+        - 'spectator' -> Download only
+        
+        For full permission system, see server_host.utils.permissions
+        """
         if session_code not in self.session_permissions:
             self.session_permissions[session_code] = {}
         
-        # Define role-based permissions
-        if role.lower() == "dm" or role.lower() == "dungeon_master":
+        # Map new role system to asset permissions
+        role_lower = role.lower()
+        if role_lower in ("owner", "co_dm", "dm", "dungeon_master"):
+            # Owner and Co-DM get full asset management
             permissions = AssetPermission(
                 can_upload=True,
                 can_download=True,
                 can_share=True,
                 can_moderate=True
             )
-        elif role.lower() == "player":
+        elif role_lower == "trusted_player":
+            # Trusted players can upload and share
             permissions = AssetPermission(
-                can_upload=True,  # Limited upload for character portraits
+                can_upload=True,
+                can_download=True,
+                can_share=True,
+                can_moderate=False
+            )
+        elif role_lower == "player":
+            # Regular players: limited upload for character portraits
+            permissions = AssetPermission(
+                can_upload=True,
                 can_download=True,
                 can_share=False,
                 can_moderate=False
             )
-        else:  # observer
+        else:  # spectator or observer
+            # Spectators: download only
             permissions = AssetPermission(
                 can_upload=False,
                 can_download=True,

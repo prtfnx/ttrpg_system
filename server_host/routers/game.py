@@ -9,7 +9,7 @@ from typing import Annotated, List
 import secrets
 import string
 from server_host.database.database import get_db
-from server_host.database import crud, schemas
+from server_host.database import crud, schemas, models
 from server_host.models import game as game_models
 from server_host.utils.logger import setup_logger
 from server_host.routers.users import get_current_active_user
@@ -34,6 +34,7 @@ def generate_unique_session_code(db: Session, length: int = 6, max_attempts: int
         existing = crud.get_game_session_by_code(db, code)
         if not existing:
             return code
+    raise Exception("Failed to generate unique session code")
         
 @router.get("/")
 async def game_lobby(
@@ -148,6 +149,38 @@ async def game_session_page(
         "session": game_session,
         "session_code": session_code,
         "user_role": user_role
+    })
+
+@router.get("/session/{session_code}/admin")
+async def session_admin_page(
+    session_code: str,
+    request: Request,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
+    db: Session = Depends(get_db)
+):
+    """Session administration page (owner and co_dm only)"""
+    game_session = crud.get_game_session_by_code(db, session_code)
+    if not game_session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Verify user has admin access
+    player = db.query(models.GamePlayer).filter(
+        models.GamePlayer.session_id == game_session.id,
+        models.GamePlayer.user_id == current_user.id
+    ).first()
+    
+    if not player or player.role not in ['owner', 'co_dm']:
+        raise HTTPException(
+            status_code=403, 
+            detail="Admin access requires owner or co_dm role"
+        )
+    
+    return templates.TemplateResponse("admin_panel.html", {
+        "request": request,
+        "user": current_user,
+        "session": game_session,
+        "session_code": session_code,
+        "user_role": player.role
     })
 
 @router.get("/api/sessions", response_model=List[game_models.GameSession])

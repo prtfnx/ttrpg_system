@@ -21,7 +21,8 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         input: {
           main: './index.html',
-          integration: './src/integration.tsx'
+          integration: './src/integration.tsx',
+          admin: './src/admin.tsx'
         },
         output: {
           entryFileNames: '[name]-[hash].js',

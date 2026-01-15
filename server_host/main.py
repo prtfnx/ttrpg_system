@@ -159,15 +159,16 @@ async def forbidden_handler(request: Request, exc: HTTPException):
     else:
         return RedirectResponse(url="/users/auth-error", status_code=302)
 
+from server_host.routers import invitations, admin
+
 app.include_router(token_router)
 app.include_router(users.router)
 app.include_router(game.router)
 app.include_router(session_management.router)
 app.include_router(compendium.router)
 app.include_router(game_ws.router)
-
-from server_host.routers import invitations
 app.include_router(invitations.router)
+app.include_router(admin.router)
 
 @app.get("/")
 async def root():

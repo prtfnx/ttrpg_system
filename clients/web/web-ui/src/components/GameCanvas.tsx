@@ -318,8 +318,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ sessionCode, userInfo })
         return;
       }
       
-      // Get selected sprites from store
-      const selectedSprites = useGameStore.getState().selectedSprites;
+      // Get selected sprites directly from WASM (single source of truth)
+      const selectedSprites = rustRenderManagerRef.current.get_selected_sprite_ids?.() || [];
       console.log('⌨️ Currently selected sprites:', selectedSprites);
       
       if (selectedSprites.length > 0) {
@@ -333,7 +333,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ sessionCode, userInfo })
         console.log(`🗑️ GameCanvas: Deleting ${selectedSprites.length} selected sprite(s) via Delete key`);
         
         // Delete all selected sprites
-        selectedSprites.forEach(spriteId => {
+        selectedSprites.forEach((spriteId: string) => {
           if (protocol) {
             console.log('🗑️ GameCanvas: Deleting selected sprite via Delete key:', spriteId);
             try {
@@ -884,6 +884,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ sessionCode, userInfo })
         // Mark WASM as initialized for thumbnail service
         (window as any).wasmInitialized = true;
         console.log('[WASM] window.wasmInitialized = true');
+
+        // Register state change handler for WASM → React sync
+        if (rustRenderEngine.set_state_change_handler) {
+          rustRenderEngine.set_state_change_handler((event: any) => {
+            if (event?.type === 'selection_changed' && Array.isArray(event.sprite_ids)) {
+              useGameStore.getState().setSelectedSprites(event.sprite_ids);
+            }
+          });
+          console.log('[WASM] State change handler registered');
+        }
 
         // Start render loop
         const renderLoop = () => {

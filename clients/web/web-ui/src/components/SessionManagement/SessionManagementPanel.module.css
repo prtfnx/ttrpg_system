@@ -3,16 +3,40 @@
  * Follows project CSS composition pattern
  */
 
-.toggle {
-  composes: btnPrimary from '../../styles/buttons.module.css';
+.collapsed {
   position: fixed;
   bottom: var(--space-xl);
   right: var(--space-xl);
-  box-shadow: var(--shadow-lg);
+  display: flex;
+  gap: var(--space-sm);
   z-index: 100;
 }
 
+.toggle {
+  composes: btnPrimary from '../../styles/buttons.module.css';
+  box-shadow: var(--shadow-lg);
+}
+
 .toggle:hover {
+  transform: translateY(calc(var(--space-xs) * -1));
+  box-shadow: var(--shadow-xl);
+}
+
+.adminLink {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-secondary);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-weight: var(--font-semibold);
+  box-shadow: var(--shadow-lg);
+  transition: all 0.2s;
+}
+
+.adminLink:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
   transform: translateY(calc(var(--space-xs) * -1));
   box-shadow: var(--shadow-xl);
 }

@@ -36,9 +36,14 @@ export const SessionManagementPanel: React.FC<SessionManagementPanelProps> = ({ 
 
   if (!isExpanded) {
     return (
-      <button className={styles.toggle} onClick={() => setIsExpanded(true)}>
-        👥 Manage Players
-      </button>
+      <div className={styles.collapsed}>
+        <button className={styles.toggle} onClick={() => setIsExpanded(true)}>
+          👥 Manage Players
+        </button>
+        <a href={`/game/session/${sessionCode}/admin`} className={styles.adminLink} target="_blank" rel="noopener noreferrer">
+          ⚙️ Admin Panel
+        </a>
+      </div>
     );
   }
 

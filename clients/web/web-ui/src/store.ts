@@ -77,6 +77,7 @@ interface GameStore extends GameState {
   // Actions
   moveSprite: (id: string, x: number, y: number) => void;
   selectSprite: (id: string, multiSelect?: boolean) => void;
+  setSelectedSprites: (spriteIds: string[]) => void; // WASM → React sync
   updateCamera: (x: number, y: number, zoom?: number) => void;
   setConnection: (connected: boolean, sessionId?: string) => void;
   updateConnectionState: (state: ConnectionState) => void;
@@ -198,6 +199,17 @@ export const useGameStore = create<GameStore>()(
             })),
           };
         });
+      },
+
+      // WASM → React selection sync (single source of truth: WASM)
+      setSelectedSprites: (spriteIds: string[]) => {
+        set((state) => ({
+          selectedSprites: spriteIds,
+          sprites: state.sprites.map((sprite) => ({
+            ...sprite,
+            isSelected: spriteIds.includes(sprite.id),
+          })),
+        }));
       },
 
       addInventoryItem: (characterId: string, item: string) => {

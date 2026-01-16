@@ -4,7 +4,6 @@
  * Tests WASM-React selection state synchronization (WASM as single source of truth)
  * Covers get_selected_sprite_ids(), set_state_change_handler(), and setSelectedSprites()
  */
-import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGameStore } from '../store';
 
@@ -62,13 +61,10 @@ describe('Selection Synchronization - WASM to React', () => {
   });
 
   describe('Selection State Synchronization', () => {
-    it('should update React state when WASM emits selection_changed event (single selection)', async () => {
-      const { result } = renderHook(() => useGameStore());
-
-      // Simulate WASM registering handler
+    it('should update React state when WASM emits selection_changed event (single selection)', () => {
       const handler = (event: any) => {
         if (event?.type === 'selection_changed') {
-          result.current.setSelectedSprites(event.sprite_ids);
+          useGameStore.getState().setSelectedSprites(event.sprite_ids);
         }
       };
       mockRenderEngine.set_state_change_handler(handler);
@@ -76,17 +72,13 @@ describe('Selection Synchronization - WASM to React', () => {
       // Simulate WASM emitting selection_changed event
       stateChangeCallback?.({ type: 'selection_changed', sprite_ids: ['sprite_1'] });
 
-      await waitFor(() => {
-        expect(result.current.selectedSprites).toEqual(['sprite_1']);
-      });
+      expect(useGameStore.getState().selectedSprites).toEqual(['sprite_1']);
     });
 
-    it('should update React state when WASM emits selection_changed event (multi-selection)', async () => {
-      const { result } = renderHook(() => useGameStore());
-
+    it('should update React state when WASM emits selection_changed event (multi-selection)', () => {
       const handler = (event: any) => {
         if (event?.type === 'selection_changed') {
-          result.current.setSelectedSprites(event.sprite_ids);
+          useGameStore.getState().setSelectedSprites(event.sprite_ids);
         }
       };
       mockRenderEngine.set_state_change_handler(handler);
@@ -94,21 +86,17 @@ describe('Selection Synchronization - WASM to React', () => {
       // Simulate Ctrl+click multi-select
       stateChangeCallback?.({ type: 'selection_changed', sprite_ids: ['sprite_1', 'sprite_2', 'sprite_3'] });
 
-      await waitFor(() => {
-        expect(result.current.selectedSprites).toEqual(['sprite_1', 'sprite_2', 'sprite_3']);
-        expect(result.current.selectedSprites).toHaveLength(3);
-      });
+      expect(useGameStore.getState().selectedSprites).toEqual(['sprite_1', 'sprite_2', 'sprite_3']);
+      expect(useGameStore.getState().selectedSprites).toHaveLength(3);
     });
 
-    it('should clear React state when WASM emits empty selection', async () => {
-      const { result } = renderHook(() => useGameStore());
-
+    it('should clear React state when WASM emits empty selection', () => {
       // Set initial selection
-      result.current.setSelectedSprites(['sprite_1', 'sprite_2']);
+      useGameStore.getState().setSelectedSprites(['sprite_1', 'sprite_2']);
 
       const handler = (event: any) => {
         if (event?.type === 'selection_changed') {
-          result.current.setSelectedSprites(event.sprite_ids);
+          useGameStore.getState().setSelectedSprites(event.sprite_ids);
         }
       };
       mockRenderEngine.set_state_change_handler(handler);
@@ -116,29 +104,23 @@ describe('Selection Synchronization - WASM to React', () => {
       // Simulate click on empty canvas (clear selection)
       stateChangeCallback?.({ type: 'selection_changed', sprite_ids: [] });
 
-      await waitFor(() => {
-        expect(result.current.selectedSprites).toEqual([]);
-      });
+      expect(useGameStore.getState().selectedSprites).toEqual([]);
     });
 
-    it('should update sprite isSelected flags when selection changes', async () => {
-      const { result } = renderHook(() => useGameStore());
-
+    it('should update sprite isSelected flags when selection changes', () => {
       const handler = (event: any) => {
         if (event?.type === 'selection_changed') {
-          result.current.setSelectedSprites(event.sprite_ids);
+          useGameStore.getState().setSelectedSprites(event.sprite_ids);
         }
       };
       mockRenderEngine.set_state_change_handler(handler);
 
       stateChangeCallback?.({ type: 'selection_changed', sprite_ids: ['sprite_2'] });
 
-      await waitFor(() => {
-        const sprites = result.current.sprites;
-        expect(sprites.find(s => s.id === 'sprite_1')?.isSelected).toBe(false);
-        expect(sprites.find(s => s.id === 'sprite_2')?.isSelected).toBe(true);
-        expect(sprites.find(s => s.id === 'sprite_3')?.isSelected).toBe(false);
-      });
+      const sprites = useGameStore.getState().sprites;
+      expect(sprites.find(s => s.id === 'sprite_1')?.isSelected).toBe(false);
+      expect(sprites.find(s => s.id === 'sprite_2')?.isSelected).toBe(true);
+      expect(sprites.find(s => s.id === 'sprite_3')?.isSelected).toBe(false);
     });
   });
 
@@ -179,21 +161,17 @@ describe('Selection Synchronization - WASM to React', () => {
 
   describe('setSelectedSprites Zustand Action', () => {
     it('should update selectedSprites array', () => {
-      const { result } = renderHook(() => useGameStore());
+      useGameStore.getState().setSelectedSprites(['sprite_1', 'sprite_2']);
 
-      result.current.setSelectedSprites(['sprite_1', 'sprite_2']);
-
-      expect(result.current.selectedSprites).toEqual(['sprite_1', 'sprite_2']);
+      expect(useGameStore.getState().selectedSprites).toEqual(['sprite_1', 'sprite_2']);
     });
 
     it('should update sprite isSelected flags to match selection', () => {
-      const { result } = renderHook(() => useGameStore());
+      useGameStore.getState().setSelectedSprites(['sprite_1', 'sprite_3']);
 
-      result.current.setSelectedSprites(['sprite_1', 'sprite_3']);
-
-      const sprite1 = result.current.sprites.find(s => s.id === 'sprite_1');
-      const sprite2 = result.current.sprites.find(s => s.id === 'sprite_2');
-      const sprite3 = result.current.sprites.find(s => s.id === 'sprite_3');
+      const sprite1 = useGameStore.getState().sprites.find(s => s.id === 'sprite_1');
+      const sprite2 = useGameStore.getState().sprites.find(s => s.id === 'sprite_2');
+      const sprite3 = useGameStore.getState().sprites.find(s => s.id === 'sprite_3');
 
       expect(sprite1?.isSelected).toBe(true);
       expect(sprite2?.isSelected).toBe(false);
@@ -201,42 +179,36 @@ describe('Selection Synchronization - WASM to React', () => {
     });
 
     it('should handle empty array to clear selection', () => {
-      const { result } = renderHook(() => useGameStore());
-
       // Set selection first
-      result.current.setSelectedSprites(['sprite_1', 'sprite_2']);
-      expect(result.current.selectedSprites).toHaveLength(2);
+      useGameStore.getState().setSelectedSprites(['sprite_1', 'sprite_2']);
+      expect(useGameStore.getState().selectedSprites).toHaveLength(2);
 
       // Clear selection
-      result.current.setSelectedSprites([]);
+      useGameStore.getState().setSelectedSprites([]);
 
-      expect(result.current.selectedSprites).toEqual([]);
-      result.current.sprites.forEach(sprite => {
+      expect(useGameStore.getState().selectedSprites).toEqual([]);
+      useGameStore.getState().sprites.forEach(sprite => {
         expect(sprite.isSelected).toBe(false);
       });
     });
 
     it('should handle selection of non-existent sprite IDs gracefully', () => {
-      const { result } = renderHook(() => useGameStore());
-
       // WASM might return IDs that aren't in React state yet
-      result.current.setSelectedSprites(['sprite_1', 'non_existent_sprite']);
+      useGameStore.getState().setSelectedSprites(['sprite_1', 'non_existent_sprite']);
 
-      expect(result.current.selectedSprites).toEqual(['sprite_1', 'non_existent_sprite']);
+      expect(useGameStore.getState().selectedSprites).toEqual(['sprite_1', 'non_existent_sprite']);
       
       // Only existing sprites should have isSelected flag updated
-      const sprite1 = result.current.sprites.find(s => s.id === 'sprite_1');
+      const sprite1 = useGameStore.getState().sprites.find(s => s.id === 'sprite_1');
       expect(sprite1?.isSelected).toBe(true);
     });
   });
 
   describe('Event Emission Scenarios', () => {
-    it('should handle rapid selection changes without race conditions', async () => {
-      const { result } = renderHook(() => useGameStore());
-
+    it('should handle rapid selection changes without race conditions', () => {
       const handler = (event: any) => {
         if (event?.type === 'selection_changed') {
-          result.current.setSelectedSprites(event.sprite_ids);
+          useGameStore.getState().setSelectedSprites(event.sprite_ids);
         }
       };
       mockRenderEngine.set_state_change_handler(handler);
@@ -247,47 +219,39 @@ describe('Selection Synchronization - WASM to React', () => {
       stateChangeCallback?.({ type: 'selection_changed', sprite_ids: ['sprite_2'] });
       stateChangeCallback?.({ type: 'selection_changed', sprite_ids: [] });
 
-      await waitFor(() => {
-        // Final state should be empty
-        expect(result.current.selectedSprites).toEqual([]);
-      });
+      // Final state should be empty
+      expect(useGameStore.getState().selectedSprites).toEqual([]);
     });
 
-    it('should ignore non-selection_changed events', async () => {
-      const { result } = renderHook(() => useGameStore());
-
+    it('should ignore non-selection_changed events', () => {
       const handler = (event: any) => {
         if (event?.type === 'selection_changed') {
-          result.current.setSelectedSprites(event.sprite_ids);
+          useGameStore.getState().setSelectedSprites(event.sprite_ids);
         }
       };
       mockRenderEngine.set_state_change_handler(handler);
 
       // Set initial selection
-      result.current.setSelectedSprites(['sprite_1']);
+      useGameStore.getState().setSelectedSprites(['sprite_1']);
 
       // Emit different event types
       stateChangeCallback?.({ type: 'sprite_moved', sprite_id: 'sprite_1' });
       stateChangeCallback?.({ type: 'camera_changed', x: 100, y: 100 });
 
-      await waitFor(() => {
-        // Selection should remain unchanged
-        expect(result.current.selectedSprites).toEqual(['sprite_1']);
-      });
+      // Selection should remain unchanged
+      expect(useGameStore.getState().selectedSprites).toEqual(['sprite_1']);
     });
 
-    it('should handle malformed events gracefully', async () => {
-      const { result } = renderHook(() => useGameStore());
-
+    it('should handle malformed events gracefully', () => {
       const handler = (event: any) => {
         if (event?.type === 'selection_changed' && Array.isArray(event.sprite_ids)) {
-          result.current.setSelectedSprites(event.sprite_ids);
+          useGameStore.getState().setSelectedSprites(event.sprite_ids);
         }
       };
       mockRenderEngine.set_state_change_handler(handler);
 
       // Set initial selection
-      result.current.setSelectedSprites(['sprite_1']);
+      useGameStore.getState().setSelectedSprites(['sprite_1']);
 
       // Emit malformed events
       stateChangeCallback?.({ type: 'selection_changed' }); // Missing sprite_ids
@@ -295,10 +259,8 @@ describe('Selection Synchronization - WASM to React', () => {
       stateChangeCallback?.(null); // Null event
       stateChangeCallback?.(undefined); // Undefined event
 
-      await waitFor(() => {
-        // Selection should remain unchanged
-        expect(result.current.selectedSprites).toEqual(['sprite_1']);
-      });
+      // Selection should remain unchanged
+      expect(useGameStore.getState().selectedSprites).toEqual(['sprite_1']);
     });
   });
 
@@ -333,26 +295,22 @@ describe('Selection Synchronization - WASM to React', () => {
   });
 
   describe('Performance - Large Selections', () => {
-    it('should handle large selection sets efficiently', async () => {
-      const { result } = renderHook(() => useGameStore());
-
+    it('should handle large selection sets efficiently', () => {
       // Create 100 sprite IDs
       const largeSpriteSet = Array.from({ length: 100 }, (_, i) => `sprite_${i}`);
       
       const startTime = performance.now();
-      result.current.setSelectedSprites(largeSpriteSet);
+      useGameStore.getState().setSelectedSprites(largeSpriteSet);
       const endTime = performance.now();
 
-      expect(result.current.selectedSprites).toHaveLength(100);
+      expect(useGameStore.getState().selectedSprites).toHaveLength(100);
       expect(endTime - startTime).toBeLessThan(100); // Should complete in <100ms
     });
 
-    it('should handle frequent selection updates efficiently', async () => {
-      const { result } = renderHook(() => useGameStore());
-
+    it('should handle frequent selection updates efficiently', () => {
       const handler = (event: any) => {
         if (event?.type === 'selection_changed') {
-          result.current.setSelectedSprites(event.sprite_ids);
+          useGameStore.getState().setSelectedSprites(event.sprite_ids);
         }
       };
       mockRenderEngine.set_state_change_handler(handler);

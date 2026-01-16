@@ -544,7 +544,7 @@ impl RenderEngine {
             &mut self.lighting,
             self.camera.zoom,
             ctrl_pressed,
-            &self.actions.on_state_change_callback
+            self.actions.get_state_change_callback()
         );
         
         // Handle event system results that need render engine specific operations
@@ -668,7 +668,7 @@ impl RenderEngine {
             &mut self.lighting,
             &mut self.fog,
             table_id,
-            &self.actions.on_state_change_callback
+            self.actions.get_state_change_callback()
         );
         
         // Handle event system results that need render engine specific operations

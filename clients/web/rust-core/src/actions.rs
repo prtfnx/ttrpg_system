@@ -108,6 +108,11 @@ impl ActionsClient {
         self.on_state_change_callback = Some(callback.clone());
     }
 
+    // Internal getter for state change callback
+    pub(crate) fn get_state_change_callback(&self) -> &Option<Function> {
+        &self.on_state_change_callback
+    }
+
     #[wasm_bindgen]
     pub fn set_error_handler(&mut self, callback: &Function) {
         self.on_error_callback = Some(callback.clone());

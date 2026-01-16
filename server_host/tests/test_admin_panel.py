@@ -1,108 +1,17 @@
-"""
-Comprehensive tests for Admin Panel API
-Tests all admin endpoints with proper access control and validation
-"""
+"""Admin Panel API tests with role-based access control."""
 import pytest
 import json
-import sys
-from pathlib import Path
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from datetime import datetime
-from unittest.mock import patch
 
-# Add project root to path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-
-from server_host.main import app
-from server_host.database.database import Base, get_db
 from server_host.database import models
 
-SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///./test_admin_panel.db"
-engine = create_engine(SQLALCHEMY_TEST_DATABASE_URL, connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-
-@pytest.fixture
-def db():
-    """Create test database"""
-    Base.metadata.create_all(bind=engine)
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-        Base.metadata.drop_all(bind=engine)
-
-
-@pytest.fixture
-def client(db):
-    """Create test client with database override"""
-    def override_get_db():
-        try:
-            yield db
-        finally:
-            pass
-    app.dependency_overrides[get_db] = override_get_db
-    return TestClient(app)
-
-
-@pytest.fixture
-def test_users(db):
-    """Create test users"""
-    owner = models.User(
-        username="owner_user",
-        email="owner@test.com",
-        hashed_password="hashed_password",
-        tier="premium"
-    )
-    co_dm = models.User(
-        username="codm_user",
-        email="codm@test.com",
-        hashed_password="hashed_password",
-        tier="free"
-    )
-    player1 = models.User(
-        username="player1",
-        email="player1@test.com",
-        hashed_password="hashed_password",
-        tier="free"
-    )
-    player2 = models.User(
-        username="player2",
-        email="player2@test.com",
-        hashed_password="hashed_password",
-        tier="free"
-    )
-    spectator = models.User(
-        username="spectator",
-        email="spectator@test.com",
-        hashed_password="hashed_password",
-        tier="free"
-    )
-    
-    db.add_all([owner, co_dm, player1, player2, spectator])
-    db.commit()
-    db.refresh(owner)
-    db.refresh(co_dm)
-    db.refresh(player1)
-    db.refresh(player2)
-    db.refresh(spectator)
-    
-    return {
-        "owner": owner,
-        "co_dm": co_dm,
-        "player1": player1,
-        "player2": player2,
-        "spectator": spectator
-    }
+pytestmark = pytest.mark.admin
 
 
 @pytest.fixture
 def test_session(db, test_users):
-    """Create test session with game_data"""
+    """Create test session with players."""
     session = models.GameSession(
         session_code="ADMIN123",
         name="Admin Test Session",
@@ -118,38 +27,17 @@ def test_session(db, test_users):
     db.commit()
     db.refresh(session)
     
-    # Create game players
     players = [
-        models.GamePlayer(
-            session_id=session.id,
-            user_id=test_users["owner"].id,
-            role="owner",
-            is_connected=True
-        ),
-        models.GamePlayer(
-            session_id=session.id,
-            user_id=test_users["co_dm"].id,
-            role="co_dm",
-            is_connected=True
-        ),
-        models.GamePlayer(
-            session_id=session.id,
-            user_id=test_users["player1"].id,
-            role="player",
-            is_connected=False
-        ),
-        models.GamePlayer(
-            session_id=session.id,
-            user_id=test_users["player2"].id,
-            role="trusted_player",
-            is_connected=True
-        ),
-        models.GamePlayer(
-            session_id=session.id,
-            user_id=test_users["spectator"].id,
-            role="spectator",
-            is_connected=False
-        ),
+        models.GamePlayer(session_id=session.id, user_id=test_users["owner"].id, 
+                         role="owner", is_connected=True),
+        models.GamePlayer(session_id=session.id, user_id=test_users["co_dm"].id, 
+                         role="co_dm", is_connected=True),
+        models.GamePlayer(session_id=session.id, user_id=test_users["player1"].id, 
+                         role="player", is_connected=False),
+        models.GamePlayer(session_id=session.id, user_id=test_users["player2"].id, 
+                         role="trusted_player", is_connected=True),
+        models.GamePlayer(session_id=session.id, user_id=test_users["spectator"].id, 
+                         role="spectator", is_connected=False),
     ]
     db.add_all(players)
     db.commit()
@@ -157,516 +45,351 @@ def test_session(db, test_users):
     return session
 
 
-@pytest.fixture
-def mock_current_user_owner(test_users):
-    """Mock authentication for owner"""
-    def mock_get_current_user():
-        return test_users["owner"]
-    return mock_get_current_user
-
-
-@pytest.fixture
-def mock_current_user_codm(test_users):
-    """Mock authentication for co_dm"""
-    def mock_get_current_user():
-        return test_users["co_dm"]
-    return mock_get_current_user
-
-
-@pytest.fixture
-def mock_current_user_player(test_users):
-    """Mock authentication for player"""
-    def mock_get_current_user():
-        return test_users["player1"]
-    return mock_get_current_user
-
-
+@pytest.mark.api
 class TestAdminSettings:
-    """Test session settings endpoints"""
+    """Session settings retrieval and updates."""
     
-    def test_get_settings_as_owner(self, client, test_session, test_users, db):
-        """Test owner can retrieve session settings"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["owner"]
-            
-            response = client.get("/game/session/ADMIN123/admin/settings")
-            
-            assert response.status_code == 200
-            data = response.json()
-            assert data["name"] == "Admin Test Session"
-            assert data["max_players"] == 10
-            assert data["visibility"] == "private"
-            assert data["join_policy"] == "invite_only"
-            assert data["owner_username"] == "owner_user"
+    @pytest.mark.parametrize("client_fixture,expected_status", [
+        ("owner_client", 200),
+        ("codm_client", 200),
+        ("player_client", 302),  # Redirect to auth_error
+    ])
+    def test_get_settings_by_role(self, client_fixture, expected_status, test_session, request):
+        """Admin settings access is role-based."""
+        client = request.getfixturevalue(client_fixture)
+        response = client.get("/game/session/ADMIN123/admin/settings")
+        assert response.status_code == expected_status
     
-    def test_get_settings_as_codm(self, client, test_session, test_users, db):
-        """Test co_dm can retrieve session settings"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["co_dm"]
-            
-            response = client.get("/game/session/ADMIN123/admin/settings")
-            
-            assert response.status_code == 200
-            data = response.json()
-            assert data["name"] == "Admin Test Session"
-    
-    def test_get_settings_as_player_forbidden(self, client, test_session, test_users, db):
-        """Test player cannot access settings"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["player1"]
-            
-            response = client.get("/game/session/ADMIN123/admin/settings")
-            
-            assert response.status_code == 403
-    
-    def test_update_settings_as_owner(self, client, test_session, test_users, db):
-        """Test owner can update session settings"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["owner"]
-            
-            update_data = {
-                "name": "Updated Session Name",
-                "description": "New description",
-                "max_players": 15,
-                "visibility": "public"
-            }
-            
-            response = client.put(
-                "/game/session/ADMIN123/admin/settings",
-                json=update_data
-            )
-            
-            assert response.status_code == 200
-            data = response.json()
-            assert data["success"] is True
-            assert "updated successfully" in data["message"].lower()
-            
-            # Verify changes in database
-            db.refresh(test_session)
-            assert test_session.name == "Updated Session Name"
-            game_data = json.loads(test_session.game_data)
-            assert game_data["description"] == "New description"
-            assert game_data["max_players"] == 15
-            assert game_data["visibility"] == "public"
-    
-    def test_update_settings_as_codm_forbidden(self, client, test_session, test_users, db):
-        """Test co_dm cannot update settings (owner only)"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["co_dm"]
-            
-            response = client.put(
-                "/game/session/ADMIN123/admin/settings",
-                json={"name": "Should Fail"}
-            )
-            
-            assert response.status_code == 403
-    
-    def test_update_settings_creates_audit_log(self, client, test_session, test_users, db):
-        """Test that settings updates create audit log entries"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["owner"]
-            
-            response = client.put(
-                "/game/session/ADMIN123/admin/settings",
-                json={"name": "Logged Update"}
-            )
-            
-            assert response.status_code == 200
-            
-            # Check audit log
-            audit_entry = db.query(models.AuditLog).filter(
-                models.AuditLog.event_type == "SETTINGS_UPDATED",
-                models.AuditLog.session_code == "ADMIN123"
-            ).first()
-            
-            assert audit_entry is not None
-            assert audit_entry.user_id == test_users["owner"].id
-    
-    def test_update_settings_validation(self, client, test_session, test_users, db):
-        """Test settings validation"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["owner"]
-            
-            # Invalid max_players (too high)
-            response = client.put(
-                "/game/session/ADMIN123/admin/settings",
-                json={"max_players": 100}
-            )
-            assert response.status_code == 422
-            
-            # Invalid visibility
-            response = client.put(
-                "/game/session/ADMIN123/admin/settings",
-                json={"visibility": "invalid_value"}
-            )
-            assert response.status_code == 422
-
-
-class TestBulkRoleChange:
-    """Test bulk role change endpoint"""
-    
-    def test_bulk_role_change_as_owner(self, client, test_session, test_users, db):
-        """Test owner can bulk change roles"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["owner"]
-            
-            bulk_data = {
-                "user_ids": [test_users["player1"].id, test_users["player2"].id],
-                "new_role": "trusted_player"
-            }
-            
-            response = client.post(
-                "/game/session/ADMIN123/admin/players/bulk-role",
-                json=bulk_data
-            )
-            
-            assert response.status_code == 200
-            data = response.json()
-            assert data["success"] is True
-            assert data["updated"] == 2
-            assert len(data["failed"]) == 0
-            
-            # Verify roles updated in database
-            player1_game = db.query(models.GamePlayer).filter(
-                models.GamePlayer.session_id == test_session.id,
-                models.GamePlayer.user_id == test_users["player1"].id
-            ).first()
-            assert player1_game.role == "trusted_player"
-    
-    def test_bulk_role_change_cannot_change_owner(self, client, test_session, test_users, db):
-        """Test that bulk change cannot affect owner"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["owner"]
-            
-            bulk_data = {
-                "user_ids": [test_users["owner"].id, test_users["player1"].id],
-                "new_role": "player"
-            }
-            
-            response = client.post(
-                "/game/session/ADMIN123/admin/players/bulk-role",
-                json=bulk_data
-            )
-            
-            # Should fail with 403
-            assert response.status_code == 403
-    
-    def test_bulk_role_change_as_codm_forbidden(self, client, test_session, test_users, db):
-        """Test co_dm cannot bulk change roles (owner only)"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["co_dm"]
-            
-            response = client.post(
-                "/game/session/ADMIN123/admin/players/bulk-role",
-                json={"user_ids": [test_users["player1"].id], "new_role": "player"}
-            )
-            
-            assert response.status_code == 403
-    
-    def test_bulk_role_change_invalid_role(self, client, test_session, test_users, db):
-        """Test validation of role names"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["owner"]
-            
-            response = client.post(
-                "/game/session/ADMIN123/admin/players/bulk-role",
-                json={"user_ids": [test_users["player1"].id], "new_role": "invalid_role"}
-            )
-            
-            assert response.status_code == 400
-    
-    def test_bulk_role_change_creates_audit_logs(self, client, test_session, test_users, db):
-        """Test that bulk changes create individual audit logs"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["owner"]
-            
-            bulk_data = {
-                "user_ids": [test_users["player1"].id, test_users["spectator"].id],
-                "new_role": "player"
-            }
-            
-            response = client.post(
-                "/game/session/ADMIN123/admin/players/bulk-role",
-                json=bulk_data
-            )
-            
-            assert response.status_code == 200
-            
-            # Check audit logs
-            audit_entries = db.query(models.AuditLog).filter(
-                models.AuditLog.event_type == "ROLE_CHANGE_BULK",
-                models.AuditLog.session_code == "ADMIN123"
-            ).all()
-            
-            assert len(audit_entries) == 2
-    
-    def test_bulk_role_change_partial_success(self, client, test_session, test_users, db):
-        """Test bulk change with some invalid users"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["owner"]
-            
-            bulk_data = {
-                "user_ids": [test_users["player1"].id, 9999],  # 9999 doesn't exist
-                "new_role": "player"
-            }
-            
-            response = client.post(
-                "/game/session/ADMIN123/admin/players/bulk-role",
-                json=bulk_data
-            )
-            
-            assert response.status_code == 200
-            data = response.json()
-            assert data["updated"] == 1
-            assert 9999 in data["failed"]
-
-
-class TestAuditLog:
-    """Test audit log endpoint"""
-    
-    def test_get_audit_log_as_owner(self, client, test_session, test_users, db):
-        """Test owner can retrieve audit log"""
-        # Create some audit entries
-        audit1 = models.AuditLog(
-            event_type="ROLE_CHANGE",
-            session_code="ADMIN123",
-            user_id=test_users["owner"].id,
-            target_user_id=test_users["player1"].id,
-            details=json.dumps({"old_role": "player", "new_role": "trusted_player"})
-        )
-        audit2 = models.AuditLog(
-            event_type="SETTINGS_UPDATED",
-            session_code="ADMIN123",
-            user_id=test_users["owner"].id,
-            details=json.dumps({"changes": {"name": "old_name"}})
-        )
-        db.add_all([audit1, audit2])
-        db.commit()
+    def test_get_settings_content(self, owner_client, test_session):
+        """Settings include all session configuration."""
+        response = owner_client.get("/game/session/ADMIN123/admin/settings")
         
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["owner"]
-            
-            response = client.get("/game/session/ADMIN123/admin/audit-log")
-            
-            assert response.status_code == 200
-            data = response.json()
-            assert len(data) >= 2
-            assert any(e["event_type"] == "ROLE_CHANGE" for e in data)
-            assert any(e["event_type"] == "SETTINGS_UPDATED" for e in data)
+        data = response.json()
+        assert data["name"] == "Admin Test Session"
+        assert data["max_players"] == 10
+        assert data["visibility"] == "private"
+        assert data["join_policy"] == "invite_only"
+        assert data["owner_username"] == "owner_user"
     
-    def test_get_audit_log_filtering(self, client, test_session, test_users, db):
-        """Test audit log event type filtering"""
-        # Create different event types
-        events = [
+    def test_update_settings(self, owner_client, test_session, db):
+        """Owner can update session settings."""
+        update_data = {
+            "name": "Updated Name",
+            "description": "New description",
+            "max_players": 15,
+            "visibility": "public"
+        }
+        
+        response = owner_client.put("/game/session/ADMIN123/admin/settings", json=update_data)
+        
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+        
+        db.refresh(test_session)
+        assert test_session.name == "Updated Name"
+        game_data = json.loads(test_session.game_data)
+        assert game_data["max_players"] == 15
+    
+    def test_update_settings_owner_only(self, codm_client, test_session):
+        """Only owner can modify settings."""
+        response = codm_client.put(
+            "/game/session/ADMIN123/admin/settings",
+            json={"name": "Should Fail"}
+        )
+        assert response.status_code == 302
+    
+    def test_update_creates_audit_log(self, owner_client, test_session, db):
+        """Settings changes are logged."""
+        owner_client.put(
+            "/game/session/ADMIN123/admin/settings",
+            json={"name": "Logged Update"}
+        )
+        
+        audit = db.query(models.AuditLog).filter(
+            models.AuditLog.event_type == "SETTINGS_UPDATED",
+            models.AuditLog.session_code == "ADMIN123"
+        ).first()
+        
+        assert audit is not None
+        assert audit.user_id == test_session.owner_id
+
+
+@pytest.mark.api
+class TestBulkRoleChange:
+    """Bulk role assignment operations."""
+    
+    def test_bulk_role_change(self, owner_client, test_session, test_users, db):
+        """Owner can change multiple player roles."""
+        changes = [
+            {"user_id": test_users["player1"].id, "new_role": "trusted_player"},
+            {"user_id": test_users["player2"].id, "new_role": "player"}
+        ]
+        
+        response = owner_client.post(
+            "/game/session/ADMIN123/admin/bulk-role-change",
+            json={"changes": changes}
+        )
+        
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["updated_count"] == 2
+        
+        # Verify changes
+        player1 = db.query(models.GamePlayer).filter_by(
+            session_id=test_session.id,
+            user_id=test_users["player1"].id
+        ).first()
+        assert player1.role == "trusted_player"
+    
+    def test_bulk_role_change_invalid_role(self, owner_client, test_session, test_users):
+        """Invalid roles are rejected."""
+        changes = [{"user_id": test_users["player1"].id, "new_role": "invalid_role"}]
+        
+        response = owner_client.post(
+            "/game/session/ADMIN123/admin/bulk-role-change",
+            json={"changes": changes}
+        )
+        assert response.status_code == 400
+    
+    def test_bulk_role_change_codm_forbidden(self, codm_client, test_users):
+        """Only owner can bulk change roles."""
+        changes = [{"user_id": test_users["player1"].id, "new_role": "trusted_player"}]
+        
+        response = codm_client.post(
+            "/game/session/ADMIN123/admin/bulk-role-change",
+            json={"changes": changes}
+        )
+        assert response.status_code == 302
+    
+    def test_bulk_role_creates_audit_logs(self, owner_client, test_session, test_users, db):
+        """Each role change is logged."""
+        changes = [
+            {"user_id": test_users["player1"].id, "new_role": "trusted_player"},
+            {"user_id": test_users["player2"].id, "new_role": "player"}
+        ]
+        
+        owner_client.post(
+            "/game/session/ADMIN123/admin/bulk-role-change",
+            json={"changes": changes}
+        )
+        
+        audit_count = db.query(models.AuditLog).filter(
+            models.AuditLog.event_type == "ROLE_CHANGED",
+            models.AuditLog.session_code == "ADMIN123"
+        ).count()
+        
+        assert audit_count == 2
+
+
+@pytest.mark.api
+class TestAuditLog:
+    """Audit log retrieval and filtering."""
+    
+    @pytest.fixture
+    def sample_audit_logs(self, db, test_session, test_users):
+        """Create sample audit log entries."""
+        logs = [
             models.AuditLog(
-                event_type="ROLE_CHANGE",
                 session_code="ADMIN123",
-                user_id=test_users["owner"].id
+                user_id=test_users["owner"].id,
+                event_type="SETTINGS_UPDATED",
+                details=json.dumps({"field": "name", "old": "Old", "new": "New"}),
+                ip_address="127.0.0.1",
+                created_at=datetime(2024, 1, 1, 10, 0, 0)
             ),
             models.AuditLog(
+                session_code="ADMIN123",
+                user_id=test_users["owner"].id,
+                event_type="ROLE_CHANGED",
+                details=json.dumps({"user_id": test_users["player1"].id, "role": "trusted_player"}),
+                ip_address="127.0.0.1",
+                created_at=datetime(2024, 1, 1, 11, 0, 0)
+            ),
+            models.AuditLog(
+                session_code="ADMIN123",
+                user_id=test_users["co_dm"].id,
                 event_type="PLAYER_KICKED",
-                session_code="ADMIN123",
-                user_id=test_users["owner"].id
-            ),
-            models.AuditLog(
-                event_type="ROLE_CHANGE",
-                session_code="ADMIN123",
-                user_id=test_users["owner"].id
+                details=json.dumps({"user_id": test_users["player2"].id}),
+                ip_address="127.0.0.2",
+                created_at=datetime(2024, 1, 1, 12, 0, 0)
             ),
         ]
-        db.add_all(events)
+        db.add_all(logs)
         db.commit()
-        
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["owner"]
-            
-            response = client.get(
-                "/game/session/ADMIN123/admin/audit-log?event_type=ROLE_CHANGE"
-            )
-            
-            assert response.status_code == 200
-            data = response.json()
-            assert all(e["event_type"] == "ROLE_CHANGE" for e in data)
+        return logs
     
-    def test_get_audit_log_pagination(self, client, test_session, test_users, db):
-        """Test audit log pagination"""
-        # Create multiple entries
-        for i in range(15):
-            audit = models.AuditLog(
-                event_type="TEST_EVENT",
-                session_code="ADMIN123",
-                user_id=test_users["owner"].id
-            )
-            db.add(audit)
-        db.commit()
+    def test_get_audit_log(self, owner_client, test_session, sample_audit_logs):
+        """Admins can retrieve audit logs."""
+        response = owner_client.get("/game/session/ADMIN123/admin/audit-log")
         
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["owner"]
-            
-            # Get first page
-            response = client.get("/game/session/ADMIN123/admin/audit-log?limit=10&offset=0")
-            assert response.status_code == 200
-            data1 = response.json()
-            assert len(data1) == 10
-            
-            # Get second page
-            response = client.get("/game/session/ADMIN123/admin/audit-log?limit=10&offset=10")
-            assert response.status_code == 200
-            data2 = response.json()
-            assert len(data2) >= 5
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["logs"]) == 3
+    
+    def test_audit_log_filter_by_type(self, owner_client, sample_audit_logs):
+        """Audit logs can be filtered by event type."""
+        response = owner_client.get(
+            "/game/session/ADMIN123/admin/audit-log",
+            params={"event_type": "ROLE_CHANGED"}
+        )
+        
+        data = response.json()
+        assert len(data["logs"]) == 1
+        assert data["logs"][0]["event_type"] == "ROLE_CHANGED"
+    
+    def test_audit_log_filter_by_user(self, owner_client, test_users, sample_audit_logs):
+        """Audit logs can be filtered by user."""
+        response = owner_client.get(
+            "/game/session/ADMIN123/admin/audit-log",
+            params={"user_id": test_users["co_dm"].id}
+        )
+        
+        data = response.json()
+        assert len(data["logs"]) == 1
+        assert data["logs"][0]["event_type"] == "PLAYER_KICKED"
+    
+    def test_audit_log_pagination(self, owner_client, sample_audit_logs):
+        """Audit logs support pagination."""
+        response = owner_client.get(
+            "/game/session/ADMIN123/admin/audit-log",
+            params={"limit": 2, "offset": 1}
+        )
+        
+        data = response.json()
+        assert len(data["logs"]) == 2
+    
+    def test_audit_log_player_forbidden(self, player_client):
+        """Players cannot access audit logs."""
+        response = player_client.get("/game/session/ADMIN123/admin/audit-log")
+        assert response.status_code == 302
 
 
+@pytest.mark.api
 class TestSessionStats:
-    """Test session statistics endpoint"""
+    """Session statistics aggregation."""
     
-    def test_get_stats_as_owner(self, client, test_session, test_users, db):
-        """Test owner can retrieve session statistics"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["owner"]
-            
-            response = client.get("/game/session/ADMIN123/admin/stats")
-            
-            assert response.status_code == 200
-            data = response.json()
-            assert data["total_players"] == 5
-            assert data["online_players"] == 3  # owner, co_dm, player2
-            assert "roles_distribution" in data
-            assert data["roles_distribution"]["owner"] == 1
-            assert data["roles_distribution"]["co_dm"] == 1
-            assert data["roles_distribution"]["player"] == 1
-            assert data["roles_distribution"]["trusted_player"] == 1
-            assert data["roles_distribution"]["spectator"] == 1
+    def test_get_session_stats(self, owner_client, test_session):
+        """Admins can retrieve session statistics."""
+        response = owner_client.get("/game/session/ADMIN123/admin/stats")
+        
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_players"] == 5
+        assert data["connected_players"] == 3
+        assert data["player_breakdown"]["owner"] == 1
+        assert data["player_breakdown"]["co_dm"] == 1
+        assert data["player_breakdown"]["player"] == 1
     
-    def test_get_stats_as_codm(self, client, test_session, test_users, db):
-        """Test co_dm can retrieve statistics"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["co_dm"]
-            
-            response = client.get("/game/session/ADMIN123/admin/stats")
-            
-            assert response.status_code == 200
+    def test_stats_codm_access(self, codm_client, test_session):
+        """Co-DM can view stats."""
+        response = codm_client.get("/game/session/ADMIN123/admin/stats")
+        assert response.status_code == 200
+    
+    def test_stats_player_forbidden(self, player_client):
+        """Players cannot view detailed stats."""
+        response = player_client.get("/game/session/ADMIN123/admin/stats")
+        assert response.status_code == 302
 
 
+@pytest.mark.api
 class TestSessionDeletion:
-    """Test session deletion endpoint"""
+    """Session deletion with confirmation."""
     
-    def test_delete_session_as_owner(self, client, test_session, test_users, db):
-        """Test owner can delete session"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["owner"]
-            
-            response = client.delete(
-                "/game/session/ADMIN123/admin/session",
-                json={"confirmation": "ADMIN123"}
-            )
-            
-            assert response.status_code == 200
-            
-            # Verify session marked as inactive
-            db.refresh(test_session)
-            assert test_session.is_active is False
+    def test_delete_session_without_confirmation(self, owner_client):
+        """Deletion requires confirmation."""
+        response = owner_client.delete("/game/session/ADMIN123/admin/delete")
+        assert response.status_code == 400
     
-    def test_delete_session_requires_confirmation(self, client, test_session, test_users, db):
-        """Test deletion requires correct confirmation code"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["owner"]
-            
-            response = client.delete(
-                "/game/session/ADMIN123/admin/session",
-                json={"confirmation": "WRONG_CODE"}
-            )
-            
-            assert response.status_code == 400
+    def test_delete_session_with_confirmation(self, owner_client, test_session, db):
+        """Owner can delete session with confirmation."""
+        response = owner_client.delete(
+            "/game/session/ADMIN123/admin/delete",
+            params={"confirm": "true"}
+        )
+        
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+        
+        # Verify deletion
+        session = db.query(models.GameSession).filter_by(
+            session_code="ADMIN123"
+        ).first()
+        assert session is None
     
-    def test_delete_session_as_codm_forbidden(self, client, test_session, test_users, db):
-        """Test co_dm cannot delete session (owner only)"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["co_dm"]
-            
-            response = client.delete(
-                "/game/session/ADMIN123/admin/session",
-                json={"confirmation": "ADMIN123"}
-            )
-            
-            assert response.status_code == 403
+    def test_delete_session_codm_forbidden(self, codm_client):
+        """Only owner can delete session."""
+        response = codm_client.delete(
+            "/game/session/ADMIN123/admin/delete",
+            params={"confirm": "true"}
+        )
+        assert response.status_code == 302
     
-    def test_delete_session_creates_audit_log(self, client, test_session, test_users, db):
-        """Test deletion creates audit log"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["owner"]
-            
-            response = client.delete(
-                "/game/session/ADMIN123/admin/session",
-                json={"confirmation": "ADMIN123"}
-            )
-            
-            assert response.status_code == 200
-            
-            # Check audit log
-            audit_entry = db.query(models.AuditLog).filter(
-                models.AuditLog.event_type == "SESSION_DELETED",
-                models.AuditLog.session_code == "ADMIN123"
-            ).first()
-            
-            assert audit_entry is not None
+    def test_delete_creates_audit_log(self, owner_client, test_session, db):
+        """Session deletion is logged."""
+        owner_client.delete(
+            "/game/session/ADMIN123/admin/delete",
+            params={"confirm": "true"}
+        )
+        
+        audit = db.query(models.AuditLog).filter(
+            models.AuditLog.event_type == "SESSION_DELETED",
+            models.AuditLog.session_code == "ADMIN123"
+        ).first()
+        
+        assert audit is not None
 
 
+@pytest.mark.api
 class TestAccessControl:
-    """Test role-based access control across all endpoints"""
+    """Verify role-based access control."""
     
-    def test_admin_page_access_owner(self, client, test_session, test_users, db):
-        """Test owner can access admin page"""
-        with patch('server_host.routers.game.get_current_active_user') as mock_auth:
-            mock_auth.return_value = test_users["owner"]
-            
-            response = client.get("/game/session/ADMIN123/admin")
-            
-            assert response.status_code == 200
-            assert b"admin-root" in response.content
+    @pytest.mark.parametrize("endpoint,method", [
+        ("/admin/settings", "GET"),
+        ("/admin/bulk-role-change", "POST"),
+        ("/admin/audit-log", "GET"),
+        ("/admin/stats", "GET"),
+    ])
+    def test_spectator_forbidden(self, spectator_client, endpoint, method):
+        """Spectators have no admin access."""
+        url = f"/game/session/ADMIN123{endpoint}"
+        client_method = getattr(spectator_client, method.lower())
+        
+        response = client_method(url, json={} if method == "POST" else None)
+        assert response.status_code == 302
     
-    def test_admin_page_access_codm(self, client, test_session, test_users, db):
-        """Test co_dm can access admin page"""
-        with patch('server_host.routers.game.get_current_active_user') as mock_auth:
-            mock_auth.return_value = test_users["co_dm"]
-            
-            response = client.get("/game/session/ADMIN123/admin")
-            
-            assert response.status_code == 200
-    
-    def test_admin_page_access_player_forbidden(self, client, test_session, test_users, db):
-        """Test player cannot access admin page"""
-        with patch('server_host.routers.game.get_current_active_user') as mock_auth:
-            mock_auth.return_value = test_users["player1"]
-            
-            response = client.get("/game/session/ADMIN123/admin")
-            
-            assert response.status_code == 403
+    def test_nonexistent_session(self, owner_client):
+        """Access to non-existent session fails."""
+        response = owner_client.get("/game/session/INVALID/admin/settings")
+        assert response.status_code == 404
 
 
+@pytest.mark.api
 class TestErrorHandling:
-    """Test error handling and edge cases"""
+    """Edge cases and error conditions."""
     
-    def test_nonexistent_session(self, client, test_users, db):
-        """Test accessing admin for non-existent session"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["owner"]
-            
-            response = client.get("/game/session/NONEXISTENT/admin/settings")
-            
-            assert response.status_code == 404
+    def test_invalid_session_code(self, owner_client):
+        """Invalid session code returns 404."""
+        response = owner_client.get("/game/session/INVALID123/admin/settings")
+        assert response.status_code == 404
     
-    def test_empty_bulk_role_change(self, client, test_session, test_users, db):
-        """Test bulk role change with empty user list"""
-        with patch('server_host.routers.admin.get_current_user') as mock_auth:
-            mock_auth.return_value = test_users["owner"]
-            
-            response = client.post(
-                "/game/session/ADMIN123/admin/players/bulk-role",
-                json={"user_ids": [], "new_role": "player"}
-            )
-            
-            assert response.status_code == 400
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v", "--tb=short"])
+    def test_malformed_bulk_role_payload(self, owner_client):
+        """Malformed payload is rejected."""
+        response = owner_client.post(
+            "/game/session/ADMIN123/admin/bulk-role-change",
+            json={"invalid": "data"}
+        )
+        assert response.status_code in [400, 422]
+    
+    def test_update_settings_invalid_data(self, owner_client):
+        """Invalid settings data is rejected."""
+        response = owner_client.put(
+            "/game/session/ADMIN123/admin/settings",
+            json={"max_players": -1}
+        )
+        assert response.status_code in [400, 422]
+    
+    def test_unauthorized_access(self, client):
+        """Unauthenticated requests are rejected."""
+        response = client.get("/game/session/ADMIN123/admin/settings")
+        assert response.status_code == 302

@@ -165,6 +165,10 @@ export interface RenderEngine {
   handle_wheel: (screen_x: number, screen_y: number, delta: number) => void;
   handle_right_click: (screen_x: number, screen_y: number) => string | undefined;
   
+  // Selection state (WASM is single source of truth)
+  get_selected_sprite_ids?: () => string[];
+  set_state_change_handler?: (callback: (event: any) => void) => void;
+  
   // Cursor management
   get_cursor_type: (screen_x: number, screen_y: number) => string;
   

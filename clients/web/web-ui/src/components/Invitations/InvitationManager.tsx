@@ -8,9 +8,10 @@ import { InviteLink } from './InviteLink';
 interface InvitationManagerProps {
   sessionCode: string;
   onClose: () => void;
+  standalone?: boolean;
 }
 
-export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCode, onClose, standalone = false }) => {
+export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCode, onClose, standalone }) => {
   const { invitations, loading, createInvitation, revokeInvitation } = useInvitations(sessionCode);
   const [selectedRole, setSelectedRole] = useState<SessionRole>('player');
   const [expiresHours, setExpiresHours] = useState(24);
@@ -42,7 +43,7 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
   };
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
+    <div className={styles.overlay} onClick={standalone ? undefined : onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <h2>Manage Invitations</h2>

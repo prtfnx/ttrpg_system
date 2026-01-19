@@ -1,5 +1,4 @@
-"""
-Game session management router
+"""  Game session management router
 """
 from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
 from fastapi.responses import RedirectResponse
@@ -8,6 +7,7 @@ from sqlalchemy.orm import Session
 from typing import Annotated, List
 import secrets
 import string
+import os
 from server_host.database.database import get_db
 from server_host.database import crud, schemas, models
 from server_host.models import game as game_models
@@ -16,7 +16,8 @@ from server_host.routers.users import get_current_active_user
 
 logger = setup_logger(__name__)
 router = APIRouter(prefix="/game", tags=["game"])
-templates = Jinja2Templates(directory="templates")
+templates_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
+templates = Jinja2Templates(directory=templates_path)
 
 def generate_session_code(length: int = 6) -> str:
     """Generate a short, unique session code"""

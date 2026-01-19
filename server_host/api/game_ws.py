@@ -1,6 +1,7 @@
 """
 WebSocket endpoints for game sessions
-"""  from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, Request
+"""
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 import json

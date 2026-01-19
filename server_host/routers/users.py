@@ -1,5 +1,4 @@
-"""
-User authentication and management router
+"""  User authentication and management router
 """
 from fastapi import APIRouter, Request, Depends, Form, HTTPException, status, Cookie
 from fastapi.responses import RedirectResponse
@@ -10,6 +9,7 @@ from typing import Annotated
 from datetime import datetime, timedelta, timezone
 from jwt.exceptions import InvalidTokenError
 import jwt
+import os
 
 from server_host.database.database import get_db
 from server_host.database import crud
@@ -22,7 +22,8 @@ from functools import lru_cache
 logger = setup_logger(__name__)
 
 router = APIRouter(prefix="/users", tags=["users"])
-templates = Jinja2Templates(directory="templates")
+templates_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
+templates = Jinja2Templates(directory=templates_path)
 from server_host import config
 
 @lru_cache

@@ -1,53 +1,36 @@
-#!/usr/bin/env python3
 """
-Simple test script to verify character management database schema
+Character system database schema tests.
+Tests ServerCharacterManager and SessionCharacter model.
 """
+import pytest
 
-import sys
-import os
 
-# Add the project root to the path  
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(os.path.dirname(current_dir))
-sys.path.append(project_root)
-
+@pytest.mark.unit
 def test_character_manager():
-    """Test the character manager functionality"""
-    try:
-        from server_host.managers.character_manager import get_server_character_manager
-        
-        manager = get_server_character_manager()
-        print("✅ ServerCharacterManager imported successfully")
-        
-        # Test database connection
-        session_id = manager.get_session_id_from_code("test_session")
-        print(f"✅ Database connection test completed (result: {session_id})")
-        
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error testing character manager: {e}")
-        return False
+    """Character manager imports and initializes correctly."""
+    from server_host.managers.character_manager import get_server_character_manager
+    
+    manager = get_server_character_manager()
+    assert manager is not None
+    
+    # Has expected methods
+    assert hasattr(manager, "get_session_id_from_code")
+    assert hasattr(manager, "save_character")
+    assert hasattr(manager, "load_character")
 
+
+@pytest.mark.unit
 def test_database_models():
-    """Test database models import"""
-    try:
-        from server_host.database.models import SessionCharacter, GameSession, User
-        print("✅ Database models imported successfully")
-        
-        # Test model attributes
-        fields = ['character_id', 'session_id', 'character_name', 'character_data', 'owner_user_id']
-        for field in fields:
-            if hasattr(SessionCharacter, field):
-                print(f"  ✅ SessionCharacter.{field} exists")
-            else:
-                print(f"  ❌ SessionCharacter.{field} missing")
-        
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error testing database models: {e}")
-        return False
+    """SessionCharacter model has all required fields."""
+    from server_host.database.models import SessionCharacter, GameSession, User
+    
+    # Model exists
+    assert SessionCharacter is not None
+    
+    # Has required fields
+    required_fields = ['character_id', 'session_id', 'character_name', 'character_data', 'owner_user_id']
+    for field in required_fields:
+        assert hasattr(SessionCharacter, field), f"Missing field: {field}"
 
 if __name__ == "__main__":
     print("Character Management System Test")

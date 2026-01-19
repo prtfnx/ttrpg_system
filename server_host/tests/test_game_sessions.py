@@ -12,7 +12,9 @@ class TestSessionCreation:
     
     def test_create_session(self, owner_client, test_users, db):
         """Owner can create a new session."""
-        initial_count = len(crud.get_user_game_sessions(db, test_users["owner"].id))
+        # Get initial session count
+        initial_sessions = crud.get_user_game_sessions(db, test_users["owner"].id)
+        initial_count = len(initial_sessions) if initial_sessions else 0
         
         response = owner_client.post(
             "/game/create",
@@ -24,9 +26,10 @@ class TestSessionCreation:
         assert response.status_code in [200, 302]
         
         # Verify session created in DB
-        sessions = crud.get_user_game_sessions(db, test_users["owner"].id)
-        assert len(sessions) > initial_count
-        assert any(s.name == "Test Campaign" for s in sessions)
+        final_sessions = crud.get_user_game_sessions(db, test_users["owner"].id)
+        final_count = len(final_sessions) if final_sessions else 0
+        assert final_count > initial_count
+        assert any(s.name == "Test Campaign" for s in (final_sessions or []))
     
     def test_create_session_generates_unique_code(self, owner_client, db, test_users):
         """Each session gets a unique code."""

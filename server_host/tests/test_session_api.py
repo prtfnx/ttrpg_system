@@ -1,23 +1,34 @@
-"""Test session management API endpoints"""
-from main import app
+"""
+Session API router tests.
+Tests that all session management routes are properly registered.
+"""
+import pytest
+from server_host.main import app
 
-def test_router_loaded():
-    """Verify session management router loads correctly"""
-    print("🧪 Testing Session Management API\n")
-    
-    print(f"✓ Main app loaded successfully")
-    print(f"✓ Total routes: {len(app.routes)}")
-    
-    session_routes = [r for r in app.routes if '/session' in str(getattr(r, 'path', ''))]
-    print(f"✓ Session management routes: {len(session_routes)}")
-    
-    print("\n📋 Session management endpoints:")
-    for route in session_routes[:10]:
-        if hasattr(route, 'methods') and hasattr(route, 'path'):
-            methods = ', '.join(route.methods) if route.methods else 'WS'
-            print(f"  {methods:8} {route.path}")
-    
-    print("\n✅ All tests passed!")
 
-if __name__ == "__main__":
-    test_router_loaded()
+@pytest.mark.api
+class TestSessionRoutes:
+    """Test session management route registration."""
+
+    def test_session_routes_exist(self):
+        """All session management routes are registered."""
+        routes = [str(r.path) for r in app.routes if hasattr(r, 'path')]
+        
+        # Session management routes
+        assert any('/session' in r for r in routes)
+        assert any('/admin' in r for r in routes)
+        
+    def test_websocket_route_exists(self):
+        """WebSocket route is registered."""
+        routes = [str(r.path) for r in app.routes if hasattr(r, 'path')]
+        assert any('/ws/game' in r for r in routes)
+    
+    def test_player_management_routes(self):
+        """Player management routes exist."""
+        routes = [str(r.path) for r in app.routes if hasattr(r, 'path')]
+        assert any('players' in r for r in routes)
+    
+    def test_invitation_routes(self):
+        """Invitation routes exist."""
+        routes = [str(r.path) for r in app.routes if hasattr(r, 'path')]
+        assert any('invitation' in r for r in routes)

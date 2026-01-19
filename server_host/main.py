@@ -19,9 +19,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.logger import setup_logger
-logger = setup_logger(__name__)
 from server_host.utils.logger import setup_logger
+logger = setup_logger(__name__)
 from server_host.routers import users
 from server_host.routers import game
 from server_host.routers import compendium
@@ -123,8 +122,9 @@ resources_path = os.path.join(os.path.dirname(__file__), "..", "resources")
 if os.path.exists(resources_path):
     app.mount("/resources", StaticFiles(directory=resources_path), name="resources")
 
-# Set up templates
-templates = Jinja2Templates(directory="templates")
+# Set up templates with absolute path
+templates_path = os.path.join(os.path.dirname(__file__), "templates")
+templates = Jinja2Templates(directory=templates_path)
 
 # Custom exception handlers
 @app.exception_handler(404)

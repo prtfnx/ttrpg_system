@@ -1,13 +1,13 @@
 """
 WebSocket endpoints for game sessions
-"""
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, Request
+"""  from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 import json
 import logging
 import jwt
 import time
+import os
 
 from server_host.database.database import get_db
 from server_host.database import crud
@@ -17,7 +17,8 @@ from server_host.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 router = APIRouter()
-templates = Jinja2Templates(directory="templates")
+templates_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
+templates = Jinja2Templates(directory=templates_path)
 
 def get_user_from_token(token: str, db: Session):
     """Get user from JWT token for WebSocket authentication"""

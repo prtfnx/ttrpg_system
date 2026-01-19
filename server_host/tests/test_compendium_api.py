@@ -57,10 +57,15 @@ class TestRacesEndpoint:
         """Can retrieve specific race data."""
         response = owner_client.get(
             "/api/compendium/races/elf",
-            headers={"Accept": "application/json"}
+            headers={"Accept": "application/json"},
+            follow_redirects=False
         )
         
+        # May not exist or template missing
         assert response.status_code in [200, 404, 401, 500, 302]
+        if response.status_code == 200 and response.headers.get("content-type", "").startswith("application/json"):
+            data = response.json()
+            assert "race" in data or "error" in data
     
     def test_races_unauthenticated(self, client):
         """Unauthenticated user cannot access races."""
@@ -211,10 +216,15 @@ class TestMonstersEndpoint:
         """Can retrieve specific monster."""
         response = owner_client.get(
             "/api/compendium/monsters/dragon",
-            headers={"Accept": "application/json"}
+            headers={"Accept": "application/json"},
+            follow_redirects=False
         )
         
+        # May not exist or template missing
         assert response.status_code in [200, 404, 401, 500, 302]
+        if response.status_code == 200 and response.headers.get("content-type", "").startswith("application/json"):
+            data = response.json()
+            assert "monster" in data or "error" in data
 
 
 @pytest.mark.api

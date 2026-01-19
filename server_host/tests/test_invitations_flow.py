@@ -6,10 +6,12 @@ import pytest
 from datetime import datetime, timedelta
 from server_host.database import models
 
-def test_create_invitation(db, test_data):
+
+@pytest.mark.api
+def test_create_invitation(db, test_session, test_users):
     """Test creating an invitation"""
-    session = test_data["session"]
-    owner = test_data["owner"]
+    session = test_session
+    owner = test_users["owner"]
     
     invitation = models.SessionInvitation(
         session_id=session.id,
@@ -25,10 +27,12 @@ def test_create_invitation(db, test_data):
     assert invitation.id is not None
     assert invitation.is_valid() is True
 
-def test_invitation_expiration(db, test_data):
+
+@pytest.mark.api
+def test_invitation_expiration(db, test_session, test_users):
     """Test that expired invitations are invalid"""
-    session = test_data["session"]
-    owner = test_data["owner"]
+    session = test_session
+    owner = test_users["owner"]
     
     invitation = models.SessionInvitation(
         session_id=session.id,
@@ -41,10 +45,12 @@ def test_invitation_expiration(db, test_data):
     
     assert invitation.is_valid() is False
 
-def test_invitation_max_uses(db, test_data):
+
+@pytest.mark.api
+def test_invitation_max_uses(db, test_session, test_users):
     """Test that invitations respect max uses"""
-    session = test_data["session"]
-    owner = test_data["owner"]
+    session = test_session
+    owner = test_users["owner"]
     
     invitation = models.SessionInvitation(
         session_id=session.id,

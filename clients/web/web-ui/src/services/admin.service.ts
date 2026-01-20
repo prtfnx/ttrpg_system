@@ -1,9 +1,9 @@
-import type { 
-  SessionSettings, 
-  SessionSettingsUpdate, 
-  AuditLogEntry, 
-  SessionStats,
-  BulkRoleChange 
+import type {
+    AuditLogEntry,
+    BulkRoleChange,
+    SessionSettings,
+    SessionSettingsUpdate,
+    SessionStats
 } from '../types/admin';
 
 class AdminService {

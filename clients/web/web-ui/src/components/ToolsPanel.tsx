@@ -19,8 +19,8 @@ declare global {
   }
 }
 
-import type { SessionRole } from '../types/roles';
 import type { UserInfo } from '../services/auth.service';
+import type { SessionRole } from '../types/roles';
 
 interface ToolsPanelProps {
   userInfo: UserInfo;

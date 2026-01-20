@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
+import { InvitationManager } from '../../components/Invitations/InvitationManager';
+import type { UserInfo } from '../../services/auth.service';
+import type { SessionRole } from '../../types/roles';
+import styles from './AdminPanel.module.css';
+import { AuditLogTab } from './tabs/AuditLogTab';
 import { PlayersTab } from './tabs/PlayersTab';
 import { SessionSettingsTab } from './tabs/SessionSettingsTab';
-import { AuditLogTab } from './tabs/AuditLogTab';
-import { InvitationManager } from '../../components/Invitations/InvitationManager';
-import type { SessionRole } from '../../types/roles';
-import type { UserInfo } from '../../services/auth.service';
-import styles from './AdminPanel.module.css';
 
 interface AdminPanelProps {
   sessionCode: string;

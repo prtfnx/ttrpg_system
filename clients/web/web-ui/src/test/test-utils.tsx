@@ -1,5 +1,5 @@
-import type { ReactElement } from 'react';
 import { render, type RenderOptions } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { vi } from 'vitest';
 
 // Mock user for tests
@@ -40,3 +40,4 @@ export function renderWithProviders(
 
 export * from '@testing-library/react';
 export { renderWithProviders as render };
+

@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { toast } from 'react-toastify';
-import { useSessionPlayers } from '../../../hooks/useSessionPlayers';
-import { useRoleManagement } from '../../../hooks/useRoleManagement';
-import { adminService } from '../../../services/admin.service';
 import { PlayerRoleSelector } from '../../../components/SessionManagement/PlayerRoleSelector';
-import type { SessionPlayer, SessionRole } from '../../../types/roles';
+import { useRoleManagement } from '../../../hooks/useRoleManagement';
+import { useSessionPlayers } from '../../../hooks/useSessionPlayers';
+import { adminService } from '../../../services/admin.service';
 import type { UserInfo } from '../../../services/auth.service';
+import type { SessionPlayer, SessionRole } from '../../../types/roles';
 import styles from './PlayersTab.module.css';
 
 interface PlayersTabProps {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { adminService } from '../../../services/admin.service';
 import type { SessionSettings, SessionSettingsUpdate } from '../../../types/admin';

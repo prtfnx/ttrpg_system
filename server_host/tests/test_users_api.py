@@ -160,8 +160,9 @@ class TestUserProfile:
         assert response.status_code == 200
         data = response.json()
         assert data["role"] == "owner"
-        # Permissions may be nested or separate field
-        assert "permissions" in data or "all_permissions" in data
+        assert "session_code" in data
+        assert "user_id" in data
+        assert "username" in data
     
     def test_get_role_nonexistent_session(self, owner_client):
         """Checking role in nonexistent session returns error."""

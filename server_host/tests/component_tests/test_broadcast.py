@@ -3,6 +3,7 @@
 Test WebSocket broadcasting functionality
 Tests that table updates from one client are properly broadcast to other connected clients
 """
+import pytest
 import asyncio
 import json
 import logging
@@ -17,6 +18,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from net.protocol import Message, MessageType
 
 logger = logging.getLogger(__name__)
+
+pytestmark = pytest.mark.asyncio
 
 class WebSocketTestClient:
     """Test client for WebSocket connections"""

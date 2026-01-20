@@ -18,7 +18,8 @@ export const PlayerList: React.FC<PlayerListProps> = ({ players, sessionCode, on
 
   const currentPlayer = players.find(p => p.user_id === user?.id);
   const isOwner = currentPlayer?.role === 'owner';
-  const canManagePlayers = currentPlayer?.permissions.includes('change_roles') || isOwner;
+  const isCoDM = currentPlayer?.role === 'co_dm';
+  const canManagePlayers = currentPlayer?.permissions.includes('change_roles') || isOwner || isCoDM;
 
   const handleRoleChange = async (targetPlayer: SessionPlayer, newRole: string) => {
     if (!canManagePlayers) return;

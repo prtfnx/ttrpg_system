@@ -59,7 +59,9 @@
 }
 
 .status {
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  margin-left: var(--space-xs);
 }
 
 .status.online {
@@ -67,7 +69,8 @@
 }
 
 .status.offline {
-  color: #64748b;
+  color: #94a3b8;
+  opacity: 0.6;
 }
 
 .character {

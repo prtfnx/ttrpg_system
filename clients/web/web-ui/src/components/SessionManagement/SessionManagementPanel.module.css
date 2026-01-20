@@ -5,11 +5,31 @@
 
 .collapsed {
   position: fixed;
-  bottom: var(--space-xl);
-  right: var(--space-xl);
+  /* bottom and right are set via inline styles for draggable functionality */
   display: flex;
   gap: var(--space-sm);
   z-index: 100;
+  cursor: move;
+  user-select: none;
+}
+
+.collapsed.dragging {
+  opacity: 0.8;
+  cursor: grabbing;
+}
+
+.dragHandle {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  cursor: move;
+  padding: var(--space-2xs) var(--space-xs);
+  user-select: none;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.dragHandle:hover {
+  opacity: 1;
 }
 
 .toggle {
@@ -44,8 +64,7 @@
 .panel {
   composes: flex flex-col from '../../styles/7-utilities/layout.module.css';
   position: fixed;
-  bottom: var(--space-xl);
-  right: var(--space-xl);
+  /* bottom and right are set via inline styles for draggable functionality */
   width: 360px;
   max-height: 520px;
   background: var(--bg-primary);
@@ -56,11 +75,24 @@
   overflow: hidden;
 }
 
+.panel.dragging {
+  opacity: 0.9;
+  cursor: grabbing;
+}
+
 .header {
   composes: flex items-center justify-between from '../../styles/7-utilities/layout.module.css';
   padding: var(--space-md) var(--space-lg);
   border-bottom: var(--border-width) solid var(--border-primary);
   background: var(--bg-secondary);
+  cursor: move;
+  user-select: none;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
 }
 
 .title {

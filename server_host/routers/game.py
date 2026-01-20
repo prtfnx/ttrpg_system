@@ -12,7 +12,7 @@ from server_host.database.database import get_db
 from server_host.database import crud, schemas, models
 from server_host.models import game as game_models
 from server_host.utils.logger import setup_logger
-from server_host.routers.users import get_current_active_user
+from server_host.routers.users import get_current_active_user, get_settings
 
 logger = setup_logger(__name__)
 router = APIRouter(prefix="/game", tags=["game"])
@@ -44,7 +44,9 @@ async def game_lobby(
     db: Session = Depends(get_db)
 ):
     """Main game lobby - choose or create game sessions"""
-    user_sessions = crud.get_user_game_sessions(db, current_user.id)
+    user_sessions_with_roles = crud.get_user_game_sessions(db, current_user.id)
+    # Extract GameSession objects from tuples (GameSession, role)
+    user_sessions = [session for session, role in user_sessions_with_roles]
     return templates.TemplateResponse("game_lobby.html", {
         "request": request,
         "user": current_user,
@@ -181,7 +183,8 @@ async def session_admin_page(
         "user": current_user,
         "session": game_session,
         "session_code": session_code,
-        "user_role": player.role
+        "user_role": player.role,
+        "config": get_settings()
     })
 
 @router.get("/api/sessions", response_model=List[game_models.GameSession])
@@ -190,4 +193,6 @@ async def get_user_sessions(
     db: Session = Depends(get_db)
 ):
     """API endpoint to get user's game sessions"""
-    return crud.get_user_game_sessions(db, current_user.id)
+    sessions_with_roles = crud.get_user_game_sessions(db, current_user.id)
+    # Extract GameSession objects from tuples (GameSession, role)
+    return [session for session, role in sessions_with_roles]

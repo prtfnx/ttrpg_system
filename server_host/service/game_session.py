@@ -115,6 +115,21 @@ class ConnectionManager:
         })
         logger.info(f"Protocol service initialized for session {session_code} with client_id {client_id}")
         logger.info(f"User {username} connected to session {session_code} with client_id {client_id}")
+        
+        # Update database player connection status
+        try:
+            from server_host.database import models
+            player = db_session.query(models.GamePlayer).filter(
+                models.GamePlayer.user_id == user_id,
+                models.GamePlayer.session_id == self.game_session_db_ids.get(session_code)
+            ).first()
+            if player:
+                player.is_connected = True
+                db_session.commit()
+                logger.info(f"Updated connection status for player {username} to online")
+        except Exception as e:
+            logger.error(f"Failed to update player connection status: {e}")
+        
         message = Message(
             MessageType.PLAYER_JOINED,{
             "username": username,
@@ -135,6 +150,23 @@ class ConnectionManager:
         info = self.connection_info[websocket]
         session_code = info["session_code"]
         username = info["username"]
+        user_id = info["user_id"]
+        
+        # Update database player connection status
+        try:
+            from server_host.database import models
+            db_session = self.db_sessions.get(session_code)
+            if db_session:
+                player = db_session.query(models.GamePlayer).filter(
+                    models.GamePlayer.user_id == user_id,
+                    models.GamePlayer.session_id == self.game_session_db_ids.get(session_code)
+                ).first()
+                if player:
+                    player.is_connected = False
+                    db_session.commit()
+                    logger.info(f"Updated connection status for player {username} to offline")
+        except Exception as e:
+            logger.error(f"Failed to update player disconnection status: {e}")
         
         # Remove from protocol service first
         protocol_service = self.sessions_protocols.get(session_code)

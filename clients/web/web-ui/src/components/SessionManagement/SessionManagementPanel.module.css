@@ -5,7 +5,7 @@
 
 .collapsed {
   position: fixed;
-  /* bottom and right are set via inline styles for draggable functionality */
+  /* top and right are set via inline styles for draggable functionality */
   display: flex;
   gap: var(--space-sm);
   z-index: 100;
@@ -64,7 +64,7 @@
 .panel {
   composes: flex flex-col from '../../styles/7-utilities/layout.module.css';
   position: fixed;
-  /* bottom and right are set via inline styles for draggable functionality */
+  /* top and right are set via inline styles for draggable functionality */
   width: 360px;
   max-height: 520px;
   background: var(--bg-primary);

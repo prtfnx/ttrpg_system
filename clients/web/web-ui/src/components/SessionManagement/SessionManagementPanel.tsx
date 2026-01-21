@@ -10,7 +10,7 @@ interface SessionManagementPanelProps {
 }
 
 interface Position {
-  bottom: number;
+  top: number;
   right: number;
 }
 
@@ -25,11 +25,11 @@ export const SessionManagementPanel: React.FC<SessionManagementPanelProps> = ({ 
   // Draggable state
   const [position, setPosition] = useState<Position>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : { bottom: 24, right: 24 }; // default: var(--space-xl) = 24px
+    return saved ? JSON.parse(saved) : { top: 24, right: 24 }; // default: top-right corner
   });
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef<HTMLDivElement>(null);
-  const dragStartPos = useRef({ x: 0, y: 0, bottom: 0, right: 0 });
+  const dragStartPos = useRef({ x: 0, y: 0, top: 0, right: 0 });
 
   // Save position to localStorage
   useEffect(() => {
@@ -47,7 +47,7 @@ export const SessionManagementPanel: React.FC<SessionManagementPanelProps> = ({ 
     dragStartPos.current = {
       x: e.clientX,
       y: e.clientY,
-      bottom: position.bottom,
+      top: position.top,
       right: position.right
     };
     e.preventDefault();
@@ -61,7 +61,7 @@ export const SessionManagementPanel: React.FC<SessionManagementPanelProps> = ({ 
       const deltaY = e.clientY - dragStartPos.current.y;
       
       setPosition({
-        bottom: Math.max(0, dragStartPos.current.bottom + deltaY),
+        top: Math.max(0, dragStartPos.current.top + deltaY),
         right: Math.max(0, dragStartPos.current.right + deltaX)
       });
     };
@@ -77,7 +77,7 @@ export const SessionManagementPanel: React.FC<SessionManagementPanelProps> = ({ 
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, position.bottom, position.right]);
+  }, [isDragging, position.top, position.right]);
 
   useEffect(() => {
     if (!protocol) return;
@@ -103,7 +103,7 @@ export const SessionManagementPanel: React.FC<SessionManagementPanelProps> = ({ 
       <div 
         ref={dragRef}
         className={`${styles.collapsed} ${isDragging ? styles.dragging : ''}`}
-        style={{ bottom: `${position.bottom}px`, right: `${position.right}px` }}
+        style={{ top: `${position.top}px`, right: `${position.right}px` }}
         onMouseDown={handleMouseDown}
       >
         <button className={styles.toggle} onClick={() => setIsExpanded(true)}>
@@ -121,7 +121,7 @@ export const SessionManagementPanel: React.FC<SessionManagementPanelProps> = ({ 
     <>
       <div 
         className={`${styles.panel} ${isDragging ? styles.dragging : ''}`}
-        style={{ bottom: `${position.bottom}px`, right: `${position.right}px` }}
+        style={{ top: `${position.top}px`, right: `${position.right}px` }}
       >
         <div className={styles.header} onMouseDown={handleMouseDown}>
           <h2 className={styles.title}>Session Management</h2>

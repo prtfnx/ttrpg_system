@@ -121,12 +121,16 @@ async def game_session_page(
     
     logger.debug(f"game_session_page: Game session found: {game_session.name}")
     
-    # Check if user is part of this session
-    player = crud.join_game_session(db, session_code, current_user.id)
-    logger.debug(f"game_session_page: Player join result: {player}")
+    # Check if user is already a member of this session (don't auto-join!)
+    player = db.query(models.GamePlayer).filter(
+        models.GamePlayer.session_id == game_session.id,
+        models.GamePlayer.user_id == current_user.id
+    ).first()
+    
+    logger.debug(f"game_session_page: Player membership check result: {player}")
     if not player:
-        logger.debug(f"game_session_page: Failed to join session")
-        raise HTTPException(status_code=403, detail="Not authorized to join this session")
+        logger.warning(f"game_session_page: User {current_user.username} (id={current_user.id}) is not a member of session {session_code}")
+        raise HTTPException(status_code=403, detail="You are not a member of this session")
     
     # OWASP best practice: Get role from database (session-based RBAC)
     # Role is now stored in the database and can be changed by session owner

@@ -11,7 +11,7 @@ import time
 import os
 
 from server_host.database.database import get_db
-from server_host.database import crud
+from server_host.database import crud, models
 from server_host.service.game_session import ConnectionManager, get_connection_manager
 from server_host.routers.users import SECRET_KEY, ALGORITHM
 from server_host.utils.logger import setup_logger
@@ -174,7 +174,18 @@ async def websocket_game_endpoint(
             await websocket.close(code=status.WS_1003_UNSUPPORTED_DATA)
             return
         
-        logger.info(f"Game session found: {db_game_session.name}")       
+        # Check if user is a member of this session
+        player_record = db.query(models.GamePlayer).filter(
+            models.GamePlayer.session_id == db_game_session.id,
+            models.GamePlayer.user_id == user.id
+        ).first()
+        
+        if not player_record:
+            logger.warning(f"User {user.username} (id={user.id}) is not a member of session {session_code}")
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+        
+        logger.info(f"Game session found: {db_game_session.name}, user role: {player_record.role}")       
         user_id = user.id
         username = user.username
         logger.debug(f"User ID: {user_id}, Username: {username}")

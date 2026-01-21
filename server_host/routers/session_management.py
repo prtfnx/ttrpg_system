@@ -17,14 +17,11 @@ from server_host.middleware.session_permissions import (
 )
 from server_host.utils.permissions import SessionPermission, get_permission_diff, get_role_permissions
 from server_host.utils.logger import setup_logger
-from server_host.service.game_session import ConnectionManager
+from server_host.service.game_session import get_connection_manager
 from net.protocol import Message, MessageType
 
 logger = setup_logger(__name__)
 router = APIRouter(prefix="/game/session", tags=["session-management"])
-
-# WebSocket manager for real-time events
-connection_manager = ConnectionManager()
 
 class PlayerResponse(BaseModel):
     id: int
@@ -95,7 +92,8 @@ async def change_player_role(
     request: Request,
     player: models.GamePlayer = Depends(require_session_role("owner")),
     current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    connection_manager = Depends(get_connection_manager)
 ):
     new_role = role_request.new_role
     
@@ -184,7 +182,8 @@ async def kick_player(
     request: Request,
     player: models.GamePlayer = Depends(require_session_role("co_dm")),
     current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    connection_manager = Depends(get_connection_manager)
 ):
     session = crud.get_game_session_by_code(db, session_code)
     
@@ -208,23 +207,36 @@ async def kick_player(
             detail="Cannot kick yourself"
         )
     
-    db.delete(target_player)
+    # Save role before deletion for audit log
+    kicked_role = target_player.role
     
-    audit_entry = models.AuditLog(
-        event_type="PLAYER_KICKED",
-        session_code=session_code,
-        user_id=current_user.id,
-        target_user_id=target_user_id,
-        details=json.dumps({"role": target_player.role}),
-        ip_address=request.client.host if request.client else None
-    )
-    db.add(audit_entry)
+    # Force disconnect the kicked player's WebSocket BEFORE deleting from DB
+    try:
+        await connection_manager.disconnect_user(session_code, target_user_id)
+        logger.info(f"Disconnected WebSocket for kicked player {target_user_id}")
+    except Exception as e:
+        logger.error(f"Failed to disconnect kicked player's WebSocket: {e}")
+    
+    # Now delete from database
+    db.delete(target_player)
     db.commit()
     
     logger.info(
         f"Player kicked: session={session_code} target={target_user_id} "
         f"by={current_user.id}"
     )
+    
+    # Create audit log entry after commit
+    audit_entry = models.AuditLog(
+        event_type="PLAYER_KICKED",
+        session_code=session_code,
+        user_id=current_user.id,
+        target_user_id=target_user_id,
+        details=json.dumps({"role": kicked_role}),
+        ip_address=request.client.host if request.client else None
+    )
+    db.add(audit_entry)
+    db.commit()
     
     # Broadcast WebSocket event
     try:

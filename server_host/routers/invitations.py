@@ -59,9 +59,11 @@ async def create_invitation(
 ):
     """Create session invitation link (requires INVITE_PLAYERS permission)"""
     logger.info(f"Creating invitation: session_code={invite_data.session_code}, role={invite_data.pre_assigned_role}")
+    logger.info(f"Request details: expires_hours={invite_data.expires_hours}, max_uses={invite_data.max_uses}")
     
     session = crud.get_game_session_by_code(db, invite_data.session_code)
     if not session:
+        logger.error(f"Session not found: {invite_data.session_code}")
         raise HTTPException(status_code=404, detail="Session not found")
 
     player = db.query(models.GamePlayer).filter(
@@ -104,10 +106,15 @@ async def create_invitation(
     db.commit()
     db.refresh(invitation)
 
-    logger.info(f"Invitation created: code={invite_code[:8]}... session={invite_data.session_code} role={invitation.pre_assigned_role} (requested: {invite_data.pre_assigned_role})")
+    logger.info(f"Invitation created in DB: id={invitation.id}, code={invite_code[:8]}...")
+    logger.info(f"Invitation details: role={invitation.pre_assigned_role}, max_uses={invitation.max_uses}, uses={invitation.uses_count}")
 
-    # Get base URL from environment or use default
     base_url = os.environ.get("BASE_URL", "http://127.0.0.1:12345")
+    logger.info(f"BASE_URL from environment: '{base_url}'")
+    logger.info(f"BASE_URL type: {type(base_url)}, length: {len(base_url)}")
+    invite_url = f"{base_url}/invite/{invitation.invite_code}"
+    logger.info(f"Generated invite_url: '{invite_url}'")
+    logger.info(f"Generated invite_url length: {len(invite_url)}")
     
     return InvitationResponse(
         id=invitation.id,
@@ -120,7 +127,7 @@ async def create_invitation(
         uses_count=invitation.uses_count,
         is_active=invitation.is_active,
         is_valid=invitation.is_valid(),
-        invite_url=f"{base_url}/invite/{invitation.invite_code}"
+        invite_url=invite_url
     )
 
 @router.get("/{invite_code}", response_model=InvitationResponse)
@@ -268,13 +275,13 @@ async def list_session_invitations(
         for inv in invitations
     ]
 
-@router.delete("/{invitation_id}")
+@router.put("/{invitation_id}/revoke")
 async def revoke_invitation(
     invitation_id: int,
     current_user: schemas.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Revoke invitation (owner only)"""
+    """Revoke invitation (makes it inactive but keeps in database)"""
     invitation = db.query(models.SessionInvitation).filter(
         models.SessionInvitation.id == invitation_id
     ).first()
@@ -300,3 +307,36 @@ async def revoke_invitation(
     logger.info(f"Invitation revoked: id={invitation_id} by user={current_user.id}")
 
     return {"success": True, "message": "Invitation revoked"}
+
+@router.delete("/{invitation_id}")
+async def delete_invitation(
+    invitation_id: int,
+    current_user: schemas.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Permanently delete invitation from database"""
+    invitation = db.query(models.SessionInvitation).filter(
+        models.SessionInvitation.id == invitation_id
+    ).first()
+
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+
+    session = db.query(models.GameSession).filter(
+        models.GameSession.id == invitation.session_id
+    ).first()
+
+    player = db.query(models.GamePlayer).filter(
+        models.GamePlayer.session_id == session.id,
+        models.GamePlayer.user_id == current_user.id
+    ).first()
+
+    if not player or player.role not in ["owner", "co_dm"]:
+        raise HTTPException(status_code=403, detail="Owner/Co-DM only")
+
+    db.delete(invitation)
+    db.commit()
+
+    logger.info(f"Invitation deleted: id={invitation_id} by user={current_user.id}")
+
+    return {"success": True, "message": "Invitation deleted"}

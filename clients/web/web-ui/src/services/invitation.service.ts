@@ -50,6 +50,12 @@ class InvitationService {
   }
 
   async revokeInvitation(invitationId: number): Promise<{ success: boolean; message: string }> {
+    return this.fetchAPI<{ success: boolean; message: string }>(`/${invitationId}/revoke`, {
+      method: 'PUT'
+    });
+  }
+
+  async deleteInvitation(invitationId: number): Promise<{ success: boolean; message: string }> {
     return this.fetchAPI<{ success: boolean; message: string }>(`/${invitationId}`, {
       method: 'DELETE'
     });

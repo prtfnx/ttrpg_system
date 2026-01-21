@@ -55,9 +55,25 @@ export const useInvitations = (sessionCode: string | null) => {
     }
   };
 
+  const deleteInvitation = async (invitationId: number): Promise<boolean> => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      await invitationService.deleteInvitation(invitationId);
+      await fetchInvitations();
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete invitation');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchInvitations();
   }, [sessionCode]);
 
-  return { invitations, loading, error, createInvitation, revokeInvitation, refetch: fetchInvitations };
+  return { invitations, loading, error, createInvitation, revokeInvitation, deleteInvitation, refetch: fetchInvitations };
 };

@@ -12,7 +12,7 @@ interface InvitationManagerProps {
 }
 
 export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCode, onClose, standalone }) => {
-  const { invitations, loading, createInvitation, revokeInvitation } = useInvitations(sessionCode);
+  const { invitations, loading, createInvitation, revokeInvitation, deleteInvitation } = useInvitations(sessionCode);
   const [selectedRole, setSelectedRole] = useState<SessionRole>('player');
   const [expiresHours, setExpiresHours] = useState(24);
   const [maxUses, setMaxUses] = useState(1);
@@ -62,7 +62,7 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
     if (!confirm('Permanently delete this invitation from the list?')) return;
 
     console.log('Deleting invitation:', id);
-    const success = await revokeInvitation(id);
+    const success = await deleteInvitation(id);
     if (success) {
       toast.success('Invitation deleted');
     }

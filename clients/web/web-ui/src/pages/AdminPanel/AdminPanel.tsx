@@ -86,7 +86,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         )}
         {activeTab === 'invitations' && (
           <div className={styles.tabContent}>
-            <InvitationManager sessionCode={sessionCode} onClose={() => {}} standalone />
+            <InvitationManager sessionCode={sessionCode} onClose={() => setActiveTab('players')} />
           </div>
         )}
         {activeTab === 'settings' && isOwner && (

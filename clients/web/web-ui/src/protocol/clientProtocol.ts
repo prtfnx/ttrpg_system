@@ -313,9 +313,15 @@ export class WebClientProtocol {
           protocolLogger.connection('WebSocket connection closed', { code: event.code, reason: event.reason });
           this.stopPingInterval();
           this.connecting = false;
+          this.websocket = null;
           
           if (event.code === 1008) {
-            reject(new Error('Authentication failed'));
+            if (event.reason === 'Kicked from session') {
+              console.warn('You have been kicked from the session');
+              reject(new Error('Kicked from session'));
+            } else {
+              reject(new Error('Authentication failed or not authorized'));
+            }
           } else if (event.code !== 1000) {
             // Abnormal closure - attempt reconnection
             this.attemptReconnect();

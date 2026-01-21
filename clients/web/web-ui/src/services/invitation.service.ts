@@ -23,10 +23,16 @@ class InvitationService {
   }
 
   async createInvitation(data: CreateInvitationRequest): Promise<SessionInvitation> {
-    return this.fetchAPI<SessionInvitation>('/create', {
+    console.log('InvitationService.createInvitation - Request data:', data);
+    console.log('InvitationService.createInvitation - Request URL:', `${this.baseURL}/create`);
+    
+    const result = await this.fetchAPI<SessionInvitation>('/create', {
       method: 'POST',
       body: JSON.stringify(data)
     });
+    
+    console.log('InvitationService.createInvitation - Response:', result);
+    return result;
   }
 
   async getInvitation(inviteCode: string): Promise<SessionInvitation> {

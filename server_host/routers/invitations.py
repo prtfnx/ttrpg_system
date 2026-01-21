@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 import secrets
 import string
+import os
 
 from server_host.database.database import get_db
 from server_host.database import models, schemas, crud
@@ -57,6 +58,8 @@ async def create_invitation(
     db: Session = Depends(get_db)
 ):
     """Create session invitation link (requires INVITE_PLAYERS permission)"""
+    logger.info(f"Creating invitation: session_code={invite_data.session_code}, role={invite_data.pre_assigned_role}")
+    
     session = crud.get_game_session_by_code(db, invite_data.session_code)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -101,8 +104,11 @@ async def create_invitation(
     db.commit()
     db.refresh(invitation)
 
-    logger.info(f"Invitation created: code={invite_code[:8]}... session={invite_data.session_code}")
+    logger.info(f"Invitation created: code={invite_code[:8]}... session={invite_data.session_code} role={invitation.pre_assigned_role} (requested: {invite_data.pre_assigned_role})")
 
+    # Get base URL from environment or use default
+    base_url = os.environ.get("BASE_URL", "http://127.0.0.1:12345")
+    
     return InvitationResponse(
         id=invitation.id,
         invite_code=invitation.invite_code,
@@ -114,7 +120,7 @@ async def create_invitation(
         uses_count=invitation.uses_count,
         is_active=invitation.is_active,
         is_valid=invitation.is_valid(),
-        invite_url=f"/invite/{invitation.invite_code}"
+        invite_url=f"{base_url}/invite/{invitation.invite_code}"
     )
 
 @router.get("/{invite_code}", response_model=InvitationResponse)
@@ -131,6 +137,8 @@ async def get_invitation(invite_code: str, db: Session = Depends(get_db)):
         models.GameSession.id == invitation.session_id
     ).first()
 
+    base_url = os.environ.get("BASE_URL", "http://127.0.0.1:12345")
+    
     return InvitationResponse(
         id=invitation.id,
         invite_code=invitation.invite_code,
@@ -142,7 +150,7 @@ async def get_invitation(invite_code: str, db: Session = Depends(get_db)):
         uses_count=invitation.uses_count,
         is_active=invitation.is_active,
         is_valid=invitation.is_valid(),
-        invite_url=f"/invite/{invitation.invite_code}"
+        invite_url=f"{base_url}/invite/{invitation.invite_code}"
     )
 
 @router.post("/{invite_code}/accept")
@@ -241,6 +249,8 @@ async def list_session_invitations(
         models.SessionInvitation.session_id == session.id
     ).order_by(models.SessionInvitation.created_at.desc()).all()
 
+    base_url = os.environ.get("BASE_URL", "http://127.0.0.1:12345")
+    
     return [
         InvitationResponse(
             id=inv.id,
@@ -253,7 +263,7 @@ async def list_session_invitations(
             uses_count=inv.uses_count,
             is_active=inv.is_active,
             is_valid=inv.is_valid(),
-            invite_url=f"/invite/{inv.invite_code}"
+            invite_url=f"{base_url}/invite/{inv.invite_code}"
         )
         for inv in invitations
     ]

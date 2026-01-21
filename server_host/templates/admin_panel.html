@@ -45,7 +45,7 @@
         </script>
         <script type="module" src="http://localhost:5174/src/admin.tsx"></script>
     {% else %}
-        <script type="module" src="/static/dist/admin.js"></script>
+        {% include "admin_assets.html" %}
     {% endif %}
 </body>
 </html>

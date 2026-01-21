@@ -26,7 +26,8 @@ from server_host.routers import game
 from server_host.routers import compendium
 from server_host.routers import session_management
 from server_host.api import game_ws
-from server_host.database.database import create_tables
+from server_host.database.database import create_tables, SessionLocal
+from server_host.database import models
 from server_host.service.game_session import ConnectionManager
 from server_host.utils.rate_limiter import registration_limiter, login_limiter
 
@@ -58,6 +59,21 @@ async def lifespan(app: FastAPI):
     # Create database tables
     create_tables()
     logger.info("Database tables created/verified")
+    
+    # Reset all player connection statuses on startup (cleanup stale connections)
+    db = SessionLocal()
+    try:
+        stale_connections = db.query(models.GamePlayer).filter(
+            models.GamePlayer.is_connected == True
+        ).update({"is_connected": False})
+        db.commit()
+        if stale_connections > 0:
+            logger.info(f"Reset {stale_connections} stale player connections on startup")
+    except Exception as e:
+        logger.error(f"Error resetting player connections: {e}")
+        db.rollback()
+    finally:
+        db.close()
     
     # Store app state in FastAPI app
     app.state.connection_manager = app_state.connection_manager

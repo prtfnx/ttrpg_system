@@ -105,3 +105,27 @@
   opacity: var(--button-disabled-opacity);
   cursor: not-allowed;
 }
+
+.deleteBtn {
+  width: 100%;
+  padding: var(--space-xs);
+  background: transparent;
+  border: var(--border-width) solid var(--text-secondary);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  transition: var(--transition-fast);
+  margin-top: var(--space-xs);
+}
+
+.deleteBtn:hover:not(:disabled) {
+  background: var(--text-secondary);
+  color: var(--bg-primary);
+}
+
+.deleteBtn:disabled {
+  opacity: var(--button-disabled-opacity);
+  cursor: not-allowed;
+}

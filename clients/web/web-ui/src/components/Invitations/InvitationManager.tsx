@@ -20,6 +20,13 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
 
   const handleCreate = async () => {
     setCreating(true);
+    console.log('Creating invitation with params:', {
+      session_code: sessionCode,
+      pre_assigned_role: selectedRole,
+      expires_hours: expiresHours,
+      max_uses: maxUses
+    });
+    
     const result = await createInvitation({
       session_code: sessionCode,
       pre_assigned_role: selectedRole,
@@ -27,8 +34,17 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
       max_uses: maxUses
     });
 
+    console.log('Invitation creation result:', result);
     if (result) {
+      console.log('Invitation created successfully:', {
+        id: result.id,
+        invite_code: result.invite_code,
+        invite_url: result.invite_url,
+        pre_assigned_role: result.pre_assigned_role
+      });
       toast.success('Invitation created!');
+    } else {
+      console.error('Invitation creation failed - no result returned');
     }
     setCreating(false);
   };
@@ -39,6 +55,16 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
     const success = await revokeInvitation(id);
     if (success) {
       toast.success('Invitation revoked');
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Permanently delete this invitation from the list?')) return;
+
+    console.log('Deleting invitation:', id);
+    const success = await revokeInvitation(id);
+    if (success) {
+      toast.success('Invitation deleted');
     }
   };
 
@@ -118,6 +144,7 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
                   key={invite.id}
                   invitation={invite}
                   onRevoke={handleRevoke}
+                  onDelete={handleDelete}
                 />
               ))}
             </div>

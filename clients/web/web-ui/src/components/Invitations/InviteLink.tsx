@@ -5,12 +5,25 @@ import styles from './InviteLink.module.css';
 interface InviteLinkProps {
   invitation: SessionInvitation;
   onRevoke: (id: number) => void;
+  onDelete?: (id: number) => void;
 }
 
-export const InviteLink: React.FC<InviteLinkProps> = ({ invitation, onRevoke }) => {
+export const InviteLink: React.FC<InviteLinkProps> = ({ invitation, onRevoke, onDelete }) => {
   const [copied, setCopied] = useState(false);
 
-  const fullUrl = `${window.location.origin}${invitation.invite_url}`;
+  // Check if invite_url is already a full URL (starts with http:// or https://)
+  const fullUrl = invitation.invite_url.startsWith('http://') || invitation.invite_url.startsWith('https://')
+    ? invitation.invite_url
+    : `${window.location.origin}${invitation.invite_url}`;
+  
+  // Log to console for debugging
+  console.log('InviteLink render:', {
+    inviteCode: invitation.invite_code,
+    rawInviteUrl: invitation.invite_url,
+    fullUrl: fullUrl,
+    origin: window.location.origin,
+    isFullUrl: invitation.invite_url.startsWith('http://') || invitation.invite_url.startsWith('https://')
+  });
 
   const copyToClipboard = async () => {
     try {
@@ -81,6 +94,15 @@ export const InviteLink: React.FC<InviteLinkProps> = ({ invitation, onRevoke }) 
           onClick={() => onRevoke(invitation.id)}
         >
           Revoke
+        </button>
+      )}
+      
+      {onDelete && (
+        <button
+          className={styles.deleteBtn}
+          onClick={() => onDelete(invitation.id)}
+        >
+          🗑️ Delete
         </button>
       )}
     </div>

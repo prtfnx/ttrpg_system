@@ -9,6 +9,7 @@ import { ActionsPanel } from '../ActionsPanel';
 import { AssetPanel } from '../AssetPanel';
 import { AuthProvider } from '../AuthContext';
 import ChatPanel from '../ChatPanel';
+import { CharacterPanelRedesigned } from '../CharacterPanelRedesigned';
 import { GameCanvas } from '../GameCanvas';
 import { NetworkPanel } from '../NetworkPanel';
 import { PerformanceMonitor } from '../PerformanceMonitor';
@@ -519,7 +520,7 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
       render(
         <div>
           <ActionsPanel renderEngine={mockWasmModule.RenderEngine()} />
-          <CharacterManager sessionCode="TEST123" userInfo={mockUserInfo} />
+          <CharacterPanelRedesigned />
           <GameCanvas />
         </div>
       );

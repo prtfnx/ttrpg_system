@@ -126,7 +126,23 @@
 }
 
 .close-btn {
-  composes: btnClose from '../styles/buttons.module.css';
+  background: none;
+  border: none;
+  color: var(--white-alpha-60);
+  font-size: var(--text-lg);
+  cursor: pointer;
+  width: var(--space-2xl);
+  height: var(--space-2xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-xs);
+  transition: var(--transition-fast);
+}
+
+.close-btn:hover {
+  background: var(--white-alpha-10);
+  color: var(--white);
 }
 
 /* Metrics Grid */
@@ -183,10 +199,14 @@
 }
 
 .action-btn {
-  composes: btnSecondary btnSm from '../styles/buttons.module.css';
   background: var(--white-alpha-10);
-  border-color: var(--white-alpha-20);
+  border: var(--border-width) solid var(--white-alpha-20);
   color: var(--white);
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--radius-xs);
+  font-size: var(--text-2xs);
+  cursor: pointer;
+  transition: var(--transition-fast);
   flex: 1;
   min-width: 0;
 }

@@ -6,7 +6,6 @@ use crate::lighting::LightingSystem;
 use crate::fog::{FogOfWarSystem, FogMode};
 use std::collections::HashMap;
 use wasm_bindgen::JsValue;
-use js_sys::Function;
 
 #[derive(Debug, Clone)]
 pub enum MouseEventResult {
@@ -24,15 +23,6 @@ impl EventSystem {
     pub fn new() -> Self {
         Self {}
     }
-    
-    fn notify_selection_changed(state_handler: &Option<Function>, sprite_ids: &Vec<String>) {
-        if let Some(handler) = state_handler {
-            let event = js_sys::Object::new();
-            js_sys::Reflect::set(&event, &"type".into(), &"selection_changed".into()).ok();
-            js_sys::Reflect::set(&event, &"sprite_ids".into(), &serde_wasm_bindgen::to_value(sprite_ids).unwrap()).ok();
-            handler.call1(&JsValue::NULL, &event).ok();
-        }
-    }
 
     pub fn handle_mouse_down(
         &mut self,
@@ -41,8 +31,7 @@ impl EventSystem {
         layers: &mut HashMap<String, Layer>,
         lighting: &mut LightingSystem,
         camera_zoom: f64,
-        ctrl_pressed: bool,
-        state_handler: &Option<Function>
+        ctrl_pressed: bool
     ) -> MouseEventResult {
         web_sys::console::log_1(&format!("[RUST EVENT] Mouse down at world: {}, {}, input_mode: {:?}", world_pos.x, world_pos.y, input.input_mode).into());
         
@@ -166,7 +155,6 @@ impl EventSystem {
                 
                 // Regular single sprite selection and move
                 input.set_single_selection(sprite_id.clone());
-                Self::notify_selection_changed(state_handler, &input.selected_sprite_ids);
                 input.input_mode = InputMode::SpriteMove;
                 if let Some((sprite, _)) = Self::find_sprite(&sprite_id, layers) {
                     let sprite_top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
@@ -185,7 +173,6 @@ impl EventSystem {
                 } else {
                     input.add_to_selection(sprite_id);
                 }
-                Self::notify_selection_changed(state_handler, &input.selected_sprite_ids);
                 return MouseEventResult::Handled;
             } else {
                 input.start_area_selection(world_pos);
@@ -194,7 +181,6 @@ impl EventSystem {
         } else {
             // No sprite clicked and no special handles - start camera panning
             input.clear_selection();
-            Self::notify_selection_changed(state_handler, &input.selected_sprite_ids);
             input.input_mode = InputMode::CameraPan;
             return MouseEventResult::Handled;
         }
@@ -286,14 +272,12 @@ impl EventSystem {
         layers: &mut HashMap<String, Layer>,
         lighting: &mut LightingSystem,
         fog: &mut FogOfWarSystem,
-        table_id: String,
-        state_handler: &Option<Function>
+        table_id: String
     ) -> MouseEventResult {
         match input.input_mode {
             InputMode::AreaSelect => {
                 if let Some((min, max)) = input.get_area_selection_rect() {
                     Self::select_sprites_in_area(min, max, input, layers);
-                    Self::notify_selection_changed(state_handler, &input.selected_sprite_ids);
                 }
                 input.finish_area_selection();
                 MouseEventResult::Handled

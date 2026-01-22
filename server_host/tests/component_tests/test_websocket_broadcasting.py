@@ -2,7 +2,6 @@
 Test WebSocket broadcasting functionality
 Tests that table updates are properly shared between connected clients
 """
-import pytest
 import asyncio
 import json
 import logging
@@ -13,8 +12,6 @@ import uuid
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-pytestmark = pytest.mark.asyncio
 
 class TestClient:
     """Test WebSocket client that can send and receive messages"""

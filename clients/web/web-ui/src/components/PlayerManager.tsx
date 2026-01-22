@@ -2,32 +2,20 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useAuthenticatedWebSocket } from "../hooks/useAuthenticatedWebSocket";
 import { MessageType, createMessage } from "../protocol/message";
 import type { UserInfo } from "../services/auth.service";
-import styles from './PlayerManager.module.css';
-
-import type { SessionRole } from '../types/roles';
-
-/**
- * Legacy PlayerManager component using WebSocket protocol messages
- * 
- * Note: This component coexists with SessionManagementPanel:
- * - PlayerManager: Protocol-based player list/kick/ban (WebSocket events)
- * - SessionManagementPanel: REST API-based role management (new system)
- */
 
 export interface Player {
   id: string;
   username: string;
   status: string;
-  role: "dm" | "player";  // Legacy role type - mapped from new 5-tier system
+  role: "dm" | "player";
 }
 
 interface PlayerManagerProps {
   sessionCode: string;
   userInfo: UserInfo;
-  userRole: SessionRole;
 }
 
-export const PlayerManager: React.FC<PlayerManagerProps> = ({ sessionCode, userInfo, userRole }) => {
+export const PlayerManager: React.FC<PlayerManagerProps> = ({ sessionCode, userInfo }) => {
   const { protocol } = useAuthenticatedWebSocket({ sessionCode, userInfo });
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -78,17 +66,17 @@ export const PlayerManager: React.FC<PlayerManagerProps> = ({ sessionCode, userI
     }
   }, [protocol]);
 
-  if (loading) return <div className={styles.loading}>Loading players...</div>;
-  if (error) return <div className={styles.error}>{error}</div>;
+  if (loading) return <div className="loading">Loading players...</div>;
+  if (error) return <div className="error">{error}</div>;
 
   return (
-    <div className={styles.playerManager}>
+    <div className="player-manager">
       <h2>Players</h2>
       <ul>
         {players.map((player) => (
           <li key={player.id}>
             <span>{player.username} ({player.role})</span>
-            {(userRole === 'owner' || userRole === 'co_dm') && player.role !== "dm" && (
+            {userInfo.role === "dm" && player.role !== "dm" && (
               <>
                 <button onClick={() => handleKick(player.id)}>Kick</button>
                 <button onClick={() => handleBan(player.id)}>Ban</button>

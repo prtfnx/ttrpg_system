@@ -17,60 +17,10 @@ class User(Base):
     full_name = Column(String(100), nullable=True)
     hashed_password = Column(String(255), nullable=False)
     disabled = Column(Boolean, default=False)
-    role = Column(String(20), default="player", nullable=False)  # player, dm, admin
-    tier = Column(String(20), default="free", nullable=False)  # free, premium
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
     game_sessions = relationship("GameSession", back_populates="owner")
-    
-    def get_permissions(self):
-        """
-        Calculate user permissions based on role and tier
-        Returns list of permission strings
-        """
-        permissions = set()
-        
-        # Base permissions for all authenticated users
-        permissions.add("compendium:read")
-        
-        # Get actual values (not Column objects)
-        user_role = self.role if isinstance(self.role, str) else "player"
-        user_tier = self.tier if isinstance(self.tier, str) else "free"
-        
-        # Role-based permissions
-        if user_role == "admin":
-            permissions.update([
-                "admin:manage_users",
-                "admin:manage_sessions",
-                "admin:system_config",
-                "dm:manage_game",
-                "dm:create_npcs",
-                "dm:edit_world",
-                "user:manage_characters",
-                "compendium:read",
-                "compendium:write",
-                "compendium:export"
-            ])
-        elif user_role == "dm":
-            permissions.update([
-                "dm:manage_game",
-                "dm:create_npcs",
-                "dm:edit_world",
-                "user:manage_characters"
-            ])
-        elif user_role == "player":
-            permissions.add("user:manage_characters")
-        
-        # Tier-based permissions
-        if user_tier == "premium":
-            permissions.update([
-                "premium:features",
-                "compendium:export",
-                "advanced:tools"
-            ])
-        
-        return sorted(list(permissions))
 
 class GameSession(Base):
     __tablename__ = "game_sessions"
@@ -97,21 +47,10 @@ class GamePlayer(Base):
     character_name = Column(String(100))
     joined_at = Column(DateTime, default=datetime.utcnow)
     is_connected = Column(Boolean, default=False)
-    role = Column(String(20), nullable=False, default="player")
-    role_updated_at = Column(DateTime, nullable=True)
-    role_updated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     
     # Relationships
     session = relationship("GameSession", back_populates="players")
-    user = relationship("User", foreign_keys=[user_id])
-    role_updater = relationship("User", foreign_keys=[role_updated_by])
-    
-    def get_permissions(self):
-        from server_host.utils.permissions import get_role_permissions
-        return get_role_permissions(self.role)
-    
-    def has_permission(self, permission: str) -> bool:
-        return permission in self.get_permissions()
+    user = relationship("User")
 
 class VirtualTable(Base):
     __tablename__ = "virtual_tables"
@@ -157,10 +96,6 @@ class Entity(Base):
     character_id = Column(String(36), ForeignKey("session_characters.character_id"), nullable=True)
     # JSON array of user ids who can control this token (nullable)
     controlled_by = Column(Text, nullable=True)
-    
-    # Asset tracking for multi-client synchronization
-    asset_id = Column(String(16), nullable=True)  # First 16 chars of xxhash
-    asset_xxhash = Column(String(32), nullable=True)  # Full xxhash for integrity
     
     # Transform properties
     scale_x = Column(Float, default=1.0)
@@ -212,63 +147,6 @@ class Asset(Base):
     uploader = relationship("User")
     session = relationship("GameSession")
 
-class SessionPermission(Base):
-    __tablename__ = "session_permissions"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(Integer, ForeignKey("game_sessions.id"), nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    permission = Column(String(50), nullable=False)
-    granted_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    granted_at = Column(DateTime, default=datetime.utcnow)
-    revoked_at = Column(DateTime, nullable=True)
-    is_active = Column(Boolean, default=True)
-    
-    session = relationship("GameSession")
-    user = relationship("User", foreign_keys=[user_id])
-    granter = relationship("User", foreign_keys=[granted_by])
-
-class SessionInvitation(Base):
-    __tablename__ = "session_invitations"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(Integer, ForeignKey("game_sessions.id"), nullable=False)
-    invite_code = Column(String(32), unique=True, index=True, nullable=False)
-    pre_assigned_role = Column(String(20), nullable=False, default="player")
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    expires_at = Column(DateTime, nullable=True)
-    max_uses = Column(Integer, default=1)
-    uses_count = Column(Integer, default=0)
-    is_active = Column(Boolean, default=True)
-    
-    session = relationship("GameSession")
-    creator = relationship("User")
-    
-    def is_valid(self) -> bool:
-        if not self.is_active:
-            return False
-        if self.expires_at and datetime.utcnow() > self.expires_at:
-            return False
-        if self.max_uses > 0 and self.uses_count >= self.max_uses:
-            return False
-        return True
-
-class AuditLog(Base):
-    __tablename__ = "audit_log"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    event_type = Column(String(50), nullable=False)
-    session_code = Column(String(20), nullable=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    target_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    details = Column(Text, nullable=True)
-    ip_address = Column(String(45), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    user = relationship("User", foreign_keys=[user_id])
-    target_user = relationship("User", foreign_keys=[target_user_id])
-
 class SessionCharacter(Base):
     __tablename__ = "session_characters"
     
@@ -278,9 +156,6 @@ class SessionCharacter(Base):
     character_name = Column(String(255), nullable=False)
     character_data = Column(Text, nullable=False)  # JSON blob of character data
     owner_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    
-    # Token/portrait asset (direct FK to Asset table)
-    token_asset_id = Column(String(100), ForeignKey("assets.r2_asset_id"), nullable=True)
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -294,8 +169,6 @@ class SessionCharacter(Base):
     owner = relationship("User", foreign_keys=[owner_user_id])
     # Tokens (entities) that reference this character
     tokens = relationship("Entity", back_populates="character")
-    # Token/portrait asset
-    token_asset = relationship("Asset", foreign_keys=[token_asset_id])
 
     # Explicit relationship for last modifier to avoid FK ambiguity
     last_modified_by_user = relationship("User", foreign_keys=[last_modified_by])

@@ -1,29 +1,30 @@
 import React from 'react';
 import './Auth.css';
 import { useAuth } from './AuthContext';
-import styles from './AuthGuard.module.css';
 import LoginModal from './LoginModal';
 
 interface AuthGuardProps {
   children: React.ReactNode;
   fallback?: React.ReactNode;
+  requireRole?: 'dm' | 'player';
 }
 
 /**
  * AuthGuard component that protects routes/components based on authentication status
- * Note: Role-based access control should be done at component level, not here
+ * and optionally role requirements
  */
 const AuthGuard: React.FC<AuthGuardProps> = ({ 
   children, 
-  fallback
+  fallback, 
+  requireRole 
 }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const [showLoginModal, setShowLoginModal] = React.useState(false);
 
   // Show loading state while auth is being initialized
   if (loading) {
     return (
-      <div className={styles.authLoading}>
+      <div className="auth-loading">
         Authenticating...
       </div>
     );
@@ -37,12 +38,12 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
     
     return (
       <>
-        <div className={styles.authGuardMessage}>
+        <div className="auth-guard-message">
           <h3>Authentication Required</h3>
           <p>You must be logged in to access this content.</p>
           <button 
             onClick={() => setShowLoginModal(true)}
-            className={styles.loginButton}
+            className="login-button"
           >
             Login
           </button>
@@ -55,8 +56,22 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
     );
   }
 
+  // If role is required and user doesn't have it
+  if (requireRole && user?.role !== requireRole) {
+    return (
+      <div className="auth-guard-message">
+        <h3>Access Denied</h3>
+        <p>
+          You need {requireRole === 'dm' ? 'Dungeon Master' : 'Player'} 
+          {' '}permissions to access this content.
+        </p>
+        <p>Your current role: <span className={`role-indicator ${user?.role}`}>{user?.role}</span></p>
+      </div>
+    );
+  }
+
+  // User is authenticated and has required role (if any)
   return <>{children}</>;
 };
 
 export default AuthGuard;
-

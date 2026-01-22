@@ -553,11 +553,11 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
               <div className={styles.weatherEffects}>
                 {weatherEffects.map(effect => (
                   <div key={effect.id} className={styles.weatherEffect}>
-                    <div className={styles.effectInfo}>
-                      <span className={styles.effectType}>{effect.type}</span>
+                    <div className="effect-info">
+                      <span className="effect-type">{effect.type}</span>
                       <span className={styles.effectIntensity}>Intensity: {(effect.intensity * 100).toFixed(0)}%</span>
                     </div>
-                    <div className={styles.effectControls}>
+                    <div className="effect-controls">
                       <input
                         type="range"
                         className={styles.effectControlSlider}
@@ -571,7 +571,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                         }}
                       />
                       <button
-                        className={styles.removeEffect}
+                        className="remove-effect"
                         onClick={() => handleRemoveWeatherEffect(effect.id)}
                         aria-label="Remove weather effect"
                       >
@@ -582,7 +582,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                 ))}
                 
                 <button
-                  className={styles.addWeatherBtn}
+                  className="add-weather-btn"
                   onClick={() => setIsAddingWeatherEffect(true)}
                   disabled={isAddingWeatherEffect}
                 >
@@ -622,7 +622,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
             </div>
 
             {isLoading && (
-              <div className={styles.loadingOverlay}>
+              <div className="loading-overlay">
                 <LoadingSpinner size="large" />
                 <p>Loading background configuration...</p>
               </div>

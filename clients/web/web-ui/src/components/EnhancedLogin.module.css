@@ -1,7 +1,9 @@
 /* Enhanced Login Styles */
 .auth-container {
   min-height: 100vh;
-  composes: flex items-center justify-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: linear-gradient(135deg, var(--indigo-500) 0%, var(--purple-600) 100%);
   padding: var(--space-4xl);
   font-family: var(--font-sans);
@@ -51,9 +53,12 @@
 /* Error and Success Messages */
 .error-message,
 .success-message {
-  composes: statusBox from '../styles/status.module.css';
   padding: var(--space-lg) var(--space-xl);
+  border-radius: var(--radius-lg);
   margin-bottom: var(--space-xl);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
   font-weight: var(--font-medium);
   animation: fadeIn var(--transition-normal) ease-out;
 }
@@ -61,13 +66,13 @@
 .error-message {
   background: var(--status-error-bg);
   color: var(--red-700);
-  border-color: var(--status-error-border);
+  border: var(--border-width) solid var(--status-error-border);
 }
 
 .success-message {
   background: var(--status-success-bg);
   color: var(--green-700);
-  border-color: var(--status-success-border);
+  border: var(--border-width) solid var(--status-success-border);
 }
 
 .error-icon,
@@ -111,12 +116,15 @@
 }
 
 .oauth-providers {
-  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
   gap: var(--space-md);
 }
 
 .oauth-btn {
-  composes: flex items-center justify-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: var(--space-md);
   padding: var(--space-md) var(--space-xl);
   border: var(--border-width-thick) solid var(--gray-200);
@@ -150,12 +158,14 @@
 
 /* Form Styles */
 .auth-form {
-  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
   gap: var(--space-xl);
 }
 
 .form-group {
-  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
   gap: var(--space-sm);
 }
 
@@ -193,7 +203,8 @@
 /* Password Input Group */
 .password-input-group {
   position: relative;
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
 }
 
 .password-input-group input {
@@ -265,19 +276,24 @@
 .password-mismatch {
   color: var(--red-700);
   font-size: var(--text-xs);
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
   gap: var(--space-xs);
   margin-top: var(--space-xs);
 }
 
 /* Form Options */
 .form-options {
-  composes: flex justify-between items-center flex-wrap from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-lg);
 }
 
 .checkbox-label {
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
   gap: var(--space-md);
   cursor: pointer;
   font-size: var(--text-sm);
@@ -357,7 +373,9 @@
   border-radius: var(--radius-lg);
   cursor: pointer;
   transition: var(--transition-normal);
-  composes: flex items-center justify-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: var(--space-sm);
   text-decoration: none;
   border: var(--border-width-thick) solid;
@@ -403,8 +421,9 @@
 
 /* Form Actions */
 .form-actions {
-  composes: flex justify-between from '../styles/7-utilities/layout.module.css';
+  display: flex;
   gap: var(--space-lg);
+  justify-content: space-between;
   margin-top: var(--space-lg);
 }
 

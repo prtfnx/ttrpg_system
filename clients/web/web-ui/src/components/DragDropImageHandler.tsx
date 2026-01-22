@@ -1,10 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useAuth } from '../components/AuthContext';
 import { useAssetManager } from '../hooks/useAssetManager';
 import { createMessage, MessageType } from '../protocol/message';
 import { assetIntegrationService } from '../services/assetIntegration.service';
-import type { ExtendedMonster } from '../services/npcCharacter.service';
-import { NPCCharacterService } from '../services/npcCharacter.service';
 import { useProtocol } from '../services/ProtocolContext';
 import { spriteCreationService } from '../services/spriteCreation.service';
 import { useGameStore } from '../store';
@@ -32,9 +29,8 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
 }) => {
   const _protocolCtx = useProtocol();
   const protocol = _protocolCtx?.protocol ?? null;
-  const { camera, sessionId, addCharacter, addSprite } = useGameStore();
+  const { camera, sessionId } = useGameStore();
   const { calculateHash } = useAssetManager();
-  const { user } = useAuth();
   
   const [uploadState, setUploadState] = useState<UploadState>({
     status: 'idle',
@@ -278,310 +274,6 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
     e.stopPropagation();
     setDragOver(false);
 
-    // Get drop position relative to the container
-    const rect = e.currentTarget.getBoundingClientRect();
-    const dropX = e.clientX - rect.left;
-    const dropY = e.clientY - rect.top;
-    
-    console.log('🎯 Drop at screen:', { dropX, dropY });
-
-    // Check for compendium monster drop
-    const compendiumData = e.dataTransfer.getData('compendium/monster');
-    if (compendiumData) {
-      console.log('📚 Compendium monster drop detected');
-      try {
-        const { monster, name } = JSON.parse(compendiumData);
-        
-        if (!user) {
-          console.error('Cannot create NPC: No authenticated user');
-          return;
-        }
-        
-        // Resolve token URL and load texture into WASM
-        let tokenUrl: string | null = null;
-        let tokenSource = 'none';
-        let textureName: string | undefined = undefined;
-        let assetId: string | undefined = undefined;
-        let assetXxhash: string | undefined = undefined;
-        
-        try {
-          // Fetch full token info from backend (includes asset_id and asset_xxhash)
-          const response = await fetch(
-            `/api/tokens/resolve/${encodeURIComponent(monster.name)}?monster_type=${encodeURIComponent(monster.type || 'humanoid')}&redirect=false`
-          );
-          
-          if (response.ok) {
-            const tokenInfo = await response.json();
-            tokenUrl = tokenInfo.url;
-            assetId = tokenInfo.asset_id;
-            assetXxhash = tokenInfo.asset_xxhash;
-            tokenSource = tokenInfo.source || 'r2';
-            
-            console.log('🎨 Resolved token info:', {
-              name: monster.name,
-              tokenUrl,
-              assetId,
-              assetXxhash: assetXxhash?.substring(0, 8) + '...',
-              tokenSource
-            });
-          }
-          
-          if (tokenUrl) {
-            // Load texture directly into WASM
-            textureName = `npc-${monster.name.toLowerCase().replace(/\s+/g, '-')}`;
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            
-            await new Promise<void>((resolve, reject) => {
-              img.onload = () => {
-                if (window.rustRenderManager?.load_texture) {
-                  try {
-                    window.rustRenderManager.load_texture(textureName!, img);
-                    console.log('✅ Texture loaded into WASM:', textureName);
-                    resolve();
-                  } catch (err) {
-                    console.error('Failed to load texture into WASM:', err);
-                    reject(err);
-                  }
-                } else {
-                  console.warn('WASM render manager not available');
-                  resolve(); // Continue anyway
-                }
-              };
-              img.onerror = (err) => {
-                console.error('Failed to load image:', err);
-                reject(err);
-              };
-              img.src = tokenUrl!;
-            });
-          }
-        } catch (error) {
-          console.warn('Failed to resolve/load token, using fallback:', error);
-        }
-        
-        // Create NPC character with resolved token
-        const monsterWithToken = {
-          ...monster,
-          token_url: tokenUrl,
-          token_source: tokenSource
-        };
-        
-        const npcCharacter = NPCCharacterService.createNPCFromMonster(
-          monsterWithToken as ExtendedMonster,
-          {
-            userId: user.id,
-            sessionId: sessionId || 'default-session',
-            position: { x: dropX, y: dropY }
-          }
-        );
-        
-        // Add character to store
-        addCharacter(npcCharacter);
-        
-        // Sync character to server
-        if (protocol) {
-          try {
-            protocol.saveCharacter(npcCharacter as any, user.id);
-            console.log('📡 Synced NPC character to server:', npcCharacter.id);
-          } catch (error) {
-            console.error('Failed to sync character to server:', error);
-          }
-        }
-        
-        // SSoT: Ensure table is loaded with auto-recovery
-        let tableId: string;
-        try {
-          tableId = await useGameStore.getState().ensureTableLoaded();
-          console.log(`✅ Table ready: '${tableId}'`);
-        } catch (error) {
-          console.error('❌ Cannot create sprite:', error);
-          return;
-        }
-        
-        // Create sprite/token for the NPC
-        const spriteId = `sprite-${npcCharacter.id}`;
-        const sprite = {
-          id: spriteId,
-          name: name,
-          tableId: tableId,
-          x: dropX,
-          y: dropY,
-          characterId: npcCharacter.id,
-          // Use the texture name we loaded into WASM, or fallback
-          texture: textureName || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjAiIGZpbGw9IiM2NjY2NjYiIHN0cm9rZT0iIzMzMzMzMyIgc3Ryb2tlLXdpZHRoPSIyIi8+PHRleHQgeD0iMjUiIHk9IjMwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMjAiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4/PC90ZXh0Pjwvc3ZnPg==',
-          // Include asset information for multi-client synchronization
-          asset_xxhash: assetXxhash,
-          asset_id: assetId,
-          scale: { x: 1, y: 1 },
-          rotation: 0,
-          layer: 'tokens',
-          hp: monster.hp || 1,
-          maxHp: monster.hp || 1,
-          ac: monster.ac || 10,
-          controlledBy: [String(user.id)],
-          auraRadius: 0
-        };  
-        
-        addSprite(sprite);
-        
-        // Sync sprite to server via protocol
-        // tableId already declared above, using activeTableId (actual table UUID) instead of sessionId (session code)
-        if (protocol && tableId) {
-          try {
-            protocol.sendMessage(createMessage(MessageType.SPRITE_CREATE, {
-              table_id: tableId,
-              character_id: npcCharacter.id,
-              sprite_data: {
-                id: spriteId,
-                name: name,
-                table_id: tableId,
-                x: dropX,
-                y: dropY,
-                character_id: npcCharacter.id,
-                texture: sprite.texture,
-                scale_x: sprite.scale.x,
-                scale_y: sprite.scale.y,
-                rotation: sprite.rotation,
-                layer: sprite.layer,
-                hp: sprite.hp,
-                max_hp: sprite.maxHp,
-                ac: sprite.ac,
-                controlled_by: sprite.controlledBy,
-                aura_radius: sprite.auraRadius,
-                // Include asset tracking fields (may be null for fallback tokens)
-                asset_id: assetId || null,
-                asset_xxhash: assetXxhash || null
-              }
-            }));
-            console.log('📡 Synced sprite to server:', spriteId);
-          } catch (error) {
-            console.error('Failed to sync sprite to server:', error);
-          }
-        }
-        
-        console.log('✅ Created NPC character and token:', { character: npcCharacter, sprite });
-        
-        // Show success notification
-        setUploadState({
-          status: 'completed',
-          progress: 100,
-          message: `Created NPC: ${name}`,
-          fileName: name
-        });
-        
-        setTimeout(() => {
-          setUploadState({ status: 'idle', progress: 0, message: '' });
-        }, 3000);
-        
-        return;
-      } catch (error) {
-        console.error('Failed to create NPC from compendium monster:', error);
-        setUploadState({
-          status: 'failed',
-          progress: 0,
-          message: 'Failed to create NPC character'
-        });
-        return;
-      }
-    }
-
-    // Check for equipment token drop
-    try {
-      const equipmentData = e.dataTransfer.getData('application/json');
-      if (equipmentData) {
-        const parsed = JSON.parse(equipmentData);
-        if (parsed.type === 'equipment-token' && parsed.data) {
-          console.log('📦 Equipment token drop detected:', parsed.data);
-          
-          // SSoT: Ensure table is loaded
-          let tableId: string;
-          try {
-            tableId = await useGameStore.getState().ensureTableLoaded();
-          } catch (error) {
-            console.error('❌ Cannot create equipment sprite:', error);
-            return;
-          }
-          
-          // Create equipment sprite on map
-          const equipment = parsed.data;
-          const spriteId = `equipment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-          
-          // Get equipment emoji for texture fallback
-          const getEquipmentEmoji = (type: string) => {
-            const t = type?.toLowerCase() || '';
-            if (t.includes('weapon')) return '⚔️';
-            if (t.includes('armor')) return '🛡️';
-            if (t.includes('potion')) return '🧪';
-            if (t.includes('scroll')) return '📜';
-            if (t.includes('ring')) return '💍';
-            if (t.includes('wand') || t.includes('staff') || t.includes('rod')) return '🪄';
-            return '📦';
-          };
-          
-          // Create simple SVG texture with emoji
-          const emoji = getEquipmentEmoji(equipment.type);
-          const svgTexture = `data:image/svg+xml;base64,${btoa(`
-            <svg width="50" height="50" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="25" cy="25" r="22" fill="#2a2a2a" stroke="#4a4a4a" stroke-width="2"/>
-              <text x="25" y="35" font-family="Arial" font-size="28" fill="white" text-anchor="middle">${emoji}</text>
-            </svg>
-          `)}`;
-          
-          const sprite = {
-            id: spriteId,
-            name: equipment.name,
-            tableId: tableId,
-            x: dropX,
-            y: dropY,
-            texture: equipment.image_url || svgTexture,
-            scale: { x: 0.5, y: 0.5 }, // Smaller than character tokens
-            rotation: 0,
-            layer: 'tokens',
-            controlledBy: user ? [String(user.id)] : []
-          };
-          
-          addSprite(sprite);
-          
-          // Sync to server
-          if (protocol && tableId) {
-            protocol.sendMessage(createMessage(MessageType.SPRITE_CREATE, {
-              table_id: tableId,
-              sprite_data: {
-                id: spriteId,
-                name: equipment.name,
-                table_id: tableId,
-                x: dropX,
-                y: dropY,
-                texture: sprite.texture,
-                scale_x: sprite.scale.x,
-                scale_y: sprite.scale.y,
-                rotation: sprite.rotation,
-                layer: sprite.layer,
-                controlled_by: sprite.controlledBy
-              }
-            }));
-          }
-          
-          setUploadState({
-            status: 'completed',
-            progress: 100,
-            message: `Placed ${equipment.name} on map`,
-            fileName: equipment.name
-          });
-          
-          setTimeout(() => {
-            setUploadState({ status: 'idle', progress: 0, message: '' });
-          }, 2000);
-          
-          return;
-        }
-      }
-    } catch (error) {
-      // Not equipment data, continue to file handling
-      console.log('Not equipment token data');
-    }
-
-    // Handle image file drops
     const files = Array.from(e.dataTransfer.files);
     const imageFiles = files.filter(file => file.type.startsWith('image/'));
     
@@ -595,7 +287,12 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
       return;
     }
 
-    const dropPosition = { x: dropX, y: dropY };
+    // Get drop position relative to the container
+    const rect = e.currentTarget.getBoundingClientRect();
+    const dropPosition = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
 
     // Process first image file
     const file = imageFiles[0];
@@ -654,7 +351,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         fileName: file.name
       });
     }
-  }, [protocol, camera, sessionId, calculateHash, user, addCharacter, addSprite]);
+  }, [protocol, camera, sessionId, calculateHash]);
 
   // Listen for asset upload responses and sprite creation broadcasts
   useEffect(() => {

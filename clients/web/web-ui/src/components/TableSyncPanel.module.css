@@ -1,4 +1,4 @@
-.tableSyncPanel {
+.table-sync-panel {
   composes: panel-container wide from '../styles/PanelBase.module.css';
   min-width: 320px;
   max-width: 480px;
@@ -28,99 +28,7 @@
   color: white;
 }
 
-/* Base layout classes */
-.panelBase {
-  composes: panel-container from '../styles/PanelBase.module.css';
-}
-
-.loadingState {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-2xl);
-  color: var(--text-secondary);
-}
-
-.loadingSpinner {
-  font-size: var(--font-size-2xl);
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.errorBanner {
-  composes: error-display from '../styles/PanelBase.module.css';
-  margin-bottom: var(--spacing-md);
-}
-
-.panelSection {
-  composes: panel-section from '../styles/PanelBase.module.css';
-}
-
-.controlGroup {
-  composes: control-group from '../styles/PanelBase.module.css';
-}
-
-.inputGroup {
-  composes: input-group from '../styles/PanelBase.module.css';
-}
-
-.inputGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-md);
-}
-
-.threeCol {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: var(--spacing-md);
-}
-
-.panelInput {
-  composes: panel-input from '../styles/PanelBase.module.css';
-}
-
-.panelButton {
-  composes: panel-button from '../styles/PanelBase.module.css';
-}
-
-.primary {
-  composes: panel-button primary from '../styles/PanelBase.module.css';
-}
-
-.success {
-  composes: panel-button success from '../styles/PanelBase.module.css';
-}
-
-.danger {
-  composes: panel-button danger from '../styles/PanelBase.module.css';
-}
-
-.activityLog {
-  composes: log-container from '../styles/PanelBase.module.css';
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.emptyState {
-  composes: empty-state from '../styles/PanelBase.module.css';
-}
-
-.logTimestamp {
-  font-size: var(--text-2xs);
-  color: var(--text-muted);
-  margin-right: var(--spacing-sm);
-}
-
-.logMessage {
-  color: var(--text-secondary);
-}
-
-.tableNameInput {
+.table-name-input {
   flex: 1;
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--bg-tertiary);
@@ -130,40 +38,40 @@
   font-size: var(--font-size-sm);
 }
 
-.tableNameInput:focus {
+.table-name-input:focus {
   border-color: var(--color-success);
   box-shadow: 0 0 0 var(--space-xs) var(--status-success-bg);
 }
 
-.requestButton {
+.request-button {
   composes: panel-button success from '../styles/PanelBase.module.css';
 }
 
-.tableInfo,
-.spriteList,
-.logsSection {
+.table-info,
+.sprite-list,
+.logs-section {
   background: var(--bg-tertiary);
   border-radius: var(--radius-md);
   padding: var(--spacing-md);
   margin-bottom: var(--spacing-lg);
 }
 
-.tableInfo h4,
-.spriteList h4,
-.logsHeader h4 {
+.table-info h4,
+.sprite-list h4,
+.logs-header h4 {
   margin: 0 0 var(--spacing-sm) 0;
   color: var(--color-success);
   font-size: var(--font-size-lg);
 }
 
-.tableStats {
+.table-stats {
   display: flex;
   gap: var(--spacing-lg);
   font-size: var(--font-size-xs);
   color: var(--text-secondary);
 }
 
-.actionButtons button {
+.action-buttons button {
   padding: var(--spacing-sm) var(--spacing-md);
   font-size: var(--font-size-xs);
   background: var(--button-secondary-bg);
@@ -175,23 +83,23 @@
   transition: all var(--transition-fast);
 }
 
-.actionButtons button:hover:not(:disabled) {
+.action-buttons button:hover:not(:disabled) {
   background: var(--button-secondary-hover);
 }
 
-.actionButtons button:disabled {
+.action-buttons button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.spritesContainer,
-.logsContainer {
+.sprites-container,
+.logs-container {
   background: var(--bg-tertiary);
   border-radius: var(--radius-md);
   padding: var(--spacing-sm);
 }
 
-.spriteItem {
+.sprite-item {
   background: var(--bg-tertiary);
   border-radius: var(--radius-sm);
   padding: var(--spacing-sm);
@@ -199,34 +107,34 @@
   border-left: var(--space-xs) solid var(--color-success);
 }
 
-.spriteName {
+.sprite-name {
   font-weight: var(--font-bold);
   color: var(--color-success);
   margin-bottom: var(--spacing-xs);
 }
 
-.spriteDetails,
-.logEntry {
+.sprite-details,
+.log-entry {
   font-size: var(--text-2xs);
   color: var(--text-secondary);
   margin-bottom: var(--space-xs);
 }
 
-.clearLogsButton {
+.clear-logs-button {
   composes: panel-button secondary from '../styles/PanelBase.module.css';
   padding: var(--spacing-xs) var(--spacing-sm);
   font-size: var(--text-2xs);
 }
 
-.noSprites,
-.noLogs {
+.no-sprites,
+.no-logs {
   text-align: center;
   color: var(--text-muted);
   font-style: italic;
   padding: var(--spacing-lg);
 }
 
-.errorDisplay {
+.error-display {
   background: var(--status-error-bg);
   border: var(--border-width) solid var(--status-error-border);
   border-radius: var(--radius-md);

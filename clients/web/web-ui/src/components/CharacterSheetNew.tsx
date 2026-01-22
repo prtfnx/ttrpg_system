@@ -5,10 +5,7 @@ import { ProtocolService } from "../services/ProtocolService";
 import { useGameStore } from "../store";
 import type { Character } from "../types";
 import { showToast } from "../utils/toast";
-import { CharacterInventory } from "./CharacterInventory";
-import { SpellsTab } from "./CharacterSheet/SpellsTab";
 import styles from "./CharacterSheetNew.module.css";
-import { MonsterStatBlock } from "./MonsterStatBlock";
 
 interface CharacterSheetProps {
   character: Character | null;
@@ -48,21 +45,6 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
   
   if (!character) {
     return <div className={styles.characterSheetEmpty}>No character data</div>;
-  }
-
-  // Check if this is an NPC/Monster - render stat block instead
-  const characterType = character.data?.characterType || character.data?.type;
-  console.log('[CharacterSheet] Character type check:', {
-    id: character.id,
-    name: character.name,
-    characterType,
-    dataKeys: Object.keys(character.data || {}),
-    fullData: character.data
-  });
-  
-  if (characterType === 'npc') {
-    console.log('[CharacterSheet] Rendering MonsterStatBlock for NPC:', character.name);
-    return <MonsterStatBlock character={character} />;
   }
 
   const data = character.data || {};
@@ -190,10 +172,61 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
 
 
   const openInNewWindow = () => {
-    // Pop-out doesn't work properly because it copies static HTML without React state
-    // Tabs won't work because there's no React component mounted
-    showToast.warning('Pop-out feature temporarily disabled - tabs require React functionality');
-    return;
+    const newWindow = window.open(
+      '',
+      'character-sheet',
+      'width=1400,height=900,scrollbars=yes,resizable=yes'
+    );
+    
+    if (newWindow) {
+      // Get all stylesheets from current document
+      const styles = Array.from(document.styleSheets)
+        .map(sheet => {
+          try {
+            return Array.from(sheet.cssRules)
+              .map(rule => rule.cssText)
+              .join('\n');
+          } catch (e) {
+            // Cross-origin stylesheets will throw, skip them
+            return '';
+          }
+        })
+        .join('\n');
+
+      // Get the character sheet HTML
+      const sheetHTML = document.querySelector('.character-sheet-redesigned')?.outerHTML || '<p>Error loading character sheet</p>';
+      
+      newWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>${character.name} - Character Sheet</title>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+              ${styles}
+              body { 
+                margin: 0; 
+                padding: 0; 
+                background: #1a1a1a;
+                overflow: auto;
+              }
+              .character-sheet-redesigned {
+                height: 100vh;
+              }
+              /* Hide pop-out button in pop-out window */
+              .popout-btn {
+                display: none !important;
+              }
+            </style>
+          </head>
+          <body>
+            ${sheetHTML}
+          </body>
+        </html>
+      `);
+      newWindow.document.close();
+    }
   };
 
   return (
@@ -234,28 +267,28 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
         <button
           type="button"
           className={clsx(styles.sheetTab, activeTab === "core" && styles.active)}
-          onClick={(e) => { e.stopPropagation(); setActiveTab('core'); }}
+          onClick={() => setActiveTab('core')}
         >
           Core Stats
         </button>
         <button
           type="button"
           className={clsx(styles.sheetTab, activeTab === "spells" && styles.active)}
-          onClick={(e) => { e.stopPropagation(); setActiveTab('spells'); }}
+          onClick={() => setActiveTab('spells')}
         >
           Spells & Features
         </button>
         <button
           type="button"
           className={clsx(styles.sheetTab, activeTab === "inventory" && styles.active)}
-          onClick={(e) => { e.stopPropagation(); setActiveTab('inventory'); }}
+          onClick={() => setActiveTab('inventory')}
         >
           Inventory
         </button>
         <button
           type="button"
           className={clsx(styles.sheetTab, activeTab === "bio" && styles.active)}
-          onClick={(e) => { e.stopPropagation(); setActiveTab('bio'); }}
+          onClick={() => setActiveTab('bio')}
         >
           Notes & Bio
         </button>
@@ -410,7 +443,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                     +5
                   </button>
                 </div>
-                <div className={styles.hpAdjust}>
+                <div className="hp-adjust">
                   <label htmlFor="max-hp">Max HP:</label>
                   <input
                     id="max-hp"
@@ -423,74 +456,74 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
               </div>
 
               {/* Combat Stats */}
-              <div className={clsx(styles.combatStatsCard, styles.card)}>
+              <div className="combat-stats-card card">
                 <h3 className={styles.cardTitle}>Combat Stats</h3>
-                <div className={styles.combatGrid}>
-                  <div className={styles.combatStat}>
+                <div className="combat-grid">
+                  <div className="combat-stat">
                     <label htmlFor="ac">Armor Class</label>
                     <input
                       id="ac"
                       type="number"
                       value={stats.ac || 10}
                       onChange={(e) => handleStatUpdate('ac', Number(e.target.value))}
-                      className={clsx(styles.combatInput, styles.large)}
+                      className="combat-input large"
                     />
                   </div>
-                  <div className={styles.combatStat}>
+                  <div className="combat-stat">
                     <label>Initiative</label>
-                    <div className={clsx(styles.combatValue, styles.large)}>
+                    <div className="combat-value large">
                       {getModifierString(abilities.dex)}
                     </div>
                   </div>
-                  <div className={styles.combatStat}>
+                  <div className="combat-stat">
                     <label htmlFor="speed">Speed</label>
                     <input
                       id="speed"
                       type="number"
                       value={stats.speed || 30}
                       onChange={(e) => handleStatUpdate('speed', Number(e.target.value))}
-                      className={styles.combatInput}
+                      className="combat-input"
                     />
-                    <span className={styles.speedUnit}>ft</span>
+                    <span className="speed-unit">ft</span>
                   </div>
                 </div>
               </div>
 
               {/* Death Saves */}
-              <div className={clsx(styles.deathSavesCard, styles.card)}>
+              <div className="death-saves-card card">
                 <h3 className={styles.cardTitle}>Death Saves</h3>
-                <div className={styles.deathSavesGrid}>
-                  <div className={styles.deathSavesRow}>
-                    <span className={clsx(styles.saveLabel, styles.success)}>Successes</span>
-                    <div className={styles.saveBoxes}>
-                      <input type="checkbox" className={clsx(styles.deathSaveCheck, styles.success)} />
-                      <input type="checkbox" className={clsx(styles.deathSaveCheck, styles.success)} />
-                      <input type="checkbox" className={clsx(styles.deathSaveCheck, styles.success)} />
+                <div className="death-saves-grid">
+                  <div className="death-saves-row">
+                    <span className="save-label success">Successes</span>
+                    <div className="save-boxes">
+                      <input type="checkbox" className="death-save-check success" />
+                      <input type="checkbox" className="death-save-check success" />
+                      <input type="checkbox" className="death-save-check success" />
                     </div>
                   </div>
-                  <div className={styles.deathSavesRow}>
-                    <span className={clsx(styles.saveLabel, styles.failure)}>Failures</span>
-                    <div className={styles.saveBoxes}>
-                      <input type="checkbox" className={clsx(styles.deathSaveCheck, styles.failure)} />
-                      <input type="checkbox" className={clsx(styles.deathSaveCheck, styles.failure)} />
-                      <input type="checkbox" className={clsx(styles.deathSaveCheck, styles.failure)} />
+                  <div className="death-saves-row">
+                    <span className="save-label failure">Failures</span>
+                    <div className="save-boxes">
+                      <input type="checkbox" className="death-save-check failure" />
+                      <input type="checkbox" className="death-save-check failure" />
+                      <input type="checkbox" className="death-save-check failure" />
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Conditions */}
-              <div className={clsx(styles.conditionsCard, styles.card)}>
+              <div className="conditions-card card">
                 <h3 className={styles.cardTitle}>Conditions</h3>
-                <div className={styles.conditionsList}>
+                <div className="conditions-list">
                   {(data.conditions && data.conditions.length > 0) ? (
                     data.conditions.map((condition: string) => (
-                      <span key={condition} className={styles.conditionBadge}>
+                      <span key={condition} className="condition-badge">
                         {condition}
                       </span>
                     ))
                   ) : (
-                    <div className={styles.noConditions}>No active conditions</div>
+                    <div className="no-conditions">No active conditions</div>
                   )}
                 </div>
               </div>
@@ -499,21 +532,21 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
             {/* Right Column - Features & Actions */}
             <div className={styles.rightColumn}>
               {/* Hit Dice */}
-              <div className={clsx(styles.hitDiceCard, styles.card)}>
+              <div className="hit-dice-card card">
                 <h3 className={styles.cardTitle}>Hit Dice</h3>
-                <div className={styles.hitDiceDisplay}>
-                  <span className={styles.hitDiceCount}>
+                <div className="hit-dice-display">
+                  <span className="hit-dice-count">
                     {data.level || 1}d{data.hitDie || 8}
                   </span>
-                  <button type="button" className={styles.useHitDieBtn}>
+                  <button type="button" className="use-hit-die-btn">
                     Use Hit Die
                   </button>
                 </div>
               </div>
 
               {/* Inspiration */}
-              <div className={clsx(styles.inspirationCard, styles.card)}>
-                <label className={styles.inspirationCheck}>
+              <div className="inspiration-card card">
+                <label className="inspiration-check">
                   <input
                     type="checkbox"
                     checked={data.inspiration || false}
@@ -523,29 +556,29 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                       });
                     }}
                   />
-                  <span className={styles.inspirationLabel}>Inspiration</span>
+                  <span className="inspiration-label">Inspiration</span>
                 </label>
               </div>
 
               {/* Attacks & Actions */}
-              <div className={clsx(styles.attacksCard, styles.card)}>
+              <div className="attacks-card card">
                 <h3 className={styles.cardTitle}>Attacks & Spellcasting</h3>
-                <div className={styles.attackInfo}>
-                  <div className={styles.attackRow}>
-                    <span className={styles.attackLabel}>Melee Attack:</span>
-                    <span className={styles.attackBonus}>
+                <div className="attack-info">
+                  <div className="attack-row">
+                    <span className="attack-label">Melee Attack:</span>
+                    <span className="attack-bonus">
                       {getModifierString(abilities.str)} + {profBonus}
                     </span>
                   </div>
-                  <div className={styles.attackRow}>
-                    <span className={styles.attackLabel}>Ranged Attack:</span>
-                    <span className={styles.attackBonus}>
+                  <div className="attack-row">
+                    <span className="attack-label">Ranged Attack:</span>
+                    <span className="attack-bonus">
                       {getModifierString(abilities.dex)} + {profBonus}
                     </span>
                   </div>
-                  <div className={styles.attackRow}>
-                    <span className={styles.attackLabel}>Spell Save DC:</span>
-                    <span className={styles.attackBonus}>
+                  <div className="attack-row">
+                    <span className="attack-label">Spell Save DC:</span>
+                    <span className="attack-bonus">
                       {8 + profBonus + Math.max(getModifier(abilities.wis), getModifier(abilities.int), getModifier(abilities.cha))}
                     </span>
                   </div>
@@ -553,17 +586,17 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
               </div>
 
               {/* Features & Traits */}
-              <div className={clsx(styles.featuresCard, styles.card)}>
+              <div className="features-card card">
                 <h3 className={styles.cardTitle}>Features & Traits</h3>
-                <div className={styles.featuresList}>
+                <div className="features-list">
                   {data.features && data.features.length > 0 ? (
                     data.features.map((feature: string, idx: number) => (
-                      <div key={idx} className={styles.featureItem}>
+                      <div key={idx} className="feature-item">
                         {feature}
                       </div>
                     ))
                   ) : (
-                    <div className={styles.noFeatures}>No features listed</div>
+                    <div className="no-features">No features listed</div>
                   )}
                 </div>
               </div>
@@ -572,25 +605,25 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
         )}
 
         {activeTab === 'spells' && (
-          <SpellsTab 
-            character={character}
-            onSave={onSave}
-          />
+          <div className="spells-tab-content">
+            <h3>Spells & Magical Abilities</h3>
+            <p>Spell list will appear here</p>
+          </div>
         )}
 
         {activeTab === 'inventory' && (
-          <CharacterInventory
-            character={character}
-            onSave={onSave}
-          />
+          <div className="inventory-tab-content">
+            <h3>Equipment & Inventory</h3>
+            <p>Inventory system will appear here</p>
+          </div>
         )}
 
         {activeTab === 'bio' && (
-          <div className={styles.bioTabContent}>
+          <div className="bio-tab-content">
             <h3>Character Biography & Tokens</h3>
             
             {/* Bio Section */}
-            <div className={styles.bioSection}>
+            <div className={styles.bioSection} style={{ marginBottom: '24px' }}>
               <h4>Biography</h4>
               <textarea
                 value={character.data?.bio || ''}
@@ -599,41 +632,67 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                 })}
                 placeholder="Write your character's backstory, personality, goals, etc..."
                 rows={6}
-                className={styles.bioTextarea}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  fontSize: '14px',
+                  border: '1px solid #444',
+                  borderRadius: '6px',
+                  backgroundColor: '#2a2a2a',
+                  color: '#e0e0e0',
+                  resize: 'vertical',
+                  fontFamily: 'inherit'
+                }}
               />
             </div>
 
             {/* Linked Tokens Section */}
-            <div className={styles.linkedTokensSection}>
+            <div className="linked-tokens-section" style={{ marginBottom: '24px' }}>
               <h4>Linked Tokens</h4>
               {linkedTokens.length > 0 ? (
-                <div className={styles.tokenGrid}>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   {linkedTokens.map(token => (
                     <div 
                       key={token.id} 
-                      className={styles.tokenItem}
+                      style={{
+                        padding: '8px 12px',
+                        backgroundColor: '#3a3a3a',
+                        borderRadius: '6px',
+                        border: '1px solid #555',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
                     >
-                      <span className={styles.tokenIcon}>🎭</span>
-                      <span className={styles.tokenName}>{token.name || token.id.substring(0, 8)}</span>
+                      <span style={{ fontSize: '14px' }}>🎭</span>
+                      <span style={{ fontSize: '13px' }}>{token.name || token.id.substring(0, 8)}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className={styles.noTokens}>No tokens linked to this character</p>
+                <p style={{ color: '#888', fontSize: '13px' }}>No tokens linked to this character</p>
               )}
             </div>
 
             {/* Link Existing Token */}
-            <div className={styles.linkTokenSection}>
-              <h4>Link Existing Token</h4>
-              <p className={styles.sectionDescription}>
+            <div className="link-token-section" style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#2a2a2a', borderRadius: '8px', border: '1px solid #444' }}>
+              <h4 style={{ marginTop: 0 }}>Link Existing Token</h4>
+              <p style={{ fontSize: '13px', color: '#aaa', marginBottom: '12px' }}>
                 Select a token from the current table to link to this character
               </p>
-              <div className={styles.tokenControls}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                 <select
                   value={selectedTokenSpriteId}
                   onChange={(e) => setSelectedTokenSpriteId(e.target.value)}
-                  className={styles.tokenSelect}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    backgroundColor: '#1a1a1a',
+                    color: '#e0e0e0',
+                    border: '1px solid #555',
+                    borderRadius: '6px',
+                    fontSize: '14px'
+                  }}
                 >
                   <option value="">-- Select a token --</option>
                   {availableSprites.map(sprite => (
@@ -645,7 +704,16 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                 <button
                   onClick={handleLinkExistingToken}
                   disabled={!selectedTokenSpriteId}
-                  className={styles.linkButton}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: selectedTokenSpriteId ? '#4a90e2' : '#333',
+                    color: selectedTokenSpriteId ? '#fff' : '#666',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: selectedTokenSpriteId ? 'pointer' : 'not-allowed',
+                    fontSize: '14px',
+                    fontWeight: 500
+                  }}
                 >
                   Link Token
                 </button>
@@ -653,31 +721,46 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
             </div>
 
             {/* Create New Token from Image */}
-            <div className={styles.createTokenSection}>
-              <h4>Create New Token</h4>
-              <p className={styles.sectionDescription}>
+            <div className="create-token-section" style={{ padding: '16px', backgroundColor: '#2a2a2a', borderRadius: '8px', border: '1px solid #444' }}>
+              <h4 style={{ marginTop: 0 }}>Create New Token</h4>
+              <p style={{ fontSize: '13px', color: '#aaa', marginBottom: '12px' }}>
                 Upload an image to create a new token on the current table
               </p>
               
               {/* Image Upload */}
-              <div className={styles.imageUpload}>
+              <div style={{ marginBottom: '16px' }}>
                 <input
                   ref={imageInputRef}
                   type="file"
                   accept="image/*"
                   onChange={handleImageChange}
-                  className={styles.fileInput}
+                  style={{
+                    padding: '8px',
+                    backgroundColor: '#1a1a1a',
+                    color: '#e0e0e0',
+                    border: '1px solid #555',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    width: '100%'
+                  }}
                 />
               </div>
 
               {/* Image Preview */}
               {tokenImagePreview && (
-                <div className={styles.imagePreview}>
-                  <p className={styles.previewLabel}>Preview:</p>
+                <div style={{ marginBottom: '16px', textAlign: 'center' }}>
+                  <p style={{ fontSize: '13px', color: '#aaa', marginBottom: '8px' }}>Preview:</p>
                   <img
                     src={tokenImagePreview}
                     alt="Token preview"
-                    className={styles.previewImage}
+                    style={{
+                      maxWidth: '120px',
+                      maxHeight: '120px',
+                      borderRadius: '8px',
+                      border: '2px solid #4a90e2',
+                      objectFit: 'contain'
+                    }}
                   />
                 </div>
               )}
@@ -686,13 +769,23 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
               <button
                 onClick={handleCreateTokenFromImage}
                 disabled={!tokenImagePreview || !isConnected}
-                className={styles.createButton}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  backgroundColor: (tokenImagePreview && isConnected) ? '#10b981' : '#333',
+                  color: (tokenImagePreview && isConnected) ? '#fff' : '#666',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: (tokenImagePreview && isConnected) ? 'pointer' : 'not-allowed',
+                  fontSize: '15px',
+                  fontWeight: 600
+                }}
               >
                 {!isConnected ? '⚠️ Not Connected' : !tokenImagePreview ? 'Upload Image First' : '✨ Add as Token on Table'}
               </button>
               
               {!activeTableId && (
-                <p className={styles.warningText}>
+                <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '8px', textAlign: 'center' }}>
                   ⚠️ No active table selected
                 </p>
               )}

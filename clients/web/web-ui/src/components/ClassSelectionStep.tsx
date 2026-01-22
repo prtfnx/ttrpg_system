@@ -28,15 +28,15 @@ const ClassDisplay: React.FC<ClassDisplayProps> = ({ characterClass, isSelected,
   const [showDetails, setShowDetails] = useState(false);
 
   return (
-    <div className={isSelected ? styles.classCardSelected : styles.classCard}>
-      <div className={styles.classHeader} onClick={onSelect}>
-        <div className={styles.classNameContainer}>
+    <div className={`class-card ${isSelected ? 'selected' : ''}`}>
+      <div className="class-header" onClick={onSelect}>
+        <div className="class-name-container">
           <h3 className={styles.className}>{characterClass.name}</h3>
-          <span className={styles.hitDie}>Hit Die: d{characterClass.hit_dice}</span>
+          <span className="hit-die">Hit Die: d{characterClass.hit_dice}</span>
         </div>
         <button 
           type="button"
-          className={styles.detailsToggle}
+          className="details-toggle"
           onClick={(e) => {
             e.stopPropagation();
             setShowDetails(!showDetails);
@@ -46,40 +46,40 @@ const ClassDisplay: React.FC<ClassDisplayProps> = ({ characterClass, isSelected,
         </button>
       </div>
       
-      <div className={styles.classSummary}>
+      <div className="class-summary">
         <p className={styles.classDescription}>{characterClass.description}</p>
-        <div className={styles.classBasics}>
-          <div className={styles.primaryAbilities}>
+        <div className="class-basics">
+          <div className="primary-abilities">
             <strong>Primary Abilities:</strong> {characterClass.primary_abilities.join(', ')}
           </div>
-          <div className={styles.savingThrows}>
+          <div className="saving-throws">
             <strong>Saving Throw Proficiencies:</strong> {characterClass.saving_throw_proficiencies.join(', ')}
           </div>
         </div>
       </div>
 
       {showDetails && (
-        <div className={styles.classDetails}>
-          <div className={styles.proficienciesSection}>
-            <div className={styles.proficiencyGroup}>
+        <div className="class-details">
+          <div className="proficiencies-section">
+            <div className="proficiency-group">
               <h4>Skill Proficiencies</h4>
               <p>Choose {characterClass.skill_proficiencies.choose} from: {characterClass.skill_proficiencies.available.join(', ')}</p>
             </div>
             
             {characterClass.armor_proficiencies.length > 0 && (
-              <div className={styles.proficiencyGroup}>
+              <div className="proficiency-group">
                 <h4>Armor Proficiencies</h4>
                 <p>{characterClass.armor_proficiencies.join(', ')}</p>
               </div>
             )}
             
-            <div className={styles.proficiencyGroup}>
+            <div className="proficiency-group">
               <h4>Weapon Proficiencies</h4>
               <p>{characterClass.weapon_proficiencies.join(', ')}</p>
             </div>
 
             {characterClass.tool_proficiencies.length > 0 && (
-              <div className={styles.proficiencyGroup}>
+              <div className="proficiency-group">
                 <h4>Tool Proficiencies</h4>
                 <p>{characterClass.tool_proficiencies.join(', ')}</p>
               </div>
@@ -87,7 +87,7 @@ const ClassDisplay: React.FC<ClassDisplayProps> = ({ characterClass, isSelected,
           </div>
 
           {characterClass.spellcasting && (
-            <div className={styles.spellcastingSection}>
+            <div className="spellcasting-section">
               <h4>Spellcasting</h4>
               <p><strong>Spellcasting Ability:</strong> {characterClass.spellcasting.ability}</p>
               <p><strong>Ritual Casting:</strong> {characterClass.spellcasting.ritual_casting ? 'Yes' : 'No'}</p>
@@ -97,16 +97,16 @@ const ClassDisplay: React.FC<ClassDisplayProps> = ({ characterClass, isSelected,
             </div>
           )}
 
-          <div className={styles.featuresPreview}>
+          <div className="features-preview">
             <h4>Level 1 Features</h4>
             {characterClass.features
               .filter(feature => feature.level === 1)
               .map((feature, index) => (
-                <div key={index} className={styles.featurePreview}>
+                <div key={index} className="feature-preview">
                   <h5>{feature.name}</h5>
                   <p>{feature.description}</p>
                   {feature.usage && (
-                    <p className={styles.featureUsage}>
+                    <p className="feature-usage">
                       <strong>Usage:</strong> {feature.usage.amount} per {feature.usage.type.replace('_', ' ')}
                     </p>
                   )}
@@ -114,11 +114,11 @@ const ClassDisplay: React.FC<ClassDisplayProps> = ({ characterClass, isSelected,
               ))}
           </div>
 
-          <div className={styles.subclassesPreview}>
+          <div className="subclasses-preview">
             <h4>Available {characterClass.name === 'Wizard' ? 'Schools' : 'Archetypes'} (Level {characterClass.archetype_level})</h4>
-            <div className={styles.subclassesGrid}>
+            <div className="subclasses-grid">
               {characterClass.subclasses.map((subclass, index) => (
-                <div key={index} className={styles.subclassPreview}>
+                <div key={index} className="subclass-preview">
                   <h5>{subclass.name}</h5>
                   <p>{subclass.description}</p>
                 </div>
@@ -145,43 +145,43 @@ const SubclassSelection: React.FC<SubclassSelectionProps> = ({
   const [showSubclassDetails, setShowSubclassDetails] = useState<string | null>(null);
 
   return (
-    <div className={styles.subclassSelection}>
+    <div className="subclass-selection">
       <h3>Choose your {characterClass.name === 'Wizard' ? 'Arcane Tradition' : 'Archetype'}</h3>
-      <p className={styles.subclassDescription}>
+      <p className="subclass-description">
         At level {characterClass.archetype_level}, you must choose a specialization that defines your character's advanced abilities.
       </p>
 
-      <div className={styles.subclassesList}>
+      <div className="subclasses-list">
         {characterClass.subclasses.map((subclass, index) => (
-          <div key={index} className={selectedSubclass === subclass.name ? styles.subclassCardSelected : styles.subclassCard}>
-            <div className={styles.subclassHeader}>
-              <div className={styles.subclassInfo} onClick={() => onSubclassSelect(subclass.name)}>
+          <div key={index} className={`subclass-card ${selectedSubclass === subclass.name ? 'selected' : ''}`}>
+            <div className="subclass-header">
+              <div className="subclass-info" onClick={() => onSubclassSelect(subclass.name)}>
                 <h4>{subclass.name}</h4>
-                <span className={styles.subclassSource}>Source: {subclass.source}</span>
+                <span className="subclass-source">Source: {subclass.source}</span>
               </div>
               <button 
                 type="button"
-                className={styles.detailsToggle}
+                className="details-toggle"
                 onClick={() => setShowSubclassDetails(showSubclassDetails === subclass.name ? null : subclass.name)}
               >
                 {showSubclassDetails === subclass.name ? 'Hide' : 'Show'} Features
               </button>
             </div>
             
-            <p className={styles.subclassDescription}>{subclass.description}</p>
+            <p className="subclass-description">{subclass.description}</p>
 
             {showSubclassDetails === subclass.name && (
-              <div className={styles.subclassFeatures}>
+              <div className="subclass-features">
                 <h5>Subclass Features</h5>
                 {subclass.features.map((feature, featureIndex) => (
-                  <div key={featureIndex} className={styles.featureDetail}>
-                    <div className={styles.featureHeader}>
-                      <span className={styles.featureName}>{feature.name}</span>
-                      <span className={styles.featureLevel}>Level {feature.level}</span>
+                  <div key={featureIndex} className="feature-detail">
+                    <div className="feature-header">
+                      <span className="feature-name">{feature.name}</span>
+                      <span className="feature-level">Level {feature.level}</span>
                     </div>
-                    <p className={styles.featureDescription}>{feature.description}</p>
+                    <p className="feature-description">{feature.description}</p>
                     {feature.usage && (
-                      <p className={styles.featureUsage}>
+                      <p className="feature-usage">
                         <strong>Usage:</strong> {feature.usage.amount} per {feature.usage.type.replace('_', ' ')}
                         {feature.usage.scaling && feature.usage.scaling.length > 0 && (
                           <span> (scales at levels: {feature.usage.scaling.map(s => s.level).join(', ')})</span>
@@ -270,15 +270,15 @@ const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ onNext, onBack 
   const selectedClassInfo = getSelectedClassInfo();
 
   return (
-    <div className={styles.classSelectionStep}>
-      <div className={styles.stepHeader}>
+    <div className="class-selection-step">
+      <div className="step-header">
         <h2>Choose Your Class</h2>
         <p>Your class determines your character's primary abilities, proficiencies, and special features.</p>
       </div>
 
       {!showSubclassSelection ? (
-        <div className={styles.classesSelection}>
-          <div className={styles.classesGrid}>
+        <div className="classes-selection">
+          <div className="classes-grid">
             {availableClasses.map((characterClass, index) => (
               <ClassDisplay
                 key={index}
@@ -290,17 +290,17 @@ const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ onNext, onBack 
           </div>
 
           {selectedClassInfo && (
-            <div className={styles.selectedClassSummary}>
+            <div className="selected-class-summary">
               <h3>Selected: {selectedClassInfo.name}</h3>
-              <div className={styles.classBenefits}>
-                <div className={styles.benefitItem}>
+              <div className="class-benefits">
+                <div className="benefit-item">
                   <strong>Hit Points:</strong> {selectedClassInfo.hit_dice} + CON modifier per level
                 </div>
-                <div className={styles.benefitItem}>
+                <div className="benefit-item">
                   <strong>Proficiency Bonus:</strong> +{classProgressionService.getProficiencyBonus(characterLevel)}
                 </div>
                 {selectedClassInfo.spellcasting && (
-                  <div className={styles.benefitItem}>
+                  <div className="benefit-item">
                     <strong>Spellcasting:</strong> Uses {selectedClassInfo.spellcasting.ability}
                   </div>
                 )}
@@ -309,7 +309,7 @@ const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ onNext, onBack 
           )}
 
           {errors.character_class && (
-            <div className={styles.errorMessage}>
+            <div className="error-message">
               Please select a class before proceeding.
             </div>
           )}
@@ -324,8 +324,8 @@ const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ onNext, onBack 
         )
       )}
 
-      <div className={styles.stepNavigation}>
-        <button type="button" onClick={onBack} className={styles.btn}>
+      <div className="step-navigation">
+        <button type="button" onClick={onBack} className="btn btn-secondary">
           Back
         </button>
         
@@ -333,7 +333,7 @@ const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ onNext, onBack 
           <button 
             type="button" 
             onClick={() => setShowSubclassSelection(false)}
-            className={styles.btn}
+            className="btn btn-secondary"
           >
             Back to Classes
           </button>
@@ -343,7 +343,7 @@ const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ onNext, onBack 
           type="button" 
           onClick={onNext} 
           disabled={!canProceed()}
-          className={styles.btnPrimary}
+          className="btn btn-primary"
         >
           Next: {showSubclassSelection ? 'Continue' : 'Ability Scores'}
         </button>

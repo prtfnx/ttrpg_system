@@ -2,12 +2,9 @@ import clsx from 'clsx';
 import React, { useEffect } from 'react';
 import { useAuthenticatedWebSocket } from '../hooks/useAuthenticatedWebSocket';
 import type { UserInfo } from '../services/auth.service';
-import type { SessionRole } from '../types/roles';
 import { GameCanvas } from './GameCanvas';
-import { MonsterQuickActions } from './GameCanvas/MonsterQuickActions';
 import styles from './GameClient.module.css';
 import { RightPanel } from './RightPanel';
-import { SessionManagementPanel } from './SessionManagement/SessionManagementPanel';
 import { TokenConfigModal } from './TokenConfigModal';
 import { ToolsPanel } from './ToolsPanel';
 
@@ -23,7 +20,7 @@ interface ErrorBoundaryProps {
 interface GameClientProps {
   sessionCode: string;
   userInfo: UserInfo;
-  userRole: SessionRole;
+  userRole: 'dm' | 'player';
   onAuthError: () => void;
 }
 
@@ -54,15 +51,22 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     userInfo
   });
 
-  // Expose protocol globally for integration points (read-only usage by components)
+  // Expose protocol and active table id globally for integration points (read-only usage by components)
   useEffect(() => {
     if (protocol) (window as any).protocol = protocol;
     return () => { if ((window as any).protocol === protocol) delete (window as any).protocol; };
   }, [protocol]);
 
-  // SSoT Pattern: activeTableId lives ONLY in Zustand store
-  // Components should use: const { activeTableId } = useGameStore();
-  // Services should use: useGameStore.getState().activeTableId
+  // Expose activeTableId for components that need the current table context (e.g. Compendium drag)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      // update when table is switched by store events
+      const custom = e as CustomEvent;
+      (window as any).activeTableId = custom.detail?.table_id || null;
+    };
+    window.addEventListener('table-data-received', handler);
+    return () => window.removeEventListener('table-data-received', handler);
+  }, []);
 
   // Handle asset download requests from WASM integration service
   useEffect(() => {
@@ -110,13 +114,6 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
 
   // Token config modal state
   const [tokenConfigSpriteId, setTokenConfigSpriteId] = React.useState<string | null>(null);
-  
-  // Monster quick actions state
-  const [monsterQuickActionsSprite, setMonsterQuickActionsSprite] = React.useState<{
-    spriteId: string;
-    characterId: string;
-    position: { x: number; y: number };
-  } | null>(null);
 
   // Listen for double-click events from Rust WASM
   useEffect(() => {
@@ -130,29 +127,6 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     window.addEventListener('tokenDoubleClick', handleTokenDoubleClick);
     return () => {
       window.removeEventListener('tokenDoubleClick', handleTokenDoubleClick);
-    };
-  }, []);
-  
-  // Listen for right-click events on monster tokens (for quick actions)
-  useEffect(() => {
-    const handleTokenRightClick = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const { spriteId, characterId, x, y } = customEvent.detail;
-      
-      // Only show for monster/NPC tokens
-      if (characterId) {
-        console.log('[GameClient] Monster token right-click:', { spriteId, characterId });
-        setMonsterQuickActionsSprite({
-          spriteId,
-          characterId,
-          position: { x, y }
-        });
-      }
-    };
-
-    window.addEventListener('tokenRightClick', handleTokenRightClick);
-    return () => {
-      window.removeEventListener('tokenRightClick', handleTokenRightClick);
     };
   }, []);
 
@@ -237,7 +211,8 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
                 {connectionState === 'error' && `Error: ${error}`}
               </span>
             </div>
-            <ToolsPanel userInfo={userInfo} userRole={userRole} />
+            <ToolsPanel userInfo={userInfo} />
+            <button className={styles.collapseBtn} onClick={toggleLeft}>◀</button>
           </div>
         )}
         
@@ -249,19 +224,15 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
         )}
         
         <div className={styles.canvasContainer}>
-          <GameCanvas sessionCode={sessionCode} userInfo={userInfo} />
-          {!leftVisible && (
-            <button className={clsx(styles.expandBtn, styles.left)} onClick={toggleLeft}>▶</button>
-          )}
-          {!rightVisible && (
-            <button className={clsx(styles.expandBtn, styles.right)} onClick={toggleRight}>◀</button>
-          )}
-          {leftVisible && (
-            <button className={styles.collapseBtn} onClick={toggleLeft}>◀</button>
-          )}
-          {rightVisible && (
-            <button className={styles.collapseBtnRight} onClick={toggleRight}>▶</button>
-          )}
+          <GameCanvas />
+          <div className={styles.canvasControls}>
+            {!leftVisible && (
+              <button className={clsx(styles.expandBtn, styles.left)} onClick={toggleLeft}>▶</button>
+            )}
+            {!rightVisible && (
+              <button className={clsx(styles.expandBtn, styles.right)} onClick={toggleRight}>◀</button>
+            )}
+          </div>
         </div>
         
         {rightVisible && (
@@ -273,7 +244,8 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
         
         {rightVisible && (
           <div className={styles.rightPanel} style={{ width: rightWidth }}>
-            <RightPanel sessionCode={sessionCode} userInfo={userInfo} userRole={userRole} />
+            <RightPanel sessionCode={sessionCode} userInfo={userInfo} />
+            <button className={styles.collapseBtn} onClick={toggleRight}>▶</button>
           </div>
         )}
 
@@ -284,18 +256,6 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
             onClose={() => setTokenConfigSpriteId(null)}
           />
         )}
-        
-        {/* Monster Quick Actions Overlay */}
-        {monsterQuickActionsSprite && (
-          <MonsterQuickActions
-            characterId={monsterQuickActionsSprite.characterId}
-            spritePosition={monsterQuickActionsSprite.position}
-            onClose={() => setMonsterQuickActionsSprite(null)}
-          />
-        )}
-
-        {/* Session Management Panel (DM only) */}
-        {(userRole === 'owner' || userRole === 'co_dm') && <SessionManagementPanel sessionCode={sessionCode} />}
       </div>
     </DebugErrorBoundary>
   );

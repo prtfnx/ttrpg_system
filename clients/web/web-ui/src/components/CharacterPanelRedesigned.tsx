@@ -1,17 +1,15 @@
 import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { Rnd } from 'react-rnd';
-import { useCharacterSheet } from '../contexts/CharacterSheetContext';
 import { authService } from '../services/auth.service';
 import { useProtocol } from '../services/ProtocolContext';
 import { useGameStore } from '../store';
 import type { Character } from '../types';
 import {
-  cloneCharacter,
-  downloadCharacterAsJSON,
-  downloadMultipleCharactersAsJSON,
-  pickAndImportCharacter
+    cloneCharacter,
+    downloadCharacterAsJSON,
+    downloadMultipleCharactersAsJSON,
+    pickAndImportCharacter
 } from '../utils/characterImportExport';
 import { showToast } from '../utils/toast';
 import styles from './CharacterPanelRedesigned.module.css';
@@ -235,7 +233,7 @@ export function CharacterPanelRedesigned() {
   const [searchFilter, setSearchFilter] = useState<string>('');
   const [selectedCharacterIds, setSelectedCharacterIds] = useState<Set<string>>(new Set());
   const [bulkSelectMode, setBulkSelectMode] = useState<boolean>(false);
-  const { viewSheetCharId, setViewSheetCharId } = useCharacterSheet();
+  const [viewSheetCharId, setViewSheetCharId] = useState<string | null>(null);
 
   const selectedCharacter = characters.find(c => {
     return getSpritesForCharacter(c.id).some(s => selectedSprites.includes(s.id));
@@ -360,17 +358,10 @@ export function CharacterPanelRedesigned() {
 
   const handleDeleteCharacter = async (charId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('[CharacterPanel] Delete character clicked:', charId);
-    
     if (!window.confirm('Delete this character?')) return;
     
     const character = characters.find(c => c.id === charId);
-    if (!character) {
-      console.warn('[CharacterPanel] Character not found for deletion:', charId);
-      return;
-    }
-    
-    console.log('[CharacterPanel] Deleting character:', { id: charId, name: character.name, ownerId: character.ownerId, currentUserId });
+    if (!character) return;
     
     // Optimistic update: Remove from UI immediately
     removeCharacter(charId);
@@ -382,12 +373,11 @@ export function CharacterPanelRedesigned() {
         // Register pending delete operation with automatic rollback
         registerPendingOperation(charId, 'delete', character);
         
-        console.log('[CharacterPanel] Calling protocol.deleteCharacter with userId:', currentUserId);
-        protocol.deleteCharacter(charId, currentUserId);
+        protocol.deleteCharacter(charId);
         // Server will broadcast CHARACTER_UPDATE with operation:'delete'
         // Pending operation will be confirmed when server responds
       } catch (error) {
-        console.error('[CharacterPanel] Failed to delete character:', error);
+        console.error('Failed to delete character:', error);
         // Clear pending operation and rollback immediately
         confirmPendingOperation(charId);
         addCharacter(character);
@@ -395,7 +385,7 @@ export function CharacterPanelRedesigned() {
       }
     } else if (charId.startsWith('temp-')) {
       // Temp character - just remove locally
-      console.log('[CharacterPanel] Removed local-only character');
+      console.log('Removed local-only character');
     }
   };
 
@@ -553,15 +543,12 @@ export function CharacterPanelRedesigned() {
     let successCount = 0;
     let errorCount = 0;
 
-    console.log('[CharacterPanel] Bulk delete starting for', count, 'characters');
-
     for (const charId of selectedCharacterIds) {
       const char = characters.find(c => c.id === charId);
       if (!char) continue;
 
       // Check permissions
       if (!canEditCharacter(charId, currentUserId)) {
-        console.warn('[CharacterPanel] No permission to delete:', charId);
         errorCount++;
         continue;
       }
@@ -573,12 +560,11 @@ export function CharacterPanelRedesigned() {
         // Send to server if connected and not a temp ID
         if (isConnected && protocol && !charId.startsWith('temp-')) {
           registerPendingOperation(charId, 'delete', char);
-          console.log('[CharacterPanel] Bulk deleting character:', charId, 'userId:', currentUserId);
-          protocol.deleteCharacter(charId, currentUserId);
+          protocol.deleteCharacter(charId);
         }
         successCount++;
       } catch (error) {
-        console.error(`[CharacterPanel] Failed to delete character ${charId}:`, error);
+        console.error(`Failed to delete character ${charId}:`, error);
         // Rollback on error
         addCharacter(char);
         errorCount++;
@@ -840,29 +826,32 @@ export function CharacterPanelRedesigned() {
         {isConnected && (
           <span className={clsx(styles.connectionStatus, 'connected')} title="Connected to server">🟢</span>
         )}
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
-            className={styles.toolbarBtn}
+            className={styles.actionBtn}
             onClick={handleImportCharacter}
             title="Import character from JSON file"
+            style={{ fontSize: '12px', padding: '6px 12px' }}
           >
-            Import
+            📤 Import
           </button>
           {characters.length > 0 && (
             <>
               <button
-                className={styles.toolbarBtn}
+                className={styles.actionBtn}
                 onClick={handleExportAllCharacters}
                 title="Export all characters to JSON file"
+                style={{ fontSize: '12px', padding: '6px 12px' }}
               >
-                Export All
+                📥 Export All
               </button>
               <button
-                className={clsx(styles.toolbarBtn, bulkSelectMode && styles.toolbarBtnActive)}
+                className={clsx(styles.actionBtn, bulkSelectMode && 'active')}
                 onClick={handleToggleBulkMode}
                 title={bulkSelectMode ? "Exit bulk selection mode" : "Enter bulk selection mode"}
+                style={{ fontSize: '12px', padding: '6px 12px' }}
               >
-                {bulkSelectMode ? 'Done' : 'Select'}
+                {bulkSelectMode ? '✓ Done' : '☑ Select'}
               </button>
             </>
           )}
@@ -881,24 +870,32 @@ export function CharacterPanelRedesigned() {
       {/* Bulk Actions Bar */}
       {bulkSelectMode && (
         <div className={styles.bulkActionsBar}>
-          <span className={styles.bulkSelectionCount}>
-            {selectedCharacterIds.size} selected
-          </span>
-          <button className={styles.bulkActionLink} onClick={handleSelectAllCharacters}>All</button>
-          <button className={styles.bulkActionLink} onClick={handleDeselectAllCharacters}>None</button>
-          {selectedCharacterIds.size > 0 && (
-            <>
-              <button className={clsx(styles.bulkActionBtn, styles.bulkExport)} onClick={handleBulkExport}>
-                Export
-              </button>
-              <button className={clsx(styles.bulkActionBtn, styles.bulkShare)} onClick={handleBulkShare}>
-                Share
-              </button>
-              <button className={clsx(styles.bulkActionBtn, styles.bulkDelete)} onClick={handleBulkDelete}>
-                Delete
-              </button>
-            </>
-          )}
+          <div className={styles.bulkActionsLeft}>
+            <span className={styles.bulkSelectionCount}>
+              {selectedCharacterIds.size} selected
+            </span>
+            <button className={styles.bulkActionLink} onClick={handleSelectAllCharacters}>
+              Select All
+            </button>
+            <button className={styles.bulkActionLink} onClick={handleDeselectAllCharacters}>
+              Deselect All
+            </button>
+          </div>
+          <div className={styles.bulkActionsRight}>
+            {selectedCharacterIds.size > 0 && (
+              <>
+                <button className={clsx(styles.bulkActionBtn, "export")} onClick={handleBulkExport}>
+                  📥 Export Selected
+                </button>
+                <button className={clsx(styles.bulkActionBtn, "share")} onClick={handleBulkShare}>
+                  👥 Share Selected
+                </button>
+                <button className={clsx(styles.bulkActionBtn, "delete")} onClick={handleBulkDelete}>
+                  🗑️ Delete Selected
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -1035,7 +1032,7 @@ export function CharacterPanelRedesigned() {
                   <div className={styles.charDetails}>Owner: {char.ownerId}</div>
                 </div>
                 {/* Badges for linked tokens */}
-                <div className={styles.charBadges}>
+                <div className="char-badges">
                   {linkedSprites.map((s: typeof linkedSprites[0]) => {
                     const canControlToken = canControlSprite(s.id, currentUserId);
                     return (
@@ -1043,7 +1040,7 @@ export function CharacterPanelRedesigned() {
                         Token
                         <SyncStatusIcon status={s.syncStatus} />
                         {!canControlToken && (
-                          <span className={styles.permissionWarning} title="No control permission">🚫</span>
+                          <span className="permission-warning" title="No control permission">🚫</span>
                         )}
                       </span>
                     );
@@ -1250,7 +1247,7 @@ export function CharacterPanelRedesigned() {
         );
       })()}
 
-      {/* Character Sheet Modal - Rendered via Portal */}
+      {/* Character Sheet Modal */}
       {viewSheetCharId && (() => {
         const char = characters.find(c => c.id === viewSheetCharId);
         if (!char) return null;
@@ -1264,48 +1261,43 @@ export function CharacterPanelRedesigned() {
           }
         };
         
-        // Portal to #modal-root with Rnd for drag/resize
+        const handleCloseModal = (e: React.MouseEvent) => {
+          if (e.target === e.currentTarget) {
+            setViewSheetCharId(null);
+          }
+        };
+        
         const modalContent = (
-          <Rnd
-            default={{
-              x: 0,
-              y: 50,
-              width: 800,
-              height: window.innerHeight - 100,
-            }}
-            minWidth={400}
-            minHeight={300}
-            maxWidth={window.innerWidth * 0.95}
-            maxHeight={window.innerHeight * 0.95}
-            bounds="window"
-            dragHandleClassName={styles.floatingSheetHeader}
-            style={{ zIndex: 10000 }}
-          >
-            <div className={styles.floatingSheet}>
-              <div className={styles.floatingSheetHeader}>
+          <div className={styles.modalOverlay} onClick={handleCloseModal}>
+            <div 
+              className={clsx(styles.modalContent, "characterSheetModal")}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader}>
                 <h2>{char.name} - Character Sheet</h2>
                 <button 
-                  className={styles.floatingSheetClose} 
-                  onClick={() => setViewSheetCharId(null)}
+                  className={styles.modalCloseBtn} 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setViewSheetCharId(null);
+                  }}
                   aria-label="Close character sheet"
                   type="button"
                 >
                   ✕
                 </button>
               </div>
-              <div className={styles.floatingSheetBody}>
+              <div className={styles.modalBody}>
                 <CharacterSheet character={char} onSave={handleSheetSave} />
               </div>
             </div>
-          </Rnd>
+          </div>
         );
         
-        const modalRoot = document.getElementById('modal-root') || document.body;
-        return ReactDOM.createPortal(modalContent, modalRoot);
+        return ReactDOM.createPortal(modalContent, document.body);
       })()}
     </div>
   );
 }
 
 export default CharacterPanelRedesigned;
-

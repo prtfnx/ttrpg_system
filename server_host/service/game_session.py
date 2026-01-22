@@ -11,7 +11,6 @@ import time
 from datetime import datetime
 from net.protocol import Message, MessageType, ProtocolHandler
 from .game_session_protocol import GameSessionProtocolService
-from server_host.database import models
 from server_host.utils.logger import setup_logger
 # Database imports
 from server_host.database.database import SessionLocal
@@ -97,12 +96,6 @@ class ConnectionManager:
                 self.sessions_protocols[session_code] = protocol_service
         else:
             protocol_service = self.sessions_protocols[session_code]
-            # Get existing db_session or create new one if needed
-            db_session = self.db_sessions.get(session_code)
-            if not db_session:
-                db_session = SessionLocal()
-                self.db_sessions[session_code] = db_session
-                
         logger.info(f"Adding client {client_id} to protocol service for session {session_code}")
         
         # Setup R2 asset permissions for this user (default to player role)
@@ -115,28 +108,6 @@ class ConnectionManager:
         asset_manager.setup_session_permissions(session_code, user_id, username, user_role)
         logger.info(f"Setup R2 asset permissions for {username} as {user_role} in session {session_code}")
         
-        # Validate player exists in session (prevent kicked players from reconnecting)
-        try:
-            
-            player = db_session.query(models.GamePlayer).filter(
-                models.GamePlayer.user_id == user_id,
-                models.GamePlayer.session_id == self.game_session_db_ids.get(session_code)
-            ).first()
-            
-            if not player:
-                logger.warning(f"User {username} (ID: {user_id}) attempted to connect to session {session_code} but is not a member")
-                await websocket.close(code=1008, reason="Not a member of this session")
-                return
-            
-            # Update connection status
-            player.is_connected = True
-            db_session.commit()
-            logger.info(f"Updated connection status for player {username} to online")
-        except Exception as e:
-            logger.error(f"Failed to validate/update player connection status: {e}")
-            await websocket.close(code=1011, reason="Database error")
-            return
-        
         await protocol_service.add_client(websocket, client_id, {
             "user_id": user_id,
             "username": username,
@@ -144,7 +115,6 @@ class ConnectionManager:
         })
         logger.info(f"Protocol service initialized for session {session_code} with client_id {client_id}")
         logger.info(f"User {username} connected to session {session_code} with client_id {client_id}")
-        
         message = Message(
             MessageType.PLAYER_JOINED,{
             "username": username,
@@ -165,32 +135,6 @@ class ConnectionManager:
         info = self.connection_info[websocket]
         session_code = info["session_code"]
         username = info["username"]
-        user_id = info["user_id"]
-        
-        # Update database player connection status
-        try:
-            from server_host.database import models
-            db_session = self.db_sessions.get(session_code)
-            # If session's db connection is closed, create a new one
-            if not db_session:
-                db_session = SessionLocal()
-                close_after = True
-            else:
-                close_after = False
-                
-            player = db_session.query(models.GamePlayer).filter(
-                models.GamePlayer.user_id == user_id,
-                models.GamePlayer.session_id == self.game_session_db_ids.get(session_code)
-            ).first()
-            if player:
-                player.is_connected = False
-                db_session.commit()
-                logger.info(f"Updated connection status for player {username} to offline")
-            
-            if close_after:
-                db_session.close()
-        except Exception as e:
-            logger.error(f"Failed to update player disconnection status: {e}")
         
         # Remove from protocol service first
         protocol_service = self.sessions_protocols.get(session_code)
@@ -243,49 +187,6 @@ class ConnectionManager:
                     "timestamp": datetime.now().isoformat()
             }
         ))
-
-    async def disconnect_user(self, session_code: str, user_id: int):
-        """Force disconnect a specific user from a session (e.g., when kicked)"""
-        logger.info(f"disconnect_user called: session={session_code}, user_id={user_id}")
-        logger.info(f"Active sessions: {list(self.active_connections.keys())}")
-        logger.info(f"All connection info: {[(ws, info) for ws, info in self.connection_info.items()]}")
-        
-        if session_code not in self.active_connections:
-            logger.warning(f"Session {session_code} not in active_connections")
-            logger.warning(f"Available sessions: {list(self.active_connections.keys())}")
-            # Try case-insensitive match
-            for active_session in self.active_connections.keys():
-                if active_session.upper() == session_code.upper():
-                    logger.info(f"Found case-insensitive match: {active_session}")
-                    session_code = active_session
-                    break
-            else:
-                return
-        
-        # Find and close all websockets for this user in this session
-        websockets_to_close = []
-        for websocket in self.active_connections[session_code]:
-            if websocket in self.connection_info:
-                info = self.connection_info[websocket]
-                if info.get("user_id") == user_id:
-                    websockets_to_close.append(websocket)
-                    logger.info(f"Found websocket to close for user {user_id}: {info}")
-        
-        logger.info(f"Found {len(websockets_to_close)} websockets to close for user {user_id}")
-        
-        # Close the websockets - this will trigger disconnect via WebSocketDisconnect exception
-        for websocket in websockets_to_close:
-            try:
-                logger.info(f"Closing WebSocket for user {user_id}")
-                await websocket.close(code=1008, reason="Kicked from session")
-                logger.info(f"WebSocket closed successfully for user {user_id}")
-            except Exception as e:
-                logger.error(f"Error closing websocket for user {user_id}: {e}")
-                # Try manual cleanup if close failed
-                try:
-                    await self.disconnect(websocket)
-                except Exception as e2:
-                    logger.error(f"Error in manual disconnect cleanup: {e2}")
 
     async def send_personal_message(self, message: dict, websocket: WebSocket):
         """Send message to specific websocket"""

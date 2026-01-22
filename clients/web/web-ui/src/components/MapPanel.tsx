@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRenderEngine } from '../hooks/useRenderEngine';
-import styles from './MapPanel.module.css';
 
 interface GridSettings {
   enabled: boolean;
@@ -296,15 +295,15 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...oth
 
   return (
     <div className={`map-panel ${className || ''}`} style={style} id={id} {...otherProps}>
-      <div className={styles.panelHeader}>
+      <div className="panel-header">
         <h3>🗺️ Map & Grid</h3>
       </div>
 
-      <div className={styles.panelContent}>
+      <div className="panel-content">
         {/* Map Settings */}
-        <div className={styles.settingsSection}>
+        <div className="settings-section">
           <h4>Map Settings</h4>
-          <div className={styles.settingRow}>
+          <div className="setting-row">
             <label>Width:</label>
             <input
               type="number"
@@ -316,7 +315,7 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...oth
             />
             <span>px</span>
           </div>
-          <div className={styles.settingRow}>
+          <div className="setting-row">
             <label>Height:</label>
             <input
               type="number"
@@ -328,7 +327,7 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...oth
             />
             <span>px</span>
           </div>
-          <div className={styles.settingRow}>
+          <div className="setting-row">
             <label>Background:</label>
             <input
               type="color"
@@ -339,9 +338,9 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...oth
         </div>
 
         {/* Grid Settings */}
-        <div className={styles.settingsSection}>
+        <div className="settings-section">
           <h4>Grid Settings</h4>
-          <div className={styles.settingRow}>
+          <div className="setting-row">
             <label>
               <input
                 type="checkbox"
@@ -351,7 +350,7 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...oth
               Enable Grid
             </label>
           </div>
-          <div className={styles.settingRow}>
+          <div className="setting-row">
             <label>Grid Size:</label>
             <input
               type="number"
@@ -363,7 +362,7 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...oth
             />
             <span>px</span>
           </div>
-          <div className={styles.settingRow}>
+          <div className="setting-row">
             <label>Grid Type:</label>
             <select
               value={mapSettings.gridSettings.type}
@@ -374,7 +373,7 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...oth
               <option value="hex">Hexagonal</option>
             </select>
           </div>
-          <div className={styles.settingRow}>
+          <div className="setting-row">
             <label>Grid Color:</label>
             <input
               type="color"
@@ -383,7 +382,7 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...oth
               disabled={!mapSettings.gridSettings.enabled}
             />
           </div>
-          <div className={styles.settingRow}>
+          <div className="setting-row">
             <label>Opacity:</label>
             <input
               type="range"
@@ -396,7 +395,7 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...oth
             />
             <span>{Math.round(mapSettings.gridSettings.opacity * 100)}%</span>
           </div>
-          <div className={styles.settingRow}>
+          <div className="setting-row">
             <label>
               <input
                 type="checkbox"
@@ -410,14 +409,14 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...oth
         </div>
 
         {/* Grid Presets */}
-        <div className={styles.settingsSection}>
+        <div className="settings-section">
           <h4>Grid Presets</h4>
-          <div className={styles.presetButtons}>
+          <div className="preset-buttons">
             {gridPresets.map(preset => (
               <button
                 key={preset.name}
                 onClick={() => applyPreset(preset)}
-                className={styles.presetBtn}
+                className="preset-btn"
                 disabled={!mapSettings.gridSettings.enabled}
               >
                 {preset.name}
@@ -427,42 +426,42 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...oth
         </div>
 
         {/* Camera Controls */}
-        <div className={styles.settingsSection}>
+        <div className="settings-section">
           <h4>Camera Controls</h4>
-          <div className={styles.cameraButtons}>
-            <button onClick={resetCamera} className={styles.btnSecondary}>
+          <div className="camera-buttons">
+            <button onClick={resetCamera} className="btn-secondary">
               Reset Camera
             </button>
-            <button onClick={centerOnMap} className={styles.btnSecondary}>
+            <button onClick={centerOnMap} className="btn-secondary">
               Center Map
             </button>
-            <button onClick={fitToScreen} className={styles.btnSecondary}>
+            <button onClick={fitToScreen} className="btn-secondary">
               Fit to Screen
             </button>
           </div>
-          <div className={styles.settingRow}>
+          <div className="setting-row">
             <label>Scale:</label>
             <span>{Math.round(mapSettings.scale * 100)}%</span>
           </div>
         </div>
 
         {/* Map Actions */}
-        <div className={styles.settingsSection}>
+        <div className="settings-section">
           <h4>Map Actions</h4>
-          <div className={styles.actionButtons}>
-            <button onClick={handleExportMap} className={styles.btnPrimary}>
+          <div className="action-buttons">
+            <button onClick={handleExportMap} className="btn-primary">
               📸 Export Image
             </button>
-            <button onClick={clearMap} className={styles.btnDanger}>
+            <button onClick={clearMap} className="btn-danger">
               🗑️ Clear Map
             </button>
           </div>
         </div>
 
         {/* Instructions */}
-        <div className={styles.settingsSection}>
+        <div className="settings-section">
           <h4>Controls</h4>
-          <ul className={styles.instructions}>
+          <ul className="instructions">
             <li>Mouse wheel to zoom</li>
             <li>Right-click and drag to pan</li>
             <li>Ctrl+scroll for fine zoom</li>
@@ -753,4 +752,3 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...oth
 };
 
 export default MapPanel;
-

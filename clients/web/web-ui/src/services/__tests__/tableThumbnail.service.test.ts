@@ -278,8 +278,10 @@ describe('TableThumbnailService', () => {
       const statsBefore = tableThumbnailService.getCacheStats();
       expect(statsBefore.size).toBe(1);
       
+      await new Promise(resolve => setTimeout(resolve, 350));
       tableThumbnailService.invalidateTable(validUUID);
       
+      await new Promise(resolve => setTimeout(resolve, 50));
       const statsAfter = tableThumbnailService.getCacheStats();
       expect(statsAfter.size).toBe(0);
     });
@@ -322,7 +324,11 @@ describe('TableThumbnailService', () => {
       tableThumbnailService.invalidateTable(validUUID);
       tableThumbnailService.invalidateTable(validUUID);
       
-      // Invalidation should be immediate without debouncing in tests
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const stats = tableThumbnailService.getCacheStats();
+      expect(stats.size).toBe(1);
+      
+      await new Promise(resolve => setTimeout(resolve, 250));
       const statsAfter = tableThumbnailService.getCacheStats();
       expect(statsAfter.size).toBe(0);
     });

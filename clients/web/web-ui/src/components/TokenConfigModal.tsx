@@ -16,8 +16,6 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
   const sprite = sprites.find(s => s.id === spriteId);
   const linkedCharacter = sprite?.characterId ? getCharacterForSprite(spriteId) : null;
   
-  const [activeTab, setActiveTab] = useState<'stats' | 'debug'>('stats');
-  const isDev = import.meta.env.DEV || import.meta.env.MODE === 'development';
   const [selectedCharacterId, setSelectedCharacterId] = useState<string>(sprite?.characterId || '');
   // Use token HP/AC, fallback to character stats if linked
   const [localHp, setLocalHp] = useState<number>(sprite?.hp ?? linkedCharacter?.data?.stats?.hp ?? 10);
@@ -189,27 +187,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
           <button className={styles.closeButton} onClick={onClose}>×</button>
         </div>
         
-        {/* Tabs */}
-        <div className={styles.tabs}>
-          <button 
-            className={`${styles.tab} ${activeTab === 'stats' ? styles.activeTab : ''}`}
-            onClick={() => setActiveTab('stats')}
-          >
-            Stats & Settings
-          </button>
-          {isDev && (
-            <button
-              className={`${styles.tab} ${activeTab === 'debug' ? styles.activeTab : ''}`}
-              onClick={() => setActiveTab('debug')}
-            >
-              Technical Info
-            </button>
-          )}
-        </div>
-        
         <div className={styles.modalContent}>
-          {activeTab === 'stats' ? (
-          <>
           {/* Character Linking */}
           <div className={styles.configSection}>
             <label htmlFor="character-select">Link to Character:</label>
@@ -327,120 +305,6 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
               <p style={{ color: '#888', fontStyle: 'italic' }}>
                 No character linked - token stats are independent
               </p>
-            </div>
-          )}
-          </>
-          ) : (
-            /* Debug Tab */
-            <div className={styles.debugPanel}>
-              <h3 style={{ marginBottom: '16px', color: '#4ade80' }}>🔧 Technical Information</h3>
-              
-              <div className={styles.debugSection}>
-                <h4>Sprite ID & References</h4>
-                <div className={styles.debugGrid}>
-                  <div className={styles.debugItem}>
-                    <span className={styles.debugLabel}>Sprite ID:</span>
-                    <code className={styles.debugValue}>{sprite?.id || 'N/A'}</code>
-                  </div>
-                  <div className={styles.debugItem}>
-                    <span className={styles.debugLabel}>Character ID:</span>
-                    <code className={styles.debugValue}>{sprite?.characterId || 'None'}</code>
-                  </div>
-                  <div className={styles.debugItem}>
-                    <span className={styles.debugLabel}>Table ID:</span>
-                    <code className={styles.debugValue}>{sprite?.tableId || 'N/A'}</code>
-                  </div>
-                  <div className={styles.debugItem}>
-                    <span className={styles.debugLabel}>Asset ID:</span>
-                    <code className={styles.debugValue}>{(sprite as any)?.assetId || (sprite as any)?.asset_id || 'None'}</code>
-                  </div>
-                  <div className={styles.debugItem}>
-                    <span className={styles.debugLabel}>Asset Hash:</span>
-                    <code className={styles.debugValue}>{(sprite as any)?.asset_xxhash || 'None'}</code>
-                  </div>
-                </div>
-              </div>
-              
-              <div className={styles.debugSection}>
-                <h4>Position & Transform</h4>
-                <div className={styles.debugGrid}>
-                  <div className={styles.debugItem}>
-                    <span className={styles.debugLabel}>X Position:</span>
-                    <code className={styles.debugValue}>{sprite?.x?.toFixed(2) || '0'}</code>
-                  </div>
-                  <div className={styles.debugItem}>
-                    <span className={styles.debugLabel}>Y Position:</span>
-                    <code className={styles.debugValue}>{sprite?.y?.toFixed(2) || '0'}</code>
-                  </div>
-                  <div className={styles.debugItem}>
-                    <span className={styles.debugLabel}>Rotation:</span>
-                    <code className={styles.debugValue}>{sprite?.rotation?.toFixed(2) || '0'}°</code>
-                  </div>
-                  <div className={styles.debugItem}>
-                    <span className={styles.debugLabel}>Scale X:</span>
-                    <code className={styles.debugValue}>{(sprite as any)?.scale?.x || (sprite as any)?.scaleX || '1'}</code>
-                  </div>
-                  <div className={styles.debugItem}>
-                    <span className={styles.debugLabel}>Scale Y:</span>
-                    <code className={styles.debugValue}>{(sprite as any)?.scale?.y || (sprite as any)?.scaleY || '1'}</code>
-                  </div>
-                  <div className={styles.debugItem}>
-                    <span className={styles.debugLabel}>Layer:</span>
-                    <code className={styles.debugValue}>{sprite?.layer || 'tokens'}</code>
-                  </div>
-                </div>
-              </div>
-              
-              <div className={styles.debugSection}>
-                <h4>Texture & Rendering</h4>
-                <div className={styles.debugItem}>
-                  <span className={styles.debugLabel}>Texture URL:</span>
-                  <code className={styles.debugValue} style={{ wordBreak: 'break-all', fontSize: '10px' }}>
-                    {sprite?.texture ? (sprite.texture.length > 150 ? sprite.texture.substring(0, 150) + '...' : sprite.texture) : 'None'}
-                  </code>
-                </div>
-                <div className={styles.debugItem}>
-                  <span className={styles.debugLabel}>Tint Color:</span>
-                  <code className={styles.debugValue}>
-                    {(sprite as any)?.tint_color ? `[${(sprite as any).tint_color.join(', ')}]` : '[1, 1, 1, 1]'}
-                  </code>
-                </div>
-              </div>
-              
-              <div className={styles.debugSection}>
-                <h4>Stats & Combat</h4>
-                <div className={styles.debugGrid}>
-                  <div className={styles.debugItem}>
-                    <span className={styles.debugLabel}>HP:</span>
-                    <code className={styles.debugValue}>{sprite?.hp || 0}</code>
-                  </div>
-                  <div className={styles.debugItem}>
-                    <span className={styles.debugLabel}>Max HP:</span>
-                    <code className={styles.debugValue}>{sprite?.maxHp || 0}</code>
-                  </div>
-                  <div className={styles.debugItem}>
-                    <span className={styles.debugLabel}>AC:</span>
-                    <code className={styles.debugValue}>{sprite?.ac || 10}</code>
-                  </div>
-                  <div className={styles.debugItem}>
-                    <span className={styles.debugLabel}>Aura Radius:</span>
-                    <code className={styles.debugValue}>{sprite?.auraRadius || 0} ft</code>
-                  </div>
-                  <div className={styles.debugItem}>
-                    <span className={styles.debugLabel}>Controlled By:</span>
-                    <code className={styles.debugValue}>
-                      {Array.isArray(sprite?.controlledBy) ? sprite.controlledBy.join(', ') : sprite?.controlledBy || 'None'}
-                    </code>
-                  </div>
-                </div>
-              </div>
-              
-              <div className={styles.debugSection}>
-                <h4>Raw Sprite Object</h4>
-                <pre className={styles.debugJson}>
-                  {JSON.stringify(sprite, null, 2)}
-                </pre>
-              </div>
             </div>
           )}
         </div>

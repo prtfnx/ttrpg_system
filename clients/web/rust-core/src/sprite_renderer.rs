@@ -377,7 +377,7 @@ impl SpriteRenderer {
         let distance_text = format_distance(distance);
         
         // Offset label perpendicular to line so it doesn't overlap the arrow
-        let label_offset = 35.0; // Increased from 20.0 to prevent text overlap
+        let label_offset = 20.0;
         let label_x = mid_point.x + perp_x * label_offset;
         let label_y = mid_point.y + perp_y * label_offset;
         
@@ -392,7 +392,7 @@ impl SpriteRenderer {
             label_y,
             1.0,  // Size multiplier
             [0.0, 0.9, 0.9, 1.0],  // Cyan text
-            false,  // no background - clean text only
+            true,  // with_background for readability
             renderer,
             texture_manager,
         )?;

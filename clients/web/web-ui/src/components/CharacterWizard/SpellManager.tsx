@@ -401,7 +401,6 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
           <label htmlFor="casting-level">Casting Level:</label>
           <select 
             id="casting-level"
-            className={styles.castingLevelSelect}
             value={castingLevel} 
             onChange={(e) => setCastingLevel(parseInt(e.target.value))}
           >
@@ -521,10 +520,10 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
             </div>
             <div className="spell-school">{spell.school}</div>
             <div className="spell-stats">
-              <div className={styles.spellStatsItem}><strong>Time:</strong> {spell.castingTime}</div>
-              <div className={styles.spellStatsItem}><strong>Range:</strong> {spell.range}</div>
-              <div className={styles.spellStatsItem}><strong>Duration:</strong> {spell.duration}</div>
-              <div className={styles.spellStatsItem}><strong>Components:</strong> {spell.components}</div>
+              <div><strong>Time:</strong> {spell.castingTime}</div>
+              <div><strong>Range:</strong> {spell.range}</div>
+              <div><strong>Duration:</strong> {spell.duration}</div>
+              <div><strong>Components:</strong> {spell.components}</div>
             </div>
             {spell.damage && (
               <div className="spell-damage"><strong>Damage:</strong> {spell.damage}</div>

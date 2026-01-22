@@ -228,10 +228,6 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.SPRITE_RESPONSE, this.handleSpriteResponse.bind(this));
     this.registerHandler(MessageType.SPRITE_DATA, this.handleSpriteData.bind(this));
 
-    // Character management
-    this.registerHandler(MessageType.CHARACTER_UPDATE, this.handleCharacterUpdate.bind(this));
-    this.registerHandler(MessageType.CHARACTER_ATTUNE_RESPONSE, this.handleAttuneResponse.bind(this));
-
     // File transfer
     this.registerHandler(MessageType.FILE_DATA, this.handleFileData.bind(this));
     
@@ -246,14 +242,6 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.COMPENDIUM_SPRITE_ADD, async (m) => { window.dispatchEvent(new CustomEvent('compendium-sprite-added', { detail: m.data })); });
     this.registerHandler(MessageType.COMPENDIUM_SPRITE_UPDATE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-sprite-updated', { detail: m.data })); });
     this.registerHandler(MessageType.COMPENDIUM_SPRITE_REMOVE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-sprite-removed', { detail: m.data })); });
-    this.registerHandler(MessageType.COMPENDIUM_SEARCH_RESPONSE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-search-response', { detail: m.data })); });
-    this.registerHandler(MessageType.COMPENDIUM_GET_SPELL_RESPONSE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-spell-response', { detail: m.data })); });
-    this.registerHandler(MessageType.COMPENDIUM_GET_STATS_RESPONSE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-stats-response', { detail: m.data })); });
-    this.registerHandler(MessageType.COMPENDIUM_GET_SUBCLASSES_RESPONSE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-subclasses-response', { detail: m.data })); });
-    this.registerHandler(MessageType.COMPENDIUM_GET_CLASS_FEATURES_RESPONSE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-class-features-response', { detail: m.data })); });
-    this.registerHandler(MessageType.COMPENDIUM_SEARCH_EQUIPMENT_RESPONSE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-equipment-search-response', { detail: m.data })); });
-    this.registerHandler(MessageType.COMPENDIUM_GENERATE_TREASURE_RESPONSE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-treasure-response', { detail: m.data })); });
-    this.registerHandler(MessageType.COMPENDIUM_GET_MONSTER_RESPONSE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-monster-response', { detail: m.data })); });
 
     // Character management
     this.registerHandler(MessageType.CHARACTER_LOAD_RESPONSE, this.handleCharacterLoadResponse.bind(this));
@@ -298,10 +286,6 @@ export class WebClientProtocol {
           this.flushPendingBatches(); // Flush any batched messages that were queued during disconnection
           // Don't auto-start ping - let user control it via UI
           this.connecting = false;
-          
-          // Initialize table from localStorage after connection is established
-          this.initializeTableFromLocalStorage();
-          
           resolve();
         };
 
@@ -313,15 +297,9 @@ export class WebClientProtocol {
           protocolLogger.connection('WebSocket connection closed', { code: event.code, reason: event.reason });
           this.stopPingInterval();
           this.connecting = false;
-          this.websocket = null;
           
           if (event.code === 1008) {
-            if (event.reason === 'Kicked from session') {
-              console.warn('You have been kicked from the session');
-              reject(new Error('Kicked from session'));
-            } else {
-              reject(new Error('Authentication failed or not authorized'));
-            }
+            reject(new Error('Authentication failed'));
           } else if (event.code !== 1000) {
             // Abnormal closure - attempt reconnection
             this.attemptReconnect();
@@ -522,19 +500,6 @@ export class WebClientProtocol {
   private async handleTableResponse(message: Message): Promise<void> {
     console.log('Table response received:', message.data);
     window.dispatchEvent(new CustomEvent('table-response', { detail: message.data }));
-  }
-
-  private async handleAttuneResponse(message: Message): Promise<void> {
-    const data: any = message.data || {};
-    const { success, error, attuned_count, item_name } = data;
-    
-    if (success) {
-      showToast.success(`Successfully updated attunement for ${item_name}`);
-      protocolLogger.message('received', `Attunement updated: ${item_name}, count: ${attuned_count}`);
-    } else {
-      showToast.error(error || 'Failed to update attunement');
-      logger.error('Attunement failed:', error);
-    }
   }
 
   // Sprite handlers - integrate with existing store/WASM
@@ -1050,26 +1015,6 @@ export class WebClientProtocol {
 
   isConnected(): boolean {
     return this.websocket?.readyState === WebSocket.OPEN;
-  }
-
-  /**
-   * Initialize table from localStorage after WebSocket connection is established
-   * This ensures table_request is sent only after protocol is ready
-   */
-  private initializeTableFromLocalStorage(): void {
-    const savedTableId = localStorage.getItem('lastActiveTableId');
-    if (savedTableId) {
-      console.log(`[Protocol] 🔄 Restoring table from localStorage: '${savedTableId}'`);
-      // Set the activeTableId but mark as not ready until we receive data from server
-      useGameStore.setState({ 
-        activeTableId: savedTableId,
-        tableReady: false 
-      });
-      // Request table data from server (now that WebSocket is connected)
-      useGameStore.getState().switchToTable(savedTableId);
-    } else {
-      console.log('[Protocol] 📭 No saved table found in localStorage');
-    }
   }
 
   // =========================================================================

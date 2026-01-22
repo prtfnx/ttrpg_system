@@ -38,7 +38,7 @@
   }
 }
 
-.shareDialogHeader {
+.shareDialog-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -46,18 +46,27 @@
   border-bottom: var(--border-width-sm) solid var(--gray-800);
 }
 
-.shareDialogHeader h3 {
+.shareDialog-header h3 {
   margin: 0;
   font-size: var(--text-lg);
   color: var(--white);
 }
 
 .closeBtn {
-  composes: btnClose from '../styles/buttons.module.css';
+  background: none;
+  border: none;
   color: var(--gray-500);
   font-size: var(--text-3xl);
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
   width: var(--size-8);
   height: var(--size-8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
 }
 
 .closeBtn:hover {
@@ -65,13 +74,13 @@
   color: var(--white);
 }
 
-.shareDialogContent {
+.shareDialog-content {
   flex: 1;
   padding: var(--space-lg);
   overflow-y: auto;
 }
 
-.characterInfo {
+.character-info {
   background: var(--overlay-light);
   border: var(--border-width-sm) solid var(--overlay-light);
   border-radius: var(--radius-sm);
@@ -79,18 +88,18 @@
   margin-bottom: var(--space-lg);
 }
 
-.infoRow {
+.info-row {
   display: flex;
   justify-content: space-between;
   padding: var(--space-1) 0;
 }
 
-.label {
+.info-row .label {
   color: var(--gray-500);
   font-size: var(--text-xs);
 }
 
-.value {
+.info-row .value {
   color: var(--white);
   font-size: var(--text-xs);
   font-weight: var(--font-semibold);
@@ -100,14 +109,14 @@
   margin-bottom: var(--space-lg);
 }
 
-.sectionHeader {
+.section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--space-md);
 }
 
-.sectionHeader h4 {
+.section-header h4 {
   margin: 0;
   font-size: var(--text-sm);
   color: var(--blue-500);
@@ -115,12 +124,12 @@
   letter-spacing: var(--space-0-5);
 }
 
-.bulkActions {
+.bulk-actions {
   display: flex;
   gap: var(--space-md);
 }
 
-.linkBtn {
+.link-btn {
   background: none;
   border: none;
   color: var(--blue-500);
@@ -130,11 +139,11 @@
   padding: 0;
 }
 
-.linkBtn:hover {
+.link-btn:hover {
   color: var(--blue-400);
 }
 
-.userList {
+.user-list {
   border: var(--border-width-sm) solid var(--gray-800);
   border-radius: var(--radius-sm);
   padding: var(--space-sm);
@@ -142,7 +151,7 @@
   overflow-y: auto;
 }
 
-.noUsers {
+.no-users {
   text-align: center;
   color: var(--gray-500);
   font-size: var(--text-xs);
@@ -150,7 +159,7 @@
   font-style: italic;
 }
 
-.userCheckbox {
+.user-checkbox {
   display: flex;
   align-items: center;
   padding: var(--space-sm) var(--space-md);
@@ -160,28 +169,28 @@
   gap: var(--space-sm);
 }
 
-.userCheckbox:hover {
+.user-checkbox:hover {
   background: var(--overlay-light);
 }
 
-.userCheckbox.checked {
+.user-checkbox.checked {
   background: var(--overlay-light);
 }
 
-.userCheckbox input[type="checkbox"] {
+.user-checkbox input[type="checkbox"] {
   width: var(--size-4-5);
   height: var(--size-4-5);
   cursor: pointer;
   accent-color: var(--blue-500);
 }
 
-.userName {
+.user-name {
   flex: 1;
   color: var(--white);
   font-size: var(--text-sm);
 }
 
-.ownerBadge {
+.owner-badge {
   background: var(--yellow-500);
   color: var(--black);
   padding: var(--space-0-5) var(--space-sm);
@@ -191,7 +200,7 @@
   text-transform: uppercase;
 }
 
-.permissionNote {
+.permission-note {
   background: var(--overlay-light);
   border: var(--border-width-sm) solid var(--overlay-light);
   border-radius: var(--radius-sm);
@@ -201,12 +210,12 @@
   line-height: var(--leading-relaxed);
 }
 
-.permissionNote strong {
+.permission-note strong {
   display: block;
   margin-bottom: var(--space-1);
 }
 
-.shareDialogFooter {
+.shareDialog-footer {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-md);
@@ -214,8 +223,8 @@
   border-top: var(--border-width-sm) solid var(--gray-800);
 }
 
-.btnPrimary,
-.btnSecondary {
+.btn-primary,
+.btn-secondary {
   padding: var(--space-sm) var(--space-lg);
   border: none;
   border-radius: var(--radius-sm);
@@ -225,42 +234,42 @@
   transition: all var(--transition-fast);
 }
 
-.btnPrimary {
+.btn-primary {
   background: var(--blue-500);
   color: var(--white);
 }
 
-.btnPrimary:hover {
+.btn-primary:hover {
   background: var(--blue-600);
 }
 
-.btnSecondary {
+.btn-secondary {
   background: var(--gray-800);
   color: var(--white);
 }
 
-.btnSecondary:hover {
+.btn-secondary:hover {
   background: var(--gray-700);
 }
 
 /* Scrollbar Styling */
-.userList::-webkit-scrollbar,
-.shareDialogContent::-webkit-scrollbar {
+.user-list::-webkit-scrollbar,
+.shareDialog-content::-webkit-scrollbar {
   width: var(--space-1-5);
 }
 
-.userList::-webkit-scrollbar-track,
-.shareDialogContent::-webkit-scrollbar-track {
+.user-list::-webkit-scrollbar-track,
+.shareDialog-content::-webkit-scrollbar-track {
   background: var(--gray-900);
 }
 
-.userList::-webkit-scrollbar-thumb,
-.shareDialogContent::-webkit-scrollbar-thumb {
+.user-list::-webkit-scrollbar-thumb,
+.shareDialog-content::-webkit-scrollbar-thumb {
   background: var(--gray-700);
   border-radius: var(--radius-xs);
 }
 
-.userList::-webkit-scrollbar-thumb:hover,
-.shareDialogContent::-webkit-scrollbar-thumb:hover {
+.user-list::-webkit-scrollbar-thumb:hover,
+.shareDialog-content::-webkit-scrollbar-thumb:hover {
   background: var(--gray-600);
 }

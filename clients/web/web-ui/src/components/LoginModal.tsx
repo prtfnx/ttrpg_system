@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import './Auth.css';
 import { useAuth } from './AuthContext';
 import { Modal } from './common/Modal';
-import styles from './LoginModal.module.css';
 
 const LoginModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   const { login, loading, error } = useAuth();
@@ -53,9 +52,9 @@ const LoginModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Login">
-      <div className={styles.loginModal}>
-        <form onSubmit={handleSubmit} className={styles.loginForm}>
-          <div className={styles.formGroup}>
+      <div className="login-modal">
+        <form onSubmit={handleSubmit} className="login-form">
+          <div className="form-group">
             <label htmlFor="username">Username</label>
             <input
               id="username"
@@ -69,7 +68,7 @@ const LoginModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen
             />
           </div>
           
-          <div className={styles.formGroup}>
+          <div className="form-group">
             <label htmlFor="password">Password</label>
             <input
               id="password"
@@ -83,7 +82,7 @@ const LoginModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen
           </div>
           
           {(formError || error) && (
-            <div className={styles.formError}>
+            <div className="form-error">
               {formError || error}
             </div>
           )}
@@ -91,7 +90,7 @@ const LoginModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen
           <button 
             type="submit" 
             disabled={loading || !username.trim() || !password}
-            className={styles.loginButton}
+            className="login-button"
           >
             {loading ? 'Logging in...' : 'Login'}
           </button>
@@ -102,4 +101,3 @@ const LoginModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen
 };
 
 export default LoginModal;
-

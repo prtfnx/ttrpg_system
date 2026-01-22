@@ -401,8 +401,8 @@ class PerformanceOptimizedBackgroundSystem {
     const vendor = gl.getParameter(gl.VENDOR);
     
     // Simple heuristic based on GPU info
-    const rendererLower = renderer?.toString().toLowerCase() ?? '';
-    const vendorLower = vendor?.toString().toLowerCase() ?? '';
+    const rendererLower = renderer.toLowerCase();
+    const vendorLower = vendor.toLowerCase();
     
     if (rendererLower.includes('nvidia') && rendererLower.includes('rtx')) {
       this.performanceProfile = 'ultra';

@@ -4,15 +4,19 @@
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-lg);
   padding: var(--spacing-md);
-  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
+  /* Remove fixed height, now handled dynamically */
+  display: flex;
+  flex-direction: column;
   gap: var(--spacing-sm);
   min-width: 280px;
-  overflow: hidden;
+  overflow: hidden; /* Prevent content from spilling out */
 }
 
 /* Header */
 .layerPanelHeader {
-  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   border-bottom: var(--border-width) solid var(--border-primary);
   padding-bottom: var(--spacing-sm);
   margin-bottom: var(--spacing-sm);
@@ -35,7 +39,8 @@
 
 /* Active Layer Display */
 .activeLayerDisplay {
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
   gap: var(--space-sm);
   padding: var(--space-sm);
   background-color: var(--bg-tertiary);
@@ -59,7 +64,8 @@
 .layerList {
   flex: 1;
   overflow-y: auto;
-  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
   gap: var(--spacing-xs);
 }
 
@@ -91,12 +97,15 @@
 
 /* Layer Main Content - Horizontal Layout */
 .layerMain {
-  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: var(--spacing-xs);
 }
 
 .layerInfo {
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
   gap: var(--spacing-sm);
   flex: 1;
 }
@@ -108,7 +117,8 @@
 }
 
 .layerDetails {
-  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
   gap: var(--space-xs);
   flex: 1;
 }
@@ -128,7 +138,8 @@
 
 /* Layer Controls - Right side */
 .layerControls {
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
   gap: var(--spacing-xs);
 }
 
@@ -143,7 +154,9 @@
   color: var(--button-ghost-text);
   min-width: var(--space-2xl);
   height: var(--space-2xl);
-  composes: flex items-center justify-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .visibilityBtn:hover {
@@ -157,7 +170,8 @@
 
 /* Opacity Control - Compact horizontal */
 .layerOpacity {
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
   gap: var(--space-sm);
   margin-top: var(--space-xs);
   padding-top: var(--space-xs);

@@ -6,7 +6,9 @@
   right: 0;
   bottom: 0;
   background-color: var(--modal-overlay);
-  composes: flex items-center justify-center from '../../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 1000;
   opacity: 0;
   transition: opacity var(--duration-base) ease-in-out;
@@ -27,7 +29,8 @@
   box-shadow: var(--shadow-2xl);
   max-height: 90vh;
   overflow: hidden;
-  composes: flex flex-col from '../../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
   transform: scale(0.9) translateY(calc(var(--space-md) * -1));
   transition: transform var(--duration-base) ease-in-out;
 }
@@ -65,7 +68,9 @@
 
 /* Modal Header */
 .modalHeader {
-  composes: flex items-center justify-between from '../../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: var(--space-xl);
   border-bottom: var(--border-width) solid var(--border-secondary);
   flex-shrink: 0;
@@ -84,7 +89,9 @@
   font-size: var(--text-2xl);
   width: var(--space-2xl);
   height: var(--space-2xl);
-  composes: flex items-center justify-center from '../../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   color: var(--text-secondary);
   border-radius: var(--radius-xs);

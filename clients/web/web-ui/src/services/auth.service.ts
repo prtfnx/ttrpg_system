@@ -6,15 +6,14 @@
 export interface UserInfo {
   id: number;
   username: string;
-  tier: 'free' | 'premium';
-  is_admin: boolean;
+  role: 'dm' | 'player';
   permissions: string[];
 }
 
 export interface SessionInfo {
   session_code: string;
   session_name: string;
-  role: 'owner' | 'co_dm' | 'trusted_player' | 'player' | 'spectator';  // Actual role from server
+  role: 'dm' | 'player';
   created_at: string;
 }
 
@@ -121,8 +120,7 @@ class AuthService {
         this.userInfo = {
           id: userData.id,
           username: userData.username,
-          tier: userData.tier || 'free',
-          is_admin: userData.is_admin || false,
+          role: userData.role || 'player',
           permissions: userData.permissions || []
         };
         this.token = 'authenticated-via-cookie';
@@ -185,8 +183,7 @@ class AuthService {
         this.userInfo = {
           id: userData.id,
           username: userData.username,
-          tier: userData.tier || 'free',
-          is_admin: userData.is_admin || false,
+          role: userData.role || 'player',
           permissions: userData.permissions || []
         };
         return this.userInfo;
@@ -259,11 +256,6 @@ class AuthService {
     console.log('👤 Current user info:', this.userInfo);
     return true;
   }
-
-  // Legacy functions removed:
-  // - getRole() - unused, role comes from getUserSessions()
-  // - updateRole() - replaced by SessionManagementService.changePlayerRole()
-  // New role management API: /game/session/{code}/players/{id}/role
 }
 
 export const authService = new AuthService();

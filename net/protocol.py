@@ -85,30 +85,6 @@ class MessageType(enum.Enum):    # Core messages
     COMPENDIUM_SPRITE_UPDATE = "compendium_sprite_update"
     COMPENDIUM_SPRITE_REMOVE = "compendium_sprite_remove"
     
-    # Compendium data
-    COMPENDIUM_SEARCH = "compendium_search"
-    COMPENDIUM_SEARCH_RESPONSE = "compendium_search_response"
-    COMPENDIUM_GET_SPELL = "compendium_get_spell"
-    COMPENDIUM_GET_SPELL_RESPONSE = "compendium_get_spell_response"
-    COMPENDIUM_GET_CLASS = "compendium_get_class"
-    COMPENDIUM_GET_CLASS_RESPONSE = "compendium_get_class_response"
-    COMPENDIUM_GET_SUBCLASSES = "compendium_get_subclasses"
-    COMPENDIUM_GET_SUBCLASSES_RESPONSE = "compendium_get_subclasses_response"
-    COMPENDIUM_GET_CLASS_FEATURES = "compendium_get_class_features"
-    COMPENDIUM_GET_CLASS_FEATURES_RESPONSE = "compendium_get_class_features_response"
-    COMPENDIUM_GET_EQUIPMENT = "compendium_get_equipment"
-    COMPENDIUM_GET_EQUIPMENT_RESPONSE = "compendium_get_equipment_response"
-    COMPENDIUM_SEARCH_EQUIPMENT = "compendium_search_equipment"
-    COMPENDIUM_SEARCH_EQUIPMENT_RESPONSE = "compendium_search_equipment_response"
-    COMPENDIUM_GET_MONSTER = "compendium_get_monster"
-    COMPENDIUM_GET_MONSTER_RESPONSE = "compendium_get_monster_response"
-    COMPENDIUM_GET_STATS = "compendium_get_stats"
-    COMPENDIUM_GET_STATS_RESPONSE = "compendium_get_stats_response"
-    COMPENDIUM_GET_CHARACTER_DATA = "compendium_get_character_data"
-    COMPENDIUM_GET_CHARACTER_DATA_RESPONSE = "compendium_get_character_data_response"
-    COMPENDIUM_GENERATE_TREASURE = "compendium_generate_treasure"
-    COMPENDIUM_GENERATE_TREASURE_RESPONSE = "compendium_generate_treasure_response"
-    
     # Character management
     CHARACTER_SAVE_REQUEST = "character_save_request"
     CHARACTER_SAVE_RESPONSE = "character_save_response"
@@ -121,9 +97,6 @@ class MessageType(enum.Enum):    # Core messages
     # Delta/real-time character update
     CHARACTER_UPDATE = "character_update"
     CHARACTER_UPDATE_RESPONSE = "character_update_response"
-    CHARACTER_ATTUNE_ITEM = "character_attune_item"
-    CHARACTER_UNATTUNE_ITEM = "character_unattune_item"
-    CHARACTER_ATTUNE_RESPONSE = "character_attune_response"
       
     
     # Batch messaging for performance

@@ -3,7 +3,7 @@
  * Production-ready tests for UI customization panel
  */
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { CustomizePanel } from '../CustomizePanel';
@@ -47,11 +47,11 @@ describe('CustomizePanel', () => {
     it('renders color scheme options', () => {
       render(<CustomizePanel />);
       
-      expect(screen.getByText('Blue')).toBeTruthy();
-      expect(screen.getByText('Purple')).toBeTruthy();
-      expect(screen.getByText('Green')).toBeTruthy();
-      expect(screen.getByText('Red')).toBeTruthy();
-      expect(screen.getByText('Orange')).toBeTruthy();
+      expect(screen.getByLabelText('blue accent')).toBeTruthy();
+      expect(screen.getByLabelText('purple accent')).toBeTruthy();
+      expect(screen.getByLabelText('green accent')).toBeTruthy();
+      expect(screen.getByLabelText('red accent')).toBeTruthy();
+      expect(screen.getByLabelText('orange accent')).toBeTruthy();
     });
 
     it('renders reset button', () => {
@@ -158,8 +158,8 @@ describe('CustomizePanel', () => {
       const user = userEvent.setup();
       render(<CustomizePanel />);
       
-      const blueButton = screen.getByText('Blue').closest('button');
-      await user.click(blueButton!);
+      const blueButton = screen.getByLabelText('blue accent');
+      await user.click(blueButton);
       
       expect(document.documentElement.getAttribute('data-color-scheme')).toBe('blue');
       expect(localStorage.getItem('color-scheme')).toBe('blue');
@@ -169,8 +169,8 @@ describe('CustomizePanel', () => {
       const user = userEvent.setup();
       render(<CustomizePanel />);
       
-      const purpleButton = screen.getByText('Purple').closest('button');
-      await user.click(purpleButton!);
+      const purpleButton = screen.getByLabelText('purple accent');
+      await user.click(purpleButton);
       
       expect(document.documentElement.getAttribute('data-color-scheme')).toBe('purple');
       expect(localStorage.getItem('color-scheme')).toBe('purple');
@@ -180,8 +180,8 @@ describe('CustomizePanel', () => {
       const user = userEvent.setup();
       render(<CustomizePanel />);
       
-      const greenButton = screen.getByText('Green').closest('button');
-      await user.click(greenButton!);
+      const greenButton = screen.getByLabelText('green accent');
+      await user.click(greenButton);
       
       expect(document.documentElement.getAttribute('data-color-scheme')).toBe('green');
       expect(localStorage.getItem('color-scheme')).toBe('green');
@@ -191,8 +191,8 @@ describe('CustomizePanel', () => {
       const user = userEvent.setup();
       render(<CustomizePanel />);
       
-      const redButton = screen.getByText('Red').closest('button');
-      await user.click(redButton!);
+      const redButton = screen.getByLabelText('red accent');
+      await user.click(redButton);
       
       expect(document.documentElement.getAttribute('data-color-scheme')).toBe('red');
       expect(localStorage.getItem('color-scheme')).toBe('red');
@@ -202,8 +202,8 @@ describe('CustomizePanel', () => {
       const user = userEvent.setup();
       render(<CustomizePanel />);
       
-      const orangeButton = screen.getByText('Orange').closest('button');
-      await user.click(orangeButton!);
+      const orangeButton = screen.getByLabelText('orange accent');
+      await user.click(orangeButton);
       
       expect(document.documentElement.getAttribute('data-color-scheme')).toBe('orange');
       expect(localStorage.getItem('color-scheme')).toBe('orange');
@@ -212,26 +212,20 @@ describe('CustomizePanel', () => {
 
   describe('accent opacity control', () => {
     it('updates accent opacity CSS variable', async () => {
-      const user = userEvent.setup();
       render(<CustomizePanel />);
       
       const slider = screen.getAllByRole('slider')[0];
-      await user.clear(slider);
-      await user.type(slider, '75');
-      await user.tab();
+      fireEvent.change(slider, { target: { value: '75' } });
       
       const opacity = document.documentElement.style.getPropertyValue('--accent-opacity');
       expect(opacity).toBe('0.75');
     });
 
     it('persists accent opacity to localStorage', async () => {
-      const user = userEvent.setup();
       render(<CustomizePanel />);
       
       const slider = screen.getAllByRole('slider')[0];
-      await user.clear(slider);
-      await user.type(slider, '50');
-      await user.tab();
+      fireEvent.change(slider, { target: { value: '50' } });
       
       expect(localStorage.getItem('accent-opacity')).toBe('50');
     });
@@ -239,26 +233,20 @@ describe('CustomizePanel', () => {
 
   describe('border radius control', () => {
     it('updates border radius CSS variable', async () => {
-      const user = userEvent.setup();
       render(<CustomizePanel />);
       
       const slider = screen.getAllByRole('slider')[1];
-      await user.clear(slider);
-      await user.type(slider, '16');
-      await user.tab();
+      fireEvent.change(slider, { target: { value: '16' } });
       
       const radius = document.documentElement.style.getPropertyValue('--custom-radius');
       expect(radius).toBe('16px');
     });
 
     it('persists border radius to localStorage', async () => {
-      const user = userEvent.setup();
       render(<CustomizePanel />);
       
       const slider = screen.getAllByRole('slider')[1];
-      await user.clear(slider);
-      await user.type(slider, '12');
-      await user.tab();
+      fireEvent.change(slider, { target: { value: '12' } });
       
       expect(localStorage.getItem('border-radius')).toBe('12');
     });
@@ -305,9 +293,9 @@ describe('CustomizePanel', () => {
       const user = userEvent.setup();
       render(<CustomizePanel />);
       
-      await user.click(screen.getByText('Cyberpunk').closest('button')!);
-      await user.click(screen.getByText('Pill').closest('button')!);
-      await user.click(screen.getByText('Purple').closest('button')!);
+      await user.click(screen.getByText('Cyberpunk'));
+      await user.click(screen.getByText('Pill'));
+      await user.click(screen.getByLabelText('purple accent'));
       
       expect(localStorage.getItem('app-theme')).toBe('cyberpunk');
       expect(localStorage.getItem('button-style')).toBe('pill');
@@ -318,9 +306,9 @@ describe('CustomizePanel', () => {
       const user = userEvent.setup();
       render(<CustomizePanel />);
       
-      await user.click(screen.getByText('Forest').closest('button')!);
-      await user.click(screen.getByText('Sharp').closest('button')!);
-      await user.click(screen.getByText('Green').closest('button')!);
+      await user.click(screen.getByText('Forest'));
+      await user.click(screen.getByText('Sharp'));
+      await user.click(screen.getByLabelText('green accent'));
       
       expect(document.documentElement.getAttribute('data-theme')).toBe('forest');
       expect(document.documentElement.getAttribute('data-button-style')).toBe('sharp');

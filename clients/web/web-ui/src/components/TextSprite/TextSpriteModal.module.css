@@ -1,6 +1,6 @@
 /* Text Sprite Modal Styles - Using TextSpriteBase patterns */
 
-.modalOverlay {
+.textSpriteModal-overlay {
   composes: modal-overlay from './TextSpriteBase.module.css';
 }
 
@@ -8,27 +8,27 @@
   composes: modal-container from './TextSpriteBase.module.css';
 }
 
-.modalHeader {
+.textSpriteModal .modal-header {
   composes: modal-header from './TextSpriteBase.module.css';
 }
 
-.modalHeader h3 {
+.textSpriteModal .modal-header h3 {
   composes: modal-title from './TextSpriteBase.module.css';
 }
 
-.closeBtn {
+.textSpriteModal .close-btn {
   composes: modal-close from './TextSpriteBase.module.css';
 }
 
-.modalBody {
+.textSpriteModal .modal-body {
   composes: modal-body from './TextSpriteBase.module.css';
 }
 
-.formGroup {
+.textSpriteModal .form-group {
   composes: control-group from './TextSpriteBase.module.css';
 }
 
-.formGroup label {
+.textSpriteModal .form-group label {
   composes: control-label from './TextSpriteBase.module.css';
 }
 
@@ -51,20 +51,20 @@
   box-shadow: var(--ring-blue);
 }
 
-.charCount {
+.textSpriteModal .char-count {
   text-align: right;
   font-size: var(--text-xs);
   color: var(--gray-500);
   margin-top: var(--space-1);
 }
 
-.formRow {
+.textSpriteModal .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-lg);
 }
 
-.sliderContainer {
+.textSpriteModal .slider-container {
   composes: slider-container from './TextSpriteBase.module.css';
 }
 
@@ -102,11 +102,11 @@
   transform: scale(1.1);
 }
 
-.sliderValue {
+.textSpriteModal .slider-value {
   composes: slider-value from './TextSpriteBase.module.css';
 }
 
-.colorPickerContainer {
+.textSpriteModal .color-picker-container {
   composes: color-picker-container from './TextSpriteBase.module.css';
 }
 
@@ -124,20 +124,20 @@
   border-radius: var(--space-1);
 }
 
-.colorValue {
+.textSpriteModal .color-value {
   composes: color-value from './TextSpriteBase.module.css';
 }
 
-.previewSection {
+.textSpriteModal .preview-section {
   margin-top: var(--space-2xl);
   margin-bottom: var(--space-xl);
 }
 
-.previewSection label {
+.textSpriteModal .preview-section label {
   composes: control-label from './TextSpriteBase.module.css';
 }
 
-.textPreview {
+.textSpriteModal .text-preview {
   min-height: var(--size-20);
   display: flex;
   align-items: center;
@@ -145,32 +145,32 @@
   border: var(--border-width-md) dashed var(--gray-700);
 }
 
-.infoBox {
+.textSpriteModal .info-box {
   composes: info-box from './TextSpriteBase.module.css';
 }
 
-.infoBox strong {
+.textSpriteModal .info-box strong {
   composes: info-box-highlight from './TextSpriteBase.module.css';
 }
 
-.modalFooter {
+.textSpriteModal .modal-footer {
   composes: modal-footer from './TextSpriteBase.module.css';
 }
 
-.btn {
+.textSpriteModal .btn {
   composes: button-base from './TextSpriteBase.module.css';
   padding: var(--space-sm) var(--space-2xl);
 }
 
-.btnCancel {
+.textSpriteModal .btn-cancel {
   composes: button-secondary from './TextSpriteBase.module.css';
 }
 
-.btnConfirm {
+.textSpriteModal .btn-confirm {
   composes: button-primary from './TextSpriteBase.module.css';
 }
 
-.btnConfirm:disabled {
+.textSpriteModal .btn-confirm:disabled {
   composes: button-disabled from './TextSpriteBase.module.css';
 }
 
@@ -181,11 +181,11 @@
     max-height: 95vh;
   }
 
-  .formRow {
+  .textSpriteModal .form-row {
     grid-template-columns: 1fr;
   }
 
-  .modalBody {
+  .textSpriteModal .modal-body {
     padding: var(--space-lg);
   }
 }

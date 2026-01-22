@@ -6,24 +6,24 @@
 /* Import note: Component should import PanelBase styles via className composition */
 
 /* Performance-specific info box styling */
-.performanceInfo {
+.performance-info {
   composes: info-box success from '../styles/PanelBase.module.css';
 }
 
-/* Modern camelCase class names */
-.performanceSettingsOverlay {
+/* Legacy class names for backward compatibility */
+.performanceSettings-overlay {
   composes: panel-overlay from '../styles/PanelBase.module.css';
 }
 
-.performanceSettingsPanel {
+.performanceSettings-panel {
   composes: panel-container from '../styles/PanelBase.module.css';
 }
 
-.settingsHeader {
+.settings-header {
   composes: panel-header from '../styles/PanelBase.module.css';
 }
 
-.settingsContent {
+.settings-content {
   composes: panel-content from '../styles/PanelBase.module.css';
 }
 
@@ -31,7 +31,7 @@
   composes: settings-section from '../styles/PanelBase.module.css';
 }
 
-.settingGroup {
+.setting-group {
   composes: section-group from '../styles/PanelBase.module.css';
 }
 
@@ -39,122 +39,119 @@
   composes: setting-label from '../styles/PanelBase.module.css';
 }
 
-.settingSelect {
+.setting-select {
   composes: setting-select from '../styles/PanelBase.module.css';
 }
 
-.settingSlider {
+.setting-slider {
   composes: setting-slider from '../styles/PanelBase.module.css';
 }
 
-.settingToggle {
+.setting-toggle {
   composes: setting-toggle from '../styles/PanelBase.module.css';
 }
 
-.toggleLabel {
+.toggle-label {
   composes: toggle-label from '../styles/PanelBase.module.css';
 }
 
-.toggleSwitch {
+.toggle-switch {
   composes: toggle-switch from '../styles/PanelBase.module.css';
 }
 
-.settingsActions {
+.settings-actions {
   composes: panel-actions from '../styles/PanelBase.module.css';
 }
 
-.actionButton {
+.action-button {
   composes: panel-button from '../styles/PanelBase.module.css';
 }
 
-.closeButton {
+.close-button {
   composes: close-button from '../styles/PanelBase.module.css';
 }
 
-.perfInfoGrid {
+.perf-info-grid {
   composes: info-grid from '../styles/PanelBase.module.css';
 }
 
-.perfStat {
+.perf-stat {
   composes: info-stat from '../styles/PanelBase.module.css';
 }
 
-.statLabel {
+.stat-label {
   composes: stat-label from '../styles/PanelBase.module.css';
 }
 
-.statValue {
+.stat-value {
   composes: stat-value from '../styles/PanelBase.module.css';
 }
 
-.autoOptimize {
-  composes: actionButton;
+.action-button.auto-optimize {
   background: linear-gradient(135deg, var(--purple-600), var(--purple-400));
   color: var(--white);
   border-color: var(--purple-200);
 }
 
-.autoOptimize:hover:not(:disabled) {
+.action-button.auto-optimize:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
 
-.reset {
-  composes: actionButton;
+.action-button.reset {
   background: var(--red-50);
   color: var(--red-600);
   border-color: var(--red-200);
 }
 
-.reset:hover:not(:disabled) {
+.action-button.reset:hover:not(:disabled) {
   background: var(--red-100);
   border-color: var(--red-300);
 }
 
-.apply {
-  composes: actionButton;
+.action-button.apply {
   background: linear-gradient(135deg, var(--green-400), var(--green-600));
   color: var(--white);
   border-color: var(--green-200);
 }
 
-.apply:hover:not(:disabled) {
+.action-button.apply:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .performanceSettingsPanel {
+  .performanceSettings-panel {
     width: 95%;
     max-height: 95vh;
   }
 
-  .settingsHeader {
+  .settings-header {
     padding: var(--space-md) var(--space-lg);
   }
 
-  .settingsContent {
+  .settings-content {
     padding: var(--space-lg);
   }
 
-  .settingsActions {
+  .settings-actions {
     flex-direction: column;
     padding: var(--space-md) var(--space-lg);
   }
 
-  .actionButton {
+  .action-button {
     min-width: auto;
   }
 
-  .perfInfoGrid {
+  .perf-info-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: var(--space-sm);
   }
 }
 
 /* Animation */
-.performanceSettingsPanel {
+.performanceSettings-panel {
   animation: slideIn 0.3s ease-out;
 }
 

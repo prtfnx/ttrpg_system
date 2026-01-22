@@ -20,14 +20,12 @@ declare global {
 }
 
 import type { UserInfo } from '../services/auth.service';
-import type { SessionRole } from '../types/roles';
 
 interface ToolsPanelProps {
   userInfo: UserInfo;
-  userRole?: SessionRole;
 }
 
-export function ToolsPanel({ userInfo, userRole = 'player' }: ToolsPanelProps) {
+export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   // console.log('[ToolsPanel] Component mounted'); // Removed to reduce noise
   const [assetManagerVisible, setAssetManagerVisible] = useState(false);
   const [paintPanelVisible, setPaintPanelVisible] = useState(false);
@@ -38,20 +36,13 @@ export function ToolsPanel({ userInfo, userRole = 'player' }: ToolsPanelProps) {
   const [shapeOpacity, setShapeOpacity] = useState(1.0); // Default fully opaque
   const [shapeFilled, setShapeFilled] = useState(false); // Default outline only
   
-  // Collapsible section states
-  const [createSpritesExpanded, setCreateSpritesExpanded] = useState(false); // Collapsed by default
-  const [drawingToolsExpanded, setDrawingToolsExpanded] = useState(false);
-  const [otherToolsExpanded, setOtherToolsExpanded] = useState(false);
-  
   const { 
     sessionId, 
     activeLayer, 
     activeTool, 
     measurementActive, 
     alignmentActive, 
-    setActiveTool,
-    isConnected,
-    connectionState
+    setActiveTool 
   } = useGameStore();
   
   // Handle tool changes and communicate with Rust backend
@@ -255,19 +246,6 @@ export function ToolsPanel({ userInfo, userRole = 'player' }: ToolsPanelProps) {
       {/* Network Settings */}
       <div className={styles.networkSettings}>
         <h4>Network Settings</h4>
-        
-        {/* Connection Status Display */}
-        <div className={styles.networkToggle}>
-          <label>Connection Status:</label>
-          <span className={`${styles.networkStatus} ${isConnected ? styles.active : styles.inactive}`}>
-            {isConnected ? '● Connected' : '○ Disconnected'}
-          </span>
-          <span style={{ marginLeft: '8px', fontSize: '0.85em', opacity: 0.7 }}>
-            ({connectionState})
-          </span>
-        </div>
-        
-        {/* Ping Toggle */}
         <div className={styles.networkToggle}>
           <label htmlFor="ping-toggle">
             <input
@@ -307,276 +285,179 @@ export function ToolsPanel({ userInfo, userRole = 'player' }: ToolsPanelProps) {
           </div>
           
           <div className={styles.roleToggle}>
-            <label>Current Role:</label>
+            <label htmlFor="role-toggle">Role:</label>
+            <select 
+              id="role-toggle"
+              value={userInfo.role}
+              onChange={(e) => {
+                // Update role in userInfo - this would require auth service update
+                console.log('Role change requested:', e.target.value);
+                alert(`Role switching: ${e.target.value}\n\nNote: Full role switching requires server support.\nCurrently for UI testing only.`);
+              }}
+              className={styles.roleSelect}
+            >
+              <option value="dm">DM (Dungeon Master)</option>
+              <option value="player">Player</option>
+            </select>
             <span className={styles.currentRole}>
-              {userRole === 'owner' && '👑 Owner'}
-              {userRole === 'co_dm' && '🎩 Co-DM'}
-              {userRole === 'trusted_player' && '⭐ Trusted Player'}
-              {userRole === 'player' && '🎭 Player'}
-              {userRole === 'spectator' && '👁️ Spectator'}
-              {!userRole && '🎭 Player'}
-              {userInfo.is_admin && ' (Admin)'}
-              {userInfo.tier === 'premium' && ' ⭐'}
+              Current: {userInfo.role === 'dm' ? '👑 DM' : '🎭 Player'}
             </span>
-            <p className={styles.roleNote} style={{ fontSize: '0.85em', color: '#888', margin: '4px 0 0 0' }}>
-              Role changes are now managed via the Session Management Panel (👥)
-            </p>
           </div>
         </div>
       )}
 
       <h2>Tools</h2>
 
-      {/* PRIMARY TOOLS - Always Visible */}
-      <div className={styles.primaryTools}>
-        <h4 className={styles.sectionHeader}>Primary Tools</h4>
-        <div className={styles.toolbar}>
+      {/* Enhanced Toolbar Section */}
+      <div className={styles.toolbar}>
+        <button 
+          className={`${styles.toolButton} ${activeTool === 'select' ? styles.active : ''}`}
+          onClick={() => setActiveTool('select')}
+          title="Select Tool"
+        >
+          🔍 Select
+        </button>
+        <button 
+          className={`${styles.toolButton} ${activeTool === 'move' ? styles.active : ''}`}
+          onClick={() => setActiveTool('move')}
+          title="Move Tool"
+        >
+          ✋ Move
+        </button>
+        <button 
+          className={`${styles.toolButton} ${activeTool === 'measure' ? styles.active : ''}`}
+          onClick={() => setActiveTool('measure')}
+          title="Measurement Tool"
+        >
+          📏 Measure
+        </button>
+        <button 
+          className={`${styles.toolButton} ${activeTool === 'align' ? styles.active : ''}`}
+          onClick={() => setActiveTool('align')}
+          title="Alignment Helper"
+        >
+          📐 Align
+        </button>
+        <button 
+          className={`${styles.toolButton} ${activeTool === 'draw_shapes' ? styles.active : ''}`}
+          onClick={() => setActiveTool('draw_shapes')}
+          title="Draw Shapes"
+        >
+          ✏️ Draw Shapes
+        </button>
+        <button 
+          className={`${styles.toolButton} ${activeTool === 'spell_templates' ? styles.active : ''}`}
+          onClick={() => setActiveTool('spell_templates')}
+          title="Spell Templates"
+        >
+          🔮 Spell Templates
+        </button>
+      </div>
+
+      {/* Sprite Creation Tools */}
+      <div className={styles.creationToolbar}>
+        <h4>Create Sprites</h4>
+        <div className={styles.creationButtons}>
           <button 
-            className={`${styles.toolButton} ${activeTool === 'select' ? styles.active : ''}`}
-            onClick={() => setActiveTool('select')}
-            title="Select Tool"
+            className={`${styles.toolButton} ${activeTool === 'rectangle' ? styles.active : ''}`}
+            onClick={() => {
+              setActiveTool('rectangle');
+              (window as any).fromDrawShapes = true;
+            }}
+            title="Create Rectangle"
           >
-            🔍 Select
+            ⬛ Rectangle
           </button>
           <button 
-            className={`${styles.toolButton} ${activeTool === 'move' ? styles.active : ''}`}
-            onClick={() => setActiveTool('move')}
-            title="Move Tool"
+            className={`${styles.toolButton} ${activeTool === 'circle' ? styles.active : ''}`}
+            onClick={() => setActiveTool('circle')}
+            title="Create Circle"
           >
-            ✋ Move
+            ⭕ Circle
           </button>
           <button 
-            className={`${styles.toolButton} ${activeTool === 'measure' ? styles.active : ''}`}
-            onClick={() => setActiveTool('measure')}
-            title="Measurement Tool"
+            className={`${styles.toolButton} ${activeTool === 'line' ? styles.active : ''}`}
+            onClick={() => setActiveTool('line')}
+            title="Create Line"
           >
-            📏 Measure
+            📏 Line
           </button>
           <button 
-            className={`${styles.toolButton} ${activeTool === 'align' ? styles.active : ''}`}
-            onClick={() => setActiveTool('align')}
-            title="Alignment Helper"
+            className={`${styles.toolButton} ${activeTool === 'text' ? styles.active : ''}`}
+            onClick={() => setActiveTool('text')}
+            title="Create Text"
           >
-            📐 Align
+            🔤 Text
           </button>
         </div>
-      </div>
-
-      {/* DRAWING TOOLS - Collapsible */}
-      <div className={styles.toolSection}>
-        <button 
-          className={styles.sectionToggle}
-          onClick={() => setDrawingToolsExpanded(!drawingToolsExpanded)}
-        >
-          <span>{drawingToolsExpanded ? '▼' : '▶'}</span>
-          <span>Drawing & Templates</span>
-        </button>
-        {drawingToolsExpanded && (
-          <div>
-            <div className={styles.toolbar}>
-              <button 
-                className={`${styles.toolButton} ${activeTool === 'draw_shapes' ? styles.active : ''}`}
-                onClick={() => setActiveTool('draw_shapes')}
-                title="Draw Shapes"
-              >
-                ✏️ Draw Shapes
-              </button>
-              <button 
-                className={`${styles.toolButton} ${activeTool === 'spell_templates' ? styles.active : ''}`}
-                onClick={() => setActiveTool('spell_templates')}
-                title="Spell Templates"
-              >
-                🔮 Spell Templates
-              </button>
+        
+        {/* Shape Creation Settings */}
+        {(['rectangle', 'circle', 'line'].includes(activeTool)) && (
+          <div className={styles.shapeSettings}>
+            <h5>Shape Settings</h5>
+            <div className={styles.settingRow}>
+              <label htmlFor="shape-color">Color:</label>
+              <input
+                id="shape-color"
+                type="color"
+                value={shapeColor}
+                onChange={(e) => setShapeColor(e.target.value)}
+              />
             </div>
-            
-            {/* Drawing Tools Settings - shown when draw_shapes is active */}
-            {(activeTool === 'draw_shapes' || (activeTool === 'rectangle' && (window as any).fromDrawShapes)) && (
-              <div className={styles.drawingSettings}>
-                <h5>Drawing Tools</h5>
-                <div className={styles.settingRow}>
-                  <label htmlFor="drawing-color">Drawing Color:</label>
-                  <input
-                    id="drawing-color"
-                    type="color"
-                    value={shapeColor}
-                    onChange={(e) => setShapeColor(e.target.value)}
-                    aria-label="Drawing Color"
-                  />
-                  <div className={styles.colorPresets}>
-                    <button 
-                      data-testid="color-gray"
-                      onClick={() => setShapeColor('#808080')}
-                      style={{ backgroundColor: '#808080', width: '20px', height: '20px', border: '1px solid #ccc' }}
-                      title="Gray"
-                    />
-                    <button 
-                      data-testid="color-brown"
-                      onClick={() => setShapeColor('#8B4513')}
-                      style={{ backgroundColor: '#8B4513', width: '20px', height: '20px', border: '1px solid #ccc' }}
-                      title="Brown"
-                    />
-                    <button 
-                      data-testid="color-green"
-                      onClick={() => setShapeColor('#228B22')}
-                      style={{ backgroundColor: '#228B22', width: '20px', height: '20px', border: '1px solid #ccc' }}
-                      title="Green"
-                    />
-                  </div>
-                </div>
-                <div className={styles.settingRow}>
-                  <label htmlFor="brush-size">Brush Size:</label>
-                  <input
-                    id="brush-size"
-                    type="number"
-                    min="1"
-                    max="20"
-                    defaultValue="3"
-                    aria-label="Brush Size"
-                  />
-                  <span>px</span>
-                </div>
-                <div className={styles.settingRow}>
-                  <label htmlFor="draw-filled">
-                    <input
-                      id="draw-filled"
-                      type="checkbox"
-                      checked={shapeFilled}
-                      onChange={(e) => setShapeFilled(e.target.checked)}
-                    />
-                    Filled Shape
-                  </label>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* CREATE SPRITES - Collapsible, Collapsed by Default */}
-      <div className={styles.toolSection}>
-        <button 
-          className={styles.sectionToggle}
-          onClick={() => setCreateSpritesExpanded(!createSpritesExpanded)}
-        >
-          <span>{createSpritesExpanded ? '▼' : '▶'}</span>
-          <span>Create Sprites</span>
-        </button>
-        {createSpritesExpanded && (
-          <div className={styles.creationToolbar}>
-            <div className={styles.creationButtons}>
-              <button 
-                className={`${styles.toolButton} ${activeTool === 'rectangle' ? styles.active : ''}`}
-                onClick={() => {
-                  setActiveTool('rectangle');
-                  (window as any).fromDrawShapes = true;
-                }}
-                title="Create Rectangle"
-              >
-                ⬛ Rectangle
-              </button>
-              <button 
-                className={`${styles.toolButton} ${activeTool === 'circle' ? styles.active : ''}`}
-                onClick={() => setActiveTool('circle')}
-                title="Create Circle"
-              >
-                ⭕ Circle
-              </button>
-              <button 
-                className={`${styles.toolButton} ${activeTool === 'line' ? styles.active : ''}`}
-                onClick={() => setActiveTool('line')}
-                title="Create Line"
-              >
-                📏 Line
-              </button>
-              <button 
-                className={`${styles.toolButton} ${activeTool === 'text' ? styles.active : ''}`}
-                onClick={() => setActiveTool('text')}
-                title="Create Text"
-              >
-                🔤 Text
-              </button>
+            <div className={styles.settingRow}>
+              <label htmlFor="shape-opacity">Opacity:</label>
+              <input
+                id="shape-opacity"
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                value={shapeOpacity}
+                onChange={(e) => setShapeOpacity(parseFloat(e.target.value))}
+              />
+              <span>{Math.round(shapeOpacity * 100)}%</span>
             </div>
-            
-            {/* Shape Creation Settings */}
-            {(['rectangle', 'circle', 'line'].includes(activeTool)) && (
-              <div className={styles.shapeSettings}>
-                <h5>Shape Settings</h5>
-                <div className={styles.settingRow}>
-                  <label htmlFor="shape-color">Color:</label>
-                  <input
-                    id="shape-color"
-                    type="color"
-                    value={shapeColor}
-                    onChange={(e) => setShapeColor(e.target.value)}
-                  />
-                </div>
-                <div className={styles.settingRow}>
-                  <label htmlFor="shape-opacity">Opacity:</label>
-                  <input
-                    id="shape-opacity"
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={shapeOpacity}
-                    onChange={(e) => setShapeOpacity(parseFloat(e.target.value))}
-                  />
-                  <span>{Math.round(shapeOpacity * 100)}%</span>
-                </div>
-                <div className={styles.settingRow}>
-                  <label htmlFor="shape-filled">
-                    <input
-                      id="shape-filled"
-                      type="checkbox"
-                      checked={shapeFilled}
-                      onChange={(e) => setShapeFilled(e.target.checked)}
-                    />
-                    Filled
-                  </label>
-                </div>
-              </div>
-            )}
+            <div className={styles.settingRow}>
+              <label htmlFor="shape-filled">
+                <input
+                  id="shape-filled"
+                  type="checkbox"
+                  checked={shapeFilled}
+                  onChange={(e) => setShapeFilled(e.target.checked)}
+                />
+                Filled
+              </label>
+            </div>
           </div>
         )}
       </div>
 
-      {/* OTHER TOOLS - Collapsible */}
-      <div className={styles.toolSection}>
-        <button 
-          className={styles.sectionToggle}
-          onClick={() => setOtherToolsExpanded(!otherToolsExpanded)}
-        >
-          <span>{otherToolsExpanded ? '▼' : '▶'}</span>
-          <span>Other Tools</span>
-        </button>
-        {otherToolsExpanded && (
-          <div className={styles.creationButtons}>
-            <button
-              className={styles.toolButton}
-              onClick={() => setAssetManagerVisible(true)}
-              title="Asset Manager"
-            >
-              📁 Assets
-            </button>
-            <button
-              className={`${styles.toolButton} ${activeTool === 'paint' ? styles.active : ''}`}
-              onClick={() => {
-                if (window.rustRenderManager) {
-                  console.log('[ToolsPanel] Activating paint tool');
-                  window.rustRenderManager.set_input_mode_paint();
-                  setActiveTool('paint');
-                  setPaintPanelVisible(true);
-                } else {
-                  console.warn('[ToolsPanel] Cannot activate paint tool: render manager not available');
-                }
-              }}
-              title="Paint System"
-            >
-              🎨 Paint
-            </button>
-          </div>
-        )}
+      <div>
+        <div className={styles.creationButtons}>
+          <button
+            className={styles.toolButton}
+            onClick={() => setAssetManagerVisible(true)}
+            title="Asset Manager"
+          >
+            📁 Assets
+          </button>
+          <button
+            className={`${styles.toolButton} ${activeTool === 'paint' ? styles.active : ''}`}
+            onClick={() => {
+              if (window.rustRenderManager) {
+                console.log('[ToolsPanel] Activating paint tool');
+                window.rustRenderManager.set_input_mode_paint();
+                setActiveTool('paint');
+                setPaintPanelVisible(true);
+              } else {
+                console.warn('[ToolsPanel] Cannot activate paint tool: render manager not available');
+              }
+            }}
+            title="Paint System"
+          >
+            🎨 Paint
+          </button>
+        </div>
       </div>
 
       {/* Paint Panel */}
@@ -607,7 +488,65 @@ export function ToolsPanel({ userInfo, userRole = 'player' }: ToolsPanelProps) {
           </div>
         )}
         
-
+        {/* Drawing Tools Settings */}
+        {(activeTool === 'draw_shapes' || (activeTool === 'rectangle' && (window as any).fromDrawShapes)) && (
+          <div className={styles.drawingSettings}>
+            <h5>Drawing Tools</h5>
+            <div className={styles.settingRow}>
+              <label htmlFor="drawing-color">Drawing Color:</label>
+              <input
+                id="drawing-color"
+                type="color"
+                value={shapeColor}
+                onChange={(e) => setShapeColor(e.target.value)}
+                aria-label="Drawing Color"
+              />
+              <div className={styles.colorPresets}>
+                <button 
+                  data-testid="color-gray"
+                  onClick={() => setShapeColor('#808080')}
+                  style={{ backgroundColor: '#808080', width: '20px', height: '20px', border: '1px solid #ccc' }}
+                  title="Gray"
+                />
+                <button 
+                  data-testid="color-brown"
+                  onClick={() => setShapeColor('#8B4513')}
+                  style={{ backgroundColor: '#8B4513', width: '20px', height: '20px', border: '1px solid #ccc' }}
+                  title="Brown"
+                />
+                <button 
+                  data-testid="color-green"
+                  onClick={() => setShapeColor('#228B22')}
+                  style={{ backgroundColor: '#228B22', width: '20px', height: '20px', border: '1px solid #ccc' }}
+                  title="Green"
+                />
+              </div>
+            </div>
+            <div className={styles.settingRow}>
+              <label htmlFor="brush-size">Brush Size:</label>
+              <input
+                id="brush-size"
+                type="number"
+                min="1"
+                max="20"
+                defaultValue="3"
+                aria-label="Brush Size"
+              />
+              <span>px</span>
+            </div>
+            <div className={styles.settingRow}>
+              <label htmlFor="draw-filled">
+                <input
+                  id="draw-filled"
+                  type="checkbox"
+                  checked={shapeFilled}
+                  onChange={(e) => setShapeFilled(e.target.checked)}
+                />
+                Filled Shape
+              </label>
+            </div>
+          </div>
+        )}
         
         {/* Spell Templates Settings */}
         {activeTool === 'spell_templates' && (

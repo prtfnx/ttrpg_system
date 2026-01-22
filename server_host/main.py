@@ -19,24 +19,19 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from server_host.utils.logger import setup_logger
+from utils.logger import setup_logger
 logger = setup_logger(__name__)
+from server_host.utils.logger import setup_logger
 from server_host.routers import users
 from server_host.routers import game
 from server_host.routers import compendium
-from server_host.routers import session_management
 from server_host.api import game_ws
-from server_host.database.database import create_tables, SessionLocal
-from server_host.database import models
+from server_host.database.database import create_tables
 from server_host.service.game_session import ConnectionManager
 from server_host.utils.rate_limiter import registration_limiter, login_limiter
 
 # Import table manager for WebSocket protocol
 from core_table.server import TableManager
-
-# Import token API and R2 manager
-from core_table.api.token_api import router as token_router, init_token_api
-from storage.r2_manager import R2AssetManager
 
 
 logger = setup_logger("main.py" ) # set level in logger.py to DEBUG for detailed logs
@@ -46,7 +41,6 @@ class AppState:
     def __init__(self):
         self.connection_manager = ConnectionManager()
         self.table_manager = TableManager()
-        self.r2_manager = R2AssetManager()
 
 app_state = AppState()
 
@@ -60,28 +54,8 @@ async def lifespan(app: FastAPI):
     create_tables()
     logger.info("Database tables created/verified")
     
-    # Reset all player connection statuses on startup (cleanup stale connections)
-    db = SessionLocal()
-    try:
-        stale_connections = db.query(models.GamePlayer).filter(
-            models.GamePlayer.is_connected == True
-        ).update({"is_connected": False})
-        db.commit()
-        if stale_connections > 0:
-            logger.info(f"Reset {stale_connections} stale player connections on startup")
-    except Exception as e:
-        logger.error(f"Error resetting player connections: {e}")
-        db.rollback()
-    finally:
-        db.close()
-    
     # Store app state in FastAPI app
     app.state.connection_manager = app_state.connection_manager
-    app.state.r2_manager = app_state.r2_manager
-    
-    # Initialize token API with R2 manager
-    init_token_api(app_state.r2_manager)
-    logger.info("Token API initialized with R2 manager")
     app.state.table_manager = app_state.table_manager
     
     # Start cleanup task for rate limiters
@@ -138,9 +112,8 @@ resources_path = os.path.join(os.path.dirname(__file__), "..", "resources")
 if os.path.exists(resources_path):
     app.mount("/resources", StaticFiles(directory=resources_path), name="resources")
 
-# Set up templates with absolute path
-templates_path = os.path.join(os.path.dirname(__file__), "templates")
-templates = Jinja2Templates(directory=templates_path)
+# Set up templates
+templates = Jinja2Templates(directory="templates")
 
 # Custom exception handlers
 @app.exception_handler(404)
@@ -175,16 +148,11 @@ async def forbidden_handler(request: Request, exc: HTTPException):
     else:
         return RedirectResponse(url="/users/auth-error", status_code=302)
 
-from server_host.routers import invitations, admin
-
-app.include_router(token_router)
+# Include routers
 app.include_router(users.router)
 app.include_router(game.router)
-app.include_router(session_management.router)
 app.include_router(compendium.router)
 app.include_router(game_ws.router)
-app.include_router(invitations.router)
-app.include_router(admin.router)
 
 @app.get("/")
 async def root():

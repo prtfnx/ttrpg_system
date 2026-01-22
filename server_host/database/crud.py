@@ -12,17 +12,7 @@ import string
 import re
 import json
 import uuid
-import sys
-import os
-
-# Add parent directory to path for imports
-if __name__ == "__main__":
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-try:
-    from utils.logger import setup_logger
-except ImportError:
-    from server_host.utils.logger import setup_logger
+from server_host.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -210,22 +200,10 @@ def list_game_sessions(db: Session):
     return [(s.session_code, s.name, bool(s.is_active)) for s in sessions]
 
 def get_user_game_sessions(db: Session, user_id: int):
-    """
-    Get all active game sessions where the user is a participant (player).
-    Returns tuples of (GameSession, player_role) to include the user's role in each session.
-    
-    OWASP best practice: Return comprehensive user context for proper authorization
-    """
-    # Join GameSession with GamePlayer to get all sessions the user participates in
-    results = db.query(models.GameSession, models.GamePlayer.role).join(
-        models.GamePlayer,
-        models.GameSession.id == models.GamePlayer.session_id
-    ).filter(
-        models.GamePlayer.user_id == user_id,
+    return db.query(models.GameSession).filter(
+        models.GameSession.owner_id == user_id,
         models.GameSession.is_active == True
     ).all()
-    
-    return results
 
 def get_game_session(db: Session, session_id: int):
     return db.query(models.GameSession).filter(models.GameSession.id == session_id).first()
@@ -261,23 +239,16 @@ def join_game_session(db: Session, session_code: str, user_id: int, character_na
         db.commit()
         return existing_player
     
-    # OWASP best practice: Enforce least privileges (default to player)
-    # Session owner gets owner role, others get player role
-    role = 'owner' if session.owner_id == user_id else 'player'
-    
     # Create new player
     db_player = models.GamePlayer(
         session_id=session.id,
         user_id=user_id,
         character_name=character_name,
-        is_connected=True,
-        role=role
+        is_connected=True
     )
     db.add(db_player)
     db.commit()
     db.refresh(db_player)
-    
-    logger.info(f"User {user_id} joined session {session_code} with role: {role}")
     return db_player
 
 def disconnect_player(db: Session, session_id: int, user_id: int):
@@ -373,9 +344,6 @@ def create_entity(db: Session, entity_data: schemas.EntityCreate, table_db_id: i
         # Character binding
         character_id=entity_data.character_id,
         controlled_by=entity_data.controlled_by,
-        # Asset tracking
-        asset_id=entity_data.asset_id,
-        asset_xxhash=entity_data.asset_xxhash,
         # Token stats
         hp=entity_data.hp,
         max_hp=entity_data.max_hp,
@@ -514,9 +482,6 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             # Character binding
             character_id=getattr(entity_obj, 'character_id', None),
             controlled_by=controlled_by_json,
-            # Asset tracking
-            asset_id=getattr(entity_obj, 'asset_id', None),
-            asset_xxhash=getattr(entity_obj, 'asset_xxhash', None),
             # Token stats
             hp=getattr(entity_obj, 'hp', None),
             max_hp=getattr(entity_obj, 'max_hp', None),
@@ -542,9 +507,6 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             # Character binding
             character_id=getattr(entity_obj, 'character_id', None),
             controlled_by=controlled_by_json,
-            # Asset tracking
-            asset_id=getattr(entity_obj, 'asset_id', None),
-            asset_xxhash=getattr(entity_obj, 'asset_xxhash', None),
             # Token stats
             hp=getattr(entity_obj, 'hp', None),
             max_hp=getattr(entity_obj, 'max_hp', None),
@@ -635,31 +597,3 @@ def load_table_from_db(db: Session, table_id: str):
     except Exception as e:
         print(f"Error loading table from database: {e}")
         return None, False
-
-# Role management operations (OWASP RBAC best practices)
-def get_player_role(db: Session, session_code: str, user_id: int) -> Optional[str]:
-    """
-    Get the role of a player in a specific session.
-    Returns 'dm', 'player', or None if not in session.
-    
-    OWASP best practice: Validate permissions on every request
-    """
-    session = get_game_session_by_code(db, session_code)
-    if not session:
-        return None
-    
-    player = db.query(models.GamePlayer).filter(
-        models.GamePlayer.session_id == session.id,
-        models.GamePlayer.user_id == user_id
-    ).first()
-    
-    if not player:
-        return None
-    
-    return player.role
-
-# Legacy role management functions removed
-# Use session_management API endpoints instead:
-#  - POST /game/session/{code}/players/{id}/role
-#  - GET /game/session/{code}/players
-# Role assignment happens automatically in join_game_session() with 'owner' role

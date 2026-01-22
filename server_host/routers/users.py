@@ -1,4 +1,5 @@
-"""  User authentication and management router
+"""
+User authentication and management router
 """
 from fastapi import APIRouter, Request, Depends, Form, HTTPException, status, Cookie
 from fastapi.responses import RedirectResponse
@@ -9,22 +10,20 @@ from typing import Annotated
 from datetime import datetime, timedelta, timezone
 from jwt.exceptions import InvalidTokenError
 import jwt
-import os
 
-from server_host.database.database import get_db
-from server_host.database import crud
-from server_host.database import schemas, models
-from server_host.models import auth as auth_models
-from server_host.utils.rate_limiter import registration_limiter, login_limiter, get_client_ip
-from server_host.utils.logger import setup_logger
+from ..database.database import get_db
+from ..database import crud
+from ..database import schemas
+from ..models import auth as auth_models
+from ..utils.rate_limiter import registration_limiter, login_limiter, get_client_ip
+from ..utils.logger import setup_logger
 from functools import lru_cache
 
 logger = setup_logger(__name__)
 
 router = APIRouter(prefix="/users", tags=["users"])
-templates_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
-templates = Jinja2Templates(directory=templates_path)
-from server_host import config
+templates = Jinja2Templates(directory="templates")
+from .. import config
 
 @lru_cache
 def get_settings():
@@ -88,35 +87,6 @@ async def get_current_active_user(current_user: Annotated[schemas.User, Depends(
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
-async def get_current_user_optional(request: Request, db: Session):
-    """
-    Get current user without raising exception if not authenticated.
-    Returns None if user is not authenticated.
-    """
-    try:
-        # Try to get token from cookie first
-        token = request.cookies.get("token")
-        
-        # If no token in cookie, try Authorization header
-        if not token:
-            authorization = request.headers.get("Authorization")
-            if authorization and authorization.startswith("Bearer "):
-                token = authorization.split(" ")[1]
-        
-        if not token:
-            return None
-        
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-        if username is None:
-            return None
-        
-        user = crud.get_user_by_username(db, username=username)
-        return user
-    except Exception:
-        return None
-
-
 @router.get("/me")
 async def users_me(
     request: Request,
@@ -127,17 +97,14 @@ async def users_me(
     # Check if this is an API request (JSON) vs web request (HTML)
     accept_header = request.headers.get("accept", "")
     if "application/json" in accept_header:
-        # Return JSON for API requests with permissions
-        # Note: User object doesn't have a 'role' attribute
-        # Roles are session-specific (stored in GamePlayer table)
-        # Removed hardcoded 'player' role - client should fetch role per session
+        # Return JSON for API requests with additional fields needed by client
         return {
             "id": current_user.id,
             "username": current_user.username,
             "email": getattr(current_user, 'email', None),
             "disabled": current_user.disabled,
-            "tier": getattr(current_user, 'tier', 'free'),
-            "permissions": current_user.get_permissions(),
+            "role": "player",  # Default role, will be determined per session
+            "permissions": [],  # Add permissions if you have a permissions system
             "created_at": getattr(current_user, 'created_at', None)
         }
     else:
@@ -264,43 +231,26 @@ async def dashboard(
     # Check if this is an API request (JSON) vs web request (HTML)
     accept_header = request.headers.get("accept", "")
     
-    # Get user's game sessions with roles
+    # Get user's game sessions
     user_sessions = crud.get_user_game_sessions(db, current_user.id)
     
     if "application/json" in accept_header:
         # Return JSON for API requests
-        # user_sessions now returns list of (GameSession, role) tuples
         sessions_data = []
-        for session, role in user_sessions:
+        for session in user_sessions:
             sessions_data.append({
                 "session_code": session.session_code,
                 "session_name": session.name,
-                "role": role,  # Use actual role from GamePlayer table
+                "role": "dm" if session.owner_id == current_user.id else "player",
                 "created_at": session.created_at.isoformat() if hasattr(session, 'created_at') else None
             })
         return {"sessions": sessions_data}
     else:
-        # Return HTML page for browser requests with enhanced session data
-        sessions_enhanced = []
-        for session, role in user_sessions:
-            # Get player count
-            player_count = db.query(models.GamePlayer).filter(
-                models.GamePlayer.session_id == session.id
-            ).count()
-            
-            sessions_enhanced.append({
-                "name": session.name,
-                "session_code": session.session_code,
-                "role": role,
-                "created_at": session.created_at,
-                "player_count": player_count,
-                "status": "Active"  # Can be enhanced with actual session status
-            })
-        
+        # Return HTML page for browser requests
         return templates.TemplateResponse("dashboard.html", {
             "request": request,
             "user": current_user,
-            "sessions": sessions_enhanced
+            "sessions": user_sessions
         })
 
 @router.get("/register")
@@ -397,35 +347,3 @@ def logout():
     response = RedirectResponse(url="/users/login", status_code=status.HTTP_302_FOUND)
     response.delete_cookie(key="token", path="/", samesite="lax")
     return response
-
-# Role management endpoints (OWASP RBAC best practices)
-@router.get("/me/role/{session_code}", response_model=dict)
-async def get_my_role(
-    session_code: str,
-    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
-    db: Session = Depends(get_db)
-):
-    """
-    Get current user's role in a specific session.
-    
-    OWASP best practices:
-    - Validate permissions on every request
-    - Server-side authorization checks
-    """
-    role = crud.get_player_role(db, session_code, current_user.id)
-    
-    if role is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User is not a member of this session"
-        )
-    
-    return {
-        "session_code": session_code,
-        "role": role,
-        "user_id": current_user.id,
-        "username": current_user.username
-    }
-
-# Legacy role change endpoint removed - use /game/session/{code}/players/{id}/role instead
-# Kept GET endpoint for backwards compatibility with role mapping

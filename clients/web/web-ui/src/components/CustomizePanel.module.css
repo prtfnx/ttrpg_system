@@ -45,7 +45,9 @@
 }
 
 .themeCard {
-  composes: flex flex-col items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: var(--space-sm);
   padding: var(--space-md);
   background: var(--bg-tertiary);
@@ -99,8 +101,9 @@
 
 /* Color Grid */
 .colorGrid {
-  composes: flex flex-wrap from '../styles/7-utilities/layout.module.css';
+  display: flex;
   gap: var(--space-md);
+  flex-wrap: wrap;
 }
 
 .colorButton {
@@ -111,7 +114,9 @@
   cursor: pointer;
   transition: all var(--transition-fast);
   position: relative;
-  composes: flex items-center justify-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .colorButton:hover {
@@ -167,7 +172,9 @@
 }
 
 .settingLabel {
-  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: var(--space-sm);
   font-size: var(--text-sm);
   color: var(--text-primary);
@@ -221,7 +228,8 @@
 
 /* Actions */
 .actions {
-  composes: flex justify-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  justify-content: center;
   margin-top: var(--space-2xl);
 }
 
@@ -248,7 +256,8 @@
 
 /* Info Box */
 .infoBox {
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
   gap: var(--space-md);
   padding: var(--space-md);
   margin-top: var(--space-xl);

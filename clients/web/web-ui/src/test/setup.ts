@@ -126,17 +126,17 @@ Object.defineProperty(window, 'matchMedia', {
     return {
       fillRect: vi.fn(),
       clearRect: vi.fn(),
-      getImageData: vi.fn(() => ({ 
-        data: new Uint8ClampedArray(4),
-        width: 1,
-        height: 1,
+      getImageData: vi.fn((sx: number, sy: number, sw: number, sh: number) => ({ 
+        data: new Uint8ClampedArray(sw * sh * 4),
+        width: sw,
+        height: sh,
         colorSpace: 'srgb' as PredefinedColorSpace
       })),
       putImageData: vi.fn(),
-      createImageData: vi.fn(() => ({ 
-        data: new Uint8ClampedArray(4), 
-        width: 1, 
-        height: 1,
+      createImageData: vi.fn((width: number, height: number) => ({ 
+        data: new Uint8ClampedArray(width * height * 4), 
+        width: width, 
+        height: height,
         colorSpace: 'srgb' as PredefinedColorSpace
       })),
       setTransform: vi.fn(),

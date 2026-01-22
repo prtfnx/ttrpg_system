@@ -70,12 +70,15 @@ if (!(window as any).rustRenderManager) {
     set_light_intensity: vi.fn(),
     get_light_at_position: vi.fn(() => 0),
     add_sprite: vi.fn(),
+    add_sprite_to_layer: vi.fn(),
     remove_sprite: vi.fn(),
     update_sprite_position: vi.fn(),
     set_camera: vi.fn(),
     get_camera: vi.fn(() => ({ x: 0, y: 0, zoom: 1 })),
     clear: vi.fn(),
     free: vi.fn(),
+    world_to_screen: vi.fn((x, y) => [x, y]),
+    create_text_sprite: vi.fn(() => 'text-sprite-' + Math.random().toString(36).substr(2, 9)),
     // Add any other methods required by panels here
   };
 }

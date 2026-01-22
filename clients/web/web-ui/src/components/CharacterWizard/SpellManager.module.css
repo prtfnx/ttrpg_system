@@ -12,7 +12,7 @@
   composes: wizard-header-purple from './CharacterWizardBase.module.css';
 }
 
-.manager-title h2 {
+.manager-title-heading {
   composes: wizard-title from './CharacterWizardBase.module.css';
 }
 
@@ -29,11 +29,11 @@
   composes: wizard-tabs from './CharacterWizardBase.module.css';
 }
 
-.spellManager .tab-button {
+.spell-tab-button {
   composes: wizard-tab-button from './CharacterWizardBase.module.css';
 }
 
-.spellManager .tab-button.active {
+.spell-tab-button-active {
   composes: wizard-tab-button-active-purple from './CharacterWizardBase.module.css';
 }
 
@@ -70,17 +70,17 @@
   composes: wizard-button-secondary from './CharacterWizardBase.module.css';
 }
 
-.rest-btn.short {
+.rest-btn-short {
   background: var(--blue-600);
   color: var(--text-inverse-primary);
   border: none;
 }
 
-.rest-btn.short:hover {
+.rest-btn-short:hover {
   background: var(--blue-500);
 }
 
-.rest-btn.long {
+.rest-btn-long {
   composes: wizard-button-success from './CharacterWizardBase.module.css';
 }
 
@@ -316,12 +316,12 @@
   color: var(--text-primary);
 }
 
-.casting-level select {
+.casting-level-select {
   composes: wizard-select from './CharacterWizardBase.module.css';
   padding: var(--space-xs) var(--space-sm);
 }
 
-.casting-level select:focus {
+.casting-level-select:focus {
   border-color: var(--purple-700);
 }
 
@@ -470,7 +470,7 @@
   font-size: var(--text-sm);
 }
 
-.spell-stats > div {
+.spell-stat-item {
   composes: wizard-row from './CharacterWizardBase.module.css';
   gap: var(--space-xs);
 }

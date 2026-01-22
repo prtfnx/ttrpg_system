@@ -19,7 +19,7 @@
   padding: var(--space-lg);
 }
 
-.manager-title h2 {
+.manager-title-heading {
   margin: 0;
   font-size: var(--text-2xl);
   font-weight: var(--font-semibold);
@@ -49,12 +49,12 @@
   composes: wizard-tabs from './CharacterWizardBase.module.css';
 }
 
-.attackManager .tab-button {
+.attack-tab-button {
   composes: wizard-tab-button from './CharacterWizardBase.module.css';
   flex: 1;
 }
 
-.attackManager .tab-button.active {
+.attack-tab-button-active {
   composes: wizard-tab-button-active-primary from './CharacterWizardBase.module.css';
 }
 
@@ -492,7 +492,7 @@
     padding: var(--space-md);
   }
 
-  .manager-title h2 {
+  .manager-title-heading {
     font-size: var(--text-xl);
   }
 

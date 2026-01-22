@@ -400,6 +400,12 @@ class PerformanceOptimizedBackgroundSystem {
     const renderer = gl.getParameter(gl.RENDERER);
     const vendor = gl.getParameter(gl.VENDOR);
     
+    // Check if renderer and vendor are available (they might be null in some environments)
+    if (!renderer || !vendor) {
+      this.performanceProfile = 'medium';
+      return;
+    }
+    
     // Simple heuristic based on GPU info
     const rendererLower = renderer.toLowerCase();
     const vendorLower = vendor.toLowerCase();

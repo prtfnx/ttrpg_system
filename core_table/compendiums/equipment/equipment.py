@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 # --- 5e.tools ENHANCED FIELDS ---
 @dataclass
 class MagicItemEffect:
@@ -6,12 +7,7 @@ class MagicItemEffect:
     description: str
     requires_attunement: bool = False
 
-@dataclass
-class WeaponDamage:
-    """Weapon damage information"""
-    dice: str  # "1d8"
-    damage_type: DamageType
-    versatile_dice: Optional[str] = None  # "1d10" for versatile weapons
+
 #!/usr/bin/env python3
 """
 D&D 5e Equipment System
@@ -86,6 +82,14 @@ class DamageType(Enum):
     RADIANT = "radiant"
     SLASHING = "slashing"
     THUNDER = "thunder"
+
+@dataclass
+class WeaponDamage:
+    """Weapon damage information"""
+    dice: str  # "1d8"
+    damage_type: DamageType
+    versatile_dice: Optional[str] = None  # "1d10" for versatile weapons
+
 
 
 class ArmorType(Enum):

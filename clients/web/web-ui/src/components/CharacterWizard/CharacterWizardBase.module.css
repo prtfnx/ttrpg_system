@@ -128,7 +128,7 @@
 /**
  * Gradient header - Primary brand style
  * Used by: CharacterSheet, LevelUpWizard, XPTracker
- * Color: Red gradient (#8b0000 → #a00000)
+ * Color: Red gradient (var(--red-900) → var(--red-800))
  */
 .wizard-header-primary {
   background: linear-gradient(135deg, var(--red-900) 0%, var(--red-800) 100%);
@@ -142,7 +142,7 @@
 /**
  * Gradient header - Purple variant
  * Used by: SpellManager
- * Color: Purple gradient (#4a148c → #6a1b9a)
+ * Color: Purple gradient (var(--purple-950) → var(--purple-800))
  */
 .wizard-header-purple {
   background: linear-gradient(135deg, var(--purple-950) 0%, var(--purple-800) 100%);
@@ -156,7 +156,7 @@
 /**
  * Gradient header - Dark neutral
  * Used by: EnhancedCharacterWizard
- * Color: Dark gray (#2c3e50)
+ * Color: Dark gray (var(--gray-800))
  */
 .wizard-header-neutral {
   background: var(--gray-800);

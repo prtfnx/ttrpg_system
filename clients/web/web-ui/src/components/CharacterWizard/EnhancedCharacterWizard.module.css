@@ -43,8 +43,8 @@
 
 .wizard-close {
   composes: wizard-close-button from './CharacterWizardBase.module.css';
-  background: rgba(255, 255, 255, 0.15);
-  border: var(--border-width-md) solid rgba(255, 255, 255, 0.3);
+  background: var(--wizard-bg-overlay);
+  border: var(--border-width-md) solid var(--wizard-border-overlay);
   border-radius: var(--radius-md);
   width: var(--size-9);
   height: var(--size-9);
@@ -56,8 +56,8 @@
 }
 
 .wizard-close:hover {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.5);
+  background: var(--wizard-bg-overlay-hover);
+  border-color: var(--overlay-strong);
   transform: scale(1.05);
 }
 
@@ -67,7 +67,7 @@
 }
 
 .progress-bar {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--wizard-bg-overlay);
   border-radius: var(--radius-md);
   height: var(--size-2);
   overflow: hidden;
@@ -79,7 +79,7 @@
   height: 100%;
   border-radius: var(--radius-md);
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 0 8px rgba(52, 152, 219, 0.5);
+  box-shadow: 0 0 8px var(--color-primary-glow);
 }
 
 .progress-text {
@@ -101,9 +101,9 @@
 
 .step-button {
   composes: wizard-button-secondary from './CharacterWizardBase.module.css';
-  background: rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.8);
-  border: var(--border-width-thick) solid rgba(255, 255, 255, 0.2);
+  background: var(--wizard-bg-overlay);
+  color: var(--text-inverse-primary);
+  border: var(--border-width-thick) solid var(--border-overlay-light);
   border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-md);
   transition: all var(--transition-normal) ease;
@@ -114,20 +114,20 @@
 }
 
 .step-button:hover:not(.disabled) {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.4);
+  background: var(--wizard-bg-overlay-hover);
+  border-color: var(--border-overlay-strong);
   transform: translateY(-2px);
 }
 
 .step-button.active {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--overlay-heavy);
   color: var(--text-primary);
   border-color: white;
-  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 15px var(--wizard-glow-white);
 }
 
 .step-button.completed {
-  background: rgba(76, 175, 80, 0.9);
+  background: var(--wizard-success-bg);
   color: var(--text-inverse-primary);
   border-color: var(--green-600);
 }
@@ -139,7 +139,7 @@
 
 .step-number {
   composes: wizard-badge from './CharacterWizardBase.module.css';
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--wizard-border-overlay);
   width: var(--size-6);
   height: var(--size-6);
   font-size: var(--text-xs);
@@ -151,7 +151,7 @@
 }
 
 .step-button.completed .step-number {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--wizard-border-overlay);
 }
 
 .step-title {
@@ -302,12 +302,12 @@
 
 .wizard-btn-primary {
   composes: wizard-button-success from './CharacterWizardBase.module.css';
-  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+  box-shadow: 0 4px 15px var(--color-success-glow);
 }
 
 .wizard-btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+  box-shadow: 0 6px 20px var(--color-success-glow);
 }
 
 .wizard-btn-secondary {
@@ -529,7 +529,8 @@
 }
 
 .template-type-btn.active .template-type-desc {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-inverse-primary);
+  opacity: 0.9;
 }
 
 .template-type-icon {

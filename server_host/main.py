@@ -201,6 +201,56 @@ async def test_auth_error():
     """Test route to trigger auth error page"""
     raise HTTPException(status_code=401, detail="Test authentication error")
 
+@app.get("/invite/{invite_code}")
+async def invitation_page(invite_code: str, request: Request):
+    """Invitation acceptance page"""
+    from server_host.routers.users import get_current_user_optional
+    
+    db = SessionLocal()
+    try:
+        # Get invitation details
+        invitation = db.query(models.SessionInvitation).filter(
+            models.SessionInvitation.invite_code == invite_code
+        ).first()
+        
+        if not invitation:
+            return templates.TemplateResponse(
+                "invitation.html",
+                {
+                    "request": request,
+                    "error": "Invitation not found. Please check the link and try again."
+                }
+            )
+        
+        # Get session details
+        session = db.query(models.GameSession).filter(
+            models.GameSession.id == invitation.session_id
+        ).first()
+        
+        # Check if user is authenticated
+        current_user = None
+        try:
+            current_user = await get_current_user_optional(request, db)
+        except:
+            pass
+        
+        return templates.TemplateResponse(
+            "invitation.html",
+            {
+                "request": request,
+                "invite_code": invite_code,
+                "session_name": session.name if session else "Unknown Session",
+                "pre_assigned_role": invitation.pre_assigned_role,
+                "expires_at": invitation.expires_at,
+                "max_uses": invitation.max_uses,
+                "uses_count": invitation.uses_count,
+                "is_valid": invitation.is_valid(),
+                "is_authenticated": current_user is not None
+            }
+        )
+    finally:
+        db.close()
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint for Render.com"""

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ProtocolService } from '../services/ProtocolService';
 import { useProtocol } from '../services/ProtocolContext';
+import { ProtocolService } from '../services/ProtocolService';
 import { useGameStore } from '../store';
 import DiceRoller from '../tools/DiceRoller';
 import type { GameAPI } from '../types';

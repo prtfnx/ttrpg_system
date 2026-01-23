@@ -99,26 +99,32 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
 
   const getProtocol = useCallback(() => protocolRef.current, []);
 
-  // Monitor connection state by polling the protocol
+  // Monitor connection state using event-driven approach instead of polling
   useEffect(() => {
     if (!protocolRef.current) return;
 
-    const checkConnection = () => {
-      if (protocolRef.current) {
-        const isConnected = protocolRef.current.isConnected();
-        if (isConnected && connectionState !== 'connected') {
-          setConnectionState('connected');
-        } else if (!isConnected && connectionState === 'connected') {
-          setConnectionState('disconnected');
-          setError('Connection lost');
-        }
+    const handleConnectionStateChange = (state: 'connected' | 'disconnected' | 'timeout') => {
+      console.log('[useAuthenticatedWebSocket] Connection state changed:', state);
+      
+      if (state === 'connected') {
+        setConnectionState('connected');
+        setError(null);
+      } else if (state === 'disconnected') {
+        setConnectionState('disconnected');
+        setError('Connection lost');
+      } else if (state === 'timeout') {
+        setConnectionState('error');
+        setError('Connection timeout - server not responding');
       }
     };
 
-    // Poll connection state every 1 second
-    const interval = setInterval(checkConnection, 1000);
-    return () => clearInterval(interval);
-  }, [connectionState]);
+    // Subscribe to connection state changes
+    const unsubscribe = protocolRef.current.onConnectionStateChange(handleConnectionStateChange);
+    
+    return () => {
+      unsubscribe();
+    };
+  }, [protocolRef.current]);
 
   // Auto-connect on mount and disconnect on unmount
   useEffect(() => {

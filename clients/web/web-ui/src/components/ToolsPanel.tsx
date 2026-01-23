@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ProtocolService } from '../services/ProtocolService';
+import { useProtocol } from '../services/ProtocolContext';
 import { useGameStore } from '../store';
 import DiceRoller from '../tools/DiceRoller';
 import type { GameAPI } from '../types';
@@ -31,7 +32,6 @@ export function ToolsPanel({ userInfo, userRole = 'player' }: ToolsPanelProps) {
   // console.log('[ToolsPanel] Component mounted'); // Removed to reduce noise
   const [assetManagerVisible, setAssetManagerVisible] = useState(false);
   const [paintPanelVisible, setPaintPanelVisible] = useState(false);
-  const [pingEnabled, setPingEnabled] = useState(false);
   
   // Shape creation settings
   const [shapeColor, setShapeColor] = useState('#0080ff'); // Default blue
@@ -43,16 +43,37 @@ export function ToolsPanel({ userInfo, userRole = 'player' }: ToolsPanelProps) {
   const [drawingToolsExpanded, setDrawingToolsExpanded] = useState(false);
   const [otherToolsExpanded, setOtherToolsExpanded] = useState(false);
   
+  // Get connection state from protocol (accurate real-time state)
+  const { isConnected, connectionState } = useProtocol();
+  
   const { 
     sessionId, 
     activeLayer, 
     activeTool, 
     measurementActive, 
     alignmentActive, 
-    setActiveTool,
-    isConnected,
-    connectionState
+    setActiveTool
   } = useGameStore();
+  
+  // Auto-detect ping state from protocol
+  const [pingEnabled, setPingEnabled] = useState(() => {
+    if (ProtocolService.hasProtocol()) {
+      return ProtocolService.getProtocol().isPingEnabled();
+    }
+    return false;
+  });
+  
+  // Monitor protocol ping state
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (ProtocolService.hasProtocol()) {
+        const protocol = ProtocolService.getProtocol();
+        setPingEnabled(protocol.isPingEnabled());
+      }
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
   
   // Handle tool changes and communicate with Rust backend
   useEffect(() => {
@@ -276,14 +297,14 @@ export function ToolsPanel({ userInfo, userRole = 'player' }: ToolsPanelProps) {
               checked={pingEnabled}
               onChange={(e) => handlePingToggle(e.target.checked)}
             />
-            <span>Keep-Alive Ping (30s)</span>
+            <span>Heartbeat Monitor (Auto-enabled)</span>
           </label>
           <span className={`${styles.networkStatus} ${pingEnabled ? styles.active : styles.inactive}`}>
             {pingEnabled ? '● Active' : '○ Inactive'}
           </span>
         </div>
         <div className={styles.networkDescription}>
-          Enable to send periodic pings to keep connection alive
+          Sends ping every 30s to detect dead connections. Auto-enabled on connect. Timeout: 5s.
         </div>
       </div>
 

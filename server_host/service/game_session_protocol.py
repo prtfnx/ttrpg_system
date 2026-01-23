@@ -332,15 +332,24 @@ class GameSessionProtocolService:
 
     async def send_to_client(self, message: Message, client_id: str):
         """Send message to specific client"""
+        if message.type == MessageType.PONG:
+            logger.info(f"🏓 PONG: Sending to client {client_id} in session {self.session_code}")
+        
         if client_id in self.clients:
             websocket = self.clients[client_id]
             try:
                 await self._send_message(websocket, message)
+                if message.type == MessageType.PONG:
+                    logger.info(f"🏓 PONG: Successfully sent to client {client_id}")
             except Exception as e:
                 logger.error(f"Failed to send to {client_id}: {e}")
+                if message.type == MessageType.PONG:
+                    logger.error(f"🏓 PONG: FAILED to send to client {client_id}: {e}")
                 await self.remove_client(websocket)
         else:
             logger.warning(f"Client {client_id} not found in session {self.session_code}")
+            if message.type == MessageType.PONG:
+                logger.warning(f"🏓 PONG: Client {client_id} NOT FOUND in session {self.session_code}")
 
     # Protocol Message Handlers
     
@@ -349,7 +358,11 @@ class GameSessionProtocolService:
     
     async def _send_message(self, websocket: WebSocket, message: Message):
         """Send message to WebSocket"""
+        if message.type == MessageType.PONG:
+            logger.debug(f"🏓 PONG: Calling websocket.send_text() with: {message.to_json()}")
         await websocket.send_text(message.to_json())
+        if message.type == MessageType.PONG:
+            logger.debug(f"🏓 PONG: websocket.send_text() completed")
 
     async def _send_error(self, websocket: WebSocket, error_message: str):
         """Send error message to WebSocket"""

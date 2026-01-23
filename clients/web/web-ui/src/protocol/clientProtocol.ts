@@ -30,6 +30,13 @@ export class WebClientProtocol {
   private readonly BASE_RECONNECT_DELAY = 1000;
   private readonly MAX_RECONNECT_DELAY = 30000;
 
+  // Heartbeat mechanism to detect dead connections
+  private lastPongReceived: number = Date.now();
+  private pongTimeout: number | null = null;
+  private readonly PONG_TIMEOUT_MS = 5000; // 5 seconds to receive pong
+  private connectionAlive: boolean = false;
+  private connectionStateListeners: Set<(state: 'connected' | 'disconnected' | 'timeout') => void> = new Set();
+
   // Message batching
   private batchQueue: Message[] = [];
   private batchTimer: number | null = null;
@@ -294,9 +301,13 @@ export class WebClientProtocol {
 
         this.websocket.onopen = () => {
           protocolLogger.connection('WebSocket connected to authenticated session', this.sessionCode);
+          this.connectionAlive = true;
+          this.lastPongReceived = Date.now();
+          this.notifyConnectionState('connected');
           this.flushMessageQueue();
           this.flushPendingBatches(); // Flush any batched messages that were queued during disconnection
-          // Don't auto-start ping - let user control it via UI
+          // Auto-start heartbeat for connection monitoring
+          this.startPing();
           this.connecting = false;
           
           // Initialize table from localStorage after connection is established
@@ -310,21 +321,32 @@ export class WebClientProtocol {
         };
 
         this.websocket.onclose = (event) => {
+          console.log(`[Protocol] ⚠️ WebSocket CLOSED - code: ${event.code}, reason: '${event.reason}', wasClean: ${event.wasClean}`);
           protocolLogger.connection('WebSocket connection closed', { code: event.code, reason: event.reason });
+          this.connectionAlive = false;
+          this.notifyConnectionState('disconnected');
           this.stopPingInterval();
           this.connecting = false;
           this.websocket = null;
           
           if (event.code === 1008) {
+            console.log(`[Protocol] 🚫 Code 1008 detected. Reason: '${event.reason}'`);
             if (event.reason === 'Kicked from session') {
-              console.warn('You have been kicked from the session');
+              console.warn('⚠️ KICKED FROM SESSION - NOT RECONNECTING');
+              showToast.error('You have been kicked from the session');
               reject(new Error('Kicked from session'));
+              return; // Prevent reconnection
             } else {
+              console.warn(`⚠️ Code 1008 but different reason: '${event.reason}'`);
               reject(new Error('Authentication failed or not authorized'));
+              return; // Prevent reconnection
             }
           } else if (event.code !== 1000) {
             // Abnormal closure - attempt reconnection
+            console.log(`[Protocol] Abnormal closure (code ${event.code}) - attempting reconnection...`);
             this.attemptReconnect();
+          } else {
+            console.log('[Protocol] Clean closure (code 1000) - no reconnection');
           }
         };
 
@@ -344,6 +366,12 @@ export class WebClientProtocol {
   private async handleIncomingMessage(data: string): Promise<void> {
     try {
       const message = parseMessage(data);
+      
+      // Log all incoming messages for debugging
+      if (message.type === 'pong') {
+        console.log('[Protocol] 📨 Received PONG message from server');
+      }
+      
       const handler = this.handlers.get(message.type);
       
       if (handler) {
@@ -373,13 +401,45 @@ export class WebClientProtocol {
     }
     
     this.pingEnabled = true;
+    this.lastPongReceived = Date.now();
+    this.connectionAlive = true;
+    
     this.pingInterval = window.setInterval(() => {
       if (this.websocket?.readyState === WebSocket.OPEN) {
+        // Send ping
+        console.log('[Protocol] 🏓 Sending PING message...');
+        const pingTime = Date.now();
         this.sendMessage(createMessage(MessageType.PING));
+        protocolLogger.connection('Ping sent', { lastPong: new Date(this.lastPongReceived).toISOString() });
+        console.log(`[Protocol] Ping sent. Time since last pong: ${pingTime - this.lastPongReceived}ms`);
+        
+        // Set timeout for pong response (5 seconds after sending ping)
+        if (this.pongTimeout) {
+          clearTimeout(this.pongTimeout);
+        }
+        this.pongTimeout = window.setTimeout(() => {
+          // Check if pong was received AFTER we sent this ping
+          const timeSincePing = Date.now() - pingTime;
+          if (this.lastPongReceived < pingTime) {
+            console.error(`[Protocol] ⚠️⚠️⚠️ PONG TIMEOUT! No pong received for ${timeSincePing}ms after ping (timeout: ${this.PONG_TIMEOUT_MS}ms)`);
+            console.error('[Protocol] Connection appears dead - disconnecting and reconnecting...');
+            this.connectionAlive = false;
+            this.notifyConnectionState('timeout');
+            // Attempt reconnection
+            this.disconnect();
+            this.attemptReconnect();
+          } else {
+            console.log('[Protocol] ✅ Pong received within timeout window');
+          }
+        }, this.PONG_TIMEOUT_MS);
+      } else {
+        console.warn('[Protocol] WebSocket not open, cannot send ping');
+        this.connectionAlive = false;
+        this.notifyConnectionState('disconnected');
       }
     }, 30000); // Ping every 30 seconds
     
-    protocolLogger.connection('Ping started', { interval: '30s' });
+    protocolLogger.connection('Ping started', { interval: '30s', timeout: `${this.PONG_TIMEOUT_MS}ms` });
   }
 
   /** Stop sending keep-alive pings */
@@ -388,8 +448,12 @@ export class WebClientProtocol {
     if (this.pingInterval) {
       clearInterval(this.pingInterval);
       this.pingInterval = null;
-      protocolLogger.connection('Ping stopped');
     }
+    if (this.pongTimeout) {
+      clearTimeout(this.pongTimeout);
+      this.pongTimeout = null;
+    }
+    protocolLogger.connection('Ping stopped');
   }
 
   /** Check if ping is currently enabled */
@@ -441,7 +505,15 @@ export class WebClientProtocol {
 
   private async handlePong(_message: Message): Promise<void> {
     // Handle pong response - connection alive
-    protocolLogger.connection('Pong received - connection alive');
+    console.log('[Protocol] 🏓 PONG received - connection alive!');
+    this.lastPongReceived = Date.now();
+    this.connectionAlive = true;
+    if (this.pongTimeout) {
+      clearTimeout(this.pongTimeout);
+      this.pongTimeout = null;
+    }
+    protocolLogger.connection('Pong received - connection alive', { timestamp: new Date(this.lastPongReceived).toISOString() });
+    this.notifyConnectionState('connected');
   }
 
   private async handleError(message: Message): Promise<void> {
@@ -1041,6 +1113,8 @@ export class WebClientProtocol {
   }
 
   disconnect(): void {
+    this.connectionAlive = false;
+    this.notifyConnectionState('disconnected');
     this.stopPingInterval();
     if (this.websocket) {
       this.websocket.close();
@@ -1049,7 +1123,25 @@ export class WebClientProtocol {
   }
 
   isConnected(): boolean {
-    return this.websocket?.readyState === WebSocket.OPEN;
+    // Check both WebSocket state AND heartbeat liveness
+    return this.websocket?.readyState === WebSocket.OPEN && this.connectionAlive;
+  }
+
+  /**
+   * Subscribe to connection state changes
+   * @param listener Callback function that receives connection state updates
+   * @returns Unsubscribe function
+   */
+  onConnectionStateChange(listener: (state: 'connected' | 'disconnected' | 'timeout') => void): () => void {
+    this.connectionStateListeners.add(listener);
+    return () => this.connectionStateListeners.delete(listener);
+  }
+
+  /**
+   * Notify all listeners of connection state change
+   */
+  private notifyConnectionState(state: 'connected' | 'disconnected' | 'timeout'): void {
+    this.connectionStateListeners.forEach(listener => listener(state));
   }
 
   /**

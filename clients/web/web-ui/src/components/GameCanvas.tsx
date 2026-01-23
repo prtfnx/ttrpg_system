@@ -1,10 +1,8 @@
 import type { RefObject } from 'react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useSessionPermissions } from '../hooks/useSessionPermissions';
 import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { assetIntegrationService } from '../services/assetIntegration.service';
-import type { UserInfo } from '../services/auth.service';
 import fpsService from '../services/fps.service';
 import { performanceService } from '../services/performance.service';
 import { useProtocol } from '../services/ProtocolContext';
@@ -17,11 +15,6 @@ import { DragDropImageHandler } from './DragDropImageHandler';
 import styles from './GameCanvas.module.css';
 import { CanvasRenderer } from './GameCanvas/CanvasRenderer';
 import PerformanceMonitor from './PerformanceMonitor';
-
-interface GameCanvasProps {
-  sessionCode: string;
-  userInfo: UserInfo;
-}
 
 declare global {
   interface Window {
@@ -79,7 +72,7 @@ function useCanvasDebug(
   return debug;
 }
 
-export const GameCanvas: React.FC<GameCanvasProps> = ({ sessionCode, userInfo }) => {
+export const GameCanvas: React.FC = () => {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rustRenderManagerRef = useRef<RenderEngine | null>(null);
@@ -278,80 +271,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ sessionCode, userInfo })
     }
   }, [getRelativeCoords]);
 
-  const { hasPermission } = useSessionPermissions(sessionCode, userInfo.id);
-
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    console.log('⌨️ KeyDown event:', {
-      key: e.key,
-      code: e.code,
-      ctrl: e.ctrlKey,
-      shift: e.shiftKey,
-      alt: e.altKey,
-      target: e.target
-    });
-    
-    // Ignore keyboard events when typing in input fields
-    const target = e.target as HTMLElement;
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-      console.log('⌨️ Ignoring keyboard event - user is typing in input field');
-      return;
-    }
-    
     // Toggle performance monitor with F3 key
     if (e.key === 'F3') {
       e.preventDefault();
-      console.log('⌨️ F3 pressed - toggling performance monitor');
       setShowPerformanceMonitor(!showPerformanceMonitor);
     }
     // Toggle performance monitor with Ctrl+Shift+P
     else if (e.ctrlKey && e.shiftKey && e.key === 'P') {
       e.preventDefault();
-      console.log('⌨️ Ctrl+Shift+P pressed - toggling performance monitor');
       setShowPerformanceMonitor(!showPerformanceMonitor);
     }
-    // Delete selected sprite with Delete key
-    else if (e.key === 'Delete' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
-      console.log('⌨️ Delete key pressed');
-      
-      if (!rustRenderManagerRef.current) {
-        console.warn('⌨️ No render engine available');
-        return;
-      }
-      
-      // Get selected sprites directly from WASM (single source of truth)
-      const selectedSprites = rustRenderManagerRef.current.get_selected_sprite_ids?.() || [];
-      console.log('⌨️ Currently selected sprites:', selectedSprites);
-      
-      if (selectedSprites.length > 0) {
-        e.preventDefault();
-        
-        if (!hasPermission('delete_tokens')) {
-          console.warn('⛔ Permission denied: delete_tokens');
-          return;
-        }
-        
-        console.log(`🗑️ GameCanvas: Deleting ${selectedSprites.length} selected sprite(s) via Delete key`);
-        
-        // Delete all selected sprites
-        selectedSprites.forEach((spriteId: string) => {
-          if (protocol) {
-            console.log('🗑️ GameCanvas: Deleting selected sprite via Delete key:', spriteId);
-            try {
-              protocol.removeSprite(spriteId);
-              console.log('✅ GameCanvas: Sprite delete request sent to server');
-            } catch (error) {
-              console.error('❌ GameCanvas: Failed to send sprite delete request:', error);
-            }
-          } else if (rustRenderManagerRef.current) {
-            console.warn('⚠️ GameCanvas: Protocol not available, deleting sprite locally only');
-            rustRenderManagerRef.current.delete_sprite(spriteId);
-          }
-        });
-      } else {
-        console.log('⌨️ No sprites selected to delete');
-      }
-    }
-  }, [showPerformanceMonitor, hasPermission, protocol]);
+  }, [showPerformanceMonitor]);
 
   const handleContextMenuAction = useCallback((action: string) => {
     if (!rustRenderManagerRef.current) return;
@@ -360,10 +291,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ sessionCode, userInfo })
     
     switch (action) {
       case 'delete':
-        if (!hasPermission('delete_tokens')) {
-          console.warn('⛔ Permission denied: delete_tokens');
-          return;
-        }
         if (spriteId && protocol) {
           console.log('🗑️ GameCanvas: Sending sprite delete request to server:', spriteId);
           try {
@@ -854,7 +781,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ sessionCode, userInfo })
         canvas.addEventListener('wheel', stableWheel);
         canvas.addEventListener('contextmenu', stableRightClick);
         document.addEventListener('keydown', stableKeyDown);
-        console.log('⌨️ Keyboard event listener attached to document');
         // Set default cursor to grab
         canvas.style.cursor = 'grab';
 
@@ -884,16 +810,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ sessionCode, userInfo })
         // Mark WASM as initialized for thumbnail service
         (window as any).wasmInitialized = true;
         console.log('[WASM] window.wasmInitialized = true');
-
-        // Register state change handler for WASM → React sync
-        if (rustRenderEngine.set_state_change_handler) {
-          rustRenderEngine.set_state_change_handler((event: any) => {
-            if (event?.type === 'selection_changed' && Array.isArray(event.sprite_ids)) {
-              useGameStore.getState().setSelectedSprites(event.sprite_ids);
-            }
-          });
-          console.log('[WASM] State change handler registered');
-        }
 
         // Start render loop
         const renderLoop = () => {
@@ -1353,7 +1269,57 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ sessionCode, userInfo })
         </div>
       )}
 
-
+      {/* Zoom Controls */}
+      <div style={{
+        position: 'absolute', 
+        bottom: 20, 
+        right: 20, 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: '8px',
+        zIndex: 1000
+      }}>
+        <button 
+          role="button"
+          aria-label="Zoom in"
+          style={{
+            width: 40,
+            height: 40,
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            background: 'rgba(255,255,255,0.9)',
+            cursor: 'pointer',
+            fontSize: '18px',
+            fontWeight: 'bold'
+          }}
+          onClick={() => {
+            // Zoom in functionality
+            console.log('Zoom in');
+          }}
+        >
+          +
+        </button>
+        <button 
+          role="button"
+          aria-label="Zoom out"
+          style={{
+            width: 40,
+            height: 40,
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            background: 'rgba(255,255,255,0.9)',
+            cursor: 'pointer',
+            fontSize: '18px',
+            fontWeight: 'bold'
+          }}
+          onClick={() => {
+            // Zoom out functionality
+            console.log('Zoom out');
+          }}
+        >
+          -
+        </button>
+      </div>
     </div>
     </DragDropImageHandler>
   );

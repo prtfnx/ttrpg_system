@@ -3,7 +3,8 @@
  */
 
 .attackManager {
-  composes: flex flex-col from '../../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
   height: 100%;
   background: var(--bg-primary);
   border-radius: var(--radius-md);
@@ -18,7 +19,7 @@
   padding: var(--space-lg);
 }
 
-.manager-title h2 {
+.manager-title-heading {
   margin: 0;
   font-size: var(--text-2xl);
   font-weight: var(--font-semibold);
@@ -48,23 +49,13 @@
   composes: wizard-tabs from './CharacterWizardBase.module.css';
 }
 
-.attackManager .tab-button {
-  padding: var(--space-md) var(--space-lg);
-  background: transparent;
-  border: none;
-  border-bottom: var(--border-width-md) solid transparent;
-  color: var(--text-secondary);
-  font-size: var(--text-base);
-  font-weight: var(--font-semibold);
-  cursor: pointer;
-  transition: all var(--transition-normal);
+.attack-tab-button {
+  composes: wizard-tab-button from './CharacterWizardBase.module.css';
   flex: 1;
 }
 
-.attackManager .tab-button.active {
-  color: var(--brown-500);
-  border-bottom-color: var(--brown-500);
-  background: var(--hover-overlay-light);
+.attack-tab-button-active {
+  composes: wizard-tab-button-active-primary from './CharacterWizardBase.module.css';
 }
 
 /* Content */
@@ -120,7 +111,9 @@
 }
 
 .weapon-header {
-  composes: flex items-center justify-between from '../../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: var(--space-md);
 }
 
@@ -156,7 +149,8 @@
 }
 
 .weapon-stat {
-  composes: flex justify-between from '../../styles/7-utilities/layout.module.css';
+  display: flex;
+  justify-content: space-between;
   padding: var(--space-sm);
   background: var(--bg-tertiary);
   border-radius: var(--radius-sm);
@@ -173,7 +167,8 @@
 }
 
 .weapon-properties {
-  composes: flex flex-wrap from '../../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-1);
   margin-top: var(--space-sm);
 }
@@ -192,7 +187,9 @@
   padding: var(--space-sm);
   background: var(--bg-tertiary);
   border-radius: var(--radius-sm);
-  composes: flex justify-between items-center from '../../styles/7-utilities/layout.module.css';
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .no-weapons {
@@ -204,7 +201,8 @@
 
 /* Attacks Tab */
 .attacks-tab {
-  composes: flex flex-col from '../../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
   gap: var(--space-lg);
 }
 
@@ -227,7 +225,8 @@
 .weapon-selector,
 .target-ac,
 .advantage-selector {
-  composes: flex flex-col from '../../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
   gap: var(--space-sm);
 }
 
@@ -271,14 +270,15 @@
 }
 
 .weapon-details {
-  composes: flex flex-col from '../../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
   gap: var(--space-1);
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }
 
 .attack-actions {
-  composes: flex from '../../styles/7-utilities/layout.module.css';
+  display: flex;
   gap: var(--space-md);
 }
 
@@ -332,12 +332,15 @@
 
 /* History Tab */
 .history-tab {
-  composes: flex flex-col from '../../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
   gap: var(--space-md);
 }
 
 .history-header {
-  composes: flex items-center justify-between from '../../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .history-header h3 {
@@ -347,7 +350,8 @@
 }
 
 .history-actions {
-  composes: flex items-center from '../../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
   gap: var(--space-md);
 }
 
@@ -377,7 +381,8 @@
 }
 
 .history-list {
-  composes: flex flex-col from '../../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
   gap: var(--space-md);
   max-height: 60vh;
   overflow-y: auto;
@@ -402,7 +407,9 @@
 }
 
 .attack-summary {
-  composes: flex items-center justify-between from '../../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: var(--space-md);
 }
 
@@ -436,13 +443,15 @@
 }
 
 .attack-details {
-  composes: flex flex-col from '../../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
   gap: var(--space-sm);
 }
 
 .attack-roll,
 .damage-roll {
-  composes: flex items-center from '../../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
   gap: var(--space-sm);
   font-size: var(--text-sm);
 }
@@ -483,7 +492,7 @@
     padding: var(--space-md);
   }
 
-  .manager-title h2 {
+  .manager-title-heading {
     font-size: var(--text-xl);
   }
 

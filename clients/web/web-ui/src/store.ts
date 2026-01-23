@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { transformServerTablesToClient, validateTableId } from './protocol/tableProtocolAdapter';
 import { ProtocolService } from './services/ProtocolService';
 import type { Character, ConnectionState, GameState, Sprite } from './types';
 import type { ToolType } from './types/tools';
+import { transformServerTablesToClient, validateTableId } from './protocol/tableProtocolAdapter';
 
 // Change detection cache
 const spriteCache = new Map<string, Record<string, any>>();
@@ -56,8 +56,6 @@ interface GameStore extends GameState {
   tables: TableInfo[];
   activeTableId: string | null;
   tablesLoading: boolean;
-  tableReady: boolean; // SSoT: Indicates table data is loaded and ready for operations
-  tableLoadError: string | null; // Error message if table failed to load
   
   // Layer management state
   activeLayer: string;
@@ -77,7 +75,6 @@ interface GameStore extends GameState {
   // Actions
   moveSprite: (id: string, x: number, y: number) => void;
   selectSprite: (id: string, multiSelect?: boolean) => void;
-  setSelectedSprites: (spriteIds: string[]) => void; // WASM → React sync
   updateCamera: (x: number, y: number, zoom?: number) => void;
   setConnection: (connected: boolean, sessionId?: string) => void;
   updateConnectionState: (state: ConnectionState) => void;
@@ -93,13 +90,11 @@ interface GameStore extends GameState {
   setTables: (tables: TableInfo[]) => void;
   setActiveTableId: (tableId: string | null) => void;
   setTablesLoading: (loading: boolean) => void;
-  setTableLoadError: (error: string | null) => void;
   requestTableList: () => void;
   createNewTable: (name: string, width: number, height: number) => void;
   deleteTable: (tableId: string) => void;
   switchToTable: (tableId: string) => void;
-  syncTableToServer: (tableId: string) => void;
-  ensureTableLoaded: () => Promise<string>; // SSoT: Ensure table is loaded, auto-request if missing
+  syncTableToServer: (tableId: string) => void; // BEST PRACTICE: Manual sync control
   
   // Layer management actions
   setActiveLayer: (layerName: string) => void;
@@ -133,8 +128,6 @@ export const useGameStore = create<GameStore>()(
       tables: [],
       activeTableId: null,
       tablesLoading: false,
-      tableReady: false, // SSoT: Table not ready until data loaded from server
-      tableLoadError: null,
       
       // Layer management initial state
       activeLayer: 'tokens',
@@ -199,17 +192,6 @@ export const useGameStore = create<GameStore>()(
             })),
           };
         });
-      },
-
-      // WASM → React selection sync (single source of truth: WASM)
-      setSelectedSprites: (spriteIds: string[]) => {
-        set((state) => ({
-          selectedSprites: spriteIds,
-          sprites: state.sprites.map((sprite) => ({
-            ...sprite,
-            isSelected: spriteIds.includes(sprite.id),
-          })),
-        }));
       },
 
       addInventoryItem: (characterId: string, item: string) => {
@@ -364,9 +346,7 @@ export const useGameStore = create<GameStore>()(
       canEditCharacter: (characterId: string, userId?: number) => {
         const character = useGameStore.getState().characters.find((c: any) => c.id === characterId);
         if (!character) return false;
-        // If no userId provided, deny edit by default (secure)
-        if (userId === undefined || userId === null) return false;
-        // Allow if user is owner or has control permission
+        if (userId === undefined) return true;
         return character.ownerId === userId || (Array.isArray(character.controlledBy) && character.controlledBy.includes(userId));
       },
 
@@ -475,27 +455,8 @@ export const useGameStore = create<GameStore>()(
       },
 
       setActiveTableId: (tableId: string | null) => {
-        console.log(`[Store] setActiveTableId called with: '${tableId}'`);
-        
-        // Persist to localStorage
-        if (tableId) {
-          localStorage.setItem('lastActiveTableId', tableId);
-        } else {
-          localStorage.removeItem('lastActiveTableId');
-        }
-        
         set(() => ({
           activeTableId: tableId,
-          tableReady: tableId !== null,
-          tableLoadError: null, // Clear error when setting new table
-        }));
-        console.log(`[Store] ✅ activeTableId set to: '${tableId}', tableReady: ${tableId !== null}`);
-      },
-
-      setTableLoadError: (error: string | null) => {
-        set(() => ({
-          tableLoadError: error,
-          tableReady: error === null, // Not ready if there's an error
         }));
       },
 
@@ -535,8 +496,7 @@ export const useGameStore = create<GameStore>()(
         
         set((state) => ({
           tables: [...state.tables, newTable],
-          activeTableId: newTable.table_id,
-          tableReady: true // SSoT: Table is ready after creation
+          activeTableId: newTable.table_id
         }));
         
         // Create basic table data structure for WASM rendering
@@ -629,56 +589,6 @@ export const useGameStore = create<GameStore>()(
         });
       },
 
-      ensureTableLoaded: async (): Promise<string> => {
-        const getState = () => useGameStore.getState();
-        const state = getState();
-        
-        // If we have a table and it's ready, return it
-        if (state.activeTableId && state.tableReady) {
-          return state.activeTableId;
-        }
-        
-        // If we have a table ID but not ready, request it from server
-        if (state.activeTableId && !state.tableReady) {
-          console.log('[Store] Table ID exists but not ready, requesting from server...');
-          
-          window.dispatchEvent(new CustomEvent('protocol-send-message', {
-            detail: {
-              type: 'table_request',
-              data: { table_id: state.activeTableId }
-            }
-          }));
-          
-          // Wait for table to be ready (with timeout)
-          const timeout = 5000; // 5 seconds
-          const startTime = Date.now();
-          
-          while (!getState().tableReady) {
-            if (Date.now() - startTime > timeout) {
-              const error = 'Table load timeout - server did not respond';
-              getState().setTableLoadError(error);
-              throw new Error(error);
-            }
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
-          
-          return state.activeTableId;
-        }
-        
-        // Try to restore from localStorage
-        const savedTableId = localStorage.getItem('lastActiveTableId');
-        if (savedTableId) {
-          console.log(`[Store] Restoring last active table from localStorage: '${savedTableId}'`);
-          getState().switchToTable(savedTableId);
-          return savedTableId;
-        }
-        
-        // No table available
-        const error = 'No active table. Please select or create a table.';
-        getState().setTableLoadError(error);
-        throw new Error(error);
-      },
-
       switchToTable: (tableId: string) => {
         validateTableId(tableId);
         
@@ -711,10 +621,7 @@ export const useGameStore = create<GameStore>()(
             }));
           }
           
-          return { 
-            activeTableId: tableId,
-            tableReady: true // SSoT: Table is ready after switch
-          };
+          return { activeTableId: tableId };
         });
         
         window.dispatchEvent(new CustomEvent('protocol-send-message', {

@@ -70,12 +70,15 @@ if (!(window as any).rustRenderManager) {
     set_light_intensity: vi.fn(),
     get_light_at_position: vi.fn(() => 0),
     add_sprite: vi.fn(),
+    add_sprite_to_layer: vi.fn(),
     remove_sprite: vi.fn(),
     update_sprite_position: vi.fn(),
     set_camera: vi.fn(),
     get_camera: vi.fn(() => ({ x: 0, y: 0, zoom: 1 })),
     clear: vi.fn(),
     free: vi.fn(),
+    world_to_screen: vi.fn((x, y) => [x, y]),
+    create_text_sprite: vi.fn(() => 'text-sprite-' + Math.random().toString(36).substr(2, 9)),
     // Add any other methods required by panels here
   };
 }
@@ -126,17 +129,17 @@ Object.defineProperty(window, 'matchMedia', {
     return {
       fillRect: vi.fn(),
       clearRect: vi.fn(),
-      getImageData: vi.fn(() => ({ 
-        data: new Uint8ClampedArray(4),
-        width: 1,
-        height: 1,
+      getImageData: vi.fn((sx: number, sy: number, sw: number, sh: number) => ({ 
+        data: new Uint8ClampedArray(sw * sh * 4),
+        width: sw,
+        height: sh,
         colorSpace: 'srgb' as PredefinedColorSpace
       })),
       putImageData: vi.fn(),
-      createImageData: vi.fn(() => ({ 
-        data: new Uint8ClampedArray(4), 
-        width: 1, 
-        height: 1,
+      createImageData: vi.fn((width: number, height: number) => ({ 
+        data: new Uint8ClampedArray(width * height * 4), 
+        width: width, 
+        height: height,
         colorSpace: 'srgb' as PredefinedColorSpace
       })),
       setTransform: vi.fn(),

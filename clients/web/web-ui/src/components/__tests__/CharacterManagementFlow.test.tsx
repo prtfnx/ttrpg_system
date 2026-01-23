@@ -7,6 +7,26 @@ import type { Character } from '../../types';
 import { CharacterPanelRedesigned } from '../CharacterPanelRedesigned';
 
 // Mock dependencies
+vi.mock('../../services/auth.service', () => ({
+  authService: {
+    getUserInfo: vi.fn(() => ({ id: 1, username: 'testuser' })),
+    login: vi.fn(),
+    logout: vi.fn(),
+  },
+}));
+
+vi.mock('../../services/ProtocolContext', () => ({
+  useProtocol: () => ({
+    protocol: {
+      requestCharacterList: vi.fn(),
+      saveCharacter: vi.fn(),
+      deleteCharacter: vi.fn(),
+      updateCharacter: vi.fn(),
+    },
+    isConnected: false, // Offline mode for tests
+  }),
+}));
+
 vi.mock('../../utils/characterImportExport', () => ({
   cloneCharacter: vi.fn((char: Character, userId: number) => ({
     ...char,
@@ -181,8 +201,8 @@ describe('E2E Character Management Flow', () => {
 
       // Expand character card
       const characterName = screen.getByText('Edit Me');
-      const card = characterName.closest('.character-card');
-      const expandButton = card?.querySelector('.char-expand-btn');
+      const card = characterName.closest('[class*="characterCard"]');
+      const expandButton = card?.querySelector('[class*="charExpandBtn"]');
       
       if (expandButton) {
         await user.click(expandButton as HTMLElement);
@@ -232,8 +252,8 @@ describe('E2E Character Management Flow', () => {
       render(<CharacterPanelRedesigned />);
 
       const characterName = screen.getByText('Cancel Edit');
-      const card = characterName.closest('.character-card');
-      const expandButton = card?.querySelector('.char-expand-btn');
+      const card = characterName.closest('[class*="characterCard"]');
+      const expandButton = card?.querySelector('[class*="charExpandBtn"]');
       
       if (expandButton) {
         await user.click(expandButton as HTMLElement);
@@ -269,8 +289,8 @@ describe('E2E Character Management Flow', () => {
       expect(screen.getByText('Delete Me')).toBeInTheDocument();
 
       // Expand card
-      const card = screen.getByText('Delete Me').closest('.character-card');
-      const expandButton = card?.querySelector('.char-expand-btn');
+      const card = screen.getByText('Delete Me').closest('[class*="characterCard"]');
+      const expandButton = card?.querySelector('[class*="charExpandBtn"]');
       
       if (expandButton) {
         const clickEvent = new MouseEvent('click', { bubbles: true });
@@ -306,8 +326,8 @@ describe('E2E Character Management Flow', () => {
       useGameStore.getState().addCharacter(testChar);
       render(<CharacterPanelRedesigned />);
 
-      const card = screen.getByText('Keep Me').closest('.character-card');
-      const expandButton = card?.querySelector('.char-expand-btn');
+      const card = screen.getByText('Keep Me').closest('[class*="characterCard"]');
+      const expandButton = card?.querySelector('[class*="charExpandBtn"]');
       
       if (expandButton) {
         expandButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -342,8 +362,8 @@ describe('E2E Character Management Flow', () => {
       render(<CharacterPanelRedesigned />);
 
       // Expand card
-      const card = screen.getByText('Share Me').closest('.character-card');
-      const expandButton = card?.querySelector('.char-expand-btn');
+      const card = screen.getByText('Share Me').closest('[class*="characterCard"]');
+      const expandButton = card?.querySelector('[class*="charExpandBtn"]');
       
       if (expandButton) {
         await user.click(expandButton as HTMLElement);
@@ -373,8 +393,8 @@ describe('E2E Character Management Flow', () => {
       render(<CharacterPanelRedesigned />);
 
       // Expand card
-      const card = screen.getByText('Original Character').closest('.character-card');
-      const expandButton = card?.querySelector('.char-expand-btn');
+      const card = screen.getByText('Original Character').closest('[class*="characterCard"]');
+      const expandButton = card?.querySelector('[class*="charExpandBtn"]');
       
       if (expandButton) {
         await user.click(expandButton as HTMLElement);
@@ -543,8 +563,8 @@ describe('E2E Character Management Flow', () => {
       render(<CharacterPanelRedesigned />);
 
       // Expand card
-      const card = screen.getByText('Token Test').closest('.character-card');
-      const expandButton = card?.querySelector('.char-expand-btn');
+      const card = screen.getByText('Token Test').closest('[class*="characterCard"]');
+      const expandButton = card?.querySelector('[class*="charExpandBtn"]');
       
       if (expandButton) {
         await user.click(expandButton as HTMLElement);

@@ -11,22 +11,31 @@ describe('Text sprite creation user flow', () => {
     const onSpriteCreated = vi.fn();
     const onError = vi.fn();
 
+    // Create a mock canvas element for the text editor
+    const mockCanvas = document.createElement('canvas');
+    mockCanvas.className = 'game-canvas';
+    mockCanvas.width = 800;
+    mockCanvas.height = 600;
+    document.body.appendChild(mockCanvas);
+
     // Ensure global APIs are present (provided by test setup)
     // window.rustRenderManager and window.gameAPI are mocked in setup.ts
 
-    render(<TextSpriteTool activeLayer="tokens" onSpriteCreated={onSpriteCreated} onError={onError} />);
+    render(<TextSpriteTool activeLayer="tokens" activeTool="text" onSpriteCreated={onSpriteCreated} onError={onError} />);
 
-  // Try a few common labels for the add button
-  const addButton = screen.getByRole('button', { name: /add text|create text sprite|📝 add text/i });
-    await user.click(addButton);
+    // Simulate a map click event to trigger the text editor
+    const clickEvent = new CustomEvent('textSpriteClick', {
+      detail: { x: 100, y: 100 }
+    });
+    window.dispatchEvent(clickEvent);
 
-  // Creator modal should open and show text area
-  const textarea = await screen.findByPlaceholderText(/enter your text|sample text/i);
-    await user.clear(textarea);
-    await user.type(textarea, 'Hello Table');
+    // Wait for the inline text editor to appear
+    const input = await screen.findByPlaceholderText(/type text/i, {}, { timeout: 2000 });
+    await user.clear(input);
+    await user.type(input, 'Hello Table');
 
-    // Click create button in modal
-    const createBtn = screen.getByRole('button', { name: /create text sprite/i });
+    // Click create button (checkmark button)
+    const createBtn = screen.getByRole('button', { name: '✓' });
     await user.click(createBtn);
 
     // Wait for onSuccess callback to be invoked via createTextSprite -> onSuccess
@@ -34,8 +43,8 @@ describe('Text sprite creation user flow', () => {
       expect(onSpriteCreated).toHaveBeenCalled();
     });
 
-    // Ensure rustRenderManager was used to add sprite to layer
-    expect((window as any).rustRenderManager.add_sprite_to_layer).toHaveBeenCalled();
+    // Ensure rustRenderManager was used to create text sprite
+    expect((window as any).rustRenderManager.create_text_sprite).toHaveBeenCalled();
 
     // If gameAPI exists it should have been called to send network payload
     if ((window as any).gameAPI && (window as any).gameAPI.sendMessage) {

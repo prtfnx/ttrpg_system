@@ -1,16 +1,9 @@
-/**
- * Legacy PlayerManagerPanel component
- * 
- * Note: This uses WebSocket protocol messages for player management.
- * For REST API-based role management, see SessionManagementPanel.
- */
+
 
 import React, { useEffect, useState } from "react";
 import { useAuthenticatedWebSocket } from "../hooks/useAuthenticatedWebSocket";
 import { createMessage, MessageType } from "../protocol/message";
 import type { UserInfo } from "../services/auth.service";
-import type { SessionRole } from '../types/roles';
-import styles from './PlayerManagerPanel.module.css';
 
 interface Player {
   id: string;
@@ -19,13 +12,7 @@ interface Player {
   role: "dm" | "player";
 }
 
-interface PlayerManagerPanelProps {
-  sessionCode: string;
-  userInfo: UserInfo;
-  userRole: SessionRole;
-}
-
-export const PlayerManagerPanel: React.FC<PlayerManagerPanelProps> = ({ sessionCode, userInfo, userRole }) => {
+export const PlayerManagerPanel: React.FC<{ sessionCode: string; userInfo: UserInfo }> = ({ sessionCode, userInfo }) => {
   const { protocol } = useAuthenticatedWebSocket({ sessionCode, userInfo });
   const [players, setPlayers] = useState<Player[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -68,13 +55,12 @@ export const PlayerManagerPanel: React.FC<PlayerManagerPanelProps> = ({ sessionC
     protocol?.sendMessage(createMessage(MessageType.PLAYER_BAN_REQUEST, { id }, 1));
   };
 
-  // Only show panel for owner and co_dm roles
-  if (userRole !== 'owner' && userRole !== 'co_dm') return null;
+  if (userInfo.role !== "dm") return null;
 
   return (
-    <div className={styles.panel}>
+    <div className="panel">
       <h3>Player Management</h3>
-      {error && <div className={styles.error}>{error}</div>}
+      {error && <div className="error">{error}</div>}
       <ul>
         {players.map((p) => (
           <li key={p.id}>
@@ -91,5 +77,3 @@ export const PlayerManagerPanel: React.FC<PlayerManagerPanelProps> = ({ sessionC
     </div>
   );
 };
-
-

@@ -17,9 +17,7 @@ class Entity:
                  obstacle_type: Optional[str] = None, obstacle_data: Optional[dict] = None,
                  character_id: Optional[str] = None, controlled_by: Optional[List[int]] = None,
                  hp: Optional[int] = None, max_hp: Optional[int] = None,
-                 ac: Optional[int] = None, aura_radius: Optional[float] = None,
-                 asset_id: Optional[str] = None, asset_xxhash: Optional[str] = None,
-                 sprite_id: Optional[str] = None):
+                 ac: Optional[int] = None, aura_radius: Optional[float] = None):
         # Use entity_id consistently
         self.entity_id = entity_id
         self.id = entity_id  # Keep both for backward compatibility
@@ -39,18 +37,13 @@ class Entity:
         self.character_id = character_id
         self.controlled_by = controlled_by or []
         
-        # Asset tracking
-        self.asset_id = asset_id
-        self.asset_xxhash = asset_xxhash
-        
         # Token stats
         self.hp = hp
         self.max_hp = max_hp
         self.ac = ac
         self.aura_radius = aura_radius
 
-        # Use provided sprite_id or generate new UUID
-        self.sprite_id = sprite_id if sprite_id else str(uuid.uuid4())
+        self.sprite_id = str(uuid.uuid4())
         
     def to_dict(self):
         return {
@@ -68,9 +61,6 @@ class Entity:
             # Character binding
             'character_id': self.character_id,
             'controlled_by': self.controlled_by,
-            # Asset tracking
-            'asset_id': self.asset_id,
-            'asset_xxhash': self.asset_xxhash,
             # Token stats
             'hp': self.hp,
             'max_hp': self.max_hp,
@@ -94,8 +84,6 @@ class Entity:
             entity_id=data['entity_id'],
             character_id=data.get('character_id'),
             controlled_by=data.get('controlled_by', []),
-            asset_id=data.get('asset_id'),
-            asset_xxhash=data.get('asset_xxhash'),
             hp=data.get('hp'),
             max_hp=data.get('max_hp'),
             ac=data.get('ac'),
@@ -167,8 +155,6 @@ class VirtualTable:
         name = entity_data.get('name', 'Unnamed Entity')
         path_to_texture = entity_data.get('texture_path', None)
         asset_id = entity_data.get('asset_id', None)
-        asset_xxhash = entity_data.get('asset_xxhash', None)
-        sprite_id = entity_data.get('sprite_id', None)
         
         # Obstacle metadata
         obstacle_type = entity_data.get('obstacle_type', None)
@@ -194,8 +180,7 @@ class VirtualTable:
         entity = Entity(name, position, layer, path_to_texture, self.next_entity_id,
                        obstacle_type=obstacle_type, obstacle_data=obstacle_data,
                        character_id=character_id, controlled_by=controlled_by,
-                       hp=hp, max_hp=max_hp, ac=ac, aura_radius=aura_radius,
-                       asset_id=asset_id, asset_xxhash=asset_xxhash, sprite_id=sprite_id)
+                       hp=hp, max_hp=max_hp, ac=ac, aura_radius=aura_radius)
         
         # Apply transform properties if provided
         if 'scale_x' in entity_data:

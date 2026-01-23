@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRenderEngine } from '../hooks/useRenderEngine';
 import { useGameStore } from '../store';
-import styles from './EntitiesPanel.module.css';
 
 interface SyncState {
   status: 'idle' | 'syncing' | 'error' | 'success';
@@ -139,7 +138,7 @@ export function EntitiesPanel() {
   }, []) // Remove dependencies to avoid constant re-syncing
 
   return (
-    <div className={styles.entitiesSection} style={{ background: 'transparent' }}>
+    <div className="entities-section" style={{ background: 'transparent' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2>Entities ({sprites.length})</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -170,7 +169,7 @@ export function EntitiesPanel() {
         </div>
       </div>
       
-      <div className={styles.spriteList}>
+      <div className="sprite-list">
         {sprites.length === 0 ? (
           <div style={{ color: '#666', textAlign: 'center', padding: '2rem' }}>
             {syncState.status === 'syncing' ? (
@@ -222,5 +221,3 @@ export function EntitiesPanel() {
     </div>
   )
 }
-
-

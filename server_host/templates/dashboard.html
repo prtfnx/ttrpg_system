@@ -5,129 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TTRPG Server - Dashboard</title>
     <link rel="stylesheet" href="/static/style.css">
-    <style>
-        /* Enhanced Session Card Styling */
-        .session-card {
-            position: relative;
-        }
-        
-        .session-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 12px;
-        }
-        
-        .session-role-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-        
-        .session-role-badge.owner {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .session-role-badge.co_dm {
-            background: #d1ecf1;
-            color: #0c5460;
-        }
-        
-        .session-role-badge.player {
-            background: #f8f9fa;
-            color: #495057;
-        }
-        
-        .session-stats {
-            display: flex;
-            gap: 16px;
-            margin: 12px 0;
-            padding: 12px;
-            background: #f8f9fa;
-            border-radius: 6px;
-        }
-        
-        .session-stat {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        
-        .session-stat-label {
-            font-size: 11px;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .session-stat-value {
-            font-size: 18px;
-            font-weight: 600;
-            color: #2a5298;
-        }
-        
-        .session-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 16px;
-            flex-wrap: wrap;
-        }
-        
-        .session-actions a,
-        .session-actions button {
-            flex: 1;
-            min-width: 120px;
-            text-align: center;
-            padding: 10px 16px;
-            font-size: 14px;
-            border-radius: 6px;
-            text-decoration: none;
-            transition: all 0.2s;
-            border: none;
-            cursor: pointer;
-            font-weight: 500;
-        }
-        
-        .btn-join {
-            background: #2a5298;
-            color: white;
-        }
-        
-        .btn-join:hover {
-            background: #1e3d6f;
-        }
-        
-        .btn-admin {
-            background: #17a2b8;
-            color: white;
-        }
-        
-        .btn-admin:hover {
-            background: #138496;
-        }
-        
-        .btn-settings {
-            background: #6c757d;
-            color: white;
-        }
-        
-        .btn-settings:hover {
-            background: #5a6268;
-        }
-        
-        .admin-only {
-            display: none;
-        }
-        
-        .session-card[data-role="owner"] .admin-only,
-        .session-card[data-role="co_dm"] .admin-only {
-            display: inline-block;
-        }
-    </style>
 </head>
 <body>
     <div class="container">
@@ -146,29 +23,12 @@
                 {% if sessions %}
                     <div class="sessions-grid">
                         {% for session in sessions %}
-                            <div class="session-card" data-role="{{ session.role }}">
-                                <div class="session-card-header">
-                                    <h3>{{ session.name }}</h3>
-                                    <span class="session-role-badge {{ session.role }}">{{ session.role|replace('_', ' ') }}</span>
-                                </div>
-                                
+                            <div class="session-card">
+                                <h3>{{ session.name }}</h3>
                                 <p><strong>Code:</strong> {{ session.session_code }}</p>
                                 <p><strong>Created:</strong> {{ session.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
-                                
-                                <div class="session-stats">
-                                    <div class="session-stat">
-                                        <span class="session-stat-label">Players</span>
-                                        <span class="session-stat-value">{{ session.player_count or 0 }}</span>
-                                    </div>
-                                    <div class="session-stat">
-                                        <span class="session-stat-label">Status</span>
-                                        <span class="session-stat-value">{{ session.status or 'Active' }}</span>
-                                    </div>
-                                </div>
-                                
                                 <div class="session-actions">
-                                    <a href="/game/session/{{ session.session_code }}" class="btn-join">🎮 Join Game</a>
-                                    <a href="/game/session/{{ session.session_code }}/admin" class="btn-admin admin-only">⚙️ Admin</a>
+                                    <a href="/game/session/{{ session.session_code }}" class="btn-primary">Join Game</a>
                                 </div>
                             </div>
                         {% endfor %}

@@ -341,14 +341,6 @@ export class RenderEngine {
    */
   get_table_id(): string | undefined;
   /**
-   * Get active table ID
-   */
-  get_active_table_id(): string | undefined;
-  /**
-   * Switch to a different table
-   */
-  switch_table(table_id: string, unload_other_tables: boolean): void;
-  /**
    * Set table sync callbacks
    */
   set_table_received_handler(callback: Function): void;

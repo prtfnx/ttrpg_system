@@ -38,15 +38,26 @@
 }
 
 .errorMessage {
-  composes: statusError statusBoxCompact from '../styles/status.module.css';
+  composes: info-box error from '../styles/PanelBase.module.css';
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
   font-size: var(--text-xs);
 }
 
 .clearError {
-  composes: statusDismiss from '../styles/status.module.css';
+  background: none;
+  border: none;
   color: var(--text-on-error);
+  cursor: pointer;
   font-size: var(--text-sm);
   padding: 0 var(--space-xs);
+  transition: var(--transition-fast);
+}
+
+.clearError:hover {
+  opacity: 0.8;
 }
 
 /* Tab navigation */

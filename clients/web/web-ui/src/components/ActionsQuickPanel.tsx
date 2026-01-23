@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useActions } from '../hooks/useActions';
 import type { RenderEngine } from '../types/wasm';
-import styles from './ActionsQuickPanel.module.css';
 
 interface ActionsQuickPanelProps {
   renderEngine?: RenderEngine | null;
@@ -81,40 +80,52 @@ export const ActionsQuickPanel: React.FC<ActionsQuickPanelProps> = ({ renderEngi
   }, [actions]);
 
   return (
-    <div className={styles.gamePanel}>
-      <div className={styles.panelHeaderCompact}>
-        <h3 className={styles.panelTitle}>⚡ Quick Actions</h3>
+    <div className="game-panel">
+      <div className="panel-header-compact">
+        <h3 className="panel-title">⚡ Quick Actions</h3>
       </div>
 
-      <div className={styles.actionsQuickContent}>
+      <div className="actions-quick-content">
         {/* Table Creation */}
-        <div className={styles.actionGroup}>
+        <div className="action-group">
           <h4>Create Table</h4>
-          <div className={styles.formCompact}>
+          <div className="form-compact">
             <input
               type="text"
               placeholder="Table name"
               value={tableName}
               onChange={(e) => setTableName(e.target.value)}
+              style={{ width: '100%', marginBottom: '4px', padding: '4px', fontSize: '12px' }}
             />
-            <div className={styles.inputRow}>
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
               <input
                 type="number"
                 placeholder="Width"
                 value={tableWidth}
                 onChange={(e) => setTableWidth(parseInt(e.target.value) || 800)}
+                style={{ flex: 1, padding: '4px', fontSize: '12px' }}
               />
               <input
                 type="number"
                 placeholder="Height"
                 value={tableHeight}
                 onChange={(e) => setTableHeight(parseInt(e.target.value) || 600)}
+                style={{ flex: 1, padding: '4px', fontSize: '12px' }}
               />
             </div>
             <button 
               onClick={handleCreateTable}
               disabled={!tableName.trim() || actions.isLoading}
-              className={styles.createButton}
+              style={{ 
+                width: '100%', 
+                padding: '6px', 
+                fontSize: '12px',
+                background: '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
             >
               Create Table
             </button>
@@ -122,20 +133,36 @@ export const ActionsQuickPanel: React.FC<ActionsQuickPanelProps> = ({ renderEngi
         </div>
 
         {/* Quick Actions */}
-        <div className={styles.actionGroup}>
+        <div className="action-group">
           <h4>Table Actions</h4>
-          <div className={styles.buttonGrid}>
+          <div className="button-grid">
             <button 
               onClick={handleDeleteSelectedTable}
               disabled={actions.tables.size === 0 || actions.isLoading}
-              className={styles.deleteButton}
+              style={{ 
+                padding: '6px 8px', 
+                fontSize: '11px',
+                background: '#ef4444',
+                color: 'white',
+                border: 'none',
+                borderRadius: '3px',
+                cursor: 'pointer'
+              }}
             >
               Delete Table
             </button>
             <button 
               onClick={handleRefreshState}
               disabled={actions.isLoading}
-              className={styles.refreshButton}
+              style={{ 
+                padding: '6px 8px', 
+                fontSize: '11px',
+                background: '#6366f1',
+                color: 'white',
+                border: 'none',
+                borderRadius: '3px',
+                cursor: 'pointer'
+              }}
             >
               Refresh
             </button>
@@ -143,20 +170,36 @@ export const ActionsQuickPanel: React.FC<ActionsQuickPanelProps> = ({ renderEngi
         </div>
 
         {/* History Actions */}
-        <div className={styles.actionGroup}>
+        <div className="action-group">
           <h4>History</h4>
-          <div className={styles.buttonGrid}>
+          <div className="button-grid">
             <button 
               onClick={handleUndo}
               disabled={!actions.canUndo || actions.isLoading}
-              className={styles.historyButton}
+              style={{ 
+                padding: '6px 8px', 
+                fontSize: '11px',
+                background: '#f59e0b',
+                color: 'white',
+                border: 'none',
+                borderRadius: '3px',
+                cursor: 'pointer'
+              }}
             >
               ↶ Undo
             </button>
             <button 
               onClick={handleRedo}
               disabled={!actions.canRedo || actions.isLoading}
-              className={styles.historyButton}
+              style={{ 
+                padding: '6px 8px', 
+                fontSize: '11px',
+                background: '#f59e0b',
+                color: 'white',
+                border: 'none',
+                borderRadius: '3px',
+                cursor: 'pointer'
+              }}
             >
               ↷ Redo
             </button>
@@ -164,13 +207,13 @@ export const ActionsQuickPanel: React.FC<ActionsQuickPanelProps> = ({ renderEngi
         </div>
 
         {/* Status */}
-        <div className={styles.actionStatus}>
-          <div className={styles.statusText}>
+        <div className="action-status">
+          <div style={{ fontSize: '11px', color: '#9ca3af' }}>
             Tables: {actions.tables.size} | History: {actions.actionHistory.length}
             {actions.isLoading && <span> | Loading...</span>}
           </div>
           {actions.error && (
-            <div className={styles.errorText}>
+            <div style={{ fontSize: '11px', color: '#ef4444', marginTop: '4px' }}>
               Error: {actions.error}
             </div>
           )}

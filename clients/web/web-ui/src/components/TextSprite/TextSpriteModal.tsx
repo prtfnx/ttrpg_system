@@ -41,15 +41,15 @@ export function TextSpriteModal({ isOpen, position, onConfirm, onCancel }: TextS
   };
 
   return (
-    <div className={styles.modalOverlay} onClick={onCancel}>
+    <div className="text-sprite-modal-overlay" onClick={onCancel}>
       <div className={styles.textSpriteModal} onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
-        <div className={styles.modalHeader}>
+        <div className="modal-header">
           <h3>Create Text Sprite</h3>
-          <button className={styles.closeBtn} onClick={onCancel} title="Close (Esc)">×</button>
+          <button className="close-btn" onClick={onCancel} title="Close (Esc)">×</button>
         </div>
 
-        <div className={styles.modalBody}>
-          <div className={styles.formGroup}>
+        <div className="modal-body">
+          <div className="form-group">
             <label htmlFor="text-content">Text Content:</label>
             <textarea
               id="text-content"
@@ -60,13 +60,13 @@ export function TextSpriteModal({ isOpen, position, onConfirm, onCancel }: TextS
               rows={3}
               maxLength={200}
             />
-            <div className={styles.charCount}>{text.length}/200</div>
+            <div className="char-count">{text.length}/200</div>
           </div>
 
-          <div className={styles.formRow}>
-            <div className={styles.formGroup}>
+          <div className="form-row">
+            <div className="form-group">
               <label htmlFor="font-size">Font Size:</label>
-              <div className={styles.sliderContainer}>
+              <div className="slider-container">
                 <input
                   type="range"
                   id="font-size"
@@ -75,28 +75,28 @@ export function TextSpriteModal({ isOpen, position, onConfirm, onCancel }: TextS
                   value={fontSize}
                   onChange={(e) => setFontSize(Number(e.target.value))}
                 />
-                <span className={styles.sliderValue}>{fontSize}px</span>
+                <span className="slider-value">{fontSize}px</span>
               </div>
             </div>
 
-            <div className={styles.formGroup}>
+            <div className="form-group">
               <label htmlFor="text-color">Color:</label>
-              <div className={styles.colorPickerContainer}>
+              <div className="color-picker-container">
                 <input
                   type="color"
                   id="text-color"
                   value={color}
                   onChange={(e) => setColor(e.target.value)}
                 />
-                <span className={styles.colorValue}>{color.toUpperCase()}</span>
+                <span className="color-value">{color.toUpperCase()}</span>
               </div>
             </div>
           </div>
 
-          <div className={styles.previewSection}>
+          <div className="preview-section">
             <label>Preview:</label>
             <div
-              className={styles.textPreview}
+              className="text-preview"
               style={{
                 fontSize: `${fontSize}px`,
                 color: color,
@@ -112,7 +112,7 @@ export function TextSpriteModal({ isOpen, position, onConfirm, onCancel }: TextS
             </div>
           </div>
 
-          <div className={styles.infoBox}>
+          <div className="info-box">
             <strong>Note:</strong> Text sprites use the WebGL bitmap font renderer.
             <br />
             • Consolas monospace font
@@ -121,12 +121,12 @@ export function TextSpriteModal({ isOpen, position, onConfirm, onCancel }: TextS
           </div>
         </div>
 
-        <div className={styles.modalFooter}>
-          <button className={`${styles.btn} ${styles.btnCancel}`} onClick={onCancel}>
+        <div className="modal-footer">
+          <button className="btn btn-cancel" onClick={onCancel}>
             Cancel
           </button>
           <button
-            className={`${styles.btn} ${styles.btnConfirm}`}
+            className="btn btn-confirm"
             onClick={handleConfirm}
             disabled={!text.trim()}
           >

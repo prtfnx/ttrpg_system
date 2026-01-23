@@ -239,12 +239,12 @@ export function TextSpriteCreator({
     >
       <ErrorBoundary>
         <div className={styles.textSpriteCreator}>
-          <div className={styles.creatorLayout}>
+          <div className="creator-layout">
             {/* Left panel - Controls */}
-            <div className={styles.controlsPanel}>
-              <div className={styles.controlSection}>
-                <h3 className={styles.controlSectionTitle}>Text Content</h3>
-                <div className={styles.controlGroup}>
+            <div className="controls-panel">
+              <div className="control-section">
+                <h3 className={styles['control-section-title']}>Text Content</h3>
+                <div className="control-group">
                   <label htmlFor="text-content">Text:</label>
                   <textarea
                     id="text-content"
@@ -252,15 +252,15 @@ export function TextSpriteCreator({
                     onChange={(e) => updateConfig('text', e.target.value)}
                     placeholder="Enter your text..."
                     rows={3}
-                    className={styles.textInput}
+                    className="text-input"
                   />
                 </div>
               </div>
 
-              <div className={styles.controlSection}>
-                <h3 className={styles.controlSectionTitle}>Typography</h3>
-                <div className={styles.controlRow}>
-                  <div className={styles.controlGroup}>
+              <div className="control-section">
+                <h3 className={styles['control-section-title']}>Typography</h3>
+                <div className="control-row">
+                  <div className="control-group">
                     <label htmlFor="font-family">Font:</label>
                     <select
                       id="font-family"
@@ -272,7 +272,7 @@ export function TextSpriteCreator({
                       ))}
                     </select>
                   </div>
-                  <div className={styles.controlGroup}>
+                  <div className="control-group">
                     <label htmlFor="font-weight">Weight:</label>
                     <select
                       id="font-weight"
@@ -288,8 +288,8 @@ export function TextSpriteCreator({
                   </div>
                 </div>
                 
-                <div className={styles.controlRow}>
-                  <div className={styles.controlGroup}>
+                <div className="control-row">
+                  <div className="control-group">
                     <label htmlFor="font-size">Size: {config.fontSize}px</label>
                     <input
                       id="font-size"
@@ -301,7 +301,7 @@ export function TextSpriteCreator({
                       onChange={(e) => updateConfig('fontSize', parseInt(e.target.value))}
                     />
                   </div>
-                  <div className={styles.controlGroup}>
+                  <div className="control-group">
                     <label htmlFor="line-height">Line Height: {config.lineHeight}x</label>
                     <input
                       id="line-height"
@@ -315,14 +315,14 @@ export function TextSpriteCreator({
                   </div>
                 </div>
 
-                <div className={styles.controlGroup}>
+                <div className="control-group">
                   <label>Alignment:</label>
-                  <div className={styles.alignmentButtons}>
+                  <div className="alignment-buttons">
                     {TEXT_ALIGNMENTS.map(align => (
                       <button
                         key={align.value}
                         type="button"
-                        className={`${styles.alignBtn} ${config.textAlign === align.value ? styles.active : ''}`}
+                        className={`align-btn ${config.textAlign === align.value ? 'active' : ''}`}
                         onClick={() => updateConfig('textAlign', align.value)}
                         title={align.label}
                       >
@@ -333,10 +333,10 @@ export function TextSpriteCreator({
                 </div>
               </div>
 
-              <div className={styles.controlSection}>
-                <h3 className={styles.controlSectionTitle}>Colors & Effects</h3>
-                <div className={styles.controlRow}>
-                  <div className={styles.controlGroup}>
+              <div className="control-section">
+                <h3 className={styles['control-section-title']}>Colors & Effects</h3>
+                <div className="control-row">
+                  <div className="control-group">
                     <label htmlFor="text-color">Text Color:</label>
                     <input
                       id="text-color"
@@ -345,7 +345,7 @@ export function TextSpriteCreator({
                       onChange={(e) => updateConfig('color', e.target.value)}
                     />
                   </div>
-                  <div className={styles.controlGroup}>
+                  <div className="control-group">
                     <label htmlFor="opacity">Opacity: {Math.round(config.opacity * 100)}%</label>
                     <input
                       id="opacity"
@@ -359,7 +359,7 @@ export function TextSpriteCreator({
                   </div>
                 </div>
 
-                <div className={styles.controlGroup}>
+                <div className="control-group">
                   <label>
                     <input
                       type="checkbox"
@@ -373,12 +373,12 @@ export function TextSpriteCreator({
                       type="color"
                       value={config.backgroundColor}
                       onChange={(e) => updateConfig('backgroundColor', e.target.value)}
-                      className={styles.colorInput}
+                      className="color-input"
                     />
                   )}
                 </div>
 
-                <div className={styles.controlGroup}>
+                <div className="control-group">
                   <label>
                     <input
                       type="checkbox"
@@ -388,12 +388,12 @@ export function TextSpriteCreator({
                     Border
                   </label>
                   {config.hasBorder && (
-                    <div className={styles.controlRow}>
+                    <div className="control-row">
                       <input
                         type="color"
                         value={config.borderColor}
                         onChange={(e) => updateConfig('borderColor', e.target.value)}
-                        className={styles.colorInput}
+                        className="color-input"
                       />
                       <input
                         type="range"
@@ -407,7 +407,7 @@ export function TextSpriteCreator({
                   )}
                 </div>
 
-                <div className={styles.controlGroup}>
+                <div className="control-group">
                   <label>
                     <input
                       type="checkbox"
@@ -417,7 +417,7 @@ export function TextSpriteCreator({
                     Text Shadow
                   </label>
                   {config.textShadow && (
-                    <div className={styles.shadowControls}>
+                    <div className="shadow-controls">
                       <input
                         type="color"
                         value={config.shadowColor}
@@ -437,9 +437,9 @@ export function TextSpriteCreator({
                 </div>
               </div>
 
-              <div className={styles.controlSection}>
-                <h3 className={styles.controlSectionTitle}>Transform</h3>
-                <div className={styles.controlGroup}>
+              <div className="control-section">
+                <h3 className={styles['control-section-title']}>Transform</h3>
+                <div className="control-group">
                   <label htmlFor="rotation">Rotation: {config.rotation}°</label>
                   <input
                     id="rotation"
@@ -451,7 +451,7 @@ export function TextSpriteCreator({
                     onChange={(e) => updateConfig('rotation', parseInt(e.target.value))}
                   />
                 </div>
-                <div className={styles.controlGroup}>
+                <div className="control-group">
                   <label htmlFor="padding">Padding: {config.padding}px</label>
                   <input
                     id="padding"
@@ -465,10 +465,10 @@ export function TextSpriteCreator({
                 </div>
               </div>
 
-              <div className={styles.controlSection}>
-                <h3 className={styles.controlSectionTitle}>Position</h3>
-                <div className={styles.controlRow}>
-                  <div className={styles.controlGroup}>
+              <div className="control-section">
+                <h3 className={styles['control-section-title']}>Position</h3>
+                <div className="control-row">
+                  <div className="control-group">
                     <label htmlFor="pos-x">X:</label>
                     <input
                       id="pos-x"
@@ -477,7 +477,7 @@ export function TextSpriteCreator({
                       onChange={(e) => setPosition(prev => ({ ...prev, x: parseInt(e.target.value) || 0 }))}
                     />
                   </div>
-                  <div className={styles.controlGroup}>
+                  <div className="control-group">
                     <label htmlFor="pos-y">Y:</label>
                     <input
                       id="pos-y"
@@ -491,12 +491,12 @@ export function TextSpriteCreator({
             </div>
 
             {/* Right panel - Preview */}
-            <div className={styles.previewPanel}>
-              <h3 className={styles.previewPanelTitle}>Preview</h3>
-              <div className={styles.previewContainer}>
+            <div className="preview-panel">
+              <h3 className={styles['preview-panel-title']}>Preview</h3>
+              <div className="preview-container">
                 <canvas
                   ref={canvasRef}
-                  className={styles.textPreview}
+                  className="text-preview"
                   style={{
                     border: '1px solid #ddd',
                     borderRadius: '4px',
@@ -505,19 +505,19 @@ export function TextSpriteCreator({
                   }}
                 />
               </div>
-              <div className={styles.previewInfo}>
+              <div className="preview-info">
                 <small>Layer: <strong>{activeLayer}</strong></small>
               </div>
             </div>
           </div>
 
           {/* Action buttons */}
-          <div className={styles.creatorActions}>
+          <div className="creator-actions">
             {showDeleteButton && onDelete && (
               <button
                 type="button"
                 onClick={onDelete}
-                className={styles.btnDelete}
+                className="btn-delete"
                 disabled={isDeleting}
                 style={{
                   background: '#dc3545',
@@ -538,14 +538,14 @@ export function TextSpriteCreator({
             <button
               type="button"
               onClick={onClose}
-              className={styles.btnCancel}
+              className="btn-cancel"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleCreate}
-              className={styles.btnCreate}
+              className="btn-create"
               disabled={!config.text.trim()}
             >
               {createButtonText}

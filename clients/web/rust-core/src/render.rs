@@ -543,8 +543,7 @@ impl RenderEngine {
             self.layer_manager.get_layers_mut(),
             &mut self.lighting,
             self.camera.zoom,
-            ctrl_pressed,
-            self.actions.get_state_change_callback()
+            ctrl_pressed
         );
         
         // Handle event system results that need render engine specific operations
@@ -667,8 +666,7 @@ impl RenderEngine {
             self.layer_manager.get_layers_mut(),
             &mut self.lighting,
             &mut self.fog,
-            table_id,
-            self.actions.get_state_change_callback()
+            table_id
         );
         
         // Handle event system results that need render engine specific operations
@@ -1859,12 +1857,6 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn set_actions_auto_sync(&mut self, enabled: bool) {
         self.actions.set_auto_sync(enabled);
-    }
-    
-    // Selection state access
-    #[wasm_bindgen]
-    pub fn get_selected_sprite_ids(&self) -> JsValue {
-        serde_wasm_bindgen::to_value(&self.input.selected_sprite_ids).unwrap_or(JsValue::NULL)
     }
     
     // Advanced Layer Management for Rendering Pipeline

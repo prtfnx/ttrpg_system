@@ -1,4 +1,5 @@
-"""  Game session management router
+"""
+Game session management router
 """
 from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
 from fastapi.responses import RedirectResponse
@@ -7,17 +8,15 @@ from sqlalchemy.orm import Session
 from typing import Annotated, List
 import secrets
 import string
-import os
-from server_host.database.database import get_db
-from server_host.database import crud, schemas, models
-from server_host.models import game as game_models
-from server_host.utils.logger import setup_logger
-from server_host.routers.users import get_current_active_user, get_settings
+from ..database.database import get_db
+from ..database import crud, schemas
+from ..models import game as game_models
+from ..utils.logger import setup_logger
+from .users import get_current_active_user
 
 logger = setup_logger(__name__)
 router = APIRouter(prefix="/game", tags=["game"])
-templates_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
-templates = Jinja2Templates(directory=templates_path)
+templates = Jinja2Templates(directory="templates")
 
 def generate_session_code(length: int = 6) -> str:
     """Generate a short, unique session code"""
@@ -35,7 +34,6 @@ def generate_unique_session_code(db: Session, length: int = 6, max_attempts: int
         existing = crud.get_game_session_by_code(db, code)
         if not existing:
             return code
-    raise Exception("Failed to generate unique session code")
         
 @router.get("/")
 async def game_lobby(
@@ -44,9 +42,7 @@ async def game_lobby(
     db: Session = Depends(get_db)
 ):
     """Main game lobby - choose or create game sessions"""
-    user_sessions_with_roles = crud.get_user_game_sessions(db, current_user.id)
-    # Extract GameSession objects from tuples (GameSession, role)
-    user_sessions = [session for session, role in user_sessions_with_roles]
+    user_sessions = crud.get_user_game_sessions(db, current_user.id)
     return templates.TemplateResponse("game_lobby.html", {
         "request": request,
         "user": current_user,
@@ -121,22 +117,29 @@ async def game_session_page(
     
     logger.debug(f"game_session_page: Game session found: {game_session.name}")
     
-    # Check if user is already a member of this session (don't auto-join!)
-    player = db.query(models.GamePlayer).filter(
-        models.GamePlayer.session_id == game_session.id,
-        models.GamePlayer.user_id == current_user.id
-    ).first()
-    
-    logger.debug(f"game_session_page: Player membership check result: {player}")
+    # Check if user is part of this session
+    player = crud.join_game_session(db, session_code, current_user.id)
+    logger.debug(f"game_session_page: Player join result: {player}")
     if not player:
-        logger.warning(f"game_session_page: User {current_user.username} (id={current_user.id}) is not a member of session {session_code}")
-        raise HTTPException(status_code=403, detail="You are not a member of this session")
+        logger.debug(f"game_session_page: Failed to join session")
+        raise HTTPException(status_code=403, detail="Not authorized to join this session")
     
-    # OWASP best practice: Get role from database (session-based RBAC)
-    # Role is now stored in the database and can be changed by session owner
-    user_role = player.role
+    # Determine user role - DM if they own the session, otherwise player
+    # Debug: Check what we actually have
+    logger.debug(f"game_session: {game_session}")
+    logger.debug(f"game_session type: {type(game_session)}")
+    logger.debug(f"game_session.__dict__: {game_session.__dict__}")
     
-    logger.debug(f"user_role from database: {user_role}")
+    # Try accessing using getattr safely
+    session_owner_id = getattr(game_session, 'owner_id', None)
+    current_user_id = getattr(current_user, 'id', None)
+    
+    logger.debug(f"session_owner_id: {session_owner_id}, type: {type(session_owner_id)}")
+    logger.debug(f"current_user_id: {current_user_id}, type: {type(current_user_id)}")
+    
+    user_role = "dm" if session_owner_id == current_user_id else "player"
+    
+    logger.debug(f"user_role determined: {user_role}")
     
     # Serve the React web client - user is already authenticated
     # The existing token cookie from their login will be used by the React client
@@ -158,45 +161,10 @@ async def game_session_page(
         "user_role": user_role
     })
 
-@router.get("/session/{session_code}/admin")
-async def session_admin_page(
-    session_code: str,
-    request: Request,
-    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
-    db: Session = Depends(get_db)
-):
-    """Session administration page (owner and co_dm only)"""
-    game_session = crud.get_game_session_by_code(db, session_code)
-    if not game_session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    # Verify user has admin access
-    player = db.query(models.GamePlayer).filter(
-        models.GamePlayer.session_id == game_session.id,
-        models.GamePlayer.user_id == current_user.id
-    ).first()
-    
-    if not player or player.role not in ['owner', 'co_dm']:
-        raise HTTPException(
-            status_code=403, 
-            detail="Admin access requires owner or co_dm role"
-        )
-    
-    return templates.TemplateResponse("admin_panel.html", {
-        "request": request,
-        "user": current_user,
-        "session": game_session,
-        "session_code": session_code,
-        "user_role": player.role,
-        "config": get_settings()
-    })
-
 @router.get("/api/sessions", response_model=List[game_models.GameSession])
 async def get_user_sessions(
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
 ):
     """API endpoint to get user's game sessions"""
-    sessions_with_roles = crud.get_user_game_sessions(db, current_user.id)
-    # Extract GameSession objects from tuples (GameSession, role)
-    return [session for session, role in sessions_with_roles]
+    return crud.get_user_game_sessions(db, current_user.id)

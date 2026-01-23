@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { tableThumbnailService } from '../services/tableThumbnail.service';
 import { wasmIntegrationService } from '../services/wasmIntegration.service';
 import type { TableInfo } from '../store';
-import styles from './TablePreview.module.css';
 
 interface TablePreviewProps {
   table: TableInfo;
@@ -194,7 +193,7 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
       ref={canvasRef}
       width={width}
       height={height}
-      className={styles.tablePreviewCanvas}
+      className="table-preview-canvas"
       style={{
         display: 'block',
         width: '100%',
@@ -208,5 +207,3 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
     />
   );
 };
-
-

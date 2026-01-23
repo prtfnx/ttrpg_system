@@ -82,7 +82,7 @@
 }
 
 .add-light {
-  composes: flex from '../styles/7-utilities/layout.module.css';
+  display: flex;
   gap: var(--space-sm);
   margin-bottom: var(--space-sm);
 }
@@ -115,7 +115,7 @@
 }
 
 .light-controls {
-  composes: flex from '../styles/7-utilities/layout.module.css';
+  display: flex;
   gap: var(--space-sm);
 }
 
@@ -152,10 +152,17 @@
   margin-bottom: var(--space-xs);
 }
 
+.light-name {
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+}
+
 .light-actions {
-  composes: flex from '../styles/7-utilities/layout.module.css';
+  display: flex;
   gap: var(--space-xs);
-} 
+}
+
+.move-button, 
 .toggle-button, 
 .remove-button {
   border: none;
@@ -182,7 +189,8 @@
 }
 
 .light-preview {
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
   gap: var(--space-sm);
 }
 
@@ -216,7 +224,7 @@
 }
 
 .position-controls {
-  composes: flex from '../styles/7-utilities/layout.module.css';
+  display: flex;
   gap: var(--space-sm);
 }
 
@@ -237,7 +245,8 @@
 }
 
 .color-controls {
-  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
   gap: var(--space-sm);
 }
 
@@ -251,7 +260,7 @@
 }
 
 .rgba-inputs {
-  composes: flex from '../styles/7-utilities/layout.module.css';
+  display: flex;
   gap: var(--space-xs);
 }
 

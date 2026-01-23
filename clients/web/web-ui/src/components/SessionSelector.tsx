@@ -6,10 +6,9 @@ import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 import styles from '../App.module.css';
 import { authService, type SessionInfo } from '../services/auth.service';
-import type { SessionRole } from '../types/roles';
 
 interface SessionSelectorProps {
-  onSessionSelected: (sessionCode: string, role: SessionRole) => void;
+  onSessionSelected: (sessionCode: string, role: 'dm' | 'player') => void;
 }
 
 export function SessionSelector({ onSessionSelected }: SessionSelectorProps) {

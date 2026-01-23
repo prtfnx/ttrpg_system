@@ -667,7 +667,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
                   autoFocus
                 />
               </div>
-              <div className={styles.modalActions}>
+              <div className="modal-actions">
                 <button
                   onClick={handleSaveTemplate}
                   disabled={!newTemplateName.trim()}
@@ -690,9 +690,9 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
         )}
 
         {/* Canvas Actions */}
-        <div className={styles.canvasActionsSection}>
+        <div className="canvas-actions-section">
           <h4>Canvas Actions</h4>
-          <div className={styles.actionButtons}>
+          <div className="action-buttons">
             <button
               onClick={paintControls.undoStroke}
               disabled={!paintState.isActive || paintState.strokeCount === 0}
@@ -742,16 +742,16 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
         </div>
 
         {/* Statistics */}
-        <div className={styles.paintStatsSection}>
+        <div className="paint-stats-section">
           <h4>Statistics</h4>
-          <div className={styles.statsGrid}>
-            <div className={styles.stat}>
-              <span className={styles.statLabel}>Strokes:</span>
-              <span className={styles.statValue}>{paintState.strokeCount}</span>
+          <div className="stats-grid">
+            <div className="stat">
+              <span className="stat-label">Strokes:</span>
+              <span className="stat-value">{paintState.strokeCount}</span>
             </div>
-            <div className={styles.stat}>
-              <span className={styles.statLabel}>Status:</span>
-              <span className={styles.statValue}>
+            <div className="stat">
+              <span className="stat-label">Status:</span>
+              <span className="stat-value">
                 {paintState.isDrawing ? 'Drawing' : 'Idle'}
               </span>
             </div>
@@ -759,9 +759,9 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
         </div>
 
         {/* Instructions */}
-        <div className={styles.instructionsSection}>
+        <div className="instructions-section">
           <h4>Instructions</h4>
-          <ul className={styles.instructionsList}>
+          <ul className="instructions-list">
             <li>Enter paint mode to start drawing</li>
             <li>Click and drag on the canvas to draw strokes</li>
             <li>Use different brush sizes and colors</li>
@@ -776,4 +776,3 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
 };
 
 export default PaintPanel;
-

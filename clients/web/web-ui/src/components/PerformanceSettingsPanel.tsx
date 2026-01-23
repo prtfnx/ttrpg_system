@@ -106,16 +106,16 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
   const hasChanges = JSON.stringify(settings) !== JSON.stringify(tempSettings);
 
   return (
-    <div className={styles.performanceSettingsOverlay}>
-      <div className={styles.performanceSettingsPanel}>
-        <div className={styles.settingsHeader}>
+    <div className="performance-settings-overlay">
+      <div className="performance-settings-panel">
+        <div className="settings-header">
           <h2>Performance Settings</h2>
-          <button onClick={onClose} className={styles.closeButton}>×</button>
+          <button onClick={onClose} className="close-button">×</button>
         </div>
 
-        <div className={styles.settingsContent}>
+        <div className="settings-content">
           {/* Performance Level */}
-          <div className={styles.settingGroup}>
+          <div className="setting-group">
             <label className={styles.settingLabel}>Performance Level</label>
             <select
               value={tempSettings.level}
@@ -123,7 +123,7 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
                 const level = e.target.value as PerformanceLevel;
                 setTempSettings(getSettingsForLevel(level));
               }}
-              className={styles.settingSelect}
+              className="setting-select"
             >
               <option value={PerformanceLevel.LOW}>Low (30 FPS)</option>
               <option value={PerformanceLevel.MEDIUM}>Medium (45 FPS)</option>
@@ -133,7 +133,7 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
           </div>
 
           {/* Sprite Settings */}
-          <div className={styles.settingGroup}>
+          <div className="setting-group">
             <label className={styles.settingLabel}>
               Max Sprites: {tempSettings.maxSprites.toLocaleString()}
             </label>
@@ -144,12 +144,12 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
               step="50"
               value={tempSettings.maxSprites}
               onChange={(e) => handleSettingChange('maxSprites', parseInt(e.target.value))}
-              className={styles.settingSlider}
+              className="setting-slider"
             />
           </div>
 
           {/* Texture Quality */}
-          <div className={styles.settingGroup}>
+          <div className="setting-group">
             <label className={styles.settingLabel}>
               Texture Quality: {Math.round(tempSettings.textureQuality * 100)}%
             </label>
@@ -160,17 +160,17 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
               step="0.05"
               value={tempSettings.textureQuality}
               onChange={(e) => handleSettingChange('textureQuality', parseFloat(e.target.value))}
-              className={styles.settingSlider}
+              className="setting-slider"
             />
           </div>
 
           {/* Shadow Quality */}
-          <div className={styles.settingGroup}>
+          <div className="setting-group">
             <label className={styles.settingLabel}>Shadow Quality</label>
             <select
               value={tempSettings.shadowQuality}
               onChange={(e) => handleSettingChange('shadowQuality', parseInt(e.target.value))}
-              className={styles.settingSelect}
+              className="setting-select"
             >
               <option value={0}>Disabled</option>
               <option value={1}>Low</option>
@@ -180,7 +180,7 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
           </div>
 
           {/* Render Distance */}
-          <div className={styles.settingGroup}>
+          <div className="setting-group">
             <label className={styles.settingLabel}>
               Max Render Distance: {tempSettings.maxRenderDistance.toLocaleString()}px
             </label>
@@ -191,7 +191,7 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
               step="100"
               value={tempSettings.maxRenderDistance}
               onChange={(e) => handleSettingChange('maxRenderDistance', parseInt(e.target.value))}
-              className={styles.settingSlider}
+              className="setting-slider"
             />
           </div>
 
@@ -199,80 +199,80 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
           <div className={styles.settingsSection}>
             <h3>Advanced Features</h3>
             
-            <div className={styles.settingToggle}>
-              <label className={styles.toggleLabel}>
+            <div className="setting-toggle">
+              <label className="toggle-label">
                 <input
                   type="checkbox"
                   checked={tempSettings.enableVSync}
                   onChange={(e) => handleSettingChange('enableVSync', e.target.checked)}
                 />
-                <span className={styles.toggleSwitch}></span>
+                <span className="toggle-switch"></span>
                 VSync
               </label>
             </div>
 
-            <div className={styles.settingToggle}>
-              <label className={styles.toggleLabel}>
+            <div className="setting-toggle">
+              <label className="toggle-label">
                 <input
                   type="checkbox"
                   checked={tempSettings.enableSpritePooling}
                   onChange={(e) => handleSettingChange('enableSpritePooling', e.target.checked)}
                 />
-                <span className={styles.toggleSwitch}></span>
+                <span className="toggle-switch"></span>
                 Sprite Pooling
               </label>
             </div>
 
-            <div className={styles.settingToggle}>
-              <label className={styles.toggleLabel}>
+            <div className="setting-toggle">
+              <label className="toggle-label">
                 <input
                   type="checkbox"
                   checked={tempSettings.enableTextureCaching}
                   onChange={(e) => handleSettingChange('enableTextureCaching', e.target.checked)}
                 />
-                <span className={styles.toggleSwitch}></span>
+                <span className="toggle-switch"></span>
                 Texture Caching
               </label>
             </div>
 
-            <div className={styles.settingToggle}>
-              <label className={styles.toggleLabel}>
+            <div className="setting-toggle">
+              <label className="toggle-label">
                 <input
                   type="checkbox"
                   checked={tempSettings.enableFrustumCulling}
                   onChange={(e) => handleSettingChange('enableFrustumCulling', e.target.checked)}
                 />
-                <span className={styles.toggleSwitch}></span>
+                <span className="toggle-switch"></span>
                 Frustum Culling
               </label>
             </div>
           </div>
 
           {/* Current Performance Info */}
-          <div className={styles.performanceInfo}>
+          <div className="performance-info">
             <h3>Current Performance</h3>
             <PerformanceInfo />
           </div>
         </div>
 
-        <div className={styles.settingsActions}>
+        <div className="settings-actions">
           <button 
             onClick={handleAutoOptimize}
-            className={styles.autoOptimize}
+            className="action-button auto-optimize"
           >
             Auto Optimize
           </button>
           <button 
             onClick={handleReset}
             disabled={!hasChanges}
-            className={styles.reset}
+            className="action-button reset"
           >
             Reset
           </button>
           <button 
             onClick={handleApply}
             disabled={!hasChanges}
-            className={styles.apply}
+            className="action-button apply"
           >
             Apply Changes
           </button>
@@ -295,24 +295,24 @@ const PerformanceInfo: React.FC = () => {
   }, []);
 
   return (
-    <div className={styles.perfInfoGrid}>
-      <div className={styles.perfStat}>
-        <span className={styles.statLabel}>FPS:</span>
-        <span className={styles.statValue}>{Math.round(metrics.averageFPS)}</span>
+    <div className="perf-info-grid">
+      <div className="perf-stat">
+        <span className="stat-label">FPS:</span>
+        <span className="stat-value">{Math.round(metrics.averageFPS)}</span>
       </div>
-      <div className={styles.perfStat}>
-        <span className={styles.statLabel}>Memory:</span>
-        <span className={styles.statValue}>
+      <div className="perf-stat">
+        <span className="stat-label">Memory:</span>
+        <span className="stat-value">
           {Math.round(metrics.memoryUsage.usedJSHeapSize / 1024 / 1024)}MB
         </span>
       </div>
-      <div className={styles.perfStat}>
-        <span className={styles.statLabel}>Sprites:</span>
-        <span className={styles.statValue}>{metrics.spriteCount.toLocaleString()}</span>
+      <div className="perf-stat">
+        <span className="stat-label">Sprites:</span>
+        <span className="stat-value">{metrics.spriteCount.toLocaleString()}</span>
       </div>
-      <div className={styles.perfStat}>
-        <span className={styles.statLabel}>Cache Hit:</span>
-        <span className={styles.statValue}>{metrics.cacheHitRate.toFixed(1)}%</span>
+      <div className="perf-stat">
+        <span className="stat-label">Cache Hit:</span>
+        <span className="stat-value">{metrics.cacheHitRate.toFixed(1)}%</span>
       </div>
     </div>
   );

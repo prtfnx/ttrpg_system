@@ -264,13 +264,13 @@ class WasmIntegrationService {
             );
             
             gameStore.setTables?.(updatedTables);
+            
+            // Also update activeTableId if this is the active table
+            if (gameStore.activeTableId === tableName || gameStore.activeTableId === existingTable.table_id) {
+              console.log(`[TableSync] Updating activeTableId: '${gameStore.activeTableId}' → '${tableId}'`);
+              gameStore.switchToTable?.(tableId);
+            }
           }
-          
-          // SSoT: ALWAYS set activeTableId when receiving table data from server
-          // This is the authoritative source - server tells us which table is active
-          console.log(`[TableSync] Setting activeTableId in store: '${tableId}'`);
-          gameStore.setActiveTableId?.(tableId);
-          console.log(`[TableSync] ✅ activeTableId set, tableReady: ${gameStore.tableReady}`);
         }
       }
       
@@ -462,27 +462,19 @@ class WasmIntegrationService {
     
     if (!this.renderEngine) return;
 
-    // Handle sprite creation responses (have sprite_data even if sprite_id might be null initially)
-    if (data.sprite_data) {
+    // Only handle sprite creation responses (which have sprite_data)
+    // Move/Scale/Rotate operations are handled by direct WASM updates and don't need this fallback
+    if (data.operation === 'create' || (data.sprite_id && data.sprite_data)) {
       console.log('✅ WasmIntegration: Adding sprite to WASM engine:', data.sprite_data);
       try {
         this.addSpriteToWasm(data.sprite_data);
       } catch (error) {
         console.error('❌ WasmIntegration: Failed to add sprite to WASM:', error);
       }
-    } else if (data.operation === 'remove' && data.success && data.sprite_id) {
-      // Handle sprite removal
-      console.log('🗑️ WasmIntegration: Removing sprite from WASM after server confirmation:', data.sprite_id);
-      try {
-        this.renderEngine.remove_sprite(data.sprite_id);
-        console.log('✅ WasmIntegration: Sprite removed from WASM:', data.sprite_id);
-      } catch (error) {
-        console.error('❌ WasmIntegration: Failed to remove sprite from WASM:', error);
-      }
-    } else if (data.operation === 'move' || data.operation === 'scale' || data.operation === 'rotate') {
+    } else if (data.operation === 'move' || data.operation === 'scale' || data.operation === 'rotate' || data.operation === 'remove') {
       // These operations are handled directly by WASM updates, no fallback needed
       console.log('✅ WasmIntegration: Sprite operation confirmed by server:', data.operation, data.sprite_id);
-    } else if (!data.sprite_data && !data.operation) {
+    } else if (data.sprite_id === null) {
       console.warn('⚠️ WasmIntegration: Sprite operation failed on server:', data);
     } else {
       console.warn('⚠️ WasmIntegration: Unknown sprite response type:', data);

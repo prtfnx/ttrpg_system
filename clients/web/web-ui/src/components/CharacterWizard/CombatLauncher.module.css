@@ -28,15 +28,7 @@
 }
 
 .combatLauncher-btn.secondary {
-  padding: var(--space-sm) var(--space-lg);
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  border: var(--border-width-thick) solid var(--border-primary);
-  border-radius: var(--radius-md);
-  font-size: var(--text-base);
-  font-weight: var(--font-semibold);
-  cursor: pointer;
-  transition: all var(--transition-fast);
+  composes: wizard-button-secondary from './CharacterWizardBase.module.css';
 }
 
 .combatLauncher-btn.secondary:hover:not(:disabled) {

@@ -26,7 +26,7 @@ window.ReactGameComponents = {
       <StrictMode>
         <AuthProvider>
           <div className="panel-container">
-            <ToolsPanel userInfo={{ id: 0, username: "unknown", tier: "free", is_admin: false, permissions: [] }} />
+            <ToolsPanel userInfo={{ id: 0, username: "unknown", role: "player", permissions: [] }} />
           </div>
         </AuthProvider>
       </StrictMode>

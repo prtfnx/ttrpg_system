@@ -2,25 +2,26 @@ import { useEffect, useState } from 'react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import styles from './App.module.css';
-import { useAuth } from './components/AuthContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GameClient } from './components/GameClient';
 import { SessionSelector } from './components/SessionSelector';
-import { authService } from './services/auth.service';
+import { authService, type UserInfo } from './services/auth.service';
 import { ProtocolProvider } from './services/ProtocolContext';
-import type { SessionRole } from './types/roles';
 import { logger } from './utils/logger';
 
 interface AppState {
+  isAuthenticated: boolean;
+  userInfo: UserInfo | null;
   selectedSession: string | null;
-  userRole: SessionRole | null;
+  userRole: 'dm' | 'player' | null;
   loading: boolean;
   error: string | null;
 }
 
 function App() {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const [state, setState] = useState<AppState>({
+    isAuthenticated: false,
+    userInfo: null,
     selectedSession: null,
     userRole: null,
     loading: true,
@@ -28,62 +29,83 @@ function App() {
   });
 
   useEffect(() => {
-    initializeSession();
-  }, [isAuthenticated]);
+    initializeAuth();
+  }, []);
 
-  const initializeSession = async () => {
+  const initializeAuth = async () => {
     try {
+      console.log('🚀 App: Starting authentication initialization...');
       setState(prev => ({ ...prev, loading: true, error: null }));
       
-      if (!isAuthenticated) {
-        setState(prev => ({ ...prev, loading: false }));
-        return;
-      }
+      const isInitialized = await authService.initialize();
+      console.log(`🔐 App: Authentication result: ${isInitialized}`);
       
-      const initData = (window as any).__INITIAL_DATA__;
-      if (initData && initData.sessionCode) {
-        logger.debug('📦 App: Found server initial data, candidate:', initData.sessionCode);
-        try {
-          const sessions = await authService.getUserSessions();
-          const byCode = sessions.find((s: any) => s.session_code === initData.sessionCode);
-          const byName = sessions.find((s: any) => s.session_name === initData.sessionCode);
-          const resolved = byCode ? byCode.session_code : (byName ? byName.session_code : null);
-          const matchedSession = byCode || byName;
-          if (resolved && matchedSession) {
-            logger.debug('🔎 App: Resolved initial session to code:', resolved);
-            setState(prev => ({
-              ...prev,
-              selectedSession: resolved,
-              userRole: matchedSession.role,
-              loading: false
-            }));
-            return;
+      if (isInitialized) {
+        const userInfo = authService.getUserInfo();
+        console.log('✅ App: User authenticated successfully:', userInfo);
+        // If server injected initial data (page was rendered for a specific
+        // game session), prefer that sessionCode so the client connects by code.
+        // If the injected value is actually a session name (older behavior),
+        // attempt to resolve it to the user's session_code by querying the server.
+        const initData = (window as any).__INITIAL_DATA__;
+        if (initData && initData.sessionCode) {
+          logger.debug('📦 App: Found server initial data, candidate:', initData.sessionCode);
+          try {
+            // Fetch user's sessions and try to match either by code or by name
+            const sessions = await authService.getUserSessions();
+            const byCode = sessions.find((s: any) => s.session_code === initData.sessionCode);
+            const byName = sessions.find((s: any) => s.session_name === initData.sessionCode);
+            const resolved = byCode ? byCode.session_code : (byName ? byName.session_code : null);
+            if (resolved) {
+              logger.debug('🔎 App: Resolved initial session to code:', resolved);
+              setState(prev => ({
+                ...prev,
+                isAuthenticated: true,
+                userInfo: userInfo || prev.userInfo,
+                selectedSession: resolved,
+                userRole: initData.userRole || prev.userRole,
+                loading: false
+              }));
+              return;
+            }
+            // If resolution failed, fall back to using the injected value directly
+            logger.warn('⚠️ App: Could not resolve injected session value to a known session code; using value as-is');
+          } catch (err) {
+            logger.warn('Failed to resolve initial session against user sessions:', err);
           }
-          logger.warn('⚠️ App: Could not resolve injected session value to a known session code; using value as-is');
-        } catch (err) {
-          logger.warn('Failed to resolve initial session against user sessions:', err);
+          setState(prev => ({
+            ...prev,
+            isAuthenticated: true,
+            userInfo: userInfo || prev.userInfo,
+            selectedSession: initData.sessionCode,
+            userRole: initData.userRole || prev.userRole,
+            loading: false
+          }));
+          return;
         }
+
         setState(prev => ({
           ...prev,
-          selectedSession: initData.sessionCode,
-          userRole: initData.userRole || prev.userRole,
+          isAuthenticated: true,
+          userInfo,
           loading: false
         }));
-        return;
+      } else {
+        // No authentication token found - redirect to server login using relative URL
+        console.log('❌ App: Authentication failed, redirecting to login...');
+        window.location.href = '/users/login';
       }
-
-      setState(prev => ({ ...prev, loading: false }));
     } catch (error) {
-      console.error('💥 App: Session initialization failed:', error);
+      console.error('💥 App: Authentication initialization failed:', error);
       setState(prev => ({
         ...prev,
-        error: 'Session initialization failed.',
+        error: 'Authentication failed. Please try again.',
         loading: false
       }));
     }
   };
 
-  const handleSessionSelected = (sessionCode: string, role: SessionRole) => {
+  const handleSessionSelected = (sessionCode: string, role: 'dm' | 'player') => {
     setState(prev => ({
       ...prev,
       selectedSession: sessionCode,
@@ -104,13 +126,13 @@ function App() {
     }, 2000);
   };
 
-  if (authLoading || state.loading) {
+  if (state.loading) {
     return (
       <div className={`${styles.app} ${styles.loadingScreen}`}>
         <div className={styles.loadingContent}>
           <div className={styles.spinner}></div>
           <h2>Loading TTRPG System</h2>
-          <p>Initializing...</p>
+          <p>Initializing authentication...</p>
         </div>
       </div>
     );
@@ -120,16 +142,22 @@ function App() {
     return (
       <div className={`${styles.app} ${styles.errorScreen}`}>
         <div className={styles.errorContent}>
-          <h2>Error</h2>
+          <h2>Authentication Error</h2>
           <p>{state.error}</p>
         </div>
       </div>
     );
   }
 
-  if (!isAuthenticated || !user) {
-    window.location.href = '/users/login';
-    return null;
+  if (!state.isAuthenticated || !state.userInfo) {
+    return (
+      <div className={`${styles.app} ${styles.errorScreen}`}>
+        <div className={styles.errorContent}>
+          <h2>Not Authenticated</h2>
+          <p>Redirecting to login...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!state.selectedSession) {
@@ -148,7 +176,7 @@ function App() {
         <ProtocolProvider sessionCode={state.selectedSession}>
           <GameClient 
             sessionCode={state.selectedSession}
-            userInfo={user}
+            userInfo={state.userInfo}
             userRole={state.userRole!}
             onAuthError={handleAuthError}
           />

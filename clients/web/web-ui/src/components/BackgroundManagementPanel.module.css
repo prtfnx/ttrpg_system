@@ -60,7 +60,8 @@
 /* Error message */
 .errorMessage {
   composes: info-box error from '../styles/PanelBase.module.css';
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
   gap: var(--space-sm);
   margin-bottom: var(--space-md);
   padding: var(--space-md);
@@ -71,9 +72,14 @@
 }
 
 .errorDismiss {
-  composes: statusDismiss from '../styles/status.module.css';
+  background: none;
+  border: none;
   color: var(--text-on-error);
+  cursor: pointer;
   margin-left: auto;
+  padding: var(--space-xs);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--duration-base);
 }
 
 .errorDismiss:hover {
@@ -153,7 +159,9 @@
 .metric {
   composes: info-stat from '../styles/PanelBase.module.css';
   background: linear-gradient(135deg, var(--gray-700) 0%, var(--gray-800) 100%);
-  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .metricLabel {
@@ -186,7 +194,8 @@
 
 .setting {
   composes: control-group from '../styles/PanelBase.module.css';
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
   gap: var(--space-sm);
 }
 
@@ -228,7 +237,9 @@
 }
 
 .layerHeader {
-  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: var(--space-md);
   cursor: pointer;
   transition: background-color var(--duration-base);
@@ -257,7 +268,7 @@
 }
 
 .layerControls {
-  composes: flex from '../styles/7-utilities/layout.module.css';
+  display: flex;
   gap: var(--space-sm);
 }
 
@@ -290,7 +301,8 @@
 }
 
 .layerProperty {
-  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
   gap: var(--space-sm);
 }
 
@@ -315,7 +327,8 @@
 
 /* Weather Effects */
 .weatherEffects {
-  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
   gap: var(--space-sm);
 }
 
@@ -324,11 +337,14 @@
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-lg);
   padding: var(--space-md);
-  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .effect-info {
-  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
   gap: var(--space-xs);
 }
 
@@ -346,7 +362,8 @@
 }
 
 .effect-controls {
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
   gap: var(--space-md);
 }
 
@@ -382,8 +399,9 @@
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-lg);
   padding: var(--space-md);
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
   gap: var(--space-md);
+  align-items: center;
 }
 
 .addWeatherFormSelect {
@@ -405,7 +423,10 @@
   right: 0;
   bottom: 0;
   background: var(--modal-overlay);
-  composes: flex flex-col items-center justify-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: var(--space-lg);
   color: var(--text-on-overlay);
   backdrop-filter: blur(8px);

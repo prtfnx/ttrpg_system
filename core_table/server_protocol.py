@@ -279,17 +279,15 @@ class ServerProtocol:
                 except Exception:
                     sprite_data = {}
             logger.debug(f"Sprite creation result - sprite_data: {sprite_data}")
-            # Extract sprite_id - could be 'id' or 'sprite_id' depending on source
-            sprite_id = sprite_data.get('id') or sprite_data.get('sprite_id')
             response_data = {
-                'sprite_id': sprite_id,
+                'sprite_id': sprite_data.get('sprite_id'),
                 'sprite_data': sprite_data
             }
             logger.debug(f"Sending sprite response: {response_data}")
             
             # Broadcast sprite creation to all other clients in the session
             update_message = Message(MessageType.SPRITE_UPDATE, {
-                'sprite_id': sprite_id,
+                'sprite_id': sprite_data.get('sprite_id'),
                 'operation': 'create',
                 'sprite_data': sprite_data,
                 'table_id': table_id

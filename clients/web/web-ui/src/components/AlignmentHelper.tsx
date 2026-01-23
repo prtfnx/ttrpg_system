@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../store';
 import { getSpriteCenter, getSpriteHeight, getSpriteWidth } from '../utils/spriteHelpers';
-import styles from './AlignmentHelper.module.css';
 
 interface AlignmentHelperProps {
   isActive: boolean;
@@ -212,40 +211,106 @@ export function AlignmentHelper({ isActive }: AlignmentHelperProps) {
   if (!isActive) return null;
 
   return (
-    <div className={styles.alignmentHelper}>
-      <div className={styles.alignmentControls}>
+    <div className="alignment-helper">
+      <div className="alignment-controls">
         <h4>Align Selected Sprites</h4>
         
-        <div className={styles.alignmentGroup}>
+        <div className="alignment-group">
           <label>Horizontal:</label>
-          <div className={styles.buttonGroup}>
-            <button className={styles.alignmentButton} onClick={() => alignSprites('left')} title="Align Left">⬅️</button>
-            <button className={styles.alignmentButton} onClick={() => alignSprites('center')} title="Align Center">↔️</button>
-            <button className={styles.alignmentButton} onClick={() => alignSprites('right')} title="Align Right">➡️</button>
+          <div className="button-group">
+            <button onClick={() => alignSprites('left')} title="Align Left">⬅️</button>
+            <button onClick={() => alignSprites('center')} title="Align Center">↔️</button>
+            <button onClick={() => alignSprites('right')} title="Align Right">➡️</button>
           </div>
         </div>
         
-        <div className={styles.alignmentGroup}>
+        <div className="alignment-group">
           <label>Vertical:</label>
-          <div className={styles.buttonGroup}>
-            <button className={styles.alignmentButton} onClick={() => alignSprites('top')} title="Align Top">⬆️</button>
-            <button className={styles.alignmentButton} onClick={() => alignSprites('middle')} title="Align Middle">↕️</button>
-            <button className={styles.alignmentButton} onClick={() => alignSprites('bottom')} title="Align Bottom">⬇️</button>
+          <div className="button-group">
+            <button onClick={() => alignSprites('top')} title="Align Top">⬆️</button>
+            <button onClick={() => alignSprites('middle')} title="Align Middle">↕️</button>
+            <button onClick={() => alignSprites('bottom')} title="Align Bottom">⬇️</button>
           </div>
         </div>
         
-        <div className={styles.alignmentGroup}>
+        <div className="alignment-group">
           <label>Distribute:</label>
-          <div className={styles.buttonGroup}>
-            <button className={styles.alignmentButton} onClick={() => alignSprites('distribute-h')} title="Distribute Horizontally">📐</button>
-            <button className={styles.alignmentButton} onClick={() => alignSprites('distribute-v')} title="Distribute Vertically">📏</button>
+          <div className="button-group">
+            <button onClick={() => alignSprites('distribute-h')} title="Distribute Horizontally">📐</button>
+            <button onClick={() => alignSprites('distribute-v')} title="Distribute Vertically">📏</button>
           </div>
         </div>
         
-        <div className={styles.selectionInfo}>
+        <div className="selection-info">
           {selectedSprites.length} sprites selected
         </div>
       </div>
+      
+      <style>{`
+        .alignment-helper {
+          position: fixed;
+          top: 50%;
+          right: 20px;
+          transform: translateY(-50%);
+          background: rgba(55, 65, 81, 0.95);
+          color: white;
+          padding: 16px;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+          min-width: 200px;
+          z-index: 1000;
+        }
+        
+        .alignment-controls h4 {
+          margin: 0 0 12px 0;
+          color: #e5e7eb;
+          font-size: 14px;
+        }
+        
+        .alignment-group {
+          margin-bottom: 12px;
+        }
+        
+        .alignment-group label {
+          display: block;
+          font-size: 12px;
+          color: #9ca3af;
+          margin-bottom: 4px;
+        }
+        
+        .button-group {
+          display: flex;
+          gap: 4px;
+        }
+        
+        .button-group button {
+          padding: 6px 8px;
+          background: #4b5563;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 12px;
+          transition: background-color 0.2s;
+        }
+        
+        .button-group button:hover {
+          background: #6b7280;
+        }
+        
+        .button-group button:active {
+          background: #374151;
+        }
+        
+        .selection-info {
+          font-size: 11px;
+          color: #9ca3af;
+          text-align: center;
+          margin-top: 8px;
+          padding-top: 8px;
+          border-top: 1px solid #4b5563;
+        }
+      `}</style>
     </div>
   );
 }

@@ -134,14 +134,14 @@ describe('CharacterPanelRedesigned - Real Usage', () => {
     useGameStore.getState().linkSpriteToCharacter('s5b', 'c5');
     render(<CharacterPanelRedesigned />);
   // Expand card
-  const card = screen.getByText('Char c5').closest('.character-card');
-  card && card.querySelector('.character-header')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  const card = screen.getByText('Char c5').closest('[class*="characterCard"]');
+  card && card.querySelector('[class*="characterHeader"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   // Should show two badges in this card
   const badges = card ? Array.from(card.querySelectorAll('.token-badge')) : [];
   expect(badges.length).toBe(2);
   // Should show sync status icons (new implementation uses SyncStatusIcon component)
   // Local status shows an icon, synced status doesn't show anything (clean UI)
-  const localIcons = card ? Array.from(card.querySelectorAll('.sync-status-icon.local')) : [];
+  const localIcons = card ? Array.from(card.querySelectorAll('[class*="syncStatusIcon"].local')) : [];
   expect(localIcons.length).toBeGreaterThan(0); // At least one 'local' status should be visible
   // Synced status doesn't render an icon (by design for cleaner UI)
   });
@@ -178,21 +178,22 @@ describe('CharacterPanelRedesigned - Real Usage', () => {
   });
 
   it('handles edge case: switching tables clears selection', async () => {
+    const tableId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'; // Valid UUID
     useGameStore.getState().addCharacter(createCharacter({ id: 'c7', ownerId: 1 }));
-    useGameStore.getState().addSprite({ id: 's7', tableId: 't1', characterId: 'c7', controlledBy: [], x: 0, y: 0, layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0, syncStatus: 'local' });
+    useGameStore.getState().addSprite({ id: 's7', tableId, characterId: 'c7', controlledBy: [], x: 0, y: 0, layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0, syncStatus: 'local' });
     useGameStore.getState().linkSpriteToCharacter('s7', 'c7');
-    useGameStore.getState().setTables([{ table_id: 't1', table_name: 'Table 1', width: 10, height: 10 }]);
-    useGameStore.getState().setActiveTableId('t1');
+    useGameStore.getState().setTables([{ table_id: tableId, table_name: 'Table 1', width: 10, height: 10 }]);
+    useGameStore.getState().setActiveTableId(tableId);
     render(<CharacterPanelRedesigned />);
     // Expand card
-    const card = screen.getByText('Char c7').closest('.character-card');
-    card && card.querySelector('.character-header')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const card = screen.getByText('Char c7').closest('[class*="characterCard"]');
+    card && card.querySelector('[class*="characterHeader"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     // Switch table
-    useGameStore.getState().setActiveTableId('t2');
+    useGameStore.getState().setActiveTableId('b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a22'); // Different valid UUID
     // Should clear selection and collapse all
     await waitFor(() => {
       expect(screen.queryByText('Char c7')).toBeInTheDocument();
-      expect(document.querySelector('.character-card.expanded')).toBeNull();
+      expect(document.querySelector('[class*="characterCard"][class*="expanded"]')).toBeNull();
     });
   });
 });
@@ -202,6 +203,14 @@ describe('CharacterPanelRedesigned - Real Usage', () => {
  */
 
 // Mock external dependencies for new tests
+vi.mock('../../services/auth.service', () => ({
+  authService: {
+    getUserInfo: vi.fn(() => ({ id: 1, username: 'testuser' })),
+    login: vi.fn(),
+    logout: vi.fn(),
+  },
+}));
+
 vi.mock('../../services/ProtocolContext', () => ({
   useProtocol: () => ({
     protocol: {
@@ -492,8 +501,8 @@ describe('CharacterPanelRedesigned - Character Actions', () => {
     render(<CharacterPanelRedesigned />);
     
     // First expand the character card to access action buttons
-    const card = screen.getByText('Original').closest('.character-card');
-    const expandButton = card?.querySelector('.char-expand-btn');
+    const card = screen.getByText('Original').closest('[class*="characterCard"]');
+    const expandButton = card?.querySelector('[class*="charExpandBtn"]');
     if (expandButton) {
       await userEvent.click(expandButton as HTMLElement);
     }
@@ -527,8 +536,8 @@ describe('CharacterPanelRedesigned - Character Actions', () => {
     render(<CharacterPanelRedesigned />);
     
     // Expand card first
-    const card = screen.getByText('Export Me').closest('.character-card');
-    const expandButton = card?.querySelector('.char-expand-btn');
+    const card = screen.getByText('Export Me').closest('[class*="characterCard"]');
+    const expandButton = card?.querySelector('[class*="charExpandBtn"]');
     if (expandButton) {
       await userEvent.click(expandButton as HTMLElement);
     }

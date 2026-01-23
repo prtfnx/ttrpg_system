@@ -12,7 +12,9 @@
   height: 100vh;
   background: var(--modal-overlay);
   backdrop-filter: blur(var(--blur-md));
-  composes: flex items-center justify-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 10000;
   animation: fadeInOverlay var(--transition-normal) ease-out;
 }
@@ -30,28 +32,39 @@
 }
 
 .panelHeader {
-  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: var(--space-lg) var(--space-xl);
   background: linear-gradient(135deg, var(--orange-500) 0%, var(--orange-600) 50%, var(--orange-500) 100%);
   color: white;
   border-bottom: var(--border-width) solid var(--border-secondary);
 }
 
-.panelTitle {
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+.panelHeader h2 {
   margin: 0;
   font-size: var(--text-xl);
   font-weight: var(--font-bold);
   text-shadow: var(--shadow-text);
+  display: flex;
+  align-items: center;
   gap: var(--space-sm);
 }
 
 .closeBtn {
-  composes: btnClose from '../styles/buttons.module.css';
+  background: none;
+  border: none;
   color: white;
+  font-size: var(--text-xl);
+  cursor: pointer;
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  transition: all var(--duration-base) ease;
   width: var(--space-5xl);
   height: var(--space-5xl);
-  font-size: var(--text-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .closeBtn:hover {
@@ -72,10 +85,15 @@
 }
 
 .errorMessage {
-  composes: statusError from '../styles/status.module.css';
   background: linear-gradient(135deg, var(--color-danger) 0%, var(--color-danger-active) 100%);
+  color: white;
   padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
   margin-bottom: var(--space-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  border: var(--border-width) solid var(--color-danger-active);
   box-shadow: var(--shadow-md);
 }
 
@@ -84,13 +102,24 @@
 }
 
 .errorDismiss {
-  composes: statusDismiss from '../styles/status.module.css';
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
   margin-left: auto;
+  padding: var(--space-sm);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--duration-base);
+  font-size: var(--text-base);
+}
+
+.errorDismiss:hover {
+  background: var(--hover-overlay);
 }
 
 /* Tool Selection */
 .toolSelection {
-  composes: flex from '../styles/7-utilities/layout.module.css';
+  display: flex;
   gap: var(--space-sm);
   margin-bottom: var(--space-lg);
   padding: var(--space-md);
@@ -99,18 +128,17 @@
   border: var(--border-width) solid var(--border-primary);
 }
 
-.tool-btn, .toolBtn {
-  composes: btnSecondary from '../styles/buttons.module.css';
+.tool-btn {
+  composes: panel-button secondary from '../styles/PanelBase.module.css';
   padding: var(--spacing-sm) var(--spacing-lg);
   font-size: var(--font-size-sm);
   min-width: var(--space-6xl);
 }
 
-/* Active state - cannot use composes on compound selectors */
-.tool-btn.active, .toolBtn.active {
-  background: var(--blue-600);
-  border-color: var(--blue-600);
-  color: white;
+.tool-btn.active {
+  background: var(--button-primary-bg);
+  border-color: var(--button-primary-border);
+  color: var(--button-primary-text);
 }
 
 /* Active Tool Status */
@@ -120,7 +148,8 @@
   border-radius: var(--radius-lg);
   padding: var(--spacing-md) var(--spacing-lg);
   margin-bottom: var(--spacing-lg);
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
   gap: var(--spacing-md);
   box-shadow: var(--shadow-md);
 }
@@ -149,7 +178,8 @@
 .measurementStatus, .shapeStatus {
   color: var(--green-200);
   font-size: var(--text-sm);
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
   gap: var(--space-sm);
 }
 
@@ -161,7 +191,7 @@
 
 /* Tab Navigation */
 .tabNavigation {
-  composes: flex from '../styles/7-utilities/layout.module.css';
+  display: flex;
   gap: 0;
   margin-bottom: var(--space-lg);
   background: var(--overlay-dark-30);
@@ -170,7 +200,7 @@
   border: var(--border-width) solid var(--border-primary);
 }
 
-.tab-btn, .tabBtn {
+.tab-btn {
   composes: panel-button secondary from '../styles/PanelBase.module.css';
   padding: var(--spacing-sm) var(--spacing-lg);
   font-size: var(--font-size-sm);
@@ -178,7 +208,7 @@
   text-align: center;
 }
 
-.tab-btn.active, .tabBtn.active {
+.tab-btn.active {
   background: var(--button-warning-bg);
   border-color: var(--button-warning-border);
   color: var(--button-warning-text);
@@ -220,7 +250,9 @@
 }
 
 .sectionHeader {
-  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: var(--space-lg) var(--space-lg) var(--space-md);
   border-bottom: var(--border-width) solid var(--border-secondary);
 }
@@ -233,7 +265,7 @@
 }
 
 .sectionControls {
-  composes: flex from '../styles/7-utilities/layout.module.css';
+  display: flex;
   gap: var(--space-sm);
 }
 
@@ -300,9 +332,11 @@
 
 .shapeType-btn {
   composes: panel-button secondary from '../styles/PanelBase.module.css';
-  composes: flex flex-col items-center from '../styles/7-utilities/layout.module.css';
   padding: var(--spacing-md);
   font-size: var(--font-size-xs);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: var(--spacing-sm);
 }
 
@@ -329,7 +363,9 @@
   border-radius: var(--radius-md);
   padding: var(--space-md);
   margin-bottom: var(--space-sm);
-  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   transition: all var(--duration-base) ease;
 }
 
@@ -367,7 +403,8 @@
 }
 
 .measurement-controls, .shape-controls {
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
   gap: var(--space-sm);
 }
 
@@ -449,7 +486,9 @@
 }
 
 .setting {
-  composes: flex justify-between items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: var(--space-sm);
   background: var(--bg-elevated);
   border-radius: var(--radius-md);
@@ -525,7 +564,8 @@
   padding: var(--space-md);
   cursor: pointer;
   transition: all var(--duration-slow) ease;
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
   gap: var(--space-md);
 }
 
@@ -545,7 +585,9 @@
   font-size: var(--text-2xl);
   width: var(--space-5xl);
   height: var(--space-5xl);
-  composes: flex items-center justify-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: var(--white-alpha-10);
   border-radius: var(--radius-md);
 }
@@ -639,197 +681,10 @@
   color: var(--color-warning);
 }
 
-.dataManagement {
-  margin-top: var(--space-lg);
-}
-
-.dataControls {
-  composes: flex flex-wrap from '../styles/7-utilities/layout.module.css';
+.data-controls {
+  display: flex;
   gap: var(--space-md);
-}
-
-/* Measurement and Shape Details */
-.measurementLabel,
-.shapeLabel {
-  color: var(--text-tertiary);
-  font-size: var(--text-sm);
-}
-
-.measurementControls,
-.shapeControls {
-  composes: flex items-center from '../styles/7-utilities/layout.module.css';
-  gap: var(--space-sm);
-}
-
-.colorIndicator,
-.fillIndicator {
-  width: var(--space-lg);
-  height: var(--space-lg);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-subtle);
-}
-
-/* Shape Type Selector */
-.shapeTypeSelector {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: var(--space-sm);
-  margin-top: var(--space-md);
-}
-
-.shapeTypeBtn {
-  composes: panel-button secondary from '../styles/PanelBase.module.css';
-  composes: flex flex-col items-center from '../styles/7-utilities/layout.module.css';
-  gap: var(--space-xs);
-  padding: var(--space-md);
-  font-size: var(--text-2xl);
-}
-
-.shapeTypeBtn span {
-  font-size: var(--text-sm);
-  text-transform: capitalize;
-}
-
-.shapeTypeBtn.active {
-  background: var(--button-primary-bg);
-  border-color: var(--button-primary-border);
-  color: var(--button-primary-text);
-}
-
-/* Grids Tab */
-.gridsTab {
-  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
-  gap: var(--space-md);
-}
-
-.gridSelector {
-  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
-  gap: var(--space-sm);
-}
-
-.gridSettings {
-  background: var(--bg-secondary);
-  padding: var(--space-md);
-  border-radius: var(--radius-md);
-  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
-  gap: var(--space-md);
-}
-
-.hexSettings {
-  background: var(--bg-tertiary);
-  padding: var(--space-md);
-  border-radius: var(--radius-md);
-  margin-top: var(--space-sm);
-  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
-  gap: var(--space-md);
-}
-
-/* Templates Tab */
-.templatesTab {
-  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
-  gap: var(--space-md);
-}
-
-.templatesGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: var(--space-md);
-}
-
-.templateItem {
-  composes: panel-card from '../styles/PanelBase.module.css';
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  padding: var(--space-lg);
-}
-
-.templateItem:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-hover);
-  transform: translateY(-2px);
-}
-
-.templateItem.selected {
-  background: var(--button-primary-bg);
-  border-color: var(--button-primary-border);
-  color: var(--button-primary-text);
-}
-
-.templateIcon {
-  font-size: var(--text-4xl);
-  margin-bottom: var(--space-sm);
-}
-
-.templateInfo {
-  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
-  gap: var(--space-xs);
-}
-
-.templateName {
-  font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
-  color: var(--text-primary);
-}
-
-.templateDetails {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-
-.templateDescription {
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
-  margin-top: var(--space-xs);
-}
-
-.templateInstructions {
-  background: var(--bg-secondary);
-  padding: var(--space-md);
-  border-radius: var(--radius-md);
-  margin-top: var(--space-md);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  line-height: var(--leading-relaxed);
-}
-
-/* Settings Sections */
-.settingsSections {
-  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
-  gap: var(--space-xl);
-}
-
-.settingsSection {
-  composes: flex flex-col from '../styles/7-utilities/layout.module.css';
-  gap: var(--space-md);
-}
-
-.settingsSection h4 {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
-}
-
-.toggleBtn {
-  padding: var(--space-sm) var(--space-md);
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.toggleBtn:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-hover);
-}
-
-.toggleBtn.active {
-  background: var(--blue-600);
-  border-color: var(--blue-700);
-  color: white;
+  flex-wrap: wrap;
 }
 
 /* Empty State */
@@ -859,7 +714,10 @@
   right: 0;
   bottom: 0;
   background: var(--overlay-dark-80);
-  composes: flex flex-col items-center justify-center from '../styles/7-utilities/layout.module.css';
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: var(--space-md);
   color: white;
   border-radius: var(--space-lg);

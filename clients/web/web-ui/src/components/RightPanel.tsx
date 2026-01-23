@@ -1,6 +1,5 @@
 import clsx from 'clsx';
 import { useRef, useState } from 'react';
-import { CharacterSheetProvider } from '../contexts/CharacterSheetContext';
 import { ActionQueuePanel } from './ActionQueuePanel';
 import { ActionsPanel } from './ActionsPanel';
 import { ActionsQuickPanel } from './ActionsQuickPanel';
@@ -23,19 +22,16 @@ import { TableManagementPanel } from './TableManagementPanel';
 import TablePanel from './TablePanel';
 import TableSyncPanel from './TableSyncPanel';
 
-import type { SessionRole } from '../types/roles';
-
 // Development-only imports
 const isDevelopment = import.meta.env.DEV;
 
-export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRole?: SessionRole }) {
+export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
   const [activeTab, setActiveTab] = useState<'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'sync' | 'players' | 'actions' | 'quick-actions' | 'queue' | 'compendium' | 'assets' | 'network' | 'initiative' | 'performance' | 'backgrounds' | 'measurement' | 'customize'>('tables');
   const canvasRef = useRef<HTMLCanvasElement>(null!);
 
   return (
-    <CharacterSheetProvider>
-      <div className={styles.rightPanelContainer}>
-        <div className={styles.tabsContainer}>
+    <div className={styles.rightPanelContainer}>
+      <div className={styles.tabsContainer}>
         <button className={clsx(styles.tabButton, activeTab === 'compendium' && 'active')} onClick={() => setActiveTab('compendium')}>Compendium</button>
         <button className={clsx(styles.tabButton, activeTab === 'tables' && 'active')} onClick={() => setActiveTab('tables')}>Tables</button>
         <button className={clsx(styles.tabButton, activeTab === 'quick-actions' && 'active')} onClick={() => setActiveTab('quick-actions')}>Quick Actions</button>
@@ -63,7 +59,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRo
         {isDevelopment && activeTab === 'table-tools' && <TablePanel />}
         {isDevelopment && activeTab === 'sync' && <TableSyncPanel />}
         {activeTab === 'characters' && <CharacterPanelRedesigned />}
-        {activeTab === 'players' && <PlayerManagerPanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} userRole={props.userRole!} />}
+        {activeTab === 'players' && <PlayerManagerPanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'initiative' && <InitiativeTracker sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {isDevelopment && activeTab === 'actions' && <ActionsPanel renderEngine={window.rustRenderManager as any || null} />}
         {isDevelopment && activeTab === 'queue' && <ActionQueuePanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
@@ -79,7 +75,6 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRo
         {isDevelopment && activeTab === 'assets' && <AssetPanel />}
         {isDevelopment && activeTab === 'network' && <NetworkPanel />}
       </div>
-      </div>
-    </CharacterSheetProvider>
+    </div>
   );
 }

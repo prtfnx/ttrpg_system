@@ -148,15 +148,15 @@ export const XPTracker: React.FC<XPTrackerProps> = ({
       <div className={styles.levelInfo}>
         <div className={styles.currentLevel}>
           <div className={styles.levelNumber}>{currentLevel}</div>
-          <div className={styles.levelLabel}>Current Level</div>
+          <div className="level-label">Current Level</div>
         </div>
         
         {currentLevel < 20 && (
           <>
-            <div className={styles.levelArrow}>→</div>
-            <div className={styles.nextLevel}>
+            <div className="level-arrow">→</div>
+            <div className="next-level">
               <div className={styles.levelNumber}>{currentLevel + 1}</div>
-              <div className={styles.levelLabel}>Next Level</div>
+              <div className="level-label">Next Level</div>
             </div>
           </>
         )}
@@ -164,37 +164,37 @@ export const XPTracker: React.FC<XPTrackerProps> = ({
 
       {currentLevel < 20 ? (
         <div className={styles.xpProgress}>
-          <div className={styles.progressHeader}>
+          <div className="progress-header">
             <span>Progress to Level {currentLevel + 1}</span>
             <span>{progress.current.toLocaleString()} / {progress.needed.toLocaleString()} XP</span>
           </div>
           <div className={styles.progressBar}>
             <div 
-              className={clsx(styles.progressFill, canLevelUp && styles.ready)}
+              className={`progress-fill ${canLevelUp ? 'ready' : ''}`}
               style={{ width: `${progress.percentage}%` }}
             />
           </div>
-          <div className={styles.progressFooter}>
+          <div className="progress-footer">
             {progress.total > 0 ? (
-              <span className={styles.xpRemaining}>{progress.total.toLocaleString()} XP remaining</span>
+              <span className="xp-remaining">{progress.total.toLocaleString()} XP remaining</span>
             ) : (
-              <span className={styles.xpReady}>Ready to level up!</span>
+              <span className="xp-ready">Ready to level up!</span>
             )}
           </div>
         </div>
       ) : (
-        <div className={styles.maxLevelIndicator}>
-          <div className={styles.maxLevelIcon}>👑</div>
-          <div className={styles.maxLevelText}>
+        <div className="max-level-indicator">
+          <div className="max-level-icon">👑</div>
+          <div className="max-level-text">
             <strong>Maximum Level Reached</strong>
             <p>Your character has reached the pinnacle of power at level 20!</p>
           </div>
         </div>
       )}
 
-      <div className={styles.xpMilestones}>
-        <div className={styles.milestoneHeader}>XP Milestones</div>
-        <div className={styles.milestoneGrid}>
+      <div className="xp-milestones">
+        <div className="milestone-header">XP Milestones</div>
+        <div className="milestone-grid">
           {[1, 5, 10, 15, 20].map(level => {
             const xpRequired = getXPForLevel(level);
             const isReached = currentXP >= xpRequired;

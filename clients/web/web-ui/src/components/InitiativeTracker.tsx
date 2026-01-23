@@ -1,9 +1,7 @@
-import clsx from 'clsx';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuthenticatedWebSocket } from '../hooks/useAuthenticatedWebSocket';
 import { MessageType, createMessage } from '../protocol/message';
 import type { UserInfo } from '../services/auth.service';
-import styles from './InitiativeTracker.module.css';
 
 interface Initiative {
   id: string;
@@ -244,24 +242,24 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({ sessionCod
   }, [initiatives, updateInitiative]);
 
   return (
-    <div className={styles.initiativeTracker}>
-      <div className={styles.trackerHeader}>
+    <div className="initiative-tracker">
+      <div className="tracker-header">
         <h3>Initiative Tracker</h3>
-        <div className={styles.combatControls}>
+        <div className="combat-controls">
           {!combatActive ? (
             <button 
               onClick={startCombat}
-              className={styles.btnPrimary}
+              className="btn-primary"
               disabled={initiatives.length === 0}
             >
               Start Combat
             </button>
           ) : (
-            <div className={styles.activeControls}>
-              <button onClick={nextTurn} className={styles.btnPrimary}>
+            <div className="active-controls">
+              <button onClick={nextTurn} className="btn-primary">
                 Next Turn
               </button>
-              <button onClick={endCombat} className={styles.btnSecondary}>
+              <button onClick={endCombat} className="btn-secondary">
                 End Combat
               </button>
             </div>
@@ -270,26 +268,26 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({ sessionCod
       </div>
 
       {combatActive && (
-        <div className={styles.combatStatus}>
-          <span className={styles.roundInfo}>Round: {round}</span>
-          <span className={styles.turnInfo}>
+        <div className="combat-status">
+          <span className="round-info">Round: {round}</span>
+          <span className="turn-info">
             Turn: {initiatives.length > 0 ? initiatives[currentTurn]?.name || 'Unknown' : 'None'}
           </span>
         </div>
       )}
 
-      <div className={styles.addInitiative}>
+      <div className="add-initiative">
         <button 
           onClick={() => setShowAddForm(true)}
-          className={clsx(styles.btnSmall, styles.btnPrimary)}
+          className="btn-small btn-primary"
         >
           + Add Character
         </button>
       </div>
 
       {showAddForm && (
-        <div className={styles.addForm}>
-          <div className={styles.formRow}>
+        <div className="add-form">
+          <div className="form-row">
             <input
               type="text"
               placeholder="Character name..."
@@ -297,7 +295,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({ sessionCod
               onChange={(e) => setNewInitiative(prev => ({ ...prev, name: e.target.value }))}
             />
           </div>
-          <div className={styles.formRow}>
+          <div className="form-row">
             <label>Initiative:</label>
             <input
               type="number"
@@ -310,7 +308,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({ sessionCod
               🎲
             </button>
           </div>
-          <div className={styles.formRow}>
+          <div className="form-row">
             <label>HP:</label>
             <input
               type="number"
@@ -326,7 +324,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({ sessionCod
               onChange={(e) => setNewInitiative(prev => ({ ...prev, ac: parseInt(e.target.value) || 10 }))}
             />
           </div>
-          <div className={styles.formRow}>
+          <div className="form-row">
             <label>
               <input
                 type="checkbox"
@@ -336,13 +334,13 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({ sessionCod
               Player Character
             </label>
           </div>
-          <div className={styles.formButtons}>
-            <button onClick={addInitiative} className={clsx(styles.btnSmall, styles.btnPrimary)}>
+          <div className="form-buttons">
+            <button onClick={addInitiative} className="btn-small btn-primary">
               Add
             </button>
             <button 
               onClick={() => setShowAddForm(false)} 
-              className={clsx(styles.btnSmall, styles.btnSecondary)}
+              className="btn-small btn-secondary"
             >
               Cancel
             </button>
@@ -350,19 +348,19 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({ sessionCod
         </div>
       )}
 
-      <div className={styles.initiativeList}>
+      <div className="initiative-list">
         {initiatives.map((init) => (
           <div
             key={init.id}
-            className={clsx(styles.initItem, init.isActive && styles.active)}
+            className={`initiative-item ${init.isActive ? 'active-turn' : ''} ${init.isPlayer ? 'player' : 'npc'}`}
           >
-            <div className={styles.initHeader}>
-              <div className={styles.initInfo}>
-                <span className={styles.initName}>{init.name}</span>
-                <span className={styles.initValue}>{init.initiative}</span>
+            <div className="init-header">
+              <div className="init-info">
+                <span className="init-name">{init.name}</span>
+                <span className="init-value">{init.initiative}</span>
                 <button 
                   onClick={() => rollInitiative(init.id)}
-                  className={styles.rollInitBtn}
+                  className="roll-init-btn"
                   title="Roll Initiative"
                 >
                   🎲
@@ -370,15 +368,15 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({ sessionCod
               </div>
               <button
                 onClick={() => removeInitiative(init.id)}
-                className={styles.removeBtn}
+                className="remove-btn"
                 title="Remove"
               >
                 ×
               </button>
             </div>
 
-            <div className={styles.initStats}>
-              <div className={styles.statGroup}>
+            <div className="init-stats">
+              <div className="stat-group">
                 <label>HP:</label>
                 <input
                   type="number"
@@ -386,29 +384,30 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({ sessionCod
                   max={init.maxHp}
                   value={init.hp}
                   onChange={(e) => updateInitiative(init.id, { hp: parseInt(e.target.value) || 0 })}
+                  className={`hp-input ${init.hp <= init.maxHp * 0.25 ? 'critical' : init.hp <= init.maxHp * 0.5 ? 'warning' : ''}`}
                 />
-                <span className={styles.maxHp}>/ {init.maxHp}</span>
+                <span className="max-hp">/ {init.maxHp}</span>
               </div>
-              <div className={styles.statGroup}>
+              <div className="stat-group">
                 <label>AC:</label>
                 <input
                   type="number"
                   min="1"
                   value={init.ac}
                   onChange={(e) => updateInitiative(init.id, { ac: parseInt(e.target.value) || 10 })}
-                  className={styles.acInput}
+                  className="ac-input"
                 />
               </div>
             </div>
 
             {init.conditions.length > 0 && (
-              <div className={styles.conditions}>
+              <div className="conditions">
                 {init.conditions.map((condition, condIndex) => (
-                  <span key={condIndex} className={styles.conditionTag}>
+                  <span key={condIndex} className="condition-tag">
                     {condition}
                     <button 
                       onClick={() => removeCondition(init.id, condIndex)}
-                      className={styles.removeCondition}
+                      className="remove-condition"
                     >
                       ×
                     </button>
@@ -417,7 +416,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({ sessionCod
               </div>
             )}
 
-            <div className={styles.conditionInput}>
+            <div className="condition-input">
               <input
                 type="text"
                 placeholder="Add condition..."
@@ -431,7 +430,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({ sessionCod
             </div>
 
             {init.notes && (
-              <div className={styles.notes}>
+              <div className="notes">
                 <textarea
                   value={init.notes}
                   onChange={(e) => updateInitiative(init.id, { notes: e.target.value })}
@@ -443,6 +442,249 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({ sessionCod
           </div>
         ))}
       </div>
+
+      <style>{`
+        .initiative-tracker {
+          background: #1f2937;
+          color: white;
+          padding: 1rem;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .tracker-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1rem;
+          padding-bottom: 0.5rem;
+          border-bottom: 1px solid #374151;
+        }
+
+        .combat-controls {
+          display: flex;
+          gap: 0.5rem;
+        }
+
+        .active-controls {
+          display: flex;
+          gap: 0.5rem;
+        }
+
+        .combat-status {
+          display: flex;
+          justify-content: space-between;
+          padding: 0.5rem;
+          background: #374151;
+          border-radius: 4px;
+          margin-bottom: 1rem;
+          font-weight: bold;
+        }
+
+        .add-initiative {
+          margin-bottom: 1rem;
+        }
+
+        .add-form {
+          background: #374151;
+          padding: 1rem;
+          border-radius: 4px;
+          margin-bottom: 1rem;
+        }
+
+        .form-row {
+          display: flex;
+          gap: 0.5rem;
+          align-items: center;
+          margin-bottom: 0.5rem;
+        }
+
+        .form-row input[type="text"], .form-row input[type="number"] {
+          flex: 1;
+          padding: 0.25rem;
+          border: 1px solid #4b5563;
+          border-radius: 2px;
+          background: #4b5563;
+          color: white;
+        }
+
+        .form-buttons {
+          display: flex;
+          gap: 0.5rem;
+          margin-top: 0.5rem;
+        }
+
+        .initiative-list {
+          flex: 1;
+          overflow-y: auto;
+        }
+
+        .initiative-item {
+          border: 1px solid #374151;
+          border-radius: 4px;
+          margin-bottom: 0.5rem;
+          padding: 0.75rem;
+          background: #374151;
+        }
+
+        .initiative-item.active-turn {
+          border-color: #10b981;
+          background: #065f46;
+        }
+
+        .initiative-item.player {
+          border-left: 4px solid #3b82f6;
+        }
+
+        .initiative-item.npc {
+          border-left: 4px solid #ef4444;
+        }
+
+        .init-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 0.5rem;
+        }
+
+        .init-info {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .init-name {
+          font-weight: bold;
+        }
+
+        .init-value {
+          background: #4b5563;
+          padding: 0.2rem 0.5rem;
+          border-radius: 3px;
+          font-weight: bold;
+        }
+
+        .roll-init-btn, .remove-btn, .remove-condition {
+          background: none;
+          border: none;
+          color: #9ca3af;
+          cursor: pointer;
+          padding: 0.1rem;
+        }
+
+        .roll-init-btn:hover, .remove-btn:hover {
+          color: white;
+        }
+
+        .init-stats {
+          display: flex;
+          gap: 1rem;
+          margin-bottom: 0.5rem;
+        }
+
+        .stat-group {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+        }
+
+        .stat-group label {
+          font-size: 0.8rem;
+          color: #9ca3af;
+        }
+
+        .hp-input, .ac-input {
+          width: 50px;
+          padding: 0.2rem;
+          border: 1px solid #4b5563;
+          border-radius: 2px;
+          background: #4b5563;
+          color: white;
+          text-align: center;
+        }
+
+        .hp-input.warning {
+          border-color: #f59e0b;
+          background: #451a03;
+        }
+
+        .hp-input.critical {
+          border-color: #ef4444;
+          background: #450a0a;
+        }
+
+        .max-hp {
+          font-size: 0.8rem;
+          color: #9ca3af;
+        }
+
+        .conditions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.25rem;
+          margin-bottom: 0.5rem;
+        }
+
+        .condition-tag {
+          background: #7c3aed;
+          color: white;
+          padding: 0.2rem 0.4rem;
+          border-radius: 12px;
+          font-size: 0.7rem;
+          display: flex;
+          align-items: center;
+          gap: 0.2rem;
+        }
+
+        .condition-input input {
+          width: 100%;
+          padding: 0.2rem;
+          border: 1px solid #4b5563;
+          border-radius: 2px;
+          background: #4b5563;
+          color: white;
+          font-size: 0.8rem;
+        }
+
+        .notes textarea {
+          width: 100%;
+          padding: 0.3rem;
+          border: 1px solid #4b5563;
+          border-radius: 2px;
+          background: #4b5563;
+          color: white;
+          font-size: 0.8rem;
+          resize: vertical;
+        }
+
+        .btn-primary {
+          background: #3b82f6;
+          color: white;
+          border: none;
+          padding: 0.5rem 1rem;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+
+        .btn-secondary {
+          background: #6b7280;
+          color: white;
+          border: none;
+          padding: 0.5rem 1rem;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+
+        .btn-small {
+          padding: 0.25rem 0.5rem;
+          font-size: 0.8rem;
+        }
+
+        h3 {
+          margin: 0;
+        }
+      `}</style>
     </div>
   );
 };

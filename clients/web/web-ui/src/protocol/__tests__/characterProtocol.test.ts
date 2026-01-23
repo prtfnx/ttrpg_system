@@ -39,7 +39,7 @@ describe('Legacy Character Migration Edge Cases', () => {
     // Simulate legacy sprite
     const legacySprite: any = {
       id: 'spriteLegacy',
-      tableId: 't',
+      tableId: TEST_TABLE_ID,
       imageUrl: 'foo.png',
       width: 64,
       height: 32,
@@ -65,6 +65,9 @@ import type { Character, Sprite } from '../../types';
 
 // Capture the initial Zustand store state (with all methods)
 const initialState = useGameStore.getState();
+
+// Use a valid UUID for test table IDs
+const TEST_TABLE_ID = '550e8400-e29b-41d4-a716-446655440000';
 
 
 describe('Character Protocol Client', () => {
@@ -146,11 +149,12 @@ describe('Character Protocol Client', () => {
 
   it('should handle syncStatus and protocol event (mocked)', () => {
     // Add a table and mark as local, then sync
+    const validTableId = '550e8400-e29b-41d4-a716-446655440000';
     useGameStore.getState().setTables([
-      { table_id: 't1', table_name: 'Table 1', width: 10, height: 10, syncStatus: 'local' }
+      { table_id: validTableId, table_name: 'Table 1', width: 10, height: 10, syncStatus: 'local' }
     ]);
-    useGameStore.getState().syncTableToServer('t1');
-    const table = useGameStore.getState().tables.find(t => t.table_id === 't1');
+    useGameStore.getState().syncTableToServer(validTableId);
+    const table = useGameStore.getState().tables.find(t => t.table_id === validTableId);
     expect(table?.syncStatus).toBe('syncing');
     // Mock protocol event dispatch
     const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
@@ -162,7 +166,7 @@ describe('Character Protocol Client', () => {
     const { addCharacter, addSprite, linkSpriteToCharacter, getSpritesForCharacter, getCharacterForSprite } = useGameStore.getState();
     addCharacter({ id: 'charA', sessionId: '', name: 'A', ownerId: 1, controlledBy: [], data: {}, version: 1, createdAt: '', updatedAt: '' });
     addCharacter({ id: 'charB', sessionId: '', name: 'B', ownerId: 2, controlledBy: [], data: {}, version: 1, createdAt: '', updatedAt: '' });
-    addSprite({ id: 'spriteX', tableId: 't', x: 0, y: 0, layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0 });
+    addSprite({ id: 'spriteX', tableId: TEST_TABLE_ID, x: 0, y: 0, layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0 });
     linkSpriteToCharacter('spriteX', 'charA');
     expect(getCharacterForSprite('spriteX')?.id).toBe('charA');
     // Link to another character should overwrite
@@ -181,7 +185,7 @@ describe('Character Protocol Client', () => {
   it('should not escalate permissions when linking sprites', () => {
     const { addCharacter, addSprite, linkSpriteToCharacter, canEditCharacter, canControlSprite } = useGameStore.getState();
     addCharacter({ id: 'charC', sessionId: '', name: 'C', ownerId: 1, controlledBy: [], data: {}, version: 1, createdAt: '', updatedAt: '' });
-    addSprite({ id: 'spriteY', tableId: 't', x: 0, y: 0, layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0 });
+    addSprite({ id: 'spriteY', tableId: TEST_TABLE_ID, x: 0, y: 0, layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0 });
     linkSpriteToCharacter('spriteY', 'charC');
     // Only owner can edit/control
     expect(canEditCharacter('charC', 1)).toBe(true);
@@ -192,7 +196,7 @@ describe('Character Protocol Client', () => {
 
   it('should not link sprite to non-existent character', () => {
     const { addSprite, linkSpriteToCharacter, getCharacterForSprite } = useGameStore.getState();
-    addSprite({ id: 'spriteZ', tableId: 't', x: 0, y: 0, layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0 });
+    addSprite({ id: 'spriteZ', tableId: TEST_TABLE_ID, x: 0, y: 0, layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0 });
     // Should not throw, but should not link
     expect(() => linkSpriteToCharacter('spriteZ', 'no_such_char')).not.toThrow();
     expect(getCharacterForSprite('spriteZ')).toBeUndefined();

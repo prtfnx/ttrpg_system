@@ -128,8 +128,11 @@ describe('TableThumbnailService', () => {
     });
 
     it('throws error when render engine not initialized', async () => {
+      // Create fresh service without initialization
+      const freshService = new (tableThumbnailService.constructor as any)();
+      
       await expect(
-        tableThumbnailService.generateThumbnail(
+        freshService.generateThumbnail(
           validUUID,
           1920,
           1080,
@@ -278,7 +281,11 @@ describe('TableThumbnailService', () => {
       const statsBefore = tableThumbnailService.getCacheStats();
       expect(statsBefore.size).toBe(1);
       
+      // Invalidate triggers debounced timer (300ms)
       tableThumbnailService.invalidateTable(validUUID);
+      
+      // Fast-forward past debounce delay
+      await new Promise(resolve => setTimeout(resolve, 350));
       
       const statsAfter = tableThumbnailService.getCacheStats();
       expect(statsAfter.size).toBe(0);
@@ -322,7 +329,11 @@ describe('TableThumbnailService', () => {
       tableThumbnailService.invalidateTable(validUUID);
       tableThumbnailService.invalidateTable(validUUID);
       
-      // Invalidation should be immediate without debouncing in tests
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const stats = tableThumbnailService.getCacheStats();
+      expect(stats.size).toBe(1);
+      
+      await new Promise(resolve => setTimeout(resolve, 250));
       const statsAfter = tableThumbnailService.getCacheStats();
       expect(statsAfter.size).toBe(0);
     });

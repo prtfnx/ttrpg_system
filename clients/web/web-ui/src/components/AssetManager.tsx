@@ -289,7 +289,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
               </button>
               <button 
                 onClick={handleRemoveSelected} 
-                className={styles.dangerButton}
+                className={clsx(styles.controlButton, styles.danger)}
                 disabled={selectedAssets.size === 0}
               >
                 Remove Selected ({selectedAssets.size})
@@ -297,7 +297,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
               <button onClick={performCleanup} className={styles.controlButton}>
                 Cleanup Cache
               </button>
-              <button onClick={clearCache} className={styles.dangerButton}>
+              <button onClick={clearCache} className={clsx(styles.controlButton, styles.danger)}>
                 Clear All
               </button>
             </div>
@@ -394,14 +394,14 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
                     {fileInfo.status === 'uploading' && (
                       <button
                         onClick={() => cancelUpload(fileId)}
-                        className={styles.cancelButton}
+                        className="cancel-button"
                       >
                         Cancel
                       </button>
                     )}
                     <button
                       onClick={() => handleRemoveUploadFile(fileId)}
-                      className={styles.removeButton}
+                      className="remove-button"
                     >
                       Remove
                     </button>
@@ -409,7 +409,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
                 </div>
               ))}
               {uploadFiles.size === 0 && (
-                <div className={styles.noUploads}>
+                <div className="no-uploads">
                   No files selected for upload. Click "Select Files" to choose files.
                 </div>
               )}
@@ -419,43 +419,43 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
 
         {activeTab === 'settings' && (
           <div className={styles.settingsTab}>
-            <div className={styles.settingGroup}>
+            <div className="setting-group">
               <h3>Cache Configuration</h3>
               <div className={styles.settingItem}>
                 <label>Maximum Cache Size: 100 MB</label>
-                <div className={styles.settingDescription}>
+                <div className="setting-description">
                   Maximum amount of storage used for cached assets
                 </div>
               </div>
               <div className={styles.settingItem}>
                 <label>Maximum Age: 24 hours</label>
-                <div className={styles.settingDescription}>
+                <div className="setting-description">
                   Assets older than this will be removed during cleanup
                 </div>
               </div>
               <div className={styles.settingItem}>
                 <label>Auto Cleanup: Enabled</label>
-                <div className={styles.settingDescription}>
+                <div className="setting-description">
                   Automatically remove old assets every 30 minutes
                 </div>
               </div>
             </div>
 
-            <div className={styles.settingGroup}>
+            <div className="setting-group">
               <h3>Upload Configuration</h3>
               <div className={styles.settingItem}>
                 <label>Max Concurrent Uploads: 3</label>
-                <div className={styles.settingDescription}>
+                <div className="setting-description">
                   Maximum number of files that can be uploaded simultaneously
                 </div>
               </div>
             </div>
 
-            <div className={styles.settingGroup}>
+            <div className="setting-group">
               <h3>Storage Information</h3>
               <div className={styles.settingItem}>
                 <label>IndexedDB Support: Available</label>
-                <div className={styles.settingDescription}>
+                <div className="setting-description">
                   Browser supports persistent local storage for assets
                 </div>
               </div>
@@ -464,8 +464,8 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
         )}
 
         {isLoading && (
-          <div className={styles.loadingOverlay}>
-            <div className={styles.loadingSpinner}>Loading...</div>
+          <div className="loading-overlay">
+            <div className="loading-spinner">Loading...</div>
           </div>
         )}
       </div>
@@ -474,4 +474,3 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
 }
 
 // Removed duplicate export
-

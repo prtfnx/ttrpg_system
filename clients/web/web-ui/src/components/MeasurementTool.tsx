@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import type { RenderEngine } from '../types/index';
-import styles from './MeasurementTool.module.css';
 
 // Window type extension
 declare global {
@@ -119,14 +118,14 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
   // No need for screen coordinate conversion or HTML overlay positioning
 
   return (
-    <div className={styles.measurementTool}>
+    <div className="measurement-tool">
       {/* Label removed - now rendered in WebGL by Rust text_renderer.rs */}
       
-      <div className={styles.measurementOverlay}>
-        <div className={styles.measurementResults}>
-          <div className={styles.measurementHeader}>
+      <div className="measurement-overlay">
+        <div className="measurement-results">
+          <div className="measurement-header">
             <h4>Measurement Results</h4>
-            <div className={styles.unitSelector}>
+            <div className="unit-selector">
               {(['ft', 'm', 'grid', 'px'] as const).map(unit => (
                 <button
                   key={unit}
@@ -140,35 +139,35 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
           </div>
           
           <div className="measurement-item primary">
-            <span className={styles.label}>Distance:</span>
-            <span className={styles.value}>{formatDistance(measurement)}</span>
+            <span className="label">Distance:</span>
+            <span className="value">{formatDistance(measurement)}</span>
           </div>
           
           <div className="measurement-item secondary">
-            <span className={styles.label}>Grid Units:</span>
-            <span className={styles.value}>{measurement.gridUnits.toFixed(1)} squares</span>
+            <span className="label">Grid Units:</span>
+            <span className="value">{measurement.gridUnits.toFixed(1)} squares</span>
           </div>
           
-          <div className={styles.measurementItem}>
-            <span className={styles.label}>Angle:</span>
-            <span className={styles.value}>{measurement.angle.toFixed(1)}°</span>
+          <div className="measurement-item">
+            <span className="label">Angle:</span>
+            <span className="value">{measurement.angle.toFixed(1)}°</span>
           </div>
           
-          <div className={styles.measurementItem}>
-            <span className={styles.label}>Pixels:</span>
-            <span className={styles.value}>{measurement.distance.toFixed(1)}px</span>
+          <div className="measurement-item">
+            <span className="label">Pixels:</span>
+            <span className="value">{measurement.distance.toFixed(1)}px</span>
           </div>
           
-          <div className={styles.measurementActions}>
+          <div className="measurement-actions">
             <button 
-              className={styles.clearMeasurement}
+              className="clear-measurement"
               onClick={handleClear}
             >
               Clear Measurement
             </button>
             {/* Save button disabled - actionsProtocol not available in WASM mode
             <button 
-              className={styles.saveMeasurement}
+              className="save-measurement"
               onClick={handleSave}
             >
               Save as Arrow
@@ -330,4 +329,3 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
     </div>
   );
 }
-

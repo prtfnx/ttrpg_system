@@ -453,15 +453,7 @@
 }
 
 .nav-button.primary {
-  background: linear-gradient(135deg, var(--red-900) 0%, var(--red-800) 100%);
-  color: var(--text-inverse-primary);
-  padding: var(--space-sm) var(--space-lg);
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--text-base);
-  font-weight: var(--font-semibold);
-  cursor: pointer;
-  transition: all var(--transition-fast);
+  composes: wizard-button-primary from './CharacterWizardBase.module.css';
 }
 
 .nav-button:disabled {

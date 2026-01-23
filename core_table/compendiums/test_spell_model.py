@@ -1,6 +1,4 @@
-"""
-Test enhanced spell model with 5e.tools data
-"""
+"""Test enhanced spell model"""
 
 import sys
 from pathlib import Path

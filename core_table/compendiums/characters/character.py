@@ -1,17 +1,11 @@
 #!/usr/bin/env python3
 """
 D&D 5e Character System - Core Classes
-DEPRECATED: Use models.character_class instead for enhanced models
+Comprehensive character representation for virtual tabletop use
 """
 
-# Redirect to new enhanced models
-from ..models.character_class import CharacterClass, Subclass, ClassFeature, LevelProgression, AbilityScore
-
-__all__ = ['CharacterClass', 'Subclass', 'ClassFeature', 'LevelProgression', 'AbilityScore']
-
-# Keep old classes for backward compatibility
 from typing import List, Dict, Optional, Union, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 import re
 

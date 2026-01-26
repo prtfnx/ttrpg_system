@@ -237,9 +237,7 @@ export const TableManagementPanel: React.FC = () => {
     // Check active table
     const { tableThumbnailService } = await import('../services/tableThumbnail.service');
     const renderEngine = tableThumbnailService.getRenderEngine();
-    const activeTableId = renderEngine?.get_active_table_id?.();
-    console.log('3. Active Table ID:', activeTableId || '❌ None');
-    console.log('4. Active Table in List:', tables.find(t => t.table_id === activeTableId)?.table_name || '❌ Not Found');
+    console.log('3. Active Table:', tables[0]?.table_name || '❌ None');
     
     // Check render engine
     console.log('5. Render Engine:', renderEngine ? '✅ Available' : '❌ Not Available');

@@ -2,8 +2,8 @@ import { ProtocolService, useProtocol } from '@lib/api';
 import { showToast } from '@shared/utils';
 import clsx from "clsx";
 import React, { useRef, useState } from "react";
-import { useGameStore } from "../store";
-import type { Character } from "../types";
+import { useGameStore } from "../../../store";
+import type { Character } from "../../../types";
 import styles from "./CharacterSheetNew.module.css";
 
 interface CharacterSheetProps {

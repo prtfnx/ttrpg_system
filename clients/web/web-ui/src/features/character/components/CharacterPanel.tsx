@@ -10,10 +10,10 @@ import {
 import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { useGameStore } from '../store';
-import type { Character } from '../types';
+import { useGameStore } from '../../../store';
+import type { Character } from '../../../types';
 import styles from './CharacterPanel.module.css';
-import { CharacterSheet } from './CharacterSheetNew';
+import { CharacterSheetNew as CharacterSheet } from './CharacterSheetNew';
 import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 import { ShareCharacterDialog } from './ShareCharacterDialog';
 

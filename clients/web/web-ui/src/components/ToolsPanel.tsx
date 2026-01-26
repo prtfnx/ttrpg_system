@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useProtocol } from '../services/ProtocolContext';
 import { ProtocolService } from '../services/ProtocolService';
 import { useGameStore } from '../store';
 import DiceRoller from '../tools/DiceRoller';
@@ -35,14 +34,6 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   const [shapeColor, setShapeColor] = useState('#0080ff'); // Default blue
   const [shapeOpacity, setShapeOpacity] = useState(1.0); // Default fully opaque
   const [shapeFilled, setShapeFilled] = useState(false); // Default outline only
-  
-  // Collapsible section states
-  const [createSpritesExpanded, setCreateSpritesExpanded] = useState(false); // Collapsed by default
-  const [drawingToolsExpanded, setDrawingToolsExpanded] = useState(false);
-  const [otherToolsExpanded, setOtherToolsExpanded] = useState(false);
-  
-  // Get connection state from protocol (accurate real-time state)
-  const { isConnected, connectionState } = useProtocol();
   
   const { 
     sessionId, 

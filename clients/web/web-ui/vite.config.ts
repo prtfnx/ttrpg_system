@@ -40,7 +40,7 @@ export default defineConfig(({ mode }) => {
           // Manual chunks for better caching
           manualChunks: {
             vendor: ['react', 'react-dom'],
-            protocol: ['./src/protocol/clientProtocol.ts', './src/protocol/message.ts']
+            protocol: ['./src/lib/websocket/clientProtocol.ts', './src/lib/websocket/message.ts']
           }
         }
       }

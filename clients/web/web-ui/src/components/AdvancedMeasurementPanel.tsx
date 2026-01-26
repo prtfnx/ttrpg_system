@@ -16,7 +16,7 @@ import {
     type MeasurementTemplate
 } from '../services/advancedMeasurement.service';
 import styles from './AdvancedMeasurementPanel.module.css';
-import { ErrorBoundary } from './common/ErrorBoundary';
+import { ErrorBoundary } from '@shared/components';
 
 interface AdvancedMeasurementPanelProps {
   isOpen: boolean;

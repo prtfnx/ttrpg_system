@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '../components/AuthContext';
+import { useAuth } from '@features/auth';
 import type { Equipment, Monster, Spell } from '../services/compendium.service';
 import { compendiumService } from '../services/compendium.service';
 

@@ -5,7 +5,7 @@ import styles from './App.module.css';
 import { GameClient } from './components/GameClient';
 import { SessionSelector } from './components/SessionSelector';
 import { authService, type UserInfo } from './features/auth';
-import { ProtocolProvider } from './services/ProtocolContext';
+import { ProtocolProvider } from './lib/api';
 import { ErrorBoundary, logger } from './shared';
 
 interface AppState {

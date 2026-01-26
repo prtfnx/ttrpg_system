@@ -13,8 +13,8 @@ import {
     type WeatherEffect
 } from '../services/performanceOptimizedBackground.service';
 import styles from './BackgroundManagementPanel.module.css';
-import { ErrorBoundary } from './common/ErrorBoundary';
-import { LoadingSpinner } from './common/LoadingSpinner';
+import { ErrorBoundary } from '@shared/components';
+import { LoadingSpinner } from '@shared/components';
 
 interface BackgroundManagementPanelProps {
   isOpen: boolean;

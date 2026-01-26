@@ -1,8 +1,8 @@
 import clsx from 'clsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAssetManager } from '../hooks/useAssetManager';
-import { useAuthenticatedWebSocket } from '../hooks/useAuthenticatedWebSocket';
-import { MessageType, createMessage } from '../protocol/message';
+import { useAuthenticatedWebSocket } from '@features/auth';
+import { MessageType, createMessage } from '@lib/websocket';
 import styles from './AssetManager.module.css';
 
 

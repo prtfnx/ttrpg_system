@@ -1,10 +1,10 @@
 import clsx from "clsx";
 import React, { useRef, useState } from "react";
-import { useProtocol } from "../services/ProtocolContext";
-import { ProtocolService } from "../services/ProtocolService";
+import { useProtocol } from '@lib/api';
+import { ProtocolService } from '@lib/api';
 import { useGameStore } from "../store";
 import type { Character } from "../types";
-import { showToast } from "../utils/toast";
+import { showToast } from '@shared/utils';
 import styles from "./CharacterSheetNew.module.css";
 
 interface CharacterSheetProps {

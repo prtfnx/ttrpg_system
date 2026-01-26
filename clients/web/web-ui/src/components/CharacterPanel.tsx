@@ -1,8 +1,8 @@
 import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { authService } from '../features/auth';
-import { useProtocol } from '../services/ProtocolContext';
+import { authService } from '@features/auth';
+import { useProtocol } from '@lib/api';
 import { useGameStore } from '../store';
 import type { Character } from '../types';
 import {
@@ -10,8 +10,8 @@ import {
     downloadCharacterAsJSON,
     downloadMultipleCharactersAsJSON,
     pickAndImportCharacter
-} from '../utils/characterImportExport';
-import { showToast } from '../utils/toast';
+} from '@shared/utils';
+import { showToast } from '@shared/utils';
 import styles from './CharacterPanel.module.css';
 import { CharacterSheet } from './CharacterSheetNew';
 import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
@@ -49,7 +49,7 @@ const SyncStatusIcon: React.FC<{ status?: 'local' | 'syncing' | 'synced' | 'erro
 };
 
 
-export function CharacterPanel() {
+function CharacterPanel() {
   const {
     characters,
     getSpritesForCharacter,
@@ -1300,4 +1300,5 @@ export function CharacterPanel() {
   );
 }
 
-export default CharacterPanelRedesigned;
+export { CharacterPanel };
+export default CharacterPanel;

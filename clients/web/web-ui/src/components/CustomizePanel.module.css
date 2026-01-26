@@ -80,23 +80,23 @@
 }
 
 .darkPreview {
-  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  background: var(--theme-dark-gradient);
 }
 
 .lightPreview {
-  background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
+  background: var(--theme-light-gradient);
 }
 
 .highContrastPreview {
-  background: linear-gradient(135deg, #000000 0%, #ffffff 100%);
+  background: var(--theme-contrast-gradient);
 }
 
 .cyberpunkPreview {
-  background: linear-gradient(135deg, #0a0a1a 0%, #ff006e 50%, #00f5ff 100%);
+  background: var(--theme-cyberpunk-gradient);
 }
 
 .forestPreview {
-  background: linear-gradient(135deg, #1a3a1a 0%, #2d5a2d 100%);
+  background: var(--theme-forest-gradient);
 }
 
 /* Color Grid */
@@ -133,7 +133,7 @@
   color: white;
   font-size: var(--text-xl);
   font-weight: var(--font-bold);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 2px 4px var(--overlay-dark-subtle);
 }
 
 /* Button Style Grid */

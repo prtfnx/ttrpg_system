@@ -477,7 +477,7 @@
 .hpCurrentInput:focus {
   outline: none;
   border-bottom-color: var(--red-400);
-  background: rgba(252, 129, 129, 0.1);
+  background: var(--hp-low-bg);
 }
 
 /* Hide number input spinners for HP */

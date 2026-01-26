@@ -1,9 +1,9 @@
 
 
-import React, { useEffect, useState } from "react";
 import type { UserInfo } from '@features/auth';
 import { useAuthenticatedWebSocket } from '@features/auth';
 import { createMessage, MessageType } from '@lib/websocket';
+import React, { useEffect, useState } from "react";
 
 interface Player {
   id: string;

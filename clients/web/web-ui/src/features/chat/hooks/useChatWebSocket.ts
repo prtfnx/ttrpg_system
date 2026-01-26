@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { useProtocol } from '../services/ProtocolContext';
-import { useChatStore } from '../store/chatStore';
+import { useProtocol } from '@lib/api';
+import { useChatStore } from '../chatStore';
 
 export function useChatWebSocket(url: string, user: string) {
   // Try to use centralized protocol if available

@@ -6,6 +6,6 @@ export { default as UserMenu } from './components/UserMenu';
 
 export { useAuthenticatedWebSocket } from './hooks/useAuthenticatedWebSocket';
 
-export { authService, type UserInfo, type SessionInfo } from './services/auth.service';
+export { authService, type SessionInfo, type UserInfo } from './services/auth.service';
 export { enhancedAuthService } from './services/enhancedAuth.service';
 

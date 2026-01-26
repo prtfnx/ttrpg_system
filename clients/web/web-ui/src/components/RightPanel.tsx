@@ -1,3 +1,4 @@
+import { ChatPanel } from '@features/chat';
 import clsx from 'clsx';
 import { useRef, useState } from 'react';
 import { ActionQueuePanel } from './ActionQueuePanel';
@@ -7,7 +8,6 @@ import AdvancedMeasurementPanel from './AdvancedMeasurementPanel';
 import { AssetPanel } from './AssetPanel';
 import BackgroundManagementPanel from './BackgroundManagementPanel';
 import { CharacterPanel } from './CharacterPanel';
-import { ChatPanel } from '@features/chat';
 import { CompendiumPanel } from './CompendiumPanel';
 import { CustomizePanel } from './CustomizePanel';
 import { EntitiesPanel } from './EntitiesPanel';

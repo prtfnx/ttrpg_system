@@ -5,9 +5,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMockRenderEngine } from '../../test/utils/mockRenderEngine';
 
 // Import web client system components
+import { AuthContext as AuthProvider } from '@features/auth';
 import { ActionsPanel } from '../ActionsPanel';
 import { AssetPanel } from '../AssetPanel';
-import { AuthContext as AuthProvider } from '@features/auth';
 import ChatPanel from '../ChatPanel';
 import { GameCanvas } from '../GameCanvas';
 import { NetworkPanel } from '../NetworkPanel';

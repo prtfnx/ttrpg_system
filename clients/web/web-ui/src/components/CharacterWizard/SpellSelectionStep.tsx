@@ -1,9 +1,9 @@
+import { ErrorBoundary } from '@shared/components';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import type { Spell } from '../../services/compendiumService';
 import { compendiumService } from '../../services/compendiumService';
 import { spellManagementService } from '../../services/spellManagement.service';
-import { ErrorBoundary } from '@shared/components';
 import type { WizardFormData } from './WizardFormData';
 
 // Loading spinner component

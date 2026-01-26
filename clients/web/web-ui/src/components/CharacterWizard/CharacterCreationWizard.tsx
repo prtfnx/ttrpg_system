@@ -1,10 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { ErrorBoundary, Modal } from '@shared/components';
 import { useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import type { UserInfo } from '../../features/auth';
-import { ErrorBoundary } from '@shared/components';
-import { Modal } from '@shared/components';
 import { AbilitiesStep } from './AbilitiesStep';
 import { BackgroundStep } from './BackgroundStep';
 import { CharacterAdvancementStep } from './CharacterAdvancementStep';

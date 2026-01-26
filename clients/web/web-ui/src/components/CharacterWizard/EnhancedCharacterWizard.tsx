@@ -9,12 +9,11 @@
  */
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { ErrorBoundary, LoadingSpinner } from '@shared/components';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { ErrorBoundary } from '@shared/components';
-import { LoadingSpinner } from '@shared/components';
 import { AbilitiesStep } from './AbilitiesStep';
 import { BackgroundStep } from './BackgroundStep';
 import { CharacterAdvancementStep } from './CharacterAdvancementStep';

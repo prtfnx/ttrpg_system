@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from "react";
+import type { UserInfo } from '@features/auth';
 import { useAuthenticatedWebSocket } from '@features/auth';
 import { MessageType, createMessage } from '@lib/websocket';
-import type { UserInfo } from '@features/auth';
+import React, { useCallback, useEffect, useState } from "react";
 
 export interface Player {
   id: string;

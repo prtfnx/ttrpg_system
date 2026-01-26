@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { wasmManager } from '../utils/wasmManager';
+import { wasmManager } from '@lib/wasm/wasmManager';
 import { useNetworkClient } from './useNetworkClient';
 
 export interface TableData {

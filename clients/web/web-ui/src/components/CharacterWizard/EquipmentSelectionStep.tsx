@@ -1,3 +1,4 @@
+import { ErrorBoundary } from '@shared/components';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import {
@@ -6,7 +7,6 @@ import {
     type Equipment,
     type WizardEquipmentItem
 } from '../../services/equipmentManagement.service';
-import { ErrorBoundary } from '@shared/components';
 import styles from './EquipmentSelectionStep.module.css';
 import type { WizardFormData } from './WizardFormData';
 

@@ -2,11 +2,11 @@
  * React hook for authenticated WebSocket connection with protocol compliance
  * Manages connection state and provides protocol interface
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useProtocol } from '@lib/api';
 import { WebClientProtocol } from '@lib/websocket';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UserInfo } from '../services/auth.service';
 import { authService } from '../services/auth.service';
-import { useProtocol } from '@lib/api';
 
 interface UseAuthenticatedWebSocketProps {
   sessionCode: string;

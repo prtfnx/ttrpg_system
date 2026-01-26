@@ -1,6 +1,6 @@
 // Auth component exports
-export { AuthContext as AuthProvider, useAuth, AuthGuard, LoginModal, UserMenu } from '@features/auth';
-export { RoleBased, RoleBased as DMOnly, RoleBased as PlayerOnly } from '@shared/components';
+export { AuthGuard, AuthContext as AuthProvider, LoginModal, UserMenu, useAuth } from '@features/auth';
+export { RoleBased as DMOnly, RoleBased as PlayerOnly, RoleBased } from '@shared/components';
 
 // Re-export everything from features/auth
 export * from '@features/auth';

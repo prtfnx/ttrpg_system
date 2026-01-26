@@ -231,17 +231,17 @@
 }
 
 .prepared-spell.cantrip {
-  background: rgba(40, 167, 69, 0.1);
+  background: var(--spell-bg-evocation);
   border: var(--border-width-thick) solid var(--green-600);
 }
 
 .prepared-spell.known {
-  background: rgba(33, 150, 243, 0.1);
+  background: var(--spell-bg-abjuration);
   border: var(--border-width-thick) solid var(--blue-600);
 }
 
 .prepared-spell.prepared {
-  background: rgba(156, 39, 176, 0.1);
+  background: var(--spell-bg-enchantment);
   border: var(--border-width-thick) solid var(--purple-600);
 }
 
@@ -479,7 +479,7 @@
 .spell-save {
   margin: var(--space-xs) 0;
   padding: var(--space-xs) var(--space-sm);
-  background: rgba(74, 20, 140, 0.1);
+  background: var(--spell-bg-necromancy);
   border-radius: var(--radius-sm);
   font-size: var(--text-sm);
 }
@@ -559,7 +559,7 @@
 .modal-content .spell-damage,
 .modal-content .spell-save {
   padding: var(--space-sm);
-  background: rgba(74, 20, 140, 0.1);
+  background: var(--spell-bg-necromancy);
   border-radius: var(--radius-md);
   margin-bottom: var(--space-md);
 }

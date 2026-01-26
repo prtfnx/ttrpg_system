@@ -474,15 +474,6 @@
   .form-row {
     grid-template-columns: 1fr;
   }
-}
-  
-  .participant-vital-stats {
-    gap: var(--space-md);
-  }
-  
-  .form-row {
-    grid-template-columns: 1fr;
-  }
   
   .conditions-section {
     flex-direction: column;

@@ -106,7 +106,7 @@
 
 .weapon-card.selected {
   border-color: var(--red-900);
-  background: linear-gradient(135deg, rgba(139, 0, 0, 0.1), rgba(165, 42, 42, 0.05));
+  background: var(--attack-bg-gradient);
   box-shadow: var(--shadow-md);
 }
 

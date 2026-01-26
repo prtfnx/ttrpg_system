@@ -129,7 +129,7 @@ Object.defineProperty(window, 'matchMedia', {
     return {
       fillRect: vi.fn(),
       clearRect: vi.fn(),
-      getImageData: vi.fn((sx: number, sy: number, sw: number, sh: number) => ({ 
+      getImageData: vi.fn((_sx: number, _sy: number, sw: number, sh: number) => ({ 
         data: new Uint8ClampedArray(sw * sh * 4),
         width: sw,
         height: sh,

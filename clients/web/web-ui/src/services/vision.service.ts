@@ -1,7 +1,7 @@
 // Gather obstacles from the game store, call into the Rust/WASM visibility
 // routine and push resulting reveal polygons into the fog system.
 import { useGameStore } from '../store';
-import { getSpriteHeight, getSpriteWidth } from '../utils/spriteHelpers';
+import { getSpriteHeight, getSpriteWidth } from '@shared/utils';
 
 let _interval: number | null = null;
 let _poller: number | null = null;

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { config } from '../../../config/appConfig';
-import { useChatWebSocket } from '../hooks/useChatWebSocket';
-import { useChatStore } from '../chatStore';
 import { useAuth } from '../../auth';
+import { useChatStore } from '../chatStore';
+import { useChatWebSocket } from '../hooks/useChatWebSocket';
 
 export function ChatPanel() {
   const { user } = useAuth();

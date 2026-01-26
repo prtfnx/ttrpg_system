@@ -3,9 +3,9 @@
  * Connects WASM sprite operations to network protocol
  */
 
-import React from 'react';
-import { createMessage, MessageType } from '@lib/websocket';
 import { useProtocol } from '@lib/api';
+import { createMessage, MessageType } from '@lib/websocket';
+import React from 'react';
 import { useGameStore } from '../../store';
 
 class WasmBridgeService {

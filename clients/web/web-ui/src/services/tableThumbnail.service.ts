@@ -1,4 +1,4 @@
-import { isValidUUID } from '../protocol/tableProtocolAdapter';
+import { isValidUUID } from '@lib/websocket';
 import type { RenderEngine } from '../types/wasm';
 
 interface ThumbnailCacheEntry {

@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
 import { useProtocol } from '@lib/api';
+import React, { useEffect } from 'react';
 import { useChatStore } from '../chatStore';
 
 export function useChatWebSocket(url: string, user: string) {

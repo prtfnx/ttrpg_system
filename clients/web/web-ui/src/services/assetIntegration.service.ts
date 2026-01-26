@@ -3,8 +3,8 @@
  * Handles asset upload/download requests and integrates with the WASM texture system
  */
 
-import type { WebClientProtocol } from '../protocol/clientProtocol';
-import { createMessage, MessageType } from '../protocol/message';
+import type { WebClientProtocol } from '@lib/websocket';
+import { createMessage, MessageType } from '@lib/websocket';
 
 interface AssetUploadResponse {
   success: boolean;

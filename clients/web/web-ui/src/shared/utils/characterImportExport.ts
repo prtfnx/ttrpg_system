@@ -5,7 +5,7 @@
  * Includes validation, error handling, and sanitization following best practices.
  */
 
-import type { Character } from '../types';
+import type { Character } from '../../types';
 
 // Version for file format compatibility
 const EXPORT_FORMAT_VERSION = '1.0';

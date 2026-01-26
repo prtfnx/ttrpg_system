@@ -3,8 +3,8 @@
  * Handles the sprite creation flow after asset upload
  */
 
-import type { WebClientProtocol } from '../protocol/clientProtocol';
-import { createMessage, MessageType } from '../protocol/message';
+import type { WebClientProtocol } from '@lib/websocket';
+import { createMessage, MessageType } from '@lib/websocket';
 import { useGameStore } from '../store';
 
 export interface SpriteCreationRequest {

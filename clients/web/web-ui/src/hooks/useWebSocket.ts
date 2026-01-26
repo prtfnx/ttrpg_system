@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef } from 'react';
 import { useProtocol } from '@lib/api';
+import { useCallback, useEffect, useRef } from 'react';
 import { useGameStore } from '../store';
 import type { Sprite } from '../types';
 import type { WebSocketMessage } from '../types/websocket';

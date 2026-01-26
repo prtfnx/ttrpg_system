@@ -1,6 +1,7 @@
-export { ErrorBoundary } from './ErrorBoundary';
-export { Modal } from './Modal';
-export { LoadingSpinner } from './LoadingSpinner';
 export { AlignmentHelper } from './AlignmentHelper';
 export { DragDropImageHandler } from './DragDropImageHandler';
-export { RoleBased } from './RoleBased';
+export { ErrorBoundary } from './ErrorBoundary';
+export { LoadingSpinner } from './LoadingSpinner';
+export { Modal } from './Modal';
+export { default as RoleBased, DMOnly, PlayerOnly } from './RoleBased';
+

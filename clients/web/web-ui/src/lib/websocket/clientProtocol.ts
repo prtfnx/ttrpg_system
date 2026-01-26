@@ -5,10 +5,10 @@
  * Handles all message types defined in protocol.py with proper authentication
  */
 
-import { useAssetCharacterCache } from '../../assetCharacterCache';
-import { useGameStore } from '../../store';
 import { logger, protocolLogger } from '@shared/utils/logger';
 import { showToast } from '@shared/utils/toast';
+import { useAssetCharacterCache } from '../../assetCharacterCache';
+import { useGameStore } from '../../store';
 import type { Message, MessageHandler } from './message';
 import { MessageType, createMessage, parseMessage } from './message';
 import { validateTableId } from './tableProtocolAdapter';

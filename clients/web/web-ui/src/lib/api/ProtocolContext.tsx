@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { authService } from '@features/auth';
 import { WebClientProtocol } from '@lib/websocket';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { ProtocolService } from './ProtocolService';
 
 interface ProtocolContextValue {

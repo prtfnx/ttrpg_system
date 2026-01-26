@@ -154,13 +154,8 @@ class TableThumbnailService {
       // Check if this is the currently active table
       // IMPORTANT: Only the active table is loaded in WASM memory
       // Other tables exist in server state but are not rendered until switched to
-      const activeTableId = this.renderEngine.get_active_table_id?.();
-      
-      if (activeTableId !== tableId) {
-        console.log(`[ThumbnailService] Skipping thumbnail for '${tableId}' - not active (active: '${activeTableId}')`);
-        // Return null - caller will handle placeholder rendering
-        return null;
-      }
+      // Note: We rely on the server marking tables as active/inactive
+      console.log(`[ThumbnailService] Generating thumbnail for table '${tableId}'`);
       
       console.log(`[ThumbnailService] Generating thumbnail for active table '${tableId}'`);
       

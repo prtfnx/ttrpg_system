@@ -1,0 +1,21 @@
+#!/usr/bin/env sh
+
+# Get staged CSS files (excluding tokens.css and theme.css)
+STAGED_CSS=$(git diff --cached --name-only --diff-filter=ACM | grep '\.css$' | grep -v 'tokens\.css\|theme\.css')
+
+if [ -n "$STAGED_CSS" ]; then
+  echo "🔍 Linting CSS files..."
+  
+  # Run stylelint on staged CSS files
+  npx stylelint $STAGED_CSS
+  
+  if [ $? -ne 0 ]; then
+    echo ""
+    echo "❌ CSS linting failed. Fix errors before committing."
+    echo "💡 Tip: Run 'npm run lint:css:fix' to auto-fix some issues"
+    echo ""
+    exit 1
+  fi
+  
+  echo "✅ CSS linting passed"
+fi

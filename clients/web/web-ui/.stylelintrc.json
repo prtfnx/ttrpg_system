@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json.schemastore.org/stylelintrc",
+  "extends": ["stylelint-config-standard"],
+  "rules": {
+    "color-no-hex": [
+      true,
+      {
+        "message": "❌ Hardcoded hex colors not allowed. Use tokens from theme.css instead"
+      }
+    ],
+    "declaration-property-value-allowed-list": {
+      "color": ["/^var\\(--/", "transparent", "currentColor", "currentcolor", "inherit", "white", "black"],
+      "background": ["/^(var\\(--|linear-gradient|radial-gradient)/", "transparent", "none", "inherit", "white", "black"],
+      "background-color": ["/^var\\(--/", "transparent", "inherit", "white", "black"],
+      "border-color": ["/^var\\(--/", "transparent", "currentColor", "currentcolor", "inherit", "white", "black"],
+      "box-shadow": ["/.*var\\(--/", "none", "inherit"],
+      "text-shadow": ["/.*var\\(--/", "none", "inherit"]
+    },
+    "property-no-unknown": [true, {
+      "ignoreProperties": ["composes"]
+    }],
+    "selector-class-pattern": null,
+    "custom-media-pattern": null,
+    "keyframes-name-pattern": null,
+    "custom-property-pattern": null,
+    "comment-empty-line-before": null,
+    "rule-empty-line-before": null,
+    "declaration-block-no-redundant-longhand-properties": null,
+    "media-feature-range-notation": null,
+    "no-descending-specificity": null,
+    "no-duplicate-selectors": null,
+    "property-no-vendor-prefix": null,
+    "selector-attribute-quotes": null,
+    "declaration-block-single-line-max-declarations": null,
+    "font-family-name-quotes": null,
+    "value-keyword-case": null,
+    "selector-not-notation": null,
+    "media-feature-name-value-no-unknown": null,
+    "property-no-deprecated": null,
+    "length-zero-no-unit": null,
+    "declaration-property-value-keyword-no-deprecated": null,
+    "import-notation": null,
+    "declaration-block-no-duplicate-properties": null
+  },
+  "ignoreFiles": [
+    "**/tokens.css",
+    "**/theme.css",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/*.js",
+    "**/*.ts",
+    "**/*.tsx"
+  ]
+}

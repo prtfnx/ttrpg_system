@@ -1,9 +1,9 @@
 
 
 import React, { useEffect, useState } from "react";
+import type { UserInfo } from '../features/auth';
 import { useAuthenticatedWebSocket } from "../hooks/useAuthenticatedWebSocket";
 import { createMessage, MessageType } from "../protocol/message";
-import type { UserInfo } from "../services/auth.service";
 
 interface Player {
   id: string;

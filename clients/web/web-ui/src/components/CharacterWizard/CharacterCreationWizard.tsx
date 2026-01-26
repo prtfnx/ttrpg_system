@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
-import type { UserInfo } from '../../services/auth.service';
+import type { UserInfo } from '../../features/auth';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { Modal } from '../common/Modal';
 import { AbilitiesStep } from './AbilitiesStep';

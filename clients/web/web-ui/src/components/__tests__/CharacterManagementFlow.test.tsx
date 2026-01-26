@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGameStore } from '../../store';
 import type { Character } from '../../types';
-import { CharacterPanelRedesigned } from '../CharacterPanelRedesigned';
 
 // Mock dependencies
 vi.mock('../../services/auth.service', () => ({

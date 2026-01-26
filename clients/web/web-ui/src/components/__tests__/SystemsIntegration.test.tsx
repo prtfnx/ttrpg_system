@@ -9,7 +9,7 @@ import { ActionsPanel } from '../ActionsPanel';
 import { AssetPanel } from '../AssetPanel';
 import { AuthProvider } from '../AuthContext';
 import ChatPanel from '../ChatPanel';
-import { CharacterPanelRedesigned } from '../CharacterPanelRedesigned';
+import { CharacterPanel } from '../CharacterPanel';
 import { GameCanvas } from '../GameCanvas';
 import { NetworkPanel } from '../NetworkPanel';
 import { PerformanceMonitor } from '../PerformanceMonitor';

@@ -19,7 +19,7 @@ declare global {
   }
 }
 
-import type { UserInfo } from '../services/auth.service';
+import type { UserInfo } from '../features/auth';
 
 interface ToolsPanelProps {
   userInfo: UserInfo;

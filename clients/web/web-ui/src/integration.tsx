@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import CharacterPanel from './components/CharacterPanelRedesigned'
+import { CharacterPanel } from './components/CharacterPanel'
 import { EntitiesPanel } from './components/EntitiesPanel'
 import { ToolsPanel } from './components/ToolsPanel'
 import './index.css'

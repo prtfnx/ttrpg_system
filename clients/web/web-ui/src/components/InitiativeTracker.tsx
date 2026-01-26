@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import type { UserInfo } from '../features/auth';
 import { useAuthenticatedWebSocket } from '../hooks/useAuthenticatedWebSocket';
 import { MessageType, createMessage } from '../protocol/message';
-import type { UserInfo } from '../services/auth.service';
 
 interface Initiative {
   id: string;

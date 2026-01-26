@@ -1,4 +1,5 @@
 import react from '@vitejs/plugin-react';
+import path from 'path';
 import { defineConfig } from 'vite';
 import wasmPack from 'vite-plugin-wasm';
 
@@ -9,6 +10,15 @@ export default defineConfig(({ mode }) => {
   return {
     base: '/static/ui/',
     plugins: [react(), wasmPack()],
+    resolve: {
+      alias: {
+        '@features': path.resolve(__dirname, './src/features'),
+        '@shared': path.resolve(__dirname, './src/shared'),
+        '@lib': path.resolve(__dirname, './src/lib'),
+        '@config': path.resolve(__dirname, './src/config'),
+        '@app': path.resolve(__dirname, './src/app'),
+      },
+    },
     server: {
       fs: {
         allow: ['..']

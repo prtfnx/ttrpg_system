@@ -1,4 +1,4 @@
-import type { UserInfo } from './auth.service';
+import type { UserInfo } from '../features/auth';
 
 export interface CompendiumEntry {
   id: string;

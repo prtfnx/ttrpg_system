@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react';
-import type { UserInfo } from '../../services/auth.service';
+import type { UserInfo } from '../../features/auth';
 import { CharacterSummary } from '../CharacterSummary';
 import { ExperienceTracker } from '../ExperienceTracker';
 import { MulticlassManager } from '../MulticlassManager';

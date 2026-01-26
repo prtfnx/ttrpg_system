@@ -6,7 +6,6 @@ import { ActionsQuickPanel } from './ActionsQuickPanel';
 import AdvancedMeasurementPanel from './AdvancedMeasurementPanel';
 import { AssetPanel } from './AssetPanel';
 import BackgroundManagementPanel from './BackgroundManagementPanel';
-import CharacterPanelRedesigned from './CharacterPanelRedesigned';
 import ChatPanel from './ChatPanel';
 import { CompendiumPanel } from './CompendiumPanel';
 import { CustomizePanel } from './CustomizePanel';
@@ -21,9 +20,6 @@ import styles from './RightPanel.module.css';
 import { TableManagementPanel } from './TableManagementPanel';
 import TablePanel from './TablePanel';
 import TableSyncPanel from './TableSyncPanel';
-
-// Development-only imports
-const isDevelopment = import.meta.env.DEV;
 
 export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
   const [activeTab, setActiveTab] = useState<'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'sync' | 'players' | 'actions' | 'quick-actions' | 'queue' | 'compendium' | 'assets' | 'network' | 'initiative' | 'performance' | 'backgrounds' | 'measurement' | 'customize'>('tables');

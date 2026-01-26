@@ -1,4 +1,3 @@
-import { CharacterPanelRedesigned } from '../components/CharacterPanelRedesigned';
 import { useGameStore } from '../store';
 /**
  * Character Management and Progression System Behavior Tests  

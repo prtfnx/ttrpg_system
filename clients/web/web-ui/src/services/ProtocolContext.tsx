@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { WebClientProtocol } from '../protocol/clientProtocol';
 import { ProtocolService } from './ProtocolService';
-import { authService } from './auth.service';
+import { authService } from '../features/auth';
 
 interface ProtocolContextValue {
   protocol: WebClientProtocol | null;

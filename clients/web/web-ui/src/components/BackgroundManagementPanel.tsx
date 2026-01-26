@@ -4,6 +4,7 @@
  * with real-time performance monitoring and configuration options
  */
 
+import { ErrorBoundary, LoadingSpinner } from '@shared/components';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     performanceOptimizedBackgroundSystem,
@@ -13,8 +14,6 @@ import {
     type WeatherEffect
 } from '../services/performanceOptimizedBackground.service';
 import styles from './BackgroundManagementPanel.module.css';
-import { ErrorBoundary } from '@shared/components';
-import { LoadingSpinner } from '@shared/components';
 
 interface BackgroundManagementPanelProps {
   isOpen: boolean;

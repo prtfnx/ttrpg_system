@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRenderEngine } from '../hooks/useRenderEngine';
-import { useProtocol } from '../services/ProtocolContext';
+import { useProtocol } from '@lib/api';
 import { useGameStore } from '../store';
 import type { Color } from '../types';
 import styles from './LightingPanel.module.css';

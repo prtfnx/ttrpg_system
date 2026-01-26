@@ -1,6 +1,6 @@
+import type { RenderEngine } from '@lib/wasm';
 import React, { useCallback, useState } from 'react';
 import { useActions } from '../hooks/useActions';
-import type { RenderEngine } from '@lib/wasm';
 
 interface ActionsQuickPanelProps {
   renderEngine?: RenderEngine | null;

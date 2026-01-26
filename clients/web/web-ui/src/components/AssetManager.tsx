@@ -1,8 +1,8 @@
+import { useAuthenticatedWebSocket } from '@features/auth';
+import { MessageType, createMessage } from '@lib/websocket';
 import clsx from 'clsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAssetManager } from '../hooks/useAssetManager';
-import { useAuthenticatedWebSocket } from '@features/auth';
-import { MessageType, createMessage } from '@lib/websocket';
 import styles from './AssetManager.module.css';
 
 

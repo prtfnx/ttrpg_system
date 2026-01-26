@@ -59,7 +59,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
 // Core UI components that should exist
-import { AuthProvider } from '../AuthContext';
+import { AuthContext as AuthProvider } from '@features/auth';
 import { CharacterSheet } from '../CharacterWizard/CharacterSheet';
 import { CompendiumPanel } from '../CompendiumPanel';
 import { LayerPanel } from '../LayerPanel';

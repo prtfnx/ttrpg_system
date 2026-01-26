@@ -1,17 +1,17 @@
-import clsx from 'clsx';
-import React, { useEffect, useState } from 'react';
-import ReactDOM from 'react-dom';
 import { authService } from '@features/auth';
 import { useProtocol } from '@lib/api';
-import { useGameStore } from '../store';
-import type { Character } from '../types';
 import {
     cloneCharacter,
     downloadCharacterAsJSON,
     downloadMultipleCharactersAsJSON,
-    pickAndImportCharacter
+    pickAndImportCharacter,
+    showToast
 } from '@shared/utils';
-import { showToast } from '@shared/utils';
+import clsx from 'clsx';
+import React, { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
+import { useGameStore } from '../store';
+import type { Character } from '../types';
 import styles from './CharacterPanel.module.css';
 import { CharacterSheet } from './CharacterSheetNew';
 import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';

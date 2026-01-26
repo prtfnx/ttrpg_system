@@ -4,6 +4,7 @@
  * and geometric shape creation with D&D 5e integration
  */
 
+import { ErrorBoundary } from '@shared/components';
 import clsx from 'clsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -16,7 +17,6 @@ import {
     type MeasurementTemplate
 } from '../services/advancedMeasurement.service';
 import styles from './AdvancedMeasurementPanel.module.css';
-import { ErrorBoundary } from '@shared/components';
 
 interface AdvancedMeasurementPanelProps {
   isOpen: boolean;

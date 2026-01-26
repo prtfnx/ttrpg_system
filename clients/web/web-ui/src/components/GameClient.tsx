@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import React, { useEffect } from 'react';
 import type { UserInfo } from '../features/auth';
-import { useAuthenticatedWebSocket } from '../hooks/useAuthenticatedWebSocket';
+import { useAuthenticatedWebSocket } from '@features/auth';
 import { GameCanvas } from './GameCanvas';
 import styles from './GameClient.module.css';
 import { RightPanel } from './RightPanel';

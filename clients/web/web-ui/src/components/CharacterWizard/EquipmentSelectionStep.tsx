@@ -6,7 +6,7 @@ import {
     type Equipment,
     type WizardEquipmentItem
 } from '../../services/equipmentManagement.service';
-import { ErrorBoundary } from '../common/ErrorBoundary';
+import { ErrorBoundary } from '@shared/components';
 import styles from './EquipmentSelectionStep.module.css';
 import type { WizardFormData } from './WizardFormData';
 

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ProtocolService } from '../services/ProtocolService';
+import { ProtocolService } from '@lib/api';
 import { useGameStore } from '../store';
 import DiceRoller from '../tools/DiceRoller';
 import type { GameAPI } from '../types';
-import { AlignmentHelper } from './AlignmentHelper';
+import { AlignmentHelper } from '@shared/components';
 import { AssetManager } from './AssetManager';
 import { GridControls } from './GridControls';
 import { LayerPanel } from './LayerPanel';

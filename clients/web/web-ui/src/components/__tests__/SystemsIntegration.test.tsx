@@ -7,9 +7,8 @@ import { createMockRenderEngine } from '../../test/utils/mockRenderEngine';
 // Import web client system components
 import { ActionsPanel } from '../ActionsPanel';
 import { AssetPanel } from '../AssetPanel';
-import { AuthProvider } from '../AuthContext';
+import { AuthContext as AuthProvider } from '@features/auth';
 import ChatPanel from '../ChatPanel';
-import { CharacterPanel } from '../CharacterPanel';
 import { GameCanvas } from '../GameCanvas';
 import { NetworkPanel } from '../NetworkPanel';
 import { PerformanceMonitor } from '../PerformanceMonitor';

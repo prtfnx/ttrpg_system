@@ -7,8 +7,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { LoginCredentials, OAuthProvider, RegisterCredentials } from '../services/enhancedAuth.service';
 import { enhancedAuthService } from '../services/enhancedAuth.service';
-import { ErrorBoundary } from './common/ErrorBoundary';
-import { LoadingSpinner } from './common/LoadingSpinner';
+import { ErrorBoundary } from '@shared/components';
+import { LoadingSpinner } from '@shared/components';
 import styles from './EnhancedLogin.module.css';
 
 interface PasswordStrength {

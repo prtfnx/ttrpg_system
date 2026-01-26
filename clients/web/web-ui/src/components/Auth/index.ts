@@ -1,9 +1,6 @@
 // Auth component exports
-export { AuthProvider, useAuth } from '../AuthContext';
-export { default as AuthGuard } from '../AuthGuard';
-export { default as LoginModal } from '../LoginModal';
-export { DMOnly, PlayerOnly, default as RoleBased } from '../RoleBased';
-export { default as UserMenu } from '../UserMenu';
+export { AuthContext as AuthProvider, useAuth, AuthGuard, LoginModal, UserMenu } from '@features/auth';
+export { RoleBased, RoleBased as DMOnly, RoleBased as PlayerOnly } from '@shared/components';
 
-// Auth utilities and hooks
-export * from '../AuthContext';
+// Re-export everything from features/auth
+export * from '@features/auth';

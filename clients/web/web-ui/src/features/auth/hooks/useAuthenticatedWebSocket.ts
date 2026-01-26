@@ -3,10 +3,10 @@
  * Manages connection state and provides protocol interface
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { WebClientProtocol } from '../protocol/clientProtocol';
+import { WebClientProtocol } from '@lib/websocket';
 import type { UserInfo } from '../services/auth.service';
 import { authService } from '../services/auth.service';
-import { useProtocol } from '../services/ProtocolContext';
+import { useProtocol } from '@lib/api';
 
 interface UseAuthenticatedWebSocketProps {
   sessionCode: string;

@@ -6,7 +6,8 @@ import { ActionsQuickPanel } from './ActionsQuickPanel';
 import AdvancedMeasurementPanel from './AdvancedMeasurementPanel';
 import { AssetPanel } from './AssetPanel';
 import BackgroundManagementPanel from './BackgroundManagementPanel';
-import ChatPanel from './ChatPanel';
+import { CharacterPanel } from './CharacterPanel';
+import { ChatPanel } from '@features/chat';
 import { CompendiumPanel } from './CompendiumPanel';
 import { CustomizePanel } from './CustomizePanel';
 import { EntitiesPanel } from './EntitiesPanel';
@@ -20,6 +21,8 @@ import styles from './RightPanel.module.css';
 import { TableManagementPanel } from './TableManagementPanel';
 import TablePanel from './TablePanel';
 import TableSyncPanel from './TableSyncPanel';
+
+const isDevelopment = import.meta.env.DEV;
 
 export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
   const [activeTab, setActiveTab] = useState<'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'sync' | 'players' | 'actions' | 'quick-actions' | 'queue' | 'compendium' | 'assets' | 'network' | 'initiative' | 'performance' | 'backgrounds' | 'measurement' | 'customize'>('tables');
@@ -54,7 +57,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
         {activeTab === 'quick-actions' && <ActionsQuickPanel renderEngine={window.rustRenderManager as any || null} />}
         {isDevelopment && activeTab === 'table-tools' && <TablePanel />}
         {isDevelopment && activeTab === 'sync' && <TableSyncPanel />}
-        {activeTab === 'characters' && <CharacterPanelRedesigned />}
+        {activeTab === 'characters' && <CharacterPanel />}
         {activeTab === 'players' && <PlayerManagerPanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'initiative' && <InitiativeTracker sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {isDevelopment && activeTab === 'actions' && <ActionsPanel renderEngine={window.rustRenderManager as any || null} />}

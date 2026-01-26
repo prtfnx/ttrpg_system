@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useProtocol } from '../services/ProtocolContext';
-import { authService } from '../services/auth.service';
+import { useProtocol } from '@lib/api';
+import { authService } from '@features/auth';
 import { useGameStore } from '../store';
 import styles from './TokenConfigModal.module.css';
 

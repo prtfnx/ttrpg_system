@@ -3,7 +3,7 @@ import { useFormContext } from 'react-hook-form';
 import type { Spell } from '../../services/compendiumService';
 import { compendiumService } from '../../services/compendiumService';
 import { spellManagementService } from '../../services/spellManagement.service';
-import { ErrorBoundary } from '../common/ErrorBoundary';
+import { ErrorBoundary } from '@shared/components';
 import type { WizardFormData } from './WizardFormData';
 
 // Loading spinner component

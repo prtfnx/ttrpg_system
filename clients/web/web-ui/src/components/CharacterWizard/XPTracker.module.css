@@ -307,12 +307,12 @@
 }
 
 .milestone.reached {
-  background: rgba(40, 167, 69, 0.1);
+  background: var(--status-success-bg);
   border-color: var(--green-600);
 }
 
 .milestone.current {
-  background: rgba(255, 193, 7, 0.1);
+  background: var(--status-warning-bg);
   border-color: var(--yellow-600);
   transform: scale(1.05);
 }

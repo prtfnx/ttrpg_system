@@ -4,6 +4,7 @@ export { GridControls } from './components/GridControls';
 export { GridSettings } from './components/GridSettings';
 export { LayerPanel } from './components/LayerPanel';
 
-export { useRenderEngine } from './hooks/useRenderEngine';
 export { useLayerManager } from './hooks/useLayerManager';
+export { useRenderEngine } from './hooks/useRenderEngine';
 export { useSpriteSyncing } from './hooks/useSpriteSyncing';
+

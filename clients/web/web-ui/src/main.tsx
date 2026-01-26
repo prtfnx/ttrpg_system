@@ -1,9 +1,9 @@
 console.log('[DEBUG] main.tsx script loaded');
 import { AuthProvider } from '@features/auth';
+import { CharacterPanel } from '@features/character';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
-import { CharacterPanel } from '@features/character';
 import { EntitiesPanel } from './components/EntitiesPanel';
 import { ToolsPanel } from './components/ToolsPanel';
 import './index.css';

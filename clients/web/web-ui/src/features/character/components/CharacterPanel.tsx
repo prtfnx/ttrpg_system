@@ -1,11 +1,11 @@
 import { authService } from '@features/auth';
 import { useProtocol } from '@lib/api';
 import {
-    cloneCharacter,
-    downloadCharacterAsJSON,
-    downloadMultipleCharactersAsJSON,
-    pickAndImportCharacter,
-    showToast
+  cloneCharacter,
+  downloadCharacterAsJSON,
+  downloadMultipleCharactersAsJSON,
+  pickAndImportCharacter,
+  showToast
 } from '@shared/utils';
 import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';

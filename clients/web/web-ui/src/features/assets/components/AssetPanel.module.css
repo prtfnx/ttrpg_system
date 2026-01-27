@@ -1,5 +1,5 @@
 .assetPanel {
-  composes: panel-container wide from '../styles/PanelBase.module.css';
+  composes: panel-container wide from '../../../styles/PanelBase.module.css';
   max-width: 800px;
   margin: 0 auto;
 }
@@ -31,12 +31,12 @@
 
 /* Stats Section */
 .statsSection {
-  composes: settings-section from '../styles/PanelBase.module.css';
+  composes: settings-section from '../../../styles/PanelBase.module.css';
   margin-bottom: var(--spacing-lg);
 }
 
 .statsGrid {
-  composes: info-grid from '../styles/PanelBase.module.css';
+  composes: info-grid from '../../../styles/PanelBase.module.css';
   margin-bottom: var(--spacing-lg);
 }
 
@@ -50,7 +50,7 @@
 
 /* Settings Section */
 .settingsSection {
-  composes: settings-section from '../styles/PanelBase.module.css';
+  composes: settings-section from '../../../styles/PanelBase.module.css';
   margin-bottom: var(--spacing-lg);
 }
 
@@ -80,7 +80,7 @@
 
 /* Upload Section */
 .uploadSection {
-  composes: settings-section from '../styles/PanelBase.module.css';
+  composes: settings-section from '../../../styles/PanelBase.module.css';
   margin-bottom: var(--spacing-lg);
 }
 
@@ -110,7 +110,7 @@
 
 /* Asset List Section */
 .assetList-section {
-  composes: settings-section from '../styles/PanelBase.module.css';
+  composes: settings-section from '../../../styles/PanelBase.module.css';
   margin-bottom: var(--spacing-lg);
 }
 
@@ -163,7 +163,7 @@
 
 /* Asset Details Section */
 .assetDetails-section {
-  composes: settings-section from '../styles/PanelBase.module.css';
+  composes: settings-section from '../../../styles/PanelBase.module.css';
   margin-bottom: var(--spacing-lg);
 }
 
@@ -190,11 +190,11 @@
 
 /* Buttons - use PanelBase patterns */
 .assetButton {
-  composes: panel-button primary from '../styles/PanelBase.module.css';
+  composes: panel-button primary from '../../../styles/PanelBase.module.css';
 }
 
 .dangerButton {
-  composes: panel-button danger from '../styles/PanelBase.module.css';
+  composes: panel-button danger from '../../../styles/PanelBase.module.css';
 }
 
 .smallButton {

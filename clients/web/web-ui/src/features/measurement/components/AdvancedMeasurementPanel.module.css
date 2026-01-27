@@ -129,7 +129,7 @@
 }
 
 .tool-btn {
-  composes: panel-button secondary from '../styles/PanelBase.module.css';
+  composes: panel-button secondary from '../../../styles/PanelBase.module.css';
   padding: var(--spacing-sm) var(--spacing-lg);
   font-size: var(--font-size-sm);
   min-width: var(--space-6xl);
@@ -201,7 +201,7 @@
 }
 
 .tab-btn {
-  composes: panel-button secondary from '../styles/PanelBase.module.css';
+  composes: panel-button secondary from '../../../styles/PanelBase.module.css';
   padding: var(--spacing-sm) var(--spacing-lg);
   font-size: var(--font-size-sm);
   flex: 1;
@@ -270,20 +270,20 @@
 }
 
 .clearBtn {
-  composes: panel-button danger from '../styles/PanelBase.module.css';
+  composes: panel-button danger from '../../../styles/PanelBase.module.css';
   padding: var(--spacing-sm) var(--spacing-md);
   font-size: var(--font-size-sm);
 }
 
 .create-btn {
-  composes: panel-button success from '../styles/PanelBase.module.css';
+  composes: panel-button success from '../../../styles/PanelBase.module.css';
   padding: var(--spacing-sm) var(--spacing-md);
   font-size: var(--font-size-sm);
 }
 
 .export-btn,
 .import-btn {
-  composes: panel-button info from '../styles/PanelBase.module.css';
+  composes: panel-button info from '../../../styles/PanelBase.module.css';
   padding: var(--spacing-sm) var(--spacing-md);
   font-size: var(--font-size-sm);
 }
@@ -331,7 +331,7 @@
 }
 
 .shapeType-btn {
-  composes: panel-button secondary from '../styles/PanelBase.module.css';
+  composes: panel-button secondary from '../../../styles/PanelBase.module.css';
   padding: var(--spacing-md);
   font-size: var(--font-size-xs);
   display: flex;

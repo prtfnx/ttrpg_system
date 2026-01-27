@@ -13,7 +13,7 @@ import {
     type MonsterStats,
     type MonsterTemplate
 } from '../services/monsterCreation.service';
-import '../styles/MonsterCreationPanel.css';
+import '../../../styles/MonsterCreationPanel.css';
 
 interface MonsterCreationPanelProps {
   isOpen: boolean;

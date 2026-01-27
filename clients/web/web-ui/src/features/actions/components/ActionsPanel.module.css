@@ -5,7 +5,7 @@
 
 /* Panel structure using shared base */
 .actionsPanel {
-  composes: panel-container from '../styles/PanelBase.module.css';
+  composes: panel-container from '../../../styles/PanelBase.module.css';
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -13,12 +13,12 @@
 }
 
 .panelHeader {
-  composes: panel-header from '../styles/PanelBase.module.css';
+  composes: panel-header from '../../../styles/PanelBase.module.css';
   flex-shrink: 0;
 }
 
 .panelContent {
-  composes: panel-content from '../styles/PanelBase.module.css';
+  composes: panel-content from '../../../styles/PanelBase.module.css';
   flex: 1;
   padding: var(--space-lg);
 }
@@ -38,7 +38,7 @@
 }
 
 .errorMessage {
-  composes: info-box error from '../styles/PanelBase.module.css';
+  composes: info-box error from '../../../styles/PanelBase.module.css';
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -99,7 +99,7 @@
 }
 
 .actionsForm {
-  composes: section-group from '../styles/PanelBase.module.css';
+  composes: section-group from '../../../styles/PanelBase.module.css';
 }
 
 .actionsForm h4 {
@@ -136,13 +136,13 @@
 
 /* Action buttons */
 .actionButton {
-  composes: panel-button from '../styles/PanelBase.module.css';
+  composes: panel-button from '../../../styles/PanelBase.module.css';
   font-size: var(--text-xs);
 }
 
 /* Lists */
 .actionsList {
-  composes: section-group from '../styles/PanelBase.module.css';
+  composes: section-group from '../../../styles/PanelBase.module.css';
   max-height: 300px;
   overflow-y: auto;
 }
@@ -208,7 +208,7 @@
 }
 
 .layerItem {
-  composes: control-group from '../styles/PanelBase.module.css';
+  composes: control-group from '../../../styles/PanelBase.module.css';
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -247,7 +247,7 @@
 }
 
 .historyList {
-  composes: section-group from '../styles/PanelBase.module.css';
+  composes: section-group from '../../../styles/PanelBase.module.css';
   max-height: 250px;
   overflow-y: auto;
   padding: var(--space-sm);

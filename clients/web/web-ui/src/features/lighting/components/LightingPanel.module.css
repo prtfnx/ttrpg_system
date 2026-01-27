@@ -5,19 +5,19 @@
 
 /* Panel structure */
 .lighting-panel {
-  composes: panel-content from '../styles/PanelBase.module.css';
+  composes: panel-content from '../../../styles/PanelBase.module.css';
   padding: var(--space-md);
   max-height: 600px;
 }
 
 .lightingPanel {
-  composes: panel-container from '../styles/PanelBase.module.css';
+  composes: panel-container from '../../../styles/PanelBase.module.css';
   max-height: 600px;
   padding: var(--space-md);
 }
 
 .panelHeader {
-  composes: panel-header from '../styles/PanelBase.module.css';
+  composes: panel-header from '../../../styles/PanelBase.module.css';
   margin-bottom: var(--space-md);
   padding-bottom: var(--space-sm);
 }
@@ -36,7 +36,7 @@
 
 /* Mode buttons */
 .mode-button {
-  composes: panel-button from '../styles/PanelBase.module.css';
+  composes: panel-button from '../../../styles/PanelBase.module.css';
   padding: var(--space-sm) var(--space-md);
   font-weight: var(--font-medium);
 }
@@ -105,7 +105,7 @@
 
 .addLightButton,
 .lightControlButton {
-  composes: panel-button from '../styles/PanelBase.module.css';
+  composes: panel-button from '../../../styles/PanelBase.module.css';
   padding: var(--space-sm) var(--space-md);
 }
 
@@ -316,14 +316,14 @@ input[type="range"] {
   transform: scale(1.2);
 }
 .errorIndicator {
-  composes: info-box error from '../styles/PanelBase.module.css';
+  composes: info-box error from '../../../styles/PanelBase.module.css';
   padding: var(--space-xs) var(--space-sm);
   font-size: var(--text-sm);
   font-weight: var(--font-bold);
 }
 
 .loadingIndicator {
-  composes: info-box warning from '../styles/PanelBase.module.css';
+  composes: info-box warning from '../../../styles/PanelBase.module.css';
   padding: var(--space-xs) var(--space-sm);
   font-size: var(--text-sm);
   font-weight: var(--font-bold);
@@ -361,12 +361,12 @@ input[type="range"] {
 }
 
 .retryButton {
-  composes: panel-button primary from '../styles/PanelBase.module.css';
+  composes: panel-button primary from '../../../styles/PanelBase.module.css';
   padding: var(--space-sm) var(--space-md);
 }
 
 .reloadButton {
-  composes: panel-button danger from '../styles/PanelBase.module.css';
+  composes: panel-button danger from '../../../styles/PanelBase.module.css';
   padding: var(--space-sm) var(--space-md);
 }
 
@@ -446,7 +446,7 @@ input[type="range"] {
 
 /* Light presets */
 .light-presets {
-  composes: section-group from '../styles/PanelBase.module.css';
+  composes: section-group from '../../../styles/PanelBase.module.css';
   margin-bottom: var(--space-lg);
   padding: var(--space-md);
 }
@@ -515,7 +515,7 @@ input[type="range"] {
 
 /* Ambient controls */
 .ambient-controls {
-  composes: section-group from '../styles/PanelBase.module.css';
+  composes: section-group from '../../../styles/PanelBase.module.css';
   margin-bottom: var(--space-lg);
   padding: var(--space-md);
 }

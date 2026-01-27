@@ -5,28 +5,28 @@
 
 /* Use shared base components */
 .panelBase {
-  composes: panel-content from '../styles/PanelBase.module.css';
+  composes: panel-content from '../../../styles/PanelBase.module.css';
 }
 
 .panelHeader {
-  composes: panel-header from '../styles/PanelBase.module.css';
+  composes: panel-header from '../../../styles/PanelBase.module.css';
 }
 
 .panelSection {
-  composes: settings-section from '../styles/PanelBase.module.css';
+  composes: settings-section from '../../../styles/PanelBase.module.css';
 }
 
 .controlGroup {
-  composes: control-group from '../styles/PanelBase.module.css';
+  composes: control-group from '../../../styles/PanelBase.module.css';
 }
 
 .panelButton {
-  composes: panel-button from '../styles/PanelBase.module.css';
+  composes: panel-button from '../../../styles/PanelBase.module.css';
 }
 
 /* Activity log - shared style with custom max-height */
 .activityLog {
-  composes: section-group from '../styles/PanelBase.module.css';
+  composes: section-group from '../../../styles/PanelBase.module.css';
   max-height: 300px;
   overflow-y: auto;
   padding: var(--space-sm);

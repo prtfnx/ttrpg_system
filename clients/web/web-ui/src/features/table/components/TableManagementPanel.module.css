@@ -1,5 +1,5 @@
 .tableManagementPanel {
-  composes: panel-container extra-wide from '../styles/PanelBase.module.css';
+  composes: panel-container extra-wide from '../../../styles/PanelBase.module.css';
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -8,7 +8,7 @@
 }
 
 .panelHeader {
-  composes: panel-header from '../styles/PanelBase.module.css';
+  composes: panel-header from '../../../styles/PanelBase.module.css';
   flex-shrink: 0;
   padding: var(--space-lg);
 }
@@ -22,7 +22,7 @@
 .refreshButton,
 .createButton,
 .settingsToggleButton {
-  composes: panel-button secondary from '../styles/PanelBase.module.css';
+  composes: panel-button secondary from '../../../styles/PanelBase.module.css';
   padding: var(--spacing-xs) var(--spacing-sm);
   font-size: var(--font-size-xs);
   min-width: 32px;
@@ -37,7 +37,7 @@
 
 .importButton,
 .bulkModeButton {
-  composes: panel-button secondary from '../styles/PanelBase.module.css';
+  composes: panel-button secondary from '../../../styles/PanelBase.module.css';
   padding: var(--spacing-xs) var(--spacing-sm);
   font-size: var(--font-size-xs);
   min-width: 32px;
@@ -79,20 +79,20 @@
 }
 
 .bulkDuplicateButton {
-  composes: panel-button info from '../styles/PanelBase.module.css';
+  composes: panel-button info from '../../../styles/PanelBase.module.css';
   padding: var(--spacing-xs) var(--spacing-md);
   font-size: var(--font-size-sm);
 }
 
 .bulkDeleteButton {
-  composes: panel-button danger from '../styles/PanelBase.module.css';
+  composes: panel-button danger from '../../../styles/PanelBase.module.css';
   padding: var(--spacing-xs) var(--spacing-md);
   font-size: var(--font-size-sm);
 }
 
 /* Panel Settings */
 .panelSettings {
-  composes: settings-section from '../styles/PanelBase.module.css';
+  composes: settings-section from '../../../styles/PanelBase.module.css';
   flex-shrink: 0;
   margin: 0 var(--space-lg) var(--spacing-md) var(--space-lg);
 }
@@ -153,7 +153,7 @@
 }
 
 .searchInput {
-  composes: control-input from '../styles/PanelBase.module.css';
+  composes: control-input from '../../../styles/PanelBase.module.css';
   width: 100%;
   padding: var(--spacing-sm) calc(var(--spacing-xl) + var(--spacing-sm)) var(--spacing-sm) calc(var(--spacing-xl) + var(--spacing-sm));
 }
@@ -190,13 +190,13 @@
 }
 
 .sortSelect {
-  composes: control-input from '../styles/PanelBase.module.css';
+  composes: control-input from '../../../styles/PanelBase.module.css';
   padding: var(--spacing-sm);
   cursor: pointer;
 }
 
 .sortOrderButton {
-  composes: panel-button secondary from '../styles/PanelBase.module.css';
+  composes: panel-button secondary from '../../../styles/PanelBase.module.css';
   padding: var(--spacing-sm) var(--space-md);
   font-size: var(--text-lg);
   line-height: 1;
@@ -210,7 +210,7 @@
 }
 
 .createTableForm {
-  composes: settings-section from '../styles/PanelBase.module.css';
+  composes: settings-section from '../../../styles/PanelBase.module.css';
   flex-shrink: 0;
   margin: 0 var(--space-lg) var(--spacing-md) var(--space-lg);
 }
@@ -235,7 +235,7 @@
 }
 
 .templateButton {
-  composes: panel-button info from '../styles/PanelBase.module.css';
+  composes: panel-button info from '../../../styles/PanelBase.module.css';
   padding: var(--spacing-sm) var(--spacing-md);
   font-size: var(--font-size-xs);
   white-space: nowrap;
@@ -280,13 +280,13 @@
 }
 
 .confirmButton {
-  composes: panel-button primary from '../styles/PanelBase.module.css';
+  composes: panel-button primary from '../../../styles/PanelBase.module.css';
   padding: var(--spacing-sm) var(--spacing-lg);
   font-size: var(--font-size-sm);
 }
 
 .cancelButton {
-  composes: panel-button secondary from '../styles/PanelBase.module.css';
+  composes: panel-button secondary from '../../../styles/PanelBase.module.css';
   padding: var(--spacing-sm) var(--spacing-lg);
   font-size: var(--font-size-sm);
 }
@@ -531,7 +531,7 @@
 }
 
 .actionBtn {
-  composes: panel-button secondary from '../styles/PanelBase.module.css';
+  composes: panel-button secondary from '../../../styles/PanelBase.module.css';
   flex: 1 1 auto;
   padding: var(--space-xs) var(--space-sm);
   font-size: var(--text-2xs);
@@ -596,7 +596,7 @@
 }
 
 .deleteConfirmationModal {
-  composes: panel-overlay from '../styles/PanelBase.module.css';
+  composes: panel-overlay from '../../../styles/PanelBase.module.css';
   animation: fadeIn 0.15s ease-out;
 }
 
@@ -656,7 +656,7 @@
 }
 
 .confirmDeleteButton {
-  composes: panel-button danger from '../styles/PanelBase.module.css';
+  composes: panel-button danger from '../../../styles/PanelBase.module.css';
   padding: var(--spacing-md) var(--spacing-xl);
   font-size: var(--font-size-base);
   font-weight: var(--font-medium);
@@ -664,7 +664,7 @@
 }
 
 .cancelButton {
-  composes: panel-button secondary from '../styles/PanelBase.module.css';
+  composes: panel-button secondary from '../../../styles/PanelBase.module.css';
   padding: var(--spacing-md) var(--spacing-xl);
   font-size: var(--font-size-base);
   font-weight: var(--font-medium);
@@ -732,7 +732,7 @@
 
 /* Settings Modal */
 .settings-modal {
-  composes: panel-overlay from '../styles/PanelBase.module.css';
+  composes: panel-overlay from '../../../styles/PanelBase.module.css';
   backdrop-filter: blur(4px);
 }
 
@@ -749,7 +749,7 @@
 }
 
 .settings-section {
-  composes: settings-section from '../styles/PanelBase.module.css';
+  composes: settings-section from '../../../styles/PanelBase.module.css';
   margin-bottom: var(--spacing-xl);
   padding-bottom: var(--spacing-lg);
   border-bottom: var(--border-width) solid var(--border-primary);
@@ -822,9 +822,9 @@
 }
 
 .confirmButton {
-  composes: panel-button success from '../styles/PanelBase.module.css';
+  composes: panel-button success from '../../../styles/PanelBase.module.css';
 }
 
 .cancelButton {
-  composes: panel-button secondary from '../styles/PanelBase.module.css';
+  composes: panel-button secondary from '../../../styles/PanelBase.module.css';
 }

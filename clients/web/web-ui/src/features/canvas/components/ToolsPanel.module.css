@@ -194,7 +194,7 @@
 
 /* Button base styles using PanelBase composition */
 .toolButton {
-  composes: panel-button secondary from '../styles/PanelBase.module.css';
+  composes: panel-button secondary from '../../../styles/PanelBase.module.css';
   display: flex;
   align-items: center;
   justify-content: center;
@@ -204,7 +204,7 @@
 }
 
 .active {
-  composes: panel-button primary from '../styles/PanelBase.module.css';
+  composes: panel-button primary from '../../../styles/PanelBase.module.css';
   display: flex;
   align-items: center;
   justify-content: center;
@@ -271,7 +271,7 @@
 
 /* Test buttons */
 .testButton {
-  composes: panel-button secondary from '../styles/PanelBase.module.css';
+  composes: panel-button secondary from '../../../styles/PanelBase.module.css';
 }
 
 /* Text settings section */

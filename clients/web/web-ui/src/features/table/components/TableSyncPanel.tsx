@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNetworkClient } from '../hooks/useNetworkClient';
+import { useNetworkClient } from '@shared/hooks/useNetworkClient';
 import { useTableSync } from '../hooks/useTableSync';
 import styles from './TableSyncPanel.module.css';
 

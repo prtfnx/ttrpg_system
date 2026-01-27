@@ -1,6 +1,6 @@
 import { wasmManager } from '@lib/wasm/wasmManager';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNetworkClient } from './useNetworkClient';
+import { useNetworkClient } from '@shared/hooks/useNetworkClient';
 
 export interface TableData {
   table_id: string;

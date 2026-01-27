@@ -3,8 +3,8 @@
  * Generates D&D 5e character sheets as PDF documents
  */
 
-import type { WizardFormData } from '../components/CharacterWizard/WizardFormData';
-import { CharacterExportService, type D5eCharacterExport } from './characterExport.service';
+import type { WizardFormData } from '@features/character';
+import { CharacterExportService, type D5eCharacterExport } from '@features/character';
 
 export interface PDFGenerationOptions {
   includeSpells?: boolean;

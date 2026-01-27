@@ -3,8 +3,12 @@
  * Imports characters from various formats (JSON, D&D Beyond, Roll20, etc.)
  */
 
-import type { WizardFormData } from '../components/CharacterWizard/WizardFormData';
-import type { D5eCharacterExport, DNDBeyondExport } from './characterExport.service';
+import type { WizardFormData, D5eCharacterExport } from '@features/character';
+
+interface DNDBeyondExport {
+  // Placeholder for D&D Beyond export format
+  [key: string]: unknown;
+}
 
 export interface ImportResult {
   success: boolean;

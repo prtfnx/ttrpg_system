@@ -3,7 +3,7 @@
  * Handles sprite synchronization, table updates, and asset management
  */
 
-import { tableThumbnailService } from '../../services/tableThumbnail.service';
+import { tableThumbnailService } from '@features/table';
 import { useGameStore } from '../../store';
 import type { RenderEngine } from '../../types/wasm';
 

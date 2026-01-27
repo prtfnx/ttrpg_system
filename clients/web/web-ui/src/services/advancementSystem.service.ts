@@ -3,7 +3,7 @@
  * Handles level progression, XP tracking, feature advancement, and multiclassing
  */
 
-import type { WizardFormData } from '../components/CharacterWizard/WizardFormData';
+import type { WizardFormData } from '@features/character';
 
 export interface ExperiencePoints {
   current: number;

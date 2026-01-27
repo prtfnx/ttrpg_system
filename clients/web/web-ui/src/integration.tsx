@@ -1,10 +1,10 @@
+import { CharacterPanel } from '@features/character'
+import visionService from '@features/lighting'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { CharacterPanel } from '@features/character'
 import { EntitiesPanel } from './components/EntitiesPanel'
 import { ToolsPanel } from './components/ToolsPanel'
 import './index.css'
-import visionService from '@features/lighting'
 
 // Modern ES module approach - export mounting functions
 export function mountToolsPanel(container: HTMLElement) {

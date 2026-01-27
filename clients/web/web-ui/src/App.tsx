@@ -1,8 +1,8 @@
+import { GameClient } from '@features/canvas';
 import { useEffect, useState } from 'react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import styles from './App.module.css';
-import { GameClient } from '@features/canvas';
 import { SessionSelector } from './components/SessionSelector';
 import { authService, type UserInfo } from './features/auth';
 import { ProtocolProvider } from './lib/api';

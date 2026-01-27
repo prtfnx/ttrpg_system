@@ -1,7 +1,7 @@
 import type { RenderEngine } from '@lib/wasm';
+import { useActions, type ActionResult, type BatchAction, type TableInfo } from '@shared/hooks';
 import clsx from 'clsx';
 import React, { useCallback, useState } from 'react';
-import { useActions, type ActionResult, type BatchAction, type TableInfo } from '@shared/hooks';
 import styles from './ActionsPanel.module.css';
 
 interface ActionsPanelProps {

@@ -1,26 +1,23 @@
+import { AssetPanel, BackgroundManagementPanel } from '@features/assets';
+import { CharacterPanel } from '@features/character';
 import { ChatPanel } from '@features/chat';
+import { InitiativeTracker } from '@features/combat';
+import { CompendiumPanel } from '@features/compendium';
+import { FogPanel } from '@features/fog';
+import { LightingPanel } from '@features/lighting';
+import { AdvancedMeasurementPanel } from '@features/measurement';
+import { TableManagementPanel, TablePanel, TableSyncPanel } from '@features/table';
 import clsx from 'clsx';
 import { useRef, useState } from 'react';
 import { ActionQueuePanel } from './ActionQueuePanel';
 import { ActionsPanel } from './ActionsPanel';
 import { ActionsQuickPanel } from './ActionsQuickPanel';
-import { AdvancedMeasurementPanel } from '@features/measurement';
-import { AssetPanel } from '@features/assets';
-import { BackgroundManagementPanel } from '@features/assets';
-import { CharacterPanel } from '@features/character';
-import { CompendiumPanel } from '@features/compendium';
 import { CustomizePanel } from './CustomizePanel';
 import { EntitiesPanel } from './EntitiesPanel';
-import { FogPanel } from '@features/fog';
-import { InitiativeTracker } from '@features/combat';
-import { LightingPanel } from '@features/lighting';
 import { NetworkPanel } from './NetworkPanel';
 import PerformanceSettingsPanel from './PerformanceSettingsPanel';
 import { PlayerManagerPanel } from './PlayerManagerPanel';
 import styles from './RightPanel.module.css';
-import { TableManagementPanel } from '@features/table';
-import { TablePanel } from '@features/table';
-import { TableSyncPanel } from '@features/table';
 
 const isDevelopment = import.meta.env.DEV;
 

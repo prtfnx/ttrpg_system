@@ -1,14 +1,13 @@
+import { AssetManager } from '@features/assets';
+import { GridControls, LayerPanel } from '@features/canvas';
+import { MeasurementTool } from '@features/measurement';
+import { PaintPanel } from '@features/painting';
 import { ProtocolService } from '@lib/api';
 import { AlignmentHelper } from '@shared/components';
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../store';
 import DiceRoller from '../tools/DiceRoller';
 import type { GameAPI } from '../types';
-import { AssetManager } from '@features/assets';
-import { GridControls } from '@features/canvas';
-import { LayerPanel } from '@features/canvas';
-import { MeasurementTool } from '@features/measurement';
-import { PaintPanel } from '@features/painting';
 import { TextSpriteTool } from './TextSprite';
 import styles from './ToolsPanel.module.css';
 

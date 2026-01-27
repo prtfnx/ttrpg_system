@@ -9,7 +9,7 @@ export { SpellPreparationManager } from './components/SpellPreparationManager';
 
 export { EnhancedCharacterWizard } from './components/CharacterWizard/EnhancedCharacterWizard';
 
-export { characterExportService, CharacterExportService, type D5eCharacterExport } from './services/characterExport.service';
-export { classProgressionService, type ExtendedCharacterClass, availableClasses, getClassFeatures } from './services/classProgression.service';
+export { CharacterExportService, characterExportService, type D5eCharacterExport } from './services/characterExport.service';
+export { availableClasses, classProgressionService, getClassFeatures, type ExtendedCharacterClass } from './services/classProgression.service';
 export { spellManagementService } from './services/spellManagement.service';
 

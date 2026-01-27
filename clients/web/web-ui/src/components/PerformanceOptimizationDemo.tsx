@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { combatOptimizer, performanceUtils } from '../services/performanceOptimization.service';
-import type { WizardFormData } from './CharacterWizard/WizardFormData';
+import type { WizardFormData } from '@features/character';
 import styles from './PerformanceOptimizationDemo.module.css';
 
 // Test character for performance testing

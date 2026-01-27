@@ -1,6 +1,7 @@
 export { AssetManager } from './components/AssetManager';
 export { AssetPanel } from './components/AssetPanel';
-export { BackgroundManagementPanel } from './components/BackgroundManagementPanel';
+import BackgroundManagementPanel from './components/BackgroundManagementPanel';
+export { BackgroundManagementPanel };
 
 export { useAssetManager } from './hooks/useAssetManager';
 

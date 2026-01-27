@@ -1,12 +1,12 @@
 import { useAuthenticatedWebSocket } from '@features/auth';
 import clsx from 'clsx';
 import React, { useEffect } from 'react';
-import type { UserInfo } from '../features/auth';
+import type { UserInfo } from '@features/auth';
 import { GameCanvas } from './GameCanvas';
 import styles from './GameClient.module.css';
-import { RightPanel } from './RightPanel';
-import { TokenConfigModal } from './TokenConfigModal';
-import { ToolsPanel } from './ToolsPanel';
+import { RightPanel } from '../../../components/RightPanel';
+import { TokenConfigModal } from '../../../components/TokenConfigModal';
+import { ToolsPanel } from '../../../components/ToolsPanel';
 
 interface ErrorBoundaryState {
   hasError: boolean;

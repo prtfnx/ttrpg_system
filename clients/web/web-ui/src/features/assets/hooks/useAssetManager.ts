@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AssetManager } from '../wasm/ttrpg_rust_core';
+import { AssetManager } from '@lib/wasm';
 
 export interface AssetInfo {
   id: string;

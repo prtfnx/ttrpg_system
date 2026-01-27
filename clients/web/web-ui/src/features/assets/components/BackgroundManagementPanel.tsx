@@ -633,4 +633,4 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
   );
 };
 
-export default BackgroundManagementPanel;
+export { BackgroundManagementPanel as default };

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import type { PerformanceSettings } from '../services/performance.service';
-import { PerformanceLevel, performanceService } from '../services/performance.service';
+import type { PerformanceSettings } from '@features/canvas';
+import { PerformanceLevel, performanceService } from '@features/canvas';
 import styles from './PerformanceSettingsPanel.module.css';
 
 interface PerformanceSettingsPanelProps {

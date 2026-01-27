@@ -14,6 +14,7 @@ import type { RenderEngine } from '../../../types';
 import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
 import fpsService from '../services/fps.service';
 import { performanceService } from '../services/performance.service';
+import styles from './GameCanvas.module.css';
 import {
   CanvasRenderer,
   getGridCoord,
@@ -24,8 +25,7 @@ import {
   useFPS,
   useLightPlacement,
   usePerformanceMonitor,
-} from './GameCanvas';
-import styles from './GameCanvas.module.css';
+} from './GameCanvas/index';
 import PerformanceMonitor from './PerformanceMonitor';
 
 declare global {
@@ -81,13 +81,13 @@ export const GameCanvas: React.FC = () => {
 
   // Context menu logic
   const { contextMenu, setContextMenu, handleContextMenuAction, handleMoveToLayer } = useContextMenu({
-    canvasRef,
+    canvasRef: canvasRef as React.RefObject<HTMLCanvasElement>,
     rustRenderManagerRef,
     protocol,
   });
 
   // Light placement logic
-  const { lightPlacementMode, setLightPlacementMode } = useLightPlacement(canvasRef);
+  const { lightPlacementMode, setLightPlacementMode } = useLightPlacement(canvasRef as React.RefObject<HTMLCanvasElement>);
 
   // Light placement preview state
   const [lightPreviewPos, setLightPreviewPos] = useState<{ x: number; y: number } | null>(null);
@@ -95,7 +95,7 @@ export const GameCanvas: React.FC = () => {
   // Canvas event handlers
   const { stableMouseDown, stableMouseMove, stableMouseUp, stableWheel, stableRightClick, stableKeyDown } =
     useCanvasEvents({
-      canvasRef,
+      canvasRef: canvasRef as React.RefObject<HTMLCanvasElement>,
       rustRenderManagerRef,
       lightPlacementMode,
       setLightPlacementMode,
@@ -116,7 +116,6 @@ export const GameCanvas: React.FC = () => {
       if (!canvas) return;
 
       const rect = canvas.getBoundingClientRect();
-      const dpr = dprRef.current;
       const rawX = e.clientX - rect.left;
       const rawY = e.clientY - rect.top;
       const scaleX = canvas.width / rect.width;

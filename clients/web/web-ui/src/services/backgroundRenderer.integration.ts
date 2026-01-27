@@ -9,7 +9,7 @@ import {
     type BackgroundLayer,
     type PerformanceMetrics,
     type WeatherEffect
-} from './performanceOptimizedBackground.service';
+} from '../features/assets/services/performanceOptimizedBackground.service';
 
 export interface LODLevel {
   minZoom: number;

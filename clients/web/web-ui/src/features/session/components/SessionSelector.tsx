@@ -5,7 +5,7 @@
 import { authService, type SessionInfo } from '@features/auth';
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
-import styles from '../App.module.css';
+import styles from '../../../App.module.css';
 
 interface SessionSelectorProps {
   onSessionSelected: (sessionCode: string, role: 'dm' | 'player') => void;

@@ -4,8 +4,8 @@ import { CharacterPanel } from '@features/character';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
-import { EntitiesPanel } from './components/EntitiesPanel';
-import { ToolsPanel } from './components/ToolsPanel';
+import { EntitiesPanel } from './features/canvas/components/EntitiesPanel';
+import { ToolsPanel } from './features/canvas/components/ToolsPanel';
 import './index.css';
 
 // Global type declaration for integration mode

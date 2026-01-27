@@ -5,10 +5,10 @@ import { PaintPanel } from '@features/painting';
 import { ProtocolService } from '@lib/api';
 import { AlignmentHelper } from '@shared/components';
 import { useEffect, useState } from 'react';
-import { useGameStore } from '../store';
-import DiceRoller from '../tools/DiceRoller';
-import type { GameAPI } from '../types';
-import { TextSpriteTool } from './TextSprite';
+import { TextSpriteTool } from '../../../components/TextSprite';
+import { useGameStore } from '../../../store';
+import DiceRoller from '../../../tools/DiceRoller';
+import type { GameAPI } from '../../../types';
 import styles from './ToolsPanel.module.css';
 
 // Global type declarations
@@ -18,7 +18,7 @@ declare global {
   }
 }
 
-import type { UserInfo } from '../features/auth';
+import type { UserInfo } from '@features/auth';
 
 interface ToolsPanelProps {
   userInfo: UserInfo;

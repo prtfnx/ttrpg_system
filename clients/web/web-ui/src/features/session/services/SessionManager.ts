@@ -1,4 +1,4 @@
-import type { UserInfo } from '../features/auth';
+import type { UserInfo } from '@features/auth';
 
 export interface SessionInfo {
   id: string;

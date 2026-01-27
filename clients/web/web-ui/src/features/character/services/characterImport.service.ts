@@ -114,7 +114,7 @@ export class CharacterImportService {
    */
   static importFromDNDBeyond(data: DNDBeyondExport): ImportResult {
     try {
-      const character = data.character;
+      const character = data.character as any;
       
       if (!character.classes || character.classes.length === 0) {
         return {
@@ -131,7 +131,7 @@ export class CharacterImportService {
       }
       
       // Map D&D Beyond stats (ID 1-6) to ability scores
-      const statsMap = character.stats.reduce((acc, stat) => {
+      const statsMap = character.stats.reduce((acc: Record<string, number>, stat: any) => {
         const abilities = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
         acc[abilities[stat.id - 1]] = stat.value;
         return acc;

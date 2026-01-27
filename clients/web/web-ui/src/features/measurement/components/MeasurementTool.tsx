@@ -1,15 +1,4 @@
-import type { RenderEngine } from '@lib/wasm';
 import { useEffect, useState } from 'react';
-
-// Window type extension
-declare global {
-  interface Window {
-    actionsProtocol?: {
-      createSprite: (sprite: any) => Promise<void>;
-    };
-    rustRenderManager?: RenderEngine;
-  }
-}
 
 interface MeasurementResult {
   distance: number;

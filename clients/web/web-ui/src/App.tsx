@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import styles from './App.module.css';
-import { SessionSelector } from './components/SessionSelector';
 import { authService, type UserInfo } from './features/auth';
+import { SessionSelector } from './features/session/components/SessionSelector';
 import { ProtocolProvider } from './lib/api';
 import { ErrorBoundary, logger } from './shared';
 

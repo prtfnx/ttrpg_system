@@ -1,8 +1,9 @@
 import { CharacterPanel } from '@features/character'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { EntitiesPanel } from './components/EntitiesPanel'
-import { ToolsPanel } from './components/ToolsPanel'
+import { EntitiesPanel } from './features/canvas/components/EntitiesPanel'
+import { ToolsPanel } from './features/canvas/components/ToolsPanel'
+import { initVisionService } from './features/lighting/services/vision.service'
 import './index.css'
 
 // Modern ES module approach - export mounting functions
@@ -184,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Start vision service which will wait for WASM and then run LOS updates
   try {
-    visionService.initVisionService(150);
+    initVisionService(150);
   } catch (err) {
     console.error('[integration] Failed to init vision service:', err);
   }

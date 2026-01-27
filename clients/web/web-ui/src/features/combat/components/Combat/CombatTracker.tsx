@@ -3,10 +3,10 @@
  * Re-exports the CombatTracker from CharacterWizard directory
  */
 
-export { CombatTracker } from '../CharacterWizard/CombatTracker';
+export { CombatTracker } from '../../../character/components/CharacterWizard/CombatTracker';
 
 // Export related combat components
-export { DiceRoller } from '../CharacterWizard/DiceRoller';
+export { DiceRoller } from '../../../character/components/CharacterWizard/DiceRoller';
 
 // Re-export types
-export type { WizardFormData } from '../CharacterWizard/WizardFormData';
+export type { WizardFormData } from '../../../character/components/CharacterWizard/WizardFormData';

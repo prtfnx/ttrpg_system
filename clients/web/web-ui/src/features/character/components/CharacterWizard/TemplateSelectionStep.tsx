@@ -3,9 +3,10 @@
  * Allows users to choose between PC templates, NPC templates, or start from scratch
  */
 
+import type { CharacterTemplate } from '@features/character';
+import { ALL_TEMPLATES, getTemplatesByType } from '@features/character';
 import React, { useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import { ALL_TEMPLATES, getTemplatesByType, type CharacterTemplate } from '../../data/characterTemplates';
 import type { WizardFormData } from './WizardFormData';
 
 export const TemplateSelectionStep: React.FC = () => {
@@ -83,7 +84,7 @@ export const TemplateSelectionStep: React.FC = () => {
         <div className="template-list">
           <h4>Player Character Templates</h4>
           <div className="template-grid">
-            {pcTemplates.map(template => (
+            {pcTemplates.map((template: CharacterTemplate) => (
               <button
                 key={template.id}
                 type="button"
@@ -103,7 +104,7 @@ export const TemplateSelectionStep: React.FC = () => {
         <div className="template-list">
           <h4>NPC/Monster Templates</h4>
           <div className="template-grid">
-            {npcTemplates.map(template => (
+            {npcTemplates.map((template: CharacterTemplate) => (
               <button
                 key={template.id}
                 type="button"
@@ -137,7 +138,7 @@ export const TemplateSelectionStep: React.FC = () => {
       <div className="selection-summary">
         {selectedTemplate ? (
           <div className="summary-box success">
-            ✅ Template selected: <strong>{ALL_TEMPLATES.find(t => t.id === selectedTemplate)?.name}</strong>
+            ✅ Template selected: <strong>{ALL_TEMPLATES.find((t: CharacterTemplate) => t.id === selectedTemplate)?.name}</strong>
           </div>
         ) : templateType === 'scratch' ? (
           <div className="summary-box info">

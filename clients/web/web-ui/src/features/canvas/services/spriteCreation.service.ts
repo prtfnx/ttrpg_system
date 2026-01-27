@@ -5,7 +5,7 @@
 
 import type { WebClientProtocol } from '@lib/websocket';
 import { createMessage, MessageType } from '@lib/websocket';
-import { useGameStore } from '../store';
+import { useGameStore } from '../../../store';
 
 export interface SpriteCreationRequest {
   assetId: string;

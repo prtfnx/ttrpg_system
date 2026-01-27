@@ -7,9 +7,11 @@ export { ShareCharacterDialog } from './components/ShareCharacterDialog';
 export { SpellManagementPanel } from './components/SpellManagementPanel';
 export { SpellPreparationManager } from './components/SpellPreparationManager';
 
+export { ALL_TEMPLATES, getTemplatesByType } from '../../data/characterTemplates';
+export type { CharacterTemplate } from '../../data/characterTemplates';
+export { CombatLauncher } from './components/CharacterWizard/CombatLauncher';
 export { EnhancedCharacterWizard } from './components/CharacterWizard/EnhancedCharacterWizard';
 export type { WizardFormData } from './components/CharacterWizard/WizardFormData';
-export type { CharacterTemplate } from './data/characterTemplates';
 
 export type { ExperiencePoints } from './services/advancementSystem.service';
 export { CharacterExportService, type D5eCharacterExport } from './services/characterExport.service';

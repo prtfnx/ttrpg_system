@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import type { Feat, FeatChoice } from '../services/featSelection.service';
-import { featSelectionService } from '../services/featSelection.service';
+import type { Feat, FeatChoice } from '../../services/featSelection.service';
+import { featSelectionService } from '../../services/featSelection.service';
 import styles from './FeatSelectionStep.module.css';
 
 // Character form data interface

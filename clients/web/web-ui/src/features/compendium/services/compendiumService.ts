@@ -306,6 +306,9 @@ class CompendiumService {
   }
 }
 
+// Export the class for instantiation
+export { CompendiumService };
+
 // Singleton instance
 export const compendiumService = new CompendiumService();
 

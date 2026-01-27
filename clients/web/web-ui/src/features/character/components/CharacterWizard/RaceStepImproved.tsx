@@ -1,6 +1,6 @@
+import { useRacesForCharacterWizard } from '@features/compendium';
 import { useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
-import { useRacesForCharacterWizard } from '../../hooks/useCompendium';
 import { calculateRacialASI, getRacialTraits } from './raceData';
 import type { RaceStepData } from './schemas';
 

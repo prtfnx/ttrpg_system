@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
 import { AssetManager } from '@lib/wasm';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface AssetInfo {
   id: string;

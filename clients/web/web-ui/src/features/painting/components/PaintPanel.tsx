@@ -1,7 +1,7 @@
+import { useRenderEngine } from '@features/canvas';
 import clsx from 'clsx';
 import React, { useEffect, useRef, useState } from 'react';
 import { useBrushPresets, usePaintInteraction, usePaintSystem } from '../hooks/usePaintSystem';
-import { useRenderEngine } from '../hooks/useRenderEngine';
 import { paintTemplateService, type TemplateMetadata } from '../services/paintTemplate.service';
 import styles from './PaintPanel.module.css';
 

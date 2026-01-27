@@ -1,6 +1,6 @@
+import type { WizardFormData } from '@features/character';
+import { CombatLauncher } from '@features/character';
 import React, { useState } from 'react';
-import { CombatLauncher } from './CharacterWizard/CombatLauncher';
-import type { WizardFormData } from './CharacterWizard/WizardFormData';
 import styles from './CombatIntegrationTests.module.css';
 
 // Test characters with comprehensive data

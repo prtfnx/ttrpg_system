@@ -1,6 +1,6 @@
 
+import { useRaces } from '@features/compendium';
 import { Controller, useFormContext } from 'react-hook-form';
-import { useRaces } from '../../hooks/useCompendium';
 import type { RaceStepData } from './schemas';
 
 export function RaceStep({ onNext }: { onNext: () => void }) {

@@ -1,5 +1,4 @@
 import { CharacterPanel } from '@features/character'
-import { initVisionService } from '@features/lighting'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { EntitiesPanel } from './components/EntitiesPanel'

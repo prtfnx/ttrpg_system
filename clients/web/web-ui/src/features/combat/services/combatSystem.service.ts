@@ -1,4 +1,4 @@
-import type { WizardFormData } from '../components/CharacterWizard/WizardFormData';
+import type { WizardFormData } from '@features/character';
 
 /**
  * Combat System Service

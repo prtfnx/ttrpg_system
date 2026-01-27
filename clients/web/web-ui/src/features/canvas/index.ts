@@ -8,6 +8,6 @@ export { useLayerManager } from './hooks/useLayerManager';
 export { useRenderEngine } from './hooks/useRenderEngine';
 export { useSpriteSyncing } from './hooks/useSpriteSyncing';
 
-export { performanceService, PerformanceLevel } from './services/performance.service';
-export type { PerformanceSettings, PerformanceMetrics } from './services/performance.service';
+export { PerformanceLevel, performanceService } from './services/performance.service';
+export type { PerformanceMetrics, PerformanceSettings } from './services/performance.service';
 

@@ -1,7 +1,7 @@
+import type { UserInfo } from '@features/auth';
 import { useAuthenticatedWebSocket } from '@features/auth';
 import { MessageType, createMessage } from '@lib/websocket';
 import React, { useCallback, useEffect, useState } from 'react';
-import type { UserInfo } from '../features/auth';
 
 interface Initiative {
   id: string;

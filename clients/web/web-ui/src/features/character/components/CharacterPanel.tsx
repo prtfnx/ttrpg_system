@@ -1,11 +1,11 @@
 import { authService } from '@features/auth';
 import { useProtocol } from '@lib/api';
 import {
-  cloneCharacter,
-  downloadCharacterAsJSON,
-  downloadMultipleCharactersAsJSON,
-  pickAndImportCharacter,
-  showToast
+    cloneCharacter,
+    downloadCharacterAsJSON,
+    downloadMultipleCharactersAsJSON,
+    pickAndImportCharacter,
+    showToast
 } from '@shared/utils';
 import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
@@ -13,7 +13,7 @@ import ReactDOM from 'react-dom';
 import { useGameStore } from '../../../store';
 import type { Character } from '../../../types';
 import styles from './CharacterPanel.module.css';
-import { CharacterSheetNew as CharacterSheet } from './CharacterSheetNew';
+import { CharacterSheet } from './CharacterSheetNew';
 import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 import { ShareCharacterDialog } from './ShareCharacterDialog';
 

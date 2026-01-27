@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from 'react';
 import { useNetworkClient } from '@shared/hooks';
+import React, { useCallback, useState } from 'react';
 import styles from './NetworkPanel.module.css';
 
 interface NetworkMessage {

@@ -1,5 +1,5 @@
+import { useBackgrounds } from '@features/compendium';
 import { useFormContext } from 'react-hook-form';
-import { useBackgrounds } from '../../hooks/useCompendium';
 import type { BackgroundStepData } from './schemas';
 
 export function BackgroundStep({ onNext: _onNext, onBack: _onBack }: { onNext?: () => void; onBack?: () => void } = {}) {

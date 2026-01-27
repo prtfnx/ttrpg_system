@@ -1,5 +1,5 @@
+import type { RenderEngine } from '@lib/wasm';
 import { isValidUUID } from '@lib/websocket';
-import type { RenderEngine } from '../types/wasm';
 
 interface ThumbnailCacheEntry {
   imageData: ImageData;

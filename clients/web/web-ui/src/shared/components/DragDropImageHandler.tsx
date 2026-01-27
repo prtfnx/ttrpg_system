@@ -1,8 +1,7 @@
+import { assetIntegrationService, useAssetManager } from '@features/assets';
 import { useProtocol } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useAssetManager } from '@features/assets';
-import { assetIntegrationService } from '@features/assets';
 import { spriteCreationService } from '../../services/spriteCreation.service';
 import { useGameStore } from '../../store';
 

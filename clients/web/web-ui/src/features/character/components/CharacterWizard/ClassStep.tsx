@@ -1,5 +1,5 @@
+import { useClasses } from '@features/compendium';
 import { useFormContext } from 'react-hook-form';
-import { useClasses } from '../../hooks/useCompendium';
 import type { ClassStepData } from './classSchema';
 
 export function ClassStep({ onNext: _onNext, onBack: _onBack }: { onNext?: () => void; onBack?: () => void } = {}) {

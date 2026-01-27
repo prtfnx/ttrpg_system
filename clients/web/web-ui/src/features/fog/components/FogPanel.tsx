@@ -1,7 +1,7 @@
+import { useRenderEngine } from '@features/canvas';
 import { useProtocol } from '@lib/api';
 import clsx from 'clsx';
 import React, { useCallback, useEffect, useState } from 'react'; // FogPanel.tsx
-import { useRenderEngine } from '../hooks/useRenderEngine';
 import styles from './FogPanel.module.css';
 
 interface FogRectangle {

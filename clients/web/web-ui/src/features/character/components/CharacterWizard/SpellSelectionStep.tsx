@@ -1,8 +1,8 @@
+import type { Spell } from '@features/compendium';
+import { compendiumService } from '@features/compendium';
 import { ErrorBoundary } from '@shared/components';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import type { Spell } from '../../services/compendiumService';
-import { compendiumService } from '../../services/compendiumService';
 import { spellManagementService } from '../../services/spellManagement.service';
 import type { WizardFormData } from './WizardFormData';
 

@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
-import type { TableInfo } from '../store';
-import { useGameStore } from '../store';
+import type { TableInfo } from '../../../store';
+import { useGameStore } from '../../../store';
 import styles from './TableManagementPanel.module.css';
 import { TablePreview } from './TablePreview';
 
@@ -210,7 +210,7 @@ export const TableManagementPanel: React.FC = () => {
     
     const seconds = Math.floor(diff / 1000);
     const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
+    const hours = Math.floor(minutes / 66);
     const days = Math.floor(hours / 24);
     
     if (seconds < 60) return 'just now';

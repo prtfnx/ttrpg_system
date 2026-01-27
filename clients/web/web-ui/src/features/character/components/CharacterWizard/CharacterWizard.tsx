@@ -4,8 +4,8 @@
  * and supports different modes for character creation, level-up, and spell management
  */
 
+import type { UserInfo } from '@features/auth';
 import { useState } from 'react';
-import type { UserInfo } from '../../features/auth';
 import { CharacterSummary } from '../CharacterSummary';
 import { ExperienceTracker } from '../ExperienceTracker';
 import { MulticlassManager } from '../MulticlassManager';

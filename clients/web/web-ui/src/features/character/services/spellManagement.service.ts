@@ -3,7 +3,7 @@
  * Handles spell selection, spell slot calculation, and spell list management
  */
 
-import type { Spell } from './compendiumService';
+import type { Spell } from '@features/compendium';
 
 // D&D 5e spell slot progression tables
 export const SPELL_SLOTS_BY_CLASS_AND_LEVEL = {

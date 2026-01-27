@@ -1,5 +1,5 @@
+import { CombatSystemService } from '@features/combat';
 import React, { useMemo, useState } from 'react';
-import { CombatSystemService } from '../../services/combatSystem.service';
 import type { WizardFormData } from './WizardFormData';
 
 interface CharacterSheetProps {

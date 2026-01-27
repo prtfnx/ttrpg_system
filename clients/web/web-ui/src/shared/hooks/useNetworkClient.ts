@@ -1,6 +1,6 @@
+import type { NetworkClient } from '@lib/wasm';
 import { wasmManager } from '@lib/wasm/wasmManager';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { NetworkClient } from '../types/wasm';
 
 interface NetworkMessage {
   type: string;

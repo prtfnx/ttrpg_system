@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
 import { useNetworkClient } from '@shared/hooks/useNetworkClient';
+import { useEffect, useState } from 'react';
 import { useTableSync } from '../hooks/useTableSync';
 import styles from './TableSyncPanel.module.css';
 
@@ -11,7 +11,7 @@ interface ActivityLog {
   emoji: string;
 }
 
-export default function TableSyncPanel() {
+function TableSyncPanel() {
   const { tableSync, isLoading, error } = useTableSync();
   const { networkState } = useNetworkClient();
   const isConnected = networkState.isConnected;
@@ -466,3 +466,5 @@ export default function TableSyncPanel() {
     </div>
   );
 }
+
+export { TableSyncPanel };

@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import React, { useEffect, useMemo, useState } from 'react';
-import { useRenderEngine } from '../hooks/useRenderEngine';
 import { useGameStore } from '../../../store';
+import { useRenderEngine } from '../hooks/useRenderEngine';
 import styles from './LayerPanel.module.css';
 
 interface Layer {

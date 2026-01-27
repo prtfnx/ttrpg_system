@@ -3,7 +3,7 @@
  * Provides automated testing utilities for validating combat components
  */
 
-import type { WizardFormData } from '../components/CharacterWizard/WizardFormData';
+import type { WizardFormData } from '@features/character';
 
 export interface TestResult {
   testName: string;

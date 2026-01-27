@@ -11,9 +11,9 @@ export { EnhancedCharacterWizard } from './components/CharacterWizard/EnhancedCh
 export type { WizardFormData } from './components/CharacterWizard/WizardFormData';
 export type { CharacterTemplate } from './data/characterTemplates';
 
+export type { ExperiencePoints } from './services/advancementSystem.service';
 export { CharacterExportService, type D5eCharacterExport } from './services/characterExport.service';
 export { classProgressionService, type ExtendedCharacterClass } from './services/classProgression.service';
-export { spellManagementService } from './services/spellManagement.service';
-export type { ExperiencePoints } from './services/advancementSystem.service';
 export type { Equipment, EquipmentCategory } from './services/equipmentManagement.service';
+export { spellManagementService } from './services/spellManagement.service';
 

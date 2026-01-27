@@ -208,4 +208,4 @@ const TablePanel: React.FC = () => {
   );
 };
 
-export default TablePanel;
+export { TablePanel };

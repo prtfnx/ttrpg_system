@@ -1,5 +1,5 @@
+import { useRenderEngine } from '@features/canvas';
 import { useCallback, useEffect, useRef } from 'react';
-import { useRenderEngine } from './useRenderEngine';
 
 interface FogInteractionState {
   isDrawing: boolean;

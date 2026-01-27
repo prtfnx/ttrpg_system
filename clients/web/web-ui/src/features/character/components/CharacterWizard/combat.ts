@@ -8,7 +8,7 @@ export { DiceRoller } from './DiceRoller';
 export { SpellManager } from './SpellManager';
 
 // Combat System Service
-export { CombatSystemService } from '../../services/combatSystem.service';
+export { CombatSystemService } from '@features/combat';
 
 // CSS imports for convenience
 import './AttackManager.css';

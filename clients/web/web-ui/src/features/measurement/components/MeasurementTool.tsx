@@ -1,5 +1,5 @@
+import type { RenderEngine } from '@lib/wasm';
 import { useEffect, useState } from 'react';
-import type { RenderEngine } from '../types/index';
 
 // Window type extension
 declare global {

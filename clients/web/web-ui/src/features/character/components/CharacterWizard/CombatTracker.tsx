@@ -1,6 +1,6 @@
+import type { UserInfo } from '@features/auth';
+import { CombatSystemService, type CombatStats, type DiceResult } from '@features/combat';
 import React, { useEffect, useState } from 'react';
-import type { UserInfo } from '../../features/auth';
-import { CombatSystemService, type CombatStats, type DiceResult } from '../../services/combatSystem.service';
 import { InitiativeRoll } from './DiceRoller';
 import type { WizardFormData } from './WizardFormData';
 

@@ -1,5 +1,5 @@
+import { CombatSystemService, type DiceResult } from '@features/combat';
 import React, { useState } from 'react';
-import { CombatSystemService, type DiceResult } from '../../services/combatSystem.service';
 
 interface DiceRollerProps {
   formula?: string;

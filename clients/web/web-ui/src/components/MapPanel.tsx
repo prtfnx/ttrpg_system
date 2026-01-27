@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useRenderEngine } from '../hooks/useRenderEngine';
+import { useRenderEngine } from '@features/canvas';
 
 interface GridSettings {
   enabled: boolean;

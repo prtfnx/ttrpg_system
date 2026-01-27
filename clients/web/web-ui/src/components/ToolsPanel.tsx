@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react';
 import { useGameStore } from '../store';
 import DiceRoller from '../tools/DiceRoller';
 import type { GameAPI } from '../types';
-import { AssetManager } from './AssetManager';
-import { GridControls } from './GridControls';
-import { LayerPanel } from './LayerPanel';
-import { MeasurementTool } from './MeasurementTool';
-import { PaintPanel } from './PaintPanel';
+import { AssetManager } from '@features/assets';
+import { GridControls } from '@features/canvas';
+import { LayerPanel } from '@features/canvas';
+import { MeasurementTool } from '@features/measurement';
+import { PaintPanel } from '@features/painting';
 import { TextSpriteTool } from './TextSprite';
 import styles from './ToolsPanel.module.css';
 

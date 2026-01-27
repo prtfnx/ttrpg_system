@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useRenderEngine } from '../hooks/useRenderEngine';
+import { useRenderEngine } from '@features/canvas';
 import { useGameStore } from '../store';
 
 interface SyncState {

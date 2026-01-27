@@ -8,24 +8,24 @@ import type { GlobalWasmModule } from '@lib/wasm';
 import { useWasmBridge, wasmIntegrationService } from '@lib/wasm';
 import { DragDropImageHandler } from '@shared/components';
 import { useWebSocket } from '@shared/hooks';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../../../store';
 import type { RenderEngine } from '../../../types';
 import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
 import fpsService from '../services/fps.service';
 import { performanceService } from '../services/performance.service';
-import styles from './GameCanvas.module.css';
 import {
   CanvasRenderer,
-  resizeCanvas,
   getGridCoord,
+  resizeCanvas,
   useCanvasDebug,
-  useFPS,
-  usePerformanceMonitor,
   useCanvasEvents,
   useContextMenu,
+  useFPS,
   useLightPlacement,
+  usePerformanceMonitor,
 } from './GameCanvas';
+import styles from './GameCanvas.module.css';
 import PerformanceMonitor from './PerformanceMonitor';
 
 declare global {

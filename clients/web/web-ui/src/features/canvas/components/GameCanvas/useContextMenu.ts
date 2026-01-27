@@ -2,8 +2,8 @@
  * Context menu and light placement state management
  */
 import { useCallback, useEffect, useState, type RefObject } from 'react';
-import type { RenderEngine } from '../../../../types';
 import { useGameStore } from '../../../../store';
+import type { RenderEngine } from '../../../../types';
 
 interface ContextMenuState {
   visible: boolean;

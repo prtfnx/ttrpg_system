@@ -1,3 +1,3 @@
-export { CharacterPanel } from './CharacterPanel';
+export { CharacterPanel } from '../CharacterPanel';
 export { useCharacterPanel } from './useCharacterPanel';
 

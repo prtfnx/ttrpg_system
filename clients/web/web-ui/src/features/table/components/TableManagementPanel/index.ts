@@ -1,0 +1,1 @@
+export { TableManagementPanel } from './TableManagementPanel';

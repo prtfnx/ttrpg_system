@@ -1,4 +1,4 @@
-import { GameClient } from '@features/canvas';
+import { GameClient } from '@features/canvas/components/GameClient';
 import { useEffect, useState } from 'react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';

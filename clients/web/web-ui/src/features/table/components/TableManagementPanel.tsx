@@ -2,6 +2,7 @@ import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
 import type { TableInfo } from '../../../store';
 import { useGameStore } from '../../../store';
+import { tableThumbnailService } from '../services/tableThumbnail.service';
 import styles from './TableManagementPanel.module.css';
 import { TablePreview } from './TablePreview';
 
@@ -235,7 +236,6 @@ export const TableManagementPanel: React.FC = () => {
     } : '❌ Not Found');
     
     // Check active table
-    const { tableThumbnailService } = await import('../services/tableThumbnail.service');
     const renderEngine = tableThumbnailService.getRenderEngine();
     console.log('3. Active Table:', tables[0]?.table_name || '❌ None');
     

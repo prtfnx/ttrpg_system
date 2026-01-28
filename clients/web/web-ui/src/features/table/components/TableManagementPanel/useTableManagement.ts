@@ -99,7 +99,7 @@ export const useTableManagement = () => {
       setNewTableName('');
     };
 
-    const handleTableDeleted = (event: Event) => {
+    const handleTableDeleted = () => {
       requestTableList();
       setDeleteConfirmId(null);
     };

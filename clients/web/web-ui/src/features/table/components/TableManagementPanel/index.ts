@@ -1,1 +1,2 @@
-export { TableManagementPanel } from './TableManagementPanel';
+export { TableManagementPanel } from '../TableManagementPanel';
+

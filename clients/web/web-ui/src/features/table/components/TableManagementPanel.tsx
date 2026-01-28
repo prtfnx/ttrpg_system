@@ -1,5 +1,6 @@
 import clsx from 'clsx';
 import type { FC } from 'react';
+import styles from './TableManagementPanel.module.css';
 import { BulkActionsBar } from './TableManagementPanel/BulkActionsBar';
 import { CreateTableForm } from './TableManagementPanel/CreateTableForm';
 import { SettingsModal } from './TableManagementPanel/SettingsModal';
@@ -7,7 +8,6 @@ import { SyncBadge } from './TableManagementPanel/SyncBadge';
 import { TableCard } from './TableManagementPanel/TableCard';
 import { useTableManagement } from './TableManagementPanel/useTableManagement';
 import { formatRelativeTime } from './TableManagementPanel/utils';
-import styles from './TableManagementPanel.module.css';
 
 export const TableManagementPanel: FC = () => {
   const {

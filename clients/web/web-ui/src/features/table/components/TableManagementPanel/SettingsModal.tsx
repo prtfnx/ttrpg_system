@@ -2,7 +2,6 @@ import type { FC } from 'react';
 import styles from '../TableManagementPanel.module.css';
 
 interface SettingsModalProps {
-  tableName: string;
   settingsName: string;
   settingsWidth: number;
   settingsHeight: number;
@@ -18,7 +17,6 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal: FC<SettingsModalProps> = ({
-  tableName,
   settingsName,
   settingsWidth,
   settingsHeight,

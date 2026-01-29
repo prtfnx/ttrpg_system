@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ToolsPanel } from '../ToolsPanel';
-import { ProtocolService } from '../../services/ProtocolService';
+import { ToolsPanel } from '@features/canvas';
+import { ProtocolService } from '@lib/api';
 import { useGameStore } from '../../stores/gameStore';
 
 // Mock ProtocolService only (WASM is auto-mocked via vitest.config.ts)

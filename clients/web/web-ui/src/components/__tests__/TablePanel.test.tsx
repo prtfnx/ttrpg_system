@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import TablePanel from '../TablePanel';
-import type { TableInfo } from '../../hooks/useTableManager';
+import TablePanel from '@features/table';
+import { useTableManager, type TableInfo } from '@features/table';
 
 // Mock useTableManager hook
 const mockCreateTable = vi.fn();
@@ -12,7 +12,8 @@ const mockRemoveTable = vi.fn();
 const mockPanViewport = vi.fn();
 const mockZoomTable = vi.fn();
 
-vi.mock('../../hooks/useTableManager', () => ({
+vi.mock('@features/table', () => ({
+  default: vi.fn(),
   useTableManager: vi.fn(() => ({
     activeTableId: 'table_1',
     tables: [] as TableInfo[],
@@ -62,7 +63,7 @@ describe('TablePanel', () => {
     mockCreateTable.mockReturnValue(true);
     
     // Import to get access to the mock - use dynamic import for ESM
-    const module = await import('../../hooks/useTableManager');
+    const module = await import('@features/table');
     vi.mocked(module.useTableManager).mockReturnValue({
       activeTableId: 'table_1',
       tables: mockTables,
@@ -77,7 +78,7 @@ describe('TablePanel', () => {
 
   describe('Empty State', () => {
     it('should show empty state when no tables exist', async () => {
-      const module = await import('../../hooks/useTableManager');
+      const module = await import('@features/table');
       vi.mocked(module.useTableManager).mockReturnValue({
         activeTableId: null,
         tables: [],
@@ -96,7 +97,7 @@ describe('TablePanel', () => {
     });
 
     it('should show create button in empty state', async () => {
-      const module = await import('../../hooks/useTableManager');
+      const module = await import('@features/table');
       vi.mocked(module.useTableManager).mockReturnValue({
         activeTableId: null,
         tables: [],
@@ -552,7 +553,7 @@ describe('TablePanel', () => {
     });
 
     it('should show accurate viewport coordinates', async () => {
-      const module = await import('../../hooks/useTableManager');
+      const module = await import('@features/table');
       vi.mocked(module.useTableManager).mockReturnValue({
         activeTableId: 'table_2',
         tables: mockTables,

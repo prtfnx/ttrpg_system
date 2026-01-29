@@ -19,7 +19,7 @@
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TokenConfigModal } from '../TokenConfigModal';
+import { TokenConfigModal } from '@features/canvas';
 import { useGameStore } from '../../store';
 import type { Sprite, Character } from '../../types';
 

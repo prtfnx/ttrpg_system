@@ -6,12 +6,12 @@ import { createMockRenderEngine } from '../../test/utils/mockRenderEngine';
 
 // Import web client system components
 import { AuthContext as AuthProvider } from '@features/auth';
-import { ActionsPanel } from '../ActionsPanel';
-import { AssetPanel } from '../AssetPanel';
-import ChatPanel from '../ChatPanel';
-import { GameCanvas } from '../GameCanvas';
-import { NetworkPanel } from '../NetworkPanel';
-import { PerformanceMonitor } from '../PerformanceMonitor';
+import { ActionsPanel } from '@features/actions';
+import { AssetPanel } from '@features/assets';
+import ChatPanel from '@features/chat';
+import { GameCanvas } from '@features/canvas';
+import { NetworkPanel } from '@features/network';
+import { PerformanceMonitor } from '@features/canvas';
 
 //Mock WASM module with realistic interface
 const mockLoadTexture = vi.fn().mockResolvedValue(true);
@@ -510,7 +510,7 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
       
       // User expects draggable tokens for testing
       expect(screen.getByTestId('draggable-token-wizard')).toBeInTheDocument();
-      expect(screen.getByTestId('draggable-token-dragon')).toBeInTheDocument();
+      expect(screen.getByTestId('draggable-token-npc-beast')).toBeInTheDocument();
     });
   });
 

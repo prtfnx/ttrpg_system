@@ -12,8 +12,7 @@
  * @vitest-environment jsdom
  */
 
-import { describe, expect, it, vi } from 'vitest';
-import type { Character } from '../../types';
+import type { Character } from '@shared/types/Character';
 import {
     cloneCharacter,
     downloadCharacterAsJSON,
@@ -23,7 +22,8 @@ import {
     importCharacterFromJSON,
     importMultipleCharactersFromJSON,
     validateImportedCharacter
-} from '../characterImportExport';
+} from '@shared/utils/characterImportExport';
+import { describe, expect, it, vi } from 'vitest';
 
 // Mock DOM APIs
 vi.stubGlobal('URL', {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import WebSocketService, { WebSocketConfig, WebSocketState } from '../WebSocketService';
+import WebSocketService, { WebSocketConfig, WebSocketState } from '@lib/websocket/WebSocketService';
 
 // Mock WebSocket
 class MockWebSocket {

@@ -1,7 +1,7 @@
-import React from 'react';
-import { render, RenderOptions } from '@testing-library/react';
-import { vi } from 'vitest';
 import { AuthContext, type UserInfo } from '@features/auth';
+import { render, RenderOptions } from '@testing-library/react';
+import React from 'react';
+import { vi } from 'vitest';
 
 /**
  * Mock auth context value for tests

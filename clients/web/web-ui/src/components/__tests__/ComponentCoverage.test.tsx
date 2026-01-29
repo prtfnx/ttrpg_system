@@ -1,3 +1,7 @@
+// Import render as well for tests that use it directly  
+import { renderWithProviders } from '../../test/utils/test-utils';
+const render = renderWithProviders;
+
 // Mock usePaintSystem for PaintPanel
 vi.mock('../../../features/painting/hooks/usePaintSystem', () => ({
   usePaintSystem: vi.fn().mockReturnValue([
@@ -76,7 +80,6 @@ import '@testing-library/jest-dom';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { renderWithProviders } from '../../test/utils/test-utils';
 
 // Import untested/undertested components
 import { ActionsPanel } from '@features/actions';

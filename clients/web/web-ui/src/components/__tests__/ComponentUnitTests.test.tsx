@@ -59,6 +59,9 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../test/utils/test-utils';
 
+// Import render as well for tests that use it directly
+const render = renderWithProviders;
+
 // Core UI components that should exist
 import { LayerPanel } from '@features/canvas';
 import { CharacterSheet } from '@features/character';

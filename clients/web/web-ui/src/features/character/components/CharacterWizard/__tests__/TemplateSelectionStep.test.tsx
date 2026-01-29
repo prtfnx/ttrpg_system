@@ -158,10 +158,10 @@ describe('TemplateSelectionStep - Template Type Selection', () => {
       </TestWrapper>
     );
 
-    const pcButton = screen.getByText('Player Character').closest('button');
-    await user.click(pcButton!);
+    const pcModeButton = screen.getByRole('button', { name: /player character.*full character sheet/i });
+    await user.click(pcModeButton);
 
-    expect(pcButton).toHaveClass('active');
+    expect(pcModeButton).toHaveClass('active');
     expect(screen.getByText('Player Character Templates')).toBeInTheDocument();
   });
 
@@ -173,10 +173,10 @@ describe('TemplateSelectionStep - Template Type Selection', () => {
       </TestWrapper>
     );
 
-    const npcButton = screen.getByText('NPC/Monster').closest('button');
-    await user.click(npcButton!);
+    const npcModeButton = screen.getByRole('button', { name: /npc\/monster.*simplified stat/i });
+    await user.click(npcModeButton);
 
-    expect(npcButton).toHaveClass('active');
+    expect(npcModeButton).toHaveClass('active');
     expect(screen.getByText('NPC/Monster Templates')).toBeInTheDocument();
   });
 
@@ -189,13 +189,17 @@ describe('TemplateSelectionStep - Template Type Selection', () => {
     );
 
     // Switch to PC and select a template
-    const pcButton = screen.getByText('Player Character').closest('button');
-    await user.click(pcButton!);
+    const pcModeButton = screen.getByRole('button', { name: /player character.*full character sheet/i });
+    await user.click(pcModeButton);
 
-    const pcCard = screen.getByText('Player Character').closest('button');
-    await user.click(pcCard!);
+    // Now select the Player Character template card
+    const templateCards = screen.getAllByRole('button');
+    const pcTemplateCard = templateCards.find(btn => 
+      btn.classList.contains('template-card') && btn.textContent?.includes('Player Character')
+    );
+    await user.click(pcTemplateCard!);
 
-    expect(pcCard).toHaveClass('selected');
+    expect(pcTemplateCard).toHaveClass('selected');
 
     // Switch to NPC
     const npcButton = screen.getByText('NPC/Monster').closest('button');
@@ -218,11 +222,15 @@ describe('TemplateSelectionStep - PC Templates', () => {
       </TestWrapper>
     );
 
-    const pcButton = screen.getByText('Player Character').closest('button');
-    await user.click(pcButton!);
+    const pcModeButton = screen.getByRole('button', { name: /player character.*full character sheet/i });
+    await user.click(pcModeButton);
 
     await waitFor(() => {
-      expect(screen.getByText('Player Character')).toBeInTheDocument();
+      // Check for template cards (not the mode button)
+      const templateCards = screen.getAllByRole('button').filter(btn => 
+        btn.classList.contains('template-card')
+      );
+      expect(templateCards.length).toBeGreaterThanOrEqual(2);
       expect(screen.getByText('Wizard (Spellcaster)')).toBeInTheDocument();
     });
   });
@@ -235,14 +243,15 @@ describe('TemplateSelectionStep - PC Templates', () => {
       </TestWrapper>
     );
 
-    const pcButton = screen.getByText('Player Character').closest('button');
-    await user.click(pcButton!);
+    const pcModeButton = screen.getByRole('button', { name: /player character.*full character sheet/i });
+    await user.click(pcModeButton);
 
     await waitFor(() => {
-      expect(screen.getByText('🎭')).toBeInTheDocument(); // PC icon
+      const icons = screen.getAllByText('🎭');
+      expect(icons.length).toBeGreaterThan(0); // Icon appears in mode button and templates
       expect(screen.getByText('🧙')).toBeInTheDocument(); // Wizard icon
-      expect(screen.getByText(/Full character sheet for player characters/i)).toBeInTheDocument();
-      expect(screen.getByText(/scholarly magic-user/i)).toBeInTheDocument();
+      expect(screen.getByText(/Standard player character template/i)).toBeInTheDocument();
+      expect(screen.getByText(/powerful spellcaster/i)).toBeInTheDocument();
     });
   });
 
@@ -254,10 +263,14 @@ describe('TemplateSelectionStep - PC Templates', () => {
       </TestWrapper>
     );
 
-    const pcButton = screen.getByText('Player Character').closest('button');
-    await user.click(pcButton!);
+    const pcModeButton = screen.getByRole('button', { name: /player character.*full character sheet/i });
+    await user.click(pcModeButton);
 
-    const pcCard = screen.getByText('Player Character').closest('button');
+    // Find and click the Player Character template card
+    const templateCards = screen.getAllByRole('button').filter(btn => 
+      btn.classList.contains('template-card')
+    );
+    const pcCard = templateCards.find(btn => btn.textContent?.includes('Player Character'));
     await user.click(pcCard!);
 
     await waitFor(() => {
@@ -297,8 +310,8 @@ describe('TemplateSelectionStep - NPC Templates', () => {
       </TestWrapper>
     );
 
-    const npcButton = screen.getByText('NPC/Monster').closest('button');
-    await user.click(npcButton!);
+    const npcModeButton = screen.getByRole('button', { name: /npc\/monster.*simplified stat/i });
+    await user.click(npcModeButton);
 
     await waitFor(() => {
       expect(screen.getByText('NPC / Monster')).toBeInTheDocument();
@@ -315,15 +328,15 @@ describe('TemplateSelectionStep - NPC Templates', () => {
       </TestWrapper>
     );
 
-    const npcButton = screen.getByText('NPC/Monster').closest('button');
-    await user.click(npcButton!);
+    const npcModeButton = screen.getByRole('button', { name: /npc\/monster.*simplified stat/i });
+    await user.click(npcModeButton);
 
     await waitFor(() => {
-      expect(screen.getByText('�')).toBeInTheDocument(); // NPC Monster icon
+      expect(screen.getByText('👹')).toBeInTheDocument(); // NPC Monster icon
       expect(screen.getByText('🛡️')).toBeInTheDocument(); // Guard icon
       expect(screen.getByText('🐺')).toBeInTheDocument(); // Wolf icon
-      expect(screen.getByText(/Simplified stat block for NPCs/i)).toBeInTheDocument();
-      expect(screen.getByText(/standard humanoid NPC/i)).toBeInTheDocument();
+      expect(screen.getByText(/Generic NPC or monster template/i)).toBeInTheDocument();
+      expect(screen.getByText(/Humanoid NPC like guards/i)).toBeInTheDocument();
     });
   });
 
@@ -335,10 +348,13 @@ describe('TemplateSelectionStep - NPC Templates', () => {
       </TestWrapper>
     );
 
-    const npcButton = screen.getByText('NPC/Monster').closest('button');
-    await user.click(npcButton!);
+    const npcModeButton = screen.getByRole('button', { name: /npc\\/monster.*simplified stat/i });
+    await user.click(npcModeButton);
 
-    const npcCard = screen.getByText('NPC / Monster').closest('button');
+    const templateCards = screen.getAllByRole('button').filter(btn => 
+      btn.classList.contains('template-card')
+    );
+    const npcCard = templateCards.find(btn => btn.textContent?.includes('NPC / Monster'));
     await user.click(npcCard!);
 
     await waitFor(() => {
@@ -354,8 +370,8 @@ describe('TemplateSelectionStep - NPC Templates', () => {
       </TestWrapper>
     );
 
-    const npcButton = screen.getByText('NPC/Monster').closest('button');
-    await user.click(npcButton!);
+    const npcModeButton = screen.getByRole('button', { name: /npc\/monster.*simplified stat/i });
+    await user.click(npcModeButton);
 
     const guardCard = screen.getByText('NPC Humanoid (Guard)').closest('button');
     await user.click(guardCard!);
@@ -429,10 +445,13 @@ describe('TemplateSelectionStep - Template Data Application', () => {
       </TestWrapperWithSpy>
     );
 
-    const pcButton = screen.getByText('Player Character').closest('button');
-    await user.click(pcButton!);
+    const pcModeButton = screen.getByRole('button', { name: /player character.*full character sheet/i });
+    await user.click(pcModeButton);
 
-    const pcCard = screen.getByText('Player Character').closest('button');
+    const templateCards = screen.getAllByRole('button').filter(btn => 
+      btn.classList.contains('template-card')
+    );
+    const pcCard = templateCards.find(btn => btn.textContent?.includes('Player Character'));
     await user.click(pcCard!);
 
     // Template data should be applied (checked via form state in real implementation)
@@ -450,10 +469,13 @@ describe('TemplateSelectionStep - Template Data Application', () => {
       </TestWrapper>
     );
 
-    const npcButton = screen.getByText('NPC/Monster').closest('button');
-    await user.click(npcButton!);
+    const npcModeButton = screen.getByRole('button', { name: /npc\/monster.*simplified stat/i });
+    await user.click(npcModeButton);
 
-    const npcCard = screen.getByText('NPC / Monster').closest('button');
+    const templateCards = screen.getAllByRole('button').filter(btn => 
+      btn.classList.contains('template-card')
+    );
+    const npcCard = templateCards.find(btn => btn.textContent?.includes('NPC / Monster'));
     await user.click(npcCard!);
 
     await waitFor(() => {
@@ -471,8 +493,8 @@ describe('TemplateSelectionStep - Visual Feedback', () => {
       </TestWrapper>
     );
 
-    const pcButton = screen.getByText('Player Character').closest('button');
-    await user.click(pcButton!);
+    const pcModeButton = screen.getByRole('button', { name: /player character.*full character sheet/i });
+    await user.click(pcModeButton);
 
     await waitFor(() => {
       expect(screen.getByText(/Please select a template from the list above/i)).toBeInTheDocument();
@@ -487,8 +509,8 @@ describe('TemplateSelectionStep - Visual Feedback', () => {
       </TestWrapper>
     );
 
-    const npcButton = screen.getByText('NPC/Monster').closest('button');
-    await user.click(npcButton!);
+    const npcModeButton = screen.getByRole('button', { name: /npc\/monster.*simplified stat/i });
+    await user.click(npcModeButton);
 
     await waitFor(() => {
       expect(screen.getByText(/Please select a template from the list above/i)).toBeInTheDocument();
@@ -503,16 +525,20 @@ describe('TemplateSelectionStep - Visual Feedback', () => {
       </TestWrapper>
     );
 
-    const pcButton = screen.getByText('Player Character').closest('button');
-    await user.click(pcButton!);
+    const pcModeButton = screen.getByRole('button', { name: /player character.*full character sheet/i });
+    await user.click(pcModeButton);
 
+    const templateCards = screen.getAllByRole('button').filter(btn => 
+      btn.classList.contains('template-card')
+    );
+    
     // Select Player Character template
-    const pcCard = screen.getByText('Player Character').closest('button');
+    const pcCard = templateCards.find(btn => btn.textContent?.includes('Player Character'));
     await user.click(pcCard!);
     expect(pcCard).toHaveClass('selected');
 
     // Select Wizard template
-    const wizardCard = screen.getByText('Wizard (Spellcaster)').closest('button');
+    const wizardCard = templateCards.find(btn => btn.textContent?.includes('Wizard (Spellcaster)'));
     await user.click(wizardCard!);
 
     await waitFor(() => {

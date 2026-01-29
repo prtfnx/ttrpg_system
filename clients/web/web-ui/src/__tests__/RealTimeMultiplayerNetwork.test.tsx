@@ -4,9 +4,10 @@
  * Focus: Real expected behavior for multiplayer TTRPG sessions
  */
 // @ts-nocheck
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { renderWithProviders } from '../test/utils/test-utils';
 
 // Import actual components
 import { EnhancedLogin } from '@features/auth';
@@ -28,7 +29,7 @@ describe('Real-Time Multiplayer System - Session Management', () => {
         addEventListener: (event: string, handler: Function) => {}
       };
       
-      render(
+      renderWithProviders(
         <ProtocolContext.Provider value={{ 
           socket: mockWebSocket,
           isConnected: false,
@@ -94,7 +95,7 @@ describe('Real-Time Multiplayer System - Session Management', () => {
         }
       };
       
-      render(
+      renderWithProviders(
         <ProtocolContext.Provider value={{ 
           socket: mockFailingWebSocket as any,
           isConnected: false,
@@ -167,7 +168,7 @@ describe('Real-Time Multiplayer System - Session Management', () => {
         addEventListener: (event: string, handler: Function) => {}
       };
       
-      render(
+      renderWithProviders(
         <ProtocolContext.Provider value={{ 
           socket: mockWebSocket,
           isConnected: true,
@@ -211,7 +212,7 @@ describe('Real-Time Multiplayer System - Session Management', () => {
         }
       };
       
-      render(
+      renderWithProviders(
         <ProtocolContext.Provider value={{ 
           socket: mockDMSocket,
           isConnected: true,
@@ -309,7 +310,7 @@ describe('Real-Time Multiplayer System - Session Management', () => {
         }
       };
       
-      render(
+      renderWithProviders(
         <ProtocolContext.Provider value={{ 
           socket: mockPlayerSocket,
           isConnected: true,
@@ -383,7 +384,7 @@ describe('Real-Time Multiplayer System - Session Management', () => {
         }
       };
       
-      render(
+      renderWithProviders(
         <ProtocolContext.Provider value={{ socket: mockSocket, isConnected: true }}>
           <div data-testid="join-session">
             <input aria-label="Session Code" />
@@ -443,7 +444,7 @@ describe('Real-Time Multiplayer System - Session Management', () => {
         }
       };
       
-      render(
+      renderWithProviders(
         <ProtocolContext.Provider value={{ socket: mockSocket, isConnected: true }}>
           <div data-testid="game-map">
             <div data-testid="token-wizard" draggable style={{ position: 'absolute', left: 100, top: 100 }}>
@@ -552,7 +553,7 @@ describe('Real-Time Multiplayer System - Session Management', () => {
         }
       };
       
-      render(
+      renderWithProviders(
         <ProtocolContext.Provider value={{ socket: mockSocket, isConnected: true }}>
           <div data-testid="character-sheet">
             <input aria-label="Character Name" defaultValue="Thorin" />
@@ -621,7 +622,7 @@ describe('Real-Time Multiplayer System - Session Management', () => {
         }
       };
       
-      render(
+      renderWithProviders(
         <ProtocolContext.Provider value={{ 
           socket: mockSocket, 
           isConnected: true,
@@ -705,7 +706,7 @@ describe('Real-Time Multiplayer System - Session Management', () => {
         }
       };
       
-      render(
+      renderWithProviders(
         <ProtocolContext.Provider value={{ 
           socket: mockSocket,
           isConnected: true,

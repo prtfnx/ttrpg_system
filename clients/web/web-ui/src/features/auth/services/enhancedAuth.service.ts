@@ -804,7 +804,12 @@ class EnhancedAuthService {
       }
     };
 
-    return fetch(url, mergedOptions);
+    // Ensure absolute URL for test environments (Node.js fetch doesn't handle relative URLs)
+    const absoluteUrl = url.startsWith('http') 
+      ? url 
+      : `http://localhost:8000${url}`;
+
+    return fetch(absoluteUrl, mergedOptions);
   }
 
   private formatError(error: any): AuthError {

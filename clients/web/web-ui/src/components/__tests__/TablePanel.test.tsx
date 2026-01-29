@@ -1,7 +1,8 @@
-import TablePanel, { type TableInfo } from '@features/table';
+import { TablePanel, type TableInfo } from '@features/table';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderWithProviders } from '../../test/utils/test-utils';
 
 // Mock useTableManager hook
 const mockCreateTable = vi.fn();
@@ -11,19 +12,22 @@ const mockRemoveTable = vi.fn();
 const mockPanViewport = vi.fn();
 const mockZoomTable = vi.fn();
 
-vi.mock('@features/table', () => ({
-  default: vi.fn(),
-  useTableManager: vi.fn(() => ({
-    activeTableId: 'table_1',
-    tables: [] as TableInfo[],
-    createTable: mockCreateTable,
-    setActiveTable: mockSetActiveTable,
-    setTableGrid: mockSetTableGrid,
-    removeTable: mockRemoveTable,
-    panViewport: mockPanViewport,
-    zoomTable: mockZoomTable,
-  })),
-}));
+vi.mock('@features/table', async () => {
+  const actual = await vi.importActual('@features/table');
+  return {
+    ...actual,
+    useTableManager: vi.fn(() => ({
+      activeTableId: 'table_1',
+      tables: [] as TableInfo[],
+      createTable: mockCreateTable,
+      setActiveTable: mockSetActiveTable,
+      setTableGrid: mockSetTableGrid,
+      removeTable: mockRemoveTable,
+      panViewport: mockPanViewport,
+      zoomTable: mockZoomTable,
+    })),
+  };
+});
 
 describe('TablePanel', () => {
   // Helper to get the create button in header (not the zoom + button)

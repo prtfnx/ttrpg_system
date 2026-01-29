@@ -99,13 +99,94 @@ HTMLCanvasElement.prototype.getContext = vi.fn((type: string) => {
     };
   }
   if (type === 'webgl' || type === 'webgl2') {
+    // WebGL constants that need to be defined as numbers
+    const MAX_TEXTURE_SIZE = 34024;
+    const MAX_TEXTURE_IMAGE_UNITS = 34930;
+    const MAX_VERTEX_TEXTURE_IMAGE_UNITS = 35660;
+    const MAX_RENDERBUFFER_SIZE = 34024;
+    
     return {
-      getExtension: vi.fn(),
-      createShader: vi.fn(),
-      createProgram: vi.fn(),
+      // Constants (properties)
+      MAX_TEXTURE_SIZE,
+      MAX_TEXTURE_IMAGE_UNITS,
+      MAX_VERTEX_TEXTURE_IMAGE_UNITS,
+      MAX_RENDERBUFFER_SIZE,
+      TEXTURE_2D: 3553,
+      TEXTURE_CUBE_MAP: 34067,
+      
+      // Core methods that services call during initialization
+      getParameter: vi.fn((param: number) => {
+        if (param === MAX_TEXTURE_SIZE || param === 34024) return 4096;
+        if (param === MAX_TEXTURE_IMAGE_UNITS || param === 34930) return 16;
+        if (param === MAX_VERTEX_TEXTURE_IMAGE_UNITS || param === 35660) return 8;
+        return 0;
+      }),
+      getExtension: vi.fn(() => null),
+      getSupportedExtensions: vi.fn(() => []),
+      
+      // Shader methods
+      createShader: vi.fn(() => ({})),
+      shaderSource: vi.fn(),
+      compileShader: vi.fn(),
+      getShaderParameter: vi.fn(() => true),
+      getShaderInfoLog: vi.fn(() => ''),
+      deleteShader: vi.fn(),
+      
+      // Program methods
+      createProgram: vi.fn(() => ({})),
+      attachShader: vi.fn(),
+      linkProgram: vi.fn(),
+      getProgramParameter: vi.fn(() => true),
+      getProgramInfoLog: vi.fn(() => ''),
+      useProgram: vi.fn(),
+      deleteProgram: vi.fn(),
+      
+      // Buffer methods
+      createBuffer: vi.fn(() => ({})),
+      bindBuffer: vi.fn(),
+      bufferData: vi.fn(),
+      deleteBuffer: vi.fn(),
+      
+      // Texture methods  
+      createTexture: vi.fn(() => ({})),
+      bindTexture: vi.fn(),
+      texImage2D: vi.fn(),
+      texParameteri: vi.fn(),
+      generateMipmap: vi.fn(),
+      deleteTexture: vi.fn(),
+      activeTexture: vi.fn(),
+      
+      // Drawing methods
       viewport: vi.fn(),
       clearColor: vi.fn(),
       clear: vi.fn(),
+      enable: vi.fn(),
+      disable: vi.fn(),
+      blendFunc: vi.fn(),
+      drawArrays: vi.fn(),
+      drawElements: vi.fn(),
+      
+      // Uniform/attribute methods
+      getUniformLocation: vi.fn(() => ({})),
+      getAttribLocation: vi.fn(() => 0),
+      enableVertexAttribArray: vi.fn(),
+      vertexAttribPointer: vi.fn(),
+      uniform1i: vi.fn(),
+      uniform1f: vi.fn(),
+      uniform2f: vi.fn(),
+      uniform3f: vi.fn(),
+      uniform4f: vi.fn(),
+      uniformMatrix4fv: vi.fn(),
+      
+      // State methods
+      pixelStorei: vi.fn(),
+      getError: vi.fn(() => 0), // NO_ERROR
+      isContextLost: vi.fn(() => false),
+      
+      // Canvas reference
+      canvas: { width: 800, height: 600 },
+      drawingBufferWidth: 800,
+      drawingBufferHeight: 600,
     };
   }
   return null;

@@ -1,4 +1,210 @@
-// --- Mock react-toastify to avoid dependency issues in tests ---
+/**
+ * Vitest Test Setup
+ * 
+ * This file provides minimal, focused mocks for testing React components.
+ * 
+ * Principles:
+ * 1. Mock only what's necessary (external dependencies, browser APIs)
+ * 2. Don't mock React components - test them as users see them
+ * 3. Keep mocks simple and predictable
+ */
+import '@testing-library/jest-dom';
+import { afterEach, beforeAll, vi } from 'vitest';
+
+// ============================================================================
+// BROWSER API MOCKS (required for JSDOM environment)
+// ============================================================================
+
+// Fetch - always mock to prevent real HTTP calls
+globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+  // Return sensible defaults for common endpoints
+  if (typeof url === 'string' && url.includes('/auth/')) {
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ id: 1, username: 'testuser', role: 'dm' }),
+      text: () => Promise.resolve('{}'),
+    });
+  }
+  return Promise.resolve({
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve({}),
+    text: () => Promise.resolve(''),
+  });
+}) as typeof fetch;
+
+// Window APIs
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+});
+
+// ResizeObserver
+globalThis.ResizeObserver = class ResizeObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+};
+
+// IntersectionObserver
+globalThis.IntersectionObserver = class IntersectionObserver {
+  readonly root = null;
+  readonly rootMargin = '';
+  readonly thresholds = [];
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+  takeRecords = () => [];
+} as unknown as typeof IntersectionObserver;
+
+// requestAnimationFrame
+globalThis.requestAnimationFrame = vi.fn((cb) => setTimeout(cb, 16));
+globalThis.cancelAnimationFrame = vi.fn((id) => clearTimeout(id));
+
+// Canvas context mock
+HTMLCanvasElement.prototype.getContext = vi.fn((type: string) => {
+  if (type === '2d') {
+    return {
+      fillRect: vi.fn(),
+      clearRect: vi.fn(),
+      getImageData: vi.fn(() => ({ data: new Uint8ClampedArray(4), width: 1, height: 1 })),
+      putImageData: vi.fn(),
+      drawImage: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
+      fill: vi.fn(),
+      fillText: vi.fn(),
+      measureText: vi.fn(() => ({ width: 0 })),
+      scale: vi.fn(),
+      translate: vi.fn(),
+      rotate: vi.fn(),
+      canvas: { width: 800, height: 600 },
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
+    };
+  }
+  if (type === 'webgl' || type === 'webgl2') {
+    return {
+      getExtension: vi.fn(),
+      createShader: vi.fn(),
+      createProgram: vi.fn(),
+      viewport: vi.fn(),
+      clearColor: vi.fn(),
+      clear: vi.fn(),
+    };
+  }
+  return null;
+}) as any;
+
+// ============================================================================
+// WASM MOCKS (for Rust/WASM integration)
+// ============================================================================
+
+// Mock the WASM module that would be loaded dynamically
+const createMockWasmModule = () => ({
+  default: vi.fn().mockResolvedValue(undefined), // initWasm
+  RenderEngine: class MockRenderEngine {
+    free = vi.fn();
+    render = vi.fn();
+    set_camera = vi.fn();
+    add_sprite = vi.fn();
+    remove_sprite = vi.fn();
+  },
+  AssetManager: class MockAssetManager {
+    initialize = vi.fn().mockResolvedValue(undefined);
+    set_max_cache_size = vi.fn();
+    set_max_age = vi.fn();
+    get_cache_stats = vi.fn(() => JSON.stringify({ total_assets: 0, total_size: 0 }));
+    download_asset = vi.fn().mockResolvedValue('asset_id');
+    has_asset = vi.fn(() => true);
+  },
+  TableManager: class MockTableManager {
+    create_table = vi.fn(() => true);
+    get_all_tables = vi.fn(() => '[]');
+    get_active_table_id = vi.fn(() => null);
+    set_active_table = vi.fn(() => true);
+    remove_table = vi.fn(() => true);
+  },
+  NetworkClient: class MockNetworkClient {
+    set_message_handler = vi.fn();
+    set_connection_handler = vi.fn();
+    set_error_handler = vi.fn();
+    connect = vi.fn().mockResolvedValue({ connected: true });
+    disconnect = vi.fn();
+    send_message = vi.fn().mockResolvedValue(undefined);
+    get_client_id = vi.fn(() => 'test-client-id');
+  },
+  LightingSystem: class MockLightingSystem {
+    add_light = vi.fn();
+    remove_light = vi.fn();
+    set_ambient = vi.fn();
+  },
+  FogOfWarSystem: class MockFogOfWarSystem {
+    reveal_area = vi.fn();
+    hide_area = vi.fn();
+    clear_fog = vi.fn();
+  },
+  PaintSystem: class MockPaintSystem {
+    start_stroke = vi.fn();
+    add_point = vi.fn();
+    end_stroke = vi.fn();
+    set_brush = vi.fn();
+  },
+  ActionsClient: class MockActionsClient {
+    execute_action = vi.fn();
+    queue_action = vi.fn();
+    get_queue = vi.fn(() => []);
+  },
+});
+
+// Set up window.ttrpg_rust_core before any tests run
+beforeAll(() => {
+  (window as any).ttrpg_rust_core = createMockWasmModule();
+  (window as any).wasm = (window as any).ttrpg_rust_core;
+  
+  // Mock rustRenderManager for components that access it directly
+  (window as any).rustRenderManager = {
+    render: vi.fn(),
+    set_camera: vi.fn(),
+    get_camera: vi.fn(() => ({ x: 0, y: 0, zoom: 1 })),
+    add_sprite: vi.fn(),
+    remove_sprite: vi.fn(),
+    update_sprite_position: vi.fn(),
+    add_sprite_to_layer: vi.fn(),
+    get_layer_sprite_count: vi.fn(() => 0),
+    set_layer_visible: vi.fn(),
+    set_layer_opacity: vi.fn(),
+    add_light: vi.fn(),
+    remove_light: vi.fn(),
+    set_light_color: vi.fn(),
+    set_light_intensity: vi.fn(),
+    world_to_screen: vi.fn((x: number, y: number) => [x, y]),
+    screen_to_world: vi.fn((x: number, y: number) => [x, y]),
+    create_text_sprite: vi.fn(() => 'text_sprite_1'),
+    free: vi.fn(),
+  };
+});
+
+// ============================================================================
+// EXTERNAL LIBRARY MOCKS
+// ============================================================================
+
+// react-toastify
 vi.mock('react-toastify', () => ({
   toast: {
     success: vi.fn(),
@@ -9,350 +215,16 @@ vi.mock('react-toastify', () => ({
   ToastContainer: () => null,
 }));
 
-// --- Global fetch mock for OAuth and API endpoints ---
-if (!globalThis.fetch || typeof globalThis.fetch !== 'function') {
-  globalThis.fetch = vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {
-    // Normalize input to string URL
-    let url = '';
-    if (typeof input === 'string') {
-      url = input;
-    } else if (input instanceof URL) {
-      url = input.toString();
-    } else if (typeof input === 'object' && 'url' in input) {
-      url = (input as any).url || '';
-    }
-    // Prepend base URL if relative
-    if (url.startsWith('/')) {
-      url = `http://localhost${url}`;
-    }
-    if (url.includes('/auth/oauth/providers')) {
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: async () => ([
-          { id: 'google', name: 'Google', icon: '🔍', isEnabled: true },
-          { id: 'discord', name: 'Discord', icon: '💬', isEnabled: true }
-        ]),
-        text: async () => JSON.stringify([
-          { id: 'google', name: 'Google', icon: '🔍', isEnabled: true },
-          { id: 'discord', name: 'Discord', icon: '💬', isEnabled: true }
-        ])
-      } as Response);
-    }
-    if (url.includes('/auth/me')) {
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: async () => ({ id: 1, username: 'testuser', role: 'player', isEmailVerified: true, createdAt: '', updatedAt: '', permissions: [], preferences: { theme: 'light', language: 'en', timezone: 'UTC', notifications: { email: true, push: false, gameInvites: true, systemUpdates: true } } }),
-        text: async () => JSON.stringify({ id: 1, username: 'testuser', role: 'player', isEmailVerified: true, createdAt: '', updatedAt: '', permissions: [], preferences: { theme: 'light', language: 'en', timezone: 'UTC', notifications: { email: true, push: false, gameInvites: true, systemUpdates: true } } })
-      } as Response);
-    }
-    // Default: return a generic successful response
-    return Promise.resolve({
-      ok: true,
-      status: 200,
-      json: async () => ({}),
-      text: async () => ''
-    } as Response);
-  }) as typeof fetch;
-}
+// ============================================================================
+// VITEST ENVIRONMENT FLAG
+// ============================================================================
 
-// --- Ensure rustRenderManager is always present for LayerPanel and related tests ---
-if (!(window as any).rustRenderManager) {
-  (window as any).rustRenderManager = {
-    get_layer_sprite_count: vi.fn().mockReturnValue(0),
-    set_layer_visible: vi.fn(),
-    set_layer_opacity: vi.fn(),
-    get_all_sprites_network_data: vi.fn(() => []),
-    add_light: vi.fn(),
-    remove_light: vi.fn(),
-    set_light_color: vi.fn(),
-    set_light_intensity: vi.fn(),
-    get_light_at_position: vi.fn(() => 0),
-    add_sprite: vi.fn(),
-    add_sprite_to_layer: vi.fn(),
-    remove_sprite: vi.fn(),
-    update_sprite_position: vi.fn(),
-    set_camera: vi.fn(),
-    get_camera: vi.fn(() => ({ x: 0, y: 0, zoom: 1 })),
-    clear: vi.fn(),
-    free: vi.fn(),
-    world_to_screen: vi.fn((x, y) => [x, y]),
-    create_text_sprite: vi.fn(() => 'text-sprite-' + Math.random().toString(36).substr(2, 9)),
-    // Add any other methods required by panels here
-  };
-}
-import '@testing-library/jest-dom';
-import { afterEach, vi } from 'vitest';
-import mockProtocol, { defaultUseProtocol, resetMockProtocol } from './utils/mockProtocol';
-import { createMockRenderEngine } from './utils/mockRenderEngine';
-import mockWasmManager, { resetNetworkClientFactory } from './utils/mockWasmManager';
-
-// Mock window.matchMedia
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: vi.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(), // deprecated
-    removeListener: vi.fn(), // deprecated
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })),
-});
-
-// Mock ResizeObserver with a simple class so .disconnect exists
-(globalThis as any).ResizeObserver = function(this: any, cb: any) {
-  this.observe = vi.fn();
-  this.unobserve = vi.fn();
-  this.disconnect = vi.fn();
-  this.callback = cb;
-};
-
-// Mock IntersectionObserver similarly
-(globalThis as any).IntersectionObserver = function(this: any, cb: any) {
-  this.observe = vi.fn();
-  this.unobserve = vi.fn();
-  this.disconnect = vi.fn();
-  this.callback = cb;
-};
-
-// Mock window.requestAnimationFrame and cancelAnimationFrame
-(globalThis as any).requestAnimationFrame = vi.fn(cb => setTimeout(cb, 0));
-(globalThis as any).cancelAnimationFrame = vi.fn(id => clearTimeout(id));
-
-// Mock HTMLCanvasElement getContext method
-(HTMLCanvasElement.prototype.getContext as any) = vi.fn((contextType: string) => {
-  if (contextType === '2d') {
-    return {
-      fillRect: vi.fn(),
-      clearRect: vi.fn(),
-      getImageData: vi.fn((_sx: number, _sy: number, sw: number, sh: number) => ({ 
-        data: new Uint8ClampedArray(sw * sh * 4),
-        width: sw,
-        height: sh,
-        colorSpace: 'srgb' as PredefinedColorSpace
-      })),
-      putImageData: vi.fn(),
-      createImageData: vi.fn((width: number, height: number) => ({ 
-        data: new Uint8ClampedArray(width * height * 4), 
-        width: width, 
-        height: height,
-        colorSpace: 'srgb' as PredefinedColorSpace
-      })),
-      setTransform: vi.fn(),
-      drawImage: vi.fn(),
-      save: vi.fn(),
-      restore: vi.fn(),
-      beginPath: vi.fn(),
-      moveTo: vi.fn(),
-      lineTo: vi.fn(),
-      closePath: vi.fn(),
-        stroke: vi.fn(),
-        fill: vi.fn(),
-        fillText: vi.fn(),
-      measureText: vi.fn(() => ({ width: 0, actualBoundingBoxLeft: 0, actualBoundingBoxRight: 0, fontBoundingBoxAscent: 0, fontBoundingBoxDescent: 0, actualBoundingBoxAscent: 0, actualBoundingBoxDescent: 0, emHeightAscent: 0, emHeightDescent: 0, hangingBaseline: 0, alphabeticBaseline: 0, ideographicBaseline: 0 })),
-      transform: vi.fn(),
-      translate: vi.fn(),
-      rotate: vi.fn(),
-      scale: vi.fn(),
-      canvas: {} as HTMLCanvasElement,
-      globalAlpha: 1,
-      globalCompositeOperation: 'source-over' as GlobalCompositeOperation,
-      // Add other minimal required 2D properties
-      fillStyle: '#000000',
-      strokeStyle: '#000000',
-      lineWidth: 1,
-    } as unknown as CanvasRenderingContext2D;
-  }
-  
-  if (contextType === 'webgl' || contextType === 'webgl2') {
-    return {
-      getExtension: vi.fn(),
-      getParameter: vi.fn(),
-      createShader: vi.fn(),
-      createProgram: vi.fn(),
-      attachShader: vi.fn(),
-      linkProgram: vi.fn(),
-      useProgram: vi.fn(),
-      createBuffer: vi.fn(),
-      bindBuffer: vi.fn(),
-      bufferData: vi.fn(),
-      vertexAttribPointer: vi.fn(),
-      enableVertexAttribArray: vi.fn(),
-      drawArrays: vi.fn(),
-      viewport: vi.fn(),
-      clearColor: vi.fn(),
-      clear: vi.fn(),
-      enable: vi.fn(),
-      disable: vi.fn(),
-      blendFunc: vi.fn(),
-      canvas: {} as HTMLCanvasElement,
-    } as unknown as WebGLRenderingContext;
-  }
-  
-  return null;
-});
-
-// Mock performance API
-Object.assign(performance, {
-  mark: vi.fn(),
-  measure: vi.fn(),
-  getEntriesByName: vi.fn(() => []),
-  getEntriesByType: vi.fn(() => []),
-  clearMarks: vi.fn(),
-  clearMeasures: vi.fn(),
-});
-
-// Mock CSS custom property support for JSDOM
-// JSDOM has issues with CSS variables, so we'll provide fallback values
-const originalGetComputedStyle = window.getComputedStyle;
-window.getComputedStyle = function(element: Element, pseudoElement?: string | null): CSSStyleDeclaration {
-  const style = originalGetComputedStyle.call(this, element, pseudoElement);
-  
-  // Create a proxy to handle CSS variable fallbacks
-  return new Proxy(style, {
-    get(target, property) {
-      const value = target[property as keyof CSSStyleDeclaration];
-      
-      // Handle CSS variable resolution for common cases
-      if (typeof value === 'string' && value.includes('var(--')) {
-        // Replace common CSS variables with fallback values for testing
-        return value
-          .replace(/var\(--border-primary\)/g, '#404040')
-          .replace(/var\(--bg-primary\)/g, '#0a0a0a')
-          .replace(/var\(--bg-secondary\)/g, '#1a1a1a')
-          .replace(/var\(--text-primary\)/g, '#ffffff')
-          .replace(/var\(--accent-primary\)/g, '#646cff')
-          .replace(/var\(--spacing-[a-z]+\)/g, '8px')
-          .replace(/var\(--radius-[a-z]+\)/g, '4px');
-      }
-      
-      return value;
-    }
-  });
-};
-
-// Override CSS processing in JSDOM to handle CSS variables
-// Patch the CSS module to prevent parsing errors with CSS variables
-const originalCreateStyleSheet = (Document.prototype as any).createStyleSheet;
-if (originalCreateStyleSheet) {
-  (Document.prototype as any).createStyleSheet = function(...args: any[]) {
-    return originalCreateStyleSheet.apply(this, args);
-  };
-}
-
-// Mock CSSStyleSheet and CSS rule handling for JSDOM
-const mockCSSStyleSheet = {
-  insertRule: vi.fn(() => 0),
-  deleteRule: vi.fn(),
-  cssRules: [],
-  ownerRule: null,
-  rules: [],
-  addRule: vi.fn(),
-  removeRule: vi.fn()
-};
-
-// Override document.styleSheets to handle CSS variable issues
-Object.defineProperty(document, 'styleSheets', {
-  value: [mockCSSStyleSheet],
-  writable: true
-});
-
-// Create a safer CSS property setter that handles CSS variables
-const originalSetProperty = CSSStyleDeclaration.prototype.setProperty;
-CSSStyleDeclaration.prototype.setProperty = function(property: string, value: string, priority?: string) {
-  // Handle CSS variables by converting them to static values for testing
-  let processedValue = value;
-  if (typeof value === 'string' && value.includes('var(--')) {
-    processedValue = value
-      .replace(/var\(--border-primary\)/g, '#404040')
-      .replace(/var\(--bg-primary\)/g, '#0a0a0a')
-      .replace(/var\(--bg-secondary\)/g, '#1a1a1a')
-      .replace(/var\(--text-primary\)/g, '#ffffff')
-      .replace(/var\(--accent-primary\)/g, '#646cff')
-      .replace(/var\(--spacing-[a-z]+\)/g, '8px')
-      .replace(/var\(--radius-[a-z]+\)/g, '4px');
-  }
-  
-  // For border shorthand specifically, parse it safely
-  if (property === 'border' && typeof processedValue === 'string') {
-    // Split border shorthand into components to avoid JSDOM parsing errors
-    const borderParts = processedValue.split(' ');
-    if (borderParts.length >= 3) {
-      try {
-        originalSetProperty.call(this, 'border-width', borderParts[0], priority);
-        originalSetProperty.call(this, 'border-style', borderParts[1], priority);
-        originalSetProperty.call(this, 'border-color', borderParts[2], priority);
-        return;
-      } catch (e) {
-        // If individual properties fail, try the original
-      }
-    }
-  }
-  
-  try {
-    return originalSetProperty.call(this, property, processedValue, priority);
-  } catch (e) {
-    // Silently fail for CSS property setting errors in tests
-    console.debug(`CSS property setting failed in test: ${property}=${processedValue}`, e);
-  }
-};
-
-// Provide a default, stubbed render engine that tests can override per-test
-(window as any).rustRenderManager = createMockRenderEngine();
-
-// Mark that we're in a Vitest environment so production code can switch to
-// non-throwing, test-friendly paths when it checks for __VITEST__.
 (globalThis as any).__VITEST__ = true;
 
-// Use the test utils mock wasmManager so tests can control the network client factory
-vi.mock('../wasm/wasmManager', () => ({
-  wasmManager: mockWasmManager
-}));
+// ============================================================================
+// CLEANUP
+// ============================================================================
 
-// Provide a default test-safe implementation of useProtocol and ProtocolProvider
-vi.mock('../services/ProtocolContext', async (importOriginal) => {
-  const actual = await importOriginal();
-  const a: any = actual;
-  return {
-    ...a,
-    useProtocol: () => defaultUseProtocol(),
-    ProtocolProvider: mockProtocol.ProtocolProviderMock
-  } as any;
-});
-
-// Cleanup hooks to keep tests isolated
 afterEach(() => {
-  vi.restoreAllMocks();
-  // unstub globals that tests may replace
-  try { vi.unstubAllGlobals(); } catch (e) { /* no-op if unavailable */ }
-  // reset network client factory to default
-  try { resetNetworkClientFactory(); } catch (e) { /* no-op */ }
-  try { resetMockProtocol(); } catch (e) { /* no-op */ }
+  vi.clearAllMocks();
 });
-
-// Mock Image so that canvas.toDataURL -> new Image() load path works in tests
-class MockImage {
-  public onload: ((ev: Event) => any) | null = null;
-  public onerror: ((ev: Event) => any) | null = null;
-  private _src = '';
-
-  set src(value: string) {
-    this._src = value;
-    // Simulate async load
-    setTimeout(() => {
-      if (typeof this.onload === 'function') {
-        try { this.onload(new Event('load')); } catch {};
-      }
-    }, 0);
-  }
-
-  get src() {
-    return this._src;
-  }
-}
-
-(window as any).Image = MockImage;

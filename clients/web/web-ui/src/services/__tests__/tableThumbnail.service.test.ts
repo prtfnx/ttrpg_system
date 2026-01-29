@@ -3,8 +3,8 @@
  * Production-ready tests for table thumbnail generation and caching
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { tableThumbnailService } from '@features/table';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('TableThumbnailService', () => {
   const validUUID = '550e8400-e29b-41d4-a716-446655440000';

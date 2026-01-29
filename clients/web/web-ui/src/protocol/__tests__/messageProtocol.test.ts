@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createMessage, MessageType, parseMessage } from '../message';
+import { createMessage, MessageType, parseMessage } from '@lib/websocket/message';
 
 describe('Protocol Message Utilities', () => {
 

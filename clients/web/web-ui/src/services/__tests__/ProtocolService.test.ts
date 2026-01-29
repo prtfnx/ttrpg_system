@@ -13,7 +13,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ProtocolService } from '../ProtocolService';
+import { ProtocolService } from '@lib/api';
 
 // Create a minimal mock WebClientProtocol to avoid dependency chain
 interface MockWebClientProtocol {

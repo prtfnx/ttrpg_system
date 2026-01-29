@@ -4,7 +4,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fpsService } from '../fps.service';
+import { fpsService } from '@features/canvas';
 
 describe('FPSService', () => {
   beforeEach(() => {

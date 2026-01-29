@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { isValidUUID, transformServerTableToClient, validateTableId } from '../tableProtocolAdapter';
+import { isValidUUID, transformServerTableToClient, validateTableId } from '@lib/websocket/tableProtocolAdapter';
 
 describe('isValidUUID', () => {
   it('validates correct UUID v4 format', () => {

@@ -3,8 +3,8 @@
  * Production-ready tests for UUID validation and table transformation
  */
 
-import { describe, expect, it } from 'vitest';
 import { isValidUUID, transformServerTableToClient, validateTableId } from '@lib/websocket/tableProtocolAdapter';
+import { describe, expect, it } from 'vitest';
 
 describe('isValidUUID', () => {
   it('validates correct UUID v4 format', () => {

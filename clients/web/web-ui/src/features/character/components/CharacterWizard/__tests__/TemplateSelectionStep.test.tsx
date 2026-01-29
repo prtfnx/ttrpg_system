@@ -18,57 +18,65 @@ import { describe, expect, it, vi } from 'vitest';
 import { TemplateSelectionStep } from '../TemplateSelectionStep';
 import type { WizardFormData } from '../WizardFormData';
 
-// Mock character templates
+// Mock character templates - using REAL template names from characterTemplates.ts
 vi.mock('../../../data/characterTemplates', () => ({
   ALL_TEMPLATES: [
     {
-      id: 'fighter-pc',
+      id: 'pc-template',
       type: 'pc',
-      name: 'Fighter',
-      icon: '⚔️',
-      description: 'A brave warrior',
-      data: { class: 'Fighter', level: 1, str: 16 }
+      name: 'Player Character',
+      icon: '🎭',
+      description: 'Standard player character template',
+      data: { level: 1 }
     },
     {
       id: 'wizard-pc',
       type: 'pc',
-      name: 'Wizard',
+      name: 'Wizard (Spellcaster)',
       icon: '🧙',
       description: 'A powerful spellcaster',
       data: { class: 'Wizard', level: 1, int: 16 }
     },
     {
-      id: 'goblin-npc',
+      id: 'npc-template',
       type: 'npc',
-      name: 'Goblin',
-      icon: '👺',
-      description: 'A small monster',
-      data: { type: 'npc', cr: 0.25, hp: 7 }
+      name: 'NPC / Monster',
+      icon: '👹',
+      description: 'Generic NPC or monster template',
+      data: { type: 'npc', cr: 1, hp: 20 }
     },
     {
-      id: 'dragon-npc',
+      id: 'npc-humanoid',
       type: 'npc',
-      name: 'Dragon',
-      icon: '🐉',
-      description: 'A mighty dragon',
-      data: { type: 'npc', cr: 17, hp: 256 }
+      name: 'NPC Humanoid (Guard)',
+      icon: '🛡️',
+      description: 'Humanoid NPC like guards',
+      data: { type: 'npc', cr: 0.5, hp: 11 }
+    },
+    {
+      id: 'npc-beast',
+      type: 'npc',
+      name: 'NPC Beast (Wolf)',
+      icon: '🐺',
+      description: 'Beast type NPC',
+      data: { type: 'npc', cr: 0.25, hp: 11 }
     },
   ],
   getTemplatesByType: (type: string) => {
     const templates = {
       pc: [
         {
-          id: 'fighter-pc',
+          id: 'pc-template',
           type: 'pc',
-          name: 'Fighter',
-          icon: '⚔️',
-          description: 'A brave warrior',
-          data: { class: 'Fighter', level: 1, str: 16 }
+          name: 'Player Character',
+          icon: '🎭',
+          description: 'Standard player character template',
+          data: { level: 1 }
         },
         {
           id: 'wizard-pc',
           type: 'pc',
-          name: 'Wizard',
+          name: 'Wizard (Spellcaster)',
           icon: '🧙',
           description: 'A powerful spellcaster',
           data: { class: 'Wizard', level: 1, int: 16 }
@@ -76,20 +84,28 @@ vi.mock('../../../data/characterTemplates', () => ({
       ],
       npc: [
         {
-          id: 'goblin-npc',
+          id: 'npc-template',
           type: 'npc',
-          name: 'Goblin',
-          icon: '👺',
-          description: 'A small monster',
-          data: { type: 'npc', cr: 0.25, hp: 7 }
+          name: 'NPC / Monster',
+          icon: '👹',
+          description: 'Generic NPC or monster template',
+          data: { type: 'npc', cr: 1, hp: 20 }
         },
         {
-          id: 'dragon-npc',
+          id: 'npc-humanoid',
           type: 'npc',
-          name: 'Dragon',
-          icon: '🐉',
-          description: 'A mighty dragon',
-          data: { type: 'npc', cr: 17, hp: 256 }
+          name: 'NPC Humanoid (Guard)',
+          icon: '🛡️',
+          description: 'Humanoid NPC like guards',
+          data: { type: 'npc', cr: 0.5, hp: 11 }
+        },
+        {
+          id: 'npc-beast',
+          type: 'npc',
+          name: 'NPC Beast (Wolf)',
+          icon: '🐺',
+          description: 'Beast type NPC',
+          data: { type: 'npc', cr: 0.25, hp: 11 }
         },
       ],
     };
@@ -176,10 +192,10 @@ describe('TemplateSelectionStep - Template Type Selection', () => {
     const pcButton = screen.getByText('Player Character').closest('button');
     await user.click(pcButton!);
 
-    const fighterCard = screen.getByText('Fighter').closest('button');
-    await user.click(fighterCard!);
+    const pcCard = screen.getByText('Player Character').closest('button');
+    await user.click(pcCard!);
 
-    expect(fighterCard).toHaveClass('selected');
+    expect(pcCard).toHaveClass('selected');
 
     // Switch to NPC
     const npcButton = screen.getByText('NPC/Monster').closest('button');
@@ -206,8 +222,8 @@ describe('TemplateSelectionStep - PC Templates', () => {
     await user.click(pcButton!);
 
     await waitFor(() => {
-      expect(screen.getByText('Fighter')).toBeInTheDocument();
-      expect(screen.getByText('Wizard')).toBeInTheDocument();
+      expect(screen.getByText('Player Character')).toBeInTheDocument();
+      expect(screen.getByText('Wizard (Spellcaster)')).toBeInTheDocument();
     });
   });
 
@@ -223,10 +239,10 @@ describe('TemplateSelectionStep - PC Templates', () => {
     await user.click(pcButton!);
 
     await waitFor(() => {
-      expect(screen.getByText('⚔️')).toBeInTheDocument(); // Fighter icon
+      expect(screen.getByText('🎭')).toBeInTheDocument(); // PC icon
       expect(screen.getByText('🧙')).toBeInTheDocument(); // Wizard icon
-      expect(screen.getByText('A brave warrior')).toBeInTheDocument();
-      expect(screen.getByText('A powerful spellcaster')).toBeInTheDocument();
+      expect(screen.getByText(/Full character sheet for player characters/i)).toBeInTheDocument();
+      expect(screen.getByText(/scholarly magic-user/i)).toBeInTheDocument();
     });
   });
 
@@ -241,11 +257,11 @@ describe('TemplateSelectionStep - PC Templates', () => {
     const pcButton = screen.getByText('Player Character').closest('button');
     await user.click(pcButton!);
 
-    const fighterCard = screen.getByText('Fighter').closest('button');
-    await user.click(fighterCard!);
+    const pcCard = screen.getByText('Player Character').closest('button');
+    await user.click(pcCard!);
 
     await waitFor(() => {
-      expect(fighterCard).toHaveClass('selected');
+      expect(pcCard).toHaveClass('selected');
     });
   });
 
@@ -260,7 +276,7 @@ describe('TemplateSelectionStep - PC Templates', () => {
     const pcButton = screen.getByText('Player Character').closest('button');
     await user.click(pcButton!);
 
-    const wizardCard = screen.getByText('Wizard').closest('button');
+    const wizardCard = screen.getByText('Wizard (Spellcaster)').closest('button');
     await user.click(wizardCard!);
 
     await waitFor(() => {
@@ -285,8 +301,9 @@ describe('TemplateSelectionStep - NPC Templates', () => {
     await user.click(npcButton!);
 
     await waitFor(() => {
-      expect(screen.getByText('Goblin')).toBeInTheDocument();
-      expect(screen.getByText('Dragon')).toBeInTheDocument();
+      expect(screen.getByText('NPC / Monster')).toBeInTheDocument();
+      expect(screen.getByText('NPC Humanoid (Guard)')).toBeInTheDocument();
+      expect(screen.getByText('NPC Beast (Wolf)')).toBeInTheDocument();
     });
   });
 
@@ -302,10 +319,11 @@ describe('TemplateSelectionStep - NPC Templates', () => {
     await user.click(npcButton!);
 
     await waitFor(() => {
-      expect(screen.getByText('👺')).toBeInTheDocument(); // Goblin icon
-      expect(screen.getByText('🐉')).toBeInTheDocument(); // Dragon icon
-      expect(screen.getByText('A small monster')).toBeInTheDocument();
-      expect(screen.getByText('A mighty dragon')).toBeInTheDocument();
+      expect(screen.getByText('�')).toBeInTheDocument(); // NPC Monster icon
+      expect(screen.getByText('🛡️')).toBeInTheDocument(); // Guard icon
+      expect(screen.getByText('🐺')).toBeInTheDocument(); // Wolf icon
+      expect(screen.getByText(/Simplified stat block for NPCs/i)).toBeInTheDocument();
+      expect(screen.getByText(/standard humanoid NPC/i)).toBeInTheDocument();
     });
   });
 
@@ -320,11 +338,11 @@ describe('TemplateSelectionStep - NPC Templates', () => {
     const npcButton = screen.getByText('NPC/Monster').closest('button');
     await user.click(npcButton!);
 
-    const goblinCard = screen.getByText('Goblin').closest('button');
-    await user.click(goblinCard!);
+    const npcCard = screen.getByText('NPC / Monster').closest('button');
+    await user.click(npcCard!);
 
     await waitFor(() => {
-      expect(goblinCard).toHaveClass('selected');
+      expect(npcCard).toHaveClass('selected');
     });
   });
 
@@ -339,14 +357,14 @@ describe('TemplateSelectionStep - NPC Templates', () => {
     const npcButton = screen.getByText('NPC/Monster').closest('button');
     await user.click(npcButton!);
 
-    const dragonCard = screen.getByText('Dragon').closest('button');
-    await user.click(dragonCard!);
+    const guardCard = screen.getByText('NPC Humanoid (Guard)').closest('button');
+    await user.click(guardCard!);
 
     await waitFor(() => {
       expect(screen.getByText(/Template selected:/i)).toBeInTheDocument();
-      // Multiple "Dragon" texts exist (card name and summary), so be more specific
+      // Check that the summary contains the template name
       const summaryBox = document.querySelector('.summary-box.success');
-      expect(summaryBox?.textContent).toContain('Dragon');
+      expect(summaryBox?.textContent).toContain('Guard');
     });
   });
 });
@@ -382,8 +400,8 @@ describe('TemplateSelectionStep - Scratch Mode', () => {
       </TestWrapper>
     );
 
-    expect(screen.queryByText('Fighter')).not.toBeInTheDocument();
-    expect(screen.queryByText('Goblin')).not.toBeInTheDocument();
+    expect(screen.queryByText('Player Character')).not.toBeInTheDocument();
+    expect(screen.queryByText('NPC / Monster')).not.toBeInTheDocument();
   });
 });
 
@@ -414,12 +432,12 @@ describe('TemplateSelectionStep - Template Data Application', () => {
     const pcButton = screen.getByText('Player Character').closest('button');
     await user.click(pcButton!);
 
-    const fighterCard = screen.getByText('Fighter').closest('button');
-    await user.click(fighterCard!);
+    const pcCard = screen.getByText('Player Character').closest('button');
+    await user.click(pcCard!);
 
     // Template data should be applied (checked via form state in real implementation)
     await waitFor(() => {
-      expect(fighterCard).toHaveClass('selected');
+      expect(pcCard).toHaveClass('selected');
     });
   });
 
@@ -435,11 +453,11 @@ describe('TemplateSelectionStep - Template Data Application', () => {
     const npcButton = screen.getByText('NPC/Monster').closest('button');
     await user.click(npcButton!);
 
-    const goblinCard = screen.getByText('Goblin').closest('button');
-    await user.click(goblinCard!);
+    const npcCard = screen.getByText('NPC / Monster').closest('button');
+    await user.click(npcCard!);
 
     await waitFor(() => {
-      expect(goblinCard).toHaveClass('selected');
+      expect(npcCard).toHaveClass('selected');
     });
   });
 });
@@ -488,18 +506,18 @@ describe('TemplateSelectionStep - Visual Feedback', () => {
     const pcButton = screen.getByText('Player Character').closest('button');
     await user.click(pcButton!);
 
-    // Select Fighter
-    const fighterCard = screen.getByText('Fighter').closest('button');
-    await user.click(fighterCard!);
-    expect(fighterCard).toHaveClass('selected');
+    // Select Player Character template
+    const pcCard = screen.getByText('Player Character').closest('button');
+    await user.click(pcCard!);
+    expect(pcCard).toHaveClass('selected');
 
-    // Select Wizard
-    const wizardCard = screen.getByText('Wizard').closest('button');
+    // Select Wizard template
+    const wizardCard = screen.getByText('Wizard (Spellcaster)').closest('button');
     await user.click(wizardCard!);
 
     await waitFor(() => {
       expect(wizardCard).toHaveClass('selected');
-      expect(fighterCard).not.toHaveClass('selected');
+      expect(pcCard).not.toHaveClass('selected');
     });
   });
 

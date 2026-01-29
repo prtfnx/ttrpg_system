@@ -3,8 +3,8 @@
  * Production-ready tests for frame rate measurement service
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fpsService } from '@features/canvas';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('FPSService', () => {
   beforeEach(() => {

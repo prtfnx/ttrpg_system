@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Test WASM Manager directly
-import type { GlobalWasmModule } from '../../utils/wasmManager';
-import { wasmManager } from '../../utils/wasmManager';
+import type { GlobalWasmModule } from '@lib/wasm/wasmManager';
+import { wasmManager } from '@lib/wasm/wasmManager';
 
 // Mock WASM classes using proper class syntax to match real WASM behavior
 class MockRenderEngine {

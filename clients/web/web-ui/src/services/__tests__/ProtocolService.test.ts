@@ -12,8 +12,8 @@
  * @vitest-environment jsdom
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProtocolService } from '@lib/api';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 // Create a minimal mock WebClientProtocol to avoid dependency chain
 interface MockWebClientProtocol {

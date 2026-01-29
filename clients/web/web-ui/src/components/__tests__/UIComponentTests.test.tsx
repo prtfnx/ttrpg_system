@@ -10,7 +10,7 @@ import { act } from 'react-dom/test-utils';
 import { describe, expect, it } from 'vitest';
 
 // Import actual working components based on test results
-import { EnhancedLogin } from '../EnhancedLogin';
+import { EnhancedLogin } from '@features/auth';
 
 describe('EnhancedLogin Component', () => {
   it('renders login form elements', () => {

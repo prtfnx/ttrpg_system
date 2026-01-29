@@ -9,9 +9,8 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 // Import actual components - no mocking
-import { CharacterSheet } from '../components/CharacterWizard/CharacterSheet';
-import { CombatTracker } from '../components/Combat/CombatTracker';
-import { SpellManagementPanel } from '../components/SpellManagementPanel';
+import { CharacterSheet, SpellManagementPanel } from '@features/character';
+import { CombatTracker } from '@features/combat';
 
 // Mock combat UI elements that tests expect but aren't fully implemented
 const mockCombatUIElements = () => {

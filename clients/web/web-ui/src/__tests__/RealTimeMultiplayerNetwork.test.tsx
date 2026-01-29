@@ -9,8 +9,8 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
 // Import actual components
-import { EnhancedLogin } from '../components/EnhancedLogin';
-import { ProtocolContext } from '../services/ProtocolContext';
+import { EnhancedLogin } from '@features/auth';
+import { ProtocolContext } from '@lib/api';
 
 describe('Real-Time Multiplayer System - Session Management', () => {
   const mockWebSocketURL = 'wss://ttrpg-server.example.com/ws';

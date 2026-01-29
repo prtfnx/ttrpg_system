@@ -1,8 +1,8 @@
+import { SkillsStep } from '@features/character';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FormProvider, useForm } from 'react-hook-form';
 import { describe, expect, it } from 'vitest';
-import { SkillsStep } from '../components/CharacterWizard/SkillsStep';
 
 describe('SkillsStep Debug', () => {
   function TestWrapper() {

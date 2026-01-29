@@ -4,9 +4,9 @@
  * Focuses on expected user behavior rather than implementation details
  */
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { renderWithProviders } from '../test/utils/test-utils';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderWithProviders } from '../test/utils/test-utils';
 
 // Import components to test
 import { ActionQueuePanel } from '@features/actions';

@@ -1,3 +1,41 @@
+// Mock usePaintSystem for PaintPanel
+vi.mock('../../../features/painting/hooks/usePaintSystem', () => ({
+  usePaintSystem: vi.fn().mockReturnValue([
+    {
+      isActive: false,
+      isDrawing: false,
+      strokeCount: 0,
+      brushColor: [1.0, 1.0, 1.0, 1.0], // Properly formatted RGBA array
+      brushWidth: 3.0,
+      blendMode: 'alpha',
+      canUndo: false,
+      canRedo: false,
+    },
+    {
+      enterPaintMode: vi.fn(),
+      exitPaintMode: vi.fn(),
+      setBrushColor: vi.fn(),
+      setBrushWidth: vi.fn(),
+      setBlendMode: vi.fn(),
+      clearAll: vi.fn(),
+      undoStroke: vi.fn(),
+      redoStroke: vi.fn(),
+      getStrokes: vi.fn(() => []),
+      getCurrentStroke: vi.fn(() => null),
+      startStroke: vi.fn(() => true),
+      addPoint: vi.fn(() => true),
+      endStroke: vi.fn(() => true),
+      cancelStroke: vi.fn(),
+      applyBrushPreset: vi.fn(),
+    }
+  ]),
+  usePaintInteraction: vi.fn().mockReturnValue({
+    paintToTable: vi.fn().mockResolvedValue(undefined),
+    isIntegrated: false,
+  }),
+  useBrushPresets: vi.fn().mockReturnValue([]),
+}));
+
 // Mock useAssetManager for AssetPanel
 vi.mock('../../hooks/useAssetManager', () => ({
   useAssetManager: vi.fn().mockReturnValue({
@@ -35,22 +73,22 @@ vi.mock('../../hooks/useAssetManager', () => ({
  */
 
 import '@testing-library/jest-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { renderWithProviders } from '../../test/utils/test-utils';
 
 // Import untested/undertested components
-import { AuthContext as AuthProvider } from '@features/auth';
-import { ActionsPanel } from '../ActionsPanel';
-import { AssetPanel } from '../AssetPanel';
-import { ChatPanel } from '../ChatPanel';
-import { FogPanel } from '../FogPanel';
-import { CanvasRenderer } from '../GameCanvas/CanvasRenderer';
-import { InitiativeTracker } from '../InitiativeTracker';
-import { LightingPanel } from '../LightingPanel';
-import { NetworkPanel } from '../NetworkPanel';
-import { PaintPanel } from '../PaintPanel';
-import { PerformanceMonitor } from '../PerformanceMonitor';
+import { ActionsPanel } from '@features/actions';
+import { AssetPanel } from '@features/assets';
+import { PerformanceMonitor } from '@features/canvas';
+import { CanvasRenderer } from '@features/canvas/components/GameCanvas/CanvasRenderer';
+import { ChatPanel } from '@features/chat';
+import { InitiativeTracker } from '@features/combat';
+import { FogPanel } from '@features/fog';
+import { LightingPanel } from '@features/lighting';
+import { NetworkPanel } from '@features/network';
+import { PaintPanel } from '@features/painting';
 
 // Mock external dependencies
 vi.mock('../../hooks/useRenderEngine', () => ({
@@ -380,11 +418,7 @@ describe('GameCanvas Component', () => {
 // Test ChatPanel Component
 describe('ChatPanel Component', () => {
   test('renders chat interface', () => {
-    render(
-      <AuthProvider>
-        <ChatPanel />
-      </AuthProvider>
-    );
+    renderWithProviders(<ChatPanel />);
     
     // Should have chat-related elements - use more flexible approach
     const textbox = screen.queryByRole('textbox');
@@ -393,11 +427,7 @@ describe('ChatPanel Component', () => {
     
     expect(textbox || messageInput || sendButton).toBeTruthy();
   });  test('provides message input field', () => {
-    render(
-      <AuthProvider>
-        <ChatPanel />
-      </AuthProvider>
-    );
+    renderWithProviders(<ChatPanel />);
     
     // Should have text input for messages
     const messageInputs = screen.queryAllByRole('textbox').concat(
@@ -408,11 +438,7 @@ describe('ChatPanel Component', () => {
   });
 
   test('displays send message functionality', () => {
-    render(
-      <AuthProvider>
-        <ChatPanel />
-      </AuthProvider>
-    );
+    renderWithProviders(<ChatPanel />);
     
     // Should have send button or enter functionality
     const sendButtons = screen.queryAllByRole('button', { name: /send/i });
@@ -422,11 +448,7 @@ describe('ChatPanel Component', () => {
 
   test('handles message input interactions', async () => {
     const user = userEvent.setup();
-    render(
-      <AuthProvider>
-        <ChatPanel />
-      </AuthProvider>
-    );
+    renderWithProviders(<ChatPanel />);
     
     const textInputs = screen.queryAllByRole('textbox');
     
@@ -581,14 +603,12 @@ describe('LightingPanel Component', () => {
 describe('Component Integration', () => {
   test('components render together without conflicts', () => {
     expect(() => {
-      render(
-        <AuthProvider>
-          <div>
-            <NetworkPanel />
-            <ChatPanel />
-            <PerformanceMonitor isVisible={true} />
-          </div>
-        </AuthProvider>
+      renderWithProviders(
+        <div>
+          <NetworkPanel />
+          <ChatPanel />
+          <PerformanceMonitor isVisible={true} />
+        </div>
       );
     }).not.toThrow();
   });

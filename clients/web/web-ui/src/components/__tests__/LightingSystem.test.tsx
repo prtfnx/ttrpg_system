@@ -29,13 +29,13 @@ vi.mock('../hooks/useRenderEngine', () => ({
  * Tests for the hybrid CPU/GPU lighting system with visibility polygons and shadow casting.
  * Based on LIGHTING_SYSTEM_TEST_PLAN.md
  */
+import { LightingPanel } from '@features/lighting';
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { act } from 'react-dom/test-utils';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { useGameStore } from '../../store';
-import { LightingPanel } from '../LightingPanel';
 
 
 describe('Lighting System', () => {

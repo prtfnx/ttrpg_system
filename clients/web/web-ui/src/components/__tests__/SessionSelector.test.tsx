@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { authService, type SessionInfo } from '@features/auth';
+import { SessionSelector } from '@features/session';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { SessionSelector } from '@features/session';
-import { authService, type SessionInfo } from '@features/auth';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock authService
 vi.mock('../../services/auth.service', () => ({

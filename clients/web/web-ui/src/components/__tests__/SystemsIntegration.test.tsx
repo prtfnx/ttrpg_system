@@ -5,13 +5,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMockRenderEngine } from '../../test/utils/mockRenderEngine';
 
 // Import web client system components
-import { AuthContext as AuthProvider } from '@features/auth';
 import { ActionsPanel } from '@features/actions';
 import { AssetPanel } from '@features/assets';
+import { AuthContext as AuthProvider } from '@features/auth';
+import { GameCanvas, PerformanceMonitor } from '@features/canvas';
 import ChatPanel from '@features/chat';
-import { GameCanvas } from '@features/canvas';
 import { NetworkPanel } from '@features/network';
-import { PerformanceMonitor } from '@features/canvas';
 
 //Mock WASM module with realistic interface
 const mockLoadTexture = vi.fn().mockResolvedValue(true);

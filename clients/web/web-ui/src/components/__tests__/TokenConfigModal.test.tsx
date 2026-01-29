@@ -16,12 +16,12 @@
  * @vitest-environment jsdom
  */
 
+import { TokenConfigModal } from '@features/canvas';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TokenConfigModal } from '@features/canvas';
 import { useGameStore } from '../../store';
-import type { Sprite, Character } from '../../types';
+import type { Character, Sprite } from '../../types';
 
 // Mock ProtocolContext
 const mockProtocol = {

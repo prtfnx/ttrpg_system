@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import TablePanel, { type TableInfo } from '@features/table';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import TablePanel from '@features/table';
-import { useTableManager, type TableInfo } from '@features/table';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock useTableManager hook
 const mockCreateTable = vi.fn();

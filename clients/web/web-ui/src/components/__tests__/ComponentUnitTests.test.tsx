@@ -54,16 +54,16 @@ vi.mock('../../store', () => ({
  * Focus: Component-specific functionality without complex integrations
  */
 // @ts-nocheck
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { renderWithProviders } from '../../test/utils/test-utils';
 
 // Core UI components that should exist
-import { AuthContext as AuthProvider } from '@features/auth';
-import { CharacterSheet } from '../CharacterWizard/CharacterSheet';
-import { CompendiumPanel } from '../CompendiumPanel';
-import { LayerPanel } from '../LayerPanel';
-import { MapPanel } from '../MapPanel';
+import { LayerPanel } from '@features/canvas';
+import { CharacterSheet } from '@features/character';
+import { CompendiumPanel } from '@features/compendium';
+import { MapPanel } from '@features/table';
 
 // Mock the auth service to provide authenticated user for tests
 import { vi } from 'vitest';
@@ -83,23 +83,6 @@ vi.mock('../../services/auth.service', () => ({
   }
 }));
 
-// Mock AuthContext to provide authenticated state
-vi.mock('../AuthContext', () => ({
-  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
-  useAuth: () => ({
-    user: { id: 'test-user-1', username: 'testuser', role: 'dm', permissions: ['compendium:read', 'compendium:write', 'table:admin'] },
-    isAuthenticated: true,
-    permissions: ['compendium:read', 'compendium:write', 'table:admin'],
-    hasPermission: () => true,
-    loading: false,
-    error: '',
-    login: vi.fn(),
-    logout: vi.fn(),
-    requireAuth: (op: any) => op(),
-    updateUser: vi.fn()
-  })
-}));
-
 describe('MapPanel Component', () => {
   const mockDefaultProps = {
     className: 'test-map-panel'
@@ -107,12 +90,12 @@ describe('MapPanel Component', () => {
 
   it('renders without crashing', () => {
     expect(() => {
-      render(<MapPanel {...mockDefaultProps} />);
+      renderWithProviders(<MapPanel {...mockDefaultProps} />);
     }).not.toThrow();
   });
 
   it('displays map container element', () => {
-    render(<MapPanel {...mockDefaultProps} />);
+    renderWithProviders(<MapPanel {...mockDefaultProps} />);
     
     // Look for any map-related elements or container
     const mapElements = screen.queryAllByTestId(/map|canvas|grid/i)
@@ -142,20 +125,12 @@ describe('CompendiumPanel Component', () => {
 
   it('renders without crashing', () => {
     expect(() => {
-      render(
-        <AuthProvider>
-          <CompendiumPanel {...mockDefaultProps} />
-        </AuthProvider>
-      );
+      renderWithProviders(<CompendiumPanel {...mockDefaultProps} />);
     }).not.toThrow();
   });
 
   it('displays compendium content container', () => {
-    render(
-      <AuthProvider>
-        <CompendiumPanel {...mockDefaultProps} />
-      </AuthProvider>
-    );
+    renderWithProviders(<CompendiumPanel {...mockDefaultProps} />);
     
     // Should have some content container or related text
     const contentElements = screen.queryAllByRole('main').concat(
@@ -167,11 +142,7 @@ describe('CompendiumPanel Component', () => {
 
   it('handles search interactions if search exists', async () => {
     const user = userEvent.setup();
-    render(
-      <AuthProvider>
-        <CompendiumPanel {...mockDefaultProps} />
-      </AuthProvider>
-    );
+    renderWithProviders(<CompendiumPanel {...mockDefaultProps} />);
     
     // Look for search input
     const searchInput = screen.queryByRole('textbox') || screen.queryByPlaceholderText(/search/i);

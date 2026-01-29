@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { GameClient } from '@features/canvas';
 import { render, screen, waitFor } from '@testing-library/react';
-import React from 'react';
-import GameClient from '../GameClient';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGameStore } from '../../stores/gameStore';
 
 // Helper to create a Sprite

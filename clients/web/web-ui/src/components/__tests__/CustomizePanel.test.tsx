@@ -3,10 +3,10 @@
  * Production-ready tests for UI customization panel
  */
 
+import { CustomizePanel } from '@features/character';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { CustomizePanel } from '../CustomizePanel';
 
 describe('CustomizePanel', () => {
   beforeEach(() => {

@@ -8,9 +8,9 @@ vi.mock('../utils/wasmManager', () => ({
   }
 }));
 
+import { useNetworkClient } from '@shared/hooks/useNetworkClient';
 import { render, waitFor } from '@testing-library/react';
 import React from 'react';
-import { useNetworkClient } from '../hooks/useNetworkClient';
 
 // Small helper component to expose the hook's state for assertions
 const HookConsumer: React.FC<{

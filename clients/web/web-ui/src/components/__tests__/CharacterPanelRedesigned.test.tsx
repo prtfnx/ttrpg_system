@@ -1,3 +1,4 @@
+import { CharacterPanel as CharacterPanelRedesigned } from '@features/character';
 import '@testing-library/jest-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -234,7 +235,7 @@ vi.mock('../../utils/toast', () => ({
   },
 }));
 
-vi.mock('../../utils/characterImportExport', () => ({
+vi.mock('@shared/utils/characterImportExport', () => ({
   cloneCharacter: vi.fn((char, userId) => ({
     ...char,
     id: `cloned-${Date.now()}`,
@@ -489,7 +490,7 @@ describe('CharacterPanelRedesigned - Character Actions', () => {
   });
 
   it('should clone character when clone button is clicked', async () => {
-    const { cloneCharacter } = await import('../../utils/characterImportExport');
+    const { cloneCharacter } = await import('@shared/utils/characterImportExport');
     
     useGameStore.getState().addCharacter(createTestCharacter({ 
       id: 'clone-source',
@@ -524,7 +525,7 @@ describe('CharacterPanelRedesigned - Character Actions', () => {
   });
 
   it('should export single character as JSON', async () => {
-    const { downloadCharacterAsJSON } = await import('../../utils/characterImportExport');
+    const { downloadCharacterAsJSON } = await import('@shared/utils/characterImportExport');
     
     useGameStore.getState().addCharacter(createTestCharacter({ 
       id: 'export-1',

@@ -15,8 +15,8 @@ import React from 'react';
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 
 // Import actual existing components
-import EnhancedLogin from '../EnhancedLogin';
-import { ErrorBoundary } from '../ErrorBoundary';
+import EnhancedLogin from '@features/auth';
+import { ErrorBoundary } from '@shared/components/ErrorBoundary';
 
 // Mock external dependencies properly  
 vi.mock('../../services/enhancedAuth.service', () => ({
@@ -36,7 +36,7 @@ describe('LoadingSpinner Component', () => {
   
   beforeAll(async () => {
     try {
-      const module = await import('../common/LoadingSpinner');
+      const module = await import('@shared/components/LoadingSpinner');
       LoadingSpinner = (module as any).default || (module as any).LoadingSpinner || (() => <div role="status" aria-label="Loading...">Loading...</div>);
     } catch (e) {
       LoadingSpinner = () => <div role="status" aria-label="Loading...">Loading...</div>;
@@ -65,7 +65,7 @@ describe('Modal Component', () => {
   
   beforeAll(async () => {
     try {
-      const module = await import('../common/Modal');
+      const module = await import('@shared/components/Modal');
       Modal = (module as any).default || (module as any).Modal || (({ isOpen, children, onClose, title }: any) => 
         isOpen ? (
           <div role="dialog" aria-modal="true" aria-labelledby="modal-title">

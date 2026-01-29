@@ -26,7 +26,7 @@ vi.mock('../../services/ProtocolContext', () => ({
   }),
 }));
 
-vi.mock('../../utils/characterImportExport', () => ({
+vi.mock('@shared/utils/characterImportExport', () => ({
   cloneCharacter: vi.fn((char: Character, userId: number) => ({
     ...char,
     id: `cloned-${Date.now()}`,
@@ -458,7 +458,7 @@ describe('E2E Character Management Flow', () => {
 
     it('should export selected characters in bulk', async () => {
       const user = userEvent.setup();
-      const { downloadMultipleCharactersAsJSON } = await import('../../utils/characterImportExport');
+      const { downloadMultipleCharactersAsJSON } = await import('@shared/utils/characterImportExport');
       
       useGameStore.getState().addCharacter(createCharacter({ id: 'export-1', name: 'Export 1' }));
       useGameStore.getState().addCharacter(createCharacter({ id: 'export-2', name: 'Export 2' }));
@@ -603,7 +603,7 @@ describe('E2E Character Management Flow', () => {
       const userId = typeof sessionId === 'string' ? parseInt(sessionId, 10) : (sessionId || 1);
 
       // 2. CLONE character (using utility function - UI clone tested separately)
-      const { cloneCharacter } = await import('../../utils/characterImportExport');
+      const { cloneCharacter } = await import('@shared/utils/characterImportExport');
       const originalChar = useGameStore.getState().characters[0];
       const clonedChar = cloneCharacter(originalChar, userId);
       useGameStore.getState().addCharacter(clonedChar);

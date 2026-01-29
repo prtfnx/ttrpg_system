@@ -7,12 +7,12 @@
 import { ErrorBoundary } from '@shared/components';
 import type { FC } from 'react';
 import type { MeasurementLine } from '../services/advancedMeasurement.service';
+import styles from './AdvancedMeasurementPanel.module.css';
 import { ActiveToolStatus } from './AdvancedMeasurementPanel/ActiveToolStatus';
 import { MeasurementsTab } from './AdvancedMeasurementPanel/MeasurementsTab';
 import { TabNavigation } from './AdvancedMeasurementPanel/TabNavigation';
 import { ToolSelection } from './AdvancedMeasurementPanel/ToolSelection';
 import { useAdvancedMeasurement } from './AdvancedMeasurementPanel/useAdvancedMeasurement';
-import styles from './AdvancedMeasurementPanel.module.css';
 
 interface AdvancedMeasurementPanelProps {
   isOpen: boolean;

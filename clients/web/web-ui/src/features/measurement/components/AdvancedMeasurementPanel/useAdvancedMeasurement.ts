@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  advancedMeasurementSystem,
-  type GeometricShape,
-  type GridConfiguration,
-  type MeasurementLine,
-  type MeasurementSettings,
-  type MeasurementTemplate
+    advancedMeasurementSystem,
+    type GeometricShape,
+    type GridConfiguration,
+    type MeasurementLine,
+    type MeasurementSettings,
+    type MeasurementTemplate
 } from '../../services/advancedMeasurement.service';
-import type { ActiveTool } from './ToolSelection';
 import type { TabType } from './TabNavigation';
+import type { ActiveTool } from './ToolSelection';
 
 type ShapeType = 'circle' | 'rectangle' | 'polygon' | 'arc' | 'ellipse';
 
@@ -319,3 +319,4 @@ export const useAdvancedMeasurement = ({
 };
 
 export type { ShapeType };
+

@@ -9,9 +9,8 @@ import React from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 // Import actual components
-import { LayerPanel } from '../components/LayerPanel';
-import { MapPanel } from '../components/MapPanel';
-import { ToolsPanel } from '../components/ToolsPanel';
+import { LayerPanel, ToolsPanel } from '@features/canvas';
+import { MapPanel } from '@features/table';
 
 describe('Advanced Map System - Tactical TTRPG Mapping', () => {
   // Ensure rustRenderManager always has get_layer_sprite_count
@@ -76,7 +75,7 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
       await user.click(gridSnapToggle);
       
       // Place token at precise position
-      const monsterToken = screen.getByTestId('draggable-token-dragon');
+      const monsterToken = screen.getByTestId('draggable-token-npc-beast');
       
       fireEvent.dragEnd(monsterToken, {
         clientX: 237, // Exact pixel position
@@ -85,7 +84,7 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
       
       // Token should maintain exact position
       await waitFor(() => {
-        const tokenElement = screen.getByTestId('token-dragon-position');
+        const tokenElement = screen.getByTestId('token-npc-beast-position');
         expect(tokenElement).toHaveStyle('left: 237px; top: 194px');
       });
     });

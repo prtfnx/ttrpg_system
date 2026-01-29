@@ -1,7 +1,8 @@
 import { GameClient } from '@features/canvas/components/GameClient';
 import { useEffect, useState } from 'react';
 import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+// CSS is loaded via CDN or not needed in test environment
+// import 'react-toastify/dist/ReactToastify.css';
 import styles from './App.module.css';
 import { authService, type UserInfo } from './features/auth';
 import { SessionSelector } from './features/session/components/SessionSelector';

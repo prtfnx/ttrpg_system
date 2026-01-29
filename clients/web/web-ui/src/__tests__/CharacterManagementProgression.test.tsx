@@ -5,14 +5,14 @@ import { useGameStore } from '../store';
  * Focus: Real expected behavior for complete character lifecycle
  */
 // @ts-nocheck
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import { renderWithProviders } from '../test/utils/test-utils';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
 // Import actual components - no mocking
-import { AuthProvider } from '../components/AuthContext';
-import { CharacterWizard } from '../components/CharacterWizard/CharacterWizard';
-import { CompendiumPanel } from '../components/CompendiumPanel';
+import { CharacterWizard } from '@features/character';
+import { CompendiumPanel } from '@features/compendium';
 
 // Mock the auth service to provide authenticated user for tests
 import { vi } from 'vitest';
@@ -138,23 +138,6 @@ vi.mock('../services/auth.service', () => ({
     extractToken: vi.fn(() => Promise.resolve('test-token')),
     getUserSessions: vi.fn(() => Promise.resolve([]))
   }
-}));
-
-// Mock AuthContext to provide authenticated state
-vi.mock('../components/AuthContext', () => ({
-  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
-  useAuth: () => ({
-    user: { id: 'test-user-1', username: 'testuser', role: 'dm', permissions: ['compendium:read', 'compendium:write', 'table:admin'] },
-    isAuthenticated: true,
-    permissions: ['compendium:read', 'compendium:write', 'table:admin'],
-    hasPermission: () => true,
-    loading: false,
-    error: '',
-    login: vi.fn(),
-    logout: vi.fn(),
-    requireAuth: (op: any) => op(),
-    updateUser: vi.fn()
-  })
 }));
 
 describe('Character Management System - D&D 5e Character Lifecycle', () => {
@@ -515,11 +498,7 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
   describe('Compendium Integration for Character Building', () => {
     it('should provide searchable spell database for character creation', async () => {
       const user = userEvent.setup();
-      render(
-        <AuthProvider>
-          <CompendiumPanel category="spells" />
-        </AuthProvider>
-      );
+      renderWithProviders(<CompendiumPanel category="spells" />);
       
       // Search for spells using the actual search input
       const searchInput = screen.getByPlaceholderText(/search compendium/i);
@@ -560,11 +539,7 @@ describe('Character Management System - D&D 5e Character Lifecycle', () => {
 
     it('should provide monster stat blocks for DM reference', async () => {
       const user = userEvent.setup();
-      render(
-        <AuthProvider>
-          <CompendiumPanel category="monsters" />
-        </AuthProvider>
-      );
+      renderWithProviders(<CompendiumPanel category="monsters" />);
       
       // Search for monsters by challenge rating - need to filter to monsters first
       // Wait for the compendium to load first

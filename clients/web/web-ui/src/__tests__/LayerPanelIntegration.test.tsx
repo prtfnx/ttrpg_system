@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { LayerPanel } from '../components/LayerPanel';
+import { LayerPanel } from '@features/canvas';
 
 describe('LayerPanel integration (user flow)', () => {
   it('renders layers and computes a dynamic height', async () => {

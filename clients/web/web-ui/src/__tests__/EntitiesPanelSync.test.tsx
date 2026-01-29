@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { EntitiesPanel } from '../components/EntitiesPanel';
+import { EntitiesPanel } from '@features/canvas';
 
 // Mock sprites that will be returned from WASM and stored in the store
 const mockSprites = [

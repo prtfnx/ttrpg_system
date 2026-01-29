@@ -1,3 +1,4 @@
+export { MapPanel } from './components/MapPanel';
 export { TableManagementPanel } from './components/TableManagementPanel';
 export { TablePanel } from './components/TablePanel';
 export { TablePreview } from './components/TablePreview';

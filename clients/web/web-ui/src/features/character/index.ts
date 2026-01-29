@@ -1,6 +1,7 @@
 export { CharacterPanel } from './components/CharacterPanel';
 export { CharacterSheet } from './components/CharacterSheetNew';
 export { CharacterSummary } from './components/CharacterSummary';
+export { CustomizePanel } from './components/CustomizePanel';
 export { ExperienceTracker } from './components/ExperienceTracker';
 export { MulticlassManager } from './components/MulticlassManager';
 export { ShareCharacterDialog } from './components/ShareCharacterDialog';
@@ -11,6 +12,7 @@ export { ALL_TEMPLATES, getTemplatesByType } from '../../data/characterTemplates
 export type { CharacterTemplate } from '../../data/characterTemplates';
 export { CombatLauncher } from './components/CharacterWizard/CombatLauncher';
 export { EnhancedCharacterWizard } from './components/CharacterWizard/EnhancedCharacterWizard';
+export { SkillsStep } from './components/CharacterWizard/SkillsStep';
 export type { WizardFormData } from './components/CharacterWizard/WizardFormData';
 
 export type { ExperiencePoints } from './services/advancementSystem.service';

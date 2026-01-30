@@ -37,5 +37,9 @@ class TestPasswordHashing:
         assert len(user.hashed_password) > 20
         
     def test_verify_password(self, test_db, test_user):
-        assert crud.verify_password("testpass123", test_user.hashed_password)
-        assert not verify_password("wrongpass", test_user.hashed_password)
+        """Test password verification against stored hash"""
+        from server_host.database import crud
+        # Correct password should verify
+        assert crud.verify_password("pass123", test_user.hashed_password)
+        # Wrong password should not verify
+        assert not crud.verify_password("wrongpass", test_user.hashed_password)

@@ -44,10 +44,7 @@ class TestCreateGameSession:
         assert response2.status_code == 302
         
         # Verify both exist
-        import sys
-        from pathlib import Path
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-        from database import crud
+        from server_host.database import crud
         sessions = crud.get_user_game_sessions(test_db, test_user.id)
         assert len(sessions) >= 2
 
@@ -91,10 +88,7 @@ class TestGameSessionAccess:
         assert response.status_code == 200
         
     def test_session_code_uniqueness(self, test_db, test_user):
-        import sys
-        from pathlib import Path
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-        from routers.game import generate_unique_session_code
+        from server_host.routers.game import generate_unique_session_code
         
         codes = set()
         for _ in range(10):

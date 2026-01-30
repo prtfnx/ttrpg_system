@@ -1,10 +1,4 @@
 import pytest
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-from routers.users import create_access_token, get_current_user
-from database import crud, schemas
 from fastapi import HTTPException
 from datetime import timedelta
 import jwt
@@ -12,12 +6,13 @@ import jwt
 @pytest.mark.unit
 class TestTokenGeneration:
     def test_create_access_token(self):
+        from server_host.routers.users import create_access_token
         token = create_access_token(data={"sub": "testuser"})
         assert token is not None
         assert isinstance(token, str)
         
     def test_token_expiration(self):
-        from routers.users import SECRET_KEY, ALGORITHM
+        from server_host.routers.users import create_access_token, SECRET_KEY, ALGORITHM
         
         token = create_access_token(
             data={"sub": "testuser"},
@@ -30,6 +25,7 @@ class TestTokenGeneration:
 @pytest.mark.unit
 class TestPasswordHashing:
     def test_password_is_hashed(self, test_db):
+        from server_host.database import crud, schemas
         user_data = schemas.UserCreate(
             username="secure",
             email="secure@example.com",
@@ -41,7 +37,5 @@ class TestPasswordHashing:
         assert len(user.hashed_password) > 20
         
     def test_verify_password(self, test_db, test_user):
-        from database.crud import verify_password
-        
-        assert verify_password("testpass123", test_user.hashed_password)
+        assert crud.verify_password("testpass123", test_user.hashed_password)
         assert not verify_password("wrongpass", test_user.hashed_password)

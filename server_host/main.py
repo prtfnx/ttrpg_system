@@ -19,8 +19,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.logger import setup_logger
-logger = setup_logger(__name__)
 from server_host.utils.logger import setup_logger
 from server_host.routers import users
 from server_host.routers import game
@@ -34,7 +32,7 @@ from server_host.utils.rate_limiter import registration_limiter, login_limiter
 from core_table.server import TableManager
 
 
-logger = setup_logger("main.py" ) # set level in logger.py to DEBUG for detailed logs
+logger = setup_logger("main.py") # set level in logger.py to DEBUG for detailed logs
 
 # Application state
 class AppState:

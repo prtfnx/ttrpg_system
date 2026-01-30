@@ -182,20 +182,20 @@ async def login(
         return templates.TemplateResponse("login.html", {
             "request": request,
             "error": f"Too many login attempts. Please try again in {time_until_reset} seconds."
-        })
+        }, status_code=429)  # 429 Too Many Requests
     
     # Validate input lengths
     if len(form_data.username) < 4:
         return templates.TemplateResponse("login.html", {
             "request": request,
             "error": "Username must be at least 4 characters long"
-        })
+        }, status_code=400)  # 400 Bad Request
     
     if len(form_data.password) < 4:
         return templates.TemplateResponse("login.html", {
             "request": request,
             "error": "Password must be at least 4 characters long"
-        })
+        }, status_code=400)  # 400 Bad Request
     
     try:
         token = await login_for_access_token(form_data, db)
@@ -203,7 +203,7 @@ async def login(
             return templates.TemplateResponse("login.html", {
                 "request": request,
                 "error": "Incorrect username or password"
-            })
+            }, status_code=401)  # 401 Unauthorized
 
         response = RedirectResponse(url="/users/dashboard", status_code=status.HTTP_302_FOUND)
         response.set_cookie(
@@ -220,7 +220,7 @@ async def login(
         return templates.TemplateResponse("login.html", {
             "request": request,
             "error": "Incorrect username or password"
-        })
+        }, status_code=401)  # 401 Unauthorized
 
 @router.get("/dashboard")
 async def dashboard(
@@ -274,7 +274,7 @@ def register_user_view(
             "request": request,
             "error": f"Too many registration attempts. Please try again in {time_until_reset} seconds.",
             "username": username  # Preserve username in form
-        })
+        }, status_code=429)  # 429 Too Many Requests
     
     # Additional basic validation (the main validation is in crud.py)
     if not username or not password:
@@ -282,7 +282,7 @@ def register_user_view(
             "request": request,
             "error": "Username and password are required",
             "username": username
-        })
+        }, status_code=400)  # 400 Bad Request
     
     # Attempt to register user
     result = crud.register_user(db, username, password)
@@ -291,12 +291,13 @@ def register_user_view(
     if isinstance(result, tuple):
         user, message = result
         if user is None:
-            # Registration failed
+            # Registration failed - determine if it's a conflict or validation error
+            status_code = 409 if "already exists" in message.lower() or "already taken" in message.lower() else 400
             return templates.TemplateResponse("register.html", {
                 "request": request,
                 "error": message,
                 "username": username
-            })
+            }, status_code=status_code)  # 409 Conflict or 400 Bad Request
         # Registration successful
         return RedirectResponse(url="/users/login?registered=1", status_code=status.HTTP_302_FOUND)
     else:
@@ -306,7 +307,7 @@ def register_user_view(
                 "request": request,
                 "error": "Registration failed. Username may already exist.",
                 "username": username
-            })
+            }, status_code=409)  # 409 Conflict
         return RedirectResponse(url="/users/login?registered=1", status_code=status.HTTP_302_FOUND)
 
 @router.get("/edit")

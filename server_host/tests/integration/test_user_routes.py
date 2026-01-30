@@ -25,7 +25,7 @@ class TestUserRegistration:
                 "password_confirm": "pass123"
             }
         )
-        assert response.status_code == 400
+        assert response.status_code == 409  # 409 Conflict for duplicate
         
     def test_register_duplicate_email(self, client, test_user):
         response = client.post(
@@ -37,7 +37,7 @@ class TestUserRegistration:
                 "password_confirm": "pass123"
             }
         )
-        assert response.status_code == 400
+        assert response.status_code == 409  # 409 Conflict for duplicate
         
     def test_register_password_mismatch(self, client):
         response = client.post(
@@ -49,16 +49,17 @@ class TestUserRegistration:
                 "password_confirm": "different"
             }
         )
-        assert response.status_code == 400
+        assert response.status_code == 400  # 400 Bad Request for validation error
 
 @pytest.mark.integration
 class TestUserLogin:
     def test_login_success(self, client, test_user):
+        """Test successful login returns redirect with cookie"""
         response = client.post(
             "/users/login",
             data={
                 "username": test_user.username,
-                "password": "testpass123"
+                "password": "pass123"  # Correct password from conftest
             },
             follow_redirects=False
         )
@@ -66,6 +67,7 @@ class TestUserLogin:
         assert "token" in response.cookies
         
     def test_login_wrong_password(self, client, test_user):
+        """Test login with wrong password returns 401 Unauthorized"""
         response = client.post(
             "/users/login",
             data={
@@ -73,9 +75,10 @@ class TestUserLogin:
                 "password": "wrongpass"
             }
         )
-        assert response.status_code == 400
+        assert response.status_code == 401  # 401 Unauthorized
         
     def test_login_nonexistent_user(self, client):
+        """Test login with non-existent user returns 401 Unauthorized"""
         response = client.post(
             "/users/login",
             data={
@@ -83,7 +86,7 @@ class TestUserLogin:
                 "password": "anypass"
             }
         )
-        assert response.status_code == 400
+        assert response.status_code == 401  # 401 Unauthorized
 
 @pytest.mark.integration
 class TestProtectedEndpoints:

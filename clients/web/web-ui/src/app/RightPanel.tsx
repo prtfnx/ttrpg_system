@@ -12,10 +12,10 @@ import { useRef, useState } from 'react';
 import { ActionQueuePanel } from '../features/actions/components/ActionQueuePanel';
 import { ActionsPanel } from '../features/actions/components/ActionsPanel';
 import { ActionsQuickPanel } from '../features/actions/components/ActionsQuickPanel';
-import { CustomizePanel } from '../features/character/components/CustomizePanel';
 import { EntitiesPanel } from '../features/canvas/components/EntitiesPanel';
-import { NetworkPanel } from '../features/network/components/NetworkPanel';
 import PerformanceSettingsPanel from '../features/canvas/components/PerformanceSettingsPanel';
+import { CustomizePanel } from '../features/character/components/CustomizePanel';
+import { NetworkPanel } from '../features/network/components/NetworkPanel';
 import { PlayerManagerPanel } from '../features/network/components/PlayerManagerPanel';
 import styles from './RightPanel.module.css';
 
@@ -27,29 +27,29 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
 
   return (
     <div className={styles.rightPanelContainer}>
-      <div className={styles.tabsContainer}>
-        <button className={clsx(styles.tabButton, activeTab === 'compendium' && 'active')} onClick={() => setActiveTab('compendium')}>Compendium</button>
-        <button className={clsx(styles.tabButton, activeTab === 'tables' && 'active')} onClick={() => setActiveTab('tables')}>Tables</button>
-        <button className={clsx(styles.tabButton, activeTab === 'quick-actions' && 'active')} onClick={() => setActiveTab('quick-actions')}>Quick Actions</button>
-        <button className={clsx(styles.tabButton, activeTab === 'characters' && 'active')} onClick={() => setActiveTab('characters')}>Characters</button>
-        <button className={clsx(styles.tabButton, activeTab === 'players' && 'active')} onClick={() => setActiveTab('players')}>Players</button>
-        <button className={clsx(styles.tabButton, activeTab === 'initiative' && 'active')} onClick={() => setActiveTab('initiative')}>Initiative</button>
-        <button className={clsx(styles.tabButton, activeTab === 'entities' && 'active')} onClick={() => setActiveTab('entities')}>Entities</button>
-        <button className={clsx(styles.tabButton, activeTab === 'chat' && 'active')} onClick={() => setActiveTab('chat')}>Chat</button>
-        <button className={clsx(styles.tabButton, activeTab === 'lighting' && 'active')} onClick={() => setActiveTab('lighting')}>Lighting</button>
-        <button className={clsx(styles.tabButton, activeTab === 'fog' && 'active')} onClick={() => setActiveTab('fog')}>Fog</button>
-        <button className={clsx(styles.tabButton, activeTab === 'measurement' && 'active')} onClick={() => setActiveTab('measurement')}>Measurement</button>
-        <button className={clsx(styles.tabButton, activeTab === 'backgrounds' && 'active')} onClick={() => setActiveTab('backgrounds')}>Backgrounds</button>
-        <button className={clsx(styles.tabButton, activeTab === 'performance' && 'active')} onClick={() => setActiveTab('performance')}>Performance</button>
-        <button className={clsx(styles.tabButton, activeTab === 'customize' && 'active')} onClick={() => setActiveTab('customize')}>Customize</button>
-        {isDevelopment && <button className={clsx(styles.tabButton, activeTab === 'table-tools' && 'active')} onClick={() => setActiveTab('table-tools')}>Table Tools</button>}
-        {isDevelopment && <button className={clsx(styles.tabButton, activeTab === 'sync' && 'active')} onClick={() => setActiveTab('sync')}>Sync</button>}
-        {isDevelopment && <button className={clsx(styles.tabButton, activeTab === 'actions' && 'active')} onClick={() => setActiveTab('actions')}>Actions</button>}
-        {isDevelopment && <button className={clsx(styles.tabButton, activeTab === 'queue' && 'active')} onClick={() => setActiveTab('queue')}>Queue</button>}
-        {isDevelopment && <button className={clsx(styles.tabButton, activeTab === 'assets' && 'active')} onClick={() => setActiveTab('assets')}>Assets</button>}
-        {isDevelopment && <button className={clsx(styles.tabButton, activeTab === 'network' && 'active')} onClick={() => setActiveTab('network')}>Network</button>}
+      <div className={styles.tabsContainer} role="tablist" aria-label="Panel navigation">
+        <button role="tab" aria-selected={activeTab === 'compendium'} className={clsx(styles.tabButton, activeTab === 'compendium' && 'active')} onClick={() => setActiveTab('compendium')}>Compendium</button>
+        <button role="tab" aria-selected={activeTab === 'tables'} className={clsx(styles.tabButton, activeTab === 'tables' && 'active')} onClick={() => setActiveTab('tables')}>Tables</button>
+        <button role="tab" aria-selected={activeTab === 'quick-actions'} className={clsx(styles.tabButton, activeTab === 'quick-actions' && 'active')} onClick={() => setActiveTab('quick-actions')}>Quick Actions</button>
+        <button role="tab" aria-selected={activeTab === 'characters'} className={clsx(styles.tabButton, activeTab === 'characters' && 'active')} onClick={() => setActiveTab('characters')}>Characters</button>
+        <button role="tab" aria-selected={activeTab === 'players'} className={clsx(styles.tabButton, activeTab === 'players' && 'active')} onClick={() => setActiveTab('players')}>Players</button>
+        <button role="tab" aria-selected={activeTab === 'initiative'} className={clsx(styles.tabButton, activeTab === 'initiative' && 'active')} onClick={() => setActiveTab('initiative')}>Initiative</button>
+        <button role="tab" aria-selected={activeTab === 'entities'} className={clsx(styles.tabButton, activeTab === 'entities' && 'active')} onClick={() => setActiveTab('entities')}>Entities</button>
+        <button role="tab" aria-selected={activeTab === 'chat'} className={clsx(styles.tabButton, activeTab === 'chat' && 'active')} onClick={() => setActiveTab('chat')}>Chat</button>
+        <button role="tab" aria-selected={activeTab === 'lighting'} className={clsx(styles.tabButton, activeTab === 'lighting' && 'active')} onClick={() => setActiveTab('lighting')}>Lighting</button>
+        <button role="tab" aria-selected={activeTab === 'fog'} className={clsx(styles.tabButton, activeTab === 'fog' && 'active')} onClick={() => setActiveTab('fog')}>Fog</button>
+        <button role="tab" aria-selected={activeTab === 'measurement'} className={clsx(styles.tabButton, activeTab === 'measurement' && 'active')} onClick={() => setActiveTab('measurement')}>Measurement</button>
+        <button role="tab" aria-selected={activeTab === 'backgrounds'} className={clsx(styles.tabButton, activeTab === 'backgrounds' && 'active')} onClick={() => setActiveTab('backgrounds')}>Backgrounds</button>
+        <button role="tab" aria-selected={activeTab === 'performance'} className={clsx(styles.tabButton, activeTab === 'performance' && 'active')} onClick={() => setActiveTab('performance')}>Performance</button>
+        <button role="tab" aria-selected={activeTab === 'customize'} className={clsx(styles.tabButton, activeTab === 'customize' && 'active')} onClick={() => setActiveTab('customize')}>Customize</button>
+        {isDevelopment && <button role="tab" aria-selected={activeTab === 'table-tools'} className={clsx(styles.tabButton, activeTab === 'table-tools' && 'active')} onClick={() => setActiveTab('table-tools')}>Table Tools</button>}
+        {isDevelopment && <button role="tab" aria-selected={activeTab === 'sync'} className={clsx(styles.tabButton, activeTab === 'sync' && 'active')} onClick={() => setActiveTab('sync')}>Sync</button>}
+        {isDevelopment && <button role="tab" aria-selected={activeTab === 'actions'} className={clsx(styles.tabButton, activeTab === 'actions' && 'active')} onClick={() => setActiveTab('actions')}>Actions</button>}
+        {isDevelopment && <button role="tab" aria-selected={activeTab === 'queue'} className={clsx(styles.tabButton, activeTab === 'queue' && 'active')} onClick={() => setActiveTab('queue')}>Queue</button>}
+        {isDevelopment && <button role="tab" aria-selected={activeTab === 'assets'} className={clsx(styles.tabButton, activeTab === 'assets' && 'active')} onClick={() => setActiveTab('assets')}>Assets</button>}
+        {isDevelopment && <button role="tab" aria-selected={activeTab === 'network'} className={clsx(styles.tabButton, activeTab === 'network' && 'active')} onClick={() => setActiveTab('network')}>Network</button>}
       </div>
-      <div className={styles.tabContent}>
+      <div className={styles.tabContent} role="tabpanel" aria-label={`${activeTab} panel`}>
         {activeTab === 'tables' && <TableManagementPanel />}
         {activeTab === 'quick-actions' && <ActionsQuickPanel renderEngine={window.rustRenderManager as any || null} />}
         {isDevelopment && activeTab === 'table-tools' && <TablePanel />}

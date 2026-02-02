@@ -43,6 +43,7 @@ export const mockWasmManager = {
   getActionsClient: vi.fn(() => Promise.resolve({})),
   getAssetManager: vi.fn(() => Promise.resolve({
     initialize: vi.fn().mockResolvedValue(undefined),
+    set_max_cache_size: vi.fn(),
     get_cache_stats: vi.fn().mockReturnValue(JSON.stringify({
       total_assets: 0,
       total_size: 0,

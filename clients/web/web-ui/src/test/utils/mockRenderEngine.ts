@@ -31,7 +31,9 @@ export function createMockRenderEngine() {
     set_light_color: vi.fn(),
     set_light_intensity: vi.fn(),
     set_light_radius: vi.fn(),
+    update_light_position: vi.fn(),
     get_light_count: vi.fn(() => 0),
+    get_light_at_position: vi.fn(() => 0),
 
     // Paint System
     paint_set_brush_color: vi.fn(),
@@ -93,6 +95,9 @@ export function createMockRenderEngine() {
   // Sprite helpers used in tests
   get_sprite_info: vi.fn((id: string) => ({ id, x: 0, y: 0, width: 32, height: 32 })),
   get_sprite_count: vi.fn(() => 0),
+  get_layer_sprite_count: vi.fn(() => 0),
+  set_layer_visible: vi.fn(),
+  set_layer_opacity: vi.fn(),
   find_sprites_at: vi.fn(( _x: number, _y: number) => []),
 
   // Actions subsystem hooks expected by useActions
@@ -122,6 +127,7 @@ export function createMockRenderEngine() {
   // Provide a minimal manager object for asset manager initialization paths
   (__singleton as any).manager = {
     initialize: vi.fn().mockResolvedValue(undefined),
+    set_max_cache_size: vi.fn(),
   };
 
   return __singleton;

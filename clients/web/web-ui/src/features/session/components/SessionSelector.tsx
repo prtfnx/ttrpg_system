@@ -102,12 +102,21 @@ export function SessionSelector({ onSessionSelected }: SessionSelectorProps) {
         </button>
       </div>
       
-      <div className={styles.sessionsGrid}>
+      <div className={styles.sessionsGrid} role="list" aria-label="Available game sessions">
         {sessions.map((session) => (
           <div 
             key={session.session_code}
+            role="listitem"
+            aria-label={`Session: ${session.session_name}, Role: ${session.role}`}
             className={clsx(styles.sessionCard, styles[session.role])}
             onClick={() => handleSessionClick(session)}
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleSessionClick(session);
+              }
+            }}
           >
             <div className={styles.sessionInfo}>
               <h3>{session.session_name}</h3>
@@ -124,7 +133,14 @@ export function SessionSelector({ onSessionSelected }: SessionSelectorProps) {
             </div>
             
             <div>
-              <button className={styles.joinBtn}>
+              <button 
+                className={styles.joinBtn}
+                aria-label={`Join ${session.session_name} as ${session.role}`}
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent double-trigger from parent click
+                  handleSessionClick(session);
+                }}
+              >
                 Join Game
               </button>
             </div>

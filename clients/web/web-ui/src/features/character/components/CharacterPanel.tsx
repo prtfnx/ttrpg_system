@@ -147,7 +147,7 @@ function CharacterPanel() {
         </div>
       )}
 
-      <div className={styles.characterList}>
+      <div className={styles.characterList} role="list" aria-label="Character list">
         {characters.length === 0 && (
           <div className={styles.emptyState}>No characters yet. Click <strong>+</strong> to create one.</div>
         )}
@@ -164,8 +164,11 @@ function CharacterPanel() {
           const canEdit = canEditCharacter(char.id, currentUserId);
 
           return (
-            <div
+            <article
               key={char.id}
+              role="listitem"
+              aria-expanded={isExpanded}
+              aria-label={`Character: ${char.name}`}
               className={clsx(styles.characterCard, isSelected && "selected", isExpanded && "expanded", isBulkSelected && "bulkSelected")}
               draggable={!bulkSelectMode}
               onDragStart={e => handleDragStart(e, char.id)}
@@ -248,7 +251,7 @@ function CharacterPanel() {
                   </div>
                 </div>
               )}
-            </div>
+            </article>
           );
         })}
       </div>

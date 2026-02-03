@@ -1,6 +1,6 @@
+import type { UserInfo } from '@features/auth';
 import React from 'react';
 import { vi } from 'vitest';
-import type { UserInfo } from '@features/auth';
 
 interface MockAuthContextValue {
   user: UserInfo | null;

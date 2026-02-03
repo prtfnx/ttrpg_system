@@ -244,9 +244,9 @@ function CharacterPanel() {
                     );
                   })}
                 </div>
-                <button className={styles.charExpandBtn} onClick={e => { e.stopPropagation(); handleCharacterClick(char.id); }}>
+                <span className={styles.charExpandBtn} aria-hidden="true">
                   {isExpanded ? '▼' : '▶'}
-                </button>
+                </span>
               </button>
 
               {isExpanded && (

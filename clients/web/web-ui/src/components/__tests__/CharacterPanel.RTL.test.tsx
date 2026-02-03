@@ -7,7 +7,7 @@ import { useGameStore } from '../../store';
 import { createTestCharacter, createTestSprite } from '../../test/utils/testFactories';
 
 // Mock external dependencies
-vi.mock('../../services/auth.service', () => ({
+vi.mock('@features/auth', () => ({
   authService: {
     getUserInfo: vi.fn(() => ({ id: 1, username: 'testuser' })),
     login: vi.fn(),

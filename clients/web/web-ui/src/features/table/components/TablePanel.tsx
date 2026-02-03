@@ -116,10 +116,13 @@ const TablePanel: React.FC = () => {
         </div>
       )}
 
-      <div className={styles.tablesList}>
+      <div className={styles.tablesList} role="listbox" aria-label="Available tables">
         {tables.map((table: TableInfo) => (
           <div 
             key={table.table_id}
+            role="option"
+            aria-selected={table.table_id === activeTableId}
+            aria-label={table.table_name}
             className={clsx(styles.tableItem, table.table_id === activeTableId && styles.active)}
           >
             <div className={styles.tableHeader}>
@@ -133,6 +136,7 @@ const TablePanel: React.FC = () => {
                 className={styles.removeTableBtn}
                 onClick={() => removeTable(table.table_id)}
                 title="Remove table"
+                aria-label={`Delete ${table.table_name}`}
               >
                 ×
               </button>

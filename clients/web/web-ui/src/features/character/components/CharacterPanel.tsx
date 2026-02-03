@@ -105,7 +105,14 @@ function CharacterPanel() {
               </button>
             </>
           )}
-          <button className={styles.createBtn} onClick={handleCreateCharacter} title="Create New Character" data-testid="create-character-btn">+</button>
+          <button 
+            className={styles.createBtn} 
+            onClick={handleCreateCharacter} 
+            aria-label="Create New Character"
+            data-testid="create-character-btn"
+          >
+            +
+          </button>
         </div>
       </div>
 
@@ -139,7 +146,22 @@ function CharacterPanel() {
               }}
             />
             {searchFilter && (
-              <button onClick={() => setSearchFilter('')} style={{ position: 'absolute', right: '8px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--text-secondary)', padding: '4px' }} title="Clear">
+              <button 
+                onClick={() => setSearchFilter('')} 
+                style={{ 
+                  position: 'absolute', 
+                  right: '8px', 
+                  background: 'transparent', 
+                  border: 'none', 
+                  cursor: 'pointer', 
+                  fontSize: '16px', 
+                  color: 'var(--text-secondary)', 
+                  padding: '4px' 
+                }} 
+                aria-label="Clear search"
+                type="button"
+                title="Clear"
+              >
                 ✕
               </button>
             )}
@@ -185,7 +207,13 @@ function CharacterPanel() {
                 </div>
               )}
               
-              <div className={styles.characterHeader} onClick={() => bulkSelectMode ? handleToggleCharacterSelection(char.id) : handleCharacterClick(char.id)}>
+              <button 
+                className={styles.characterHeader} 
+                onClick={() => bulkSelectMode ? handleToggleCharacterSelection(char.id) : handleCharacterClick(char.id)}
+                aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${char.name}`}
+                aria-expanded={isExpanded}
+                type="button"
+              >
                 <div className={styles.charAvatar}>{char.name.charAt(0).toUpperCase()}</div>
                 <div className={styles.charInfo}>
                   <div className={styles.charName}>
@@ -219,7 +247,7 @@ function CharacterPanel() {
                 <button className={styles.charExpandBtn} onClick={e => { e.stopPropagation(); handleCharacterClick(char.id); }}>
                   {isExpanded ? '▼' : '▶'}
                 </button>
-              </div>
+              </button>
 
               {isExpanded && (
                 <div className={styles.characterDetails}>

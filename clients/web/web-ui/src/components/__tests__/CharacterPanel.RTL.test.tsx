@@ -52,13 +52,45 @@ describe('CharacterPanel', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
-    // Reset store to clean state
-    const initial = useGameStore.getState();
-    useGameStore.setState(initial, true);
-    useGameStore.getState().setTables([]);
-    useGameStore.getState().setActiveTableId(null);
-    // Set current user ID for permission tests (use available method)
-    useGameStore.setState({ sessionUserId: 1 });
+    // Reset store state properties (keep action methods intact)
+    useGameStore.setState({
+      sprites: [],
+      characters: [],
+      selectedSprites: [],
+      camera: { x: 0, y: 0, zoom: 1 },
+      isConnected: false,
+      connectionState: 'disconnected',
+      sessionId: undefined,
+      sessionUserId: 1, // Set current user ID for permission tests
+      tables: [],
+      activeTableId: null,
+      tablesLoading: false,
+      activeLayer: 'tokens',
+      layerVisibility: {
+        'map': true,
+        'tokens': true,
+        'dungeon_master': true,
+        'light': true,
+        'height': true,
+        'obstacles': true,
+        'fog_of_war': true
+      },
+      layerOpacity: {
+        'map': 1.0,
+        'tokens': 1.0,
+        'dungeon_master': 1.0,
+        'light': 0.6,
+        'height': 0.7,
+        'obstacles': 1.0,
+        'fog_of_war': 0.8
+      },
+      gridEnabled: true,
+      gridSnapping: false,
+      gridSize: 50,
+      activeTool: 'select',
+      measurementActive: false,
+      alignmentActive: false,
+    }, false); // Merge, don't replace (keeps action methods)
     vi.clearAllMocks();
   });
 
@@ -103,15 +135,17 @@ describe('CharacterPanel', () => {
       const characterCard = screen.getByRole('listitem', { name: /character: expandable hero/i });
       expect(characterCard).toHaveAttribute('aria-expanded', 'false');
       
-      // Expand the card
-      await user.click(characterCard);
+      // Click the expand button to expand
+      const expandButton = screen.getByRole('button', { name: /expand expandable hero/i });
+      await user.click(expandButton);
       
       await waitFor(() => {
         expect(characterCard).toHaveAttribute('aria-expanded', 'true');
       });
       
-      // Collapse by clicking again
-      await user.click(characterCard);
+      // Click the collapse button to collapse
+      const collapseButton = screen.getByRole('button', { name: /collapse expandable hero/i });
+      await user.click(collapseButton);
       
       await waitFor(() => {
         expect(characterCard).toHaveAttribute('aria-expanded', 'false');
@@ -156,11 +190,13 @@ describe('CharacterPanel', () => {
       useGameStore.getState().addCharacter(ownedCharacter);
       render(<CharacterPanel />);
       
-      // Expand owned character
-      const characterCard = screen.getByRole('listitem', { name: /character: my character/i });
-      await user.click(characterCard);
+      // Expand owned character by clicking the expand button
+      const expandButton = screen.getByRole('button', { name: /expand my character/i });
+      await user.click(expandButton);
       
+      const characterCard = screen.getByRole('listitem', { name: /character: my character/i });
       await waitFor(() => {
+        expect(characterCard).toHaveAttribute('aria-expanded', 'true');
         const deleteButton = screen.getByRole('button', { name: /delete/i });
         expect(deleteButton).toBeInTheDocument();
         expect(deleteButton).toBeEnabled();
@@ -199,9 +235,11 @@ describe('CharacterPanel', () => {
       useGameStore.getState().addCharacter(controlledCharacter);
       render(<CharacterPanel />);
       
-      const characterCard = screen.getByRole('listitem', { name: /character: controlled character/i });
-      await user.click(characterCard);
+      // Expand by clicking the expand button
+      const expandButton = screen.getByRole('button', { name: /expand controlled character/i });
+      await user.click(expandButton);
       
+      const characterCard = screen.getByRole('listitem', { name: /character: controlled character/i });
       // User should see the character and have some controls
       await waitFor(() => {
         expect(characterCard).toHaveAttribute('aria-expanded', 'true');

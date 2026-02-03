@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGameStore } from '../../stores/gameStore';
 
 // Mock ProtocolService only (WASM is auto-mocked via vitest.config.ts)
-vi.mock('../../services/ProtocolService', () => ({
+vi.mock('@lib/api', () => ({
   ProtocolService: {
     hasProtocol: vi.fn(),
     getProtocol: vi.fn(),
@@ -16,6 +16,7 @@ vi.mock('../../services/ProtocolService', () => ({
 describe('ToolsPanel - Ping Toggle Tests', () => {
   let mockStartPing: ReturnType<typeof vi.fn>;
   let mockStopPing: ReturnType<typeof vi.fn>;
+  let mockIsPingEnabled: ReturnType<typeof vi.fn>;
   const mockUserInfo = { id: 123, username: 'testuser', role: 'player' as const, permissions: [] };
 
   beforeEach(() => {
@@ -29,12 +30,20 @@ describe('ToolsPanel - Ping Toggle Tests', () => {
     // Create mock protocol methods
     mockStartPing = vi.fn();
     mockStopPing = vi.fn();
+    mockIsPingEnabled = vi.fn(() => false);
+
+    // Mock window.rustRenderManager
+    (window as any).rustRenderManager = {
+      paint_is_mode: vi.fn(() => false),
+      paint_exit_mode: vi.fn(),
+    };
 
     // Setup ProtocolService mocks
     vi.mocked(ProtocolService.hasProtocol).mockReturnValue(true);
     vi.mocked(ProtocolService.getProtocol).mockReturnValue({
       startPing: mockStartPing,
       stopPing: mockStopPing,
+      isPingEnabled: mockIsPingEnabled,
     } as any);
 
     vi.clearAllMocks();

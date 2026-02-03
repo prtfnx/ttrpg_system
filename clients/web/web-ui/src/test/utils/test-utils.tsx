@@ -11,6 +11,8 @@ const mockAuthContextValue = {
     id: 1,
     username: 'testuser',
     isAuthenticated: true,
+    role: 'dm' as const,
+    permissions: ['view_session', 'edit_session', 'manage_characters'],
   } as UserInfo,
   token: 'mock-token-12345',
   isAuthenticated: true,
@@ -19,6 +21,7 @@ const mockAuthContextValue = {
   logout: vi.fn(),
   validateSession: vi.fn().mockResolvedValue(true),
   refreshToken: vi.fn().mockResolvedValue('new-mock-token'),
+  hasPermission: vi.fn((permission: string) => mockAuthContextValue.user.permissions.includes(permission)),
 };
 
 interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {

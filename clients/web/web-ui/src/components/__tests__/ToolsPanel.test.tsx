@@ -45,11 +45,11 @@ describe('ToolsPanel - Ping Toggle Tests', () => {
       render(<ToolsPanel userInfo={mockUserInfo} />);
 
       const pingCheckbox = screen.getByLabelText(/keep-alive ping/i);
-      expect(pingCheckbox).toBeDefined();
+      expect(pingCheckbox).toBeInTheDocument();
       expect((pingCheckbox as HTMLInputElement).checked).toBe(false);
 
       const statusText = screen.getByText(/inactive/i);
-      expect(statusText).toBeDefined();
+      expect(statusText).toBeInTheDocument();
     });
 
     it('should call startPing when toggle is enabled', async () => {
@@ -88,17 +88,17 @@ describe('ToolsPanel - Ping Toggle Tests', () => {
       
       // Initial state - inactive (○ symbol for inactive)
       let statusText = screen.getByText(/○ inactive/i);
-      expect(statusText).toBeDefined();
+      expect(statusText).toBeInTheDocument();
 
       // Enable ping (● symbol for active)
       await user.click(pingCheckbox);
       statusText = screen.getByText(/● active/i);
-      expect(statusText).toBeDefined();
+      expect(statusText).toBeInTheDocument();
 
       // Disable ping (○ symbol for inactive)
       await user.click(pingCheckbox);
       statusText = screen.getByText(/○ inactive/i);
-      expect(statusText).toBeDefined();
+      expect(statusText).toBeInTheDocument();
     });
 
     it('should not call protocol methods when protocol is not available', async () => {
@@ -165,7 +165,7 @@ describe('ToolsPanel - Ping Toggle Tests', () => {
       render(<ToolsPanel userInfo={mockUserInfo} />);
 
       const label = screen.getByText(/keep-alive ping \(30s\)/i);
-      expect(label).toBeDefined();
+      expect(label).toBeInTheDocument();
     });
   });
 

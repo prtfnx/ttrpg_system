@@ -111,10 +111,10 @@ describe('TokenConfigModal - Component UI Tests', () => {
 
       render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
 
-      expect(screen.getByText(/Token Configuration/i)).toBeDefined();
-      expect(screen.getByDisplayValue('25')).toBeDefined(); // HP
-      expect(screen.getByDisplayValue('50')).toBeDefined(); // MaxHP
-      expect(screen.getByDisplayValue('15')).toBeDefined(); // AC
+      expect(screen.getByText(/Token Configuration/i)).toBeInTheDocument();
+      expect(screen.getByDisplayValue('25')).toBeInTheDocument(); // HP
+      expect(screen.getByDisplayValue('50')).toBeInTheDocument(); // MaxHP
+      expect(screen.getByDisplayValue('15')).toBeInTheDocument(); // AC
     });
 
     it('should display HP bar with correct percentage', () => {
@@ -129,7 +129,7 @@ describe('TokenConfigModal - Component UI Tests', () => {
       render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
 
       // HP bar should show 30/100
-      expect(screen.getByText(/30.*100/)).toBeDefined();
+      expect(screen.getByText(/30.*100/)).toBeInTheDocument();
     });
 
     it('should render character selection dropdown', () => {
@@ -150,8 +150,8 @@ describe('TokenConfigModal - Component UI Tests', () => {
 
       render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
 
-      expect(screen.getByText(/-- No Character --/)).toBeDefined();
-      expect(screen.getByText(/Aragorn \(Lv 5 Ranger\)/)).toBeDefined();
+      expect(screen.getByText(/-- No Character --/)).toBeInTheDocument();
+      expect(screen.getByText(/Aragorn \(Lv 5 Ranger\)/)).toBeInTheDocument();
     });
   });
 
@@ -388,7 +388,7 @@ describe('TokenConfigModal - Component UI Tests', () => {
 
       render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
 
-      expect(screen.getByText(/Aragorn \(Lv 5 Ranger\)/)).toBeDefined();
+      expect(screen.getByText(/Aragorn \(Lv 5 Ranger\)/)).toBeInTheDocument();
     });
 
     it('should unlink character when selecting "No Character"', async () => {

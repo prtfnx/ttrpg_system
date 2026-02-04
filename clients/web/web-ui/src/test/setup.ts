@@ -208,11 +208,23 @@ const createMockWasmModule = () => ({
   },
   AssetManager: class MockAssetManager {
     initialize = vi.fn().mockResolvedValue(undefined);
-    set_max_cache_size = vi.fn();
-    set_max_age = vi.fn();
-    get_cache_stats = vi.fn(() => JSON.stringify({ total_assets: 0, total_size: 0 }));
+    set_max_cache_size = vi.fn((size: bigint) => undefined);
+    set_max_age = vi.fn((age: number) => undefined);
+    get_cache_stats = vi.fn(() => JSON.stringify({ 
+      total_assets: 0, 
+      total_size: 0,
+      cache_hits: 0,
+      cache_misses: 0,
+      evictions: 0
+    }));
     download_asset = vi.fn().mockResolvedValue('asset_id');
-    has_asset = vi.fn(() => true);
+    has_asset = vi.fn((id: string) => true);
+    get_asset = vi.fn((id: string) => new Uint8Array(0));
+    list_assets = vi.fn(() => JSON.stringify([]));
+    cleanup_cache = vi.fn().mockResolvedValue(undefined);
+    clear_cache = vi.fn().mockResolvedValue(undefined);
+    calculate_asset_hash = vi.fn((data: Uint8Array) => 'mock_hash_' + data.length);
+    remove_asset = vi.fn((id: string) => true);
   },
   TableManager: class MockTableManager {
     create_table = vi.fn(() => true);
@@ -278,6 +290,25 @@ beforeAll(() => {
     screen_to_world: vi.fn((x: number, y: number) => [x, y]),
     create_text_sprite: vi.fn(() => 'text_sprite_1'),
     free: vi.fn(),
+    // Sprite syncing methods
+    get_all_sprites_network_data: vi.fn(() => []),
+    // Paint tool methods
+    paint_is_mode: vi.fn(() => false),
+    paint_set_mode: vi.fn(),
+    paint_enter_mode: vi.fn((width: number, height: number) => undefined),
+    paint_exit_mode: vi.fn(),
+    paint_get_brush_size: vi.fn(() => 5),
+    paint_set_brush_size: vi.fn(),
+    paint_get_color: vi.fn(() => '#000000'),
+    paint_set_color: vi.fn(),
+    // Input mode methods
+    set_input_mode_select: vi.fn(),
+    set_input_mode_measurement: vi.fn(),
+    set_input_mode_create_rectangle: vi.fn(),
+    set_input_mode_create_circle: vi.fn(),
+    set_input_mode_create_line: vi.fn(),
+    set_input_mode_create_text: vi.fn(),
+    set_input_mode_paint: vi.fn(),
   };
 });
 

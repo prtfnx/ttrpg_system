@@ -4,18 +4,19 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionSelector } from '../../features/session/components/SessionSelector';
 
-// Mock authService properly
-const mockAuthService = {
-  getUserSessions: vi.fn(),
-  logout: vi.fn(),
-};
-
+// Mock authService - using factory function to avoid hoisting issues
 vi.mock('../../services/auth.service', () => ({
-  authService: mockAuthService,
+  authService: {
+    getUserSessions: vi.fn(),
+    logout: vi.fn(),
+  }
 }));
 
 vi.mock('@features/auth', () => ({
-  authService: mockAuthService,
+  authService: {
+    getUserSessions: vi.fn(),
+    logout: vi.fn(),
+  },
   type: {} // Add type export stub
 }));
 

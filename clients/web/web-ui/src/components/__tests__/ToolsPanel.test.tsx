@@ -1,10 +1,10 @@
+import type { UserInfo } from '@features/auth';
 import { ToolsPanel } from '@features/canvas';
 import { ProtocolService } from '@lib/api';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGameStore } from '../../stores/gameStore';
-import type { UserInfo } from '@features/auth';
 
 // Mock ProtocolService
 vi.mock('@lib/api', () => ({

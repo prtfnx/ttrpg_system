@@ -1,26 +1,21 @@
 import '@testing-library/jest-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionSelector } from '../../features/session/components/SessionSelector';
 
-// Mock authService - using factory function to avoid hoisting issues
-vi.mock('../../services/auth.service', () => ({
-  authService: {
-    getUserSessions: vi.fn(),
-    logout: vi.fn(),
-  }
-}));
+// Mock authService
+const mockAuthService = {
+  getUserSessions: vi.fn(),
+  logout: vi.fn(),
+};
 
 vi.mock('@features/auth', () => ({
-  authService: {
-    getUserSessions: vi.fn(),
-    logout: vi.fn(),
-  },
-  type: {} // Add type export stub
+  authService: mockAuthService,
+  type: {} as any,
 }));
 
-describe('SessionSelector', () => {
+describe('SessionSelector - User Behavior Tests', () => {
   const user = userEvent.setup();
   const mockOnSessionSelected = vi.fn();
   
@@ -28,13 +23,13 @@ describe('SessionSelector', () => {
     {
       session_code: 'DMG001',
       session_name: 'Dragon Heist Campaign',
-      role: 'dm',
+      role: 'dm' as const,
       created_at: '2025-01-15T10:00:00Z',
     },
     {
       session_code: 'PLR002',
       session_name: 'Storm King\'s Thunder',
-      role: 'player',
+      role: 'player' as const,
       created_at: '2025-01-10T14:30:00Z',
     },
   ];
@@ -43,10 +38,6 @@ describe('SessionSelector', () => {
     vi.clearAllMocks();
     // Default: successful session load
     mockAuthService.getUserSessions.mockResolvedValue(mockSessions);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   describe('Loading State', () => {

@@ -300,6 +300,11 @@ beforeAll(() => {
     screen_to_world: vi.fn((x: number, y: number) => [x, y]),
     create_text_sprite: vi.fn(() => 'text_sprite_1'),
     free: vi.fn(),
+    // Grid system methods
+    set_grid_enabled: vi.fn(),
+    get_grid_enabled: vi.fn(() => true),
+    set_grid_size: vi.fn(),
+    get_grid_size: vi.fn(() => 50),
     // Sprite syncing methods
     get_all_sprites_network_data: vi.fn(() => []),
     // Paint tool methods

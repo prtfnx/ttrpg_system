@@ -74,17 +74,17 @@ describe('Advanced Map System - Tactical TTRPG Mapping', () => {
       const gridSnapToggle = screen.getByLabelText('Snap to Grid');
       await user.click(gridSnapToggle);
       
-      // Place token at precise position
-      const monsterToken = screen.getByTestId('draggable-token-npc-beast');
+      // Use dragon token instead of non-existent npc-beast
+      const dragonToken = screen.getByTestId('draggable-token-dragon');
       
-      fireEvent.dragEnd(monsterToken, {
+      fireEvent.dragEnd(dragonToken, {
         clientX: 237, // Exact pixel position
         clientY: 194
       });
       
-      // Token should maintain exact position
+      // Token should maintain exact position (dragon token)
       await waitFor(() => {
-        const tokenElement = screen.getByTestId('token-npc-beast-position');
+        const tokenElement = screen.getByTestId('token-dragon-position');
         expect(tokenElement).toHaveStyle('left: 237px; top: 194px');
       });
     });

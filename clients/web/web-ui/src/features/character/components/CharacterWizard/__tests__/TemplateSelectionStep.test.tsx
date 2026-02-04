@@ -26,7 +26,7 @@ vi.mock('../../../data/characterTemplates', () => ({
       type: 'pc',
       name: 'Player Character',
       icon: '🎭',
-      description: 'Standard player character template',
+      description: 'Full character sheet for player characters with detailed stats, skills, equipment, and spells',
       data: { level: 1 }
     },
     {
@@ -34,7 +34,7 @@ vi.mock('../../../data/characterTemplates', () => ({
       type: 'pc',
       name: 'Wizard (Spellcaster)',
       icon: '🧙',
-      description: 'A powerful spellcaster',
+      description: 'A scholarly magic-user with full spellcasting capabilities',
       data: { class: 'Wizard', level: 1, int: 16 }
     },
     {
@@ -42,7 +42,7 @@ vi.mock('../../../data/characterTemplates', () => ({
       type: 'npc',
       name: 'NPC / Monster',
       icon: '👹',
-      description: 'Generic NPC or monster template',
+      description: 'Simplified stat block for NPCs, monsters, and creatures. Quick reference format for combat.',
       data: { type: 'npc', cr: 1, hp: 20 }
     },
     {
@@ -50,7 +50,7 @@ vi.mock('../../../data/characterTemplates', () => ({
       type: 'npc',
       name: 'NPC Humanoid (Guard)',
       icon: '🛡️',
-      description: 'Humanoid NPC like guards',
+      description: 'A standard humanoid NPC suitable for guards, bandits, or common folk',
       data: { type: 'npc', cr: 0.5, hp: 11 }
     },
     {
@@ -70,7 +70,7 @@ vi.mock('../../../data/characterTemplates', () => ({
           type: 'pc',
           name: 'Player Character',
           icon: '🎭',
-          description: 'Standard player character template',
+          description: 'Full character sheet for player characters with detailed stats, skills, equipment, and spells',
           data: { level: 1 }
         },
         {
@@ -78,7 +78,7 @@ vi.mock('../../../data/characterTemplates', () => ({
           type: 'pc',
           name: 'Wizard (Spellcaster)',
           icon: '🧙',
-          description: 'A powerful spellcaster',
+          description: 'A scholarly magic-user with full spellcasting capabilities',
           data: { class: 'Wizard', level: 1, int: 16 }
         },
       ],
@@ -88,7 +88,7 @@ vi.mock('../../../data/characterTemplates', () => ({
           type: 'npc',
           name: 'NPC / Monster',
           icon: '👹',
-          description: 'Generic NPC or monster template',
+          description: 'Simplified stat block for NPCs, monsters, and creatures. Quick reference format for combat.',
           data: { type: 'npc', cr: 1, hp: 20 }
         },
         {
@@ -96,7 +96,7 @@ vi.mock('../../../data/characterTemplates', () => ({
           type: 'npc',
           name: 'NPC Humanoid (Guard)',
           icon: '🛡️',
-          description: 'Humanoid NPC like guards',
+          description: 'A standard humanoid NPC suitable for guards, bandits, or common folk',
           data: { type: 'npc', cr: 0.5, hp: 11 }
         },
         {
@@ -250,8 +250,8 @@ describe('TemplateSelectionStep - PC Templates', () => {
       const icons = screen.getAllByText('🎭');
       expect(icons.length).toBeGreaterThan(0); // Icon appears in mode button and templates
       expect(screen.getByText('🧙')).toBeInTheDocument(); // Wizard icon
-      expect(screen.getByText(/Standard player character template/i)).toBeInTheDocument();
-      expect(screen.getByText(/powerful spellcaster/i)).toBeInTheDocument();
+      expect(screen.getByText(/Full character sheet for player characters/i)).toBeInTheDocument();
+      expect(screen.getByText(/scholarly magic-user with full spellcasting/i)).toBeInTheDocument();
     });
   });
 
@@ -335,8 +335,8 @@ describe('TemplateSelectionStep - NPC Templates', () => {
       expect(screen.getByText('👹')).toBeInTheDocument(); // NPC Monster icon
       expect(screen.getByText('🛡️')).toBeInTheDocument(); // Guard icon
       expect(screen.getByText('🐺')).toBeInTheDocument(); // Wolf icon
-      expect(screen.getByText(/Generic NPC or monster template/i)).toBeInTheDocument();
-      expect(screen.getByText(/Humanoid NPC like guards/i)).toBeInTheDocument();
+      expect(screen.getByText(/Simplified stat block for NPCs, monsters/i)).toBeInTheDocument();
+      expect(screen.getByText(/standard humanoid NPC suitable for guards/i)).toBeInTheDocument();
     });
   });
 
@@ -348,7 +348,7 @@ describe('TemplateSelectionStep - NPC Templates', () => {
       </TestWrapper>
     );
 
-    const npcModeButton = screen.getByRole('button', { name: /npc\\/monster.*simplified stat/i });
+    const npcModeButton = screen.getByRole('button', { name: /npc\/monster.*simplified stat/i });
     await user.click(npcModeButton);
 
     const templateCards = screen.getAllByRole('button').filter(btn => 
@@ -416,8 +416,10 @@ describe('TemplateSelectionStep - Scratch Mode', () => {
       </TestWrapper>
     );
 
-    expect(screen.queryByText('Player Character')).not.toBeInTheDocument();
-    expect(screen.queryByText('NPC / Monster')).not.toBeInTheDocument();
+    // Should not find any template cards (buttons with template-card class)
+    const allButtons = screen.getAllByRole('button');
+    const templateCards = allButtons.filter(btn => btn.classList.contains('template-card'));
+    expect(templateCards.length).toBe(0);
   });
 });
 

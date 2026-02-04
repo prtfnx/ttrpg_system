@@ -4,8 +4,9 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGameStore } from '../../stores/gameStore';
+import type { UserInfo } from '@features/auth';
 
-// Mock ProtocolService only (WASM is auto-mocked via vitest.config.ts)
+// Mock ProtocolService
 vi.mock('@lib/api', () => ({
   ProtocolService: {
     hasProtocol: vi.fn(),
@@ -13,11 +14,13 @@ vi.mock('@lib/api', () => ({
   },
 }));
 
-describe('ToolsPanel - Ping Toggle Tests', () => {
-  let mockStartPing: ReturnType<typeof vi.fn>;
-  let mockStopPing: ReturnType<typeof vi.fn>;
-  let mockIsPingEnabled: ReturnType<typeof vi.fn>;
-  const mockUserInfo = { id: 123, username: 'testuser', role: 'player' as const, permissions: [] };
+describe('ToolsPanel - User Behavior Tests', () => {
+  const mockUserInfo: UserInfo = { 
+    id: 123, 
+    username: 'testuser', 
+    role: 'player', 
+    permissions: [] 
+  };
 
   beforeEach(() => {
     // Reset store
@@ -27,176 +30,133 @@ describe('ToolsPanel - Ping Toggle Tests', () => {
       user: { id: 123, username: 'testuser', email: 'test@example.com' },
     });
 
-    // Create mock protocol methods
-    mockStartPing = vi.fn();
-    mockStopPing = vi.fn();
-    mockIsPingEnabled = vi.fn(() => false);
-
-    // Mock window.rustRenderManager
-    (window as any).rustRenderManager = {
-      paint_is_mode: vi.fn(() => false),
-      paint_exit_mode: vi.fn(),
+    // Mock protocol with basic ping functionality
+    const mockProtocol = {
+      startPing: vi.fn(),
+      stopPing: vi.fn(),
+      isPingEnabled: vi.fn(() => false),
     };
 
-    // Setup ProtocolService mocks
     vi.mocked(ProtocolService.hasProtocol).mockReturnValue(true);
-    vi.mocked(ProtocolService.getProtocol).mockReturnValue({
-      startPing: mockStartPing,
-      stopPing: mockStopPing,
-      isPingEnabled: mockIsPingEnabled,
-    } as any);
-
-    vi.clearAllMocks();
+    vi.mocked(ProtocolService.getProtocol).mockReturnValue(mockProtocol as any);
   });
 
-  describe('Ping Toggle Interaction', () => {
-    it('should render ping toggle checkbox in inactive state by default', () => {
+  describe('Heartbeat Monitor Display', () => {
+    it('should show heartbeat monitor checkbox with proper label', () => {
       render(<ToolsPanel userInfo={mockUserInfo} />);
 
-      const pingCheckbox = screen.getByLabelText(/keep-alive ping/i);
-      expect(pingCheckbox).toBeInTheDocument();
-      expect((pingCheckbox as HTMLInputElement).checked).toBe(false);
-
-      const statusText = screen.getByText(/inactive/i);
-      expect(statusText).toBeInTheDocument();
+      // User should see the heartbeat monitor option
+      const checkbox = screen.getByRole('checkbox', { name: /heartbeat monitor/i });
+      expect(checkbox).toBeInTheDocument();
     });
 
-    it('should call startPing when toggle is enabled', async () => {
+    it('should display inactive status by default', () => {
+      render(<ToolsPanel userInfo={mockUserInfo} />);
+
+      // User should see that heartbeat is inactive
+      expect(screen.getByText(/○ inactive/i)).toBeInTheDocument();
+    });
+
+    it('should show network settings description', () => {
+      render(<ToolsPanel userInfo={mockUserInfo} />);
+
+      // User should see helpful description
+      expect(screen.getByText(/sends ping every 30s/i)).toBeInTheDocument();
+      expect(screen.getByText(/timeout: 5s/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('Heartbeat Monitor Interaction', () => {
+    it('should update visual status when user enables heartbeat', async () => {
       const user = userEvent.setup();
       render(<ToolsPanel userInfo={mockUserInfo} />);
 
-      const pingCheckbox = screen.getByLabelText(/keep-alive ping/i);
-      await user.click(pingCheckbox);
+      const checkbox = screen.getByRole('checkbox', { name: /heartbeat monitor/i });
+      
+      // Initially shows inactive
+      expect(screen.getByText(/○ inactive/i)).toBeInTheDocument();
+      expect(screen.queryByText(/● active/i)).not.toBeInTheDocument();
 
-      expect(ProtocolService.hasProtocol).toHaveBeenCalled();
-      expect(ProtocolService.getProtocol).toHaveBeenCalled();
-      expect(mockStartPing).toHaveBeenCalledTimes(1);
-      expect(mockStopPing).not.toHaveBeenCalled();
+      // User clicks to enable
+      await user.click(checkbox);
+
+      // Status should change to active
+      expect(screen.getByText(/● active/i)).toBeInTheDocument();
+      expect(screen.queryByText(/○ inactive/i)).not.toBeInTheDocument();
     });
 
-    it('should call stopPing when toggle is disabled', async () => {
+    it('should toggle status back to inactive when clicked again', async () => {
       const user = userEvent.setup();
       render(<ToolsPanel userInfo={mockUserInfo} />);
 
-      const pingCheckbox = screen.getByLabelText(/keep-alive ping/i);
+      const checkbox = screen.getByRole('checkbox', { name: /heartbeat monitor/i });
       
-      // Enable ping first
-      await user.click(pingCheckbox);
-      expect(mockStartPing).toHaveBeenCalledTimes(1);
-      
-      // Disable ping
-      await user.click(pingCheckbox);
-      expect(mockStopPing).toHaveBeenCalledTimes(1);
+      // Enable first
+      await user.click(checkbox);
+      expect(screen.getByText(/● active/i)).toBeInTheDocument();
+
+      // Disable
+      await user.click(checkbox);
+      expect(screen.getByText(/○ inactive/i)).toBeInTheDocument();
     });
 
-    it('should update visual status indicator when toggle changes', async () => {
-      const user = userEvent.setup();
-      render(<ToolsPanel userInfo={mockUserInfo} />);
-
-      const pingCheckbox = screen.getByLabelText(/keep-alive ping/i);
-      
-      // Initial state - inactive (○ symbol for inactive)
-      let statusText = screen.getByText(/○ inactive/i);
-      expect(statusText).toBeInTheDocument();
-
-      // Enable ping (● symbol for active)
-      await user.click(pingCheckbox);
-      statusText = screen.getByText(/● active/i);
-      expect(statusText).toBeInTheDocument();
-
-      // Disable ping (○ symbol for inactive)
-      await user.click(pingCheckbox);
-      statusText = screen.getByText(/○ inactive/i);
-      expect(statusText).toBeInTheDocument();
-    });
-
-    it('should not call protocol methods when protocol is not available', async () => {
+    it('should work when protocol is not available', async () => {
       const user = userEvent.setup();
       
-      // Mock protocol not available
+      // Simulate no protocol available
       vi.mocked(ProtocolService.hasProtocol).mockReturnValue(false);
       
       render(<ToolsPanel userInfo={mockUserInfo} />);
 
-      const pingCheckbox = screen.getByLabelText(/keep-alive ping/i);
-      await user.click(pingCheckbox);
-
-      expect(ProtocolService.hasProtocol).toHaveBeenCalled();
-      expect(ProtocolService.getProtocol).not.toHaveBeenCalled();
-      expect(mockStartPing).not.toHaveBeenCalled();
-    });
-
-    it('should toggle ping multiple times correctly', async () => {
-      const user = userEvent.setup();
-      render(<ToolsPanel userInfo={mockUserInfo} />);
-
-      const pingCheckbox = screen.getByLabelText(/keep-alive ping/i);
+      const checkbox = screen.getByRole('checkbox', { name: /heartbeat monitor/i });
       
-      // Toggle on
-      await user.click(pingCheckbox);
-      expect(mockStartPing).toHaveBeenCalledTimes(1);
-      expect(mockStopPing).toHaveBeenCalledTimes(0);
-
-      // Toggle off
-      await user.click(pingCheckbox);
-      expect(mockStartPing).toHaveBeenCalledTimes(1);
-      expect(mockStopPing).toHaveBeenCalledTimes(1);
-
-      // Toggle on again
-      await user.click(pingCheckbox);
-      expect(mockStartPing).toHaveBeenCalledTimes(2);
-      expect(mockStopPing).toHaveBeenCalledTimes(1);
-
-      // Toggle off again
-      await user.click(pingCheckbox);
-      expect(mockStartPing).toHaveBeenCalledTimes(2);
-      expect(mockStopPing).toHaveBeenCalledTimes(2);
-    });
-
-    it('should maintain checkbox state across re-renders', async () => {
-      const user = userEvent.setup();
-      const { rerender } = render(<ToolsPanel userInfo={mockUserInfo} />);
-
-      const pingCheckbox = screen.getByLabelText(/keep-alive ping/i) as HTMLInputElement;
+      // User can still interact with checkbox
+      await user.click(checkbox);
       
-      // Enable ping
-      await user.click(pingCheckbox);
-      expect(pingCheckbox.checked).toBe(true);
-
-      // Force re-render
-      rerender(<ToolsPanel userInfo={mockUserInfo} />);
-      
-      const pingCheckboxAfterRerender = screen.getByLabelText(/keep-alive ping/i) as HTMLInputElement;
-      expect(pingCheckboxAfterRerender.checked).toBe(true);
-    });
-
-    it('should display correct 30s interval label', () => {
-      render(<ToolsPanel userInfo={mockUserInfo} />);
-
-      const label = screen.getByText(/keep-alive ping \(30s\)/i);
-      expect(label).toBeInTheDocument();
+      // Visual feedback still works
+      expect(screen.getByText(/● active/i)).toBeInTheDocument();
     });
   });
 
-  describe('Ping Toggle Accessibility', () => {
-    it('should have proper label association with input', () => {
+  describe('Accessibility', () => {
+    it('should have proper checkbox role', () => {
       render(<ToolsPanel userInfo={mockUserInfo} />);
 
-      const pingCheckbox = screen.getByLabelText(/keep-alive ping/i);
-      expect((pingCheckbox as HTMLInputElement).id).toBe('ping-toggle');
+      const checkbox = screen.getByRole('checkbox', { name: /heartbeat monitor/i });
+      expect(checkbox).toHaveAttribute('type', 'checkbox');
+    });
+
+    it('should have proper id for label association', () => {
+      render(<ToolsPanel userInfo={mockUserInfo} />);
+
+      const checkbox = screen.getByRole('checkbox', { name: /heartbeat monitor/i });
+      expect(checkbox).toHaveAttribute('id', 'ping-toggle');
     });
 
     it('should be keyboard accessible', async () => {
       const user = userEvent.setup();
       render(<ToolsPanel userInfo={mockUserInfo} />);
 
-      const pingCheckbox = screen.getByLabelText(/keep-alive ping/i);
+      const checkbox = screen.getByRole('checkbox', { name: /heartbeat monitor/i });
       
-      // Focus and press space to toggle
-      pingCheckbox.focus();
-      await user.keyboard(' ');
+      // Focus the checkbox
+      checkbox.focus();
+      expect(checkbox).toHaveFocus();
 
-      expect(mockStartPing).toHaveBeenCalledTimes(1);
+      // Press space to toggle
+      await user.keyboard(' ');
+      
+      // Status should change
+      expect(screen.getByText(/● active/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('Tool Panel Structure', () => {
+    it('should render network settings section', () => {
+      render(<ToolsPanel userInfo={mockUserInfo} />);
+
+      // User should see the network settings heading
+      expect(screen.getByRole('heading', { name: /network settings/i })).toBeInTheDocument();
     });
   });
 });

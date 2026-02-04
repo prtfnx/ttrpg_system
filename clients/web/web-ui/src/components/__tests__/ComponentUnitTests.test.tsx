@@ -63,11 +63,11 @@ import { renderWithProviders } from '../../test/utils/test-utils';
 const render = renderWithProviders;
 
 // Core UI components that should exist
+import { AuthProvider } from '@features/auth/components/AuthContext';
 import { LayerPanel } from '@features/canvas';
 import { CharacterSheet } from '@features/character';
 import { CompendiumPanel } from '@features/compendium';
 import { MapPanel } from '@features/table';
-import { AuthProvider } from '@features/auth/components/AuthContext';
 
 // Mock the auth service to provide authenticated user for tests
 import { vi } from 'vitest';

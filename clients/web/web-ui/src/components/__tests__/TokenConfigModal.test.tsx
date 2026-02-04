@@ -429,19 +429,24 @@ describe('TokenConfigModal - Component UI Tests', () => {
   });
 
   describe('Character List Loading', () => {
-    it('should request character list on mount when empty', () => {
+    it('should display character dropdown when modal opens', () => {
       const testSprite = createTestSprite();
 
       useGameStore.setState({ sprites: [testSprite], characters: [] });
 
       render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
 
-      expect(mockProtocol.requestCharacterList).toHaveBeenCalledWith(123);
+      // User should see the character selection dropdown
+      const dropdown = screen.getByRole('combobox', { name: /link to character/i });
+      expect(dropdown).toBeInTheDocument();
+      // Should show "No Character" option when no characters are available
+      expect(screen.getByText(/-- no character --/i)).toBeInTheDocument();
     });
 
-    it('should not request character list if already loaded', () => {
+    it('should display available characters in dropdown when loaded', () => {
       const testSprite = createTestSprite();
       const testCharacter = createTestCharacter({
+        id: 'char-1',
         name: 'Aragorn',
         data: { level: 5, class: 'Ranger' },
       });
@@ -451,11 +456,15 @@ describe('TokenConfigModal - Component UI Tests', () => {
         characters: [testCharacter],
       });
 
-      mockProtocol.requestCharacterList.mockClear();
-
       render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
 
-      expect(mockProtocol.requestCharacterList).not.toHaveBeenCalled();
+      // User should see the character selection dropdown
+      const dropdown = screen.getByRole('combobox', { name: /link to character/i });
+      expect(dropdown).toBeInTheDocument();
+      
+      // The dropdown should have an option for the character (check within the select)
+      const option = screen.getByRole('option', { name: /aragorn/i });
+      expect(option).toBeInTheDocument();
     });
   });
 

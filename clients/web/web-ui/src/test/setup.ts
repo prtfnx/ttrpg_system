@@ -72,12 +72,22 @@ globalThis.requestAnimationFrame = vi.fn((cb) => setTimeout(cb, 16));
 globalThis.cancelAnimationFrame = vi.fn((id) => clearTimeout(id));
 
 // Canvas context mock
-HTMLCanvasElement.prototype.getContext = vi.fn((type: string) => {
+HTMLCanvasElement.prototype.getContext = vi.fn(function(this: HTMLCanvasElement, type: string) {
   if (type === '2d') {
+    const canvas = this;
     return {
       fillRect: vi.fn(),
       clearRect: vi.fn(),
-      getImageData: vi.fn(() => ({ data: new Uint8ClampedArray(4), width: 1, height: 1 })),
+      getImageData: vi.fn((x: number, y: number, width: number, height: number) => {
+        // Return ImageData with requested dimensions, not always 1x1
+        const size = width * height * 4;
+        return { 
+          data: new Uint8ClampedArray(size), 
+          width, 
+          height,
+          colorSpace: 'srgb' as PredefinedColorSpace
+        };
+      }),
       putImageData: vi.fn(),
       drawImage: vi.fn(),
       save: vi.fn(),
@@ -92,7 +102,7 @@ HTMLCanvasElement.prototype.getContext = vi.fn((type: string) => {
       scale: vi.fn(),
       translate: vi.fn(),
       rotate: vi.fn(),
-      canvas: { width: 800, height: 600 },
+      canvas,
       fillStyle: '',
       strokeStyle: '',
       lineWidth: 1,

@@ -15,11 +15,11 @@ import React from 'react';
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 
 // Import actual existing components
-import EnhancedLogin from '@features/auth';
+import { EnhancedLogin } from '@features/auth';
 import { ErrorBoundary } from '@shared/components/ErrorBoundary';
 
 // Mock external dependencies properly  
-vi.mock('../../services/enhancedAuth.service', () => ({
+vi.mock('../../features/auth/services/enhancedAuth.service', () => ({
   enhancedAuthService: {
     login: vi.fn(),
     register: vi.fn(),

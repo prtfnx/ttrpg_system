@@ -32,7 +32,9 @@ export class SessionManager {
   private eventListeners: Map<string, Function[]> = new Map();
   private baseUrl: string;
 
-  constructor(baseUrl: string = 'ws://localhost:8000/ws') {
+  constructor(baseUrl: string = typeof window !== 'undefined' 
+    ? `ws://${window.location.hostname}:${window.location.port}/ws`
+    : 'ws://localhost:12345/ws') {
     this.baseUrl = baseUrl;
   }
 

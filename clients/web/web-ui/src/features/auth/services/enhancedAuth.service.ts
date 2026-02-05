@@ -807,7 +807,9 @@ class EnhancedAuthService {
     // Ensure absolute URL for test environments (Node.js fetch doesn't handle relative URLs)
     const absoluteUrl = url.startsWith('http') 
       ? url 
-      : `http://localhost:8000${url}`;
+      : typeof window !== 'undefined'
+        ? `${window.location.protocol}//${window.location.hostname}:${window.location.port}${url}`
+        : `http://localhost:12345${url}`;
 
     return fetch(absoluteUrl, mergedOptions);
   }

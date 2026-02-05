@@ -1,9 +1,9 @@
 
-
 import type { UserInfo } from '@features/auth';
 import { useAuthenticatedWebSocket } from '@features/auth';
 import { createMessage, MessageType } from '@lib/websocket';
 import React, { useEffect, useState } from "react";
+import styles from './PlayerManagerPanel.module.css';
 
 interface Player {
   id: string;
@@ -55,25 +55,40 @@ export const PlayerManagerPanel: React.FC<{ sessionCode: string; userInfo: UserI
     protocol?.sendMessage(createMessage(MessageType.PLAYER_BAN_REQUEST, { id }, 1));
   };
 
-  if (userInfo.role !== "dm") return null;
+  if (userInfo.role !== "dm") {
+    return (
+      <div className={styles.panel}>
+        <h3>Player Management</h3>
+        <p className={styles.info}>Only DMs can manage players.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="panel">
+    <div className={styles.panel}>
       <h3>Player Management</h3>
-      {error && <div className="error">{error}</div>}
-      <ul>
-        {players.map((p) => (
-          <li key={p.id}>
-            <span>{p.name} ({p.status})</span>
-            {p.role !== "dm" && (
-              <>
-                <button onClick={() => kick(p.id)}>Kick</button>
-                <button onClick={() => ban(p.id)}>Ban</button>
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
+      {error && <div className={styles.error}>{error}</div>}
+      <div className={styles.playerList}>
+        {players.length === 0 ? (
+          <p className={styles.info}>No players connected</p>
+        ) : (
+          <ul className={styles.list}>
+            {players.map((p) => (
+              <li key={p.id} className={styles.playerItem}>
+                <span className={styles.playerInfo}>
+                  {p.name} ({p.status})
+                </span>
+                {p.role !== "dm" && (
+                  <div className={styles.actions}>
+                    <button className={styles.kickButton} onClick={() => kick(p.id)}>Kick</button>
+                    <button className={styles.banButton} onClick={() => ban(p.id)}>Ban</button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 };

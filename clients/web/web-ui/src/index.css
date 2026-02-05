@@ -1,3 +1,7 @@
+/* Import design tokens and theme variables */
+@import './styles/tokens.css';
+@import './styles/theme.css';
+
 :root {
   font-family: var(--font-family);
   line-height: 1.5;

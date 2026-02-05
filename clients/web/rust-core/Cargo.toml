@@ -6,6 +6,21 @@ edition = "2024"
 [lib]
 crate-type = ["cdylib"]
 
+# ===== LOGGING FEATURES (RUST WASM BEST PRACTICES) =====
+# Optional features for conditional compilation of log levels
+# Use --features="log-debug" to enable debug logging
+# Production builds should not include any log features for optimal performance
+[features]
+default = []
+log-trace = []
+log-debug = []
+log-info = []
+log-warn = []
+# Development feature bundle (enables all logging)
+dev-logging = ["log-trace", "log-debug", "log-info", "log-warn"]
+# Memory allocator feature
+wee_alloc = []
+
 [dependencies]
 wasm-bindgen = "0.2"
 js-sys = "0.3"
@@ -70,10 +85,6 @@ features = [
   "IdbOpenDbRequest",
   "IdbIndex",
 ]
-
-
-[features]
-wee_alloc = []
 
 [profile.release]
 # Tell `rustc` to optimize for small code size.

@@ -458,6 +458,14 @@ export const useGameStore = create<GameStore>()(
         set(() => ({
           activeTableId: tableId,
         }));
+        
+        // Save active table to server for persistence
+        if (tableId && (window as any).protocol) {
+          const protocol = (window as any).protocol;
+          if (protocol.setActiveTable) {
+            protocol.setActiveTable(tableId);
+          }
+        }
       },
 
       setTablesLoading: (loading: boolean) => {

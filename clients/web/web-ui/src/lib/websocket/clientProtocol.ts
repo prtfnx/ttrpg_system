@@ -224,6 +224,7 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.TABLE_RESPONSE, this.handleTableResponse.bind(this));
     this.registerHandler(MessageType.TABLE_LIST_RESPONSE, this.handleTableListResponse.bind(this));
     this.registerHandler(MessageType.NEW_TABLE_RESPONSE, this.handleNewTableResponse.bind(this));
+    this.registerHandler(MessageType.TABLE_ACTIVE_RESPONSE, this.handleTableActiveResponse.bind(this));
 
     // Sprite management
     this.registerHandler(MessageType.SPRITE_CREATE, this.handleSpriteCreate.bind(this));
@@ -476,9 +477,21 @@ export class WebClientProtocol {
   // Message handler implementations
   private async handleWelcome(message: Message): Promise<void> {
     protocolLogger.message('received', { type: 'welcome', data: message.data });
+    
+    // Extract user ID from welcome message if available
+    if (message.data && typeof message.data === 'object' && 'user_id' in message.data) {
+      this.userId = message.data.user_id as number;
+    }
+    
     // Request initial data
     this.requestTableList();
     this.requestPlayerList();
+    
+    // Request active table for user to restore session state
+    if (this.userId) {
+      console.log('[Protocol] Requesting active table for user:', this.userId);
+      this.requestActiveTable();
+    }
   }
 
   private async handlePing(message: Message): Promise<void> {
@@ -577,6 +590,35 @@ export class WebClientProtocol {
   private async handleTableResponse(message: Message): Promise<void> {
     console.log('Table response received:', message.data);
     window.dispatchEvent(new CustomEvent('table-response', { detail: message.data }));
+  }
+
+  private async handleTableActiveResponse(message: Message): Promise<void> {
+    console.log('[Protocol] Active table response received:', message.data);
+    
+    if (!message.data || typeof message.data !== 'object') {
+      console.warn('[Protocol] Invalid active table response data');
+      return;
+    }
+    
+    const data = message.data as any;
+    const table_id = data.table_id;
+    const success = data.success;
+    const error = data.error;
+    
+    if (success && table_id) {
+      // Set the active table in the store
+      const gameStore = useGameStore.getState();
+      gameStore.setActiveTableId(table_id);
+      
+      // Request table data for the active table
+      this.requestTableData(table_id);
+      
+      console.log(`[Protocol] Active table set to: ${table_id}`);
+    } else if (error) {
+      console.warn('[Protocol] No active table found:', error);
+    }
+    
+    window.dispatchEvent(new CustomEvent('active-table-response', { detail: message.data }));
   }
 
   // Sprite handlers - integrate with existing store/WASM
@@ -911,6 +953,22 @@ export class WebClientProtocol {
 
   requestTableData(tableId: string): void {
     this.sendMessage(createMessage(MessageType.TABLE_REQUEST, {
+      table_id: tableId
+    }));
+  }
+
+  // Active table persistence methods
+  requestActiveTable(): void {
+    console.log('[Protocol] Requesting active table for current user');
+    this.sendMessage(createMessage(MessageType.TABLE_ACTIVE_REQUEST, {
+      user_id: this.userId
+    }));
+  }
+
+  setActiveTable(tableId: string): void {
+    console.log('[Protocol] Setting active table:', tableId);
+    this.sendMessage(createMessage(MessageType.TABLE_ACTIVE_SET, {
+      user_id: this.userId,
       table_id: tableId
     }));
   }

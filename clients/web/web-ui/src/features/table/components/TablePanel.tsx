@@ -1,10 +1,12 @@
 import clsx from 'clsx';
 import React, { useState } from 'react';
+import { useGameStore } from '../../../store';
 import type { TableInfo } from '../hooks/useTableManager';
 import { useTableManager } from '../hooks/useTableManager';
 import styles from './TablePanel.module.css';
 
 const TablePanel: React.FC = () => {
+  const { setActiveTableId: setGlobalActiveTableId } = useGameStore();
   const {
     activeTableId,
     tables,
@@ -30,12 +32,18 @@ const TablePanel: React.FC = () => {
     if (success) {
       setNewTableName('');
       setShowCreateForm(false);
+      // Update local WASM state
       setActiveTable(tableId);
+      // Update global store state (triggers server persistence)
+      setGlobalActiveTableId(tableId);
     }
   };
 
   const handleTableSelect = (tableId: string) => {
+    // Update local WASM state
     setActiveTable(tableId);
+    // Update global store state (triggers server persistence)
+    setGlobalActiveTableId(tableId);
   };
 
   const handleToggleGrid = (tableId: string, currentShowGrid: boolean, cellSize: number) => {

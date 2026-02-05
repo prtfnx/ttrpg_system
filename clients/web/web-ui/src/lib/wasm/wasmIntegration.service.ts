@@ -314,6 +314,18 @@ class WasmIntegrationService {
         
         console.log('[WASM] Formatted table data:', rustTableData);
         (this.renderEngine as any).handle_table_data(rustTableData);
+        
+        // CRITICAL: Ensure React store is updated for server persistence
+        // Import the store dynamically to avoid circular dependencies
+        import('../../store').then(({ useGameStore }) => {
+          const gameStore = useGameStore.getState();
+          console.log('[WASM] Notifying React store of table switch:', tableData.table_id);
+          if (gameStore.setActiveTableId) {
+            gameStore.setActiveTableId(tableData.table_id);
+          }
+        }).catch(err => {
+          console.warn('[WASM] Failed to update React store:', err);
+        });
       }
       
       // Handle table configuration

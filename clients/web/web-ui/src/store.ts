@@ -455,6 +455,7 @@ export const useGameStore = create<GameStore>()(
       },
 
       setActiveTableId: (tableId: string | null) => {
+        console.log('[Store] setActiveTableId called with:', tableId);
         set(() => ({
           activeTableId: tableId,
         }));
@@ -462,9 +463,15 @@ export const useGameStore = create<GameStore>()(
         // Save active table to server for persistence
         if (tableId && (window as any).protocol) {
           const protocol = (window as any).protocol;
+          console.log('[Store] Protocol available, calling setActiveTable');
           if (protocol.setActiveTable) {
+            console.log('[Store] Calling protocol.setActiveTable with:', tableId);
             protocol.setActiveTable(tableId);
+          } else {
+            console.warn('[Store] protocol.setActiveTable method not available');
           }
+        } else {
+          console.warn('[Store] Protocol not available or tableId is null:', { tableId, protocol: !!(window as any).protocol });
         }
       },
 
@@ -598,7 +605,12 @@ export const useGameStore = create<GameStore>()(
       },
 
       switchToTable: (tableId: string) => {
+        console.log('[Store] switchToTable called with:', tableId);
         validateTableId(tableId);
+        
+        // Use setActiveTableId to ensure server persistence
+        const { setActiveTableId } = _get();
+        setActiveTableId(tableId);
         
         set((state) => {
           const table = state.tables.find(t => t.table_id === tableId);
@@ -629,7 +641,7 @@ export const useGameStore = create<GameStore>()(
             }));
           }
           
-          return { activeTableId: tableId };
+          return {}; // activeTableId already set by setActiveTableId
         });
         
         window.dispatchEvent(new CustomEvent('protocol-send-message', {

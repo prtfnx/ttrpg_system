@@ -225,13 +225,18 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
         
         <div className={styles.canvasContainer}>
           <GameCanvas />
+          
+          {/* Panel expand buttons positioned directly in canvas */}
+          {!leftVisible && (
+            <button className={clsx(styles.expandBtn, styles.left)} onClick={toggleLeft}>▶</button>
+          )}
+          {!rightVisible && (
+            <button className={clsx(styles.expandBtn, styles.right)} onClick={toggleRight}>◀</button>
+          )}
+          
+          {/* Other canvas controls */}
           <div className={styles.canvasControls}>
-            {!leftVisible && (
-              <button className={clsx(styles.expandBtn, styles.left)} onClick={toggleLeft}>▶</button>
-            )}
-            {!rightVisible && (
-              <button className={clsx(styles.expandBtn, styles.right)} onClick={toggleRight}>◀</button>
-            )}
+            {/* Additional controls can go here */}
           </div>
         </div>
         

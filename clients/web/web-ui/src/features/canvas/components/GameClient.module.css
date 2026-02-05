@@ -50,33 +50,86 @@
   gap: var(--space-sm);
 }
 
+/* Panel Control Buttons - Consistent positioning */
+:root {
+  --panel-btn-size: 32px;
+  --panel-btn-offset: 12px;
+}
+
 .collapseBtn,
 .expandBtn {
-  padding: var(--space-xs) var(--space-sm);
-  font-size: var(--text-xs);
-  background: var(--button-secondary-bg);
+  /* Base button styles */
+  width: var(--panel-btn-size);
+  height: var(--panel-btn-size);
+  padding: 0;
+  font-size: var(--text-sm);
+  background: var(--bg-elevated);
   color: var(--text-primary);
-  border: none;
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-md);
+  
+  /* Base positioning */
+  position: absolute;
+  z-index: 100;
+  
+  /* Center content */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.collapseBtn:hover,
+/* Collapse buttons - centered on panel edges */
+.leftPanel .collapseBtn,
+.rightPanel .collapseBtn {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Collapse buttons - attached to panel edges */
+.leftPanel .collapseBtn {
+  right: calc(var(--panel-btn-offset) * -1);
+}
+
+.rightPanel .collapseBtn {
+  left: calc(var(--panel-btn-offset) * -1);
+}
+
+/* Expand buttons - positioned directly within canvas container */
+.canvasContainer .expandBtn.left {
+  left: var(--space-md);
+  top: var(--space-md); /* Position at top instead of center */
+  transform: none; /* Remove center transform */
+}
+
+.canvasContainer .expandBtn.right {
+  right: var(--space-md);
+}
+
+/* Hover states */
+.leftPanel .collapseBtn:hover,
+.rightPanel .collapseBtn:hover {
+  background: var(--bg-elevated-hover);
+  border-color: var(--border-hover);
+  transform: translateY(-50%) scale(1.05);
+}
+
 .expandBtn:hover {
-  background: var(--button-secondary-hover);
+  background: var(--bg-elevated-hover);
+  border-color: var(--border-hover);
+  transform: scale(1.05);
 }
 
-.expandBtn.left {
-  position: absolute;
-  top: var(--space-sm);
-  left: var(--space-sm);
+/* Active states */
+.leftPanel .collapseBtn:active,
+.rightPanel .collapseBtn:active {
+  transform: translateY(-50%) scale(0.98);
 }
 
-.expandBtn.right {
-  position: absolute;
-  top: var(--space-sm);
-  right: var(--space-sm);
+.expandBtn:active {
+  transform: scale(0.98);
 }
 
 .connectionStatus {

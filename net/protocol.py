@@ -31,6 +31,9 @@ class MessageType(enum.Enum):    # Core messages
     TABLE_LIST_REQUEST = "table_list_request"
     TABLE_LIST_RESPONSE = "table_list_response"
     TABLE_DELETE = "table_delete"
+    TABLE_ACTIVE_REQUEST = "table_active_request"
+    TABLE_ACTIVE_RESPONSE = "table_active_response"
+    TABLE_ACTIVE_SET = "table_active_set"
     
  
     # Player actions

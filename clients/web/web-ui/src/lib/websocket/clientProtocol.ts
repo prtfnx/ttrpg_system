@@ -966,11 +966,13 @@ export class WebClientProtocol {
   }
 
   setActiveTable(tableId: string): void {
-    console.log('[Protocol] Setting active table:', tableId);
+    console.log('[Protocol] setActiveTable called with:', tableId);
+    console.log('[Protocol] userId:', this.userId, 'websocket state:', this.websocket?.readyState);
     this.sendMessage(createMessage(MessageType.TABLE_ACTIVE_SET, {
       user_id: this.userId,
       table_id: tableId
     }));
+    console.log('[Protocol] TABLE_ACTIVE_SET message sent');
   }
 
   requestPlayerList(): void {

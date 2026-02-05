@@ -15,7 +15,7 @@ from net.protocol import Message, MessageType, BatchMessage
 from core_table.actions_core import ActionsCore
 from server_host.utils.logger import setup_logger
 from server_host.service.asset_manager import get_server_asset_manager, AssetRequest
-from server_host.database.models import Asset, GameSession
+from server_host.database.models import Asset, GameSession, GamePlayer
 from server_host.database.database import SessionLocal
 
 logger = setup_logger(__name__)
@@ -67,6 +67,9 @@ class ServerProtocol:
         self.register_handler(MessageType.TABLE_MOVE, self.handle_table_move)
         self.register_handler(MessageType.TABLE_DELETE, self.handle_delete_table)
         self.register_handler(MessageType.TABLE_LIST_REQUEST, self.handle_table_list_request)
+        # Active table persistence
+        self.register_handler(MessageType.TABLE_ACTIVE_REQUEST, self.handle_table_active_request)
+        self.register_handler(MessageType.TABLE_ACTIVE_SET, self.handle_table_active_set)
         
         # Player management
         self.register_handler(MessageType.PLAYER_ACTION, self.handle_player_action)
@@ -1355,6 +1358,23 @@ class ServerProtocol:
             logger.error(f"Error getting or uploading asset {asset_name}: {e}")
             return None
 
+    def _get_session_code(self, msg: Message) -> Optional[str]:
+        """Get session_code string from session manager or message data"""
+        try:
+            # Primary method: Get from session manager (most reliable)
+            if self.session_manager and hasattr(self.session_manager, 'session_code'):
+                return self.session_manager.session_code
+            
+            # Secondary method: Extract from message data
+            if msg.data:
+                return msg.data.get('session_code')
+            
+            logger.error("No valid session_code available")
+            return None
+        except Exception as e:
+            logger.error(f"Error getting session_code: {e}")
+            return None
+
     def _get_session_id(self, msg: Message) -> Optional[int]:
         """Get session_id for database persistence from message data or session manager"""
         try:
@@ -2216,4 +2236,117 @@ class ServerProtocol:
         except Exception as e:
             logger.error(f"Error handling asset hash check: {e}")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
+
+    # Active table persistence handlers
+    async def handle_table_active_request(self, msg: Message, client_id: str) -> Message:
+        """Handle request for user's active table"""
+        try:
+            user_id = self._get_user_id(msg)
+            session_code = self._get_session_code(msg)
+            
+            logger.info(f"Active table request from user {user_id} in session {session_code}")
+            
+            if not user_id or not session_code:
+                logger.warning("Missing user_id or session_code for table active request")
+                return Message(MessageType.TABLE_ACTIVE_RESPONSE, {
+                    'table_id': None,
+                    'success': False,
+                    'error': 'Missing user_id or session_code'
+                })
+            
+            # Get the user's active table from database
+            active_table_id = await self._get_player_active_table(user_id, session_code)
+            
+            logger.info(f"Retrieved active table for user {user_id}: {active_table_id}")
+            
+            return Message(MessageType.TABLE_ACTIVE_RESPONSE, {
+                'table_id': active_table_id,
+                'success': active_table_id is not None
+            })
+            
+        except Exception as e:
+            logger.error(f"Error handling table active request: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+    
+    async def handle_table_active_set(self, msg: Message, client_id: str) -> Message:
+        """Handle setting user's active table"""
+        try:
+            user_id = self._get_user_id(msg)
+            session_code = self._get_session_code(msg)
+            table_id = msg.data.get('table_id') if msg.data else None
+            
+            logger.info(f"Active table set request from user {user_id} in session {session_code} to table {table_id}")
+            
+            if not user_id or not session_code:
+                logger.warning("Missing user_id or session_code for table active set")
+                return Message(MessageType.ERROR, {'error': 'Missing user_id or session_code'})
+            
+            # Update the user's active table in database
+            success = await self._set_player_active_table(user_id, session_code, table_id)
+            
+            if success:
+                logger.info(f"Successfully updated active table for user {user_id} to {table_id}")
+                return Message(MessageType.SUCCESS, {'message': 'Active table updated'})
+            else:
+                logger.error(f"Failed to update active table for user {user_id} to {table_id}")
+                return Message(MessageType.ERROR, {'error': 'Failed to update active table'})
+                
+        except Exception as e:
+            logger.error(f"Error handling table active set: {e}")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+
+    async def _get_player_active_table(self, user_id: int, session_code: str) -> Optional[str]:
+        """Get player's active table ID from database"""
+        try:
+            logger.debug(f"Looking up active table for user {user_id} in session {session_code}")
+            db_session = SessionLocal()
+            try:
+                # Find the GamePlayer for this user in this session
+                player = db_session.query(GamePlayer).join(GameSession).filter(
+                    GamePlayer.user_id == user_id,
+                    GameSession.session_code == session_code
+                ).first()
+                
+                if player:
+                    logger.debug(f"Found GamePlayer {player.id} with active_table_id: {player.active_table_id}")
+                else:
+                    logger.debug(f"No GamePlayer found for user {user_id} in session {session_code}")
+                
+                return player.active_table_id if player else None
+                
+            finally:
+                db_session.close()
+                
+        except Exception as e:
+            logger.error(f"Error getting player active table for user {user_id} in session {session_code}: {e}")
+            return None
+
+    async def _set_player_active_table(self, user_id: int, session_code: str, table_id: Optional[str]) -> bool:
+        """Set player's active table ID in database"""
+        try:
+            logger.debug(f"Setting active table for user {user_id} in session {session_code} to {table_id}")
+            db_session = SessionLocal()
+            try:
+                # Find the GamePlayer for this user in this session
+                player = db_session.query(GamePlayer).join(GameSession).filter(
+                    GamePlayer.user_id == user_id,
+                    GameSession.session_code == session_code
+                ).first()
+                
+                if player:
+                    old_table_id = player.active_table_id
+                    player.active_table_id = table_id
+                    db_session.commit()
+                    logger.info(f"Updated active table for user {user_id} in session {session_code}: {old_table_id} -> {table_id}")
+                    return True
+                else:
+                    logger.warning(f"No GamePlayer found for user {user_id} in session {session_code}")
+                    return False
+                    
+            finally:
+                db_session.close()
+                
+        except Exception as e:
+            logger.error(f"Error setting player active table for user {user_id} in session {session_code}: {e}")
+            return False
 

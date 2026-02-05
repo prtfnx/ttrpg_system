@@ -1,5 +1,5 @@
 import { AuthContext, type UserInfo } from '@features/auth';
-import { render, RenderOptions } from '@testing-library/react';
+import { render, type RenderOptions } from '@testing-library/react';
 import React from 'react';
 import { vi } from 'vitest';
 
@@ -17,11 +17,16 @@ const mockAuthContextValue = {
   token: 'mock-token-12345',
   isAuthenticated: true,
   isLoading: false,
-  login: vi.fn().mockResolvedValue(undefined),
+  permissions: ['view_session', 'edit_session', 'manage_characters'],
+  loading: false,
+  error: '',
+  login: vi.fn().mockResolvedValue(true),
   logout: vi.fn(),
   validateSession: vi.fn().mockResolvedValue(true),
   refreshToken: vi.fn().mockResolvedValue('new-mock-token'),
-  hasPermission: vi.fn((permission: string) => mockAuthContextValue.user.permissions.includes(permission)),
+  hasPermission: vi.fn((permission: string) => ['view_session', 'edit_session', 'manage_characters'].includes(permission)),
+  requireAuth: vi.fn((operation: () => any) => operation()),
+  updateUser: vi.fn(),
 };
 
 interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {

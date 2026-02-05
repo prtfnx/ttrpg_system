@@ -68,7 +68,7 @@ globalThis.IntersectionObserver = class IntersectionObserver {
 } as unknown as typeof IntersectionObserver;
 
 // requestAnimationFrame
-globalThis.requestAnimationFrame = vi.fn((cb) => setTimeout(cb, 16));
+globalThis.requestAnimationFrame = vi.fn((cb) => setTimeout(cb, 16)) as any;
 globalThis.cancelAnimationFrame = vi.fn((id) => clearTimeout(id));
 
 // Canvas context mock
@@ -78,7 +78,7 @@ HTMLCanvasElement.prototype.getContext = vi.fn(function(this: HTMLCanvasElement,
     return {
       fillRect: vi.fn(),
       clearRect: vi.fn(),
-      getImageData: vi.fn((x: number, y: number, width: number, height: number) => {
+      getImageData: vi.fn((_x: number, _y: number, width: number, height: number) => {
         // Return ImageData with requested dimensions, not always 1x1
         const size = width * height * 4;
         return { 
@@ -218,8 +218,8 @@ const createMockWasmModule = () => ({
   },
   AssetManager: class MockAssetManager {
     initialize = vi.fn().mockResolvedValue(undefined);
-    set_max_cache_size = vi.fn((size: bigint) => undefined);
-    set_max_age = vi.fn((age: number) => undefined);
+    set_max_cache_size = vi.fn((_size: bigint) => undefined);
+    set_max_age = vi.fn((_age: number) => undefined);
     get_cache_stats = vi.fn(() => JSON.stringify({ 
       total_assets: 0, 
       total_size: 0,
@@ -228,13 +228,13 @@ const createMockWasmModule = () => ({
       evictions: 0
     }));
     download_asset = vi.fn().mockResolvedValue('asset_id');
-    has_asset = vi.fn((id: string) => true);
-    get_asset = vi.fn((id: string) => new Uint8Array(0));
+    has_asset = vi.fn((_id: string) => true);
+    get_asset = vi.fn((_id: string) => new Uint8Array(0));
     list_assets = vi.fn(() => JSON.stringify([]));
     cleanup_cache = vi.fn().mockResolvedValue(undefined);
     clear_cache = vi.fn().mockResolvedValue(undefined);
     calculate_asset_hash = vi.fn((data: Uint8Array) => 'mock_hash_' + data.length);
-    remove_asset = vi.fn((id: string) => true);
+    remove_asset = vi.fn((_id: string) => true);
   },
   TableManager: class MockTableManager {
     create_table = vi.fn(() => true);
@@ -310,7 +310,7 @@ beforeAll(() => {
     // Paint tool methods
     paint_is_mode: vi.fn(() => false),
     paint_set_mode: vi.fn(),
-    paint_enter_mode: vi.fn((width: number, height: number) => undefined),
+    paint_enter_mode: vi.fn((_width: number, _height: number) => undefined),
     paint_exit_mode: vi.fn(),
     paint_get_brush_size: vi.fn(() => 5),
     paint_set_brush_size: vi.fn(),

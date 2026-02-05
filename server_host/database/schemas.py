@@ -157,6 +157,7 @@ class GameSessionWithData(GameSession):
 # Game Player schemas
 class GamePlayerBase(BaseModel):
     character_name: Optional[str] = None
+    active_table_id: Optional[str] = None
 
 class GamePlayerCreate(GamePlayerBase):
     session_code: str
@@ -167,6 +168,7 @@ class GamePlayer(GamePlayerBase):
     user_id: int
     joined_at: datetime
     is_connected: bool
+    active_table_id: Optional[str] = None
     user: User
     
     class Config:

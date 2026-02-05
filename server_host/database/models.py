@@ -47,6 +47,7 @@ class GamePlayer(Base):
     character_name = Column(String(100))
     joined_at = Column(DateTime, default=datetime.utcnow)
     is_connected = Column(Boolean, default=False)
+    active_table_id = Column(String(36), nullable=True)  # UUID of user's active table
     
     # Relationships
     session = relationship("GameSession", back_populates="players")

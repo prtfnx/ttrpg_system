@@ -32,6 +32,31 @@ python 001_add_obstacle_metadata.py
 - `polygon` - Custom polygon shapes
 - `line` - Line segment obstacles (walls)
 
+### 002_add_character_sprite_linking.py
+**Date:** 2025-11-17  
+**Description:** Adds character sprite linking to entities table
+
+**Changes:**
+- Adds `character_id` VARCHAR(36) column (nullable) 
+- Adds `controlled_by` TEXT column (nullable) for JSON user ID array
+
+### 003_add_token_stats.py
+**Date:** 2025-11-18  
+**Description:** Adds token statistics columns to entities table
+
+**Changes:**
+- Adds `hp` INTEGER column (nullable)
+- Adds `max_hp` INTEGER column (nullable) 
+- Adds `ac` INTEGER column (nullable)
+- Adds `aura_radius` REAL column (nullable)
+
+### 004_add_active_table_id.py
+**Date:** 2026-02-05  
+**Description:** Adds active table persistence to game_players table
+
+**Changes:**
+- Adds `active_table_id` VARCHAR(36) column (nullable) to store user's currently active table per session
+
 ## Creating New Migrations
 
 1. Create a new file: `NNN_description.py` (e.g., `002_add_fog_of_war.py`)

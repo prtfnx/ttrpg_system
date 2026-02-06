@@ -1,7 +1,36 @@
 import { useAuth } from '@features/auth';
 import React, { useEffect, useState } from 'react';
-import type { Equipment, Monster, Spell } from '../services/compendium.service';
-import { compendiumService } from '../services/compendium.service';
+import { compendiumService } from '../services/compendiumService';
+
+// Use simplified interfaces for internal use
+interface Monster {
+  id: string;
+  name: string;
+  challenge_rating: number;
+  type: string;
+  hp?: number;
+  ac?: number;
+  stats?: Record<string, any>;
+  size?: string;
+  alignment?: string;
+  description?: string;
+}
+
+interface SimpleSpell {
+  id: string;
+  name: string;
+  level: number;
+  school: string;
+  description?: string;
+}
+
+interface Equipment {
+  id: string;
+  name: string;
+  type: string;
+  cost: string;
+  description?: string;
+}
 
 interface CompendiumEntry {
   id: string;
@@ -81,7 +110,7 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
     hp: monster.hp
   });
 
-  const transformSpellToEntry = (spell: Spell): CompendiumEntry => ({
+  const transformSpellToEntry = (spell: SimpleSpell): CompendiumEntry => ({
     id: spell.id,
     type: 'spell' as const,
     name: spell.name,
@@ -106,20 +135,43 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
 
     try {
       if (filters.type === 'all' || filters.type === 'monster') {
-        const monsters = await compendiumService.searchMonsters(query);
+        // TODO: Implement monster search when backend supports it
+        const monsters: Monster[] = [];
         results.push(...monsters.map(transformMonsterToEntry));
       }
 
       if (filters.type === 'all' || filters.type === 'spell') {
-        const spells = await compendiumService.searchSpells(query);
-        const filteredSpells = filters.spellLevel 
-          ? spells.filter(spell => spell.level === parseInt(filters.spellLevel!))
-          : spells;
-        results.push(...filteredSpells.map(transformSpellToEntry));
+        try {
+          const response = await compendiumService.getSpells({ limit: 50 });
+          const spells = Object.values(response.spells).map(spell => ({
+            id: spell.name.toLowerCase().replace(/\s+/g, '-'),
+            name: spell.name,
+            level: spell.level,
+            school: spell.school,
+            description: spell.description
+          }));
+          
+          let filteredSpells = spells;
+          if (query) {
+            filteredSpells = spells.filter(spell => 
+              spell.name.toLowerCase().includes(query.toLowerCase())
+            );
+          }
+          if (filters.spellLevel && filters.spellLevel !== 'all') {
+            filteredSpells = filteredSpells.filter(spell => 
+              spell.level === parseInt(filters.spellLevel!)
+            );
+          }
+          
+          results.push(...filteredSpells.map(transformSpellToEntry));
+        } catch (error) {
+          console.error('Error fetching spells:', error);
+        }
       }
 
       if (filters.type === 'all' || filters.type === 'equipment') {
-        const equipment = await compendiumService.searchEquipment(query);
+        // TODO: Implement equipment search when backend supports it
+        const equipment: Equipment[] = [];
         results.push(...equipment.map(transformEquipmentToEntry));
       }
 

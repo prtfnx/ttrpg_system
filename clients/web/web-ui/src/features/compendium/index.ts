@@ -8,7 +8,9 @@ export {
 } from './hooks/useCompendium';
 export type { Spell } from './services/compendiumService';
 
-export { compendiumService } from './services/compendium.service';
-export { CompendiumManager } from './services/CompendiumManager';
-export { CompendiumService } from './services/compendiumService';
+// Main comprehensive D&D 5e service
+export { compendiumService, CompendiumService } from './services/compendiumService';
+
+// Specialized monster creation service
+export { MonsterCreationService, monsterCreationSystem } from './services/monsterCreation.service';
 

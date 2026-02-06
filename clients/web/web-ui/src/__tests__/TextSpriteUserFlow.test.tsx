@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { TextSpriteTool } from '../components/TextSprite/TextSpriteTool';
+import { TextSpriteTool } from '../features/canvas/components/TextSprite/TextSpriteTool';
 
 describe('Text sprite creation user flow', () => {
   it('creates a text sprite and registers it with the renderer and network', async () => {

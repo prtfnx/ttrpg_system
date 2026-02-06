@@ -111,12 +111,12 @@ impl LightingSystem {
             .and_then(|v| v.as_f64())
             .unwrap_or(0.0) as i32;
         
-        web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 🎨 Stencil buffer bits: {}", stencil_bits).into());
+        log_info!("🎨 Stencil buffer bits: {}", stencil_bits);
         
         if stencil_bits == 0 {
-            web_sys::console::error_1(&"[LIGHTING-DEBUG] ❌ ERROR: No stencil buffer available! Shadow casting will not work.".into());
+            log_error!("❌ No stencil buffer available! Shadow casting will not work.");
         } else {
-            web_sys::console::log_1(&"[LIGHTING-DEBUG] ✅ Stencil buffer is available".into());
+            log_info!("✅ Stencil buffer is available");
         }
         
         let mut system = Self {
@@ -394,8 +394,8 @@ impl LightingSystem {
     ) -> Result<(Option<Vec<Point>>, bool), JsValue> {
         // Check if light is inside an opaque obstacle
         if self.is_light_occluded(position) {
-            web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 🚫 Light at ({:.1}, {:.1}) is inside obstacle, skipping render", 
-                position.x, position.y).into());
+            log_debug!("🚫 Light at ({:.1}, {:.1}) is inside obstacle, skipping render", 
+                position.x, position.y);
             return Ok((None, false));
         }
         
@@ -745,8 +745,8 @@ impl LightingSystem {
         let is_occluded = intersections % 2 == 1;
         
         if is_occluded {
-            web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 🚫 Light occluded at ({:.1}, {:.1}): {} ray intersections", 
-                light_pos.x, light_pos.y, intersections).into());
+            log_debug!("🚫 Light occluded at ({:.1}, {:.1}): {} ray intersections", 
+                light_pos.x, light_pos.y, intersections);
         }
         
         is_occluded

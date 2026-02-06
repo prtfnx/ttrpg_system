@@ -9,7 +9,7 @@ import {
     type GeometricShape,
     type GridConfiguration,
     type MeasurementLine
-} from '../features/measurement/services/advancedMeasurement.service';
+} from './advancedMeasurement.service';
 
 export interface RustCanvasRenderer {
   // Canvas context methods

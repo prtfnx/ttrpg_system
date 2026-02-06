@@ -1,0 +1,148 @@
+/**
+ * Invitation Manager Modal Styles
+ * Follows project CSS composition pattern
+ */
+
+.overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary, #1a1a1a);
+  border-radius: var(--radius-lg, 12px);
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: var(--shadow-xl, 0 25px 50px -12px rgba(0, 0, 0, 0.25));
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-xl, 24px);
+  border-bottom: 1px solid var(--border-primary, #333);
+  background: var(--bg-secondary, #2a2a2a);
+}
+
+.header h2 {
+  margin: 0;
+  font-size: var(--text-xl, 24px);
+  font-weight: var(--font-semibold, 600);
+}
+
+.closeBtn {
+  padding: var(--space-sm, 8px) var(--space-md, 12px);
+  background: transparent;
+  border: none;
+  color: var(--text-primary, #fff);
+  cursor: pointer;
+  font-size: var(--text-lg, 18px);
+  border-radius: 4px;
+}
+
+.closeBtn:hover {
+  background: var(--bg-tertiary, #3a3a3a);
+}
+
+.createSection {
+  padding: var(--space-xl, 24px);
+  border-bottom: 1px solid var(--border-primary, #333);
+}
+
+.createSection h3 {
+  margin: 0 0 var(--space-lg, 16px) 0;
+  font-size: var(--text-lg, 18px);
+  font-weight: var(--font-semibold, 600);
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: var(--space-md, 12px);
+  margin-bottom: var(--space-lg, 16px);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs, 4px);
+}
+
+.field label {
+  font-size: var(--text-xs, 12px);
+  font-weight: var(--font-medium, 500);
+  color: var(--text-secondary, #888);
+}
+
+.select,
+.input {
+  padding: var(--space-sm, 8px);
+  background: var(--bg-secondary, #2a2a2a);
+  border: 1px solid var(--border-primary, #333);
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--text-sm, 14px);
+  color: var(--text-primary, #fff);
+}
+
+.select:focus,
+.input:focus {
+  outline: 2px solid var(--color-primary, #4a90e2);
+  outline-offset: -1px;
+}
+
+.createBtn {
+  width: 100%;
+  padding: var(--space-md, 12px) var(--space-lg, 16px);
+  background: var(--color-primary, #4a90e2);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  font-weight: var(--font-semibold, 600);
+  cursor: pointer;
+}
+
+.createBtn:hover:not(:disabled) {
+  background: var(--color-primary-hover, #357ab7);
+}
+
+.createBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.listSection {
+  padding: var(--space-xl, 24px);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.listSection h3 {
+  margin: 0 0 var(--space-lg, 16px) 0;
+  font-size: var(--text-lg, 18px);
+  font-weight: var(--font-semibold, 600);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+.loading,
+.empty {
+  padding: var(--space-2xl, 32px);
+  text-align: center;
+  color: var(--text-secondary, #888);
+}

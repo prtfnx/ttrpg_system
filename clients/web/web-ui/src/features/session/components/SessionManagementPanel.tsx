@@ -5,8 +5,8 @@
 
 import React from 'react';
 import { useSessionManagement } from '../hooks/useSessionManagement';
-import { InvitationManager } from './Invitations/InvitationManager';
 import { CollapsedView } from './CollapsedView';
+import { InvitationManager } from './Invitations/InvitationManager';
 import { PlayerList } from './PlayerList';
 import styles from './SessionManagementPanel.module.css';
 

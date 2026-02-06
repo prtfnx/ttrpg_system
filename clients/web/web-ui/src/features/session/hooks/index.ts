@@ -1,4 +1,8 @@
 /**
  * Session hooks barrel export
  */
-// No hooks yet - placeholder for future hooks
+
+export { useSessionPlayers } from './useSessionPlayers';
+export { useRoleManagement } from './useRoleManagement';
+export { useInvitations } from './useInvitations';
+export { useSessionManagement } from './useSessionManagement';

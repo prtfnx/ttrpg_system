@@ -1,0 +1,141 @@
+/**
+ * Invite Link Component Styles
+ * Follows project CSS composition pattern
+ */
+
+.container {
+  padding: var(--space-md, 12px);
+  background: var(--bg-secondary, #2a2a2a);
+  border: 1px solid var(--border-primary, #333);
+  border-radius: var(--radius-md, 8px);
+  margin-bottom: var(--space-sm, 8px);
+}
+
+.container.invalid {
+  opacity: 0.6;
+  background: var(--bg-tertiary, #3a3a3a);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-sm, 8px);
+}
+
+.role {
+  padding: var(--space-xs, 4px) var(--space-sm, 8px);
+  background: var(--color-primary, #4a90e2);
+  color: white;
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--text-xs, 12px);
+  font-weight: var(--font-medium, 500);
+  text-transform: capitalize;
+}
+
+.status {
+  font-size: var(--text-xs, 12px);
+  color: var(--text-secondary, #888);
+}
+
+.linkBox {
+  display: flex;
+  gap: var(--space-sm, 8px);
+  margin-bottom: var(--space-sm, 8px);
+}
+
+.linkInput {
+  flex: 1;
+  padding: var(--space-sm, 8px);
+  background: var(--bg-primary, #1a1a1a);
+  border: 1px solid var(--border-primary, #333);
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--text-xs, 12px);
+  font-family: monospace;
+  color: var(--text-primary, #fff);
+}
+
+.linkInput:focus {
+  outline: 2px solid var(--color-primary, #4a90e2);
+  outline-offset: -1px;
+}
+
+.copyBtn {
+  padding: var(--space-sm, 8px) var(--space-md, 12px);
+  background: var(--color-primary, #4a90e2);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--text-sm, 14px);
+  cursor: pointer;
+}
+
+.copyBtn:hover:not(:disabled) {
+  background: var(--color-primary-hover, #357ab7);
+}
+
+.copyBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs, 4px);
+  font-size: var(--text-xs, 12px);
+  color: var(--text-secondary, #888);
+  margin-bottom: var(--space-sm, 8px);
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+}
+
+.revokeBtn {
+  width: 100%;
+  padding: var(--space-xs, 4px);
+  background: transparent;
+  border: 1px solid var(--color-danger, #dc3545);
+  color: var(--color-danger, #dc3545);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  font-size: var(--text-xs, 12px);
+  font-weight: var(--font-medium, 500);
+  transition: background 0.2s;
+}
+
+.revokeBtn:hover:not(:disabled) {
+  background: var(--color-danger, #dc3545);
+  color: white;
+}
+
+.revokeBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.deleteBtn {
+  width: 100%;
+  padding: var(--space-xs, 4px);
+  background: transparent;
+  border: 1px solid var(--text-secondary, #888);
+  color: var(--text-secondary, #888);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  font-size: var(--text-xs, 12px);
+  font-weight: var(--font-medium, 500);
+  transition: background 0.2s;
+  margin-top: var(--space-xs, 4px);
+}
+
+.deleteBtn:hover:not(:disabled) {
+  background: var(--text-secondary, #888);
+  color: var(--bg-primary, #1a1a1a);
+}
+
+.deleteBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

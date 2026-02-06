@@ -89,24 +89,26 @@ function CharacterPanel() {
       )}
       
       <div className={styles.panelHeader}>
-        <h2>Characters</h2>
-        {isConnected && <span className={clsx(styles.connectionStatus, 'connected')} title="Connected to server">🟢</span>}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button className={styles.actionBtn} onClick={handleImportCharacter} title="Import character" style={{ fontSize: '12px', padding: '6px 12px' }}>
+        <div className={styles.headerTitle}>
+          <h2>Characters</h2>
+          {isConnected && <span className={styles.connectionStatus} title="Connected to server">●</span>}
+        </div>
+        <div className={styles.headerActions}>
+          <button className={styles.compactBtn} onClick={handleImportCharacter} title="Import character">
             📤 Import
           </button>
           {characters.length > 0 && (
             <>
-              <button className={styles.actionBtn} onClick={handleExportAllCharacters} title="Export all" style={{ fontSize: '12px', padding: '6px 12px' }}>
+              <button className={styles.compactBtn} onClick={handleExportAllCharacters} title="Export all">
                 📥 Export All
               </button>
-              <button className={clsx(styles.actionBtn, bulkSelectMode && 'active')} onClick={handleToggleBulkMode} style={{ fontSize: '12px', padding: '6px 12px' }}>
-                {bulkSelectMode ? '✓ Done' : '☑ Select'}
+              <button className={clsx(styles.compactBtn, bulkSelectMode && styles.active)} onClick={handleToggleBulkMode}>
+                {bulkSelectMode ? '✓ Select' : '☑ Select'}
               </button>
             </>
           )}
           <button 
-            className={styles.createBtn} 
+            className={styles.primaryBtn} 
             onClick={handleCreateCharacter} 
             aria-label="Create New Character"
             data-testid="create-character-btn"
@@ -128,36 +130,19 @@ function CharacterPanel() {
       )}
 
       {characters.length > 0 && (
-        <div className={styles.searchFilter} style={{ padding: '12px', borderBottom: '1px solid var(--border-color)' }}>
-          <div style={{ position: 'relative' }}>
+        <div className={styles.searchContainer}>
+          <div className={styles.searchInput}>
             <input
               type="text"
               placeholder="Search by name, class, or race..."
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px 32px 8px 12px',
-                fontSize: '14px',
-                border: '1px solid var(--border-color)',
-                borderRadius: '4px',
-                backgroundColor: 'var(--bg-secondary)',
-                color: 'var(--text-primary)'
-              }}
+              className={styles.searchField}
             />
             {searchFilter && (
               <button 
                 onClick={() => setSearchFilter('')} 
-                style={{ 
-                  position: 'absolute', 
-                  right: '8px', 
-                  background: 'transparent', 
-                  border: 'none', 
-                  cursor: 'pointer', 
-                  fontSize: '16px', 
-                  color: 'var(--text-secondary)', 
-                  padding: '4px' 
-                }} 
+                className={styles.searchClear}
                 aria-label="Clear search"
                 type="button"
                 title="Clear"
@@ -191,63 +176,76 @@ function CharacterPanel() {
               role="listitem"
               aria-expanded={isExpanded}
               aria-label={`Character: ${char.name}`}
-              className={clsx(styles.characterCard, isSelected && "selected", isExpanded && "expanded", isBulkSelected && "bulkSelected")}
+              className={clsx(styles.characterCard, {
+                [styles.selected]: isSelected,
+                [styles.expanded]: isExpanded,
+                [styles.bulkSelected]: isBulkSelected
+              })}
               draggable={!bulkSelectMode}
               onDragStart={e => handleDragStart(e, char.id)}
             >
-              {bulkSelectMode && (
-                <div className={styles.bulkCheckboxWrapper}>
-                  <input
-                    type="checkbox"
-                    className={styles.bulkCheckbox}
-                    checked={isBulkSelected}
-                    onChange={() => handleToggleCharacterSelection(char.id)}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </div>
-              )}
-              
-              <button 
-                className={styles.characterHeader} 
-                onClick={() => bulkSelectMode ? handleToggleCharacterSelection(char.id) : handleCharacterClick(char.id)}
-                aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${char.name}`}
-                aria-expanded={isExpanded}
-                type="button"
-              >
-                <div className={styles.charAvatar}>{char.name.charAt(0).toUpperCase()}</div>
-                <div className={styles.charInfo}>
-                  <div className={styles.charName}>
-                    {char.name}
-                    <SyncStatusIcon status={char.syncStatus} />
-                    {char.syncStatus === 'error' && (
-                      <button
-                        className={styles.retrySaveBtn}
-                        onClick={(e) => { e.stopPropagation(); handleRetrySave(char.id); }}
-                        title="Retry"
-                        style={{ marginLeft: '8px', padding: '2px 8px', fontSize: '11px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}
-                      >
-                        🔄 Retry
-                      </button>
-                    )}
+              <div className={styles.cardContent}>
+                {bulkSelectMode && (
+                  <div className={styles.bulkCheckbox}>
+                    <input
+                      type="checkbox"
+                      checked={isBulkSelected}
+                      onChange={() => handleToggleCharacterSelection(char.id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
                   </div>
-                  <div className={styles.charDetails}>Owner: {char.ownerId}</div>
-                </div>
-                <div className="char-badges">
-                  {linkedSprites.map((s: typeof linkedSprites[0]) => {
-                    const canControlToken = canControlSprite(s.id, currentUserId);
-                    return (
-                      <span key={s.id} className={`token-badge${canControlToken ? '' : ' no-permission'}`} title={canControlToken ? 'Can control' : 'No permission'}>
-                        Token
-                        <SyncStatusIcon status={s.syncStatus} />
-                        {!canControlToken && <span className="permission-warning">🚫</span>}
-                      </span>
-                    );
-                  })}
-                </div>
-                <span className={styles.charExpandBtn} aria-hidden="true">
-                  {isExpanded ? '▼' : '▶'}
-                </span>
-              </button>
+                )}
+              </div>
+                
+                <button 
+                  className={styles.cardHeader} 
+                  onClick={() => bulkSelectMode ? handleToggleCharacterSelection(char.id) : handleCharacterClick(char.id)}
+                  aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${char.name}`}
+                  aria-expanded={isExpanded}
+                  type="button"
+                >
+                  <div className={styles.cardLeft}>
+                    <div className={styles.avatar}>{char.name.charAt(0).toUpperCase()}</div>
+                    <div className={styles.charInfo}>
+                      <div className={styles.charName}>
+                        {char.name}
+                        <SyncStatusIcon status={char.syncStatus} />
+                        {char.syncStatus === 'error' && (
+                          <button
+                            className={styles.retryBtn}
+                            onClick={(e) => { e.stopPropagation(); handleRetrySave(char.id); }}
+                            title="Retry"
+                          >
+                            🔄
+                          </button>
+                        )}
+                      </div>
+                      <div className={styles.charMeta}>Owner: {char.ownerId}</div>
+                    </div>
+                  </div>
+                  
+                  <div className={styles.cardRight}>
+                    <div className={styles.tokenBadges}>
+                      {linkedSprites.map((s: typeof linkedSprites[0]) => {
+                        const canControlToken = canControlSprite(s.id, currentUserId);
+                        return (
+                          <span 
+                            key={s.id} 
+                            className={clsx(styles.tokenBadge, !canControlToken && styles.noPermission)} 
+                            title={canControlToken ? 'Can control' : 'No permission'}
+                          >
+                            🎭
+                            <SyncStatusIcon status={s.syncStatus} />
+                            {!canControlToken && <span className={styles.permissionIcon}>🚫</span>}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    <span className={styles.expandIcon} aria-hidden="true">
+                      {isExpanded ? '▼' : '▶'}
+                    </span>
+                  </div>
+                </button>
 
               {isExpanded && (
                 <div className={styles.characterDetails}>
@@ -264,18 +262,41 @@ function CharacterPanel() {
                     onRemoveCondition={(cond) => handleRemoveCondition(char.id, cond)}
                   />
 
-                  <div className={styles.charActions}>
-                    <button className={clsx(styles.actionBtn, "viewSheet")} onClick={() => handleViewSheet(char.id)} title="View sheet">📄 View Sheet</button>
-                    <button className={styles.actionBtn} onClick={() => handleAddToken(char.id)} disabled={!canEdit} title={canEdit ? 'Add token' : 'No permission'}>Add Token</button>
-                    <button className={clsx(styles.actionBtn, "export")} onClick={e => handleExportCharacter(char.id, e)} title="Export">📥 Export</button>
+                  <div className={styles.cardActions}>
+                    <button className={styles.actionBtn} onClick={() => handleViewSheet(char.id)} title="View sheet">
+                      <span className={styles.actionIcon}>📄</span>
+                      <span className={styles.actionLabel}>Sheet</span>
+                    </button>
+                    <button className={styles.actionBtn} onClick={() => handleAddToken(char.id)} disabled={!canEdit} title={canEdit ? 'Add token' : 'No permission'}>
+                      <span className={styles.actionIcon}>🎭</span>
+                      <span className={styles.actionLabel}>Token</span>
+                    </button>
+                    <button className={styles.actionBtn} onClick={e => handleExportCharacter(char.id, e)} title="Export">
+                      <span className={styles.actionIcon}>📥</span>
+                      <span className={styles.actionLabel}>Export</span>
+                    </button>
                     {canEdit && (
                       <>
-                        <button className={clsx(styles.actionBtn, "clone")} onClick={e => handleCloneCharacter(char.id, e)} title="Clone">📋 Clone</button>
-                        <button className={clsx(styles.actionBtn, "share")} onClick={() => handleShareCharacter(char.id)} title="Share">Share</button>
-                        <button className={clsx(styles.actionBtn, "delete")} onClick={e => handleDeleteCharacter(char.id, e)} title="Delete">Delete</button>
+                        <button className={styles.actionBtn} onClick={e => handleCloneCharacter(char.id, e)} title="Clone">
+                          <span className={styles.actionIcon}>📋</span>
+                          <span className={styles.actionLabel}>Clone</span>
+                        </button>
+                        <button className={styles.actionBtn} onClick={() => handleShareCharacter(char.id)} title="Share">
+                          <span className={styles.actionIcon}>🔗</span>
+                          <span className={styles.actionLabel}>Share</span>
+                        </button>
+                        <button className={clsx(styles.actionBtn, styles.dangerBtn)} onClick={e => handleDeleteCharacter(char.id, e)} title="Delete">
+                          <span className={styles.actionIcon}>🗑</span>
+                          <span className={styles.actionLabel}>Delete</span>
+                        </button>
                       </>
                     )}
-                    {!canEdit && <button className={clsx(styles.actionBtn, "delete")} disabled title="No permission">Delete</button>}
+                    {!canEdit && (
+                      <button className={clsx(styles.actionBtn, styles.disabledBtn)} disabled title="No permission">
+                        <span className={styles.actionIcon}>🗑</span>
+                        <span className={styles.actionLabel}>Delete</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

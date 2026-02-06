@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { config } from '../../../config/appConfig';
+import { config } from '../../../shared/config/appConfig';
 import { useAuth } from '../../auth';
 import { useChatStore } from '../chatStore';
 import { useChatWebSocket } from '../hooks/useChatWebSocket';

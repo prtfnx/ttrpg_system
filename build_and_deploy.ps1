@@ -9,10 +9,20 @@ param(
 $buildMode = if ($dev) { "development" } else { "production" }
 Write-Host "Build mode: $buildMode"
 
-# 1. Build Rust WASM (assumes wasm-pack and correct Rust toolchain installed)
+# 1. Build Rust WASM with proper logging configuration
 Write-Host "Building Rust WASM..."
 Push-Location "clients/web/rust-core"
-wasm-pack build --target web --out-dir ../public/wasm
+
+if ($dev) {
+    # Development build: Enable all logging features for debugging
+    Write-Host "(Development mode: Enabling debug logging features for WASM)"
+    wasm-pack build --target web --out-dir ../public/wasm --features dev-logging
+} else {
+    # Production build: No logging features for optimal performance
+    Write-Host "(Production mode: No logging features - optimized for performance)"
+    wasm-pack build --target web --out-dir ../public/wasm --release
+}
+
 Pop-Location
 
 # 2. Build React (Vite)

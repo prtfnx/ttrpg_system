@@ -21,7 +21,7 @@ import styles from './RightPanel.module.css';
 
 const isDevelopment = import.meta.env.DEV;
 
-export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
+export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRole?: 'dm' | 'player' }) {
   const [activeTab, setActiveTab] = useState<'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'sync' | 'players' | 'actions' | 'quick-actions' | 'queue' | 'compendium' | 'assets' | 'network' | 'initiative' | 'performance' | 'backgrounds' | 'measurement' | 'customize'>('tables');
   const canvasRef = useRef<HTMLCanvasElement>(null!);
 
@@ -55,8 +55,8 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any }) {
         {isDevelopment && activeTab === 'table-tools' && <TablePanel />}
         {isDevelopment && activeTab === 'sync' && <TableSyncPanel />}
         {activeTab === 'characters' && <CharacterPanel />}
-        {activeTab === 'players' && <PlayerManagerPanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
-        {activeTab === 'initiative' && <InitiativeTracker sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
+        {activeTab === 'players' && <PlayerManagerPanel sessionCode={props.sessionCode!} userInfo={{...props.userInfo, role: props.userRole || props.userInfo?.role}} />}
+        {activeTab === 'initiative' && <InitiativeTracker sessionCode={props.sessionCode!} userInfo={{...props.userInfo, role: props.userRole || props.userInfo?.role}} />}
         {isDevelopment && activeTab === 'actions' && <ActionsPanel renderEngine={window.rustRenderManager as any || null} />}
         {isDevelopment && activeTab === 'queue' && <ActionQueuePanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'entities' && <EntitiesPanel />}

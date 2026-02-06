@@ -1,5 +1,6 @@
 import type { UserInfo } from '@features/auth';
 import { useAuthenticatedWebSocket } from '@features/auth';
+import { SessionManagementPanel } from '@features/session';
 import clsx from 'clsx';
 import React, { useEffect } from 'react';
 import { RightPanel } from '../../../app/RightPanel';
@@ -249,7 +250,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
         
         {rightVisible && (
           <div className={styles.rightPanel} style={{ width: rightWidth }}>
-            <RightPanel sessionCode={sessionCode} userInfo={userInfo} />
+            <RightPanel sessionCode={sessionCode} userInfo={userInfo} userRole={userRole} />
             <button className={styles.collapseBtn} onClick={toggleRight}>▶</button>
           </div>
         )}
@@ -260,6 +261,11 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
             spriteId={tokenConfigSpriteId}
             onClose={() => setTokenConfigSpriteId(null)}
           />
+        )}
+
+        {/* Session Management Panel - floating for DM users */}
+        {sessionCode && userRole === 'dm' && (
+          <SessionManagementPanel sessionCode={sessionCode} />
         )}
       </div>
     </DebugErrorBoundary>

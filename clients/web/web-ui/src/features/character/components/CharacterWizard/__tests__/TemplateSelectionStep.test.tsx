@@ -19,7 +19,7 @@ import { TemplateSelectionStep } from '../TemplateSelectionStep';
 import type { WizardFormData } from '../WizardFormData';
 
 // Mock character templates - using REAL template names from characterTemplates.ts
-vi.mock('../../../data/characterTemplates', () => ({
+vi.mock('../../../../data/characterTemplates', () => ({
   ALL_TEMPLATES: [
     {
       id: 'pc-template',

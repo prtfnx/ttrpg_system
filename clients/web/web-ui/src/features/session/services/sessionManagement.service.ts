@@ -3,7 +3,7 @@
  * Provides API for managing session players and roles
  */
 
-import type { SessionPlayer, RoleChangeResponse, SessionRole } from '../types';
+import type { RoleChangeResponse, SessionPlayer, SessionRole } from '../types';
 
 class SessionManagementService {
   private baseUrl = '/api';

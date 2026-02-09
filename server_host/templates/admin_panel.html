@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - {{ session.name }}</title>
+    
+    {# Inject Vite asset tags dynamically #}
+    {% include 'vite_assets.html' %}
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-primary, #1a1a1a);
+            color: var(--text-primary, #ffffff);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .admin-header {
+            background: var(--bg-secondary, #2a2a2a);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border-primary, #3a3a3a);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .admin-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .session-info {
+            color: var(--text-secondary, #888);
+            font-size: 0.9rem;
+        }
+        
+        .admin-content {
+            flex: 1;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .placeholder {
+            text-align: center;
+            max-width: 600px;
+        }
+        
+        .placeholder h2 {
+            margin-bottom: 1rem;
+            color: var(--color-primary, #4a90e2);
+        }
+        
+        .placeholder p {
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+            color: var(--text-secondary, #888);
+        }
+        
+        .back-btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: var(--color-primary, #4a90e2);
+            color: white;
+            text-decoration: none;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        
+        .back-btn:hover {
+            background: var(--color-primary-hover, #357ab7);
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-header">
+        <div>
+            <h1 class="admin-title">Session Admin Panel</h1>
+            <div class="session-info">{{ session.name }} ({{ session_code }})</div>
+        </div>
+        <div class="session-info">DM: {{ user.username }}</div>
+    </div>
+    
+    <div class="admin-content">
+        <div class="placeholder">
+            <h2>🚧 Admin Panel Coming Soon</h2>
+            <p>
+                The admin panel will provide advanced session management tools including:
+            </p>
+            <ul style="text-align: left; margin-bottom: 2rem; line-height: 1.8;">
+                <li>Player permission management</li>
+                <li>Session settings configuration</li>
+                <li>Game state controls</li>
+                <li>Invitation management</li>
+                <li>Session logs and analytics</li>
+            </ul>
+            <p>
+                For now, use the floating player management panel in the main session.
+            </p>
+            <a href="/game/session/{{ session_code }}" class="back-btn">
+                ← Back to Session
+            </a>
+        </div>
+    </div>
+    
+    <script>
+        // Initialize session data for potential admin features
+        window.__TTRPG_SESSION__ = {
+            sessionCode: "{{ session_code }}",
+            sessionName: "{{ session.name }}",
+            userRole: "owner",
+            userId: {{ user.id }},
+            username: "{{ user.username }}"
+        };
+        
+        console.log('Admin Panel initialized for session:', window.__TTRPG_SESSION__);
+    </script>
+</body>
+</html>

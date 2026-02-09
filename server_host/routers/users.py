@@ -97,14 +97,42 @@ async def users_me(
     # Check if this is an API request (JSON) vs web request (HTML)
     accept_header = request.headers.get("accept", "")
     if "application/json" in accept_header:
+        # Determine user role based on session ownership
+        user_sessions = crud.get_user_game_sessions(db, current_user.id)
+        is_dm = any(session.owner_id == current_user.id for session in user_sessions)
+        
+        # Determine permissions based on role
+        user_role = "dm" if is_dm else "player"
+        permissions = []
+        
+        if user_role == "dm":
+            # DM gets comprehensive permissions
+            permissions = [
+                "compendium:read",
+                "compendium:write", 
+                "table:admin",
+                "character:write",
+                "sprite:create",
+                "sprite:delete",
+                "game:manage",
+                "player:manage"
+            ]
+        else:
+            # Players get basic permissions
+            permissions = [
+                "compendium:read",
+                "character:read",
+                "sprite:create"
+            ]
+        
         # Return JSON for API requests with additional fields needed by client
         return {
             "id": current_user.id,
             "username": current_user.username,
             "email": getattr(current_user, 'email', None),
             "disabled": current_user.disabled,
-            "role": "player",  # Default role, will be determined per session
-            "permissions": [],  # Add permissions if you have a permissions system
+            "role": user_role,  # Dynamic role based on session ownership
+            "permissions": permissions,  # Dynamic permissions based on role
             "created_at": getattr(current_user, 'created_at', None)
         }
     else:

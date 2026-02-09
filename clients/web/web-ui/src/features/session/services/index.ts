@@ -1,5 +1,6 @@
 /**
  * Session services barrel export
  */
-export { SessionManager } from './SessionManager';
+export { invitationService } from './invitation.service';
+export { sessionManagementService } from './sessionManagement.service';
 

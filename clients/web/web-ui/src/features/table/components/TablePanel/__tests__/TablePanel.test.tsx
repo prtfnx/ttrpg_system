@@ -8,8 +8,8 @@ import { TablePanel } from '@features/table';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../test/utils/test-utils';
-import { createTestTable } from '../../test/utils/testFactories';
+import { renderWithProviders } from '../../../../../test/utils/test-utils';
+import { createTestTable } from '../../../../../test/utils/testFactories';
 
 // Mock the hook that provides table data
 const mockCreateTable = vi.fn(() => true);
@@ -24,7 +24,7 @@ const mockTables = [
   createTestTable({ table_id: 'table_2', table_name: 'Town Square', width: 1500, height: 1500 }),
 ];
 
-vi.mock('../../features/table/hooks/useTableManager', () => ({
+vi.mock('@features/table', () => ({
   useTableManager: vi.fn(() => ({
     activeTableId: 'table_1',
     tables: mockTables,
@@ -70,7 +70,7 @@ describe('TablePanel', () => {
     });
 
     it('shows empty state when no tables exist', async () => {
-      const { useTableManager } = await import('../../features/table/hooks/useTableManager');
+      const { useTableManager } = await import('@features/table');
       vi.mocked(useTableManager).mockReturnValueOnce({
         activeTableId: null,
         tables: [],

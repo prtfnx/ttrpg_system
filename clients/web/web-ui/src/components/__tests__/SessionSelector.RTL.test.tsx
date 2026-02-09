@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SessionSelector } from '../../features/session/components/SessionSelector';
+import { SessionSelector } from '@features/session';
 
 // Mock authService with factory function
 vi.mock('@features/auth', () => ({

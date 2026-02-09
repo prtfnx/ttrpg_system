@@ -63,7 +63,7 @@ import { renderWithProviders } from '../../test/utils/test-utils';
 const render = renderWithProviders;
 
 // Core UI components that should exist
-import { AuthProvider } from '@features/auth/components/AuthContext';
+import { AuthProvider } from '@features/auth';
 import { LayerPanel } from '@features/canvas';
 import { CharacterSheet } from '@features/character';
 import { CompendiumPanel } from '@features/compendium';
@@ -72,7 +72,7 @@ import { MapPanel } from '@features/table';
 // Mock the auth service to provide authenticated user for tests
 import { vi } from 'vitest';
 
-vi.mock('../../services/auth.service', () => ({
+vi.mock('@features/auth', () => ({
   authService: {
     initialize: vi.fn(() => Promise.resolve()),
     getUserInfo: vi.fn(() => ({
@@ -84,7 +84,8 @@ vi.mock('../../services/auth.service', () => ({
     isAuthenticated: vi.fn(() => true),
     updateUserInfo: vi.fn(),
     extractToken: vi.fn(() => Promise.resolve('test-token'))
-  }
+  },
+  AuthProvider: ({ children }: any) => <div>{children}</div>
 }));
 
 describe('MapPanel Component', () => {

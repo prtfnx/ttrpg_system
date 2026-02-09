@@ -5,6 +5,7 @@ export { GridControls } from './components/GridControls';
 export { GridSettings } from './components/GridSettings';
 export { LayerPanel } from './components/LayerPanel';
 export { PerformanceMonitor } from './components/PerformanceMonitor';
+export { TextSprite, TextSpriteTool, TextSpriteModal } from './components/TextSprite';
 export { TokenConfigModal } from './components/TokenConfigModal';
 export { ToolsPanel } from './components/ToolsPanel';
 

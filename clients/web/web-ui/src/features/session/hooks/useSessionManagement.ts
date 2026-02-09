@@ -3,13 +3,13 @@
  * Main hook for SessionManagementPanel following the refactoring pattern
  */
 
-import { useEffect, useState } from 'react';
-import { toast } from 'react-toastify';
 import { useAuth } from '@features/auth/components/AuthContext';
 import { useProtocol } from '@lib/api/ProtocolContext';
-import { useSessionPlayers } from './useSessionPlayers';
-import { useRoleManagement } from './useRoleManagement';
+import { useEffect, useState } from 'react';
+import { toast } from 'react-toastify';
 import type { SessionPlayer, SessionRole } from '../types/roles';
+import { useRoleManagement } from './useRoleManagement';
+import { useSessionPlayers } from './useSessionPlayers';
 
 export const useSessionManagement = (sessionCode: string) => {
   const { user } = useAuth();

@@ -1,7 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { PlayerList } from '@features/session';
+import { renderWithProviders } from '@test/utils/test-utils';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PlayerList } from '../PlayerList';
 
 // Mock the role selector component
 vi.mock('../PlayerRoleSelector', () => ({
@@ -18,18 +19,6 @@ vi.mock('../PlayerRoleSelector', () => ({
       <option value="spectator">Spectator</option>
     </select>
   )
-}));
-
-// Mock auth context
-vi.mock('@features/auth', () => ({
-  useAuth: () => ({
-    user: {
-      id: 'current-user',
-      role: 'owner',
-      username: 'TestOwner'
-    },
-    hasPermission: vi.fn(() => true)
-  })
 }));
 
 describe('PlayerList', () => {
@@ -73,7 +62,7 @@ describe('PlayerList', () => {
 
   describe('Basic Rendering', () => {
     it('renders all players in the list', () => {
-      render(<PlayerList {...defaultProps} />);
+      renderWithProviders(<PlayerList {...defaultProps} />);
 
       expect(screen.getByText('Player One')).toBeInTheDocument();
       expect(screen.getByText('Trusted Player')).toBeInTheDocument();
@@ -81,13 +70,13 @@ describe('PlayerList', () => {
     });
 
     it('shows empty state when no players', () => {
-      render(<PlayerList {...defaultProps} players={[]} />);
+      renderWithProviders(<PlayerList {...defaultProps} players={[]} />);
 
       expect(screen.getByText(/no players/i)).toBeInTheDocument();
     });
 
     it('displays player roles correctly', () => {
-      render(<PlayerList {...defaultProps} />);
+      renderWithProviders(<PlayerList {...defaultProps} />);
 
       // Should show role badges or indicators
       expect(screen.getByText('Player')).toBeInTheDocument();
@@ -96,7 +85,7 @@ describe('PlayerList', () => {
     });
 
     it('shows online/offline status', () => {
-      render(<PlayerList {...defaultProps} />);
+      renderWithProviders(<PlayerList {...defaultProps} />);
 
       // Should have visual indicators for online/offline status
       const onlineIndicators = screen.getAllByTestId('online-indicator');
@@ -109,14 +98,14 @@ describe('PlayerList', () => {
 
   describe('Role Management', () => {
     it('shows role selector for each player when canModify is true', () => {
-      render(<PlayerList {...defaultProps} />);
+      renderWithProviders(<PlayerList {...defaultProps} />);
 
       const roleSelectors = screen.getAllByTestId('role-selector');
       expect(roleSelectors).toHaveLength(3);
     });
 
     it('hides role selectors when canModify is false', () => {
-      render(<PlayerList {...defaultProps} canModify={false} />);
+      renderWithProviders(<PlayerList {...defaultProps} canModify={false} />);
 
       const roleSelectors = screen.queryAllByTestId('role-selector');
       expect(roleSelectors).toHaveLength(0);
@@ -124,7 +113,7 @@ describe('PlayerList', () => {
 
     it('calls onRoleChange when role is changed', async () => {
       const user = userEvent.setup();
-      render(<PlayerList {...defaultProps} />);
+      renderWithProviders(<PlayerList {...defaultProps} />);
 
       const firstRoleSelector = screen.getAllByTestId('role-selector')[0];
       await user.selectOptions(firstRoleSelector, 'trusted_player');
@@ -144,7 +133,7 @@ describe('PlayerList', () => {
         }
       ];
 
-      render(<PlayerList {...defaultProps} players={playersWithOwner} />);
+      renderWithProviders(<PlayerList {...defaultProps} players={playersWithOwner} />);
 
       const roleSelectors = screen.getAllByTestId('role-selector');
       const ownerSelector = roleSelectors[roleSelectors.length - 1];
@@ -153,7 +142,7 @@ describe('PlayerList', () => {
     });
 
     it('shows appropriate role options based on permissions', () => {
-      render(<PlayerList {...defaultProps} />);
+      renderWithProviders(<PlayerList {...defaultProps} />);
 
       const roleSelector = screen.getAllByTestId('role-selector')[0];
       
@@ -167,14 +156,14 @@ describe('PlayerList', () => {
 
   describe('Player Removal', () => {
     it('shows remove button for each player when canModify is true', () => {
-      render(<PlayerList {...defaultProps} />);
+      renderWithProviders(<PlayerList {...defaultProps} />);
 
       const removeButtons = screen.getAllByTitle(/remove.*player/i);
       expect(removeButtons).toHaveLength(3);
     });
 
     it('hides remove buttons when canModify is false', () => {
-      render(<PlayerList {...defaultProps} canModify={false} />);
+      renderWithProviders(<PlayerList {...defaultProps} canModify={false} />);
 
       const removeButtons = screen.queryAllByTitle(/remove.*player/i);
       expect(removeButtons).toHaveLength(0);
@@ -182,7 +171,7 @@ describe('PlayerList', () => {
 
     it('calls onRemovePlayer when remove button is clicked', async () => {
       const user = userEvent.setup();
-      render(<PlayerList {...defaultProps} />);
+      renderWithProviders(<PlayerList {...defaultProps} />);
 
       const removeButton = screen.getAllByTitle(/remove.*player/i)[0];
       await user.click(removeButton);
@@ -202,7 +191,7 @@ describe('PlayerList', () => {
         }
       ];
 
-      render(<PlayerList {...defaultProps} players={playersWithOwner} />);
+      renderWithProviders(<PlayerList {...defaultProps} players={playersWithOwner} />);
 
       const removeButtons = screen.getAllByTitle(/remove.*player/i);
       expect(removeButtons).toHaveLength(3); // Only for non-owner players
@@ -212,7 +201,7 @@ describe('PlayerList', () => {
       const user = userEvent.setup();
       window.confirm = vi.fn(() => true);
       
-      render(<PlayerList {...defaultProps} />);
+      renderWithProviders(<PlayerList {...defaultProps} />);
 
       const removeButton = screen.getAllByTitle(/remove.*player/i)[0];
       await user.click(removeButton);
@@ -227,7 +216,7 @@ describe('PlayerList', () => {
       const user = userEvent.setup();
       window.confirm = vi.fn(() => false);
       
-      render(<PlayerList {...defaultProps} />);
+      renderWithProviders(<PlayerList {...defaultProps} />);
 
       const removeButton = screen.getAllByTitle(/remove.*player/i)[0];
       await user.click(removeButton);
@@ -238,14 +227,14 @@ describe('PlayerList', () => {
 
   describe('Bulk Selection Mode', () => {
     it('shows checkboxes when bulkMode is true', () => {
-      render(<PlayerList {...defaultProps} bulkMode={true} />);
+      renderWithProviders(<PlayerList {...defaultProps} bulkMode={true} />);
 
       const checkboxes = screen.getAllByRole('checkbox');
       expect(checkboxes).toHaveLength(3);
     });
 
     it('hides checkboxes when bulkMode is false', () => {
-      render(<PlayerList {...defaultProps} bulkMode={false} />);
+      renderWithProviders(<PlayerList {...defaultProps} bulkMode={false} />);
 
       const checkboxes = screen.queryAllByRole('checkbox');
       expect(checkboxes).toHaveLength(0);
@@ -254,7 +243,7 @@ describe('PlayerList', () => {
     it('reflects selection state in checkboxes', () => {
       const selectedPlayers = new Set(['user1', 'user3']);
       
-      render(
+      renderWithProviders(
         <PlayerList 
           {...defaultProps} 
           bulkMode={true}
@@ -271,7 +260,7 @@ describe('PlayerList', () => {
     it('calls onToggleSelection when checkbox is clicked', async () => {
       const user = userEvent.setup();
       
-      render(<PlayerList {...defaultProps} bulkMode={true} />);
+      renderWithProviders(<PlayerList {...defaultProps} bulkMode={true} />);
 
       const firstCheckbox = screen.getAllByRole('checkbox')[0];
       await user.click(firstCheckbox);
@@ -280,7 +269,7 @@ describe('PlayerList', () => {
     });
 
     it('disables other actions in bulk mode', () => {
-      render(<PlayerList {...defaultProps} bulkMode={true} />);
+      renderWithProviders(<PlayerList {...defaultProps} bulkMode={true} />);
 
       // Role selectors should be hidden or disabled in bulk mode
       const roleSelectors = screen.queryAllByTestId('role-selector');
@@ -294,20 +283,20 @@ describe('PlayerList', () => {
 
   describe('Player Information Display', () => {
     it('displays last activity time for offline players', () => {
-      render(<PlayerList {...defaultProps} />);
+      renderWithProviders(<PlayerList {...defaultProps} />);
 
       expect(screen.getByText(/1 hour ago/i)).toBeInTheDocument();
     });
 
     it('shows online indicator for active players', () => {
-      render(<PlayerList {...defaultProps} />);
+      renderWithProviders(<PlayerList {...defaultProps} />);
 
       const onlineIndicators = screen.getAllByTestId('online-indicator');
       expect(onlineIndicators).toHaveLength(2);
     });
 
     it('groups players by role when configured', () => {
-      render(<PlayerList {...defaultProps} groupByRole={true} />);
+      renderWithProviders(<PlayerList {...defaultProps} groupByRole={true} />);
 
       // Should show role group headers
       expect(screen.getByText('Players (1)')).toBeInTheDocument();
@@ -316,7 +305,7 @@ describe('PlayerList', () => {
     });
 
     it('sorts players by online status and name', () => {
-      render(<PlayerList {...defaultProps} />);
+      renderWithProviders(<PlayerList {...defaultProps} />);
 
       const playerElements = screen.getAllByTestId('player-item');
       
@@ -330,7 +319,7 @@ describe('PlayerList', () => {
   describe('Interactive Features', () => {
     it('highlights player on hover', async () => {
       const user = userEvent.setup();
-      render(<PlayerList {...defaultProps} />);
+      renderWithProviders(<PlayerList {...defaultProps} />);
 
       const firstPlayer = screen.getAllByTestId('player-item')[0];
       await user.hover(firstPlayer);
@@ -340,7 +329,7 @@ describe('PlayerList', () => {
 
     it('shows player context menu on right click', async () => {
       const user = userEvent.setup();
-      render(<PlayerList {...defaultProps} />);
+      renderWithProviders(<PlayerList {...defaultProps} />);
 
       const firstPlayer = screen.getAllByTestId('player-item')[0];
       await user.pointer({ target: firstPlayer, keys: '[MouseRight]' });
@@ -352,7 +341,7 @@ describe('PlayerList', () => {
 
     it('supports keyboard navigation', async () => {
       const user = userEvent.setup();
-      render(<PlayerList {...defaultProps} />);
+      renderWithProviders(<PlayerList {...defaultProps} />);
 
       const firstPlayer = screen.getAllByTestId('player-item')[0];
       firstPlayer.focus();
@@ -365,7 +354,7 @@ describe('PlayerList', () => {
 
     it('supports keyboard selection in bulk mode', async () => {
       const user = userEvent.setup();
-      render(<PlayerList {...defaultProps} bulkMode={true} />);
+      renderWithProviders(<PlayerList {...defaultProps} bulkMode={true} />);
 
       const firstPlayer = screen.getAllByTestId('player-item')[0];
       firstPlayer.focus();
@@ -387,7 +376,7 @@ describe('PlayerList', () => {
       }));
 
       const start = performance.now();
-      render(<PlayerList {...defaultProps} players={largePlayers} />);
+      renderWithProviders(<PlayerList {...defaultProps} players={largePlayers} />);
       const end = performance.now();
 
       // Should render in reasonable time (less than 100ms)
@@ -403,7 +392,7 @@ describe('PlayerList', () => {
         lastActivity: new Date().toISOString()
       }));
 
-      render(<PlayerList {...defaultProps} players={hugePlayers} />);
+      renderWithProviders(<PlayerList {...defaultProps} players={hugePlayers} />);
 
       // Should not render all items in DOM
       const playerElements = screen.getAllByTestId('player-item');
@@ -413,7 +402,7 @@ describe('PlayerList', () => {
 
   describe('Accessibility', () => {
     it('provides proper ARIA labels', () => {
-      render(<PlayerList {...defaultProps} />);
+      renderWithProviders(<PlayerList {...defaultProps} />);
 
       expect(screen.getByRole('list')).toHaveAttribute('aria-label', 'Session players');
       
@@ -423,7 +412,7 @@ describe('PlayerList', () => {
 
     it('supports screen reader announcements', async () => {
       const user = userEvent.setup();
-      render(<PlayerList {...defaultProps} />);
+      renderWithProviders(<PlayerList {...defaultProps} />);
 
       const roleSelector = screen.getAllByTestId('role-selector')[0];
       await user.selectOptions(roleSelector, 'trusted_player');
@@ -436,7 +425,7 @@ describe('PlayerList', () => {
 
     it('maintains focus after role changes', async () => {
       const user = userEvent.setup();
-      render(<PlayerList {...defaultProps} />);
+      renderWithProviders(<PlayerList {...defaultProps} />);
 
       const roleSelector = screen.getAllByTestId('role-selector')[0];
       roleSelector.focus();
@@ -447,7 +436,7 @@ describe('PlayerList', () => {
     });
 
     it('provides keyboard shortcuts help', () => {
-      render(<PlayerList {...defaultProps} bulkMode={true} />);
+      renderWithProviders(<PlayerList {...defaultProps} bulkMode={true} />);
 
       expect(screen.getByText('Space: Select/Deselect')).toBeInTheDocument();
       expect(screen.getByText('Arrow Keys: Navigate')).toBeInTheDocument();
@@ -473,7 +462,7 @@ describe('PlayerList', () => {
         }
       ];
 
-      render(<PlayerList {...defaultProps} players={playersWithMissingData} />);
+      renderWithProviders(<PlayerList {...defaultProps} players={playersWithMissingData} />);
 
       // Should show fallback text for missing username  
       expect(screen.getByText('Anonymous User')).toBeInTheDocument();
@@ -486,7 +475,7 @@ describe('PlayerList', () => {
       const user = userEvent.setup();
       const onRoleChangeError = vi.fn().mockRejectedValue(new Error('Network error'));
       
-      render(<PlayerList {...defaultProps} onRoleChange={onRoleChangeError} />);
+      renderWithProviders(<PlayerList {...defaultProps} onRoleChange={onRoleChangeError} />);
 
       const roleSelector = screen.getAllByTestId('role-selector')[0];
       await user.selectOptions(roleSelector, 'trusted_player');
@@ -498,7 +487,7 @@ describe('PlayerList', () => {
     });
 
     it('prevents role changes when server is disconnected', () => {
-      render(<PlayerList {...defaultProps} serverConnected={false} />);
+      renderWithProviders(<PlayerList {...defaultProps} serverConnected={false} />);
 
       const roleSelectors = screen.getAllByTestId('role-selector');
       roleSelectors.forEach(selector => {

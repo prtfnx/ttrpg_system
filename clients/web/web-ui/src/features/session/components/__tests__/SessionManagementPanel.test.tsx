@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { SessionManagementPanel } from '@features/session';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SessionManagementPanel } from '@features/session';
 
 // Mock the session management hook to control what the component receives
 const mockSessionManagement = {

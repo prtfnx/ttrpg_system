@@ -1,7 +1,7 @@
+import { CollapsedView } from '@features/session';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { CollapsedView } from '@features/session';
 
 describe('CollapsedView', () => {
   const user = userEvent.setup();

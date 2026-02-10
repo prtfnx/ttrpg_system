@@ -110,7 +110,7 @@ export interface DetailedCharacter extends Character {
 // Game API interface for window object
 export interface GameAPI {
   sendMessage: (type: string, data: Record<string, unknown>) => void;
-  renderManager: () => RenderEngine | null;
+  renderManager: () => import('@lib/wasm/wasm').RenderEngine | null;
 }
 
 // WASM Bridge interface for bidirectional communication
@@ -120,105 +120,159 @@ export interface WasmBridge {
   onError: (operation: string, error: string) => void;
 }
 
-export interface RenderEngine {
-  // Core rendering
-  render: () => void;
-  resize: (width: number, height: number) => void;
+// Note: Window interface extensions are in types/index.ts
+
+// =================================================================
+// TOOL SYSTEM TYPES
+// =================================================================
+
+// Enhanced tool system types for the TTRPG client
+export type ToolType = 
+  | 'select'        // Default selection tool
+  | 'move'          // Move tool for panning
+  | 'measure'       // Measurement tool
+  | 'paint'         // Drawing/painting tool
+  | 'rectangle'     // Create rectangle sprites
+  | 'circle'        // Create circle sprites
+  | 'line'          // Create line sprites
+  | 'text'          // Create text sprites
+  | 'align'         // Alignment helper tool
+  | 'draw_shapes'   // Drawing shapes tool
+  | 'spell_templates'; // Spell templates tool
+
+export interface ToolState {
+  activeTool: ToolType;
+  measurementActive: boolean;
+  measurementStart?: { x: number; y: number };
+  measurementEnd?: { x: number; y: number };
   
-  // Camera control
-  set_camera: (world_x: number, world_y: number, zoom: number) => void;
-  screen_to_world: (screen_x: number, screen_y: number) => number[];
-  world_to_screen: (world_x: number, world_y: number) => number[];
+  // Creation tools state
+  creationSize: { width: number; height: number };
+  creationColor: string;
+  creationOpacity: number;
   
-  // Sprite management
-  add_sprite_to_layer: (layer: string, sprite_data: Record<string, unknown>) => string;
-  delete_sprite: (sprite_id: string) => boolean;
-  remove_sprite_from_layer: (layer: string, sprite_id: string) => boolean;
-  copy_sprite: (sprite_id: string) => string | undefined;
-  paste_sprite: (layer: string, sprite_json: string, offset_x: number, offset_y: number) => string;
-  resize_sprite: (sprite_id: string, new_width: number, new_height: number) => boolean;
-  rotate_sprite: (sprite_id: string, rotation_degrees: number) => boolean;
-  load_texture: (name: string, image: HTMLImageElement) => void;
+  // Alignment helpers
+  alignmentGuides: boolean;
+  snapToSprites: boolean;
   
-  // Network synchronization (table sync)
-  send_sprite_move: (sprite_id: string, x: number, y: number) => string;
-  send_sprite_scale: (sprite_id: string, scale_x: number, scale_y: number) => string;
-  send_sprite_rotate: (sprite_id: string, rotation: number) => string;
-  
-  // Layer management
-  set_layer_opacity: (layer: string, opacity: number) => void;
-  set_layer_visible: (layer: string, visible: boolean) => void;
-  toggle_grid: () => void;
-  
-  // Grid system
-  set_grid_enabled: (enabled: boolean) => void;
-  set_grid_snapping: (enabled: boolean) => void;
-  set_grid_size: (size: number) => void;
-  toggle_grid_snapping: () => void;
-  get_grid_size: () => number;
-  is_grid_snapping_enabled: () => boolean;
-  
-  // Input handling
-  handle_mouse_down: (screen_x: number, screen_y: number) => void;
-  handle_mouse_move: (screen_x: number, screen_y: number) => void;
-  handle_mouse_up: (screen_x: number, screen_y: number) => void;
-  handle_wheel: (screen_x: number, screen_y: number, delta: number) => void;
-  handle_right_click: (screen_x: number, screen_y: number) => string | undefined;
-  
-  // Cursor management
-  get_cursor_type: (screen_x: number, screen_y: number) => string;
-  
-  // Lighting system
-  add_light: (id: string, x: number, y: number) => void;
-  remove_light: (id: string) => void;
-  set_light_color: (id: string, r: number, g: number, b: number, a: number) => void;
-  set_light_intensity: (id: string, intensity: number) => void;
-  set_light_radius: (id: string, radius: number) => void;
-  toggle_light: (id: string) => void;
-  update_light_position: (id: string, x: number, y: number) => void;
-  turn_on_all_lights: () => void;
-  turn_off_all_lights: () => void;
-  get_light_count: () => number;
-  clear_lights: () => void;
-  
-  // Fog of War system
-  set_gm_mode: (is_gm: boolean) => void;
-  add_fog_rectangle: (id: string, start_x: number, start_y: number, end_x: number, end_y: number, mode: string) => void;
-  remove_fog_rectangle: (id: string) => void;
-  clear_fog: () => void;
-  hide_entire_table: (table_width: number, table_height: number) => void;
-  is_point_in_fog: (x: number, y: number) => boolean;
-  get_fog_count: () => number;
-  
-  // Paint system
-  paint_enter_mode: (width: number, height: number) => void;
-  paint_exit_mode: () => void;
-  paint_is_mode: () => boolean;
-  paint_set_brush_color: (r: number, g: number, b: number, a: number) => void;
-  paint_set_brush_size: (size: number) => void;
-  paint_start_stroke: (x: number, y: number) => void;
-  paint_continue_stroke: (x: number, y: number) => void;
-  paint_end_stroke: () => void;
-  paint_undo: () => void;
-  paint_redo: () => void;
-  paint_clear: () => void;
-  paint_save_strokes_as_sprites: (layerName: string) => string[];
-  
-  // Input mode control
-  set_input_mode_measurement: () => void;
-  set_input_mode_create_rectangle: () => void;
-  set_input_mode_create_circle: () => void;
-  set_input_mode_create_line: () => void;
-  set_input_mode_create_text: () => void;
-  set_input_mode_select: () => void;
-  set_input_mode_paint: () => void;
-  get_current_input_mode: () => string;
-  clear_measurement: () => void;
-  
-  // Sprite information
-  get_all_sprites_network_data: () => any[];
-  get_sprites_by_layer: (layer: string) => any;
-  get_sprite_info: (sprite_id: string) => any;
+  // Paint tool
+  brushSize: number;
+  brushColor: string;
 }
 
-// Note: Window interface extensions are in types/index.ts
+export interface MeasurementResult {
+  distance: number;
+  angle: number;
+  gridUnits: number;
+  screenPixels: number;
+}
+
+export interface AlignmentGuide {
+  type: 'horizontal' | 'vertical';
+  position: number;
+  sprites: string[]; // IDs of sprites that create this guide
+}
+
+export interface SpriteCreationTemplate {
+  type: 'rectangle' | 'circle' | 'line' | 'text';
+  width: number;
+  height: number;
+  color: string;
+  opacity: number;
+  textContent?: string;
+  fontSize?: number;
+}
+
+// =================================================================
+// WEBSOCKET MESSAGE TYPES
+// =================================================================
+
+// Modern WebSocket message types using discriminated unions
+// Following modern TypeScript best practices with strict typing
+
+// Base message structure
+interface BaseWSMessage {
+  type: string;
+  client_id?: string;
+  timestamp?: number;
+  version?: string;
+  priority?: number;
+  sequence_id?: number;
+}
+
+// Specific message data types
+interface SpriteAddData {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  imageUrl?: string;
+  isSelected: boolean;
+  isVisible: boolean;
+  layer: number;
+}
+
+interface SpriteMoveData {
+  id: string;
+  x: number;
+  y: number;
+}
+
+interface SpriteUpdateData extends Partial<Sprite> {
+  id: string;
+}
+
+interface TableWSData {
+  sprites: Partial<Sprite>[];
+}
+
+interface WelcomeData {
+  session_id: string;
+}
+
+// Discriminated union of all possible WebSocket messages
+export type WebSocketMessage = 
+  | (BaseWSMessage & { type: 'sprite_add'; data: SpriteAddData })
+  | (BaseWSMessage & { type: 'sprite_remove'; data: { id: string } })
+  | (BaseWSMessage & { type: 'sprite_move'; data: SpriteMoveData })
+  | (BaseWSMessage & { type: 'sprite_update'; data: SpriteUpdateData })
+  | (BaseWSMessage & { type: 'table_data'; data: TableWSData })
+  | (BaseWSMessage & { type: 'welcome'; data: WelcomeData })
+  | (BaseWSMessage & { type: 'chat'; data: { message: string; user: string } })
+  | (BaseWSMessage & { type: string; data?: Record<string, unknown> }); // fallback for unknown messages
+
+// Utility type to extract data type from message type
+export type MessageData<T extends WebSocketMessage['type']> = 
+  Extract<WebSocketMessage, { type: T }>['data'];
+
+// Type guards for runtime type checking
+export function isWebSocketMessage(obj: unknown): obj is WebSocketMessage {
+  return (
+    typeof obj === 'object' && 
+    obj !== null && 
+    'type' in obj && 
+    typeof (obj as { type: unknown }).type === 'string'
+  );
+}
+
+export function hasMessageData<T extends WebSocketMessage['type']>(
+  message: WebSocketMessage,
+  type: T
+): message is Extract<WebSocketMessage, { type: T }> {
+  return message.type === type && 'data' in message;
+}
+
+// =================================================================
+// GLOBAL WINDOW EXTENSIONS
+// =================================================================
+
+declare global {
+  interface Window {
+    gameAPI?: GameAPI;
+    rustRenderManager?: import('@lib/wasm/wasm').RenderEngine;
+    wasmBridge?: WasmBridge;
+    protocol?: any; // Protocol service instance
+  }
+}

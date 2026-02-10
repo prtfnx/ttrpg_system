@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createMockRenderEngine } from '../../test/utils/mockRenderEngine';
+import { createMockRenderEngine } from '@test/utils/mockRenderEngine';
 
 // Import web client system components
 import { ActionsPanel } from '@features/actions';
@@ -143,7 +143,7 @@ vi.mock('../store/characterStore', () => ({
   })
 }));
 
-vi.mock('../services/performance.service', () => ({
+vi.mock('@features/session/services', () => ({
   performanceService: {
     getMetrics: vi.fn().mockReturnValue({
       fps: 60,

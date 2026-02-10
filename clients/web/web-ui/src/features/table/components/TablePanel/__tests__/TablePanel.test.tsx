@@ -8,7 +8,7 @@ import { TablePanel } from '@features/table';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../../../../test/utils/test-utils';
+import { renderWithProviders } from '@test/utils/test-utils';
 import { createTestTable } from '../../../../../test/utils/testFactories';
 
 // Mock the hook that provides table data

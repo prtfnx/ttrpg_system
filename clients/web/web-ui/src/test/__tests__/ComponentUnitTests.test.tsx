@@ -57,7 +57,7 @@ vi.mock('../../store', () => ({
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { renderWithProviders } from '../../test/utils/test-utils';
+import { renderWithProviders } from '@test/utils/test-utils';
 
 // Import render as well for tests that use it directly
 const render = renderWithProviders;

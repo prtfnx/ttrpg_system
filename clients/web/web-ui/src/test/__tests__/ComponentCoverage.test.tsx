@@ -1,5 +1,5 @@
 // Import render as well for tests that use it directly  
-import { renderWithProviders } from '../../test/utils/test-utils';
+import { renderWithProviders } from '@test/utils/test-utils';
 const render = renderWithProviders;
 
 // Mock usePaintSystem for PaintPanel

@@ -1,8 +1,8 @@
+import { PlayerRoleSelector } from '@features/session';
+import type { SessionRole } from '@features/session/types';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PlayerRoleSelector } from '@features/session';
-import type { SessionRole } from '@features/session/types';
 
 describe('PlayerRoleSelector', () => {
   const user = userEvent.setup();

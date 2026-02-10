@@ -1,8 +1,8 @@
+import { createMockRenderEngine } from '@test/utils/mockRenderEngine';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createMockRenderEngine } from '@test/utils/mockRenderEngine';
 
 // Import web client system components
 import { ActionsPanel } from '@features/actions';

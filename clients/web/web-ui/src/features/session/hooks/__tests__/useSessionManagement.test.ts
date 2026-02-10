@@ -1,9 +1,9 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { useSessionManagement } from '@features/session';
+import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useSessionManagement } from '../useSessionManagement';
 
 // Mock the session service
-vi.mock('../../services/sessionManagement.service', () => ({
+vi.mock('@features/session/services', () => ({
   sessionManagementService: {
     updateSessionSettings: vi.fn(() => Promise.resolve({ success: true })),
     getSessionStats: vi.fn(() => Promise.resolve({
@@ -94,7 +94,7 @@ describe('useSessionManagement', () => {
     });
 
     it('handles settings update failure', async () => {
-      const { sessionManagementService } = await import('../../services/sessionManagement.service');
+      const { sessionManagementService } = await import('@features/session/services');
       vi.mocked(sessionManagementService.updateSessionSettings).mockRejectedValueOnce(
         new Error('Update failed')
       );
@@ -138,7 +138,7 @@ describe('useSessionManagement', () => {
     });
 
     it('handles stats loading failure', async () => {
-      const { sessionManagementService } = await import('../../services/sessionManagement.service');
+      const { sessionManagementService } = await import('@features/session/services');
       vi.mocked(sessionManagementService.getSessionStats).mockRejectedValueOnce(
         new Error('Stats unavailable')
       );
@@ -177,7 +177,7 @@ describe('useSessionManagement', () => {
     });
 
     it('handles deletion failure', async () => {
-      const { sessionManagementService } = await import('../../services/sessionManagement.service');
+      const { sessionManagementService } = await import('@features/session/services');
       vi.mocked(sessionManagementService.deleteSession).mockRejectedValueOnce(
         new Error('Deletion failed')
       );
@@ -206,7 +206,7 @@ describe('useSessionManagement', () => {
     });
 
     it('handles audit log loading failure', async () => {
-      const { sessionManagementService } = await import('../../services/sessionManagement.service');
+      const { sessionManagementService } = await import('@features/session/services');
       vi.mocked(sessionManagementService.getAuditLog).mockRejectedValueOnce(
         new Error('Audit log unavailable')
       );
@@ -229,7 +229,7 @@ describe('useSessionManagement', () => {
       });
 
       // Should pass filter parameter to service
-      const { sessionManagementService } = await import('../../services/sessionManagement.service');
+      const { sessionManagementService } = await import('@features/session/services');
       expect(sessionManagementService.getAuditLog).toHaveBeenCalledWith(
         mockSessionCode, 
         { eventType: 'SETTINGS_UPDATED' }
@@ -293,7 +293,7 @@ describe('useSessionManagement', () => {
 
   describe('Error Recovery', () => {
     it('clears errors when retrying operations', async () => {
-      const { sessionManagementService } = await import('../../services/sessionManagement.service');
+      const { sessionManagementService } = await import('@features/session/services');
       
       // First call fails
       vi.mocked(sessionManagementService.updateSessionSettings)

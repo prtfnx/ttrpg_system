@@ -59,9 +59,9 @@ describe('Legacy Character Migration Edge Cases', () => {
  */
 
 
+import { useGameStore } from '@shared/stores';
+import type { Character, Sprite } from '@shared/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useGameStore } from '../../store';
-import type { Character, Sprite } from '../../types';
 
 // Capture the initial Zustand store state (with all methods)
 const initialState = useGameStore.getState();

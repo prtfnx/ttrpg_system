@@ -1,6 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useInvitations } from '../useInvitations';
+import { useInvitations } from '@features/session';
 
 // Mock the invitation service
 vi.mock('../../services/invitation.service', () => ({

@@ -1,7 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useTableManager } from '../useTableManager';
-import type { TableInfo, ScreenArea } from '../useTableManager';
+import { useTableManager } from '@features/table';
+import type { TableInfo, ScreenArea } from '@features/table';
 
 // Mock WASM TableManager
 const mockTableManager = {

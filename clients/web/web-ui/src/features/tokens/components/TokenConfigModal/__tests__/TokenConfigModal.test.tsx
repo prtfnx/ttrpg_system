@@ -17,11 +17,11 @@
  */
 
 import { TokenConfigModal } from '@features/canvas';
+import { useGameStore } from '@shared/stores';
+import type { Character, Sprite } from '@shared/types';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useGameStore } from '@shared/stores';
-import type { Character, Sprite } from '@shared/types';
 
 // Mock ProtocolContext
 const mockProtocol = {

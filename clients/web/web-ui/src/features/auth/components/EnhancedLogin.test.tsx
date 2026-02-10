@@ -2,11 +2,11 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { enhancedAuthService } from '../services/enhancedAuth.service';
+import { enhancedAuthService } from '@features/session/services';
 import EnhancedLogin from './EnhancedLogin';
 
 // Mock the auth service - but don't change its API, work with what users expect
-vi.mock('../services/enhancedAuth.service', () => ({
+vi.mock('@features/session/services', () => ({
   enhancedAuthService: {
     login: vi.fn(),
     register: vi.fn(),

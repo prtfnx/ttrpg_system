@@ -1,7 +1,7 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { LayerSettings } from '../useLayerManager';
 import { useLayerManager } from '../useLayerManager';
-import type { LayerSettings, LayerInfo } from '../useLayerManager';
 
 // Mock render manager
 const mockRenderManager = {

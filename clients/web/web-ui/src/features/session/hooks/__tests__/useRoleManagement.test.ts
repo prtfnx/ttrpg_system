@@ -1,6 +1,6 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { useRoleManagement } from '@features/session';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useRoleManagement } from '../useRoleManagement';
 
 // Mock the role management service
 vi.mock('../../services/roleManagement.service', () => ({

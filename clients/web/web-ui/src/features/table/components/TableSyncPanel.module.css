@@ -1,11 +1,11 @@
 .table-sync-panel {
-  composes: panel-container wide from '../../../styles/PanelBase.module.css';
+  composes: panel-container wide from '@shared/styles/PanelBase.module.css';
   min-width: 320px;
   max-width: 480px;
 }
 
 .panelHeader {
-  composes: panel-header from '../../../styles/PanelBase.module.css';
+  composes: panel-header from '@shared/styles/PanelBase.module.css';
 }
 
 .panelHeader h3 {
@@ -44,7 +44,7 @@
 }
 
 .request-button {
-  composes: panel-button success from '../../../styles/PanelBase.module.css';
+  composes: panel-button success from '@shared/styles/PanelBase.module.css';
 }
 
 .table-info,
@@ -121,7 +121,7 @@
 }
 
 .clear-logs-button {
-  composes: panel-button secondary from '../../../styles/PanelBase.module.css';
+  composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
   padding: var(--spacing-xs) var(--spacing-sm);
   font-size: var(--text-2xs);
 }

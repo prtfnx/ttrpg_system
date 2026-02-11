@@ -1,16 +1,16 @@
 .tablePanel {
-  composes: panel-container from '../../../styles/PanelBase.module.css';
+  composes: panel-container from '@shared/styles/PanelBase.module.css';
   width: 300px;
   max-height: 600px;
   overflow-y: auto;
 }
 
 .tablePanelHeader {
-  composes: panel-header from '../../../styles/PanelBase.module.css';
+  composes: panel-header from '@shared/styles/PanelBase.module.css';
 }
 
 .createTableBtn {
-  composes: panel-button primary from '../../../styles/PanelBase.module.css';
+  composes: panel-button primary from '@shared/styles/PanelBase.module.css';
   width: var(--space-2xl);
   height: var(--space-2xl);
   font-size: var(--text-lg);
@@ -18,7 +18,7 @@
 }
 
 .createTableForm {
-  composes: settings-section from '../../../styles/PanelBase.module.css';
+  composes: settings-section from '@shared/styles/PanelBase.module.css';
   margin-bottom: var(--spacing-md);
 }
 
@@ -116,7 +116,7 @@
 }
 
 .removeTableBtn {
-  composes: panel-button danger from '../../../styles/PanelBase.module.css';
+  composes: panel-button danger from '@shared/styles/PanelBase.module.css';
   width: var(--space-xl);
   height: var(--space-xl);
   font-size: var(--text-sm);

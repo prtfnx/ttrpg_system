@@ -5,7 +5,7 @@
 
 /* Panel container with responsive variants */
 .paintPanel {
-  composes: panel-container extra-wide from '../../../styles/PanelBase.module.css';
+  composes: panel-container extra-wide from '@shared/styles/PanelBase.module.css';
   min-height: var(--space-5xl);
   max-height: 90vh;
   transition: width var(--transition-normal);
@@ -150,7 +150,7 @@
 }
 
 .paintPanel-header {
-  composes: panel-header from '../../../styles/PanelBase.module.css';
+  composes: panel-header from '@shared/styles/PanelBase.module.css';
   padding: var(--space-md) var(--space-lg);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
@@ -178,7 +178,7 @@
 }
 
 .paintPanel-content {
-  composes: panel-content from '../../../styles/PanelBase.module.css';
+  composes: panel-content from '@shared/styles/PanelBase.module.css';
   padding: var(--space-lg);
 }
 
@@ -475,7 +475,7 @@
 }
 
 .blend-mode-select {
-  composes: control-input from '../../../styles/PanelBase.module.css';
+  composes: control-input from '@shared/styles/PanelBase.module.css';
   width: 100%;
 }
 
@@ -504,7 +504,7 @@
 }
 
 .preset-button {
-  composes: panel-button secondary from '../../../styles/PanelBase.module.css';
+  composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
   padding: var(--space-sm);
   font-size: var(--font-size-xs);
 }
@@ -601,15 +601,15 @@
 
 /* Button Styles */
 .btn-primary {
-  composes: panel-button success from '../../../styles/PanelBase.module.css';
+  composes: panel-button success from '@shared/styles/PanelBase.module.css';
 }
 
 .btn-secondary {
-  composes: panel-button secondary from '../../../styles/PanelBase.module.css';
+  composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
 }
 
 .btn-danger {
-  composes: panel-button danger from '../../../styles/PanelBase.module.css';
+  composes: panel-button danger from '@shared/styles/PanelBase.module.css';
 }
 
 /* Responsive Design */
@@ -685,7 +685,7 @@
 
 /* Modal Styles */
 .modal-overlay {
-  composes: panel-overlay from '../../../styles/PanelBase.module.css';
+  composes: panel-overlay from '@shared/styles/PanelBase.module.css';
 }
 
 .modal-dialog {

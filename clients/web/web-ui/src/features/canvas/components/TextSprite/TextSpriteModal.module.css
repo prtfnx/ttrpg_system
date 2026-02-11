@@ -8,27 +8,27 @@
   composes: modal-container from './TextSpriteBase.module.css';
 }
 
-.textSpriteModal .modal-header {
+.modalHeader {
   composes: modal-header from './TextSpriteBase.module.css';
 }
 
-.textSpriteModal .modal-header h3 {
+.modalTitle {
   composes: modal-title from './TextSpriteBase.module.css';
 }
 
-.textSpriteModal .close-btn {
+.closeBtn {
   composes: modal-close from './TextSpriteBase.module.css';
 }
 
-.textSpriteModal .modal-body {
+.modalBody {
   composes: modal-body from './TextSpriteBase.module.css';
 }
 
-.textSpriteModal .form-group {
+.formGroup {
   composes: control-group from './TextSpriteBase.module.css';
 }
 
-.textSpriteModal .form-group label {
+.controlLabel {
   composes: control-label from './TextSpriteBase.module.css';
 }
 
@@ -64,11 +64,11 @@
   gap: var(--space-lg);
 }
 
-.textSpriteModal .slider-container {
+.sliderContainer {
   composes: slider-container from './TextSpriteBase.module.css';
 }
 
-.textSpriteModal input[type="range"] {
+.rangeInput {
   composes: range-input from './TextSpriteBase.module.css';
 }
 
@@ -102,15 +102,15 @@
   transform: scale(1.1);
 }
 
-.textSpriteModal .slider-value {
+.sliderValue {
   composes: slider-value from './TextSpriteBase.module.css';
 }
 
-.textSpriteModal .color-picker-container {
+.colorPickerContainer {
   composes: color-picker-container from './TextSpriteBase.module.css';
 }
 
-.textSpriteModal input[type="color"] {
+.colorInput {
   composes: color-input from './TextSpriteBase.module.css';
   height: var(--size-10);
 }
@@ -124,7 +124,7 @@
   border-radius: var(--space-1);
 }
 
-.textSpriteModal .color-value {
+.colorValue {
   composes: color-value from './TextSpriteBase.module.css';
 }
 
@@ -133,7 +133,7 @@
   margin-bottom: var(--space-xl);
 }
 
-.textSpriteModal .preview-section label {
+.previewLabel {
   composes: control-label from './TextSpriteBase.module.css';
 }
 
@@ -145,32 +145,32 @@
   border: var(--border-width-md) dashed var(--gray-700);
 }
 
-.textSpriteModal .info-box {
+.infoBox {
   composes: info-box from './TextSpriteBase.module.css';
 }
 
-.textSpriteModal .info-box strong {
+.infoBoxHighlight {
   composes: info-box-highlight from './TextSpriteBase.module.css';
 }
 
-.textSpriteModal .modal-footer {
+.modalFooter {
   composes: modal-footer from './TextSpriteBase.module.css';
 }
 
-.textSpriteModal .btn {
+.btn {
   composes: button-base from './TextSpriteBase.module.css';
   padding: var(--space-sm) var(--space-2xl);
 }
 
-.textSpriteModal .btn-cancel {
+.btnCancel {
   composes: button-secondary from './TextSpriteBase.module.css';
 }
 
-.textSpriteModal .btn-confirm {
+.btnConfirm {
   composes: button-primary from './TextSpriteBase.module.css';
 }
 
-.textSpriteModal .btn-confirm:disabled {
+.btnConfirmDisabled {
   composes: button-disabled from './TextSpriteBase.module.css';
 }
 

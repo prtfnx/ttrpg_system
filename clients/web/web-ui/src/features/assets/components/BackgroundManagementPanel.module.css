@@ -6,13 +6,13 @@
 
 /* Use shared modal overlay */
 .backgroundManagementOverlay {
-  composes: panel-overlay from '../../../styles/PanelBase.module.css';
+  composes: panel-overlay from '@shared/styles/PanelBase.module.css';
   z-index: 10000;
 }
 
 /* Panel container with custom width */
 .backgroundManagementPanel {
-  composes: panel-container extra-wide from '../../../styles/PanelBase.module.css';
+  composes: panel-container extra-wide from '@shared/styles/PanelBase.module.css';
   max-width: 90vw;
   max-height: 90vh;
   width: 1000px;
@@ -20,7 +20,7 @@
 
 /* Header with gradient accent */
 .panelHeader {
-  composes: panel-header from '../../../styles/PanelBase.module.css';
+  composes: panel-header from '@shared/styles/PanelBase.module.css';
   padding: var(--space-lg) var(--space-2xl);
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-hover));
   color: var(--text-on-accent);
@@ -34,7 +34,7 @@
 }
 
 .closeBtn {
-  composes: close-button from '../../../styles/PanelBase.module.css';
+  composes: close-button from '@shared/styles/PanelBase.module.css';
   color: var(--text-on-accent);
   width: 40px;
   height: 40px;
@@ -52,14 +52,14 @@
 
 /* Content area */
 .panelContent {
-  composes: panel-content from '../../../styles/PanelBase.module.css';
+  composes: panel-content from '@shared/styles/PanelBase.module.css';
   max-height: calc(90vh - 120px);
   padding: var(--space-lg) var(--space-2xl);
 }
 
 /* Error message */
 .errorMessage {
-  composes: info-box error from '../../../styles/PanelBase.module.css';
+  composes: info-box error from '@shared/styles/PanelBase.module.css';
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -88,7 +88,7 @@
 
 /* Sections */
 .section {
-  composes: settings-section from '../../../styles/PanelBase.module.css';
+  composes: settings-section from '@shared/styles/PanelBase.module.css';
   margin-bottom: var(--space-2xl);
 }
 
@@ -151,13 +151,13 @@
 
 /* Performance Metrics */
 .metricsGrid {
-  composes: info-grid from '../../../styles/PanelBase.module.css';
+  composes: info-grid from '@shared/styles/PanelBase.module.css';
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 
 .metric {
-  composes: info-stat from '../../../styles/PanelBase.module.css';
+  composes: info-stat from '@shared/styles/PanelBase.module.css';
   background: linear-gradient(135deg, var(--gray-700) 0%, var(--gray-800) 100%);
   display: flex;
   justify-content: space-between;
@@ -165,11 +165,11 @@
 }
 
 .metricLabel {
-  composes: stat-label from '../../../styles/PanelBase.module.css';
+  composes: stat-label from '@shared/styles/PanelBase.module.css';
 }
 
 .metricValue {
-  composes: stat-value from '../../../styles/PanelBase.module.css';
+  composes: stat-value from '@shared/styles/PanelBase.module.css';
   font-size: var(--text-lg);
 }
 
@@ -193,19 +193,19 @@
 }
 
 .setting {
-  composes: control-group from '../../../styles/PanelBase.module.css';
+  composes: control-group from '@shared/styles/PanelBase.module.css';
   display: flex;
   align-items: center;
   gap: var(--space-sm);
 }
 
 .settingLabel {
-  composes: control-label from '../../../styles/PanelBase.module.css';
+  composes: control-label from '@shared/styles/PanelBase.module.css';
   gap: var(--space-sm);
 }
 
 .settingSelect {
-  composes: setting-select from '../../../styles/PanelBase.module.css';
+  composes: setting-select from '@shared/styles/PanelBase.module.css';
   min-width: 120px;
 }
 
@@ -307,15 +307,15 @@
 }
 
 .layerPropertyLabel {
-  composes: setting-label from '../../../styles/PanelBase.module.css';
+  composes: setting-label from '@shared/styles/PanelBase.module.css';
 }
 
 .layerPropertySlider {
-  composes: setting-slider from '../../../styles/PanelBase.module.css';
+  composes: setting-slider from '@shared/styles/PanelBase.module.css';
 }
 
 .layerPropertySelect {
-  composes: setting-select from '../../../styles/PanelBase.module.css';
+  composes: setting-select from '@shared/styles/PanelBase.module.css';
 }
 
 .layerPropertyValue {
@@ -368,7 +368,7 @@
 }
 
 .effectControlSlider {
-  composes: setting-slider from '../../../styles/PanelBase.module.css';
+  composes: setting-slider from '@shared/styles/PanelBase.module.css';
   width: 120px;
 }
 
@@ -389,7 +389,7 @@
 }
 
 .add-weather-btn {
-  composes: panel-button success from '../../../styles/PanelBase.module.css';
+  composes: panel-button success from '@shared/styles/PanelBase.module.css';
   padding: var(--space-sm) var(--space-lg);
   align-self: flex-start;
 }
@@ -405,12 +405,12 @@
 }
 
 .addWeatherFormSelect {
-  composes: setting-select from '../../../styles/PanelBase.module.css';
+  composes: setting-select from '@shared/styles/PanelBase.module.css';
   min-width: 200px;
 }
 
 .addWeatherFormButton {
-  composes: panel-button secondary from '../../../styles/PanelBase.module.css';
+  composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
   padding: var(--space-sm) var(--space-md);
   font-size: var(--text-sm);
 }

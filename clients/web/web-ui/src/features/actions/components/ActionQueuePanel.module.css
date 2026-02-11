@@ -1,11 +1,11 @@
 .actionQueuePanel {
-  composes: panel-container from '../../../styles/PanelBase.module.css';
+  composes: panel-container from '@shared/styles/PanelBase.module.css';
   min-width: 280px;
   max-width: 400px;
 }
 
 .panelHeaderCompact {
-  composes: panel-header from '../../../styles/PanelBase.module.css';
+  composes: panel-header from '@shared/styles/PanelBase.module.css';
   padding: var(--spacing-sm) var(--spacing-md);
 }
 
@@ -56,7 +56,7 @@
 }
 
 .queueBtn {
-  composes: panel-button primary from '../../../styles/PanelBase.module.css';
+  composes: panel-button primary from '@shared/styles/PanelBase.module.css';
   width: 100%;
 }
 

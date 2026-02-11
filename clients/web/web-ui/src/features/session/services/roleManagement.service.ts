@@ -7,7 +7,7 @@ export interface RoleChangeData {
 }
 
 class RoleManagementService {
-  async updatePlayerRole(data: RoleChangeData): Promise<void> {
+  async updatePlayerRole(_data: RoleChangeData): Promise<void> {
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 100));
     
@@ -15,12 +15,12 @@ class RoleManagementService {
     // For now, just simulate success
   }
 
-  async removePlayer(sessionId: string, playerId: string): Promise<void> {
+  async removePlayer(_sessionId: string, _playerId: string): Promise<void> {
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 
-  async getSessionPlayers(sessionId: string): Promise<Array<{id: string; name: string; role: SessionRole}>> {
+  async getSessionPlayers(_sessionId: string): Promise<Array<{id: string; name: string; role: SessionRole}>> {
     // Simulate API call - return empty array for now
     await new Promise(resolve => setTimeout(resolve, 100));
     return [];

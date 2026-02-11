@@ -26,14 +26,18 @@ core_table/compendiums/tokens/*
 !core_table/compendiums/*loader.py
 !core_table/compendiums/spell_loader.py
 
+# Large data files (>1MB) - use external source 
+core_table/compendiums/exports/*
+
 # Server
 server_host/.env
-server_host/ttrpg.db
+server_host/*.db
 server_host/server.log
 server_host/doc/
 server_host/database/migrate_characters.py
 server_host/static/ui/index.html
 server_host/templates/vite_assets.html
+server_host/ttrpg_game.db
 
 # Storage and data
 storage/perf_test/
@@ -41,6 +45,11 @@ storage/test_storage/
 storage/game_data/settings.json
 storage/game_data/saves/player.json
 storage_config.json
+
+# Backups (never commit database backups)
+backups/
+*.backup
+*.sql.gz
 
 # Web client
 clients/web/web-ui/node_modules/
@@ -66,5 +75,3 @@ gui/imgui_log.txt
 
 # Scripts
 scripts/
-
-

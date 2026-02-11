@@ -1,8 +1,7 @@
+import { useGameStore } from '@/store';
+import type { Sprite, WebSocketMessage } from '@/types';
 import { useProtocol } from '@lib/api';
 import { useCallback, useEffect, useRef } from 'react';
-import { useGameStore } from '@/store';
-import type { Sprite } from '@/types';
-import type { WebSocketMessage } from '@/types';
 
 export function useWebSocket(url: string) {
   const wsRef = useRef<WebSocket | null>(null);

@@ -1,6 +1,6 @@
+import type { WebClientProtocol } from '@lib/websocket/clientProtocol';
 import React, { createContext, useContext } from 'react';
 import { vi } from 'vitest';
-import type { WebClientProtocol } from '@lib/websocket/clientProtocol';
 
 interface MockProtocolContextValue {
   protocol: Partial<WebClientProtocol> | null;

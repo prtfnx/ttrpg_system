@@ -3,9 +3,9 @@
  * Handles sprite synchronization, table updates, and asset management
  */
 
+import { useGameStore } from '@/store';
 import { tableThumbnailService } from '@features/table';
 import type { RenderEngine } from '@lib/wasm/wasm';
-import { useGameStore } from '@/store';
 
 class WasmIntegrationService {
   private renderEngine: RenderEngine | null = null;

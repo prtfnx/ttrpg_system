@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RenderEngine } from '@lib/wasm/wasm';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface ActionResult {
   success: boolean;

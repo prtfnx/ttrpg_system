@@ -1,6 +1,6 @@
+import { useGameStore } from '@/store';
 import { getSpriteCenter, getSpriteHeight, getSpriteWidth } from '@shared/utils/spriteHelpers';
 import { useEffect, useState } from 'react';
-import { useGameStore } from '@/store';
 
 interface AlignmentHelperProps {
   isActive: boolean;

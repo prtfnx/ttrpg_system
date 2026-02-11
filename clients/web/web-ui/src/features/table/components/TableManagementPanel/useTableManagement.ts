@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
 import type { TableInfo } from '@/store';
 import { useGameStore } from '@/store';
 import { tableThumbnailService } from '@features/table/services/tableThumbnail.service';
+import { useEffect, useMemo, useState } from 'react';
 import { TABLE_TEMPLATES } from './utils';
 
 export const useTableManagement = () => {

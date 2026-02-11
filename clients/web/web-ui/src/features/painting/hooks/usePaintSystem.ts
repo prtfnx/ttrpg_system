@@ -1,6 +1,6 @@
+import { useGameStore } from '@/store';
 import type { BrushPreset } from '@lib/wasm';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useGameStore } from '@/store';
 
 // Access WASM functions through the global window object - use same type as in types.ts
 

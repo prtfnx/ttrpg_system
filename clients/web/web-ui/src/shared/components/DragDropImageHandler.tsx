@@ -2,8 +2,8 @@ import { assetIntegrationService, useAssetManager } from '@features/assets';
 import { useProtocol } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { spriteCreationService } from '../../features/canvas/services/spriteCreation.service';
-import { useGameStore } from '../../store';
+import { spriteCreationService } from '@features/canvas/services/spriteCreation.service';
+import { useGameStore } from '@/store';
 
 interface DragDropImageHandlerProps {
   children: React.ReactNode;

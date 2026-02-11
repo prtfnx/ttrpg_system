@@ -10,7 +10,7 @@
  * - No UI-specific properties (name, isVisible, isSelected)
  */
 
-import type { Sprite } from '../../types';
+import type { Sprite } from '@/types';
 
 /**
  * Standard sprite dimensions - these should ideally come from WASM

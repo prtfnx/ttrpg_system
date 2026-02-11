@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import React, { useState } from 'react';
-import { useGameStore } from '../../../store';
+import { useGameStore } from '@/store';
 import type { TableInfo } from '../hooks/useTableManager';
 import { useTableManager } from '../hooks/useTableManager';
 import styles from './TablePanel.module.css';

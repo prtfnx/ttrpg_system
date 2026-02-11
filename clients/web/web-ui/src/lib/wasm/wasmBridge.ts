@@ -6,7 +6,7 @@
 import { useProtocol } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
 import React from 'react';
-import { useGameStore } from '../../store';
+import { useGameStore } from '@/store';
 
 class WasmBridgeService {
   private protocol: any = null;

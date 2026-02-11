@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import type { FC } from 'react';
-import type { TableInfo } from '../../../../store';
+import type { TableInfo } from '@/store';
 import styles from '../TableManagementPanel.module.css';
 import { TablePreview } from '../TablePreview';
 import { formatDate } from './utils';

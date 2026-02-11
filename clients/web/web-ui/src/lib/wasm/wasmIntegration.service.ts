@@ -4,8 +4,8 @@
  */
 
 import { tableThumbnailService } from '@features/table';
-import { useGameStore } from '../../store';
-import type { RenderEngine } from '../../types/wasm';
+import type { RenderEngine } from '@lib/wasm/wasm';
+import { useGameStore } from '@/store';
 
 class WasmIntegrationService {
   private renderEngine: RenderEngine | null = null;

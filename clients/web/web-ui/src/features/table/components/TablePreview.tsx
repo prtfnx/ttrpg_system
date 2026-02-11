@@ -1,6 +1,6 @@
 import { wasmIntegrationService } from '@lib/wasm';
 import React, { useEffect, useRef, useState } from 'react';
-import type { TableInfo } from '../../../store';
+import type { TableInfo } from '@/store';
 import { tableThumbnailService } from '../services/tableThumbnail.service';
 
 interface TablePreviewProps {

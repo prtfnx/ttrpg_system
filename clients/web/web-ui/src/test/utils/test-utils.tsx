@@ -1,4 +1,4 @@
-import { AuthContext, type UserInfo } from '@features/auth';
+import { AuthContext, type UserInfo } from '@app/providers';
 import { render, type RenderOptions } from '@testing-library/react';
 import React from 'react';
 import { vi } from 'vitest';

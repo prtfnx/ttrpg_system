@@ -7,8 +7,8 @@
 
 import { logger, protocolLogger } from '@shared/utils/logger';
 import { showToast } from '@shared/utils/toast';
-import { useAssetCharacterCache } from '../../features/assets/services/assetCache';
-import { useGameStore } from '../../store';
+import { useAssetCharacterCache } from '@features/assets/services/assetCache';
+import { useGameStore } from '@/store';
 import type { Message, MessageHandler } from './message';
 import { MessageType, createMessage, parseMessage } from './message';
 import { validateTableId } from './tableProtocolAdapter';

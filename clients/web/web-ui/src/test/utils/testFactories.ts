@@ -4,7 +4,7 @@
  * Provides consistent, type-safe test data creation.
  * Use these factories instead of inline object literals in tests.
  */
-import type { Character } from '../../types';
+import type { Character } from '@/types';
 
 // Import types from features
 export interface TableInfo {

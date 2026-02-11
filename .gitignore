@@ -37,6 +37,7 @@ server_host/doc/
 server_host/database/migrate_characters.py
 server_host/static/ui/index.html
 server_host/templates/vite_assets.html
+server_host/templates/admin_assets.html
 server_host/ttrpg_game.db
 
 # Storage and data
@@ -56,6 +57,10 @@ clients/web/web-ui/node_modules/
 clients/web/web-ui/dist/
 clients/web/web-ui/package-lock.json
 clients/web/web-ui/public/
+
+# Server static assets (built from web client)
+server_host/static/ui/
+!server_host/static/ui/.gitkeep
 
 # Rust
 clients/web/rust-core/target/

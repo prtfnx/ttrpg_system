@@ -1,7 +1,7 @@
 import type { UserInfo } from '@features/auth';
 import { ToolsPanel } from '@features/canvas';
 import { ProtocolService } from '@lib/api';
-import { useGameStore } from '@shared/stores';
+import { useGameStore } from '@/store';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';

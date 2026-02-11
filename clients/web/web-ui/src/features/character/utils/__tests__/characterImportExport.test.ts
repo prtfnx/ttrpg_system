@@ -12,7 +12,7 @@
  * @vitest-environment jsdom
  */
 
-import type { Character } from '@shared/types/Character';
+import type { Character } from '@/types';
 import {
     cloneCharacter,
     downloadCharacterAsJSON,

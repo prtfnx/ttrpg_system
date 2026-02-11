@@ -4,12 +4,12 @@
  * Tests user interactions with the table management panel.
  * Focus: What users see and do, not implementation details.
  */
+import { createTestTable } from '@/test/utils/testFactories';
 import { TablePanel } from '@features/table';
 import { renderWithProviders } from '@test/utils/test-utils';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createTestTable } from '../../../../../test/utils/testFactories';
 
 // Mock the hook that provides table data
 const mockCreateTable = vi.fn(() => true);

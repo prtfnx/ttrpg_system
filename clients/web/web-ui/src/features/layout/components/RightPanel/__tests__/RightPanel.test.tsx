@@ -1,9 +1,9 @@
+import { AuthProvider } from '@features/auth';
+import { RightPanel } from '@features/layout/app/RightPanel';
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { RightPanel } from '../../app/RightPanel';
-import { AuthProvider } from '@features/auth';
 
 // Mock only what's necessary - child components that would cause issues
 vi.mock('../features/table/components/TableManagementPanel', () => ({

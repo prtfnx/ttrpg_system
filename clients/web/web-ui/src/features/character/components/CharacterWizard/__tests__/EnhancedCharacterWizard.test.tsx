@@ -10,7 +10,7 @@ vi.mock('@shared/components', () => ({
   LoadingSpinner: () => <div>Loading...</div>,
 }));
 
-vi.mock('../../../../services/ProtocolContext', () => ({
+vi.mock('@/services/ProtocolContext', () => ({
   useProtocol: () => ({
     protocol: {
       saveCharacter: vi.fn(),

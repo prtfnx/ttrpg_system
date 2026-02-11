@@ -1,8 +1,8 @@
+import { useGameStore } from '@/store';
 import type { UserInfo } from '@features/auth';
 import { GameClient } from '@features/canvas';
 import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useGameStore } from '../../shared/stores/gameStore';
 
 // Mock child components to test GameClient in isolation
 vi.mock('@features/canvas/components/TokenConfigModal', () => ({

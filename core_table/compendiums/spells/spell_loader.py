@@ -25,10 +25,10 @@ class SpellLoader:
     def load_from_json(self, json_file: str) -> bool:
         """Load spells from JSON file"""
         try:
-            print(f"Loading spells from: {json_file}")
+            print(f"📖 Loading spells from: {json_file}")
             
             if not os.path.exists(json_file):
-                print(f"File not found: {json_file}")
+                print(f"❌ File not found: {json_file}")
                 return False
             
             with open(json_file, 'r', encoding='utf-8') as f:
@@ -47,11 +47,11 @@ class SpellLoader:
                     self.spells[spell_name] = spell
                     loaded_count += 1
             
-            print(f"Loaded {loaded_count} spells from JSON")
+            print(f"✅ Loaded {loaded_count} spells from JSON")
             return True
             
         except Exception as e:
-            print(f"Error loading JSON: {e}")
+            print(f"❌ Error loading JSON: {e}")
             return False
     
     def _dict_to_spell(self, data: Dict[str, Any]) -> Optional[Spell]:

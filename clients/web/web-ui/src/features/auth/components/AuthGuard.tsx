@@ -1,6 +1,6 @@
+import { useAuth } from '@app/providers';
 import React from 'react';
 import './Auth.css';
-import { useAuth } from './AuthContext';
 import LoginModal from './LoginModal';
 
 interface AuthGuardProps {

@@ -2,15 +2,15 @@
  * GameCanvas - Main canvas component for rendering the game world
  * Refactored to use extracted hooks and utilities for better maintainability
  */
+import { useGameStore } from '@/store';
 import { assetIntegrationService } from '@features/assets';
 import { useProtocol } from '@lib/api';
 import type { GlobalWasmModule } from '@lib/wasm';
 import { useWasmBridge, wasmIntegrationService } from '@lib/wasm';
+import type { RenderEngine } from '@lib/wasm/wasm';
 import { DragDropImageHandler } from '@shared/components';
 import { useWebSocket } from '@shared/hooks';
 import React, { useEffect, useRef, useState } from 'react';
-import { useGameStore } from '../../../store';
-import type { RenderEngine } from '../../../types';
 import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
 import fpsService from '../services/fps.service';
 import { performanceService } from '../services/performance.service';

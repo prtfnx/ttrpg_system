@@ -1,6 +1,6 @@
+import { useAuth } from '@app/providers';
 import React from 'react';
 import './Auth.css';
-import { useAuth } from './AuthContext';
 
 const UserMenu: React.FC = () => {
   const { user, logout } = useAuth();

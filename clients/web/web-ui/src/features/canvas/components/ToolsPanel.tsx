@@ -1,13 +1,13 @@
+import { useGameStore } from '@/store';
+import type { GameAPI } from '@/types';
 import { AssetManager } from '@features/assets';
 import { GridControls, LayerPanel } from '@features/canvas';
 import { MeasurementTool } from '@features/measurement';
 import { PaintPanel } from '@features/painting';
 import { ProtocolService } from '@lib/api';
 import { AlignmentHelper } from '@shared/components';
+import DiceRoller from '@shared/components/DiceRoller';
 import { useEffect, useState } from 'react';
-import DiceRoller from '../../../shared/components/DiceRoller';
-import { useGameStore } from '../../../store';
-import type { GameAPI } from '../../../types';
 import { TextSpriteTool } from './TextSprite';
 import styles from './ToolsPanel.module.css';
 

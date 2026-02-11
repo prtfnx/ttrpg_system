@@ -1,7 +1,7 @@
 import { Modal } from '@shared/components';
 import React, { useState } from 'react';
 import './Auth.css';
-import { useAuth } from './AuthContext';
+import { useAuth } from '@app/providers';
 
 const LoginModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   const { login, loading, error } = useAuth();

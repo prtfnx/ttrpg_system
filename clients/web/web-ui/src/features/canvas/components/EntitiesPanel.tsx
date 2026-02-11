@@ -1,6 +1,6 @@
 import { useRenderEngine } from '@features/canvas';
 import { useEffect, useState } from 'react';
-import { useGameStore } from '../../../store';
+import { useGameStore } from '@/store';
 
 interface SyncState {
   status: 'idle' | 'syncing' | 'error' | 'success';

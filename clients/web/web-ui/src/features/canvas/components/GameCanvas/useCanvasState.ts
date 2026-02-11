@@ -1,8 +1,8 @@
 /**
  * Canvas state management hook for viewport, zoom, and debug info
  */
+import type { RenderEngine } from '@lib/wasm/wasm';
 import { useEffect, useState, type RefObject } from 'react';
-import type { RenderEngine } from '../../../../types';
 
 interface CanvasDebugInfo {
   cssWidth: number;

@@ -7,84 +7,84 @@
 
 /* Performance-specific info box styling */
 .performance-info {
-  composes: info-box success from '../../../styles/PanelBase.module.css';
+  composes: info-box success from '@shared/styles/PanelBase.module.css';
 }
 
 /* Legacy class names for backward compatibility */
 .performanceSettings-overlay {
-  composes: panel-overlay from '../../../styles/PanelBase.module.css';
+  composes: panel-overlay from '@shared/styles/PanelBase.module.css';
 }
 
 .performanceSettings-panel {
-  composes: panel-container from '../../../styles/PanelBase.module.css';
+  composes: panel-container from '@shared/styles/PanelBase.module.css';
 }
 
 .settings-header {
-  composes: panel-header from '../../../styles/PanelBase.module.css';
+  composes: panel-header from '@shared/styles/PanelBase.module.css';
 }
 
 .settings-content {
-  composes: panel-content from '../../../styles/PanelBase.module.css';
+  composes: panel-content from '@shared/styles/PanelBase.module.css';
 }
 
 .settingsSection {
-  composes: settings-section from '../../../styles/PanelBase.module.css';
+  composes: settings-section from '@shared/styles/PanelBase.module.css';
 }
 
 .setting-group {
-  composes: section-group from '../../../styles/PanelBase.module.css';
+  composes: section-group from '@shared/styles/PanelBase.module.css';
 }
 
 .settingLabel {
-  composes: setting-label from '../../../styles/PanelBase.module.css';
+  composes: setting-label from '@shared/styles/PanelBase.module.css';
 }
 
 .setting-select {
-  composes: setting-select from '../../../styles/PanelBase.module.css';
+  composes: setting-select from '@shared/styles/PanelBase.module.css';
 }
 
 .setting-slider {
-  composes: setting-slider from '../../../styles/PanelBase.module.css';
+  composes: setting-slider from '@shared/styles/PanelBase.module.css';
 }
 
 .setting-toggle {
-  composes: setting-toggle from '../../../styles/PanelBase.module.css';
+  composes: setting-toggle from '@shared/styles/PanelBase.module.css';
 }
 
 .toggle-label {
-  composes: toggle-label from '../../../styles/PanelBase.module.css';
+  composes: toggle-label from '@shared/styles/PanelBase.module.css';
 }
 
 .toggle-switch {
-  composes: toggle-switch from '../../../styles/PanelBase.module.css';
+  composes: toggle-switch from '@shared/styles/PanelBase.module.css';
 }
 
 .settings-actions {
-  composes: panel-actions from '../../../styles/PanelBase.module.css';
+  composes: panel-actions from '@shared/styles/PanelBase.module.css';
 }
 
 .action-button {
-  composes: panel-button from '../../../styles/PanelBase.module.css';
+  composes: panel-button from '@shared/styles/PanelBase.module.css';
 }
 
 .close-button {
-  composes: close-button from '../../../styles/PanelBase.module.css';
+  composes: close-button from '@shared/styles/PanelBase.module.css';
 }
 
 .perf-info-grid {
-  composes: info-grid from '../../../styles/PanelBase.module.css';
+  composes: info-grid from '@shared/styles/PanelBase.module.css';
 }
 
 .perf-stat {
-  composes: info-stat from '../../../styles/PanelBase.module.css';
+  composes: info-stat from '@shared/styles/PanelBase.module.css';
 }
 
 .stat-label {
-  composes: stat-label from '../../../styles/PanelBase.module.css';
+  composes: stat-label from '@shared/styles/PanelBase.module.css';
 }
 
 .stat-value {
-  composes: stat-value from '../../../styles/PanelBase.module.css';
+  composes: stat-value from '@shared/styles/PanelBase.module.css';
 }
 
 .action-button.auto-optimize {

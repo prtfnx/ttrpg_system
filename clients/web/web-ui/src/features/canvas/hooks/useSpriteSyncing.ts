@@ -1,5 +1,5 @@
+import { useGameStore } from '@/store';
 import { useCallback, useEffect } from 'react';
-import { useGameStore } from '../../../store';
 
 export function useSpriteSyncing() {
   const addSprite = useGameStore(state => state.addSprite);

@@ -1,9 +1,9 @@
 /**
  * Context menu and light placement state management
  */
+import { useGameStore } from '@/store';
+import type { RenderEngine } from '@lib/wasm/wasm';
 import { useCallback, useEffect, useState, type RefObject } from 'react';
-import { useGameStore } from '../../../../store';
-import type { RenderEngine } from '../../../../types';
 
 interface ContextMenuState {
   visible: boolean;

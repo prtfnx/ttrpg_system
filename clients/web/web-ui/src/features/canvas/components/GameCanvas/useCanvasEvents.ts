@@ -2,8 +2,8 @@
  * Canvas event handlers hook
  * Manages mouse, wheel, and keyboard events for canvas interaction
  */
+import type { RenderEngine } from '@lib/wasm/wasm';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
-import type { RenderEngine } from '../../../../types';
 import { getRelativeCoords } from './canvasUtils';
 
 interface LightPlacementMode {

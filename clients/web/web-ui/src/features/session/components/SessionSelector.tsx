@@ -2,10 +2,10 @@
  * Session selection component for choosing game sessions before connecting
  * Shows user's available sessions with role information
  */
+import styles from '@/App.module.css';
 import { authService, type SessionInfo } from '@features/auth';
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
-import styles from '../../../App.module.css';
 
 interface SessionSelectorProps {
   onSessionSelected: (sessionCode: string, role: 'dm' | 'player') => void;

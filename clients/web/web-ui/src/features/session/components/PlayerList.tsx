@@ -3,7 +3,7 @@
  * Displays list of session players following the refactoring pattern
  */
 
-import { useAuth } from '@features/auth/components/AuthContext';
+import { useAuth } from '@app/providers';
 import React from 'react';
 import type { SessionPlayer, SessionRole } from '../types/roles';
 import styles from './PlayerList.module.css';

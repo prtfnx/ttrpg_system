@@ -1,7 +1,7 @@
+import { useInvitations } from '@features/session/hooks/useInvitations';
+import type { SessionRole } from '@features/session/types/roles';
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
-import { useInvitations } from '../../hooks/useInvitations';
-import type { SessionRole } from '../../types/roles';
 import styles from './InvitationManager.module.css';
 import { InviteLink } from './InviteLink';
 

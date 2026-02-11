@@ -1,5 +1,5 @@
+import type { SessionInvitation } from '@features/session/types/invitations';
 import React, { useState } from 'react';
-import type { SessionInvitation } from '../../types/invitations';
 import styles from './InviteLink.module.css';
 
 interface InviteLinkProps {

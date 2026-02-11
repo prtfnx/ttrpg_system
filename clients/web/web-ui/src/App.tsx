@@ -3,11 +3,12 @@ import { useEffect, useState } from 'react';
 import { ToastContainer } from 'react-toastify';
 // CSS is loaded via CDN or not needed in test environment
 // import 'react-toastify/dist/ReactToastify.css';
+import { ProtocolProvider } from '@app/providers';
+import { authService, type UserInfo } from '@features/auth';
+import { SessionSelector } from '@features/session/components/SessionSelector';
+import { ErrorBoundary } from '@shared/components/ErrorBoundary';
+import { logger } from '@shared/utils/logger';
 import styles from './App.module.css';
-import { authService, type UserInfo } from './features/auth';
-import { SessionSelector } from './features/session/components/SessionSelector';
-import { ProtocolProvider } from './lib/api';
-import { ErrorBoundary, logger } from './shared';
 
 interface AppState {
   isAuthenticated: boolean;

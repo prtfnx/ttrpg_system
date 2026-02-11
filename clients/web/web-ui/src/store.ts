@@ -1,9 +1,8 @@
+import type { Character, ConnectionState, GameState, Sprite, ToolType } from '@/types';
 import { ProtocolService } from '@lib/api';
 import { transformServerTablesToClient, validateTableId } from '@lib/websocket';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import type { Character, ConnectionState, GameState, Sprite } from './types';
-import type { ToolType } from './types/tools';
 
 // Change detection cache
 const spriteCache = new Map<string, Record<string, any>>();

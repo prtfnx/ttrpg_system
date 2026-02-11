@@ -1,9 +1,9 @@
+import { EntitiesPanel } from '@features/canvas/components/EntitiesPanel'
+import { ToolsPanel } from '@features/canvas/components/ToolsPanel'
 import { CharacterPanel } from '@features/character'
+import { initVisionService } from '@features/lighting/services/vision.service'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { EntitiesPanel } from './features/canvas/components/EntitiesPanel'
-import { ToolsPanel } from './features/canvas/components/ToolsPanel'
-import { initVisionService } from './features/lighting/services/vision.service'
 import './index.css'
 
 // Modern ES module approach - export mounting functions
@@ -87,16 +87,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
               
               case 'sprite_rotate':
-                if (typeof window.rustRenderManager.send_sprite_rotate === 'function') {
+                if (typeof window.rustRenderManager.rotate_sprite === 'function') {
                   console.log('[integration] Forwarding sprite_rotate to WASM:', data);
-                  window.rustRenderManager.send_sprite_rotate(data.id as string, data.rotation as number);
+                  window.rustRenderManager.rotate_sprite(data.id as string, data.rotation as number);
                 }
                 break;
               
               case 'sprite_delete':
-                if (typeof window.rustRenderManager.remove_sprite_from_layer === 'function') {
+                if (typeof window.rustRenderManager.remove_sprite === 'function') {
                   console.log('[integration] Forwarding sprite_delete to WASM:', data);
-                  window.rustRenderManager.remove_sprite_from_layer((data.layer as string) || 'tokens', data.id as string);
+                  window.rustRenderManager.remove_sprite(data.id as string);
                 }
                 break;
               

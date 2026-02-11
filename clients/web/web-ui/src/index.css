@@ -1,6 +1,6 @@
 /* Import design tokens and theme variables */
-@import './styles/tokens.css';
-@import './styles/theme.css';
+@import './shared/styles/tokens.css';
+@import './shared/styles/theme.css';
 
 :root {
   font-family: var(--font-family);

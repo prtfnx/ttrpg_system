@@ -1,11 +1,11 @@
 console.log('[DEBUG] main.tsx script loaded');
 import { AuthProvider } from '@features/auth';
+import { EntitiesPanel } from '@features/canvas/components/EntitiesPanel';
+import { ToolsPanel } from '@features/canvas/components/ToolsPanel';
 import { CharacterPanel } from '@features/character/components/CharacterPanel';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
-import { EntitiesPanel } from './features/canvas/components/EntitiesPanel';
-import { ToolsPanel } from './features/canvas/components/ToolsPanel';
 import './index.css';
 
 // Global type declaration for integration mode

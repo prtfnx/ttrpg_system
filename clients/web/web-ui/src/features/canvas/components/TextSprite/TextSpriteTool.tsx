@@ -1,5 +1,5 @@
+import { useGameStore } from '@/store';
 import { useEffect, useRef, useState } from 'react';
-import { useGameStore } from '../../../../shared/stores/gameStore';
 
 interface TextSpriteToolProps {
   activeLayer: string;

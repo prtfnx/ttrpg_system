@@ -1,6 +1,6 @@
+import type { Character } from '@/types';
 import clsx from 'clsx';
 import React from 'react';
-import type { Character } from '../../../../types';
 import styles from '../CharacterPanel.module.css';
 
 interface StatsEditFormData {

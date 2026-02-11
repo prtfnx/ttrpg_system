@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import ReactDOM from 'react-dom';
-import type { Character } from '../../../types';
+import type { Character } from '@/types';
 import styles from './CharacterPanel.module.css';
 import { BulkActionsBar } from './CharacterPanel/BulkActionsBar';
 import { CharacterStats } from './CharacterPanel/CharacterStats';

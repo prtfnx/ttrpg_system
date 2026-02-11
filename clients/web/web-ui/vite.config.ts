@@ -12,6 +12,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), wasmPack()],
     resolve: {
       alias: {
+        '@': path.resolve(__dirname, './src'),
         '@features': path.resolve(__dirname, './src/features'),
         '@shared': path.resolve(__dirname, './src/shared'),
         '@lib': path.resolve(__dirname, './src/lib'),

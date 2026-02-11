@@ -1,15 +1,15 @@
+import { useGameStore } from '@/store';
+import type { Character } from '@/types';
 import { authService } from '@features/auth';
 import { useProtocol } from '@lib/api';
 import {
-    cloneCharacter,
-    downloadCharacterAsJSON,
-    downloadMultipleCharactersAsJSON,
-    pickAndImportCharacter,
-    showToast
+  cloneCharacter,
+  downloadCharacterAsJSON,
+  downloadMultipleCharactersAsJSON,
+  pickAndImportCharacter,
+  showToast
 } from '@shared/utils';
 import React, { useEffect, useState } from 'react';
-import { useGameStore } from '../../../../store';
-import type { Character } from '../../../../types';
 import { genId } from './utils';
 
 interface StatsEditForm {

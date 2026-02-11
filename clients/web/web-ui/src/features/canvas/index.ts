@@ -1,11 +1,12 @@
-export { EntitiesPanel } from './components/EntitiesPanel';
+﻿export { EntitiesPanel } from './components/EntitiesPanel';
 export { GameCanvas } from './components/GameCanvas';
 export { GameClient } from './components/GameClient';
 export { GridControls } from './components/GridControls';
 export { GridSettings } from './components/GridSettings';
 export { LayerPanel } from './components/LayerPanel';
 export { PerformanceMonitor } from './components/PerformanceMonitor';
-export { TextSprite, TextSpriteTool, TextSpriteModal } from './components/TextSprite';
+export { TextSpriteCreator, TextSpriteEditor, TextSpriteTool } from './components/TextSprite';
+export { TextSpriteModal } from './components/TextSprite/TextSpriteModal';
 export { TokenConfigModal } from './components/TokenConfigModal';
 export { ToolsPanel } from './components/ToolsPanel';
 

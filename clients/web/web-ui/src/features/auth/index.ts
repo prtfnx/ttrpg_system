@@ -1,4 +1,4 @@
-export { AuthContext, AuthProvider, useAuth } from './components/AuthContext';
+export { AuthProvider, useAuth } from '@app/providers';
 export { default as AuthGuard } from './components/AuthGuard';
 export { default as EnhancedLogin } from './components/EnhancedLogin';
 export { default as LoginModal } from './components/LoginModal';

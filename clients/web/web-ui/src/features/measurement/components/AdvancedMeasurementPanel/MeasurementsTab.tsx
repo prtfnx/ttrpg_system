@@ -1,5 +1,5 @@
+import { advancedMeasurementSystem, type MeasurementLine, type MeasurementSettings } from '@features/measurement/services/advancedMeasurement.service';
 import type { FC } from 'react';
-import { advancedMeasurementSystem, type MeasurementLine, type MeasurementSettings } from '../../services/advancedMeasurement.service';
 import styles from '../AdvancedMeasurementPanel.module.css';
 import type { ActiveTool } from './ToolSelection';
 

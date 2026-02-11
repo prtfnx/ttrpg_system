@@ -3,10 +3,10 @@
  * Provides UI for exporting and importing character data
  */
 
+import { CharacterExportService } from '@features/character/services/characterExport.service';
+import { CharacterImportService, type ImportResult } from '@features/character/services/characterImport.service';
 import { useCallback, useRef, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import { CharacterExportService } from '../../services/characterExport.service';
-import { CharacterImportService, type ImportResult } from '../../services/characterImport.service';
 import { PDFGenerationService, type PDFGenerationOptions } from '../../services/pdfGeneration.service';
 import styles from './CharacterExportStep.module.css';
 import type { WizardFormData } from './WizardFormData';

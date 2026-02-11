@@ -4,7 +4,7 @@
  * with D&D 5e integration, combat stats, and table placement
  */
 
-import { EventSystem } from '../../../shared/services/eventSystem.service';
+import { EventSystem } from '@shared/services/eventSystem.service';
 
 // === Core Types ===
 

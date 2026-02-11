@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    advancedMeasurementSystem,
-    type GeometricShape,
-    type GridConfiguration,
-    type MeasurementLine,
-    type MeasurementSettings,
-    type MeasurementTemplate
-} from '../../services/advancedMeasurement.service';
+  advancedMeasurementSystem,
+  type GeometricShape,
+  type GridConfiguration,
+  type MeasurementLine,
+  type MeasurementSettings,
+  type MeasurementTemplate
+} from '@features/measurement/services/advancedMeasurement.service';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { TabType } from './TabNavigation';
 import type { ActiveTool } from './ToolSelection';
 

@@ -1,6 +1,6 @@
+import { AdvancementSystemService } from '@features/character/services/advancementSystem.service';
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
-import { AdvancementSystemService } from '../../services/advancementSystem.service';
 import { LevelUpWizard } from './LevelUpWizard';
 import type { WizardFormData } from './WizardFormData';
 import { XPTracker } from './XPTracker';

@@ -57,9 +57,9 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
   const handleClear = () => {
     setMeasurement(null);
     
-    // Clear the completed measurement from Rust-side so arrow disappears
+    // Clear measurement by switching back to select mode
     if (window.rustRenderManager) {
-      window.rustRenderManager.clear_measurement();
+      window.rustRenderManager.set_input_mode_select();
     }
     
     console.log('[MeasurementTool] Measurement cleared');

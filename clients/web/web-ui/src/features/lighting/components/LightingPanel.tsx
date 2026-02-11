@@ -1,8 +1,8 @@
+import { useGameStore } from '@/store';
+import type { Color } from '@/types';
 import { useRenderEngine } from '@features/canvas';
 import { useProtocol } from '@lib/api';
 import React, { useEffect, useState } from 'react';
-import { useGameStore } from '../../../store';
-import type { Color } from '../../../types';
 import styles from './LightingPanel.module.css';
 
 // ============================================================================

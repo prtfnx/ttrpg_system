@@ -4,9 +4,9 @@
  * with search, filtering, instance management, and table placement
  */
 
+import '@shared/styles/MonsterCreationPanel.css';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import '../../../styles/MonsterCreationPanel.css';
 import {
   monsterCreationSystem,
   type MonsterInstance,

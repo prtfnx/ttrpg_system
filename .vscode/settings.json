@@ -1,0 +1,73 @@
+{
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.exclude": [
+    "**/sdl3/**",
+    "**/.venv/**",
+    "**/node_modules/**",
+    "**/trash/**",
+    "**/__pycache__/**",
+    "**/cache/**",
+    "**/downloads/**",
+    "**/event_sys.py"
+  ],
+  "python.analysis.ignore": [
+    "sdl3"
+  ],
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportGeneralTypeIssues": "warning",
+    "reportOptionalMemberAccess": "warning",
+    "reportOptionalSubscript": "warning",
+    "reportOptionalIterable": "warning",
+    "reportOptionalOperand": "warning",
+    "reportOptionalContextManager": "warning",
+    "reportUnnecessaryIsInstance": "information",
+    "reportUnnecessaryCast": "information",
+    "reportUnusedVariable": "information",
+    "reportUnusedImport": "information",
+    "reportPrivateUsage": "none",
+    "reportIncompatibleMethodOverride": "warning",
+    "reportIncompatibleVariableOverride": "warning",
+    "reportUntypedFunctionDecorator": "none",
+    "reportUntypedClassDecorator": "none",
+    "reportUntypedBaseClass": "none",
+    "reportConstantRedefinition": "warning",
+    "reportArgumentType": "warning",
+    "reportCallIssue": "warning",
+    "reportAttributeAccessIssue": "warning"
+  },
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": false,
+  "python.linting.flake8Enabled": false,
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/node_modules": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.venv": true,
+    "**/trash": true,
+    "**/__pycache__": true,
+    "**/cache": true,
+    "**/downloads": true
+  },
+  "files.watcherExclude": {
+    "**/.venv/**": true,
+    "**/node_modules/**": true,
+    "**/__pycache__/**": true,
+    "**/cache/**": true,
+    "**/trash/**": true,
+    "**/downloads/**": true,
+    "**/.pytest_cache/**": true
+  },
+  "python.analysis.indexing": true,
+  "python.analysis.packageIndexDepths": [
+    {
+      "name": "",
+      "depth": 3,
+      "includeAllSymbols": false
+    }
+  ],
+  "typescript.tsserver.maxTsServerMemory": 4096
+}

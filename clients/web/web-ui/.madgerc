@@ -1,0 +1,26 @@
+{
+  "tsConfig": "./tsconfig.json",
+  "fileExtensions": ["ts", "tsx"],
+  "excludeRegExp": [".*\\.test\\..*", ".*\\.spec\\..*", ".*__tests__.*", ".*\\.d\\.ts$"],
+  "detectiveOptions": {
+    "ts": {
+      "skipTypeImports": true
+    },
+    "tsx": {
+      "skipTypeImports": true
+    }
+  },
+  "layout": "dot",
+  "fontName": "Arial",
+  "fontSize": "12px",
+  "backgroundColor": "#ffffff",
+  "nodeColor": "#c6c5fe",
+  "noDependencyColor": "#cfffac",
+  "cyclicNodeColor": "#ff6c60",
+  "edgeColor": "#757575",
+  "graphVizOptions": {
+    "G": {
+      "rankdir": "TB"
+    }
+  }
+}

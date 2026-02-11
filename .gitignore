@@ -22,7 +22,7 @@ docs/
 profiling/
 
 # Compendiums (allow only loaders)
-core_table/compendiums/*
+core_table/compendiums/tokens/*
 !core_table/compendiums/*loader.py
 !core_table/compendiums/spell_loader.py
 
@@ -46,17 +46,13 @@ storage_config.json
 clients/web/web-ui/node_modules/
 clients/web/web-ui/dist/
 clients/web/web-ui/package-lock.json
-clients/web/web-ui/src/components/CharacterCreationForm.md
+clients/web/web-ui/public/
 
 # Rust
 clients/web/rust-core/target/
 clients/web/rust-core/pkg/
 clients/web/rust-core/Cargo.lock
 
-# IDE and editor
-.vscode/launch.json
-.vscode/tasks.json
-ttrpg_system.code-workspace
 
 # Logs and temporary files
 debug.log
@@ -67,7 +63,8 @@ gui/imgui_log.txt
 # Environment
 .env
 
-# Documentation
-COMPENDIUM_INTEGRATION_COMPLETE.md
-IMGUI_BUNDLE_PYTHON_NOTES.md
-clients/web/WEB_CLIENT_DEVELOPMENT_PLAN.md
+
+# Scripts
+scripts/
+
+

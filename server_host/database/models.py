@@ -37,6 +37,7 @@ class GameSession(Base):
     owner = relationship("User", back_populates="game_sessions")
     players = relationship("GamePlayer", back_populates="session")
     tables = relationship("VirtualTable", back_populates="session")
+    invitations = relationship("SessionInvitation", back_populates="session")
 
 class GamePlayer(Base):
     __tablename__ = "game_players"
@@ -45,6 +46,7 @@ class GamePlayer(Base):
     session_id = Column(Integer, ForeignKey("game_sessions.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     character_name = Column(String(100))
+    role = Column(String(20), default="player")  # owner, co_dm, trusted_player, player, spectator
     joined_at = Column(DateTime, default=datetime.utcnow)
     is_connected = Column(Boolean, default=False)
     active_table_id = Column(String(36), nullable=True)  # UUID of user's active table
@@ -173,3 +175,47 @@ class SessionCharacter(Base):
 
     # Explicit relationship for last modifier to avoid FK ambiguity
     last_modified_by_user = relationship("User", foreign_keys=[last_modified_by])
+
+class SessionInvitation(Base):
+    __tablename__ = "session_invitations"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    invite_code = Column(String(32), unique=True, index=True, nullable=False)
+    session_id = Column(Integer, ForeignKey("game_sessions.id"), nullable=False)
+    pre_assigned_role = Column(String(20), nullable=False, default="player")
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=True)
+    max_uses = Column(Integer, default=1)
+    uses_count = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    
+    # Relationships
+    session = relationship("GameSession", back_populates="invitations")
+    creator = relationship("User")
+    
+    def is_valid(self) -> bool:
+        """Validate invitation security state"""
+        if not self.is_active:
+            return False
+        if self.max_uses > 0 and self.uses_count >= self.max_uses:
+            return False
+        if self.expires_at and datetime.utcnow() > self.expires_at:
+            return False
+        return True
+
+class AuditLog(Base):
+    """Comprehensive audit logging for security events"""
+    __tablename__ = "audit_logs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    event_type = Column(String(50), nullable=False, index=True)
+    session_code = Column(String(20), nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    ip_address = Column(String(45), nullable=True)  # IPv6 support
+    user_agent = Column(Text, nullable=True)
+    details = Column(Text, nullable=True)  # JSON details
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    
+    # Relationship
+    user = relationship("User")

@@ -200,10 +200,16 @@ def list_game_sessions(db: Session):
     return [(s.session_code, s.name, bool(s.is_active)) for s in sessions]
 
 def get_user_game_sessions(db: Session, user_id: int):
-    return db.query(models.GameSession).filter(
-        models.GameSession.owner_id == user_id,
-        models.GameSession.is_active == True
-    ).all()
+    """Get all game sessions where user is a player, with their role"""
+    return (
+        db.query(models.GameSession, models.GamePlayer.role)
+        .join(models.GamePlayer, models.GameSession.id == models.GamePlayer.session_id)
+        .filter(
+            models.GamePlayer.user_id == user_id,
+            models.GameSession.is_active == True
+        )
+        .all()
+    )
 
 def get_game_session(db: Session, session_id: int):
     return db.query(models.GameSession).filter(models.GameSession.id == session_id).first()

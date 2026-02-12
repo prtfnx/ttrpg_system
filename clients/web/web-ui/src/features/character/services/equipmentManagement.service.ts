@@ -736,14 +736,10 @@ class EquipmentManagementService {
         } as Equipment;
       });
     } catch (error) {
-      console.error('Failed to fetch equipment from API, using fallback data:', error);
-      // Fallback to hardcoded data if API fails
-      return [
-        ...WEAPONS,
-        ...ARMOR,
-        ...SHIELDS,
-        ...ADVENTURING_GEAR
-      ];
+      console.error('Failed to fetch equipment from API:', error);
+      // For production, throw error instead of falling back to hardcoded data
+      // This ensures proper error handling and prevents stale data usage
+      throw new Error('Equipment data not available. Please check your connection and try again.');
     }
   }
 

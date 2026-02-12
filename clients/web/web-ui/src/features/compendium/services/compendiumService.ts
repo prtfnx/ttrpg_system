@@ -3,10 +3,8 @@
  * Loads and caches compendium data from the backend API
  */
 
-// Base API URL - adjust based on environment
-const API_BASE_URL = import.meta.env.MODE === 'development' 
-  ? 'http://localhost:12345/api/compendium'
-  : '/api/compendium';
+// Base API URL - use relative URL to work in all environments
+const API_BASE_URL = '/api/compendium';
 
 // Type definitions based on compendium data structure
 export interface AbilityScoreIncrease {
@@ -157,7 +155,7 @@ class CompendiumService {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`);
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {\n        credentials: 'include',  // Include HTTP-only authentication cookies\n        headers: {\n          'Accept': 'application/json'\n        }\n      });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }

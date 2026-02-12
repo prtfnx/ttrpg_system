@@ -1,7 +1,7 @@
 import type { AcceptInvitationResponse, CreateInvitationRequest, SessionInvitation } from '../types/invitations';
 
 class InvitationService {
-  private baseURL = '/game/invitations';
+  private baseURL = '/api/invitations';
 
   private async fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const response = await fetch(`${this.baseURL}${endpoint}`, {

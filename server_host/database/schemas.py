@@ -173,3 +173,46 @@ class GamePlayer(GamePlayerBase):
     
     class Config:
         from_attributes = True
+
+# Session Invitation schemas
+class CreateInvitationRequest(BaseModel):
+    session_code: str
+    pre_assigned_role: str = "player"
+    expires_hours: int = 24
+    max_uses: int = 1
+
+class InvitationResponse(BaseModel):
+    id: int
+    invite_code: str
+    session_code: str
+    pre_assigned_role: str
+    created_at: datetime
+    expires_at: Optional[datetime]
+    max_uses: int
+    uses_count: int
+    is_active: bool
+    is_valid: bool
+    invite_url: str
+    
+    class Config:
+        from_attributes = True
+        
+    @classmethod
+    def from_orm(cls, obj):
+        return cls(
+            id=obj.id,
+            invite_code=obj.invite_code,
+            session_code=obj.session.session_code,
+            pre_assigned_role=obj.pre_assigned_role,
+            created_at=obj.created_at,
+            expires_at=obj.expires_at,
+            max_uses=obj.max_uses,
+            uses_count=obj.uses_count,
+            is_active=obj.is_active,
+            is_valid=obj.is_valid(),
+            invite_url=f"/invite/{obj.invite_code}"
+        )
+
+# Role change request
+class RoleChangeRequest(BaseModel):
+    role: str

@@ -20,12 +20,13 @@ import {
   getGridCoord,
   resizeCanvas,
   useCanvasDebug,
-  useCanvasEvents,
   useContextMenu,
   useFPS,
   useLightPlacement,
   usePerformanceMonitor,
 } from './GameCanvas/index';
+import { useCanvasEventsEnhanced } from './GameCanvas/useCanvasEventsEnhanced';
+import { MultiSelectManager } from '../services';
 import PerformanceMonitor from './PerformanceMonitor';
 
 declare global {
@@ -92,9 +93,12 @@ export const GameCanvas: React.FC = () => {
   // Light placement preview state
   const [lightPreviewPos, setLightPreviewPos] = useState<{ x: number; y: number } | null>(null);
 
-  // Canvas event handlers
-  const { stableMouseDown, stableMouseMove, stableMouseUp, stableWheel, stableRightClick, stableKeyDown } =
-    useCanvasEvents({
+  // Multi-select manager
+  const multiSelectManagerRef = useRef<MultiSelectManager | null>(null);
+
+  // Enhanced canvas event handlers with input management
+  const { stableMouseDown, stableMouseMove, stableMouseUp, stableWheel, stableRightClick, stableKeyDown, handleCanvasFocus, handleCanvasBlur } =
+    useCanvasEventsEnhanced({
       canvasRef: canvasRef as React.RefObject<HTMLCanvasElement>,
       rustRenderManagerRef,
       lightPlacementMode,
@@ -102,7 +106,15 @@ export const GameCanvas: React.FC = () => {
       setContextMenu,
       showPerformanceMonitor,
       togglePerformanceMonitor,
+      protocol,
     });
+
+  // Initialize multi-select manager
+  useEffect(() => {
+    if (rustRenderManagerRef.current) {
+      multiSelectManagerRef.current = new MultiSelectManager(rustRenderManagerRef.current);
+    }
+  }, [rustRenderManagerRef.current]);
 
   // Handle mousemove for light placement preview
   useEffect(() => {
@@ -323,7 +335,12 @@ export const GameCanvas: React.FC = () => {
         canvas.addEventListener('mouseup', stableMouseUp);
         canvas.addEventListener('wheel', stableWheel);
         canvas.addEventListener('contextmenu', stableRightClick);
+        canvas.addEventListener('focus', handleCanvasFocus);
+        canvas.addEventListener('blur', handleCanvasBlur);
         document.addEventListener('keydown', stableKeyDown);
+
+        // Make canvas focusable for keyboard events
+        canvas.tabIndex = 0;
         // Set default cursor to grab
         canvas.style.cursor = 'grab';
 
@@ -442,6 +459,8 @@ export const GameCanvas: React.FC = () => {
         canvas.removeEventListener('mouseup', stableMouseUp);
         canvas.removeEventListener('wheel', stableWheel);
         canvas.removeEventListener('contextmenu', stableRightClick);
+        canvas.removeEventListener('focus', handleCanvasFocus);
+        canvas.removeEventListener('blur', handleCanvasBlur);
       }
       document.removeEventListener('keydown', stableKeyDown);
       window.removeEventListener('resize', scheduleResize);
@@ -473,6 +492,8 @@ export const GameCanvas: React.FC = () => {
     stableWheel,
     stableRightClick,
     stableKeyDown,
+    handleCanvasFocus,
+    handleCanvasBlur,
   ]);
 
   // Debug overlay state (development only)

@@ -1,13 +1,14 @@
 import pytest
 import time
 from datetime import datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import patch, Mock
+
+from server_host.database import models, crud, schemas
 
 @pytest.fixture
 def invitation_factory(test_db, test_user, test_game_session):
     """Factory fixture for creating test invitations"""
     def _create_invitation(**kwargs):
-        from server_host.database import models
         defaults = {
             "invite_code": f"INV{int(time.time())}{test_user.id}",
             "session_id": test_game_session.id,
@@ -30,7 +31,6 @@ def invitation_factory(test_db, test_user, test_game_session):
 @pytest.fixture  
 def admin_user(test_db):
     """Create a user with admin privileges"""
-    from server_host.database import crud, schemas
     user_data = schemas.UserCreate(
         username="admin_user",
         email="admin@example.com", 
@@ -41,7 +41,6 @@ def admin_user(test_db):
 @pytest.fixture
 def co_dm_user(test_db):
     """Create a user with co-dm privileges"""
-    from server_host.database import crud, schemas
     user_data = schemas.UserCreate(
         username="codm_user",
         email="codm@example.com",
@@ -52,7 +51,6 @@ def co_dm_user(test_db):
 @pytest.fixture
 def player_user(test_db):
     """Create a regular player user"""
-    from server_host.database import crud, schemas
     user_data = schemas.UserCreate(
         username="player_user",
         email="player@example.com",
@@ -63,8 +61,6 @@ def player_user(test_db):
 @pytest.fixture
 def game_session_with_players(test_db, test_user, co_dm_user, player_user, test_game_session):
     """Create a game session with multiple players with different roles"""
-    from server_host.database import models
-    
     # Owner (test_user) is already associated via test_game_session
     
     # Add co-dm
@@ -90,7 +86,6 @@ def game_session_with_players(test_db, test_user, co_dm_user, player_user, test_
 def audit_log_factory(test_db):
     """Factory fixture for creating test audit logs"""
     def _create_audit_log(**kwargs):
-        from server_host.database import models
         defaults = {
             "event_type": "test_event",
             "session_code": "TEST01", 
@@ -111,7 +106,6 @@ def audit_log_factory(test_db):
 @pytest.fixture
 def mock_request_ip():
     """Mock request with IP address for audit logging"""
-    from unittest.mock import Mock
     request = Mock()
     request.client.host = "192.168.1.100"
     request.headers = {"user-agent": "Test-Browser/1.0"}

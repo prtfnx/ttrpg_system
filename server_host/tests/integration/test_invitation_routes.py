@@ -3,6 +3,11 @@ import json
 import time
 from datetime import datetime, timedelta
 from unittest.mock import patch
+from fastapi.testclient import TestClient
+
+from server_host.routers.users import get_current_user
+from server_host import main
+from server_host.database import crud, models
 
 # Import the invitation fixtures
 from ..utils.invitation_fixtures import *
@@ -63,16 +68,12 @@ class TestInvitationCreation:
         
     def test_create_invitation_not_owner(self, test_db, test_game_session, player_user):
         """Test invitation creation fails if user is not session owner"""
-        from server_host.routers.users import get_current_user
-        from server_host import main
-        
         # Override current user to be a regular player
         async def override_get_current_user():
             return player_user
         
         main.app.dependency_overrides[get_current_user] = override_get_current_user
         
-        from fastapi.testclient import TestClient
         client = TestClient(main.app)
         
         invitation_data = {
@@ -167,15 +168,11 @@ class TestInvitationAcceptance:
         invitation = invitation_factory(max_uses=5)
         
         # Override current user to be the accepting player
-        from server_host.routers.users import get_current_user
-        from server_host import main
-        
         async def override_get_current_user():
             return player_user
             
         main.app.dependency_overrides[get_current_user] = override_get_current_user
         
-        from fastapi.testclient import TestClient
         client = TestClient(main.app)
         
         response = client.post(f"/api/invitations/{invitation.invite_code}/accept")
@@ -190,7 +187,6 @@ class TestInvitationAcceptance:
         assert invitation.uses_count == 1
         
         # Verify player was added to session
-        from server_host.database import crud
         players = crud.get_session_players(test_db, invitation.session_id)
         player_ids = [p.user_id for p in players]
         assert player_user.id in player_ids
@@ -213,15 +209,11 @@ class TestInvitationAcceptance:
             expires_at=datetime.utcnow() - timedelta(hours=1)
         )
         
-        from server_host.routers.users import get_current_user 
-        from server_host import main
-        
         async def override_get_current_user():
             return player_user
             
         main.app.dependency_overrides[get_current_user] = override_get_current_user
         
-        from fastapi.testclient import TestClient
         client = TestClient(main.app)
         
         response = client.post(f"/api/invitations/{expired_invitation.invite_code}/accept")
@@ -277,15 +269,11 @@ class TestInvitationManagement:
         """Test that only session owner can delete invitations"""
         invitation = invitation_factory()
         
-        from server_host.routers.users import get_current_user
-        from server_host import main
-        
         async def override_get_current_user():
             return player_user
             
         main.app.dependency_overrides[get_current_user] = override_get_current_user
         
-        from fastapi.testclient import TestClient
         client = TestClient(main.app)
         
         response = client.delete(f"/api/invitations/{invitation.id}")
@@ -318,7 +306,6 @@ class TestInvitationAuditing:
         assert response.status_code == 201
         
         # Check audit log was created
-        from server_host.database import models
         audit_logs = test_db.query(models.AuditLog).filter_by(
             event_type="invitation_created"
         ).all()
@@ -336,15 +323,11 @@ class TestInvitationAuditing:
         
         invitation = invitation_factory()
         
-        from server_host.routers.users import get_current_user
-        from server_host import main
-        
         async def override_get_current_user():
             return player_user
             
         main.app.dependency_overrides[get_current_user] = override_get_current_user
         
-        from fastapi.testclient import TestClient
         client = TestClient(main.app)
         
         response = client.post(f"/api/invitations/{invitation.invite_code}/accept")
@@ -352,7 +335,6 @@ class TestInvitationAuditing:
         assert response.status_code == 200
         
         # Check audit log was created
-        from server_host.database import models
         audit_logs = test_db.query(models.AuditLog).filter_by(
             event_type="invitation_accepted"
         ).all()

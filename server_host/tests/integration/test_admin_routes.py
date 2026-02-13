@@ -1,6 +1,11 @@
 import pytest
 import json
 from unittest.mock import patch
+from fastapi.testclient import TestClient
+
+from server_host.routers.users import get_current_user
+from server_host import main
+from server_host.database import crud, schemas, models
 
 # Import the invitation fixtures 
 from ..utils.invitation_fixtures import *
@@ -44,7 +49,6 @@ class TestSessionPlayerManagement:
     def test_get_session_players_not_member(self, test_db, game_session_with_players):
         """Test getting session players as non-member"""
         # Create a user who is not part of the session
-        from server_host.database import crud, schemas
         outsider_user = crud.create_user(
             test_db,
             schemas.UserCreate(
@@ -54,15 +58,11 @@ class TestSessionPlayerManagement:
             )
         )
         
-        from server_host.routers.users import get_current_user
-        from server_host import main
-        
         async def override_get_current_user():
             return outsider_user
             
         main.app.dependency_overrides[get_current_user] = override_get_current_user
         
-        from fastapi.testclient import TestClient
         client = TestClient(main.app)
         
         response = client.get(
@@ -99,7 +99,6 @@ class TestRoleManagement:
         assert data["message"] == "Role changed to co_dm"
         
         # Verify role was actually changed in database
-        from server_host.database import models
         game_player = test_db.query(models.GamePlayer).filter_by(
             user_id=player_user.id,
             session_id=game_session_with_players.id
@@ -120,16 +119,12 @@ class TestRoleManagement:
         
     def test_change_role_insufficient_permissions(self, test_db, game_session_with_players, co_dm_user, player_user):
         """Test that regular players cannot change roles"""
-        from server_host.routers.users import get_current_user
-        from server_host import main
-        
         # Override to be regular player
         async def override_get_current_user():
             return player_user
             
         main.app.dependency_overrides[get_current_user] = override_get_current_user
         
-        from fastapi.testclient import TestClient
         client = TestClient(main.app)
         
         role_data = {"new_role": "co_dm"}
@@ -146,16 +141,12 @@ class TestRoleManagement:
         
     def test_co_dm_can_manage_players(self, test_db, game_session_with_players, co_dm_user, player_user):
         """Test that co-DMs can change player roles"""
-        from server_host.routers.users import get_current_user
-        from server_host import main
-        
         # Override to be co-dm
         async def override_get_current_user():
             return co_dm_user
             
         main.app.dependency_overrides[get_current_user] = override_get_current_user
         
-        from fastapi.testclient import TestClient
         client = TestClient(main.app)
         
         role_data = {"new_role": "co_dm"}
@@ -208,7 +199,6 @@ class TestPlayerRemoval:
         assert "kicked" in data["message"].lower()
         
         # Verify player was removed from database
-        from server_host.database import models
         game_player = test_db.query(models.GamePlayer).filter_by(
             user_id=player_user.id,
             session_id=game_session_with_players.id
@@ -226,15 +216,11 @@ class TestPlayerRemoval:
         
     def test_kick_player_insufficient_permissions(self, test_db, game_session_with_players, player_user, co_dm_user):
         """Test that regular players cannot kick others"""
-        from server_host.routers.users import get_current_user
-        from server_host import main
-        
         async def override_get_current_user():
             return player_user
             
         main.app.dependency_overrides[get_current_user] = override_get_current_user
         
-        from fastapi.testclient import TestClient
         client = TestClient(main.app)
         
         response = client.delete(
@@ -248,15 +234,11 @@ class TestPlayerRemoval:
         
     def test_cannot_kick_owner(self, test_db, game_session_with_players, co_dm_user, test_user):
         """Test that owner cannot be kicked"""
-        from server_host.routers.users import get_current_user
-        from server_host import main
-        
         async def override_get_current_user():
             return co_dm_user
             
         main.app.dependency_overrides[get_current_user] = override_get_current_user
         
-        from fastapi.testclient import TestClient
         client = TestClient(main.app)
         
         response = client.delete(
@@ -310,15 +292,11 @@ class TestUserSessions:
         
     def test_get_user_sessions_multiple_roles(self, test_db, co_dm_user, game_session_with_players):
         """Test getting sessions shows correct role for co-dm"""
-        from server_host.routers.users import get_current_user
-        from server_host import main
-        
         async def override_get_current_user():
             return co_dm_user
             
         main.app.dependency_overrides[get_current_user] = override_get_current_user
         
-        from fastapi.testclient import TestClient
         client = TestClient(main.app)
         
         response = client.get("/game/api/sessions")
@@ -358,7 +336,6 @@ class TestAdminAuditLogging:
         assert response.status_code == 200
         
         # Check audit log was created
-        from server_host.database import models
         audit_logs = test_db.query(models.AuditLog).filter_by(
             event_type="role_changed"
         ).all()
@@ -382,7 +359,6 @@ class TestAdminAuditLogging:
         assert response.status_code == 200
         
         # Check audit log was created
-        from server_host.database import models
         audit_logs = test_db.query(models.AuditLog).filter_by(
             event_type="player_kicked"
         ).all()
@@ -411,7 +387,6 @@ class TestAdminSecurityValidation:
     def test_session_isolation(self, test_db, auth_client):
         """Test that users can only access sessions they're members of"""
         # Create another user and session
-        from server_host.database import crud, schemas
         
         other_user = crud.create_user(
             test_db,

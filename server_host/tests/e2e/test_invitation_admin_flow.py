@@ -2,6 +2,12 @@ import pytest
 import asyncio
 import time
 from unittest.mock import patch
+from fastapi.testclient import TestClient
+
+from server_host.routers.users import get_current_user
+from server_host import main
+from server_host.database import crud, schemas, models
+from server_host.database.models import GamePlayer, AuditLog
 
 # Import fixtures
 from ..utils.invitation_fixtures import *
@@ -33,15 +39,11 @@ class TestCompleteInvitationWorkflow:
         invite_code = invitation_result["invite_code"]
         
         # Step 2: Potential player validates the invitation (views it)
-        from server_host.routers.users import get_current_user
-        from server_host import main
-        
         async def override_get_current_user():
             return player_user
             
         main.app.dependency_overrides[get_current_user] = override_get_current_user
         
-        from fastapi.testclient import TestClient
         player_client = TestClient(main.app)
         
         validate_response = player_client.get(f"/api/invitations/{invite_code}")
@@ -77,7 +79,6 @@ class TestCompleteInvitationWorkflow:
         assert added_player["role"] == "player"
         
         # Step 5: Verify invitation usage was tracked
-        from server_host.database import models
         db_invitation = test_db.query(models.SessionInvitation).filter_by(
             invite_code=invite_code
         ).first()
@@ -127,12 +128,8 @@ class TestCompleteAdminWorkflow:
         assert promoted_player["role"] == "co_dm"
         
         # Step 4: Test that the newly promoted co-DM can perform admin actions
-        from server_host.routers.users import get_current_user
-        from server_host import main
-        
         # Create a new regular player to manage
         new_player = test_db.merge(test_db.query(test_db.bind.metadata.tables['users'].c).first())
-        from server_host.database import crud, schemas
         new_player_user = crud.create_user(
             test_db,
             schemas.UserCreate(
@@ -143,7 +140,6 @@ class TestCompleteAdminWorkflow:
         )
         
         # Add new player to session
-        from server_host.database.models import GamePlayer
         game_player = GamePlayer(
             user_id=new_player_user.id,
             session_id=game_session_with_players.id,
@@ -158,7 +154,6 @@ class TestCompleteAdminWorkflow:
             
         main.app.dependency_overrides[get_current_user] = override_get_current_user
         
-        from fastapi.testclient import TestClient
         codm_client = TestClient(main.app)
         
         # Step 5: Co-DM kicks the new player
@@ -176,7 +171,6 @@ class TestCompleteAdminWorkflow:
         assert new_player_user.id not in remaining_player_ids
         
         # Step 7: Verify comprehensive audit trail
-        from server_host.database.models import AuditLog
         audit_logs = test_db.query(AuditLog).filter_by(
             session_code=session_code
         ).order_by(AuditLog.timestamp.asc()).all()
@@ -206,7 +200,6 @@ class TestConcurrentInvitationUsage:
         invitation = invitation_factory(max_uses=2, uses_count=0)
         
         # Create multiple users who will try to accept simultaneously
-        from server_host.database import crud, schemas
         users = []
         for i in range(4):  # More users than max_uses
             user = crud.create_user(
@@ -220,10 +213,6 @@ class TestConcurrentInvitationUsage:
             users.append(user)
         
         # Simulate concurrent acceptance attempts
-        from server_host.routers.users import get_current_user
-        from server_host import main
-        from fastapi.testclient import TestClient
-        
         successful_accepts = 0
         failed_accepts = 0
         
@@ -259,10 +248,6 @@ class TestSecurityScenarios:
     
     def test_privilege_escalation_prevention(self, test_db, game_session_with_players, player_user, test_user):
         """Test that regular players cannot escalate their privileges"""
-        from server_host.routers.users import get_current_user
-        from server_host import main
-        from fastapi.testclient import TestClient
-        
         # Override to regular player
         async def override_get_current_user():
             return player_user
@@ -312,8 +297,6 @@ class TestSecurityScenarios:
     def test_cross_session_access_prevention(self, test_db, auth_client, test_user):
         """Test that users cannot access sessions they're not members of"""
         # Create another user and their session
-        from server_host.database import crud, schemas
-        
         other_user = crud.create_user(
             test_db,
             schemas.UserCreate(
@@ -353,8 +336,6 @@ class TestPerformanceAndStress:
     def test_large_session_management(self, test_db, auth_client, test_game_session):
         """Test session management with many players (stress test)"""
         # Create many players
-        from server_host.database import crud, schemas, models
-        
         users = []
         for i in range(20):  # 20 players + owner = 21 total
             user = crud.create_user(

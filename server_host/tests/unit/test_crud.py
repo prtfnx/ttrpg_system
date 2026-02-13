@@ -48,4 +48,5 @@ class TestGameSessionCRUD:
     def test_get_user_sessions(self, test_db, test_user, test_game_session):
         sessions = crud.get_user_game_sessions(test_db, test_user.id)
         assert len(sessions) > 0
-        assert sessions[0].id == test_game_session.id
+        session, role = sessions[0]  # Unpack the tuple
+        assert session.id == test_game_session.id

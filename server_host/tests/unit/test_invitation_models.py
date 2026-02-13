@@ -2,6 +2,12 @@ import pytest
 import time
 from datetime import datetime, timedelta
 from unittest.mock import patch
+from sqlalchemy.exc import IntegrityError
+
+from server_host.database.models import SessionInvitation, AuditLog, GamePlayer
+from server_host.routers.invitations import generate_invite_code, validate_invite_code_format
+from server_host.routers.game import can_modify_role, has_session_admin_permission, sanitize_session_code
+from server_host.utils.security import sanitize_user_input
 
 @pytest.mark.unit
 class TestSessionInvitationModel:
@@ -9,7 +15,6 @@ class TestSessionInvitationModel:
     
     def test_invitation_is_valid_active_and_not_expired(self):
         """Test that active, non-expired invitations are valid"""
-        from server_host.database.models import SessionInvitation
         
         invitation = SessionInvitation(
             invite_code="VALID123",
@@ -26,7 +31,6 @@ class TestSessionInvitationModel:
         
     def test_invitation_invalid_when_inactive(self):
         """Test that inactive invitations are invalid"""
-        from server_host.database.models import SessionInvitation
         
         invitation = SessionInvitation(
             invite_code="INACTIVE",
@@ -43,7 +47,6 @@ class TestSessionInvitationModel:
         
     def test_invitation_invalid_when_expired(self):
         """Test that expired invitations are invalid"""
-        from server_host.database.models import SessionInvitation
         
         invitation = SessionInvitation(
             invite_code="EXPIRED123",
@@ -60,7 +63,6 @@ class TestSessionInvitationModel:
         
     def test_invitation_invalid_when_max_uses_reached(self):
         """Test that invitations with no remaining uses are invalid"""
-        from server_host.database.models import SessionInvitation
         
         invitation = SessionInvitation(
             invite_code="MAXED123",
@@ -77,7 +79,6 @@ class TestSessionInvitationModel:
         
     def test_invitation_valid_when_uses_below_max(self):
         """Test that invitations with remaining uses are valid"""
-        from server_host.database.models import SessionInvitation
         
         invitation = SessionInvitation(
             invite_code="HASLEFT123",
@@ -94,7 +95,6 @@ class TestSessionInvitationModel:
         
     def test_invitation_valid_with_no_expiration(self):
         """Test that invitations with no expiration are valid when active"""
-        from server_host.database.models import SessionInvitation
         
         invitation = SessionInvitation(
             invite_code="NOEXPIRY",
@@ -111,7 +111,6 @@ class TestSessionInvitationModel:
         
     def test_invitation_code_generation(self):
         """Test that invitation codes are unique"""
-        from server_host.routers.invitations import generate_invite_code
         
         codes = set()
         for _ in range(100):
@@ -128,7 +127,6 @@ class TestSessionInvitationModel:
             
     def test_invitation_role_validation(self):
         """Test that only valid roles can be assigned"""
-        from server_host.database.models import SessionInvitation
         
         valid_roles = ["player", "co_dm"]
         
@@ -151,7 +149,6 @@ class TestAuditLogModel:
     
     def test_audit_log_creation(self):
         """Test that audit logs can be created with all required fields"""
-        from server_host.database.models import AuditLog
         
         audit_log = AuditLog(
             event_type="test_event",
@@ -171,7 +168,6 @@ class TestAuditLogModel:
         
     def test_audit_log_timestamp_auto_generated(self, test_db):
         """Test that audit log timestamps are automatically generated"""
-        from server_host.database.models import AuditLog
         
         audit_log = AuditLog(
             event_type="timestamp_test",
@@ -194,7 +190,6 @@ class TestAuditLogModel:
         
     def test_audit_log_optional_fields(self, test_db):
         """Test that optional fields can be None"""
-        from server_host.database.models import AuditLog
         
         # Minimal audit log with only required fields
         audit_log = AuditLog(
@@ -218,7 +213,6 @@ class TestGamePlayerModel:
     
     def test_game_player_role_assignment(self, test_db, test_user, test_game_session):
         """Test that roles can be assigned to game players"""
-        from server_host.database.models import GamePlayer
         
         player = GamePlayer(
             user_id=test_user.id,
@@ -234,7 +228,6 @@ class TestGamePlayerModel:
         
     def test_game_player_default_role(self, test_db, test_user, test_game_session):
         """Test that default role is 'player'"""
-        from server_host.database.models import GamePlayer
         
         player = GamePlayer(
             user_id=test_user.id,
@@ -250,8 +243,6 @@ class TestGamePlayerModel:
         
     def test_game_player_unique_constraint(self, test_db, test_user, test_game_session):
         """Test that a user can only have one role per session"""
-        from server_host.database.models import GamePlayer
-        from sqlalchemy.exc import IntegrityError
         
         # Create first player record
         player1 = GamePlayer(
@@ -280,7 +271,6 @@ class TestInvitationBusinessLogic:
     
     def test_generate_unique_invite_code_collision_handling(self):
         """Test that invite code generation handles collisions properly"""
-        from server_host.routers.invitations import generate_invite_code
         
         # Mock collision scenario
         with patch('server_host.routers.invitations.secrets.token_urlsafe') as mock_token:
@@ -297,7 +287,6 @@ class TestInvitationBusinessLogic:
             
     def test_role_hierarchy_validation(self):
         """Test role hierarchy logic"""
-        from server_host.routers.game import can_modify_role
         
         # Owner can modify anyone
         assert can_modify_role("owner", "player") is True
@@ -315,7 +304,6 @@ class TestInvitationBusinessLogic:
         
     def test_session_permission_checking(self):
         """Test session permission checking logic"""
-        from server_host.routers.game import has_session_admin_permission
         
         # Owner has admin permission
         assert has_session_admin_permission("owner") is True
@@ -335,7 +323,6 @@ class TestSecurityValidation:
     
     def test_session_code_sanitization(self):
         """Test that session codes are properly sanitized"""
-        from server_host.routers.game import sanitize_session_code
         
         # Valid session codes should pass through unchanged
         assert sanitize_session_code("VALID1") == "VALID1"
@@ -357,7 +344,6 @@ class TestSecurityValidation:
             
     def test_invite_code_validation(self):
         """Test that invite codes are properly validated"""
-        from server_host.routers.invitations import validate_invite_code_format
         
         # Valid invite codes
         assert validate_invite_code_format("ABC123DEF456GHI7") is True
@@ -372,7 +358,6 @@ class TestSecurityValidation:
         
     def test_user_input_sanitization(self):
         """Test that user inputs are properly sanitized"""
-        from server_host.utils.security import sanitize_user_input
         
         # Safe inputs should pass through
         assert sanitize_user_input("normal_username") == "normal_username"
@@ -395,7 +380,6 @@ class TestAuditLogUtilities:
     
     def test_format_audit_details(self):
         """Test that audit details are properly formatted"""
-        from server_host.routers.invitations import format_audit_details
         
         details = format_audit_details("invitation_created", {
             "invite_code": "ABC123",
@@ -410,8 +394,6 @@ class TestAuditLogUtilities:
         
     def test_extract_client_info(self):
         """Test extraction of client information for audit logs"""
-        from server_host.utils.audit import extract_client_info
-        from unittest.mock import Mock
         
         # Mock request object
         mock_request = Mock()
@@ -428,7 +410,6 @@ class TestAuditLogUtilities:
         
     def test_audit_log_filtering(self):
         """Test filtering audit logs by various criteria"""
-        from server_host.utils.audit import filter_audit_logs
         
         # This would test a utility function for filtering audit logs
         # (Implementation would depend on admin panel requirements)

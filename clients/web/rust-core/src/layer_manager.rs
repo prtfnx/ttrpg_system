@@ -312,4 +312,45 @@ impl LayerManager {
         }
         removed_count
     }
+    
+    // ===== ENHANCED INPUT SUPPORT METHODS =====
+    
+    /// Get all sprites from all layers (for select all functionality)
+    pub fn get_all_sprites(&self) -> Vec<&Sprite> {
+        let mut all_sprites = Vec::new();
+        for layer in self.layers.values() {
+            for sprite in &layer.sprites {
+                all_sprites.push(sprite);
+            }
+        }
+        all_sprites
+    }
+    
+    /// Get sprites within a rectangular area (for drag rectangle selection)
+    pub fn get_sprites_in_rect(&self, x1: f32, y1: f32, x2: f32, y2: f32) -> Vec<&Sprite> {
+        let min_x = x1.min(x2);
+        let min_y = y1.min(y2);
+        let max_x = x1.max(x2);
+        let max_y = y1.max(y2);
+        
+        let mut sprites_in_rect = Vec::new();
+        for layer in self.layers.values() {
+            for sprite in &layer.sprites {
+                // Check if sprite's bounding box intersects with selection rectangle
+                let half_width = sprite.width * sprite.scale_x / 2.0;
+                let half_height = sprite.height * sprite.scale_y / 2.0;
+                
+                let sprite_min_x = sprite.world_x - half_width;
+                let sprite_min_y = sprite.world_y - half_height;
+                let sprite_max_x = sprite.world_x + half_width;
+                let sprite_max_y = sprite.world_y + half_height;
+                
+                if sprite_min_x <= max_x as f64 && sprite_max_x >= min_x as f64 &&
+                   sprite_min_y <= max_y as f64 && sprite_max_y >= min_y as f64 {
+                    sprites_in_rect.push(sprite);
+                }
+            }
+        }
+        sprites_in_rect
+    }
 }

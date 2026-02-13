@@ -6,7 +6,6 @@ use crate::types::*;
 use crate::math::*;
 use crate::camera::Camera;
 use crate::input::{InputHandler, InputMode, HandleDetector, FogDrawMode};
-use crate::input_controller::InputController;
 use crate::sprite_manager::SpriteManager;
 use crate::sprite_renderer::SpriteRenderer;
 use crate::webgl_renderer::WebGLRenderer;
@@ -37,7 +36,7 @@ pub struct RenderEngine {
     canvas_size: Vec2,
     
     // Input handling
-    input_controller: InputController,
+    input: InputHandler,
     event_system: EventSystem,
     
     // Core rendering

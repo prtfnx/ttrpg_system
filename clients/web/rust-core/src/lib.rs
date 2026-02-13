@@ -151,7 +151,6 @@ mod render;
 mod types;
 mod camera;
 mod input;
-mod input_controller;
 mod sprite_manager;
 mod sprite_renderer;
 mod webgl_renderer;

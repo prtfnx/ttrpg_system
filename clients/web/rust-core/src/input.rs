@@ -105,7 +105,12 @@ impl InputHandler {
         Self::default()
     }
     
-    // Multi-select management methods
+    // ===== SPRITE SELECTION METHODS =====
+    
+    pub fn get_selected_sprites(&self) -> &Vec<String> {
+        &self.selected_sprite_ids
+    }
+    
     pub fn add_to_selection(&mut self, sprite_id: String) {
         if !self.selected_sprite_ids.contains(&sprite_id) {
             self.selected_sprite_ids.push(sprite_id.clone());
@@ -315,24 +320,37 @@ impl InputHandler {
         let is_double_click = if let Some(last_sprite) = &self.last_click_sprite {
             if last_sprite == sprite_id {
                 let time_diff = current_time - self.last_click_time;
-                web_sys::console::log_1(&format!("[INPUT] Same sprite clicked: {}. Time diff: {}ms (threshold: {}ms)", sprite_id, time_diff, DOUBLE_CLICK_THRESHOLD_MS).into());
                 time_diff < DOUBLE_CLICK_THRESHOLD_MS
             } else {
-                web_sys::console::log_1(&format!("[INPUT] Different sprite: last={}, current={}", last_sprite, sprite_id).into());
                 false
             }
         } else {
-            web_sys::console::log_1(&"[INPUT] First click (no previous sprite)".into());
             false
         };
         
-        // Update tracking state
         self.last_click_time = current_time;
         self.last_click_sprite = Some(sprite_id.to_string());
-        
-        web_sys::console::log_1(&format!("[INPUT] Double-click result: {}", is_double_click).into());
         is_double_click
     }
+    
+    // ===== ENHANCED INPUT METHODS FOR WASM =====
+    
+    /// Handle mouse down with modifier keys for multi-selection
+    pub fn handle_mouse_down_with_modifiers(&mut self, world_pos: crate::math::Vec2, ctrl_key: bool) -> InputResult {
+        if ctrl_key {
+            InputResult::MultiSelectToggle
+        } else {
+            InputResult::SingleSelect
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum InputResult {
+    SingleSelect,
+    MultiSelectToggle,
+    StartAreaSelect,
+    None,
 }
 
 pub struct HandleDetector;

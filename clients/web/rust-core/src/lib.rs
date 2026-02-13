@@ -147,10 +147,11 @@ macro_rules! console_log {
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 mod math;
-mod render;
+mod render;  
 mod types;
 mod camera;
 mod input;
+mod input_controller;
 mod sprite_manager;
 mod sprite_renderer;
 mod webgl_renderer;

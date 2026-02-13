@@ -6,6 +6,7 @@ use crate::types::*;
 use crate::math::*;
 use crate::camera::Camera;
 use crate::input::{InputHandler, InputMode, HandleDetector, FogDrawMode};
+use crate::input_controller::InputController;
 use crate::sprite_manager::SpriteManager;
 use crate::sprite_renderer::SpriteRenderer;
 use crate::webgl_renderer::WebGLRenderer;
@@ -36,7 +37,7 @@ pub struct RenderEngine {
     canvas_size: Vec2,
     
     // Input handling
-    input: InputHandler,
+    input_controller: InputController,
     event_system: EventSystem,
     
     // Core rendering
@@ -507,36 +508,26 @@ impl RenderEngine {
     
     #[wasm_bindgen]
     pub fn handle_mouse_down(&mut self, screen_x: f32, screen_y: f32) {
-        let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
-        web_sys::console::log_1(&format!(
-            "[CLICK] Screen({:.0}, {:.0}) → World({:.1}, {:.1}) | Camera({:.1}, {:.1}) @ zoom {:.2}",
-            screen_x, screen_y, world_pos.x, world_pos.y, 
-            self.camera.world_x, self.camera.world_y, self.camera.zoom
-        ).into());
-        self.handle_mouse_down_with_modifiers(screen_x, screen_y, false)
+        self.handle_mouse_down_internal(screen_x, screen_y, false);
     }
     
     #[wasm_bindgen]
     pub fn handle_mouse_down_with_ctrl(&mut self, screen_x: f32, screen_y: f32, ctrl_pressed: bool) {
-        self.handle_mouse_down_with_modifiers(screen_x, screen_y, ctrl_pressed)
+        self.handle_mouse_down_internal(screen_x, screen_y, ctrl_pressed);
     }
     
-    fn handle_mouse_down_with_modifiers(&mut self, screen_x: f32, screen_y: f32, ctrl_pressed: bool) {
+    // Clean mouse handling without fallbacks  
+    fn handle_mouse_down_internal(&mut self, screen_x: f32, screen_y: f32, ctrl_pressed: bool) {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
         self.input.last_mouse_screen = Vec2::new(screen_x, screen_y);
         
-        // Check if paint mode is active first
+        // Check paint mode first
         if self.input.input_mode == InputMode::Paint {
-            web_sys::console::log_1(&"[RUST] Paint mode active, starting paint stroke".into());
-            if self.paint.start_stroke(world_pos.x, world_pos.y, 1.0) {
-                web_sys::console::log_1(&"[RUST] Paint stroke started successfully".into());
-            } else {
-                web_sys::console::log_1(&"[RUST] Failed to start paint stroke".into());
-            }
+            self.paint.start_stroke(world_pos.x, world_pos.y, 1.0);
             return;
         }
         
-        // Use the event system to handle mouse down events
+        // Use event system for all other input handling
         let result = self.event_system.handle_mouse_down(
             world_pos,
             &mut self.input,
@@ -546,34 +537,19 @@ impl RenderEngine {
             ctrl_pressed
         );
         
-        // Handle event system results that need render engine specific operations
+        // Handle results - no fallbacks
         match result {
-            MouseEventResult::Handled => {
-                // Event was handled by event system
-            }
-            MouseEventResult::CameraOperation(cam_op) => {
-                // Handle camera operations if needed
-                match cam_op.as_str() {
-                    "focus_selection" => {
-                        // Focus on the primary selected sprite if available
-                        if let Some(sprite_id) = &self.input.selected_sprite_id {
-                            if let Some((sprite, _)) = self.layer_manager.find_sprite(sprite_id) {
-                                let (pos, size) = SpriteManager::get_sprite_bounds(sprite);
-                                let rect = crate::math::Rect::new(pos.x, pos.y, size.x, size.y);
-                                self.camera.focus_on_rect(rect, self.canvas_size, 50.0);
-                                self.view_matrix = self.camera.view_matrix(self.canvas_size);
-                            }
-                        }
+            MouseEventResult::CameraOperation(op) if op == "focus_selection" => {
+                if let Some(sprite_id) = &self.input.selected_sprite_id {
+                    if let Some((sprite, _)) = self.layer_manager.find_sprite(sprite_id) {
+                        let (pos, size) = SpriteManager::get_sprite_bounds(sprite);
+                        let rect = crate::math::Rect::new(pos.x, pos.y, size.x, size.y);
+                        self.camera.focus_on_rect(rect, self.canvas_size, 50.0);
+                        self.view_matrix = self.camera.view_matrix(self.canvas_size);
                     }
-                    _ => {}
                 }
             }
-            MouseEventResult::CreateSprite(_) => {
-                // Shape creation is handled in mouse up, not mouse down
-            }
-            MouseEventResult::None => {
-                // Handle legacy fallback if needed
-            }
+            _ => {}
         }
     }
     
@@ -2519,5 +2495,123 @@ impl RenderEngine {
         ).unwrap();
         
         counts.into()
+    }
+
+    // ===== ENHANCED INPUT & SELECTION METHODS =====
+    
+    /// Get list of currently selected sprite IDs
+    #[wasm_bindgen]
+    pub fn get_selected_sprites(&self) -> Vec<JsValue> {
+        self.input.selected_sprite_ids
+            .iter()
+            .map(|id| JsValue::from_str(id))
+            .collect()
+    }
+
+    /// Select all sprites in the current layer
+    #[wasm_bindgen]
+    pub fn select_all_sprites(&mut self) {
+        self.input.selected_sprite_ids.clear();
+        // Iterate through all layers to find sprites
+        for layer in self.layer_manager.get_layers().values() {
+            for sprite in &layer.sprites {
+                self.input.selected_sprite_ids.push(sprite.id.clone());
+            }
+        }
+        self.input.selected_sprite_id = self.input.selected_sprite_ids.first().cloned();
+    }
+
+    /// Clear current selection
+    #[wasm_bindgen]
+    pub fn clear_selection(&mut self) {
+        self.input.clear_selection();
+    }
+
+    /// Select sprites within a rectangular area
+    #[wasm_bindgen]
+    pub fn select_sprites_in_rect(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, add_to_selection: bool) {
+        let min_x = x1.min(x2) as f64;
+        let min_y = y1.min(y2) as f64;
+        let max_x = x1.max(x2) as f64;
+        let max_y = y1.max(y2) as f64;
+
+        if !add_to_selection {
+            self.input.clear_selection();
+        }
+
+        for layer in self.layer_manager.get_layers().values() {
+            for sprite in &layer.sprites {
+                let half_width = sprite.width * sprite.scale_x / 2.0;
+                let half_height = sprite.height * sprite.scale_y / 2.0;
+                
+                let sprite_min_x = sprite.world_x - half_width;
+                let sprite_min_y = sprite.world_y - half_height;
+                let sprite_max_x = sprite.world_x + half_width;
+                let sprite_max_y = sprite.world_y + half_height;
+
+                if sprite_min_x <= max_x && sprite_max_x >= min_x &&
+                   sprite_min_y <= max_y && sprite_max_y >= min_y {
+                    self.input.add_to_selection(sprite.id.clone());
+                }
+            }
+        }
+    }
+
+    /// Get sprite position for movement operations
+    #[wasm_bindgen]
+    pub fn get_sprite_position(&self, sprite_id: &str) -> Option<Vec<f32>> {
+        self.find_sprite(sprite_id).map(|sprite| vec![sprite.world_x as f32, sprite.world_y as f32])
+    }
+
+    /// Get sprite scale for scaling operations  
+    #[wasm_bindgen]
+    pub fn get_sprite_scale(&self, sprite_id: &str) -> Option<Vec<f32>> {
+        self.find_sprite(sprite_id).map(|sprite| vec![sprite.scale_x as f32, sprite.scale_y as f32])
+    }
+
+    /// Get sprite data for network synchronization
+    #[wasm_bindgen]
+    pub fn get_sprite_data(&self, sprite_id: &str) -> JsValue {
+        if let Some(sprite) = self.find_sprite(sprite_id) {
+            serde_wasm_bindgen::to_value(sprite).unwrap_or(JsValue::NULL)
+        } else {
+            JsValue::NULL
+        }
+    }
+
+    /// Enhanced mouse down handler with modifier key support
+    #[wasm_bindgen]
+    pub fn handle_mouse_down_with_modifiers(&mut self, screen_x: f64, screen_y: f64, ctrl_key: bool, shift_key: bool) -> Option<String> {
+        let world_coords = self.screen_to_world(screen_x as f32, screen_y as f32);
+        let world_pos = Vec2::new(world_coords[0] as f32, world_coords[1] as f32);
+        
+        if ctrl_key {
+            if let Some(sprite_id) = self.find_sprite_at_position(world_pos) {
+                if self.input.is_sprite_selected(&sprite_id) {
+                    self.input.remove_from_selection(&sprite_id);
+                } else {
+                    self.input.add_to_selection(sprite_id.clone());
+                }
+                return Some(sprite_id);
+            }
+        } else {
+            if let Some(sprite_id) = self.find_sprite_at_position(world_pos) {
+                self.input.set_single_selection(sprite_id.clone());
+                return Some(sprite_id);
+            } else if !shift_key {
+                self.input.start_area_selection(world_pos);
+            }
+        }
+        None
+    }
+
+    // Helper methods
+    fn find_sprite(&self, sprite_id: &str) -> Option<&crate::types::Sprite> {
+        self.layer_manager.find_sprite(sprite_id).map(|(sprite, _)| sprite)
+    }
+
+    fn find_sprite_at_position(&self, world_pos: Vec2) -> Option<String> {
+        // Use existing LayerManager method for finding sprites at position
+        self.layer_manager.find_sprite_for_right_click(world_pos)
     }
 }

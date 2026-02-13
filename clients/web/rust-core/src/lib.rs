@@ -5,86 +5,20 @@ use wasm_bindgen::prelude::*;
 // Usage: cargo build --features="log-debug" for debug logs
 //        cargo build --release (no features) for production
 
-/// Log level macros using conditional compilation
-/// Only compiled when respective features are enabled
-#[cfg(feature = "log-trace")]
-macro_rules! log_trace {
+/// Error level logging macro - always enabled
+/// 
+/// Critical errors that should always be logged regardless of build configuration.
+/// Uses `console.error()` for proper browser dev tools styling and stack traces.
+macro_rules! log_error {
     ($($arg:tt)*) => {
-        web_sys::console::log_1(&format!("[TRACE] {}", format_args!($($arg)*)).into());
+        web_sys::console::error_1(&format!("[ERROR] {}", format_args!($($arg)*)).into());
     };
-}
-
-/// No-op trace macro when feature is disabled
-#[cfg(not(feature = "log-trace"))]
-macro_rules! log_trace {
-    ($($arg:tt)*) => {};
-}
-
-/// Debug level logging macro - detailed debugging information
-/// 
-/// Only compiled when `log-debug` feature is enabled.
-/// Use for debugging information that helps track program flow and state.
-/// 
-/// # Examples
-/// 
-/// ```rust
-/// // Only logs when compiled with --features log-debug  
-/// log_debug!("Light at ({:.1}, {:.1}) processing shadows", x, y);
-/// log_debug!("WebGL state: {} active textures", texture_count);
-/// log_debug!("Collision detected between {} and {}", entity1, entity2);
-/// ```
-#[cfg(feature = "log-debug")]
-macro_rules! log_debug {
-    ($($arg:tt)*) => {
-        web_sys::console::log_1(&format!("[DEBUG] {}", format_args!($($arg)*)).into());
-    };
-}
-
-/// No-op debug macro when feature is disabled
-#[cfg(not(feature = "log-debug"))]
-macro_rules! log_debug {
-    ($($arg:tt)*) => {};
-}
-
-/// Info level logging macro - general information
-/// 
-/// Only compiled when `log-info` feature is enabled.
-/// Use for important events and general application flow information.
-/// 
-/// # Examples
-/// 
-/// ```rust
-/// // Only logs when compiled with --features log-info
-/// log_info!("WebGL renderer initialized successfully");
-/// log_info!("Loading texture: {}", filename);
-/// log_info!("Game session started with {} players", player_count);
-/// ```
-#[cfg(feature = "log-info")]
-macro_rules! log_info {
-    ($($arg:tt)*) => {
-        web_sys::console::log_1(&format!("[INFO] {}", format_args!($($arg)*)).into());
-    };
-}
-
-/// No-op info macro when feature is disabled
-#[cfg(not(feature = "log-info"))]
-macro_rules! log_info {
-    ($($arg:tt)*) => {};
 }
 
 /// Warning level logging macro - potential issues
 /// 
 /// Enabled by default in debug builds (`debug_assertions`) or with `log-warn` feature.
 /// Use for non-critical issues that should be noticed but don't prevent operation.
-/// 
-/// # Examples
-/// 
-/// ```rust
-/// // Logs in debug builds or with --features log-warn
-/// log_warn!("Deprecated API usage detected in {}", function_name);
-/// log_warn!("Performance warning: {} objects rendered in single batch", count);
-/// log_warn!("Resource not found, using fallback: {}", resource_name);
-/// ```
 #[cfg(any(feature = "log-warn", debug_assertions))]
 macro_rules! log_warn {
     ($($arg:tt)*) => {
@@ -98,46 +32,68 @@ macro_rules! log_warn {
     ($($arg:tt)*) => {};
 }
 
-/// Error level logging macro - always enabled
+/// Info level logging macro - general information
 /// 
-/// Critical errors that should always be logged regardless of build configuration.
-/// Uses `console.error()` for proper browser dev tools styling and stack traces.
-/// 
-/// # Examples
-/// 
-/// ```rust
-/// // Always logs in all builds
-/// log_error!("Failed to initialize WebGL context: {}", error);
-/// log_error!("Critical shader compilation error: {}", shader_log);
-/// log_error!("WebSocket connection failed: {:?}", error);
-/// ```
-macro_rules! log_error {
+/// Only compiled when `log-info` feature is enabled.
+/// Use for important events and general application flow information.
+#[cfg(feature = "log-info")]
+macro_rules! log_info {
     ($($arg:tt)*) => {
-        web_sys::console::error_1(&format!("[ERROR] {}", format_args!($($arg)*)).into());
+        web_sys::console::log_1(&format!("[INFO] {}", format_args!($($arg)*)).into());
     };
+}
+
+/// No-op info macro when feature is disabled
+#[cfg(not(feature = "log-info"))]
+macro_rules! log_info {
+    ($($arg:tt)*) => {};
+}
+
+/// Debug level logging macro - detailed debugging information
+/// 
+/// Only compiled when `log-debug` feature is enabled.
+/// Use for debugging information that helps track program flow and state.
+#[cfg(feature = "log-debug")]
+macro_rules! log_debug {
+    ($($arg:tt)*) => {
+        web_sys::console::log_1(&format!("[DEBUG] {}", format_args!($($arg)*)).into());
+    };
+}
+
+/// No-op debug macro when feature is disabled
+#[cfg(not(feature = "log-debug"))]
+macro_rules! log_debug {
+    ($($arg:tt)*) => {};
+}
+
+/// Trace level logging macro - very detailed tracing
+/// 
+/// Only compiled when `log-trace` feature is enabled.
+/// Use for performance-heavy detailed tracing information.
+#[cfg(feature = "log-trace")]
+macro_rules! log_trace {
+    ($($arg:tt)*) => {
+        web_sys::console::log_1(&format!("[TRACE] {}", format_args!($($arg)*)).into());
+    };
+}
+
+/// No-op trace macro when feature is disabled
+#[cfg(not(feature = "log-trace"))]
+macro_rules! log_trace {
+    ($($arg:tt)*) => {};
 }
 
 /// Legacy console_log macro for backwards compatibility
 /// 
 /// Maps to `log_info!` when info logging is enabled.
 /// Maintained for backward compatibility with existing code.
-/// 
-/// # Migration
-/// 
-/// ```rust
-/// // Old usage (deprecated)
-/// console_log!("Message");
-/// 
-/// // New usage (recommended)
-/// log_info!("Message");
-/// ```
-#[cfg(any(feature = "log-info", debug_assertions))]
+#[cfg(feature = "log-info")]
 macro_rules! console_log {
     ($($t:tt)*) => (log_info!($($t)*))
 }
 
 /// No-op console_log when disabled
-#[cfg(not(any(feature = "log-info", debug_assertions)))]
+#[cfg(not(feature = "log-info"))]
 macro_rules! console_log {
     ($($t:tt)*) => {}
 }
@@ -168,10 +124,11 @@ pub use network::NetworkSystem;
 
 use web_sys::HtmlCanvasElement;
 
-/// Initialize the WebGL game renderer
+/// Initialize the WebGL game engine
 /// 
-/// Creates a new `RenderEngine` instance bound to the provided HTML canvas element.
-/// This is the main entry point for initializing the WASM-based rendering system.
+/// Creates a new `WasmEngine` instance bound to the provided HTML canvas element.
+/// This is the main entry point for initializing the WASM-based rendering system
+/// using the new domain-driven architecture.
 /// 
 /// # Arguments
 /// 
@@ -179,41 +136,41 @@ use web_sys::HtmlCanvasElement;
 /// 
 /// # Returns
 /// 
-/// * `Ok(RenderEngine)` - Successfully initialized render engine
+/// * `Ok(WasmEngine)` - Successfully initialized game engine
 /// * `Err(JsValue)` - WebGL initialization error
 /// 
 /// # Examples
 /// 
 /// ```javascript
 /// // JavaScript usage
-/// import init, { init_game_renderer } from './pkg/ttrpg_rust_core.js';
+/// import init, { init_game_engine } from './pkg/ttrpg_rust_core.js';
 /// 
 /// await init(); // Initialize WASM module
 /// 
 /// const canvas = document.getElementById('game-canvas');
 /// try {
-///     const renderer = init_game_renderer(canvas);
-///     console.log('Renderer initialized successfully');
+///     const engine = init_game_engine(canvas);
+///     console.log('Engine initialized successfully');
 /// } catch (error) {
-///     console.error('Failed to initialize renderer:', error);
+///     console.error('Failed to initialize engine:', error);
 /// }
 /// ```
 /// 
-/// # WebGL Requirements
+/// # Requirements
 /// 
-/// - WebGL2 support required
-/// - Stencil buffer recommended for shadow rendering
+/// - HTML5 Canvas 2D context support required
 /// - Minimum canvas size: 300x200 pixels
+/// - Modern browser with WASM support
 #[wasm_bindgen]
-pub fn init_game_renderer(canvas: HtmlCanvasElement) -> Result<RenderEngine, JsValue> {
-    log_info!("Initializing WebGL game renderer");
-    RenderEngine::new(canvas)
+pub fn init_game_engine(canvas: HtmlCanvasElement) -> Result<WasmEngine, JsValue> {
+    log_info!("Initializing game engine with domain-driven architecture");
+    WasmEngine::new(&canvas)
 }
 
 /// WASM module initialization and panic hook setup
 /// 
 /// This function is automatically called when the WASM module loads.
-/// Sets up panic handlers to provide readable error messages in the browser console.
+/// Sets up panic handlers and initializes the domain-driven architecture system.
 /// 
 /// # Panic Handling
 /// 
@@ -228,12 +185,12 @@ pub fn init_game_renderer(canvas: HtmlCanvasElement) -> Result<RenderEngine, JsV
 /// 
 /// // This calls main() automatically
 /// await init();
-/// // TTRPG Rust Core initialized
+/// // TTRPG Rust Core domain-driven system initialized
 /// ```
 #[wasm_bindgen(start)]
 pub fn main() {
     console_error_panic_hook::set_once();
-    log_info!("TTRPG Rust Core initialized");
+    log_info!("TTRPG Rust Core domain-driven system initialized");
 }
 
 /// Get the current crate version

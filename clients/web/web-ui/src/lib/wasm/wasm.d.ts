@@ -346,6 +346,40 @@ export class RenderEngine {
   set_table_received_handler(callback: Function): void;
   set_sprite_update_handler(callback: Function): void;
   set_table_error_handler(callback: Function): void;
+  
+  // Enhanced Input & Selection Methods
+  /**
+   * Get list of currently selected sprite IDs
+   */
+  get_selected_sprites(): string[];
+  /**
+   * Select all sprites in the current layer
+   */
+  select_all_sprites(): void;
+  /**
+   * Clear current selection
+   */
+  clear_selection(): void;
+  /**
+   * Select sprites within a rectangular area
+   */
+  select_sprites_in_rect(x1: number, y1: number, x2: number, y2: number, add_to_selection: boolean): void;
+  /**
+   * Get sprite position for movement operations
+   */
+  get_sprite_position(sprite_id: string): number[] | undefined;
+  /**
+   * Get sprite scale for scaling operations
+   */
+  get_sprite_scale(sprite_id: string): number[] | undefined;
+  /**
+   * Get sprite data for network synchronization
+   */
+  get_sprite_data(sprite_id: string): any;
+  /**
+   * Enhanced mouse down handler with modifier key support
+   */
+  handle_mouse_down_with_modifiers(screen_x: number, screen_y: number, ctrl_key: boolean, shift_key: boolean): string | undefined;
 }
 export class TableManager {
   free(): void;

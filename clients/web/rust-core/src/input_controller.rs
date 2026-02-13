@@ -4,11 +4,14 @@ use crate::math::Vec2;
 use crate::types::Sprite;
 
 /// Input Controller - Handles all input-related operations separate from rendering
+#[wasm_bindgen]
 pub struct InputController {
-    pub input: InputHandler,
+    input: InputHandler,
 }
 
+#[wasm_bindgen]
 impl InputController {
+    #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         Self {
             input: InputHandler::new(),
@@ -43,7 +46,9 @@ impl InputController {
             InputResult::None => "none".to_string(),
         }
     }
+}
 
+impl InputController {
     /// Select all sprites in layer - internal method
     pub fn select_all_sprites(&mut self, sprite_ids: Vec<String>) {
         self.input.selected_sprite_ids = sprite_ids;

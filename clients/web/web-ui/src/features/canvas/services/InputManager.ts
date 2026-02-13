@@ -14,23 +14,26 @@ export interface KeyboardShortcut {
 }
 
 export interface InputContext {
-  selectedSprites: string[];
+  selectedSpriteIds: string[];
   hasClipboard: boolean;
   canUndo: boolean;
   canRedo: boolean;
   isCanvasFocused: boolean;
 }
 
+type InputListener = (event: KeyboardEvent) => void;
+
 export class InputManager {
   private shortcuts: Map<string, KeyboardShortcut> = new Map();
   private context: InputContext = {
-    selectedSprites: [],
+    selectedSpriteIds: [],
     hasClipboard: false,
     canUndo: false,
     canRedo: false,
     isCanvasFocused: false,
   };
-  private listeners: Map<string, Function[]> = new Map();
+  private listeners: Map<string, InputListener[]> = new Map();
+  private contextListeners: Set<(context: InputContext) => void> = new Set();
 
   constructor() {
     this.setupDefaultShortcuts();
@@ -43,14 +46,14 @@ export class InputManager {
         key: 'Delete',
         action: 'delete_selected',
         description: 'Delete selected sprite(s)',
-        enabled: () => this.context.selectedSprites.length > 0
+        enabled: () => this.context.selectedSpriteIds.length > 0
       },
       {
         key: 'c',
         ctrl: true,
         action: 'copy_selected',
         description: 'Copy selected sprite(s)',
-        enabled: () => this.context.selectedSprites.length > 0
+        enabled: () => this.context.selectedSpriteIds.length > 0
       },
       {
         key: 'v',
@@ -62,16 +65,16 @@ export class InputManager {
 
       // Sprite scaling
       {
-        key: '=', // Plus key
+        key: 'Equal', // Plus key without shift
         action: 'scale_up',
         description: 'Scale selected sprite(s) up',
-        enabled: () => this.context.selectedSprites.length > 0
+        enabled: () => this.context.selectedSpriteIds.length > 0
       },
       {
-        key: '-',
+        key: 'Minus',
         action: 'scale_down', 
         description: 'Scale selected sprite(s) down',
-        enabled: () => this.context.selectedSprites.length > 0
+        enabled: () => this.context.selectedSpriteIds.length > 0
       },
 
       // Undo/Redo
@@ -98,30 +101,30 @@ export class InputManager {
         enabled: () => this.context.canRedo
       },
 
-      // Sprite movement
+      // Sprite movement (with grid snap)
       {
         key: 'ArrowUp',
         action: 'move_up',
         description: 'Move selected sprite(s) up',
-        enabled: () => this.context.selectedSprites.length > 0
+        enabled: () => this.context.selectedSpriteIds.length > 0
       },
       {
         key: 'ArrowDown', 
         action: 'move_down',
         description: 'Move selected sprite(s) down',
-        enabled: () => this.context.selectedSprites.length > 0
+        enabled: () => this.context.selectedSpriteIds.length > 0
       },
       {
         key: 'ArrowLeft',
         action: 'move_left', 
         description: 'Move selected sprite(s) left',
-        enabled: () => this.context.selectedSprites.length > 0
+        enabled: () => this.context.selectedSpriteIds.length > 0
       },
       {
         key: 'ArrowRight',
         action: 'move_right',
         description: 'Move selected sprite(s) right', 
-        enabled: () => this.context.selectedSprites.length > 0
+        enabled: () => this.context.selectedSpriteIds.length > 0
       },
 
       // Multi-selection
@@ -137,7 +140,7 @@ export class InputManager {
         description: 'Clear current selection'
       },
 
-      // Debug/Performance
+      // Performance debug
       {
         key: 'F3',
         action: 'toggle_performance',
@@ -188,19 +191,24 @@ export class InputManager {
     listeners.forEach(listener => listener(event));
   }
 
-  // Public API for React components
+  // Public API
   updateContext(updates: Partial<InputContext>) {
     this.context = { ...this.context, ...updates };
+    this.notifyContextListeners();
   }
 
-  onAction(action: string, callback: Function) {
+  private notifyContextListeners() {
+    this.contextListeners.forEach(listener => listener(this.context));
+  }
+
+  onAction(action: string, callback: InputListener) {
     if (!this.listeners.has(action)) {
       this.listeners.set(action, []);
     }
     this.listeners.get(action)!.push(callback);
   }
 
-  removeAction(action: string, callback: Function) {
+  offAction(action: string, callback: InputListener) {
     const listeners = this.listeners.get(action);
     if (listeners) {
       const index = listeners.indexOf(callback);
@@ -210,12 +218,22 @@ export class InputManager {
     }
   }
 
+  onContextChange(callback: (context: InputContext) => void) {
+    this.contextListeners.add(callback);
+    return () => this.contextListeners.delete(callback);
+  }
+
   getShortcuts(): KeyboardShortcut[] {
     return Array.from(this.shortcuts.values());
   }
 
-  destructor() {
+  getContext(): InputContext {
+    return { ...this.context };
+  }
+
+  destroy() {
     this.listeners.clear();
+    this.contextListeners.clear();
   }
 }
 

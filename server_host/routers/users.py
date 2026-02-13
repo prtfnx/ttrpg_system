@@ -99,7 +99,7 @@ async def users_me(
     if "application/json" in accept_header:
         # Determine user role based on session ownership
         user_sessions = crud.get_user_game_sessions(db, current_user.id)
-        is_dm = any(session.owner_id == current_user.id for session in user_sessions)
+        is_dm = any(session.owner_id == current_user.id for session, role in user_sessions)
         
         # Determine permissions based on role
         user_role = "dm" if is_dm else "player"
@@ -142,7 +142,7 @@ async def users_me(
         
         # Calculate stats
         games_played = len(user_sessions)
-        victories = sum(1 for session in user_sessions if getattr(session, 'status', None) == 'won')
+        victories = sum(1 for session, role in user_sessions if getattr(session, 'status', None) == 'won')
         
         # Add calculated stats to user object for template
         profile_data = {
@@ -275,10 +275,12 @@ async def dashboard(
         return {"sessions": sessions_data}
     else:
         # Return HTML page for browser requests
+        # Extract session objects from tuples for template
+        sessions_for_template = [session for session, role in user_sessions]
         return templates.TemplateResponse("dashboard.html", {
             "request": request,
             "user": current_user,
-            "sessions": user_sessions
+            "sessions": sessions_for_template
         })
 
 @router.get("/register")

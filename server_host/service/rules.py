@@ -3,6 +3,7 @@ Basic game rules and validation for TTRPG actions
 """
 from typing import Dict, Any
 import logging
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,6 @@ def apply_action(action: Dict[str, Any]) -> Dict[str, Any]:
         data = action.get("data", {})
         
         if action_type == "dice_roll":
-            import random
             dice_type = data.get("dice_type", 20)  # Default d20
             quantity = data.get("quantity", 1)
             
@@ -82,8 +82,7 @@ def apply_action(action: Dict[str, Any]) -> Dict[str, Any]:
         
         # Legacy support
         if action.get("roll"):
-            from random import randint
-            return {"roll": randint(1, 20)}
+            return {"roll": random.randint(1, 20)}
         elif action.get("move"):
             return {"moved_to": action["move"]}
         

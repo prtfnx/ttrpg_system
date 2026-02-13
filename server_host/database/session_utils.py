@@ -161,7 +161,7 @@ def get_user_persistent_sessions(db: Session, user_id: int) -> list:
                 "created_at": session.created_at,
                 "is_active": session.is_active,
             }
-            for session in sessions
+            for session, role in sessions
         ]
     except Exception as e:
         logger.error(f"Error getting user sessions: {e}")

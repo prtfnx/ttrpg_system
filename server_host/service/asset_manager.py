@@ -767,7 +767,6 @@ class ServerAssetManager:
                     # Get session_code from session_id
                     session_code = None
                     if asset.session_id is not None:
-                        from ..database.models import GameSession
                         session = db.query(GameSession).filter(GameSession.id == asset.session_id).first()
                         session_code = session.session_code if session else None
                     

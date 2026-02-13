@@ -12,7 +12,6 @@ from fastapi import WebSocket, WebSocketDisconnect
 from dataclasses import asdict
 import os
 import sys
-from datetime import datetime
 
 # Add parent directory to path to import protocol
 parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -23,6 +22,7 @@ from core_table.server_protocol import ServerProtocol
 from core_table.server import TableManager
 from .asset_manager import get_server_asset_manager
 from server_host.utils.logger import setup_logger
+from server_host.database.models import GameSession
 logger = setup_logger(__name__)
 
 
@@ -390,7 +390,6 @@ class GameSessionProtocolService:
                 return False
             
             # Update GameSession metadata
-            from server_host.database.models import GameSession
             game_session = self.db_session.query(GameSession).filter_by(id=self.game_session_db_id).first()
             if game_session:
                 game_session.game_data = json.dumps({

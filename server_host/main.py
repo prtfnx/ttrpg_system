@@ -21,6 +21,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from server_host.utils.logger import setup_logger
 from server_host.routers import users
+from server_host.routers.users import get_current_user_optional
 from server_host.routers import game
 from server_host.routers import compendium
 from server_host.routers import invitations
@@ -172,7 +173,6 @@ async def test_auth_error():
 @app.get("/invite/{invite_code}")
 async def invitation_page(invite_code: str, request: Request):
     """Invitation acceptance page"""
-    from server_host.routers.users import get_current_user_optional
     
     db = SessionLocal()
     try:

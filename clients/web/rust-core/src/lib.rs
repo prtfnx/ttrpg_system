@@ -146,39 +146,25 @@ macro_rules! console_log {
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-mod math;
-mod render;  
-mod types;
-mod camera;
-mod input;
-mod sprite_manager;
-mod sprite_renderer;
-mod webgl_renderer;
-mod text_renderer;
-mod lighting;
-mod fog;
-mod event_system;
-mod layer_manager;
-mod grid_system;
-mod texture_manager;
+// Domain-driven architecture modules
+mod core;
+mod graphics;
+mod content;
+mod interaction;
+mod effects;
 mod network;
-mod actions;
-mod paint;
-mod asset_manager;
-mod geometry;
-mod table_manager;
-mod table_sync;
-mod utils;
+mod wasm;
 
-pub use render::RenderEngine;
-pub use types::*;
-pub use lighting::{Light, LightingSystem, LightType};
-pub use network::NetworkClient;
-pub use actions::ActionsClient;
-pub use paint::{PaintSystem, BrushPreset, create_default_brush_presets};
-pub use asset_manager::{AssetManager, AssetInfo, CacheStats};
-pub use table_manager::TableManager;
-pub use table_sync::TableSync;
+// Re-export the main WASM interface
+pub use wasm::WasmEngine;
+
+// Re-export key types for JavaScript interop
+pub use core::{Engine, EngineError};
+pub use graphics::GraphicsSystem;
+pub use content::{ContentSystem, Scene, SceneItem, GameAction};
+pub use interaction::{InteractionSystem, InputEvent};
+pub use effects::{EffectsSystem, LightSource};
+pub use network::NetworkSystem;
 
 use web_sys::HtmlCanvasElement;
 

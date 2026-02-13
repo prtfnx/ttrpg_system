@@ -1,11 +1,24 @@
 /**
- * Enhanced Canvas Events Hook with Integrated Input Management
- * Manages mouse, wheel, and keyboard events with proper input architecture
+ * Enhanced Canvas Event Handling with InputManager Integration
+ * Maintains compatibility with existing GameCanvas interface
  */
-import { inputManager } from '@features/canvas/services';
+
+import { RefObject, useCallback, useEffect, useRef } from 'react';
+import { inputManager } from '../../services/InputManager';
+import { MultiSelectManager, SelectionStrategy } from '../../services/MultiSelectManager';
 import type { RenderEngine } from '@lib/wasm/wasm';
-import { useCallback, useEffect, useRef, type RefObject } from 'react';
-import { getRelativeCoords } from './canvasUtils';
+
+export interface CanvasEventsEnhanced {
+  stableMouseDown: (event: MouseEvent) => void;
+  stableMouseUp: (event: MouseEvent) => void;  
+  stableMouseMove: (event: MouseEvent) => void;
+  stableKeyDown: (event: KeyboardEvent) => void;
+  stableWheel: (event: WheelEvent) => void;
+  stableRightClick: (event: MouseEvent) => void;
+  handleCanvasFocus: () => void;
+  handleCanvasBlur: () => void;
+  selectedSpriteIds: string[];
+}
 
 interface LightPlacementMode {
   active: boolean;
@@ -21,7 +34,7 @@ interface ContextMenuState {
   showLayerSubmenu?: boolean;
 }
 
-interface UseCanvasEventsProps {
+export interface UseCanvasEventsEnhancedProps {
   canvasRef: RefObject<HTMLCanvasElement>;
   rustRenderManagerRef: RefObject<RenderEngine | null>;
   lightPlacementMode: LightPlacementMode | null;
@@ -29,25 +42,365 @@ interface UseCanvasEventsProps {
   setContextMenu: React.Dispatch<React.SetStateAction<ContextMenuState>>;
   showPerformanceMonitor: boolean;
   togglePerformanceMonitor: () => void;
-  protocol?: any; // Network protocol for server sync
+  protocol?: any; // Network protocol service
 }
 
-export const useCanvasEvents = ({
-  canvasRef,
+export const useCanvasEventsEnhanced = ({ 
+  canvasRef, 
   rustRenderManagerRef,
   lightPlacementMode,
   setLightPlacementMode,
   setContextMenu,
   showPerformanceMonitor,
   togglePerformanceMonitor,
-  protocol,
-}: UseCanvasEventsProps) => {
-  // Refs for handlers to prevent WASM reinitialization
-  const handleMouseDownRef = useRef<((e: MouseEvent) => void) | null>(null);
-  const handleMouseMoveRef = useRef<((e: MouseEvent) => void) | null>(null);
-  const handleMouseUpRef = useRef<((e: MouseEvent) => void) | null>(null);
-  const handleWheelRef = useRef<((e: WheelEvent) => void) | null>(null);
-  const handleRightClickRef = useRef<((e: MouseEvent) => void) | null>(null);
+  protocol
+}: UseCanvasEventsEnhancedProps): CanvasEventsEnhanced => {
+  const multiSelectRef = useRef<MultiSelectManager | null>(null);
+  const selectedSpriteIdsRef = useRef<string[]>([]);
+
+  // Initialize MultiSelectManager with WASM module
+  useEffect(() => {
+    const wasmModule = rustRenderManagerRef.current;
+    if (wasmModule && canvasRef.current) {
+      multiSelectRef.current = new MultiSelectManager(wasmModule as any, canvasRef.current);
+    }
+    return () => {
+      multiSelectRef.current?.destroy();
+    };
+  }, [rustRenderManagerRef.current, canvasRef]);
+
+  // Update input context when selection changes
+  const updateInputContext = useCallback((selectedIds: string[]) => {
+    selectedSpriteIdsRef.current = selectedIds;
+    inputManager.updateContext({
+      selectedSpriteIds: selectedIds,
+      hasClipboard: false, // TODO: Implement clipboard system
+      canUndo: false, // TODO: Connect to history system
+      canRedo: false, // TODO: Connect to history system
+      isCanvasFocused: true
+    });
+  }, []);
+
+  // Setup input action handlers
+  useEffect(() => {
+    const wasmModule = rustRenderManagerRef.current;
+    if (!wasmModule) return;
+
+    const handleDeleteSelected = () => {
+      if (selectedSpriteIdsRef.current.length > 0) {
+        // Delete sprites in WASM
+        selectedSpriteIdsRef.current.forEach(id => {
+          (wasmModule as any).delete_sprite?.(id);
+        });
+        
+        // Network sync 
+        if (protocol?.sendGameAction) {
+          protocol.sendGameAction({
+            type: 'sprites_deleted',
+            spriteIds: selectedSpriteIdsRef.current
+          });
+        }
+        
+        updateInputContext([]);
+      }
+    };
+
+    const handleMoveUp = () => {
+      if (selectedSpriteIdsRef.current.length > 0) {
+        selectedSpriteIdsRef.current.forEach(id => {
+          (wasmModule as any).move_sprite?.(id, 0, -32); // Grid snap movement
+        });
+        
+        if (protocol?.sendGameAction) {
+          protocol.sendGameAction({
+            type: 'sprites_moved',
+            spriteIds: selectedSpriteIdsRef.current,
+            delta: { x: 0, y: -32 }
+          });
+        }
+      }
+    };
+
+    const handleMoveDown = () => {
+      if (selectedSpriteIdsRef.current.length > 0) {
+        selectedSpriteIdsRef.current.forEach(id => {
+          (wasmModule as any).move_sprite?.(id, 0, 32);
+        });
+        
+        if (protocol?.sendGameAction) {
+          protocol.sendGameAction({
+            type: 'sprites_moved',
+            spriteIds: selectedSpriteIdsRef.current,
+            delta: { x: 0, y: 32 }
+          });
+        }
+      }
+    };
+
+    const handleMoveLeft = () => {
+      if (selectedSpriteIdsRef.current.length > 0) {
+        selectedSpriteIdsRef.current.forEach(id => {
+          (wasmModule as any).move_sprite?.(id, -32, 0);
+        });
+        
+        if (protocol?.sendGameAction) {
+          protocol.sendGameAction({
+            type: 'sprites_moved',
+            spriteIds: selectedSpriteIdsRef.current,
+            delta: { x: -32, y: 0 }
+          });
+        }
+      }
+    };
+
+    const handleMoveRight = () => {
+      if (selectedSpriteIdsRef.current.length > 0) {
+        selectedSpriteIdsRef.current.forEach(id => {
+          (wasmModule as any).move_sprite?.(id, 32, 0);
+        });
+        
+        if (protocol?.sendGameAction) {
+          protocol.sendGameAction({
+            type: 'sprites_moved',
+            spriteIds: selectedSpriteIdsRef.current,
+            delta: { x: 32, y: 0 }
+          });
+        }
+      }
+    };
+
+    const handleScaleUp = () => {
+      if (selectedSpriteIdsRef.current.length > 0) {
+        selectedSpriteIdsRef.current.forEach(id => {
+          (wasmModule as any).scale_sprite?.(id, 1.1);
+        });
+        
+        if (protocol?.sendGameAction) {
+          protocol.sendGameAction({
+            type: 'sprites_scaled',
+            spriteIds: selectedSpriteIdsRef.current,
+            scaleFactor: 1.1
+          });
+        }
+      }
+    };
+
+    const handleScaleDown = () => {
+      if (selectedSpriteIdsRef.current.length > 0) {
+        selectedSpriteIdsRef.current.forEach(id => {
+          (wasmModule as any).scale_sprite?.(id, 0.9);
+        });
+        
+        if (protocol?.sendGameAction) {
+          protocol.sendGameAction({
+            type: 'sprites_scaled',
+            spriteIds: selectedSpriteIdsRef.current,
+            scaleFactor: 0.9
+          });
+        }
+      }
+    };
+
+    const handleSelectAll = () => {
+      // Get all sprite IDs from WASM
+      const allIds = (wasmModule as any).get_all_sprite_ids?.() || [];
+      updateInputContext(allIds);
+      multiSelectRef.current?.setSelectedSprites(allIds);
+    };
+
+    const handleClearSelection = () => {
+      updateInputContext([]);
+      multiSelectRef.current?.clearSelection();
+    };
+
+    const handleCopySelected = () => {
+      // TODO: Implement clipboard system
+      console.log('Copy not yet implemented');
+    };
+
+    const handlePasteSprites = () => {
+      // TODO: Implement clipboard system
+      console.log('Paste not yet implemented');
+    };
+
+    const handleTogglePerformance = () => {
+      togglePerformanceMonitor();
+    };
+
+    // Register all action handlers
+    inputManager.onAction('delete_selected', handleDeleteSelected);
+    inputManager.onAction('move_up', handleMoveUp);
+    inputManager.onAction('move_down', handleMoveDown);
+    inputManager.onAction('move_left', handleMoveLeft);
+    inputManager.onAction('move_right', handleMoveRight);
+    inputManager.onAction('scale_up', handleScaleUp);
+    inputManager.onAction('scale_down', handleScaleDown);
+    inputManager.onAction('select_all', handleSelectAll);
+    inputManager.onAction('clear_selection', handleClearSelection);
+    inputManager.onAction('copy_selected', handleCopySelected);
+    inputManager.onAction('paste_sprites', handlePasteSprites);
+    inputManager.onAction('toggle_performance', handleTogglePerformance);
+
+    // Cleanup on unmount
+    return () => {
+      inputManager.offAction('delete_selected', handleDeleteSelected);
+      inputManager.offAction('move_up', handleMoveUp);
+      inputManager.offAction('move_down', handleMoveDown);
+      inputManager.offAction('move_left', handleMoveLeft);
+      inputManager.offAction('move_right', handleMoveRight);
+      inputManager.offAction('scale_up', handleScaleUp);
+      inputManager.offAction('scale_down', handleScaleDown);
+      inputManager.offAction('select_all', handleSelectAll);
+      inputManager.offAction('clear_selection', handleClearSelection);
+      inputManager.offAction('copy_selected', handleCopySelected);
+      inputManager.offAction('paste_sprites', handlePasteSprites);
+      inputManager.offAction('toggle_performance', handleTogglePerformance);
+    };
+  }, [rustRenderManagerRef.current, protocol, updateInputContext, togglePerformanceMonitor]);
+
+  // Canvas focus/blur handlers
+  const handleCanvasFocus = useCallback(() => {
+    inputManager.updateContext({ isCanvasFocused: true });
+  }, []);
+
+  const handleCanvasBlur = useCallback(() => {
+    inputManager.updateContext({ isCanvasFocused: false });
+  }, []);
+
+  // Stable mouse handlers
+  const stableMouseDown = useCallback((event: MouseEvent) => {
+    const wasmModule = rustRenderManagerRef.current;
+    if (!wasmModule || !multiSelectRef.current) return;
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    // Handle light placement mode first
+    if (lightPlacementMode?.active) {
+      // Place light and exit placement mode
+      const preset = lightPlacementMode.preset;
+      if (preset) {
+        (wasmModule as any).place_light?.(x, y, preset.radius, preset.intensity);
+        setLightPlacementMode(null);
+      }
+      return;
+    }
+
+    // Determine selection strategy
+    let strategy: SelectionStrategy;
+    if (event.ctrlKey) {
+      strategy = SelectionStrategy.CTRL_CLICK;
+    } else if (event.shiftKey) {
+      strategy = SelectionStrategy.SHIFT_DRAG;
+    } else {
+      strategy = SelectionStrategy.SINGLE_SELECT;
+    }
+
+    const result = multiSelectRef.current.handleMouseDown(x, y, strategy);
+    if (result.selectionChanged) {
+      updateInputContext(result.selectedSpriteIds);
+      
+      // Send network update if needed
+      if (result.networkUpdate && protocol?.sendGameAction) {
+        protocol.sendGameAction({
+          type: 'sprite_selection_changed',
+          spriteIds: result.selectedSpriteIds
+        });
+      }
+    }
+  }, [rustRenderManagerRef.current, canvasRef, lightPlacementMode, setLightPlacementMode, updateInputContext, protocol]);
+
+  const stableMouseUp = useCallback((event: MouseEvent) => {
+    if (!multiSelectRef.current) return;
+
+    const result = multiSelectRef.current.handleMouseUp();
+    if (result.selectionChanged) {
+      updateInputContext(result.selectedSpriteIds);
+      
+      if (result.networkUpdate && protocol?.sendGameAction) {
+        protocol.sendGameAction({
+          type: 'sprite_selection_changed', 
+          spriteIds: result.selectedSpriteIds
+        });
+      }
+    }
+  }, [updateInputContext, protocol]);
+
+  const stableMouseMove = useCallback((event: MouseEvent) => {
+    if (!multiSelectRef.current) return;
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    multiSelectRef.current.handleMouseMove(x, y);
+  }, [canvasRef]);
+
+  const stableKeyDown = useCallback((event: KeyboardEvent) => {
+    // Let InputManager handle all keyboard shortcuts
+    const handled = inputManager.handleKeyDown(event);
+    if (handled) {
+      event.preventDefault();
+    }
+  }, []);
+
+  const stableWheel = useCallback((event: WheelEvent) => {
+    const wasmModule = rustRenderManagerRef.current;
+    if (!wasmModule) return;
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    // Zoom with wheel
+    const zoomDelta = event.deltaY > 0 ? 0.9 : 1.1;
+    (wasmModule as any).zoom_at_point?.(x, y, zoomDelta);
+
+    event.preventDefault();
+  }, [rustRenderManagerRef.current, canvasRef]);
+
+  const stableRightClick = useCallback((event: MouseEvent) => {
+    event.preventDefault();
+    
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    // Check if clicked on a sprite for context menu
+    const wasmModule = rustRenderManagerRef.current;
+    const clickedSpriteId = (wasmModule as any).get_sprite_at_position?.(x, y);
+    
+    setContextMenu({
+      visible: true,
+      x: event.clientX,
+      y: event.clientY,
+      spriteId: clickedSpriteId || undefined,
+      copiedSprite: undefined, // TODO: Get from clipboard
+      showLayerSubmenu: false
+    });
+  }, [canvasRef, rustRenderManagerRef, setContextMenu]);
+
+  return {
+    stableMouseDown,
+    stableMouseUp,
+    stableMouseMove,
+    stableKeyDown,
+    stableWheel,
+    stableRightClick,
+    handleCanvasFocus,
+    handleCanvasBlur,
+    selectedSpriteIds: selectedSpriteIdsRef.current
+  };
+};
   const handleKeyDownRef = useRef<((e: KeyboardEvent) => void) | null>(null);
 
   // Mouse position for paste operations

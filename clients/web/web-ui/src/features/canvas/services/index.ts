@@ -3,6 +3,6 @@
  */
 
 export { inputManager, InputManager } from './InputManager';
+export type { InputContext, KeyboardShortcut } from './InputManager';
 export { MultiSelectManager, MultiSelectMode } from './MultiSelectManager';
-export type { KeyboardShortcut, InputContext } from './InputManager';
-export type { MultiSelectStrategy, MultiSelectResult } from './MultiSelectManager';
+export type { MultiSelectResult, MultiSelectStrategy } from './MultiSelectManager';

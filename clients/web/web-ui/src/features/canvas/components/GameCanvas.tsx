@@ -12,6 +12,7 @@ import { DragDropImageHandler } from '@shared/components';
 import { useWebSocket } from '@shared/hooks';
 import React, { useEffect, useRef, useState } from 'react';
 import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
+import { MultiSelectManager } from '../services';
 import fpsService from '../services/fps.service';
 import { performanceService } from '../services/performance.service';
 import styles from './GameCanvas.module.css';
@@ -26,7 +27,6 @@ import {
   usePerformanceMonitor,
 } from './GameCanvas/index';
 import { useCanvasEventsEnhanced } from './GameCanvas/useCanvasEventsEnhanced';
-import { MultiSelectManager } from '../services';
 import PerformanceMonitor from './PerformanceMonitor';
 
 declare global {

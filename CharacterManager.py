@@ -6,6 +6,7 @@ Handles character creation, storage, loading, and manipulation for the VTT syste
 
 import json
 import uuid
+import random
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Union
 from dataclasses import asdict
@@ -582,7 +583,6 @@ class CharacterManager:
                         return
             
             # Create default sprite for character
-            import random
             sprite_x = 50 + random.randint(0, 200)  # Random position to avoid overlap
             sprite_y = 50 + random.randint(0, 200)
             

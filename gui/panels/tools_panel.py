@@ -4,8 +4,12 @@ Tools Panel - Left sidebar panel for DM tools and actions
 
 from imgui_bundle import imgui
 
+import re
 import random
+import PaintManager
 from logger import setup_logger
+from ..gui_imgui import GuiPanel
+from ..tools.drawing_tool import DrawingTool
 logger = setup_logger(__name__)
 
 
@@ -380,7 +384,6 @@ class ToolsPanel:
         """Roll custom dice notation"""
         try:
             # Simple parser for dice notation like "2d6", "1d20+5", etc.
-            import re
             
             dice_pattern = r'(\d*)d(\d+)([+-]\d+)?'
             match = re.match(dice_pattern, self.custom_dice.lower().replace(' ', ''))
@@ -457,7 +460,6 @@ class ToolsPanel:
     def _is_paint_mode_active(self) -> bool:
         """Check if paint mode is active"""
         try:
-            import PaintManager
             return PaintManager.is_paint_mode_active()
         except ImportError:
             return False
@@ -465,7 +467,6 @@ class ToolsPanel:
     def _enter_paint_mode(self):
         """Enter paint mode"""
         try:
-            import PaintManager
             PaintManager.toggle_paint_mode()
             logger.info("Entered paint mode")
         except ImportError:
@@ -474,7 +475,6 @@ class ToolsPanel:
     def _exit_paint_mode(self):
         """Exit paint mode"""
         try:
-            import PaintManager
             PaintManager.toggle_paint_mode()
             logger.info("Exited paint mode")
         except ImportError:
@@ -483,7 +483,6 @@ class ToolsPanel:
     def _cycle_paint_color(self):
         """Cycle paint colors"""
         try:
-            import PaintManager
             PaintManager.cycle_paint_colors()
             logger.info("Cycled paint color")
         except ImportError:
@@ -492,7 +491,6 @@ class ToolsPanel:
     def _adjust_paint_width(self, delta: int):
         """Adjust paint brush width"""
         try:
-            import PaintManager
             PaintManager.adjust_paint_width(delta)
             logger.info(f"Adjusted paint width by {delta}")
         except ImportError:
@@ -501,7 +499,6 @@ class ToolsPanel:
     def _clear_paint_canvas(self):
         """Clear paint canvas"""
         try:
-            import PaintManager
             if PaintManager.paint_system and PaintManager.paint_system.canvas:
                 PaintManager.paint_system.canvas.clear_canvas()
                 logger.info("Cleared paint canvas")
@@ -511,7 +508,6 @@ class ToolsPanel:
     def _set_drawing_settings(self):
         """Apply current drawing settings to the paint system"""
         try:
-            import PaintManager
             # Set color (convert from float to int)
             r = int(self.draw_color[0] * 255)
             g = int(self.draw_color[1] * 255)
@@ -533,7 +529,6 @@ class ToolsPanel:
         try:
             # Get the main GUI instance and open settings panel
             if hasattr(self.context, 'gui') and hasattr(self.context.gui, 'panel_instances'):
-                from ..gui_imgui import GuiPanel
                 settings_panel = self.context.gui.panel_instances.get(GuiPanel.SETTINGS)
                 if settings_panel:
                     settings_panel.open()
@@ -548,7 +543,6 @@ class ToolsPanel:
     def _initialize_drawing_tool(self):
         """Initialize the drawing tool"""
         try:
-            from ..tools.drawing_tool import DrawingTool
             self.context.drawing_tool = DrawingTool(self.context)
             logger.info("Drawing tool initialized")
         except ImportError as e:

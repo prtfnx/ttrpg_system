@@ -178,7 +178,6 @@ class ContextMenu:
     def _paste_sprite(self):
         """Paste sprite using clipboard system"""
         try:
-            import clipboard_sys
             success = clipboard_sys.handle_clipboard_paste(self.context)
             if success:
                 logger.info("Sprite pasted from clipboard via context menu")
@@ -190,7 +189,6 @@ class ContextMenu:
     def _has_clipboard_data(self) -> bool:
         """Check if clipboard has sprite data"""
         try:
-            import clipboard_sys
             return clipboard_sys.has_copied_sprite()
         except Exception:
             return False

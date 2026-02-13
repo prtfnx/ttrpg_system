@@ -4,6 +4,8 @@ Character Sheet Window - Standalone character sheet in popup window
 """
 import random
 import re
+import subprocess
+import sys
 from pathlib import Path
 from imgui_bundle import imgui
 from typing import Dict, Optional
@@ -1041,10 +1043,6 @@ class CharacterSheetWindow:
     def _open_images_folder(self):
         """Open the images folder in system file manager"""
         try:
-            from pathlib import Path
-            import subprocess
-            import sys
-            
             # Create images folder if it doesn't exist
             images_folder = Path("resources/images")
             images_folder.mkdir(parents=True, exist_ok=True)

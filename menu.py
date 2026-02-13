@@ -3,12 +3,16 @@ from logger import setup_logger
 import sys
 import subprocess
 from typing import Dict, Any
+from urllib.parse import urlparse
 
 import sdl3
 import ctypes
+import requests
 from imgui_bundle import imgui
 from imgui_bundle.python_backends.sdl3_backend import SDL3Renderer
 import OpenGL.GL as gl
+
+from net.client_protocol import ClientProtocol
 
 logger = setup_logger(__name__)
 
@@ -463,7 +467,7 @@ class MenuApp:
     def _auth_login_user(self, server_url: str, username: str, password: str) -> Dict[str, Any]:
         """Login user and get JWT token"""
         try:
-            import requests
+
             response = requests.post(
                 f"{server_url}/users/token",
                 data={
@@ -524,7 +528,7 @@ class MenuApp:
     def _auth_fetch_user_sessions(self, server_url: str, jwt_token: str) -> Dict[str, Any]:
         """Fetch user's available game sessions"""
         try:
-            import requests
+
             response = requests.get(
                 f"{server_url}/game/api/sessions",
                 headers={"Authorization": f"Bearer {jwt_token}"},
@@ -560,8 +564,6 @@ class MenuApp:
     def _parse_server_url(self):
         """Simple URL parsing to extract IP and port"""
         try:
-            from urllib.parse import urlparse
-            
             # Handle URLs without scheme
             url_to_parse = self.server_url
             if not url_to_parse.startswith(('http://', 'https://')):
@@ -585,7 +587,7 @@ class MenuApp:
     def _test_server_connection(self):
         """Test if the current server URL is reachable"""
         try:
-            import requests
+
             response = requests.get(f"{self.server_url}/health", timeout=5)
             return response.status_code in [200, 404, 405]
         except Exception as e:
@@ -626,8 +628,6 @@ class MenuApp:
     def _init_client_protocol(self):
         """Initialize ClientProtocol for authentication"""
         try:
-            from net.client_protocol import ClientProtocol
-            
             # For menu authentication, we'll create protocol methods directly
             # This avoids the circular dependency with Actions/Context
             logger.info("ClientProtocol functionality available for authentication")

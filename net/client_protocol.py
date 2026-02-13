@@ -4,6 +4,7 @@ import hashlib
 import asyncio
 import threading
 from typing import Callable, Optional, Dict, Any, List
+from urllib.parse import urlparse
 
 from networkx import to_dict_of_dicts
 from .protocol import Message, MessageType, ProtocolHandler
@@ -1026,7 +1027,6 @@ class ClientProtocol:
     def register_user(self, server_url: str, username: str, password: str) -> Dict[str, Any]:
         """Register a new user on the server"""
         try:
-            import requests
             response = requests.post(
                 f"{server_url}/users/register",
                 data={
@@ -1064,7 +1064,6 @@ class ClientProtocol:
     def login_user(self, server_url: str, username: str, password: str) -> Dict[str, Any]:
         """Login user and get JWT token"""
         try:
-            import requests
             response = requests.post(
                 f"{server_url}/users/token",
                 data={
@@ -1135,7 +1134,6 @@ class ClientProtocol:
     def fetch_user_sessions(self, server_url: str, jwt_token: str) -> Dict[str, Any]:
         """Fetch user's available game sessions"""
         try:
-            import requests
             response = requests.get(
                 f"{server_url}/game/api/sessions",
                 headers={"Authorization": f"Bearer {jwt_token}"},
@@ -1171,7 +1169,6 @@ class ClientProtocol:
     def test_server_connection(self, server_url: str) -> Dict[str, Any]:
         """Test if the server URL is reachable"""
         try:
-            import requests
             response = requests.get(f"{server_url}/health", timeout=5)
             success = response.status_code in [200, 404, 405]
             return {
@@ -1193,8 +1190,6 @@ class ClientProtocol:
     def parse_server_url(self, server_url: str, fallback_port: str = "12345") -> Dict[str, str]:
         """Parse server URL to extract hostname and port"""
         try:
-            from urllib.parse import urlparse
-            
             # Handle URLs without scheme
             url_to_parse = server_url
             if not url_to_parse.startswith(('http://', 'https://')):

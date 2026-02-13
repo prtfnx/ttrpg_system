@@ -1,5 +1,6 @@
 from logger import setup_logger
 import ctypes
+import time
 import sdl3
 
 logger = setup_logger(__name__)
@@ -131,7 +132,7 @@ class Light:
         return getattr(self, 'color', 'No color set')
     def blink(self, times=3, interval=0.5):
         """Blink the light a specified number of times"""
-        import time
+
         for _ in range(times):
             self.turn_on()
             time.sleep(interval)
@@ -140,7 +141,7 @@ class Light:
         logger.info(f"Light {self.name} blinked {times} times")
     def fade(self, duration=1.0):
         """Fade the light in and out over a specified duration"""
-        import time
+
         steps = 10
         interval = duration / (steps * 2)
         

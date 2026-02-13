@@ -3,6 +3,8 @@ import ctypes
 import logging
 import json
 import os
+import subprocess
+import sys
 
 import settings
 
@@ -204,9 +206,7 @@ def load_json_from_disk(filename):
 def open_file_browser(file_types=None):
     """Open storage folder in system file manager"""
     try:
-        import subprocess
-        import sys
-        
+
         # Use settings-defined storage path instead of storage manager
         folder_path = settings.get_storage_path(settings.OTHER_FOLDER)
         

@@ -68,7 +68,7 @@ impl WasmEngine {
     }
 
     #[wasm_bindgen]
-    pub fn get_dimensions(&self) -> js_sys::Array {
+    pub fn get_dimensions(&mut self) -> js_sys::Array {
         let (width, height) = self.engine.graphics().get_dimensions();
         let result = js_sys::Array::new();
         result.push(&JsValue::from_f64(width as f64));

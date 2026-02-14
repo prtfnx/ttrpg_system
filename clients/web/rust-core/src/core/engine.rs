@@ -25,6 +25,12 @@ impl std::fmt::Display for EngineError {
     }
 }
 
+impl From<String> for EngineError {
+    fn from(msg: String) -> Self {
+        EngineError::Content(msg)
+    }
+}
+
 impl From<EngineError> for wasm_bindgen::JsValue {
     fn from(error: EngineError) -> Self {
         wasm_bindgen::JsValue::from_str(&error.to_string())

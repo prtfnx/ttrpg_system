@@ -57,7 +57,7 @@ impl GraphicsSystem {
         }
     }
 
-    fn render_sprite(&self, x: f32, y: f32, texture_id: &str, scale: f32) -> Result<(), String> {
+    fn render_sprite(&self, x: f32, y: f32, _texture_id: &str, scale: f32) -> Result<(), String> {
         // For now, just draw a colored rectangle
         self.context.set_fill_style(&wasm_bindgen::JsValue::from_str("blue"));
         let size = 32.0 * scale * self.scale_factor;

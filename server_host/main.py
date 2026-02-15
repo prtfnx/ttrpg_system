@@ -25,6 +25,7 @@ from server_host.routers.users import get_current_user_optional
 from server_host.routers import game
 from server_host.routers import compendium
 from server_host.routers import invitations
+from server_host.routers import demo
 from server_host.api import game_ws
 from server_host.database.database import create_tables
 from server_host.service.game_session import ConnectionManager
@@ -153,6 +154,7 @@ app.include_router(users.router)
 app.include_router(game.router)
 app.include_router(compendium.router)
 app.include_router(invitations.router, prefix="/api/invitations", tags=["invitations"])
+app.include_router(demo.router)
 app.include_router(game_ws.router)
 
 @app.get("/")

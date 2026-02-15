@@ -77,6 +77,10 @@ class RateLimiter:
             # Remove empty entries
             if not user_requests:
                 del self.requests[identifier]
+    
+    def clear(self):
+        """Clear all rate limiting data. Useful for testing."""
+        self.requests.clear()
 
 # Global rate limiter instance
 registration_limiter = RateLimiter()

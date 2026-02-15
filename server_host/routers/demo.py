@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 import logging
 from typing import Optional
 
-from server_host.database.database import SessionLocal
+from server_host.database.database import get_db
 from server_host.database import models
 from server_host.routers.users import create_access_token
 from server_host.utils.rate_limiter import RateLimiter
@@ -88,7 +88,7 @@ def get_or_create_demo_session(db: Session) -> models.GameSession:
 
 
 @router.get("/demo")
-async def start_demo(request: Request):
+async def start_demo(request: Request, db: Session = Depends(get_db)):
     """
     Start a demo session for unauthenticated users.
     
@@ -103,46 +103,40 @@ async def start_demo(request: Request):
             detail="Demo rate limit exceeded. Please try again later or create a free account for unlimited access."
         )
     
-    db = SessionLocal()
-    try:
-        # Get or create demo session
-        demo_session = get_or_create_demo_session(db)
-        
-        # Create temporary demo JWT
-        demo_token_data = {
-            "sub": f"demo_user_{client_ip.replace('.', '_')}",
-            "is_demo": True,
-            "session_code": DEMO_SESSION_CODE,
-            "role": "spectator"
-        }
-        
-        demo_token = create_access_token(
-            data=demo_token_data,
-            expires_delta=timedelta(minutes=DEMO_JWT_EXPIRY_MINUTES)
-        )
-        
-        # Log demo access
-        logger.info(f"Demo session started from IP: {client_ip}")
-        
-        # Redirect to demo session with token
-        response = RedirectResponse(
-            url=f"/game/session/{DEMO_SESSION_CODE}",
-            status_code=302
-        )
-        
-        response.set_cookie(
-            key="token",
-            value=demo_token,
-            httponly=True,
-            max_age=DEMO_JWT_EXPIRY_MINUTES * 60,
-            samesite="lax",
-            secure=settings.ENVIRONMENT == "production"
-        )
-        
-        return response
-        
-    finally:
-        db.close()
+    # Get or create demo session
+    demo_session = get_or_create_demo_session(db)
+    
+    # Create temporary demo JWT
+    demo_token_data = {
+        "sub": f"demo_user_{client_ip.replace('.', '_')}",
+        "is_demo": True,
+        "session_code": DEMO_SESSION_CODE,
+        "role": "spectator"
+    }
+    
+    demo_token = create_access_token(
+        data=demo_token_data,
+        expires_delta=timedelta(minutes=DEMO_JWT_EXPIRY_MINUTES)
+    )
+    
+    # Log demo access
+    logger.info(f"Demo session started from IP: {client_ip}")
+    
+    # Redirect to demo session with token
+    response = RedirectResponse(
+        url=f"/game/session/{DEMO_SESSION_CODE}",
+        status_code=302
+    )
+    
+    response.set_cookie(
+        key="token",
+        value=demo_token,
+        httponly=True,
+        max_age=DEMO_JWT_EXPIRY_MINUTES * 60,
+        samesite="lax",
+        secure=settings.ENVIRONMENT == "production"
+    )
+    return response
 
 
 @router.get("/demo/info")

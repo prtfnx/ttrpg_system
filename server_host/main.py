@@ -26,10 +26,12 @@ from server_host.routers import game
 from server_host.routers import compendium
 from server_host.routers import invitations
 from server_host.routers import demo
+from server_host.routers import auth
 from server_host.api import game_ws
 from server_host.database.database import create_tables
 from server_host.service.game_session import ConnectionManager
 from server_host.utils.rate_limiter import registration_limiter, login_limiter
+from starlette.middleware.sessions import SessionMiddleware
 
 # Import table manager for WebSocket protocol
 from core_table.server import TableManager
@@ -104,6 +106,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add Session middleware for OAuth state management
+# Use a strong secret key in production (.env: SESSION_SECRET)
+session_secret = os.environ.get("SESSION_SECRET", "dev-secret-change-in-production")
+app.add_middleware(SessionMiddleware, secret_key=session_secret)
+
 # Mount static files
 if os.path.exists("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -151,6 +158,7 @@ async def forbidden_handler(request: Request, exc: HTTPException):
 
 # Include routers
 app.include_router(users.router)
+app.include_router(auth.router)
 app.include_router(game.router)
 app.include_router(compendium.router)
 app.include_router(invitations.router, prefix="/api/invitations", tags=["invitations"])

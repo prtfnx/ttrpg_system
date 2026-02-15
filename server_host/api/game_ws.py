@@ -14,10 +14,13 @@ from ..database import crud
 from ..service.game_session import ConnectionManager, get_connection_manager
 from ..routers.users import SECRET_KEY, ALGORITHM
 from ..utils.logger import setup_logger
+import os
+
 logger = setup_logger(__name__)
 
 router = APIRouter()
-templates = Jinja2Templates(directory="templates")
+templates_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
+templates = Jinja2Templates(directory=templates_dir)
 
 def get_user_from_token(token: str, db: Session):
     """Get user from JWT token for WebSocket authentication"""
@@ -224,7 +227,7 @@ async def websocket_game_endpoint(
 @router.get("/test")
 async def websocket_test_page(request: Request):
     """WebSocket test page using template"""
-    return templates.TemplateResponse("websocket_test.html", {"request": request})
+    return templates.TemplateResponse(request, "websocket_test.html", {})
 
 @router.get("/client")
 async def game_client_page(request: Request):
@@ -236,8 +239,9 @@ async def game_client_page(request: Request):
     except Exception:
         vite_assets = ""
     return templates.TemplateResponse(
+        request,
         "game_client.html",
-        {"request": request, "vite_assets": vite_assets}
+        {"vite_assets": vite_assets}
     )
 
 @router.websocket("/ws")

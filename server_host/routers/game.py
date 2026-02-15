@@ -13,10 +13,12 @@ from ..database import crud, schemas, models
 from ..models import game as game_models
 from ..utils.logger import setup_logger
 from .users import get_current_active_user
+import os
 
 logger = setup_logger(__name__)
 router = APIRouter(prefix="/game", tags=["game"])
-templates = Jinja2Templates(directory="templates")
+templates_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
+templates = Jinja2Templates(directory=templates_dir)
 
 def generate_session_code(length: int = 6) -> str:
     """Generate a short, unique session code"""
@@ -72,8 +74,7 @@ async def join_game_session(
     """Join an existing game session"""
     game_session = crud.get_game_session_by_code(db, session_code)
     if not game_session:
-        return templates.TemplateResponse("game_lobby.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "game_lobby.html", {
             "user": current_user,
             "sessions": [session for session, role in crud.get_user_game_sessions(db, current_user.id)],
             "error": "Game session not found"
@@ -82,8 +83,7 @@ async def join_game_session(
     # Join the session
     player = crud.join_game_session(db, session_code, current_user.id, character_name)
     if not player:
-        return templates.TemplateResponse("game_lobby.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "game_lobby.html", {
             "user": current_user,
             "sessions": [session for session, role in crud.get_user_game_sessions(db, current_user.id)],
             "error": "Could not join game session"
@@ -148,8 +148,7 @@ async def game_session_page(
         logger.info(f"Rendering game_client.html with session_code={session_code} safe_session={safe_session}")
     except Exception:
         logger.exception("Failed to build safe_session debug info")
-    return templates.TemplateResponse("game_client.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "game_client.html", {
         "user": current_user,
         "session": game_session,
         "session_code": session_code,
@@ -180,8 +179,7 @@ async def session_settings(
         models.SessionInvitation.is_active == True
     ).all()
     
-    return templates.TemplateResponse("session_settings.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "session_settings.html", {
         "user": current_user,
         "session": session,
         "players": players,
@@ -245,7 +243,7 @@ async def game_session_admin(
     
     # Render admin template
     return templates.TemplateResponse("admin_panel.html", {
-        "request": request,
+
         "user": current_user,
         "session": game_session,
         "session_code": session_code

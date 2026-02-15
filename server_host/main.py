@@ -8,13 +8,14 @@ import os
 import sys
 import uvicorn
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.exception_handlers import http_exception_handler
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from sqlalchemy.orm import Session
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -28,7 +29,8 @@ from server_host.routers import invitations
 from server_host.routers import demo
 from server_host.routers import auth
 from server_host.api import game_ws
-from server_host.database.database import create_tables
+from server_host.database.database import create_tables, SessionLocal, get_db
+from server_host.database import models
 from server_host.service.game_session import ConnectionManager
 from server_host.utils.rate_limiter import registration_limiter, login_limiter
 from starlette.middleware.sessions import SessionMiddleware
@@ -121,13 +123,14 @@ if os.path.exists(resources_path):
     app.mount("/resources", StaticFiles(directory=resources_path), name="resources")
 
 # Set up templates
-templates = Jinja2Templates(directory="templates")
+templates_dir = os.path.join(os.path.dirname(__file__), "templates")
+templates = Jinja2Templates(directory=templates_dir)
 
 # Custom exception handlers
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: HTTPException):
     """Custom 404 error page"""
-    return templates.TemplateResponse("404.html", {"request": request}, status_code=404)
+    return templates.TemplateResponse(request, "404.html", {}, status_code=404)
 
 @app.exception_handler(401)
 async def unauthorized_handler(request: Request, exc: HTTPException):
@@ -181,53 +184,49 @@ async def test_auth_error():
     raise HTTPException(status_code=401, detail="Test authentication error")
 
 @app.get("/invite/{invite_code}")
-async def invitation_page(invite_code: str, request: Request):
+async def invitation_page(invite_code: str, request: Request, db: Session = Depends(get_db)):
     """Invitation acceptance page"""
     
-    db = SessionLocal()
-    try:
-        # Get invitation details
-        invitation = db.query(models.SessionInvitation).filter(
-            models.SessionInvitation.invite_code == invite_code
-        ).first()
-        
-        if not invitation:
-            return templates.TemplateResponse(
-                "invitation.html",
-                {
-                    "request": request,
-                    "error": "Invitation not found. Please check the link and try again."
-                }
-            )
-        
-        # Get session details
-        session = db.query(models.GameSession).filter(
-            models.GameSession.id == invitation.session_id
-        ).first()
-        
-        # Check if user is authenticated
-        current_user = None
-        try:
-            current_user = await get_current_user_optional(request, db)
-        except:
-            pass
-        
+    # Get invitation details
+    invitation = db.query(models.SessionInvitation).filter(
+        models.SessionInvitation.invite_code == invite_code
+    ).first()
+    
+    if not invitation:
         return templates.TemplateResponse(
+            request,
             "invitation.html",
             {
-                "request": request,
-                "invite_code": invite_code,
-                "session_name": session.name if session else "Unknown Session",
-                "pre_assigned_role": invitation.pre_assigned_role,
-                "expires_at": invitation.expires_at,
-                "max_uses": invitation.max_uses,
-                "uses_count": invitation.uses_count,
-                "is_valid": invitation.is_valid(),
-                "is_authenticated": current_user is not None
+                "error": "Invitation not found. Please check the link and try again."
             }
         )
-    finally:
-        db.close()
+    
+    # Get session details
+    session = db.query(models.GameSession).filter(
+        models.GameSession.id == invitation.session_id
+    ).first()
+    
+    # Check if user is authenticated
+    current_user = None
+    try:
+        current_user = await get_current_user_optional(request, db)
+    except:
+        pass
+    
+    return templates.TemplateResponse(
+        request,
+        "invitation.html",
+        {
+            "invite_code": invite_code,
+            "session_name": session.name if session else "Unknown Session",
+            "pre_assigned_role": invitation.pre_assigned_role,
+            "expires_at": invitation.expires_at,
+            "max_uses": invitation.max_uses,
+            "uses_count": invitation.uses_count,
+            "is_valid": invitation.is_valid(),
+            "is_authenticated": current_user is not None
+        }
+    )
 
 @app.get("/health")
 async def health_check():

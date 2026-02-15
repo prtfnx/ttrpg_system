@@ -14,15 +14,18 @@ import jwt
 from ..database.database import get_db
 from ..database import crud
 from ..database import schemas
+from ..database import models
 from ..models import auth as auth_models
 from ..utils.rate_limiter import registration_limiter, login_limiter, get_client_ip
 from ..utils.logger import setup_logger
 from functools import lru_cache
+import os
 
 logger = setup_logger(__name__)
 
 router = APIRouter(prefix="/users", tags=["users"])
-templates = Jinja2Templates(directory="templates")
+templates_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
+templates = Jinja2Templates(directory=templates_dir)
 from .. import config
 
 @lru_cache
@@ -183,8 +186,7 @@ async def users_me(
             'level': getattr(current_user, 'level', 42)
         }
         
-        return templates.TemplateResponse("profile.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "profile.html", {
             **profile_data
         })
 
@@ -229,8 +231,7 @@ def login_page(request: Request):
     elif verified:
         success_message = "Email verified successfully! You can now log in."
     
-    return templates.TemplateResponse("login.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "login.html", {
         "success": success_message,
         "invite_code": invite_code,
         "next_url": next_url
@@ -250,29 +251,25 @@ async def login(
     # Rate limiting check - 10 login attempts per 5 minutes per IP
     if not login_limiter.is_allowed(client_ip, max_requests=10, window_minutes=5):
         time_until_reset = login_limiter.get_time_until_reset(client_ip, window_minutes=5)
-        return templates.TemplateResponse("login.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "login.html", {
             "error": f"Too many login attempts. Please try again in {time_until_reset} seconds."
         }, status_code=429)  # 429 Too Many Requests
     
     # Validate input lengths
     if len(form_data.username) < 4:
-        return templates.TemplateResponse("login.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "login.html", {
             "error": "Username must be at least 4 characters long"
         }, status_code=400)  # 400 Bad Request
     
     if len(form_data.password) < 4:
-        return templates.TemplateResponse("login.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "login.html", {
             "error": "Password must be at least 4 characters long"
         }, status_code=400)  # 400 Bad Request
     
     try:
         token = await login_for_access_token(form_data, db)
         if not token:
-            return templates.TemplateResponse("login.html", {
-                "request": request,
+            return templates.TemplateResponse(request, "login.html", {
                 "error": "Incorrect username or password"
             }, status_code=401)
 
@@ -332,8 +329,7 @@ async def login(
         )
         return response
     except HTTPException:
-        return templates.TemplateResponse("login.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "login.html", {
             "error": "Incorrect username or password"
         }, status_code=401)  # 401 Unauthorized
 
@@ -351,15 +347,13 @@ async def verify_email(
     ).first()
     
     if not email_token:
-        return templates.TemplateResponse("auth_error.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "auth_error.html", {
             "error_message": "Invalid verification link. The token may have expired or been used already."
         }, status_code=400)
     
     # Check if token is valid
     if not email_token.is_valid():
-        return templates.TemplateResponse("auth_error.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "auth_error.html", {
             "error_message": "This verification link has expired or was already used. Please request a new one."
         }, status_code=400)
     
@@ -379,8 +373,7 @@ async def verify_email(
             status_code=status.HTTP_302_FOUND
         )
     else:
-        return templates.TemplateResponse("auth_error.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "auth_error.html", {
             "error_message": "User not found."
         }, status_code=404)
 
@@ -404,8 +397,7 @@ async def dashboard(
             })
         return {"sessions": sessions_data}
     else:
-        return templates.TemplateResponse("dashboard.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "dashboard.html", {
             "user": current_user,
             "sessions": user_sessions
         })
@@ -413,8 +405,7 @@ async def dashboard(
 @router.get("/register")
 def register_page(request: Request):
     invite_code = request.query_params.get("invite")
-    return templates.TemplateResponse("register.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "register.html", {
         "invite_code": invite_code
     })
 
@@ -434,8 +425,7 @@ def register_user_view(
     # Rate limiting check - 5 registration attempts per 10 minutes per IP
     if not registration_limiter.is_allowed(client_ip, max_requests=5, window_minutes=10):
         time_until_reset = registration_limiter.get_time_until_reset(client_ip, window_minutes=10)
-        return templates.TemplateResponse("register.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "register.html", {
             "error": f"Too many registration attempts. Please try again in {time_until_reset} seconds.",
             "username": username,
             "email": email
@@ -443,8 +433,7 @@ def register_user_view(
     
     # Basic validation
     if not username or not password or not email:
-        return templates.TemplateResponse("register.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "register.html", {
             "error": "All fields are required",
             "username": username,
             "email": email
@@ -452,8 +441,7 @@ def register_user_view(
     
     # Password confirmation check
     if password != confirm_password:
-        return templates.TemplateResponse("register.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "register.html", {
             "error": "Passwords do not match",
             "username": username,
             "email": email
@@ -466,8 +454,7 @@ def register_user_view(
         user, message = result
         if user is None:
             status_code = 409 if "already exists" in message.lower() or "already" in message.lower() else 400
-            return templates.TemplateResponse("register.html", {
-                "request": request,
+            return templates.TemplateResponse(request, "register.html", {
                 "error": message,
                 "username": username,
                 "email": email
@@ -541,8 +528,7 @@ def register_user_view(
             status_code=status.HTTP_302_FOUND
         )
     else:
-        return templates.TemplateResponse("register.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "register.html", {
             "error": "Registration failed. Please try again.",
             "username": username,
             "email": email
@@ -555,8 +541,7 @@ async def edit_profile_page(
     current_user: Annotated[schemas.User, Depends(get_current_active_user)]
 ):
     """Edit profile page (placeholder - you can create edit.html template)"""
-    return templates.TemplateResponse("profile.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "profile.html", {
         "user": current_user,
         "edit_mode": True
     })
@@ -579,7 +564,7 @@ async def update_profile(
 @router.get("/auth-error")
 async def auth_error_page(request: Request):
     """Authentication error page"""
-    return templates.TemplateResponse("auth_error.html", {"request": request})
+    return templates.TemplateResponse(request, "auth_error.html", {})
 
 @router.get("/logout")
 def logout():

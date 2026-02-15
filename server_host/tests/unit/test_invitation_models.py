@@ -5,9 +5,9 @@ from unittest.mock import patch
 from sqlalchemy.exc import IntegrityError
 
 from server_host.database.models import SessionInvitation, AuditLog, GamePlayer
-from server_host.routers.invitations import generate_invite_code, validate_invite_code_format
+from server_host.routers.invitations import generate_invite_code
 from server_host.routers.game import can_modify_role, has_session_admin_permission, sanitize_session_code
-from server_host.utils.security import sanitize_user_input
+from server_host.utils.security import sanitize_user_input, validate_invite_code_format
 
 @pytest.mark.unit
 class TestSessionInvitationModel:

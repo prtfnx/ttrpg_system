@@ -1,11 +1,11 @@
 import pytest
 from datetime import datetime, timedelta
+from server_host.database import models
 
 @pytest.mark.unit
 class TestEmailVerification:
     def test_creates_verification_token_on_registration(self, client, test_db):
         """Registration creates email verification token"""
-        from server_host.database import models
         
         response = client.post("/users/register", data={
             "username": "newuser",
@@ -30,7 +30,6 @@ class TestEmailVerification:
     
     def test_verify_email_with_valid_token(self, client, test_db, test_user):
         """Valid token marks user as verified"""
-        from server_host.database import models
         import secrets
         
         verification_token = secrets.token_urlsafe(32)
@@ -56,7 +55,6 @@ class TestEmailVerification:
     
     def test_verify_email_with_expired_token(self, client, test_db, test_user):
         """Expired token does not verify user"""
-        from server_host.database import models
         import secrets
         
         verification_token = secrets.token_urlsafe(32)

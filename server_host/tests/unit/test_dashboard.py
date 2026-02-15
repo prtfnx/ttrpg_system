@@ -1,4 +1,5 @@
 import pytest
+from server_host.database import models
 
 @pytest.mark.unit
 class TestDashboard:
@@ -9,8 +10,6 @@ class TestDashboard:
     
     def test_dashboard_shows_user_sessions(self, auth_client, test_db, test_user, test_game_session):
         """Dashboard displays user's sessions"""
-        from server_host.database import models
-        
         # Add user to session
         player = models.GamePlayer(
             session_id=test_game_session.id,
@@ -63,8 +62,6 @@ class TestDashboard:
     
     def test_dashboard_shows_owner_settings_link(self, auth_client, test_db, test_user):
         """Dashboard shows settings link for owned sessions"""
-        from server_host.database import models
-        
         # Create session owned by test_user
         session = models.GameSession(
             name="Owned Session",
@@ -72,6 +69,8 @@ class TestDashboard:
             owner_id=test_user.id
         )
         test_db.add(session)
+        test_db.commit()
+        test_db.refresh(session)
         
         player = models.GamePlayer(
             session_id=session.id,

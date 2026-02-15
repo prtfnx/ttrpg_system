@@ -1,13 +1,12 @@
 import pytest
 from datetime import datetime
 from unittest.mock import patch
+from server_host.database import models
 
 @pytest.mark.unit
 class TestDemoSystem:
     def test_demo_creates_session(self, client, test_db):
         """Demo endpoint creates demo session"""
-        from server_host.database import models
-        
         response = client.get("/demo", follow_redirects=False)
         
         assert response.status_code == 302
@@ -28,25 +27,21 @@ class TestDemoSystem:
     
     def test_demo_rate_limiting(self, client):
         """Demo enforces IP rate limiting"""
-        from unittest.mock import MagicMock
-        
-        # Make 4 requests (limit is 3)
+        # Make 4 requests (limit is 3 per hour)
         responses = []
         for i in range(4):
             response = client.get("/demo", follow_redirects=False)
             responses.append(response)
         
-        # First 3 should succeed, 4th should be rate limited
+        # First 3 should succeed
         for i in range(3):
             assert responses[i].status_code == 302
         
-        # The 4th might be rate limited depending on implementation
-        # This tests the rate limiter is wired up correctly
+        # 4th should be rate limited
+        assert responses[3].status_code == 429
     
     def test_demo_session_has_spectator_role(self, auth_client, test_db):
         """Demo users get spectator role"""
-        from server_host.database import models
-        
         # Create demo session
         demo_session = models.GameSession(
             name="Demo Session",

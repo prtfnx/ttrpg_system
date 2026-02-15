@@ -1,11 +1,12 @@
 import pytest
+from server_host.database import models
+from server_host.routers.users import create_access_token
+from datetime import datetime, timedelta
 
 @pytest.mark.unit
 class TestSessionSettings:
-    def test_settings_requires_ownership(self, auth_client, test_db, test_game_session, test_user):
+    def test_settings_requires_ownership(self, client, test_db, test_game_session, test_user):
         """Non-owners cannot access settings"""
-        from server_host.database import models
-        
         # Create different owner
         other_user = models.User(
             username="otheruser",
@@ -20,17 +21,21 @@ class TestSessionSettings:
         test_game_session.owner_id = other_user.id
         test_db.commit()
         
-        response = auth_client.get(
+        # Login as test_user (not owner)
+        token = create_access_token(data={"sub": test_user.username}, expires_delta=timedelta(hours=6))
+        client.cookies.set("token", token)
+        
+        response = client.get(
             f"/game/session/{test_game_session.session_code}/settings",
             follow_redirects=False
         )
         
-        assert response.status_code == 403
+        # 403 errors redirect to auth-error for HTML requests
+        assert response.status_code == 302
+        assert "auth-error" in response.headers["location"]
     
     def test_owner_can_access_settings(self, auth_client, test_db, test_user):
         """Owners can access settings"""
-        from server_host.database import models
-        
         session = models.GameSession(
             name="Test Session",
             session_code="TESTSESS",
@@ -47,8 +52,6 @@ class TestSessionSettings:
     
     def test_update_session_name(self, auth_client, test_db, test_user):
         """Owner can update session name"""
-        from server_host.database import models
-        
         session = models.GameSession(
             name="Old Name",
             session_code="UPDTSESS",
@@ -70,14 +73,14 @@ class TestSessionSettings:
     
     def test_settings_shows_players(self, auth_client, test_db, test_user):
         """Settings page shows player list"""
-        from server_host.database import models
-        
         session = models.GameSession(
             name="Test Session",
             session_code="PLAYSESS",
             owner_id=test_user.id
         )
         test_db.add(session)
+        test_db.commit()
+        test_db.refresh(session)
         
         player = models.GamePlayer(
             session_id=session.id,
@@ -95,9 +98,6 @@ class TestSessionSettings:
     
     def test_settings_shows_invitations(self, auth_client, test_db, test_user):
         """Settings page shows active invitations"""
-        from server_host.database import models
-        from datetime import datetime, timedelta
-        
         session = models.GameSession(
             name="Test Session",
             session_code="INVSESS1",
@@ -105,10 +105,12 @@ class TestSessionSettings:
         )
         test_db.add(session)
         test_db.commit()
+        test_db.refresh(session)
         
         invite = models.SessionInvitation(
             invite_code="SETTSINV",
             session_id=session.id,
+            created_by=test_user.id,
             pre_assigned_role="player",
             max_uses=5,
             uses_count=2,
@@ -126,8 +128,6 @@ class TestSessionSettings:
     
     def test_delete_session(self, auth_client, test_db, test_user):
         """Owner can delete session"""
-        from server_host.database import models
-        
         session = models.GameSession(
             name="To Delete",
             session_code="DELSESS1",
@@ -149,10 +149,8 @@ class TestSessionSettings:
         ).first()
         assert deleted is None
     
-    def test_non_owner_cannot_delete(self, auth_client, test_db, test_user):
+    def test_non_owner_cannot_delete(self, client, test_db, test_user):
         """Non-owners cannot delete session"""
-        from server_host.database import models
-        
         other_user = models.User(
             username="owner",
             email="owner@example.com",
@@ -170,9 +168,15 @@ class TestSessionSettings:
         test_db.add(session)
         test_db.commit()
         
-        response = auth_client.post(
+        # Login as test_user (not owner)
+        token = create_access_token(data={"sub": test_user.username}, expires_delta=timedelta(hours=6))
+        client.cookies.set("token", token)
+        
+        response = client.post(
             f"/game/session/PROTSESS/delete",
             follow_redirects=False
         )
         
-        assert response.status_code == 403
+        # 403 errors redirect to auth-error for HTML requests
+        assert response.status_code == 302
+        assert "auth-error" in response.headers["location"]

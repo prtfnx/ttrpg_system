@@ -48,7 +48,7 @@ class TestPasswordValidation:
         })
         
         assert response.status_code == 400
-        assert b"digit" in response.content.lower()
+        assert b"number" in response.content.lower()
     
     def test_password_mismatch(self, client):
         """Mismatched passwords fail"""
@@ -69,6 +69,6 @@ class TestPasswordValidation:
             "email": "new@example.com",
             "password": "SecurePass1",
             "confirm_password": "SecurePass1"
-        })
+        }, follow_redirects=False)
         
         assert response.status_code == 302

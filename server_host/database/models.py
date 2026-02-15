@@ -17,6 +17,8 @@ class User(Base):
     full_name = Column(String(100), nullable=True)
     hashed_password = Column(String(255), nullable=False)
     disabled = Column(Boolean, default=False)
+    is_verified = Column(Boolean, default=False, index=True)
+    google_id = Column(String(255), unique=True, nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
@@ -209,6 +211,28 @@ class SessionInvitation(Base):
         # Check expiration
         expires_at = getattr(self, 'expires_at', None)
         if expires_at and datetime.utcnow() > expires_at:
+            return False
+        return True
+
+class EmailVerificationToken(Base):
+    """Email verification tokens for new user signups"""
+    __tablename__ = "email_verification_tokens"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String(64), unique=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    
+    # Relationship
+    user = relationship("User")
+    
+    def is_valid(self) -> bool:
+        """Check if token is still valid"""
+        if self.used_at is not None:
+            return False
+        if datetime.utcnow() > self.expires_at:
             return False
         return True
 

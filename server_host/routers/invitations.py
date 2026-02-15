@@ -1,7 +1,8 @@
 """
 Secure session invitation management endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from typing import Annotated, List
 from datetime import datetime, timedelta
@@ -147,6 +148,7 @@ async def get_invitation(invite_code: str, db: Session = Depends(get_db)):
 @router.post("/{invite_code}/accept")
 async def accept_invitation(
     invite_code: str,
+    request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
 ):
@@ -171,6 +173,12 @@ async def accept_invitation(
     ).first()
     
     if existing:
+        accept_header = request.headers.get("accept", "")
+        if "text/html" in accept_header:
+            return RedirectResponse(
+                url=f"/game/session/{session.session_code}",
+                status_code=302
+            )
         raise HTTPException(status_code=400, detail="Already in session")
     
     new_player = models.GamePlayer(
@@ -195,6 +203,13 @@ async def accept_invitation(
     db.commit()
     
     logger.info(f"Invitation accepted: user={current_user.id} session={session.session_code}")
+    
+    accept_header = request.headers.get("accept", "")
+    if "text/html" in accept_header:
+        return RedirectResponse(
+            url=f"/game/session/{session.session_code}",
+            status_code=302
+        )
     
     return {
         "success": True,

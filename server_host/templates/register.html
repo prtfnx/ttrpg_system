@@ -17,6 +17,10 @@
         {% endif %}
 
         <form method="post" action="/users/register" class="form auth-form">
+            {% if invite_code %}
+            <input type="hidden" name="invite_code" value="{{ invite_code }}">
+            {% endif %}
+            
             <div class="form-group">
                 <label for="username" class="form-label">Username</label>
                 <input type="text" id="username" name="username" class="form-input"

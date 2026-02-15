@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}{{ session.name }} - Settings{% endblock %}
+
+{% block nav %}
+<div class="page-header">
+    <div class="page-header-content">
+        <h1 class="page-title">Session Settings</h1>
+        <a href="/users/dashboard" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <section class="dashboard-section">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Session Details</h2>
+            </div>
+            <form method="post" action="/game/session/{{ session.session_code }}/settings" class="form">
+                <div class="form-group">
+                    <label for="name" class="form-label">Session Name</label>
+                    <input type="text" id="name" name="name" class="form-input" 
+                           value="{{ session.name }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Session Code</label>
+                    <div style="display:flex;gap:var(--space-sm);align-items:center;">
+                        <input type="text" class="form-input" value="{{ session.session_code }}" readonly>
+                        <button type="button" class="btn btn-secondary" onclick="copyCode()">Copy</button>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </form>
+        </div>
+    </section>
+
+    <section class="dashboard-section">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Players</h2>
+                <span class="dashboard-section-meta">{{ players|length }}</span>
+            </div>
+            <div class="list">
+                {% for player, user in players %}
+                <div class="list-item">
+                    <div>
+                        <div class="list-item-title">{{ user.username }}</div>
+                        <div class="list-item-meta">{{ player.role }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <section class="dashboard-section">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Active Invitations</h2>
+            </div>
+            {% if invitations %}
+            <div class="list">
+                {% for invite in invitations %}
+                <div class="list-item">
+                    <div>
+                        <div class="list-item-title">{{ invite.role }}</div>
+                        {% if invite.max_uses > 0 %}
+                        <div class="list-item-meta">{{ invite.uses_count }}/{{ invite.max_uses }} uses</div>
+                        {% else %}
+                        <div class="list-item-meta">Unlimited uses</div>
+                        {% endif %}
+                    </div>
+                    <div class="list-item-actions">
+                        <button type="button" class="btn btn-secondary" onclick="copyInvite('{{ invite.invite_code }}')">Copy Link</button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p style="padding:var(--space-md);color:var(--text-secondary);">No active invitations</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="dashboard-section">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Danger Zone</h2>
+            </div>
+            <form method="post" action="/game/session/{{ session.session_code }}/delete" 
+                  onsubmit="return confirm('Delete this session? This cannot be undone.')">
+                <button type="submit" class="btn btn-danger btn-full">Delete Session</button>
+            </form>
+        </div>
+    </section>
+</div>
+
+{% block scripts %}
+<script>
+function copyCode() {
+    navigator.clipboard.writeText('{{ session.session_code }}');
+}
+
+function copyInvite(code) {
+    const url = window.location.origin + '/invite/' + code;
+    navigator.clipboard.writeText(url);
+}
+</script>
+{% endblock %}
+{% endblock %}

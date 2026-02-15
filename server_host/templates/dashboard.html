@@ -5,17 +5,18 @@
 {% block nav %}
 <div class="page-header">
     <div class="page-header-content">
-        <h1 class="page-title">Welcome, {{ user.username }}!</h1>
-        <nav style="display:flex;gap:var(--space-md);align-items:center;">
-            <a href="/users/dashboard" class="btn btn-secondary">Dashboard</a>
-            <a href="/users/logout" class="btn btn-secondary">Sign Out</a>
-        </nav>
+        <h1 class="page-title">{{ user.username }}</h1>
+        <a href="/users/logout" class="btn btn-secondary">Sign Out</a>
     </div>
 </div>
 {% endblock %}
 
 {% block content %}
 <div class="page-content">
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+
     <section class="dashboard-section">
         <div class="dashboard-section-header">
             <h2 class="dashboard-section-title">Your Game Sessions</h2>
@@ -24,32 +25,70 @@
 
         {% if sessions %}
         <div class="list">
-            {% for session in sessions %}
+            {% for session, role in sessions %}
             <div class="session-card">
                 <div class="session-header">
                     <div class="session-avatar">{{ session.name[0].upper() }}</div>
                     <div class="session-info">
                         <div class="session-name">{{ session.name }}</div>
                         <div class="session-meta">
-                            <span class="session-code">Code: {{ session.session_code }}</span> •
-                            Created {{ session.created_at.strftime('%b %d, %Y') }}
+                            <span class="session-code">{{ session.session_code }}</span>
+                            <span class="session-role">{{ role }}</span>
+                            {% if session.players %}
+                            <span>{{ session.players|length }} players</span>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
                 <div class="session-actions">
-                    <a href="/game/session/{{ session.session_code }}" class="btn btn-primary">Enter Session</a>
+                    <a href="/game/session/{{ session.session_code }}" class="btn btn-primary">Enter</a>
+                    {% if session.owner_id == user.id %}
+                    <a href="/game/session/{{ session.session_code }}/settings" class="btn btn-secondary">Settings</a>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
         </div>
         {% else %}
         <div class="empty-state">
-            <div class="empty-state-icon">🎲</div>
-            <h3 class="empty-state-title">No sessions yet</h3>
-            <p class="empty-state-text">Create your first game session to get started</p>
-            <a href="/game/" class="btn btn-primary">Create Session</a>
+            <p class="empty-state-text">No active sessions. Create one or join with a code.</p>
         </div>
         {% endif %}
+    </section>
+
+    <section class="dashboard-section">
+        <div class="grid grid-cols-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Create Session</h3>
+                </div>
+                <form method="post" action="/game/create" class="form">
+                    <div class="form-group">
+                        <label for="game_name" class="form-label">Session Name</label>
+                        <input type="text" id="game_name" name="game_name" class="form-input" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">Create</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Join Session</h3>
+                </div>
+                <form method="post" action="/game/join" class="form">
+                    <div class="form-group">
+                        <label for="session_code" class="form-label">Session Code</label>
+                        <input type="text" id="session_code" name="session_code" class="form-input" 
+                               required maxlength="8" placeholder="8-digit code">
+                    </div>
+                    <div class="form-group">
+                        <label for="character_name" class="form-label">Character Name (optional)</label>
+                        <input type="text" id="character_name" name="character_name" class="form-input">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">Join</button>
+                </form>
+            </div>
+        </div>
     </section>
 </div>
 {% endblock %}

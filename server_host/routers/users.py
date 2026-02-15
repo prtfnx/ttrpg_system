@@ -218,6 +218,8 @@ def login_page(request: Request):
     registered = request.query_params.get("registered")
     verify = request.query_params.get("verify")
     verified = request.query_params.get("verified")
+    invite_code = request.query_params.get("invite")
+    next_url = request.query_params.get("next")
     
     success_message = None
     if registered and verify:
@@ -229,13 +231,17 @@ def login_page(request: Request):
     
     return templates.TemplateResponse("login.html", {
         "request": request,
-        "success": success_message
+        "success": success_message,
+        "invite_code": invite_code,
+        "next_url": next_url
     })
 
 @router.post("/login")
 async def login(
     request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    invite_code: str = Form(None),
+    next_url: str = Form(None),
     db: Session = Depends(get_db)
 ):
     """Login with rate limiting protection"""
@@ -268,9 +274,52 @@ async def login(
             return templates.TemplateResponse("login.html", {
                 "request": request,
                 "error": "Incorrect username or password"
-            }, status_code=401)  # 401 Unauthorized
+            }, status_code=401)
 
-        response = RedirectResponse(url="/users/dashboard", status_code=status.HTTP_302_FOUND)
+        # Handle invite code - redirect to invitation page to auto-accept
+        if invite_code and next_url:
+            response = RedirectResponse(url=next_url, status_code=302)
+        elif invite_code:
+            # Auto-accept invitation
+            user = crud.get_user_by_username(db, form_data.username)
+            invitation = db.query(models.SessionInvitation).filter(
+                models.SessionInvitation.invite_code == invite_code
+            ).first()
+            
+            if invitation and invitation.is_valid():
+                session = db.query(models.GameSession).filter(
+                    models.GameSession.id == invitation.session_id
+                ).first()
+                
+                existing = db.query(models.GamePlayer).filter(
+                    models.GamePlayer.session_id == session.id,
+                    models.GamePlayer.user_id == user.id
+                ).first()
+                
+                if not existing:
+                    new_player = models.GamePlayer(
+                        session_id=session.id,
+                        user_id=user.id,
+                        role=invitation.pre_assigned_role,
+                        joined_at=datetime.utcnow()
+                    )
+                    db.add(new_player)
+                    
+                    invitation.uses_count += 1
+                    if invitation.max_uses > 0 and invitation.uses_count >= invitation.max_uses:
+                        invitation.is_active = False
+                    
+                    db.commit()
+                
+                response = RedirectResponse(
+                    url=f"/game/session/{session.session_code}",
+                    status_code=302
+                )
+            else:
+                response = RedirectResponse(url="/users/dashboard", status_code=302)
+        else:
+            response = RedirectResponse(url="/users/dashboard", status_code=302)
+        
         settings = get_settings()
         response.set_cookie(
             key="token", 
@@ -341,36 +390,33 @@ async def dashboard(
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
 ):
-    # Check if this is an API request (JSON) vs web request (HTML)
     accept_header = request.headers.get("accept", "")
-    
-    # Get user's game sessions
     user_sessions = crud.get_user_game_sessions(db, current_user.id)
     
     if "application/json" in accept_header:
-        # Return JSON for API requests
         sessions_data = []
-        for session in user_sessions:
+        for session, role in user_sessions:
             sessions_data.append({
                 "session_code": session.session_code,
                 "session_name": session.name,
-                "role": "dm" if session.owner_id == current_user.id else "player",
+                "role": role,
                 "created_at": session.created_at.isoformat() if hasattr(session, 'created_at') else None
             })
         return {"sessions": sessions_data}
     else:
-        # Return HTML page for browser requests
-        # Extract session objects from tuples for template
-        sessions_for_template = [session for session, role in user_sessions]
         return templates.TemplateResponse("dashboard.html", {
             "request": request,
             "user": current_user,
-            "sessions": sessions_for_template
+            "sessions": user_sessions
         })
 
 @router.get("/register")
 def register_page(request: Request):
-    return templates.TemplateResponse("register.html", {"request": request})
+    invite_code = request.query_params.get("invite")
+    return templates.TemplateResponse("register.html", {
+        "request": request,
+        "invite_code": invite_code
+    })
 
 @router.post("/register")
 def register_user_view(
@@ -379,6 +425,7 @@ def register_user_view(
     email: str = Form(...),
     password: str = Form(...),
     confirm_password: str = Form(...),
+    invite_code: str = Form(None),
     db: Session = Depends(get_db)
 ):
     """Register a new user with email verification"""
@@ -444,6 +491,50 @@ def register_user_view(
         # Log verification URL (in production, send email)
         verification_url = f"/users/verify?token={verification_token}"
         logger.info(f"Email verification URL for {username}: {verification_url}")
+        
+        # Handle invite code - auto-accept after registration
+        if invite_code:
+            invitation = db.query(models.SessionInvitation).filter(
+                models.SessionInvitation.invite_code == invite_code
+            ).first()
+            
+            if invitation and invitation.is_valid():
+                session = db.query(models.GameSession).filter(
+                    models.GameSession.id == invitation.session_id
+                ).first()
+                
+                new_player = models.GamePlayer(
+                    session_id=session.id,
+                    user_id=user.id,
+                    role=invitation.pre_assigned_role,
+                    joined_at=datetime.utcnow()
+                )
+                db.add(new_player)
+                
+                invitation.uses_count += 1
+                if invitation.max_uses > 0 and invitation.uses_count >= invitation.max_uses:
+                    invitation.is_active = False
+                
+                db.commit()
+                
+                # Log in and redirect to session
+                access_token = create_access_token(
+                    data={"sub": user.username},
+                    expires_delta=timedelta(hours=6)
+                )
+                response = RedirectResponse(
+                    url=f"/game/session/{session.session_code}",
+                    status_code=302
+                )
+                response.set_cookie(
+                    key="token",
+                    value=access_token,
+                    httponly=True,
+                    max_age=21600,
+                    samesite="lax",
+                    secure=get_settings().ENVIRONMENT == "production"
+                )
+                return response
         
         return RedirectResponse(
             url="/users/login?registered=1&verify=1",

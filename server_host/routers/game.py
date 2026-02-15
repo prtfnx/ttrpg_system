@@ -41,14 +41,8 @@ async def game_lobby(
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
 ):
-    """Main game lobby - choose or create game sessions"""
-    user_sessions_data = crud.get_user_game_sessions(db, current_user.id)
-    user_sessions = [session for session, role in user_sessions_data]
-    return templates.TemplateResponse("game_lobby.html", {
-        "request": request,
-        "user": current_user,
-        "sessions": user_sessions
-    })
+    """Redirect to dashboard"""
+    return RedirectResponse(url="/users/dashboard", status_code=302)
 
 @router.post("/create")
 async def create_game_session(
@@ -161,6 +155,75 @@ async def game_session_page(
         "session_code": session_code,
         "user_role": user_role
     })
+
+@router.get("/session/{session_code}/settings")
+async def session_settings(
+    session_code: str,
+    request: Request,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
+    db: Session = Depends(get_db)
+):
+    """Session settings page for owners"""
+    session = crud.get_game_session_by_code(db, session_code)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if session.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the session owner can access settings")
+    
+    players = db.query(models.GamePlayer, models.User).join(
+        models.User, models.GamePlayer.user_id == models.User.id
+    ).filter(models.GamePlayer.session_id == session.id).all()
+    
+    invitations = db.query(models.SessionInvitation).filter(
+        models.SessionInvitation.session_id == session.id,
+        models.SessionInvitation.is_active == True
+    ).all()
+    
+    return templates.TemplateResponse("session_settings.html", {
+        "request": request,
+        "user": current_user,
+        "session": session,
+        "players": players,
+        "invitations": invitations
+    })
+
+@router.post("/session/{session_code}/settings")
+async def update_session_settings(
+    session_code: str,
+    request: Request,
+    name: str = Form(...),
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)] = None,
+    db: Session = Depends(get_db)
+):
+    """Update session settings"""
+    session = crud.get_game_session_by_code(db, session_code)
+    if not session or session.owner_id != current_user.id:
+        raise HTTPException(status_code=403)
+    
+    session.name = name
+    db.commit()
+    
+    return RedirectResponse(
+        url=f"/game/session/{session_code}/settings",
+        status_code=302
+    )
+
+@router.post("/session/{session_code}/delete")
+async def delete_session(
+    session_code: str,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)] = None,
+    db: Session = Depends(get_db)
+):
+    """Delete session"""
+    session = crud.get_game_session_by_code(db, session_code)
+    if not session or session.owner_id != current_user.id:
+        raise HTTPException(status_code=403)
+    
+    db.delete(session)
+    db.commit()
+    
+    return RedirectResponse(url="/users/dashboard", status_code=302)
 
 @router.get("/session/{session_code}/admin")
 async def game_session_admin(

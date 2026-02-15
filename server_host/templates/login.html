@@ -20,6 +20,13 @@
         {% endif %}
 
         <form method="post" action="/users/login" class="form auth-form">
+            {% if invite_code %}
+            <input type="hidden" name="invite_code" value="{{ invite_code }}">
+            {% endif %}
+            {% if next_url %}
+            <input type="hidden" name="next_url" value="{{ next_url }}">
+            {% endif %}
+            
             <div class="form-group">
                 <label for="username" class="form-label">Username</label>
                 <input type="text" id="username" name="username" class="form-input" 

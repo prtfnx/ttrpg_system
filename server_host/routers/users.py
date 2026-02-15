@@ -107,7 +107,7 @@ async def get_current_user_optional(request: Request, db: Session = Depends(get_
         
         user = crud.get_user_by_username(db, username=username)
         return user
-    except Exception as e:
+    except (InvalidTokenError, Exception) as e:
         logger.debug(f"get_current_user_optional: Authentication failed: {e}")
         return None
 

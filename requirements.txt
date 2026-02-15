@@ -10,6 +10,7 @@ websockets>=12.0
 # Authentication & Security
 PyJWT>=2.8.0
 passlib[bcrypt]>=1.7.4
+itsdangerous>=2.0.0
 
 # Data Handling & Validation
 pydantic>=2.5.0

@@ -271,13 +271,14 @@ async def login(
             }, status_code=401)  # 401 Unauthorized
 
         response = RedirectResponse(url="/users/dashboard", status_code=status.HTTP_302_FOUND)
+        settings = get_settings()
         response.set_cookie(
             key="token", 
             value=token.access_token, 
             httponly=True, 
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             samesite="lax",
-            secure=False,  # Set to True in production with HTTPS
+            secure=settings.ENVIRONMENT == "production",
             path="/"
         )
         return response

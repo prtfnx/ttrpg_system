@@ -21,7 +21,7 @@ from typing import Optional
 
 from server_host.database.database import SessionLocal
 from server_host.database import models
-from server_host.utils.security import create_access_token
+from server_host.routers.users import create_access_token
 from server_host.utils.rate_limiter import RateLimiter
 from server_host.config import Settings
 
@@ -136,7 +136,7 @@ async def start_demo(request: Request):
             httponly=True,
             max_age=DEMO_JWT_EXPIRY_MINUTES * 60,
             samesite="lax",
-            secure=False  # Set to True in production with HTTPS
+            secure=settings.ENVIRONMENT == "production"
         )
         
         return response

@@ -1,51 +1,55 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TTRPG Server - Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>Welcome, {{ user.username }}!</h1>
-            <nav>
-                <a href="/users/dashboard" class="btn-secondary">Dashboard</a>
-                <a href="/game/" class="btn-secondary">Game Lobby</a>
-                <a href="/users/logout" class="btn-secondary">Logout</a>
-            </nav>
-        </header>
+{% extends "base.html" %}
 
-        <main>
-            <section class="dashboard-section">
-                <h2>Your Game Sessions</h2>
-                {% if sessions %}
-                    <div class="sessions-grid">
-                        {% for session in sessions %}
-                            <div class="session-card">
-                                <h3>{{ session.name }}</h3>
-                                <p><strong>Code:</strong> {{ session.session_code }}</p>
-                                <p><strong>Created:</strong> {{ session.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
-                                <div class="session-actions">
-                                    <a href="/game/session/{{ session.session_code }}" class="btn-primary">Join Game</a>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p>No game sessions yet. <a href="/game/">Create your first game!</a></p>
-                {% endif %}
-            </section>
+{% block title %}Dashboard - TTRPG System{% endblock %}
 
-            <section class="dashboard-section">
-                <h2>Quick Actions</h2>
-                <div class="quick-actions">
-                    <a href="/game/" class="btn-primary">Go to Game Lobby</a>
-                    <a href="/users/me" class="btn-secondary">View Profile</a>
-                </div>
-            </section>
-        </main>
+{% block nav %}
+<div class="page-header">
+    <div class="page-header-content">
+        <h1 class="page-title">Welcome, {{ user.username }}!</h1>
+        <nav style="display:flex;gap:var(--space-md);align-items:center;">
+            <a href="/users/dashboard" class="btn btn-secondary">Dashboard</a>
+            <a href="/users/logout" class="btn btn-secondary">Sign Out</a>
+        </nav>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <section class="dashboard-section">
+        <div class="dashboard-section-header">
+            <h2 class="dashboard-section-title">Your Game Sessions</h2>
+            <span class="dashboard-section-meta">{{ sessions|length }} active</span>
+        </div>
+
+        {% if sessions %}
+        <div class="list">
+            {% for session in sessions %}
+            <div class="session-card">
+                <div class="session-header">
+                    <div class="session-avatar">{{ session.name[0].upper() }}</div>
+                    <div class="session-info">
+                        <div class="session-name">{{ session.name }}</div>
+                        <div class="session-meta">
+                            <span class="session-code">Code: {{ session.session_code }}</span> •
+                            Created {{ session.created_at.strftime('%b %d, %Y') }}
+                        </div>
+                    </div>
+                </div>
+                <div class="session-actions">
+                    <a href="/game/session/{{ session.session_code }}" class="btn btn-primary">Enter Session</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">🎲</div>
+            <h3 class="empty-state-title">No sessions yet</h3>
+            <p class="empty-state-text">Create your first game session to get started</p>
+            <a href="/game/" class="btn btn-primary">Create Session</a>
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

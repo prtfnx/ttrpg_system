@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Game Invitation - TTRPG System{% endblock %}
+
+{% block content %}
+<div class="invite-container">
+    <div class="card invite-card">
+        {% if error %}
+        <div class="card-header">
+            <h2 class="card-title">Invitation Not Found</h2>
+        </div>
+        <div class="alert alert-error">{{ error }}</div>
+        <div style="display:flex;gap:var(--space-md);">
+            <a href="/users/register" class="btn btn-primary" style="flex:1;">Create Account</a>
+            <a href="/users/login" class="btn btn-secondary" style="flex:1;">Sign In</a>
+        </div>
+        {% else %}
+        <div class="card-header">
+            <h2 class="card-title">You're Invited!</h2>
+            <p class="card-subtitle">Join {{ session_name }}</p>
+        </div>
+
+        {% if not is_valid %}
+        <div class="alert alert-warning">
+            This invitation has expired or is no longer valid.
+        </div>
+        {% endif %}
+
+        <div class="invite-details">
+            <div class="invite-detail-row">
+                <span class="invite-detail-label">Session</span>
+                <span class="invite-detail-value">{{ session_name }}</span>
+            </div>
+            <div class="invite-detail-row">
+                <span class="invite-detail-label">Role</span>
+                <span class="invite-detail-value">{{ pre_assigned_role|title }}</span>
+            </div>
+            {% if expires_at %}
+            <div class="invite-detail-row">
+                <span class="invite-detail-label">Expires</span>
+                <span class="invite-detail-value">{{ expires_at.strftime('%b %d, %Y %H:%M') }}</span>
+            </div>
+            {% endif %}
+            {% if max_uses > 0 %}
+            <div class="invite-detail-row">
+                <span class="invite-detail-label">Uses</span>
+                <span class="invite-detail-value">{{ uses_count }} / {{ max_uses }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="invite-actions">
+            {% if is_authenticated %}
+                {% if is_valid %}
+                <form method="post" action="/api/invitations/{{ invite_code }}/accept" style="width:100%;">
+                    <button type="submit" class="btn btn-primary btn-full">Accept Invitation</button>
+                </form>
+                {% else %}
+                <a href="/users/dashboard" class="btn btn-secondary btn-full">Go to Dashboard</a>
+                {% endif %}
+            {% else %}
+                <a href="/users/register?invite={{ invite_code }}" class="btn btn-primary btn-full">Create Account</a>
+                <a href="/users/login?invite={{ invite_code }}&next=/invite/{{ invite_code }}" class="btn btn-secondary btn-full">Sign In</a>
+                
+                <div class="divider">
+                    <span class="divider-text">Or try a demo first</span>
+                </div>
+                
+                <a href="/demo" class="btn btn-secondary btn-full">Try Demo Session</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

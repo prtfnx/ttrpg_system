@@ -30,6 +30,7 @@ class GameSession(Base):
     session_code = Column(String(20), unique=True, index=True, nullable=False)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     is_active = Column(Boolean, default=True)
+    is_demo = Column(Boolean, default=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     game_data = Column(Text)  # JSON data for game state
     
@@ -38,6 +39,7 @@ class GameSession(Base):
     players = relationship("GamePlayer", back_populates="session")
     tables = relationship("VirtualTable", back_populates="session")
     invitations = relationship("SessionInvitation", back_populates="session")
+
 
 class GamePlayer(Base):
     __tablename__ = "game_players"

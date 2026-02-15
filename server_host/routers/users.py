@@ -214,10 +214,18 @@ async def read_own_items(
 
 @router.get("/login")
 def login_page(request: Request):
-    """Login page with optional registration success message"""
-    # Check if user just registered
+    """Login page with optional registration/verification success messages"""
     registered = request.query_params.get("registered")
-    success_message = "Registration successful! Please log in with your credentials." if registered else None
+    verify = request.query_params.get("verify")
+    verified = request.query_params.get("verified")
+    
+    success_message = None
+    if registered and verify:
+        success_message = "Registration successful! Please check your console logs for the verification link, then log in."
+    elif registered:
+        success_message = "Registration successful! Please log in with your credentials."
+    elif verified:
+        success_message = "Email verified successfully! You can now log in."
     
     return templates.TemplateResponse("login.html", {
         "request": request,
@@ -279,6 +287,53 @@ async def login(
             "error": "Incorrect username or password"
         }, status_code=401)  # 401 Unauthorized
 
+@router.get("/verify")
+async def verify_email(
+    request: Request,
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """Verify user email address using token from verification email"""
+    
+    # Find verification token
+    email_token = db.query(models.EmailVerificationToken).filter(
+        models.EmailVerificationToken.token == token
+    ).first()
+    
+    if not email_token:
+        return templates.TemplateResponse("auth_error.html", {
+            "request": request,
+            "error_message": "Invalid verification link. The token may have expired or been used already."
+        }, status_code=400)
+    
+    # Check if token is valid
+    if not email_token.is_valid():
+        return templates.TemplateResponse("auth_error.html", {
+            "request": request,
+            "error_message": "This verification link has expired or was already used. Please request a new one."
+        }, status_code=400)
+    
+    # Mark token as used
+    email_token.used_at = datetime.utcnow()
+    
+    # Update user verification status
+    user = db.query(models.User).filter(models.User.id == email_token.user_id).first()
+    if user:
+        user.is_verified = True
+        db.commit()
+        
+        logger.info(f"Email verified for user: {user.username}")
+        
+        return RedirectResponse(
+            url="/users/login?verified=1",
+            status_code=status.HTTP_302_FOUND
+        )
+    else:
+        return templates.TemplateResponse("auth_error.html", {
+            "request": request,
+            "error_message": "User not found."
+        }, status_code=404)
+
 @router.get("/dashboard")
 async def dashboard(
     request: Request,
@@ -320,10 +375,12 @@ def register_page(request: Request):
 def register_user_view(
     request: Request, 
     username: str = Form(...), 
+    email: str = Form(...),
     password: str = Form(...),
+    confirm_password: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    """Register a new user with validation and rate limiting"""
+    """Register a new user with email verification"""
     client_ip = get_client_ip(request)
     
     # Rate limiting check - 5 registration attempts per 10 minutes per IP
@@ -332,41 +389,72 @@ def register_user_view(
         return templates.TemplateResponse("register.html", {
             "request": request,
             "error": f"Too many registration attempts. Please try again in {time_until_reset} seconds.",
-            "username": username  # Preserve username in form
-        }, status_code=429)  # 429 Too Many Requests
+            "username": username,
+            "email": email
+        }, status_code=429)
     
-    # Additional basic validation (the main validation is in crud.py)
-    if not username or not password:
+    # Basic validation
+    if not username or not password or not email:
         return templates.TemplateResponse("register.html", {
             "request": request,
-            "error": "Username and password are required",
-            "username": username
-        }, status_code=400)  # 400 Bad Request
+            "error": "All fields are required",
+            "username": username,
+            "email": email
+        }, status_code=400)
+    
+    # Password confirmation check
+    if password != confirm_password:
+        return templates.TemplateResponse("register.html", {
+            "request": request,
+            "error": "Passwords do not match",
+            "username": username,
+            "email": email
+        }, status_code=400)
     
     # Attempt to register user
-    result = crud.register_user(db, username, password)
+    result = crud.register_user(db, username, password, email=email)
     
-    # Handle the new return format (user_or_none, message)
     if isinstance(result, tuple):
         user, message = result
         if user is None:
-            # Registration failed - determine if it's a conflict or validation error
-            status_code = 409 if "already exists" in message.lower() or "already taken" in message.lower() else 400
+            status_code = 409 if "already exists" in message.lower() or "already" in message.lower() else 400
             return templates.TemplateResponse("register.html", {
                 "request": request,
                 "error": message,
-                "username": username
-            }, status_code=status_code)  # 409 Conflict or 400 Bad Request
-        # Registration successful
-        return RedirectResponse(url="/users/login?registered=1", status_code=status.HTTP_302_FOUND)
+                "username": username,
+                "email": email
+            }, status_code=status_code)
+        
+        # Registration successful - create verification token
+        import secrets
+        from datetime import timedelta
+        
+        verification_token = secrets.token_urlsafe(32)
+        expires_at = datetime.utcnow() + timedelta(hours=24)
+        
+        email_token = models.EmailVerificationToken(
+            token=verification_token,
+            user_id=user.id,
+            expires_at=expires_at
+        )
+        db.add(email_token)
+        db.commit()
+        
+        # Log verification URL (in production, send email)
+        verification_url = f"/users/verify?token={verification_token}"
+        logger.info(f"Email verification URL for {username}: {verification_url}")
+        
+        return RedirectResponse(
+            url="/users/login?registered=1&verify=1",
+            status_code=status.HTTP_302_FOUND
+        )
     else:
-        # Handle old format for backward compatibility
-        if not result:
-            return templates.TemplateResponse("register.html", {
-                "request": request,
-                "error": "Registration failed. Username may already exist.",
-                "username": username
-            }, status_code=409)  # 409 Conflict
+        return templates.TemplateResponse("register.html", {
+            "request": request,
+            "error": "Registration failed. Please try again.",
+            "username": username,
+            "email": email
+        }, status_code=500)
         return RedirectResponse(url="/users/login?registered=1", status_code=status.HTTP_302_FOUND)
 
 @router.get("/edit")

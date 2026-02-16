@@ -14,7 +14,13 @@ export interface ShortcutsDisplayProps {
 
 export const useKeyboardShortcuts = () => {
   const [shortcuts, setShortcuts] = useState<KeyboardShortcut[]>([]);
-  const [context, setContext] = useState({
+  const [context, setContext] = useState<{
+    selectedSprites: string[];
+    hasClipboard: boolean;
+    canUndo: boolean;
+    canRedo: boolean;
+    isCanvasFocused: boolean;
+  }>({
     selectedSprites: [],
     hasClipboard: false,
     canUndo: false,
@@ -30,7 +36,7 @@ export const useKeyboardShortcuts = () => {
     const updateContext = () => {
       // This is a placeholder - in real implementation, InputManager would emit events
       setContext({
-        selectedSprites: inputManager['context'].selectedSprites,
+        selectedSprites: inputManager['context'].selectedSpriteIds || [],
         hasClipboard: inputManager['context'].hasClipboard,
         canUndo: inputManager['context'].canUndo,
         canRedo: inputManager['context'].canRedo,
@@ -108,7 +114,7 @@ export const KeyboardShortcutsDisplay: React.FC<ShortcutsDisplayProps> = ({
         ))}
       </div>
       
-      <style jsx>{`
+      <style>{`
         .keyboard-shortcuts {
           position: absolute;
           top: 10px;

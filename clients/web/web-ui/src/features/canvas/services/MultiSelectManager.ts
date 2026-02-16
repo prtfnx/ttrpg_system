@@ -3,16 +3,18 @@
  * Defines the strategy for multi-selecting sprites with mouse interactions
  */
 
-export enum MultiSelectMode {
+export const MultiSelectMode = {
   /** Ctrl+Click to add/remove individual sprites */
-  CTRL_CLICK = 'ctrl_click',
+  CTRL_CLICK: 'ctrl_click',
   /** Drag rectangle to select area */
-  DRAG_RECTANGLE = 'drag_rectangle', 
+  DRAG_RECTANGLE: 'drag_rectangle', 
   /** Ctrl+Drag rectangle to add to selection */
-  CTRL_DRAG_RECTANGLE = 'ctrl_drag_rectangle',
+  CTRL_DRAG_RECTANGLE: 'ctrl_drag_rectangle',
   /** Shift+Click for range selection */
-  SHIFT_CLICK = 'shift_click',
-}
+  SHIFT_CLICK: 'shift_click',
+} as const;
+
+export type MultiSelectMode = typeof MultiSelectMode[keyof typeof MultiSelectMode];
 
 export interface MultiSelectStrategy {
   handleMouseDown(event: MouseEvent, worldPos: { x: number, y: number }): MultiSelectResult;
@@ -67,7 +69,7 @@ export class MouseMultiSelectStrategy implements MultiSelectStrategy {
     return { handled: false };
   }
 
-  handleMouseMove(event: MouseEvent, worldPos: { x: number, y: number }): MultiSelectResult {
+  handleMouseMove(_event: MouseEvent, worldPos: { x: number, y: number }): MultiSelectResult {
     if (!this.currentMode || !this.dragStartPos) {
       return { handled: false };
     }
@@ -92,7 +94,7 @@ export class MouseMultiSelectStrategy implements MultiSelectStrategy {
     return { handled: false };
   }
 
-  handleMouseUp(event: MouseEvent, worldPos: { x: number, y: number }): MultiSelectResult {
+  handleMouseUp(_event: MouseEvent, worldPos: { x: number, y: number }): MultiSelectResult {
     const currentMode = this.currentMode;
     
     if (!currentMode) {

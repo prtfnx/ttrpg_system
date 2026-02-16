@@ -155,7 +155,12 @@ class CompendiumService {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {\n        credentials: 'include',  // Include HTTP-only authentication cookies\n        headers: {\n          'Accept': 'application/json'\n        }\n      });
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        credentials: 'include',  // Include HTTP-only authentication cookies
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }

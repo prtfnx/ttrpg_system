@@ -110,8 +110,15 @@ app.add_middleware(
 
 # Add Session middleware for OAuth state management
 # Use a strong secret key in production (.env: SESSION_SECRET)
-session_secret = os.environ.get("SESSION_SECRET", "dev-secret-change-in-production")
-app.add_middleware(SessionMiddleware, secret_key=session_secret)
+session_secret = os.environ.get("SESSION_SECRET", "dev-secret-change-in-production-min32chars")
+app.add_middleware(
+    SessionMiddleware, 
+    secret_key=session_secret,
+    session_cookie="session",
+    max_age=3600,  # 1 hour
+    same_site="lax",
+    https_only=False  # Set to True in production with HTTPS
+)
 
 # Mount static files
 if os.path.exists("static"):

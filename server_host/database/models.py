@@ -196,11 +196,17 @@ class SessionInvitation(Base):
     
     def is_valid(self) -> bool:
         """Validate invitation security state"""
-        if not self.is_active:
+        # Check if invitation is active
+        if not getattr(self, 'is_active', True):
             return False
-        if self.max_uses > 0 and self.uses_count >= self.max_uses:
+        # Check usage limits
+        max_uses = getattr(self, 'max_uses', 0)
+        uses_count = getattr(self, 'uses_count', 0)
+        if max_uses > 0 and uses_count >= max_uses:
             return False
-        if self.expires_at and datetime.utcnow() > self.expires_at:
+        # Check expiration
+        expires_at = getattr(self, 'expires_at', None)
+        if expires_at and datetime.utcnow() > expires_at:
             return False
         return True
 

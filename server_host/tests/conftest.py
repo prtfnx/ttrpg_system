@@ -52,6 +52,17 @@ def test_db(test_db_engine):
     finally:
         db.close()
 
+@pytest.fixture(autouse=True)
+def reset_rate_limiters():
+    """Reset rate limiters before each test to prevent 429 errors"""
+    from server_host.utils.rate_limiter import registration_limiter, login_limiter
+    from server_host.routers.demo import demo_limiter
+    
+    registration_limiter.clear()
+    login_limiter.clear()
+    demo_limiter.clear()
+    yield
+
 @pytest.fixture(scope="function")
 def client(test_db):
     def override_get_db():

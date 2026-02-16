@@ -53,17 +53,32 @@ def validate_password(password: str) -> tuple[bool, str]:
     """
     Validate password format and length.
     
+    Requirements:
+    - At least 8 characters
+    - At least one uppercase letter
+    - At least one lowercase letter
+    - At least one digit
+    
     Returns:
         Tuple of (is_valid, error_message)
     """
     if not password:
         return False, "Password is required"
     
-    if len(password) < 4:
-        return False, "Password must be at least 4 characters long"
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long"
     
     if len(password) > 128:
         return False, "Password must be less than 128 characters"
+    
+    if not any(c.isupper() for c in password):
+        return False, "Password must include at least one uppercase letter"
+    
+    if not any(c.islower() for c in password):
+        return False, "Password must include at least one lowercase letter"
+    
+    if not any(c.isdigit() for c in password):
+        return False, "Password must include at least one number"
     
     return True, ""
 

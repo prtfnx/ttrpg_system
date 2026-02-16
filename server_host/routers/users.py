@@ -14,15 +14,18 @@ import jwt
 from ..database.database import get_db
 from ..database import crud
 from ..database import schemas
+from ..database import models
 from ..models import auth as auth_models
 from ..utils.rate_limiter import registration_limiter, login_limiter, get_client_ip
 from ..utils.logger import setup_logger
 from functools import lru_cache
+import os
 
 logger = setup_logger(__name__)
 
 router = APIRouter(prefix="/users", tags=["users"])
-templates = Jinja2Templates(directory="templates")
+templates_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
+templates = Jinja2Templates(directory=templates_dir)
 from .. import config
 
 @lru_cache
@@ -107,7 +110,7 @@ async def get_current_user_optional(request: Request, db: Session = Depends(get_
         
         user = crud.get_user_by_username(db, username=username)
         return user
-    except Exception as e:
+    except (InvalidTokenError, Exception) as e:
         logger.debug(f"get_current_user_optional: Authentication failed: {e}")
         return None
 
@@ -183,8 +186,7 @@ async def users_me(
             'level': getattr(current_user, 'level', 42)
         }
         
-        return templates.TemplateResponse("profile.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "profile.html", {
             **profile_data
         })
 
@@ -214,20 +216,33 @@ async def read_own_items(
 
 @router.get("/login")
 def login_page(request: Request):
-    """Login page with optional registration success message"""
-    # Check if user just registered
+    """Login page with optional registration/verification success messages"""
     registered = request.query_params.get("registered")
-    success_message = "Registration successful! Please log in with your credentials." if registered else None
+    verify = request.query_params.get("verify")
+    verified = request.query_params.get("verified")
+    invite_code = request.query_params.get("invite")
+    next_url = request.query_params.get("next")
     
-    return templates.TemplateResponse("login.html", {
-        "request": request,
-        "success": success_message
+    success_message = None
+    if registered and verify:
+        success_message = "Registration successful! Please check your console logs for the verification link, then log in."
+    elif registered:
+        success_message = "Registration successful! Please log in with your credentials."
+    elif verified:
+        success_message = "Email verified successfully! You can now log in."
+    
+    return templates.TemplateResponse(request, "login.html", {
+        "success": success_message,
+        "invite_code": invite_code,
+        "next_url": next_url
     })
 
 @router.post("/login")
 async def login(
     request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    invite_code: str = Form(None),
+    next_url: str = Form(None),
     db: Session = Depends(get_db)
 ):
     """Login with rate limiting protection"""
@@ -236,48 +251,135 @@ async def login(
     # Rate limiting check - 10 login attempts per 5 minutes per IP
     if not login_limiter.is_allowed(client_ip, max_requests=10, window_minutes=5):
         time_until_reset = login_limiter.get_time_until_reset(client_ip, window_minutes=5)
-        return templates.TemplateResponse("login.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "login.html", {
             "error": f"Too many login attempts. Please try again in {time_until_reset} seconds."
         }, status_code=429)  # 429 Too Many Requests
     
     # Validate input lengths
     if len(form_data.username) < 4:
-        return templates.TemplateResponse("login.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "login.html", {
             "error": "Username must be at least 4 characters long"
         }, status_code=400)  # 400 Bad Request
     
-    if len(form_data.password) < 4:
-        return templates.TemplateResponse("login.html", {
-            "request": request,
-            "error": "Password must be at least 4 characters long"
+    if len(form_data.password) < 8:
+        return templates.TemplateResponse(request, "login.html", {
+            "error": "Password must be at least 8 characters long"
         }, status_code=400)  # 400 Bad Request
     
     try:
         token = await login_for_access_token(form_data, db)
         if not token:
-            return templates.TemplateResponse("login.html", {
-                "request": request,
+            return templates.TemplateResponse(request, "login.html", {
                 "error": "Incorrect username or password"
-            }, status_code=401)  # 401 Unauthorized
+            }, status_code=401)
 
-        response = RedirectResponse(url="/users/dashboard", status_code=status.HTTP_302_FOUND)
+        # Handle invite code - redirect to invitation page to auto-accept
+        if invite_code and next_url:
+            response = RedirectResponse(url=next_url, status_code=302)
+        elif invite_code:
+            # Auto-accept invitation
+            user = crud.get_user_by_username(db, form_data.username)
+            invitation = db.query(models.SessionInvitation).filter(
+                models.SessionInvitation.invite_code == invite_code
+            ).first()
+            
+            if invitation and invitation.is_valid():
+                session = db.query(models.GameSession).filter(
+                    models.GameSession.id == invitation.session_id
+                ).first()
+                
+                if not session:
+                    # Session referenced by invitation does not exist
+                    response = RedirectResponse(url="/users/dashboard", status_code=302)
+                else:
+                    existing = db.query(models.GamePlayer).filter(
+                        models.GamePlayer.session_id == session.id,
+                        models.GamePlayer.user_id == user.id
+                    ).first()
+                    
+                    if not existing:
+                        new_player = models.GamePlayer(
+                            session_id=session.id,
+                            user_id=user.id,
+                            role=invitation.pre_assigned_role,
+                            joined_at=datetime.utcnow()
+                        )
+                        db.add(new_player)
+                        
+                        invitation.uses_count += 1
+                        if invitation.max_uses > 0 and invitation.uses_count >= invitation.max_uses:
+                            invitation.is_active = False
+                        
+                        db.commit()
+                    
+                    response = RedirectResponse(
+                        url=f"/game/session/{session.session_code}",
+                        status_code=302
+                    )
+            else:
+                response = RedirectResponse(url="/users/dashboard", status_code=302)
+        else:
+            response = RedirectResponse(url="/users/dashboard", status_code=302)
+        
+        settings = get_settings()
         response.set_cookie(
             key="token", 
             value=token.access_token, 
             httponly=True, 
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             samesite="lax",
-            secure=False,  # Set to True in production with HTTPS
+            secure=settings.ENVIRONMENT == "production",
             path="/"
         )
         return response
     except HTTPException:
-        return templates.TemplateResponse("login.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "login.html", {
             "error": "Incorrect username or password"
         }, status_code=401)  # 401 Unauthorized
+
+@router.get("/verify")
+async def verify_email(
+    request: Request,
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """Verify user email address using token from verification email"""
+    
+    # Find verification token
+    email_token = db.query(models.EmailVerificationToken).filter(
+        models.EmailVerificationToken.token == token
+    ).first()
+    
+    if not email_token:
+        return templates.TemplateResponse(request, "auth_error.html", {
+            "error_message": "Invalid verification link. The token may have expired or been used already."
+        }, status_code=400)
+    
+    # Check if token is valid
+    if not email_token.is_valid():
+        return templates.TemplateResponse(request, "auth_error.html", {
+            "error_message": "This verification link has expired or was already used. Please request a new one."
+        }, status_code=400)
+    
+    # Mark token as used
+    email_token.used_at = datetime.utcnow()
+    
+    # Update user verification status
+    user = db.query(models.User).filter(models.User.id == email_token.user_id).first()
+    if user:
+        user.is_verified = True
+        db.commit()
+        
+        logger.info(f"Email verified for user: {user.username}")
+        
+        return RedirectResponse(
+            url="/users/login?verified=1",
+            status_code=status.HTTP_302_FOUND
+        )
+    else:
+        return templates.TemplateResponse(request, "auth_error.html", {
+            "error_message": "User not found."
+        }, status_code=404)
 
 @router.get("/dashboard")
 async def dashboard(
@@ -285,89 +387,156 @@ async def dashboard(
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
 ):
-    # Check if this is an API request (JSON) vs web request (HTML)
     accept_header = request.headers.get("accept", "")
-    
-    # Get user's game sessions
     user_sessions = crud.get_user_game_sessions(db, current_user.id)
     
     if "application/json" in accept_header:
-        # Return JSON for API requests
         sessions_data = []
-        for session in user_sessions:
+        for session, role in user_sessions:
             sessions_data.append({
                 "session_code": session.session_code,
                 "session_name": session.name,
-                "role": "dm" if session.owner_id == current_user.id else "player",
+                "role": role,
                 "created_at": session.created_at.isoformat() if hasattr(session, 'created_at') else None
             })
         return {"sessions": sessions_data}
     else:
-        # Return HTML page for browser requests
-        # Extract session objects from tuples for template
-        sessions_for_template = [session for session, role in user_sessions]
-        return templates.TemplateResponse("dashboard.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "dashboard.html", {
             "user": current_user,
-            "sessions": sessions_for_template
+            "sessions": user_sessions
         })
 
 @router.get("/register")
 def register_page(request: Request):
-    return templates.TemplateResponse("register.html", {"request": request})
+    invite_code = request.query_params.get("invite")
+    return templates.TemplateResponse(request, "register.html", {
+        "invite_code": invite_code
+    })
 
 @router.post("/register")
 def register_user_view(
     request: Request, 
     username: str = Form(...), 
+    email: str = Form(...),
     password: str = Form(...),
+    confirm_password: str = Form(...),
+    invite_code: str = Form(None),
     db: Session = Depends(get_db)
 ):
-    """Register a new user with validation and rate limiting"""
+    """Register a new user with email verification"""
     client_ip = get_client_ip(request)
     
     # Rate limiting check - 5 registration attempts per 10 minutes per IP
     if not registration_limiter.is_allowed(client_ip, max_requests=5, window_minutes=10):
         time_until_reset = registration_limiter.get_time_until_reset(client_ip, window_minutes=10)
-        return templates.TemplateResponse("register.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "register.html", {
             "error": f"Too many registration attempts. Please try again in {time_until_reset} seconds.",
-            "username": username  # Preserve username in form
-        }, status_code=429)  # 429 Too Many Requests
+            "username": username,
+            "email": email
+        }, status_code=429)
     
-    # Additional basic validation (the main validation is in crud.py)
-    if not username or not password:
-        return templates.TemplateResponse("register.html", {
-            "request": request,
-            "error": "Username and password are required",
-            "username": username
-        }, status_code=400)  # 400 Bad Request
+    # Basic validation
+    if not username or not password or not email:
+        return templates.TemplateResponse(request, "register.html", {
+            "error": "All fields are required",
+            "username": username,
+            "email": email
+        }, status_code=400)
+    
+    # Password confirmation check
+    if password != confirm_password:
+        return templates.TemplateResponse(request, "register.html", {
+            "error": "Passwords do not match",
+            "username": username,
+            "email": email
+        }, status_code=400)
     
     # Attempt to register user
-    result = crud.register_user(db, username, password)
+    result = crud.register_user(db, username, password, email=email)
     
-    # Handle the new return format (user_or_none, message)
     if isinstance(result, tuple):
         user, message = result
         if user is None:
-            # Registration failed - determine if it's a conflict or validation error
-            status_code = 409 if "already exists" in message.lower() or "already taken" in message.lower() else 400
-            return templates.TemplateResponse("register.html", {
-                "request": request,
+            status_code = 409 if "already exists" in message.lower() or "already" in message.lower() else 400
+            return templates.TemplateResponse(request, "register.html", {
                 "error": message,
-                "username": username
-            }, status_code=status_code)  # 409 Conflict or 400 Bad Request
-        # Registration successful
-        return RedirectResponse(url="/users/login?registered=1", status_code=status.HTTP_302_FOUND)
+                "username": username,
+                "email": email
+            }, status_code=status_code)
+        
+        # Registration successful - create verification token
+        import secrets
+        from datetime import timedelta
+        
+        verification_token = secrets.token_urlsafe(32)
+        expires_at = datetime.utcnow() + timedelta(hours=24)
+        
+        email_token = models.EmailVerificationToken(
+            token=verification_token,
+            user_id=user.id,
+            expires_at=expires_at
+        )
+        db.add(email_token)
+        db.commit()
+        
+        # Log verification URL (in production, send email)
+        verification_url = f"/users/verify?token={verification_token}"
+        logger.info(f"Email verification URL for {username}: {verification_url}")
+        
+        # Handle invite code - auto-accept after registration
+        if invite_code:
+            invitation = db.query(models.SessionInvitation).filter(
+                models.SessionInvitation.invite_code == invite_code
+            ).first()
+            
+            if invitation and invitation.is_valid():
+                session = db.query(models.GameSession).filter(
+                    models.GameSession.id == invitation.session_id
+                ).first()
+                
+                new_player = models.GamePlayer(
+                    session_id=session.id,
+                    user_id=user.id,
+                    role=invitation.pre_assigned_role,
+                    joined_at=datetime.utcnow()
+                )
+                db.add(new_player)
+                
+                invitation.uses_count += 1
+                if invitation.max_uses > 0 and invitation.uses_count >= invitation.max_uses:
+                    invitation.is_active = False
+                
+                db.commit()
+                
+                # Log in and redirect to session
+                access_token = create_access_token(
+                    data={"sub": user.username},
+                    expires_delta=timedelta(hours=6)
+                )
+                response = RedirectResponse(
+                    url=f"/game/session/{session.session_code}",
+                    status_code=302
+                )
+                response.set_cookie(
+                    key="token",
+                    value=access_token,
+                    httponly=True,
+                    max_age=21600,
+                    samesite="lax",
+                    secure=get_settings().ENVIRONMENT == "production"
+                )
+                return response
+        
+        return RedirectResponse(
+            url="/users/login?registered=1&verify=1",
+            status_code=status.HTTP_302_FOUND
+        )
     else:
-        # Handle old format for backward compatibility
-        if not result:
-            return templates.TemplateResponse("register.html", {
-                "request": request,
-                "error": "Registration failed. Username may already exist.",
-                "username": username
-            }, status_code=409)  # 409 Conflict
-        return RedirectResponse(url="/users/login?registered=1", status_code=status.HTTP_302_FOUND)
+        return templates.TemplateResponse(request, "register.html", {
+            "error": "Registration failed. Please try again.",
+            "username": username,
+            "email": email
+        }, status_code=500)
 
 @router.get("/edit")
 async def edit_profile_page(
@@ -375,8 +544,7 @@ async def edit_profile_page(
     current_user: Annotated[schemas.User, Depends(get_current_active_user)]
 ):
     """Edit profile page (placeholder - you can create edit.html template)"""
-    return templates.TemplateResponse("profile.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "profile.html", {
         "user": current_user,
         "edit_mode": True
     })
@@ -399,7 +567,9 @@ async def update_profile(
 @router.get("/auth-error")
 async def auth_error_page(request: Request):
     """Authentication error page"""
-    return templates.TemplateResponse("auth_error.html", {"request": request})
+    return templates.TemplateResponse(request, "auth_error.html", {
+        "error_message": "Authentication failed. Please try again."
+    })
 
 @router.get("/logout")
 def logout():

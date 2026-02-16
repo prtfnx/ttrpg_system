@@ -10,6 +10,17 @@ class Settings(BaseSettings):
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
     jwt_secret_key: str = ""
     
+    # Session secret for OAuth state management (min 32 chars)
+    SESSION_SECRET: str = os.getenv("SESSION_SECRET", "dev-secret-change-me-now-min32chars-0001")
+    
+    # Environment configuration
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    BASE_URL: str = os.getenv("BASE_URL", "http://localhost:8000")
+    
+    # Google OAuth credentials (optional - OAuth disabled if not set)
+    GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
+    GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    
     # R2 (Cloudflare) settings for asset storage
     r2_enabled: bool = False
     r2_account_id: str = ""

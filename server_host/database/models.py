@@ -2,8 +2,7 @@
 Database models for TTRPG server
 """
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Float
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime
 
 Base = declarative_base()
@@ -17,6 +16,8 @@ class User(Base):
     full_name = Column(String(100), nullable=True)
     hashed_password = Column(String(255), nullable=False)
     disabled = Column(Boolean, default=False)
+    is_verified = Column(Boolean, default=False, index=True)
+    google_id = Column(String(255), unique=True, nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
@@ -30,6 +31,7 @@ class GameSession(Base):
     session_code = Column(String(20), unique=True, index=True, nullable=False)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     is_active = Column(Boolean, default=True)
+    is_demo = Column(Boolean, default=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     game_data = Column(Text)  # JSON data for game state
     
@@ -38,6 +40,7 @@ class GameSession(Base):
     players = relationship("GamePlayer", back_populates="session")
     tables = relationship("VirtualTable", back_populates="session")
     invitations = relationship("SessionInvitation", back_populates="session")
+
 
 class GamePlayer(Base):
     __tablename__ = "game_players"
@@ -207,6 +210,28 @@ class SessionInvitation(Base):
         # Check expiration
         expires_at = getattr(self, 'expires_at', None)
         if expires_at and datetime.utcnow() > expires_at:
+            return False
+        return True
+
+class EmailVerificationToken(Base):
+    """Email verification tokens for new user signups"""
+    __tablename__ = "email_verification_tokens"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String(64), unique=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    
+    # Relationship
+    user = relationship("User")
+    
+    def is_valid(self) -> bool:
+        """Check if token is still valid"""
+        if self.used_at is not None:
+            return False
+        if datetime.utcnow() > self.expires_at:
             return False
         return True
 

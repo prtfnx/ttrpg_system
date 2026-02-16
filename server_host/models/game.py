@@ -1,7 +1,7 @@
 """
 Game session Pydantic models
 """
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -21,8 +21,7 @@ class GameSession(BaseModel):
     created_at: datetime
     game_data: Optional[str] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class GamePlayer(BaseModel):
     id: int
@@ -32,8 +31,7 @@ class GamePlayer(BaseModel):
     joined_at: datetime
     is_connected: bool
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class GameSessionWithPlayers(GameSession):
     players: List[GamePlayer] = []

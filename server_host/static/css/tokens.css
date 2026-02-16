@@ -1,0 +1,326 @@
+/**
+ * Design Tokens - Primitive Values
+ * ==================================
+ * 
+ * This file contains ALL primitive design tokens:
+ * - Color palette (the ONLY file allowed to have hex colors)
+ * - Sizing system (spacing, typography, components)
+ * 
+ * All other CSS files must reference these tokens via CSS custom properties.
+ * 
+ * @see docs/CSS_ARCHITECTURE_PLAN.md
+ */
+
+:root {
+  /* ============================================
+     COLOR PALETTE - PRIMITIVE TOKENS
+     These are the ONLY hardcoded color values allowed in the entire codebase.
+     All component CSS must use semantic tokens from theme.css instead.
+     ============================================ */
+  
+  /* GRAYSCALE - For backgrounds, text, borders */
+  --gray-50: #fafafa;
+  --gray-100: #f5f5f5;
+  --gray-200: #e5e5e5;
+  --gray-300: #d4d4d4;
+  --gray-400: #a3a3a3;
+  --gray-500: #737373;
+  --gray-600: #525252;
+  --gray-700: #404040;
+  --gray-800: #262626;
+  --gray-900: #171717;
+  --gray-950: #0a0a0a;
+
+  /* BLUE - Primary brand color */
+  --blue-50: #eff6ff;
+  --blue-100: #dbeafe;
+  --blue-200: #bfdbfe;
+  --blue-300: #93c5fd;
+  --blue-400: #60a5fa;
+  --blue-500: #3b82f6;
+  --blue-600: #2563eb;
+  --blue-700: #1d4ed8;
+  --blue-800: #1e40af;
+  --blue-900: #1e3a8a;
+  --blue-950: #0e1f5c;
+
+  /* GREEN - Success states */
+  --green-50: #f0fdf4;
+  --green-100: #dcfce7;
+  --green-200: #bbf7d0;
+  --green-300: #86efac;
+  --green-400: #4ade80;
+  --green-500: #22c55e;
+  --green-600: #16a34a;
+  --green-700: #15803d;
+  --green-800: #166534;
+  --green-900: #14532d;
+  --green-950: #052e16;
+
+  /* RED - Error/danger states */
+  --red-50: #fef2f2;
+  --red-100: #fee2e2;
+  --red-200: #fecaca;
+  --red-300: #fca5a5;
+  --red-400: #f87171;
+  --red-500: #ef4444;
+  --red-600: #dc2626;
+  --red-700: #b91c1c;
+  --red-800: #991b1b;
+  --red-900: #7f1d1d;
+  --red-950: #450a0a;
+
+  /* YELLOW - Warning states */
+  --yellow-50: #fefce8;
+  --yellow-100: #fef9c3;
+  --yellow-200: #fef08a;
+  --yellow-300: #fde047;
+  --yellow-400: #facc15;
+  --yellow-500: #eab308;
+  --yellow-600: #ca8a04;
+  --yellow-700: #a16207;
+  --yellow-800: #854d0e;
+  --yellow-900: #713f12;
+  --yellow-950: #422006;
+
+  /* ORANGE - Alerts, notifications */
+  --orange-50: #fff7ed;
+  --orange-100: #ffedd5;
+  --orange-200: #fed7aa;
+  --orange-300: #fdba74;
+  --orange-400: #fb923c;
+  --orange-500: #f97316;
+  --orange-600: #ea580c;
+  --orange-700: #c2410c;
+  --orange-800: #9a3412;
+  --orange-900: #7c2d12;
+  --orange-950: #431407;
+
+  /* PURPLE - Special features, magic */
+  --purple-50: #faf5ff;
+  --purple-100: #f3e8ff;
+  --purple-200: #e9d5ff;
+  --purple-300: #d8b4fe;
+  --purple-400: #c084fc;
+  --purple-500: #a855f7;
+  --purple-600: #9333ea;
+  --purple-700: #7e22ce;
+  --purple-800: #6b21a8;
+  --purple-900: #581c87;
+  --purple-950: #3b0764;
+
+  /* INDIGO - Accent/alternative */
+  --indigo-50: #eef2ff;
+  --indigo-100: #e0e7ff;
+  --indigo-200: #c7d2fe;
+  --indigo-300: #a5b4fc;
+  --indigo-400: #818cf8;
+  --indigo-500: #6366f1;
+  --indigo-600: #4f46e5;
+  --indigo-700: #4338ca;
+  --indigo-800: #3730a3;
+  --indigo-900: #312e81;
+  --indigo-950: #1e1b4b;
+
+  /* CYAN - Info states */
+  --cyan-50: #ecfeff;
+  --cyan-100: #cffafe;
+  --cyan-200: #a5f3fc;
+  --cyan-300: #67e8f9;
+  --cyan-400: #22d3ee;
+  --cyan-500: #06b6d4;
+  --cyan-600: #0891b2;
+  --cyan-700: #0e7490;
+  --cyan-800: #155e75;
+  --cyan-900: #164e63;
+  --cyan-950: #083344;
+
+  /* ============================================
+     SIZING SYSTEM - PRIMITIVE TOKENS
+     ============================================ */
+  /* ===== SCREEN SIZE BREAKPOINTS ===== */
+  --screen-sm: 640px;
+  --screen-md: 768px;
+  --screen-lg: 1024px;
+  --screen-xl: 1280px;
+  --screen-2xl: 1536px;
+  
+  /* ===== FLUID SPACING SCALE ===== */
+  /* Uses clamp(min, preferred, max) for smooth scaling between screen sizes */
+  --space-xs: clamp(0.25rem, 0.5vw, 0.5rem);      /* 4-8px */
+  --space-sm: clamp(0.5rem, 1vw, 0.75rem);        /* 8-12px */
+  --space-md: clamp(0.75rem, 1.5vw, 1rem);        /* 12-16px */
+  --space-lg: clamp(1rem, 2vw, 1.5rem);           /* 16-24px */
+  --space-xl: clamp(1.5rem, 3vw, 2rem);           /* 24-32px */
+  --space-2xl: clamp(2rem, 4vw, 3rem);            /* 32-48px */
+  --space-3xl: clamp(2.5rem, 5vw, 4rem);          /* 40-64px */
+  
+  /* ===== BORDER RADIUS SCALE ===== */
+  /* Rounded corners for UI elements */
+  --radius-none: 0;
+  --radius-sm: 0.25rem;    /* 4px - subtle rounding */
+  --radius-md: 0.5rem;     /* 8px - standard rounding */
+  --radius-lg: 0.75rem;    /* 12px - prominent rounding */
+  --radius-xl: 1rem;       /* 16px - large rounding */
+  --radius-2xl: 1.5rem;    /* 24px - very rounded */
+  --radius-full: 9999px;   /* pill/circle shape */
+  
+  /* ===== FLUID TYPOGRAPHY ===== */
+  /* Font sizes that scale smoothly with viewport */
+  --text-xs: clamp(0.75rem, 0.85vw, 0.875rem);    /* 12-14px */
+  --text-sm: clamp(0.875rem, 1vw, 1rem);          /* 14-16px */
+  --text-base: clamp(1rem, 1.25vw, 1.125rem);     /* 16-18px */
+  --text-lg: clamp(1.125rem, 1.5vw, 1.25rem);     /* 18-20px */
+  --text-xl: clamp(1.25rem, 2vw, 1.5rem);         /* 20-24px */
+  --text-2xl: clamp(1.5rem, 2.5vw, 2rem);         /* 24-32px */
+  --text-3xl: clamp(1.875rem, 3vw, 2.5rem);       /* 30-40px */
+  --text-4xl: clamp(2.25rem, 4vw, 3rem);          /* 36-48px */
+  
+  /* ===== FONT WEIGHTS ===== */
+  /* Standard weight scale */
+  --font-thin: 100;
+  --font-light: 300;
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --font-extrabold: 800;
+  --font-black: 900;
+  
+  /* ===== LINE HEIGHTS ===== */
+  /* Vertical spacing for text readability */
+  --leading-none: 1;
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --leading-loose: 2;
+  
+  /* ===== LETTER SPACING ===== */
+  /* Character spacing for headings and labels */
+  --letter-spacing-tighter: -0.05em;
+  --letter-spacing-tight: -0.025em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.025em;    /* 0.5px equivalent */
+  --letter-spacing-wider: 0.05em;
+  --letter-spacing-widest: 0.1em;
+  
+  /* ===== COMPONENT SIZING ===== */
+  /* Specific UI elements that need to scale */
+  --button-height: clamp(32px, 4vh, 44px);
+  --button-padding-x: clamp(12px, 2vw, 24px);
+  --button-padding-y: clamp(6px, 1vh, 12px);
+  
+  --input-height: clamp(32px, 4vh, 40px);
+  --input-padding: clamp(8px, 1.5vw, 16px);
+  
+  --card-padding: clamp(12px, 2vw, 24px);
+  --card-border-radius: clamp(6px, 1vw, 12px);
+  --card-gap: clamp(12px, 2vw, 20px);
+  
+  --header-height: clamp(48px, 8vh, 72px);
+  --sidebar-width: clamp(200px, 20vw, 320px);
+  
+  /* ===== GRID/TABLE SIZING ===== */
+  /* For game board and tactical elements */
+  --grid-cell-size: clamp(30px, 5vmin, 60px);
+  --grid-line-width: clamp(1px, 0.1vmin, 2px);
+  
+  /* ===== MODAL/OVERLAY SIZING ===== */
+  --modal-width-sm: clamp(300px, 90vw, 500px);
+  --modal-width-md: clamp(400px, 90vw, 800px);
+  --modal-width-lg: clamp(600px, 95vw, 1200px);
+  --modal-width-xl: clamp(800px, 95vw, 1600px);
+  --modal-max-height: 90vh;
+  
+  /* ===== CANVAS/VIEWPORT ===== */
+  --canvas-min-height: max(400px, 50vh);
+  --canvas-max-height: 100vh;
+  
+  /* ===== ICON SIZES ===== */
+  --icon-xs: clamp(12px, 1.5vmin, 16px);
+  --icon-sm: clamp(16px, 2vmin, 20px);
+  --icon-md: clamp(20px, 2.5vmin, 24px);
+  --icon-lg: clamp(24px, 3vmin, 32px);
+  --icon-xl: clamp(32px, 4vmin, 48px);
+  
+  /* ===== AVATAR SIZES ===== */
+  --avatar-sm: clamp(24px, 4vmin, 32px);
+  --avatar-md: clamp(32px, 5vmin, 48px);
+  --avatar-lg: clamp(48px, 7vmin, 64px);
+  --avatar-xl: clamp(64px, 10vmin, 96px);
+  
+  /* ===== Z-INDEX SCALE ===== */
+  --z-base: 0;
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+  
+  /* ===== ANIMATION DURATIONS ===== */
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 350ms;
+  
+  /* ===== TRANSITION TIMINGS ===== */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 350ms ease;
+  
+  /* ===== RESPONSIVE BREAKPOINT HELPERS ===== */
+  /* Use with container queries when available */
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+}
+
+/* ===== HIGH DPI DISPLAY SUPPORT ===== */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  :root {
+    /* Slightly larger base sizes for high-DPI displays */
+    --text-base: clamp(1rem, 1.3vw, 1.125rem);
+    --grid-line-width: 1px; /* Keep crisp on retina */
+  }
+}
+
+/* ===== REDUCED MOTION SUPPORT ===== */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+  }
+}
+
+/* ===== SMALL SCREENS (Mobile, Tablets) ===== */
+@media (max-width: 768px) {
+  :root {
+    /* Adjust spacing for smaller screens */
+    --space-lg: clamp(0.75rem, 2vw, 1rem);
+    --space-xl: clamp(1rem, 3vw, 1.5rem);
+    
+    /* Larger touch targets for mobile */
+    --button-height: clamp(40px, 6vh, 48px);
+    --input-height: clamp(40px, 6vh, 48px);
+    
+    /* Narrower sidebar on mobile */
+    --sidebar-width: clamp(240px, 70vw, 280px);
+  }
+}
+
+/* ===== LARGE SCREENS (Desktop, Ultra-wide) ===== */
+@media (min-width: 1920px) {
+  :root {
+    /* Prevent UI from getting too large on ultra-wide displays */
+    --text-base: 1.125rem;
+    --text-lg: 1.25rem;
+    --text-xl: 1.5rem;
+    
+    --card-padding: 24px;
+    --card-gap: 24px;
+  }
+}

@@ -494,38 +494,47 @@ def register_user_view(
                     models.GameSession.id == invitation.session_id
                 ).first()
                 
-                new_player = models.GamePlayer(
-                    session_id=session.id,
-                    user_id=user.id,
-                    role=invitation.pre_assigned_role,
-                    joined_at=datetime.utcnow()
-                )
-                db.add(new_player)
-                
-                invitation.uses_count += 1
-                if invitation.max_uses > 0 and invitation.uses_count >= invitation.max_uses:
-                    invitation.is_active = False
-                
-                db.commit()
-                
-                # Log in and redirect to session
-                access_token = create_access_token(
-                    data={"sub": user.username},
-                    expires_delta=timedelta(hours=6)
-                )
-                response = RedirectResponse(
-                    url=f"/game/session/{session.session_code}",
-                    status_code=302
-                )
-                response.set_cookie(
-                    key="token",
-                    value=access_token,
-                    httponly=True,
-                    max_age=21600,
-                    samesite="lax",
-                    secure=get_settings().ENVIRONMENT == "production"
-                )
-                return response
+                # Ensure the session still exists before proceeding
+                if session:
+                    # Avoid creating duplicate membership rows
+                    existing_player = db.query(models.GamePlayer).filter(
+                        models.GamePlayer.session_id == session.id,
+                        models.GamePlayer.user_id == user.id,
+                    ).first()
+                    
+                    if not existing_player:
+                        new_player = models.GamePlayer(
+                            session_id=session.id,
+                            user_id=user.id,
+                            role=invitation.pre_assigned_role,
+                            joined_at=datetime.utcnow()
+                        )
+                        db.add(new_player)
+                        
+                        invitation.uses_count += 1
+                        if invitation.max_uses > 0 and invitation.uses_count >= invitation.max_uses:
+                            invitation.is_active = False
+                        
+                        db.commit()
+                    
+                    # Log in and redirect to session
+                    access_token = create_access_token(
+                        data={"sub": user.username},
+                        expires_delta=timedelta(hours=6)
+                    )
+                    response = RedirectResponse(
+                        url=f"/game/session/{session.session_code}",
+                        status_code=302
+                    )
+                    response.set_cookie(
+                        key="token",
+                        value=access_token,
+                        httponly=True,
+                        max_age=21600,
+                        samesite="lax",
+                        secure=get_settings().ENVIRONMENT == "production"
+                    )
+                    return response
         
         return RedirectResponse(
             url="/users/login?registered=1&verify=1",

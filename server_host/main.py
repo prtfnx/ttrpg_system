@@ -110,14 +110,31 @@ app.add_middleware(
 
 # Add Session middleware for OAuth state management
 # Use a strong secret key in production (.env: SESSION_SECRET)
-session_secret = os.environ.get("SESSION_SECRET", "dev-secret-change-in-production-min32chars")
+environment = os.environ.get("ENVIRONMENT", "development").lower()
+session_secret = os.environ.get("SESSION_SECRET")
+
+# Enforce a strong, non-default secret in production
+if environment == "production":
+    if not session_secret or len(session_secret) < 32:
+        raise RuntimeError(
+            "SESSION_SECRET must be set to a strong, at least 32-character value in production."
+        )
+else:
+    # In non-production, fall back to a known development secret if none (or too short) is provided
+    if not session_secret or len(session_secret) < 32:
+        logger.warning(
+            "SESSION_SECRET is not set or too short; using a default development secret. "
+            "Do NOT use this in production."
+        )
+        session_secret = "dev-secret-change-in-production-min32chars"
+
 app.add_middleware(
     SessionMiddleware, 
     secret_key=session_secret,
     session_cookie="session",
     max_age=3600,  # 1 hour
     same_site="lax",
-    https_only=False  # Set to True in production with HTTPS
+    https_only=(environment == "production")  # Use secure cookies in production
 )
 
 # Mount static files
@@ -217,8 +234,8 @@ async def invitation_page(invite_code: str, request: Request, db: Session = Depe
     current_user = None
     try:
         current_user = await get_current_user_optional(request, db)
-    except:
-        pass
+    except Exception as exc:
+        logger.debug("Optional authentication resolution failed in invitation_page", exc_info=exc)
     
     return templates.TemplateResponse(
         request,

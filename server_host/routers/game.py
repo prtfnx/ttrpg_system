@@ -199,7 +199,20 @@ async def update_session_settings(
     if not session or session.owner_id != current_user.id:
         raise HTTPException(status_code=403)
     
-    session.name = name
+    # Validate session name
+    normalized_name = name.strip()
+    if not normalized_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Session name cannot be empty"
+        )
+    if len(normalized_name) > 100:
+        raise HTTPException(
+            status_code=400,
+            detail="Session name must be at most 100 characters"
+        )
+    
+    session.name = normalized_name
     db.commit()
     
     return RedirectResponse(
@@ -217,6 +230,15 @@ async def delete_session(
     session = crud.get_game_session_by_code(db, session_code)
     if not session or session.owner_id != current_user.id:
         raise HTTPException(status_code=403)
+    
+    # Explicitly delete related records to ensure cleanup
+    db.query(models.GamePlayer).filter(
+        models.GamePlayer.session_id == session.id
+    ).delete(synchronize_session=False)
+    
+    db.query(models.SessionInvitation).filter(
+        models.SessionInvitation.session_id == session.id
+    ).delete(synchronize_session=False)
     
     db.delete(session)
     db.commit()

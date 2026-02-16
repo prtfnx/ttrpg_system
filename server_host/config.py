@@ -10,8 +10,8 @@ class Settings(BaseSettings):
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
     jwt_secret_key: str = ""
     
-    # Session secret for OAuth state management
-    SESSION_SECRET: str = os.getenv("SESSION_SECRET", "dev-secret-change-in-production")
+    # Session secret for OAuth state management (min 32 chars)
+    SESSION_SECRET: str = os.getenv("SESSION_SECRET", "dev-secret-change-me-now-min32chars-0001")
     
     # Environment configuration
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")

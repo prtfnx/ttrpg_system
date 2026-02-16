@@ -261,9 +261,9 @@ async def login(
             "error": "Username must be at least 4 characters long"
         }, status_code=400)  # 400 Bad Request
     
-    if len(form_data.password) < 4:
+    if len(form_data.password) < 8:
         return templates.TemplateResponse(request, "login.html", {
-            "error": "Password must be at least 4 characters long"
+            "error": "Password must be at least 8 characters long"
         }, status_code=400)  # 400 Bad Request
     
     try:
@@ -288,30 +288,34 @@ async def login(
                     models.GameSession.id == invitation.session_id
                 ).first()
                 
-                existing = db.query(models.GamePlayer).filter(
-                    models.GamePlayer.session_id == session.id,
-                    models.GamePlayer.user_id == user.id
-                ).first()
-                
-                if not existing:
-                    new_player = models.GamePlayer(
-                        session_id=session.id,
-                        user_id=user.id,
-                        role=invitation.pre_assigned_role,
-                        joined_at=datetime.utcnow()
+                if not session:
+                    # Session referenced by invitation does not exist
+                    response = RedirectResponse(url="/users/dashboard", status_code=302)
+                else:
+                    existing = db.query(models.GamePlayer).filter(
+                        models.GamePlayer.session_id == session.id,
+                        models.GamePlayer.user_id == user.id
+                    ).first()
+                    
+                    if not existing:
+                        new_player = models.GamePlayer(
+                            session_id=session.id,
+                            user_id=user.id,
+                            role=invitation.pre_assigned_role,
+                            joined_at=datetime.utcnow()
+                        )
+                        db.add(new_player)
+                        
+                        invitation.uses_count += 1
+                        if invitation.max_uses > 0 and invitation.uses_count >= invitation.max_uses:
+                            invitation.is_active = False
+                        
+                        db.commit()
+                    
+                    response = RedirectResponse(
+                        url=f"/game/session/{session.session_code}",
+                        status_code=302
                     )
-                    db.add(new_player)
-                    
-                    invitation.uses_count += 1
-                    if invitation.max_uses > 0 and invitation.uses_count >= invitation.max_uses:
-                        invitation.is_active = False
-                    
-                    db.commit()
-                
-                response = RedirectResponse(
-                    url=f"/game/session/{session.session_code}",
-                    status_code=302
-                )
             else:
                 response = RedirectResponse(url="/users/dashboard", status_code=302)
         else:
@@ -533,7 +537,6 @@ def register_user_view(
             "username": username,
             "email": email
         }, status_code=500)
-        return RedirectResponse(url="/users/login?registered=1", status_code=status.HTTP_302_FOUND)
 
 @router.get("/edit")
 async def edit_profile_page(

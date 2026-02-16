@@ -34,6 +34,7 @@ from datetime import timedelta
 from authlib.integrations.starlette_client import OAuth, OAuthError
 import secrets
 import logging
+import re
 
 from ..database.database import SessionLocal, get_db
 from ..database import models, crud
@@ -193,6 +194,12 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
                 # Create new user
                 # Generate unique username from email
                 base_username = email.split('@')[0]
+                # Sanitize: only alphanumeric and underscores
+                base_username = re.sub(r'[^a-zA-Z0-9_]', '', base_username)
+                # Ensure minimum length
+                if len(base_username) < 4:
+                    base_username = f"user_{base_username}"
+                
                 username = base_username
                 counter = 1
                 

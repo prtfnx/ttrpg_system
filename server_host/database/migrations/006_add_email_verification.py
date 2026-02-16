@@ -92,22 +92,18 @@ def upgrade(db_path: str):
                 CREATE INDEX IF NOT EXISTS idx_game_sessions_is_demo 
                 ON game_sessions(is_demo)
             """)
-            logger.info("✓ is_de, OAuth, and demo session features"""
-    conn = None
-    try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+            logger.info("✓ is_demo column and index added")
+        else:
+            logger.info("⏭  is_demo column already exists")
         
-        logger.info("Dropping email_verification_tokens table")
-        cursor.execute("DROP TABLE IF EXISTS email_verification_tokens")
+        conn.commit()
+        logger.info("✅ Migration 006 upgrade completed")
+        return True
         
-        logger.info("Dropping indexes")
-        cursor.execute("DROP INDEX IF EXISTS idx_users_google_id")
-        cursor.execute("DROP INDEX IF EXISTS idx_game_sessions_is_demo")
-        
-        # SQLite doesn't support DROP COLUMN directly
-        logger.info("Note: Cannot remove is_verified, google_id, and is_demo columns in SQLite")
-        logger.info("      Columns
+    except sqlite3.Error as e:
+        logger.error(f"❌ Migration 006 upgrade failed: {e}")
+        if conn:
+            conn.rollback()
         raise
     finally:
         if conn:

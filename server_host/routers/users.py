@@ -82,6 +82,35 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
     logger.debug(f"get_current_user: User {username} found and authenticated")
     return user
 
+async def get_current_user_optional(request: Request, db: Session = Depends(get_db)):
+    """
+    Optional authentication - returns user if authenticated, None if not.
+    Does not raise exceptions for missing/invalid tokens.
+    """
+    try:
+        # Try to get token from cookie first
+        token = request.cookies.get("token")
+        
+        # If no token in cookie, try Authorization header
+        if not token:
+            authorization = request.headers.get("Authorization")
+            if authorization and authorization.startswith("Bearer "):
+                token = authorization.split(" ")[1]
+        
+        if not token:
+            return None
+        
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if username is None:
+            return None
+        
+        user = crud.get_user_by_username(db, username=username)
+        return user
+    except Exception as e:
+        logger.debug(f"get_current_user_optional: Authentication failed: {e}")
+        return None
+
 async def get_current_active_user(current_user: Annotated[schemas.User, Depends(get_current_user)]):
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")

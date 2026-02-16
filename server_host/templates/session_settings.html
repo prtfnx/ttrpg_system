@@ -65,7 +65,7 @@
                 {% for invite in invitations %}
                 <div class="list-item">
                     <div>
-                        <div class="list-item-title">{{ invite.role }}</div>
+                        <div class="list-item-title">{{ invite.pre_assigned_role }}</div>
                         {% if invite.max_uses > 0 %}
                         <div class="list-item-meta">{{ invite.uses_count }}/{{ invite.max_uses }} uses</div>
                         {% else %}

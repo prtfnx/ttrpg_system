@@ -564,7 +564,9 @@ async def update_profile(
 @router.get("/auth-error")
 async def auth_error_page(request: Request):
     """Authentication error page"""
-    return templates.TemplateResponse(request, "auth_error.html", {})
+    return templates.TemplateResponse(request, "auth_error.html", {
+        "error_message": "Authentication failed. Please try again."
+    })
 
 @router.get("/logout")
 def logout():

@@ -242,8 +242,7 @@ async def game_session_admin(
         raise HTTPException(status_code=403, detail="Only the DM can access the admin panel")
     
     # Render admin template
-    return templates.TemplateResponse("admin_panel.html", {
-
+    return templates.TemplateResponse(request, "admin_panel.html", {
         "user": current_user,
         "session": game_session,
         "session_code": session_code

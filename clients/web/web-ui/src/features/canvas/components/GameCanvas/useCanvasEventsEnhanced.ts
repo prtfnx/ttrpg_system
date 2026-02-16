@@ -3,10 +3,10 @@
  * Maintains compatibility with existing GameCanvas interface
  */
 
+import type { RenderEngine } from '@lib/wasm/wasm';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 import { inputManager } from '../../services/InputManager';
 import { getRelativeCoords } from './canvasUtils';
-import type { RenderEngine } from '@lib/wasm/wasm';
 
 export interface CanvasEventsEnhanced {
   stableMouseDown: (event: MouseEvent) => void;

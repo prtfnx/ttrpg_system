@@ -3,7 +3,6 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EnhancedCharacterWizard } from '../EnhancedCharacterWizard';
-import { createAuthMock } from '@test/mocks/auth.mock';
 
 // Mock external dependencies
 vi.mock('@shared/components', () => ({
@@ -20,7 +19,23 @@ vi.mock('@/services/ProtocolContext', () => ({
   }),
 }));
 
-vi.mock('@features/auth', () => createAuthMock());
+vi.mock('@features/auth', () => ({
+  authService: {
+    getUserInfo: vi.fn(() => ({ id: 1, username: 'testuser' })),
+  },
+  useAuth: () => ({
+    user: { id: 1, username: 'testuser', permissions: [] },
+    isAuthenticated: true,
+    permissions: [],
+    login: vi.fn(),
+    logout: vi.fn(),
+    loading: false,
+    error: '',
+    hasPermission: vi.fn(() => true),
+    requireAuth: vi.fn((op: any) => op()),
+    updateUser: vi.fn()
+  })
+}));
 
 describe('EnhancedCharacterWizard', () => {
   const user = userEvent.setup();

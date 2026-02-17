@@ -71,22 +71,9 @@ import { MapPanel } from '@features/table';
 
 // Mock the auth service to provide authenticated user for tests
 import { vi } from 'vitest';
+import { createAuthMock } from '@test/mocks/auth.mock';
 
-vi.mock('@features/auth', () => ({
-  authService: {
-    initialize: vi.fn(() => Promise.resolve()),
-    getUserInfo: vi.fn(() => ({
-      id: 'test-user-1',
-      username: 'testuser',
-      email: 'test@example.com',
-      permissions: ['compendium:read', 'compendium:write', 'table:admin', 'character:write']
-    })),
-    isAuthenticated: vi.fn(() => true),
-    updateUserInfo: vi.fn(),
-    extractToken: vi.fn(() => Promise.resolve('test-token'))
-  },
-  AuthProvider: ({ children }: any) => <div>{children}</div>
-}));
+vi.mock('@features/auth', () => createAuthMock());
 
 describe('MapPanel Component', () => {
   const mockDefaultProps = {

@@ -42,6 +42,7 @@ export default defineConfig({
   resolve: {
     alias: {
       // Path aliases for test files
+      '@': '/src',
       '@features': '/src/features',
       '@shared': '/src/shared',
       '@lib': '/src/lib',

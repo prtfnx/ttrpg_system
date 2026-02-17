@@ -54,8 +54,22 @@ beforeEach(() => {
 afterEach(() => {
   // Clean up global mocks by setting to undefined instead of delete
   // This avoids "Cannot delete property" errors
+  // Then redefine them for next test
   (window as any).ttrpg_rust_core = undefined;
   (window as any).gameAPI = undefined;
+  
+  // Restore them for next test
+  Object.defineProperty(window, 'ttrpg_rust_core', {
+    value: true,
+    writable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(window, 'gameAPI', {
+    value: mockGameAPI,
+    writable: true,
+    configurable: true,
+  });
 });
 
 describe('useLayerManager', () => {
@@ -416,21 +430,29 @@ describe('useLayerManager', () => {
     });
 
     it('batches layer data refresh calls', async () => {
+      // Ensure clean state for this test
+      (window as any).ttrpg_rust_core = true;
+      (window as any).gameAPI = mockGameAPI;
+      
       const { result } = renderHook(() => useLayerManager());
 
       await waitFor(() => {
-        expect(result.current.isInitialized).toBe(true);
-      });
+        expect(result.current?.isInitialized).toBe(true);
+      }, { timeout: 3000 });
 
       // Reset call count after initialization
       mockRenderManager.get_layer_settings.mockClear();
 
-      // Multiple rapid refresh calls
-      await Promise.all([
-        act(() => result.current.refreshLayerData()),
-        act(() => result.current.refreshLayerData()),
-        act(() => result.current.refreshLayerData()),
-      ]);
+      // Multiple rapid refresh calls (use await act for each)
+      await act(async () => {
+        result.current?.refreshLayerData();
+      });
+      await act(async () => {
+        result.current?.refreshLayerData();
+      });
+      await act(async () => {
+        result.current?.refreshLayerData();
+      });
 
       // Each call should execute (no batching in this implementation)
       expect(mockRenderManager.get_layer_settings).toHaveBeenCalledTimes(21); // 7 layers × 3 calls

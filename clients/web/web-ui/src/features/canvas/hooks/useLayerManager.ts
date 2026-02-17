@@ -240,19 +240,70 @@ export const useLayerManager = () => {
     }
   }, [renderManager, refreshLayerData]);
 
+  // Utility functions for querying layer state
+  const getLayerByName = useCallback((layerName: string): LayerInfo | undefined => {
+    return layers.find(layer => layer.name === layerName);
+  }, [layers]);
+
+  const getVisibleLayers = useCallback((): LayerInfo[] => {
+    return layers.filter(layer => layer.settings.visible);
+  }, [layers]);
+
+  const getLayersByZOrder = useCallback((): LayerInfo[] => {
+    return [...layers].sort((a, b) => a.settings.z_order - b.settings.z_order);
+  }, [layers]);
+
+  // Alias for setLayerVisibility to match common naming convention
+  const setLayerVisible = setLayerVisibility;
+
+  // Alias for setLayerBlendMode to match common naming convention
+  const setBlendMode = setLayerBlendMode;
+
+  // Combined settings update function
+  const updateLayerSettings = useCallback((layerName: string, settings: Partial<LayerSettings>) => {
+    if (!renderManager) return false;
+
+    try {
+      if (settings.visible !== undefined) {
+        renderManager.set_layer_visible?.(layerName, settings.visible);
+      }
+      if (settings.opacity !== undefined) {
+        renderManager.set_layer_opacity?.(layerName, settings.opacity);
+      }
+      if (settings.color !== undefined) {
+        renderManager.set_layer_color?.(layerName, settings.color[0], settings.color[1], settings.color[2]);
+      }
+      if (settings.blend_mode !== undefined) {
+        renderManager.set_layer_blend_mode?.(layerName, settings.blend_mode);
+      }
+      refreshLayerData();
+      return true;
+    } catch (error) {
+      console.error('Failed to update layer settings:', error);
+      return false;
+    }
+  }, [renderManager, refreshLayerData]);
+
   return {
     isInitialized,
     layers,
     activeLayer,
     setActiveLayer,
     setLayerVisibility,
+    setLayerVisible, // Alias
     setLayerOpacity,
     setLayerColor,
     setLayerBlendMode,
+    setBlendMode, // Alias
+    updateLayerSettings,
     reorderLayers,
     clearLayer,
     hideOtherLayers,
     showAllLayers,
-    refreshLayerData: () => refreshLayerData()
+    refreshLayerData: () => refreshLayerData(),
+    // Utility functions
+    getLayerByName,
+    getVisibleLayers,
+    getLayersByZOrder,
   };
 };

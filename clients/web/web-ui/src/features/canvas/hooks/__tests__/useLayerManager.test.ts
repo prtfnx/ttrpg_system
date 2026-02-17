@@ -52,9 +52,10 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  // Clean up global mocks
-  delete (window as any).ttrpg_rust_core;
-  delete (window as any).gameAPI;
+  // Clean up global mocks by setting to undefined instead of delete
+  // This avoids "Cannot delete property" errors
+  (window as any).ttrpg_rust_core = undefined;
+  (window as any).gameAPI = undefined;
 });
 
 describe('useLayerManager', () => {
@@ -77,9 +78,9 @@ describe('useLayerManager', () => {
     });
 
     it('handles WASM initialization timeout', async () => {
-      // Remove WASM globals to simulate failure
-      delete (window as any).ttrpg_rust_core;
-      delete (window as any).gameAPI;
+      // Remove WASM globals to simulate failure by setting to undefined
+      (window as any).ttrpg_rust_core = undefined;
+      (window as any).gameAPI = undefined;
 
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const { result } = renderHook(() => useLayerManager());
@@ -91,16 +92,16 @@ describe('useLayerManager', () => {
     });
 
     it('waits for wasm-ready event when WASM is not initially available', async () => {
-      // Start without WASM
-      delete (window as any).ttrpg_rust_core;
-      delete (window as any).gameAPI;
+      // Start without WASM by setting to undefined
+      (window as any).ttrpg_rust_core = undefined;
+      (window as any).gameAPI = undefined;
 
       const { result } = renderHook(() => useLayerManager());
       expect(result.current.isInitialized).toBe(false);
 
       // Simulate WASM becoming ready
-      Object.defineProperty(window, 'ttrpg_rust_core', { value: true, writable: true });
-      Object.defineProperty(window, 'gameAPI', { value: mockGameAPI, writable: true });
+      (window as any).ttrpg_rust_core = true;
+      (window as any).gameAPI = mockGameAPI;
 
       // Emit ready event
       const readyEvent = new Event('wasm-ready');

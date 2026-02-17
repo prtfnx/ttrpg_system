@@ -89,8 +89,22 @@ export const useLayerManager = () => {
 
     try {
       const layerData = LAYER_CONFIG.map(config => {
-        const settings = manager.get_layer_settings?.(config.name);
-        const spriteCount = manager.get_layer_sprite_count?.(config.name) || 0;
+        let settings;
+        let spriteCount = 0;
+        
+        try {
+          settings = manager.get_layer_settings?.(config.name);
+        } catch (error) {
+          console.warn(`Failed to get settings for layer ${config.name}:`, error);
+          settings = null;
+        }
+        
+        try {
+          spriteCount = manager.get_layer_sprite_count?.(config.name) || 0;
+        } catch (error) {
+          console.warn(`Failed to get sprite count for layer ${config.name}:`, error);
+          spriteCount = 0;
+        }
         
         // Handle settings - might be object or string
         let parsedSettings;
@@ -114,9 +128,9 @@ export const useLayerManager = () => {
           settings: parsedSettings || {
             visible: true,
             opacity: 1.0,
-            color: [1.0, 1.0, 1.0, 1.0],
-            blend_mode: config.name === 'light' ? 'Additive' : 
-                       config.name === 'fog_of_war' ? 'Multiply' : 'Alpha',
+            color: [1.0, 1.0, 1.0, 1.0] as [number, number, number, number],
+            blend_mode: (config.name === 'light' ? 'Additive' : 
+                       config.name === 'fog_of_war' ? 'Multiply' : 'Alpha') as 'Alpha' | 'Additive' | 'Modulate' | 'Multiply',
             z_order: LAYER_CONFIG.findIndex(l => l.name === config.name)
           },
           spriteCount
@@ -125,33 +139,29 @@ export const useLayerManager = () => {
 
       setLayers(layerData);
     } catch (error) {
-      console.error('Failed to refresh layer data:', error);
+      console.error('Error refreshing layer data:', error);
     }
   }, [renderManager]);
 
-  const setLayerVisibility = useCallback((layerName: string, visible: boolean) => {
-    if (!renderManager) return false;
+  const setLayerVisibility = useCallback(async (layerName: string, visible: boolean) => {
+    if (!renderManager) return;
 
     try {
       renderManager.set_layer_visible?.(layerName, visible);
       refreshLayerData();
-      return true;
     } catch (error) {
-      console.error('Failed to set layer visibility:', error);
-      return false;
+      console.error('Error setting layer visibility:', error);
     }
   }, [renderManager, refreshLayerData]);
 
-  const setLayerOpacity = useCallback((layerName: string, opacity: number) => {
-    if (!renderManager) return false;
+  const setLayerOpacity = useCallback(async (layerName: string, opacity: number) => {
+    if (!renderManager) return;
 
     try {
       renderManager.set_layer_opacity?.(layerName, opacity);
       refreshLayerData();
-      return true;
     } catch (error) {
-      console.error('Failed to set layer opacity:', error);
-      return false;
+      console.error('Error setting layer opacity:', error);
     }
   }, [renderManager, refreshLayerData]);
 
@@ -168,16 +178,14 @@ export const useLayerManager = () => {
     }
   }, [renderManager, refreshLayerData]);
 
-  const setLayerBlendMode = useCallback((layerName: string, blendMode: string) => {
-    if (!renderManager) return false;
+  const setLayerBlendMode = useCallback(async (layerName: string, blendMode: string) => {
+    if (!renderManager) return;
 
     try {
-      renderManager.set_layer_blend_mode?.(layerName, blendMode);
+      renderManager.set_blend_mode?.(layerName, blendMode);
       refreshLayerData();
-      return true;
     } catch (error) {
-      console.error('Failed to set layer blend mode:', error);
-      return false;
+      console.error('Error setting layer blend mode:', error);
     }
   }, [renderManager, refreshLayerData]);
 
@@ -260,27 +268,30 @@ export const useLayerManager = () => {
   const setBlendMode = setLayerBlendMode;
 
   // Combined settings update function
-  const updateLayerSettings = useCallback((layerName: string, settings: Partial<LayerSettings>) => {
-    if (!renderManager) return false;
+  const updateLayerSettings = useCallback(async (layerName: string, settings: Partial<LayerSettings>) => {
+    if (!renderManager) return;
 
     try {
-      if (settings.visible !== undefined) {
-        renderManager.set_layer_visible?.(layerName, settings.visible);
-      }
-      if (settings.opacity !== undefined) {
-        renderManager.set_layer_opacity?.(layerName, settings.opacity);
-      }
-      if (settings.color !== undefined) {
-        renderManager.set_layer_color?.(layerName, settings.color[0], settings.color[1], settings.color[2]);
-      }
-      if (settings.blend_mode !== undefined) {
-        renderManager.set_layer_blend_mode?.(layerName, settings.blend_mode);
+      // Use set_layer_settings if available, otherwise set individually
+      if (renderManager.set_layer_settings) {
+        renderManager.set_layer_settings(layerName, settings);
+      } else {
+        if (settings.visible !== undefined) {
+          renderManager.set_layer_visible?.(layerName, settings.visible);
+        }
+        if (settings.opacity !== undefined) {
+          renderManager.set_layer_opacity?.(layerName, settings.opacity);
+        }
+        if (settings.color !== undefined) {
+          renderManager.set_layer_color?.(layerName, settings.color[0], settings.color[1], settings.color[2]);
+        }
+        if (settings.blend_mode !== undefined) {
+          renderManager.set_blend_mode?.(layerName, settings.blend_mode);
+        }
       }
       refreshLayerData();
-      return true;
     } catch (error) {
-      console.error('Failed to update layer settings:', error);
-      return false;
+      console.error('Error updating layer settings:', error);
     }
   }, [renderManager, refreshLayerData]);
 

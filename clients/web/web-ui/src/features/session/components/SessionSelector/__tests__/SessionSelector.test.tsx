@@ -3,15 +3,10 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionSelector } from '@features/session';
+import { createAuthMock } from '@test/mocks/auth.mock';
 
 // Mock authService with factory function
-vi.mock('@features/auth', () => ({
-  authService: {
-    getUserSessions: vi.fn(),
-    logout: vi.fn(),
-  },
-  type: {} as any,
-}));
+vi.mock('@features/auth', () => createAuthMock());
 
 // Import mocked service after mock is defined
 import { authService } from '@features/auth';

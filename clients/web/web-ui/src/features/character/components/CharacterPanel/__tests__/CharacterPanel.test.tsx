@@ -5,10 +5,27 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CharacterPanel } from '@features/character';
 import { useGameStore } from '@/store';
 import { createTestCharacter, createTestSprite } from '@/test/utils/testFactories';
-import { createAuthMock } from '@test/mocks/auth.mock';
 
 // Mock external dependencies
-vi.mock('@features/auth', () => createAuthMock());
+vi.mock('@features/auth', () => ({
+  authService: {
+    getUserInfo: vi.fn(() => ({ id: 1, username: 'testuser' })),
+    login: vi.fn(),
+    logout: vi.fn(),
+  },
+  useAuth: () => ({
+    user: { id: 1, username: 'testuser', permissions: ['character:read', 'character:write'] },
+    isAuthenticated: true,
+    permissions: ['character:read', 'character:write'],
+    login: vi.fn(),
+    logout: vi.fn(),
+    loading: false,
+    error: '',
+    hasPermission: vi.fn(() => true),
+    requireAuth: vi.fn((op: any) => op()),
+    updateUser: vi.fn()
+  })
+}));
 
 vi.mock('@/services/ProtocolContext', () => ({
   useProtocol: () => ({

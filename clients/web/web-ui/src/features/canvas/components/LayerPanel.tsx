@@ -96,7 +96,13 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
       setIsLoading(false);
     };
 
-    // Reduce loading time in test environment (checking for common test indicators)
+    // If initialLayers are provided (e.g., from tests), initialize immediately
+    if (initialLayers && initialLayers.length > 0) {
+      initLayers();
+      return;
+    }
+
+    // Otherwise simulate loading with a delay
     const isTestEnvironment = typeof window !== 'undefined' && (
       window.location.href.includes('localhost') || 
       window.location.href.includes('test') ||
@@ -104,7 +110,6 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     );
     const delay = isTestEnvironment ? 10 : 100;
 
-    // Simulate loading
     const timer = setTimeout(initLayers, delay);
     return () => clearTimeout(timer);
   }, []);

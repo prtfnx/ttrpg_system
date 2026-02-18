@@ -5,11 +5,11 @@
  * Focus: What users see and do, not implementation details.
  */
 import { createTestTable } from '@/test/utils/testFactories';
-import { TablePanel } from '@features/table';
 import { renderWithProviders } from '@test/utils/test-utils';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { TablePanel } from '../TablePanel';
 
 // Mock the hook that provides table data
 const mockCreateTable = vi.fn(() => true);
@@ -24,7 +24,7 @@ const mockTables = [
   createTestTable({ table_id: 'table_2', table_name: 'Town Square', width: 1500, height: 1500 }),
 ];
 
-vi.mock('@features/table', () => ({
+vi.mock('../hooks/useTableManager', () => ({
   useTableManager: vi.fn(() => ({
     activeTableId: 'table_1',
     tables: mockTables,

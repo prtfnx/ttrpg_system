@@ -342,7 +342,9 @@ describe('LayerPanel - Game Master Layer Management', () => {
     it('shows active layer name', () => {
       render(<LayerPanel initialLayers={TEST_LAYERS} />);
 
-      expect(screen.getByText('Active: tokens')).toBeInTheDocument();
+      // Text is split across two elements
+      expect(screen.getByText('Active:')).toBeInTheDocument();
+      expect(screen.getByText('tokens')).toBeInTheDocument();
     });
   });
 

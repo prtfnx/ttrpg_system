@@ -273,8 +273,9 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
           return (
             <div
               key={layer.id}
-              className={clsx(styles.layerItem, isActive && styles.active)}
+              className={clsx(styles.layerItem, isActive && styles.active, isVisible ? styles.visible : styles.hiddenLayer)}
               onClick={() => handleLayerClick(layer.id)}
+              data-testid={`layer-item-${layer.id}`}
             >
               <div className={styles.layerMain}>
                 <div className={styles.layerInfo}>
@@ -293,6 +294,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
                     }}
                     title={isVisible ? 'Hide layer' : 'Show layer'}
                     aria-label={layer.id === 'fog_of_war' ? 'Toggle fog of war layer' : `Toggle ${layer.name} layer`}
+                    data-testid={`visibility-toggle-${layer.id}`}
                   >
                     {isVisible ? '👁️' : '🙈'}
                   </button>
@@ -313,6 +315,8 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
                     onChange={(e) => handleOpacityChange(layer.id, parseFloat(e.target.value))}
                     className={styles.opacitySlider}
                     onClick={(e) => e.stopPropagation()}
+                    data-testid={`opacity-slider-${layer.id}`}
+                    data-testid-input={`opacity-input-${layer.id}`}
                   />
                 </div>
               )}

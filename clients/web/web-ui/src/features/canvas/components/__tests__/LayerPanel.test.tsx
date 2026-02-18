@@ -1,7 +1,23 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LayerPanel } from '../LayerPanel';
+
+// Mock window.rustRenderManager
+const mockRustRenderManager = {
+  get_layer_sprite_count: vi.fn((layerId: string) => {
+    const counts: Record<string, number> = {
+      map: 1,
+      tokens: 5,
+      dungeon_master: 2,
+      light: 3,
+      height: 0,
+      obstacles: 4,
+      fog_of_war: 0
+    };
+    return counts[layerId] || 0;
+  })
+};
 
 // Mock the game store to control layer data
 const mockGameStore = {
@@ -36,8 +52,8 @@ vi.mock('../../../store', () => ({
 // Mock render engine for layer operations
 const mockRenderEngine = {
   isInitialized: true,
-  toggleLayerVisibility: vi.fn(),
-  setLayerOpacity: vi.fn(),
+  set_layer_visible: vi.fn(),
+  set_layer_opacity: vi.fn(),
   setActiveLayer: vi.fn(),
   getLayerSpriteCount: vi.fn((layerId: string) => {
     const counts: Record<string, number> = {
@@ -62,14 +78,20 @@ describe('LayerPanel - Game Master Layer Management', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Setup window.rustRenderManager mock
+    (window as any).rustRenderManager = mockRustRenderManager;
   });
 
   describe('When game master views layer panel', () => {
-    it('shows all available layers with their current status', () => {
+    it('shows all available layers with their current status', async () => {
       render(<LayerPanel />);
 
+      // Wait for layers to initialize (component has 10ms delay in test environment)
+      await waitFor(() => {
+        expect(screen.getByText('Map')).toBeInTheDocument();
+      });
+
       // Should show all default layers
-      expect(screen.getByText('Map')).toBeInTheDocument();
       expect(screen.getByText('Tokens')).toBeInTheDocument();
       expect(screen.getByText('DM Layer')).toBeInTheDocument();
       expect(screen.getByText('Lighting')).toBeInTheDocument();
@@ -84,46 +106,60 @@ describe('LayerPanel - Game Master Layer Management', () => {
       expect(screen.getByText('💡')).toBeInTheDocument(); // Lighting
     });
 
-    it('indicates which layer is currently active', () => {
+    it('indicates which layer is currently active', async () => {
       render(<LayerPanel />);
 
+      // Wait for layers to load
+      await waitFor(() => {
+        expect(screen.getByText('Tokens')).toBeInTheDocument();
+      });
+
       // Tokens should be marked as active
-      const tokensLayer = screen.getByText('Tokens').closest('.layerItem');
+      const tokensLayer = screen.getByTestId('layer-item-tokens');
       expect(tokensLayer).toHaveClass('active');
 
       // Other layers should not be active
-      const mapLayer = screen.getByText('Map').closest('.layerItem');
+      const mapLayer = screen.getByTestId('layer-item-map');
       expect(mapLayer).not.toHaveClass('active');
     });
 
-    it('shows sprite count for each layer', () => {
+    it('shows sprite count for each layer', async () => {
       render(<LayerPanel />);
+
+      // Wait for layers to load
+      await waitFor(() => {
+        expect(screen.getByText('Map')).toBeInTheDocument();
+      });
 
       // Should show sprite counts next to layer names
-      expect(screen.getByText('Map (1)')).toBeInTheDocument();
-      expect(screen.getByText('Tokens (5)')).toBeInTheDocument();
-      expect(screen.getByText('DM Layer (2)')).toBeInTheDocument();
-      expect(screen.getByText('Lighting (3)')).toBeInTheDocument();
-      expect(screen.getByText('Obstacles (4)')).toBeInTheDocument();
+      expect(screen.getByText('1 sprites')).toBeInTheDocument(); // Map
+      expect(screen.getByText('5 sprites')).toBeInTheDocument(); // Tokens
+      expect(screen.getByText('2 sprites')).toBeInTheDocument(); // DM Layer
+      expect(screen.getByText('3 sprites')).toBeInTheDocument(); // Lighting
+      expect(screen.getByText('4 sprites')).toBeInTheDocument(); // Obstacles
 
       // Empty layers should show (0) or be handled gracefully
-      expect(screen.getByText('Height (0)')).toBeInTheDocument();
-      expect(screen.getByText('Fog of War (0)')).toBeInTheDocument();
+      expect(screen.getByText('0 sprites')).toBeInTheDocument(); // Height and Fog of War
     });
 
-    it('shows visibility status for each layer', () => {
+    it('shows visibility status for each layer', async () => {
       render(<LayerPanel />);
 
-      // Visible layers should have eye icon or visible styling
-      const mapLayer = screen.getByText('Map').closest('.layerItem');
+      // Wait for layers to load
+      await waitFor(() => {
+        expect(screen.getByText('Map')).toBeInTheDocument();
+      });
+
+      // Visible layers should have visible styling
+      const mapLayer = screen.getByTestId('layer-item-map');
       expect(mapLayer).toHaveClass('visible');
 
-      const tokensLayer = screen.getByText('Tokens').closest('.layerItem');
+      const tokensLayer = screen.getByTestId('layer-item-tokens');
       expect(tokensLayer).toHaveClass('visible');
 
       // Hidden layers should have different styling
-      const dmLayer = screen.getByText('DM Layer').closest('.layerItem');
-      expect(dmLayer).toHaveClass('hidden');
+      const dmLayer = screen.getByTestId('layer-item-dungeon_master');
+      expect(dmLayer).toHaveClass('hiddenLayer');
     });
   });
 
@@ -131,19 +167,29 @@ describe('LayerPanel - Game Master Layer Management', () => {
     it('toggles layer visibility when eye button is clicked', async () => {
       render(<LayerPanel />);
 
+      // Wait for layers to load
+      await waitFor(() => {
+        expect(screen.getByTestId('visibility-toggle-map')).toBeInTheDocument();
+      });
+
       // Find and click the visibility toggle for the Map layer
       const mapVisibilityButton = screen.getByTestId('visibility-toggle-map');
       await user.click(mapVisibilityButton);
 
-      expect(mockRenderEngine.toggleLayerVisibility).toHaveBeenCalledWith('map');
+      expect(mockRenderEngine.set_layer_visible).toHaveBeenCalledWith('map', false);
       expect(mockGameStore.setLayerVisibility).toHaveBeenCalledWith('map', false);
     });
 
     it('shows immediate visual feedback when toggling visibility', async () => {
       render(<LayerPanel />);
 
+      // Wait for layers to load
+      await waitFor(() => {
+        expect(screen.getByText('Map')).toBeInTheDocument();
+      });
+
       // Map starts visible
-      let mapLayer = screen.getByText('Map').closest('.layerItem');
+      const mapLayer = screen.getByTestId('layer-item-map');
       expect(mapLayer).toHaveClass('visible');
 
       // Click to hide
@@ -157,12 +203,17 @@ describe('LayerPanel - Game Master Layer Management', () => {
     it('allows hiding all layers except active one', async () => {
       render(<LayerPanel />);
 
+      // Wait for layers to load
+      await waitFor(() => {
+        expect(screen.getByTestId('visibility-toggle-map')).toBeInTheDocument();
+      });
+
       // Hide multiple layers
       await user.click(screen.getByTestId('visibility-toggle-map'));
       await user.click(screen.getByTestId('visibility-toggle-light'));
       await user.click(screen.getByTestId('visibility-toggle-obstacles'));
 
-      expect(mockRenderEngine.toggleLayerVisibility).toHaveBeenCalledTimes(3);
+      expect(mockRenderEngine.set_layer_visible).toHaveBeenCalledTimes(3);
     });
 
     it('shows warning when trying to hide active layer', async () => {

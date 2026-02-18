@@ -186,7 +186,8 @@ describe('CharacterPanel', () => {
       await user.click(characterCard);
       
       await waitFor(() => {
-        expect(screen.getByText('Token')).toBeInTheDocument();
+        // Token badges show 🎭 emoji
+        expect(screen.getByText('🎭')).toBeInTheDocument();
       });
     });
   });
@@ -436,9 +437,9 @@ describe('CharacterPanel', () => {
       await user.click(characterCard);
       
       await waitFor(() => {
-        // Should show token badges (implementation dependent on actual component)
-        const tokens = screen.getAllByText('Token');
-        expect(tokens.length).toBeGreaterThan(0);
+        // Should show token badges with 🎭 emoji
+        const tokenBadges = screen.getAllByText('🎭');
+        expect(tokenBadges.length).toBe(2);
       });
     });
   });

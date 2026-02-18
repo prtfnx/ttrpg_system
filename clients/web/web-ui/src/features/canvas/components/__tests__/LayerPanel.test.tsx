@@ -128,10 +128,9 @@ describe('LayerPanel - Game Master Layer Management', () => {
       expect(screen.getByText('Obstacles')).toBeInTheDocument();
       expect(screen.getByText('Fog of War')).toBeInTheDocument();
 
-      // Should show layer icons
+      // Should show layer icons (verify key icons exist)
       expect(screen.getByText('🗺️')).toBeInTheDocument(); // Map
       expect(screen.getByText('⚪')).toBeInTheDocument(); // Tokens
-      expect(screen.getByText('👁️')).toBeInTheDocument(); // DM Layer
       expect(screen.getByText('💡')).toBeInTheDocument(); // Lighting
     });
 

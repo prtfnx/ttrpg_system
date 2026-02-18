@@ -14,7 +14,7 @@ vi.mock('../../services/invitation.service', () => ({
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       used: false
     })),
-    getInvitations: vi.fn(() => Promise.resolve([
+    listSessionInvitations: vi.fn(() => Promise.resolve([
       {
         id: 'inv1',
         sessionCode: 'TEST123',
@@ -35,11 +35,7 @@ vi.mock('../../services/invitation.service', () => ({
       }
     ])),
     deleteInvitation: vi.fn(() => Promise.resolve({ success: true })),
-    refreshInvitation: vi.fn(() => Promise.resolve({
-      id: 'inv123',
-      inviteCode: 'NEW456',
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-    }))
+    revokeInvitation: vi.fn(() => Promise.resolve({ success: true }))
   }
 }));
 
@@ -75,7 +71,7 @@ describe('useInvitations', () => {
       const { result } = renderHook(() => useInvitations(mockSessionCode));
 
       expect(result.current.invitations).toEqual([]);
-      expect(result.current.isLoading).toBe(false);
+      expect(result.current.loading).toBe(false);
       expect(result.current.error).toBeNull();
     });
 
@@ -88,7 +84,7 @@ describe('useInvitations', () => {
 
       expect(result.current.invitations[0].role).toBe('player');
       expect(result.current.invitations[1].role).toBe('spectator');
-      expect(result.current.isLoading).toBe(false);
+      expect(result.current.loading).toBe(false);
     });
 
     it('handles loading failure', async () => {

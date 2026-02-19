@@ -9,13 +9,53 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TablePanel } from '../TablePanel';
-import type { UseTableManagerReturn } from '../hooks/useTableManager';
 
 // Mock the hook that provides table data
-const mockUseTableManager = vi.fn<[], UseTableManagerReturn>();
+// Define mock data outside vi.mock but it will be captured
+const mockTableData = {
+  tableManager: {} as any,
+  activeTableId: 'table_1',
+  tables: [
+    {
+      table_id: 'table_1',
+      table_name: 'Main Dungeon',
+      width: 2000,
+      height: 2000,
+      table_scale: 1.0,
+      viewport_x: 0,
+      viewport_y: 0,
+      show_grid: true,
+      cell_side: 50,
+    },
+    {
+      table_id: 'table_2',
+      table_name: 'Town Square',
+      width: 1500,
+      height: 1500,
+      table_scale: 1.0,
+      viewport_x: 0,
+      viewport_y: 0,
+      show_grid: false,
+      cell_side: 50,
+    },
+  ],
+  createTable: vi.fn(() => true),
+  setActiveTable: vi.fn(),
+  setTableScreenArea: vi.fn(),
+  tableToScreen: vi.fn(),
+  screenToTable: vi.fn(),
+  isPointInTableArea: vi.fn(),
+  panViewport: vi.fn(),
+  zoomTable: vi.fn(),
+  setTableGrid: vi.fn(),
+  getVisibleBounds: vi.fn(),
+  snapToGrid: vi.fn(),
+  removeTable: vi.fn(),
+  refreshTables: vi.fn(),
+};
 
 vi.mock('../hooks/useTableManager', () => ({
-  useTableManager: mockUseTableManager,
+  useTableManager: () => mockTableData,
 }));
 
 describe('TablePanel', () => {
@@ -24,48 +64,32 @@ describe('TablePanel', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     
-    // Default mock return value for most tests
-    mockUseTableManager.mockReturnValue({
-      tableManager: {} as any,
-      activeTableId: 'table_1',
-      tables: [
-        {
-          table_id: 'table_1',
-          table_name: 'Main Dungeon',
-          width: 2000,
-          height: 2000,
-          table_scale: 1.0,
-          viewport_x: 0,
-          viewport_y: 0,
-          show_grid: true,
-          cell_side: 50,
-        },
-        {
-          table_id: 'table_2',
-          table_name: 'Town Square',
-          width: 1500,
-          height: 1500,
-          table_scale: 1.0,
-          viewport_x: 0,
-          viewport_y: 0,
-          show_grid: false,
-          cell_side: 50,
-        },
-      ],
-      createTable: vi.fn(() => true),
-      setActiveTable: vi.fn(),
-      setTableScreenArea: vi.fn(),
-      tableToScreen: vi.fn(),
-      screenToTable: vi.fn(),
-      isPointInTableArea: vi.fn(),
-      panViewport: vi.fn(),
-      zoomTable: vi.fn(),
-      setTableGrid: vi.fn(),
-      getVisibleBounds: vi.fn(),
-      snapToGrid: vi.fn(),
-      removeTable: vi.fn(),
-      refreshTables: vi.fn(),
-    });
+    // Reset mock data to default state
+    mockTableData.activeTableId = 'table_1';
+    mockTableData.tables = [
+      {
+        table_id: 'table_1',
+        table_name: 'Main Dungeon',
+        width: 2000,
+        height: 2000,
+        table_scale: 1.0,
+        viewport_x: 0,
+        viewport_y: 0,
+        show_grid: true,
+        cell_side: 50,
+      },
+      {
+        table_id: 'table_2',
+        table_name: 'Town Square',
+        width: 1500,
+        height: 1500,
+        table_scale: 1.0,
+        viewport_x: 0,
+        viewport_y: 0,
+        show_grid: false,
+        cell_side: 50,
+      },
+    ];
   });
 
   describe('Displaying Tables', () => {
@@ -94,25 +118,9 @@ describe('TablePanel', () => {
     });
 
     it('shows empty state when no tables exist', () => {
-      // Override mock for this specific test
-      mockUseTableManager.mockReturnValueOnce({
-        tableManager: {} as any,
-        activeTableId: null,
-        tables: [],
-        createTable: vi.fn(() => true),
-        setActiveTable: vi.fn(),
-        setTableScreenArea: vi.fn(),
-        tableToScreen: vi.fn(),
-        screenToTable: vi.fn(),
-        isPointInTableArea: vi.fn(),
-        panViewport: vi.fn(),
-        zoomTable: vi.fn(),
-        setTableGrid: vi.fn(),
-        getVisibleBounds: vi.fn(),
-        snapToGrid: vi.fn(),
-        removeTable: vi.fn(),
-        refreshTables: vi.fn(),
-      });
+      // Override mock data for this specific test
+      mockTableData.activeTableId = null;
+      mockTableData.tables = [];
 
       renderWithProviders(<TablePanel />);
       

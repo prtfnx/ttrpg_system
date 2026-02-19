@@ -142,12 +142,9 @@ describe('LayerPanel - Game Master Layer Management', () => {
         expect(screen.getByText('Tokens')).toBeInTheDocument();
       });
 
-      // User should see "Active: Tokens" display
-      expect(screen.getByText('Active: tokens')).toBeInTheDocument();
-      
-      // User should see the tokens icon in the active layer display
-      const activeDisplay = screen.getByText(/Active:/);
-      expect(activeDisplay).toBeInTheDocument();
+      // User should see "Active:" label and "tokens" name (split across two spans)
+      expect(screen.getByText('Active:')).toBeInTheDocument();
+      expect(screen.getByText('tokens')).toBeInTheDocument();
     });
 
     it('shows sprite count for each layer', async () => {
@@ -165,8 +162,9 @@ describe('LayerPanel - Game Master Layer Management', () => {
       expect(screen.getByText('3 sprites')).toBeInTheDocument(); // Lighting
       expect(screen.getByText('4 sprites')).toBeInTheDocument(); // Obstacles
 
-      // Empty layers should show (0) or be handled gracefully
-      expect(screen.getByText('0 sprites')).toBeInTheDocument(); // Height and Fog of War
+      // Empty layers should show (0) - multiple layers can have 0 sprites
+      const zeroSpriteLayers = screen.getAllByText('0 sprites'); // Height and Fog of War
+      expect(zeroSpriteLayers.length).toBeGreaterThanOrEqual(2);
     });
 
     it('shows visibility status for each layer', async () => {
@@ -380,20 +378,24 @@ describe('LayerPanel - Game Master Layer Management', () => {
     it('allows adjusting multiple layer settings', async () => {
       render(<LayerPanel initialLayers={TEST_LAYERS} />);
 
+      // User adjusts Lighting layer opacity
       await user.click(screen.getByText('Lighting'));
       const lightSlider = screen.getByTestId('opacity-slider-light');
+      expect(lightSlider).toBeInTheDocument();
       await user.type(lightSlider, '{arrowleft}');
 
+      // User toggles Fog of War visibility
       const fogToggle = screen.getByRole('button', { name: /toggle fog/i });
+      expect(fogToggle).toBeInTheDocument();
       await user.click(fogToggle);
 
+      // User adjusts Tokens layer opacity
       await user.click(screen.getByText('Tokens'));
       const tokensSlider = screen.getByTestId('opacity-slider-tokens');
+      expect(tokensSlider).toBeInTheDocument();
       await user.type(tokensSlider, '{arrowleft}');
 
-      // User successfully adjusted multiple layer settings
-      expect(lightSlider).toBeInTheDocument();
-      expect(fogToggle).toBeInTheDocument();
+      // User successfully performed multiple layer operations
       expect(tokensSlider).toBeInTheDocument();
     });
   });

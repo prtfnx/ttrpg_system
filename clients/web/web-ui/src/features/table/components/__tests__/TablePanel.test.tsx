@@ -12,30 +12,58 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TablePanel } from '../TablePanel';
 
 // Mock the hook that provides table data
-const mockCreateTable = vi.fn(() => true);
-const mockSetActiveTable = vi.fn();
-const mockSetTableGrid = vi.fn();
-const mockRemoveTable = vi.fn();
-const mockPanViewport = vi.fn();
-const mockZoomTable = vi.fn();
-
-const mockTables = [
-  createTestTable({ table_id: 'table_1', table_name: 'Main Dungeon', width: 2000, height: 2000 }),
-  createTestTable({ table_id: 'table_2', table_name: 'Town Square', width: 1500, height: 1500 }),
-];
-
-vi.mock('../hooks/useTableManager', () => ({
-  useTableManager: vi.fn(() => ({
-    activeTableId: 'table_1',
-    tables: mockTables,
-    createTable: mockCreateTable,
-    setActiveTable: mockSetActiveTable,
-    setTableGrid: mockSetTableGrid,
-    removeTable: mockRemoveTable,
-    panViewport: mockPanViewport,
-    zoomTable: mockZoomTable,
-  })),
-}));
+// Note: vi.mock is hoisted, so we must define mock data inside the factory
+vi.mock('../hooks/useTableManager', () => {
+  const mockCreateTable = vi.fn(() => true);
+  const mockSetActiveTable = vi.fn();
+  const mockSetTableGrid = vi.fn();
+  const mockRemoveTable = vi.fn();
+  const mockPanViewport = vi.fn();
+  const mockZoomTable = vi.fn();
+  
+  return {
+    useTableManager: vi.fn(() => ({
+      tableManager: {} as any, // WASM table manager instanceactiveTableId: 'table_1',
+      tables: [
+        {
+          table_id: 'table_1',
+          table_name: 'Main Dungeon',
+          width: 2000,
+          height: 2000,
+          table_scale: 1.0,
+          viewport_x: 0,
+          viewport_y: 0,
+          show_grid: true,
+          cell_side: 50,
+        },
+        {
+          table_id: 'table_2',
+          table_name: 'Town Square',
+          width: 1500,
+          height: 1500,
+          table_scale: 1.0,
+          viewport_x: 0,
+          viewport_y: 0,
+          show_grid: false,
+          cell_side: 50,
+        },
+      ],
+      createTable: mockCreateTable,
+      setActiveTable: mockSetActiveTable,
+      setTableScreenArea: vi.fn(),
+      tableToScreen: vi.fn(),
+      screenToTable: vi.fn(),
+      isPointInTableArea: vi.fn(),
+      panViewport: mockPanViewport,
+      zoomTable: mockZoomTable,
+      setTableGrid: mockSetTableGrid,
+      getVisibleBounds: vi.fn(),
+      snapToGrid: vi.fn(),
+      removeTable: mockRemoveTable,
+      refreshTables: vi.fn(),
+    })),
+  };
+});
 
 describe('TablePanel', () => {
   const user = userEvent.setup();

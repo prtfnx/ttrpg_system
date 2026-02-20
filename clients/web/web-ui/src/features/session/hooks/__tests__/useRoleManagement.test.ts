@@ -3,7 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the session management service
-vi.mock('../services/sessionManagement.service', () => ({
+vi.mock('@features/session/services/sessionManagement.service', () => ({
   sessionManagementService: {
     changePlayerRole: vi.fn(),
     kickPlayer: vi.fn()
@@ -37,7 +37,7 @@ describe('useRoleManagement', () => {
 
   describe('changeRole', () => {
     it('changes player role successfully', async () => {
-      const { sessionManagementService } = await import('../services/sessionManagement.service');
+      const { sessionManagementService } = await import('@features/session/services/sessionManagement.service');
       vi.mocked(sessionManagementService.changePlayerRole).mockResolvedValue({
         success: true,
         message: 'Role changed',
@@ -61,7 +61,7 @@ describe('useRoleManagement', () => {
     });
 
     it('sets changing state during role change', async () => {
-      const { sessionManagementService } = await import('../services/sessionManagement.service');
+      const { sessionManagementService } = await import('@features/session/services/sessionManagement.service');
       let resolveChange: any;
       const changePromise = new Promise(resolve => {
         resolveChange = resolve;
@@ -88,7 +88,7 @@ describe('useRoleManagement', () => {
     });
 
     it('handles role change error', async () => {
-      const { sessionManagementService } = await import('../services/sessionManagement.service');
+      const { sessionManagementService } = await import('@features/session/services/sessionManagement.service');
       vi.mocked(sessionManagementService.changePlayerRole).mockRejectedValue(
         new Error('Permission denied')
       );
@@ -117,7 +117,7 @@ describe('useRoleManagement', () => {
     });
 
     it('clears previous error on successful change', async () => {
-      const { sessionManagementService } = await import('../services/sessionManagement.service');
+      const { sessionManagementService } = await import('@features/session/services/sessionManagement.service');
       
       // First call fails
       vi.mocked(sessionManagementService.changePlayerRole).mockRejectedValueOnce(
@@ -149,7 +149,7 @@ describe('useRoleManagement', () => {
 
   describe('kickPlayer', () => {
     it('kicks player successfully', async () => {
-      const { sessionManagementService } = await import('../services/sessionManagement.service');
+      const { sessionManagementService } = await import('@features/session/services/sessionManagement.service');
       vi.mocked(sessionManagementService.kickPlayer).mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useRoleManagement(mockSessionCode));
@@ -166,7 +166,7 @@ describe('useRoleManagement', () => {
     });
 
     it('sets changing state during kick', async () => {
-      const { sessionManagementService } = await import('../services/sessionManagement.service');
+      const { sessionManagementService } = await import('@features/session/services/sessionManagement.service');
       let resolveKick: any;
       const kickPromise = new Promise(resolve => {
         resolveKick = resolve;
@@ -193,7 +193,7 @@ describe('useRoleManagement', () => {
     });
 
     it('handles kick error', async () => {
-      const { sessionManagementService } = await import('../services/sessionManagement.service');
+      const { sessionManagementService } = await import('@features/session/services/sessionManagement.service');
       vi.mocked(sessionManagementService.kickPlayer).mockRejectedValue(
         new Error('Cannot kick owner')
       );
@@ -222,7 +222,7 @@ describe('useRoleManagement', () => {
     });
 
     it('handles generic error without message', async () => {
-      const { sessionManagementService } = await import('../services/sessionManagement.service');
+      const { sessionManagementService } = await import('@features/session/services/sessionManagement.service');
       vi.mocked(sessionManagementService.kickPlayer).mockRejectedValue('Unknown error');
 
       const { result } = renderHook(() => useRoleManagement(mockSessionCode));
@@ -237,7 +237,7 @@ describe('useRoleManagement', () => {
 
   describe('Error Handling', () => {
     it('handles network errors gracefully', async () => {
-      const { sessionManagementService } = await import('../services/sessionManagement.service');
+      const { sessionManagementService } = await import('@features/session/services/sessionManagement.service');
       vi.mocked(sessionManagementService.changePlayerRole).mockRejectedValue(
         new Error('Network error: timeout')
       );
@@ -252,7 +252,7 @@ describe('useRoleManagement', () => {
     });
 
     it('handles generic errors with fallback message for role change', async () => {
-      const { sessionManagementService } = await import('../services/sessionManagement.service');
+      const { sessionManagementService } = await import('@features/session/services/sessionManagement.service');
       vi.mocked(sessionManagementService.changePlayerRole).mockRejectedValue('Generic error');
 
       const { result } = renderHook(() => useRoleManagement(mockSessionCode));

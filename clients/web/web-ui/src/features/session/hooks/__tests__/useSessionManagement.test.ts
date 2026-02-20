@@ -27,8 +27,8 @@ vi.mock('@features/session/services', () => ({
   }
 }));
 
-// Mock the protocol context
-vi.mock('@shared/test-utils/ProtocolTestWrapper', () => ({
+// Mock the protocol context  
+vi.mock('@app/providers', () => ({
   useProtocol: () => ({
     protocol: {
       sendEvent: vi.fn(),
@@ -36,11 +36,7 @@ vi.mock('@shared/test-utils/ProtocolTestWrapper', () => ({
       removeEventListener: vi.fn()
     },
     isConnected: true
-  })
-}));
-
-// Mock auth context
-vi.mock('@features/auth', () => ({
+  }),
   useAuth: () => ({
     user: {
       id: 'test-user-1',

@@ -48,12 +48,12 @@ describe('PlayerList', () => {
 
   const defaultProps = {
     players: mockPlayers,
-    onRoleChange: vi.fn(),
-    onRemovePlayer: vi.fn(),
-    canModify: true,
-    bulkMode: false,
-    selectedPlayers: new Set<string>(),
-    onToggleSelection: vi.fn()
+    sessionCode: 'TEST123',
+    canManagePlayers: true,
+    changing: false,
+    onRoleChange: vi.fn(async () => true),
+    onKick: vi.fn(async () => true),
+    onPlayerUpdate: vi.fn()
   };
 
   beforeEach(() => {
@@ -65,7 +65,8 @@ describe('PlayerList', () => {
       renderWithProviders(<PlayerList {...defaultProps} />);
 
       expect(screen.getByText('Player One')).toBeInTheDocument();
-      expect(screen.getByText('Trusted Player')).toBeInTheDocument();
+      // 'Trusted Player' appears as both username and role option, so use getAllByText
+      expect(screen.getAllByText('Trusted Player')[0]).toBeInTheDocument();
       expect(screen.getByText('Offline Player')).toBeInTheDocument();
     });
 
@@ -78,10 +79,11 @@ describe('PlayerList', () => {
     it('displays player roles correctly', () => {
       renderWithProviders(<PlayerList {...defaultProps} />);
 
-      // Should show role badges or indicators
-      expect(screen.getByText('Player')).toBeInTheDocument();
-      expect(screen.getByText('Trusted Player')).toBeInTheDocument();
-      expect(screen.getByText('Spectator')).toBeInTheDocument();
+      // Role selectors contain role options, so multiple matches expected
+      const roleSelectors = screen.getAllByTestId('role-selector');
+      expect(roleSelectors[0]).toHaveValue('player');
+      expect(roleSelectors[1]).toHaveValue('trusted_player');
+      expect(roleSelectors[2]).toHaveValue('spectator');
     });
 
     it('shows online/offline status', () => {
@@ -104,8 +106,8 @@ describe('PlayerList', () => {
       expect(roleSelectors).toHaveLength(3);
     });
 
-    it('hides role selectors when canModify is false', () => {
-      renderWithProviders(<PlayerList {...defaultProps} canModify={false} />);
+    it('hides role selectors when canManagePlayers is false', () => {
+      renderWithProviders(<PlayerList {...defaultProps} canManagePlayers={false} />);
 
       const roleSelectors = screen.queryAllByTestId('role-selector');
       expect(roleSelectors).toHaveLength(0);
@@ -155,18 +157,18 @@ describe('PlayerList', () => {
   });
 
   describe('Player Removal', () => {
-    it('shows remove button for each player when canModify is true', () => {
+    it('shows kick button for each player when canManagePlayers is true', () => {
       renderWithProviders(<PlayerList {...defaultProps} />);
 
-      const removeButtons = screen.getAllByTitle(/remove.*player/i);
-      expect(removeButtons).toHaveLength(3);
+      const kickButtons = screen.getAllByTitle(/kick.*player/i);
+      expect(kickButtons).toHaveLength(3);
     });
 
-    it('hides remove buttons when canModify is false', () => {
-      renderWithProviders(<PlayerList {...defaultProps} canModify={false} />);
+    it('hides kick buttons when canManagePlayers is false', () => {
+      renderWithProviders(<PlayerList {...defaultProps} canManagePlayers={false} />);
 
-      const removeButtons = screen.queryAllByTitle(/remove.*player/i);
-      expect(removeButtons).toHaveLength(0);
+      const kickButtons = screen.queryAllByTitle(/kick.*player/i);
+      expect(kickButtons).toHaveLength(0);
     });
 
     it('calls onRemovePlayer when remove button is clicked', async () => {

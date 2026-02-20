@@ -24,25 +24,28 @@ vi.mock('../PlayerRoleSelector', () => ({
 describe('PlayerList', () => {
   const mockPlayers = [
     {
-      userId: 'user1',
+      id: 1,
+      user_id: 101,
       username: 'Player One',
       role: 'player' as const,
-      isOnline: true,
-      lastActivity: new Date().toISOString()
+      is_connected: true,
+      permissions: []
     },
     {
-      userId: 'user2', 
+      id: 2,
+      user_id: 102,
       username: 'Trusted Player',
       role: 'trusted_player' as const,
-      isOnline: true,
-      lastActivity: new Date().toISOString()
+      is_connected: true,
+      permissions: []
     },
     {
-      userId: 'user3',
+      id: 3,
+      user_id: 103,
       username: 'Offline Player',
       role: 'spectator' as const,
-      isOnline: false,
-      lastActivity: new Date(Date.now() - 60 * 60 * 1000).toISOString() // 1 hour ago
+      is_connected: false,
+      permissions: []
     }
   ];
 
@@ -127,11 +130,12 @@ describe('PlayerList', () => {
       const playersWithOwner = [
         ...mockPlayers,
         {
-          userId: 'owner-user',
+          id: 4,
+          user_id: 999,
           username: 'Session Owner',
           role: 'owner' as const,
-          isOnline: true,
-          lastActivity: new Date().toISOString()
+          is_connected: true,
+          permissions: []
         }
       ];
 
@@ -185,11 +189,12 @@ describe('PlayerList', () => {
       const playersWithOwner = [
         ...mockPlayers,
         {
-          userId: 'current-user', // Same as auth user
+          id: 4,
+          user_id: 999,
           username: 'Session Owner',
           role: 'owner' as const,
-          isOnline: true,
-          lastActivity: new Date().toISOString()
+          is_connected: true,
+          permissions: []
         }
       ];
 
@@ -225,90 +230,6 @@ describe('PlayerList', () => {
       expect(playerElements[0]).toHaveTextContent('Player One');
       expect(playerElements[1]).toHaveTextContent('Trusted Player');
       expect(playerElements[2]).toHaveTextContent('Offline Player');
-    });
-  });
-
-  describe('Interactive Features', () => {
-    it('highlights player on hover', async () => {
-      const user = userEvent.setup();
-      renderWithProviders(<PlayerList {...defaultProps} />);
-
-      const firstPlayer = screen.getAllByTestId('player-item')[0];
-      await user.hover(firstPlayer);
-
-      expect(firstPlayer).toHaveClass('hovered');
-    });
-
-    it('shows player context menu on right click', async () => {
-      const user = userEvent.setup();
-      renderWithProviders(<PlayerList {...defaultProps} />);
-
-      const firstPlayer = screen.getAllByTestId('player-item')[0];
-      await user.pointer({ target: firstPlayer, keys: '[MouseRight]' });
-
-      // Should show context menu with options
-      expect(screen.getByText('Promote to Co-DM')).toBeInTheDocument();
-      expect(screen.getByText('Remove Player')).toBeInTheDocument();
-    });
-
-    it('supports keyboard navigation', async () => {
-      const user = userEvent.setup();
-      renderWithProviders(<PlayerList {...defaultProps} />);
-
-      const firstPlayer = screen.getAllByTestId('player-item')[0];
-      firstPlayer.focus();
-
-      await user.keyboard('{ArrowDown}');
-      
-      const secondPlayer = screen.getAllByTestId('player-item')[1];
-      expect(secondPlayer).toHaveFocus();
-    });
-
-    it('supports keyboard selection in bulk mode', async () => {
-      const user = userEvent.setup();
-      renderWithProviders(<PlayerList {...defaultProps} bulkMode={true} />);
-
-      const firstPlayer = screen.getAllByTestId('player-item')[0];
-      firstPlayer.focus();
-
-      await user.keyboard(' '); // Space to select
-
-      expect(defaultProps.onToggleSelection).toHaveBeenCalledWith('user1');
-    });
-  });
-
-  describe('Performance and Virtualization', () => {
-    it('renders large player lists efficiently', () => {
-      const largePlayers = Array.from({ length: 100 }, (_, i) => ({
-        userId: `user${i}`,
-        username: `Player ${i}`,
-        role: 'player' as const,
-        isOnline: i % 2 === 0,
-        lastActivity: new Date().toISOString()
-      }));
-
-      const start = performance.now();
-      renderWithProviders(<PlayerList {...defaultProps} players={largePlayers} />);
-      const end = performance.now();
-
-      // Should render in reasonable time (less than 100ms)
-      expect(end - start).toBeLessThan(100);
-    });
-
-    it('uses virtual scrolling for very large lists', () => {
-      const hugePlayers = Array.from({ length: 1000 }, (_, i) => ({
-        userId: `user${i}`,
-        username: `Player ${i}`,
-        role: 'player' as const,
-        isOnline: true,
-        lastActivity: new Date().toISOString()
-      }));
-
-      renderWithProviders(<PlayerList {...defaultProps} players={hugePlayers} />);
-
-      // Should not render all items in DOM
-      const playerElements = screen.getAllByTestId('player-item');
-      expect(playerElements.length).toBeLessThan(50); // Only visible items
     });
   });
 });

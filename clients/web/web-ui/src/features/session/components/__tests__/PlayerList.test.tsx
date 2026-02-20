@@ -120,7 +120,10 @@ describe('PlayerList', () => {
       const firstRoleSelector = screen.getAllByTestId('role-selector')[0];
       await user.selectOptions(firstRoleSelector, 'trusted_player');
 
-      expect(defaultProps.onRoleChange).toHaveBeenCalledWith('user1', 'trusted_player');
+      expect(defaultProps.onRoleChange).toHaveBeenCalledWith(
+        mockPlayers[0], 
+        'trusted_player'
+      );
     });
 
     it('disables role changes for session owner', () => {
@@ -171,17 +174,17 @@ describe('PlayerList', () => {
       expect(kickButtons).toHaveLength(0);
     });
 
-    it('calls onRemovePlayer when remove button is clicked', async () => {
+    it('calls onKick when kick button is clicked', async () => {
       const user = userEvent.setup();
       renderWithProviders(<PlayerList {...defaultProps} />);
 
-      const removeButton = screen.getAllByTitle(/remove.*player/i)[0];
-      await user.click(removeButton);
+      const kickButton = screen.getAllByTitle(/kick.*player/i)[0];
+      await user.click(kickButton);
 
-      expect(defaultProps.onRemovePlayer).toHaveBeenCalledWith('user1');
+      expect(defaultProps.onKick).toHaveBeenCalledWith(mockPlayers[0]);
     });
 
-    it('does not show remove button for session owner', () => {
+    it('does not show kick button for session owner', () => {
       const playersWithOwner = [
         ...mockPlayers,
         {
@@ -195,8 +198,8 @@ describe('PlayerList', () => {
 
       renderWithProviders(<PlayerList {...defaultProps} players={playersWithOwner} />);
 
-      const removeButtons = screen.getAllByTitle(/remove.*player/i);
-      expect(removeButtons).toHaveLength(3); // Only for non-owner players
+      const kickButtons = screen.getAllByTitle(/kick.*player/i);
+      expect(kickButtons).toHaveLength(3); // Only for non-owner players
     });
 
     it('confirms removal with player name', async () => {

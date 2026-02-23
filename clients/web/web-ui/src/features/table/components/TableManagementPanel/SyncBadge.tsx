@@ -1,4 +1,5 @@
 import clsx from 'clsx';
+import { AlertTriangle, Cloud, HardDrive, RefreshCw } from 'lucide-react';
 import type { FC } from 'react';
 import styles from '../TableManagementPanel.module.css';
 
@@ -15,29 +16,31 @@ export const SyncBadge: FC<SyncBadgeProps> = ({
   syncError, 
   formatRelativeTime 
 }) => {
-  const icons = {
-    local: '💾',
-    syncing: '🔄',
-    synced: '☁️',
-    error: '⚠️'
-  };
+  const status = syncStatus ?? 'synced';
 
-  const titles = {
-    local: 'Local only - not synced to server',
-    syncing: 'Syncing with server...',
+  const title = {
+    local: 'Local only — not synced',
+    syncing: 'Syncing...',
     synced: `Synced ${formatRelativeTime(lastSyncTime)}`,
-    error: `Sync error: ${syncError || 'Unknown error'}`
-  };
+    error: `Sync error: ${syncError ?? 'Unknown'}`,
+  }[status];
+
+  const icon = {
+    local: <HardDrive size={12} />,
+    syncing: <span className={styles.syncSpin}><RefreshCw size={12} /></span>,
+    synced: <Cloud size={12} />,
+    error: <AlertTriangle size={12} />,
+  }[status];
 
   return (
-    <div 
+    <div
       className={clsx(
         styles.syncBadge,
-        syncStatus && styles[`syncBadge${syncStatus.charAt(0).toUpperCase() + syncStatus.slice(1)}`]
+        styles[`syncBadge${status.charAt(0).toUpperCase() + status.slice(1)}`]
       )}
-      title={syncStatus ? titles[syncStatus] : 'Synced with server'}
+      title={title}
     >
-      {syncStatus ? icons[syncStatus] : icons.synced}
+      {icon}
     </div>
   );
 };

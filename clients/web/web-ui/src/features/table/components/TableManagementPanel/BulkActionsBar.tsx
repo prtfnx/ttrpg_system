@@ -1,3 +1,4 @@
+import { Copy, Trash2 } from 'lucide-react';
 import type { FC } from 'react';
 import styles from '../TableManagementPanel.module.css';
 
@@ -20,14 +21,14 @@ export const BulkActionsBar: FC<BulkActionsBarProps> = ({
         className={styles.bulkDuplicateButton}
         title="Duplicate selected"
       >
-        📋 Duplicate
+        <Copy size={13} /> Duplicate
       </button>
       <button 
         onClick={onDelete}
         className={styles.bulkDeleteButton}
         title="Delete selected"
       >
-        🗑️ Delete
+        <Trash2 size={13} /> Delete
       </button>
     </div>
   </div>

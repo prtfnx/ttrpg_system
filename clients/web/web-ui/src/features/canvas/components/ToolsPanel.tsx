@@ -7,6 +7,7 @@ import { PaintPanel } from '@features/painting';
 import { ProtocolService } from '@lib/api';
 import { AlignmentHelper } from '@shared/components';
 import DiceRoller from '@shared/components/DiceRoller';
+import { AlignLeft, Circle, Crown, Flame, Folder, Minus, Move, Paintbrush, Pencil, Ruler, Search, Snowflake, Sparkles, Square, Type, User, Wrench, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { TextSpriteTool } from './TextSprite';
 import styles from './ToolsPanel.module.css';
@@ -296,7 +297,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
               />
               <span>Development Build</span>
             </label>
-            <span className={styles.devBadge}>🔧 ACTIVE</span>
+            <span className={styles.devBadge}><Wrench size={12} aria-hidden /> ACTIVE</span>
           </div>
           <div className={styles.networkDescription}>
             Running in development mode - extra debugging tools enabled
@@ -318,7 +319,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
               <option value="player">Player</option>
             </select>
             <span className={styles.currentRole}>
-              Current: {userInfo.role === 'dm' ? '👑 DM' : '🎭 Player'}
+              Current: {userInfo.role === 'dm' ? <><Crown size={14} aria-hidden /> DM</> : <><User size={14} aria-hidden /> Player</>}
             </span>
           </div>
         </div>
@@ -333,42 +334,42 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           onClick={() => setActiveTool('select')}
           title="Select Tool"
         >
-          🔍 Select
+          <Search size={14} aria-hidden /> Select
         </button>
         <button 
           className={`${styles.toolButton} ${activeTool === 'move' ? styles.active : ''}`}
           onClick={() => setActiveTool('move')}
           title="Move Tool"
         >
-          ✋ Move
+          <Move size={14} aria-hidden /> Move
         </button>
         <button 
           className={`${styles.toolButton} ${activeTool === 'measure' ? styles.active : ''}`}
           onClick={() => setActiveTool('measure')}
           title="Measurement Tool"
         >
-          📏 Measure
+          <Ruler size={14} aria-hidden /> Measure
         </button>
         <button 
           className={`${styles.toolButton} ${activeTool === 'align' ? styles.active : ''}`}
           onClick={() => setActiveTool('align')}
           title="Alignment Helper"
         >
-          📐 Align
+          <AlignLeft size={14} aria-hidden /> Align
         </button>
         <button 
           className={`${styles.toolButton} ${activeTool === 'draw_shapes' ? styles.active : ''}`}
           onClick={() => setActiveTool('draw_shapes')}
           title="Draw Shapes"
         >
-          ✏️ Draw Shapes
+          <Pencil size={14} aria-hidden /> Draw Shapes
         </button>
         <button 
           className={`${styles.toolButton} ${activeTool === 'spell_templates' ? styles.active : ''}`}
           onClick={() => setActiveTool('spell_templates')}
           title="Spell Templates"
         >
-          🔮 Spell Templates
+          <Sparkles size={14} aria-hidden /> Spell Templates
         </button>
       </div>
 
@@ -384,28 +385,28 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
             }}
             title="Create Rectangle"
           >
-            ⬛ Rectangle
+            <Square size={14} aria-hidden /> Rectangle
           </button>
           <button 
             className={`${styles.toolButton} ${activeTool === 'circle' ? styles.active : ''}`}
             onClick={() => setActiveTool('circle')}
             title="Create Circle"
           >
-            ⭕ Circle
+            <Circle size={14} aria-hidden /> Circle
           </button>
           <button 
             className={`${styles.toolButton} ${activeTool === 'line' ? styles.active : ''}`}
             onClick={() => setActiveTool('line')}
             title="Create Line"
           >
-            📏 Line
+            <Minus size={14} aria-hidden /> Line
           </button>
           <button 
             className={`${styles.toolButton} ${activeTool === 'text' ? styles.active : ''}`}
             onClick={() => setActiveTool('text')}
             title="Create Text"
           >
-            🔤 Text
+            <Type size={14} aria-hidden /> Text
           </button>
         </div>
         
@@ -457,7 +458,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
             onClick={() => setAssetManagerVisible(true)}
             title="Asset Manager"
           >
-            📁 Assets
+            <Folder size={14} aria-hidden /> Assets
           </button>
           <button
             className={`${styles.toolButton} ${activeTool === 'paint' ? styles.active : ''}`}
@@ -473,7 +474,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
             }}
             title="Paint System"
           >
-            🎨 Paint
+            <Paintbrush size={14} aria-hidden /> Paint
           </button>
         </div>
       </div>
@@ -583,7 +584,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
                 }}
                 title="Fireball (20 ft radius)"
               >
-                🔥 Fireball (20 ft radius)
+                <Flame size={14} aria-hidden /> Fireball (20 ft radius)
               </button>
               <button
                 onClick={() => {
@@ -597,7 +598,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
                 }}
                 title="Cone of Cold (60 ft cone)"
               >
-                ❄️ Cone of Cold (60 ft cone)
+                <Snowflake size={14} aria-hidden /> Cone of Cold (60 ft cone)
               </button>
               <button
                 onClick={() => {
@@ -611,7 +612,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
                 }}
                 title="Lightning Bolt (100 ft line)"
               >
-                ⚡ Lightning Bolt (100 ft line)
+                <Zap size={14} aria-hidden /> Lightning Bolt (100 ft line)
               </button>
             </div>
             {(window as any).selectedSpellTemplate && (

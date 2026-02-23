@@ -1,6 +1,7 @@
-import { useRenderEngine } from '@features/canvas';
-import { useEffect, useState } from 'react';
 import { useGameStore } from '@/store';
+import { useRenderEngine } from '@features/canvas';
+import { AlertTriangle, Check } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface SyncState {
   status: 'idle' | 'syncing' | 'error' | 'success';
@@ -143,13 +144,13 @@ export function EntitiesPanel() {
         <h2>Entities ({sprites.length})</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {syncState.status === 'error' && (
-            <span style={{ color: 'red', fontSize: '12px' }} title={syncState.error}>
-              ⚠️ Sync Error
+            <span style={{ color: 'red', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} title={syncState.error}>
+              <AlertTriangle size={12} aria-hidden /> Sync Error
             </span>
           )}
           {syncState.status === 'success' && syncState.lastSync && (
-            <span style={{ color: 'green', fontSize: '12px' }}>
-              ✓ {new Date(syncState.lastSync).toLocaleTimeString()}
+            <span style={{ color: 'green', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <Check size={12} aria-hidden /> {new Date(syncState.lastSync).toLocaleTimeString()}
             </span>
           )}
           <button 

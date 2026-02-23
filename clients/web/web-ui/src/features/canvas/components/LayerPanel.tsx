@@ -1,4 +1,6 @@
 import clsx from 'clsx';
+import { Calendar, CloudFog, Construction, Crown, Eye, EyeOff, Layers, Lightbulb, Map, Mountain, Users } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useGameStore } from '@/store';
 import { useRenderEngine } from '../hooks/useRenderEngine';
@@ -7,7 +9,7 @@ import styles from './LayerPanel.module.css';
 interface Layer {
   id: string;
   name: string;
-  icon: string;
+  icon: LucideIcon;
   color: string;
   spriteCount: number;
 }
@@ -43,13 +45,13 @@ const calculateDynamicHeight = (layerCount: number): { height: number; maxHeight
 };
 
 const DEFAULT_LAYERS: Layer[] = [
-  { id: 'map', name: 'Map', icon: '🗺️', color: '#8b5cf6', spriteCount: 0 },
-  { id: 'tokens', name: 'Tokens', icon: '⚪', color: '#06b6d4', spriteCount: 0 },
-  { id: 'dungeon_master', name: 'DM Layer', icon: '👁️', color: '#dc2626', spriteCount: 0 },
-  { id: 'light', name: 'Lighting', icon: '💡', color: '#f59e0b', spriteCount: 0 },
-  { id: 'height', name: 'Height', icon: '⛰️', color: '#10b981', spriteCount: 0 },
-  { id: 'obstacles', name: 'Obstacles', icon: '🧱', color: '#ef4444', spriteCount: 0 },
-  { id: 'fog_of_war', name: 'Fog of War', icon: '🌫️', color: '#6b7280', spriteCount: 0 }
+  { id: 'map', name: 'Map', icon: Map, color: '#8b5cf6', spriteCount: 0 },
+  { id: 'tokens', name: 'Tokens', icon: Users, color: '#06b6d4', spriteCount: 0 },
+  { id: 'dungeon_master', name: 'DM Layer', icon: Crown, color: '#dc2626', spriteCount: 0 },
+  { id: 'light', name: 'Lighting', icon: Lightbulb, color: '#f59e0b', spriteCount: 0 },
+  { id: 'height', name: 'Height', icon: Mountain, color: '#10b981', spriteCount: 0 },
+  { id: 'obstacles', name: 'Obstacles', icon: Construction, color: '#ef4444', spriteCount: 0 },
+  { id: 'fog_of_war', name: 'Fog of War', icon: CloudFog, color: '#6b7280', spriteCount: 0 },
 ];
 
 export function LayerPanel({ className, style, id, initialLayers, ...otherProps }: LayerPanelProps) {
@@ -258,7 +260,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
           fontSize: '12px',
           color: '#93c5fd'
         }}>
-          <span style={{ marginRight: '6px' }}>🗓️</span>
+          <Calendar size={14} aria-hidden style={{ marginRight: '6px', flexShrink: 0 }} />
           <strong>Table:</strong> {activeTableId}
         </div>
       )}
@@ -284,7 +286,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
             >
               <div className={styles.layerMain}>
                 <div className={styles.layerInfo}>
-                  <span className={styles.layerIcon}>{layer.icon}</span>
+                  <span className={styles.layerIcon}><layer.icon size={16} aria-hidden /></span>
                   <div className={styles.layerDetails}>
                     <span className={styles.layerName}>{layer.name}</span>
                     <span className={styles.spriteCount}>{layer.spriteCount} sprites</span>
@@ -301,7 +303,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
                     aria-label={layer.id === 'fog_of_war' ? 'Toggle fog of war layer' : `Toggle ${layer.name} layer`}
                     data-testid={`visibility-toggle-${layer.id}`}
                   >
-                    {isVisible ? '👁️' : '🙈'}
+                    {isVisible ? <Eye size={14} aria-hidden /> : <EyeOff size={14} aria-hidden />}
                   </button>
                 </div>
               </div>
@@ -337,7 +339,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
 
       <div className={styles.layerPanelFooter}>
         <div className={styles.layerTips}>
-          <small>💡 Click layer to activate • Use icons to toggle visibility</small>
+          <small><Layers size={12} aria-hidden /> Click layer to activate • Use icons to toggle visibility</small>
         </div>
       </div>
 

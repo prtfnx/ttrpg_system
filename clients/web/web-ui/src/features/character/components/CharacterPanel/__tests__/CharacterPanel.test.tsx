@@ -13,6 +13,18 @@ vi.mock('@features/auth', () => ({
     login: vi.fn(),
     logout: vi.fn(),
   },
+  useAuth: () => ({
+    user: { id: 1, username: 'testuser', permissions: ['character:read', 'character:write'] },
+    isAuthenticated: true,
+    permissions: ['character:read', 'character:write'],
+    login: vi.fn(),
+    logout: vi.fn(),
+    loading: false,
+    error: '',
+    hasPermission: vi.fn(() => true),
+    requireAuth: vi.fn((op: any) => op()),
+    updateUser: vi.fn()
+  })
 }));
 
 vi.mock('@/services/ProtocolContext', () => ({
@@ -174,7 +186,8 @@ describe('CharacterPanel', () => {
       await user.click(characterCard);
       
       await waitFor(() => {
-        expect(screen.getByText('Token')).toBeInTheDocument();
+        // Token badges show 🎭 emoji
+        expect(screen.getByText('🎭')).toBeInTheDocument();
       });
     });
   });
@@ -424,9 +437,9 @@ describe('CharacterPanel', () => {
       await user.click(characterCard);
       
       await waitFor(() => {
-        // Should show token badges (implementation dependent on actual component)
-        const tokens = screen.getAllByText('Token');
-        expect(tokens.length).toBeGreaterThan(0);
+        // Should show token badges with 🎭 emoji
+        const tokens = screen.getAllByText('🎭');
+        expect(tokens.length).toBe(2);
       });
     });
   });

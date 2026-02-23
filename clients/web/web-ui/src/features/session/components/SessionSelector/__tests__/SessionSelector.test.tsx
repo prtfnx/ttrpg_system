@@ -10,6 +10,18 @@ vi.mock('@features/auth', () => ({
     getUserSessions: vi.fn(),
     logout: vi.fn(),
   },
+  useAuth: () => ({
+    user: { id: 'test-user', username: 'testuser', permissions: [] },
+    isAuthenticated: true,
+    permissions: [],
+    login: vi.fn(),
+    logout: vi.fn(),
+    loading: false,
+    error: '',
+    hasPermission: vi.fn(() => true),
+    requireAuth: vi.fn((op: any) => op()),
+    updateUser: vi.fn()
+  }),
   type: {} as any,
 }));
 

@@ -2,11 +2,10 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { enhancedAuthService } from '@features/session/services';
 import EnhancedLogin from './EnhancedLogin';
 
 // Mock the auth service - but don't change its API, work with what users expect
-vi.mock('@features/session/services', () => ({
+vi.mock('@features/auth/services/enhancedAuth.service', () => ({
   enhancedAuthService: {
     login: vi.fn(),
     register: vi.fn(),
@@ -16,9 +15,13 @@ vi.mock('@features/session/services', () => ({
   }
 }));
 
-vi.mock('./common/ErrorBoundary', () => ({
-  ErrorBoundary: ({ children }: { children: React.ReactNode }) => <div>{children}</div>
+vi.mock('@shared/components', () => ({
+  ErrorBoundary: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  LoadingSpinner: () => <div>Loading...</div>
 }));
+
+// Import after mock is defined
+import { enhancedAuthService } from '@features/auth/services/enhancedAuth.service';
 
 // Type the mocked service
 const mockAuthService = vi.mocked(enhancedAuthService);

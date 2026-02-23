@@ -27,8 +27,30 @@ vi.mock('@features/session/services', () => ({
   }
 }));
 
-// Mock the protocol context
-vi.mock('@shared/test-utils/ProtocolTestWrapper', () => ({
+// Mock dependent hooks
+vi.mock('./useSessionPlayers', () => ({
+  useSessionPlayers: vi.fn(() => ({
+    players: [
+      { id: 'user1', name: 'Player 1', role: 'player', isConnected: true },
+      { id: 'user2', name: 'Player 2', role: 'dm', isConnected: true }
+    ],
+    loading: false,
+    error: null,
+    refetch: vi.fn()
+  }))
+}));
+
+vi.mock('./useRoleManagement', () => ({
+  useRoleManagement: vi.fn(() => ({
+    changeRole: vi.fn(() => Promise.resolve()),
+    kickPlayer: vi.fn(() => Promise.resolve()),
+    changing: false,
+    error: null
+  }))
+}));
+
+// Mock the protocol context  
+vi.mock('@app/providers', () => ({
   useProtocol: () => ({
     protocol: {
       sendEvent: vi.fn(),
@@ -36,11 +58,7 @@ vi.mock('@shared/test-utils/ProtocolTestWrapper', () => ({
       removeEventListener: vi.fn()
     },
     isConnected: true
-  })
-}));
-
-// Mock auth context
-vi.mock('@features/auth', () => ({
+  }),
   useAuth: () => ({
     user: {
       id: 'test-user-1',

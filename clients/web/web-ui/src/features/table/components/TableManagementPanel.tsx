@@ -1,4 +1,5 @@
 import clsx from 'clsx';
+import { Layers, Plus, RefreshCw, Settings2, Upload } from 'lucide-react';
 import type { FC } from 'react';
 import styles from './TableManagementPanel.module.css';
 import { BulkActionsBar } from './TableManagementPanel/BulkActionsBar';
@@ -70,50 +71,46 @@ export const TableManagementPanel: FC = () => {
   return (
     <div className={styles.tableManagementPanel}>
       <div className={styles.panelHeader}>
-        <h3>Table Management</h3>
+        <h3>Tables</h3>
         <div className={styles.headerActions}>
-          <button 
-            onClick={() => setBulkMode(!bulkMode)}
-            className={clsx(styles.bulkModeButton, bulkMode && styles.active)}
-            title="Bulk select mode"
-          >
-            {bulkMode ? '☑' : '☐'}
-          </button>
-          <button 
-            onClick={handleImportTable}
-            className={styles.importButton}
-            title="Import table"
-          >
-            📥
-          </button>
-          <button 
-            onClick={() => setShowSettings(!showSettings)}
-            className={clsx(styles.settingsToggleButton, showSettings && styles.active)}
-            title="Panel settings"
-          >
-            ⚙️
-          </button>
-          <button 
-            onClick={requestTableList}
-            disabled={tablesLoading}
-            className={styles.refreshButton}
-            title="Refresh table list"
-          >
-            {tablesLoading ? '⟳' : '↻'}
-          </button>
-          <button 
-            onClick={handleDiagnoseThumbnails}
-            className={styles.debugButton}
-            title="Diagnose thumbnail rendering"
-          >
-            🔍
-          </button>
-          <button 
+          <div className={styles.headerIconGroup}>
+            <button
+              onClick={requestTableList}
+              disabled={tablesLoading}
+              className={clsx(styles.iconBtn, tablesLoading && styles.spinning)}
+              title="Refresh"
+            >
+              <RefreshCw size={14} />
+            </button>
+            <button
+              onClick={() => setBulkMode(!bulkMode)}
+              className={clsx(styles.iconBtn, bulkMode && styles.active)}
+              title="Multi-select"
+            >
+              <Layers size={14} />
+            </button>
+            <button
+              onClick={handleImportTable}
+              className={styles.iconBtn}
+              title="Import table"
+            >
+              <Upload size={14} />
+            </button>
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className={clsx(styles.iconBtn, showSettings && styles.active)}
+              title="Panel settings"
+            >
+              <Settings2 size={14} />
+            </button>
+          </div>
+          <button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className={styles.createButton}
+            className={clsx(styles.newTableBtn, showCreateForm && styles.active)}
             title="Create new table"
           >
-            +
+            <Plus size={14} />
+            New Table
           </button>
         </div>
       </div>
@@ -155,7 +152,7 @@ export const TableManagementPanel: FC = () => {
           </label>
         )}
         <div className={styles.searchBox}>
-          <span className={styles.searchIcon}>🔍</span>
+          <span className={styles.searchIcon}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
           <input
             type="text"
             value={searchQuery}

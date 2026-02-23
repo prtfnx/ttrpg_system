@@ -1,5 +1,6 @@
 import type { RenderEngine } from '@lib/wasm';
 import { useActions } from '@shared/hooks';
+import { Redo2, Undo2 } from 'lucide-react';
 import React, { useCallback, useState } from 'react';
 
 interface ActionsQuickPanelProps {
@@ -82,7 +83,7 @@ export const ActionsQuickPanel: React.FC<ActionsQuickPanelProps> = ({ renderEngi
   return (
     <div className="game-panel">
       <div className="panel-header-compact">
-        <h3 className="panel-title">⚡ Quick Actions</h3>
+        <h3 className="panel-title">Quick Actions</h3>
       </div>
 
       <div className="actions-quick-content">
@@ -186,7 +187,7 @@ export const ActionsQuickPanel: React.FC<ActionsQuickPanelProps> = ({ renderEngi
                 cursor: 'pointer'
               }}
             >
-              ↶ Undo
+              <Undo2 size={14} aria-hidden /> Undo
             </button>
             <button 
               onClick={handleRedo}
@@ -201,7 +202,7 @@ export const ActionsQuickPanel: React.FC<ActionsQuickPanelProps> = ({ renderEngi
                 cursor: 'pointer'
               }}
             >
-              ↷ Redo
+              <Redo2 size={14} aria-hidden /> Redo
             </button>
           </div>
         </div>

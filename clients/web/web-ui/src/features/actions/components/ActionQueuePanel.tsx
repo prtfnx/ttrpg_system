@@ -1,7 +1,7 @@
+import type { UserInfo } from '@features/auth';
 import { useAuthenticatedWebSocket } from '@features/auth';
 import { MessageType, createMessage } from '@lib/websocket';
 import React, { useCallback, useEffect, useState } from "react";
-import type { UserInfo } from '@features/auth';
 import styles from './ActionQueuePanel.module.css';
 
 export interface QueuedAction {
@@ -66,7 +66,7 @@ export const ActionQueuePanel: React.FC<ActionQueuePanelProps> = ({ sessionCode,
   return (
     <div className={styles.actionQueuePanel}>
       <div className={styles.panelHeaderCompact}>
-        <h3 className={styles.panelTitle}>⚡ Actions</h3>
+        <h3 className={styles.panelTitle}>Actions</h3>
       </div>
       {error && <div className={styles.errorMessage}>{error}</div>}
       <div className={styles.actionForm}>

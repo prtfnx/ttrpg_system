@@ -1,6 +1,8 @@
 import type { RenderEngine } from '@lib/wasm';
 import { useActions, type ActionResult, type BatchAction, type TableInfo } from '@shared/hooks';
+import panelStyles from '@shared/styles/PanelBase.module.css';
 import clsx from 'clsx';
+import { Loader2, Redo2, Undo2, X } from 'lucide-react';
 import React, { useCallback, useState } from 'react';
 import styles from './ActionsPanel.module.css';
 
@@ -30,7 +32,7 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
   const [tableForm, setTableForm] = useState({ name: '', width: 800, height: 600 });
 
   const logResult = useCallback((operation: string, result: ActionResult) => {
-    const status = result.success ? '✅' : '❌';
+    const status = result.success ? 'OK' : 'Error';
     setLogs(prev => [...prev.slice(-19), `${status} ${operation}: ${result.message}`]);
   }, []);
 
@@ -201,14 +203,14 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
                 disabled={!actions.canUndo || actions.isLoading}
                 className={styles.actionButton}
               >
-                ↶ Undo
+                <Undo2 size={14} aria-hidden /> Undo
               </button>
               <button 
                 onClick={actions.redo}
                 disabled={!actions.canRedo || actions.isLoading}
                 className={styles.actionButton}
               >
-                ↷ Redo
+                <Redo2 size={14} aria-hidden /> Redo
               </button>
               <button 
                 onClick={handleBatchTest}
@@ -233,7 +235,7 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
                   <div className={styles.historyTime}>
                     {new Date(entry.timestamp).toLocaleTimeString()}
                   </div>
-                  {entry.reversible && <span className={styles.historyReversible}>↶</span>}
+                  {entry.reversible && <span className={styles.historyReversible}><Undo2 size={12} aria-hidden /></span>}
                 </div>
               ))}
             </div>
@@ -249,11 +251,11 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
     <div className={clsx(styles.actionsPanel, className)}>
       <div className={styles.panelHeader}>
         <h3>Actions System</h3>
-        {actions.isLoading && <div className={styles.loadingIndicator}>⏳</div>}
+        {actions.isLoading && <div className={styles.loadingIndicator}><Loader2 size={14} className={panelStyles.spinning} aria-hidden /></div>}
         {actions.error && (
           <div className={styles.errorMessage}>
             {actions.error}
-            <button onClick={actions.clearError} className={styles.clearError}>×</button>
+            <button onClick={actions.clearError} className={styles.clearError}><X size={12} aria-hidden /></button>
           </div>
         )}
       </div>

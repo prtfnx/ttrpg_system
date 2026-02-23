@@ -516,6 +516,20 @@
   }
 }
 
+/* ===== Icon utilities ===== */
+.iconMuted   { color: var(--text-muted); }
+.iconPrimary { color: var(--color-primary); }
+.iconSuccess { color: var(--color-success); }
+.iconWarning { color: var(--color-warning); }
+.iconDanger  { color: var(--color-danger); }
+.iconInfo    { color: var(--color-info); }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.spinning { animation: spin 1s linear infinite; }
+
 /* ===== Accessibility ===== */
 @media (prefers-reduced-motion: reduce) {
   .panel-overlay,

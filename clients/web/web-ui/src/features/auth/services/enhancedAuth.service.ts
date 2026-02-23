@@ -577,7 +577,7 @@ class EnhancedAuthService {
 
   private async validateCookieAuth(): Promise<boolean> {
     try {
-      const response = await this.makeAuthRequest('/auth/me', {
+      const response = await this.makeAuthRequest('/users/me', {
         credentials: 'include'
       });
 

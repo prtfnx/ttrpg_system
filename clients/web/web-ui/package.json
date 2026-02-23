@@ -22,6 +22,7 @@
     "@hookform/resolvers": "^3.3.4",
     "@types/react-toastify": "^4.0.2",
     "clsx": "^2.1.1",
+    "lucide-react": "^0.575.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.51.3",

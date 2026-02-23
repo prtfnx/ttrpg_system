@@ -10,6 +10,8 @@ import { useWasmBridge, wasmIntegrationService } from '@lib/wasm';
 import type { RenderEngine } from '@lib/wasm/wasm';
 import { DragDropImageHandler } from '@shared/components';
 import { useWebSocket } from '@shared/hooks';
+import { ChevronRight, CloudFog, Construction, Crown, Lightbulb, Map, Mountain, Users } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
 import { MultiSelectManager } from '../services';
@@ -38,14 +40,14 @@ declare global {
 }
 
 // Available layers - matching LayerPanel
-const AVAILABLE_LAYERS = [
-  { id: 'map', name: 'Map', icon: '🗺️' },
-  { id: 'tokens', name: 'Tokens', icon: '🎭' },
-  { id: 'dungeon_master', name: 'DM Layer', icon: '👑' },
-  { id: 'light', name: 'Lighting', icon: '💡' },
-  { id: 'height', name: 'Height', icon: '⛰️' },
-  { id: 'obstacles', name: 'Obstacles', icon: '🚧' },
-  { id: 'fog_of_war', name: 'Fog of War', icon: '🌫️' },
+const AVAILABLE_LAYERS: { id: string; name: string; icon: LucideIcon }[] = [
+  { id: 'map', name: 'Map', icon: Map },
+  { id: 'tokens', name: 'Tokens', icon: Users },
+  { id: 'dungeon_master', name: 'DM Layer', icon: Crown },
+  { id: 'light', name: 'Lighting', icon: Lightbulb },
+  { id: 'height', name: 'Height', icon: Mountain },
+  { id: 'obstacles', name: 'Obstacles', icon: Construction },
+  { id: 'fog_of_war', name: 'Fog of War', icon: CloudFog },
 ];
 
 export const GameCanvas: React.FC = () => {
@@ -669,7 +671,7 @@ export const GameCanvas: React.FC = () => {
                   }}
                 >
                   <span>Move to Layer</span>
-                  <span style={{ fontSize: '10px', marginLeft: '8px' }}>▶</span>
+                  <ChevronRight size={10} aria-hidden />
 
                   {/* Layer submenu */}
                   {contextMenu.showLayerSubmenu && (
@@ -703,7 +705,7 @@ export const GameCanvas: React.FC = () => {
                           onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
                           onClick={() => handleMoveToLayer(layer.id)}
                         >
-                          <span>{layer.icon}</span>
+                          <layer.icon size={14} aria-hidden />
                           <span>{layer.name}</span>
                         </div>
                       ))}

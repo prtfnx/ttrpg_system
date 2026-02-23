@@ -1,5 +1,6 @@
-import clsx from 'clsx';
+import { AlertTriangle, FileEdit, Loader2 } from 'lucide-react';
 import React from 'react';
+import panelStyles from '@shared/styles/PanelBase.module.css';
 import styles from '../CharacterPanel.module.css';
 
 type SyncStatus = 'local' | 'syncing' | 'synced' | 'error';
@@ -9,27 +10,27 @@ interface SyncStatusIconProps {
 }
 
 const STATUS_CONFIG = {
-  local: { icon: '📝', tooltip: 'Not synced - changes are local only', color: '#fbbf24' },
-  syncing: { icon: '⟳', tooltip: 'Syncing with server...', color: '#3b82f6' },
-  error: { icon: '⚠️', tooltip: 'Sync failed - click retry button to try again', color: '#ef4444' },
+  local:   { Icon: FileEdit,    tooltip: 'Not synced - changes are local only', cls: panelStyles.iconWarning },
+  syncing: { Icon: Loader2,     tooltip: 'Syncing with server...',              cls: panelStyles.iconInfo    },
+  error:   { Icon: AlertTriangle, tooltip: 'Sync failed - click retry button to try again', cls: panelStyles.iconDanger },
 };
 
 export const SyncStatusIcon: React.FC<SyncStatusIconProps> = ({ status }) => {
   if (!status || status === 'synced') return null;
-  
-  const config = STATUS_CONFIG[status];
-  
+
+  const { Icon, tooltip, cls } = STATUS_CONFIG[status];
+
   return (
-    <span 
-      className={clsx(styles.syncStatusIcon, status)} 
-      title={config.tooltip}
-      style={{ color: config.color, fontSize: '14px', marginLeft: '4px' }}
+    <span
+      className={`${styles.syncStatusIcon} ${cls}`}
+      title={tooltip}
+      style={{ marginLeft: '4px', display: 'inline-flex' }}
     >
-      {status === 'syncing' ? (
-        <span className={styles.syncSpinner}>{config.icon}</span>
-      ) : (
-        config.icon
-      )}
+      <Icon
+        size={14}
+        aria-hidden
+        className={status === 'syncing' ? panelStyles.spinning : undefined}
+      />
     </span>
   );
 };

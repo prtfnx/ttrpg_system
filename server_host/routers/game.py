@@ -253,21 +253,28 @@ async def game_session_admin(
     db: Session = Depends(get_db)
 ):
     """Game session admin panel for DMs"""
-    logger.debug(f"game_session_admin: Entering with session_code: {session_code}")
-    
     game_session = crud.get_game_session_by_code(db, session_code)
     if not game_session:
         raise HTTPException(status_code=404, detail="Game session not found")
-    
-    # Check if user is the DM/owner of this session
+
     if game_session.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only the DM can access the admin panel")
-    
-    # Render admin template
+        raise HTTPException(status_code=403, detail="Only the session owner can access the admin panel")
+
+    players = db.query(models.GamePlayer, models.User).join(
+        models.User, models.GamePlayer.user_id == models.User.id
+    ).filter(models.GamePlayer.session_id == game_session.id).all()
+
+    invitations = db.query(models.SessionInvitation).filter(
+        models.SessionInvitation.session_id == game_session.id,
+        models.SessionInvitation.is_active == True
+    ).order_by(models.SessionInvitation.created_at.desc()).all()
+
     return templates.TemplateResponse(request, "admin_panel.html", {
         "user": current_user,
         "session": game_session,
-        "session_code": session_code
+        "session_code": session_code,
+        "players": players,
+        "invitations": invitations,
     })
 
 @router.get("/api/sessions/{session_code}/players")

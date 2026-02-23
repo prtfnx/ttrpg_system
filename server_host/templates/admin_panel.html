@@ -1,131 +1,598 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - {{ session.name }}</title>
-    
-    {# Inject Vite asset tags dynamically #}
-    {% include 'vite_assets.html' %}
-    
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: var(--bg-primary, #1a1a1a);
-            color: var(--text-primary, #ffffff);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .admin-header {
-            background: var(--bg-secondary, #2a2a2a);
-            padding: 1rem 2rem;
-            border-bottom: 1px solid var(--border-primary, #3a3a3a);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .admin-title {
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-        
-        .session-info {
-            color: var(--text-secondary, #888);
-            font-size: 0.9rem;
-        }
-        
-        .admin-content {
-            flex: 1;
-            padding: 2rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .placeholder {
-            text-align: center;
-            max-width: 600px;
-        }
-        
-        .placeholder h2 {
-            margin-bottom: 1rem;
-            color: var(--color-primary, #4a90e2);
-        }
-        
-        .placeholder p {
-            margin-bottom: 1.5rem;
-            line-height: 1.6;
-            color: var(--text-secondary, #888);
-        }
-        
-        .back-btn {
-            display: inline-block;
-            padding: 0.75rem 1.5rem;
-            background: var(--color-primary, #4a90e2);
-            color: white;
-            text-decoration: none;
-            border-radius: 0.5rem;
-            font-weight: 500;
-            transition: background 0.2s;
-        }
-        
-        .back-btn:hover {
-            background: var(--color-primary-hover, #357ab7);
-        }
-    </style>
-</head>
-<body>
-    <div class="admin-header">
+{% extends "base.html" %}
+
+{% block title %}Admin — {{ session.name }}{% endblock %}
+
+{% block head %}
+<style>
+/* ── Layout ────────────────────────────────────────────── */
+.admin-shell {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+}
+
+/* ── Top bar ───────────────────────────────────────────── */
+.admin-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--border-primary);
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.admin-topbar-title { font-size: 1.35rem; font-weight: 600; }
+.admin-topbar-meta  { color: var(--text-muted); font-size: 0.85rem; }
+
+/* ── Cards ─────────────────────────────────────────────── */
+.card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 0.625rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+.card-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 1.25rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ── Session name form ──────────────────────────────────── */
+.settings-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+.settings-row input[type="text"] {
+    flex: 1;
+    min-width: 200px;
+    padding: 0.5rem 0.75rem;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 0.375rem;
+    color: var(--input-text);
+    font-size: 0.95rem;
+    transition: border-color 0.15s;
+}
+.settings-row input[type="text"]:focus {
+    outline: none;
+    border-color: var(--input-border-focus);
+    box-shadow: var(--focus-ring);
+}
+
+/* ── Session code row ───────────────────────────────────── */
+.code-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-secondary);
+    flex-wrap: wrap;
+}
+.session-code-badge {
+    font-family: monospace;
+    font-size: 1.05rem;
+    letter-spacing: 0.15em;
+    padding: 0.35rem 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: 0.375rem;
+    color: var(--text-primary);
+}
+.code-label { color: var(--text-muted); font-size: 0.85rem; }
+
+/* ── Players table ──────────────────────────────────────── */
+.players-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.players-table th {
+    text-align: left;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border-primary);
+}
+.players-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-secondary);
+    font-size: 0.9rem;
+}
+.players-table tr:last-child td { border-bottom: none; }
+.players-table tr:hover td { background: var(--hover-overlay); }
+
+.online-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 0.4rem;
+    vertical-align: middle;
+}
+.online-dot.online  { background: var(--color-success); }
+.online-dot.offline { background: var(--bg-elevated); }
+
+.role-select {
+    padding: 0.3rem 0.5rem;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 0.35rem;
+    color: var(--input-text);
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+.role-select:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Invitations ────────────────────────────────────────── */
+.inv-form-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+}
+.form-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.form-label { font-size: 0.8rem; color: var(--text-muted); }
+.form-select, .form-input-sm {
+    padding: 0.45rem 0.65rem;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 0.375rem;
+    color: var(--input-text);
+    font-size: 0.875rem;
+}
+.form-select:focus, .form-input-sm:focus {
+    outline: none;
+    border-color: var(--input-border-focus);
+    box-shadow: var(--focus-ring);
+}
+
+.inv-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.inv-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.65rem 0.85rem;
+    background: var(--bg-tertiary);
+    border-radius: 0.45rem;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+.inv-link {
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    word-break: break-all;
+    flex: 1;
+}
+.inv-meta { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; }
+.inv-actions { display: flex; gap: 0.5rem; align-items: center; }
+
+/* ── Danger zone ────────────────────────────────────────── */
+.danger-zone { border-color: var(--color-danger); }
+.danger-zone .card-title { color: var(--color-danger); }
+
+/* ── Buttons ────────────────────────────────────────────── */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.4rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    text-decoration: none;
+    transition: background 0.15s, opacity 0.15s;
+    white-space: nowrap;
+}
+.btn:disabled { opacity: 0.5; cursor: default; }
+.btn-primary   { background: var(--button-primary-bg);   color: var(--button-primary-text); }
+.btn-primary:hover   { background: var(--button-primary-hover); }
+.btn-secondary { background: var(--button-secondary-bg); color: var(--button-secondary-text); }
+.btn-secondary:hover { background: var(--button-secondary-hover); }
+.btn-danger    { background: var(--button-danger-bg);    color: var(--button-danger-text); }
+.btn-danger:hover    { background: var(--button-danger-hover); }
+.btn-sm { padding: 0.3rem 0.65rem; font-size: 0.8rem; }
+.btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+}
+.btn-ghost:hover { background: var(--hover-overlay); }
+
+/* ── Toast ──────────────────────────────────────────────── */
+#toast {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    opacity: 0;
+    transform: translateY(0.5rem);
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    z-index: 999;
+    max-width: 340px;
+}
+#toast.show { opacity: 1; transform: translateY(0); }
+#toast.success { background: var(--color-success); color: #fff; }
+#toast.error   { background: var(--color-danger);  color: #fff; }
+
+/* ── Dialogs ────────────────────────────────────────────── */
+.dialog-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: var(--bg-overlay);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+}
+.dialog-overlay.open { display: flex; }
+.dialog-box {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 0.75rem;
+    padding: 2rem;
+    max-width: 400px;
+    width: 90%;
+}
+.dialog-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.75rem; }
+.dialog-body  { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem; line-height: 1.5; }
+.dialog-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}
+
+{% block nav %}
+<nav style="background:var(--bg-secondary);border-bottom:1px solid var(--border-primary);padding:0.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+    <div style="display:flex;align-items:center;gap:1rem;">
+        <a href="/users/dashboard" class="btn btn-ghost btn-sm">← Dashboard</a>
+        <a href="/game/session/{{ session_code }}" class="btn btn-secondary btn-sm">Open Table</a>
+    </div>
+    <span style="color:var(--text-muted);font-size:0.85rem;">{{ user.username }}</span>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="admin-shell">
+
+    <!-- Top bar -->
+    <div class="admin-topbar">
         <div>
-            <h1 class="admin-title">Session Admin Panel</h1>
-            <div class="session-info">{{ session.name }} ({{ session_code }})</div>
-        </div>
-        <div class="session-info">DM: {{ user.username }}</div>
-    </div>
-    
-    <div class="admin-content">
-        <div class="placeholder">
-            <h2>🚧 Admin Panel Coming Soon</h2>
-            <p>
-                The admin panel will provide advanced session management tools including:
-            </p>
-            <ul style="text-align: left; margin-bottom: 2rem; line-height: 1.8;">
-                <li>Player permission management</li>
-                <li>Session settings configuration</li>
-                <li>Game state controls</li>
-                <li>Invitation management</li>
-                <li>Session logs and analytics</li>
-            </ul>
-            <p>
-                For now, use the floating player management panel in the main session.
-            </p>
-            <a href="/game/session/{{ session_code }}" class="back-btn">
-                ← Back to Session
-            </a>
+            <div class="admin-topbar-title">{{ session.name }}</div>
+            <div class="admin-topbar-meta">Session Admin · Code: <span style="font-family:monospace;letter-spacing:0.1em;">{{ session_code }}</span></div>
         </div>
     </div>
-    
-    <script>
-        // Initialize session data for potential admin features
-        window.__TTRPG_SESSION__ = {
-            sessionCode: "{{ session_code }}",
-            sessionName: "{{ session.name }}",
-            userRole: "owner",
-            userId: {{ user.id }},
-            username: "{{ user.username }}"
-        };
-        
-        console.log('Admin Panel initialized for session:', window.__TTRPG_SESSION__);
-    </script>
-</body>
-</html>
+
+    <!-- ── Session Settings ──────────────────────────────── -->
+    <div class="card">
+        <div class="card-title">Session Settings</div>
+        <form method="post" action="/game/session/{{ session_code }}/settings" class="settings-row">
+            <input type="text" name="name" value="{{ session.name }}" maxlength="100" placeholder="Session name" required>
+            <button type="submit" class="btn btn-primary">Save name</button>
+        </form>
+        <div class="code-row">
+            <span class="code-label">Session code:</span>
+            <span class="session-code-badge">{{ session_code }}</span>
+            <button class="btn btn-ghost btn-sm" onclick="copySessionCode()">Copy</button>
+        </div>
+    </div>
+
+    <!-- ── Players ───────────────────────────────────────── -->
+    <div class="card">
+        <div class="card-title">Players ({{ players | length }})</div>
+        {% if players %}
+        <table class="players-table">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Joined</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for player, puser in players %}
+            <tr data-user-id="{{ puser.id }}" data-role="{{ player.role }}">
+                <td>{{ puser.username }}</td>
+                <td>
+                    {% if player.role == 'owner' %}
+                        <span style="color:var(--color-warning);">Owner</span>
+                    {% else %}
+                    <select class="role-select"
+                        onchange="changeRole({{ puser.id }}, this.value, this)"
+                        {% if puser.id == user.id %}disabled title="Cannot change your own role"{% endif %}>
+                        <option value="co_dm"          {% if player.role == 'co_dm' %}selected{% endif %}>Co-DM</option>
+                        <option value="trusted_player" {% if player.role == 'trusted_player' %}selected{% endif %}>Trusted Player</option>
+                        <option value="player"         {% if player.role == 'player' %}selected{% endif %}>Player</option>
+                        <option value="spectator"      {% if player.role == 'spectator' %}selected{% endif %}>Spectator</option>
+                    </select>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="online-dot {% if player.is_connected %}online{% else %}offline{% endif %}"></span>
+                    {{ 'Online' if player.is_connected else 'Offline' }}
+                </td>
+                <td style="color:var(--text-muted);font-size:0.8rem;">
+                    {{ player.joined_at.strftime('%Y-%m-%d') if player.joined_at else '—' }}
+                </td>
+                <td>
+                    {% if player.role != 'owner' and puser.id != user.id %}
+                    <button class="btn btn-danger btn-sm"
+                        onclick="confirmKick({{ puser.id }}, '{{ puser.username | e }}')">
+                        Kick
+                    </button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">No players yet.</div>
+        {% endif %}
+    </div>
+
+    <!-- ── Invite Links ───────────────────────────────────── -->
+    <div class="card">
+        <div class="card-title">Invite Links</div>
+
+        <form class="inv-form-row" onsubmit="createInvite(event)">
+            <div class="form-group">
+                <label class="form-label">Role</label>
+                <select name="role" class="form-select">
+                    <option value="player">Player</option>
+                    <option value="trusted_player">Trusted Player</option>
+                    <option value="co_dm">Co-DM</option>
+                    <option value="spectator">Spectator</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Max uses</label>
+                <input type="number" name="max_uses" value="1" min="1" max="100" class="form-input-sm" style="width:80px;">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Expires (hours)</label>
+                <input type="number" name="expires_hours" value="48" min="1" max="720" class="form-input-sm" style="width:100px;">
+            </div>
+            <button type="submit" class="btn btn-primary">Create link</button>
+        </form>
+
+        <ul class="inv-list" id="inv-list">
+        {% if invitations %}
+            {% for inv in invitations %}
+            <li class="inv-item" id="inv-{{ inv.id }}">
+                <span class="inv-link" id="inv-link-{{ inv.id }}">{{ request.base_url }}invite/{{ inv.invite_code }}</span>
+                <span class="inv-meta">
+                    {{ inv.pre_assigned_role }} ·
+                    {{ inv.uses_count }}/{{ inv.max_uses }} uses ·
+                    {% if inv.expires_at %}expires {{ inv.expires_at.strftime('%Y-%m-%d %H:%M') }}{% else %}no expiry{% endif %}
+                </span>
+                <div class="inv-actions">
+                    <button class="btn btn-ghost btn-sm" onclick="copyLink('inv-link-{{ inv.id }}')">Copy</button>
+                    <button class="btn btn-danger btn-sm" onclick="revokeInvite({{ inv.id }})">Revoke</button>
+                </div>
+            </li>
+            {% endfor %}
+        {% else %}
+            <li class="empty-state" id="inv-empty">No active invite links.</li>
+        {% endif %}
+        </ul>
+    </div>
+
+    <!-- ── Danger Zone ────────────────────────────────────── -->
+    <div class="card danger-zone">
+        <div class="card-title">Danger Zone</div>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:1rem;">
+            Permanently deletes this session and all associated data. This cannot be undone.
+        </p>
+        <button class="btn btn-danger" onclick="confirmDelete()">Delete session</button>
+    </div>
+
+</div>
+
+<!-- ── Kick dialog ────────────────────────────────────────── -->
+<div class="dialog-overlay" id="kick-dialog">
+    <div class="dialog-box">
+        <div class="dialog-title">Kick player?</div>
+        <div class="dialog-body" id="kick-dialog-body"></div>
+        <div class="dialog-actions">
+            <button class="btn btn-secondary" onclick="closeDialog('kick-dialog')">Cancel</button>
+            <button class="btn btn-danger" id="kick-confirm-btn">Kick</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Delete dialog ──────────────────────────────────────── -->
+<div class="dialog-overlay" id="delete-dialog">
+    <div class="dialog-box">
+        <div class="dialog-title">Delete session?</div>
+        <div class="dialog-body">
+            This will permanently delete <strong>{{ session.name }}</strong> and all its data — tables, tokens, characters, invitations. Cannot be undone.
+        </div>
+        <div class="dialog-actions">
+            <button class="btn btn-secondary" onclick="closeDialog('delete-dialog')">Cancel</button>
+            <form method="post" action="/game/session/{{ session_code }}/delete" style="display:inline;">
+                <button type="submit" class="btn btn-danger">Delete permanently</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="toast"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SESSION_CODE = {{ session_code | tojson }};
+
+function toast(msg, type = 'success') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `show ${type}`;
+    clearTimeout(el._t);
+    el._t = setTimeout(() => { el.className = ''; }, 3200);
+}
+
+function copySessionCode() {
+    navigator.clipboard.writeText(SESSION_CODE).then(() => toast('Session code copied'));
+}
+
+function copyLink(elId) {
+    const text = document.getElementById(elId).textContent.trim();
+    navigator.clipboard.writeText(text).then(() => toast('Link copied'));
+}
+
+function closeDialog(id) { document.getElementById(id).classList.remove('open'); }
+function openDialog(id)  { document.getElementById(id).classList.add('open');    }
+
+document.querySelectorAll('.dialog-overlay').forEach(el => {
+    el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+
+/* ── Role change ─────────────────────────────────────────── */
+async function changeRole(userId, newRole, selectEl) {
+    selectEl.disabled = true;
+    const row = selectEl.closest('tr');
+    const prevRole = row ? row.dataset.role : null;
+    try {
+        const res = await fetch(`/game/api/sessions/${SESSION_CODE}/players/${userId}/role`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: newRole }),
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.detail || 'Failed to change role');
+        }
+        if (row) row.dataset.role = newRole;
+        toast(`Role updated to ${newRole}`);
+    } catch (err) {
+        toast(err.message, 'error');
+        if (prevRole) selectEl.value = prevRole;
+    } finally {
+        selectEl.disabled = false;
+    }
+}
+
+/* ── Kick ────────────────────────────────────────────────── */
+function confirmKick(userId, username) {
+    document.getElementById('kick-dialog-body').textContent =
+        `Remove "${username}" from this session? They can rejoin with a new invite link.`;
+    document.getElementById('kick-confirm-btn').onclick = () => doKick(userId, username);
+    openDialog('kick-dialog');
+}
+
+async function doKick(userId, username) {
+    closeDialog('kick-dialog');
+    try {
+        const res = await fetch(`/game/api/sessions/${SESSION_CODE}/players/${userId}`, {
+            method: 'DELETE',
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.detail || 'Failed to kick player');
+        }
+        document.querySelector(`tr[data-user-id="${userId}"]`)?.remove();
+        toast(`${username} removed`);
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+/* ── Delete dialog ───────────────────────────────────────── */
+function confirmDelete() { openDialog('delete-dialog'); }
+
+/* ── Create invite ───────────────────────────────────────── */
+async function createInvite(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    try {
+        const res = await fetch('/api/invitations/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                session_code: SESSION_CODE,
+                pre_assigned_role: form.role.value,
+                max_uses: parseInt(form.max_uses.value, 10),
+                expires_hours: parseInt(form.expires_hours.value, 10),
+            }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || 'Failed to create invitation');
+        }
+        const inv = await res.json();
+        addInviteRow(inv);
+        toast('Invite link created');
+    } catch (err) {
+        toast(err.message, 'error');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function addInviteRow(inv) {
+    const list = document.getElementById('inv-list');
+    document.getElementById('inv-empty')?.remove();
+
+    const link = `${window.location.origin}/invite/${inv.invite_code}`;
+    const expiresStr = inv.expires_at
+        ? new Date(inv.expires_at).toLocaleString()
+        : 'no expiry';
+
+    const li = document.createElement('li');
+    li.className = 'inv-item';
+    li.id = `inv-${inv.id}`;
+    li.innerHTML = `
+        <span class="inv-link" id="inv-link-${inv.id}">${link}</span>
+        <span class="inv-meta">${inv.pre_assigned_role} · 0/${inv.max_uses} uses · expires ${expiresStr}</span>
+        <div class="inv-actions">
+            <button class="btn btn-ghost btn-sm" onclick="copyLink('inv-link-${inv.id}')">Copy</button>
+            <button class="btn btn-danger btn-sm" onclick="revokeInvite(${inv.id})">Revoke</button>
+        </div>`;
+    list.prepend(li);
+}
+
+/* ── Revoke invite ───────────────────────────────────────── */
+async function revokeInvite(invId) {
+    try {
+        const res = await fetch(`/api/invitations/${invId}`, { method: 'DELETE' });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.detail || 'Failed to revoke');
+        }
+        document.getElementById(`inv-${invId}`)?.remove();
+        if (!document.getElementById('inv-list').children.length) {
+            const li = document.createElement('li');
+            li.className = 'empty-state'; li.id = 'inv-empty';
+            li.textContent = 'No active invite links.';
+            document.getElementById('inv-list').appendChild(li);
+        }
+        toast('Invitation revoked');
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+</script>
+{% endblock %}

@@ -178,6 +178,21 @@ a:hover {
   padding: var(--space-sm);
 }
 
+.btn-sm {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-xs);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: var(--border-primary);
+  color: var(--text-secondary);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--hover-overlay);
+}
+
 /* Forms */
 .form {
   display: flex;

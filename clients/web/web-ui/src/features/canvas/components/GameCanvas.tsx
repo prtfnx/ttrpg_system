@@ -10,8 +10,8 @@ import { useWasmBridge, wasmIntegrationService } from '@lib/wasm';
 import type { RenderEngine } from '@lib/wasm/wasm';
 import { DragDropImageHandler } from '@shared/components';
 import { useWebSocket } from '@shared/hooks';
-import { ChevronRight, CloudFog, Construction, Crown, Lightbulb, Map, Mountain, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { ChevronRight, CloudFog, Construction, Crown, Lightbulb, Map, Mountain, Users } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
 import { MultiSelectManager } from '../services';
@@ -19,14 +19,14 @@ import fpsService from '../services/fps.service';
 import { performanceService } from '../services/performance.service';
 import styles from './GameCanvas.module.css';
 import {
-  CanvasRenderer,
-  getGridCoord,
-  resizeCanvas,
-  useCanvasDebug,
-  useContextMenu,
-  useFPS,
-  useLightPlacement,
-  usePerformanceMonitor,
+    CanvasRenderer,
+    getGridCoord,
+    resizeCanvas,
+    useCanvasDebug,
+    useContextMenu,
+    useFPS,
+    useLightPlacement,
+    usePerformanceMonitor,
 } from './GameCanvas/index';
 import { useCanvasEventsEnhanced } from './GameCanvas/useCanvasEventsEnhanced';
 import PerformanceMonitor from './PerformanceMonitor';

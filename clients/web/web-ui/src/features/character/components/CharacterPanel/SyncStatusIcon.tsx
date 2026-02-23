@@ -1,6 +1,6 @@
+import panelStyles from '@shared/styles/PanelBase.module.css';
 import { AlertTriangle, FileEdit, Loader2 } from 'lucide-react';
 import React from 'react';
-import panelStyles from '@shared/styles/PanelBase.module.css';
 import styles from '../CharacterPanel.module.css';
 
 type SyncStatus = 'local' | 'syncing' | 'synced' | 'error';

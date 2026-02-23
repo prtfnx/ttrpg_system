@@ -1,5 +1,6 @@
 import type { TableInfo } from '@/store';
 import clsx from 'clsx';
+import { Copy, ExternalLink, Settings2, Trash2 } from 'lucide-react';
 import type { FC } from 'react';
 import styles from '../TableManagementPanel.module.css';
 import { TablePreview } from '../TablePreview';
@@ -70,15 +71,13 @@ export const TableCard: FC<TableCardProps> = ({
         </h4>
         <div className={styles.tableCardMeta}>
           <span className={styles.metaItem}>
-            <span className={styles.metaIcon}>📐</span>
             <span>{table.width} × {table.height}</span>
           </span>
           {table.entity_count !== undefined && table.entity_count > 0 && (
             <>
-              <span className={styles.metaSeparator}>•</span>
+              <span className={styles.metaSeparator}>·</span>
               <span className={styles.metaItem}>
-                <span className={styles.metaIcon}>🎭</span>
-                <span>{table.entity_count}</span>
+                <span>{table.entity_count} entities</span>
               </span>
             </>
           )}
@@ -96,7 +95,7 @@ export const TableCard: FC<TableCardProps> = ({
               className={clsx(styles.actionBtn, styles.actionBtnOpen)}
               title="Open table"
             >
-              <span className={styles.actionIcon}>↗</span>
+              <ExternalLink size={12} />
               <span className={styles.actionText}>Open</span>
             </button>
             <button
@@ -104,21 +103,21 @@ export const TableCard: FC<TableCardProps> = ({
               className={clsx(styles.actionBtn, styles.actionBtnSettings)}
               title="Settings"
             >
-              <span className={styles.actionIcon}>⚙️</span>
+              <Settings2 size={12} />
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); onDuplicate(table.table_id); }}
               className={clsx(styles.actionBtn, styles.actionBtnDuplicate)}
               title="Duplicate"
             >
-              <span className={styles.actionIcon}>📋</span>
+              <Copy size={12} />
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(table.table_id); }}
               className={clsx(styles.actionBtn, styles.actionBtnDelete)}
               title="Delete"
             >
-              <span className={styles.actionIcon}>🗑️</span>
+              <Trash2 size={12} />
             </button>
           </>
         )}

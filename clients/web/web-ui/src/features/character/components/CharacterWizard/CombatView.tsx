@@ -1,3 +1,4 @@
+import { Crosshair, Dices, Sparkles, Swords, User } from 'lucide-react';
 import React, { useState } from 'react';
 import { AttackManager } from './AttackManager';
 import { CharacterSheet } from './CharacterSheet';
@@ -130,7 +131,7 @@ export const CombatView: React.FC<CombatViewProps> = ({
           className={`combat-tab ${activeTab === 'character' ? 'active' : ''}`}
           onClick={() => setActiveTab('character')}
         >
-          <span className="tab-icon">👤</span>
+          <span className="tab-icon"><User size={16} aria-hidden /></span>
           <span className="tab-label">{getTabLabel('character')}</span>
         </button>
         
@@ -138,7 +139,7 @@ export const CombatView: React.FC<CombatViewProps> = ({
           className={`combat-tab ${activeTab === 'attacks' ? 'active' : ''}`}
           onClick={() => setActiveTab('attacks')}
         >
-          <span className="tab-icon">⚔️</span>
+          <span className="tab-icon"><Swords size={16} aria-hidden /></span>
           <span className="tab-label">{getTabLabel('attacks')}</span>
         </button>
         
@@ -147,7 +148,7 @@ export const CombatView: React.FC<CombatViewProps> = ({
             className={`combat-tab ${activeTab === 'spells' ? 'active' : ''}`}
             onClick={() => setActiveTab('spells')}
           >
-            <span className="tab-icon">✨</span>
+            <span className="tab-icon"><Sparkles size={16} aria-hidden /></span>
             <span className="tab-label">{getTabLabel('spells')}</span>
           </button>
         )}
@@ -156,7 +157,7 @@ export const CombatView: React.FC<CombatViewProps> = ({
           className={`combat-tab ${activeTab === 'tracker' ? 'active' : ''}`}
           onClick={() => setActiveTab('tracker')}
         >
-          <span className="tab-icon">🎯</span>
+          <span className="tab-icon"><Crosshair size={16} aria-hidden /></span>
           <span className="tab-label">{getTabLabel('tracker')}</span>
         </button>
         
@@ -164,7 +165,7 @@ export const CombatView: React.FC<CombatViewProps> = ({
           className={`combat-tab ${activeTab === 'dice' ? 'active' : ''}`}
           onClick={() => setActiveTab('dice')}
         >
-          <span className="tab-icon">🎲</span>
+          <span className="tab-icon"><Dices size={16} aria-hidden /></span>
           <span className="tab-label">{getTabLabel('dice')}</span>
         </button>
       </div>

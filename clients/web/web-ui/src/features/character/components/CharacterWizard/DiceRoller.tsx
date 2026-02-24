@@ -1,4 +1,5 @@
 import { CombatSystemService, type DiceResult } from '@features/combat';
+import { Dices, Star, X, Zap } from 'lucide-react';
 import React, { useState } from 'react';
 
 interface DiceRollerProps {
@@ -81,7 +82,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
           title={`Roll ${formula}`}
         >
           <div className="dice-icon">
-            {isRolling ? '🎲' : '🎲'}
+            <Dices size={20} aria-hidden />
           </div>
           <div className="dice-info">
             {label && <span className="dice-label">{label}</span>}
@@ -104,13 +105,13 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
             
             {getRollQuality(result) === 'critical' && (
               <div className="critical-indicator">
-                🌟 Critical Success!
+                <Star size={14} aria-hidden /> Critical Success!
               </div>
             )}
             
             {getRollQuality(result) === 'low' && result.rolls[0] === 1 && (
               <div className="fumble-indicator">
-                💥 Critical Failure!
+                <Zap size={14} aria-hidden /> Critical Failure!
               </div>
             )}
           </div>
@@ -127,7 +128,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
               className="clear-history"
               title="Clear History"
             >
-              ✕
+              <X size={14} aria-hidden />
             </button>
           </div>
           <div className="history-list">

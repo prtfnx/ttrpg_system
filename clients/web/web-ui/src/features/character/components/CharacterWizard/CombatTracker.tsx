@@ -1,5 +1,6 @@
 import type { UserInfo } from '@features/auth';
 import { CombatSystemService, type CombatStats, type DiceResult } from '@features/combat';
+import { RefreshCw, Skull, Trash2, User, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { InitiativeRoll } from './DiceRoller';
 import type { WizardFormData } from './WizardFormData';
@@ -228,9 +229,9 @@ export const CombatTracker: React.FC<CombatTrackerProps> = ({
     return (
       <div className="combat-tracker setup">
         <div className="combat-header">
-          <h2>🎲 Combat Setup</h2>
+          <h2>Combat Setup</h2>
           {onClose && (
-            <button onClick={onClose} className="close-button">✕</button>
+            <button onClick={onClose} className="close-button" title="Close"><X size={16} aria-hidden /></button>
           )}
         </div>
 
@@ -252,7 +253,7 @@ export const CombatTracker: React.FC<CombatTrackerProps> = ({
                   <div className="participant-info">
                     <div className="participant-name">
                       <span className={participant.isPlayer ? 'player' : 'npc'}>
-                        {participant.isPlayer ? '👤' : '👹'}
+                        {participant.isPlayer ? <User size={16} aria-hidden /> : <Skull size={16} aria-hidden />}
                       </span>
                       <strong>{participant.name}</strong>
                     </div>
@@ -281,7 +282,7 @@ export const CombatTracker: React.FC<CombatTrackerProps> = ({
                         className="remove-participant"
                         title="Remove Participant"
                       >
-                        🗑️
+                        <Trash2 size={14} aria-hidden />
                       </button>
                     )}
                   </div>
@@ -293,7 +294,7 @@ export const CombatTracker: React.FC<CombatTrackerProps> = ({
               <div className="add-participant-form">
                 <div className="form-header">
                   <h4>Add NPC/Monster</h4>
-                  <button onClick={() => setShowAddParticipant(false)}>✕</button>
+                  <button onClick={() => setShowAddParticipant(false)} title="Close"><X size={14} aria-hidden /></button>
                 </div>
                 <form onSubmit={(e) => {
                   e.preventDefault();
@@ -326,7 +327,7 @@ export const CombatTracker: React.FC<CombatTrackerProps> = ({
               disabled={participants.length === 0 || participants.some(p => p.initiative === 0)}
               className="start-combat-btn"
             >
-              ⚔️ Start Combat
+              Start Combat
             </button>
             <p className="setup-note">
               Roll initiative for all participants before starting combat.
@@ -343,7 +344,7 @@ export const CombatTracker: React.FC<CombatTrackerProps> = ({
     <div className="combat-tracker active">
       <div className="combat-header">
         <div className="combat-info">
-          <h2>⚔️ Combat Tracker</h2>
+          <h2>Combat Tracker</h2>
           <div className="round-info">
             <span>Round {round}</span>
             <span>Turn: {activeParticipant?.name}</span>
@@ -354,10 +355,10 @@ export const CombatTracker: React.FC<CombatTrackerProps> = ({
             Next Turn →
           </button>
           <button onClick={resetCombat} className="reset-btn">
-            🔄 Reset
+            <RefreshCw size={14} aria-hidden /> Reset
           </button>
           {onClose && (
-            <button onClick={onClose} className="close-button">✕</button>
+            <button onClick={onClose} className="close-button" title="Close"><X size={16} aria-hidden /></button>
           )}
         </div>
       </div>
@@ -374,7 +375,7 @@ export const CombatTracker: React.FC<CombatTrackerProps> = ({
                 <div className="participant-header">
                   <div className="participant-basic">
                     <span className={participant.isPlayer ? 'player-icon' : 'npc-icon'}>
-                      {participant.isPlayer ? '👤' : '👹'}
+                      {participant.isPlayer ? <User size={16} aria-hidden /> : <Skull size={16} aria-hidden />}
                     </span>
                     <div className="participant-details">
                       <strong className="participant-name">{participant.name}</strong>

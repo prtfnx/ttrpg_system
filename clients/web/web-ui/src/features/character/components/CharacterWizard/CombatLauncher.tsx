@@ -1,3 +1,4 @@
+import { Shield } from 'lucide-react';
 import React, { useState } from 'react';
 import { CombatView } from './CombatView';
 import type { WizardFormData } from './WizardFormData';
@@ -34,7 +35,7 @@ export const CombatLauncher: React.FC<CombatLauncherProps> = ({
         onClick={() => setShowCombat(true)}
         title={`Open Combat Manager for ${character.name}`}
       >
-        <span className="btn-icon">⚔️</span>
+        <Shield size={16} className="btn-icon" aria-hidden />
         <span className="btn-text">{buttonText}</span>
       </button>
 

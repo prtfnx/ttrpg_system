@@ -1,4 +1,5 @@
 import clsx from 'clsx';
+import { Check, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import styles from './TextSpriteEditor.module.css';
 
@@ -200,7 +201,7 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
             disabled={!text.trim()}
             title="Finish (Ctrl+Enter)"
           >
-            ✓
+            <Check size={16} aria-hidden />
           </button>
 
           {/* Cancel button */}
@@ -209,7 +210,7 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
             onClick={handleCancel}
             title="Cancel (Esc)"
           >
-            ✕
+            <X size={16} aria-hidden />
           </button>
         </div>
 

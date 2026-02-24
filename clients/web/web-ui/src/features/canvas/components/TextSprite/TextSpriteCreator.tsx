@@ -1,5 +1,6 @@
 import { ErrorBoundary, Modal } from '@shared/components';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { AlignCenter, AlignLeft, AlignRight } from 'lucide-react';
+import { type ReactElement, useCallback, useEffect, useRef, useState } from 'react';
 import styles from './TextSpriteCreator.module.css';
 
 // Font families available for text sprites
@@ -22,10 +23,16 @@ const FONT_WEIGHTS = [
 
 // Text alignment options
 const TEXT_ALIGNMENTS = [
-  { value: 'left', label: 'Left', icon: '⬅' },
-  { value: 'center', label: 'Center', icon: '⬌' },
-  { value: 'right', label: 'Right', icon: '➡' }
+  { value: 'left', label: 'Left' },
+  { value: 'center', label: 'Center' },
+  { value: 'right', label: 'Right' }
 ] as const;
+
+const ALIGN_ICONS: Record<string, ReactElement> = {
+  left: <AlignLeft size={16} aria-hidden />,
+  center: <AlignCenter size={16} aria-hidden />,
+  right: <AlignRight size={16} aria-hidden />,
+};
 
 export interface TextSpriteConfig {
   text: string;
@@ -325,7 +332,7 @@ export function TextSpriteCreator({
                         onClick={() => updateConfig('textAlign', align.value)}
                         title={align.label}
                       >
-                        {align.icon}
+                        {ALIGN_ICONS[align.value]}
                       </button>
                     ))}
                   </div>

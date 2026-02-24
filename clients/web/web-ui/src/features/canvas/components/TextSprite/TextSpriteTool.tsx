@@ -1,4 +1,5 @@
 import { useGameStore } from '@/store';
+import { Check, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 interface TextSpriteToolProps {
@@ -143,7 +144,7 @@ function InlineTextEditor({ worldPosition, onComplete, onCancel }: InlineTextEdi
             fontSize: '12px',
           }}
         >
-          ✓
+          <Check size={14} aria-hidden />
         </button>
         <button
           onClick={onCancel}
@@ -157,7 +158,7 @@ function InlineTextEditor({ worldPosition, onComplete, onCancel }: InlineTextEdi
             fontSize: '12px',
           }}
         >
-          ✕
+          <X size={14} aria-hidden />
         </button>
       </div>
 

@@ -1,5 +1,6 @@
 import type { ErrorInfo, ReactNode } from 'react';
 import React, { Component } from 'react';
+import { AlertTriangle, BookOpen, CloudFog, Lightbulb, LogIn, Paintbrush, RefreshCw, RotateCcw } from 'lucide-react';
 import styles from './ErrorBoundary.module.css';
 
 // Extend Window interface for error tracking
@@ -121,7 +122,7 @@ const DefaultErrorFallback: React.FC<ErrorFallbackProps> = ({
   componentName 
 }) => (
   <div className={styles.panelErrorBoundary}>
-    <div className={styles.errorIcon}>⚠️</div>
+    <AlertTriangle className={styles.errorIcon} size={32} aria-hidden />
     <h3>Something went wrong</h3>
     <p>The {componentName || 'panel'} encountered an error and couldn't load properly.</p>
     
@@ -138,14 +139,14 @@ const DefaultErrorFallback: React.FC<ErrorFallbackProps> = ({
     <div className={styles.errorActions}>
       {canRetry && (
         <button onClick={onRetry} className={styles.retryButton}>
-          🔄 Try Again
+          <RefreshCw size={14} aria-hidden /> Try Again
         </button>
       )}
       <button 
         onClick={() => window.location.reload()} 
         className={styles.reloadButton}
       >
-        🔃 Reload Page
+        <RotateCcw size={14} aria-hidden /> Reload Page
       </button>
     </div>
   </div>
@@ -154,7 +155,7 @@ const DefaultErrorFallback: React.FC<ErrorFallbackProps> = ({
 // Specialized error fallbacks for different panel types
 const PaintPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, canRetry }) => (
   <div className={styles.paintPanelError}>
-    <div className={styles.errorIcon}>🎨</div>
+    <Paintbrush className={styles.errorIcon} size={32} aria-hidden />
     <h4>Paint System Error</h4>
     <p>The paint system couldn't initialize. This might be due to:</p>
     <ul>
@@ -166,7 +167,7 @@ const PaintPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, canRet
     <div className={styles.errorActions}>
       {canRetry && (
         <button onClick={onRetry} className={styles.retryButton}>
-          🔄 Retry Paint System
+          <RefreshCw size={14} aria-hidden /> Retry Paint System
         </button>
       )}
       
@@ -174,7 +175,7 @@ const PaintPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, canRet
         onClick={() => window.open('/help/paint-troubleshooting', '_blank')}
         className={styles.helpButton}
       >
-        📚 Troubleshooting Guide
+        <BookOpen size={14} aria-hidden /> Troubleshooting Guide
       </button>
     </div>
   </div>
@@ -182,7 +183,7 @@ const PaintPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, canRet
 
 const LightingPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, canRetry }) => (
   <div className={styles.lightingPanelError}>
-    <div className={styles.errorIcon}>💡</div>
+    <Lightbulb className={styles.errorIcon} size={32} aria-hidden />
     <h4>Lighting System Error</h4>
     <p>The lighting system failed to initialize properly.</p>
     
@@ -198,7 +199,7 @@ const LightingPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, can
     <div className={styles.errorActions}>
       {canRetry && (
         <button onClick={onRetry} className={styles.retryButton}>
-          🔄 Retry Lighting System
+          <RefreshCw size={14} aria-hidden /> Retry Lighting System
         </button>
       )}
     </div>
@@ -207,14 +208,14 @@ const LightingPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, can
 
 const FogPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, canRetry }) => (
   <div className={styles.fogPanelError}>
-    <div className={styles.errorIcon}>🌫️</div>
+    <CloudFog className={styles.errorIcon} size={32} aria-hidden />
     <h4>Fog System Error</h4>
     <p>The fog of war system encountered an error.</p>
     
     <div className={styles.errorActions}>
       {canRetry && (
         <button onClick={onRetry} className={styles.retryButton}>
-          🔄 Retry Fog System
+          <RefreshCw size={14} aria-hidden /> Retry Fog System
         </button>
       )}
     </div>
@@ -223,7 +224,7 @@ const FogPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, canRetry
 
 const CompendiumPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, canRetry, error }) => (
   <div className={styles.compendiumPanelError}>
-    <div className={styles.errorIcon}>📚</div>
+    <BookOpen className={styles.errorIcon} size={32} aria-hidden />
     <h4>Compendium Error</h4>
     <p>Failed to load compendium data.</p>
     
@@ -236,7 +237,7 @@ const CompendiumPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, c
     <div className={styles.errorActions}>
       {canRetry && (
         <button onClick={onRetry} className={styles.retryButton}>
-          🔄 Retry Loading
+          <RefreshCw size={14} aria-hidden /> Retry Loading
         </button>
       )}
       {error?.message?.includes('auth') && (
@@ -244,7 +245,7 @@ const CompendiumPanelErrorFallback: React.FC<ErrorFallbackProps> = ({ onRetry, c
           onClick={() => window.location.href = '/login'}
           className={styles.authButton}
         >
-          🔐 Re-authenticate
+          <LogIn size={14} aria-hidden /> Re-authenticate
         </button>
       )}
     </div>

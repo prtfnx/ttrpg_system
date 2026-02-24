@@ -1,7 +1,7 @@
 import { useGameStore } from '@/store';
 import { authService } from '@features/auth';
-import { Check } from 'lucide-react';
 import { useProtocol } from '@lib/api';
+import { Check } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import styles from './TokenConfigModal.module.css';
 

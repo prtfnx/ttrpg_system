@@ -5,6 +5,7 @@
  */
 
 import { ErrorBoundary, LoadingSpinner } from '@shared/components';
+import { AlertTriangle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import type { LoginCredentials, OAuthProvider, RegisterCredentials } from '../services/enhancedAuth.service';
 import { enhancedAuthService } from '../services/enhancedAuth.service';
@@ -294,14 +295,14 @@ const EnhancedLogin: React.FC = () => {
 
             {error && (
               <div className={styles.errorMessage} role="alert" aria-live="polite">
-                <span className={styles.errorIcon}>⚠️</span>
+                <span className={styles.errorIcon}><AlertTriangle size={16} aria-hidden /></span>
                 {error}
               </div>
             )}
 
             {success && (
               <div className={styles.successMessage} role="alert" aria-live="polite">
-                <span className={styles.successIcon}>✅</span>
+                <span className={styles.successIcon}><CheckCircle size={16} aria-hidden /></span>
                 {success}
               </div>
             )}
@@ -365,14 +366,14 @@ const EnhancedLogin: React.FC = () => {
 
           {error && (
             <div className={styles.errorMessage} role="alert" aria-live="polite">
-              <span className={styles.errorIcon}>⚠️</span>
+              <span className={styles.errorIcon}><AlertTriangle size={16} aria-hidden /></span>
               {error}
             </div>
           )}
 
           {success && (
             <div className={styles.successMessage} role="alert" aria-live="polite">
-              <span className={styles.successIcon}>✅</span>
+              <span className={styles.successIcon}><CheckCircle size={16} aria-hidden /></span>
               {success}
             </div>
           )}
@@ -450,7 +451,7 @@ const EnhancedLogin: React.FC = () => {
                     disabled={isLoading}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
-                    {showPassword ? '👁️' : '👁️‍🗨️'}
+                    {showPassword ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
                   </button>
                 </div>
               </div>
@@ -554,7 +555,7 @@ const EnhancedLogin: React.FC = () => {
                     disabled={isLoading}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
-                    {showPassword ? '👁️' : '👁️‍🗨️'}
+                    {showPassword ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
                   </button>
                 </div>
                 
@@ -576,12 +577,12 @@ const EnhancedLogin: React.FC = () => {
                     <div className={styles.strengthFeedback}>
                       {passwordStrength.isStrong ? (
                         <div className={styles.success}>
-                          ✅ Excellent password security!
+                          <CheckCircle size={14} aria-hidden /> Excellent password security!
                         </div>
                       ) : (
                         passwordStrength.feedback.map((feedback, index) => (
                           <div key={index} className={styles.warning}>
-                            ⚠️ {feedback}
+                            <AlertTriangle size={14} aria-hidden /> {feedback}
                           </div>
                         ))
                       )}
@@ -610,12 +611,12 @@ const EnhancedLogin: React.FC = () => {
                     disabled={isLoading}
                     aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                   >
-                    {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+                    {showConfirmPassword ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
                   </button>
                 </div>
                 {confirmPassword && registerData.password && confirmPassword !== registerData.password && (
                   <div className={styles.passwordMismatch}>
-                    ⚠️ Passwords do not match
+                    <AlertTriangle size={14} aria-hidden /> Passwords do not match
                   </div>
                 )}
               </div>

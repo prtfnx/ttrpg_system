@@ -1,6 +1,6 @@
+import { AlertTriangle, BookOpen, CloudFog, Lightbulb, LogIn, Paintbrush, RefreshCw, RotateCcw } from 'lucide-react';
 import type { ErrorInfo, ReactNode } from 'react';
 import React, { Component } from 'react';
-import { AlertTriangle, BookOpen, CloudFog, Lightbulb, LogIn, Paintbrush, RefreshCw, RotateCcw } from 'lucide-react';
 import styles from './ErrorBoundary.module.css';
 
 // Extend Window interface for error tracking

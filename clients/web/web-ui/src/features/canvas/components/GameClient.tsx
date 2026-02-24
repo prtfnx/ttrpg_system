@@ -1,10 +1,10 @@
+import { RightPanel } from '@app/RightPanel';
 import type { UserInfo } from '@features/auth';
 import { useAuthenticatedWebSocket } from '@features/auth';
 import { SessionManagementPanel } from '@features/session';
 import clsx from 'clsx';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React, { useEffect } from 'react';
-import { RightPanel } from '@app/RightPanel';
 import { GameCanvas } from './GameCanvas';
 import styles from './GameClient.module.css';
 import { TokenConfigModal } from './TokenConfigModal';

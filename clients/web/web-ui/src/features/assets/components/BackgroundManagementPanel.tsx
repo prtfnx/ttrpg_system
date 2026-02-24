@@ -5,6 +5,7 @@
  */
 
 import { ErrorBoundary, LoadingSpinner } from '@shared/components';
+import { AlertTriangle, Eye, EyeOff, Pencil, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     performanceOptimizedBackgroundSystem,
@@ -342,15 +343,15 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
           <div className={styles.panelHeader}>
             <h2>Background Management</h2>
             <button className={styles.closeBtn} onClick={onClose} aria-label="Close panel">
-              ✕
+              <X size={16} aria-hidden />
             </button>
           </div>
 
           {error && (
             <div className={styles.errorMessage} role="alert">
-              <span className={styles.errorIcon}>⚠️</span>
+              <span className={styles.errorIcon}><AlertTriangle size={16} aria-hidden /></span>
               {error}
-              <button className={styles.errorDismiss} onClick={() => setError(null)}>✕</button>
+              <button className={styles.errorDismiss} onClick={() => setError(null)} aria-label="Dismiss error"><X size={14} aria-hidden /></button>
             </div>
           )}
 
@@ -466,7 +467,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                             }}
                             aria-label={layer.visible ? 'Hide layer' : 'Show layer'}
                           >
-                            {layer.visible ? '👁️' : '👁️‍🗨️'}
+                            {layer.visible ? <Eye size={14} aria-hidden /> : <EyeOff size={14} aria-hidden />}
                           </button>
                           <button
                             className={styles.editBtn}
@@ -476,7 +477,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                             }}
                             aria-label="Edit layer"
                           >
-                            ✏️
+                            <Pencil size={14} aria-hidden />
                           </button>
                         </div>
                       </div>
@@ -574,7 +575,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                         onClick={() => handleRemoveWeatherEffect(effect.id)}
                         aria-label="Remove weather effect"
                       >
-                        🗑️
+                        <Trash2 size={14} aria-hidden />
                       </button>
                     </div>
                   </div>

@@ -32,7 +32,6 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from authlib.integrations.starlette_client import OAuth, OAuthError
-import secrets
 import logging
 import re
 
@@ -98,10 +97,6 @@ async def google_login(request: Request):
         )
     
     try:
-        # Generate CSRF protection state
-        state = secrets.token_urlsafe(32)
-        request.session['oauth_state'] = state
-        
         # Generate redirect URI (strip trailing slash from BASE_URL to avoid //)
         base_url = settings.BASE_URL.rstrip('/')
         redirect_uri = f"{base_url}/auth/callback"
@@ -109,7 +104,8 @@ async def google_login(request: Request):
         logger.info(f"Initiating Google OAuth flow with redirect_uri: {redirect_uri}")
         
         # Redirect to Google's authorization endpoint
-        return await oauth.google.authorize_redirect(request, redirect_uri, state=state)
+        # authlib generates and stores state internally for CSRF protection
+        return await oauth.google.authorize_redirect(request, redirect_uri)
         
     except Exception as e:
         logger.error(f"Error initiating Google OAuth: {e}", exc_info=True)
@@ -132,18 +128,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/users/login?error=oauth_not_configured")
     
     try:
-        # Verify CSRF state parameter
-        state = request.query_params.get('state')
-        stored_state = request.session.get('oauth_state')
-        
-        if not state or state != stored_state:
-            logger.warning(f"OAuth state mismatch - received: {state}, stored: {stored_state}")
-            raise HTTPException(status_code=400, detail="Invalid state parameter - possible CSRF attack")
-        
-        # Clear used state
-        request.session.pop('oauth_state', None)
-        
-        # Check for error from Google
+        # Check for error from Google before attempting token exchange
         error = request.query_params.get('error')
         if error:
             logger.warning(f"Google OAuth error: {error}")
@@ -153,6 +138,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             )
         
         # Exchange authorization code for access token
+        # authlib validates the state parameter internally (CSRF protection)
         logger.info("Exchanging authorization code for access token")
         token = await oauth.google.authorize_access_token(request)
         

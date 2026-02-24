@@ -239,7 +239,7 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
             {canLevelUp || targetLevel ? (
               <div className="level-up-ready">
                 <div className="level-up-notice">
-                  <h4>🎉 Level Up Available!</h4>
+                  <h4>Level Up Available!</h4>
                   <p>
                     You have enough experience to advance to level {targetLevel || nextLevel}!
                   </p>

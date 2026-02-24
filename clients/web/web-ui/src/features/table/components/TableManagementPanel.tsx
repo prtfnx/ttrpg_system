@@ -53,7 +53,6 @@ export const TableManagementPanel: FC = () => {
     handleCreateTable,
     confirmDeleteTable,
     handleTableSelect,
-    handleDiagnoseThumbnails,
     handleOpenSettings,
     handleCloseSettings,
     handleSaveSettings,

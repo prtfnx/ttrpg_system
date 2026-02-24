@@ -8,6 +8,7 @@
  * - Accessibility (ARIA) support
  */
 
+import { AlertTriangle, Check, Save, X } from 'lucide-react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ErrorBoundary, LoadingSpinner } from '@shared/components';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -434,7 +435,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
       <ErrorBoundary
         fallback={
           <div className="step-error">
-            <h3>⚠️ Step Error</h3>
+            <h3><AlertTriangle size={16} aria-hidden /> Step Error</h3>
             <p>There was an error loading this step. Please try refreshing or contact support.</p>
             <button onClick={() => window.location.reload()}>Refresh Page</button>
           </div>
@@ -481,7 +482,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
                   aria-label="Close wizard"
                   type="button"
                 >
-                  ✕
+                  <X size={16} aria-hidden />
                 </button>
               </div>
               
@@ -529,7 +530,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
                       </span>
                       <span className="step-title">{step.title}</span>
                       {completedSteps.has(originalIndex) && (
-                        <span className="step-check" aria-label="Completed">✓</span>
+                        <span className="step-check" aria-label="Completed"><Check size={14} aria-hidden /></span>
                       )}
                     </button>
                   );
@@ -589,7 +590,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
               
               {hasUnsavedChanges && (
                 <div className="auto-save-indicator">
-                  💾 Changes saved automatically
+                  <Save size={14} aria-hidden /> Changes saved automatically
                 </div>
               )}
             </div>

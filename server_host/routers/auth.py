@@ -34,6 +34,7 @@ from datetime import timedelta
 from authlib.integrations.starlette_client import OAuth, OAuthError
 import logging
 import re
+import secrets
 
 from ..database.database import SessionLocal, get_db
 from ..database import models, crud

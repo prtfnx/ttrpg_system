@@ -1,4 +1,5 @@
 import clsx from 'clsx';
+import { Download, Trash2, Users } from 'lucide-react';
 import React from 'react';
 import styles from '../CharacterPanel.module.css';
 
@@ -28,13 +29,13 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
     {selectedCount > 0 && (
       <div className={styles.bulkActionsRight}>
         <button className={clsx(styles.bulkActionBtn, "export")} onClick={onBulkExport}>
-          📥 Export Selected
+          <Download size={14} aria-hidden /> Export Selected
         </button>
         <button className={clsx(styles.bulkActionBtn, "share")} onClick={onBulkShare}>
-          👥 Share Selected
+          <Users size={14} aria-hidden /> Share Selected
         </button>
         <button className={clsx(styles.bulkActionBtn, "delete")} onClick={onBulkDelete}>
-          🗑️ Delete Selected
+          <Trash2 size={14} aria-hidden /> Delete Selected
         </button>
       </div>
     )}

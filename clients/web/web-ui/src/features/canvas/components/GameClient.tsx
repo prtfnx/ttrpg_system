@@ -2,6 +2,7 @@ import type { UserInfo } from '@features/auth';
 import { useAuthenticatedWebSocket } from '@features/auth';
 import { SessionManagementPanel } from '@features/session';
 import clsx from 'clsx';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React, { useEffect } from 'react';
 import { RightPanel } from '@app/RightPanel';
 import { GameCanvas } from './GameCanvas';
@@ -213,7 +214,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
               </span>
             </div>
             <ToolsPanel userInfo={userInfo} />
-            <button className={styles.collapseBtn} onClick={toggleLeft}>◀</button>
+            <button className={styles.collapseBtn} onClick={toggleLeft} title="Collapse panel"><ChevronLeft size={16} aria-hidden /></button>
           </div>
         )}
         
@@ -229,10 +230,10 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
           
           {/* Panel expand buttons positioned directly in canvas */}
           {!leftVisible && (
-            <button className={clsx(styles.expandBtn, styles.left)} onClick={toggleLeft}>▶</button>
+            <button className={clsx(styles.expandBtn, styles.left)} onClick={toggleLeft} title="Expand panel"><ChevronRight size={16} aria-hidden /></button>
           )}
           {!rightVisible && (
-            <button className={clsx(styles.expandBtn, styles.right)} onClick={toggleRight}>◀</button>
+            <button className={clsx(styles.expandBtn, styles.right)} onClick={toggleRight} title="Expand panel"><ChevronLeft size={16} aria-hidden /></button>
           )}
           
           {/* Other canvas controls */}
@@ -251,7 +252,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
         {rightVisible && (
           <div className={styles.rightPanel} style={{ width: rightWidth }}>
             <RightPanel sessionCode={sessionCode} userInfo={userInfo} userRole={userRole} />
-            <button className={styles.collapseBtn} onClick={toggleRight}>▶</button>
+            <button className={styles.collapseBtn} onClick={toggleRight} title="Collapse panel"><ChevronRight size={16} aria-hidden /></button>
           </div>
         )}
 

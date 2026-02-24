@@ -1,5 +1,6 @@
 import { useGameStore } from '@/store';
 import { authService } from '@features/auth';
+import { Check } from 'lucide-react';
 import { useProtocol } from '@lib/api';
 import React, { useEffect, useState } from 'react';
 import styles from './TokenConfigModal.module.css';
@@ -294,8 +295,8 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
               <p className={styles.characterDetails}>
                 Level {linkedCharacter.data?.level || 1} {linkedCharacter.data?.race || 'Unknown'} {linkedCharacter.data?.class || 'Unknown'}
               </p>
-              <p className={styles.syncNote} style={{ fontSize: '12px', color: '#888', marginTop: '8px' }}>
-                ✓ Token stats synced with character
+              <p className={styles.syncNote} style={{ fontSize: '12px', color: '#888', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Check size={14} aria-hidden /> Token stats synced with character
               </p>
             </div>
           )}

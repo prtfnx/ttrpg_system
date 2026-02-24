@@ -72,6 +72,7 @@ class EntityUpdate(BaseModel):
     rotation: Optional[float] = None
     obstacle_type: Optional[str] = None
     obstacle_data: Optional[str] = None  # JSON string
+    metadata: Optional[str] = None
     # Character binding
     character_id: Optional[str] = None
     controlled_by: Optional[str] = None  # JSON array as string

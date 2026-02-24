@@ -500,6 +500,7 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             rotation=entity_obj.rotation,
             obstacle_type=entity_obj.obstacle_type,
             obstacle_data=json.dumps(entity_obj.obstacle_data) if entity_obj.obstacle_data else None,
+            metadata=getattr(entity_obj, 'metadata', None),
             # Character binding
             character_id=getattr(entity_obj, 'character_id', None),
             controlled_by=controlled_by_json,
@@ -525,6 +526,7 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             rotation=entity_obj.rotation,
             obstacle_type=entity_obj.obstacle_type,
             obstacle_data=json.dumps(entity_obj.obstacle_data) if entity_obj.obstacle_data else None,
+            metadata=getattr(entity_obj, 'metadata', None),
             # Character binding
             character_id=getattr(entity_obj, 'character_id', None),
             controlled_by=controlled_by_json,
@@ -585,6 +587,7 @@ def load_table_from_db(db: Session, table_id: str):
                 entity_id=db_entity.entity_id,
                 obstacle_type=db_entity.obstacle_type,
                 obstacle_data=json.loads(db_entity.obstacle_data) if db_entity.obstacle_data else None,
+                metadata=db_entity.metadata,
                 # Character binding
                 character_id=db_entity.character_id,
                 controlled_by=controlled_by,

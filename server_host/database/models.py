@@ -112,6 +112,9 @@ class Entity(Base):
     obstacle_type = Column(String(20), nullable=True)  # "rectangle", "circle", "polygon", "line", None
     obstacle_data = Column(Text, nullable=True)  # JSON: shape-specific data
     
+    # Generic metadata (JSON string — used by lights and other special entities, opaque to server)
+    metadata = Column(Text, nullable=True)
+    
     # Token stats (for gameplay)
     hp = Column(Integer, nullable=True)
     max_hp = Column(Integer, nullable=True)

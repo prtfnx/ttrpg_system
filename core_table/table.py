@@ -17,7 +17,8 @@ class Entity:
                  obstacle_type: Optional[str] = None, obstacle_data: Optional[dict] = None,
                  character_id: Optional[str] = None, controlled_by: Optional[List[int]] = None,
                  hp: Optional[int] = None, max_hp: Optional[int] = None,
-                 ac: Optional[int] = None, aura_radius: Optional[float] = None):
+                 ac: Optional[int] = None, aura_radius: Optional[float] = None,
+                 metadata: Optional[str] = None):
         # Use entity_id consistently
         self.entity_id = entity_id
         self.id = entity_id  # Keep both for backward compatibility
@@ -43,6 +44,9 @@ class Entity:
         self.ac = ac
         self.aura_radius = aura_radius
 
+        # Generic metadata (JSON string, opaque to server — used by lights etc.)
+        self.metadata = metadata
+
         self.sprite_id = str(uuid.uuid4())
         
     def to_dict(self):
@@ -66,6 +70,7 @@ class Entity:
             'max_hp': self.max_hp,
             'ac': self.ac,
             'aura_radius': self.aura_radius,
+            'metadata': self.metadata,
             # Legacy fields
             'character': None,
             'moving': False,
@@ -93,6 +98,7 @@ class Entity:
         entity.scale_x = data.get('scale_x', 1.0)
         entity.scale_y = data.get('scale_y', 1.0)
         entity.rotation = data.get('rotation', 0.0)
+        entity.metadata = data.get('metadata')
         return entity
 
     def serialize(self) -> dict:
@@ -176,11 +182,13 @@ class VirtualTable:
         max_hp = entity_data.get('max_hp')
         ac = entity_data.get('ac')
         aura_radius = entity_data.get('aura_radius')
+        metadata = entity_data.get('metadata')
         
         entity = Entity(name, position, layer, path_to_texture, self.next_entity_id,
                        obstacle_type=obstacle_type, obstacle_data=obstacle_data,
                        character_id=character_id, controlled_by=controlled_by,
-                       hp=hp, max_hp=max_hp, ac=ac, aura_radius=aura_radius)
+                       hp=hp, max_hp=max_hp, ac=ac, aura_radius=aura_radius,
+                       metadata=metadata)
         
         # Apply transform properties if provided
         if 'scale_x' in entity_data:

@@ -362,6 +362,7 @@ def create_entity(db: Session, entity_data: schemas.EntityCreate, table_db_id: i
         rotation=entity_data.rotation,
         obstacle_type=entity_data.obstacle_type,
         obstacle_data=entity_data.obstacle_data,
+        entity_metadata=entity_data.metadata,
         # Character binding
         character_id=entity_data.character_id,
         controlled_by=entity_data.controlled_by,
@@ -392,7 +393,9 @@ def update_entity(db: Session, sprite_id: str, entity_update: schemas.EntityUpda
     
     update_data = entity_update.dict(exclude_unset=True)
     for field, value in update_data.items():
-        setattr(db_entity, field, value)
+        # schema field 'metadata' maps to SQLAlchemy attribute 'entity_metadata'
+        attr = 'entity_metadata' if field == 'metadata' else field
+        setattr(db_entity, attr, value)
     
     db_entity.updated_at = datetime.utcnow()
     db.commit()
@@ -587,7 +590,7 @@ def load_table_from_db(db: Session, table_id: str):
                 entity_id=db_entity.entity_id,
                 obstacle_type=db_entity.obstacle_type,
                 obstacle_data=json.loads(db_entity.obstacle_data) if db_entity.obstacle_data else None,
-                metadata=db_entity.metadata,
+                metadata=db_entity.entity_metadata,
                 # Character binding
                 character_id=db_entity.character_id,
                 controlled_by=controlled_by,

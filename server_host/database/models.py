@@ -19,6 +19,8 @@ class User(Base):
     is_verified = Column(Boolean, default=False, index=True)
     google_id = Column(String(255), unique=True, nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    password_set_at = Column(DateTime, nullable=True)  # NULL = OAuth-only user who never set a password
+    session_version = Column(Integer, default=0, nullable=False)  # Bump to invalidate all JWTs
     
     # Relationships
     game_sessions = relationship("GameSession", back_populates="owner")
@@ -113,7 +115,7 @@ class Entity(Base):
     obstacle_data = Column(Text, nullable=True)  # JSON: shape-specific data
     
     # Generic metadata (JSON string — used by lights and other special entities, opaque to server)
-    metadata = Column(Text, nullable=True)
+    entity_metadata = Column('metadata', Text, nullable=True)
     
     # Token stats (for gameplay)
     hp = Column(Integer, nullable=True)
@@ -237,6 +239,35 @@ class EmailVerificationToken(Base):
         if datetime.utcnow() > self.expires_at:
             return False
         return True
+
+class PasswordResetToken(Base):
+    """Password reset tokens — stores SHA-256 hash only, never the raw token"""
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = Column(String(64), unique=True, nullable=False, index=True)  # SHA-256 hex
+    expires_at = Column(DateTime, nullable=False)
+    used = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+
+
+class PendingEmailChange(Base):
+    """Pending email change verification tokens"""
+    __tablename__ = "pending_email_changes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    new_email = Column(String(100), nullable=False)
+    token_hash = Column(String(64), unique=True, nullable=False, index=True)  # SHA-256 hex
+    expires_at = Column(DateTime, nullable=False)
+    used = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+
 
 class AuditLog(Base):
     """Comprehensive audit logging for security events"""

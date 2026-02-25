@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
     GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
     
+    # Email settings (Resend)
+    RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
+    EMAIL_FROM: str = os.getenv("EMAIL_FROM", "noreply@ttrpg-system.com")
+
     # R2 (Cloudflare) settings for asset storage
     r2_enabled: bool = False
     r2_account_id: str = ""

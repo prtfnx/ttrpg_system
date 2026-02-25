@@ -9,15 +9,18 @@ from sqlalchemy.orm import Session
 from typing import Annotated
 from datetime import datetime, timedelta, timezone
 from jwt.exceptions import InvalidTokenError
+import hashlib
 import jwt
+import secrets
 
 from ..database.database import get_db
 from ..database import crud
 from ..database import schemas
 from ..database import models
 from ..models import auth as auth_models
-from ..utils.rate_limiter import registration_limiter, login_limiter, get_client_ip
+from ..utils.rate_limiter import registration_limiter, login_limiter, password_reset_limiter, get_client_ip
 from ..utils.logger import setup_logger
+from ..service.email import send_password_reset, send_password_changed, send_email_change_verify, send_email_change_notify
 from functools import lru_cache
 import os
 
@@ -81,6 +84,8 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
     user = crud.get_user_by_username(db, username=username)
     if user is None:
         logger.debug(f"get_current_user: User {username} not found in database")
+        raise credentials_exception
+    if (user.session_version or 0) != payload.get("sv", 0):
         raise credentials_exception
     logger.debug(f"get_current_user: User {username} found and authenticated")
     return user
@@ -204,7 +209,8 @@ async def login_for_access_token(
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data={"sub": user.username, "sv": user.session_version or 0},
+        expires_delta=access_token_expires
     )
     return auth_models.Token(access_token=access_token, token_type="bearer")
 
@@ -230,6 +236,12 @@ def login_page(request: Request):
         success_message = "Registration successful! Please log in with your credentials."
     elif verified:
         success_message = "Email verified successfully! You can now log in."
+
+    msg = request.query_params.get("msg")
+    if msg == "password_reset_success":
+        success_message = "Password reset successful. Please log in with your new password."
+    elif msg == "account_deleted":
+        success_message = "Your account has been deactivated."
     
     return templates.TemplateResponse(request, "login.html", {
         "success": success_message,
@@ -465,9 +477,6 @@ def register_user_view(
             }, status_code=status_code)
         
         # Registration successful - create verification token
-        import secrets
-        from datetime import timedelta
-        
         verification_token = secrets.token_urlsafe(32)
         expires_at = datetime.utcnow() + timedelta(hours=24)
         
@@ -519,7 +528,7 @@ def register_user_view(
                     
                     # Log in and redirect to session
                     access_token = create_access_token(
-                        data={"sub": user.username},
+                        data={"sub": user.username, "sv": user.session_version or 0},
                         expires_delta=timedelta(hours=6)
                     )
                     response = RedirectResponse(
@@ -548,41 +557,319 @@ def register_user_view(
         }, status_code=500)
 
 @router.get("/edit")
-async def edit_profile_page(
-    request: Request,
-    current_user: Annotated[schemas.User, Depends(get_current_active_user)]
-):
-    """Edit profile page (placeholder - you can create edit.html template)"""
-    return templates.TemplateResponse(request, "profile.html", {
-        "user": current_user,
-        "edit_mode": True
-    })
+async def edit_profile_redirect(request: Request):
+    return RedirectResponse("/users/settings", status_code=301)
+
 
 @router.post("/edit")
-async def update_profile(
-    request: Request,
-    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
-    db: Session = Depends(get_db),
-    character_name: str = Form(None)
-):
-    """Update user profile"""
-    # Update character name if provided
-    if character_name:
-        # You'll need to add this function to your crud.py
-        # crud.update_user_character_name(db, current_user.id, character_name)
-        pass    
-    return RedirectResponse(url="/users/me", status_code=status.HTTP_302_FOUND)
+async def edit_post_redirect(request: Request):
+    return RedirectResponse("/users/settings", status_code=301)
 
 @router.get("/auth-error")
 async def auth_error_page(request: Request):
-    """Authentication error page"""
     return templates.TemplateResponse(request, "auth_error.html", {
         "error_message": "Authentication failed. Please try again."
     })
 
+
+# ─── Forgot / Reset Password ─────────────────────────────────────────────────
+
+@router.get("/forgot-password")
+def forgot_password_page(request: Request):
+    return templates.TemplateResponse(request, "forgot_password.html", {})
+
+
+@router.post("/forgot-password")
+async def forgot_password_submit(
+    request: Request,
+    email: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    client_ip = get_client_ip(request)
+    if not password_reset_limiter.is_allowed(client_ip, max_requests=3, window_minutes=5):
+        return templates.TemplateResponse(request, "forgot_password.html", {
+            "error": "Too many requests. Please try again later."
+        }, status_code=429)
+
+    user = db.query(models.User).filter(models.User.email == email.strip()).first()
+    if user:
+        # Invalidate existing unused tokens
+        db.query(models.PasswordResetToken).filter(
+            models.PasswordResetToken.user_id == user.id,
+            models.PasswordResetToken.used == False,
+        ).delete()
+
+        raw = secrets.token_urlsafe(32)
+        db.add(models.PasswordResetToken(
+            user_id=user.id,
+            token_hash=hashlib.sha256(raw.encode()).hexdigest(),
+            expires_at=datetime.utcnow() + timedelta(minutes=15),
+        ))
+        db.commit()
+
+        base_url = get_settings().BASE_URL.rstrip("/")
+        send_password_reset(user.email, f"{base_url}/users/reset-password?token={raw}")
+    else:
+        # Timing equalisation — prevent enumeration via response time delta
+        crud.get_password_hash("timing-dummy")
+
+    # Always show the same page regardless of whether email exists
+    return templates.TemplateResponse(request, "forgot_password_sent.html", {})
+
+
+@router.get("/reset-password")
+def reset_password_page(request: Request, token: str = "", db: Session = Depends(get_db)):
+    if not token:
+        return RedirectResponse("/users/forgot-password", status_code=302)
+
+    record = db.query(models.PasswordResetToken).filter(
+        models.PasswordResetToken.token_hash == hashlib.sha256(token.encode()).hexdigest(),
+        models.PasswordResetToken.used == False,
+        models.PasswordResetToken.expires_at > datetime.utcnow(),
+    ).first()
+
+    if not record:
+        return templates.TemplateResponse(request, "auth_error.html", {
+            "error_message": "This reset link is invalid or has expired. Please request a new one."
+        }, status_code=400)
+
+    return templates.TemplateResponse(request, "reset_password.html", {"token": token})
+
+
+@router.post("/reset-password")
+async def reset_password_submit(
+    request: Request,
+    token: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    if new_password != confirm_password:
+        return templates.TemplateResponse(request, "reset_password.html", {
+            "token": token, "error": "Passwords do not match"
+        }, status_code=400)
+
+    pw_ok, pw_err = crud.validate_password(new_password)
+    if not pw_ok:
+        return templates.TemplateResponse(request, "reset_password.html", {
+            "token": token, "error": pw_err
+        }, status_code=400)
+
+    record = db.query(models.PasswordResetToken).filter(
+        models.PasswordResetToken.token_hash == hashlib.sha256(token.encode()).hexdigest(),
+        models.PasswordResetToken.used == False,
+        models.PasswordResetToken.expires_at > datetime.utcnow(),
+    ).first()
+
+    if not record:
+        return templates.TemplateResponse(request, "auth_error.html", {
+            "error_message": "This reset link is invalid or has expired."
+        }, status_code=400)
+
+    record.used = True
+    record.user.hashed_password = crud.get_password_hash(new_password)
+    record.user.password_set_at = datetime.utcnow()
+    record.user.session_version = (record.user.session_version or 0) + 1
+
+    db.add(models.AuditLog(
+        event_type="password_reset",
+        user_id=record.user.id,
+        ip_address=get_client_ip(request),
+        details='{"method":"email_token"}',
+    ))
+    db.commit()
+
+    if record.user.email:
+        send_password_changed(record.user.email)
+
+    return RedirectResponse("/users/login?msg=password_reset_success", status_code=302)
+
+
+# ─── User Settings ────────────────────────────────────────────────────────────
+
+@router.get("/settings")
+async def settings_page(
+    request: Request,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
+):
+    return templates.TemplateResponse(request, "settings.html", {
+        "user": current_user,
+        "tab": request.query_params.get("tab", "profile"),
+        "msg": request.query_params.get("msg"),
+        "error": request.query_params.get("error"),
+        "has_password": current_user.password_set_at is not None,
+        "has_google": current_user.google_id is not None,
+    })
+
+
+@router.post("/settings/profile")
+async def settings_profile(
+    request: Request,
+    full_name: str = Form(""),
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)] = None,
+    db: Session = Depends(get_db),
+):
+    user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    user.full_name = full_name.strip() or None
+    db.commit()
+    return RedirectResponse("/users/settings?tab=profile&msg=profile_updated", status_code=302)
+
+
+@router.post("/settings/password")
+async def settings_password(
+    request: Request,
+    current_password: str = Form(""),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)] = None,
+    db: Session = Depends(get_db),
+):
+    has_password = current_user.password_set_at is not None
+
+    if has_password and not crud.verify_password(current_password, current_user.hashed_password):
+        return RedirectResponse("/users/settings?tab=security&error=Current+password+is+incorrect", status_code=302)
+
+    if new_password != confirm_password:
+        return RedirectResponse("/users/settings?tab=security&error=Passwords+do+not+match", status_code=302)
+
+    pw_ok, pw_err = crud.validate_password(new_password)
+    if not pw_ok:
+        return RedirectResponse(f"/users/settings?tab=security&error={pw_err.replace(' ', '+')}", status_code=302)
+
+    if has_password and crud.verify_password(new_password, current_user.hashed_password):
+        return RedirectResponse("/users/settings?tab=security&error=New+password+must+differ+from+current", status_code=302)
+
+    user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    user.hashed_password = crud.get_password_hash(new_password)
+    user.password_set_at = datetime.utcnow()
+    user.session_version = (user.session_version or 0) + 1
+
+    db.add(models.AuditLog(event_type="password_change", user_id=user.id, ip_address=get_client_ip(request)))
+    db.commit()
+
+    if user.email:
+        send_password_changed(user.email)
+
+    # Re-issue JWT with new session_version so user stays logged in
+    access_token = create_access_token(
+        data={"sub": user.username, "sv": user.session_version},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+    response = RedirectResponse("/users/settings?tab=security&msg=password_changed", status_code=302)
+    response.set_cookie(
+        key="token",
+        value=access_token,
+        httponly=True,
+        samesite="lax",
+        secure=get_settings().ENVIRONMENT == "production",
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
+    return response
+
+
+@router.post("/settings/email")
+async def settings_email(
+    request: Request,
+    new_email: str = Form(...),
+    password: str = Form(...),
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)] = None,
+    db: Session = Depends(get_db),
+):
+    if current_user.password_set_at and not crud.verify_password(password, current_user.hashed_password):
+        return RedirectResponse("/users/settings?tab=security&error=Incorrect+password", status_code=302)
+
+    new_email = new_email.strip().lower()
+    if crud.get_user_by_email(db, new_email):
+        return RedirectResponse("/users/settings?tab=security&error=Email+already+in+use", status_code=302)
+
+    # Invalidate existing pending changes for this user
+    db.query(models.PendingEmailChange).filter(
+        models.PendingEmailChange.user_id == current_user.id,
+        models.PendingEmailChange.used == False,
+    ).delete()
+
+    raw = secrets.token_urlsafe(32)
+    db.add(models.PendingEmailChange(
+        user_id=current_user.id,
+        new_email=new_email,
+        token_hash=hashlib.sha256(raw.encode()).hexdigest(),
+        expires_at=datetime.utcnow() + timedelta(hours=24),
+    ))
+    db.commit()
+
+    base_url = get_settings().BASE_URL.rstrip("/")
+    send_email_change_verify(new_email, f"{base_url}/users/verify-email-change?token={raw}")
+    if current_user.email:
+        send_email_change_notify(current_user.email)
+
+    return RedirectResponse("/users/settings?tab=security&msg=verification_email_sent", status_code=302)
+
+
+@router.get("/verify-email-change")
+def verify_email_change(request: Request, token: str = "", db: Session = Depends(get_db)):
+    if not token:
+        return RedirectResponse("/users/login", status_code=302)
+
+    record = db.query(models.PendingEmailChange).filter(
+        models.PendingEmailChange.token_hash == hashlib.sha256(token.encode()).hexdigest(),
+        models.PendingEmailChange.used == False,
+        models.PendingEmailChange.expires_at > datetime.utcnow(),
+    ).first()
+
+    if not record:
+        return templates.TemplateResponse(request, "auth_error.html", {
+            "error_message": "This verification link is invalid or has expired."
+        }, status_code=400)
+
+    if crud.get_user_by_email(db, record.new_email):
+        return templates.TemplateResponse(request, "auth_error.html", {
+            "error_message": "This email is already in use by another account."
+        }, status_code=400)
+
+    record.used = True
+    user = db.query(models.User).filter(models.User.id == record.user_id).first()
+    user.email = record.new_email
+
+    db.add(models.AuditLog(
+        event_type="email_change",
+        user_id=user.id,
+        ip_address=get_client_ip(request),
+        details=f'{{"new_email":"{record.new_email}"}}',
+    ))
+    db.commit()
+
+    return RedirectResponse("/users/settings?tab=security&msg=email_changed", status_code=302)
+
+
+@router.post("/settings/delete")
+async def settings_delete(
+    request: Request,
+    username_confirm: str = Form(...),
+    password: str = Form(...),
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)] = None,
+    db: Session = Depends(get_db),
+):
+    if username_confirm != current_user.username:
+        return RedirectResponse("/users/settings?tab=account&error=Username+does+not+match", status_code=302)
+
+    if current_user.password_set_at and not crud.verify_password(password, current_user.hashed_password):
+        return RedirectResponse("/users/settings?tab=account&error=Incorrect+password", status_code=302)
+
+    user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    user.disabled = True
+    user.session_version = (user.session_version or 0) + 1
+
+    db.add(models.AuditLog(event_type="account_delete", user_id=user.id, ip_address=get_client_ip(request)))
+    db.commit()
+
+    response = RedirectResponse("/users/login?msg=account_deleted", status_code=302)
+    response.delete_cookie(key="token", path="/", samesite="lax")
+    return response
+
+
 @router.get("/logout")
 def logout():
-    """Logout by redirecting and clearing cookie"""
     response = RedirectResponse(url="/users/login", status_code=status.HTTP_302_FOUND)
     response.delete_cookie(key="token", path="/", samesite="lax")
     return response

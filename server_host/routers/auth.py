@@ -213,7 +213,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         
         # Create JWT access token
         access_token = create_access_token(
-            data={"sub": user.username},
+            data={"sub": user.username, "sv": user.session_version or 0},
             expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )
         

@@ -57,6 +57,7 @@ class EntityBase(BaseModel):
     max_hp: Optional[int] = None
     ac: Optional[int] = None
     aura_radius: Optional[float] = None
+    metadata: Optional[str] = None
 
 class EntityCreate(EntityBase):
     pass

@@ -55,12 +55,13 @@ def test_db(test_db_engine):
 @pytest.fixture(autouse=True)
 def reset_rate_limiters():
     """Reset rate limiters before each test to prevent 429 errors"""
-    from server_host.utils.rate_limiter import registration_limiter, login_limiter
+    from server_host.utils.rate_limiter import registration_limiter, login_limiter, password_reset_limiter
     from server_host.routers.demo import demo_limiter
     
     registration_limiter.clear()
     login_limiter.clear()
     demo_limiter.clear()
+    password_reset_limiter.clear()
     yield
 
 @pytest.fixture(scope="function")

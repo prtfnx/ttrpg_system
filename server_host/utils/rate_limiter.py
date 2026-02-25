@@ -82,9 +82,10 @@ class RateLimiter:
         """Clear all rate limiting data. Useful for testing."""
         self.requests.clear()
 
-# Global rate limiter instance
+# Global rate limiter instances
 registration_limiter = RateLimiter()
 login_limiter = RateLimiter()
+password_reset_limiter = RateLimiter()
 
 def get_client_ip(request) -> str:
     """

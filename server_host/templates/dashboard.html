@@ -6,7 +6,10 @@
 <div class="page-header">
     <div class="page-header-content">
         <h1 class="page-title">{{ user.username }}</h1>
-        <a href="/users/logout" class="btn btn-secondary">Sign Out</a>
+        <div class="page-header-actions">
+            <a href="/users/settings" class="btn btn-secondary">Settings</a>
+            <a href="/users/logout" class="btn btn-secondary">Sign Out</a>
+        </div>
     </div>
 </div>
 {% endblock %}

@@ -616,3 +616,127 @@ a:hover {
     justify-content: center;
   }
 }
+
+/* ─── Forgot password hint ──────────────────────────────────────────────── */
+
+.form-hint-link {
+  display: block;
+  margin-top: var(--space-xs);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-decoration: none;
+}
+.form-hint-link:hover {
+  color: var(--text-secondary);
+  text-decoration: underline;
+}
+
+.auth-footer {
+  text-align: center;
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+}
+
+/* ─── Settings layout ───────────────────────────────────────────────────── */
+
+.settings-layout {
+  max-width: 720px;
+  margin: var(--space-xl) auto;
+  padding: 0 var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.settings-nav {
+  display: flex;
+  gap: var(--space-xs);
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: var(--space-sm);
+}
+
+.settings-nav-btn {
+  background: none;
+  border: none;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-muted);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+.settings-nav-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+.settings-nav-btn.active {
+  color: var(--color-primary);
+  background: var(--bg-tertiary);
+}
+
+.settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+.settings-section.hidden {
+  display: none;
+}
+
+.settings-form {
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.settings-alert {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.settings-warning {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.card-danger {
+  border: 1px solid var(--color-error, #e53e3e);
+}
+
+.btn-danger {
+  background: var(--color-error, #e53e3e);
+  color: #fff;
+  border: none;
+}
+.btn-danger:hover {
+  opacity: 0.9;
+}
+
+.connected-account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.page-header-actions {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+@media (max-width: 480px) {
+  .settings-nav {
+    flex-wrap: wrap;
+  }
+}
+

@@ -875,42 +875,59 @@ class WasmIntegrationService {
       const isFogReveal = spriteData.texture_path === '__FOG_REVEAL__';
       
       if (isLight) {
-        // This is a light source, add it as a light instead of a sprite
         console.log('🔦 Detected light entity from server, adding as light:', spriteData);
-        
-        // Create sprite object for WASM - handle various position formats
+
         let x = 0, y = 0;
         if (Array.isArray(spriteData.position) && spriteData.position.length >= 2) {
-          // Server format: position: [x, y]
           x = spriteData.position[0];
           y = spriteData.position[1];
-          console.log(`Position from array: [${x}, ${y}]`);
         } else {
-          // Client format: coord_x/coord_y or x/y
           x = spriteData.coord_x ?? spriteData.x ?? 0;
           y = spriteData.coord_y ?? spriteData.y ?? 0;
-          console.log(`Position from properties: (${x}, ${y})`);
         }
-        
-        // Add as light using the rendering engine's add_light method
+
+        // Parse stored metadata to restore light properties
+        let lightMeta: any = {};
+        try {
+          if (typeof spriteData.metadata === 'string') {
+            lightMeta = JSON.parse(spriteData.metadata);
+          }
+        } catch (_) { /* use defaults */ }
+
         const lightId = spriteData.sprite_id || spriteData.id || `light_${Date.now()}`;
-        const tableId = spriteData.table_id || 'default_table';
-        
-        if (typeof (this.renderEngine as any).add_light === 'function') {
-          (this.renderEngine as any).add_light(
-            lightId,
-            x,
-            y,
-            150.0,  // Default radius
-            1.0, 1.0, 0.9, 1.0,  // Default color (warm white)
-            tableId
-          );
-          console.log(`✅ Successfully added light from server: ${lightId} at (${x}, ${y})`);
+        const radius = lightMeta.radius ?? 150.0;
+        const intensity = lightMeta.intensity ?? 1.0;
+        const color = lightMeta.color ?? { r: 1.0, g: 0.9, b: 0.7, a: 1.0 };
+        const isOn = lightMeta.isOn !== false;
+
+        const engine = this.renderEngine as any;
+        if (typeof engine.add_light === 'function') {
+          engine.add_light(lightId, x, y);
+          engine.set_light_color(lightId, color.r, color.g, color.b, color.a);
+          engine.set_light_intensity(lightId, intensity);
+          engine.set_light_radius(lightId, radius);
+          if (!isOn && typeof engine.toggle_light === 'function') {
+            engine.toggle_light(lightId);
+          }
+          console.log(`✅ Light restored: ${lightId} at (${x}, ${y}) r=${radius}`);
         } else {
-          console.error('❌ add_light method not available on render engine');
+          console.error('❌ add_light not available on render engine');
         }
-        
-        return; // Exit early, don't add as sprite
+
+        // Also push to Zustand so LightingPanel can see it
+        useGameStore.getState().addSprite({
+          id: lightId,
+          name: spriteData.name || lightMeta.presetName || 'Light',
+          tableId: spriteData.table_id ?? spriteData.tableId ?? '',
+          x,
+          y,
+          texture: '__LIGHT__',
+          layer: 'light',
+          scale: { x: 1, y: 1 },
+          rotation: 0,
+          metadata: spriteData.metadata ?? undefined,
+        });
+        return;
       }
       
       // Check if this is a fog rectangle

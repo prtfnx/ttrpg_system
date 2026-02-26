@@ -15,14 +15,15 @@ function lightToSprite(light: Light, tableId: string): Record<string, any> {
     id: light.id,
     x: light.x,
     y: light.y,
-    width: light.radius * 2, // Use radius for sprite width
-    height: light.radius * 2, // Use radius for sprite height
+    scale_x: light.radius * 2,
+    scale_y: light.radius * 2,
     rotation: 0,
-    texture_path: '__LIGHT__', // Special marker for light sprites
+    texture_path: '__LIGHT__',
     layer: 'light',
-    table_id: tableId, // CRITICAL: Include table_id for table-specific lights
+    table_id: tableId,
     metadata: JSON.stringify({
       isLight: true,
+      presetName: light.presetName,
       color: light.color,
       intensity: light.intensity,
       radius: light.radius,
@@ -33,12 +34,11 @@ function lightToSprite(light: Light, tableId: string): Record<string, any> {
 
 /** Convert Sprite to Light (only if it's a light sprite) */
 function spriteToLight(sprite: any): Light | null {
-  // Check if this sprite represents a light
-  if (sprite.layer !== 'light' || sprite.texture_path !== '__LIGHT__') {
+  const texturePath = sprite.texture_path || sprite.texture;
+  if (sprite.layer !== 'light' || texturePath !== '__LIGHT__') {
     return null;
   }
-  
-  // Parse metadata
+
   let metadata: any = {};
   try {
     if (typeof sprite.metadata === 'string') {
@@ -50,18 +50,19 @@ function spriteToLight(sprite: any): Light | null {
     console.warn('Failed to parse light metadata:', e);
     return null;
   }
-  
+
   if (!metadata.isLight) {
     return null;
   }
-  
+
   return {
-    id: sprite.id,
-    x: sprite.x,
-    y: sprite.y,
+    id: sprite.id || sprite.sprite_id,
+    x: sprite.x ?? (Array.isArray(sprite.position) ? sprite.position[0] : 0),
+    y: sprite.y ?? (Array.isArray(sprite.position) ? sprite.position[1] : 0),
+    presetName: metadata.presetName,
     color: metadata.color || { r: 1, g: 1, b: 1, a: 1 },
-    intensity: metadata.intensity || 1.0,
-    radius: metadata.radius || 100,
+    intensity: metadata.intensity ?? 1.0,
+    radius: metadata.radius ?? 100,
     isOn: metadata.isOn !== false,
   };
 }
@@ -70,6 +71,7 @@ interface Light {
   id: string;
   x: number;
   y: number;
+  presetName?: string;
   color: Color;
   intensity: number;
   radius: number;
@@ -92,13 +94,14 @@ export const LightingPanel: React.FC = () => {
   const protocol = protocolCtx?.protocol || null;
   const sprites = useGameStore(state => state.sprites);
   const activeTableId = useGameStore(state => state.activeTableId);
+  const ambientLight = useGameStore(state => state.ambientLight);
+  const setAmbientLight = useGameStore(state => state.setAmbientLight);
   const [lights, setLights] = useState<Light[]>([]);
   const [selectedLightId, setSelectedLightId] = useState<string | null>(null);
   const [engineError, setEngineError] = useState<string | null>(null);
   const [isEngineReady, setIsEngineReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [placementMode, setPlacementMode] = useState<typeof LIGHT_PRESETS[0] | null>(null);
-  const [ambientLight, setAmbientLight] = useState(0.2);
 
   // ============================================================================
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
@@ -143,59 +146,43 @@ export const LightingPanel: React.FC = () => {
     checkEngineReadiness();
   }, [engine]);
 
-  // Clear lights when table changes
+  // Clear old lights and reload from sprites whenever the active table or sprite list changes.
+  // Single effect to guarantee clear-before-load ordering.
   useEffect(() => {
     if (!engine || !isEngineReady) return;
-    
-    // Remove all existing lights from WASM
-    for (const light of lights) {
-      try {
-        engine.remove_light(light.id);
-      } catch (error) {
-        console.error(`Failed to remove light ${light.id}:`, error);
+
+    // Remove previous lights from WASM
+    setLights(prev => {
+      for (const light of prev) {
+        try { engine.remove_light(light.id); } catch { /* ignore */ }
       }
-    }
-    
-    // Clear local state
-    setLights([]);
+      return [];
+    });
     setSelectedLightId(null);
     setPlacementMode(null);
-  }, [activeTableId, engine, isEngineReady]); // Triggers when table changes
 
-  // Load lights from sprites on the "light" layer for current table
-  useEffect(() => {
-    if (!engine || !isEngineReady || !activeTableId) return;
+    if (!activeTableId) return;
 
     const loadedLights: Light[] = [];
-
-    // Find all sprites on the "light" layer and convert them to lights
     for (const sprite of sprites) {
+      // Only load sprites belonging to the active table
+      if (sprite.tableId && sprite.tableId !== activeTableId) continue;
       const light = spriteToLight(sprite);
-      if (light) {
-        loadedLights.push(light);
-        
-        // Recreate light in WASM
-        try {
-          engine.add_light(light.id, light.x, light.y);
-          engine.set_light_color(light.id, light.color.r, light.color.g, light.color.b, light.color.a);
-          engine.set_light_intensity(light.id, light.intensity);
-          engine.set_light_radius(light.id, light.radius);
-          if (!light.isOn) {
-            engine.toggle_light(light.id);
-          }
-        } catch (error) {
-          console.error(`Failed to restore light ${light.id}:`, error);
-        }
+      if (!light) continue;
+      loadedLights.push(light);
+      try {
+        engine.add_light(light.id, light.x, light.y);
+        engine.set_light_color(light.id, light.color.r, light.color.g, light.color.b, light.color.a);
+        engine.set_light_intensity(light.id, light.intensity);
+        engine.set_light_radius(light.id, light.radius);
+        if (!light.isOn) engine.toggle_light(light.id);
+      } catch (error) {
+        console.error(`Failed to restore light ${light.id}:`, error);
       }
     }
 
-    if (loadedLights.length > 0) {
-      console.log(`[LIGHTING] Restored ${loadedLights.length} lights from sprites`);
-      setLights(loadedLights);
-    } else {
-      console.log('[LIGHTING] No lights found for this table');
-      setLights([]);
-    }
+    console.log(`[LIGHTING] Loaded ${loadedLights.length} lights for table ${activeTableId}`);
+    setLights(loadedLights);
   }, [engine, isEngineReady, activeTableId, sprites]);
 
   // Handle light placed event from GameCanvas
@@ -245,6 +232,7 @@ export const LightingPanel: React.FC = () => {
           id: lightId,
           x,
           y,
+          presetName: preset.name,
           color: preset.color,
           intensity: preset.intensity,
           radius: preset.radius,
@@ -567,7 +555,10 @@ export const LightingPanel: React.FC = () => {
             onClick={() => setSelectedLightId(light.id)}
           >
             <div className={styles['light-header']}>
-              <span className={styles['light-name']}>{light.id}</span>
+              <span className={styles['light-name']}>
+                {LIGHT_PRESETS.find(p => p.name === light.presetName)?.icon ?? '💡'}{' '}
+                {light.presetName ?? light.id}
+              </span>
               <div className={styles['light-actions']}>
                 <button
                   className={styles['move-button']}

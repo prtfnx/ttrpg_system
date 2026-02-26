@@ -30,6 +30,7 @@ export interface Sprite {
   maxHp?: number;
   ac?: number;
   auraRadius?: number;
+  metadata?: string;
   syncStatus?: 'local' | 'syncing' | 'synced' | 'error';
 }
 

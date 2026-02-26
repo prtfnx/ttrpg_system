@@ -35,6 +35,7 @@ from authlib.integrations.starlette_client import OAuth, OAuthError
 import logging
 import re
 import secrets
+import time
 
 from ..database.database import SessionLocal, get_db
 from ..database import models, crud
@@ -46,8 +47,35 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 logger = setup_logger(__name__)
 settings = Settings()
 
-# Initialize OAuth with Google configuration
-oauth = OAuth()
+
+class _InMemoryOAuthCache:
+    """
+    Server-side store for OAuth state/nonce data.
+    Avoids relying on Set-Cookie round-trips for CSRF token storage —
+    which fail on first attempt when the browser has no existing session cookie.
+    Single-process only; swap for Redis in a multi-worker deployment.
+    """
+    def __init__(self):
+        self._store: dict = {}
+
+    async def get(self, key: str):
+        item = self._store.get(key)
+        if item is None:
+            return None
+        if item["exp"] < time.time():
+            del self._store[key]
+            return None
+        return item["value"]
+
+    async def set(self, key: str, value: str, timeout: int = 300):
+        self._store[key] = {"value": value, "exp": time.time() + timeout}
+
+    async def delete(self, key: str):
+        self._store.pop(key, None)
+
+
+# Initialize OAuth with server-side state cache (no session-cookie dependency)
+oauth = OAuth(cache=_InMemoryOAuthCache())
 
 # Check if OAuth is configured
 OAUTH_CONFIGURED = bool(settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET)

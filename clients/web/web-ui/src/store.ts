@@ -109,6 +109,10 @@ interface GameStore extends GameState {
   setActiveTool: (tool: ToolType) => void;
   setMeasurementActive: (active: boolean) => void;
   setAlignmentActive: (active: boolean) => void;
+
+  // Lighting
+  ambientLight: number;
+  setAmbientLight: (level: number) => void;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -158,6 +162,9 @@ export const useGameStore = create<GameStore>()(
       activeTool: 'select',
       measurementActive: false,
       alignmentActive: false,
+
+      // Lighting initial state
+      ambientLight: 0.2,
 
       // Actions
       moveSprite: (id: string, x: number, y: number) => {
@@ -443,6 +450,10 @@ export const useGameStore = create<GameStore>()(
         set(() => ({
           alignmentActive: active,
         }));
+      },
+
+      setAmbientLight: (level: number) => {
+        set(() => ({ ambientLight: level }));
       },
       
       // Table management actions

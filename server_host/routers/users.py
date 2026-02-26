@@ -223,6 +223,12 @@ async def read_own_items(
 @router.get("/login")
 def login_page(request: Request):
     """Login page with optional registration/verification success messages"""
+    # Pre-initialise the session cookie so it already exists before the OAuth redirect.
+    # Without this, the cookie is set for the first time *during* the cross-origin redirect
+    # to Google, and some browsers won't send it back on the callback (first-try state mismatch).
+    if "_init" not in request.session:
+        request.session["_init"] = True
+
     registered = request.query_params.get("registered")
     verify = request.query_params.get("verify")
     verified = request.query_params.get("verified")

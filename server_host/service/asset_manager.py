@@ -472,8 +472,12 @@ class ServerAssetManager:
             return False
     
     def get_session_assets(self, session_code: str) -> List[dict]:
-        """Get list of assets available in a session"""
-        #TODO: do we need this?
+        """Get list of assets available in a session.
+
+        This helper is used by the management UI to populate the asset
+        browser. It queries the database for the given session code and
+        returns a summary of stored assets.
+        """
         try:
             db = SessionLocal()
             try:

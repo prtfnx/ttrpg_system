@@ -99,9 +99,12 @@ class ClientProtocol:
         if not sprite_data or 'texture_path' not in sprite_data:
             logger.error("Invalid sprite data for creation")
             return
-        #TODO proper manage of texture_path
-        if isinstance(sprite_data['texture_path'], bytes):
-            sprite_data['texture_path'] = sprite_data['texture_path'].decode()
+        # normalize the texture path to a string so downstream logic is
+        # not forced to handle bytes or other types
+        tp = sprite_data.get('texture_path')
+        if isinstance(tp, bytes):
+            tp = tp.decode('utf-8', errors='ignore')
+        sprite_data['texture_path'] = str(tp) if tp is not None else ''
         msg = Message(MessageType.SPRITE_CREATE, {
             'table_id': table_id,
             'sprite_data': sprite_data,

@@ -43,8 +43,6 @@ impl InputController {
         match result {
             InputResult::SingleSelect => "single_select".to_string(),
             InputResult::MultiSelectToggle => "multi_select_toggle".to_string(),
-            InputResult::StartAreaSelect => "area_select".to_string(),
-            InputResult::None => "none".to_string(),
         }
     }
 }

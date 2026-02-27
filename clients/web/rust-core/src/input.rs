@@ -350,8 +350,6 @@ impl InputHandler {
 pub enum InputResult {
     SingleSelect,
     MultiSelectToggle,
-    StartAreaSelect,
-    None,
 }
 
 pub struct HandleDetector;

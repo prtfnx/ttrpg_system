@@ -1,7 +1,8 @@
-#TODO - proper use of server protocol. Mock for now
 """
 Game Session Protocol Service for TTRPG Web Server
-Integrates table protocol with game session management
+
+This class wraps the core_table ServerProtocol to provide persistent
+storage, ban handling, and client management for a multiplayer session.
 """
 import json
 import logging
@@ -471,9 +472,29 @@ class GameSessionProtocolService:
             kick_success = await self.kick_player(target_player_id, target_username, f"Banned: {reason}", banned_by_client_id)
             
             if kick_success:
-                # TODO: Implement ban list storage in database
-                # For now, just log the ban
+                # Persist ban in the database if available
                 banner_username = self.client_info.get(banned_by_client_id, {}).get('username', 'unknown')
+                if self.db_session and self.game_session_db_id:
+                    try:
+                        from server_host.database import models
+                        import json
+                        sess = self.db_session.query(models.GameSession).get(self.game_session_db_id)
+                        if sess:
+                            ban_list = []
+                            if sess.ban_list:
+                                ban_list = json.loads(sess.ban_list)
+                            ban_list.append({
+                                "player_id": target_player_id,
+                                "username": target_username,
+                                "reason": reason,
+                                "duration": duration,
+                                "banned_by": banner_username,
+                                "timestamp": datetime.utcnow().isoformat()
+                            })
+                            sess.ban_list = json.dumps(ban_list)
+                            self.db_session.commit()
+                    except Exception as e:
+                        logger.error(f"Failed to persist ban: {e}")
                 logger.info(f"Player {target_username} banned by {banner_username} for {duration}: {reason}")
                 
                 # Broadcast ban notification

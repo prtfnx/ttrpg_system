@@ -118,14 +118,6 @@ pub struct SpriteData {
     pub asset_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FogRectangle {
-    pub x: f64,
-    pub y: f64,
-    pub width: f64,
-    pub height: f64,
-    pub hidden: bool,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpriteUpdateData {

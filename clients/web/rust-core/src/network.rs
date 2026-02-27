@@ -121,11 +121,6 @@ pub struct SpriteNetworkData {
     pub texture_name: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TableNetworkData {
-    pub table_id: String,
-    pub changes: serde_json::Value,
-}
 
 #[derive(Debug, Clone)]
 pub enum ConnectionState {

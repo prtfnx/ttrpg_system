@@ -336,7 +336,8 @@ impl InputHandler {
     // ===== ENHANCED INPUT METHODS FOR WASM =====
     
     /// Handle mouse down with modifier keys for multi-selection
-    pub fn handle_mouse_down_with_modifiers(&mut self, world_pos: crate::math::Vec2, ctrl_key: bool) -> InputResult {
+    pub fn handle_mouse_down_with_modifiers(&mut self, _world_pos: crate::math::Vec2, ctrl_key: bool) -> InputResult {
+        // parameter currently unused; retaining signature for future features
         if ctrl_key {
             InputResult::MultiSelectToggle
         } else {

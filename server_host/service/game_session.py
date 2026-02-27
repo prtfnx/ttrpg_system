@@ -98,11 +98,27 @@ class ConnectionManager:
             protocol_service = self.sessions_protocols[session_code]
         logger.info(f"Adding client {client_id} to protocol service for session {session_code}")
         
-        # Setup R2 asset permissions for this user (default to player role)
-        # TODO: Get actual role from user database or session settings
-        user_role = "player"  # This should come from your user management system
-        if username.lower().startswith("dm") or username.lower().startswith("gm"):
-            user_role = "dm"  # Simple heuristic, replace with proper role management
+        # Setup R2 asset permissions for this user.  Query the game player
+        # record (if we have a database session) to determine the canonical
+        # role; fall back to "player" otherwise.
+        user_role = "player"
+        db = self.db_sessions.get(session_code)
+        if db is not None and session_code in self.game_session_db_ids:
+            try:
+                from server_host.database.models import GamePlayer
+                session_id = self.game_session_db_ids[session_code]
+                player = db.query(GamePlayer).filter(
+                    GamePlayer.session_id == session_id,
+                    GamePlayer.user_id == user_id
+                ).first()
+                if player and player.role:
+                    user_role = player.role
+                logger.debug(f"Resolved role from DB for {username}: {user_role}")
+            except Exception as e:
+                logger.warning(f"Could not resolve user role from DB: {e}")
+        # retain simple heuristic as a last resort
+        if user_role == "player" and (username.lower().startswith("dm") or username.lower().startswith("gm")):
+            user_role = "dm"
         
         asset_manager = get_server_asset_manager()
         asset_manager.setup_session_permissions(session_code, user_id, username, user_role)
@@ -177,8 +193,8 @@ class ConnectionManager:
         del self.connection_info[websocket]
         
         logger.info(f"User {username} disconnected from session {session_code}")       
-        # Notify other players
-        # TODO: Handle all messages throught protocol
+        # Notify other players of the departure (protocol messages are handled
+        # by the protocol service itself when appropriate)
         await self.broadcast_to_session(session_code, 
         Message(
             MessageType.PLAYER_LEFT,

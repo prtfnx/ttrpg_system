@@ -130,12 +130,14 @@ class GameSessionBase(BaseModel):
     name: str
 
 class GameSessionCreate(GameSessionBase):
+    # ban_list is managed internally; clients do not set it on creation
     pass
 
 class GameSessionUpdate(BaseModel):
     name: Optional[str] = None
     is_active: Optional[bool] = None
     game_data: Optional[str] = None
+    ban_list: Optional[str] = None  # JSON string to replace entire ban list
 
 class GameSession(GameSessionBase):
     id: int
@@ -144,6 +146,7 @@ class GameSession(GameSessionBase):
     is_active: bool
     created_at: datetime
     game_data: Optional[str] = None
+    ban_list: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)
 

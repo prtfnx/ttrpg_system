@@ -476,7 +476,8 @@ class WasmIntegrationService {
 
     // Only handle sprite creation responses (which have sprite_data)
     // Move/Scale/Rotate operations are handled by direct WASM updates and don't need this fallback
-    if (data.operation === 'create' || (data.sprite_id && data.sprite_data)) {
+    // Note: sprite_id may be null/None from the server even for valid creation responses
+    if (data.operation === 'create' || (!data.operation && data.sprite_data)) {
       console.log('✅ WasmIntegration: Adding sprite to WASM engine:', data.sprite_data);
       try {
         this.addSpriteToWasm(data.sprite_data);
@@ -867,8 +868,10 @@ class WasmIntegrationService {
     try {
       const layer = spriteData.layer || 'tokens';
       
-      // Check if this is a light source
-      const isLight = spriteData.texture_path === '__LIGHT__';
+      // Check if this is a light source.
+      // Accept both '__LIGHT__' (current) and 'LIGHT' (stored in older DB records).
+      const isLight = (spriteData.texture_path === '__LIGHT__' || spriteData.texture_path === 'LIGHT')
+        && spriteData.layer === 'light';
       
       // Check if this is a fog rectangle
       const isFogHide = spriteData.texture_path === '__FOG_HIDE__';

@@ -7,18 +7,7 @@ use wasm_bindgen::prelude::*;
 
 /// Log level macros using conditional compilation
 /// Only compiled when respective features are enabled
-#[cfg(feature = "log-trace")]
-macro_rules! log_trace {
-    ($($arg:tt)*) => {
-        web_sys::console::log_1(&format!("[TRACE] {}", format_args!($($arg)*)).into());
-    };
-}
 
-/// No-op trace macro when feature is disabled
-#[cfg(not(feature = "log-trace"))]
-macro_rules! log_trace {
-    ($($arg:tt)*) => {};
-}
 
 /// Debug level logging macro - detailed debugging information
 /// 
@@ -85,18 +74,7 @@ macro_rules! log_info {
 /// log_warn!("Performance warning: {} objects rendered in single batch", count);
 /// log_warn!("Resource not found, using fallback: {}", resource_name);
 /// ```
-#[cfg(any(feature = "log-warn", debug_assertions))]
-macro_rules! log_warn {
-    ($($arg:tt)*) => {
-        web_sys::console::warn_1(&format!("[WARN] {}", format_args!($($arg)*)).into());
-    };
-}
 
-/// No-op warn macro when feature is disabled  
-#[cfg(not(any(feature = "log-warn", debug_assertions)))]
-macro_rules! log_warn {
-    ($($arg:tt)*) => {};
-}
 
 /// Error level logging macro - always enabled
 /// 
@@ -117,30 +95,6 @@ macro_rules! log_error {
     };
 }
 
-/// Legacy console_log macro for backwards compatibility
-/// 
-/// Maps to `log_info!` when info logging is enabled.
-/// Maintained for backward compatibility with existing code.
-/// 
-/// # Migration
-/// 
-/// ```rust
-/// // Old usage (deprecated)
-/// console_log!("Message");
-/// 
-/// // New usage (recommended)
-/// log_info!("Message");
-/// ```
-#[cfg(any(feature = "log-info", debug_assertions))]
-macro_rules! console_log {
-    ($($t:tt)*) => (log_info!($($t)*))
-}
-
-/// No-op console_log when disabled
-#[cfg(not(any(feature = "log-info", debug_assertions)))]
-macro_rules! console_log {
-    ($($t:tt)*) => {}
-}
 
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
@@ -151,6 +105,7 @@ mod render;
 mod types;
 mod camera;
 mod input;
+mod input_controller;
 mod sprite_manager;
 mod sprite_renderer;
 mod webgl_renderer;

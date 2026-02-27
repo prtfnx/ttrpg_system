@@ -21,7 +21,8 @@ impl InputController {
     /// Get list of currently selected sprite IDs - WASM export
     #[wasm_bindgen]
     pub fn get_selected_sprites(&self) -> Vec<JsValue> {
-        self.input.selected_sprite_ids
+        // delegate to InputHandler method so implementation lives in one place
+        self.input.get_selected_sprites()
             .iter()
             .map(|id| JsValue::from_str(id))
             .collect()
@@ -35,7 +36,7 @@ impl InputController {
 
     /// Handle mouse down with modifier keys - WASM export
     #[wasm_bindgen]
-    pub fn handle_mouse_down_with_modifiers(&mut self, world_x: f32, world_y: f32, ctrl_key: bool, shift_key: bool) -> String {
+    pub fn handle_mouse_down_with_modifiers(&mut self, world_x: f32, world_y: f32, ctrl_key: bool, _shift_key: bool) -> String {
         let world_pos = Vec2::new(world_x, world_y);
         let result = self.input.handle_mouse_down_with_modifiers(world_pos, ctrl_key);
         
@@ -67,13 +68,13 @@ impl InputController {
         }
 
         for (sprite_id, sprite) in sprites {
-            let half_width = sprite.size.x * sprite.scale.x / 2.0;
-            let half_height = sprite.size.y * sprite.scale.y / 2.0;
+            let half_width = (sprite.width * sprite.scale_x) as f32 / 2.0;
+            let half_height = (sprite.height * sprite.scale_y) as f32 / 2.0;
             
-            let sprite_min_x = sprite.position.x - half_width;
-            let sprite_min_y = sprite.position.y - half_height;
-            let sprite_max_x = sprite.position.x + half_width;
-            let sprite_max_y = sprite.position.y + half_height;
+            let sprite_min_x = sprite.world_x as f32 - half_width;
+            let sprite_min_y = sprite.world_y as f32 - half_height;
+            let sprite_max_x = sprite.world_x as f32 + half_width;
+            let sprite_max_y = sprite.world_y as f32 + half_height;
 
             if sprite_min_x <= max_x && sprite_max_x >= min_x &&
                sprite_min_y <= max_y && sprite_max_y >= min_y {
@@ -84,23 +85,18 @@ impl InputController {
 
     /// Find sprite at position - internal method
     pub fn find_sprite_at_position(&self, world_pos: Vec2, sprites: &[(&str, &Sprite)]) -> Option<String> {
-        let mut found_sprites: Vec<(String, i32)> = Vec::new();
-        
         for (sprite_id, sprite) in sprites {
-            let half_width = sprite.size.x * sprite.scale.x / 2.0;
-            let half_height = sprite.size.y * sprite.scale.y / 2.0;
-            
-            if world_pos.x >= sprite.position.x - half_width && 
-               world_pos.x <= sprite.position.x + half_width &&
-               world_pos.y >= sprite.position.y - half_height && 
-               world_pos.y <= sprite.position.y + half_height {
-                found_sprites.push((sprite_id.to_string(), sprite.z_order.unwrap_or(0)));
+            let half_width = (sprite.width * sprite.scale_x) as f32 / 2.0;
+            let half_height = (sprite.height * sprite.scale_y) as f32 / 2.0;
+
+            if world_pos.x >= sprite.world_x as f32 - half_width && 
+               world_pos.x <= sprite.world_x as f32 + half_width &&
+               world_pos.y >= sprite.world_y as f32 - half_height && 
+               world_pos.y <= sprite.world_y as f32 + half_height {
+                return Some(sprite_id.to_string());
             }
         }
-
-        // Return highest z-order sprite
-        found_sprites.sort_by(|a, b| b.1.cmp(&a.1));
-        found_sprites.first().map(|(id, _)| id.clone())
+        None
     }
 
     /// Handle sprite selection logic

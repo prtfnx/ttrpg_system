@@ -191,6 +191,28 @@ def create_game_session(db: Session, session: schemas.GameSessionCreate, owner_i
     if existing_session:
         # Return existing session instead of creating duplicate
         return existing_session
+
+# Ban list helpers
+
+def append_ban_to_session(db: Session, session_id: int, ban_entry: dict) -> bool:
+    """Add a ban entry to a game's ban_list JSON column."""
+    try:
+        sess = db.query(models.GameSession).get(session_id)
+        if not sess:
+            return False
+        existing = []
+        if sess.ban_list:
+            try:
+                existing = json.loads(sess.ban_list)
+            except Exception:
+                existing = []
+        existing.append(ban_entry)
+        sess.ban_list = json.dumps(existing)
+        db.commit()
+        return True
+    except Exception as e:
+        logger.error(f"Error appending ban entry: {e}")
+        return False
     
     # Create new session with the provided session code
     db_session = models.GameSession(

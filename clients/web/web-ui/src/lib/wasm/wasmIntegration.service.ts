@@ -315,17 +315,14 @@ class WasmIntegrationService {
         console.log('[WASM] Formatted table data:', rustTableData);
         (this.renderEngine as any).handle_table_data(rustTableData);
         
-        // CRITICAL: Ensure React store is updated for server persistence
-        // Import the store dynamically to avoid circular dependencies
-        import('../../store').then(({ useGameStore }) => {
+        // Update React store for server persistence
+        try {
           const gameStore = useGameStore.getState();
           console.log('[WASM] Notifying React store of table switch:', tableData.table_id);
-          if (gameStore.setActiveTableId) {
-            gameStore.setActiveTableId(tableData.table_id);
-          }
-        }).catch(err => {
+          gameStore.setActiveTableId?.(tableData.table_id);
+        } catch (err) {
           console.warn('[WASM] Failed to update React store:', err);
-        });
+        }
       }
       
       // Handle table configuration
@@ -1013,9 +1010,8 @@ class WasmIntegrationService {
       const addedSpriteId = this.renderEngine.add_sprite_to_layer(layer, wasmSprite);
       console.log('Successfully added sprite to WASM:', addedSpriteId, wasmSprite);
       
-      // CRITICAL: Also add sprite to Zustand store to preserve character_id and other metadata
-      // Import useGameStore at runtime to avoid circular dependencies
-      import('../../store').then(({ useGameStore }) => {
+      // Also add sprite to Zustand store to preserve character_id and other metadata
+      try {
         const storeSprite = {
           id: wasmSprite.id,
           name: spriteData.name || 'Unnamed Entity',
@@ -1036,7 +1032,9 @@ class WasmIntegrationService {
         };
         useGameStore.getState().addSprite(storeSprite);
         console.log('Added sprite to store with character_id:', spriteData.character_id);
-      });
+      } catch (err) {
+        console.warn('[WASM] Failed to push sprite into store:', err);
+      }
       
       console.log('Asset management for sprite:', {
         spriteId: wasmSprite.id,

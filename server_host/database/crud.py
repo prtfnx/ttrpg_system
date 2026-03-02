@@ -179,42 +179,13 @@ def authenticate_user(db: Session, username: str, password: str):
 
 # Game Session operations
 def create_game_session(db: Session, session: schemas.GameSessionCreate, owner_id: int, session_code: Optional[str] = None):
-    # Use provided session_code parameter, or fall back to session.name
-
-    
-    # Check if session already exists
     existing_session = db.query(models.GameSession).filter(
         models.GameSession.session_code == session_code,
         models.GameSession.is_active == True
     ).first()
-    
     if existing_session:
-        # Return existing session instead of creating duplicate
         return existing_session
 
-# Ban list helpers
-
-def append_ban_to_session(db: Session, session_id: int, ban_entry: dict) -> bool:
-    """Add a ban entry to a game's ban_list JSON column."""
-    try:
-        sess = db.query(models.GameSession).get(session_id)
-        if not sess:
-            return False
-        existing = []
-        if sess.ban_list:
-            try:
-                existing = json.loads(sess.ban_list)
-            except Exception:
-                existing = []
-        existing.append(ban_entry)
-        sess.ban_list = json.dumps(existing)
-        db.commit()
-        return True
-    except Exception as e:
-        logger.error(f"Error appending ban entry: {e}")
-        return False
-    
-    # Create new session with the provided session code
     db_session = models.GameSession(
         name=session.name,
         session_code=session_code,
@@ -224,6 +195,22 @@ def append_ban_to_session(db: Session, session_id: int, ban_entry: dict) -> bool
     db.commit()
     db.refresh(db_session)
     return db_session
+
+
+def append_ban_to_session(db: Session, session_id: int, ban_entry: dict) -> bool:
+    """Add a ban entry to a game's ban_list JSON column."""
+    try:
+        sess = db.get(models.GameSession, session_id)
+        if not sess:
+            return False
+        existing = json.loads(sess.ban_list) if sess.ban_list else []
+        existing.append(ban_entry)
+        sess.ban_list = json.dumps(existing)
+        db.commit()
+        return True
+    except Exception as e:
+        logger.error(f"Error appending ban entry: {e}")
+        return False
 
 def get_game_session_by_code(db: Session, session_code: str):
     return db.query(models.GameSession).filter(

@@ -157,6 +157,41 @@ class WasmIntegrationService {
     window.addEventListener('sprite-rotated', handleSpriteRotated);
     this.eventListeners.push(() => window.removeEventListener('sprite-rotated', handleSpriteRotated));
 
+    // Remote drag preview events (broadcast from other clients via server)
+    const handleDragPreviewRemote = (event: Event) => {
+      const { id, x, y } = (event as CustomEvent).detail ?? {};
+      if (id) this.updateSpritePosition(id, { x, y });
+    };
+    window.addEventListener('sprite-drag-preview-remote', handleDragPreviewRemote);
+    this.eventListeners.push(() => window.removeEventListener('sprite-drag-preview-remote', handleDragPreviewRemote));
+
+    const handleResizePreviewRemote = (event: Event) => {
+      const { id, scale_x, scale_y } = (event as CustomEvent).detail ?? {};
+      if (id) this.updateSpriteScale(id, scale_x, scale_y);
+    };
+    window.addEventListener('sprite-resize-preview-remote', handleResizePreviewRemote);
+    this.eventListeners.push(() => window.removeEventListener('sprite-resize-preview-remote', handleResizePreviewRemote));
+
+    const handleRotatePreviewRemote = (event: Event) => {
+      const { id, rotation } = (event as CustomEvent).detail ?? {};
+      if (id) this.updateSpriteRotation(id, rotation);
+    };
+    window.addEventListener('sprite-rotate-preview-remote', handleRotatePreviewRemote);
+    this.eventListeners.push(() => window.removeEventListener('sprite-rotate-preview-remote', handleRotatePreviewRemote));
+
+    // Rollback: server rejected or timed out — restore last committed state in WASM
+    const handleSpriteRevert = (event: Event) => {
+      const { spriteId, operation, originalState } = (event as CustomEvent).detail ?? {};
+      if (!spriteId || !originalState) return;
+      switch (operation) {
+        case 'move':   this.updateSpritePosition(spriteId, { x: originalState.x, y: originalState.y }); break;
+        case 'scale':  this.updateSpriteScale(spriteId, originalState.scaleX, originalState.scaleY); break;
+        case 'rotate': this.updateSpriteRotation(spriteId, originalState.rotation); break;
+      }
+    };
+    window.addEventListener('sprite-revert', handleSpriteRevert);
+    this.eventListeners.push(() => window.removeEventListener('sprite-revert', handleSpriteRevert));
+
     // Asset management events
     const handleAssetDownloaded = (event: Event) => {
       this.handleAssetDownloaded((event as CustomEvent).detail);

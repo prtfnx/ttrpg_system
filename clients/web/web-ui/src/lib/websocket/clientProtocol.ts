@@ -235,6 +235,10 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.SPRITE_ROTATE, this.handleSpriteRotate.bind(this));
     this.registerHandler(MessageType.SPRITE_RESPONSE, this.handleSpriteResponse.bind(this));
     this.registerHandler(MessageType.SPRITE_DATA, this.handleSpriteData.bind(this));
+    // Live drag previews from other clients
+    this.registerHandler(MessageType.SPRITE_DRAG_PREVIEW, this.handleSpriteDragPreview.bind(this));
+    this.registerHandler(MessageType.SPRITE_RESIZE_PREVIEW, this.handleSpriteResizePreview.bind(this));
+    this.registerHandler(MessageType.SPRITE_ROTATE_PREVIEW, this.handleSpriteRotatePreview.bind(this));
 
     // File transfer
     this.registerHandler(MessageType.FILE_DATA, this.handleFileData.bind(this));
@@ -514,7 +518,12 @@ export class WebClientProtocol {
 
   private async handleError(message: Message): Promise<void> {
     logger.error('Server error', message.data);
-    // Emit error event for UI handling
+    // If this error is a rejection of a pending sprite action, notify the bridge
+    if (message.data?.action_id) {
+      window.dispatchEvent(new CustomEvent('sprite-action-rejected', {
+        detail: { actionId: message.data.action_id, reason: 'server_rejected' }
+      }));
+    }
     window.dispatchEvent(new CustomEvent('protocol-error', { detail: message.data }));
   }
 
@@ -638,18 +647,36 @@ export class WebClientProtocol {
   }
 
   private async handleSpriteMove(message: Message): Promise<void> {
-    console.log('Sprite moved:', message.data);
+    if (message.data?.action_id) {
+      window.dispatchEvent(new CustomEvent('sprite-action-confirmed', { detail: { actionId: message.data.action_id } }));
+    }
     window.dispatchEvent(new CustomEvent('sprite-moved', { detail: message.data }));
   }
 
   private async handleSpriteScale(message: Message): Promise<void> {
-    console.log('Sprite scaled:', message.data);
+    if (message.data?.action_id) {
+      window.dispatchEvent(new CustomEvent('sprite-action-confirmed', { detail: { actionId: message.data.action_id } }));
+    }
     window.dispatchEvent(new CustomEvent('sprite-scaled', { detail: message.data }));
   }
 
   private async handleSpriteRotate(message: Message): Promise<void> {
-    console.log('Sprite rotated:', message.data);
+    if (message.data?.action_id) {
+      window.dispatchEvent(new CustomEvent('sprite-action-confirmed', { detail: { actionId: message.data.action_id } }));
+    }
     window.dispatchEvent(new CustomEvent('sprite-rotated', { detail: message.data }));
+  }
+
+  private async handleSpriteDragPreview(message: Message): Promise<void> {
+    window.dispatchEvent(new CustomEvent('sprite-drag-preview-remote', { detail: message.data }));
+  }
+
+  private async handleSpriteResizePreview(message: Message): Promise<void> {
+    window.dispatchEvent(new CustomEvent('sprite-resize-preview-remote', { detail: message.data }));
+  }
+
+  private async handleSpriteRotatePreview(message: Message): Promise<void> {
+    window.dispatchEvent(new CustomEvent('sprite-rotate-preview-remote', { detail: message.data }));
   }
 
   // Asset management handlers

@@ -137,7 +137,6 @@ class GameSessionUpdate(BaseModel):
     name: Optional[str] = None
     is_active: Optional[bool] = None
     game_data: Optional[str] = None
-    ban_list: Optional[str] = None  # JSON string to replace entire ban list
 
 class GameSession(GameSessionBase):
     id: int

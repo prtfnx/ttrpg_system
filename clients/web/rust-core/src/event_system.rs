@@ -201,13 +201,12 @@ impl EventSystem {
         
         match input.input_mode {
             InputMode::SpriteMove => {
-                // Handle sprite movement logic here
                 if let Some(sprite_id) = &input.selected_sprite_id {
                     if let Some((sprite, _layer_name)) = Self::find_sprite_mut(sprite_id, layers) {
                         let new_pos = world_pos - input.drag_offset;
                         sprite.world_x = new_pos.x as f64;
                         sprite.world_y = new_pos.y as f64;
-                        web_sys::console::log_1(&format!("[RUST] Moving sprite {} to: {}, {}", sprite_id, sprite.world_x, sprite.world_y).into());
+                        Self::dispatch_drag_preview(sprite_id, sprite.world_x, sprite.world_y);
                     }
                 }
                 MouseEventResult::Handled
@@ -215,8 +214,8 @@ impl EventSystem {
             InputMode::SpriteResize(handle) => {
                 if let Some(sprite_id) = &input.selected_sprite_id {
                     if let Some((sprite, _)) = Self::find_sprite_mut(sprite_id, layers) {
-                        // Delegate to SpriteManager which contains robust resize logic
                         SpriteManager::resize_sprite_with_handle(sprite, handle, world_pos);
+                        Self::dispatch_resize_preview(sprite_id, sprite.scale_x as f64, sprite.scale_y as f64);
                     }
                 }
                 MouseEventResult::Handled
@@ -225,6 +224,7 @@ impl EventSystem {
                 if let Some(sprite_id) = &input.selected_sprite_id {
                     if let Some((sprite, _)) = Self::find_sprite_mut(sprite_id, layers) {
                         SpriteManager::update_rotation(sprite, world_pos, input.rotation_start_angle, input.sprite_initial_rotation);
+                        Self::dispatch_rotate_preview(sprite_id, sprite.rotation as f64);
                     }
                 }
                 MouseEventResult::Handled
@@ -555,52 +555,75 @@ impl EventSystem {
         sprite_id: &str,
         layers: &HashMap<String, Layer>
     ) {
-        // Find the sprite to get its current state
-        if let Some((sprite, _)) = Self::find_sprite(sprite_id, layers) {
-            match operation_mode {
-                InputMode::SpriteMove => {
-                    // Call JavaScript bridge for move operation
-                    let js_code = format!(
-                        "if (window.wasmBridge && window.wasmBridge.onSpriteOperationComplete) {{ 
-                            window.wasmBridge.onSpriteOperationComplete('move', '{}', {{ x: {}, y: {} }}); 
-                        }}",
-                        sprite_id, sprite.world_x, sprite.world_y
-                    );
-                    let _ = js_sys::eval(&js_code);
-                    
-                    web_sys::console::log_1(&format!("[RUST EVENT] Notified move complete for sprite {}: ({}, {})", 
-                        sprite_id, sprite.world_x, sprite.world_y).into());
-                }
-                InputMode::SpriteResize(_) => {
-                    // Call JavaScript bridge for scale operation
-                    let js_code = format!(
-                        "if (window.wasmBridge && window.wasmBridge.onSpriteOperationComplete) {{ 
-                            window.wasmBridge.onSpriteOperationComplete('scale', '{}', {{ scale_x: {}, scale_y: {} }}); 
-                        }}",
-                        sprite_id, sprite.scale_x, sprite.scale_y
-                    );
-                    let _ = js_sys::eval(&js_code);
-                    
-                    web_sys::console::log_1(&format!("[RUST EVENT] Notified scale complete for sprite {}: ({}, {})", 
-                        sprite_id, sprite.scale_x, sprite.scale_y).into());
-                }
-                InputMode::SpriteRotate => {
-                    // Call JavaScript bridge for rotate operation
-                    let js_code = format!(
-                        "if (window.wasmBridge && window.wasmBridge.onSpriteOperationComplete) {{ 
-                            window.wasmBridge.onSpriteOperationComplete('rotate', '{}', {{ rotation: {} }}); 
-                        }}",
-                        sprite_id, sprite.rotation
-                    );
-                    let _ = js_sys::eval(&js_code);
-                    
-                    web_sys::console::log_1(&format!("[RUST EVENT] Notified rotate complete for sprite {}: {}", 
-                        sprite_id, sprite.rotation).into());
-                }
-                _ => {
-                    // No operation to notify
-                }
+        let Some((sprite, _)) = Self::find_sprite(sprite_id, layers) else { return };
+        let Some(window) = web_sys::window() else { return };
+
+        let data = js_sys::Object::new();
+        let operation = match operation_mode {
+            InputMode::SpriteMove => {
+                js_sys::Reflect::set(&data, &"x".into(), &JsValue::from_f64(sprite.world_x)).ok();
+                js_sys::Reflect::set(&data, &"y".into(), &JsValue::from_f64(sprite.world_y)).ok();
+                "move"
             }
+            InputMode::SpriteResize(_) => {
+                js_sys::Reflect::set(&data, &"scale_x".into(), &JsValue::from_f64(sprite.scale_x as f64)).ok();
+                js_sys::Reflect::set(&data, &"scale_y".into(), &JsValue::from_f64(sprite.scale_y as f64)).ok();
+                "scale"
+            }
+            InputMode::SpriteRotate => {
+                js_sys::Reflect::set(&data, &"rotation".into(), &JsValue::from_f64(sprite.rotation as f64)).ok();
+                "rotate"
+            }
+            _ => return,
+        };
+
+        let detail = js_sys::Object::new();
+        js_sys::Reflect::set(&detail, &"spriteId".into(), &JsValue::from_str(sprite_id)).ok();
+        js_sys::Reflect::set(&detail, &"operation".into(), &JsValue::from_str(operation)).ok();
+        js_sys::Reflect::set(&detail, &"data".into(), &data).ok();
+
+        let event_init = web_sys::CustomEventInit::new();
+        event_init.set_detail(&detail);
+        if let Ok(event) = web_sys::CustomEvent::new_with_event_init_dict("wasm-sprite-operation", &event_init) {
+            window.dispatch_event(&event).ok();
+        }
+    }
+
+    fn dispatch_drag_preview(sprite_id: &str, x: f64, y: f64) {
+        let Some(window) = web_sys::window() else { return };
+        let detail = js_sys::Object::new();
+        js_sys::Reflect::set(&detail, &"spriteId".into(), &JsValue::from_str(sprite_id)).ok();
+        js_sys::Reflect::set(&detail, &"x".into(), &JsValue::from_f64(x)).ok();
+        js_sys::Reflect::set(&detail, &"y".into(), &JsValue::from_f64(y)).ok();
+        let event_init = web_sys::CustomEventInit::new();
+        event_init.set_detail(&detail);
+        if let Ok(event) = web_sys::CustomEvent::new_with_event_init_dict("sprite-drag-preview", &event_init) {
+            window.dispatch_event(&event).ok();
+        }
+    }
+
+    fn dispatch_resize_preview(sprite_id: &str, scale_x: f64, scale_y: f64) {
+        let Some(window) = web_sys::window() else { return };
+        let detail = js_sys::Object::new();
+        js_sys::Reflect::set(&detail, &"spriteId".into(), &JsValue::from_str(sprite_id)).ok();
+        js_sys::Reflect::set(&detail, &"scale_x".into(), &JsValue::from_f64(scale_x)).ok();
+        js_sys::Reflect::set(&detail, &"scale_y".into(), &JsValue::from_f64(scale_y)).ok();
+        let event_init = web_sys::CustomEventInit::new();
+        event_init.set_detail(&detail);
+        if let Ok(event) = web_sys::CustomEvent::new_with_event_init_dict("sprite-resize-preview", &event_init) {
+            window.dispatch_event(&event).ok();
+        }
+    }
+
+    fn dispatch_rotate_preview(sprite_id: &str, rotation: f64) {
+        let Some(window) = web_sys::window() else { return };
+        let detail = js_sys::Object::new();
+        js_sys::Reflect::set(&detail, &"spriteId".into(), &JsValue::from_str(sprite_id)).ok();
+        js_sys::Reflect::set(&detail, &"rotation".into(), &JsValue::from_f64(rotation)).ok();
+        let event_init = web_sys::CustomEventInit::new();
+        event_init.set_detail(&detail);
+        if let Ok(event) = web_sys::CustomEvent::new_with_event_init_dict("sprite-rotate-preview", &event_init) {
+            window.dispatch_event(&event).ok();
         }
     }
 }

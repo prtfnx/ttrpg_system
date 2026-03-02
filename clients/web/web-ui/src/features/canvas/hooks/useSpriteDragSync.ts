@@ -4,8 +4,8 @@
  * throttles them to the WebSocket at ~50 ms intervals.
  */
 
-import { useEffect, useRef } from 'react';
 import { createMessage, MessageType } from '@lib/websocket';
+import { useEffect, useRef } from 'react';
 
 const THROTTLE_MS = 50;
 

@@ -124,11 +124,19 @@ class ConnectionManager:
         asset_manager.setup_session_permissions(session_code, user_id, username, user_role)
         logger.info(f"Setup R2 asset permissions for {username} as {user_role} in session {session_code}")
         
-        await protocol_service.add_client(websocket, client_id, {
-            "user_id": user_id,
-            "username": username,
-            "session_code": session_code
-        })
+        try:
+            await protocol_service.add_client(websocket, client_id, {
+                "user_id": user_id,
+                "username": username,
+                "session_code": session_code
+            })
+        except PermissionError as e:
+            logger.warning(f"Rejected banned user {username}: {e}")
+            await websocket.send_json({"type": "error", "message": str(e)})
+            await websocket.close(code=4003)
+            self.active_connections[session_code].remove(websocket)
+            del self.connection_info[websocket]
+            return
         logger.info(f"Protocol service initialized for session {session_code} with client_id {client_id}")
         logger.info(f"User {username} connected to session {session_code} with client_id {client_id}")
         message = Message(

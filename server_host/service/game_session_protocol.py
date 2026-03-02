@@ -184,7 +184,17 @@ class GameSessionProtocolService:
                 logger.error(f"Failed to create fallback table: {fallback_error}")
 
     async def add_client(self, websocket: WebSocket, client_id: str, user_info: dict):
-        """Add a client to this game session"""
+        """Add a client to this game session. Raises PermissionError if the player is banned."""
+        if self.db_session and self.game_session_db_id:
+            sess = self.db_session.get(GameSession, self.game_session_db_id)
+            if sess and sess.ban_list:
+                ban_list = json.loads(sess.ban_list)
+                user_id = str(user_info.get('user_id', ''))
+                username = user_info.get('username', '')
+                for ban in ban_list:
+                    if ban.get('player_id') == user_id or ban.get('username') == username:
+                        raise PermissionError(f"Banned: {ban.get('reason', 'no reason given')}")
+
         self.clients[client_id] = websocket
         self.client_info[client_id] = {
             **user_info,

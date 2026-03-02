@@ -29,6 +29,8 @@ export default defineConfig(({ mode }) => {
       target: 'esnext',
       minify: isDevelopment ? false : 'terser',
       sourcemap: isDevelopment,
+      // wasm-bindgen JS glue is inherently ~130 KB gzipped — silence the false alarm
+      chunkSizeWarningLimit: 550,
       rollupOptions: {
         input: {
           main: './index.html',
@@ -38,10 +40,20 @@ export default defineConfig(({ mode }) => {
           entryFileNames: '[name]-[hash].js',
           chunkFileNames: 'chunks/[name]-[hash].js',
           assetFileNames: 'assets/[name]-[hash].[ext]',
-          // Manual chunks for better caching
-          manualChunks: {
-            vendor: ['react', 'react-dom'],
-            protocol: ['./src/lib/websocket/clientProtocol.ts', './src/lib/websocket/message.ts']
+          // Function form gives explicit routing per module — object form only seeds and
+          // lets Rollup lump everything else into whichever chunk claimed the dep first.
+          manualChunks(id) {
+            // lucide-react is large and updates independently from React — own chunk
+            if (id.includes('lucide-react')) return 'icons';
+            // All other node_modules → vendor (stable, long cache lifetime)
+            if (id.includes('node_modules')) return 'vendor';
+            // WASM bridge + generated TS declarations — changes every Rust build
+            if (id.includes('/src/lib/wasm/')) return 'wasm';
+            // Network/protocol layer without WASM mixed in
+            if (id.includes('/src/lib/websocket/') || id.includes('/src/lib/api/')) return 'protocol';
+            // Store is imported everywhere; give it its own chunk so it isn't
+            // duplicated across feature chunks
+            if (id.includes('/src/store')) return 'store';
           }
         }
       }

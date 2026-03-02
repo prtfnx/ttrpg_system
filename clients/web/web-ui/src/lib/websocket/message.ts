@@ -65,6 +65,10 @@ export const MessageType = {
   SPRITE_MOVE: "sprite_move",
   SPRITE_SCALE: "sprite_scale",
   SPRITE_ROTATE: "sprite_rotate",
+  // Live drag previews — broadcast-only, never persisted
+  SPRITE_DRAG_PREVIEW: "sprite_drag_preview",
+  SPRITE_RESIZE_PREVIEW: "sprite_resize_preview",
+  SPRITE_ROTATE_PREVIEW: "sprite_rotate_preview",
   
   // File transfer
   FILE_REQUEST: "file_request",

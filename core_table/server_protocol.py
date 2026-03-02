@@ -89,6 +89,10 @@ class ServerProtocol:
         self.register_handler(MessageType.SPRITE_SCALE, self.handle_scale_sprite)
         self.register_handler(MessageType.SPRITE_ROTATE, self.handle_rotate_sprite)
         self.register_handler(MessageType.SPRITE_UPDATE, self.handle_sprite_update)
+        # Live drag previews
+        self.register_handler(MessageType.SPRITE_DRAG_PREVIEW, self.handle_sprite_drag_preview)
+        self.register_handler(MessageType.SPRITE_RESIZE_PREVIEW, self.handle_sprite_resize_preview)
+        self.register_handler(MessageType.SPRITE_ROTATE_PREVIEW, self.handle_sprite_rotate_preview)
         
         # File transfer
         self.register_handler(MessageType.FILE_REQUEST, self.handle_file_request)
@@ -490,6 +494,48 @@ class ServerProtocol:
             if action_id:
                 error_data['action_id'] = action_id
             return Message(MessageType.ERROR, error_data)
+
+    async def handle_sprite_drag_preview(self, msg: Message, client_id: str) -> None:
+        """Broadcast live drag position — no DB write, no confirmation."""
+        data = msg.data
+        if not data:
+            return
+        sprite_id = data.get('id') or data.get('sprite_id')
+        x, y = data.get('x'), data.get('y')
+        if not sprite_id or x is None or y is None:
+            return
+        await self.broadcast_to_session(
+            Message(MessageType.SPRITE_DRAG_PREVIEW, {'id': sprite_id, 'x': x, 'y': y}),
+            client_id
+        )
+
+    async def handle_sprite_resize_preview(self, msg: Message, client_id: str) -> None:
+        """Broadcast live resize preview — no DB write, no confirmation."""
+        data = msg.data
+        if not data:
+            return
+        sprite_id = data.get('id') or data.get('sprite_id')
+        width, height = data.get('width'), data.get('height')
+        if not sprite_id or width is None or height is None:
+            return
+        await self.broadcast_to_session(
+            Message(MessageType.SPRITE_RESIZE_PREVIEW, {'id': sprite_id, 'width': width, 'height': height}),
+            client_id
+        )
+
+    async def handle_sprite_rotate_preview(self, msg: Message, client_id: str) -> None:
+        """Broadcast live rotate preview — no DB write, no confirmation."""
+        data = msg.data
+        if not data:
+            return
+        sprite_id = data.get('id') or data.get('sprite_id')
+        rotation = data.get('rotation')
+        if not sprite_id or rotation is None:
+            return
+        await self.broadcast_to_session(
+            Message(MessageType.SPRITE_ROTATE_PREVIEW, {'id': sprite_id, 'rotation': rotation}),
+            client_id
+        )
 
     async def handle_delete_table(self, msg: Message, client_id: str) -> Message:
         """Handle delete table request"""

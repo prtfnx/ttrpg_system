@@ -14,6 +14,7 @@ from .game_session_protocol import GameSessionProtocolService
 from server_host.utils.logger import setup_logger
 # Database imports
 from server_host.database.database import SessionLocal
+from server_host.database.models import GamePlayer
 from server_host.database.session_utils import create_game_session_with_persistence, load_game_session_protocol_from_db, save_game_session_state
 from server_host.service.asset_manager import get_server_asset_manager
 
@@ -105,7 +106,6 @@ class ConnectionManager:
         db = self.db_sessions.get(session_code)
         if db is not None and session_code in self.game_session_db_ids:
             try:
-                from server_host.database.models import GamePlayer
                 session_id = self.game_session_db_ids[session_code]
                 player = db.query(GamePlayer).filter(
                     GamePlayer.session_id == session_id,

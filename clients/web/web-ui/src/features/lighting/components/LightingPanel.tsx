@@ -146,12 +146,11 @@ export const LightingPanel: React.FC = () => {
     checkEngineReadiness();
   }, [engine]);
 
-  // Clear old lights and reload from sprites whenever the active table or sprite list changes.
-  // Single effect to guarantee clear-before-load ordering.
+  // Full reload: fires only when table switches or engine readiness changes.
+  // Clears WASM lights and re-adds everything from the Zustand sprite store.
   useEffect(() => {
     if (!engine || !isEngineReady) return;
 
-    // Remove previous lights from WASM
     setLights(prev => {
       for (const light of prev) {
         try { engine.remove_light(light.id); } catch { /* ignore */ }
@@ -165,7 +164,6 @@ export const LightingPanel: React.FC = () => {
 
     const loadedLights: Light[] = [];
     for (const sprite of sprites) {
-      // Only load sprites belonging to the active table
       if (sprite.tableId && sprite.tableId !== activeTableId) continue;
       const light = spriteToLight(sprite);
       if (!light) continue;
@@ -181,8 +179,41 @@ export const LightingPanel: React.FC = () => {
       }
     }
 
-    console.log(`[LIGHTING] Loaded ${loadedLights.length} lights for table ${activeTableId}`);
+    console.log(`[LIGHTING] Full reload: ${loadedLights.length} lights for table ${activeTableId}`);
     setLights(loadedLights);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engine, isEngineReady, activeTableId]); // sprites intentionally excluded — handled below
+
+  // Incremental sync: when sprites changes, only ADD lights that aren't already tracked locally.
+  // Never clears existing lights so live-placed lights (already in local state + WASM) are preserved.
+  useEffect(() => {
+    if (!engine || !isEngineReady || !activeTableId) return;
+
+    setLights(prev => {
+      const existingIds = new Set(prev.map(l => l.id));
+      const toAdd: Light[] = [];
+
+      for (const sprite of sprites) {
+        if (sprite.tableId && sprite.tableId !== activeTableId) continue;
+        if (existingIds.has(sprite.id)) continue; // already tracked
+        const light = spriteToLight(sprite);
+        if (!light) continue;
+        toAdd.push(light);
+        try {
+          engine.add_light(light.id, light.x, light.y);
+          engine.set_light_color(light.id, light.color.r, light.color.g, light.color.b, light.color.a);
+          engine.set_light_intensity(light.id, light.intensity);
+          engine.set_light_radius(light.id, light.radius);
+          if (!light.isOn) engine.toggle_light(light.id);
+        } catch (error) {
+          console.error(`Failed to incrementally add light ${light.id}:`, error);
+        }
+      }
+
+      if (toAdd.length === 0) return prev;
+      console.log(`[LIGHTING] Incremental: added ${toAdd.length} new light(s) for table ${activeTableId}`);
+      return [...prev, ...toAdd];
+    });
   }, [engine, isEngineReady, activeTableId, sprites]);
 
   // Handle light placed event from GameCanvas

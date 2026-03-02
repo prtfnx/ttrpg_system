@@ -101,15 +101,8 @@ export function useSpriteSyncing() {
 
   // Sync sprites from Rust backend
   useEffect(() => {
-    // Initial sync
+    // Initial sync only; live updates come via WebSocket events
     syncSprites();
-
-    // Set up periodic syncing (every 2 seconds)
-    const interval = setInterval(syncSprites, 2000);
-
-    return () => {
-      clearInterval(interval);
-    };
   }, [syncSprites]);
 
   return {

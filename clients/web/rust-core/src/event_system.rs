@@ -224,7 +224,7 @@ impl EventSystem {
                 if let Some(sprite_id) = &input.selected_sprite_id {
                     if let Some((sprite, _)) = Self::find_sprite_mut(sprite_id, layers) {
                         SpriteManager::update_rotation(sprite, world_pos, input.rotation_start_angle, input.sprite_initial_rotation);
-                        Self::dispatch_rotate_preview(sprite_id, sprite.rotation as f64);
+                        Self::dispatch_rotate_preview(sprite_id, sprite.rotation.to_degrees() as f64);
                     }
                 }
                 MouseEventResult::Handled
@@ -571,7 +571,7 @@ impl EventSystem {
                 "resize"
             }
             InputMode::SpriteRotate => {
-                js_sys::Reflect::set(&data, &"rotation".into(), &JsValue::from_f64(sprite.rotation as f64)).ok();
+                js_sys::Reflect::set(&data, &"rotation".into(), &JsValue::from_f64(sprite.rotation.to_degrees() as f64)).ok();
                 "rotate"
             }
             _ => return,

@@ -458,14 +458,14 @@ class ServerProtocol:
             if action_id:
                 response_data['action_id'] = action_id
             
-            # Broadcast sprite update to all other clients in the session
-            update_message = Message(MessageType.SPRITE_UPDATE, {
-                'sprite_id': sprite_id,
-                'operation': 'rotate',
-                'rotation': rotation,
-                'table_id': table_id
-            })
-            await self.broadcast_to_session(update_message, client_id)
+            await self.broadcast_to_session(
+                Message(MessageType.SPRITE_ROTATE, {
+                    'sprite_id': sprite_id,
+                    'rotation': rotation,
+                    'table_id': table_id
+                }),
+                client_id
+            )
             
             return Message(MessageType.SPRITE_RESPONSE, response_data)
         else:

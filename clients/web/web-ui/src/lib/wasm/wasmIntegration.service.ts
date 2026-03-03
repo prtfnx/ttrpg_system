@@ -529,7 +529,7 @@ class WasmIntegrationService {
         }
       }
       console.log('✅ WasmIntegration: Sprite operation confirmed by server:', data.operation, data.sprite_id);
-    } else if (data.operation === 'move' || data.operation === 'scale' || data.operation === 'rotate') {
+    } else if (data.operation === 'move' || data.operation === 'scale' || data.operation === 'resize' || data.operation === 'rotate') {
       // These operations are handled directly by WASM updates, no fallback needed
       console.log('✅ WasmIntegration: Sprite operation confirmed by server:', data.operation, data.sprite_id);
     } else if (data.sprite_id === null) {

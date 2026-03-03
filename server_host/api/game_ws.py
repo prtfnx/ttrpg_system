@@ -10,10 +10,11 @@ import jwt
 import time
 
 from ..database.database import get_db
-from ..database import crud
+from ..database import crud, models
 from ..service.game_session import ConnectionManager, get_connection_manager
 from ..routers.users import SECRET_KEY, ALGORITHM
 from ..utils.logger import setup_logger
+from ..utils.roles import get_permissions, get_visible_layers
 import os
 
 logger = setup_logger(__name__)
@@ -178,19 +179,31 @@ async def websocket_game_endpoint(
         logger.info(f"Game session found: {db_game_session.name}")       
         user_id = user.id
         username = user.username
-        logger.debug(f"User ID: {user_id}, Username: {username}")
+
+        # Resolve role from DB — player must have joined via HTTP first
+        db_player = db.query(models.GamePlayer).filter(
+            models.GamePlayer.session_id == db_game_session.id,
+            models.GamePlayer.user_id == user_id
+        ).first()
+        if not db_player:
+            logger.warning(f"User {username} has no GamePlayer record for session {session_code}")
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+        player_role = db_player.role
+        logger.debug(f"User {username} role in session {session_code}: {player_role}")
+
         logger.info(f"Connecting user {username} with ID {user_id} to session {session_code}")
-        await connection_manager.connect(websocket, session_code, user_id, username)
-        
-        logger.info(f"User {user.username} connected to session {session_code}")
-        
+        await connection_manager.connect(websocket, session_code, user_id, username, player_role)
         # Send welcome message
         await connection_manager.send_personal_message({
             "type": "welcome",
-            
             "username": username,
             "data": {
                 "user_id": user_id,
+                "role": player_role,
+                "permissions": get_permissions(player_role),
+                "visible_layers": get_visible_layers(player_role),
                 "session_name": db_game_session.name,
                 "session_code": session_code,
                 "players": connection_manager.get_session_players(session_code)

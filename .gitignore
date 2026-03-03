@@ -24,7 +24,6 @@ profiling/
 # Compendiums (allow only loaders)
 core_table/compendiums/tokens/*
 !core_table/compendiums/*loader.py
-!core_table/compendiums/spell_loader.py
 
 # Large data files (>1MB) - use external source 
 core_table/compendiums/exports/*
@@ -34,7 +33,6 @@ server_host/.env
 server_host/*.db
 server_host/server.log
 server_host/doc/
-server_host/database/migrate_characters.py
 server_host/static/ui/index.html
 server_host/templates/vite_assets.html
 server_host/templates/admin_assets.html
@@ -47,7 +45,7 @@ storage/game_data/settings.json
 storage/game_data/saves/player.json
 storage_config.json
 
-# Backups (never commit database backups)
+# Backups 
 backups/
 *.backup
 *.sql.gz
@@ -76,7 +74,6 @@ gui/imgui_log.txt
 
 # Environment
 .env
-
 
 # Scripts
 scripts/

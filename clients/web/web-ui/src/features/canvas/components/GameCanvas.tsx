@@ -12,8 +12,9 @@ import { DragDropImageHandler } from '@shared/components';
 import { useWebSocket } from '@shared/hooks';
 import type { LucideIcon } from 'lucide-react';
 import { ChevronRight, CloudFog, Construction, Crown, Lightbulb, Map, Mountain, Users } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
+import { useSpriteDragSync } from '../hooks/useSpriteDragSync';
 import { MultiSelectManager } from '../services';
 import fpsService from '../services/fps.service';
 import { performanceService } from '../services/performance.service';
@@ -76,6 +77,10 @@ export const GameCanvas: React.FC = () => {
 
   // Re-enabled sprite syncing with fixed React dependency issue
   useSpriteSyncing();
+
+  // Stream live drag/resize/rotate previews to other clients via WebSocket
+  const sendWsMessage = useCallback((msg: unknown) => { protocol?.sendMessage(msg as any); }, [protocol]);
+  useSpriteDragSync(sendWsMessage);
 
   // Use extracted hooks
   const debugPanel = useCanvasDebug(canvasRef, rustRenderManagerRef, dprRef);

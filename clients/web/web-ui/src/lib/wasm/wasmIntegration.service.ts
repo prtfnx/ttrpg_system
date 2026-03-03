@@ -166,8 +166,8 @@ class WasmIntegrationService {
     this.eventListeners.push(() => window.removeEventListener('sprite-drag-preview-remote', handleDragPreviewRemote));
 
     const handleResizePreviewRemote = (event: Event) => {
-      const { id, scale_x, scale_y } = (event as CustomEvent).detail ?? {};
-      if (id) this.updateSpriteScale(id, scale_x, scale_y);
+      const { id, width, height } = (event as CustomEvent).detail ?? {};
+      if (id) this.resizeSpriteInWasm(id, width, height);
     };
     window.addEventListener('sprite-resize-preview-remote', handleResizePreviewRemote);
     this.eventListeners.push(() => window.removeEventListener('sprite-resize-preview-remote', handleResizePreviewRemote));
@@ -185,7 +185,7 @@ class WasmIntegrationService {
       if (!spriteId || !originalState) return;
       switch (operation) {
         case 'move':   this.updateSpritePosition(spriteId, { x: originalState.x, y: originalState.y }); break;
-        case 'scale':  this.updateSpriteScale(spriteId, originalState.scaleX, originalState.scaleY); break;
+        case 'resize': this.resizeSpriteInWasm(spriteId, originalState.width, originalState.height); break;
         case 'rotate': this.updateSpriteRotation(spriteId, originalState.rotation); break;
       }
     };
@@ -678,6 +678,18 @@ class WasmIntegrationService {
     }
   }
 
+  private resizeSpriteInWasm(spriteId: string, width: number, height: number): void {
+    if (!this.renderEngine) return;
+    try {
+      const success = (this.renderEngine as any).resize_sprite(String(spriteId), Number(width), Number(height));
+      if (success && typeof (this.renderEngine as any).render === 'function') {
+        (this.renderEngine as any).render();
+      }
+    } catch (error) {
+      console.error('Failed to resize sprite in WASM:', error);
+    }
+  }
+
   private updateSpriteRotation(spriteId: string, rotation: number): void {
     try {
       console.log(`Updating sprite ${spriteId} rotation to:`, rotation);
@@ -844,49 +856,30 @@ class WasmIntegrationService {
 
   private handleSpriteScaled(data: any): void {
     if (!this.renderEngine) return;
-
     try {
-      // Handle both snake_case and camelCase sprite ID formats
       const spriteId = data.sprite_id || data.id || data.spriteId;
       if (!spriteId) {
         console.warn('No sprite ID found in scale data:', data);
         return;
       }
-
-      // Use efficient scale update if we have scale data
-      if (data.scale_x !== undefined && data.scale_y !== undefined) {
-        this.updateSpriteScale(spriteId, data.scale_x, data.scale_y);
-      } else if (data.scale_x !== undefined) {
-        this.updateSpriteScale(spriteId, data.scale_x, undefined);
-      } else if (data.scale_y !== undefined) {
-        this.updateSpriteScale(spriteId, undefined, data.scale_y);
-      } else if (this.hasCompleteData(data)) {
-        // Fallback to full update only if we have complete data
-        this.updateSpriteInWasm(data);
+      if (data.width !== undefined && data.height !== undefined) {
+        this.resizeSpriteInWasm(spriteId, data.width, data.height);
       } else {
-        console.warn('Scale update requires complete sprite data - operation will be skipped to prevent sprite corruption');
+        console.warn('Resize requires width and height - skipping to prevent corruption');
       }
-      
-      // Invalidate thumbnail cache for the table
       const tableId = data.table_id;
-      if (tableId) {
-        tableThumbnailService.invalidateTable(tableId);
-      }
+      if (tableId) tableThumbnailService.invalidateTable(tableId);
     } catch (error) {
-      console.error('Failed to scale sprite in WASM:', error);
+      console.error('Failed to resize sprite in WASM:', error);
     }
   }
 
   private handleSpriteRotated(data: any): void {
     if (!this.renderEngine) return;
-
     try {
       const spriteId = data.sprite_id || data.id || data.spriteId;
-      const rotation = data.rotation;
-      if (spriteId && typeof rotation === 'number') {
-        this.updateSpriteRotation(spriteId, rotation);
-      } else {
-        console.warn('Rotate event missing sprite_id or rotation:', data);
+      if (spriteId && typeof data.rotation === 'number') {
+        this.updateSpriteRotation(spriteId, data.rotation);
       }
     } catch (error) {
       console.error('Failed to rotate sprite in WASM:', error);

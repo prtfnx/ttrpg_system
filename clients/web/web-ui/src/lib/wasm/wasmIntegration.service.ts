@@ -881,9 +881,12 @@ class WasmIntegrationService {
     if (!this.renderEngine) return;
 
     try {
-      if (data.id && typeof data.rotation === 'number') {
-        this.renderEngine.rotate_sprite(data.id, data.rotation);
-        console.log('Rotated sprite in WASM:', data.id, data.rotation);
+      const spriteId = data.sprite_id || data.id || data.spriteId;
+      const rotation = data.rotation;
+      if (spriteId && typeof rotation === 'number') {
+        this.updateSpriteRotation(spriteId, rotation);
+      } else {
+        console.warn('Rotate event missing sprite_id or rotation:', data);
       }
     } catch (error) {
       console.error('Failed to rotate sprite in WASM:', error);

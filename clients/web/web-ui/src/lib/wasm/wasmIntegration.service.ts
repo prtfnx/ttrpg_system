@@ -724,25 +724,24 @@ class WasmIntegrationService {
   private handlePartialSpriteUpdate(spriteId: string, data: any): void {
     // Handle partial updates using available direct methods
     console.log(`🔧 Handling partial update for ${spriteId}:`, data);
-    
+
+    // Flatten: top-level fields take priority; fall back to nested `updates` object
+    const u = data.updates ?? {};
     let updated = false;
 
-    // Try position update
-    if (data.position || (data.x !== undefined && data.y !== undefined)) {
-      const position = data.position || { x: data.x, y: data.y };
+    if (data.position || u.position || (data.x !== undefined && data.y !== undefined) || (u.x !== undefined && u.y !== undefined)) {
+      const position = data.position ?? u.position ?? { x: data.x ?? u.x, y: data.y ?? u.y };
       this.updateSpritePosition(spriteId, position);
       updated = true;
     }
 
-    // Try scale update  
-    if (data.scale_x !== undefined || data.scale_y !== undefined) {
-      this.updateSpriteScale(spriteId, data.scale_x, data.scale_y);
+    if (data.scale_x !== undefined || data.scale_y !== undefined || u.scale_x !== undefined || u.scale_y !== undefined) {
+      this.updateSpriteScale(spriteId, data.scale_x ?? u.scale_x, data.scale_y ?? u.scale_y);
       updated = true;
     }
 
-    // Try rotation update
-    if (data.rotation !== undefined) {
-      this.updateSpriteRotation(spriteId, data.rotation);
+    if (data.rotation !== undefined || u.rotation !== undefined) {
+      this.updateSpriteRotation(spriteId, data.rotation ?? u.rotation);
       updated = true;
     }
 

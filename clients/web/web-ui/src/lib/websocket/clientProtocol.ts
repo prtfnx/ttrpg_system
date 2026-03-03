@@ -1249,7 +1249,11 @@ export class WebClientProtocol {
 
   // Sprite data handlers
   private async handleSpriteResponse(message: Message): Promise<void> {
-    console.log('🎭 Protocol: Sprite response:', message.data);
+    // Confirm pending action - server echoes action_id back to the originating client
+    // via sprite_response (broadcasts go to others without action_id)
+    if (message.data?.action_id && message.data?.success) {
+      window.dispatchEvent(new CustomEvent('sprite-action-confirmed', { detail: { actionId: message.data.action_id } }));
+    }
     window.dispatchEvent(new CustomEvent('sprite-response', { detail: message.data }));
   }
 

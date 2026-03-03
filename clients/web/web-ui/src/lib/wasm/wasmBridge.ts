@@ -183,14 +183,19 @@ class WasmBridgeService {
   }
 
   private emitRevert(pending: PendingAction, reason: string) {
-    window.dispatchEvent(new CustomEvent('sprite-revert', {
-      detail: {
-        spriteId: pending.spriteId,
-        operation: pending.operation,
-        originalState: pending.originalState,
-        reason,
-      }
-    }));
+    // Only revert WASM state if we have a known baseline to go back to.
+    // If originalState is empty (sprite never confirmed a position with this client),
+    // touching WASM with undefined values would send the sprite to NaN coordinates.
+    if (Object.keys(pending.originalState).length > 0) {
+      window.dispatchEvent(new CustomEvent('sprite-revert', {
+        detail: {
+          spriteId: pending.spriteId,
+          operation: pending.operation,
+          originalState: pending.originalState,
+          reason,
+        }
+      }));
+    }
 
     const label: Record<Operation, string> = { move: 'Movement', scale: 'Resize', rotate: 'Rotation' };
     const msg = reason === 'timeout'

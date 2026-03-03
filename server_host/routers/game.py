@@ -12,6 +12,7 @@ from ..database.database import get_db
 from ..database import crud, schemas, models
 from ..models import game as game_models
 from ..utils.logger import setup_logger
+from ..utils.roles import get_permissions, can_assign_role, is_dm
 from .users import get_current_active_user
 import os
 
@@ -132,7 +133,7 @@ async def game_session_page(
     logger.debug(f"session_owner_id: {session_owner_id}, type: {type(session_owner_id)}")
     logger.debug(f"current_user_id: {current_user_id}, type: {type(current_user_id)}")
     
-    user_role = "dm" if session_owner_id == current_user_id else "player"
+    user_role = "owner" if session_owner_id == current_user_id else "player"
     
     logger.debug(f"user_role determined: {user_role}")
     
@@ -307,7 +308,7 @@ async def get_session_players(
         "role": p.role,
         "is_connected": p.is_connected,
         "joined_at": p.joined_at.isoformat() if p.joined_at else None,
-        "permissions": get_role_permissions(p.role)
+        "permissions": get_permissions(p.role)
     } for p in players_data]
 
 @router.post("/api/sessions/{session_code}/players/{user_id}/role")
@@ -328,7 +329,7 @@ async def change_player_role(
         models.GamePlayer.user_id == current_user.id
     ).first()
     
-    if not requester or requester.role not in ['owner', 'co_dm']:
+    if not requester or not is_dm(requester.role):
         raise HTTPException(status_code=403, detail="Owner/Co-DM access required")
     
     target_player = db.query(models.GamePlayer).filter(
@@ -339,8 +340,9 @@ async def change_player_role(
     if not target_player:
         raise HTTPException(status_code=404, detail="Player not found")
     
-    if target_player.role == 'owner' and role_data.role != 'owner':
-        raise HTTPException(status_code=400, detail="Cannot change owner role")
+    allowed, reason = can_assign_role(requester.role, target_player.role, role_data.role)
+    if not allowed:
+        raise HTTPException(status_code=400, detail=reason)
     
     old_role = target_player.role
     target_player.role = role_data.role
@@ -408,15 +410,9 @@ async def kick_player(
     return {"success": True, "message": "Player kicked successfully"}
 
 def get_role_permissions(role: str) -> list:
-    """Get permissions for a given role"""
-    role_permissions = {
-        'owner': ['all'],
-        'co_dm': ['compendium:read', 'compendium:write', 'table:admin', 'character:write', 'player:manage'],
-        'trusted_player': ['compendium:read', 'character:write', 'sprite:create'],
-        'player': ['compendium:read', 'character:read', 'sprite:create'],
-        'spectator': ['compendium:read']
-    }
-    return role_permissions.get(role, [])
+    """Kept for template compatibility — delegates to roles module."""
+    from ..utils.roles import get_permissions
+    return get_permissions(role)
 
 @router.get("/api/sessions", response_model=List[game_models.GameSession])
 async def get_user_sessions(

@@ -398,41 +398,33 @@ class ServerProtocol:
         
         table_id = msg.data.get('table_id', 'default')
         sprite_id = msg.data.get('sprite_id')
-        scale_x = msg.data.get('scale_x')
-        scale_y = msg.data.get('scale_y')
-        action_id = msg.data.get('action_id')  # For confirmation tracking
-        
-        if not sprite_id or scale_x is None or scale_y is None:
-            return Message(MessageType.ERROR, {'error': 'Sprite ID, scale_x, and scale_y are required'})
-        
-        # Get session_id for database persistence
-        session_id = self._get_session_id(msg)
+        width = msg.data.get('width')
+        height = msg.data.get('height')
+        action_id = msg.data.get('action_id')
 
-        result = await self.actions.update_sprite(table_id, sprite_id, session_id=session_id, scale_x=scale_x, scale_y=scale_y)
+        if not sprite_id or width is None or height is None:
+            return Message(MessageType.ERROR, {'error': 'Sprite ID, width, and height are required'})
+
+        session_id = self._get_session_id(msg)
+        result = await self.actions.update_sprite(table_id, sprite_id, session_id=session_id, width=width, height=height)
         if result.success:
             response_data = {
                 'sprite_id': sprite_id,
-                'operation': 'scale',
-                'scale_x': scale_x,
-                'scale_y': scale_y,
+                'operation': 'resize',
+                'width': width,
+                'height': height,
                 'success': True
             }
-            # Include action_id for confirmation if provided
             if action_id:
                 response_data['action_id'] = action_id
-            
-            # Broadcast sprite scale to all other clients in the session
-            scale_message = Message(MessageType.SPRITE_SCALE, {
-                'sprite_id': sprite_id,
-                'scale_x': scale_x,
-                'scale_y': scale_y,
-                'table_id': table_id
-            })
-            await self.broadcast_to_session(scale_message, client_id)
-            
+
+            await self.broadcast_to_session(
+                Message(MessageType.SPRITE_SCALE, {'sprite_id': sprite_id, 'width': width, 'height': height, 'table_id': table_id}),
+                client_id
+            )
             return Message(MessageType.SPRITE_RESPONSE, response_data)
         else:
-            error_data = {'error': f'Failed to scale sprite: {result.message}'}
+            error_data = {'error': f'Failed to resize sprite: {result.message}'}
             if action_id:
                 error_data['action_id'] = action_id
             return Message(MessageType.ERROR, error_data)

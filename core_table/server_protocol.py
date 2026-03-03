@@ -405,17 +405,10 @@ class ServerProtocol:
         if not sprite_id or scale_x is None or scale_y is None:
             return Message(MessageType.ERROR, {'error': 'Sprite ID, scale_x, and scale_y are required'})
         
-        # Note: Sprite updates are frequent and typically batched, not immediately persisted
-        # Session manager will handle periodic persistence
-        
-        # Update sprite scale using the actions interface
-        update_data = {
-            'sprite_id': sprite_id,
-            'scale_x': scale_x,
-            'scale_y': scale_y
-        }
-        
-        result = await self.actions.update_sprite(table_id, sprite_id, data=update_data)
+        # Get session_id for database persistence
+        session_id = self._get_session_id(msg)
+
+        result = await self.actions.update_sprite(table_id, sprite_id, session_id=session_id, scale_x=scale_x, scale_y=scale_y)
         if result.success:
             response_data = {
                 'sprite_id': sprite_id,
@@ -458,16 +451,10 @@ class ServerProtocol:
         if not sprite_id or rotation is None:
             return Message(MessageType.ERROR, {'error': 'Sprite ID and rotation are required'})
         
-        # Note: Sprite updates are frequent and typically batched, not immediately persisted
-        # Session manager will handle periodic persistence
-        
-        # Update sprite rotation using the actions interface
-        update_data = {
-            'sprite_id': sprite_id,
-            'rotation': rotation
-        }
-        
-        result = await self.actions.update_sprite(table_id, sprite_id, data=update_data)
+        # Get session_id for database persistence
+        session_id = self._get_session_id(msg)
+
+        result = await self.actions.update_sprite(table_id, sprite_id, session_id=session_id, rotation=rotation)
         if result.success:
             response_data = {
                 'sprite_id': sprite_id,
@@ -846,14 +833,15 @@ class ServerProtocol:
             if not result.success:
                 return Message(MessageType.ERROR, {'error': f'Failed to update sprite: {result.message}'})
         
-        # Broadcast update to all clients in session
-        broadcast_msg = Message(MessageType.SPRITE_UPDATE, {
-            'sprite_id': sprite_id,
-            'table_id': table_id,
-            'updates': updates,
-            'operation': 'update'
-        })
-        await self.broadcast_to_session(broadcast_msg, client_id)
+        # Only broadcast if there were actual field changes
+        if updates:
+            broadcast_msg = Message(MessageType.SPRITE_UPDATE, {
+                'sprite_id': sprite_id,
+                'table_id': table_id,
+                'updates': updates,
+                'operation': 'update'
+            })
+            await self.broadcast_to_session(broadcast_msg, client_id)
         
         response = Message(MessageType.SUCCESS, {
             'table_id': table_id,

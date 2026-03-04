@@ -48,6 +48,7 @@ export default defineConfig(({ mode }) => {
             // All other node_modules → vendor (stable, long cache lifetime)
             if (id.includes('node_modules')) return 'vendor';
             // WASM bridge + generated TS declarations — changes every Rust build
+            // Must be assigned BEFORE features to avoid feature code bleeding in
             if (id.includes('/src/lib/wasm/')) return 'wasm';
             // Network/protocol layer without WASM mixed in
             if (id.includes('/src/lib/websocket/') || id.includes('/src/lib/api/')) return 'protocol';

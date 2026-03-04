@@ -70,7 +70,7 @@ function getVisionSources(defaultRadius = 600): Array<{ id: string; x: number; y
       if (typeof v === 'string' && !isNaN(Number(v)) && Number(v) > 0) { radius = Number(v); break; }
     }
 
-    if (radius == null) continue;
+    if (radius == null) radius = defaultRadius;
     out.push({ id: anyS.id, x: anyS.x, y: anyS.y, radius });
   }
 

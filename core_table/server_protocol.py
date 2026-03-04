@@ -277,7 +277,7 @@ class ServerProtocol:
         _dm_layers = {'dungeon_master', 'fog_of_war', 'light', 'height', 'obstacles', 'dm_notes'}
         role = self._get_client_role(client_id)
         layer = sprite_data.get('layer', 'tokens') if isinstance(sprite_data, dict) else 'tokens'
-        if not is_elevated(role):
+        if not can_interact(role):
             return Message(MessageType.ERROR, {'error': 'Insufficient permissions to create sprites'})
         if layer in _dm_layers and not is_dm(role):
             return Message(MessageType.ERROR, {'error': 'Only DMs can create sprites on this layer'})

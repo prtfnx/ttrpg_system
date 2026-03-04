@@ -1,3 +1,4 @@
+import type { SessionRole } from '@features/session/types/roles';
 import type { Character, ConnectionState, GameState, Sprite, ToolType } from '@/types';
 import { ProtocolService } from '@lib/api';
 import { transformServerTablesToClient, validateTableId } from '@lib/websocket';
@@ -70,7 +71,15 @@ interface GameStore extends GameState {
   activeTool: ToolType;
   measurementActive: boolean;
   alignmentActive: boolean;
-  
+
+  // Session role state
+  sessionRole: SessionRole | null;
+  userId: number | null;
+  permissions: string[];
+  visibleLayers: string[];
+  setSessionRole: (role: SessionRole, permissions: string[], visibleLayers: string[]) => void;
+  setUserId: (id: number) => void;
+
   // Actions
   moveSprite: (id: string, x: number, y: number) => void;
   selectSprite: (id: string, multiSelect?: boolean) => void;
@@ -162,6 +171,12 @@ export const useGameStore = create<GameStore>()(
       activeTool: 'select',
       measurementActive: false,
       alignmentActive: false,
+
+      // Session role initial state
+      sessionRole: null,
+      userId: null,
+      permissions: [],
+      visibleLayers: [],
 
       // Lighting initial state
       ambientLight: 0.2,
@@ -454,6 +469,14 @@ export const useGameStore = create<GameStore>()(
 
       setAmbientLight: (level: number) => {
         set(() => ({ ambientLight: level }));
+      },
+
+      setSessionRole: (role: SessionRole, permissions: string[], visibleLayers: string[]) => {
+        set(() => ({ sessionRole: role, permissions, visibleLayers }));
+      },
+
+      setUserId: (id: number) => {
+        set(() => ({ userId: id }));
       },
       
       // Table management actions

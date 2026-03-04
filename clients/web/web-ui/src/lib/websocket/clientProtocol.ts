@@ -500,6 +500,8 @@ export class WebClientProtocol {
     this.requestTableList();
     this.requestPlayerList();
     if (this.userId) this.requestActiveTable();
+    // Signal to all listeners that protocol is connected and ready
+    window.dispatchEvent(new CustomEvent('protocol-connected'));
   }
 
   private async handlePing(message: Message): Promise<void> {
@@ -592,6 +594,18 @@ export class WebClientProtocol {
 
   private async handleTableListResponse(message: Message): Promise<void> {
     console.log('Table list received:', message.data);
+    // Update store directly so panels that mount after this response still see the data
+    const data = message.data as Record<string, any>;
+    if (data?.tables) {
+      const serverTables = Object.entries(data.tables as Record<string, any>).map(([id, d]: [string, any]) => ({
+        table_id: id,
+        ...d,
+        syncStatus: 'synced' as const,
+        lastSyncTime: Date.now()
+      }));
+      useGameStore.getState().setTables(serverTables);
+      useGameStore.getState().setTablesLoading(false);
+    }
     window.dispatchEvent(new CustomEvent('table-list-updated', { detail: message.data }));
   }
 
@@ -1262,9 +1276,9 @@ export class WebClientProtocol {
   private async handleTableActiveSetAllResponse(message: Message): Promise<void> {
     const data = message.data as Record<string, any>;
     if (data.table_id) {
-      useGameStore.getState().setActiveTableId(data.table_id);
+      // dispatch the event GameClient listens to, with the expected property name
+      window.dispatchEvent(new CustomEvent('table-force-switch', { detail: { tableId: data.table_id } }));
     }
-    window.dispatchEvent(new CustomEvent('table-active-set-all', { detail: data }));
   }
 
   private async handleConnectionStatusResponse(message: Message): Promise<void> {

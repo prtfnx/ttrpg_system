@@ -5,14 +5,14 @@ import { useAuthenticatedWebSocket } from '@features/auth';
 import { SessionManagementPanel } from '@features/session';
 import { isDM, type SessionRole } from '@features/session/types/roles';
 import clsx from 'clsx';
-
-const ALL_LAYERS = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles', 'fog_of_war'] as const;
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React, { useEffect } from 'react';
 import { GameCanvas } from './GameCanvas';
 import styles from './GameClient.module.css';
 import { TokenConfigModal } from './TokenConfigModal';
 import { ToolsPanel } from './ToolsPanel';
+
+const ALL_LAYERS = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles', 'fog_of_war'] as const;
 
 interface ErrorBoundaryState {
   hasError: boolean;

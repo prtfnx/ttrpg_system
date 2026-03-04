@@ -30,6 +30,7 @@ pub struct Sprite {
     
     // Character binding (optional)
     pub character_id: Option<String>,
+    #[serde(default)]
     pub controlled_by: Vec<i32>,
     
     // Token stats (independent of character)

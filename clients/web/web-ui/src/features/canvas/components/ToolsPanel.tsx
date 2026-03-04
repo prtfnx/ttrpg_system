@@ -642,11 +642,11 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           </div>
         )}
 
-      {/* Layer Management Panel */}
-      <LayerPanel />
+      {/* Layer Management Panel - DM only */}
+      {dmMode && <LayerPanel />}
 
-      {/* Grid Controls */}
-      <GridControls />
+      {/* Grid Controls - DM only */}
+      {dmMode && <GridControls />}
 
       {/* Dice Roller Tool */}
       <DiceRoller />

@@ -41,8 +41,8 @@ const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
   // Interactive tabs (everyone except spectator)
   'characters':    canInteract,
   'chat':          canInteract,
-  // All roles
-  'entities':      () => true,
+  // All interactive roles
+  'entities':      isDM,
   'initiative':    () => true,
   'measurement':   () => true,
   'customize':     () => true,

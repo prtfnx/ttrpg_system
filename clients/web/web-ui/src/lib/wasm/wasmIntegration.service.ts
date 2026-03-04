@@ -1036,7 +1036,8 @@ class WasmIntegrationService {
         layer: layer,
         texture_id: assetId || '',  // Use asset_id as texture_id so it matches loaded texture
         tint_color: spriteData.tint_color || [1.0, 1.0, 1.0, 1.0],
-        table_id: spriteData.table_id || 'default_table'  // Use table_id from spriteData
+        table_id: spriteData.table_id || 'default_table',  // Use table_id from spriteData
+        controlled_by: spriteData.controlled_by || [],     // Required by Rust struct
       };
 
       console.log('Converted sprite for WASM:', wasmSprite);

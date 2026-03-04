@@ -1,4 +1,5 @@
 import { useGameStore } from '@/store';
+import { isDM } from '@features/session/types/roles';
 import clsx from 'clsx';
 import type { LucideIcon } from 'lucide-react';
 import { Calendar, CloudFog, Construction, Crown, Eye, EyeOff, Layers, Lightbulb, Map, Mountain, Users } from 'lucide-react';
@@ -65,6 +66,13 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     setLayerOpacity = () => {},
     activeTableId = null,
   } = gameStore;
+
+  const sessionRole = useGameStore(s => s.sessionRole);
+  const visibleLayers = useGameStore(s => s.visibleLayers);
+  const allowedLayerIds = isDM(sessionRole)
+    ? DEFAULT_LAYERS.map(l => l.id)
+    : visibleLayers.length > 0 ? visibleLayers : DEFAULT_LAYERS.map(l => l.id);
+  const availableLayers = DEFAULT_LAYERS.filter(l => allowedLayerIds.includes(l.id));
   
   const renderEngine = useRenderEngine();
 
@@ -93,7 +101,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     const initLayers = () => {
       // If initialLayers were provided by a caller/test use them, otherwise use defaults
       if (!initialLayers || initialLayers.length === 0) {
-        setLayers(DEFAULT_LAYERS);
+        setLayers(availableLayers);
       }
       setIsLoading(false);
     };
@@ -115,6 +123,16 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     const timer = setTimeout(initLayers, delay);
     return () => clearTimeout(timer);
   }, []);
+
+  // Re-filter layers when role/visibleLayers changes
+  useEffect(() => {
+    if (!isLoading && !initialLayers) {
+      setLayers(prev => {
+        const filtered = availableLayers.map(al => prev.find(p => p.id === al.id) ?? al);
+        return filtered;
+      });
+    }
+  }, [sessionRole, visibleLayers]);
 
   // Update sprite counts when activeTableId changes
   // Don't depend on sprites array - that causes updates for EVERY sprite change

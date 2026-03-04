@@ -1,5 +1,6 @@
 import { useGameStore } from '@/store';
 import { useRenderEngine } from '@features/canvas';
+import { isDM } from '@features/session/types/roles';
 import { AlertTriangle, Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -12,6 +13,8 @@ interface SyncState {
 
 export function EntitiesPanel() {
   const { sprites, selectedSprites, selectSprite, addSprite, removeSprite, updateSprite } = useGameStore()
+  const sessionRole = useGameStore(s => s.sessionRole);
+  const visibleLayers = useGameStore(s => s.visibleLayers);
   const renderEngine = useRenderEngine();
   const [syncState, setSyncState] = useState<SyncState>({ status: 'idle' })
 
@@ -171,7 +174,14 @@ export function EntitiesPanel() {
       </div>
       
       <div className="sprite-list">
-        {sprites.length === 0 ? (
+        {(() => {
+          const visibleSprites = isDM(sessionRole)
+            ? sprites
+            : sprites.filter(s => {
+                if (visibleLayers.length > 0 && !visibleLayers.includes(s.layer)) return false;
+                return s.isVisible !== false;
+              });
+          return visibleSprites.length === 0 ? (
           <div style={{ color: '#666', textAlign: 'center', padding: '2rem' }}>
             {syncState.status === 'syncing' ? (
               <div>
@@ -199,7 +209,7 @@ export function EntitiesPanel() {
             )}
           </div>
         ) : (
-          sprites.map((sprite) => {
+          visibleSprites.map((sprite) => {
             // Provide fallback for scale if missing
             const scale = sprite.scale && typeof sprite.scale.x === 'number' && typeof sprite.scale.y === 'number'
               ? sprite.scale
@@ -217,7 +227,8 @@ export function EntitiesPanel() {
               </div>
             );
           })
-        )}
+        );
+        })()}
       </div>
     </div>
   )

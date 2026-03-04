@@ -6,6 +6,7 @@ import { ToastContainer } from 'react-toastify';
 import { ProtocolProvider } from '@app/providers';
 import { authService, type UserInfo } from '@features/auth';
 import { SessionSelector } from '@features/session/components/SessionSelector';
+import { type SessionRole } from '@features/session/types/roles';
 import { ErrorBoundary } from '@shared/components/ErrorBoundary';
 import { logger } from '@shared/utils/logger';
 import styles from './App.module.css';
@@ -14,7 +15,7 @@ interface AppState {
   isAuthenticated: boolean;
   userInfo: UserInfo | null;
   selectedSession: string | null;
-  userRole: 'dm' | 'player' | null;
+  userRole: SessionRole | null;
   loading: boolean;
   error: string | null;
 }
@@ -106,7 +107,7 @@ function App() {
     }
   };
 
-  const handleSessionSelected = (sessionCode: string, role: 'dm' | 'player') => {
+  const handleSessionSelected = (sessionCode: string, role: SessionRole) => {
     setState(prev => ({
       ...prev,
       selectedSession: sessionCode,

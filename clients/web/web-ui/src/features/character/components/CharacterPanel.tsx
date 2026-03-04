@@ -1,6 +1,8 @@
+import { useGameStore } from '@/store';
+import type { Character } from '@/types';
+import { isDM } from '@features/session/types/roles';
 import clsx from 'clsx';
 import ReactDOM from 'react-dom';
-import type { Character } from '@/types';
 import styles from './CharacterPanel.module.css';
 import { BulkActionsBar } from './CharacterPanel/BulkActionsBar';
 import { CharacterStats } from './CharacterPanel/CharacterStats';
@@ -64,13 +66,12 @@ function CharacterPanel() {
     protocol,
   } = useCharacterPanel();
 
-  const mockUsers = [
-    { id: 1, name: 'Player 1' },
-    { id: 2, name: 'Player 2' },
-    { id: 3, name: 'DM' },
-  ];
+  const sessionRole = useGameStore(s => s.sessionRole);
+  const storeUserId = useGameStore(s => s.userId);
+  const effectiveUserId = storeUserId ?? currentUserId;
 
   const filteredCharacters = characters.filter(char => {
+    if (!isDM(sessionRole) && char.ownerId !== effectiveUserId) return false;
     if (!searchFilter) return true;
     const search = searchFilter.toLowerCase();
     return (
@@ -323,7 +324,7 @@ function CharacterPanel() {
             characterName={char.name}
             ownerId={char.ownerId}
             currentControlledBy={char.controlledBy}
-            availableUsers={mockUsers}
+            availableUsers={[]}
             onClose={() => setShareDialogCharId(null)}
             onSave={handleSavePermissions}
           />

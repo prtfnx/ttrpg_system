@@ -14,6 +14,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from net.protocol import Message, MessageType, BatchMessage 
 from core_table.actions_core import ActionsCore
 from server_host.utils.logger import setup_logger
+from server_host.utils.roles import is_dm, is_elevated, can_interact, get_visible_layers
 from server_host.service.asset_manager import get_server_asset_manager, AssetRequest
 from server_host.database.models import Asset, GameSession, GamePlayer
 from server_host.database.database import SessionLocal
@@ -70,6 +71,7 @@ class ServerProtocol:
         # Active table persistence
         self.register_handler(MessageType.TABLE_ACTIVE_REQUEST, self.handle_table_active_request)
         self.register_handler(MessageType.TABLE_ACTIVE_SET, self.handle_table_active_set)
+        self.register_handler(MessageType.TABLE_ACTIVE_SET_ALL, self.handle_table_active_set_all)
         
         # Player management
         self.register_handler(MessageType.PLAYER_ACTION, self.handle_player_action)
@@ -271,6 +273,15 @@ class ServerProtocol:
             # ignore normalization errors but do not silently remap legacy keys
             pass
 
+        # Role-based layer access check
+        _dm_layers = {'dungeon_master', 'fog_of_war', 'light', 'height', 'obstacles', 'dm_notes'}
+        role = self._get_client_role(client_id)
+        layer = sprite_data.get('layer', 'tokens') if isinstance(sprite_data, dict) else 'tokens'
+        if not can_interact(role):
+            return Message(MessageType.ERROR, {'error': 'Insufficient permissions to create sprites'})
+        if layer in _dm_layers and not is_dm(role):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can create sprites on this layer'})
+
         result = await self.actions.create_sprite(table_id=table_id, sprite_data=sprite_data, session_id=session_id)
         logger.debug(f"Create sprite result: {result}")
         # Safely extract result data
@@ -292,20 +303,22 @@ class ServerProtocol:
             }
             logger.debug(f"Sending sprite response: {response_data}")
             
-            # Broadcast sprite creation to all other clients in the session
+            # Broadcast sprite creation only to clients who can see this layer
             update_message = Message(MessageType.SPRITE_UPDATE, {
                 'sprite_id': sprite_data.get('sprite_id'),
                 'operation': 'create',
                 'sprite_data': sprite_data,
                 'table_id': table_id
             })
-            await self.broadcast_to_session(update_message, client_id)
+            await self.broadcast_filtered(update_message, layer, client_id)
             
             return Message(MessageType.SPRITE_RESPONSE, response_data)
 
     async def handle_delete_sprite(self, msg: Message, client_id: str) -> Message:
         """Handle delete sprite request"""
         logger.debug(f"Delete sprite request received: {msg}")
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can delete sprites'})
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in delete sprite request'})
         
@@ -350,7 +363,16 @@ class ServerProtocol:
         
         if not sprite_id or not from_pos or not to_pos:
             return Message(MessageType.ERROR, {'error': 'Sprite ID, from position, and to position are required'})
-        
+
+        # Role and ownership check
+        role = self._get_client_role(client_id)
+        if not can_interact(role):
+            return Message(MessageType.ERROR, {'error': 'Spectators cannot move sprites'})
+        if not is_dm(role):
+            user_id_check = self._get_user_id(msg)
+            if not await self._can_control_sprite(sprite_id, user_id_check):
+                return Message(MessageType.ERROR, {'error': 'You do not control this sprite'})
+
         # Get session_id for database persistence
         session_id = self._get_session_id(msg)
         
@@ -404,9 +426,15 @@ class ServerProtocol:
 
         if not sprite_id or width is None or height is None:
             return Message(MessageType.ERROR, {'error': 'Sprite ID, width, and height are required'})
-
+        role = self._get_client_role(client_id)
+        if not can_interact(role):
+            return Message(MessageType.ERROR, {'error': 'Spectators cannot modify sprites'})
+        if not is_dm(role):
+            if not await self._can_control_sprite(sprite_id, self._get_user_id(msg)):
+                return Message(MessageType.ERROR, {'error': 'You do not control this sprite'})
         session_id = self._get_session_id(msg)
         result = await self.actions.update_sprite(table_id, sprite_id, session_id=session_id, width=width, height=height)
+
         if result.success:
             response_data = {
                 'sprite_id': sprite_id,
@@ -442,11 +470,12 @@ class ServerProtocol:
         
         if not sprite_id or rotation is None:
             return Message(MessageType.ERROR, {'error': 'Sprite ID and rotation are required'})
-        
-        # Get session_id for database persistence
-        session_id = self._get_session_id(msg)
-
-        result = await self.actions.update_sprite(table_id, sprite_id, session_id=session_id, rotation=rotation)
+        role = self._get_client_role(client_id)
+        if not can_interact(role):
+            return Message(MessageType.ERROR, {'error': 'Spectators cannot modify sprites'})
+        if not is_dm(role):
+            if not await self._can_control_sprite(sprite_id, self._get_user_id(msg)):
+                return Message(MessageType.ERROR, {'error': 'You do not control this sprite'})
         if result.success:
             response_data = {
                 'sprite_id': sprite_id,
@@ -519,6 +548,8 @@ class ServerProtocol:
     async def handle_delete_table(self, msg: Message, client_id: str) -> Message:
         """Handle delete table request"""
         logger.debug(f"Delete table request received: {msg}")
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can delete tables'})
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in delete table request'})
         
@@ -567,6 +598,8 @@ class ServerProtocol:
     async def handle_new_table_request(self, msg: Message, client_id: str) -> Message:
         """Handle new table request"""
         logger.debug(f"New table request received: {msg}")
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can create tables'})
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in new table request'})
         table_name = msg.data.get('table_name', 'default')
@@ -654,6 +687,12 @@ class ServerProtocol:
             else:
                 table_data = {}
             table_data_with_hashes = await self.add_asset_hashes_to_table(table_data, session_code=msg.data.get('session_code', 'default'), user_id=user_id)
+
+            role = self._get_client_role(client_id)
+            if not is_dm(role):
+                allowed_layers = set(get_visible_layers(role))
+                layers = table_data_with_hashes.get('layers', {})
+                table_data_with_hashes['layers'] = {k: v for k, v in layers.items() if k in allowed_layers}
 
             # return message that need send to client
             return Message(MessageType.TABLE_RESPONSE, {'name': table_name, 'client_id': client_id,
@@ -1287,14 +1326,18 @@ class ServerProtocol:
     async def broadcast_to_session(self, message: Message, client_id: str):
         """Send message to all clients in the session"""
         if self.session_manager and hasattr(self.session_manager, 'broadcast_to_session'):
-            # Delegate to the session manager's broadcast method
             await self.session_manager.broadcast_to_session(message, exclude_client=client_id)
         else:
-            # Fallback implementation (should not be used in production)
-            logger.warning("No session manager available for broadcasting, using fallback")
             for client in self.clients:
                 if client != client_id:
                     await self.send_to_client(message, client)
+
+    async def broadcast_filtered(self, message: Message, layer: str, client_id: str):
+        """Broadcast only to clients who can see the given layer."""
+        if self.session_manager and hasattr(self.session_manager, 'broadcast_filtered'):
+            await self.session_manager.broadcast_filtered(message, layer, exclude_client=client_id)
+        else:
+            await self.broadcast_to_session(message, client_id)
 
     async def _broadcast_error(self, client_id: str, error_message: str):
         """Send error message to specific client"""
@@ -1605,8 +1648,7 @@ class ServerProtocol:
                 return Message(MessageType.ERROR, {'error': 'Player ID or username is required'})
             
             # Check if requesting client has kick permissions
-            # This should be enhanced with proper permission system
-            requesting_client_info = getattr(self, 'client_info', {}).get(client_id, {})
+            requesting_client_info = self._get_client_info(client_id)
             if not self._has_kick_permission(requesting_client_info):
                 return Message(MessageType.ERROR, {'error': 'Insufficient permissions to kick players'})
             
@@ -1650,7 +1692,7 @@ class ServerProtocol:
                 return Message(MessageType.ERROR, {'error': 'Player ID or username is required'})
             
             # Check if requesting client has ban permissions
-            requesting_client_info = getattr(self, 'client_info', {}).get(client_id, {})
+            requesting_client_info = self._get_client_info(client_id)
             if not self._has_ban_permission(requesting_client_info):
                 return Message(MessageType.ERROR, {'error': 'Insufficient permissions to ban players'})
             
@@ -1705,29 +1747,21 @@ class ServerProtocol:
             logger.error(f"Error handling connection status request: {e}")
             return Message(MessageType.ERROR, {'error': 'Failed to get connection status'})
 
+    def _get_client_info(self, client_id: str) -> dict:
+        """Get client info dict from session manager."""
+        if self.session_manager and hasattr(self.session_manager, 'client_info'):
+            return self.session_manager.client_info.get(client_id, {})
+        return {}
+
+    def _get_client_role(self, client_id: str) -> str:
+        """Get the RBAC role for a connected client."""
+        return self._get_client_info(client_id).get('role', 'player')
+
     def _has_kick_permission(self, client_info: dict) -> bool:
-        """Check if client has permission to kick players"""
-        # Simple permission check - in production this should be more sophisticated
-        username = client_info.get('username', '').lower()
-        user_role = client_info.get('role', 'player')
-        
-        # DM/GM or admin can kick
-        return (user_role in ['dm', 'gm', 'admin'] or 
-                username.startswith('dm') or 
-                username.startswith('gm') or
-                username.startswith('admin'))
+        return is_dm(client_info.get('role', 'player'))
 
     def _has_ban_permission(self, client_info: dict) -> bool:
-        """Check if client has permission to ban players"""
-        # Ban permissions are more restrictive than kick
-        username = client_info.get('username', '').lower()
-        user_role = client_info.get('role', 'player')
-        
-        # Only DM/GM or admin can ban
-        return (user_role in ['dm', 'gm', 'admin'] or 
-                username.startswith('dm') or 
-                username.startswith('gm') or
-                username.startswith('admin'))
+        return is_dm(client_info.get('role', 'player'))
 
     # =========================================================================
     # CHARACTER MANAGEMENT HANDLERS
@@ -1846,7 +1880,9 @@ class ServerProtocol:
                 'error': f'Session {session_code} not found'
             })
         
-        result = await self.actions.list_characters(session_id, user_id)
+        role = self._get_client_role(client_id)
+        user_id_for_filter = 0 if is_dm(role) else user_id
+        result = await self.actions.list_characters(session_id, user_id_for_filter)
 
         if result.success:
             resdata = result.data or {}
@@ -2320,6 +2356,20 @@ class ServerProtocol:
         except Exception as e:
             logger.error(f"Error handling table active set: {e}")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
+
+    async def handle_table_active_set_all(self, msg: Message, client_id: str) -> Message:
+        """DM-only: switch every connected player to a specific table."""
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can set the active table for all players'})
+        table_id = msg.data.get('table_id') if msg.data else None
+        if not table_id:
+            return Message(MessageType.ERROR, {'error': 'table_id required'})
+        await self.broadcast_to_session(
+            Message(MessageType.TABLE_ACTIVE_SET_ALL_RESPONSE, {'table_id': table_id}),
+            client_id
+        )
+        logger.info(f"DM {client_id} switched all players to table {table_id}")
+        return Message(MessageType.SUCCESS, {'message': f'All players switched to table {table_id}'})
 
     async def _get_player_active_table(self, user_id: int, session_code: str) -> Optional[str]:
         """Get player's active table ID from database"""

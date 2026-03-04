@@ -201,6 +201,7 @@ export class RenderEngine {
   get_light_count(): number;
   clear_lights(): void;
   set_gm_mode(is_gm: boolean): void;
+  set_current_user_id(user_id: number): void;
   add_fog_rectangle(id: string, start_x: number, start_y: number, end_x: number, end_y: number, mode: string): void;
   remove_fog_rectangle(id: string): void;
   clear_fog(): void;
@@ -529,6 +530,7 @@ export interface InitOutput {
   readonly renderengine_get_light_count: (a: number) => number;
   readonly renderengine_clear_lights: (a: number) => void;
   readonly renderengine_set_gm_mode: (a: number, b: number) => void;
+  readonly renderengine_set_current_user_id: (a: number, b: number) => void;
   readonly renderengine_add_fog_rectangle: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
   readonly renderengine_remove_fog_rectangle: (a: number, b: number, c: number) => void;
   readonly renderengine_clear_fog: (a: number) => void;

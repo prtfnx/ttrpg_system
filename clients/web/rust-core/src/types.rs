@@ -30,6 +30,8 @@ pub struct Sprite {
     
     // Character binding (optional)
     pub character_id: Option<String>,
+    #[serde(default)]
+    pub controlled_by: Vec<i32>,
     
     // Token stats (independent of character)
     pub hp: Option<i32>,
@@ -60,6 +62,7 @@ impl Sprite {
             texture_id: String::new(),
             tint_color: [1.0, 1.0, 1.0, 1.0],
             character_id: None,
+            controlled_by: Vec::new(),
             hp: None,
             max_hp: None,
             ac: None,

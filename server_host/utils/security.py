@@ -3,6 +3,7 @@ Security utility functions for invitation and admin systems
 """
 import re
 from typing import Optional
+from .roles import is_valid_role as validate_role  # noqa: F401
 
 def sanitize_session_code(session_code: Optional[str]) -> str:
     """
@@ -106,18 +107,6 @@ def sanitize_user_input(user_input: Optional[str], max_length: int = 255) -> str
     
     return user_input
 
-def validate_role(role: str) -> bool:
-    """
-    Validate that a role is one of the allowed values
-    
-    Args:
-        role: The role to validate
-        
-    Returns:
-        bool: True if role is valid
-    """
-    allowed_roles = {'owner', 'co_dm', 'player'}
-    return role in allowed_roles
 
 def validate_invite_code_format(invite_code: Optional[str]) -> bool:
     """

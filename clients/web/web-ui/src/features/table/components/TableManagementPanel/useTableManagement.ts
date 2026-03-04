@@ -40,6 +40,14 @@ export const useTableManagement = () => {
   const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState(false);
 
+  // Request table list on mount if already connected and store is empty
+  useEffect(() => {
+    if (tables.length === 0) {
+      requestTableList();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const handleTableListUpdate = (event: Event) => {
       const customEvent = event as CustomEvent;

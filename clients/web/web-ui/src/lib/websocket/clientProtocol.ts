@@ -216,6 +216,7 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.PLAYER_STATUS, this.handlePlayerStatus.bind(this));
     this.registerHandler(MessageType.PLAYER_KICK_RESPONSE, this.handlePlayerKickResponse.bind(this));
     this.registerHandler(MessageType.PLAYER_BAN_RESPONSE, this.handlePlayerBanResponse.bind(this));
+    this.registerHandler(MessageType.PLAYER_ROLE_CHANGED, this.handlePlayerRoleChanged.bind(this));
     this.registerHandler(MessageType.CONNECTION_STATUS_RESPONSE, this.handleConnectionStatusResponse.bind(this));
 
     // Table management
@@ -225,6 +226,7 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.TABLE_LIST_RESPONSE, this.handleTableListResponse.bind(this));
     this.registerHandler(MessageType.NEW_TABLE_RESPONSE, this.handleNewTableResponse.bind(this));
     this.registerHandler(MessageType.TABLE_ACTIVE_RESPONSE, this.handleTableActiveResponse.bind(this));
+    this.registerHandler(MessageType.TABLE_ACTIVE_SET_ALL_RESPONSE, this.handleTableActiveSetAllResponse.bind(this));
 
     // Sprite management
     this.registerHandler(MessageType.SPRITE_CREATE, this.handleSpriteCreate.bind(this));
@@ -481,21 +483,25 @@ export class WebClientProtocol {
   // Message handler implementations
   private async handleWelcome(message: Message): Promise<void> {
     protocolLogger.message('received', { type: 'welcome', data: message.data });
-    
-    // Extract user ID from welcome message if available
-    if (message.data && typeof message.data === 'object' && 'user_id' in message.data) {
-      this.userId = message.data.user_id as number;
+
+    const data = message.data as Record<string, any>;
+    if (data.user_id) {
+      this.userId = data.user_id as number;
+      useGameStore.getState().setUserId(this.userId);
     }
-    
-    // Request initial data
+    if (data.role) {
+      useGameStore.getState().setSessionRole(
+        data.role,
+        Array.isArray(data.permissions) ? data.permissions : [],
+        Array.isArray(data.visible_layers) ? data.visible_layers : []
+      );
+    }
+
     this.requestTableList();
     this.requestPlayerList();
-    
-    // Request active table for user to restore session state
-    if (this.userId) {
-      console.log('[Protocol] Requesting active table for user:', this.userId);
-      this.requestActiveTable();
-    }
+    if (this.userId) this.requestActiveTable();
+    // Signal to all listeners that protocol is connected and ready
+    window.dispatchEvent(new CustomEvent('protocol-connected'));
   }
 
   private async handlePing(message: Message): Promise<void> {
@@ -588,6 +594,18 @@ export class WebClientProtocol {
 
   private async handleTableListResponse(message: Message): Promise<void> {
     console.log('Table list received:', message.data);
+    // Update store directly so panels that mount after this response still see the data
+    const data = message.data as Record<string, any>;
+    if (data?.tables) {
+      const serverTables = Object.entries(data.tables as Record<string, any>).map(([id, d]: [string, any]) => ({
+        table_id: id,
+        ...d,
+        syncStatus: 'synced' as const,
+        lastSyncTime: Date.now()
+      }));
+      useGameStore.getState().setTables(serverTables);
+      useGameStore.getState().setTablesLoading(false);
+    }
     window.dispatchEvent(new CustomEvent('table-list-updated', { detail: message.data }));
   }
 
@@ -1240,6 +1258,27 @@ export class WebClientProtocol {
   private async handlePlayerBanResponse(message: Message): Promise<void> {
     console.log('👤 Protocol: Player ban response:', message.data);
     window.dispatchEvent(new CustomEvent('player-ban-response', { detail: message.data }));
+  }
+
+  private async handlePlayerRoleChanged(message: Message): Promise<void> {
+    const data = message.data as Record<string, any>;
+    // If this message targets the current user, update our role in the store
+    if (data.user_id && data.user_id === this.userId && data.new_role) {
+      useGameStore.getState().setSessionRole(
+        data.new_role,
+        Array.isArray(data.permissions) ? data.permissions : useGameStore.getState().permissions,
+        Array.isArray(data.visible_layers) ? data.visible_layers : useGameStore.getState().visibleLayers
+      );
+    }
+    window.dispatchEvent(new CustomEvent('player-role-changed', { detail: data }));
+  }
+
+  private async handleTableActiveSetAllResponse(message: Message): Promise<void> {
+    const data = message.data as Record<string, any>;
+    if (data.table_id) {
+      // dispatch the event GameClient listens to, with the expected property name
+      window.dispatchEvent(new CustomEvent('table-force-switch', { detail: { tableId: data.table_id } }));
+    }
   }
 
   private async handleConnectionStatusResponse(message: Message): Promise<void> {

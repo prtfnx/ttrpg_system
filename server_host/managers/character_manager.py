@@ -204,16 +204,15 @@ class ServerCharacterManager:
             }
     
     def list_characters(self, session_id: int, user_id: int) -> Dict[str, Any]:
-        """List characters for a session and user"""
+        """List characters for a session. DMs (user_id=0) get all characters."""
         try:
             with SessionLocal() as db:
-                # Query characters
-                characters = db.query(SessionCharacter).filter(
-                    and_(
-                        SessionCharacter.session_id == session_id,
-                        SessionCharacter.owner_user_id == user_id
-                    )
-                ).order_by(SessionCharacter.updated_at.desc()).all()
+                query = db.query(SessionCharacter).filter(
+                    SessionCharacter.session_id == session_id
+                )
+                if user_id:  # user_id=0 means DM — return all
+                    query = query.filter(SessionCharacter.owner_user_id == user_id)
+                characters = query.order_by(SessionCharacter.updated_at.desc()).all()
                 
                 character_list = []
                 for char in characters:

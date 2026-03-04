@@ -35,6 +35,8 @@ export const MessageType = {
   TABLE_ACTIVE_REQUEST: "table_active_request",
   TABLE_ACTIVE_RESPONSE: "table_active_response",
   TABLE_ACTIVE_SET: "table_active_set",
+  TABLE_ACTIVE_SET_ALL: "table_active_set_all",
+  TABLE_ACTIVE_SET_ALL_RESPONSE: "table_active_set_all_response",
   
   // Player actions
   PLAYER_ACTION: "player_action",
@@ -52,6 +54,7 @@ export const MessageType = {
   PLAYER_BAN_REQUEST: "player_ban_request",
   PLAYER_KICK_RESPONSE: "player_kick_response",
   PLAYER_BAN_RESPONSE: "player_ban_response",
+  PLAYER_ROLE_CHANGED: "player_role_changed",
   CONNECTION_STATUS_REQUEST: "connection_status_request",
   CONNECTION_STATUS_RESPONSE: "connection_status_response",
 

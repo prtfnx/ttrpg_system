@@ -14,9 +14,9 @@ from .game_session_protocol import GameSessionProtocolService
 from server_host.utils.logger import setup_logger
 # Database imports
 from server_host.database.database import SessionLocal
-from server_host.database.models import GamePlayer
 from server_host.database.session_utils import create_game_session_with_persistence, load_game_session_protocol_from_db, save_game_session_state
 from server_host.service.asset_manager import get_server_asset_manager
+from server_host.utils.roles import get_permissions, get_visible_layers
 
 logger = setup_logger(__name__)
 
@@ -25,7 +25,7 @@ class ConnectionManager:
     
     def __init__(self):
         # session_code -> list of websockets
-        self.active_connections: Dict[str, List[WebSocket]] = {}        # websocket -> user_info
+        self.active_connections: Dict[str, List[WebSocket]] = {}        # websocket -> user_info (includes role)
         self.connection_info: Dict[WebSocket, dict] = {}
         self.sessions_protocols: Dict[str, GameSessionProtocolService] = {}
         # Database sessions for persistence
@@ -36,8 +36,8 @@ class ConnectionManager:
         """Generate unique client ID for protocol"""
         return hashlib.md5(f"{user_id}_{username}_{time.time()}".encode()).hexdigest()[:8]
 
-    async def connect(self, websocket: WebSocket, session_code: str, 
-                      user_id: int, username: str):
+    async def connect(self, websocket: WebSocket, session_code: str,
+                      user_id: int, username: str, role: str = "player"):
         """Connect a user to a game session with protocol support"""
         
         await websocket.accept()
@@ -50,6 +50,7 @@ class ConnectionManager:
             "session_code": session_code,
             "user_id": user_id,
             "username": username,
+            "role": role,
             "connected_at": datetime.now()
         }
         client_id = self._generate_client_id(user_id, username)
@@ -99,26 +100,8 @@ class ConnectionManager:
             protocol_service = self.sessions_protocols[session_code]
         logger.info(f"Adding client {client_id} to protocol service for session {session_code}")
         
-        # Setup R2 asset permissions for this user.  Query the game player
-        # record (if we have a database session) to determine the canonical
-        # role; fall back to "player" otherwise.
-        user_role = "player"
-        db = self.db_sessions.get(session_code)
-        if db is not None and session_code in self.game_session_db_ids:
-            try:
-                session_id = self.game_session_db_ids[session_code]
-                player = db.query(GamePlayer).filter(
-                    GamePlayer.session_id == session_id,
-                    GamePlayer.user_id == user_id
-                ).first()
-                if player and player.role:
-                    user_role = player.role
-                logger.debug(f"Resolved role from DB for {username}: {user_role}")
-            except Exception as e:
-                logger.warning(f"Could not resolve user role from DB: {e}")
-        # retain simple heuristic as a last resort
-        if user_role == "player" and (username.lower().startswith("dm") or username.lower().startswith("gm")):
-            user_role = "dm"
+        # Setup R2 asset permissions using the role resolved by the caller
+        user_role = role
         
         asset_manager = get_server_asset_manager()
         asset_manager.setup_session_permissions(session_code, user_id, username, user_role)
@@ -128,6 +111,7 @@ class ConnectionManager:
             await protocol_service.add_client(websocket, client_id, {
                 "user_id": user_id,
                 "username": username,
+                "role": role,
                 "session_code": session_code
             })
         except PermissionError as e:
@@ -140,11 +124,12 @@ class ConnectionManager:
         logger.info(f"Protocol service initialized for session {session_code} with client_id {client_id}")
         logger.info(f"User {username} connected to session {session_code} with client_id {client_id}")
         message = Message(
-            MessageType.PLAYER_JOINED,{
-            "username": username,
-            "user_id": user_id,
-            "client_id": client_id,
-            "timestamp": datetime.now().isoformat()
+            MessageType.PLAYER_JOINED, {
+                "username": username,
+                "user_id": user_id,
+                "client_id": client_id,
+                "role": role,
+                "timestamp": datetime.now().isoformat()
             }
         )
         # Notify other players
@@ -349,6 +334,7 @@ class ConnectionManager:
                 players.append({
                     "username": info["username"],
                     "user_id": info["user_id"],
+                    "role": info.get("role", "player"),
                     "connected_at": info["connected_at"].isoformat()
                 })
         return players

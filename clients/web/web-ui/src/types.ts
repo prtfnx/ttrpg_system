@@ -30,6 +30,7 @@ export interface Sprite {
   maxHp?: number;
   ac?: number;
   auraRadius?: number;
+  isVisible?: boolean;  // DM-controlled visibility flag; undefined = visible
   metadata?: string;
   syncStatus?: 'local' | 'syncing' | 'synced' | 'error';
 }

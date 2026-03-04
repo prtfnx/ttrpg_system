@@ -13,6 +13,7 @@ from server_host.database.database import get_db
 from server_host.database import crud, schemas, models
 from server_host.routers.users import get_current_active_user
 from server_host.utils.logger import setup_logger
+from server_host.utils.roles import is_dm, is_valid_role, SessionRole
 
 router = APIRouter()
 logger = setup_logger(__name__)
@@ -38,9 +39,17 @@ async def create_invitation(
         models.GamePlayer.user_id == current_user.id
     ).first()
     
-    if not player or player.role not in ['owner', 'co_dm']:
+    if not player or not is_dm(player.role):
         raise HTTPException(status_code=403, detail="Owner/Co-DM access required")
-    
+
+    role = invite_data.pre_assigned_role
+    if not is_valid_role(role):
+        raise HTTPException(status_code=400, detail=f"Invalid role: {role}")
+    if role == SessionRole.OWNER:
+        raise HTTPException(status_code=400, detail="Cannot invite someone as owner")
+    if player.role == SessionRole.CO_DM and role == SessionRole.CO_DM:
+        raise HTTPException(status_code=403, detail="Co-DM cannot invite as co_dm")
+
     invite_code = generate_invite_code()
     expires_at = datetime.utcnow() + timedelta(hours=invite_data.expires_hours)
     
@@ -116,7 +125,7 @@ async def revoke_invitation(
         models.GamePlayer.user_id == current_user.id
     ).first()
     
-    if not player or player.role not in ['owner', 'co_dm']:
+    if not player or not is_dm(player.role):
         raise HTTPException(status_code=403, detail="Owner/Co-DM access required")
     
     invitation.is_active = False
@@ -162,7 +171,11 @@ async def accept_invitation(
     
     if not invitation.is_valid():
         raise HTTPException(status_code=400, detail="Invitation expired or used up")
-    
+
+    assigned_role = invitation.pre_assigned_role
+    if not is_valid_role(assigned_role) or assigned_role == SessionRole.OWNER:
+        raise HTTPException(status_code=400, detail="Invitation has invalid role assignment")
+
     session = db.query(models.GameSession).filter(
         models.GameSession.id == invitation.session_id
     ).first()
@@ -184,7 +197,7 @@ async def accept_invitation(
     new_player = models.GamePlayer(
         session_id=session.id,
         user_id=current_user.id,
-        role=invitation.pre_assigned_role,
+        role=assigned_role,
         joined_at=datetime.utcnow()
     )
     db.add(new_player)
@@ -197,7 +210,7 @@ async def accept_invitation(
         event_type="INVITATION_ACCEPTED",
         session_code=session.session_code,
         user_id=current_user.id,
-        details=f'{{"invite_code": "{invite_code[:8]}...", "role": "{invitation.pre_assigned_role}"}}'
+        details=f'{{"invite_code": "{invite_code[:8]}...", "role": "{assigned_role}"}}'
     )
     db.add(audit)
     db.commit()
@@ -214,5 +227,5 @@ async def accept_invitation(
     return {
         "success": True,
         "session_code": session.session_code,
-        "role": invitation.pre_assigned_role
+        "role": assigned_role
     }

@@ -166,6 +166,7 @@ class GamePlayer(GamePlayerBase):
     id: int
     session_id: int
     user_id: int
+    role: str
     joined_at: datetime
     is_connected: bool
     active_table_id: Optional[str] = None

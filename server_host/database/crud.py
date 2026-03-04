@@ -192,6 +192,16 @@ def create_game_session(db: Session, session: schemas.GameSessionCreate, owner_i
         owner_id=owner_id
     )
     db.add(db_session)
+    db.flush()  # get db_session.id before commit
+
+    # Owner always gets an explicit GamePlayer record with role="owner"
+    owner_player = models.GamePlayer(
+        session_id=db_session.id,
+        user_id=owner_id,
+        role="owner",
+        is_connected=False,
+    )
+    db.add(owner_player)
     db.commit()
     db.refresh(db_session)
     return db_session
@@ -269,12 +279,14 @@ def join_game_session(db: Session, session_code: str, user_id: int, character_na
         db.commit()
         return existing_player
     
-    # Create new player
+    # Create new player — owner keeps their role, everyone else defaults to "player"
+    role = "owner" if user_id == session.owner_id else "player"
     db_player = models.GamePlayer(
         session_id=session.id,
         user_id=user_id,
         character_name=character_name,
-        is_connected=True
+        role=role,
+        is_connected=True,
     )
     db.add(db_player)
     db.commit()

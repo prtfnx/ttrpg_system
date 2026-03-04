@@ -2,7 +2,6 @@ import { EntitiesPanel } from '@features/canvas/components/EntitiesPanel'
 import { ToolsPanel } from '@features/canvas/components/ToolsPanel'
 import { CharacterPanel } from '@features/character'
 import { initVisionService } from '@features/lighting/services/vision.service'
-import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 
@@ -10,30 +9,20 @@ import './index.css'
 export function mountToolsPanel(container: HTMLElement) {
   const root = createRoot(container)
   root.render(
-    <StrictMode>
-  <ToolsPanel userInfo={{ id: 0, username: "unknown", role: "player", permissions: [] }} />
-    </StrictMode>
+    <ToolsPanel userInfo={{ id: 0, username: "unknown", role: "player", permissions: [] }} />
   )
   return root
 }
 
 export function mountEntitiesPanel(container: HTMLElement) {
   const root = createRoot(container)
-  root.render(
-    <StrictMode>
-      <EntitiesPanel />
-    </StrictMode>
-  )
+  root.render(<EntitiesPanel />)
   return root
 }
 
 export function mountCharacterPanel(container: HTMLElement) {
   const root = createRoot(container)
-  root.render(
-    <StrictMode>
-      <CharacterPanel />
-    </StrictMode>
-  )
+  root.render(<CharacterPanel />)
   return root
 }
 
@@ -65,7 +54,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     layer: layer,
                     texture_id: data.texture_path ?? data.asset_id ?? '',
                     tint_color: [1.0, 1.0, 1.0, 1.0],
-                    table_id: data.table_id ?? 'default_table', // Use default table if not specified
+                    table_id: data.table_id ?? 'default_table',
+                    controlled_by: data.controlled_by ?? [],
                   };
                   console.log('[integration] Forwarding to WASM add_sprite_to_layer:', layer, sprite);
                   window.rustRenderManager.add_sprite_to_layer(layer, sprite);

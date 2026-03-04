@@ -1,6 +1,7 @@
 // Gather obstacles from the game store, call into the Rust/WASM visibility
 // routine and push resulting reveal polygons into the fog system.
 import { useGameStore } from '@/store';
+import { isDM } from '@features/session/types/roles';
 import { getSpriteHeight, getSpriteWidth } from '@shared/utils';
 
 let _interval: number | null = null;
@@ -40,68 +41,38 @@ function buildObstaclesFloat32(): Float32Array {
 }
 
 function getVisionSources(defaultRadius = 600): Array<{ id: string; x: number; y: number; radius: number }> {
-  const sprites = useGameStore.getState().sprites || [];
+  const store = useGameStore.getState();
+  const sprites = store.sprites || [];
+  const userId = store.userId;
+  const sessionRole = store.sessionRole;
 
-  // Candidate property names we accept for radius / presence
   const radiusKeys = [
-    'visionRadius',
-    'vision_radius',
-    'lightRadius',
-    'light_radius',
-    'radius',
-    'sightRadius',
-    'sight_radius',
+    'visionRadius', 'vision_radius', 'lightRadius', 'light_radius',
+    'radius', 'sightRadius', 'sight_radius', 'aura_radius',
   ];
-
-  const presenceKeys = ['isVisionSource', 'is_vision_source', 'hasVision', 'vision_enabled'];
 
   const out: Array<{ id: string; x: number; y: number; radius: number }> = [];
 
-    for (const s of sprites) {
-      if (!s || typeof s !== 'object') continue;
+  for (const s of sprites) {
+    if (!s || typeof s !== 'object') continue;
+    const anyS = s as any;
 
-      const anyS = s as any;
-
-      // Check presence flags first
-      let present = false;
-      for (const k of presenceKeys) {
-        if (anyS[k]) {
-          present = true;
-          break;
-        }
-      }
-
-      // If no explicit presence, check radius-like keys
-      let radius: number | undefined = undefined;
-      for (const k of radiusKeys) {
-        const v = anyS[k];
-        if (typeof v === 'number' && v > 0) {
-          radius = v;
-          present = true;
-          break;
-        }
-        // Accept string numbers too
-        if (typeof v === 'string' && !isNaN(Number(v))) {
-          radius = Number(v);
-          present = true;
-          break;
-        }
-      }
-
-      // Also accept nested fields (sprite.props?.visionRadius etc.)
-      if (!present && anyS.props && typeof anyS.props === 'object') {
-        for (const k of [...presenceKeys, ...radiusKeys]) {
-          if (anyS.props[k]) {
-            present = true;
-            if (radius === undefined && typeof anyS.props[k] === 'number') radius = anyS.props[k];
-          }
-        }
-      }
-
-      if (!present) continue;
-
-      out.push({ id: anyS.id, x: anyS.x, y: anyS.y, radius: radius ?? defaultRadius });
+    // Non-DMs only see through sprites they control
+    if (!isDM(sessionRole) && userId != null) {
+      const controlledBy: number[] = anyS.controlledBy ?? anyS.controlled_by ?? [];
+      if (controlledBy.length > 0 && !controlledBy.includes(userId)) continue;
     }
+
+    let radius: number | undefined = undefined;
+    for (const k of radiusKeys) {
+      const v = anyS[k];
+      if (typeof v === 'number' && v > 0) { radius = v; break; }
+      if (typeof v === 'string' && !isNaN(Number(v)) && Number(v) > 0) { radius = Number(v); break; }
+    }
+
+    if (radius == null) continue;
+    out.push({ id: anyS.id, x: anyS.x, y: anyS.y, radius });
+  }
 
   return out;
 }
@@ -182,6 +153,10 @@ function applyPolygonsForSources(obstaclesArr: Float32Array, opts?: VisionOption
 }
 
 export function initVisionService(pollMs = 150) {
+  // DMs see everything — vision masking is for players only
+  const sessionRole = useGameStore.getState().sessionRole;
+  if (isDM(sessionRole)) return;
+
   // If service already running, no-op
   if (_interval != null) return;
 

@@ -5,6 +5,8 @@ import { useAuthenticatedWebSocket } from '@features/auth';
 import { SessionManagementPanel } from '@features/session';
 import { isDM, type SessionRole } from '@features/session/types/roles';
 import clsx from 'clsx';
+
+const ALL_LAYERS = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles', 'fog_of_war'] as const;
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React, { useEffect } from 'react';
 import { GameCanvas } from './GameCanvas';
@@ -56,6 +58,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
   });
   // sessionRole is authoritative after WELCOME is received; fall back to prop until then
   const sessionRole = useGameStore(s => s.sessionRole) ?? userRole;
+  const visibleLayers = useGameStore(s => s.visibleLayers);
 
   // Expose protocol and active table id globally for integration points (read-only usage by components)
   useEffect(() => {
@@ -100,6 +103,16 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
       window.rustRenderManager.set_gm_mode(isDM(sessionRole));
     }
   }, [sessionRole]);
+
+  // Sync WASM layer visibility with role-based visible layers
+  useEffect(() => {
+    const engine = window.rustRenderManager;
+    if (!engine?.set_layer_visibility) return;
+    const allowed = new Set(isDM(sessionRole) ? ALL_LAYERS : visibleLayers);
+    for (const layer of ALL_LAYERS) {
+      engine.set_layer_visibility(layer, allowed.has(layer));
+    }
+  }, [sessionRole, visibleLayers]);
 
   // Handle DM force-switching all players to a table
   useEffect(() => {

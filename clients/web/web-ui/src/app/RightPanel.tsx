@@ -1,3 +1,4 @@
+import { useGameStore } from '@/store';
 import { AssetPanel, BackgroundManagementPanel } from '@features/assets';
 import { CharacterPanel } from '@features/character';
 import { ChatPanel } from '@features/chat';
@@ -6,9 +7,10 @@ import { CompendiumPanel } from '@features/compendium';
 import { FogPanel } from '@features/fog';
 import { LightingPanel } from '@features/lighting';
 import { AdvancedMeasurementPanel } from '@features/measurement';
+import { type SessionRole, canInteract, isDM, isElevated } from '@features/session/types/roles';
 import { TableManagementPanel, TablePanel, TableSyncPanel } from '@features/table';
 import clsx from 'clsx';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActionQueuePanel } from '../features/actions/components/ActionQueuePanel';
 import { ActionsPanel } from '../features/actions/components/ActionsPanel';
 import { ActionsQuickPanel } from '../features/actions/components/ActionsQuickPanel';
@@ -21,33 +23,97 @@ import styles from './RightPanel.module.css';
 
 const isDevelopment = import.meta.env.DEV;
 
-export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRole?: 'dm' | 'player' }) {
-  const [activeTab, setActiveTab] = useState<'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' | 'sync' | 'players' | 'actions' | 'quick-actions' | 'queue' | 'compendium' | 'assets' | 'network' | 'initiative' | 'performance' | 'backgrounds' | 'measurement' | 'customize'>('tables');
+type TabId = 'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' |
+             'sync' | 'players' | 'actions' | 'quick-actions' | 'queue' | 'compendium' | 'assets' |
+             'network' | 'initiative' | 'performance' | 'backgrounds' | 'measurement' | 'customize';
+
+const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
+  // DM tabs
+  'tables':        isDM,
+  'quick-actions': isDM,
+  'players':       isDM,
+  'lighting':      isDM,
+  'fog':           isDM,
+  'backgrounds':   isDM,
+  'performance':   isDM,
+  // Elevated tabs
+  'compendium':    isElevated,
+  // Interactive tabs (everyone except spectator)
+  'characters':    canInteract,
+  'chat':          canInteract,
+  // All roles
+  'entities':      () => true,
+  'initiative':    () => true,
+  'measurement':   () => true,
+  'customize':     () => true,
+  // Dev-only (always gated by isDevelopment at render time)
+  'table-tools':   isDM,
+  'sync':          isDM,
+  'actions':       isDM,
+  'queue':         isDM,
+  'assets':        isDM,
+  'network':       isDM,
+};
+
+const DEFAULT_TAB_ORDER: TabId[] = [
+  'tables', 'compendium', 'quick-actions', 'characters', 'entities',
+  'players', 'initiative', 'chat', 'lighting', 'fog', 'measurement',
+  'backgrounds', 'performance', 'customize',
+];
+
+export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRole?: string }) {
+  const [activeTab, setActiveTab] = useState<TabId>('entities');
   const canvasRef = useRef<HTMLCanvasElement>(null!);
+  const sessionRole = (useGameStore(s => s.sessionRole) ?? props.userRole ?? 'player') as SessionRole;
+
+  const isVisible = (tab: TabId) => TAB_VISIBLE[tab]?.(sessionRole) ?? false;
+
+  // If current tab becomes hidden, switch to first visible tab
+  useEffect(() => {
+    if (!isVisible(activeTab)) {
+      const first = DEFAULT_TAB_ORDER.find(t => isVisible(t));
+      if (first) setActiveTab(first);
+    }
+  }, [sessionRole]);
+
+  const tab = (id: TabId, label: string) => {
+    if (!isVisible(id)) return null;
+    return (
+      <button
+        key={id}
+        role="tab"
+        aria-selected={activeTab === id}
+        className={clsx(styles.tabButton, activeTab === id && 'active')}
+        onClick={() => setActiveTab(id)}
+      >
+        {label}
+      </button>
+    );
+  };
 
   return (
     <div className={styles.rightPanelContainer}>
       <div className={styles.tabsContainer} role="tablist" aria-label="Panel navigation">
-        <button role="tab" aria-selected={activeTab === 'compendium'} className={clsx(styles.tabButton, activeTab === 'compendium' && 'active')} onClick={() => setActiveTab('compendium')}>Compendium</button>
-        <button role="tab" aria-selected={activeTab === 'tables'} className={clsx(styles.tabButton, activeTab === 'tables' && 'active')} onClick={() => setActiveTab('tables')}>Tables</button>
-        <button role="tab" aria-selected={activeTab === 'quick-actions'} className={clsx(styles.tabButton, activeTab === 'quick-actions' && 'active')} onClick={() => setActiveTab('quick-actions')}>Quick Actions</button>
-        <button role="tab" aria-selected={activeTab === 'characters'} className={clsx(styles.tabButton, activeTab === 'characters' && 'active')} onClick={() => setActiveTab('characters')}>Characters</button>
-        <button role="tab" aria-selected={activeTab === 'players'} className={clsx(styles.tabButton, activeTab === 'players' && 'active')} onClick={() => setActiveTab('players')}>Players</button>
-        <button role="tab" aria-selected={activeTab === 'initiative'} className={clsx(styles.tabButton, activeTab === 'initiative' && 'active')} onClick={() => setActiveTab('initiative')}>Initiative</button>
-        <button role="tab" aria-selected={activeTab === 'entities'} className={clsx(styles.tabButton, activeTab === 'entities' && 'active')} onClick={() => setActiveTab('entities')}>Entities</button>
-        <button role="tab" aria-selected={activeTab === 'chat'} className={clsx(styles.tabButton, activeTab === 'chat' && 'active')} onClick={() => setActiveTab('chat')}>Chat</button>
-        <button role="tab" aria-selected={activeTab === 'lighting'} className={clsx(styles.tabButton, activeTab === 'lighting' && 'active')} onClick={() => setActiveTab('lighting')}>Lighting</button>
-        <button role="tab" aria-selected={activeTab === 'fog'} className={clsx(styles.tabButton, activeTab === 'fog' && 'active')} onClick={() => setActiveTab('fog')}>Fog</button>
-        <button role="tab" aria-selected={activeTab === 'measurement'} className={clsx(styles.tabButton, activeTab === 'measurement' && 'active')} onClick={() => setActiveTab('measurement')}>Measurement</button>
-        <button role="tab" aria-selected={activeTab === 'backgrounds'} className={clsx(styles.tabButton, activeTab === 'backgrounds' && 'active')} onClick={() => setActiveTab('backgrounds')}>Backgrounds</button>
-        <button role="tab" aria-selected={activeTab === 'performance'} className={clsx(styles.tabButton, activeTab === 'performance' && 'active')} onClick={() => setActiveTab('performance')}>Performance</button>
-        <button role="tab" aria-selected={activeTab === 'customize'} className={clsx(styles.tabButton, activeTab === 'customize' && 'active')} onClick={() => setActiveTab('customize')}>Customize</button>
-        {isDevelopment && <button role="tab" aria-selected={activeTab === 'table-tools'} className={clsx(styles.tabButton, activeTab === 'table-tools' && 'active')} onClick={() => setActiveTab('table-tools')}>Table Tools</button>}
-        {isDevelopment && <button role="tab" aria-selected={activeTab === 'sync'} className={clsx(styles.tabButton, activeTab === 'sync' && 'active')} onClick={() => setActiveTab('sync')}>Sync</button>}
-        {isDevelopment && <button role="tab" aria-selected={activeTab === 'actions'} className={clsx(styles.tabButton, activeTab === 'actions' && 'active')} onClick={() => setActiveTab('actions')}>Actions</button>}
-        {isDevelopment && <button role="tab" aria-selected={activeTab === 'queue'} className={clsx(styles.tabButton, activeTab === 'queue' && 'active')} onClick={() => setActiveTab('queue')}>Queue</button>}
-        {isDevelopment && <button role="tab" aria-selected={activeTab === 'assets'} className={clsx(styles.tabButton, activeTab === 'assets' && 'active')} onClick={() => setActiveTab('assets')}>Assets</button>}
-        {isDevelopment && <button role="tab" aria-selected={activeTab === 'network'} className={clsx(styles.tabButton, activeTab === 'network' && 'active')} onClick={() => setActiveTab('network')}>Network</button>}
+        {tab('compendium', 'Compendium')}
+        {tab('tables', 'Tables')}
+        {tab('quick-actions', 'Quick Actions')}
+        {tab('characters', 'Characters')}
+        {tab('players', 'Players')}
+        {tab('initiative', 'Initiative')}
+        {tab('entities', 'Entities')}
+        {tab('chat', 'Chat')}
+        {tab('lighting', 'Lighting')}
+        {tab('fog', 'Fog')}
+        {tab('measurement', 'Measurement')}
+        {tab('backgrounds', 'Backgrounds')}
+        {tab('performance', 'Performance')}
+        {tab('customize', 'Customize')}
+        {isDevelopment && tab('table-tools', 'Table Tools')}
+        {isDevelopment && tab('sync', 'Sync')}
+        {isDevelopment && tab('actions', 'Actions')}
+        {isDevelopment && tab('queue', 'Queue')}
+        {isDevelopment && tab('assets', 'Assets')}
+        {isDevelopment && tab('network', 'Network')}
       </div>
       <div className={styles.tabContent} role="tabpanel" aria-label={`${activeTab} panel`}>
         {activeTab === 'tables' && <TableManagementPanel />}
@@ -55,17 +121,17 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRo
         {isDevelopment && activeTab === 'table-tools' && <TablePanel />}
         {isDevelopment && activeTab === 'sync' && <TableSyncPanel />}
         {activeTab === 'characters' && <CharacterPanel />}
-        {activeTab === 'players' && <PlayerManagerPanel sessionCode={props.sessionCode!} userInfo={{...props.userInfo, role: props.userRole || props.userInfo?.role}} />}
-        {activeTab === 'initiative' && <InitiativeTracker sessionCode={props.sessionCode!} userInfo={{...props.userInfo, role: props.userRole || props.userInfo?.role}} />}
+        {activeTab === 'players' && <PlayerManagerPanel sessionCode={props.sessionCode!} userInfo={{...props.userInfo, role: sessionRole}} />}
+        {activeTab === 'initiative' && <InitiativeTracker sessionCode={props.sessionCode!} userInfo={{...props.userInfo, role: sessionRole}} />}
         {isDevelopment && activeTab === 'actions' && <ActionsPanel renderEngine={window.rustRenderManager as any || null} />}
         {isDevelopment && activeTab === 'queue' && <ActionQueuePanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'entities' && <EntitiesPanel />}
         {activeTab === 'chat' && <ChatPanel />}
         {activeTab === 'lighting' && <LightingPanel />}
         {activeTab === 'fog' && <FogPanel />}
-        {activeTab === 'measurement' && <AdvancedMeasurementPanel isOpen={true} onClose={() => setActiveTab('tables')} canvasRef={canvasRef} />}
-        {activeTab === 'backgrounds' && <BackgroundManagementPanel isOpen={true} onClose={() => setActiveTab('tables')} renderEngine={window.rustRenderManager as any || null} />}
-        {activeTab === 'performance' && <PerformanceSettingsPanel isVisible={true} onClose={() => setActiveTab('tables')} />}
+        {activeTab === 'measurement' && <AdvancedMeasurementPanel isOpen={true} onClose={() => setActiveTab('entities')} canvasRef={canvasRef} />}
+        {activeTab === 'backgrounds' && <BackgroundManagementPanel isOpen={true} onClose={() => setActiveTab('entities')} renderEngine={window.rustRenderManager as any || null} />}
+        {activeTab === 'performance' && <PerformanceSettingsPanel isVisible={true} onClose={() => setActiveTab('entities')} />}
         {activeTab === 'customize' && <CustomizePanel />}
         {activeTab === 'compendium' && <CompendiumPanel />}
         {isDevelopment && activeTab === 'assets' && <AssetPanel />}

@@ -1,9 +1,9 @@
+import { useGameStore } from '@/store';
 import { RightPanel } from '@app/RightPanel';
 import type { UserInfo } from '@features/auth';
 import { useAuthenticatedWebSocket } from '@features/auth';
 import { SessionManagementPanel } from '@features/session';
 import { isDM, type SessionRole } from '@features/session/types/roles';
-import { useGameStore } from '@/store';
 import clsx from 'clsx';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React, { useEffect } from 'react';

@@ -1,6 +1,6 @@
 import { useGameStore } from '@/store';
-import { isDM } from '@features/session/types/roles';
 import { useRenderEngine } from '@features/canvas';
+import { isDM } from '@features/session/types/roles';
 import { AlertTriangle, Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
 

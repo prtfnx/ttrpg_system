@@ -1,5 +1,5 @@
 import { useGameStore } from '@/store';
-import { canInteract, DM_ROLES, ELEVATED_ROLES, isDM, isElevated, type SessionRole } from '@features/session/types/roles';
+import { canInteract, isDM, isElevated, type SessionRole } from '@features/session/types/roles';
 import React from 'react';
 
 interface RoleBasedProps {
@@ -38,13 +38,13 @@ export const InteractiveOnly: React.FC<{ children: React.ReactNode; fallback?: R
   return <>{children}</>;
 };
 
-// Kept for backward compatibility with any existing code using PlayerOnly
+// Kept for backward compatibility — delegates to InteractiveOnly (same set, no duplicates)
 export const PlayerOnly: React.FC<{ children: React.ReactNode; fallback?: React.ReactNode }> = ({
   children, fallback = null
 }) => (
-  <RoleBased allowedRoles={[...DM_ROLES, ...ELEVATED_ROLES, 'player']} fallback={fallback}>
+  <InteractiveOnly fallback={fallback}>
     {children}
-  </RoleBased>
+  </InteractiveOnly>
 );
 
 export default RoleBased;

@@ -215,7 +215,7 @@ impl EventSystem {
                 if let Some(sprite_id) = &input.selected_sprite_id {
                     if let Some((sprite, _)) = Self::find_sprite_mut(sprite_id, layers) {
                         SpriteManager::resize_sprite_with_handle(sprite, handle, world_pos);
-                        Self::dispatch_resize_preview(sprite_id, sprite.scale_x as f64, sprite.scale_y as f64);
+                        Self::dispatch_resize_preview(sprite_id, sprite.width as f64 * sprite.scale_x as f64, sprite.height as f64 * sprite.scale_y as f64);
                     }
                 }
                 MouseEventResult::Handled
@@ -224,7 +224,7 @@ impl EventSystem {
                 if let Some(sprite_id) = &input.selected_sprite_id {
                     if let Some((sprite, _)) = Self::find_sprite_mut(sprite_id, layers) {
                         SpriteManager::update_rotation(sprite, world_pos, input.rotation_start_angle, input.sprite_initial_rotation);
-                        Self::dispatch_rotate_preview(sprite_id, sprite.rotation as f64);
+                        Self::dispatch_rotate_preview(sprite_id, sprite.rotation.to_degrees() as f64);
                     }
                 }
                 MouseEventResult::Handled
@@ -566,12 +566,12 @@ impl EventSystem {
                 "move"
             }
             InputMode::SpriteResize(_) => {
-                js_sys::Reflect::set(&data, &"scale_x".into(), &JsValue::from_f64(sprite.scale_x as f64)).ok();
-                js_sys::Reflect::set(&data, &"scale_y".into(), &JsValue::from_f64(sprite.scale_y as f64)).ok();
-                "scale"
+                js_sys::Reflect::set(&data, &"width".into(), &JsValue::from_f64(sprite.width as f64 * sprite.scale_x as f64)).ok();
+                js_sys::Reflect::set(&data, &"height".into(), &JsValue::from_f64(sprite.height as f64 * sprite.scale_y as f64)).ok();
+                "resize"
             }
             InputMode::SpriteRotate => {
-                js_sys::Reflect::set(&data, &"rotation".into(), &JsValue::from_f64(sprite.rotation as f64)).ok();
+                js_sys::Reflect::set(&data, &"rotation".into(), &JsValue::from_f64(sprite.rotation.to_degrees() as f64)).ok();
                 "rotate"
             }
             _ => return,
@@ -602,12 +602,12 @@ impl EventSystem {
         }
     }
 
-    fn dispatch_resize_preview(sprite_id: &str, scale_x: f64, scale_y: f64) {
+    fn dispatch_resize_preview(sprite_id: &str, width: f64, height: f64) {
         let Some(window) = web_sys::window() else { return };
         let detail = js_sys::Object::new();
         js_sys::Reflect::set(&detail, &"spriteId".into(), &JsValue::from_str(sprite_id)).ok();
-        js_sys::Reflect::set(&detail, &"scale_x".into(), &JsValue::from_f64(scale_x)).ok();
-        js_sys::Reflect::set(&detail, &"scale_y".into(), &JsValue::from_f64(scale_y)).ok();
+        js_sys::Reflect::set(&detail, &"width".into(), &JsValue::from_f64(width)).ok();
+        js_sys::Reflect::set(&detail, &"height".into(), &JsValue::from_f64(height)).ok();
         let event_init = web_sys::CustomEventInit::new();
         event_init.set_detail(&detail);
         if let Ok(event) = web_sys::CustomEvent::new_with_event_init_dict("sprite-resize-preview", &event_init) {

@@ -10,10 +10,12 @@ export interface UserInfo {
   permissions: string[];
 }
 
+import type { SessionRole } from '@features/session/types/roles';
+
 export interface SessionInfo {
   session_code: string;
   session_name: string;
-  role: 'dm' | 'player';
+  role: SessionRole;
   created_at: string;
 }
 

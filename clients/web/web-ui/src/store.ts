@@ -1,5 +1,5 @@
-import type { SessionRole } from '@features/session/types/roles';
 import type { Character, ConnectionState, GameState, Sprite, ToolType } from '@/types';
+import type { SessionRole } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
 import { transformServerTablesToClient, validateTableId } from '@lib/websocket';
 import { create } from 'zustand';

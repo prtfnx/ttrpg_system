@@ -2208,6 +2208,7 @@ impl RenderEngine {
     fn add_sprite_from_table_data(&mut self, sprite_data: &crate::table_sync::SpriteData, table_id: &str) -> Result<(), JsValue> {
         // Extract character_id if present
         let character_id = sprite_data.character_id.clone();
+        let controlled_by = sprite_data.controlled_by.clone().unwrap_or_default();
         
         // Convert table sync sprite data to render engine sprite
         let sprite = Sprite {
@@ -2224,6 +2225,7 @@ impl RenderEngine {
             tint_color: [1.0, 1.0, 1.0, 1.0], // Default white tint
             table_id: table_id.to_string(),
             character_id,
+            controlled_by,
             hp: None,
             max_hp: None,
             ac: None,

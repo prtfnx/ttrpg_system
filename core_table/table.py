@@ -27,8 +27,10 @@ class Entity:
         self.layer = layer
         self.texture_path = path_to_texture
         self.scale_x = 1.0
-        self.scale_y = 1.0        # Add rotation attribute
-        self.rotation = 0.0      
+        self.scale_y = 1.0
+        self.rotation = 0.0
+        self.width = 0.0
+        self.height = 0.0
         
         # Obstacle metadata (for client-side lighting/collision)
         self.obstacle_type = obstacle_type  # "rectangle", "circle", "polygon", "line", None
@@ -60,6 +62,8 @@ class Entity:
             'scale_x': self.scale_x,
             'scale_y': self.scale_y,
             'rotation': self.rotation,
+            'width': self.width,
+            'height': self.height,
             'obstacle_type': self.obstacle_type,
             'obstacle_data': self.obstacle_data,
             # Character binding
@@ -98,6 +102,8 @@ class Entity:
         entity.scale_x = data.get('scale_x', 1.0)
         entity.scale_y = data.get('scale_y', 1.0)
         entity.rotation = data.get('rotation', 0.0)
+        entity.width = data.get('width', 0.0)
+        entity.height = data.get('height', 0.0)
         entity.metadata = data.get('metadata')
         return entity
 

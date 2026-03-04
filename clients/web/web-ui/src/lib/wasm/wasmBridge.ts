@@ -13,7 +13,7 @@ import { toast } from 'react-toastify';
 
 const CONFIRM_TIMEOUT_MS = 5000;
 
-type Operation = 'move' | 'scale' | 'rotate';
+type Operation = 'move' | 'resize' | 'rotate';
 
 interface PendingAction {
   spriteId: string;
@@ -31,7 +31,7 @@ class WasmBridgeService {
 
   // Last server-confirmed state (source of truth for rollback)
   private committedPositions = new Map<string, { x: number; y: number }>();
-  private committedScales = new Map<string, { scaleX: number; scaleY: number }>();
+  private committedSizes = new Map<string, { width: number; height: number }>();
   private committedRotations = new Map<string, number>();
 
   private pendingActions = new Map<string, PendingAction>();
@@ -115,9 +115,9 @@ class WasmBridgeService {
         const s = this.committedPositions.get(spriteId);
         return s ? { x: s.x, y: s.y } : {};
       }
-      case 'scale': {
-        const s = this.committedScales.get(spriteId);
-        return s ? { scaleX: s.scaleX, scaleY: s.scaleY } : {};
+      case 'resize': {
+        const s = this.committedSizes.get(spriteId);
+        return s ? { width: s.width, height: s.height } : {};
       }
       case 'rotate': {
         const r = this.committedRotations.get(spriteId);
@@ -131,8 +131,8 @@ class WasmBridgeService {
       case 'move':
         this.committedPositions.set(spriteId, { x: state.x, y: state.y });
         break;
-      case 'scale':
-        this.committedScales.set(spriteId, { scaleX: state.scaleX, scaleY: state.scaleY });
+      case 'resize':
+        this.committedSizes.set(spriteId, { width: state.width, height: state.height });
         break;
       case 'rotate':
         this.committedRotations.set(spriteId, state.rotation);
@@ -143,7 +143,7 @@ class WasmBridgeService {
   private dataToState(op: Operation, data: Record<string, number>): Record<string, number> {
     switch (op) {
       case 'move':   return { x: data.x, y: data.y };
-      case 'scale':  return { scaleX: data.scale_x, scaleY: data.scale_y };
+      case 'resize': return { width: data.width, height: data.height };
       case 'rotate': return { rotation: data.rotation };
     }
   }
@@ -167,10 +167,10 @@ class WasmBridgeService {
         }, 2));
         break;
       }
-      case 'scale':
+      case 'resize':
         this.protocol.sendMessage(createMessage(MessageType.SPRITE_SCALE, {
           sprite_id: spriteId, table_id: tableId, action_id: actionId,
-          scale_x: data.scale_x, scale_y: data.scale_y,
+          width: data.width, height: data.height,
         }, 2));
         break;
       case 'rotate':
@@ -183,16 +183,21 @@ class WasmBridgeService {
   }
 
   private emitRevert(pending: PendingAction, reason: string) {
-    window.dispatchEvent(new CustomEvent('sprite-revert', {
-      detail: {
-        spriteId: pending.spriteId,
-        operation: pending.operation,
-        originalState: pending.originalState,
-        reason,
-      }
-    }));
+    // Only revert WASM state if we have a known baseline to go back to.
+    // If originalState is empty (sprite never confirmed a position with this client),
+    // touching WASM with undefined values would send the sprite to NaN coordinates.
+    if (Object.keys(pending.originalState).length > 0) {
+      window.dispatchEvent(new CustomEvent('sprite-revert', {
+        detail: {
+          spriteId: pending.spriteId,
+          operation: pending.operation,
+          originalState: pending.originalState,
+          reason,
+        }
+      }));
+    }
 
-    const label: Record<Operation, string> = { move: 'Movement', scale: 'Resize', rotate: 'Rotation' };
+    const label: Record<Operation, string> = { move: 'Movement', resize: 'Resize', rotate: 'Rotation' };
     const msg = reason === 'timeout'
       ? `${label[pending.operation]} wasn't confirmed by the server. Reverting.`
       : `${label[pending.operation]} was rejected. Reverting.`;

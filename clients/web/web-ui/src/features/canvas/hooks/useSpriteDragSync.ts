@@ -11,7 +11,7 @@ const THROTTLE_MS = 50;
 
 export function useSpriteDragSync(sendMessage: (msg: unknown) => void) {
   const pendingMove   = useRef<{ spriteId: string; x: number; y: number } | null>(null);
-  const pendingResize = useRef<{ spriteId: string; scale_x: number; scale_y: number } | null>(null);
+  const pendingResize = useRef<{ spriteId: string; width: number; height: number } | null>(null);
   const pendingRotate = useRef<{ spriteId: string; rotation: number } | null>(null);
   const timers = useRef<{
     move:   ReturnType<typeof setTimeout> | null;
@@ -27,8 +27,8 @@ export function useSpriteDragSync(sendMessage: (msg: unknown) => void) {
         pendingMove.current = null;
       }
       if (type === 'resize' && pendingResize.current) {
-        const { spriteId, scale_x, scale_y } = pendingResize.current;
-        sendMessage(createMessage(MessageType.SPRITE_RESIZE_PREVIEW, { id: spriteId, scale_x, scale_y }));
+        const { spriteId, width, height } = pendingResize.current;
+        sendMessage(createMessage(MessageType.SPRITE_RESIZE_PREVIEW, { id: spriteId, width, height }));
         pendingResize.current = null;
       }
       if (type === 'rotate' && pendingRotate.current) {

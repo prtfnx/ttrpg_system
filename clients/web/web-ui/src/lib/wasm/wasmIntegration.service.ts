@@ -4,7 +4,7 @@
  */
 
 import { useGameStore } from '@/store';
-import { tableThumbnailService } from '@features/table';
+import { tableThumbnailService } from '@features/table/services/tableThumbnail.service';
 import type { RenderEngine } from '@lib/wasm/wasm';
 
 class WasmIntegrationService {

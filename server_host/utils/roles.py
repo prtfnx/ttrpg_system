@@ -46,13 +46,13 @@ _PERMISSIONS: dict[str, list[str]] = {
     ],
 }
 
-# Layers visible per role
+# Layers visible per role — must match WASM layer IDs exactly
 _VISIBLE_LAYERS: dict[str, list[str]] = {
-    SessionRole.OWNER: ["map", "tokens", "dm_notes", "hidden", "lighting", "fog"],
-    SessionRole.CO_DM: ["map", "tokens", "dm_notes", "hidden", "lighting", "fog"],
-    SessionRole.TRUSTED_PLAYER: ["map", "tokens", "lighting", "fog"],
-    SessionRole.PLAYER: ["map", "tokens", "fog"],
-    SessionRole.SPECTATOR: ["map", "tokens", "fog"],
+    SessionRole.OWNER: ["map", "tokens", "dungeon_master", "light", "height", "obstacles", "fog_of_war"],
+    SessionRole.CO_DM: ["map", "tokens", "dungeon_master", "light", "height", "obstacles", "fog_of_war"],
+    SessionRole.TRUSTED_PLAYER: ["map", "tokens", "light", "fog_of_war"],
+    SessionRole.PLAYER: ["map", "tokens", "light", "fog_of_war"],
+    SessionRole.SPECTATOR: ["map", "tokens", "fog_of_war"],
 }
 
 

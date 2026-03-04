@@ -1,6 +1,8 @@
 import type { TableInfo } from '@/store';
+import { useGameStore } from '@/store';
+import { isDM } from '@features/session/types/roles';
 import clsx from 'clsx';
-import { Copy, ExternalLink, Settings2, Trash2 } from 'lucide-react';
+import { Copy, ExternalLink, Settings2, Trash2, Users } from 'lucide-react';
 import type { FC } from 'react';
 import styles from '../TableManagementPanel.module.css';
 import { TablePreview } from '../TablePreview';
@@ -20,23 +22,24 @@ interface TableCardProps {
 }
 
 export const TableCard: FC<TableCardProps> = ({
-  table,
-  isActive,
-  isBulkMode,
-  isSelected,
-  onSelect,
-  onOpen,
-  onSettings,
-  onDuplicate,
-  onDelete,
-  syncBadge
+  table, isActive, isBulkMode, isSelected,
+  onSelect, onOpen, onSettings, onDuplicate, onDelete, syncBadge
 }) => {
+  const sessionRole = useGameStore(s => s.sessionRole);
+  const canSetForAll = isDM(sessionRole);
   const handleClick = () => {
     if (isBulkMode) {
       onSelect(table.table_id);
     } else {
       onOpen(table.table_id);
     }
+  };
+
+  const handleSetForAll = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent('protocol-send-message', {
+      detail: { type: 'table_active_set_all', data: { table_id: table.table_id } }
+    }));
   };
 
   return (
@@ -112,6 +115,15 @@ export const TableCard: FC<TableCardProps> = ({
             >
               <Copy size={12} />
             </button>
+            {canSetForAll && (
+            <button
+              onClick={handleSetForAll}
+              className={clsx(styles.actionBtn)}
+              title="Switch all players to this table"
+            >
+              <Users size={12} />
+            </button>
+            )}
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(table.table_id); }}
               className={clsx(styles.actionBtn, styles.actionBtnDelete)}

@@ -12,8 +12,10 @@ from ..database.database import get_db
 from ..database import crud, schemas, models
 from ..models import game as game_models
 from ..utils.logger import setup_logger
-from ..utils.roles import get_permissions, can_assign_role, is_dm
+from ..utils.roles import get_permissions, get_visible_layers, can_assign_role, is_dm
+from ..service.game_session import get_connection_manager
 from .users import get_current_active_user
+from net.protocol import Message, MessageType
 import os
 
 logger = setup_logger(__name__)
@@ -358,6 +360,19 @@ async def change_player_role(
     
     logger.info(f"Role changed: user {user_id} from {old_role} to {role_data.role} in session {session_code}")
     
+    new_role = role_data.role
+    connection_manager = get_connection_manager()
+    if session_code in connection_manager.sessions_protocols:
+        await connection_manager.broadcast_to_session(
+            session_code,
+            Message(MessageType.PLAYER_ROLE_CHANGED, {
+                "user_id": user_id,
+                "new_role": new_role,
+                "permissions": get_permissions(new_role),
+                "visible_layers": get_visible_layers(new_role)
+            })
+        )
+
     return {"success": True, "message": f"Player role changed to {role_data.role}"}
 
 @router.delete("/api/sessions/{session_code}/players/{user_id}")

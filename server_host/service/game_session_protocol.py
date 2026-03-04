@@ -25,6 +25,7 @@ from .asset_manager import get_server_asset_manager
 from server_host.utils.logger import setup_logger
 from server_host.database.models import GameSession
 from server_host.database.crud import append_ban_to_session
+from server_host.utils.roles import get_permissions, get_visible_layers
 logger = setup_logger(__name__)
 
 
@@ -205,6 +206,7 @@ class GameSessionProtocolService:
         
         logger.info(f"Client {client_id} ({user_info.get('username', 'unknown')}) added to session {self.session_code}")
           # Send welcome message with protocol support
+        role = user_info.get('role', 'player')
         await self._send_message(websocket, Message(
             MessageType.WELCOME,
             {
@@ -213,7 +215,10 @@ class GameSessionProtocolService:
                 "user_id": user_info.get('user_id', 0),
                 "username": user_info.get('username', 'unknown'),
                 "session_code": self.session_code,
-                "tables": list(self.table_manager.tables.keys())
+                "tables": list(self.table_manager.tables.keys()),
+                "role": role,
+                "permissions": get_permissions(role),
+                "visible_layers": get_visible_layers(role)
             }
         ))
 

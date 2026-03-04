@@ -8,6 +8,19 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
+const isDev = import.meta.env.DEV;
+
+// Conditionally wrap with StrictMode — only in development to avoid double effects in production
+function AppWrapper() {
+  return isDev ? (
+    <StrictMode>
+      <AuthProvider><App /></AuthProvider>
+    </StrictMode>
+  ) : (
+    <AuthProvider><App /></AuthProvider>
+  );
+}
+
 // Global type declaration for integration mode
 declare global {
   interface Window {
@@ -23,27 +36,23 @@ window.ReactGameComponents = {
   mountLeftPanel: (container: HTMLElement) => {
     const root = createRoot(container);
     root.render(
-      <StrictMode>
-        <AuthProvider>
-          <div className="panel-container">
-            <ToolsPanel userInfo={{ id: 0, username: "unknown", role: "player", permissions: [] }} />
-          </div>
-        </AuthProvider>
-      </StrictMode>
+      <AuthProvider>
+        <div className="panel-container">
+          <ToolsPanel userInfo={{ id: 0, username: "unknown", role: "player", permissions: [] }} />
+        </div>
+      </AuthProvider>
     );
   },
   
   mountRightPanel: (container: HTMLElement) => {
     const root = createRoot(container);
     root.render(
-      <StrictMode>
-        <AuthProvider>
-          <div className="panel-container">
-            <EntitiesPanel />
-            <CharacterPanel />
-          </div>
-        </AuthProvider>
-      </StrictMode>
+      <AuthProvider>
+        <div className="panel-container">
+          <EntitiesPanel />
+          <CharacterPanel />
+        </div>
+      </AuthProvider>
     );
   }
 };
@@ -51,14 +60,7 @@ window.ReactGameComponents = {
 // Check if we're in standalone mode
 const rootElement = document.getElementById('root');
 if (rootElement) {
-  // Standalone React app mode
-  createRoot(rootElement).render(
-    <StrictMode>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </StrictMode>,
-  )
+  createRoot(rootElement).render(<AppWrapper />);
 }
 
 console.log('React game components integration loaded');

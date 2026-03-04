@@ -2,6 +2,7 @@ import { useGameStore } from '@/store';
 import { RightPanel } from '@app/RightPanel';
 import type { UserInfo } from '@features/auth';
 import { useAuthenticatedWebSocket } from '@features/auth';
+import { initVisionService, stopVisionService } from '@features/lighting';
 import { SessionManagementPanel } from '@features/session';
 import { isDM, type SessionRole } from '@features/session/types/roles';
 import clsx from 'clsx';
@@ -59,6 +60,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
   // sessionRole is authoritative after WELCOME is received; fall back to prop until then
   const sessionRole = useGameStore(s => s.sessionRole) ?? userRole;
   const visibleLayers = useGameStore(s => s.visibleLayers);
+  const userId = useGameStore(s => s.userId);
 
   // Expose protocol and active table id globally for integration points (read-only usage by components)
   useEffect(() => {
@@ -104,6 +106,13 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     }
   }, [sessionRole]);
 
+  // Pass current user ID to WASM for sprite ownership enforcement
+  useEffect(() => {
+    if (userId != null) {
+      window.rustRenderManager?.set_current_user_id?.(userId);
+    }
+  }, [userId]);
+
   // Sync WASM layer visibility with role-based visible layers
   useEffect(() => {
     const engine = window.rustRenderManager;
@@ -113,6 +122,16 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
       engine.set_layer_visibility(layer, allowed.has(layer));
     }
   }, [sessionRole, visibleLayers]);
+
+  // Vision service: run for non-DMs to compute LOS; stop for DMs (they see all)
+  useEffect(() => {
+    if (isDM(sessionRole)) {
+      stopVisionService();
+    } else {
+      initVisionService(150);
+    }
+    return () => stopVisionService();
+  }, [sessionRole]);
 
   // Handle DM force-switching all players to a table
   useEffect(() => {

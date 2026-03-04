@@ -2,6 +2,8 @@ import { RightPanel } from '@app/RightPanel';
 import type { UserInfo } from '@features/auth';
 import { useAuthenticatedWebSocket } from '@features/auth';
 import { SessionManagementPanel } from '@features/session';
+import { isDM, type SessionRole } from '@features/session/types/roles';
+import { useGameStore } from '@/store';
 import clsx from 'clsx';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React, { useEffect } from 'react';
@@ -22,7 +24,7 @@ interface ErrorBoundaryProps {
 interface GameClientProps {
   sessionCode: string;
   userInfo: UserInfo;
-  userRole: 'dm' | 'player';
+  userRole: SessionRole;
   onAuthError: () => void;
 }
 
@@ -52,6 +54,8 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     sessionCode,
     userInfo
   });
+  // sessionRole is authoritative after WELCOME is received; fall back to prop until then
+  const sessionRole = useGameStore(s => s.sessionRole) ?? userRole;
 
   // Expose protocol and active table id globally for integration points (read-only usage by components)
   useEffect(() => {
@@ -89,6 +93,23 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
       window.removeEventListener('request-asset-download', handleAssetDownloadRequest);
     };
   }, [protocol]);
+
+  // Set WASM GM mode based on role
+  useEffect(() => {
+    if (window.rustRenderManager?.set_gm_mode) {
+      window.rustRenderManager.set_gm_mode(isDM(sessionRole));
+    }
+  }, [sessionRole]);
+
+  // Handle DM force-switching all players to a table
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { tableId } = (e as CustomEvent).detail;
+      if (tableId) useGameStore.getState().switchToTable(tableId);
+    };
+    window.addEventListener('table-force-switch', handler);
+    return () => window.removeEventListener('table-force-switch', handler);
+  }, []);
 
   // Handle authentication errors
   if (error?.includes('Authentication failed')) {
@@ -208,7 +229,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
               <span className={styles.statusIndicator}></span>
               <span>
                 {connectionState === 'connecting' && 'Connecting...'}
-                {connectionState === 'connected' && `Connected as ${userInfo.username} (${userRole})`}
+                {connectionState === 'connected' && `Connected as ${userInfo.username} (${sessionRole})`}
                 {connectionState === 'disconnected' && 'Disconnected'}
                 {connectionState === 'error' && `Error: ${error}`}
               </span>
@@ -265,7 +286,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
         )}
 
         {/* Session Management Panel - floating for DM users */}
-        {sessionCode && userRole === 'dm' && (
+        {sessionCode && isDM(sessionRole) && (
           <SessionManagementPanel sessionCode={sessionCode} />
         )}
       </div>

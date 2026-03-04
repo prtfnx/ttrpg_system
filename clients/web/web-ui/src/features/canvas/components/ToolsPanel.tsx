@@ -4,6 +4,7 @@ import { AssetManager } from '@features/assets';
 import { GridControls, LayerPanel } from '@features/canvas';
 import { MeasurementTool } from '@features/measurement';
 import { PaintPanel } from '@features/painting';
+import { isDM, isElevated } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
 import { AlignmentHelper } from '@shared/components';
 import DiceRoller from '@shared/components/DiceRoller';
@@ -43,6 +44,9 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
     alignmentActive, 
     setActiveTool
   } = useGameStore();
+  const sessionRole = useGameStore(s => s.sessionRole) ?? 'player';
+  const dmMode = isDM(sessionRole);
+  const elevatedMode = isElevated(sessionRole);
   
   // Auto-detect ping state from protocol
   const [pingEnabled, setPingEnabled] = useState(() => {
@@ -255,12 +259,14 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   // Use different WebSocket approaches based on mode
   return (
     <div className={styles.gamePanel}>
-      {/* Quick Test Buttons */}
+      {/* Quick Test Buttons - dev only */}
+      {import.meta.env.DEV && dmMode && (
       <div className={styles.quickTestButtons}>
         <button className={styles.testButton} onClick={handleAddSprite}>Add Sprite</button>
         <button className={styles.testButton} onClick={handleAddCharacter}>Add Character</button>
         <button className={styles.testButton} onClick={handleAddTestSprites}>Add Test Sprites</button>
       </div>
+      )}
 
       {/* Network Settings */}
       <div className={styles.networkSettings}>
@@ -307,19 +313,21 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
             <label htmlFor="role-toggle">Role:</label>
             <select 
               id="role-toggle"
-              value={userInfo.role}
+              value={sessionRole}
               onChange={(e) => {
-                // Update role in userInfo - this would require auth service update
-                console.log('Role change requested:', e.target.value);
-                alert(`Role switching: ${e.target.value}\n\nNote: Full role switching requires server support.\nCurrently for UI testing only.`);
+                console.log('Role change (dev UI only):', e.target.value);
+                alert(`Role switching: ${e.target.value}\n\nNote: Roles come from server. This is dev display only.`);
               }}
               className={styles.roleSelect}
             >
-              <option value="dm">DM (Dungeon Master)</option>
+              <option value="owner">Owner</option>
+              <option value="co_dm">Co-DM</option>
+              <option value="trusted_player">Trusted Player</option>
               <option value="player">Player</option>
+              <option value="spectator">Spectator</option>
             </select>
             <span className={styles.currentRole}>
-              Current: {userInfo.role === 'dm' ? <><Crown size={14} aria-hidden /> DM</> : <><User size={14} aria-hidden /> Player</>}
+              Current: {dmMode ? <><Crown size={14} aria-hidden /> DM</> : <><User size={14} aria-hidden /> {sessionRole}</>}
             </span>
           </div>
         </div>
@@ -357,6 +365,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         >
           <AlignLeft size={14} aria-hidden /> Align
         </button>
+        {dmMode && (
         <button 
           className={`${styles.toolButton} ${activeTool === 'draw_shapes' ? styles.active : ''}`}
           onClick={() => setActiveTool('draw_shapes')}
@@ -364,6 +373,8 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         >
           <Pencil size={14} aria-hidden /> Draw Shapes
         </button>
+        )}
+        {elevatedMode && (
         <button 
           className={`${styles.toolButton} ${activeTool === 'spell_templates' ? styles.active : ''}`}
           onClick={() => setActiveTool('spell_templates')}
@@ -371,9 +382,11 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         >
           <Sparkles size={14} aria-hidden /> Spell Templates
         </button>
+        )}
       </div>
 
       {/* Sprite Creation Tools */}
+      {dmMode && (
       <div className={styles.creationToolbar}>
         <h4>Create Sprites</h4>
         <div className={styles.creationButtons}>
@@ -450,9 +463,11 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           </div>
         )}
       </div>
+      )}
 
       <div>
         <div className={styles.creationButtons}>
+          {elevatedMode && (
           <button
             className={styles.toolButton}
             onClick={() => setAssetManagerVisible(true)}
@@ -460,6 +475,8 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           >
             <Folder size={14} aria-hidden /> Assets
           </button>
+          )}
+          {dmMode && (
           <button
             className={`${styles.toolButton} ${activeTool === 'paint' ? styles.active : ''}`}
             onClick={() => {
@@ -476,6 +493,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           >
             <Paintbrush size={14} aria-hidden /> Paint
           </button>
+          )}
         </div>
       </div>
 

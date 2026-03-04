@@ -25,7 +25,7 @@ from .asset_manager import get_server_asset_manager
 from server_host.utils.logger import setup_logger
 from server_host.database.models import GameSession
 from server_host.database.crud import append_ban_to_session
-from server_host.utils.roles import get_permissions, get_visible_layers
+from server_host.utils.roles import get_permissions, get_visible_layers, is_dm as _is_dm
 logger = setup_logger(__name__)
 
 
@@ -315,6 +315,23 @@ class GameSessionProtocolService:
         # Clean up disconnected clients
         for websocket in disconnected_clients:
             await self.remove_client(websocket)
+
+    async def broadcast_filtered(self, message: Message, layer: str, exclude_client: Optional[str] = None):
+        """Broadcast to clients who can see the given layer."""
+        disconnected = []
+        for cid, ws in self.clients.items():
+            if cid == exclude_client:
+                continue
+            role = self.client_info.get(cid, {}).get('role', 'player')
+            if not _is_dm(role) and layer not in get_visible_layers(role):
+                continue
+            try:
+                await self._send_message(ws, message)
+            except Exception as e:
+                logger.error(f"BROADCAST: Failed to send to {cid}: {e}")
+                disconnected.append(ws)
+        for ws in disconnected:
+            await self.remove_client(ws)
 
     async def send_to_client(self, message: Message, client_id: str):
         """Send message to specific client"""

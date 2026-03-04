@@ -303,14 +303,14 @@ class ServerProtocol:
             }
             logger.debug(f"Sending sprite response: {response_data}")
             
-            # Broadcast sprite creation to all other clients in the session
+            # Broadcast sprite creation only to clients who can see this layer
             update_message = Message(MessageType.SPRITE_UPDATE, {
                 'sprite_id': sprite_data.get('sprite_id'),
                 'operation': 'create',
                 'sprite_data': sprite_data,
                 'table_id': table_id
             })
-            await self.broadcast_to_session(update_message, client_id)
+            await self.broadcast_filtered(update_message, layer, client_id)
             
             return Message(MessageType.SPRITE_RESPONSE, response_data)
 
@@ -426,10 +426,14 @@ class ServerProtocol:
         
         if not sprite_id or scale_x is None or scale_y is None:
             return Message(MessageType.ERROR, {'error': 'Sprite ID, scale_x, and scale_y are required'})
-        
-        # Note: Sprite updates are frequent and typically batched, not immediately persisted
-        # Session manager will handle periodic persistence
-        
+
+        role = self._get_client_role(client_id)
+        if not can_interact(role):
+            return Message(MessageType.ERROR, {'error': 'Spectators cannot modify sprites'})
+        if not is_dm(role):
+            if not await self._can_control_sprite(sprite_id, self._get_user_id(msg)):
+                return Message(MessageType.ERROR, {'error': 'You do not control this sprite'})
+
         # Update sprite scale using the actions interface
         update_data = {
             'sprite_id': sprite_id,
@@ -479,10 +483,14 @@ class ServerProtocol:
         
         if not sprite_id or rotation is None:
             return Message(MessageType.ERROR, {'error': 'Sprite ID and rotation are required'})
-        
-        # Note: Sprite updates are frequent and typically batched, not immediately persisted
-        # Session manager will handle periodic persistence
-        
+
+        role = self._get_client_role(client_id)
+        if not can_interact(role):
+            return Message(MessageType.ERROR, {'error': 'Spectators cannot modify sprites'})
+        if not is_dm(role):
+            if not await self._can_control_sprite(sprite_id, self._get_user_id(msg)):
+                return Message(MessageType.ERROR, {'error': 'You do not control this sprite'})
+
         # Update sprite rotation using the actions interface
         update_data = {
             'sprite_id': sprite_id,
@@ -1339,14 +1347,18 @@ class ServerProtocol:
     async def broadcast_to_session(self, message: Message, client_id: str):
         """Send message to all clients in the session"""
         if self.session_manager and hasattr(self.session_manager, 'broadcast_to_session'):
-            # Delegate to the session manager's broadcast method
             await self.session_manager.broadcast_to_session(message, exclude_client=client_id)
         else:
-            # Fallback implementation (should not be used in production)
-            logger.warning("No session manager available for broadcasting, using fallback")
             for client in self.clients:
                 if client != client_id:
                     await self.send_to_client(message, client)
+
+    async def broadcast_filtered(self, message: Message, layer: str, client_id: str):
+        """Broadcast only to clients who can see the given layer."""
+        if self.session_manager and hasattr(self.session_manager, 'broadcast_filtered'):
+            await self.session_manager.broadcast_filtered(message, layer, exclude_client=client_id)
+        else:
+            await self.broadcast_to_session(message, client_id)
 
     async def _broadcast_error(self, client_id: str, error_message: str):
         """Send error message to specific client"""

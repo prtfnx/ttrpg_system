@@ -63,6 +63,8 @@ pub struct RenderEngine {
     
     // Rendering settings
     background_color: [f32; 4], // RGBA background color
+    is_gm: bool,
+    current_user_id: Option<i32>,
 }
 
 #[wasm_bindgen]
@@ -165,6 +167,8 @@ impl RenderEngine {
             table_sync,
             table_manager,
             background_color: [0.1, 0.1, 0.1, 1.0], // Default dark gray background
+            is_gm: false,
+            current_user_id: None,
         };
         
         // ===== MANDATORY TABLE CREATION =====
@@ -536,6 +540,19 @@ impl RenderEngine {
             ctrl_pressed
         );
         
+        // Ownership check: block drag on sprites user doesn't control
+        if !self.is_gm && matches!(self.input.input_mode, InputMode::SpriteMove | InputMode::SpriteResize(_) | InputMode::SpriteRotate) {
+            if let (Some(uid), Some(sprite_id)) = (self.current_user_id, self.input.selected_sprite_id.clone()) {
+                if let Some((sprite, _)) = self.layer_manager.find_sprite(&sprite_id) {
+                    if !sprite.controlled_by.is_empty() && !sprite.controlled_by.contains(&uid) {
+                        self.input.input_mode = InputMode::None;
+                        self.input.selected_sprite_id = None;
+                        self.input.selected_sprite_ids.clear();
+                    }
+                }
+            }
+        }
+
         // Handle results - no fallbacks
         match result {
             MouseEventResult::CameraOperation(op) if op == "focus_selection" => {
@@ -1050,7 +1067,13 @@ impl RenderEngine {
 
     #[wasm_bindgen]
     pub fn set_gm_mode(&mut self, is_gm: bool) {
+        self.is_gm = is_gm;
         self.fog.set_gm_mode(is_gm);
+    }
+
+    #[wasm_bindgen]
+    pub fn set_current_user_id(&mut self, user_id: i32) {
+        self.current_user_id = Some(user_id);
     }
 
     #[wasm_bindgen]
@@ -1303,6 +1326,7 @@ impl RenderEngine {
             tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
             table_id: active_table_id,
             character_id: None,
+            controlled_by: Vec::new(),
             hp: None,
             max_hp: None,
             ac: None,
@@ -1359,6 +1383,7 @@ impl RenderEngine {
             tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
             table_id: active_table_id,
             character_id: None,
+            controlled_by: Vec::new(),
             hp: None,
             max_hp: None,
             ac: None,
@@ -1424,6 +1449,7 @@ impl RenderEngine {
             tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
             table_id: active_table_id,
             character_id: None,
+            controlled_by: Vec::new(),
             hp: None,
             max_hp: None,
             ac: None,
@@ -1507,6 +1533,7 @@ impl RenderEngine {
             tint_color: [1.0, 1.0, 1.0, 1.0],
             table_id: active_table_id,
             character_id: None,
+            controlled_by: Vec::new(),
             hp: None,
             max_hp: None,
             ac: None,
@@ -1593,6 +1620,7 @@ impl RenderEngine {
             tint_color: [1.0, 1.0, 1.0, 1.0],
             table_id: active_table_id,
             character_id: None,
+            controlled_by: Vec::new(),
             hp: None,
             max_hp: None,
             ac: None,
@@ -2046,6 +2074,7 @@ impl RenderEngine {
                     layer: layer_name.to_string(),
                     table_id: active_table_id,
                     character_id: None,
+                    controlled_by: Vec::new(),
                     hp: None,
                     max_hp: None,
                     ac: None,

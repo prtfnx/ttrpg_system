@@ -1017,7 +1017,8 @@ class WasmIntegrationService {
       }
       
       // Get asset ID for texture loading
-      const assetId = spriteData.asset_id || spriteData.asset_xxhash;
+      // Priority: asset_id (new) > asset_xxhash (legacy) > texture_path (old fallback)
+      const assetId = spriteData.asset_id || spriteData.asset_xxhash || spriteData.texture_path || null;
       
       const wasmSprite = {
         id: spriteData.sprite_id || spriteData.id || `sprite_${Date.now()}`,

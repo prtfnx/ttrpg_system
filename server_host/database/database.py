@@ -22,9 +22,27 @@ engine = create_engine(
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+def _run_migrations():
+    """Add new columns to existing tables that may predate schema additions."""
+    from sqlalchemy import text
+    migrations = [
+        "ALTER TABLE entities ADD COLUMN asset_id VARCHAR(100)",
+        "ALTER TABLE entities ADD COLUMN width FLOAT DEFAULT 0.0",
+        "ALTER TABLE entities ADD COLUMN height FLOAT DEFAULT 0.0",
+    ]
+    with engine.connect() as conn:
+        for sql in migrations:
+            try:
+                conn.execute(text(sql))
+                conn.commit()
+            except Exception:
+                pass  # Column already exists
+
+
 def create_tables():
     """Create all database tables"""
     Base.metadata.create_all(bind=engine)
+    _run_migrations()
 
 def get_db():
     """Dependency to get database session"""

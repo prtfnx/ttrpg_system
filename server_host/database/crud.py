@@ -378,6 +378,9 @@ def create_entity(db: Session, entity_data: schemas.EntityCreate, table_db_id: i
         position_y=entity_data.position_y,
         layer=entity_data.layer,
         texture_path=entity_data.texture_path,
+        asset_id=entity_data.asset_id,
+        width=entity_data.width or 0.0,
+        height=entity_data.height or 0.0,
         scale_x=entity_data.scale_x,
         scale_y=entity_data.scale_y,
         rotation=entity_data.rotation,
@@ -519,6 +522,9 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             position_y=entity_obj.position[1],
             layer=entity_obj.layer,
             texture_path=entity_obj.texture_path,
+            asset_id=getattr(entity_obj, 'asset_id', None),
+            width=entity_obj.width,
+            height=entity_obj.height,
             scale_x=entity_obj.scale_x,
             scale_y=entity_obj.scale_y,
             rotation=entity_obj.rotation,
@@ -545,6 +551,9 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             position_y=entity_obj.position[1],
             layer=entity_obj.layer,
             texture_path=entity_obj.texture_path,
+            asset_id=getattr(entity_obj, 'asset_id', None),
+            width=entity_obj.width,
+            height=entity_obj.height,
             scale_x=entity_obj.scale_x,
             scale_y=entity_obj.scale_y,
             rotation=entity_obj.rotation,
@@ -619,7 +628,10 @@ def load_table_from_db(db: Session, table_id: str):
                 hp=db_entity.hp,
                 max_hp=db_entity.max_hp,
                 ac=db_entity.ac,
-                aura_radius=db_entity.aura_radius
+                aura_radius=db_entity.aura_radius,
+                asset_id=getattr(db_entity, 'asset_id', None),
+                width=float(getattr(db_entity, 'width', None) or 0.0),
+                height=float(getattr(db_entity, 'height', None) or 0.0),
             )
             entity.sprite_id = db_entity.sprite_id
             entity.scale_x = db_entity.scale_x

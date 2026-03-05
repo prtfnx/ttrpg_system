@@ -391,7 +391,7 @@ class ActionsCore(AsyncActionsProtocol):
             await self._add_to_history(action)
             
             return ActionResult(True, f"Sprite {sprite_id} created on layer {layer}", {
-                'sprite_data': sprite_data,
+                'sprite_data': entity.to_dict(),  # return authoritative server state (has correct sprite_id)
                 'layer': layer
             })
         except Exception as e:

@@ -41,7 +41,14 @@ class Entity:
         
         # Character binding
         self.character_id = character_id
-        self.controlled_by = controlled_by or []
+        # Normalize controlled_by: may arrive as a JSON string (encoded by server_protocol before
+        # passing to add_entity). Always store as a Python list.
+        if isinstance(controlled_by, str):
+            try:
+                controlled_by = json.loads(controlled_by)
+            except Exception:
+                controlled_by = []
+        self.controlled_by = controlled_by if controlled_by is not None else []
         
         # Token stats
         self.hp = hp
@@ -205,7 +212,14 @@ class VirtualTable:
                        asset_id=asset_id,
                        width=float(entity_data.get('width') or 0.0),
                        height=float(entity_data.get('height') or 0.0))
-        
+
+        # Honor the sprite_id supplied by the client so the WASM id and server id stay in sync.
+        # Entity.__init__ always generates a fresh UUID; we overwrite it here when the caller
+        # already chose an id (e.g. optimistic create from the drag-drop flow).
+        provided_sprite_id = entity_data.get('sprite_id')
+        if provided_sprite_id:
+            entity.sprite_id = str(provided_sprite_id)
+
         # Apply transform properties if provided
         if 'scale_x' in entity_data:
             entity.scale_x = entity_data['scale_x']

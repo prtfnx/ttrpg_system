@@ -1,5 +1,5 @@
 import type { Character, ConnectionState, GameState, Sprite, ToolType } from '@/types';
-import type { SessionRole } from '@features/session/types/roles';
+import { isDM, type SessionRole } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
 import { transformServerTablesToClient, validateTableId } from '@lib/websocket';
 import { create } from 'zustand';
@@ -355,17 +355,21 @@ export const useGameStore = create<GameStore>()(
       },
 
       canControlSprite: (spriteId: string, userId?: number) => {
-        const sprite = useGameStore.getState().sprites.find((s: any) => s.id === spriteId);
+        const state = useGameStore.getState();
+        if (isDM(state.sessionRole)) return true;
+        const sprite = state.sprites.find((s: any) => s.id === spriteId);
         if (!sprite) return false;
         if (userId === undefined) return Array.isArray(sprite.controlledBy) && sprite.controlledBy.length > 0;
         if (sprite.controlledBy && sprite.controlledBy.includes(String(userId))) return true;
-        const character = useGameStore.getState().getCharacterForSprite(spriteId);
+        const character = state.getCharacterForSprite(spriteId);
         if (!character) return false;
         return character.ownerId === userId || (Array.isArray(character.controlledBy) && character.controlledBy.includes(userId));
       },
 
       canEditCharacter: (characterId: string, userId?: number) => {
-        const character = useGameStore.getState().characters.find((c: any) => c.id === characterId);
+        const state = useGameStore.getState();
+        if (isDM(state.sessionRole)) return true;
+        const character = state.characters.find((c: any) => c.id === characterId);
         if (!character) return false;
         if (userId === undefined) return true;
         return character.ownerId === userId || (Array.isArray(character.controlledBy) && character.controlledBy.includes(userId));

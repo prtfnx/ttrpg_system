@@ -1,5 +1,6 @@
 import { useGameStore } from '@/store';
 import { authService } from '@features/auth';
+import { isDM } from '@features/session/types/roles';
 import { useProtocol } from '@lib/api';
 import { Check } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
@@ -11,18 +12,34 @@ interface TokenConfigModalProps {
 }
 
 export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, onClose }) => {
-  const { sprites, characters, unlinkSpriteFromCharacter, getCharacterForSprite, updateSprite } = useGameStore();
+  const { sprites, characters, sessionRole, unlinkSpriteFromCharacter, getCharacterForSprite, updateSprite } = useGameStore();
   const { protocol, isConnected } = useProtocol();
-  
+
   const sprite = sprites.find(s => s.id === spriteId);
   const linkedCharacter = sprite?.characterId ? getCharacterForSprite(spriteId) : null;
-  
+  const canManageOwnership = isDM(sessionRole);
+
   const [selectedCharacterId, setSelectedCharacterId] = useState<string>(sprite?.characterId || '');
-  // Use token HP/AC, fallback to character stats if linked
   const [localHp, setLocalHp] = useState<number>(sprite?.hp ?? linkedCharacter?.data?.stats?.hp ?? 10);
   const [localMaxHp, setLocalMaxHp] = useState<number>(sprite?.maxHp ?? linkedCharacter?.data?.stats?.maxHp ?? 10);
   const [localAc, setLocalAc] = useState<number>(sprite?.ac ?? linkedCharacter?.data?.stats?.ac ?? 10);
   const [localAuraRadius, setLocalAuraRadius] = useState<number>(sprite?.auraRadius ?? 0);
+  const [newOwnerId, setNewOwnerId] = useState<string>('');
+  const [sessionPlayers, setSessionPlayers] = useState<{ id: string; name: string }[]>([]);
+
+  // Fetch session player list for DM ownership controls
+  useEffect(() => {
+    if (!canManageOwnership || !protocol || !isConnected) return;
+    protocol.requestPlayerList();
+    const handler = (e: Event) => {
+      const players = (e as CustomEvent).detail?.players;
+      if (Array.isArray(players)) {
+        setSessionPlayers(players.map((p: any) => ({ id: String(p.id), name: p.name || `User #${p.id}` })));
+      }
+    };
+    window.addEventListener('player-list-updated', handler);
+    return () => window.removeEventListener('player-list-updated', handler);
+  }, [canManageOwnership, protocol, isConnected]);
 
   // Load characters if not already loaded
   useEffect(() => {
@@ -175,10 +192,24 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
 
   const hpPercentage = localMaxHp > 0 ? (localHp / localMaxHp) * 100 : 0;
 
+  // Current ownership list
+  const controlledBy: string[] = Array.isArray(sprite?.controlledBy)
+    ? sprite!.controlledBy.map(String)
+    : [];
+
+  const handleAddOwner = () => {
+    const id = newOwnerId.trim();
+    if (!id || controlledBy.includes(id)) return;
+    updateSprite(spriteId, { controlledBy: [...controlledBy, id] });
+    setNewOwnerId('');
+  };
+
+  const handleRemoveOwner = (id: string) => {
+    updateSprite(spriteId, { controlledBy: controlledBy.filter(x => x !== id) });
+  };
+
   // Show all characters - don't filter by session since we might not have session info
   const sessionCharacters = characters;
-  
-  console.log('[TokenConfigModal] Available characters:', sessionCharacters.length);
 
   return (
     <div className={styles.tokenConfigModalOverlay} onClick={onClose}>
@@ -189,6 +220,46 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
         </div>
         
         <div className={styles.modalContent}>
+          {/* Ownership - DM/CO-DM only */}
+          {canManageOwnership && (
+            <div className={styles.ownershipSection}>
+              <label>Token Ownership (user IDs):</label>
+              <div className={styles.ownershipTags}>
+                {controlledBy.length === 0 && (
+                  <p className={styles.noOwnersNote}>DM-only (no player controllers)</p>
+                )}
+                {controlledBy.map(id => (
+                  <span key={id} className={styles.ownerTag}>
+                    #{id}
+                    <button
+                      className={styles.ownerTagRemove}
+                      onClick={() => handleRemoveOwner(id)}
+                      title={`Remove user ${id}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className={styles.ownerInputRow}>
+                <select
+                  className={styles.ownerInput}
+                  value={newOwnerId}
+                  onChange={e => setNewOwnerId(e.target.value)}
+                >
+                  <option value="">-- Select player --</option>
+                  {sessionPlayers
+                    .filter(p => !controlledBy.includes(p.id))
+                    .map(p => (
+                      <option key={p.id} value={p.id}>{p.name} (#{p.id})</option>
+                    ))
+                  }
+                </select>
+                <button className={styles.ownerAddBtn} onClick={handleAddOwner} disabled={!newOwnerId}>Add</button>
+              </div>
+            </div>
+          )}
+
           {/* Character Linking */}
           <div className={styles.configSection}>
             <label htmlFor="character-select">Link to Character:</label>

@@ -324,6 +324,16 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
       
       pendingUploadsRef.current.set(assetId, pendingUpload);
 
+      // ── Local optimistic texture load ────────────────────────────────────
+      // We already have the image bytes locally, so tell WASM to load the
+      // texture right now instead of waiting for the server download round-trip.
+      // The object URL is revoked automatically after the image loads.
+      const localObjectUrl = URL.createObjectURL(file);
+      window.dispatchEvent(new CustomEvent('local-texture-ready', {
+        detail: { asset_id: assetId, url: localObjectUrl }
+      }));
+      // ────────────────────────────────────────────────────────────────────
+
       // Request presigned upload URL from server
       protocol.sendMessage(createMessage(MessageType.ASSET_UPLOAD_REQUEST, {
         filename: file.name,

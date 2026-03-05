@@ -18,6 +18,8 @@ class WasmIntegrationService {
   private pendingSpritesForAssets: Map<string, string[]> = new Map(); // asset_id -> sprite_ids[]
   // Track pending scale operations to prevent recursive calls
   private pendingScaleOperations: Set<string> = new Set();
+  // Texture IDs already loaded into WASM (skip redundant server downloads)
+  private loadedTextureIds: Set<string> = new Set();
   // Timeout for optimistic inserts (ms)
   private readonly OPTIMISTIC_TIMEOUT = 10000;
 
@@ -198,6 +200,40 @@ class WasmIntegrationService {
     };
     window.addEventListener('asset-downloaded', handleAssetDownloaded);
     this.eventListeners.push(() => window.removeEventListener('asset-downloaded', handleAssetDownloaded));
+
+    // Local texture available from drag-drop (skip server download)
+    const handleLocalTextureReady = (event: Event) => {
+      const { asset_id, url } = (event as CustomEvent).detail ?? {};
+      if (!asset_id || !url) return;
+      console.log('Local texture available, loading directly into WASM:', asset_id);
+      this.loadTextureFromUrl(asset_id, url).then(() => {
+        // Mark as loaded so requestAssetDownloadLink skips the server round-trip
+        this.loadedTextureIds.add(asset_id);
+        this.pendingAssetRetries.delete(asset_id);
+        // Also revoke the object URL now that the image is in GPU memory
+        try { URL.revokeObjectURL(url); } catch { /* ignore */ }
+      }).catch(err => {
+        console.warn('Failed to load local texture, will fall back to server download:', err);
+        try { URL.revokeObjectURL(url); } catch { /* ignore */ }
+      });
+    };
+    window.addEventListener('local-texture-ready', handleLocalTextureReady);
+    this.eventListeners.push(() => window.removeEventListener('local-texture-ready', handleLocalTextureReady));
+
+    // Optimistic sprite create: drag-drop adds sprite to WASM immediately before server confirms
+    const handleOptimisticSpriteCreate = (event: Event) => {
+      const data = (event as CustomEvent).detail;
+      if (!data || !data.sprite_id) return;
+      console.log('🎭 Optimistic sprite create (drag-drop):', data.sprite_id);
+      try {
+        this.addSpriteToWasm(data);
+        this.startOptimisticTimer(data.sprite_id);
+      } catch (e) {
+        console.warn('Failed to add optimistic drag-drop sprite:', e);
+      }
+    };
+    window.addEventListener('optimistic-sprite-create', handleOptimisticSpriteCreate);
+    this.eventListeners.push(() => window.removeEventListener('optimistic-sprite-create', handleOptimisticSpriteCreate));
 
     // Handle asset upload confirmations
     const handleAssetUploaded = (event: Event) => {
@@ -511,6 +547,12 @@ class WasmIntegrationService {
     // Note: sprite_id may be null/None from the server even for valid creation responses
     if (data.operation === 'create' || (!data.operation && data.sprite_data)) {
       console.log('✅ WasmIntegration: Adding sprite to WASM engine:', data.sprite_data);
+      // Clear the optimistic sprite (same sprite_id) before re-adding with full server data
+      const confirmedId = data.sprite_data?.sprite_id;
+      if (confirmedId) {
+        this.clearOptimisticTimer(confirmedId);
+        try { this.renderEngine.remove_sprite(confirmedId); } catch(e) { /* ok if not found */ }
+      }
       try {
         this.addSpriteToWasm(data.sprite_data);
       } catch (error) {
@@ -1033,7 +1075,12 @@ class WasmIntegrationService {
         texture_id: assetId || '',  // Use asset_id as texture_id so it matches loaded texture
         tint_color: spriteData.tint_color || [1.0, 1.0, 1.0, 1.0],
         table_id: spriteData.table_id || 'default_table',  // Use table_id from spriteData
-        controlled_by: spriteData.controlled_by || [],     // Required by Rust struct
+        // controlled_by must be an array; guard against JSON-string form from old server records
+        controlled_by: Array.isArray(spriteData.controlled_by)
+          ? spriteData.controlled_by
+          : (typeof spriteData.controlled_by === 'string'
+              ? (() => { try { return JSON.parse(spriteData.controlled_by); } catch { return []; } })()
+              : []),
       };
 
       console.log('Converted sprite for WASM:', wasmSprite);
@@ -1140,6 +1187,11 @@ class WasmIntegrationService {
    */
   private async requestAssetDownloadLink(assetId: string, _spriteId: string): Promise<void> {
     try {
+      // Skip server round-trip if texture is already in WASM (e.g. loaded from local drag-drop)
+      if (this.loadedTextureIds.has(assetId)) {
+        console.log('Texture already loaded locally, skipping server download:', assetId);
+        return;
+      }
       console.log('Requesting asset download link for:', assetId);
       
       // Dispatch event that components with protocol access can handle
@@ -1159,8 +1211,16 @@ class WasmIntegrationService {
     console.log('Asset downloaded:', data);
     
     if (data.success && data.download_url && data.asset_id) {
+      // Skip if already loaded locally (e.g. from drag-drop)
+      if (this.loadedTextureIds.has(data.asset_id)) {
+        console.log('Texture already in WASM, skipping re-download:', data.asset_id);
+        this.pendingAssetRetries.delete(data.asset_id);
+        return;
+      }
       console.log('Loading texture from download URL:', data.asset_id, data.download_url);
-      this.loadTextureFromUrl(data.asset_id, data.download_url);
+      this.loadTextureFromUrl(data.asset_id, data.download_url).then(() => {
+        this.loadedTextureIds.add(data.asset_id);
+      });
       // Remove from pending retries if it was there
       this.pendingAssetRetries.delete(data.asset_id);
     } else {
@@ -1334,7 +1394,10 @@ class WasmIntegrationService {
       console.log('Loading texture from URL:', url);
       
       const image = new Image();
-      image.crossOrigin = 'anonymous';
+      // Only set crossOrigin for non-blob URLs (blob URLs are same-origin)
+      if (!url.startsWith('blob:')) {
+        image.crossOrigin = 'anonymous';
+      }
       
       const loadPromise = new Promise<void>((resolve, reject) => {
         image.onload = () => {

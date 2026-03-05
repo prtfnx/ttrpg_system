@@ -81,7 +81,7 @@ export const useCanvasEventsEnhanced = ({
         const selectedSpriteIds = (engine as any).get_selected_sprites?.() || [];
         selectedSpriteIds.forEach((spriteId: string) => {
           if (protocol) {
-            protocol.removeSpirte(spriteId);
+            protocol.removeSprite(spriteId);
           } else {
             (engine as any).delete_sprite(spriteId);
           }
@@ -216,7 +216,7 @@ export const useCanvasEventsEnhanced = ({
             })
           );
           setLightPlacementMode(null);
-          canvas.style.cursor = 'grab';
+          canvas.style.cursor = 'default';
         }
         return;
       }
@@ -229,6 +229,9 @@ export const useCanvasEventsEnhanced = ({
         } else {
           renderManager.handle_mouse_down(x, y);
         }
+        // Set cursor: grab handle if nothing selected, otherwise follow WASM
+        const cursorType = renderManager.get_cursor_type?.(x, y) ?? 'default';
+        canvas.style.cursor = cursorType === 'default' ? 'grabbing' : cursorType;
         setTimeout(() => updateInputContext(), 0);
       }
     },
@@ -243,7 +246,12 @@ export const useCanvasEventsEnhanced = ({
       lastMousePosRef.current = { x: e.offsetX, y: e.offsetY };
 
       const { x, y } = getRelativeCoords(e, canvas);
-      (rustRenderManagerRef.current as any).handle_mouse_move(x, y);
+      const renderManager = rustRenderManagerRef.current as any;
+      renderManager.handle_mouse_move(x, y);
+
+      // Update cursor dynamically: 'grabbing' when panning empty space
+      const cursorType = renderManager.get_cursor_type?.(x, y) ?? 'default';
+      canvas.style.cursor = (e.buttons & 1) && cursorType === 'default' ? 'grabbing' : cursorType;
     },
     [canvasRef, rustRenderManagerRef]
   );
@@ -254,7 +262,11 @@ export const useCanvasEventsEnhanced = ({
       if (!canvas || !rustRenderManagerRef.current) return;
 
       const { x, y } = getRelativeCoords(e, canvas);
-      (rustRenderManagerRef.current as any).handle_mouse_up(x, y);
+      const renderManager = rustRenderManagerRef.current as any;
+      renderManager.handle_mouse_up(x, y);
+      // Restore cursor after releasing mouse
+      const cursorType = renderManager.get_cursor_type?.(x, y) ?? 'default';
+      canvas.style.cursor = cursorType;
       setTimeout(() => updateInputContext(), 0);
     },
     [canvasRef, rustRenderManagerRef, updateInputContext]
@@ -278,16 +290,17 @@ export const useCanvasEventsEnhanced = ({
 
       e.preventDefault();
       const { x, y } = getRelativeCoords(e, canvas);
-      const clickedSpriteId = (rustRenderManagerRef.current as any).get_sprite_at_position?.(x, y);
+      // handle_right_click selects the sprite and returns its ID
+      const clickedSpriteId = (rustRenderManagerRef.current as any).handle_right_click?.(x, y) || undefined;
       
-      setContextMenu({
+      setContextMenu(prev => ({
+        ...prev,
         visible: true,
         x: e.clientX,
         y: e.clientY,
-        spriteId: clickedSpriteId || undefined,
-        copiedSprite: undefined,
-        showLayerSubmenu: false
-      });
+        spriteId: clickedSpriteId,
+        showLayerSubmenu: false,
+      }));
     },
     [canvasRef, rustRenderManagerRef, setContextMenu]
   );
@@ -336,8 +349,8 @@ export const useCanvasEventsEnhanced = ({
     handleRightClickRef.current(e);
   },  []);
 
-  const stableKeyDown = useCallback(() => {
-    // Keyboard events are handled by InputManager via action handlers
+  const stableKeyDown = useCallback((event: KeyboardEvent) => {
+    inputManager.handleKeyDown(event);
   }, []);
 
   return {

@@ -80,6 +80,20 @@ def get_visible_layers(role: str) -> list[str]:
     return _VISIBLE_LAYERS.get(role, ["map", "tokens", "fog"])
 
 
+# Max sprites a player of each role can own simultaneously
+SPRITE_LIMITS: dict[str, int] = {
+    SessionRole.OWNER: 1000,
+    SessionRole.CO_DM: 100,
+    SessionRole.TRUSTED_PLAYER: 20,
+    SessionRole.PLAYER: 5,
+    SessionRole.SPECTATOR: 0,
+}
+
+
+def get_sprite_limit(role: str) -> int:
+    return SPRITE_LIMITS.get(role, 0)
+
+
 def can_assign_role(requester_role: str, target_role: str, new_role: str) -> tuple[bool, str]:
     """Check if requester can assign new_role to a player currently at target_role."""
     if not is_valid_role(new_role):

@@ -419,6 +419,8 @@ export const GameCanvas: React.FC = () => {
               layer: 'tokens',
               texture_id: '',
               tint_color: [1.0, 0.5, 0.5, 1.0], // Red tint
+              table_id: 'default_table',
+              controlled_by: [],
             };
             rustRenderEngine.add_sprite_to_layer('tokens', testSprite);
             console.log('[WASM] Test sprite added');

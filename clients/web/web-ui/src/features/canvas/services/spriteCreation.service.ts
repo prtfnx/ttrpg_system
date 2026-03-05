@@ -41,7 +41,7 @@ class SpriteCreationService {
   /**
    * Create a sprite on the server after successful asset upload
    */
-  async createSprite(request: SpriteCreationRequest): Promise<void> {
+  async createSprite(request: SpriteCreationRequest): Promise<string> {
     if (!this.protocol) {
       throw new Error('Protocol not initialized');
     }
@@ -53,6 +53,13 @@ class SpriteCreationService {
     
     // Extract name from filename (remove extension)
     const name = request.fileName.split('.')[0];
+
+    // Get the actual table ID from the game store
+    const activeTableId = useGameStore.getState().activeTableId;
+    if (!activeTableId) {
+      console.error('[SpriteCreation] No active table ID available for sprite creation');
+      return spriteId;
+    }
 
     const spriteData: SpriteData = {
       sprite_id: spriteId,
@@ -69,20 +76,20 @@ class SpriteCreationService {
       color: '#FFFFFF',
       visible: true
     };
+
+    // Add the sprite optimistically to WASM before the server round-trip completes
+    window.dispatchEvent(new CustomEvent('optimistic-sprite-create', {
+      detail: { ...spriteData, table_id: activeTableId, controlled_by: [] }
+    }));
     
     console.log('📡 SpriteCreation: Requesting server to create sprite:', spriteData);
-    
-    // Get the actual table ID from the game store
-    const activeTableId = useGameStore.getState().activeTableId;
-    if (!activeTableId) {
-      console.error('[SpriteCreation] No active table ID available for sprite creation');
-      return;
-    }
 
     this.protocol.sendMessage(createMessage(MessageType.SPRITE_CREATE, { 
       sprite_data: spriteData, 
       table_id: activeTableId 
     }, 2));
+
+    return spriteId;
   }
 }
 

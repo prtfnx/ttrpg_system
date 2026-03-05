@@ -348,8 +348,8 @@ export const GameCanvas: React.FC = () => {
 
         // Make canvas focusable for keyboard events
         canvas.tabIndex = 0;
-        // Set default cursor to grab
-        canvas.style.cursor = 'grab';
+        // Default cursor — updated dynamically on mousemove via get_cursor_type
+        canvas.style.cursor = 'default';
 
         // Setup ResizeObserver
         try {

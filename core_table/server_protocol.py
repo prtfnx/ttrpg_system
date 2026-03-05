@@ -14,7 +14,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from net.protocol import Message, MessageType, BatchMessage 
 from core_table.actions_core import ActionsCore
 from server_host.utils.logger import setup_logger
-from server_host.utils.roles import is_dm, is_elevated, can_interact, get_visible_layers
+from server_host.utils.roles import is_dm, is_elevated, can_interact, get_visible_layers, get_sprite_limit
 from server_host.service.asset_manager import get_server_asset_manager, AssetRequest
 from server_host.database.models import Asset, GameSession, GamePlayer
 from server_host.database.database import SessionLocal
@@ -282,6 +282,28 @@ class ServerProtocol:
         if layer in _dm_layers and not is_dm(role):
             return Message(MessageType.ERROR, {'error': 'Only DMs can create sprites on this layer'})
 
+        # Get user identity for ownership and limit enforcement
+        user_id = self._get_user_id(msg)
+
+        # Enforce per-role sprite creation limit for non-DM players
+        if not is_dm(role):
+            limit = get_sprite_limit(role)
+            if user_id is not None and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
+                from server_host.database.models import Entity
+                all_entities = self.table_manager.db_session.query(Entity).filter(Entity.controlled_by.isnot(None)).all()
+                owned_count = sum(1 for e in all_entities if user_id in json.loads(e.controlled_by or '[]'))
+                if owned_count >= limit:
+                    return Message(MessageType.ERROR, {'error': f'Sprite limit of {limit} reached for your role'})
+
+        # Set controlled_by based on who is creating the sprite
+        if isinstance(sprite_data, dict):
+            if is_dm(role):
+                # DM sprites are DM-owned; players cannot control them
+                sprite_data['controlled_by'] = json.dumps([])
+            elif user_id is not None:
+                # Player-placed sprite: creator is the only non-DM controller
+                sprite_data['controlled_by'] = json.dumps([user_id])
+
         result = await self.actions.create_sprite(table_id=table_id, sprite_data=sprite_data, session_id=session_id)
         logger.debug(f"Create sprite result: {result}")
         # Safely extract result data
@@ -297,8 +319,12 @@ class ServerProtocol:
                 except Exception:
                     sprite_data = {}
             logger.debug(f"Sprite creation result - sprite_data: {sprite_data}")
+            # Ensure table_id is embedded in sprite_data so the client can assign it
+            # to WASM sprites (without it the sprite gets table_id='default_table' and is never rendered)
+            if isinstance(sprite_data, dict):
+                sprite_data['table_id'] = table_id
             response_data = {
-                'sprite_id': sprite_data.get('sprite_id'),
+                'sprite_id': sprite_data.get('sprite_id') if isinstance(sprite_data, dict) else None,
                 'sprite_data': sprite_data
             }
             logger.debug(f"Sending sprite response: {response_data}")

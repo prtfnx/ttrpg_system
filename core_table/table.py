@@ -18,7 +18,9 @@ class Entity:
                  character_id: Optional[str] = None, controlled_by: Optional[List[int]] = None,
                  hp: Optional[int] = None, max_hp: Optional[int] = None,
                  ac: Optional[int] = None, aura_radius: Optional[float] = None,
-                 metadata: Optional[str] = None):
+                 metadata: Optional[str] = None,
+                 asset_id: Optional[str] = None,
+                 width: float = 0.0, height: float = 0.0):
         # Use entity_id consistently
         self.entity_id = entity_id
         self.id = entity_id  # Keep both for backward compatibility
@@ -26,11 +28,12 @@ class Entity:
         self.position = position
         self.layer = layer
         self.texture_path = path_to_texture
+        self.asset_id = asset_id  # R2/CDN asset hash (used as texture identifier)
         self.scale_x = 1.0
         self.scale_y = 1.0
         self.rotation = 0.0
-        self.width = 0.0
-        self.height = 0.0
+        self.width = width
+        self.height = height
         
         # Obstacle metadata (for client-side lighting/collision)
         self.obstacle_type = obstacle_type  # "rectangle", "circle", "polygon", "line", None
@@ -59,6 +62,7 @@ class Entity:
             'position': list(self.position),
             'layer': self.layer,
             'texture_path': self.texture_path,
+            'asset_id': self.asset_id,  # R2/CDN asset hash - used by client as texture_id
             'scale_x': self.scale_x,
             'scale_y': self.scale_y,
             'rotation': self.rotation,
@@ -96,7 +100,10 @@ class Entity:
             hp=data.get('hp'),
             max_hp=data.get('max_hp'),
             ac=data.get('ac'),
-            aura_radius=data.get('aura_radius')
+            aura_radius=data.get('aura_radius'),
+            asset_id=data.get('asset_id'),
+            width=float(data.get('width') or 0.0),
+            height=float(data.get('height') or 0.0),
         )
         entity.sprite_id = data.get('sprite_id', str(uuid.uuid4()))
         entity.scale_x = data.get('scale_x', 1.0)
@@ -166,7 +173,7 @@ class VirtualTable:
         layer = entity_data.get('layer', 'tokens')
         name = entity_data.get('name', 'Unnamed Entity')
         path_to_texture = entity_data.get('texture_path', None)
-        asset_id = entity_data.get('asset_id', None)
+        asset_id = entity_data.get('asset_id', None) or entity_data.get('asset_xxhash', None)
         
         # Obstacle metadata
         obstacle_type = entity_data.get('obstacle_type', None)
@@ -194,7 +201,10 @@ class VirtualTable:
                        obstacle_type=obstacle_type, obstacle_data=obstacle_data,
                        character_id=character_id, controlled_by=controlled_by,
                        hp=hp, max_hp=max_hp, ac=ac, aura_radius=aura_radius,
-                       metadata=metadata)
+                       metadata=metadata,
+                       asset_id=asset_id,
+                       width=float(entity_data.get('width') or 0.0),
+                       height=float(entity_data.get('height') or 0.0))
         
         # Apply transform properties if provided
         if 'scale_x' in entity_data:

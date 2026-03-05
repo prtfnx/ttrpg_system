@@ -101,6 +101,9 @@ class Entity(Base):
     position_y = Column(Integer, nullable=False)
     layer = Column(String(50), nullable=False)
     texture_path = Column(String(500))
+    asset_id = Column(String(100), nullable=True)  # R2/CDN asset hash used as texture identifier
+    width = Column(Float, default=0.0)
+    height = Column(Float, default=0.0)
     # Link to persistent character (nullable)
     character_id = Column(String(36), ForeignKey("session_characters.character_id"), nullable=True)
     # JSON array of user ids who can control this token (nullable)

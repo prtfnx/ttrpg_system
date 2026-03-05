@@ -44,6 +44,9 @@ class EntityBase(BaseModel):
     position_y: int
     layer: str
     texture_path: Optional[str] = None
+    asset_id: Optional[str] = None  # R2/CDN asset hash used as texture identifier
+    width: Optional[float] = None
+    height: Optional[float] = None
     scale_x: float = 1.0
     scale_y: float = 1.0
     rotation: float = 0.0
@@ -68,6 +71,9 @@ class EntityUpdate(BaseModel):
     position_y: Optional[int] = None
     layer: Optional[str] = None
     texture_path: Optional[str] = None
+    asset_id: Optional[str] = None
+    width: Optional[float] = None
+    height: Optional[float] = None
     scale_x: Optional[float] = None
     scale_y: Optional[float] = None
     rotation: Optional[float] = None

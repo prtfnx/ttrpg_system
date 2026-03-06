@@ -935,12 +935,26 @@ class ServerProtocol:
         session_code = msg.data.get('session_code', msg.data.get('session', 'default'))
         user_id = self._get_user_id(msg, client_id) or 0
 
+        role = self._get_client_role(client_id)
+        if not can_interact(role):
+            return Message(MessageType.ERROR, {'error': 'Insufficient permissions'})
+
         if not sprite_data:
             return Message(MessageType.ERROR, {'error': 'No sprite_data provided for compendium add'})
+
+        layer = sprite_data.get('layer', 'tokens') if isinstance(sprite_data, dict) else 'tokens'
+        if layer in _dm_layers and not is_dm(role):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can create sprites on this layer'})
 
         # Ensure the data includes table_id for actions.create_sprite_from_data
         sprite_data_with_table = dict(sprite_data)
         sprite_data_with_table['table_id'] = table_id
+
+        # Enforce controlled_by ownership before creation
+        if is_dm(role):
+            sprite_data_with_table['controlled_by'] = json.dumps([])
+        elif user_id:
+            sprite_data_with_table['controlled_by'] = json.dumps([user_id])
 
         try:
             # Create sprite via actions API
@@ -2440,10 +2454,29 @@ class ServerProtocol:
         table_id = msg.data.get('table_id') if msg.data else None
         if not table_id:
             return Message(MessageType.ERROR, {'error': 'table_id required'})
+
+        # Validate table exists
+        known = getattr(self.table_manager, 'tables_id', {})
+        if known and str(table_id) not in known:
+            return Message(MessageType.ERROR, {'error': f'Table {table_id} not found'})
+
+        session_code = self._get_session_code(msg)
+
+        # Broadcast before DB writes so clients switch immediately
         await self.broadcast_to_session(
             Message(MessageType.TABLE_ACTIVE_SET_ALL_RESPONSE, {'table_id': table_id}),
             client_id
         )
+
+        # Persist active table for every connected non-DM player
+        if session_code and self.session_manager and hasattr(self.session_manager, 'client_info'):
+            for cid, info in self.session_manager.client_info.items():
+                if is_dm(info.get('role', 'player')):
+                    continue
+                uid = info.get('user_id')
+                if uid:
+                    await self._set_player_active_table(int(uid), session_code, str(table_id))
+
         logger.info(f"DM {client_id} switched all players to table {table_id}")
         return Message(MessageType.SUCCESS, {'message': f'All players switched to table {table_id}'})
 

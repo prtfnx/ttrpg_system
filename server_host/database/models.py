@@ -126,6 +126,7 @@ class Entity(Base):
     max_hp = Column(Integer, nullable=True)
     ac = Column(Integer, nullable=True)
     aura_radius = Column(Float, nullable=True)
+    aura_color = Column(String(7), nullable=True)  # hex color e.g. '#ffaa00'
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -60,6 +60,7 @@ class EntityBase(BaseModel):
     max_hp: Optional[int] = None
     ac: Optional[int] = None
     aura_radius: Optional[float] = None
+    aura_color: Optional[str] = None  # hex e.g. '#ffaa00'
     metadata: Optional[str] = None
 
 class EntityCreate(EntityBase):
@@ -88,6 +89,7 @@ class EntityUpdate(BaseModel):
     max_hp: Optional[int] = None
     ac: Optional[int] = None
     aura_radius: Optional[float] = None
+    aura_color: Optional[str] = None
 
 class Entity(EntityBase):
     id: int

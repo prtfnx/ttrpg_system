@@ -394,7 +394,8 @@ def create_entity(db: Session, entity_data: schemas.EntityCreate, table_db_id: i
         hp=entity_data.hp,
         max_hp=entity_data.max_hp,
         ac=entity_data.ac,
-        aura_radius=entity_data.aura_radius
+        aura_radius=entity_data.aura_radius,
+        aura_color=getattr(entity_data, 'aura_color', None)
     )
     db.add(db_entity)
     db.commit()
@@ -538,7 +539,8 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             hp=getattr(entity_obj, 'hp', None),
             max_hp=getattr(entity_obj, 'max_hp', None),
             ac=getattr(entity_obj, 'ac', None),
-            aura_radius=getattr(entity_obj, 'aura_radius', None)
+            aura_radius=getattr(entity_obj, 'aura_radius', None),
+            aura_color=getattr(entity_obj, 'aura_color', None)
         )
         db_entity = update_entity(db, entity_obj.sprite_id, entity_update)
     else:
@@ -567,7 +569,8 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             hp=getattr(entity_obj, 'hp', None),
             max_hp=getattr(entity_obj, 'max_hp', None),
             ac=getattr(entity_obj, 'ac', None),
-            aura_radius=getattr(entity_obj, 'aura_radius', None)
+            aura_radius=getattr(entity_obj, 'aura_radius', None),
+            aura_color=getattr(entity_obj, 'aura_color', None)
         )
         db_entity = create_entity(db, entity_data, table_db_id)
     
@@ -629,6 +632,7 @@ def load_table_from_db(db: Session, table_id: str):
                 max_hp=db_entity.max_hp,
                 ac=db_entity.ac,
                 aura_radius=db_entity.aura_radius,
+                aura_color=getattr(db_entity, 'aura_color', None),
                 asset_id=getattr(db_entity, 'asset_id', None),
                 width=float(getattr(db_entity, 'width', None) or 0.0),
                 height=float(getattr(db_entity, 'height', None) or 0.0),

@@ -889,6 +889,8 @@ class ServerProtocol:
             updates['ac'] = update_data['ac']
         if 'aura_radius' in update_data:
             updates['aura_radius'] = update_data['aura_radius']
+        if 'aura_color' in update_data:
+            updates['aura_color'] = update_data['aura_color']
         
         # Apply updates via actions
         if updates:

@@ -9,7 +9,7 @@ import { ProtocolService } from '@lib/api';
 import { AlignmentHelper } from '@shared/components';
 import DiceRoller from '@shared/components/DiceRoller';
 import { AlignLeft, Circle, Crown, Flame, Folder, Minus, Move, Paintbrush, Pencil, Ruler, Search, Snowflake, Sparkles, Square, Type, User, Wrench, Zap } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { TextSpriteTool } from './TextSprite';
 import styles from './ToolsPanel.module.css';
 
@@ -47,6 +47,21 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   const sessionRole = useGameStore(s => s.sessionRole) ?? 'player';
   const dmMode = isDM(sessionRole);
   const elevatedMode = isElevated(sessionRole);
+  const tables = useGameStore(s => s.tables);
+  const activeTableId = useGameStore(s => s.activeTableId);
+  const setActiveTableId = useGameStore(s => s.setActiveTableId);
+  const [tableSwitcherOpen, setTableSwitcherOpen] = useState(false);
+  const tableSwitcherRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!tableSwitcherOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (tableSwitcherRef.current && !tableSwitcherRef.current.contains(e.target as Node))
+        setTableSwitcherOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [tableSwitcherOpen]);
   
   // Auto-detect ping state from protocol
   const [pingEnabled, setPingEnabled] = useState(() => {
@@ -334,6 +349,54 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
       )}
 
       <h2>Tools</h2>
+
+      {/* Table Switcher — DM quick navigation */}
+      {dmMode && tables && tables.length > 0 && (
+        <div ref={tableSwitcherRef} style={{ position: 'relative', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <button
+              className={styles.toolButton}
+              onClick={() => setTableSwitcherOpen(o => !o)}
+              title="Switch table"
+              style={{ flex: 1, textAlign: 'left' }}
+            >
+              🗺 {tables.find(t => t.table_id === activeTableId)?.name ?? 'Select Table'} ▾
+            </button>
+            <button
+              className={styles.toolButton}
+              title="Push current table to all players"
+              onClick={() => {
+                if (!activeTableId || !ProtocolService.hasProtocol()) return;
+                ProtocolService.getProtocol().switchAllPlayersToTable(activeTableId);
+                setTableSwitcherOpen(false);
+              }}
+            >
+              📤
+            </button>
+          </div>
+          {tableSwitcherOpen && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999,
+              background: '#2a2a2a', border: '1px solid #444', borderRadius: '4px',
+              maxHeight: '200px', overflowY: 'auto',
+            }}>
+              {tables.map(t => (
+                <button
+                  key={t.table_id}
+                  onClick={() => { setActiveTableId(t.table_id); setTableSwitcherOpen(false); }}
+                  style={{
+                    display: 'block', width: '100%', padding: '6px 10px',
+                    textAlign: 'left', background: t.table_id === activeTableId ? '#3a3a3a' : 'transparent',
+                    color: '#eee', border: 'none', cursor: 'pointer',
+                  }}
+                >
+                  {t.table_id === activeTableId ? '✓ ' : '  '}{t.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Enhanced Toolbar Section */}
       <div className={styles.toolbar}>

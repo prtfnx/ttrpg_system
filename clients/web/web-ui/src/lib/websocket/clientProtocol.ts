@@ -1020,6 +1020,10 @@ export class WebClientProtocol {
     console.log('[Protocol] TABLE_ACTIVE_SET message sent');
   }
 
+  switchAllPlayersToTable(tableId: string): void {
+    this.sendMessage(createMessage(MessageType.TABLE_ACTIVE_SET_ALL, { table_id: tableId }));
+  }
+
   requestPlayerList(): void {
     this.sendMessage(createMessage(MessageType.PLAYER_LIST_REQUEST));
   }
@@ -1276,8 +1280,9 @@ export class WebClientProtocol {
   private async handleTableActiveSetAllResponse(message: Message): Promise<void> {
     const data = message.data as Record<string, any>;
     if (data.table_id) {
-      // dispatch the event GameClient listens to, with the expected property name
       window.dispatchEvent(new CustomEvent('table-force-switch', { detail: { tableId: data.table_id } }));
+      const name = data.table_name ?? data.table_id;
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `Table switched to: ${name}`, type: 'info' } }));
     }
   }
 

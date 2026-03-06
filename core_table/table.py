@@ -18,6 +18,7 @@ class Entity:
                  character_id: Optional[str] = None, controlled_by: Optional[List[int]] = None,
                  hp: Optional[int] = None, max_hp: Optional[int] = None,
                  ac: Optional[int] = None, aura_radius: Optional[float] = None,
+                 aura_color: Optional[str] = None,
                  metadata: Optional[str] = None,
                  asset_id: Optional[str] = None,
                  width: float = 0.0, height: float = 0.0):
@@ -55,8 +56,7 @@ class Entity:
         self.max_hp = max_hp
         self.ac = ac
         self.aura_radius = aura_radius
-
-        # Generic metadata (JSON string, opaque to server — used by lights etc.)
+        self.aura_color = aura_color  # hex string e.g. '#ffaa00' (JSON string, opaque to server — used by lights etc.)
         self.metadata = metadata
 
         self.sprite_id = str(uuid.uuid4())
@@ -85,6 +85,7 @@ class Entity:
             'max_hp': self.max_hp,
             'ac': self.ac,
             'aura_radius': self.aura_radius,
+            'aura_color': self.aura_color,
             'metadata': self.metadata,
             # Legacy fields
             'character': None,
@@ -108,6 +109,7 @@ class Entity:
             max_hp=data.get('max_hp'),
             ac=data.get('ac'),
             aura_radius=data.get('aura_radius'),
+            aura_color=data.get('aura_color'),
             asset_id=data.get('asset_id'),
             width=float(data.get('width') or 0.0),
             height=float(data.get('height') or 0.0),
@@ -202,12 +204,14 @@ class VirtualTable:
         max_hp = entity_data.get('max_hp')
         ac = entity_data.get('ac')
         aura_radius = entity_data.get('aura_radius')
+        aura_color = entity_data.get('aura_color')
         metadata = entity_data.get('metadata')
         
         entity = Entity(name, position, layer, path_to_texture, self.next_entity_id,
                        obstacle_type=obstacle_type, obstacle_data=obstacle_data,
                        character_id=character_id, controlled_by=controlled_by,
                        hp=hp, max_hp=max_hp, ac=ac, aura_radius=aura_radius,
+                       aura_color=aura_color,
                        metadata=metadata,
                        asset_id=asset_id,
                        width=float(entity_data.get('width') or 0.0),

@@ -219,6 +219,9 @@ class ServerCharacterManager:
                     character_list.append({
                         'character_id': char.character_id,
                         'character_name': char.character_name,
+                        'owner_user_id': char.owner_user_id,
+                        'character_data': json.loads(char.character_data) if char.character_data else {},
+                        'version': char.version,
                         'created_at': char.created_at.isoformat(),
                         'updated_at': char.updated_at.isoformat()
                     })

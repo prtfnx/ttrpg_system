@@ -69,9 +69,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
 
   const sessionRole = useGameStore(s => s.sessionRole);
   const visibleLayers = useGameStore(s => s.visibleLayers);
-  const allowedLayerIds = isDM(sessionRole)
-    ? DEFAULT_LAYERS.map(l => l.id)
-    : visibleLayers.length > 0 ? visibleLayers : DEFAULT_LAYERS.map(l => l.id);
+  const allowedLayerIds = isDM(sessionRole) ? DEFAULT_LAYERS.map(l => l.id) : visibleLayers;
   const availableLayers = DEFAULT_LAYERS.filter(l => allowedLayerIds.includes(l.id));
   
   const renderEngine = useRenderEngine();

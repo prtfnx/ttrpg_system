@@ -60,6 +60,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
   // sessionRole is authoritative after WELCOME is received; fall back to prop until then
   const sessionRole = useGameStore(s => s.sessionRole) ?? userRole;
   const visibleLayers = useGameStore(s => s.visibleLayers);
+  const layerVisibility = useGameStore(s => s.layerVisibility);
   const userId = useGameStore(s => s.userId);
 
   // Expose protocol and active table id globally for integration points (read-only usage by components)
@@ -99,10 +100,12 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     };
   }, [protocol]);
 
-  // Set WASM GM mode based on role
+  // Set WASM GM mode based on role — call immediately when effect runs (handles re-mounts too)
   useEffect(() => {
-    if (window.rustRenderManager?.set_gm_mode) {
-      window.rustRenderManager.set_gm_mode(isDM(sessionRole));
+    const engine = window.rustRenderManager;
+    if (engine?.set_gm_mode) {
+      engine.set_gm_mode(isDM(sessionRole));
+      engine.fog_set_gm_mode?.(isDM(sessionRole));
     }
   }, [sessionRole]);
 
@@ -113,15 +116,17 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     }
   }, [userId]);
 
-  // Sync WASM layer visibility with role-based visible layers
+  // Sync WASM layer visibility — role gates + user toggles both apply
   useEffect(() => {
     const engine = window.rustRenderManager;
     if (!engine?.set_layer_visibility) return;
     const allowed = new Set(isDM(sessionRole) ? ALL_LAYERS : visibleLayers);
     for (const layer of ALL_LAYERS) {
-      engine.set_layer_visibility(layer, allowed.has(layer));
+      const roleAllows = allowed.has(layer);
+      const userToggle = layerVisibility[layer] ?? true;
+      engine.set_layer_visibility(layer, roleAllows && userToggle);
     }
-  }, [sessionRole, visibleLayers]);
+  }, [sessionRole, visibleLayers, layerVisibility]);
 
   // Vision service: run for non-DMs to compute LOS; stop for DMs (they see all)
   useEffect(() => {
@@ -141,6 +146,29 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     };
     window.addEventListener('table-force-switch', handler);
     return () => window.removeEventListener('table-force-switch', handler);
+  }, []);
+
+  // Apply fog updates received from other clients in real-time
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as Record<string, any>;
+      if (!detail || detail.type !== 'fog_update') return;
+      const engine = window.rustRenderManager;
+      if (!engine) return;
+      const data = detail.data as Record<string, any>;
+      if (!data) return;
+      engine.clear_fog?.();
+      const hideRects: Array<[[number, number], [number, number]]> = data.hide_rectangles ?? [];
+      const revealRects: Array<[[number, number], [number, number]]> = data.reveal_rectangles ?? [];
+      hideRects.forEach(([start, end], i) =>
+        engine.add_fog_rectangle?.(`hide_${i}`, start[0], start[1], end[0], end[1], 'hide')
+      );
+      revealRects.forEach(([start, end], i) =>
+        engine.add_fog_rectangle?.(`reveal_${i}`, start[0], start[1], end[0], end[1], 'reveal')
+      );
+    };
+    window.addEventListener('table-updated', handler);
+    return () => window.removeEventListener('table-updated', handler);
   }, []);
 
   // Handle authentication errors

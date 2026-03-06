@@ -283,7 +283,7 @@ class ServerProtocol:
             return Message(MessageType.ERROR, {'error': 'Only DMs can create sprites on this layer'})
 
         # Get user identity for ownership and limit enforcement
-        user_id = self._get_user_id(msg)
+        user_id = self._get_user_id(msg, client_id)
 
         # Enforce per-role sprite creation limit for non-DM players
         if not is_dm(role):
@@ -395,7 +395,7 @@ class ServerProtocol:
         if not can_interact(role):
             return Message(MessageType.ERROR, {'error': 'Spectators cannot move sprites'})
         if not is_dm(role):
-            user_id_check = self._get_user_id(msg)
+            user_id_check = self._get_user_id(msg, client_id)
             if not await self._can_control_sprite(sprite_id, user_id_check):
                 return Message(MessageType.ERROR, {'error': 'You do not control this sprite'})
 
@@ -456,7 +456,7 @@ class ServerProtocol:
         if not can_interact(role):
             return Message(MessageType.ERROR, {'error': 'Spectators cannot modify sprites'})
         if not is_dm(role):
-            if not await self._can_control_sprite(sprite_id, self._get_user_id(msg)):
+            if not await self._can_control_sprite(sprite_id, self._get_user_id(msg, client_id)):
                 return Message(MessageType.ERROR, {'error': 'You do not control this sprite'})
         session_id = self._get_session_id(msg)
         result = await self.actions.update_sprite(table_id, sprite_id, session_id=session_id, width=width, height=height)
@@ -500,8 +500,15 @@ class ServerProtocol:
         if not can_interact(role):
             return Message(MessageType.ERROR, {'error': 'Spectators cannot modify sprites'})
         if not is_dm(role):
-            if not await self._can_control_sprite(sprite_id, self._get_user_id(msg)):
+            if not await self._can_control_sprite(sprite_id, self._get_user_id(msg, client_id)):
                 return Message(MessageType.ERROR, {'error': 'You do not control this sprite'})
+        session_id = self._get_session_id(msg)
+        result = await self.actions.rotate_sprite(
+            table_id=table_id,
+            sprite_id=sprite_id,
+            angle=rotation,
+            session_id=session_id
+        )
         if result.success:
             response_data = {
                 'sprite_id': sprite_id,
@@ -656,7 +663,7 @@ class ServerProtocol:
                 table_data = table_obj
             else:
                 table_data = {}
-            await self.ensure_assets_in_r2(table_data, msg.data.get('session_code', 'default'), msg.data.get('user_id', 0))
+            await self.ensure_assets_in_r2(table_data, msg.data.get('session_code', 'default'), self._get_user_id(msg, client_id) or 0)
             logger.info(f"Processing table {table_name} with {len(table_data.get('layers', {}))} layers")
             
             if local_table_id:
@@ -693,7 +700,7 @@ class ServerProtocol:
             return Message(MessageType.ERROR, {'error': 'No data provided in table request'})
         table_name = msg.data.get('table_name', 'default')
         table_id = msg.data.get('table_id', table_name)
-        user_id = msg.data.get('user_id', 0)
+        user_id = self._get_user_id(msg, client_id) or 0
         logger.info(f"Current tables: {self.table_manager.tables.items()}")
         result = await self.actions.get_table(table_id)
         
@@ -840,7 +847,7 @@ class ServerProtocol:
             return Message(MessageType.ERROR, {'error': 'Missing sprite_id'})
         
         # Permission validation
-        user_id = self._get_user_id(msg)
+        user_id = self._get_user_id(msg, client_id)
         if not await self._can_control_sprite(sprite_id, user_id):
             logger.warning(f"User {user_id} attempted to update sprite {sprite_id} without permission")
             return Message(MessageType.ERROR, {'error': 'Permission denied: you cannot control this sprite'})
@@ -926,7 +933,7 @@ class ServerProtocol:
         table_id = msg.data.get('table_id') or msg.data.get('table_name') or 'default'
         sprite_data = msg.data.get('sprite_data')
         session_code = msg.data.get('session_code', msg.data.get('session', 'default'))
-        user_id = msg.data.get('user_id', 0)
+        user_id = self._get_user_id(msg, client_id) or 0
 
         if not sprite_data:
             return Message(MessageType.ERROR, {'error': 'No sprite_data provided for compendium add'})
@@ -1048,7 +1055,7 @@ class ServerProtocol:
             file_size = msg.data.get('file_size')
             content_type = msg.data.get('content_type')
             session_code = msg.data.get('session_code', 'default')
-            user_id = msg.data.get('user_id', 0)
+            user_id = self._get_user_id(msg, client_id) or 0
             username = msg.data.get('username', 'unknown')
             asset_id = msg.data.get('asset_id')  # Client-generated based on xxHash
             file_xxhash = msg.data.get('xxhash')  # xxHash from client
@@ -1104,7 +1111,7 @@ class ServerProtocol:
             # Extract request data
             asset_id = msg.data.get('asset_id')
             session_code = msg.data.get('session_code', 'default')
-            user_id = msg.data.get('user_id', 0)
+            user_id = self._get_user_id(msg, client_id) or 0
             username = msg.data.get('username', 'unknown')
             
             if not asset_id:
@@ -1167,7 +1174,7 @@ class ServerProtocol:
             asset_id = msg.data.get('asset_id')
             upload_success = msg.data.get('success', True)
             error_message = msg.data.get('error')
-            user_id = msg.data.get('user_id', 0)
+            user_id = self._get_user_id(msg, client_id) or 0
             username = msg.data.get('username', 'unknown')
             
             if not asset_id:
@@ -1507,61 +1514,104 @@ class ServerProtocol:
             logger.error(f"Error getting session_id: {e}")
             return None
     
-    def _get_user_id(self, msg: Message) -> Optional[int]:
-        """Extract user_id from message data"""
-        if not msg.data:
-            return None
-        return msg.data.get('user_id')
+    def _get_user_id(self, msg: Message, client_id: Optional[str] = None) -> Optional[int]:
+        """Return the authenticated user_id for the sending client.
+
+        We intentionally read from server-side client_info (populated at
+        WebSocket authentication time) rather than from msg.data so that
+        a malicious client cannot impersonate another user by sending a
+        fake user_id in the message payload.
+        """
+        # Prefer authoritative connection metadata
+        if client_id is not None:
+            uid = self._get_client_info(client_id).get('user_id')
+            if uid is not None:
+                return int(uid)
+        # Fallback for call-sites that still pass msg only (legacy)
+        if msg.data:
+            uid = msg.data.get('user_id')
+            if uid is not None:
+                return int(uid)
+        return None
     
     async def _can_control_sprite(self, sprite_id: str, user_id: Optional[int]) -> bool:
-        """Check if user can control sprite based on controlled_by field"""
+        """Check if user can control (move/resize/rotate) a sprite.
+
+        Authoritative check order:
+        1. If user_id is unknown (unauthenticated), deny immediately.
+        2. Check the in-memory VirtualTable entity first — it is always
+           up-to-date, even for sprites just created before the first DB flush.
+        3. Fall back to the DB entity record.
+        The function fails *closed*: any exception → deny.
+        """
+        if user_id is None:
+            logger.warning(f'_can_control_sprite: no user_id for sprite {sprite_id} — denying')
+            return False
+
         try:
-            # If no user_id provided, allow operation (for now, could change for production)
-            if user_id is None:
-                return True
-            
-            # Get sprite from database
+            # ── 1. In-memory check (covers freshly created sprites) ──────────
+            for table in (self.table_manager.tables.values()
+                          if hasattr(self.table_manager, 'tables') else []):
+                entity = table.find_entity_by_sprite_id(sprite_id)
+                if entity is not None:
+                    cb = entity.controlled_by  # always a list after Entity.__init__
+                    # controlled_by == [] means DM-only
+                    if not cb:
+                        return False
+                    if user_id in cb:
+                        return True
+                    # Check numerically in case of int/str mismatch
+                    if any(int(x) == user_id for x in cb if str(x).lstrip('-').isdigit()):
+                        return True
+                    # Entity exists in memory but user is not in controlled_by
+                    return False
+
+            # ── 2. DB fallback (for tables not in memory, e.g. persistence queries) ─
             if hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
                 from server_host.database import crud
-                entity = crud.get_entity_by_sprite_id(self.table_manager.db_session, sprite_id)
-                
-                if not entity:
+                entity_db = crud.get_entity_by_sprite_id(self.table_manager.db_session, sprite_id)
+                if entity_db is None:
+                    # Sprite unknown to DB — deny
                     return False
-                
-                # Parse controlled_by JSON
-                if entity.controlled_by:
-                    try:
-                        controlled_by = json.loads(entity.controlled_by)
-                        if user_id in controlled_by:
-                            return True
-                    except:
-                        pass
-                
-                # Check character permissions if linked
-                if entity.character_id:
+
+                # controlled_by stored as JSON string in DB
+                try:
+                    controlled_by = json.loads(entity_db.controlled_by or '[]')
+                except Exception:
+                    controlled_by = []
+
+                if not controlled_by:
+                    # Empty list → DM-only sprite
+                    return False
+                if user_id in controlled_by:
+                    return True
+                if any(int(x) == user_id for x in controlled_by if str(x).lstrip('-').isdigit()):
+                    return True
+
+                # Check character ownership if sprite is linked to a character
+                if entity_db.character_id:
                     from server_host.database.models import SessionCharacter
                     character = self.table_manager.db_session.query(SessionCharacter).filter_by(
-                        character_id=entity.character_id
+                        character_id=entity_db.character_id
                     ).first()
                     if character:
-                        # Check if user owns the character
                         if character.owner_user_id == user_id:
                             return True
-                        # Check if user is in controlled_by list (character level)
                         try:
-                            char_controlled_by = json.loads(character.controlled_by or '[]')
-                            if user_id in char_controlled_by:
+                            char_cb = json.loads(character.controlled_by or '[]')
+                            if user_id in char_cb:
                                 return True
-                        except:
+                        except Exception:
                             pass
-                
+
                 return False
-            
-            # Fallback: allow if no database (development mode)
-            return True
+
+            # No DB and sprite not found in memory → deny
+            return False
+
         except Exception as e:
-            logger.error(f"Error checking sprite control permissions: {e}")
-            return True  # Fail open for now
+            logger.error(f'_can_control_sprite: unexpected error for sprite {sprite_id}, user {user_id}: {e}')
+            return False  # Fail closed
 
     async def _sync_character_stats_to_tokens(self, session_id: int, character_id: str, updates: dict):
         """
@@ -1804,7 +1854,7 @@ class ServerProtocol:
         
         character_data = msg.data.get('character_data')
         session_code = msg.data.get('session_code', 'unknown')
-        user_id = msg.data.get('user_id', 0)
+        user_id = self._get_user_id(msg, client_id) or 0
         
         if not character_data:
             return Message(MessageType.CHARACTER_SAVE_RESPONSE, {
@@ -1855,7 +1905,7 @@ class ServerProtocol:
         
         character_id = msg.data.get('character_id')
         session_code = msg.data.get('session_code', 'unknown')
-        user_id = msg.data.get('user_id', 0)
+        user_id = self._get_user_id(msg, client_id) or 0
         
         if not character_id:
             return Message(MessageType.CHARACTER_LOAD_RESPONSE, {
@@ -1896,7 +1946,7 @@ class ServerProtocol:
             })
         
         session_code = msg.data.get('session_code', 'unknown')
-        user_id = msg.data.get('user_id', 0)
+        user_id = self._get_user_id(msg, client_id) or 0
         
         # Get session_id from session_code
         session_id = self._get_session_id(msg)
@@ -1935,7 +1985,7 @@ class ServerProtocol:
         
         character_id = msg.data.get('character_id')
         session_code = msg.data.get('session_code', 'unknown')
-        user_id = msg.data.get('user_id', 0)
+        user_id = self._get_user_id(msg, client_id) or 0
         
         if not character_id:
             return Message(MessageType.CHARACTER_DELETE_RESPONSE, {
@@ -1983,7 +2033,7 @@ class ServerProtocol:
         character_id = msg.data.get('character_id')
         updates = msg.data.get('updates') or msg.data.get('character_data')
         version = msg.data.get('version')
-        user_id = msg.data.get('user_id', 0)
+        user_id = self._get_user_id(msg, client_id) or 0
         session_id = self._get_session_id(msg)
 
         if not character_id or not updates:
@@ -2329,7 +2379,7 @@ class ServerProtocol:
     async def handle_table_active_request(self, msg: Message, client_id: str) -> Message:
         """Handle request for user's active table"""
         try:
-            user_id = self._get_user_id(msg)
+            user_id = self._get_user_id(msg, client_id)
             session_code = self._get_session_code(msg)
             
             logger.info(f"Active table request from user {user_id} in session {session_code}")
@@ -2359,7 +2409,7 @@ class ServerProtocol:
     async def handle_table_active_set(self, msg: Message, client_id: str) -> Message:
         """Handle setting user's active table"""
         try:
-            user_id = self._get_user_id(msg)
+            user_id = self._get_user_id(msg, client_id)
             session_code = self._get_session_code(msg)
             table_id = msg.data.get('table_id') if msg.data else None
             

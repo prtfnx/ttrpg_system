@@ -359,11 +359,15 @@ export const useGameStore = create<GameStore>()(
         if (isDM(state.sessionRole)) return true;
         const sprite = state.sprites.find((s: any) => s.id === spriteId);
         if (!sprite) return false;
-        if (userId === undefined) return Array.isArray(sprite.controlledBy) && sprite.controlledBy.length > 0;
-        if (sprite.controlledBy && sprite.controlledBy.includes(String(userId))) return true;
+        const cb: number[] = Array.isArray(sprite.controlledBy)
+          ? sprite.controlledBy.map(Number)
+          : [];
+        if (userId === undefined) return cb.length > 0;
+        if (cb.length === 0) return false; // no controlled_by = DM-only
+        if (cb.includes(userId)) return true;
         const character = state.getCharacterForSprite(spriteId);
         if (!character) return false;
-        return character.ownerId === userId || (Array.isArray(character.controlledBy) && character.controlledBy.includes(userId));
+        return character.ownerId === userId;
       },
 
       canEditCharacter: (characterId: string, userId?: number) => {

@@ -2443,6 +2443,39 @@ impl RenderEngine {
                 self.lighting.remove_light(&light_id);
                 self.layer_manager.remove_sprite(&update_data.sprite_id);
             }
+            "sprite_aura_update" | "sprite_update" => {
+                // Handle runtime aura radius/color changes
+                let light_id = format!("token_light_{}", update_data.sprite_id);
+                let sid = &update_data.sprite_id;
+                if let Some(radius_val) = update_data.data.get("aura_radius") {
+                    let radius = radius_val.as_f64().unwrap_or(0.0);
+                    if radius > 0.0 {
+                        if self.lighting.get_light_mut(&light_id).is_some() {
+                            if let Some(l) = self.lighting.get_light_mut(&light_id) {
+                                l.set_radius(radius as f32);
+                            }
+                        } else if let Some((sprite, _)) = self.layer_manager.find_sprite(sid) {
+                            let cx = (sprite.world_x + 25.0) as f32;
+                            let cy = (sprite.world_y + 25.0) as f32;
+                            let active_table = self.table_manager.get_active_table_id()
+                                .unwrap_or_else(|| "default_table".to_string());
+                            let mut light = crate::lighting::Light::new(light_id.clone(), cx, cy);
+                            light.table_id = active_table;
+                            light.set_radius(radius as f32);
+                            self.lighting.add_light(light);
+                        }
+                    } else {
+                        self.lighting.remove_light(&light_id);
+                    }
+                }
+                if let Some(color_str) = update_data.data.get("aura_color").and_then(|v| v.as_str()) {
+                    if let Some(color) = parse_hex_color(color_str) {
+                        if let Some(l) = self.lighting.get_light_mut(&light_id) {
+                            l.set_color(color);
+                        }
+                    }
+                }
+            }
             _ => {
                 web_sys::console::warn_1(&format!("Unknown sprite update type: {}", update_data.update_type).into());
             }

@@ -38,6 +38,8 @@ pub struct Sprite {
     pub max_hp: Option<i32>,
     pub ac: Option<i32>,
     pub aura_radius: Option<f64>,
+    #[serde(default)]
+    pub aura_color: Option<String>,
     
     // Text sprite fields
     pub is_text_sprite: Option<bool>,
@@ -67,6 +69,7 @@ impl Sprite {
             max_hp: None,
             ac: None,
             aura_radius: None,
+            aura_color: None,
             is_text_sprite: None,
             text_content: None,
             text_size: None,

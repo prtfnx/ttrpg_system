@@ -23,6 +23,15 @@ use crate::utils;
 use crate::table_sync::TableSync;
 use crate::table_manager::TableManager;
 
+fn parse_hex_color(hex: &str) -> Option<crate::types::Color> {
+    let s = hex.trim_start_matches('#');
+    if s.len() != 6 { return None; }
+    let r = u8::from_str_radix(&s[0..2], 16).ok()? as f32 / 255.0;
+    let g = u8::from_str_radix(&s[2..4], 16).ok()? as f32 / 255.0;
+    let b = u8::from_str_radix(&s[4..6], 16).ok()? as f32 / 255.0;
+    Some(crate::types::Color::new(r, g, b, 1.0))
+}
+
 #[wasm_bindgen]
 pub struct RenderEngine {
     // Systems
@@ -597,8 +606,9 @@ impl RenderEngine {
             && uid_opt.is_some()
             && selected_id.as_deref()
                 .and_then(|id| self.layer_manager.find_sprite(id))
-                .map(|(s, _)| !s.controlled_by.is_empty() && !s.controlled_by.contains(&uid_opt.unwrap()))
-                .unwrap_or(false);
+                // empty controlled_by = DM-only token; non-empty but excludes user = also blocked
+                .map(|(s, _)| s.controlled_by.is_empty() || !s.controlled_by.contains(&uid_opt.unwrap()))
+                .unwrap_or(true);
         if block_drag {
             self.input.input_mode = InputMode::None;
             self.input.selected_sprite_id = None;
@@ -2300,6 +2310,7 @@ impl RenderEngine {
         let character_id = sprite_data.character_id.clone();
         let controlled_by = sprite_data.controlled_by.clone().unwrap_or_default();
         let aura_radius = sprite_data.aura_radius;
+        let aura_color = sprite_data.aura_color.clone();
 
         let sprite = Sprite {
             id: sprite_data.sprite_id.clone(),
@@ -2320,6 +2331,7 @@ impl RenderEngine {
             max_hp: sprite_data.max_hp,
             ac: sprite_data.ac,
             aura_radius,
+            aura_color: aura_color.clone(),
             is_text_sprite: None,
             text_content: None,
             text_size: None,
@@ -2338,6 +2350,11 @@ impl RenderEngine {
             let mut light = crate::lighting::Light::new(light_id, cx, cy);
             light.table_id = active_table;
             light.set_radius(radius as f32);
+            if let Some(hex) = aura_color {
+                if let Some(color) = parse_hex_color(&hex) {
+                    light.set_color(color);
+                }
+            }
             self.lighting.add_light(light);
         }
 
@@ -2386,6 +2403,10 @@ impl RenderEngine {
                     if let (Some(x), Some(y)) = (to.get("x"), to.get("y")) {
                         let new_pos = Vec2::new(x.as_f64().unwrap_or(0.0) as f32, y.as_f64().unwrap_or(0.0) as f32);
                         self.layer_manager.update_sprite_position(&update_data.sprite_id, new_pos);
+                        // Keep token light centered on the sprite
+                        let light_id = format!("token_light_{}", update_data.sprite_id);
+                        let center = Vec2::new(new_pos.x + 25.0, new_pos.y + 25.0);
+                        self.lighting.update_light_position(&light_id, center);
                     }
                 }
             }
@@ -2417,7 +2438,9 @@ impl RenderEngine {
                 }
             }
             "sprite_remove" => {
-                // Handle sprite deletion
+                // Clean up token light before removing the sprite
+                let light_id = format!("token_light_{}", update_data.sprite_id);
+                self.lighting.remove_light(&light_id);
                 self.layer_manager.remove_sprite(&update_data.sprite_id);
             }
             _ => {

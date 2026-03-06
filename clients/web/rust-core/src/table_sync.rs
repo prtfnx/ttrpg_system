@@ -102,6 +102,8 @@ pub struct SpriteData {
     pub ac: Option<i32>,
     #[serde(default)]
     pub aura_radius: Option<f64>,
+    #[serde(default)]
+    pub aura_color: Option<String>,
     
     #[serde(default)]
     pub moving: bool,

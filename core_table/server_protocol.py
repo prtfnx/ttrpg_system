@@ -2464,9 +2464,12 @@ class ServerProtocol:
 
         session_code = self._get_session_code(msg)
 
+        table_obj = known.get(str(table_id))
+        table_name = getattr(table_obj, 'display_name', str(table_id))
+
         # Broadcast before DB writes so clients switch immediately
         await self.broadcast_to_session(
-            Message(MessageType.TABLE_ACTIVE_SET_ALL_RESPONSE, {'table_id': table_id}),
+            Message(MessageType.TABLE_ACTIVE_SET_ALL_RESPONSE, {'table_id': table_id, 'table_name': table_name}),
             client_id
         )
 

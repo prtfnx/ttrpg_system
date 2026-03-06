@@ -7,8 +7,8 @@
 
 import { useGameStore } from '@/store';
 import { authService } from '@features/auth';
-import { useProtocol } from '@lib/api';
 import { isDM } from '@features/session/types/roles';
+import { useProtocol } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
 import React from 'react';
 import { toast } from 'react-toastify';
@@ -50,6 +50,25 @@ class WasmBridgeService {
 
   setProtocol(protocol: any) {
     this.protocol = protocol;
+  }
+
+  /**
+   * Seed committed state for a sprite from authoritative server data.
+   * Must be called whenever the server sends confirmed sprite state
+   * (table load, confirmed move/scale/rotate) so that permission-denied
+   * reverts always have a baseline position to snap the sprite back to.
+   */
+  seedSpriteState(spriteId: string, state: { x?: number; y?: number; width?: number; height?: number; rotation?: number }): void {
+    if (!spriteId) return;
+    if (state.x !== undefined && state.y !== undefined) {
+      this.committedPositions.set(spriteId, { x: state.x, y: state.y });
+    }
+    if (state.width !== undefined && state.height !== undefined) {
+      this.committedSizes.set(spriteId, { width: state.width, height: state.height });
+    }
+    if (state.rotation !== undefined) {
+      this.committedRotations.set(spriteId, state.rotation);
+    }
   }
 
   cleanup() {

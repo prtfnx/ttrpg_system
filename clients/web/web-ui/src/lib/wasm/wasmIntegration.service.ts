@@ -6,6 +6,7 @@
 import { useGameStore } from '@/store';
 import { tableThumbnailService } from '@features/table/services/tableThumbnail.service';
 import type { RenderEngine } from '@lib/wasm/wasm';
+import { wasmBridgeService } from './wasmBridge';
 
 class WasmIntegrationService {
   private renderEngine: RenderEngine | null = null;
@@ -875,17 +876,26 @@ class WasmIntegrationService {
 
       // Use efficient position update if we have position data
       // Handle both server response format (data.to) and direct format (data.x/y)
+      let movedPos: { x: number; y: number } | null = null;
       if (data.to) {
         this.updateSpritePosition(spriteId, data.to);
+        movedPos = data.to;
       } else if (data.position) {
         this.updateSpritePosition(spriteId, data.position);
+        movedPos = data.position;
       } else if (data.x !== undefined && data.y !== undefined) {
         this.updateSpritePosition(spriteId, { x: data.x, y: data.y });
+        movedPos = { x: data.x, y: data.y };
       } else {
         // Fallback to full update
         this.updateSpriteInWasm(data);
       }
-      
+
+      // Server-confirmed position → update committed baseline in bridge
+      if (movedPos) {
+        wasmBridgeService.seedSpriteState(spriteId, { x: movedPos.x, y: movedPos.y });
+      }
+
       // Invalidate thumbnail cache for the table
       const tableId = data.table_id;
       if (tableId) {
@@ -906,6 +916,8 @@ class WasmIntegrationService {
       }
       if (data.width !== undefined && data.height !== undefined) {
         this.resizeSpriteInWasm(spriteId, data.width, data.height);
+        // Server-confirmed size → update committed baseline in bridge
+        wasmBridgeService.seedSpriteState(spriteId, { width: data.width, height: data.height });
       } else {
         console.warn('Resize requires width and height - skipping to prevent corruption');
       }
@@ -922,6 +934,8 @@ class WasmIntegrationService {
       const spriteId = data.sprite_id || data.id || data.spriteId;
       if (spriteId && typeof data.rotation === 'number') {
         this.updateSpriteRotation(spriteId, data.rotation);
+        // Server-confirmed rotation → update committed baseline in bridge
+        wasmBridgeService.seedSpriteState(spriteId, { rotation: data.rotation });
       }
     } catch (error) {
       console.error('Failed to rotate sprite in WASM:', error);
@@ -1088,7 +1102,17 @@ class WasmIntegrationService {
       // Add sprite to WASM engine
       const addedSpriteId = this.renderEngine.add_sprite_to_layer(layer, wasmSprite);
       console.log('Successfully added sprite to WASM:', addedSpriteId, wasmSprite);
-      
+
+      // Seed committed state so permission-denied reverts always have a baseline to
+      // snap back to, even for sprites that arrived via table load (not local action)
+      wasmBridgeService.seedSpriteState(wasmSprite.id, {
+        x: wasmSprite.world_x,
+        y: wasmSprite.world_y,
+        width: wasmSprite.width,
+        height: wasmSprite.height,
+        rotation: wasmSprite.rotation,
+      });
+
       // Also add sprite to Zustand store to preserve character_id and other metadata
       try {
         const storeSprite = {

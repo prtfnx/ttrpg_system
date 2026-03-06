@@ -175,7 +175,7 @@ impl FogOfWarSystem {
                 if (fogValue > 0.5) {
                     // Fogged area
                     if (u_is_gm) {
-                        fragColor = vec4(0.5, 0.5, 0.5, 0.3); // Semi-transparent gray for GM
+                        fragColor = vec4(0.5, 0.5, 0.5, 0.4); // 60% transparent gray for GM
                     } else {
                         fragColor = vec4(0.0, 0.0, 0.0, 1.0); // Opaque black for players
                     }

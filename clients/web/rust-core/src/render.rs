@@ -65,6 +65,7 @@ pub struct RenderEngine {
     background_color: [f32; 4], // RGBA background color
     is_gm: bool,
     current_user_id: Option<i32>,
+    active_layer: String,
 }
 
 #[wasm_bindgen]
@@ -169,6 +170,7 @@ impl RenderEngine {
             background_color: [0.1, 0.1, 0.1, 1.0], // Default dark gray background
             is_gm: false,
             current_user_id: None,
+            active_layer: "tokens".to_string(),
         };
         
         // ===== MANDATORY TABLE CREATION =====
@@ -236,7 +238,7 @@ impl RenderEngine {
             self.background_color[3]
         );
         
-        // ===== GRID RENDERING (TABLE-BOUNDED) =====
+        // ===== TABLE & VIEWPORT BOUNDS =====
         // Get what the camera can see (viewport in world coords)
         let viewport_bounds = self.get_world_view_bounds();
         
@@ -251,24 +253,22 @@ impl RenderEngine {
             th as f32,
         );
         
-        // Grid only drawn where viewport intersects table
+        // Compute grid bounds (for use after map layer render)
         let intersect_min_x = viewport_bounds.min.x.max(table_bounds.min.x);
         let intersect_min_y = viewport_bounds.min.y.max(table_bounds.min.y);
         let intersect_max_x = viewport_bounds.max.x.min(table_bounds.max.x);
         let intersect_max_y = viewport_bounds.max.y.min(table_bounds.max.y);
-        
-        // Only draw grid if there's overlap between viewport and table
-        if intersect_max_x > intersect_min_x && intersect_max_y > intersect_min_y {
-            let grid_draw_bounds = Rect::new(
+        let grid_draw_bounds = if intersect_max_x > intersect_min_x && intersect_max_y > intersect_min_y {
+            Some(Rect::new(
                 intersect_min_x,
                 intersect_min_y,
                 intersect_max_x - intersect_min_x,
                 intersect_max_y - intersect_min_y,
-            );
-            self.grid_system.draw_grid(&self.renderer, grid_draw_bounds)?;
-        }
-        // else: viewport doesn't overlap table, no grid to draw
-        
+            ))
+        } else {
+            None
+        };
+
         // Sort layers by z_order
         let mut sorted_layers: Vec<_> = self.layer_manager.get_layers().iter().collect();
         sorted_layers.sort_by_key(|(_, layer)| layer.settings.z_order);
@@ -277,16 +277,42 @@ impl RenderEngine {
         let active_table_id = self.table_manager.get_active_table_id()
             .expect("CRITICAL: No active table ID during rendering! Table-centric architecture requires a table to exist.");
 
-        // Render all layers except light and fog_of_war layers (they have special handling)
-        for (layer_name, layer) in sorted_layers {
-            if layer.settings.visible && layer_name != "light" && layer_name != "fog_of_war" {
+        let active_layer = self.active_layer.clone();
+
+        // ===== STEP 1: Render MAP layer first (background, below grid) =====
+        for (layer_name, layer) in &sorted_layers {
+            if *layer_name == "map" && layer.settings.visible {
                 self.renderer.set_blend_mode(&layer.settings.blend_mode);
                 self.renderer.set_layer_color(&layer.settings.color);
+                let effective_opacity = Self::get_effective_layer_opacity(layer_name, layer.settings.opacity, &active_layer);
+                for sprite in &layer.sprites {
+                    if sprite.table_id == active_table_id {
+                        SpriteRenderer::draw_sprite(sprite, effective_opacity, &self.renderer, &self.texture_manager, &self.text_renderer, &self.input, self.camera.zoom)?;
+                    }
+                }
+            }
+        }
+
+        // ===== STEP 2: Draw grid on top of map layer =====
+        if let Some(bounds) = grid_draw_bounds {
+            self.grid_system.draw_grid(&self.renderer, bounds)?;
+        }
+
+        // ===== STEP 3: Render remaining layers (excluding map, light, fog_of_war) =====
+        for (layer_name, layer) in &sorted_layers {
+            if layer.settings.visible
+                && *layer_name != "map"
+                && *layer_name != "light"
+                && *layer_name != "fog_of_war"
+            {
+                self.renderer.set_blend_mode(&layer.settings.blend_mode);
+                self.renderer.set_layer_color(&layer.settings.color);
+                let effective_opacity = Self::get_effective_layer_opacity(layer_name, layer.settings.opacity, &active_layer);
                 
                 // Only render sprites that belong to the active table
                 for sprite in &layer.sprites {
                     if sprite.table_id == active_table_id {
-                        SpriteRenderer::draw_sprite(sprite, layer.settings.opacity, &self.renderer, &self.texture_manager, &self.text_renderer, &self.input, self.camera.zoom)?;
+                        SpriteRenderer::draw_sprite(sprite, effective_opacity, &self.renderer, &self.texture_manager, &self.text_renderer, &self.input, self.camera.zoom)?;
                     }
                 }
             }
@@ -364,6 +390,28 @@ impl RenderEngine {
         let min = self.camera.screen_to_world(Vec2::new(0.0, 0.0));
         let max = self.camera.screen_to_world(self.canvas_size);
         Rect::new(min.x, min.y, max.x - min.x, max.y - min.y)
+    }
+
+    /// Returns the effective opacity for a layer based on which layer is currently active.
+    /// Some layers are dimmed when they are not the selected/active layer.
+    fn get_effective_layer_opacity(layer_name: &str, base_opacity: f32, active_layer: &str) -> f32 {
+        let is_active = layer_name == active_layer;
+        match layer_name {
+            // DM layer: 50% transparent (0.5 opacity) when not active, full when active
+            "dungeon_master" => {
+                if is_active { base_opacity } else { base_opacity * 0.5 }
+            }
+            // Height layer: 50% transparent when not active
+            "height" => {
+                if is_active { base_opacity } else { base_opacity * 0.5 }
+            }
+            // Obstacle layer: 70% transparent (0.3 opacity) when not active
+            "obstacles" => {
+                if is_active { base_opacity } else { base_opacity * 0.3 }
+            }
+            // Map, tokens, light — always use base opacity
+            _ => base_opacity,
+        }
     }
     
     #[wasm_bindgen]
@@ -1073,6 +1121,16 @@ impl RenderEngine {
     pub fn set_gm_mode(&mut self, is_gm: bool) {
         self.is_gm = is_gm;
         self.fog.set_gm_mode(is_gm);
+    }
+
+    #[wasm_bindgen]
+    pub fn set_active_layer(&mut self, layer_name: &str) {
+        self.active_layer = layer_name.to_string();
+    }
+
+    #[wasm_bindgen]
+    pub fn get_active_layer(&self) -> String {
+        self.active_layer.clone()
     }
 
     #[wasm_bindgen]

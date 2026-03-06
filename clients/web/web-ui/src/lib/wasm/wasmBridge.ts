@@ -6,7 +6,9 @@
  */
 
 import { useGameStore } from '@/store';
+import { authService } from '@features/auth';
 import { useProtocol } from '@lib/api';
+import { isDM } from '@features/session/types/roles';
 import { createMessage, MessageType } from '@lib/websocket';
 import React from 'react';
 import { toast } from 'react-toastify';
@@ -88,6 +90,24 @@ class WasmBridgeService {
   private onWasmOperation = (e: Event) => {
     const { operation, spriteId, data } = (e as CustomEvent).detail;
     if (!this.protocol || !spriteId || !operation) return;
+
+    // Permission check: only DM/co-DM can move ownerless sprites;
+    // players may only move sprites that list them in controlled_by.
+    const { canControlSprite, sessionRole } = useGameStore.getState();
+    if (!isDM(sessionRole)) {
+      const userId = authService.getUserInfo()?.id;
+      if (!canControlSprite(spriteId, userId)) {
+        console.warn('[WasmBridge] Permission denied: cannot control sprite', spriteId);
+        // Revert the optimistic WASM move back to last committed state
+        const originalState = this.snapshotCommitted(spriteId, operation as Operation);
+        if (Object.keys(originalState).length > 0) {
+          window.dispatchEvent(new CustomEvent('sprite-revert', {
+            detail: { spriteId, operation, originalState, reason: 'permission_denied' }
+          }));
+        }
+        return;
+      }
+    }
 
     const actionId = `a${++this.nextActionId}`;
     const originalState = this.snapshotCommitted(spriteId, operation as Operation);

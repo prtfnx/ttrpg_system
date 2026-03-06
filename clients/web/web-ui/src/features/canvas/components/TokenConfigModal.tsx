@@ -34,7 +34,11 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
     const handler = (e: Event) => {
       const players = (e as CustomEvent).detail?.players;
       if (Array.isArray(players)) {
-        setSessionPlayers(players.map((p: any) => ({ id: String(p.id), name: p.name || `User #${p.id}` })));
+        // Server returns { user_id, username, client_id, ... }
+        setSessionPlayers(players.map((p: any) => ({
+          id: String(p.user_id ?? p.id ?? ''),
+          name: p.username || p.name || `User #${p.user_id ?? p.id}`
+        })));
       }
     };
     window.addEventListener('player-list-updated', handler);

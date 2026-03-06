@@ -196,6 +196,14 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
 
   const handleLayerClick = (layerId: string) => {
     setActiveLayer(layerId);
+    // Sync active layer with WASM render engine so opacity rules are applied
+    if (renderEngine) {
+      try {
+        (renderEngine as any).set_active_layer?.(layerId);
+      } catch (error) {
+        console.error('❌ LayerPanel: Failed to sync active layer to WASM:', error);
+      }
+    }
     // Toggle expansion: if clicking the same layer, toggle it; if different, expand new one
     setExpandedLayer(prevExpanded => prevExpanded === layerId ? null : layerId);
   };

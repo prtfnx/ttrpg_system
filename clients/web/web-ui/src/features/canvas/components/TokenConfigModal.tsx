@@ -24,6 +24,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
   const [localMaxHp, setLocalMaxHp] = useState<number>(sprite?.maxHp ?? linkedCharacter?.data?.stats?.maxHp ?? 10);
   const [localAc, setLocalAc] = useState<number>(sprite?.ac ?? linkedCharacter?.data?.stats?.ac ?? 10);
   const [localAuraRadius, setLocalAuraRadius] = useState<number>(sprite?.auraRadius ?? 0);
+  const [localAuraColor, setLocalAuraColor] = useState<string>(sprite?.auraColor ?? '#ffe4b5');
   const [newOwnerId, setNewOwnerId] = useState<string>('');
   const [sessionPlayers, setSessionPlayers] = useState<{ id: string; name: string }[]>([]);
 
@@ -75,6 +76,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
       setLocalMaxHp(sprite.maxHp ?? linkedCharacter?.data?.stats?.maxHp ?? 10);
       setLocalAc(sprite.ac ?? linkedCharacter?.data?.stats?.ac ?? 10);
       setLocalAuraRadius(sprite.auraRadius ?? 0);
+      setLocalAuraColor(sprite.auraColor ?? '#ffe4b5');
       setSelectedCharacterId(sprite.characterId || '');
     }
   }, [sprite, linkedCharacter]);
@@ -192,6 +194,11 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
   const handleAuraRadiusChange = (newRadius: number) => {
     setLocalAuraRadius(newRadius);
     updateSprite(spriteId, { auraRadius: newRadius });
+  };
+
+  const handleAuraColorChange = (newColor: string) => {
+    setLocalAuraColor(newColor);
+    updateSprite(spriteId, { auraColor: newColor });
   };
 
   const hpPercentage = localMaxHp > 0 ? (localHp / localMaxHp) * 100 : 0;
@@ -360,6 +367,13 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
                 step="5"
               />
               <span style={{ marginLeft: '8px', color: '#888' }}>ft</span>
+              <input
+                type="color"
+                value={localAuraColor}
+                onChange={(e) => handleAuraColorChange(e.target.value)}
+                title="Aura color"
+                style={{ marginLeft: '8px', width: '32px', height: '24px', padding: '0', border: 'none', cursor: 'pointer', background: 'none' }}
+              />
             </div>
           </div>
 

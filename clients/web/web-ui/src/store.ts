@@ -314,6 +314,7 @@ export const useGameStore = create<GameStore>()(
         if ('maxHp' in updates) serverUpdate.max_hp = updates.maxHp;
         if ('ac' in updates) serverUpdate.ac = updates.ac;
         if ('auraRadius' in updates) serverUpdate.aura_radius = updates.auraRadius;
+        if ('auraColor' in updates) serverUpdate.aura_color = updates.auraColor;
         if ('x' in updates) serverUpdate.x = updates.x;
         if ('y' in updates) serverUpdate.y = updates.y;
         if ('scaleX' in updates) serverUpdate.scale_x = updates.scaleX;

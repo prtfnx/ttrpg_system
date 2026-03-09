@@ -234,23 +234,27 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
           {/* Ownership - DM/CO-DM only */}
           {canManageOwnership && (
             <div className={styles.ownershipSection}>
-              <label>Token Ownership (user IDs):</label>
+              <label>Token Ownership:</label>
               <div className={styles.ownershipTags}>
                 {controlledBy.length === 0 && (
                   <p className={styles.noOwnersNote}>DM-only (no player controllers)</p>
                 )}
-                {controlledBy.map(id => (
-                  <span key={id} className={styles.ownerTag}>
-                    #{id}
-                    <button
-                      className={styles.ownerTagRemove}
-                      onClick={() => handleRemoveOwner(id)}
-                      title={`Remove user ${id}`}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
+                {controlledBy.map(id => {
+                  const player = sessionPlayers.find(p => p.id === id);
+                  const label = player ? player.name : `#${id}`;
+                  return (
+                    <span key={id} className={styles.ownerTag}>
+                      {label}
+                      <button
+                        className={styles.ownerTagRemove}
+                        onClick={() => handleRemoveOwner(id)}
+                        title={`Remove ${label}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                })}
               </div>
               <div className={styles.ownerInputRow}>
                 <select

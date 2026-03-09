@@ -545,6 +545,11 @@ class ServerProtocol:
         x, y = data.get('x'), data.get('y')
         if not sprite_id or x is None or y is None:
             return
+        role = self._get_client_role(client_id)
+        if not is_dm(role):
+            user_id = self._get_user_id(msg, client_id)
+            if not await self._can_control_sprite(sprite_id, user_id):
+                return  # silently drop — player doesn't own this sprite
         await self.broadcast_to_session(
             Message(MessageType.SPRITE_DRAG_PREVIEW, {'id': sprite_id, 'x': x, 'y': y}),
             client_id
@@ -559,6 +564,11 @@ class ServerProtocol:
         width, height = data.get('width'), data.get('height')
         if not sprite_id or width is None or height is None:
             return
+        role = self._get_client_role(client_id)
+        if not is_dm(role):
+            user_id = self._get_user_id(msg, client_id)
+            if not await self._can_control_sprite(sprite_id, user_id):
+                return
         await self.broadcast_to_session(
             Message(MessageType.SPRITE_RESIZE_PREVIEW, {'id': sprite_id, 'width': width, 'height': height}),
             client_id
@@ -573,6 +583,11 @@ class ServerProtocol:
         rotation = data.get('rotation')
         if not sprite_id or rotation is None:
             return
+        role = self._get_client_role(client_id)
+        if not is_dm(role):
+            user_id = self._get_user_id(msg, client_id)
+            if not await self._can_control_sprite(sprite_id, user_id):
+                return
         await self.broadcast_to_session(
             Message(MessageType.SPRITE_ROTATE_PREVIEW, {'id': sprite_id, 'rotation': rotation}),
             client_id
@@ -846,9 +861,10 @@ class ServerProtocol:
         if not sprite_id:
             return Message(MessageType.ERROR, {'error': 'Missing sprite_id'})
         
-        # Permission validation
+        # Permission validation — DMs can always update any sprite
+        role = self._get_client_role(client_id)
         user_id = self._get_user_id(msg, client_id)
-        if not await self._can_control_sprite(sprite_id, user_id):
+        if not is_dm(role) and not await self._can_control_sprite(sprite_id, user_id):
             logger.warning(f"User {user_id} attempted to update sprite {sprite_id} without permission")
             return Message(MessageType.ERROR, {'error': 'Permission denied: you cannot control this sprite'})
         
@@ -877,8 +893,17 @@ class ServerProtocol:
         if 'character_id' in update_data:
             updates['character_id'] = update_data['character_id']
         if 'controlled_by' in update_data:
-            cb = update_data['controlled_by']
-            updates['controlled_by'] = json.dumps(cb) if isinstance(cb, list) else cb
+            if not is_dm(role):
+                logger.warning(f"Non-DM user {user_id} tried to change controlled_by — ignored")
+            else:
+                cb = update_data['controlled_by']
+                # Normalize to list of ints for the in-memory entity
+                if isinstance(cb, str):
+                    try:
+                        cb = json.loads(cb)
+                    except Exception:
+                        cb = []
+                updates['controlled_by'] = [int(x) for x in cb if str(x).lstrip('-').isdigit()]
         
         # Extract token stat updates
         if 'hp' in update_data:
@@ -1570,13 +1595,17 @@ class ServerProtocol:
                           if hasattr(self.table_manager, 'tables') else []):
                 entity = table.find_entity_by_sprite_id(sprite_id)
                 if entity is not None:
-                    cb = entity.controlled_by  # always a list after Entity.__init__
+                    cb = entity.controlled_by
+                    # Normalise: may be a JSON string if entity was updated via server_protocol
+                    if isinstance(cb, str):
+                        try:
+                            cb = json.loads(cb)
+                        except Exception:
+                            cb = []
                     # controlled_by == [] means DM-only
                     if not cb:
                         return False
-                    if user_id in cb:
-                        return True
-                    # Check numerically in case of int/str mismatch
+                    # Compare as ints to handle any str/int mismatch
                     if any(int(x) == user_id for x in cb if str(x).lstrip('-').isdigit()):
                         return True
                     # Entity exists in memory but user is not in controlled_by

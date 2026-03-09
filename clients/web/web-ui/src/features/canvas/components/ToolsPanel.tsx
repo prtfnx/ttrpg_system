@@ -360,7 +360,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
               title="Switch table"
               style={{ flex: 1, textAlign: 'left' }}
             >
-              🗺 {tables.find(t => t.table_id === activeTableId)?.name ?? 'Select Table'} ▾
+              🗺 {tables.find(t => t.table_id === activeTableId)?.table_name ?? 'Select Table'} ▾
             </button>
             <button
               className={styles.toolButton}
@@ -390,7 +390,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
                     color: '#eee', border: 'none', cursor: 'pointer',
                   }}
                 >
-                  {t.table_id === activeTableId ? '✓ ' : '  '}{t.name}
+                  {t.table_id === activeTableId ? '✓ ' : '  '}{t.table_name}
                 </button>
               ))}
             </div>

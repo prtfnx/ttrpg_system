@@ -4,6 +4,7 @@
  */
 import { useGameStore } from '@/store';
 import { assetIntegrationService } from '@features/assets';
+import { isDM } from '@features/session/types/roles';
 import { useProtocol } from '@lib/api';
 import type { GlobalWasmModule } from '@lib/wasm';
 import { useWasmBridge, wasmIntegrationService } from '@lib/wasm';
@@ -324,6 +325,15 @@ export const GameCanvas: React.FC = () => {
         rustRenderEngine.set_camera(0, 0, 1.0);
         rustRenderManagerRef.current = rustRenderEngine;
         window.rustRenderManager = rustRenderEngine;
+
+        // Set user ID and GM mode immediately.
+        // sessionRole may be null before welcome msg — fall back to server-injected role.
+        const { userId, sessionRole } = useGameStore.getState();
+        const initialRole = (window as any).__INITIAL_DATA__?.userRole ?? null;
+        const effectiveRole = (sessionRole ?? initialRole) as import('@features/session/types/roles').SessionRole | null;
+        if (userId != null) rustRenderEngine.set_current_user_id?.(userId);
+        rustRenderEngine.set_gm_mode?.(isDM(effectiveRole));
+        window.dispatchEvent(new Event('render-manager-ready'));
 
         // Initialize performance monitoring
         performanceService.initialize(rustRenderEngine);

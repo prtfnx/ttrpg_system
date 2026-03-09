@@ -102,11 +102,17 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
 
   // Set WASM GM mode based on role — call immediately when effect runs (handles re-mounts too)
   useEffect(() => {
-    const engine = window.rustRenderManager;
-    if (engine?.set_gm_mode) {
-      engine.set_gm_mode(isDM(sessionRole));
-      engine.fog_set_gm_mode?.(isDM(sessionRole));
-    }
+    const apply = () => {
+      const engine = window.rustRenderManager;
+      if (engine?.set_gm_mode) {
+        engine.set_gm_mode(isDM(sessionRole));
+        (engine as any).fog_set_gm_mode?.(isDM(sessionRole));
+      }
+    };
+    apply();
+    // Also apply when WASM render manager becomes available (may init after this effect)
+    window.addEventListener('render-manager-ready', apply);
+    return () => window.removeEventListener('render-manager-ready', apply);
   }, [sessionRole]);
 
   // Pass current user ID to WASM for sprite ownership enforcement

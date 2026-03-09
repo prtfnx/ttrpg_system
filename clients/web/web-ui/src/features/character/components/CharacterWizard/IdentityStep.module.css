@@ -46,7 +46,8 @@
 
 .input,
 .textarea,
-.file-input {
+.file-input,
+.select {
   padding: var(--space-sm) var(--space-md);
   font-size: var(--text-md);
   border: var(--border-width-thick) solid var(--border-primary);

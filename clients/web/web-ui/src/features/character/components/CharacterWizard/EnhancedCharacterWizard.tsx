@@ -17,17 +17,13 @@ import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { AbilitiesStep } from './AbilitiesStep';
 import { BackgroundStep } from './BackgroundStep';
-import { CharacterAdvancementStep } from './CharacterAdvancementStep';
-import { CharacterExportStep } from './CharacterExportStep';
 import { ClassStep } from './ClassStep';
 import styles from './EnhancedCharacterWizard.module.css';
 import { EquipmentSelectionStep } from './EquipmentSelectionStep';
 import { IdentityStep } from './IdentityStep';
 import { RaceStep } from './RaceStepImproved';
 import ReviewStep from './ReviewStep';
-import { SkillsStep } from './SkillsStep';
 import { SpellSelectionStep } from './SpellSelectionStep';
-import { TemplateSelectionStep } from './TemplateSelectionStep';
 import { enhancedWizardSchema, type WizardFormData } from './WizardFormData';
 
 // Step definitions with metadata
@@ -43,16 +39,9 @@ interface WizardStep {
 
 const WIZARD_STEPS: WizardStep[] = [
   {
-    id: 'template',
-    title: 'Template Selection',
-    description: 'Choose a template or start from scratch',
-    component: TemplateSelectionStep,
-    canSkip: true
-  },
-  {
     id: 'identity',
     title: 'Character Identity',
-    description: 'Choose your character\'s name and background',
+    description: 'Name, portrait, bio, and optional template preset',
     component: IdentityStep,
     canSkip: false
   },
@@ -74,22 +63,22 @@ const WIZARD_STEPS: WizardStep[] = [
   {
     id: 'abilities',
     title: 'Ability Scores',
-    description: 'Assign your character\'s ability scores',
+    description: 'Assign your character\'s ability scores with racial bonuses',
     component: AbilitiesStep,
     canSkip: false
   },
   {
     id: 'background',
-    title: 'Background',
-    description: 'Select your character\'s background and traits',
+    title: 'Background & Skills',
+    description: 'Select background, languages, and class skill proficiencies',
     component: BackgroundStep,
     canSkip: false
   },
   {
-    id: 'skills',
-    title: 'Skills',
-    description: 'Choose your character\'s proficient skills',
-    component: SkillsStep,
+    id: 'equipment',
+    title: 'Equipment',
+    description: 'Choose your starting equipment and gear',
+    component: EquipmentSelectionStep,
     canSkip: false
   },
   {
@@ -101,31 +90,10 @@ const WIZARD_STEPS: WizardStep[] = [
     requirements: ['Spellcasting class selected']
   },
   {
-    id: 'equipment',
-    title: 'Equipment',
-    description: 'Choose your starting equipment and gear',
-    component: EquipmentSelectionStep,
-    canSkip: false
-  },
-  {
-    id: 'advancement',
-    title: 'Advancement',
-    description: 'Set initial experience and level progression',
-    component: CharacterAdvancementStep,
-    canSkip: true
-  },
-  {
     id: 'review',
-    title: 'Review',
-    description: 'Review and finalize your character',
+    title: 'Review & Save',
+    description: 'Review and save your character to the server',
     component: ReviewStep,
-    canSkip: false
-  },
-  {
-    id: 'export',
-    title: 'Export',
-    description: 'Export or save your character',
-    component: CharacterExportStep,
     canSkip: false
   }
 ];

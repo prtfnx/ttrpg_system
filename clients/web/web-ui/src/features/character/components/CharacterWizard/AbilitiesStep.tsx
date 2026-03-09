@@ -1,6 +1,8 @@
+import { useRacesForCharacterWizard } from '@features/compendium';
 import { useEffect, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import type { AbilitiesStepData } from './schemas';
+import { calculateRacialASI } from './raceData';
 
 type AbilityName = keyof AbilitiesStepData;
 type Method = 'standard' | 'pointbuy' | 'roll' | 'manual';
@@ -9,18 +11,17 @@ const ABILITIES: AbilityName[] = ['strength', 'dexterity', 'constitution', 'inte
 const ABILITY_LABELS = ['Strength', 'Dexterity', 'Constitution', 'Intelligence', 'Wisdom', 'Charisma'] as const;
 const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8];
 
-// Helper function to get racial ability bonuses
-const getRacialBonus = (ability: string): number => {
-  // This would normally come from form context, but for demo purposes:
-  // Mountain Dwarf: +2 CON, +2 STR
-  if (ability === 'constitution' || ability === 'strength') return 2;
-  return 0;
-};
-
 export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: () => void; onBack?: () => void } = {}) {
-  const { control, setValue, getValues, formState: { errors } } = useFormContext<AbilitiesStepData>();
+  const { control, setValue, getValues, watch, formState: { errors } } = useFormContext<AbilitiesStepData>();
   const [method, setMethod] = useState<Method>('standard');
   const [rolls, setRolls] = useState<number[]>([]);
+
+  const selectedRace = watch('race' as any) as string ?? '';
+  const selectedSubrace = watch('subrace' as any) as string ?? '';
+  const { data: races } = useRacesForCharacterWizard();
+  const racialASI = races ? calculateRacialASI(selectedRace, selectedSubrace, races) : {};
+
+  const getRacialBonus = (ability: string): number => racialASI[ability] ?? 0;
 
   useEffect(() => {
     const resetValue = method === 'pointbuy' ? 8 : 10;

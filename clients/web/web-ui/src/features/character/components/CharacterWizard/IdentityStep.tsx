@@ -1,3 +1,5 @@
+import type { CharacterTemplate } from '@features/character';
+import { ALL_TEMPLATES } from '@features/character';
 import { useRef } from 'react';
 import { useFormContext } from 'react-hook-form';
 import styles from './IdentityStep.module.css';
@@ -12,6 +14,15 @@ export function IdentityStep({ onNext, onBack: _onBack }: { onNext?: () => void;
   const { register, setValue, getValues, formState, watch } = useFormContext<IdentityStepData>();
   const imageInputRef = useRef<HTMLInputElement>(null);
   const imageUrl = watch('image');
+
+  function handleTemplateSelect(templateId: string) {
+    if (!templateId) return;
+    const template = ALL_TEMPLATES.find((t: CharacterTemplate) => t.id === templateId);
+    if (!template) return;
+    Object.entries(template.data).forEach(([key, value]) => {
+      setValue(key as any, value, { shouldValidate: true });
+    });
+  }
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -38,6 +49,29 @@ export function IdentityStep({ onNext, onBack: _onBack }: { onNext?: () => void;
       <div className={styles.header}>
         <h3 className={styles.title}>Character Identity</h3>
         <p className={styles.subtitle}>Choose your character's name and background</p>
+      </div>
+
+      <div className={styles.field}>
+        <label className={styles.label}>
+          <span className={styles['label-text']}>Start with a template (optional)</span>
+          <select
+            className={styles.select}
+            defaultValue=""
+            onChange={(e) => handleTemplateSelect(e.target.value)}
+          >
+            <option value="">None — start from scratch</option>
+            <optgroup label="Player Characters">
+              {ALL_TEMPLATES.filter((t: CharacterTemplate) => t.type === 'pc').map((t: CharacterTemplate) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </optgroup>
+            <optgroup label="NPCs / Monsters">
+              {ALL_TEMPLATES.filter((t: CharacterTemplate) => t.type === 'npc').map((t: CharacterTemplate) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </optgroup>
+          </select>
+        </label>
       </div>
 
       <div className={styles.field}>

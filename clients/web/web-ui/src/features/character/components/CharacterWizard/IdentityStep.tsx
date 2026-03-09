@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { useFormContext } from 'react-hook-form';
+import styles from './IdentityStep.module.css';
 
 interface IdentityStepData {
   name: string;
@@ -33,94 +34,59 @@ export function IdentityStep({ onNext, onBack: _onBack }: { onNext?: () => void;
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '0 8px' }}>
-      <div style={{ marginBottom: 8 }}>
-        <h3 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: '#2c3e50' }}>Character Identity</h3>
-        <p style={{ margin: '8px 0 0 0', fontSize: 14, color: '#7f8c8d' }}>Choose your character's name and background</p>
+    <form onSubmit={handleSubmit} className={styles.step}>
+      <div className={styles.header}>
+        <h3 className={styles.title}>Character Identity</h3>
+        <p className={styles.subtitle}>Choose your character's name and background</p>
       </div>
-      
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontWeight: 600, fontSize: 14, color: '#2c3e50' }}>Character Name <span style={{ color: '#e74c3c' }}>*</span></span>
-          <input 
-            {...register('name', { required: true })} 
+
+      <div className={styles.field}>
+        <label className={styles.label}>
+          <span className={styles['label-text']}>Character Name <span className={styles.required}>*</span></span>
+          <input
+            {...register('name', { required: true })}
             placeholder="Enter character name..."
-            style={{ 
-              padding: '10px 12px', 
-              fontSize: 15,
-              border: '2px solid #dfe6e9', 
-              borderRadius: 8,
-              outline: 'none',
-              transition: 'border-color 0.2s'
-            }} 
-            onFocus={(e) => e.target.style.borderColor = '#3498db'}
-            onBlur={(e) => e.target.style.borderColor = '#dfe6e9'}
+            className={styles.input}
           />
         </label>
         {formState.errors.name && (
-          <span style={{ color: '#e74c3c', fontSize: 13, marginTop: -4 }}>{formState.errors.name.message as string}</span>
+          <span className={styles.error}>{formState.errors.name.message as string}</span>
         )}
       </div>
-      
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontWeight: 600, fontSize: 14, color: '#2c3e50' }}>Character Bio</span>
-          <textarea 
-            {...register('bio')} 
+
+      <div className={styles.field}>
+        <label className={styles.label}>
+          <span className={styles['label-text']}>Character Bio</span>
+          <textarea
+            {...register('bio')}
             placeholder="Describe your character's backstory..."
             rows={4}
-            style={{ 
-              padding: '10px 12px', 
-              fontSize: 14,
-              border: '2px solid #dfe6e9', 
-              borderRadius: 8,
-              outline: 'none',
-              resize: 'vertical',
-              fontFamily: 'inherit',
-              transition: 'border-color 0.2s'
-            }}
-            onFocus={(e) => e.target.style.borderColor = '#3498db'}
-            onBlur={(e) => e.target.style.borderColor = '#dfe6e9'}
+            className={styles.textarea}
           />
         </label>
       </div>
-      
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontWeight: 600, fontSize: 14, color: '#2c3e50' }}>Character Portrait</span>
-          <input 
-            type="file" 
-            accept="image/*" 
-            ref={imageInputRef} 
-            onChange={handleImageChange} 
-            style={{ 
-              padding: '10px 12px', 
-              fontSize: 14,
-              border: '2px solid #dfe6e9', 
-              borderRadius: 8,
-              outline: 'none',
-              cursor: 'pointer',
-              backgroundColor: '#f8f9fa'
-            }} 
+
+      <div className={styles.field}>
+        <label className={styles.label}>
+          <span className={styles['label-text']}>Character Portrait</span>
+          <input
+            type="file"
+            accept="image/*"
+            ref={imageInputRef}
+            onChange={handleImageChange}
+            className={styles['file-input']}
           />
-          <span style={{ fontSize: 12, color: '#95a5a6' }}>Optional: Upload an image for your character sprite</span>
+          <span className={styles.hint}>Optional: Upload an image for your character sprite</span>
         </label>
       </div>
-      
+
       {imageUrl && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' }}>
-          <span style={{ fontWeight: 600, fontSize: 14, color: '#2c3e50' }}>Preview:</span>
-          <img 
-            src={imageUrl || "/default-avatar.png"} 
-            alt="Character" 
-            style={{ 
-              width: 120, 
-              height: 120, 
-              objectFit: 'cover', 
-              borderRadius: 12, 
-              border: '3px solid #3498db',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-            }} 
+        <div className={styles.preview}>
+          <span className={styles['preview-label']}>Preview:</span>
+          <img
+            src={imageUrl}
+            alt="Character"
+            className={styles.portrait}
           />
         </div>
       )}

@@ -1,6 +1,7 @@
 import { ProtocolService, useProtocol } from '@lib/api';
 import { showToast } from '@shared/utils';
 import clsx from "clsx";
+import { CircleUser } from "lucide-react";
 import React, { useRef, useState } from "react";
 import { useGameStore } from "../../../store";
 import type { Character } from "../../../types";
@@ -615,11 +616,10 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
         )}
 
         {activeTab === 'bio' && (
-          <div className="bio-tab-content">
+          <div className={styles.bioTabContent}>
             <h3>Character Biography & Tokens</h3>
-            
-            {/* Bio Section */}
-            <div className={styles.bioSection} style={{ marginBottom: '24px' }}>
+
+            <div className={styles.bioSection}>
               <h4>Biography</h4>
               <textarea
                 value={character.data?.bio || ''}
@@ -628,67 +628,36 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                 })}
                 placeholder="Write your character's backstory, personality, goals, etc..."
                 rows={6}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  fontSize: '14px',
-                  border: '1px solid #444',
-                  borderRadius: '6px',
-                  backgroundColor: '#2a2a2a',
-                  color: '#e0e0e0',
-                  resize: 'vertical',
-                  fontFamily: 'inherit'
-                }}
+                className={styles.bioTextarea}
               />
             </div>
 
-            {/* Linked Tokens Section */}
-            <div className="linked-tokens-section" style={{ marginBottom: '24px' }}>
+            <div className={styles.linkedTokensSection}>
               <h4>Linked Tokens</h4>
               {linkedTokens.length > 0 ? (
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <div className={styles.tokenList}>
                   {linkedTokens.map(token => (
-                    <div 
-                      key={token.id} 
-                      style={{
-                        padding: '8px 12px',
-                        backgroundColor: '#3a3a3a',
-                        borderRadius: '6px',
-                        border: '1px solid #555',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}
-                    >
-                      <span style={{ fontSize: '14px' }}>🎭</span>
-                      <span style={{ fontSize: '13px' }}>{token.name || token.id.substring(0, 8)}</span>
+                    <div key={token.id} className={styles.tokenBadge}>
+                      <CircleUser size={14} aria-hidden />
+                      <span>{token.name || token.id.substring(0, 8)}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p style={{ color: '#888', fontSize: '13px' }}>No tokens linked to this character</p>
+                <p className={styles.noTokens}>No tokens linked to this character</p>
               )}
             </div>
 
-            {/* Link Existing Token */}
-            <div className="link-token-section" style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#2a2a2a', borderRadius: '8px', border: '1px solid #444' }}>
-              <h4 style={{ marginTop: 0 }}>Link Existing Token</h4>
-              <p style={{ fontSize: '13px', color: '#aaa', marginBottom: '12px' }}>
+            <div className={styles.linkTokenSection}>
+              <h4>Link Existing Token</h4>
+              <p className={styles.linkTokenHint}>
                 Select a token from the current table to link to this character
               </p>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <div className={styles.linkTokenRow}>
                 <select
                   value={selectedTokenSpriteId}
                   onChange={(e) => setSelectedTokenSpriteId(e.target.value)}
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    backgroundColor: '#1a1a1a',
-                    color: '#e0e0e0',
-                    border: '1px solid #555',
-                    borderRadius: '6px',
-                    fontSize: '14px'
-                  }}
+                  className={styles.tokenSelect}
                 >
                   <option value="">-- Select a token --</option>
                   {availableSprites.map(sprite => (
@@ -700,16 +669,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                 <button
                   onClick={handleLinkExistingToken}
                   disabled={!selectedTokenSpriteId}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: selectedTokenSpriteId ? '#4a90e2' : '#333',
-                    color: selectedTokenSpriteId ? '#fff' : '#666',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: selectedTokenSpriteId ? 'pointer' : 'not-allowed',
-                    fontSize: '14px',
-                    fontWeight: 500
-                  }}
+                  className={styles.linkBtn}
                 >
                   Link Token
                 </button>
@@ -717,73 +677,43 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
             </div>
 
             {/* Create New Token from Image */}
-            <div className="create-token-section" style={{ padding: '16px', backgroundColor: '#2a2a2a', borderRadius: '8px', border: '1px solid #444' }}>
-              <h4 style={{ marginTop: 0 }}>Create New Token</h4>
-              <p style={{ fontSize: '13px', color: '#aaa', marginBottom: '12px' }}>
+            <div className={styles.createTokenSection}>
+              <h4>Create New Token</h4>
+              <p className={styles.createTokenHint}>
                 Upload an image to create a new token on the current table
               </p>
-              
-              {/* Image Upload */}
-              <div style={{ marginBottom: '16px' }}>
+
+              <div style={{ marginBottom: 'var(--space-md)' }}>
                 <input
                   ref={imageInputRef}
                   type="file"
                   accept="image/*"
                   onChange={handleImageChange}
-                  style={{
-                    padding: '8px',
-                    backgroundColor: '#1a1a1a',
-                    color: '#e0e0e0',
-                    border: '1px solid #555',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    cursor: 'pointer',
-                    width: '100%'
-                  }}
+                  className={styles.tokenImageInput}
                 />
               </div>
 
-              {/* Image Preview */}
               {tokenImagePreview && (
-                <div style={{ marginBottom: '16px', textAlign: 'center' }}>
-                  <p style={{ fontSize: '13px', color: '#aaa', marginBottom: '8px' }}>Preview:</p>
+                <div className={styles.imagePreview}>
+                  <p className={styles.imagePreviewHint}>Preview:</p>
                   <img
                     src={tokenImagePreview}
                     alt="Token preview"
-                    style={{
-                      maxWidth: '120px',
-                      maxHeight: '120px',
-                      borderRadius: '8px',
-                      border: '2px solid #4a90e2',
-                      objectFit: 'contain'
-                    }}
+                    className={styles.previewImg}
                   />
                 </div>
               )}
 
-              {/* Create Button */}
               <button
                 onClick={handleCreateTokenFromImage}
                 disabled={!tokenImagePreview || !isConnected}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  backgroundColor: (tokenImagePreview && isConnected) ? '#10b981' : '#333',
-                  color: (tokenImagePreview && isConnected) ? '#fff' : '#666',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: (tokenImagePreview && isConnected) ? 'pointer' : 'not-allowed',
-                  fontSize: '15px',
-                  fontWeight: 600
-                }}
+                className={clsx(styles.createTokenBtn, tokenImagePreview && isConnected && styles.ready)}
               >
-                {!isConnected ? '⚠️ Not Connected' : !tokenImagePreview ? 'Upload Image First' : '✨ Add as Token on Table'}
+                {!isConnected ? 'Not Connected' : !tokenImagePreview ? 'Upload Image First' : 'Add as Token on Table'}
               </button>
-              
+
               {!activeTableId && (
-                <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '8px', textAlign: 'center' }}>
-                  ⚠️ No active table selected
-                </p>
+                <p className={styles.noTableWarning}>No active table selected</p>
               )}
             </div>
           </div>

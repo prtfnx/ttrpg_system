@@ -2,6 +2,7 @@ import { useGameStore } from '@/store';
 import type { Character } from '@/types';
 import { isDM } from '@features/session/types/roles';
 import clsx from 'clsx';
+import { CircleUser, ClipboardCopy, Download, FileText, Link2, Trash2, Upload } from 'lucide-react';
 import ReactDOM from 'react-dom';
 import styles from './CharacterPanel.module.css';
 import { BulkActionsBar } from './CharacterPanel/BulkActionsBar';
@@ -96,12 +97,12 @@ function CharacterPanel() {
         </div>
         <div className={styles.headerActions}>
           <button className={styles.compactBtn} onClick={handleImportCharacter} title="Import character">
-            📤 Import
+            <Upload size={14} /> Import
           </button>
           {characters.length > 0 && (
             <>
               <button className={styles.compactBtn} onClick={handleExportAllCharacters} title="Export all">
-                📥 Export All
+                <Download size={14} /> Export All
               </button>
               <button className={clsx(styles.compactBtn, bulkSelectMode && styles.active)} onClick={handleToggleBulkMode}>
                 {bulkSelectMode ? '✓ Select' : '☑ Select'}
@@ -235,7 +236,7 @@ function CharacterPanel() {
                             className={clsx(styles.tokenBadge, !canControlToken && styles.noPermission)} 
                             title={canControlToken ? 'Can control' : 'No permission'}
                           >
-                            🎭
+                            <CircleUser size={12} aria-hidden />
                             <SyncStatusIcon status={s.syncStatus} />
                             {!canControlToken && <span className={styles.permissionIcon}>🚫</span>}
                           </span>
@@ -265,36 +266,36 @@ function CharacterPanel() {
 
                   <div className={styles.cardActions}>
                     <button className={styles.actionBtn} onClick={() => handleViewSheet(char.id)} title="View sheet">
-                      <span className={styles.actionIcon}>📄</span>
+                      <span className={styles.actionIcon}><FileText size={16} aria-hidden /></span>
                       <span className={styles.actionLabel}>Sheet</span>
                     </button>
                     <button className={styles.actionBtn} onClick={() => handleAddToken(char.id)} disabled={!canEdit} title={canEdit ? 'Add token' : 'No permission'}>
-                      <span className={styles.actionIcon}>🎭</span>
+                      <span className={styles.actionIcon}><CircleUser size={16} aria-hidden /></span>
                       <span className={styles.actionLabel}>Token</span>
                     </button>
                     <button className={styles.actionBtn} onClick={e => handleExportCharacter(char.id, e)} title="Export">
-                      <span className={styles.actionIcon}>📥</span>
+                      <span className={styles.actionIcon}><Download size={16} aria-hidden /></span>
                       <span className={styles.actionLabel}>Export</span>
                     </button>
                     {canEdit && (
                       <>
                         <button className={styles.actionBtn} onClick={e => handleCloneCharacter(char.id, e)} title="Clone">
-                          <span className={styles.actionIcon}>📋</span>
+                          <span className={styles.actionIcon}><ClipboardCopy size={16} aria-hidden /></span>
                           <span className={styles.actionLabel}>Clone</span>
                         </button>
                         <button className={styles.actionBtn} onClick={() => handleShareCharacter(char.id)} title="Share">
-                          <span className={styles.actionIcon}>🔗</span>
+                          <span className={styles.actionIcon}><Link2 size={16} aria-hidden /></span>
                           <span className={styles.actionLabel}>Share</span>
                         </button>
                         <button className={clsx(styles.actionBtn, styles.dangerBtn)} onClick={e => handleDeleteCharacter(char.id, e)} title="Delete">
-                          <span className={styles.actionIcon}>🗑</span>
+                          <span className={styles.actionIcon}><Trash2 size={16} aria-hidden /></span>
                           <span className={styles.actionLabel}>Delete</span>
                         </button>
                       </>
                     )}
                     {!canEdit && (
                       <button className={clsx(styles.actionBtn, styles.disabledBtn)} disabled title="No permission">
-                        <span className={styles.actionIcon}>🗑</span>
+                        <span className={styles.actionIcon}><Trash2 size={16} aria-hidden /></span>
                         <span className={styles.actionLabel}>Delete</span>
                       </button>
                     )}

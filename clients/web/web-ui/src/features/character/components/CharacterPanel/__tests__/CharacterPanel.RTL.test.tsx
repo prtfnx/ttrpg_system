@@ -186,8 +186,8 @@ describe('CharacterPanel', () => {
       await user.click(characterCard);
       
       await waitFor(() => {
-        // Token badges show 🎭 emoji
-        expect(screen.getByText('🎭')).toBeInTheDocument();
+        // Token badges render for linked sprites
+        expect(screen.getByTitle(/can control|no permission/i)).toBeInTheDocument();
       });
     });
   });
@@ -382,7 +382,7 @@ describe('CharacterPanel', () => {
       await user.click(checkboxes[0]);
       
       // Bulk actions should be available - look for specific export selected button
-      const exportButton = screen.getByRole('button', { name: /📥 export selected/i });
+      const exportButton = screen.getByRole('button', { name: /export selected/i });
       expect(exportButton).toBeInTheDocument();
     });
 
@@ -437,8 +437,8 @@ describe('CharacterPanel', () => {
       await user.click(characterCard);
       
       await waitFor(() => {
-        // Should show token badges with 🎭 emoji
-        const tokenBadges = screen.getAllByText('🎭');
+        // Should show token badges for linked sprites
+        const tokenBadges = screen.getAllByTitle(/can control|no permission/i);
         expect(tokenBadges.length).toBe(2);
       });
     });

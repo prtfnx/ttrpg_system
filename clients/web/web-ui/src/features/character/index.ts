@@ -5,12 +5,10 @@ export { CustomizePanel } from './components/CustomizePanel';
 export { ExperienceTracker } from './components/ExperienceTracker';
 export { MulticlassManager } from './components/MulticlassManager';
 export { ShareCharacterDialog } from './components/ShareCharacterDialog';
-export { SpellManagementPanel } from './components/SpellManagementPanel';
 export { SpellPreparationManager } from './components/SpellPreparationManager';
 
 export { CombatLauncher } from './components/CharacterWizard/CombatLauncher';
 export { EnhancedCharacterWizard } from './components/CharacterWizard/EnhancedCharacterWizard';
-export { SkillsStep } from './components/CharacterWizard/SkillsStep';
 export type { WizardFormData } from './components/CharacterWizard/WizardFormData';
 export { ALL_TEMPLATES, getTemplatesByType } from './data/characterTemplates';
 export type { CharacterTemplate } from './data/characterTemplates';

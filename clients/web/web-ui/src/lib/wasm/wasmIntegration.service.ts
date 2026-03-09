@@ -800,6 +800,28 @@ class WasmIntegrationService {
       updated = true;
     }
 
+    // Ownership update — parse JSON string if needed, then push to WASM and store
+    const rawCb = data.controlled_by ?? u.controlled_by;
+    if (rawCb !== undefined) {
+      let cbNums: number[];
+      if (Array.isArray(rawCb)) {
+        cbNums = rawCb.map(Number);
+      } else if (typeof rawCb === 'string') {
+        try { cbNums = JSON.parse(rawCb).map(Number); } catch { cbNums = []; }
+      } else {
+        cbNums = [];
+      }
+      if (this.renderEngine) {
+        (this.renderEngine as any).update_sprite_controlled_by?.(spriteId, cbNums);
+      }
+      // Sync store state directly (no server round-trip — this came from the server)
+      const cbStrings = cbNums.map(String);
+      useGameStore.setState(state => ({
+        sprites: state.sprites.map(s => s.id === spriteId ? { ...s, controlledBy: cbStrings } : s)
+      }));
+      updated = true;
+    }
+
     if (!updated) {
       console.warn(`⚠️ No applicable update method found for partial data:`, data);
     }

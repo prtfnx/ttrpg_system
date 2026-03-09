@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import type { SkillsStepData } from './schemas';
 
@@ -116,43 +116,34 @@ export function SkillsStep({
   const [selected, setSelected] = useState<string[]>(() => {
     const existingSkills = formData.skills;
     if (existingSkills && Array.isArray(existingSkills) && existingSkills.length > 0) {
-      console.log('[SkillsStep] Initializing from existing form skills:', existingSkills);
       return existingSkills;
     }
-    console.log('[SkillsStep] Initializing with granted skills:', alreadyGranted);
     return alreadyGranted;
   });
 
   // Sync selected skills to form whenever they change
   useEffect(() => {
-    console.log('[SkillsStep] Syncing to form:', selected);
     setValue('skills', selected, { shouldValidate: false });
   }, [selected, setValue]);
 
   // Handle skill selection
   function toggleSkill(skill: string) {
-    console.log('[SkillsStep] Toggle skill:', skill, 'currently selected:', selected);
     if (selected.includes(skill)) {
       // Don't allow unselecting background/race skills
       if (alreadyGranted.includes(skill)) {
-        console.log('[SkillsStep] Cannot unselect granted skill:', skill);
         return;
       }
       const newSelected = selected.filter(s => s !== skill);
-      console.log('[SkillsStep] Removing skill, new selection:', newSelected);
       setSelected(newSelected);
     } else {
       // Only allow selecting from availableClassSkills, up to classSkillChoices
       if (!availableClassSkills.includes(skill)) {
-        console.log('[SkillsStep] Skill not available for class:', skill);
         return;
       }
       if (selected.filter(s => availableClassSkills.includes(s)).length >= classSkillChoices) {
-        console.log('[SkillsStep] Already selected max class skills');
         return;
       }
       const newSelected = [...selected, skill];
-      console.log('[SkillsStep] Adding skill, new selection:', newSelected);
       setSelected(newSelected);
     }
   }

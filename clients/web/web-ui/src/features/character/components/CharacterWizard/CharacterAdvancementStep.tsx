@@ -136,17 +136,6 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
     // AdvancedCharacter extends WizardFormData, so abilities should be top-level (not nested)
     // Just add the missing required AdvancedCharacter properties
     
-    // DEBUG: Log the actual data structure
-    console.log('🔍 CharacterAdvancementStep - Raw data:', data);
-    console.log('🔍 Ability scores:', {
-      strength: data.strength,
-      dexterity: data.dexterity,
-      constitution: data.constitution,
-      intelligence: data.intelligence,
-      wisdom: data.wisdom,
-      charisma: data.charisma
-    });
-    
     const characterData: any = {
       ...data,
       // Ensure ability scores have defaults if not set
@@ -172,9 +161,6 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
       feats: [],
       inspiration: false
     };
-    
-    console.log('🔍 CharacterData being passed to LevelUpWizard:', characterData);
-    console.log('🔍 characterData.strength =', characterData.strength);
     
     return (
       <LevelUpWizard

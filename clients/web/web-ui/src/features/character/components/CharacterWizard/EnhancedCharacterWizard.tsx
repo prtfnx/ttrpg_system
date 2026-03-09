@@ -424,13 +424,6 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
   const renderCurrentStep = () => {
     const StepComponent = currentStep.component;
     
-    console.log('🎭 Rendering step:', {
-      index: currentStepIndex,
-      id: currentStep.id,
-      title: currentStep.title,
-      componentName: StepComponent.name
-    });
-    
     return (
       <ErrorBoundary
         fallback={

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import styles from './SpellManager.module.css';
 import type { WizardFormData } from './WizardFormData';
 
@@ -140,64 +140,23 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
     return result;
   };
 
-  // Sample spell data - in a real app, this would come from a spell database
-  const sampleSpells: SpellData[] = [
-    {
-      name: "Magic Missile",
-      level: 1,
-      school: "Evocation",
-      castingTime: "1 action",
-      range: "120 feet",
-      components: "V, S",
-      duration: "Instantaneous",
-      description: "You create three glowing darts of magical force. Each dart hits a creature of your choice that you can see within range. A dart deals 1d4 + 1 force damage to its target. The darts all strike simultaneously, and you can direct them to hit one creature or several.",
-      damage: "3 × (1d4 + 1) force",
-      spellAttack: false
-    },
-    {
-      name: "Cure Wounds",
-      level: 1,
-      school: "Evocation",
-      castingTime: "1 action",
-      range: "Touch",
-      components: "V, S",
-      duration: "Instantaneous",
-      description: "A creature you touch regains a number of hit points equal to 1d8 + your spellcasting ability modifier. This spell has no effect on undead or constructs.",
-      damage: "1d8 + spellcasting modifier healing"
-    },
-    {
-      name: "Fireball",
-      level: 3,
-      school: "Evocation",
-      castingTime: "1 action",
-      range: "150 feet",
-      components: "V, S, M (a tiny ball of bat guano and sulfur)",
-      duration: "Instantaneous",
-      description: "A bright streak flashes from your pointing finger to a point you choose within range and then blossoms with a low roar into an explosion of flame. Each creature in a 20-foot-radius sphere centered on that point must make a Dexterity saving throw. A creature takes 8d6 fire damage on a failed save, or half as much damage on a successful one.",
-      damage: "8d6 fire",
-      savingThrow: "Dexterity"
-    },
-    {
-      name: "Shield",
-      level: 1,
-      school: "Abjuration",
-      castingTime: "1 reaction",
-      range: "Self",
-      components: "V, S",
-      duration: "1 round",
-      description: "An invisible barrier of magical force appears and protects you. Until the start of your next turn, you have a +5 bonus to AC, including against the triggering attack, and you take no damage from magic missile."
-    }
+  // Spells derived from character's known/prepared spells
+  const knownSpellNames = [
+    ...(character.spells?.cantrips || []),
+    ...(character.spells?.preparedSpells || []),
+    ...(character.spells?.knownSpells || [])
   ];
 
   const getFilteredSpells = (): SpellData[] => {
-    return sampleSpells.filter(spell => {
-      const matchesSearch = spell.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           spell.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesLevel = filterLevel === null || spell.level === filterLevel;
-      const matchesSchool = filterSchool === '' || spell.school === filterSchool;
-      
-      return matchesSearch && matchesLevel && matchesSchool;
-    });
+    // Spell search is over known spells only — compendium lookup done in Phase 2
+    return knownSpellNames
+      .map(name => ({ name, level: 1, school: '', castingTime: '1 action', range: '', components: '', duration: '', description: '' } as SpellData))
+      .filter(spell => {
+        const matchesSearch = spell.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesLevel = filterLevel === null || spell.level === filterLevel;
+        const matchesSchool = filterSchool === '' || spell.school === filterSchool;
+        return matchesSearch && matchesLevel && matchesSchool;
+      });
   };
 
   const useSpellSlot = (level: number) => {
@@ -229,7 +188,6 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
   const shortRest = () => {
     // Some classes recover spell slots on short rest (like Warlocks)
     // For now, just show the action is available
-    console.log('Short rest taken');
   };
 
   const longRest = () => {
@@ -245,7 +203,6 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
   const castSpell = (spell: SpellData) => {
     if (spell.level === 0) {
       // Cantrips don't use spell slots
-      console.log(`Cast cantrip: ${spell.name}`);
       return;
     }
 
@@ -258,7 +215,6 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
     }
 
     useSpellSlot(requiredLevel);
-    console.log(`Cast ${spell.name} using level ${requiredLevel} slot`);
   };
 
   const renderSlotsTab = () => (
@@ -424,12 +380,8 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
       <div className="castable-spells">
         <h4>Available Spells to Cast</h4>
         <div className="spell-grid">
-          {[
-            ...(character.spells?.cantrips || []),
-            ...(character.spells?.preparedSpells || []),
-            ...(character.spells?.knownSpells || [])
-          ].map((spellName, index) => {
-            const spellData = sampleSpells.find(s => s.name === spellName) || {
+          {knownSpellNames.map((spellName, index) => {
+            const spellData: SpellData = {
               name: spellName,
               level: 1,
               school: 'Unknown',

@@ -17,8 +17,7 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
   // Load races from compendium
   const { data: RACES, loading: racesLoading, error: racesError } = useRacesForCharacterWizard();
   
-  const handleRaceNext = (data: ExtendedRaceData) => {
-    console.log('[RaceStep] onNext called, data:', data);
+  const handleRaceNext = (_data: ExtendedRaceData) => {
     onNext();
   };
 

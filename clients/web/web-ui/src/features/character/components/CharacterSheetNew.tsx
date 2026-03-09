@@ -151,8 +151,6 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
       ac: character.data?.stats?.ac
     };
 
-    console.log('[CharacterSheet] Creating token sprite:', spriteData);
-    
     try {
       ProtocolService.getProtocol().createSprite(spriteData);
       showToast.success(`Token created for ${character.name}`);
@@ -161,7 +159,6 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
         imageInputRef.current.value = '';
       }
     } catch (error) {
-      console.error('[CharacterSheet] Failed to create token:', error);
       showToast.error('Failed to create token');
     }
   };

@@ -1,4 +1,4 @@
-import type { Spell } from '@features/compendium';
+﻿import type { Spell } from '@features/compendium';
 import { compendiumService } from '@features/compendium/services/compendiumService';
 import { ErrorBoundary } from '@shared/components';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -69,13 +69,8 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
   
   const handleBack = onBack || onPrevious;
   const handleNext = () => {
-    console.log('🔮 Moving to next step with spells:', currentSpells);
     onNext();
   };
-  
-  console.log('🔮 SpellSelectionStep - characterClass:', characterClass);
-  console.log('🔮 SpellSelectionStep - characterLevel:', characterLevel);
-  console.log('🔮 SpellSelectionStep - abilityScores:', abilityScores);
   
   const currentSpells = watch('spells') || { cantrips: [], knownSpells: [], preparedSpells: [] };
 
@@ -116,8 +111,6 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
         setLoading(true);
         const spellsData = await compendiumService.getSpells();
         const classSpells = spellManagementService.getSpellsForClass(spellsData.spells, characterClass);
-        console.log('🔮 Loaded spells for class:', characterClass, '- Count:', Object.keys(classSpells).length);
-        console.log('🔮 Spell slots:', spellSlots);
         setAvailableSpells(classSpells);
         setError(null);
       } catch (err) {
@@ -134,9 +127,6 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
   // Filter spells based on current filters AND available spell slots
   const filteredSpells = useMemo(() => {
     let spells = Object.values(availableSpells);
-    
-    console.log('🔮 Filtering spells. Total available:', spells.length);
-    console.log('🔮 Spell slots for filtering:', spellSlots);
 
     // Filter by spell slots - only show spell levels the character can cast
     spells = spells.filter(spell => {
@@ -144,11 +134,8 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
       // Check if character has slots for this spell level
       // Access as index signature since spellSlots has numeric keys
       const hasSlot = (spellSlots as any)[spell.level] && (spellSlots as any)[spell.level] > 0;
-      console.log(`🔮 Spell ${spell.name} (level ${spell.level}): hasSlot=${hasSlot}`);
       return hasSlot;
     });
-    
-    console.log('🔮 After slot filtering:', spells.length);
 
     // Search filter
     if (filters.search) {
@@ -198,7 +185,6 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
 
   // Handle spell selection
   const handleSpellToggle = useCallback((spell: Spell) => {
-    console.log('🔮 handleSpellToggle called for spell:', spell.name);
     const isCantrip = spell.level === 0;
     const currentList = isCantrip ? currentSpells.cantrips : currentSpells.knownSpells;
     const isSelected = currentList.includes(spell.name);
@@ -209,22 +195,16 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
     if (isCantrip) {
       if (isSelected) {
         newCantrips = newCantrips.filter(name => name !== spell.name);
-        console.log('🔮 Removed cantrip, new list:', newCantrips);
       } else if (newCantrips.length < (spellSlots.cantrips || 0)) {
         newCantrips.push(spell.name);
-        console.log('🔮 Added cantrip, new list:', newCantrips);
       } else {
-        console.log('🔮 Cannot add more cantrips, limit reached');
       }
     } else {
       if (isSelected) {
         newKnownSpells = newKnownSpells.filter(name => name !== spell.name);
-        console.log('🔮 Removed spell, new list:', newKnownSpells);
       } else if (maxSpellsKnown === Infinity || newKnownSpells.length < maxSpellsKnown) {
         newKnownSpells.push(spell.name);
-        console.log('🔮 Added spell, new list:', newKnownSpells);
       } else {
-        console.log('🔮 Cannot add more spells, limit reached');
       }
     }
 
@@ -233,8 +213,6 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
       knownSpells: newKnownSpells,
       preparedSpells: currentSpells.preparedSpells
     };
-    
-    console.log('🔮 Setting spells form value:', newSpellData);
     setValue('spells', newSpellData, { shouldValidate: true });
   }, [currentSpells, setValue, spellSlots.cantrips, maxSpellsKnown]);
 

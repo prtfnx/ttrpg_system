@@ -1,4 +1,4 @@
-import { ErrorBoundary } from '@shared/components';
+﻿import { ErrorBoundary } from '@shared/components';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import {
@@ -44,9 +44,6 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
   // Use ref to track if we're in initial load to prevent infinite loop
   const initialLoadRef = React.useRef(true);
   const previousItemsRef = React.useRef<string>('');
-  
-  console.log('🎒 EquipmentSelectionStep - RENDERING');
-  console.log('🎒 EquipmentSelectionStep - characterClass:', characterClass);
 
   // Local state
   const [availableEquipment, setAvailableEquipment] = useState<Equipment[]>([]);
@@ -74,21 +71,15 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
     const loadEquipment = async () => {
       try {
         setLoading(true);
-        console.log('🎒 Loading equipment for class:', characterClass);
         const equipment = await equipmentManagementService.getAllEquipment();
-        console.log('🎒 Loaded equipment count:', equipment.length);
-        console.log('🎒 First 3 equipment items:', equipment.slice(0, 3));
         
         // Validate equipment data structure
         const validEquipment = equipment.filter(item => {
           if (!item.name) {
-            console.warn('🎒 Equipment item missing name:', item);
             return false;
           }
           return true;
         });
-        
-        console.log('🎒 Valid equipment count:', validEquipment.length);
         setAvailableEquipment(validEquipment);
         
         // Calculate starting gold based on class
@@ -100,7 +91,6 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
         // Guard against undefined or missing items array
         const existingItems = formData.equipment?.items;
         if (existingItems && Array.isArray(existingItems) && existingItems.length > 0) {
-          console.log('🎒 Loading existing equipment items:', existingItems);
           const wizardItems: WizardEquipmentItem[] = [];
           
           for (const item of existingItems) {
@@ -116,23 +106,17 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
             }
             // Check if item is in old format: {name, quantity, equipped, weight}
             else if (itemAny.name && typeof itemAny.name === 'string') {
-              console.log('🎒 Converting old format item:', itemAny);
               // Find the full equipment data from available equipment
               const fullEquipment = validEquipment.find(eq => eq.name === itemAny.name);
               if (fullEquipment) {
                 wizardItems.push(equipmentToWizardItem(fullEquipment, itemAny.quantity || 1, itemAny.equipped));
               } else {
-                console.warn('🎒 Could not find equipment data for:', itemAny.name);
               }
             } else {
-              console.warn('🎒 Item has unexpected structure:', itemAny);
             }
           }
-          
-          console.log('🎒 Converted wizard items:', wizardItems);
           setSelectedItems(wizardItems);
         } else {
-          console.log('🎒 No existing equipment items to load');
           setSelectedItems([]);
         }
         
@@ -165,7 +149,6 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
       filtered = filtered.filter(item => {
         // Guard against items without name property
         if (!item.name) {
-          console.warn('🎒 Filtering: Equipment item missing name:', item);
           return false;
         }
         return item.name.toLowerCase().includes(term) ||
@@ -195,7 +178,6 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
     
     // Guard against undefined className
     if (!className) {
-      console.warn('🎒 calculateStartingGold: className is undefined, defaulting to 100 gp');
       return 100;
     }
     
@@ -228,8 +210,6 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
       return;
     }
     
-    console.log('🎒 addItem called with:', equipment);
-    
     const cost = equipment.cost?.quantity || 0;
     
     if (currentGold < cost) {
@@ -238,7 +218,6 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
     }
 
     const wizardItem = equipmentToWizardItem(equipment, 1);
-    console.log('🎒 Created wizard item:', wizardItem);
     
     const existingIndex = selectedItems.findIndex(item => 
       item?.equipment?.name === equipment.name
@@ -248,14 +227,11 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
       // Increase quantity of existing item
       const updatedItems = [...selectedItems];
       updatedItems[existingIndex].quantity += 1;
-      console.log('🎒 Updated quantity for existing item, new items:', updatedItems);
       setSelectedItems(updatedItems);
     } else {
       // Add new item
-      console.log('🎒 Adding new item to selection');
       setSelectedItems(prev => {
         const newItems = [...prev, wizardItem];
-        console.log('🎒 New selected items:', newItems);
         return newItems;
       });
     }
@@ -285,10 +261,8 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
 
   // Update form with selected equipment
   const updateFormEquipment = useCallback(() => {
-    console.log('🎒 updateFormEquipment called, selectedItems:', selectedItems);
     
     const inventoryItems = selectedItems.map((item, index) => {
-      console.log(`🎒 Processing item ${index}:`, item);
       
       // Use the equipment data already in the item
       // It's already in the correct format from equipmentToWizardItem
@@ -297,8 +271,6 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
         quantity: item.quantity,
         equipped: item.equipped
       };
-      
-      console.log(`🎒 Mapped item ${index} result:`, result);
       return result;
     });
     
@@ -315,8 +287,6 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
       },
       carrying_capacity: carryingCapacity
     };
-    
-    console.log('🎒 Setting equipment form value:', equipmentData);
     setValue('equipment', equipmentData, { shouldValidate: true });
   }, [selectedItems, currentGold, calculateCarryingCapacity, setValue, availableEquipment]);
 
@@ -332,18 +302,14 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
       
       // Skip if items haven't actually changed
       if (previousItemsRef.current === currentItemsStr && !initialLoadRef.current) {
-        console.log('🎒 Skipping auto-save - items unchanged');
         return;
       }
       
       previousItemsRef.current = currentItemsStr;
       initialLoadRef.current = false;
       
-      console.log('🎒 Auto-saving equipment, selectedItems changed:', selectedItems);
-      
       // Inline the update logic to avoid dependency issues
       const inventoryItems = selectedItems.map((item, index) => {
-        console.log(`🎒 Processing item ${index}:`, item);
         return {
           equipment: item.equipment,
           quantity: item.quantity,
@@ -375,8 +341,6 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
           current_weight: currentWeight
         }
       };
-      
-      console.log('🎒 Setting equipment form value:', equipmentData);
       setValue('equipment', equipmentData, { shouldValidate: true });
     }
   }, [selectedItems, currentGold, loading, abilityScores, setValue]); // Don't include updateFormEquipment!

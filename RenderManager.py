@@ -5,7 +5,7 @@ import math
 import numpy as np
 from logger import setup_logger
 from typing import Optional, Dict, List, Any, Union, Tuple, TYPE_CHECKING
-from Sprite import Sprite
+from sprite import Sprite
 from dataclasses import dataclass
 from ContextTable import ContextTable
 from functools import lru_cache

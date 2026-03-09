@@ -11,7 +11,7 @@ from logger import setup_logger
 if TYPE_CHECKING:
     from Context import Context
     from ContextTable import ContextTable
-    from Sprite import Sprite
+    from sprite import Sprite
     from AssetManager import ClientAssetManager
 
 

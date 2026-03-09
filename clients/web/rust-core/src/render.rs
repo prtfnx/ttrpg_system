@@ -539,30 +539,45 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn get_cursor_type(&self, screen_x: f32, screen_y: f32) -> String {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
-        
+        let uid_opt = self.current_user_id;
+
+        // Inline helper: can this user control the sprite?
+        let user_can_control = |s: &crate::types::Sprite| -> bool {
+            if self.is_gm { return true; }
+            let Some(uid) = uid_opt else { return false; };
+            !s.controlled_by.is_empty() && s.controlled_by.contains(&(uid as i32))
+        };
+
+        // Inspect the currently selected sprite (resize/rotate handles + body)
         if let Some(selected_id) = &self.input.selected_sprite_id {
             if let Some((sprite, _)) = self.layer_manager.find_sprite(selected_id) {
-                // Check rotation handle first (not affected by rotation)
-                let rotate_handle_pos = SpriteManager::get_rotation_handle_position(sprite, self.camera.zoom);
-                let handle_size = 16.0 / self.camera.zoom as f32; // Match the size used in event_system.rs
-                if HandleDetector::point_in_handle(world_pos, rotate_handle_pos.x, rotate_handle_pos.y, handle_size) {
-                    return "crosshair".to_string();
-                }
-                
-                // Check for resize handles (only works for non-rotated sprites for now)
-                if sprite.rotation == 0.0 {
-                    if let Some(handle) = HandleDetector::get_resize_handle_for_cursor_detection(sprite, world_pos, self.camera.zoom) {
-                        return HandleDetector::get_cursor_for_handle(handle).to_string();
+                if user_can_control(sprite) {
+                    let rotate_handle_pos = SpriteManager::get_rotation_handle_position(sprite, self.camera.zoom);
+                    let handle_size = 16.0 / self.camera.zoom as f32;
+                    if HandleDetector::point_in_handle(world_pos, rotate_handle_pos.x, rotate_handle_pos.y, handle_size) {
+                        return "crosshair".to_string();
                     }
-                }
-                
-                // Check if over sprite body
-                if sprite.contains_world_point(world_pos) {
-                    return "move".to_string();
+                    if sprite.rotation == 0.0 {
+                        if let Some(handle) = HandleDetector::get_resize_handle_for_cursor_detection(sprite, world_pos, self.camera.zoom) {
+                            return HandleDetector::get_cursor_for_handle(handle).to_string();
+                        }
+                    }
+                    if sprite.contains_world_point(world_pos) {
+                        return "move".to_string();
+                    }
                 }
             }
         }
-        
+
+        // Hover over any sprite: show grab cursor only if user controls it
+        if let Some(hovered_id) = self.layer_manager.find_sprite_for_right_click(world_pos) {
+            if let Some((sprite, _)) = self.layer_manager.find_sprite(&hovered_id) {
+                if user_can_control(sprite) {
+                    return "grab".to_string();
+                }
+            }
+        }
+
         "default".to_string()
     }
     
@@ -597,18 +612,19 @@ impl RenderEngine {
             ctrl_pressed
         );
         
-        // Ownership check: block drag on sprites user doesn't control
+        // Ownership check: block drag on sprites user doesn't control.
+        // Fail-closed: unknown uid → deny drag for non-GMs.
         let uid_opt = self.current_user_id;
         let dragging = matches!(self.input.input_mode, InputMode::SpriteMove | InputMode::SpriteResize(_) | InputMode::SpriteRotate);
         let selected_id = self.input.selected_sprite_id.clone();
         let block_drag = !self.is_gm
             && dragging
-            && uid_opt.is_some()
-            && selected_id.as_deref()
-                .and_then(|id| self.layer_manager.find_sprite(id))
-                // empty controlled_by = DM-only token; non-empty but excludes user = also blocked
-                .map(|(s, _)| s.controlled_by.is_empty() || !s.controlled_by.contains(&uid_opt.unwrap()))
-                .unwrap_or(true);
+            && (uid_opt.is_none()
+                || selected_id.as_deref()
+                    .and_then(|id| self.layer_manager.find_sprite(id))
+                    // empty controlled_by = DM-only; non-empty but excludes user = blocked
+                    .map(|(s, _)| s.controlled_by.is_empty() || !s.controlled_by.contains(&uid_opt.unwrap()))
+                    .unwrap_or(true));
         if block_drag {
             self.input.input_mode = InputMode::None;
             self.input.selected_sprite_id = None;
@@ -1403,6 +1419,7 @@ impl RenderEngine {
             max_hp: None,
             ac: None,
             aura_radius: None,
+            aura_color: None,
             is_text_sprite: None,
             text_content: None,
             text_size: None,
@@ -1460,6 +1477,7 @@ impl RenderEngine {
             max_hp: None,
             ac: None,
             aura_radius: None,
+            aura_color: None,
             is_text_sprite: None,
             text_content: None,
             text_size: None,
@@ -1526,6 +1544,7 @@ impl RenderEngine {
             max_hp: None,
             ac: None,
             aura_radius: None,
+            aura_color: None,
             is_text_sprite: None,
             text_content: None,
             text_size: None,
@@ -1610,6 +1629,7 @@ impl RenderEngine {
             max_hp: None,
             ac: None,
             aura_radius: None,
+            aura_color: None,
             is_text_sprite: Some(true),
             text_content: Some(text.to_string()),
             text_size: Some(font_size as f64),
@@ -1670,6 +1690,20 @@ impl RenderEngine {
     }
 
     #[wasm_bindgen]
+    pub fn update_sprite_controlled_by(&mut self, sprite_id: &str, controlled_by_js: &JsValue) -> bool {
+        let controlled_by: Vec<i32> = match serde_wasm_bindgen::from_value(controlled_by_js.clone()) {
+            Ok(v) => v,
+            Err(_) => return false,
+        };
+        if let Some(sprite) = self.layer_manager.find_sprite_mut(sprite_id) {
+            sprite.controlled_by = controlled_by;
+            true
+        } else {
+            false
+        }
+    }
+
+    #[wasm_bindgen]
     pub fn apply_network_sprite_create(&mut self, sprite_data: &JsValue) -> Result<String, JsValue> {
         let network_data: crate::network::SpriteNetworkData = 
             serde_wasm_bindgen::from_value(sprite_data.clone())?;
@@ -1697,6 +1731,7 @@ impl RenderEngine {
             max_hp: None,
             ac: None,
             aura_radius: None,
+            aura_color: None,
             is_text_sprite: None,
             text_content: None,
             text_size: None,
@@ -2151,6 +2186,7 @@ impl RenderEngine {
                     max_hp: None,
                     ac: None,
                     aura_radius: None,
+                    aura_color: None,
                     is_text_sprite: None,
                     text_content: None,
                     text_size: None,

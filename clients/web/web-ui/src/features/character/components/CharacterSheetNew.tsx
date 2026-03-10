@@ -41,6 +41,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
   const [activeTab, setActiveTab] = useState<'core' | 'spells' | 'inventory' | 'bio' | 'activity'>('core');
   const [selectedTokenSpriteId, setSelectedTokenSpriteId] = useState<string>('');
   const [tokenImagePreview, setTokenImagePreview] = useState<string>('');
+  const [hpAmount, setHpAmount] = useState<number>(0);
   const imageInputRef = useRef<HTMLInputElement>(null);
   
   const { isConnected } = useProtocol();
@@ -65,13 +66,31 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
   };
 
   const handleHPChange = (delta: number) => {
-    const newHP = Math.max(0, Math.min((stats.hp || 0) + delta, stats.maxHp || 10));
-    onSave({
-      data: {
-        ...data,
-        stats: { ...stats, hp: newHP }
-      }
-    });
+    const currentTempHp = stats.tempHp || 0;
+    let remaining = delta;
+    let newTempHp = currentTempHp;
+    // Damage absorbs temp HP first
+    if (delta < 0 && currentTempHp > 0) {
+      const absorbed = Math.min(currentTempHp, -delta);
+      newTempHp = currentTempHp - absorbed;
+      remaining = delta + absorbed;
+    }
+    const newHP = Math.max(0, Math.min((stats.hp || 0) + remaining, stats.maxHp || 10));
+    // Reset death saves when healed from 0
+    const deathSaves = newHP > 0 ? { successes: 0, failures: 0 } : (stats.deathSaves || { successes: 0, failures: 0 });
+    onSave({ data: { ...data, stats: { ...stats, hp: newHP, tempHp: newTempHp, deathSaves } } });
+  };
+
+  const handleDeathSave = (type: 'successes' | 'failures', index: number) => {
+    const current = stats.deathSaves || { successes: 0, failures: 0 };
+    const val = current[type];
+    // Toggle: clicking checked box unchecks it, clicking unchecked checks it
+    const toggled = index < val ? index : index + 1;
+    onSave({ data: { ...data, stats: { ...stats, deathSaves: { ...current, [type]: toggled } } } });
+  };
+
+  const handleTempHpChange = (value: number) => {
+    onSave({ data: { ...data, stats: { ...stats, tempHp: Math.max(0, value) } } });
   };
 
   const handleSkillRoll = (skillName: string, modifier: number) => {
@@ -431,42 +450,33 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                   />
                   <div className={styles.hpDivider}>/</div>
                   <div className={styles.hpMax}>{stats.maxHp || 10}</div>
+                  {(stats.tempHp || 0) > 0 && (
+                    <div className={styles.tempHpBadge}>+{stats.tempHp} temp</div>
+                  )}
                 </div>
-                <div className={styles.hpControls}>
+                <div className={styles.hpAmountRow}>
+                  <input
+                    type="number"
+                    className={styles.hpAmountInput}
+                    value={hpAmount}
+                    min={0}
+                    onChange={(e) => setHpAmount(Math.max(0, Number(e.target.value)))}
+                    placeholder="Amount"
+                  />
                   <button
                     type="button"
                     className={clsx(styles.hpBtn, styles.damage)}
-                    onClick={() => handleHPChange(-1)}
-                    title="Damage (-1)"
-                  >
-                    -1
-                  </button>
-                  <button
-                    type="button"
-                    className={clsx(styles.hpBtn, styles.damage)}
-                    onClick={() => handleHPChange(-5)}
-                    title="Damage (-5)"
-                  >
-                    -5
-                  </button>
+                    onClick={() => { handleHPChange(-hpAmount); setHpAmount(0); }}
+                    disabled={hpAmount === 0}
+                  >Damage</button>
                   <button
                     type="button"
                     className={clsx(styles.hpBtn, styles.heal)}
-                    onClick={() => handleHPChange(1)}
-                    title="Heal (+1)"
-                  >
-                    +1
-                  </button>
-                  <button
-                    type="button"
-                    className={clsx(styles.hpBtn, styles.heal)}
-                    onClick={() => handleHPChange(5)}
-                    title="Heal (+5)"
-                  >
-                    +5
-                  </button>
+                    onClick={() => { handleHPChange(hpAmount); setHpAmount(0); }}
+                    disabled={hpAmount === 0}
+                  >Heal</button>
                 </div>
-                <div className="hp-adjust">
+                <div className={styles.hpAdjust}>
                   <label htmlFor="max-hp">Max HP:</label>
                   <input
                     id="max-hp"
@@ -475,78 +485,90 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                     onChange={(e) => handleStatUpdate('maxHp', Number(e.target.value))}
                     min={1}
                   />
+                  <label htmlFor="temp-hp">Temp:</label>
+                  <input
+                    id="temp-hp"
+                    type="number"
+                    value={stats.tempHp || 0}
+                    onChange={(e) => handleTempHpChange(Number(e.target.value))}
+                    min={0}
+                  />
                 </div>
               </div>
 
               {/* Combat Stats */}
-              <div className="combat-stats-card card">
+              <div className={clsx(styles.combatStatsCard, styles.card)}>
                 <h3 className={styles.cardTitle}>Combat Stats</h3>
-                <div className="combat-grid">
-                  <div className="combat-stat">
+                <div className={styles.combatGrid}>
+                  <div className={styles.combatStat}>
                     <label htmlFor="ac">Armor Class</label>
                     <input
                       id="ac"
                       type="number"
                       value={stats.ac || 10}
                       onChange={(e) => handleStatUpdate('ac', Number(e.target.value))}
-                      className="combat-input large"
+                      className={clsx(styles.combatInput, styles.large)}
                     />
                   </div>
-                  <div className="combat-stat">
+                  <div className={styles.combatStat}>
                     <label>Initiative</label>
-                    <div className="combat-value large">
+                    <div className={clsx(styles.combatValue, styles.large)}>
                       {getModifierString(abilities.dex)}
                     </div>
                   </div>
-                  <div className="combat-stat">
+                  <div className={styles.combatStat}>
                     <label htmlFor="speed">Speed</label>
                     <input
                       id="speed"
                       type="number"
                       value={stats.speed || 30}
                       onChange={(e) => handleStatUpdate('speed', Number(e.target.value))}
-                      className="combat-input"
+                      className={styles.combatInput}
                     />
-                    <span className="speed-unit">ft</span>
+                    <span className={styles.speedUnit}>ft</span>
                   </div>
                 </div>
               </div>
 
-              {/* Death Saves */}
-              <div className="death-saves-card card">
-                <h3 className={styles.cardTitle}>Death Saves</h3>
-                <div className="death-saves-grid">
-                  <div className="death-saves-row">
-                    <span className="save-label success">Successes</span>
-                    <div className="save-boxes">
-                      <input type="checkbox" className="death-save-check success" />
-                      <input type="checkbox" className="death-save-check success" />
-                      <input type="checkbox" className="death-save-check success" />
-                    </div>
-                  </div>
-                  <div className="death-saves-row">
-                    <span className="save-label failure">Failures</span>
-                    <div className="save-boxes">
-                      <input type="checkbox" className="death-save-check failure" />
-                      <input type="checkbox" className="death-save-check failure" />
-                      <input type="checkbox" className="death-save-check failure" />
-                    </div>
+              {/* Death Saves — visible only at 0 HP */}
+              {(stats.hp || 0) === 0 && (
+                <div className={clsx(styles.deathSavesCard, styles.card)}>
+                  <h3 className={styles.cardTitle}>Death Saves</h3>
+                  <div className={styles.deathSavesGrid}>
+                    {(['successes', 'failures'] as const).map((type) => (
+                      <div key={type} className={styles.deathSavesRow}>
+                        <span className={clsx(styles.saveLabel, styles[type === 'successes' ? 'success' : 'failure'])}>
+                          {type === 'successes' ? 'Successes' : 'Failures'}
+                        </span>
+                        <div className={styles.saveBoxes}>
+                          {[0, 1, 2].map((i) => (
+                            <input
+                              key={i}
+                              type="checkbox"
+                              className={clsx(styles.deathSaveCheck, styles[type === 'successes' ? 'success' : 'failure'])}
+                              checked={i < (stats.deathSaves?.[type] || 0)}
+                              onChange={() => handleDeathSave(type, i)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Conditions */}
-              <div className="conditions-card card">
+              <div className={clsx(styles.conditionsCard, styles.card)}>
                 <h3 className={styles.cardTitle}>Conditions</h3>
-                <div className="conditions-list">
+                <div className={styles.conditionsList}>
                   {(data.conditions && data.conditions.length > 0) ? (
                     data.conditions.map((condition: string) => (
-                      <span key={condition} className="condition-badge">
+                      <span key={condition} className={styles.conditionBadge}>
                         {condition}
                       </span>
                     ))
                   ) : (
-                    <div className="no-conditions">No active conditions</div>
+                    <div className={styles.noConditions}>No active conditions</div>
                   )}
                 </div>
               </div>
@@ -555,53 +577,53 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
             {/* Right Column - Features & Actions */}
             <div className={styles.rightColumn}>
               {/* Hit Dice */}
-              <div className="hit-dice-card card">
+              <div className={clsx(styles.hitDiceCard, styles.card)}>
                 <h3 className={styles.cardTitle}>Hit Dice</h3>
-                <div className="hit-dice-display">
-                  <span className="hit-dice-count">
+                <div className={styles.hitDiceDisplay}>
+                  <span className={styles.hitDiceCount}>
                     {data.level || 1}d{data.hitDie || 8}
                   </span>
-                  <button type="button" className="use-hit-die-btn">
+                  <button
+                    type="button"
+                    className={styles.useHitDieBtn}
+                    onClick={() => handleHPChange(Math.floor(Math.random() * (data.hitDie || 8)) + 1 + getModifier(abilities.con))}
+                  >
                     Use Hit Die
                   </button>
                 </div>
               </div>
 
               {/* Inspiration */}
-              <div className="inspiration-card card">
-                <label className="inspiration-check">
+              <div className={clsx(styles.inspirationCard, styles.card)}>
+                <label className={styles.inspirationCheck}>
                   <input
                     type="checkbox"
                     checked={data.inspiration || false}
-                    onChange={(e) => {
-                      onSave({
-                        data: { ...data, inspiration: e.target.checked }
-                      });
-                    }}
+                    onChange={(e) => onSave({ data: { ...data, inspiration: e.target.checked } })}
                   />
-                  <span className="inspiration-label">Inspiration</span>
+                  <span className={styles.inspirationLabel}>Inspiration</span>
                 </label>
               </div>
 
               {/* Attacks & Actions */}
-              <div className="attacks-card card">
+              <div className={clsx(styles.attacksCard, styles.card)}>
                 <h3 className={styles.cardTitle}>Attacks & Spellcasting</h3>
-                <div className="attack-info">
-                  <div className="attack-row">
-                    <span className="attack-label">Melee Attack:</span>
-                    <span className="attack-bonus">
+                <div className={styles.attackInfo}>
+                  <div className={styles.attackRow}>
+                    <span className={styles.attackLabel}>Melee Attack:</span>
+                    <span className={styles.attackBonus}>
                       {getModifierString(abilities.str)} + {profBonus}
                     </span>
                   </div>
-                  <div className="attack-row">
-                    <span className="attack-label">Ranged Attack:</span>
-                    <span className="attack-bonus">
+                  <div className={styles.attackRow}>
+                    <span className={styles.attackLabel}>Ranged Attack:</span>
+                    <span className={styles.attackBonus}>
                       {getModifierString(abilities.dex)} + {profBonus}
                     </span>
                   </div>
-                  <div className="attack-row">
-                    <span className="attack-label">Spell Save DC:</span>
-                    <span className="attack-bonus">
+                  <div className={styles.attackRow}>
+                    <span className={styles.attackLabel}>Spell Save DC:</span>
+                    <span className={styles.attackBonus}>
                       {8 + profBonus + Math.max(getModifier(abilities.wis), getModifier(abilities.int), getModifier(abilities.cha))}
                     </span>
                   </div>
@@ -609,17 +631,17 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
               </div>
 
               {/* Features & Traits */}
-              <div className="features-card card">
+              <div className={clsx(styles.featuresCard, styles.card)}>
                 <h3 className={styles.cardTitle}>Features & Traits</h3>
-                <div className="features-list">
+                <div className={styles.featuresList}>
                   {data.features && data.features.length > 0 ? (
                     data.features.map((feature: string, idx: number) => (
-                      <div key={idx} className="feature-item">
+                      <div key={idx} className={styles.featureItem}>
                         {feature}
                       </div>
                     ))
                   ) : (
-                    <div className="no-features">No features listed</div>
+                    <div className={styles.noFeatures}>No features listed</div>
                   )}
                 </div>
               </div>

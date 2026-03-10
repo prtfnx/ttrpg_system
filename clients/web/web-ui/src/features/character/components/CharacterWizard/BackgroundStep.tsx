@@ -1,58 +1,38 @@
-import { useBackgrounds } from '@features/compendium';
+import { useBackgrounds, useClasses, useRacesForCharacterWizard } from '@features/compendium';
 import { useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import type { BackgroundStepData } from './schemas';
 import styles from './BackgroundStep.module.css';
 
-const ALL_SKILLS = [
-  'Acrobatics', 'Animal Handling', 'Arcana', 'Athletics', 'Deception',
-  'History', 'Insight', 'Intimidation', 'Investigation', 'Medicine',
-  'Nature', 'Perception', 'Performance', 'Persuasion', 'Religion',
-  'Sleight of Hand', 'Stealth', 'Survival',
-];
-
-const CLASS_SKILL_MAP: Record<string, { skills: string[]; choices: number }> = {
-  barbarian: { skills: ['Animal Handling', 'Athletics', 'Intimidation', 'Nature', 'Perception', 'Survival'], choices: 2 },
-  bard: { skills: ALL_SKILLS, choices: 3 },
-  cleric: { skills: ['History', 'Insight', 'Medicine', 'Persuasion', 'Religion'], choices: 2 },
-  druid: { skills: ['Arcana', 'Animal Handling', 'Insight', 'Medicine', 'Nature', 'Perception', 'Religion', 'Survival'], choices: 2 },
-  fighter: { skills: ['Acrobatics', 'Animal Handling', 'Athletics', 'History', 'Insight', 'Intimidation', 'Perception', 'Survival'], choices: 2 },
-  monk: { skills: ['Acrobatics', 'Athletics', 'History', 'Insight', 'Religion', 'Stealth'], choices: 2 },
-  paladin: { skills: ['Athletics', 'Insight', 'Intimidation', 'Medicine', 'Persuasion', 'Religion'], choices: 2 },
-  ranger: { skills: ['Animal Handling', 'Athletics', 'Insight', 'Investigation', 'Nature', 'Perception', 'Stealth', 'Survival'], choices: 3 },
-  rogue: { skills: ['Acrobatics', 'Athletics', 'Deception', 'Insight', 'Intimidation', 'Investigation', 'Perception', 'Performance', 'Persuasion', 'Sleight of Hand', 'Stealth'], choices: 4 },
-  sorcerer: { skills: ['Arcana', 'Deception', 'Insight', 'Intimidation', 'Persuasion', 'Religion'], choices: 2 },
-  warlock: { skills: ['Arcana', 'Deception', 'History', 'Intimidation', 'Investigation', 'Nature', 'Religion'], choices: 2 },
-  wizard: { skills: ['Arcana', 'History', 'Insight', 'Investigation', 'Medicine', 'Religion'], choices: 2 },
-};
-
-const RACE_BONUS_SKILLS: Record<string, string[]> = {
-  elf: ['Perception'],
-  half_elf: [],
-  human: [],
-};
-
 export function BackgroundStep({ onNext: _onNext, onBack: _onBack }: { onNext?: () => void; onBack?: () => void } = {}) {
   const { register, formState, watch, setValue, getValues } = useFormContext<BackgroundStepData>();
   const selectedBackground = watch('background');
-  const { data: backgrounds, loading, error } = useBackgrounds();
+  const { data: backgrounds, loading: bgLoading, error: bgError } = useBackgrounds();
+  const { data: classes } = useClasses();
+  const { data: races } = useRacesForCharacterWizard();
 
   const characterClass: string = (watch as any)('class') ?? '';
   const characterRace: string = (watch as any)('race') ?? '';
 
-  const classEntry = CLASS_SKILL_MAP[characterClass.toLowerCase()] ?? { skills: [], choices: 2 };
-  const raceSkills: string[] = RACE_BONUS_SKILLS[characterRace.toLowerCase()] ?? [];
+  // Derive class skill data from compendium
+  const classData = classes?.find(c => c.name.toLowerCase() === characterClass.toLowerCase());
+  const classSkills: string[] = classData?.skill_proficiencies ?? [];
+  const classChoices: number = classData?.num_skills ?? 2;
+
+  // Derive race bonus skills from compendium
+  const raceEntry = races?.[characterRace];
+  const raceSkills: string[] = raceEntry?.proficiencies?.skills ?? [];
 
   // Find selected background skills from compendium data
   const selectedBackgroundData = backgrounds?.find(bg => bg.name === selectedBackground);
   const backgroundSkills: string[] = selectedBackgroundData?.skill_proficiencies ?? [];
 
   const alreadyGranted = useMemo(() => [...backgroundSkills, ...raceSkills], [backgroundSkills, raceSkills]);
-  const availableClassSkills = classEntry.skills.filter(s => !alreadyGranted.includes(s));
+  const availableClassSkills = classSkills.filter(s => !alreadyGranted.includes(s));
 
   const [selectedClassSkills, setSelectedClassSkills] = useState<string[]>(() => {
     const existing = (getValues as any)().skills;
-    if (Array.isArray(existing) && existing.length > 0) return existing.filter((s: string) => availableClassSkills.includes(s));
+    if (Array.isArray(existing) && existing.length > 0) return existing.filter((s: string) => classSkills.includes(s));
     return [];
   });
 
@@ -64,19 +44,17 @@ export function BackgroundStep({ onNext: _onNext, onBack: _onBack }: { onNext?: 
   function toggleClassSkill(skill: string) {
     setSelectedClassSkills(prev => {
       if (prev.includes(skill)) return prev.filter(s => s !== skill);
-      if (prev.length >= classEntry.choices) return prev;
+      if (prev.length >= classChoices) return prev;
       return [...prev, skill];
     });
   }
 
-  // Show loading state
-  if (loading) {
+  if (bgLoading) {
     return <div className={styles.centered}>Loading backgrounds...</div>;
   }
 
-  // Show error state
-  if (error) {
-    return <div className={styles.error}>Error loading backgrounds: {error}</div>;
+  if (bgError) {
+    return <div className={styles.error}>Error loading backgrounds: {bgError}</div>;
   }
 
   // Show if no backgrounds available
@@ -148,7 +126,7 @@ export function BackgroundStep({ onNext: _onNext, onBack: _onBack }: { onNext?: 
           <h4 className={styles['skills-title']}>
             Class Skill Proficiencies
             <span className={styles['skills-count']}>
-              {selectedClassSkills.length} / {classEntry.choices} chosen
+              {selectedClassSkills.length} / {classChoices} chosen
             </span>
           </h4>
           <div className={styles['skills-grid']}>

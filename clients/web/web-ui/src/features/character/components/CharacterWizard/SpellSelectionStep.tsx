@@ -4,14 +4,8 @@ import { ErrorBoundary } from '@shared/components';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { spellManagementService } from '../../services/spellManagement.service';
+import styles from './SpellSelectionStep.module.css';
 import type { WizardFormData } from './WizardFormData';
-
-// Loading spinner component
-const LoadingSpinner: React.FC = () => (
-  <div className="loading-spinner">
-    <div className="spinner"></div>
-  </div>
-);
 
 // Spell list filtering and management
 interface SpellFilters {
@@ -104,25 +98,25 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
     [characterClass, characterLevel, abilityScores]
   );
 
-  // Load spells on component mount
-  useEffect(() => {
-    const loadSpells = async () => {
-      try {
-        setLoading(true);
-        const spellsData = await compendiumService.getSpells();
-        const classSpells = spellManagementService.getSpellsForClass(spellsData.spells, characterClass);
-        setAvailableSpells(classSpells);
-        setError(null);
-      } catch (err) {
-        console.error('Failed to load spells:', err);
-        setError('Failed to load spell data. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchSpells = useCallback(async () => {
+    try {
+      setLoading(true);
+      const spellsData = await compendiumService.getSpells({ class: characterClass });
+      const classSpells = spellManagementService.getSpellsForClass(spellsData.spells, characterClass);
+      setAvailableSpells(classSpells);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to load spells:', err);
+      setError('Failed to load spell data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [characterClass]);
 
-    loadSpells();
-  }, [characterClass, spellSlots]);
+  // Load spells on component mount / class change
+  useEffect(() => {
+    fetchSpells();
+  }, [fetchSpells]);
 
   // Filter spells based on current filters AND available spell slots
   const filteredSpells = useMemo(() => {
@@ -233,20 +227,20 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
 
   if (loading) {
     return (
-      <div className="spell-selection-step">
+      <div className={styles['spell-selection-step']}>
         <h2>Select Spells</h2>
-        <LoadingSpinner />
+        <div className={styles['loading-spinner']}><div className={styles.spinner} /></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="spell-selection-step">
+      <div className={styles['spell-selection-step']}>
         <h2>Select Spells</h2>
-        <div className="error-message">
+        <div className={styles['error-message']}>
           <p>{error}</p>
-          <button onClick={() => window.location.reload()}>Retry</button>
+          <button onClick={fetchSpells}>Retry</button>
         </div>
       </div>
     );
@@ -254,32 +248,32 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
 
   return (
     <ErrorBoundary fallback={<div>Error loading spell selection</div>}>
-      <div className="spell-selection-step">
-        <div className="step-header">
+      <div className={styles['spell-selection-step']}>
+        <div className={styles['step-header']}>
           <h2>Select Spells for {characterClass}</h2>
-          <p className="spell-requirements">
+          <p className={styles['spell-requirements']}>
             {(spellSlots.cantrips || 0) > 0 && `Choose ${spellSlots.cantrips} cantrips`}
             {(spellSlots.cantrips || 0) > 0 && maxSpellsKnown !== Infinity && ' • '}
             {maxSpellsKnown !== Infinity && `Choose ${maxSpellsKnown} spells`}
             {maxSpellsKnown === Infinity && `Prepare spells`}
           </p>
-          <p className="spell-help">
+          <p className={styles['spell-help']}>
             You can only learn spells of levels you have spell slots for (Level {characterLevel} caster)
           </p>
         </div>
 
-        <div className="spell-content">
+        <div className={styles['spell-content']}>
           {/* Left Side: Available Spells */}
-          <div className="available-spells-section">
+          <div className={styles['available-spells-section']}>
             {/* Filters */}
-            <div className="spell-filters">
-              <div className="filter-row">
+            <div className={styles['spell-filters']}>
+              <div className={styles['filter-row']}>
                 <input
                   type="text"
                   placeholder="Search spells..."
                   value={filters.search}
                   onChange={(e) => handleFilterChange('search', e.target.value)}
-                  className="search-input"
+                  className={styles['search-input']}
                 />
                 
                 <select
@@ -289,7 +283,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                       handleFilterChange('school', [...filters.school, e.target.value]);
                     }
                   }}
-                  className="filter-select"
+                  className={styles['filter-select']}
                 >
                   <option value="">Filter by School</option>
                   {SPELL_SCHOOLS.map(school => (
@@ -303,18 +297,18 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                   ))}
                 </select>
 
-                <button onClick={clearFilters} className="clear-filters">
+                <button onClick={clearFilters} className={styles['clear-filters']}>
                   Clear Filters
                 </button>
               </div>
 
               {/* Level filter buttons */}
-              <div className="level-filters">
-                <span className="filter-label">Level:</span>
+              <div className={styles['level-filters']}>
+                <span className={styles['filter-label']}>Level:</span>
                 {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(level => (
                   <button
                     key={level}
-                    className={`level-filter ${filters.level.includes(level) ? 'active' : ''}`}
+                    className={[styles['level-filter'], filters.level.includes(level) ? styles.active : ''].join(' ')}
                     onClick={() => {
                       const newLevels = filters.level.includes(level)
                         ? filters.level.filter(l => l !== level)
@@ -329,9 +323,9 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
 
               {/* Active filters display */}
               {(filters.school.length > 0 || filters.level.length > 0) && (
-                <div className="active-filters">
+                <div className={styles['active-filters']}>
                   {filters.school.map(school => (
-                    <span key={school} className="filter-tag">
+                    <span key={school} className={styles['filter-tag']}>
                       {school}
                       <button
                         onClick={() => handleFilterChange('school', filters.school.filter(s => s !== school))}
@@ -341,7 +335,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                     </span>
                   ))}
                   {filters.level.map(level => (
-                    <span key={level} className="filter-tag">
+                    <span key={level} className={styles['filter-tag']}>
                       {level === 0 ? 'Cantrips' : `Level ${level}`}
                       <button
                         onClick={() => handleFilterChange('level', filters.level.filter(l => l !== level))}
@@ -355,7 +349,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
             </div>
 
             {/* Compact Spell List */}
-            <div className="spell-list-compact">
+            <div className={styles['spell-list-compact']}>
               {Object.keys(spellsByLevel)
                 .sort((a, b) => Number(a) - Number(b))
                 .map(levelStr => {
@@ -364,9 +358,9 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                   const levelName = level === 0 ? 'Cantrips' : `Level ${level}`;
 
                   return (
-                    <div key={level} className="spell-level-group">
-                      <h3 className="level-header">{levelName} ({spells.length})</h3>
-                      <div className="spells-compact-grid">
+                    <div key={level} className={styles['spell-level-group']}>
+                      <h3 className={styles['level-header']}>{levelName} ({spells.length})</h3>
+                      <div className={styles['spells-compact-grid']}>
                         {spells.map(spell => {
                           const isCantrip = level === 0;
                           const isSelected = (isCantrip ? currentSpells.cantrips : currentSpells.knownSpells)
@@ -379,33 +373,38 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                           return (
                             <div
                               key={spell.name}
-                              className={`spell-card-compact ${isSelected ? 'selected' : ''} ${!canSelect && !isSelected ? 'disabled' : ''} ${isExpanded ? 'expanded' : ''}`}
+                              className={[
+                                styles['spell-card-compact'],
+                                isSelected ? styles.selected : '',
+                                !canSelect && !isSelected ? styles.disabled : '',
+                                isExpanded ? styles.expanded : '',
+                              ].filter(Boolean).join(' ')}
                             >
                               {/* Compact Header - Always Visible */}
                               <div
-                                className="spell-card-header"
+                                className={styles['spell-card-header']}
                                 onClick={() => setExpandedSpell(isExpanded ? null : spell.name)}
                               >
-                                <div className="spell-name-row">
-                                  <h4 className="spell-name">{spell.name}</h4>
-                                  <div className="spell-tags">
-                                    {spell.ritual && <span className="spell-tag ritual" title="Ritual">R</span>}
-                                    {spell.concentration && <span className="spell-tag concentration" title="Concentration">C</span>}
-                                    <span className="spell-tag school">{spell.school.substring(0, 3)}</span>
+                                <div className={styles['spell-name-row']}>
+                                  <h4 className={styles['spell-name']}>{spell.name}</h4>
+                                  <div className={styles['spell-tags']}>
+                                    {spell.ritual && <span className={styles['spell-tag-ritual']} title="Ritual">R</span>}
+                                    {spell.concentration && <span className={styles['spell-tag-concentration']} title="Concentration">C</span>}
+                                    <span className={styles['spell-tag-school']}>{spell.school.substring(0, 3)}</span>
                                   </div>
                                 </div>
-                                <div className="spell-quick-info">
+                                <div className={styles['spell-quick-info']}>
                                   <span>{spell.casting_time}</span>
                                   <span>•</span>
                                   <span>{spell.range}</span>
-                                  <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
+                                  <span className={styles['expand-icon']}>{isExpanded ? '▼' : '▶'}</span>
                                 </div>
                               </div>
 
                               {/* Expanded Details */}
                               {isExpanded && (
-                                <div className="spell-card-details">
-                                  <div className="casting-info">
+                                <div className={styles['spell-card-details']}>
+                                  <div className={styles['casting-info']}>
                                     <div><strong>Components:</strong> {
                                       [
                                         spell.components.verbal && 'V',
@@ -417,16 +416,20 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                                     <div><strong>Duration:</strong> {spell.duration}</div>
                                   </div>
                                   
-                                  <p className="spell-description">{spell.description}</p>
+                                  <p className={styles['spell-description']}>{spell.description}</p>
                                   
                                   {spell.higher_levels && (
-                                    <p className="at-higher-levels">
+                                    <p className={styles['at-higher-levels']}>
                                       <strong>At Higher Levels:</strong> {spell.higher_levels}
                                     </p>
                                   )}
 
                                   <button
-                                    className={`add-spell-button ${isSelected ? 'remove' : 'add'}`}
+                                    className={!canSelect && !isSelected
+                                      ? styles['add-spell-button-disabled']
+                                      : isSelected
+                                        ? styles['add-spell-button-remove']
+                                        : styles['add-spell-button-add']}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       if (canSelect || isSelected) handleSpellToggle(spell);
@@ -448,49 +451,49 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
           </div>
 
           {/* Right Side: Selected Spells Panel */}
-          <div className="selected-spells-panel">
-            <div className="panel-sticky">
+          <div className={styles['selected-spells-panel']}>
+            <div className={styles['panel-sticky']}>
               <h3>Your Spellbook</h3>
               
               {/* Spell Statistics */}
-              <div className="spell-stats-panel">
-                <div className="stat-row">
-                  <span className="stat-label">Cantrips:</span>
-                  <span className={`stat-value ${currentSpells.cantrips.length >= (spellSlots.cantrips || 0) ? 'complete' : ''}`}>
+              <div className={styles['spell-stats-panel']}>
+                <div className={styles['stat-row']}>
+                  <span className={styles['stat-label']}>Cantrips:</span>
+                  <span className={currentSpells.cantrips.length >= (spellSlots.cantrips || 0) ? styles['stat-value-complete'] : styles['stat-value']}>
                     {currentSpells.cantrips.length} / {spellSlots.cantrips || 0}
                   </span>
                 </div>
                 
-                <div className="stat-row">
-                  <span className="stat-label">{maxSpellsKnown === Infinity ? 'Spells' : 'Known'}:</span>
-                  <span className={`stat-value ${maxSpellsKnown !== Infinity && currentSpells.knownSpells.length >= maxSpellsKnown ? 'complete' : ''}`}>
+                <div className={styles['stat-row']}>
+                  <span className={styles['stat-label']}>{maxSpellsKnown === Infinity ? 'Spells' : 'Known'}:</span>
+                  <span className={maxSpellsKnown !== Infinity && currentSpells.knownSpells.length >= maxSpellsKnown ? styles['stat-value-complete'] : styles['stat-value']}>
                     {currentSpells.knownSpells.length} {maxSpellsKnown === Infinity ? '' : `/ ${maxSpellsKnown}`}
                   </span>
                 </div>
 
-                <div className="stat-row">
-                  <span className="stat-label">Spell Save DC:</span>
-                  <span className="stat-value">{spellcastingStats.spellSaveDC}</span>
+                <div className={styles['stat-row']}>
+                  <span className={styles['stat-label']}>Spell Save DC:</span>
+                  <span className={styles['stat-value']}>{spellcastingStats.spellSaveDC}</span>
                 </div>
 
-                <div className="stat-row">
-                  <span className="stat-label">Spell Attack:</span>
-                  <span className="stat-value">+{spellcastingStats.spellAttackBonus}</span>
+                <div className={styles['stat-row']}>
+                  <span className={styles['stat-label']}>Spell Attack:</span>
+                  <span className={styles['stat-value']}>+{spellcastingStats.spellAttackBonus}</span>
                 </div>
               </div>
 
               {/* Selected Cantrips */}
-              <div className="selected-spell-section">
+              <div className={styles['selected-spell-section']}>
                 <h4>Cantrips ({currentSpells.cantrips.length})</h4>
                 {currentSpells.cantrips.length > 0 ? (
-                  <ul className="selected-spell-list">
+                  <ul className={styles['selected-spell-list']}>
                     {currentSpells.cantrips.map(spellName => {
                       const spell = availableSpells[spellName];
                       return (
-                        <li key={spellName} className="selected-spell-item">
-                          <span className="spell-name">{spellName}</span>
+                        <li key={spellName} className={styles['selected-spell-item']}>
+                          <span className={styles['spell-name']}>{spellName}</span>
                           <button
-                            className="remove-spell-btn"
+                            className={styles['remove-spell-btn']}
                             onClick={() => spell && handleSpellToggle(spell)}
                             title="Remove spell"
                           >
@@ -501,23 +504,23 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                     })}
                   </ul>
                 ) : (
-                  <p className="empty-message">No cantrips selected</p>
+                  <p className={styles['empty-message']}>No cantrips selected</p>
                 )}
               </div>
 
               {/* Selected Spells */}
-              <div className="selected-spell-section">
+              <div className={styles['selected-spell-section']}>
                 <h4>{maxSpellsKnown === Infinity ? 'Spells' : 'Known Spells'} ({currentSpells.knownSpells.length})</h4>
                 {currentSpells.knownSpells.length > 0 ? (
-                  <ul className="selected-spell-list">
+                  <ul className={styles['selected-spell-list']}>
                     {currentSpells.knownSpells.map(spellName => {
                       const spell = availableSpells[spellName];
                       return (
-                        <li key={spellName} className="selected-spell-item">
-                          <span className="spell-name">{spellName}</span>
-                          {spell && <span className="spell-level">Lvl {spell.level}</span>}
+                        <li key={spellName} className={styles['selected-spell-item']}>
+                          <span className={styles['spell-name']}>{spellName}</span>
+                          {spell && <span className={styles['selected-spell-level']}>Lvl {spell.level}</span>}
                           <button
-                            className="remove-spell-btn"
+                            className={styles['remove-spell-btn']}
                             onClick={() => spell && handleSpellToggle(spell)}
                             title="Remove spell"
                           >
@@ -528,7 +531,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                     })}
                   </ul>
                 ) : (
-                  <p className="empty-message">No spells selected</p>
+                  <p className={styles['empty-message']}>No spells selected</p>
                 )}
               </div>
             </div>
@@ -536,17 +539,17 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
         </div>
 
         {errors.spells && (
-          <div className="validation-error">
+          <div className={styles['validation-error']}>
             {errors.spells.message}
           </div>
         )}
 
         {/* Navigation */}
-        <div className="step-navigation">
+        <div className={styles['step-navigation']}>
           <button
             type="button"
             onClick={handleBack}
-            className="nav-button back-button"
+            className={styles['back-button']}
           >
             ← Back
           </button>
@@ -554,7 +557,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
           <button
             type="button"
             onClick={handleNext}
-            className="nav-button next-button"
+            className={styles['next-button']}
           >
             Next →
           </button>

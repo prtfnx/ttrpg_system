@@ -1190,3 +1190,42 @@ class ActionsCore(AsyncActionsProtocol):
                 success=False,
                 message=f"Server error: {str(e)}"
             )
+
+    async def get_character_log(self, session_id: int, character_id: str, user_id: int, limit: int = 50) -> ActionResult:
+        """Return recent character log entries."""
+        try:
+            from server_host.managers.character_manager import get_server_character_manager
+            char_manager = get_server_character_manager()
+            result = char_manager.get_character_logs(character_id, session_id, limit)
+            if result['success']:
+                return ActionResult(True, 'Log retrieved', {'logs': result['logs']})
+            return ActionResult(False, result.get('error', 'Failed to get log'))
+        except Exception as e:
+            logger.error(f"Error in get_character_log: {e}")
+            return ActionResult(False, f"Server error: {str(e)}")
+
+    async def character_roll(self, session_id: int, character_id: str, user_id: int,
+                             roll_type: str, skill: str, modifier: int,
+                             result: int, total: int, advantage: bool = False) -> ActionResult:
+        """Log a skill/ability roll and return data for broadcast."""
+        try:
+            from server_host.managers.character_manager import get_server_character_manager
+            char_manager = get_server_character_manager()
+            sign = '+' if modifier >= 0 else ''
+            desc = f"{skill} ({roll_type}): d20={result}{sign}{modifier} = {total}"
+            if advantage:
+                desc += ' (Advantage)'
+            char_manager.log_event(character_id, session_id, user_id, 'skill_roll', desc)
+            return ActionResult(True, 'Roll logged', {
+                'character_id': character_id,
+                'roll_type': roll_type,
+                'skill': skill,
+                'modifier': modifier,
+                'result': result,
+                'total': total,
+                'advantage': advantage,
+                'description': desc,
+            })
+        except Exception as e:
+            logger.error(f"Error in character_roll: {e}")
+            return ActionResult(False, f"Server error: {str(e)}")

@@ -289,3 +289,17 @@ class AuditLog(Base):
     
     # Relationship
     user = relationship("User")
+
+
+class CharacterLog(Base):
+    """Per-character action log: HP changes, spell casts, skill rolls, etc."""
+    __tablename__ = "character_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    character_id = Column(String(36), ForeignKey("session_characters.character_id"), nullable=False, index=True)
+    session_id = Column(Integer, ForeignKey("game_sessions.id"), nullable=False)
+    user_id = Column(Integer, nullable=False)
+    # E.g. 'hp_change', 'spell_cast', 'slot_recovered', 'long_rest', 'skill_roll', 'item_change'
+    action_type = Column(String(50), nullable=False)
+    description = Column(String(500), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)

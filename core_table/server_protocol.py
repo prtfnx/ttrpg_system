@@ -119,9 +119,12 @@ class ServerProtocol:
         self.register_handler(MessageType.CHARACTER_LIST_REQUEST, self.handle_character_list_request)
         self.register_handler(MessageType.CHARACTER_DELETE_REQUEST, self.handle_character_delete_request)
         # Character update (delta updates)
-        # New message type allows clients to send partial updates with version checks
         if hasattr(MessageType, 'CHARACTER_UPDATE'):
             self.register_handler(MessageType.CHARACTER_UPDATE, self.handle_character_update)
+        if hasattr(MessageType, 'CHARACTER_LOG_REQUEST'):
+            self.register_handler(MessageType.CHARACTER_LOG_REQUEST, self.handle_character_log_request)
+        if hasattr(MessageType, 'CHARACTER_ROLL'):
+            self.register_handler(MessageType.CHARACTER_ROLL, self.handle_character_roll)
         
         # Error handling
         self.register_handler(MessageType.ERROR, self.handle_error)
@@ -2128,6 +2131,46 @@ class ServerProtocol:
         except Exception as e:
             logger.error(f"Error handling character update: {e}")
             return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': str(e)})
+
+    async def handle_character_log_request(self, msg: Message, client_id: str) -> Message:
+        """Return character action log entries."""
+        if not msg.data:
+            return Message(MessageType.CHARACTER_LOG_RESPONSE, {'success': False, 'error': 'No data'})
+        character_id = msg.data.get('character_id')
+        session_id = self._get_session_id(msg)
+        user_id = self._get_user_id(msg, client_id) or 0
+        limit = int(msg.data.get('limit', 50))
+        if not character_id or not session_id:
+            return Message(MessageType.CHARACTER_LOG_RESPONSE, {'success': False, 'error': 'character_id and session required'})
+        result = await self.actions.get_character_log(session_id, character_id, user_id, limit)
+        if result.success:
+            return Message(MessageType.CHARACTER_LOG_RESPONSE, {
+                'success': True, 'character_id': character_id,
+                'logs': result.data.get('logs', [])
+            })
+        return Message(MessageType.CHARACTER_LOG_RESPONSE, {'success': False, 'error': result.message})
+
+    async def handle_character_roll(self, msg: Message, client_id: str) -> Message:
+        """Log a skill/ability roll and broadcast result to session."""
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data'})
+        session_id = self._get_session_id(msg)
+        user_id = self._get_user_id(msg, client_id) or 0
+        d = msg.data
+        result = await self.actions.character_roll(
+            session_id=session_id, user_id=user_id,
+            character_id=d.get('character_id', ''),
+            roll_type=d.get('roll_type', 'skill_check'),
+            skill=d.get('skill', ''),
+            modifier=int(d.get('modifier', 0)),
+            result=int(d.get('result', 0)),
+            total=int(d.get('total', 0)),
+            advantage=bool(d.get('advantage', False)),
+        )
+        if result.success:
+            broadcast = Message(MessageType.CHARACTER_ROLL_RESULT, result.data)
+            await self.broadcast_to_session(broadcast, client_id)
+        return Message(MessageType.SUCCESS, {'message': 'Roll logged'})
 
     # =========================================================================
     # MISSING MESSAGE HANDLERS IMPLEMENTATION

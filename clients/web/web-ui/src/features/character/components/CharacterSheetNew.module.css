@@ -413,6 +413,16 @@
   font-weight: var(--font-bold);
   font-size: var(--text-sm);
   color: var(--color-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--duration-fast);
+}
+
+.skillBonus:hover {
+  color: var(--color-primary-hover, var(--color-primary));
+  text-decoration: underline;
 }
 
 .passivePerception {

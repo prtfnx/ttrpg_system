@@ -106,6 +106,12 @@ export const MessageType = {
   // Character delta updates
   CHARACTER_UPDATE: "character_update",
   CHARACTER_UPDATE_RESPONSE: "character_update_response",
+  // Character action log
+  CHARACTER_LOG_REQUEST: "character_log_request",
+  CHARACTER_LOG_RESPONSE: "character_log_response",
+  // Skill/ability/saving-throw rolls
+  CHARACTER_ROLL: "character_roll",
+  CHARACTER_ROLL_RESULT: "character_roll_result",
   
   // Batch messaging for performance
   BATCH: "batch",

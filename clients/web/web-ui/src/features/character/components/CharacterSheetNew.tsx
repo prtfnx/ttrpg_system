@@ -6,6 +6,7 @@ import React, { useRef, useState } from "react";
 import { useGameStore } from "../../../store";
 import type { Character } from "../../../types";
 import styles from "./CharacterSheetNew.module.css";
+import { ActivityTab } from './ActivityTab';
 import { InventoryTab } from './InventoryTab';
 import { SpellsTab } from './SpellsTab';
 
@@ -37,7 +38,7 @@ const SKILLS = [
 ] as const;
 
 export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSave }) => {
-  const [activeTab, setActiveTab] = useState<'core' | 'spells' | 'inventory' | 'bio'>('core');
+  const [activeTab, setActiveTab] = useState<'core' | 'spells' | 'inventory' | 'bio' | 'activity'>('core');
   const [selectedTokenSpriteId, setSelectedTokenSpriteId] = useState<string>('');
   const [tokenImagePreview, setTokenImagePreview] = useState<string>('');
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -71,6 +72,16 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
         stats: { ...stats, hp: newHP }
       }
     });
+  };
+
+  const handleSkillRoll = (skillName: string, modifier: number) => {
+    const roll = Math.floor(Math.random() * 20) + 1;
+    const total = roll + modifier;
+    const sign = modifier >= 0 ? `+${modifier}` : `${modifier}`;
+    showToast.success(`${skillName}: d20(${roll}) ${sign} = ${total}`);
+    if (isConnected && ProtocolService.hasProtocol() && character) {
+      ProtocolService.getProtocol().rollSkill(character.id, skillName, modifier, roll, total);
+    }
   };
 
   const handleStatUpdate = (field: string, value: number) => {
@@ -291,6 +302,13 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
         >
           Notes & Bio
         </button>
+        <button
+          type="button"
+          className={clsx(styles.sheetTab, activeTab === "activity" && styles.active)}
+          onClick={() => setActiveTab('activity')}
+        >
+          Activity
+        </button>
       </div>
 
       {/* Main Content */}
@@ -377,7 +395,13 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                           {skill.name}
                         </label>
                         <span className={styles.skillAbility}>({skill.ability.toUpperCase()})</span>
-                        <span className={styles.skillBonus}>{bonusStr}</span>
+                        <button
+                          className={styles.skillBonus}
+                          onClick={() => handleSkillRoll(skill.name, bonus)}
+                          title={`Roll ${skill.name} (d20 ${bonus >= 0 ? '+' : ''}${bonus})`}
+                        >
+                          {bonusStr}
+                        </button>
                       </div>
                     );
                   })}
@@ -717,6 +741,10 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
               )}
             </div>
           </div>
+        )}
+
+        {activeTab === 'activity' && (
+          <ActivityTab characterId={character.id} />
         )}
       </div>
     </div>

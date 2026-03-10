@@ -30,6 +30,7 @@ class CompendiumService:
         self.spell_data = None
         self.equipment_data = None
         self.bestiary_data = None
+        self.feats_data = None
         self._load_all_data()
     
     def _load_all_data(self):
@@ -79,7 +80,16 @@ class CompendiumService:
                 logger.info(f"✅ Loaded bestiary data: {monster_count} monsters")
             else:
                 logger.warning("❌ bestiary_optimized.json not found")
-                
+
+            # Load feats data
+            feats_file = COMPENDIUM_DIR / "feats_data.json"
+            if feats_file.exists():
+                with open(feats_file, 'r', encoding='utf-8') as f:
+                    self.feats_data = json.load(f)
+                logger.info(f"✅ Loaded feats data: {len(self.feats_data.get('feats', []))} feats")
+            else:
+                logger.warning("❌ feats_data.json not found")
+
         except Exception as e:
             logger.error(f"❌ Error loading compendium data: {e}")
 
@@ -100,8 +110,10 @@ async def get_compendium_status():
         "counts": {
             "races": len(compendium_service.character_data.get('races', [])) if compendium_service.character_data else 0,
             "classes": len(compendium_service.character_data.get('classes', [])) if compendium_service.character_data else 0,
+            "backgrounds": len(compendium_service.character_data.get('backgrounds', [])) if compendium_service.character_data else 0,
             "spells": compendium_service.spell_data['metadata']['spell_count'] if compendium_service.spell_data else 0,
-            "monsters": len(compendium_service.bestiary_data.get('monsters', {})) if compendium_service.bestiary_data else 0
+            "monsters": len(compendium_service.bestiary_data.get('monsters', {})) if compendium_service.bestiary_data else 0,
+            "feats": len(compendium_service.feats_data.get('feats', [])) if compendium_service.feats_data else 0,
         }
     }
 
@@ -142,6 +154,21 @@ async def get_classes():
         "classes": classes,
         "count": len(classes)
     }
+
+@router.get("/classes/{class_name}/subclasses")
+async def get_class_subclasses(class_name: str):
+    """Get subclasses for a specific class"""
+    if not compendium_service.character_data:
+        raise HTTPException(status_code=500, detail="Character data not available")
+
+    classes = compendium_service.character_data.get('classes', [])
+    char_class = next((c for c in classes if c['name'].lower() == class_name.lower()), None)
+    if not char_class:
+        raise HTTPException(status_code=404, detail=f"Class '{class_name}' not found")
+
+    subclasses = char_class.get('subclasses', [])
+    return {"class": char_class['name'], "subclasses": subclasses, "count": len(subclasses)}
+
 
 @router.get("/classes/{class_name}")
 async def get_class_by_name(class_name: str):
@@ -298,6 +325,39 @@ async def get_monster_by_name(monster_name: str):
         raise HTTPException(status_code=404, detail=f"Monster '{monster_name}' not found")
     
     return monster
+
+@router.get("/feats")
+async def get_feats(
+    prerequisite: Optional[str] = None,
+    source: Optional[str] = None,
+):
+    """Get all feats, optionally filtered by prerequisite or source"""
+    if not compendium_service.feats_data:
+        raise HTTPException(status_code=500, detail="Feats data not available")
+
+    feats = compendium_service.feats_data.get('feats', [])
+    if prerequisite == 'none':
+        feats = [f for f in feats if f.get('prerequisite') is None]
+    elif prerequisite:
+        feats = [f for f in feats if f.get('prerequisite') and prerequisite.lower() in f['prerequisite'].lower()]
+    if source:
+        feats = [f for f in feats if f.get('source', '').upper() == source.upper()]
+
+    return {"feats": feats, "count": len(feats)}
+
+
+@router.get("/feats/{feat_name}")
+async def get_feat_by_name(feat_name: str):
+    """Get a specific feat by name"""
+    if not compendium_service.feats_data:
+        raise HTTPException(status_code=500, detail="Feats data not available")
+
+    feats = compendium_service.feats_data.get('feats', [])
+    feat = next((f for f in feats if f['name'].lower() == feat_name.lower()), None)
+    if not feat:
+        raise HTTPException(status_code=404, detail=f"Feat '{feat_name}' not found")
+    return feat
+
 
 # Reload endpoint for development
 @router.post("/reload")

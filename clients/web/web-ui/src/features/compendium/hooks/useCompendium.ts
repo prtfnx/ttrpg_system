@@ -3,7 +3,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { compendiumService, type Background, type CharacterClass, type CompendiumStatus, type Race, type Spell } from '../services/compendiumService';
+import { compendiumService, type Background, type CharacterClass, type CompendiumStatus, type Feat, type Race, type Spell, type Subclass } from '../services/compendiumService';
 
 export interface UseCompendiumDataState<T> {
   data: T | null;
@@ -327,4 +327,71 @@ export function useSpell(spellName: string | null): UseCompendiumDataState<Spell
 
   // Return state with refetch function using useMemo to avoid infinite re-renders
   return useMemo(() => ({ ...state, refetch: fetchSpell }), [state, fetchSpell]);
+}
+
+/**
+ * Hook to get all feats with optional filtering
+ */
+export function useFeats(filters: {
+  prerequisite?: string;
+  source?: string;
+} = {}): UseCompendiumDataState<Feat[]> {
+  const [state, setState] = useState<UseCompendiumDataState<Feat[]>>({
+    data: null,
+    loading: true,
+    error: null,
+    refetch: async () => {}
+  });
+
+  const fetchFeats = useCallback(async () => {
+    setState(prev => ({ ...prev, loading: true, error: null }));
+    try {
+      const response = await compendiumService.getFeats(filters);
+      setState(prev => ({ ...prev, data: response.feats, loading: false }));
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        loading: false
+      }));
+    }
+  }, [filters.prerequisite, filters.source]);
+
+  useEffect(() => { fetchFeats(); }, [fetchFeats]);
+
+  return useMemo(() => ({ ...state, refetch: fetchFeats }), [state, fetchFeats]);
+}
+
+/**
+ * Hook to get subclasses for a specific class
+ */
+export function useSubclasses(className: string | null): UseCompendiumDataState<Subclass[]> {
+  const [state, setState] = useState<UseCompendiumDataState<Subclass[]>>({
+    data: null,
+    loading: !!className,
+    error: null,
+    refetch: async () => {}
+  });
+
+  const fetchSubclasses = useCallback(async () => {
+    if (!className) {
+      setState(prev => ({ ...prev, data: null, loading: false }));
+      return;
+    }
+    setState(prev => ({ ...prev, loading: true, error: null }));
+    try {
+      const response = await compendiumService.getSubclasses(className);
+      setState(prev => ({ ...prev, data: response.subclasses, loading: false }));
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        loading: false
+      }));
+    }
+  }, [className]);
+
+  useEffect(() => { fetchSubclasses(); }, [fetchSubclasses]);
+
+  return useMemo(() => ({ ...state, refetch: fetchSubclasses }), [state, fetchSubclasses]);
 }

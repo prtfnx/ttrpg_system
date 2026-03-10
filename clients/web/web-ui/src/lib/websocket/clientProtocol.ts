@@ -1212,16 +1212,15 @@ export class WebClientProtocol {
     }));
   }
 
-  rollSkill(characterId: string, skill: string, modifier: number, rollResult: number, total: number, advantage = false): void {
+  rollSkill(characterId: string, skill: string, modifier: number, advantage = false, disadvantage = false): void {
     if (this.userId === null) return;
     this.sendMessage(createMessage(MessageType.CHARACTER_ROLL, {
       character_id: characterId,
       roll_type: 'skill_check',
       skill,
       modifier,
-      result: rollResult,
-      total,
       advantage,
+      disadvantage,
       user_id: this.userId,
       session_code: this.sessionCode
     }));

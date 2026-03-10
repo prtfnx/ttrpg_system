@@ -1206,24 +1206,43 @@ class ActionsCore(AsyncActionsProtocol):
 
     async def character_roll(self, session_id: int, character_id: str, user_id: int,
                              roll_type: str, skill: str, modifier: int,
-                             result: int, total: int, advantage: bool = False) -> ActionResult:
-        """Log a skill/ability roll and return data for broadcast."""
+                             advantage: bool = False, disadvantage: bool = False) -> ActionResult:
+        """Roll d20 server-side and log result for broadcast. Clients send intent only."""
+        import secrets
         try:
             from server_host.managers.character_manager import get_server_character_manager
-            char_manager = get_server_character_manager()
-            sign = '+' if modifier >= 0 else ''
-            desc = f"{skill} ({roll_type}): d20={result}{sign}{modifier} = {total}"
+
+            # Server owns the dice — clients cannot spoof results
+            roll1 = secrets.randbelow(20) + 1
             if advantage:
-                desc += ' (Advantage)'
+                roll2 = secrets.randbelow(20) + 1
+                die_roll = max(roll1, roll2)
+            elif disadvantage:
+                roll2 = secrets.randbelow(20) + 1
+                die_roll = min(roll1, roll2)
+            else:
+                roll2 = None
+                die_roll = roll1
+
+            total = die_roll + modifier
+            sign = '+' if modifier >= 0 else ''
+            desc = f"{skill} ({roll_type}): d20={die_roll}{sign}{modifier} = {total}"
+            if advantage and roll2 is not None:
+                desc += f' (Adv: [{roll1},{roll2}])'
+            elif disadvantage and roll2 is not None:
+                desc += f' (Dis: [{roll1},{roll2}])'
+
+            char_manager = get_server_character_manager()
             char_manager.log_event(character_id, session_id, user_id, 'skill_roll', desc)
-            return ActionResult(True, 'Roll logged', {
+            return ActionResult(True, 'Roll completed', {
                 'character_id': character_id,
                 'roll_type': roll_type,
                 'skill': skill,
                 'modifier': modifier,
-                'result': result,
+                'die_roll': die_roll,
                 'total': total,
                 'advantage': advantage,
+                'disadvantage': disadvantage,
                 'description': desc,
             })
         except Exception as e:

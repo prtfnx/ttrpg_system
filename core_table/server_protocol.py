@@ -964,12 +964,13 @@ class ServerProtocol:
                         logger.debug(f"Could not look up character_id for sprite {sprite_id}: {_e}")
 
                 if character_id and session_id:
+                    # Only DMs bypass ownership; players must own the character
                     char_result = await self.actions.update_character(
                         session_id, character_id,
                         {'data': {'stats': char_stat_updates}},
                         user_id or 0,
                         expected_version=None,
-                        bypass_owner_check=True
+                        bypass_owner_check=is_dm(role)
                     )
                     if char_result.success:
                         await self.broadcast_to_session(
@@ -2195,26 +2196,28 @@ class ServerProtocol:
         return Message(MessageType.CHARACTER_LOG_RESPONSE, {'success': False, 'error': result.message})
 
     async def handle_character_roll(self, msg: Message, client_id: str) -> Message:
-        """Log a skill/ability roll and broadcast result to session."""
+        """Roll d20 server-side and broadcast result to session."""
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data'})
         session_id = self._get_session_id(msg)
+        if not session_id:
+            return Message(MessageType.ERROR, {'error': 'No active session'})
         user_id = self._get_user_id(msg, client_id) or 0
         d = msg.data
+        # Server computes roll — only accept intent (skill, modifier, advantage) from client
         result = await self.actions.character_roll(
             session_id=session_id, user_id=user_id,
             character_id=d.get('character_id', ''),
             roll_type=d.get('roll_type', 'skill_check'),
             skill=d.get('skill', ''),
             modifier=int(d.get('modifier', 0)),
-            result=int(d.get('result', 0)),
-            total=int(d.get('total', 0)),
             advantage=bool(d.get('advantage', False)),
+            disadvantage=bool(d.get('disadvantage', False)),
         )
-        if result.success:
-            broadcast = Message(MessageType.CHARACTER_ROLL_RESULT, result.data)
-            await self.broadcast_to_session(broadcast, client_id)
-        return Message(MessageType.SUCCESS, {'message': 'Roll logged'})
+        if not result.success:
+            return Message(MessageType.ERROR, {'error': result.message})
+        await self.broadcast_to_session(Message(MessageType.CHARACTER_ROLL_RESULT, result.data), client_id)
+        return Message(MessageType.SUCCESS, {'message': 'Roll completed'})
 
     # =========================================================================
     # MISSING MESSAGE HANDLERS IMPLEMENTATION

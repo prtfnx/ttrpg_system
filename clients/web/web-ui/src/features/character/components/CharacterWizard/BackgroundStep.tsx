@@ -132,7 +132,7 @@ export function BackgroundStep({ onNext: _onNext, onBack: _onBack }: { onNext?: 
           <div className={styles['skills-grid']}>
             {availableClassSkills.map(skill => {
               const checked = selectedClassSkills.includes(skill);
-              const maxed = selectedClassSkills.length >= classEntry.choices;
+              const maxed = selectedClassSkills.length >= classChoices;
               return (
                 <label
                   key={skill}

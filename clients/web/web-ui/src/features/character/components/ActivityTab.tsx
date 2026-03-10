@@ -1,3 +1,4 @@
+import { Heart, Moon, Package, RefreshCw, Scroll, Sparkles, Swords } from 'lucide-react';
 import { ProtocolService } from '@lib/api';
 import React, { useCallback, useEffect, useState } from 'react';
 import styles from './ActivityTab.module.css';
@@ -13,14 +14,18 @@ interface Props {
   characterId: string;
 }
 
-const ACTION_ICON: Record<string, string> = {
-  hp_change: '❤️',
-  spell_cast: '✨',
-  slot_recovered: '🔄',
-  long_rest: '🌙',
-  skill_roll: '🎲',
-  item_change: '🎒',
-};
+function ActionIcon({ type }: { type: string }) {
+  const size = 14;
+  switch (type) {
+    case 'hp_change':     return <Heart size={size} aria-hidden />;
+    case 'spell_cast':    return <Sparkles size={size} aria-hidden />;
+    case 'slot_recovered': return <RefreshCw size={size} aria-hidden />;
+    case 'long_rest':     return <Moon size={size} aria-hidden />;
+    case 'skill_roll':    return <Swords size={size} aria-hidden />;
+    case 'item_change':   return <Package size={size} aria-hidden />;
+    default:              return <Scroll size={size} aria-hidden />;
+  }
+}
 
 export const ActivityTab: React.FC<Props> = ({ characterId }) => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -49,7 +54,7 @@ export const ActivityTab: React.FC<Props> = ({ characterId }) => {
       const entry: LogEntry = {
         id: Date.now(),
         action_type: 'skill_roll',
-        description: data.description ?? `Roll: ${data.total}`,
+        description: data.description ?? `${data.skill ?? 'Roll'}: ${data.total}`,
         created_at: new Date().toISOString(),
       };
       setLogs(prev => [entry, ...prev].slice(0, 50));
@@ -84,7 +89,7 @@ export const ActivityTab: React.FC<Props> = ({ characterId }) => {
           {logs.map(entry => (
             <li key={entry.id} className={styles.entry}>
               <span className={styles.icon} aria-hidden>
-                {ACTION_ICON[entry.action_type] ?? '📋'}
+                <ActionIcon type={entry.action_type} />
               </span>
               <div className={styles.entryBody}>
                 <span className={styles.desc}>{entry.description}</span>

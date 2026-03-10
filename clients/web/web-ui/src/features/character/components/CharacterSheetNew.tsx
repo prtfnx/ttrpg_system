@@ -94,12 +94,9 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
   };
 
   const handleSkillRoll = (skillName: string, modifier: number) => {
-    const roll = Math.floor(Math.random() * 20) + 1;
-    const total = roll + modifier;
-    const sign = modifier >= 0 ? `+${modifier}` : `${modifier}`;
-    showToast.success(`${skillName}: d20(${roll}) ${sign} = ${total}`);
     if (isConnected && ProtocolService.hasProtocol() && character) {
-      ProtocolService.getProtocol().rollSkill(character.id, skillName, modifier, roll, total);
+      ProtocolService.getProtocol().rollSkill(character.id, skillName, modifier);
+      showToast.success(`Rolling ${skillName}…`);
     }
   };
 

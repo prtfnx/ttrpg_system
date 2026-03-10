@@ -116,7 +116,8 @@ class ServerCharacterManager:
         for level_str, used in used_map.items():
             total_entry = slot_totals.get(str(level_str)) or {}
             total = total_entry.get('total', 0) if isinstance(total_entry, dict) else 0
-            if total > 0 and int(used) > total:
+            # Treat missing/zero totals as a hard cap of 0 — you cannot use slots you don't have
+            if int(used) > total:
                 return f'Cannot use more spell slots than available at level {level_str} (max {total})'
         return None
 

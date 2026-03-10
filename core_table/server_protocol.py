@@ -937,7 +937,51 @@ class ServerProtocol:
             result = await self.actions.update_sprite(table_id, sprite_id, session_id=session_id, **updates)
             if not result.success:
                 return Message(MessageType.ERROR, {'error': f'Failed to update sprite: {result.message}'})
-        
+
+            # Reverse sync: propagate token HP/AC changes back to the linked character
+            char_stat_updates = {}
+            if 'hp' in updates:
+                char_stat_updates['hp'] = updates['hp']
+            if 'max_hp' in updates:
+                char_stat_updates['maxHp'] = updates['max_hp']
+            if 'ac' in updates:
+                char_stat_updates['ac'] = updates['ac']
+
+            if char_stat_updates:
+                character_id = update_data.get('character_id')
+                if not character_id:
+                    # Look it up from the DB entity
+                    try:
+                        from server_host.database.models import Entity as DBEntity
+                        db = SessionLocal()
+                        try:
+                            entity_row = db.query(DBEntity).filter_by(id=sprite_id).first()
+                            if entity_row:
+                                character_id = entity_row.character_id
+                        finally:
+                            db.close()
+                    except Exception as _e:
+                        logger.debug(f"Could not look up character_id for sprite {sprite_id}: {_e}")
+
+                if character_id and session_id:
+                    char_result = await self.actions.update_character(
+                        session_id, character_id,
+                        {'data': {'stats': char_stat_updates}},
+                        user_id or 0,
+                        expected_version=None,
+                        bypass_owner_check=True
+                    )
+                    if char_result.success:
+                        await self.broadcast_to_session(
+                            Message(MessageType.CHARACTER_UPDATE_RESPONSE, {
+                                'character_id': character_id,
+                                'updates': {'data': {'stats': char_stat_updates}},
+                                'source': 'token_sync'
+                            }), client_id
+                        )
+                    else:
+                        logger.warning(f"Token→character sync failed for {character_id}: {char_result.message}")
+
         # Only broadcast if there were actual field changes
         if updates:
             broadcast_msg = Message(MessageType.SPRITE_UPDATE, {

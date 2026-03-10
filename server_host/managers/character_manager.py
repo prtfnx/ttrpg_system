@@ -104,9 +104,26 @@ class ServerCharacterManager:
                 'error': f'Database error: {str(e)}'
             }
 
-    def update_character(self, session_id: int, character_id: str, updates: Dict[str, Any], user_id: int, expected_version: Optional[int] = None) -> Dict[str, Any]:
+    def _validate_spell_slots(self, current_json: dict, updates: dict) -> Optional[str]:
+        """Return error string if spell slot usage exceeds total, else None."""
+        new_data = updates.get('data', {})
+        if not new_data:
+            return None
+        used_map = new_data.get('spellSlotsUsed')
+        if not used_map:
+            return None
+        slot_totals = (current_json.get('data') or {}).get('spellSlots') or {}
+        for level_str, used in used_map.items():
+            total_entry = slot_totals.get(str(level_str)) or {}
+            total = total_entry.get('total', 0) if isinstance(total_entry, dict) else 0
+            if total > 0 and int(used) > total:
+                return f'Cannot use more spell slots than available at level {level_str} (max {total})'
+        return None
+
+    def update_character(self, session_id: int, character_id: str, updates: Dict[str, Any], user_id: int, expected_version: Optional[int] = None, bypass_owner_check: bool = False) -> Dict[str, Any]:
         """Perform a versioned update of a character's JSON data in a single DB transaction.
         Merges JSON if appropriate and enforces optimistic concurrency if expected_version provided.
+        bypass_owner_check=True allows DM-initiated updates (e.g. token HP sync).
         """
         try:
             with SessionLocal() as db:
@@ -123,7 +140,7 @@ class ServerCharacterManager:
                 if not existing:
                     return {'success': False, 'error': 'Character not found'}
 
-                if str(getattr(existing, 'owner_user_id', '')) != str(user_id):
+                if not bypass_owner_check and str(getattr(existing, 'owner_user_id', '')) != str(user_id):
                     return {'success': False, 'error': 'Permission denied'}
 
                 # Version check
@@ -142,6 +159,11 @@ class ServerCharacterManager:
                     merged = {**current_json, **updates}
                 else:
                     merged = updates
+
+                # Spell slot validation
+                slot_error = self._validate_spell_slots(current_json, updates)
+                if slot_error:
+                    return {'success': False, 'error': slot_error}
 
                 new_version = int(current_version) + 1
 

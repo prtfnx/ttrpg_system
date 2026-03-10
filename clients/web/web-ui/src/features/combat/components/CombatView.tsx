@@ -1,11 +1,11 @@
 import { Crosshair, Dices, Sparkles, Swords, User } from 'lucide-react';
 import React, { useState } from 'react';
 import { AttackManager } from './AttackManager';
-import { CharacterSheet } from './CharacterSheet';
-import { CombatTracker } from './CombatTracker';
+import { CharacterSheet } from '../../character/components/CharacterWizard/CharacterSheet';
+import { CombatTracker } from './CombatTrackerFull';
 import { DiceRoller } from './DiceRoller';
-import { SpellManager } from './SpellManager';
-import type { WizardFormData } from './WizardFormData';
+import { SpellManager } from '../../character/components/CharacterWizard/SpellManager';
+import type { WizardFormData } from '@features/character';
 
 interface CombatViewProps {
   character: WizardFormData;

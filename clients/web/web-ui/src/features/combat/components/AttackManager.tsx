@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import styles from './AttackManager.module.css';
 import { DiceRoller } from './DiceRoller';
-import type { WizardFormData } from './WizardFormData';
+import type { WizardFormData } from '@features/character';
 
 interface AttackManagerProps {
   character: WizardFormData;

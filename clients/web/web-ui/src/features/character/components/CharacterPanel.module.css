@@ -308,7 +308,7 @@
 }
 
 .retryBtn:hover {
-  background: #dc2626;
+  background: var(--color-danger-hover, var(--color-danger));
 }
 
 .cardRight {
@@ -856,6 +856,92 @@
   background: var(--color-primary);
   border-color: var(--color-primary-active);
   color: white;
+}
+
+/* ===== CHARACTER CARD - HP BAR (Phase 6.3) ===== */
+
+.cardMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-2xs, 11px);
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.classBadge {
+  font-weight: var(--font-semibold);
+  color: var(--blue-400);
+}
+
+.levelBadge {
+  color: var(--orange-400);
+}
+
+.raceBadge {
+  color: var(--green-400);
+}
+
+.hpRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+.hpText {
+  font-size: var(--text-2xs, 11px);
+  color: var(--text-muted);
+  white-space: nowrap;
+  min-width: 52px;
+}
+
+.hpBar {
+  flex: 1;
+  height: 4px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full, 9999px);
+  overflow: hidden;
+}
+
+.hpFill {
+  height: 100%;
+  border-radius: var(--radius-full, 9999px);
+  transition: width var(--duration-base, 0.2s) ease;
+  background: var(--color-success);
+}
+
+.hpFill.hpMedium {
+  background: var(--color-warning);
+}
+
+.hpFill.hpLow {
+  background: var(--color-danger);
+}
+
+.acBadge {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--text-2xs, 11px);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* offline banner - replace emoji icon target */
+.offlineBanner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: linear-gradient(90deg, var(--color-danger), var(--color-danger-dark, var(--color-danger)));
+  color: var(--color-on-danger, #fff);
+  border-bottom: 1px solid var(--color-danger);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  animation: slideDown 0.3s ease-out;
 }
 
 .bulkActionBtn.share:hover {

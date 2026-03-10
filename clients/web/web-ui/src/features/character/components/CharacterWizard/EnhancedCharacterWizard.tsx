@@ -10,6 +10,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ErrorBoundary, LoadingSpinner } from '@shared/components';
+import clsx from 'clsx';
 import { AlertTriangle, Check, Save, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -395,7 +396,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
     return (
       <ErrorBoundary
         fallback={
-          <div className="step-error">
+          <div className={styles['step-error']}>
             <h3><AlertTriangle size={16} aria-hidden /> Step Error</h3>
             <p>There was an error loading this step. Please try refreshing or contact support.</p>
             <button onClick={() => window.location.reload()}>Refresh Page</button>
@@ -417,28 +418,28 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
   if (!isOpen) return null;
 
   const modalContent = (
-    <div 
-      className={`enhanced-wizard-overlay ${className}`}
-      role="dialog" 
+    <div
+      className={clsx(styles['enhanced-wizard-overlay'], className)}
+      role="dialog"
       aria-modal="true"
       aria-labelledby="wizard-title"
       aria-describedby="wizard-description"
     >
-      <div className="enhanced-wizard-modal">
+      <div className={styles['enhanced-wizard-modal']}>
         {isInitializing ? (
-          <div className="wizard-initializing">
+          <div className={styles['wizard-initializing']}>
             <LoadingSpinner size="large" />
             <p>Initializing character wizard...</p>
           </div>
         ) : (
           <FormProvider {...form}>
             {/* Header */}
-            <div className="wizard-header">
-              <div className="wizard-title-section">
+            <div className={styles['wizard-header']}>
+              <div className={styles['wizard-title-section']}>
                 <h1 id="wizard-title">Character Creation Wizard</h1>
                 <p id="wizard-description">Create your D&D 5e character</p>
                 <button
-                  className="wizard-close"
+                  className={styles['wizard-close']}
                   onClick={handleClose}
                   aria-label="Close wizard"
                   type="button"
@@ -448,10 +449,10 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
               </div>
               
               {/* Progress Bar */}
-              <div className="wizard-progress">
-                <div className="progress-bar">
-                  <div 
-                    className="progress-fill"
+              <div className={styles['wizard-progress']}>
+                <div className={styles['progress-bar']}>
+                  <div
+                    className={styles['progress-fill']}
                     style={{ width: `${progress}%` }}
                     role="progressbar"
                     aria-valuenow={progress}
@@ -460,7 +461,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
                     aria-label={`${progress}% complete`}
                   />
                 </div>
-                <span className="progress-text">{progress}% Complete</span>
+                <span className={styles['progress-text']}>{progress}% Complete</span>
               </div>
 
               {/* Step Navigation */}
@@ -474,24 +475,22 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
                   return (
                     <button
                       key={step.id}
-                      className={`step-button ${
-                        originalIndex === currentStepIndex ? 'active' : ''
-                      } ${
-                        completedSteps.has(originalIndex) ? 'completed' : ''
-                      } ${
-                        !canNavigateToStep(originalIndex) ? 'disabled' : ''
-                      }`}
+                      className={clsx(styles['step-button'], {
+                        [styles.active]: originalIndex === currentStepIndex,
+                        [styles.completed]: completedSteps.has(originalIndex),
+                        [styles.disabled]: !canNavigateToStep(originalIndex)
+                      })}
                       onClick={() => handleStepClick(originalIndex)}
                       disabled={!canNavigateToStep(originalIndex)}
                       aria-current={originalIndex === currentStepIndex ? 'step' : undefined}
                       title={step.description}
                     >
-                      <span className="step-number">
+                      <span className={styles['step-number']}>
                         {WIZARD_STEPS.filter((s, i) => i <= originalIndex && shouldShowStep(s, getValues())).length}
                       </span>
-                      <span className="step-title">{step.title}</span>
+                      <span className={styles['step-title']}>{step.title}</span>
                       {completedSteps.has(originalIndex) && (
-                        <span className="step-check" aria-label="Completed"><Check size={14} aria-hidden /></span>
+                        <span className={styles['step-check']} aria-label="Completed"><Check size={14} aria-hidden /></span>
                       )}
                     </button>
                   );
@@ -501,38 +500,38 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
 
             {/* Current Step Content */}
             <div className={styles.wizardContent}>
-              <div className="step-header">
+              <div className={styles['step-header']}>
                 <h2>{currentStep.title}</h2>
                 <p>{currentStep.description}</p>
                 {stepErrors[currentStepIndex] && (
-                  <div className="step-error-message" role="alert">
+                  <div className={styles['step-error-message']} role="alert">
                     {stepErrors[currentStepIndex]}
                   </div>
                 )}
               </div>
               
-              <div className="step-content">
+              <div className={styles['step-content']}>
                 {renderCurrentStep()}
               </div>
             </div>
 
             {/* Footer with navigation */}
-            <div className="wizard-footer">
-              <div className="wizard-actions">
+            <div className={styles['wizard-footer']}>
+              <div className={styles['wizard-actions']}>
                 <button
                   type="button"
-                  className="wizard-btn wizard-btn-secondary"
+                  className={clsx(styles['wizard-btn'], styles['wizard-btn-secondary'])}
                   onClick={handlePrevious}
                   disabled={isFirstStep}
                 >
                   ← Previous
                 </button>
                 
-                <div className="wizard-actions-right">
+                <div className={styles['wizard-actions-right']}>
                   {currentStep.canSkip && (
                     <button
                       type="button"
-                      className="wizard-btn wizard-btn-tertiary"
+                      className={clsx(styles['wizard-btn'], styles['wizard-btn-tertiary'])}
                       onClick={handleNext}
                     >
                       Skip →
@@ -541,7 +540,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
                   
                   <button
                     type="button"
-                    className="wizard-btn wizard-btn-primary"
+                    className={clsx(styles['wizard-btn'], styles['wizard-btn-primary'])}
                     onClick={handleNext}
                   >
                     {isLastStep ? 'Create Character' : 'Next →'}
@@ -550,7 +549,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
               </div>
               
               {hasUnsavedChanges && (
-                <div className="auto-save-indicator">
+                <div className={styles['auto-save-indicator']}>
                   <Save size={14} aria-hidden /> Changes saved automatically
                 </div>
               )}

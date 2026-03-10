@@ -119,9 +119,12 @@ class ServerProtocol:
         self.register_handler(MessageType.CHARACTER_LIST_REQUEST, self.handle_character_list_request)
         self.register_handler(MessageType.CHARACTER_DELETE_REQUEST, self.handle_character_delete_request)
         # Character update (delta updates)
-        # New message type allows clients to send partial updates with version checks
         if hasattr(MessageType, 'CHARACTER_UPDATE'):
             self.register_handler(MessageType.CHARACTER_UPDATE, self.handle_character_update)
+        if hasattr(MessageType, 'CHARACTER_LOG_REQUEST'):
+            self.register_handler(MessageType.CHARACTER_LOG_REQUEST, self.handle_character_log_request)
+        if hasattr(MessageType, 'CHARACTER_ROLL'):
+            self.register_handler(MessageType.CHARACTER_ROLL, self.handle_character_roll)
         
         # Error handling
         self.register_handler(MessageType.ERROR, self.handle_error)
@@ -934,7 +937,52 @@ class ServerProtocol:
             result = await self.actions.update_sprite(table_id, sprite_id, session_id=session_id, **updates)
             if not result.success:
                 return Message(MessageType.ERROR, {'error': f'Failed to update sprite: {result.message}'})
-        
+
+            # Reverse sync: propagate token HP/AC changes back to the linked character
+            char_stat_updates = {}
+            if 'hp' in updates:
+                char_stat_updates['hp'] = updates['hp']
+            if 'max_hp' in updates:
+                char_stat_updates['maxHp'] = updates['max_hp']
+            if 'ac' in updates:
+                char_stat_updates['ac'] = updates['ac']
+
+            if char_stat_updates:
+                character_id = update_data.get('character_id')
+                if not character_id:
+                    # Look it up from the DB entity
+                    try:
+                        from server_host.database.models import Entity as DBEntity
+                        db = SessionLocal()
+                        try:
+                            entity_row = db.query(DBEntity).filter_by(id=sprite_id).first()
+                            if entity_row:
+                                character_id = entity_row.character_id
+                        finally:
+                            db.close()
+                    except Exception as _e:
+                        logger.debug(f"Could not look up character_id for sprite {sprite_id}: {_e}")
+
+                if character_id and session_id:
+                    # Only DMs bypass ownership; players must own the character
+                    char_result = await self.actions.update_character(
+                        session_id, character_id,
+                        {'data': {'stats': char_stat_updates}},
+                        user_id or 0,
+                        expected_version=None,
+                        bypass_owner_check=is_dm(role)
+                    )
+                    if char_result.success:
+                        await self.broadcast_to_session(
+                            Message(MessageType.CHARACTER_UPDATE_RESPONSE, {
+                                'character_id': character_id,
+                                'updates': {'data': {'stats': char_stat_updates}},
+                                'source': 'token_sync'
+                            }), client_id
+                        )
+                    else:
+                        logger.warning(f"Token→character sync failed for {character_id}: {char_result.message}")
+
         # Only broadcast if there were actual field changes
         if updates:
             broadcast_msg = Message(MessageType.SPRITE_UPDATE, {
@@ -2128,6 +2176,48 @@ class ServerProtocol:
         except Exception as e:
             logger.error(f"Error handling character update: {e}")
             return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': str(e)})
+
+    async def handle_character_log_request(self, msg: Message, client_id: str) -> Message:
+        """Return character action log entries."""
+        if not msg.data:
+            return Message(MessageType.CHARACTER_LOG_RESPONSE, {'success': False, 'error': 'No data'})
+        character_id = msg.data.get('character_id')
+        session_id = self._get_session_id(msg)
+        user_id = self._get_user_id(msg, client_id) or 0
+        limit = int(msg.data.get('limit', 50))
+        if not character_id or not session_id:
+            return Message(MessageType.CHARACTER_LOG_RESPONSE, {'success': False, 'error': 'character_id and session required'})
+        result = await self.actions.get_character_log(session_id, character_id, user_id, limit)
+        if result.success:
+            return Message(MessageType.CHARACTER_LOG_RESPONSE, {
+                'success': True, 'character_id': character_id,
+                'logs': result.data.get('logs', [])
+            })
+        return Message(MessageType.CHARACTER_LOG_RESPONSE, {'success': False, 'error': result.message})
+
+    async def handle_character_roll(self, msg: Message, client_id: str) -> Message:
+        """Roll d20 server-side and broadcast result to session."""
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data'})
+        session_id = self._get_session_id(msg)
+        if not session_id:
+            return Message(MessageType.ERROR, {'error': 'No active session'})
+        user_id = self._get_user_id(msg, client_id) or 0
+        d = msg.data
+        # Server computes roll — only accept intent (skill, modifier, advantage) from client
+        result = await self.actions.character_roll(
+            session_id=session_id, user_id=user_id,
+            character_id=d.get('character_id', ''),
+            roll_type=d.get('roll_type', 'skill_check'),
+            skill=d.get('skill', ''),
+            modifier=int(d.get('modifier', 0)),
+            advantage=bool(d.get('advantage', False)),
+            disadvantage=bool(d.get('disadvantage', False)),
+        )
+        if not result.success:
+            return Message(MessageType.ERROR, {'error': result.message})
+        await self.broadcast_to_session(Message(MessageType.CHARACTER_ROLL_RESULT, result.data), client_id)
+        return Message(MessageType.SUCCESS, {'message': 'Roll completed'})
 
     # =========================================================================
     # MISSING MESSAGE HANDLERS IMPLEMENTATION

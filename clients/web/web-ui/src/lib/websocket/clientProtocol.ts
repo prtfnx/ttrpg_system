@@ -265,6 +265,9 @@ export class WebClientProtocol {
     // Character update handlers (delta)
     this.registerHandler(MessageType.CHARACTER_UPDATE, this.handleCharacterUpdate.bind(this));
     this.registerHandler(MessageType.CHARACTER_UPDATE_RESPONSE, this.handleCharacterUpdateResponse.bind(this));
+    // Character log and roll results
+    this.registerHandler(MessageType.CHARACTER_LOG_RESPONSE, this.handleCharacterLogResponse.bind(this));
+    this.registerHandler(MessageType.CHARACTER_ROLL_RESULT, this.handleCharacterRollResult.bind(this));
   }
 
   registerHandler(type: string, handler: MessageHandler): void {
@@ -977,6 +980,14 @@ export class WebClientProtocol {
     window.dispatchEvent(new CustomEvent('character-update-response', { detail: message.data }));
   }
 
+  private handleCharacterLogResponse(message: Message): void {
+    window.dispatchEvent(new CustomEvent('character-log-response', { detail: message.data }));
+  }
+
+  private handleCharacterRollResult(message: Message): void {
+    window.dispatchEvent(new CustomEvent('character-roll-result', { detail: message.data }));
+  }
+
   // Public API methods for sending requests
   requestTableList(): void {
     this.sendMessage(createMessage(MessageType.TABLE_LIST_REQUEST));
@@ -1187,6 +1198,30 @@ export class WebClientProtocol {
 
     this.sendMessage(createMessage(MessageType.CHARACTER_LIST_REQUEST, {
       user_id: effectiveUserId,
+      session_code: this.sessionCode
+    }));
+  }
+
+  requestCharacterLog(characterId: string, limit = 50): void {
+    if (this.userId === null) return;
+    this.sendMessage(createMessage(MessageType.CHARACTER_LOG_REQUEST, {
+      character_id: characterId,
+      limit,
+      user_id: this.userId,
+      session_code: this.sessionCode
+    }));
+  }
+
+  rollSkill(characterId: string, skill: string, modifier: number, advantage = false, disadvantage = false): void {
+    if (this.userId === null) return;
+    this.sendMessage(createMessage(MessageType.CHARACTER_ROLL, {
+      character_id: characterId,
+      roll_type: 'skill_check',
+      skill,
+      modifier,
+      advantage,
+      disadvantage,
+      user_id: this.userId,
       session_code: this.sessionCode
     }));
   }

@@ -1,6 +1,7 @@
 import { useClasses } from '@features/compendium';
 import { useFormContext } from 'react-hook-form';
 import type { ClassStepData } from './classSchema';
+import styles from './ClassStep.module.css';
 
 export function ClassStep({ onNext: _onNext, onBack: _onBack }: { onNext?: () => void; onBack?: () => void } = {}) {
   const { register, formState, watch } = useFormContext<ClassStepData>();
@@ -11,19 +12,19 @@ export function ClassStep({ onNext: _onNext, onBack: _onBack }: { onNext?: () =>
   const selectedClassData = classes?.find(c => c.name.toLowerCase().replace(/\s+/g, '-') === selectedClass);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Choose your class</div>
-      
-      {loading && <div>Loading classes...</div>}
-      {error && <div style={{ color: 'red' }}>Error loading classes: {error}</div>}
-      
+    <div className={styles.step}>
+      <div className={styles.title}>Choose your class</div>
+
+      {loading && <div className={styles.loading}>Loading classes...</div>}
+      {error && <div className={styles['error-text']}>Error loading classes: {error}</div>}
+
       {!loading && !error && classes && (
         <>
-          <label>
+          <label className={styles['select-label']}>
             Select Class:
-            <select 
-              {...register('class', { required: 'Class is required' })} 
-              style={{ marginLeft: 8, padding: '4px 8px' }}
+            <select
+              {...register('class', { required: 'Class is required' })}
+              className={styles.select}
             >
               <option value="">Select...</option>
               {classes.map((classInfo) => {
@@ -34,45 +35,34 @@ export function ClassStep({ onNext: _onNext, onBack: _onBack }: { onNext?: () =>
               })}
             </select>
           </label>
-          
-          {formState.errors.class && <span style={{ color: 'red' }}>{formState.errors.class.message}</span>}
-          
-          {/* Display class details when selected */}
+
+          {formState.errors.class && <span className={styles['error-text']}>{formState.errors.class.message}</span>}
+
           {selectedClass && selectedClassData && (
-            <div style={{ 
-              marginTop: 16, 
-              padding: 16, 
-              background: '#f8fafc', 
-              borderRadius: 8,
-              border: '1px solid #e2e8f0'
-            }}>
-              <h3 style={{ margin: '0 0 12px 0', fontSize: '1.1em', color: '#1e293b' }}>
-                {selectedClassData.name}
-              </h3>
-              
-              <div style={{ marginBottom: 8 }}>
+            <div className={styles['details-card']}>
+              <h3>{selectedClassData.name}</h3>
+
+              <div className={styles['detail-row']}>
                 <strong>Hit Die:</strong>{' '}
-                <span style={{ color: '#dc2626', fontWeight: 500 }}>
-                  d{selectedClassData.hit_die}
-                </span>
+                <span className={styles['hit-die']}>d{selectedClassData.hit_die}</span>
               </div>
-              
+
               {selectedClassData.primary_abilities && selectedClassData.primary_abilities.length > 0 && (
-                <div style={{ marginBottom: 8 }}>
+                <div className={styles['detail-row']}>
                   <strong>Primary Abilities:</strong>{' '}
                   {selectedClassData.primary_abilities.join(', ')}
                 </div>
               )}
-              
+
               {selectedClassData.saving_throw_proficiencies && selectedClassData.saving_throw_proficiencies.length > 0 && (
-                <div style={{ marginBottom: 8 }}>
+                <div className={styles['detail-row']}>
                   <strong>Saving Throw Proficiencies:</strong>{' '}
                   {selectedClassData.saving_throw_proficiencies.join(', ')}
                 </div>
               )}
-              
+
               {selectedClassData.skill_proficiencies && selectedClassData.skill_proficiencies.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
+                <div className={styles['detail-row']}>
                   <strong>Skill Proficiencies:</strong>{' '}
                   Choose {selectedClassData.num_skills || 2} from: {selectedClassData.skill_proficiencies.join(', ')}
                 </div>

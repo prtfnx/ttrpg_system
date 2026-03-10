@@ -1163,13 +1163,13 @@ class ActionsCore(AsyncActionsProtocol):
                 message=f"Server error: {str(e)}"
             )
 
-    async def update_character(self, session_id: int, character_id: str, updates: Dict[str, Any], user_id: int, expected_version: Optional[int] = None) -> ActionResult:
+    async def update_character(self, session_id: int, character_id: str, updates: Dict[str, Any], user_id: int, expected_version: Optional[int] = None, bypass_owner_check: bool = False) -> ActionResult:
         """Apply partial updates (delta) to a character using server-side manager with optimistic concurrency."""
         try:
             from server_host.managers.character_manager import get_server_character_manager
 
             char_manager = get_server_character_manager()
-            result = char_manager.update_character(session_id, character_id, updates, user_id, expected_version)
+            result = char_manager.update_character(session_id, character_id, updates, user_id, expected_version, bypass_owner_check=bypass_owner_check)
 
             if result.get('success'):
                 logger.info(f"Character {character_id} updated to version {result.get('version')}")
@@ -1190,3 +1190,61 @@ class ActionsCore(AsyncActionsProtocol):
                 success=False,
                 message=f"Server error: {str(e)}"
             )
+
+    async def get_character_log(self, session_id: int, character_id: str, user_id: int, limit: int = 50) -> ActionResult:
+        """Return recent character log entries."""
+        try:
+            from server_host.managers.character_manager import get_server_character_manager
+            char_manager = get_server_character_manager()
+            result = char_manager.get_character_logs(character_id, session_id, limit)
+            if result['success']:
+                return ActionResult(True, 'Log retrieved', {'logs': result['logs']})
+            return ActionResult(False, result.get('error', 'Failed to get log'))
+        except Exception as e:
+            logger.error(f"Error in get_character_log: {e}")
+            return ActionResult(False, f"Server error: {str(e)}")
+
+    async def character_roll(self, session_id: int, character_id: str, user_id: int,
+                             roll_type: str, skill: str, modifier: int,
+                             advantage: bool = False, disadvantage: bool = False) -> ActionResult:
+        """Roll d20 server-side and log result for broadcast. Clients send intent only."""
+        import secrets
+        try:
+            from server_host.managers.character_manager import get_server_character_manager
+
+            # Server owns the dice — clients cannot spoof results
+            roll1 = secrets.randbelow(20) + 1
+            if advantage:
+                roll2 = secrets.randbelow(20) + 1
+                die_roll = max(roll1, roll2)
+            elif disadvantage:
+                roll2 = secrets.randbelow(20) + 1
+                die_roll = min(roll1, roll2)
+            else:
+                roll2 = None
+                die_roll = roll1
+
+            total = die_roll + modifier
+            sign = '+' if modifier >= 0 else ''
+            desc = f"{skill} ({roll_type}): d20={die_roll}{sign}{modifier} = {total}"
+            if advantage and roll2 is not None:
+                desc += f' (Adv: [{roll1},{roll2}])'
+            elif disadvantage and roll2 is not None:
+                desc += f' (Dis: [{roll1},{roll2}])'
+
+            char_manager = get_server_character_manager()
+            char_manager.log_event(character_id, session_id, user_id, 'skill_roll', desc)
+            return ActionResult(True, 'Roll completed', {
+                'character_id': character_id,
+                'roll_type': roll_type,
+                'skill': skill,
+                'modifier': modifier,
+                'die_roll': die_roll,
+                'total': total,
+                'advantage': advantage,
+                'disadvantage': disadvantage,
+                'description': desc,
+            })
+        except Exception as e:
+            logger.error(f"Error in character_roll: {e}")
+            return ActionResult(False, f"Server error: {str(e)}")

@@ -2,6 +2,7 @@ import { useGameStore } from '@/store';
 import type { Character } from '@/types';
 import { isDM } from '@features/session/types/roles';
 import clsx from 'clsx';
+import { AlertTriangle, ChevronDown, ChevronRight, CircleUser, ClipboardCopy, Download, FileText, Link2, RefreshCw, Shield, Trash2, Upload } from 'lucide-react';
 import ReactDOM from 'react-dom';
 import styles from './CharacterPanel.module.css';
 import { BulkActionsBar } from './CharacterPanel/BulkActionsBar';
@@ -84,8 +85,9 @@ function CharacterPanel() {
   return (
     <div className={styles.characterPanelRedesigned}>
       {!isConnected && (
-        <div className={clsx(styles.connectionBanner, 'offline')} title="Not connected to server">
-          ⚠️ Offline - Changes saved locally only
+        <div className={styles.offlineBanner} title="Not connected to server">
+          <AlertTriangle size={12} aria-hidden />
+          Offline — changes saved locally only
         </div>
       )}
       
@@ -96,12 +98,12 @@ function CharacterPanel() {
         </div>
         <div className={styles.headerActions}>
           <button className={styles.compactBtn} onClick={handleImportCharacter} title="Import character">
-            📤 Import
+            <Upload size={14} /> Import
           </button>
           {characters.length > 0 && (
             <>
               <button className={styles.compactBtn} onClick={handleExportAllCharacters} title="Export all">
-                📥 Export All
+                <Download size={14} /> Export All
               </button>
               <button className={clsx(styles.compactBtn, bulkSelectMode && styles.active)} onClick={handleToggleBulkMode}>
                 {bulkSelectMode ? '✓ Select' : '☑ Select'}
@@ -217,11 +219,30 @@ function CharacterPanel() {
                             onClick={(e) => { e.stopPropagation(); handleRetrySave(char.id); }}
                             title="Retry"
                           >
-                            🔄
+                            <RefreshCw size={10} aria-hidden />
                           </button>
                         )}
                       </div>
-                      <div className={styles.charMeta}>Owner: {char.ownerId}</div>
+                      <div className={styles.cardMeta}>
+                        {char.data?.class && <span className={styles.classBadge}>{char.data.class}</span>}
+                        {char.data?.level && <span className={styles.levelBadge}>Lv.{char.data.level}</span>}
+                        {char.data?.race && <span className={styles.raceBadge}>{char.data.race}</span>}
+                      </div>
+                      {(() => {
+                        const hp = char.data?.stats?.hp ?? 0;
+                        const maxHp = char.data?.stats?.maxHp ?? 0;
+                        if (maxHp <= 0) return null;
+                        const pct = Math.min(100, Math.round((hp / maxHp) * 100));
+                        const fillClass = pct > 50 ? styles.hpFill : pct > 25 ? clsx(styles.hpFill, styles.hpMedium) : clsx(styles.hpFill, styles.hpLow);
+                        return (
+                          <div className={styles.hpRow}>
+                            <span className={styles.hpText}>{hp}/{maxHp}</span>
+                            <div className={styles.hpBar}>
+                              <div className={fillClass} style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                   
@@ -235,15 +256,20 @@ function CharacterPanel() {
                             className={clsx(styles.tokenBadge, !canControlToken && styles.noPermission)} 
                             title={canControlToken ? 'Can control' : 'No permission'}
                           >
-                            🎭
+                            <CircleUser size={12} aria-hidden />
                             <SyncStatusIcon status={s.syncStatus} />
-                            {!canControlToken && <span className={styles.permissionIcon}>🚫</span>}
                           </span>
                         );
                       })}
                     </div>
+                    {char.data?.stats?.ac != null && (
+                      <span className={styles.acBadge} title="Armor Class">
+                        <Shield size={10} aria-hidden />
+                        {char.data.stats.ac}
+                      </span>
+                    )}
                     <span className={styles.expandIcon} aria-hidden="true">
-                      {isExpanded ? '▼' : '▶'}
+                      {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     </span>
                   </div>
                 </button>
@@ -265,36 +291,36 @@ function CharacterPanel() {
 
                   <div className={styles.cardActions}>
                     <button className={styles.actionBtn} onClick={() => handleViewSheet(char.id)} title="View sheet">
-                      <span className={styles.actionIcon}>📄</span>
+                      <span className={styles.actionIcon}><FileText size={16} aria-hidden /></span>
                       <span className={styles.actionLabel}>Sheet</span>
                     </button>
                     <button className={styles.actionBtn} onClick={() => handleAddToken(char.id)} disabled={!canEdit} title={canEdit ? 'Add token' : 'No permission'}>
-                      <span className={styles.actionIcon}>🎭</span>
+                      <span className={styles.actionIcon}><CircleUser size={16} aria-hidden /></span>
                       <span className={styles.actionLabel}>Token</span>
                     </button>
                     <button className={styles.actionBtn} onClick={e => handleExportCharacter(char.id, e)} title="Export">
-                      <span className={styles.actionIcon}>📥</span>
+                      <span className={styles.actionIcon}><Download size={16} aria-hidden /></span>
                       <span className={styles.actionLabel}>Export</span>
                     </button>
                     {canEdit && (
                       <>
                         <button className={styles.actionBtn} onClick={e => handleCloneCharacter(char.id, e)} title="Clone">
-                          <span className={styles.actionIcon}>📋</span>
+                          <span className={styles.actionIcon}><ClipboardCopy size={16} aria-hidden /></span>
                           <span className={styles.actionLabel}>Clone</span>
                         </button>
                         <button className={styles.actionBtn} onClick={() => handleShareCharacter(char.id)} title="Share">
-                          <span className={styles.actionIcon}>🔗</span>
+                          <span className={styles.actionIcon}><Link2 size={16} aria-hidden /></span>
                           <span className={styles.actionLabel}>Share</span>
                         </button>
                         <button className={clsx(styles.actionBtn, styles.dangerBtn)} onClick={e => handleDeleteCharacter(char.id, e)} title="Delete">
-                          <span className={styles.actionIcon}>🗑</span>
+                          <span className={styles.actionIcon}><Trash2 size={16} aria-hidden /></span>
                           <span className={styles.actionLabel}>Delete</span>
                         </button>
                       </>
                     )}
                     {!canEdit && (
                       <button className={clsx(styles.actionBtn, styles.disabledBtn)} disabled title="No permission">
-                        <span className={styles.actionIcon}>🗑</span>
+                        <span className={styles.actionIcon}><Trash2 size={16} aria-hidden /></span>
                         <span className={styles.actionLabel}>Delete</span>
                       </button>
                     )}

@@ -71,93 +71,11 @@ function getSpellcastingAbilityModifier(characterClass: string, abilityScores: R
   }
 }
 
-// Sample spells for demonstration
-const SAMPLE_SPELLS: Spell[] = [
-  {
-    id: 'cure-wounds',
-    name: 'Cure Wounds',
-    level: 1,
-    school: 'Evocation',
-    castingTime: '1 action',
-    range: 'Touch',
-    components: 'V, S',
-    duration: 'Instantaneous',
-    description: 'A creature you touch regains a number of hit points equal to 1d8 + your spellcasting ability modifier.',
-    ritual: false,
-    concentration: false
-  },
-  {
-    id: 'detect-magic',
-    name: 'Detect Magic',
-    level: 1,
-    school: 'Divination',
-    castingTime: '1 action',
-    range: 'Self',
-    components: 'V, S',
-    duration: 'Concentration, up to 10 minutes',
-    description: 'For the duration, you sense the presence of magic within 30 feet of you.',
-    ritual: true,
-    concentration: true
-  },
-  {
-    id: 'guiding-bolt',
-    name: 'Guiding Bolt',
-    level: 1,
-    school: 'Evocation',
-    castingTime: '1 action',
-    range: '120 feet',
-    components: 'V, S',
-    duration: 'Instantaneous',
-    description: 'A flash of light streaks toward a creature of your choice within range.',
-    ritual: false,
-    concentration: false
-  },
-  {
-    id: 'healing-word',
-    name: 'Healing Word',
-    level: 1,
-    school: 'Evocation',
-    castingTime: '1 bonus action',
-    range: '60 feet',
-    components: 'V',
-    duration: 'Instantaneous',
-    description: 'A creature of your choice that you can see within range regains hit points equal to 1d4 + your spellcasting ability modifier.',
-    ritual: false,
-    concentration: false
-  },
-  {
-    id: 'shield-of-faith',
-    name: 'Shield of Faith',
-    level: 1,
-    school: 'Abjuration',
-    castingTime: '1 bonus action',
-    range: '60 feet',
-    components: 'V, S, M',
-    duration: 'Concentration, up to 10 minutes',
-    description: 'A shimmering field appears and surrounds a creature of your choice within range, granting it a +2 bonus to AC for the duration.',
-    ritual: false,
-    concentration: true
-  },
-  {
-    id: 'comprehend-languages',
-    name: 'Comprehend Languages',
-    level: 1,
-    school: 'Divination',
-    castingTime: '1 action',
-    range: 'Self',
-    components: 'V, S, M',
-    duration: '1 hour',
-    description: 'For the duration, you understand the literal meaning of any spoken language that you hear.',
-    ritual: true,
-    concentration: false
-  }
-];
-
 export function SpellPreparationManager({
   characterClass,
   characterLevel,
   abilityScores,
-  knownSpells = SAMPLE_SPELLS,
+  knownSpells,
   preparedSpells,
   onPrepareSpell,
   onUnprepareSpell
@@ -453,7 +371,6 @@ export function SpellPreparationManager({
                       setSelectedSpell(spell);
                       setIsRitualCasting(true);
                       // Show casting time information or cast the spell
-                      console.log(`Casting ${spell.name} as a ritual (takes ${spell.castingTime} + 10 minutes)`);
                     }}
                     style={{
                       padding: '4px 8px',
@@ -501,7 +418,6 @@ export function SpellPreparationManager({
               <button 
                 aria-label="Cast Ritual"
                 onClick={() => {
-                  console.log(`Confirmed ritual casting of ${selectedSpell.name}`);
                   // Handle ritual casting confirmation
                 }}
                 style={{

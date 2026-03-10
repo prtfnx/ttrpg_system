@@ -113,6 +113,11 @@
   position: relative;
 }
 
+/* State classes — declared standalone for CSS Modules resolution */
+.active {}
+.completed {}
+.disabled {}
+
 .step-button:hover:not(.disabled) {
   background: var(--wizard-bg-overlay-hover);
   border-color: var(--border-overlay-strong);

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
 from server_host.database.database import SessionLocal
-from server_host.database.models import GameSession, SessionCharacter
+from server_host.database.models import CharacterLog, GameSession, SessionCharacter
 from server_host.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -104,9 +104,27 @@ class ServerCharacterManager:
                 'error': f'Database error: {str(e)}'
             }
 
-    def update_character(self, session_id: int, character_id: str, updates: Dict[str, Any], user_id: int, expected_version: Optional[int] = None) -> Dict[str, Any]:
+    def _validate_spell_slots(self, current_json: dict, updates: dict) -> Optional[str]:
+        """Return error string if spell slot usage exceeds total, else None."""
+        new_data = updates.get('data', {})
+        if not new_data:
+            return None
+        used_map = new_data.get('spellSlotsUsed')
+        if not used_map:
+            return None
+        slot_totals = (current_json.get('data') or {}).get('spellSlots') or {}
+        for level_str, used in used_map.items():
+            total_entry = slot_totals.get(str(level_str)) or {}
+            total = total_entry.get('total', 0) if isinstance(total_entry, dict) else 0
+            # Treat missing/zero totals as a hard cap of 0 — you cannot use slots you don't have
+            if int(used) > total:
+                return f'Cannot use more spell slots than available at level {level_str} (max {total})'
+        return None
+
+    def update_character(self, session_id: int, character_id: str, updates: Dict[str, Any], user_id: int, expected_version: Optional[int] = None, bypass_owner_check: bool = False) -> Dict[str, Any]:
         """Perform a versioned update of a character's JSON data in a single DB transaction.
         Merges JSON if appropriate and enforces optimistic concurrency if expected_version provided.
+        bypass_owner_check=True allows DM-initiated updates (e.g. token HP sync).
         """
         try:
             with SessionLocal() as db:
@@ -123,7 +141,7 @@ class ServerCharacterManager:
                 if not existing:
                     return {'success': False, 'error': 'Character not found'}
 
-                if str(getattr(existing, 'owner_user_id', '')) != str(user_id):
+                if not bypass_owner_check and str(getattr(existing, 'owner_user_id', '')) != str(user_id):
                     return {'success': False, 'error': 'Permission denied'}
 
                 # Version check
@@ -143,6 +161,11 @@ class ServerCharacterManager:
                 else:
                     merged = updates
 
+                # Spell slot validation
+                slot_error = self._validate_spell_slots(current_json, updates)
+                if slot_error:
+                    return {'success': False, 'error': slot_error}
+
                 new_version = int(current_version) + 1
 
                 db.query(SessionCharacter).filter(SessionCharacter.character_id == character_id).update({
@@ -151,6 +174,10 @@ class ServerCharacterManager:
                     SessionCharacter.version: new_version,
                     SessionCharacter.last_modified_by: user_id
                 })
+
+                # Auto-log key character changes
+                self._detect_and_log(db, character_id, session_id, user_id, current_json, updates)
+
                 db.commit()
 
                 return {'success': True, 'character_id': character_id, 'version': new_version}
@@ -278,6 +305,104 @@ class ServerCharacterManager:
                 'error': f'Database error: {str(e)}'
             }
     
+    # ------------------------------------------------------------------
+    # Character log helpers
+    # ------------------------------------------------------------------
+
+    def _log(self, db: Any, character_id: str, session_id: int, user_id: int, action_type: str, description: str) -> None:
+        """Write a log entry within an existing db session (no commit)."""
+        try:
+            entry = CharacterLog(
+                character_id=character_id,
+                session_id=session_id,
+                user_id=user_id,
+                action_type=action_type,
+                description=description,
+            )
+            db.add(entry)
+        except Exception as e:
+            logger.error(f"Failed to write character log entry: {e}")
+
+    def log_event(self, character_id: str, session_id: int, user_id: int, action_type: str, description: str) -> None:
+        """Public helper for logging outside an existing transaction."""
+        try:
+            with SessionLocal() as db:
+                self._log(db, character_id, session_id, user_id, action_type, description)
+                db.commit()
+        except Exception as e:
+            logger.error(f"log_event failed: {e}")
+
+    def _detect_and_log(self, db: Any, character_id: str, session_id: int, user_id: int,
+                        old_json: dict, updates: dict) -> None:
+        """Detect what changed in updates vs old_json and write log entries."""
+        new_char = updates.get('data', {})
+        old_char = old_json.get('data', {})
+
+        # HP change
+        new_hp = new_char.get('stats', {}).get('hp')
+        old_hp = old_char.get('stats', {}).get('hp')
+        if new_hp is not None and old_hp is not None and new_hp != old_hp:
+            delta = new_hp - old_hp
+            sign = '+' if delta > 0 else ''
+            self._log(db, character_id, session_id, user_id, 'hp_change',
+                      f"HP: {old_hp} \u2192 {new_hp} ({sign}{delta})")
+
+        # Spell slot usage
+        new_slots = new_char.get('spellSlotsUsed')
+        old_slots = old_char.get('spellSlotsUsed', {})
+        if new_slots is not None and new_slots != old_slots:
+            if not any(new_slots.values()):
+                self._log(db, character_id, session_id, user_id, 'long_rest', 'Long rest — spell slots restored')
+            else:
+                for level, count in new_slots.items():
+                    old_count = old_slots.get(str(level), old_slots.get(level, 0))
+                    if count > old_count:
+                        self._log(db, character_id, session_id, user_id, 'spell_cast',
+                                  f"Level {level} slot used ({old_count}\u2192{count})")
+                    elif count < old_count:
+                        self._log(db, character_id, session_id, user_id, 'slot_recovered',
+                                  f"Level {level} slot recovered ({old_count}\u2192{count})")
+
+        # Inventory change (item count differs)
+        new_items = new_char.get('equipment', {}).get('items')
+        old_items = old_char.get('equipment', {}).get('items')
+        if new_items is not None and old_items is not None:
+            if len(new_items) > len(old_items):
+                added = [i['equipment']['name'] for i in new_items[len(old_items):]]
+                self._log(db, character_id, session_id, user_id, 'item_change',
+                          f"Added: {', '.join(added)}")
+            elif len(new_items) < len(old_items):
+                self._log(db, character_id, session_id, user_id, 'item_change',
+                          f"Removed {len(old_items) - len(new_items)} item(s)")
+
+    def get_character_logs(self, character_id: str, session_id: int, limit: int = 50) -> Dict[str, Any]:
+        """Return recent log entries for a character."""
+        try:
+            with SessionLocal() as db:
+                entries = (
+                    db.query(CharacterLog)
+                    .filter(CharacterLog.character_id == character_id,
+                            CharacterLog.session_id == session_id)
+                    .order_by(CharacterLog.created_at.desc())
+                    .limit(limit)
+                    .all()
+                )
+                return {
+                    'success': True,
+                    'logs': [
+                        {
+                            'id': e.id,
+                            'action_type': e.action_type,
+                            'description': e.description,
+                            'created_at': e.created_at.isoformat(),
+                        }
+                        for e in entries
+                    ],
+                }
+        except Exception as e:
+            logger.error(f"get_character_logs failed: {e}")
+            return {'success': False, 'error': str(e)}
+
     def get_session_id_from_code(self, session_code: str) -> Optional[int]:
         """Get session ID from session code"""
         try:

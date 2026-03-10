@@ -32,10 +32,6 @@ def validate_action(action: Dict[str, Any]) -> bool:
         elif action_type == "game_action":
             return "action" in action.get("data", {})
         
-        # Legacy support
-        if "move" in action or "roll" in action:
-            return True
-        
         # Default to allowing unknown actions for flexibility
         return True
         
@@ -80,12 +76,6 @@ def apply_action(action: Dict[str, Any]) -> Dict[str, Any]:
                 "processed": True
             }
         
-        # Legacy support
-        if action.get("roll"):
-            return {"roll": random.randint(1, 20)}
-        elif action.get("move"):
-            return {"moved_to": action["move"]}
-        
         # Default: return the action as-is
         return {
             "action_type": action_type,
@@ -98,5 +88,4 @@ def apply_action(action: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "action_type": "error",
             "error": str(e)
-        }
-    return {} 
+        } 

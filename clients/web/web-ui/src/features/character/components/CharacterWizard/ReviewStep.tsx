@@ -2,6 +2,7 @@
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
 import type { WizardFormData } from './WizardFormData';
+import styles from './ReviewStep.module.css';
 
 interface ReviewStepProps {
   data?: WizardFormData;
@@ -14,10 +15,10 @@ const ReviewStep: React.FC<ReviewStepProps> = () => {
   const data = getValues();
   
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <h3 style={{ marginBottom: 8 }}>Review Your Character</h3>
+    <div className={styles.step}>
+      <h3 className={styles.title}>Review Your Character</h3>
       {data.image && (
-        <img src={data.image} alt="Character" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #ccc' }} />
+        <img src={data.image} alt="Character" className={styles.portrait} />
       )}
       <div><b>Name:</b> {data.name}</div>
       {data.bio && <div><b>Bio:</b> {data.bio}</div>}
@@ -25,7 +26,7 @@ const ReviewStep: React.FC<ReviewStepProps> = () => {
       <div><b>Class:</b> {data.class}</div>
       <div><b>Background:</b> {data.background}</div>
       <div><b>Abilities:</b></div>
-      <ul style={{ margin: 0, paddingLeft: 20 }}>
+      <ul className={styles['ability-list']}>
         <li>Strength: {data.strength}</li>
         <li>Dexterity: {data.dexterity}</li>
         <li>Constitution: {data.constitution}</li>
@@ -34,23 +35,6 @@ const ReviewStep: React.FC<ReviewStepProps> = () => {
         <li>Charisma: {data.charisma}</li>
       </ul>
       <div><b>Skills:</b> {Array.isArray(data.skills) ? data.skills.join(', ') : ''}</div>
-      
-      {/* Combat Preview Section */}
-      <div style={{ 
-        marginTop: 16, 
-        padding: 16, 
-        background: 'linear-gradient(135deg, rgba(139, 0, 0, 0.1), rgba(165, 42, 42, 0.05))',
-        border: '2px solid #8B0000',
-        borderRadius: 8 
-      }}>
-        <h4 style={{ margin: '0 0 8px 0', color: '#8B0000' }}>Combat Preview</h4>
-        <p style={{ margin: '0 0 12px 0', fontSize: '0.9em', color: '#666' }}>
-          Test your character's combat abilities, spells, and attacks before finalizing.
-        </p>
-        <div style={{ fontSize: '0.9em', color: '#8B0000', fontStyle: 'italic' }}>
-          Combat Manager will be available after character creation is complete.
-        </div>
-      </div>
     </div>
   );
 };

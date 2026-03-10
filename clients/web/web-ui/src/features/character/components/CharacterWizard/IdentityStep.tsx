@@ -1,16 +1,35 @@
+import type { CharacterTemplate } from '@features/character';
+import { ALL_TEMPLATES } from '@features/character';
 import { useRef } from 'react';
 import { useFormContext } from 'react-hook-form';
+import styles from './IdentityStep.module.css';
+
+const ALIGNMENTS = [
+  'Lawful Good', 'Neutral Good', 'Chaotic Good',
+  'Lawful Neutral', 'True Neutral', 'Chaotic Neutral',
+  'Lawful Evil', 'Neutral Evil', 'Chaotic Evil',
+] as const;
 
 interface IdentityStepData {
   name: string;
   bio?: string;
   image?: string;
+  alignment?: string;
 }
 
 export function IdentityStep({ onNext, onBack: _onBack }: { onNext?: () => void; onBack?: () => void } = {}) {
   const { register, setValue, getValues, formState, watch } = useFormContext<IdentityStepData>();
   const imageInputRef = useRef<HTMLInputElement>(null);
   const imageUrl = watch('image');
+
+  function handleTemplateSelect(templateId: string) {
+    if (!templateId) return;
+    const template = ALL_TEMPLATES.find((t: CharacterTemplate) => t.id === templateId);
+    if (!template) return;
+    Object.entries(template.data).forEach(([key, value]) => {
+      setValue(key as any, value, { shouldValidate: true });
+    });
+  }
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -33,97 +52,109 @@ export function IdentityStep({ onNext, onBack: _onBack }: { onNext?: () => void;
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '0 8px' }}>
-      <div style={{ marginBottom: 8 }}>
-        <h3 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: '#2c3e50' }}>Character Identity</h3>
-        <p style={{ margin: '8px 0 0 0', fontSize: 14, color: '#7f8c8d' }}>Choose your character's name and background</p>
+    <form onSubmit={handleSubmit} className={styles.step}>
+      <div className={styles.header}>
+        <h3 className={styles.title}>Character Identity</h3>
+        <p className={styles.subtitle}>Choose your character's name and background</p>
       </div>
-      
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontWeight: 600, fontSize: 14, color: '#2c3e50' }}>Character Name <span style={{ color: '#e74c3c' }}>*</span></span>
-          <input 
-            {...register('name', { required: true })} 
+
+      <div className={styles.field}>
+        <label className={styles.label}>
+          <span className={styles['label-text']}>Start with a template (optional)</span>
+          <select
+            className={styles.select}
+            defaultValue=""
+            onChange={(e) => handleTemplateSelect(e.target.value)}
+          >
+            <option value="">None — start from scratch</option>
+            <optgroup label="Player Characters">
+              {ALL_TEMPLATES.filter((t: CharacterTemplate) => t.type === 'pc').map((t: CharacterTemplate) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </optgroup>
+            <optgroup label="NPCs / Monsters">
+              {ALL_TEMPLATES.filter((t: CharacterTemplate) => t.type === 'npc').map((t: CharacterTemplate) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </optgroup>
+          </select>
+        </label>
+      </div>
+
+      <div className={styles.field}>
+        <label className={styles.label}>
+          <span className={styles['label-text']}>Character Name <span className={styles.required}>*</span></span>
+          <input
+            {...register('name', { required: true })}
             placeholder="Enter character name..."
-            style={{ 
-              padding: '10px 12px', 
-              fontSize: 15,
-              border: '2px solid #dfe6e9', 
-              borderRadius: 8,
-              outline: 'none',
-              transition: 'border-color 0.2s'
-            }} 
-            onFocus={(e) => e.target.style.borderColor = '#3498db'}
-            onBlur={(e) => e.target.style.borderColor = '#dfe6e9'}
+            className={styles.input}
           />
         </label>
         {formState.errors.name && (
-          <span style={{ color: '#e74c3c', fontSize: 13, marginTop: -4 }}>{formState.errors.name.message as string}</span>
+          <span className={styles.error}>{formState.errors.name.message as string}</span>
         )}
       </div>
-      
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontWeight: 600, fontSize: 14, color: '#2c3e50' }}>Character Bio</span>
-          <textarea 
-            {...register('bio')} 
+
+      <div className={styles.field}>
+        <label className={styles.label}>
+          <span className={styles['label-text']}>Character Bio</span>
+          <textarea
+            {...register('bio')}
             placeholder="Describe your character's backstory..."
             rows={4}
-            style={{ 
-              padding: '10px 12px', 
-              fontSize: 14,
-              border: '2px solid #dfe6e9', 
-              borderRadius: 8,
-              outline: 'none',
-              resize: 'vertical',
-              fontFamily: 'inherit',
-              transition: 'border-color 0.2s'
-            }}
-            onFocus={(e) => e.target.style.borderColor = '#3498db'}
-            onBlur={(e) => e.target.style.borderColor = '#dfe6e9'}
+            className={styles.textarea}
           />
         </label>
       </div>
-      
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontWeight: 600, fontSize: 14, color: '#2c3e50' }}>Character Portrait</span>
-          <input 
-            type="file" 
-            accept="image/*" 
-            ref={imageInputRef} 
-            onChange={handleImageChange} 
-            style={{ 
-              padding: '10px 12px', 
-              fontSize: 14,
-              border: '2px solid #dfe6e9', 
-              borderRadius: 8,
-              outline: 'none',
-              cursor: 'pointer',
-              backgroundColor: '#f8f9fa'
-            }} 
-          />
-          <span style={{ fontSize: 12, color: '#95a5a6' }}>Optional: Upload an image for your character sprite</span>
-        </label>
+
+      <div className={styles.field}>
+        <span className={styles['label-text']}>Alignment</span>
+        <select {...register('alignment')} className={styles.select}>
+          <option value="">— Choose alignment —</option>
+          {ALIGNMENTS.map((a) => (
+            <option key={a} value={a}>{a}</option>
+          ))}
+        </select>
       </div>
-      
-      {imageUrl && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' }}>
-          <span style={{ fontWeight: 600, fontSize: 14, color: '#2c3e50' }}>Preview:</span>
-          <img 
-            src={imageUrl || "/default-avatar.png"} 
-            alt="Character" 
-            style={{ 
-              width: 120, 
-              height: 120, 
-              objectFit: 'cover', 
-              borderRadius: 12, 
-              border: '3px solid #3498db',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-            }} 
-          />
+
+      <div className={styles.field}>
+        <span className={styles['label-text']}>Character Portrait / Token Image</span>
+        <div className={styles.portraitSection}>
+          {imageUrl ? (
+            <img src={imageUrl} alt="Character portrait" className={styles.portrait} />
+          ) : (
+            <div className={styles.portraitPlaceholder}>
+              <span>No image</span>
+            </div>
+          )}
+          <div className={styles.portraitActions}>
+            <button
+              type="button"
+              className={styles.uploadBtn}
+              onClick={() => imageInputRef.current?.click()}
+            >
+              {imageUrl ? 'Change Image' : 'Upload Image'}
+            </button>
+            {imageUrl && (
+              <button
+                type="button"
+                className={styles.removeBtn}
+                onClick={() => setValue('image', '', { shouldValidate: true })}
+              >
+                Remove
+              </button>
+            )}
+            <span className={styles.hint}>PNG, JPG, WebP — used as token on the table</span>
+          </div>
         </div>
-      )}
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          ref={imageInputRef}
+          onChange={handleImageChange}
+          className={styles['file-input-hidden']}
+        />
+      </div>
     </form>
   );
 }

@@ -413,6 +413,16 @@
   font-weight: var(--font-bold);
   font-size: var(--text-sm);
   color: var(--color-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--duration-fast);
+}
+
+.skillBonus:hover {
+  color: var(--color-primary-hover, var(--color-primary));
+  text-decoration: underline;
 }
 
 .passivePerception {
@@ -568,6 +578,88 @@
   outline: none;
   border-color: var(--red-400);
   box-shadow: var(--focus-ring);
+}
+
+.hpAmountRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.hpAmountInput {
+  flex: 1;
+  background: var(--red-950);
+  border: var(--border-width) solid var(--red-600);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  color: var(--red-400);
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  text-align: center;
+}
+
+.hpAmountInput:focus {
+  outline: none;
+  border-color: var(--red-400);
+  box-shadow: var(--focus-ring);
+}
+
+.hpAmountInput::-webkit-outer-spin-button,
+.hpAmountInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.hpAmountInput[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.hpBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.tempHpBadge {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--blue-300);
+  background: var(--blue-900);
+  border: var(--border-width) solid var(--blue-600);
+  border-radius: var(--radius-full);
+  padding: var(--space-xs) var(--space-md);
+  margin-left: var(--space-sm);
+}
+
+/* ===== CONDITIONS ===== */
+.conditionsCard {
+  border-color: var(--border-primary);
+}
+
+/* ===== HIT DICE ===== */
+.hitDiceCard {
+  border-color: var(--orange-600);
+  background: linear-gradient(135deg, var(--orange-900) 0%, var(--orange-950) 100%);
+}
+
+/* ===== INSPIRATION ===== */
+.inspirationCard {
+  border-color: var(--border-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== ATTACKS CARD ===== */
+.attacksCard {
+  border-color: var(--border-primary);
+}
+
+/* ===== FEATURES CARD ===== */
+.featuresCard {
+  border-color: var(--border-primary);
 }
 
 /* ===== COMBAT STATS ===== */
@@ -833,3 +925,173 @@
   font-size: var(--text-2xl);
   color: var(--text-secondary);
 }
+
+/* Bio tab components */
+.bioSection {
+  margin-bottom: var(--space-xl);
+}
+
+.bioTextarea {
+  width: 100%;
+  padding: var(--space-md);
+  font-size: var(--text-sm);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  resize: vertical;
+  font-family: inherit;
+}
+
+.linkedTokensSection {
+  margin-bottom: var(--space-xl);
+}
+
+.tokenList {
+  display: flex;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.tokenBadge {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  border: var(--border-width) solid var(--border-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+}
+
+.noTokens {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.linkTokenSection {
+  margin-bottom: var(--space-xl);
+  padding: var(--space-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: var(--border-width) solid var(--border-primary);
+}
+
+.linkTokenSection h4 {
+  margin-top: 0;
+}
+
+.linkTokenHint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-bottom: var(--space-md);
+}
+
+.linkTokenRow {
+  display: flex;
+  gap: var(--space-md);
+  align-items: center;
+}
+
+.tokenSelect {
+  flex: 1;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+.createTokenSection {
+  padding: var(--space-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: var(--border-width) solid var(--border-primary);
+}
+
+.createTokenSection h4 {
+  margin-top: 0;
+}
+
+.createTokenHint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-bottom: var(--space-md);
+}
+
+.tokenImageInput {
+  padding: var(--space-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  width: 100%;
+}
+
+.imagePreview {
+  margin-bottom: var(--space-md);
+  text-align: center;
+}
+
+.imagePreviewHint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-bottom: var(--space-sm);
+}
+
+.previewImg {
+  max-width: 120px;
+  max-height: 120px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--color-primary);
+  object-fit: contain;
+}
+
+.linkBtn {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-primary);
+  color: var(--color-on-primary, #fff);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.linkBtn:disabled {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+  padding: var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.createTokenBtn.ready {
+  background: var(--color-success);
+  color: var(--color-on-success, #fff);
+}
+
+.createTokenBtn:disabled {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.noTableWarning {
+  font-size: var(--text-xs);
+  color: var(--color-danger);
+  margin-top: var(--space-sm);
+  text-align: center;
+}
+

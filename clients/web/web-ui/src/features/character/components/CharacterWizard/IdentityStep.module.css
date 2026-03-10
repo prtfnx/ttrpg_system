@@ -1,0 +1,174 @@
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: 0 var(--space-sm);
+}
+
+.header {
+  margin-bottom: var(--space-sm);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.subtitle {
+  margin: var(--space-sm) 0 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.label-text {
+  font-weight: var(--font-semibold);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.required {
+  color: var(--color-danger);
+}
+
+.input,
+.textarea,
+.file-input,
+.select {
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-md);
+  border: var(--border-width-thick) solid var(--border-primary);
+  border-radius: var(--radius-md);
+  outline: none;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+
+.textarea {
+  resize: vertical;
+}
+
+.file-input {
+  cursor: pointer;
+  background: var(--bg-secondary);
+  font-size: var(--text-sm);
+}
+
+.input:focus,
+.textarea:focus {
+  border-color: var(--border-focus);
+}
+
+.hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: var(--text-xs);
+  margin-top: calc(var(--space-xs) * -1);
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  align-items: flex-start;
+}
+
+.preview-label {
+  font-weight: var(--font-semibold);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.portrait {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: var(--radius-full);
+  border: 3px solid var(--color-primary);
+  box-shadow: var(--shadow-md);
+  flex-shrink: 0;
+}
+
+.portraitSection {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.portraitPlaceholder {
+  width: 100px;
+  height: 100px;
+  border-radius: var(--radius-full);
+  background: var(--bg-tertiary);
+  border: 2px dashed var(--border-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.portraitActions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  align-items: flex-start;
+}
+
+.uploadBtn {
+  background: var(--color-primary);
+  color: var(--text-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background var(--duration-base) ease;
+}
+
+.uploadBtn:hover {
+  background: var(--color-primary-hover);
+}
+
+.removeBtn {
+  background: transparent;
+  color: var(--color-danger);
+  border: var(--border-width) solid var(--color-danger);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-md);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--duration-base) ease;
+}
+
+.removeBtn:hover {
+  background: var(--color-danger);
+  color: var(--text-primary);
+}
+
+.file-input-hidden {
+  display: none;
+}

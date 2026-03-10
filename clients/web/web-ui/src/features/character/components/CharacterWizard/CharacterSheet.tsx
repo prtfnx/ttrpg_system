@@ -10,27 +10,8 @@ interface CharacterSheetProps {
 export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onClose }) => {
   const [activeTab, setActiveTab] = useState<'stats' | 'combat' | 'spells' | 'equipment' | 'notes'>('stats');
   
-  // For now, create mock combat stats to avoid service dependency issues during build
   const combatStats = useMemo(() => {
-    try {
-      return CombatSystemService.generateCombatStats(character);
-    } catch (error) {
-      // Fallback if service isn't available during build
-      return {
-        armorClass: 10,
-        hitPoints: { current: 8, maximum: 8, temporary: 0 },
-        proficiencyBonus: 2,
-        savingThrows: {
-          strength: 0,
-          dexterity: 0,
-          constitution: 0,
-          intelligence: 0,
-          wisdom: 0,
-          charisma: 0
-        },
-        spellSlots: {}
-      };
-    }
+    return CombatSystemService.generateCombatStats(character);
   }, [character]);
 
   const formatModifier = (score: number): string => {

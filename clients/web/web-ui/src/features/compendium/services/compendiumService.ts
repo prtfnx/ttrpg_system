@@ -100,6 +100,33 @@ export interface CompendiumStatus {
   };
 }
 
+export interface Feat {
+  name: string;
+  source: string;
+  description: string;
+  prerequisite: string | null;
+  benefits: string[];
+  asi: { choices: string[]; amount: number } | null;
+}
+
+export interface FeatsResponse {
+  feats: Feat[];
+  count: number;
+}
+
+export interface Subclass {
+  name: string;
+  short_name: string;
+  source: string;
+  features: Record<string, Array<{ name: string }>>;
+}
+
+export interface SubclassesResponse {
+  subclasses: Subclass[];
+  count: number;
+  class: string;
+}
+
 export interface RacesResponse {
   races: Race[];
   count: number;
@@ -250,6 +277,31 @@ class CompendiumService {
    */
   async getSpell(spellName: string): Promise<Spell> {
     return this.fetchWithCache<Spell>(`/spells/${encodeURIComponent(spellName)}`);
+  }
+
+  /**
+   * Get all feats with optional filters
+   */
+  async getFeats(filters: { prerequisite?: string; source?: string } = {}): Promise<FeatsResponse> {
+    const params = new URLSearchParams();
+    if (filters.prerequisite) params.append('prerequisite', filters.prerequisite);
+    if (filters.source) params.append('source', filters.source);
+    const qs = params.toString();
+    return this.fetchWithCache<FeatsResponse>(`/feats${qs ? `?${qs}` : ''}`);
+  }
+
+  /**
+   * Get feats, optionally filtered by source or prerequisite
+   */
+  async getFeat(featName: string): Promise<Feat> {
+    return this.fetchWithCache<Feat>(`/feats/${encodeURIComponent(featName)}`);
+  }
+
+  /**
+   * Get subclasses for a class
+   */
+  async getSubclasses(className: string): Promise<SubclassesResponse> {
+    return this.fetchWithCache<SubclassesResponse>(`/classes/${encodeURIComponent(className)}/subclasses`);
   }
 
   /**

@@ -6,6 +6,8 @@ import React, { useRef, useState } from "react";
 import { useGameStore } from "../../../store";
 import type { Character } from "../../../types";
 import styles from "./CharacterSheetNew.module.css";
+import { InventoryTab } from './InventoryTab';
+import { SpellsTab } from './SpellsTab';
 
 interface CharacterSheetProps {
   character: Character | null;
@@ -602,16 +604,14 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
         )}
 
         {activeTab === 'spells' && (
-          <div className="spells-tab-content">
-            <h3>Spells & Magical Abilities</h3>
-            <p>Spell list will appear here</p>
+          <div className={styles.spellsTabContent}>
+            <SpellsTab data={data} onSave={newData => onSave({ data: newData })} />
           </div>
         )}
 
         {activeTab === 'inventory' && (
-          <div className="inventory-tab-content">
-            <h3>Equipment & Inventory</h3>
-            <p>Inventory system will appear here</p>
+          <div className={styles.inventoryTabContent}>
+            <InventoryTab data={data} onSave={newData => onSave({ data: newData })} />
           </div>
         )}
 

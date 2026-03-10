@@ -1,0 +1,241 @@
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-md);
+}
+
+.section {
+  background: var(--bg-secondary);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+.restBtn {
+  padding: var(--space-2xs) var(--space-sm);
+  background: var(--bg-tertiary);
+  border: var(--border-width) solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background var(--duration-fast);
+}
+
+.restBtn:hover {
+  background: var(--color-primary);
+  color: var(--text-inverse-primary);
+  border-color: var(--color-primary);
+}
+
+/* Slot pips */
+.slotsGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.slotGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.slotLabel {
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+  min-width: 2.5rem;
+}
+
+.slotPips {
+  display: flex;
+  gap: var(--space-2xs);
+}
+
+.slotPip {
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: var(--radius-full);
+  border: var(--border-width-thick) solid transparent;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  padding: 0;
+}
+
+.pipAvailable {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.pipAvailable:hover {
+  opacity: 0.7;
+}
+
+.pipUsed {
+  background: transparent;
+  border-color: var(--border-secondary);
+}
+
+.pipUsed:hover {
+  border-color: var(--color-primary);
+}
+
+.slotCount {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  min-width: 2rem;
+}
+
+/* Spell list */
+.spellList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.spellLevelGroup {
+  margin-bottom: var(--space-md);
+}
+
+.levelHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  margin-bottom: var(--space-xs);
+  padding-bottom: var(--space-2xs);
+  border-bottom: var(--border-width) solid var(--border-primary);
+}
+
+.slotBadge {
+  font-size: var(--text-xs);
+  font-weight: var(--font-normal);
+  padding: 1px var(--space-xs);
+  background: var(--color-primary);
+  color: var(--text-inverse-primary);
+  border-radius: var(--radius-full);
+}
+
+.slotBadgeEmpty {
+  background: var(--color-danger);
+}
+
+.spellRow {
+  background: var(--bg-primary);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  transition: border-color var(--duration-fast);
+}
+
+.spellRow:hover {
+  border-color: var(--border-secondary);
+}
+
+.spellToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.spellName {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+}
+
+.spellMeta {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.spellDetails {
+  padding: var(--space-xs) var(--space-sm) var(--space-sm);
+  border-top: var(--border-width) solid var(--border-primary);
+  background: var(--bg-secondary);
+}
+
+.spellDesc {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--line-height-relaxed);
+  margin: 0 0 var(--space-xs) 0;
+}
+
+.spellStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-bottom: var(--space-sm);
+}
+
+.tag {
+  padding: 1px var(--space-xs);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.castBtn {
+  padding: var(--space-xs) var(--space-md);
+  background: var(--color-primary);
+  color: var(--text-inverse-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: opacity var(--duration-fast);
+}
+
+.castBtn:hover {
+  opacity: 0.85;
+}
+
+.castBtnDisabled {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.castBtnDisabled:hover {
+  opacity: 1;
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-style: italic;
+  margin: 0;
+}

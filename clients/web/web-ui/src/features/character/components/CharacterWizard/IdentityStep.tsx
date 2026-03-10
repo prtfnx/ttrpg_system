@@ -4,10 +4,17 @@ import { useRef } from 'react';
 import { useFormContext } from 'react-hook-form';
 import styles from './IdentityStep.module.css';
 
+const ALIGNMENTS = [
+  'Lawful Good', 'Neutral Good', 'Chaotic Good',
+  'Lawful Neutral', 'True Neutral', 'Chaotic Neutral',
+  'Lawful Evil', 'Neutral Evil', 'Chaotic Evil',
+] as const;
+
 interface IdentityStepData {
   name: string;
   bio?: string;
   image?: string;
+  alignment?: string;
 }
 
 export function IdentityStep({ onNext, onBack: _onBack }: { onNext?: () => void; onBack?: () => void } = {}) {
@@ -101,29 +108,53 @@ export function IdentityStep({ onNext, onBack: _onBack }: { onNext?: () => void;
       </div>
 
       <div className={styles.field}>
-        <label className={styles.label}>
-          <span className={styles['label-text']}>Character Portrait</span>
-          <input
-            type="file"
-            accept="image/*"
-            ref={imageInputRef}
-            onChange={handleImageChange}
-            className={styles['file-input']}
-          />
-          <span className={styles.hint}>Optional: Upload an image for your character sprite</span>
-        </label>
+        <span className={styles['label-text']}>Alignment</span>
+        <select {...register('alignment')} className={styles.select}>
+          <option value="">— Choose alignment —</option>
+          {ALIGNMENTS.map((a) => (
+            <option key={a} value={a}>{a}</option>
+          ))}
+        </select>
       </div>
 
-      {imageUrl && (
-        <div className={styles.preview}>
-          <span className={styles['preview-label']}>Preview:</span>
-          <img
-            src={imageUrl}
-            alt="Character"
-            className={styles.portrait}
-          />
+      <div className={styles.field}>
+        <span className={styles['label-text']}>Character Portrait / Token Image</span>
+        <div className={styles.portraitSection}>
+          {imageUrl ? (
+            <img src={imageUrl} alt="Character portrait" className={styles.portrait} />
+          ) : (
+            <div className={styles.portraitPlaceholder}>
+              <span>No image</span>
+            </div>
+          )}
+          <div className={styles.portraitActions}>
+            <button
+              type="button"
+              className={styles.uploadBtn}
+              onClick={() => imageInputRef.current?.click()}
+            >
+              {imageUrl ? 'Change Image' : 'Upload Image'}
+            </button>
+            {imageUrl && (
+              <button
+                type="button"
+                className={styles.removeBtn}
+                onClick={() => setValue('image', '', { shouldValidate: true })}
+              >
+                Remove
+              </button>
+            )}
+            <span className={styles.hint}>PNG, JPG, WebP — used as token on the table</span>
+          </div>
         </div>
-      )}
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          ref={imageInputRef}
+          onChange={handleImageChange}
+          className={styles['file-input-hidden']}
+        />
+      </div>
     </form>
   );
 }

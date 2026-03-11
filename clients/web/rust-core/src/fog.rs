@@ -78,6 +78,12 @@ pub struct FogOfWarSystem {
     needs_vision_rebuild: bool,
     vision_framebuffer: Option<web_sys::WebGlFramebuffer>,
     vision_texture: Option<web_sys::WebGlTexture>,
+
+    // Scene capture FBO for post-processing (darkvision grayscale desaturation)
+    scene_framebuffer: Option<web_sys::WebGlFramebuffer>,
+    scene_texture: Option<web_sys::WebGlTexture>,
+    scene_fbo_width: i32,
+    scene_fbo_height: i32,
 }
 
 impl FogOfWarSystem {
@@ -102,6 +108,10 @@ impl FogOfWarSystem {
             needs_vision_rebuild: false,
             vision_framebuffer: None,
             vision_texture: None,
+            scene_framebuffer: None,
+            scene_texture: None,
+            scene_fbo_width: 0,
+            scene_fbo_height: 0,
         };
         
         system.init_shaders()?;
@@ -182,9 +192,12 @@ impl FogOfWarSystem {
             
             uniform sampler2D u_fog_texture;
             uniform sampler2D u_vision_texture;
+            uniform sampler2D u_scene_texture;
             uniform bool u_is_gm;
             uniform bool u_dynamic_lighting;
+            uniform bool u_use_scene_texture;
             uniform float u_ambient_light;
+            uniform vec2 u_canvas_size;
             
             out vec4 fragColor;
             
@@ -197,16 +210,35 @@ impl FogOfWarSystem {
                     float darkAlpha = 1.0 - u_ambient_light;
                     
                     if (fogHidden || visionVal > 0.825) {
-                        // Fully hidden
-                        fragColor = vec4(0.0, 0.0, 0.0, darkAlpha);
+                        fragColor = vec4(0.0, 0.0, 0.0, 1.0);
                     } else if (visionVal > 0.525) {
-                        // Previously explored — dim gray, half opacity
-                        fragColor = vec4(0.05, 0.05, 0.05, darkAlpha * 0.55);
+                        // Previously explored — desaturated + dark
+                        if (u_use_scene_texture) {
+                            vec2 su = gl_FragCoord.xy / u_canvas_size;
+                            vec4 scene = texture(u_scene_texture, su);
+                            float gray = dot(scene.rgb, vec3(0.299, 0.587, 0.114));
+                            fragColor = vec4(vec3(gray) * 0.3, 1.0);
+                        } else {
+                            fragColor = vec4(0.05, 0.05, 0.05, darkAlpha * 0.55);
+                        }
                     } else if (visionVal > 0.2) {
-                        // Darkvision zone — subtle dim blue tint
-                        fragColor = vec4(0.0, 0.0, 0.05, darkAlpha * 0.65);
+                        // Darkvision — grayscale desaturated scene (D&D 5e RAW)
+                        if (u_use_scene_texture) {
+                            vec2 su = gl_FragCoord.xy / u_canvas_size;
+                            vec4 scene = texture(u_scene_texture, su);
+                            float gray = dot(scene.rgb, vec3(0.299, 0.587, 0.114));
+                            fragColor = vec4(vec3(gray) * 0.7, 1.0);
+                        } else {
+                            fragColor = vec4(0.0, 0.0, 0.05, darkAlpha * 0.65);
+                        }
                     } else {
-                        discard;
+                        // Lit — full color
+                        if (u_use_scene_texture) {
+                            vec2 su = gl_FragCoord.xy / u_canvas_size;
+                            fragColor = texture(u_scene_texture, su);
+                        } else {
+                            discard;
+                        }
                     }
                 } else if (fogHidden) {
                     if (u_is_gm) {
@@ -496,6 +528,59 @@ impl FogOfWarSystem {
     pub fn set_gm_mode(&mut self, is_gm: bool) {        self.is_gm = is_gm;
     }
 
+    /// Returns true when scene should be captured to FBO for post-processing.
+    pub fn needs_scene_capture(&self) -> bool {
+        self.dynamic_lighting_enabled && !self.is_gm && self.ambient_light < 0.99
+    }
+
+    /// Bind scene capture FBO, recreating it if canvas size changed.
+    pub fn begin_scene_capture(&mut self, width: i32, height: i32) -> Result<(), JsValue> {
+        if self.scene_fbo_width != width || self.scene_fbo_height != height || self.scene_framebuffer.is_none() {
+            // Drop old resources
+            self.scene_framebuffer = None;
+            self.scene_texture = None;
+
+            let fb = self.gl.create_framebuffer().ok_or("Failed to create scene framebuffer")?;
+            let tex = self.gl.create_texture().ok_or("Failed to create scene texture")?;
+
+            self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(&tex));
+            self.gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
+                WebGlRenderingContext::TEXTURE_2D, 0, WebGlRenderingContext::RGBA as i32,
+                width, height, 0,
+                WebGlRenderingContext::RGBA, WebGlRenderingContext::UNSIGNED_BYTE, None,
+            )?;
+            self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_MIN_FILTER, WebGlRenderingContext::LINEAR as i32);
+            self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_MAG_FILTER, WebGlRenderingContext::LINEAR as i32);
+            self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_WRAP_S, WebGlRenderingContext::CLAMP_TO_EDGE as i32);
+            self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_WRAP_T, WebGlRenderingContext::CLAMP_TO_EDGE as i32);
+
+            self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, Some(&fb));
+            self.gl.framebuffer_texture_2d(
+                WebGlRenderingContext::FRAMEBUFFER,
+                WebGlRenderingContext::COLOR_ATTACHMENT0,
+                WebGlRenderingContext::TEXTURE_2D,
+                Some(&tex), 0,
+            );
+            self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
+            self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, None);
+
+            self.scene_framebuffer = Some(fb);
+            self.scene_texture = Some(tex);
+            self.scene_fbo_width = width;
+            self.scene_fbo_height = height;
+        }
+
+        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, self.scene_framebuffer.as_ref());
+        self.gl.viewport(0, 0, width, height);
+        Ok(())
+    }
+
+    /// Restore default framebuffer (main canvas).
+    pub fn end_scene_capture(&mut self) {
+        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
+        self.gl.viewport(0, 0, self.canvas_width as i32, self.canvas_height as i32);
+    }
+
     pub fn add_fog_rectangle(&mut self, id: String, start_x: f32, start_y: f32, end_x: f32, end_y: f32, mode: &str, table_id: String) {
         let fog_mode = match mode {
             "reveal" => FogMode::Reveal,
@@ -755,6 +840,17 @@ impl FogOfWarSystem {
         if let Some(loc) = self.gl.get_uniform_location(program, "u_vision_texture") {
             self.gl.uniform1i(Some(&loc), 1);
         }
+
+        // Bind scene texture to unit 2 (used for darkvision grayscale desaturation)
+        let use_scene = has_vision && self.scene_texture.is_some();
+        self.gl.active_texture(WebGlRenderingContext::TEXTURE2);
+        self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, self.scene_texture.as_ref());
+        if let Some(loc) = self.gl.get_uniform_location(program, "u_scene_texture") {
+            self.gl.uniform1i(Some(&loc), 2);
+        }
+        if let Some(loc) = self.gl.get_uniform_location(program, "u_use_scene_texture") {
+            self.gl.uniform1i(Some(&loc), if use_scene { 1 } else { 0 });
+        }
         
         if let Some(loc) = self.gl.get_uniform_location(program, "u_view_matrix") {
             self.gl.uniform_matrix3fv_with_f32_array(Some(&loc), false, view_matrix);
@@ -772,9 +868,14 @@ impl FogOfWarSystem {
             self.gl.uniform1f(Some(&loc), self.ambient_light);
         }
         
-        // Enable blending for fog overlay
-        self.gl.enable(WebGlRenderingContext::BLEND);
-        self.gl.blend_func(WebGlRenderingContext::SRC_ALPHA, WebGlRenderingContext::ONE_MINUS_SRC_ALPHA);
+        // When compositing scene FBO (opaque pixels), disable blending.
+        // For fog-only overlay, keep alpha blending.
+        if use_scene {
+            self.gl.disable(WebGlRenderingContext::BLEND);
+        } else {
+            self.gl.enable(WebGlRenderingContext::BLEND);
+            self.gl.blend_func(WebGlRenderingContext::SRC_ALPHA, WebGlRenderingContext::ONE_MINUS_SRC_ALPHA);
+        }
         
         // Render textured quad covering table bounds
         self.render_textured_quad(program)?;

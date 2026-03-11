@@ -2,6 +2,7 @@ import { useGameStore } from '@/store';
 import type { GameAPI } from '@/types';
 import { AssetManager } from '@features/assets';
 import { GridControls, LayerPanel } from '@features/canvas';
+import { startDmPreview, stopDmPreview } from '@features/lighting';
 import { MeasurementTool } from '@features/measurement';
 import { PaintPanel } from '@features/painting';
 import { isDM, isElevated } from '@features/session/types/roles';
@@ -53,6 +54,15 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   const dynamicLightingEnabled = useGameStore(s => s.dynamicLightingEnabled);
   const fogExplorationMode = useGameStore(s => s.fogExplorationMode);
   const ambientLight = useGameStore(s => s.ambientLight);
+  const setAmbientLight = useGameStore(s => s.setAmbientLight);
+  const dmPreviewUserId = useGameStore(s => s.dmPreviewUserId);
+  const setDmPreviewMode = useGameStore(s => s.setDmPreviewMode);
+  const sprites = useGameStore(s => s.sprites);
+
+  // Unique player IDs from sprite controlledBy fields (for DM preview dropdown)
+  const playerIds: number[] = Array.from(
+    new Set((sprites as any[]).flatMap((s: any) => s.controlledBy ?? s.controlled_by ?? []))
+  ).filter((id): id is number => typeof id === 'number');
   const [tableSwitcherOpen, setTableSwitcherOpen] = useState(false);
   const tableSwitcherRef = useRef<HTMLDivElement>(null);
 
@@ -736,7 +746,8 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
                   min={0}
                   max={100}
                   value={Math.round((ambientLight ?? 1.0) * 100)}
-                  onChange={e => ProtocolService.getProtocol().sendTableSettingsUpdate(activeTableId, { ambient_light_level: Number(e.target.value) / 100 })}
+                  onChange={e => setAmbientLight(Number(e.target.value) / 100)}
+                  onMouseUp={e => ProtocolService.hasProtocol() && ProtocolService.getProtocol().sendTableSettingsUpdate(activeTableId, { ambient_light_level: Number((e.target as HTMLInputElement).value) / 100 })}
                 />
               </div>
               <div className={styles.controlRow}>
@@ -749,6 +760,30 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
                   <option value="persist_dimmed">Persist Dimmed</option>
                 </select>
               </div>
+              {playerIds.length > 0 && (
+                <div className={styles.controlRow}>
+                  <label>Preview as:</label>
+                  <select
+                    value={dmPreviewUserId ?? ''}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (!val) {
+                        setDmPreviewMode(null);
+                        stopDmPreview();
+                      } else {
+                        const uid = Number(val);
+                        setDmPreviewMode(uid);
+                        startDmPreview(uid);
+                      }
+                    }}
+                  >
+                    <option value="">DM View</option>
+                    {playerIds.map(id => (
+                      <option key={id} value={id}>Player {id}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </>
           )}
         </div>

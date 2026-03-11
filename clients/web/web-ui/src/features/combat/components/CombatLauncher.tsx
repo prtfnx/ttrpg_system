@@ -1,7 +1,7 @@
+import type { WizardFormData } from '@features/character';
 import { Shield } from 'lucide-react';
 import React, { useState } from 'react';
 import { CombatView } from './CombatView';
-import type { WizardFormData } from '@features/character';
 
 interface CombatLauncherProps {
   character: WizardFormData;

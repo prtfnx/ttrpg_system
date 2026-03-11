@@ -1,9 +1,9 @@
 import type { UserInfo } from '@features/auth';
-import { CombatSystemService, type CombatStats, type DiceResult } from '../services/combatSystem.service';
+import type { WizardFormData } from '@features/character';
 import { RefreshCw, Skull, Trash2, User, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { CombatSystemService, type CombatStats, type DiceResult } from '../services/combatSystem.service';
 import { InitiativeRoll } from './DiceRoller';
-import type { WizardFormData } from '@features/character';
 
 interface CombatParticipant {
   id: string;

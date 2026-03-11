@@ -25,6 +25,9 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
   const [localAc, setLocalAc] = useState<number>(sprite?.ac ?? linkedCharacter?.data?.stats?.ac ?? 10);
   const [localAuraRadius, setLocalAuraRadius] = useState<number>(sprite?.auraRadius ?? 0);
   const [localAuraColor, setLocalAuraColor] = useState<string>(sprite?.auraColor ?? '#ffe4b5');
+  const [localVisionRadius, setLocalVisionRadius] = useState<number | ''>(sprite?.visionRadius ?? '');
+  const [localHasDarkvision, setLocalHasDarkvision] = useState<boolean>(sprite?.hasDarkvision ?? false);
+  const [localDarkvisionRadius, setLocalDarkvisionRadius] = useState<number | ''>(sprite?.darkvisionRadius ?? '');
   const [newOwnerId, setNewOwnerId] = useState<string>('');
   const [sessionPlayers, setSessionPlayers] = useState<{ id: string; name: string }[]>([]);
 
@@ -77,6 +80,9 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
       setLocalAc(sprite.ac ?? linkedCharacter?.data?.stats?.ac ?? 10);
       setLocalAuraRadius(sprite.auraRadius ?? 0);
       setLocalAuraColor(sprite.auraColor ?? '#ffe4b5');
+      setLocalVisionRadius(sprite.visionRadius ?? '');
+      setLocalHasDarkvision(sprite.hasDarkvision ?? false);
+      setLocalDarkvisionRadius(sprite.darkvisionRadius ?? '');
       setSelectedCharacterId(sprite.characterId || '');
     }
   }, [sprite, linkedCharacter]);
@@ -102,12 +108,22 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
         setLocalAc(newAc);
         setSelectedCharacterId(characterId);
         
+        // Auto-populate darkvision from character race data
+        const raceDarkvision: number | undefined = char.data?.race_traits?.darkvision ?? char.data?.darkvision;
+        if (raceDarkvision != null && raceDarkvision > 0) {
+          setLocalHasDarkvision(true);
+          setLocalDarkvisionRadius(raceDarkvision);
+        }
+
         // Single update: link character AND sync stats in one call
         updateSprite(spriteId, { 
           characterId, 
           hp: newHp, 
           maxHp: newMaxHp, 
-          ac: newAc 
+          ac: newAc,
+          ...(raceDarkvision != null && raceDarkvision > 0
+            ? { hasDarkvision: true, darkvisionRadius: raceDarkvision }
+            : {}),
         });
       } else {
         // Character not found, link with current token stats
@@ -380,6 +396,51 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
               />
             </div>
           </div>
+
+          {canManageOwnership && (
+            <div className={styles.configSection}>
+              <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: '#ccc' }}>Vision</h4>
+              <div className={styles.statRow}>
+                <label>Vision Radius:</label>
+                <input
+                  type="number"
+                  value={localVisionRadius}
+                  placeholder="default"
+                  onChange={(e) => setLocalVisionRadius(e.target.value === '' ? '' : Math.max(0, parseFloat(e.target.value) || 0))}
+                  onBlur={() => updateSprite(spriteId, { visionRadius: localVisionRadius === '' ? undefined : Number(localVisionRadius) })}
+                  className={styles.hpInput}
+                  min="0"
+                  step="30"
+                />
+                <span style={{ marginLeft: '8px', color: '#888' }}>px</span>
+              </div>
+              <div className={styles.statRow} style={{ marginTop: '6px' }}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={localHasDarkvision}
+                    onChange={(e) => {
+                      setLocalHasDarkvision(e.target.checked);
+                      updateSprite(spriteId, { hasDarkvision: e.target.checked });
+                    }}
+                  />{' '}Darkvision
+                </label>
+                {localHasDarkvision && (
+                  <input
+                    type="number"
+                    value={localDarkvisionRadius}
+                    placeholder="radius"
+                    onChange={(e) => setLocalDarkvisionRadius(e.target.value === '' ? '' : Math.max(0, parseFloat(e.target.value) || 0))}
+                    onBlur={() => updateSprite(spriteId, { darkvisionRadius: localDarkvisionRadius === '' ? undefined : Number(localDarkvisionRadius) })}
+                    className={styles.hpInput}
+                    min="0"
+                    step="30"
+                    style={{ marginLeft: '8px' }}
+                  />
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Character Info - Only show if linked */}
           {linkedCharacter && (

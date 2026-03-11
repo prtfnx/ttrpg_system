@@ -486,21 +486,23 @@ impl FogOfWarSystem {
     }
 
     /// Render a closed polygon as a TRIANGLE_FAN to the currently bound FBO.
+    /// points layout: [src_x, src_y, p0_x, p0_y, ..., pN_x, pN_y]
+    /// The source position is guaranteed to be interior for star-shaped visibility polygons.
     fn render_polygon_to_fbo(&self, program: &WebGlProgram, points: &[f32], value: f32) -> Result<(), JsValue> {
-        let n = points.len() / 2;
-        if n < 3 { return Ok(()); }
+        // Need source + at least 2 boundary points
+        if points.len() < 6 { return Ok(()); }
 
-        // Compute centroid as fan origin
-        let cx: f32 = points.chunks(2).map(|c| c[0]).sum::<f32>() / n as f32;
-        let cy: f32 = points.chunks(2).map(|c| c[1]).sum::<f32>() / n as f32;
+        let src_x = points[0];
+        let src_y = points[1];
+        let boundary = &points[2..];
 
-        // Build fan: centroid, all boundary points, close with first point
-        let mut fan: Vec<f32> = Vec::with_capacity(points.len() + 4);
-        fan.push(cx);
-        fan.push(cy);
-        fan.extend_from_slice(points);
-        fan.push(points[0]);
-        fan.push(points[1]);
+        // Build fan: source, all boundary points, close with first boundary point
+        let mut fan: Vec<f32> = Vec::with_capacity(points.len() + 2);
+        fan.push(src_x);
+        fan.push(src_y);
+        fan.extend_from_slice(boundary);
+        fan.push(boundary[0]);
+        fan.push(boundary[1]);
 
         if let Some(loc) = self.gl.get_uniform_location(program, "u_fog_color") {
             self.gl.uniform4f(Some(&loc), value, 0.0, 0.0, 1.0);
@@ -530,7 +532,7 @@ impl FogOfWarSystem {
 
     /// Returns true when scene should be captured to FBO for post-processing.
     pub fn needs_scene_capture(&self) -> bool {
-        self.dynamic_lighting_enabled && !self.is_gm && self.ambient_light < 0.99
+        self.dynamic_lighting_enabled && !self.is_gm
     }
 
     /// Bind scene capture FBO, recreating it if canvas size changed.
@@ -803,7 +805,7 @@ impl FogOfWarSystem {
         self.canvas_height = canvas_height;
         
         let has_fog = !self.fog_rectangles.is_empty();
-        let has_vision = self.dynamic_lighting_enabled && !self.is_gm && self.ambient_light < 0.99;
+        let has_vision = self.dynamic_lighting_enabled && !self.is_gm;
 
         if !has_fog && !has_vision {
             return Ok(());

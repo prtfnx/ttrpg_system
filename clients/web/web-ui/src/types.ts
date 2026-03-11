@@ -34,6 +34,10 @@ export interface Sprite {
   isVisible?: boolean;  // DM-controlled visibility flag; undefined = visible
   metadata?: string;
   syncStatus?: 'local' | 'syncing' | 'synced' | 'error';
+  // Vision (dynamic lighting)
+  visionRadius?: number;       // pixels; undefined = client default
+  hasDarkvision?: boolean;
+  darkvisionRadius?: number;   // pixels; undefined = no darkvision
 }
 
 export interface Character {

@@ -122,6 +122,13 @@ interface GameStore extends GameState {
   // Lighting
   ambientLight: number;
   setAmbientLight: (level: number) => void;
+
+  // Dynamic lighting (per-table, synced from server)
+  dynamicLightingEnabled: boolean;
+  fogExplorationMode: 'current_only' | 'persist_dimmed';
+  setDynamicLighting: (enabled: boolean) => void;
+  setFogExplorationMode: (mode: 'current_only' | 'persist_dimmed') => void;
+  applyTableLightingSettings: (settings: { dynamic_lighting_enabled: boolean; fog_exploration_mode: string; ambient_light_level: number }) => void;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -180,6 +187,8 @@ export const useGameStore = create<GameStore>()(
 
       // Lighting initial state
       ambientLight: 0.2,
+      dynamicLightingEnabled: false,
+      fogExplorationMode: 'current_only' as const,
 
       // Actions
       moveSprite: (id: string, x: number, y: number) => {
@@ -478,6 +487,26 @@ export const useGameStore = create<GameStore>()(
 
       setAmbientLight: (level: number) => {
         set(() => ({ ambientLight: level }));
+      },
+
+      setDynamicLighting: (enabled: boolean) => {
+        set(() => ({ dynamicLightingEnabled: enabled }));
+      },
+
+      setFogExplorationMode: (mode: 'current_only' | 'persist_dimmed') => {
+        set(() => ({ fogExplorationMode: mode }));
+      },
+
+      applyTableLightingSettings: (settings) => {
+        set(() => ({
+          dynamicLightingEnabled: settings.dynamic_lighting_enabled,
+          fogExplorationMode: (settings.fog_exploration_mode as 'current_only' | 'persist_dimmed') ?? 'current_only',
+          ambientLight: settings.ambient_light_level ?? 1.0,
+        }));
+        // Sync ambient light to WASM if available
+        if (typeof window !== 'undefined' && (window as any).rustRenderManager?.set_ambient_light) {
+          (window as any).rustRenderManager.set_ambient_light(settings.ambient_light_level ?? 1.0);
+        }
       },
 
       setSessionRole: (role: SessionRole, permissions: string[], visibleLayers: string[]) => {

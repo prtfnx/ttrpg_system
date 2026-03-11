@@ -129,6 +129,10 @@ interface GameStore extends GameState {
   setDynamicLighting: (enabled: boolean) => void;
   setFogExplorationMode: (mode: 'current_only' | 'persist_dimmed') => void;
   applyTableLightingSettings: (settings: { dynamic_lighting_enabled: boolean; fog_exploration_mode: string; ambient_light_level: number }) => void;
+
+  // DM preview mode
+  dmPreviewUserId: number | null;
+  setDmPreviewMode: (userId: number | null) => void;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -189,6 +193,7 @@ export const useGameStore = create<GameStore>()(
       ambientLight: 0.2,
       dynamicLightingEnabled: false,
       fogExplorationMode: 'current_only' as const,
+      dmPreviewUserId: null,
 
       // Actions
       moveSprite: (id: string, x: number, y: number) => {
@@ -487,6 +492,12 @@ export const useGameStore = create<GameStore>()(
 
       setAmbientLight: (level: number) => {
         set(() => ({ ambientLight: level }));
+        const rm = typeof window !== 'undefined' ? (window as any).rustRenderManager : null;
+        if (rm?.set_ambient_light) rm.set_ambient_light(level);
+      },
+
+      setDmPreviewMode: (userId: number | null) => {
+        set(() => ({ dmPreviewUserId: userId }));
       },
 
       setDynamicLighting: (enabled: boolean) => {

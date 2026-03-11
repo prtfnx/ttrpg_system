@@ -57,7 +57,9 @@ export const GameCanvas: React.FC = () => {
   const rustRenderManagerRef = useRef<RenderEngine | null>(null);
   const dprRef = useRef<number>(1);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  const visionRingsCanvasRef = useRef<HTMLCanvasElement>(null);
 
+  const dynamicLightingEnabled = useGameStore(s => s.dynamicLightingEnabled);
   // Protocol and store setup
   const _protocolCtx = (() => {
     try {
@@ -235,6 +237,86 @@ export const GameCanvas: React.FC = () => {
 
     ctx.restore();
   }, [lightPreviewPos, lightPlacementMode]);
+
+  // Vision rings overlay — DM-only indicator circles for token vision/darkvision radii
+  useEffect(() => {
+    if (!dynamicLightingEnabled) {
+      const canvas = visionRingsCanvasRef.current;
+      if (canvas) canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+
+    let raf: number;
+
+    const draw = () => {
+      const canvas = visionRingsCanvasRef.current;
+      const mainCanvas = canvasRef.current;
+      const rm = rustRenderManagerRef.current;
+      if (!canvas || !mainCanvas) { raf = requestAnimationFrame(draw); return; }
+
+      const { sprites, sessionRole } = useGameStore.getState();
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { raf = requestAnimationFrame(draw); return; }
+
+      const dpr = dprRef.current;
+      const rect = mainCanvas.getBoundingClientRect();
+      const w = Math.round(rect.width * dpr);
+      const h = Math.round(rect.height * dpr);
+      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (!rm || !isDM(sessionRole)) { raf = requestAnimationFrame(draw); return; }
+
+      ctx.save();
+      ctx.scale(dpr, dpr);
+
+      for (const sprite of sprites) {
+        const s = sprite as any;
+        const vr: number = s.visionRadius ?? s.vision_radius ?? 0;
+        const dvr: number = (s.hasDarkvision || s.has_darkvision)
+          ? (s.darkvisionRadius ?? s.darkvision_radius ?? 0)
+          : 0;
+        if (!vr && !dvr) continue;
+
+        const hw = (s.width ?? 40) / 2;
+        const hh = (s.height ?? 40) / 2;
+        try {
+          const ctr = rm.world_to_screen(s.x + hw, s.y + hh);
+          const sx = ctr[0] / dpr;
+          const sy = ctr[1] / dpr;
+
+          if (vr > 0) {
+            const edge = rm.world_to_screen(s.x + hw + vr, s.y + hh);
+            const sr = (edge[0] - ctr[0]) / dpr;
+            ctx.beginPath();
+            ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 210, 80, 0.45)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
+
+          if (dvr > 0) {
+            const edge = rm.world_to_screen(s.x + hw + dvr, s.y + hh);
+            const sr = (edge[0] - ctr[0]) / dpr;
+            ctx.beginPath();
+            ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(160, 100, 255, 0.45)';
+            ctx.setLineDash([6, 4]);
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        } catch { /* sprite may not be on screen */ }
+      }
+
+      ctx.restore();
+      raf = requestAnimationFrame(draw);
+    };
+
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [dynamicLightingEnabled]);
 
   // WASM initialization and render loop
   useEffect(() => {
@@ -607,6 +689,18 @@ export const GameCanvas: React.FC = () => {
             left: 0,
             pointerEvents: 'none',
             zIndex: 100,
+          }}
+        />
+
+        {/* Vision rings overlay — DM view: token vision/darkvision indicator circles */}
+        <canvas
+          ref={visionRingsCanvasRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            pointerEvents: 'none',
+            zIndex: 101,
           }}
         />
 

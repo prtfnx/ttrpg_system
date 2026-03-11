@@ -497,15 +497,17 @@ export const useGameStore = create<GameStore>()(
         set(() => ({ fogExplorationMode: mode }));
       },
 
-      applyTableLightingSettings: (settings) => {
+      applyTableLightingSettings: (settings: { dynamic_lighting_enabled: boolean; fog_exploration_mode: string; ambient_light_level: number }) => {
         set(() => ({
           dynamicLightingEnabled: settings.dynamic_lighting_enabled,
           fogExplorationMode: (settings.fog_exploration_mode as 'current_only' | 'persist_dimmed') ?? 'current_only',
           ambientLight: settings.ambient_light_level ?? 1.0,
         }));
-        // Sync ambient light to WASM if available
-        if (typeof window !== 'undefined' && (window as any).rustRenderManager?.set_ambient_light) {
-          (window as any).rustRenderManager.set_ambient_light(settings.ambient_light_level ?? 1.0);
+        // Sync lighting settings to WASM if available
+        if (typeof window !== 'undefined') {
+          const rm = (window as any).rustRenderManager;
+          if (rm?.set_ambient_light) rm.set_ambient_light(settings.ambient_light_level ?? 1.0);
+          if (rm?.set_dynamic_lighting_enabled) rm.set_dynamic_lighting_enabled(settings.dynamic_lighting_enabled);
         }
       },
 

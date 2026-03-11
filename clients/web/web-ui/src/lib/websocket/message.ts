@@ -116,6 +116,10 @@ export const MessageType = {
   // Batch messaging for performance
   BATCH: "batch",
   
+  // Dynamic lighting / table settings
+  TABLE_SETTINGS_UPDATE: "table_settings_update",
+  TABLE_SETTINGS_CHANGED: "table_settings_changed",
+  
   // Extension point for new message types
   CUSTOM: "custom"
 } as const;

@@ -72,6 +72,8 @@ class ServerProtocol:
         self.register_handler(MessageType.TABLE_ACTIVE_REQUEST, self.handle_table_active_request)
         self.register_handler(MessageType.TABLE_ACTIVE_SET, self.handle_table_active_set)
         self.register_handler(MessageType.TABLE_ACTIVE_SET_ALL, self.handle_table_active_set_all)
+        # Dynamic lighting settings (DM-only)
+        self.register_handler(MessageType.TABLE_SETTINGS_UPDATE, self.handle_table_settings_update)
         
         # Player management
         self.register_handler(MessageType.PLAYER_ACTION, self.handle_player_action)
@@ -749,6 +751,77 @@ class ServerProtocol:
             return Message(MessageType.TABLE_RESPONSE, {'name': table_name, 'client_id': client_id,
                                                             'table_data': table_data_with_hashes})
 
+    async def handle_table_settings_update(self, msg: Message, client_id: str) -> Message:
+        """Handle DM request to change dynamic lighting / fog exploration settings for a table."""
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can change table lighting settings'})
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data provided'})
+
+        table_id = msg.data.get('table_id')
+        if not table_id:
+            return Message(MessageType.ERROR, {'error': 'table_id is required'})
+
+        VALID_FOG_MODES = {'current_only', 'persist_dimmed'}
+        dynamic_lighting = msg.data.get('dynamic_lighting_enabled')
+        fog_mode = msg.data.get('fog_exploration_mode')
+        ambient = msg.data.get('ambient_light_level')
+
+        if fog_mode is not None and fog_mode not in VALID_FOG_MODES:
+            return Message(MessageType.ERROR, {'error': f'fog_exploration_mode must be one of {VALID_FOG_MODES}'})
+        if ambient is not None and not (0.0 <= float(ambient) <= 1.0):
+            return Message(MessageType.ERROR, {'error': 'ambient_light_level must be between 0.0 and 1.0'})
+
+        # Apply to in-memory table
+        table = self.table_manager.tables_id.get(table_id)
+        if table is None:
+            table = self.table_manager.tables.get(table_id)
+        if table is None:
+            return Message(MessageType.ERROR, {'error': 'Table not found'})
+
+        if dynamic_lighting is not None:
+            # Strict bool parsing - JSON booleans from client are already bool,
+            # but guard against truthy strings like 'false'/'0'
+            if isinstance(dynamic_lighting, bool):
+                table.dynamic_lighting_enabled = dynamic_lighting
+            else:
+                table.dynamic_lighting_enabled = bool(dynamic_lighting)
+        if fog_mode is not None:
+            table.fog_exploration_mode = fog_mode
+        if ambient is not None:
+            table.ambient_light_level = float(ambient)
+
+        # Persist to DB
+        session_id = self._get_session_id(msg)
+        if session_id:
+            try:
+                from server_host.database.database import SessionLocal
+                from server_host.database import crud, schemas
+                db = SessionLocal()
+                try:
+                    update = schemas.VirtualTableUpdate(
+                        dynamic_lighting_enabled=table.dynamic_lighting_enabled,
+                        fog_exploration_mode=table.fog_exploration_mode,
+                        ambient_light_level=table.ambient_light_level,
+                    )
+                    crud.update_virtual_table(db, str(table.table_id), update)
+                finally:
+                    db.close()
+            except Exception as e:
+                logger.error(f"Failed to persist table lighting settings: {e}")
+
+        # Broadcast to all clients in session
+        broadcast_data = {
+            'table_id': table_id,
+            'dynamic_lighting_enabled': table.dynamic_lighting_enabled,
+            'fog_exploration_mode': table.fog_exploration_mode,
+            'ambient_light_level': table.ambient_light_level,
+        }
+        await self.broadcast_to_session(
+            Message(MessageType.TABLE_SETTINGS_CHANGED, broadcast_data), client_id
+        )
+        return Message(MessageType.SUCCESS, broadcast_data)
+
     async def handle_table_update(self, msg: Message, client_id: str) -> Message:
         """Handle and broadcast table update with sprite movement support"""
         logger.debug(f"Handling table update from {client_id}: {msg}")
@@ -930,6 +1003,14 @@ class ServerProtocol:
             updates['aura_radius'] = update_data['aura_radius']
         if 'aura_color' in update_data:
             updates['aura_color'] = update_data['aura_color']
+        # Vision fields (DM-settable per token)
+        if 'vision_radius' in update_data and is_dm(role):
+            updates['vision_radius'] = update_data['vision_radius']
+        if 'has_darkvision' in update_data and is_dm(role):
+            val = update_data['has_darkvision']
+            updates['has_darkvision'] = val if isinstance(val, bool) else bool(val)
+        if 'darkvision_radius' in update_data and is_dm(role):
+            updates['darkvision_radius'] = update_data['darkvision_radius']
         
         # Apply updates via actions
         if updates:

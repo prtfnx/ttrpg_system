@@ -3,7 +3,7 @@
  */
 
 .combatTracker {
-  composes: wizard-panel from './CharacterWizardBase.module.css';
+  composes: wizard-panel from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
 }
 
 .combatTracker.setup {
@@ -12,7 +12,7 @@
 
 /* Header */
 .combat-header {
-  composes: wizard-header-primary from './CharacterWizardBase.module.css';
+  composes: wizard-header-primary from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   padding: var(--space-lg) var(--space-xl);
 }
 
@@ -24,17 +24,17 @@
 }
 
 .round-info {
-  composes: wizard-row from './CharacterWizardBase.module.css';
+  composes: wizard-row from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   font-size: var(--text-sm);
   opacity: 0.9;
 }
 
 .combat-controls {
-  composes: wizard-row from './CharacterWizardBase.module.css';
+  composes: wizard-row from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
 }
 
 .next-turn-btn {
-  composes: wizard-button-secondary from './CharacterWizardBase.module.css';
+  composes: wizard-button-secondary from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   background: var(--hover-overlay-light);
   color: var(--text-inverse-primary);
   border: var(--border-width-thick) solid var(--hover-overlay-light);
@@ -46,12 +46,12 @@
 }
 
 .reset-btn {
-  composes: wizard-button-danger from './CharacterWizardBase.module.css';
-  composes: wizard-button-small from './CharacterWizardBase.module.css';
+  composes: wizard-button-danger from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
+  composes: wizard-button-small from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
 }
 
 .close-button {
-  composes: wizard-close-button from './CharacterWizardBase.module.css';
+  composes: wizard-close-button from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
 }
 
 /* Setup Content */
@@ -64,7 +64,7 @@
 }
 
 .setup-header {
-  composes: wizard-row from './CharacterWizardBase.module.css';
+  composes: wizard-row from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--space-lg);
@@ -77,7 +77,7 @@
 }
 
 .add-participant-btn {
-  composes: wizard-button-success from './CharacterWizardBase.module.css';
+  composes: wizard-button-success from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
 }
 
 .add-participant-btn:hover {
@@ -85,7 +85,7 @@
 }
 
 .participants-list {
-  composes: wizard-column from './CharacterWizardBase.module.css';
+  composes: wizard-column from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   gap: var(--space-lg);
 }
 
@@ -126,12 +126,12 @@
 }
 
 .participant-controls {
-  composes: wizard-row from './CharacterWizardBase.module.css';
+  composes: wizard-row from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   align-items: center;
 }
 
 .initiative-section {
-  composes: wizard-column from './CharacterWizardBase.module.css';
+  composes: wizard-column from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   align-items: center;
   gap: var(--space-xs);
 }
@@ -158,14 +158,14 @@
 
 /* Add Participant Form */
 .add-participant-form {
-  composes: wizard-card from './CharacterWizardBase.module.css';
+  composes: wizard-card from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   background: var(--bg-primary);
   border: var(--border-width-thick) solid var(--color-danger);
   margin-top: var(--space-lg);
 }
 
 .form-header {
-  composes: wizard-row from './CharacterWizardBase.module.css';
+  composes: wizard-row from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--space-lg);
@@ -177,14 +177,14 @@
 }
 
 .form-row {
-  composes: wizard-grid from './CharacterWizardBase.module.css';
+  composes: wizard-grid from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   grid-template-columns: 2fr 1fr 1fr 1fr;
   gap: var(--space-md);
   margin-bottom: var(--space-lg);
 }
 
 .form-row input {
-  composes: wizard-input from './CharacterWizardBase.module.css';
+  composes: wizard-input from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
 }
 
 .form-row input:focus {
@@ -194,23 +194,23 @@
 }
 
 .form-actions {
-  composes: wizard-row from './CharacterWizardBase.module.css';
+  composes: wizard-row from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   justify-content: flex-end;
 }
 
 .add-btn {
-  composes: wizard-button-danger from './CharacterWizardBase.module.css';
+  composes: wizard-button-danger from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
 }
 
 /* Setup Actions */
 .setup-actions {
-  composes: wizard-card-section from './CharacterWizardBase.module.css';
+  composes: wizard-card-section from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   text-align: center;
   background: var(--bg-tertiary);
 }
 
 .start-combat-btn {
-  composes: wizard-button-danger from './CharacterWizardBase.module.css';
+  composes: wizard-button-danger from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   padding: var(--space-lg) var(--space-3xl);
   font-size: var(--text-lg);
   background: linear-gradient(135deg, var(--red-600) 0%, var(--red-700) 100%);
@@ -249,11 +249,11 @@
 }
 
 .participants-active {
-  composes: wizard-column from './CharacterWizardBase.module.css';
+  composes: wizard-column from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
 }
 
 .participant-active {
-  composes: wizard-card from './CharacterWizardBase.module.css';
+  composes: wizard-card from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   border: var(--border-width-thick) solid var(--border-primary);
   transition: var(--transition-normal);
 }
@@ -274,14 +274,14 @@
 }
 
 .participant-header {
-  composes: wizard-row from './CharacterWizardBase.module.css';
+  composes: wizard-row from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: var(--space-md);
 }
 
 .participant-basic {
-  composes: wizard-row from './CharacterWizardBase.module.css';
+  composes: wizard-row from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   align-items: center;
 }
 
@@ -296,7 +296,7 @@
 }
 
 .participant-details {
-  composes: wizard-column from './CharacterWizardBase.module.css';
+  composes: wizard-column from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   gap: var(--space-2xs);
 }
 
@@ -312,12 +312,12 @@
 }
 
 .participant-vital-stats {
-  composes: wizard-row from './CharacterWizardBase.module.css';
+  composes: wizard-row from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   gap: var(--space-lg);
 }
 
 .stat-group {
-  composes: wizard-column from './CharacterWizardBase.module.css';
+  composes: wizard-column from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   align-items: center;
   gap: var(--space-2xs);
 }
@@ -337,14 +337,14 @@
 }
 
 .hp-controls {
-  composes: wizard-row from './CharacterWizardBase.module.css';
+  composes: wizard-row from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   align-items: center;
   gap: var(--space-2xs);
 }
 
 .hp-input,
 .temp-hp-input {
-  composes: wizard-input from './CharacterWizardBase.module.css';
+  composes: wizard-input from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   width: 60px;
   text-align: center;
   padding: var(--space-2xs) var(--space-xs);
@@ -368,23 +368,23 @@
 
 /* Participant Status */
 .participant-status {
-  composes: wizard-column from './CharacterWizardBase.module.css';
+  composes: wizard-column from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
 }
 
 .conditions-section {
-  composes: wizard-row from './CharacterWizardBase.module.css';
+  composes: wizard-row from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   flex-wrap: wrap;
   align-items: center;
 }
 
 .conditions-list {
-  composes: wizard-row from './CharacterWizardBase.module.css';
+  composes: wizard-row from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   flex-wrap: wrap;
   gap: var(--space-2xs);
 }
 
 .condition-tag {
-  composes: wizard-badge-info from './CharacterWizardBase.module.css';
+  composes: wizard-badge-info from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   background: var(--purple-600);
   display: flex;
   align-items: center;
@@ -406,7 +406,7 @@
 }
 
 .condition-input {
-  composes: wizard-input from './CharacterWizardBase.module.css';
+  composes: wizard-input from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   width: 100%;
 }
 

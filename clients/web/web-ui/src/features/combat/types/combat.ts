@@ -1,21 +1,10 @@
 // Combat Integration System Components
-export { AttackManager } from './AttackManager';
-export { CharacterSheet } from './CharacterSheet';
-export { CombatLauncher } from './CombatLauncher';
-export { CombatTracker } from './CombatTracker';
-export { CombatView } from './CombatView';
-export { DiceRoller } from './DiceRoller';
-export { SpellManager } from './SpellManager';
+export { AttackManager } from '../components/AttackManager';
+export { CombatTracker } from '../components/Combat/CombatTracker';
+export { CombatLauncher } from '../components/CombatLauncher';
+export { CombatView } from '../components/CombatView';
+export { DiceRoller } from '../components/DiceRoller';
 
 // Combat System Service
 export { CombatSystemService } from '@features/combat';
-
-// CSS imports for convenience
-import './AttackManager.css';
-import './CharacterSheet.css';
-import './CombatLauncher.css';
-import './CombatTracker.css';
-import './CombatView.css';
-import './DiceRoller.css';
-import './SpellManager.css';
 

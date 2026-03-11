@@ -117,6 +117,10 @@ class MessageType(enum.Enum):    # Core messages
     # Batch messaging for performance
     BATCH = "batch"
     
+    # Dynamic lighting / table settings
+    TABLE_SETTINGS_UPDATE = "table_settings_update"    # DM → server: change lighting settings
+    TABLE_SETTINGS_CHANGED = "table_settings_changed"  # server → all clients: settings broadcast
+    
     # Extension point for new message types
     CUSTOM = "custom"
 

@@ -2,6 +2,7 @@ import { useGameStore } from '@/store';
 import type { GameAPI } from '@/types';
 import { AssetManager } from '@features/assets';
 import { GridControls, LayerPanel } from '@features/canvas';
+import { startDmPreview, stopDmPreview } from '@features/lighting';
 import { MeasurementTool } from '@features/measurement';
 import { PaintPanel } from '@features/painting';
 import { isDM, isElevated } from '@features/session/types/roles';
@@ -50,6 +51,18 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   const tables = useGameStore(s => s.tables);
   const activeTableId = useGameStore(s => s.activeTableId);
   const setActiveTableId = useGameStore(s => s.setActiveTableId);
+  const dynamicLightingEnabled = useGameStore(s => s.dynamicLightingEnabled);
+  const fogExplorationMode = useGameStore(s => s.fogExplorationMode);
+  const ambientLight = useGameStore(s => s.ambientLight);
+  const setAmbientLight = useGameStore(s => s.setAmbientLight);
+  const dmPreviewUserId = useGameStore(s => s.dmPreviewUserId);
+  const setDmPreviewMode = useGameStore(s => s.setDmPreviewMode);
+  const sprites = useGameStore(s => s.sprites);
+
+  // Unique player IDs from sprite controlledBy fields (for DM preview dropdown)
+  const playerIds: number[] = Array.from(
+    new Set((sprites as any[]).flatMap((s: any) => s.controlledBy ?? s.controlled_by ?? []))
+  ).filter((id): id is number => typeof id === 'number');
   const [tableSwitcherOpen, setTableSwitcherOpen] = useState(false);
   const tableSwitcherRef = useRef<HTMLDivElement>(null);
 
@@ -82,6 +95,24 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
     
     return () => clearInterval(interval);
   }, []);
+
+  // Stop DM preview on unmount
+  useEffect(() => {
+    return () => {
+      if (dmPreviewUserId != null) {
+        stopDmPreview();
+        setDmPreviewMode(null);
+      }
+    };
+  }, []);
+
+  // Stop DM preview when lighting is disabled or active table changes
+  useEffect(() => {
+    if ((!dynamicLightingEnabled || activeTableId == null) && dmPreviewUserId != null) {
+      stopDmPreview();
+      setDmPreviewMode(null);
+    }
+  }, [dynamicLightingEnabled, activeTableId]);
   
   // Handle tool changes and communicate with Rust backend
   useEffect(() => {
@@ -710,6 +741,71 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
 
       {/* Grid Controls - DM only */}
       {dmMode && <GridControls />}
+
+      {/* Dynamic Lighting - DM only */}
+      {dmMode && activeTableId && (
+        <div className={styles.gamePanel}>
+          <h3 className={styles.panelTitle}>Dynamic Lighting</h3>
+          <div className={styles.controlRow}>
+            <label>
+              <input
+                type="checkbox"
+                checked={dynamicLightingEnabled}
+                onChange={e => ProtocolService.getProtocol().sendTableSettingsUpdate(activeTableId, { dynamic_lighting_enabled: e.target.checked })}
+              />{' '}Enable
+            </label>
+          </div>
+          {dynamicLightingEnabled && (
+            <>
+              <div className={styles.controlRow}>
+                <label>Ambient Light: {Math.round((ambientLight ?? 1.0) * 100)}%</label>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round((ambientLight ?? 1.0) * 100)}
+                  onChange={e => setAmbientLight(Number(e.target.value) / 100)}
+                  onMouseUp={e => ProtocolService.hasProtocol() && ProtocolService.getProtocol().sendTableSettingsUpdate(activeTableId, { ambient_light_level: Number((e.target as HTMLInputElement).value) / 100 })}
+                />
+              </div>
+              <div className={styles.controlRow}>
+                <label>Fog Mode:</label>
+                <select
+                  value={fogExplorationMode}
+                  onChange={e => ProtocolService.getProtocol().sendTableSettingsUpdate(activeTableId, { fog_exploration_mode: e.target.value })}
+                >
+                  <option value="current_only">Current Only</option>
+                  <option value="persist_dimmed">Persist Dimmed</option>
+                </select>
+              </div>
+              {playerIds.length > 0 && (
+                <div className={styles.controlRow}>
+                  <label>Preview as:</label>
+                  <select
+                    value={dmPreviewUserId ?? ''}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (!val) {
+                        setDmPreviewMode(null);
+                        stopDmPreview();
+                      } else {
+                        const uid = Number(val);
+                        setDmPreviewMode(uid);
+                        startDmPreview(uid);
+                      }
+                    }}
+                  >
+                    <option value="">DM View</option>
+                    {playerIds.map(id => (
+                      <option key={id} value={id}>Player {id}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {/* Dice Roller Tool */}
       <DiceRoller />

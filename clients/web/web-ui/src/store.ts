@@ -122,6 +122,17 @@ interface GameStore extends GameState {
   // Lighting
   ambientLight: number;
   setAmbientLight: (level: number) => void;
+
+  // Dynamic lighting (per-table, synced from server)
+  dynamicLightingEnabled: boolean;
+  fogExplorationMode: 'current_only' | 'persist_dimmed';
+  setDynamicLighting: (enabled: boolean) => void;
+  setFogExplorationMode: (mode: 'current_only' | 'persist_dimmed') => void;
+  applyTableLightingSettings: (settings: { dynamic_lighting_enabled: boolean; fog_exploration_mode: string; ambient_light_level: number }) => void;
+
+  // DM preview mode
+  dmPreviewUserId: number | null;
+  setDmPreviewMode: (userId: number | null) => void;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -180,6 +191,9 @@ export const useGameStore = create<GameStore>()(
 
       // Lighting initial state
       ambientLight: 0.2,
+      dynamicLightingEnabled: false,
+      fogExplorationMode: 'current_only' as const,
+      dmPreviewUserId: null,
 
       // Actions
       moveSprite: (id: string, x: number, y: number) => {
@@ -320,6 +334,9 @@ export const useGameStore = create<GameStore>()(
         if ('scaleX' in updates) serverUpdate.scale_x = updates.scaleX;
         if ('scaleY' in updates) serverUpdate.scale_y = updates.scaleY;
         if ('rotation' in updates) serverUpdate.rotation = updates.rotation;
+        if ('visionRadius' in updates) serverUpdate.vision_radius = updates.visionRadius;
+        if ('hasDarkvision' in updates) serverUpdate.has_darkvision = updates.hasDarkvision;
+        if ('darkvisionRadius' in updates) serverUpdate.darkvision_radius = updates.darkvisionRadius;
         
         const changes = detectChanges(id, serverUpdate);
         if (Object.keys(changes).length > 0) {
@@ -478,6 +495,34 @@ export const useGameStore = create<GameStore>()(
 
       setAmbientLight: (level: number) => {
         set(() => ({ ambientLight: level }));
+        const rm = typeof window !== 'undefined' ? (window as any).rustRenderManager : null;
+        if (rm?.set_ambient_light) rm.set_ambient_light(level);
+      },
+
+      setDmPreviewMode: (userId: number | null) => {
+        set(() => ({ dmPreviewUserId: userId }));
+      },
+
+      setDynamicLighting: (enabled: boolean) => {
+        set(() => ({ dynamicLightingEnabled: enabled }));
+      },
+
+      setFogExplorationMode: (mode: 'current_only' | 'persist_dimmed') => {
+        set(() => ({ fogExplorationMode: mode }));
+      },
+
+      applyTableLightingSettings: (settings: { dynamic_lighting_enabled: boolean; fog_exploration_mode: string; ambient_light_level: number }) => {
+        set(() => ({
+          dynamicLightingEnabled: settings.dynamic_lighting_enabled,
+          fogExplorationMode: (settings.fog_exploration_mode as 'current_only' | 'persist_dimmed') ?? 'current_only',
+          ambientLight: settings.ambient_light_level ?? 1.0,
+        }));
+        // Sync lighting settings to WASM if available
+        if (typeof window !== 'undefined') {
+          const rm = (window as any).rustRenderManager;
+          if (rm?.set_ambient_light) rm.set_ambient_light(settings.ambient_light_level ?? 1.0);
+          if (rm?.set_dynamic_lighting_enabled) rm.set_dynamic_lighting_enabled(settings.dynamic_lighting_enabled);
+        }
       },
 
       setSessionRole: (role: SessionRole, permissions: string[], visibleLayers: string[]) => {

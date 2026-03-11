@@ -7,10 +7,17 @@ import { getSpriteHeight, getSpriteWidth } from '@shared/utils';
 let _interval: number | null = null;
 let _poller: number | null = null;
 const activeIds = new Set<string>();
+const exploredIds = new Set<string>();
+
+// DM preview state
+let _dmPreviewInterval: number | null = null;
+const dmPreviewIds = new Set<string>();
 
 // Caches to avoid expensive recompute when nothing changed
 let lastObstaclesKey: string | null = null;
 const lastSourcePos = new Map<string, string>();
+// Last computed polygon per vision/darkvision id for explored-area tracking
+const lastPolyCache = new Map<string, { x: number; y: number }[]>();
 
 export interface VisionOptions {
   pollMs?: number;
@@ -24,13 +31,10 @@ function buildObstaclesFloat32(): Float32Array {
   const segs: number[] = [];
 
   for (const s of obstacles) {
-    // Assume sprite x,y are top-left in world coords
     const x1 = s.x;
     const y1 = s.y;
     const x2 = s.x + getSpriteWidth(s);
     const y2 = s.y + getSpriteHeight(s);
-
-    // Add rectangle edges as segments (x1,y1)-(x2,y1), (x2,y1)-(x2,y2), ...
     segs.push(x1, y1, x2, y1);
     segs.push(x2, y1, x2, y2);
     segs.push(x2, y2, x1, y2);
@@ -40,45 +44,55 @@ function buildObstaclesFloat32(): Float32Array {
   return new Float32Array(segs);
 }
 
-function getVisionSources(defaultRadius = 600): Array<{ id: string; x: number; y: number; radius: number }> {
+function getVisionSources(defaultRadius = 600, forUserId?: number): Array<{ id: string; x: number; y: number; radius: number; darkvisionRadius?: number }> {
   const store = useGameStore.getState();
   const sprites = store.sprites || [];
   const userId = store.userId;
   const sessionRole = store.sessionRole;
 
-  const radiusKeys = [
-    'visionRadius', 'vision_radius', 'lightRadius', 'light_radius',
-    'radius', 'sightRadius', 'sight_radius', 'aura_radius',
-  ];
-
-  const out: Array<{ id: string; x: number; y: number; radius: number }> = [];
+  const out: Array<{ id: string; x: number; y: number; radius: number; darkvisionRadius?: number }> = [];
 
   for (const s of sprites) {
     if (!s || typeof s !== 'object') continue;
     const anyS = s as any;
 
-    // Non-DMs only see through sprites they control
-    if (!isDM(sessionRole) && userId != null) {
+    if (forUserId != null) {
+      const controlledBy: number[] = anyS.controlledBy ?? anyS.controlled_by ?? [];
+      if (!controlledBy.includes(forUserId)) continue;
+    } else if (!isDM(sessionRole) && userId != null) {
       const controlledBy: number[] = anyS.controlledBy ?? anyS.controlled_by ?? [];
       if (controlledBy.length > 0 && !controlledBy.includes(userId)) continue;
     }
 
-    let radius: number | undefined = undefined;
-    for (const k of radiusKeys) {
-      const v = anyS[k];
-      if (typeof v === 'number' && v > 0) { radius = v; break; }
-      if (typeof v === 'string' && !isNaN(Number(v)) && Number(v) > 0) { radius = Number(v); break; }
+    let radius: number;
+    if (typeof anyS.visionRadius === 'number' && anyS.visionRadius > 0) {
+      radius = anyS.visionRadius;
+    } else if (typeof anyS.vision_radius === 'number' && anyS.vision_radius > 0) {
+      radius = anyS.vision_radius;
+    } else {
+      const legacyKeys = ['lightRadius', 'light_radius', 'radius', 'sightRadius', 'sight_radius', 'aura_radius'];
+      radius = defaultRadius;
+      for (const k of legacyKeys) {
+        const v = anyS[k];
+        if (typeof v === 'number' && v > 0) { radius = v; break; }
+        if (typeof v === 'string' && !isNaN(Number(v)) && Number(v) > 0) { radius = Number(v); break; }
+      }
     }
 
-    if (radius == null) radius = defaultRadius;
-    out.push({ id: anyS.id, x: anyS.x, y: anyS.y, radius });
+    const darkvisionRadius: number | undefined =
+      anyS.hasDarkvision || anyS.has_darkvision
+        ? ((anyS.darkvisionRadius ?? anyS.darkvision_radius ?? 0) > 0
+            ? (anyS.darkvisionRadius ?? anyS.darkvision_radius)
+            : undefined)
+        : undefined;
+
+    out.push({ id: anyS.id, x: anyS.x, y: anyS.y, radius, darkvisionRadius });
   }
 
   return out;
 }
 
 function computeObstaclesKey(arr: Float32Array) {
-  // Simple fingerprint: count + sum of first/last values to detect changes cheaply
   if (!arr || arr.length === 0) return 'empty';
   let sumFirst = 0;
   for (let i = 0; i < Math.min(8, arr.length); i++) sumFirst += arr[i];
@@ -89,78 +103,114 @@ function computeObstaclesKey(arr: Float32Array) {
 
 function applyPolygonsForSources(obstaclesArr: Float32Array, opts?: VisionOptions) {
   const debug = opts?.debug;
-  if (!window.rustRenderManager || typeof (window as any).rustRenderManager.compute_visibility_polygon !== 'function') {
+  const rm = (window as any).rustRenderManager;
+  if (!rm || typeof rm.compute_visibility_polygon !== 'function') {
     if (debug) console.debug('[vision.service] wasm render manager not ready');
     return;
   }
 
   const obKey = computeObstaclesKey(obstaclesArr);
   const obstaclesChanged = obKey !== lastObstaclesKey;
-  if (debug && !obstaclesChanged) console.debug('[vision.service] obstacles key unchanged');
+  const { fogExplorationMode } = useGameStore.getState();
+  const persistExplored = fogExplorationMode === 'persist_dimmed';
 
   const sources = getVisionSources(opts?.defaultRadius ?? 600);
   const seenIds = new Set<string>();
 
   for (const src of sources) {
+    // --- Normal vision polygon ---
     const id = `vision_${src.id}`;
-
     const posKey = `${src.x.toFixed(2)},${src.y.toFixed(2)},${src.radius}`;
-    const prev = lastSourcePos.get(src.id);
-    const moved = prev !== posKey;
+    const moved = lastSourcePos.get(src.id) !== posKey;
 
-    // If neither obstacles nor this source moved, skip
     if (!obstaclesChanged && !moved) {
       seenIds.add(id);
       activeIds.add(id);
-      if (debug) console.debug('[vision.service] skipping compute for', id);
-      continue;
+    } else {
+      const prevPoly = lastPolyCache.get(id);
+      const rawPoly: { x: number; y: number }[] = rm.compute_visibility_polygon(src.x, src.y, obstaclesArr, src.radius);
+      // Prepend source as fan origin (star-shaped visibility polys are always interior at source)
+      const poly = [{ x: src.x, y: src.y }, ...rawPoly];
+      seenIds.add(id);
+      activeIds.add(id);
+      lastSourcePos.set(src.id, posKey);
+      lastPolyCache.set(id, poly);
+      // Save previous polygon as explored when moving with persist_dimmed
+      if (persistExplored && moved && prevPoly && prevPoly.length > 0) {
+        const expId = `explored_${src.id}`;
+        exploredIds.add(expId);
+        try { rm.add_fog_polygon(expId, prevPoly); } catch (err) {
+          console.error('[vision.service] add_fog_polygon failed for', expId, err);
+        }
+      }
+      try { rm.add_fog_polygon(id, poly); } catch (err) {
+        console.error('[vision.service] add_fog_polygon failed for', id, err);
+      }
     }
 
-    // perform wasm visibility compute
-    const poly: any = (window as any).rustRenderManager.compute_visibility_polygon(
-      src.x,
-      src.y,
-      obstaclesArr,
-      src.radius
-    );
+    // --- Darkvision polygon ---
+    if (src.darkvisionRadius != null && src.darkvisionRadius > 0) {
+      const dvId = `darkvision_${src.id}`;
+      const dvPosKey = `${src.x.toFixed(2)},${src.y.toFixed(2)},dv${src.darkvisionRadius}`;
+      const dvMoved = lastSourcePos.get(dvId) !== dvPosKey;
 
-    seenIds.add(id);
-    activeIds.add(id);
-    lastSourcePos.set(src.id, posKey);
-
-    try {
-      (window as any).rustRenderManager.add_fog_polygon(id, poly);
-      if (debug) console.debug('[vision.service] updated fog polygon', id, poly?.length ?? 'unknown');
-    } catch (err) {
-      console.error('[vision.service] add_fog_polygon failed for', id, err);
+      if (!obstaclesChanged && !dvMoved) {
+        seenIds.add(dvId);
+        activeIds.add(dvId);
+      } else {
+        const rawDvPoly: { x: number; y: number }[] = rm.compute_visibility_polygon(src.x, src.y, obstaclesArr, src.darkvisionRadius);
+        const dvPoly = [{ x: src.x, y: src.y }, ...rawDvPoly];
+        seenIds.add(dvId);
+        activeIds.add(dvId);
+        lastSourcePos.set(dvId, dvPosKey);
+        lastPolyCache.set(dvId, dvPoly);
+        try { rm.add_fog_polygon(dvId, dvPoly); } catch (err) {
+          console.error('[vision.service] add_fog_polygon failed for', dvId, err);
+        }
+      }
     }
   }
 
-  // Remove polygons for sources that disappeared
+  // Remove stale polygons; if persist_dimmed, keep as explored
   for (const oldId of Array.from(activeIds)) {
     if (!seenIds.has(oldId)) {
-      try {
-        (window as any).rustRenderManager.remove_fog_polygon(oldId);
-      } catch (err) {
-        // ignore
+      if (persistExplored && oldId.startsWith('vision_')) {
+        const srcId = oldId.slice('vision_'.length);
+        const expId = `explored_${srcId}`;
+        const cached = lastPolyCache.get(oldId);
+        if (cached && cached.length > 2) {
+          try { rm.add_fog_polygon(expId, cached); } catch {}
+          exploredIds.add(expId);
+        }
       }
+      try { rm.remove_fog_polygon(oldId); } catch {}
       activeIds.delete(oldId);
+      lastPolyCache.delete(oldId);
     }
   }
 
-  // Update obstacles key after processing
   lastObstaclesKey = obKey;
 }
 
 export function initVisionService(pollMs = 150) {
-  // DMs see everything — vision masking is for players only
   const sessionRole = useGameStore.getState().sessionRole;
   if (isDM(sessionRole)) return;
-
-  // If service already running, no-op
   if (_interval != null) return;
 
-  // If WASM not ready yet, poll until it becomes available
+  if (!useGameStore.getState().dynamicLightingEnabled) {
+    // Subscribe and wait for lighting to be enabled later (e.g. DM enables it mid-session)
+    if ((initVisionService as any)._unsubscribe) return;
+    const unsub = useGameStore.subscribe((state) => {
+      if (state.dynamicLightingEnabled) {
+        unsub();
+        delete (initVisionService as any)._unsubscribe;
+        initVisionService(pollMs);
+      }
+    });
+    (initVisionService as any)._unsubscribe = unsub;
+    return;
+  }
+
   if (!(window as any).rustRenderManager) {
     if (_poller != null) return;
     _poller = window.setInterval(() => {
@@ -173,51 +223,129 @@ export function initVisionService(pollMs = 150) {
     return;
   }
 
-  // Run loop that gathers obstacles and vision sources and updates fog polygons
+  const rm = (window as any).rustRenderManager;
+  if (rm?.set_dynamic_lighting_enabled) rm.set_dynamic_lighting_enabled(true);
+
   _interval = window.setInterval(() => {
-    try {
-      const obstacles = buildObstaclesFloat32();
-      applyPolygonsForSources(obstacles);
-    } catch (err) {
+    try { applyPolygonsForSources(buildObstaclesFloat32()); } catch (err) {
       console.error('[vision.service] periodic update failed:', err);
     }
   }, pollMs);
 
-  // Also trigger an immediate update when sprites change to reduce latency
-  const unsubscribe = useGameStore.subscribe(() => {
-    try {
-      const obstacles = buildObstaclesFloat32();
-      applyPolygonsForSources(obstacles);
-    } catch (err) {
-      // ignore
+  let _prevSprites = useGameStore.getState().sprites;
+  let _prevLighting = useGameStore.getState().dynamicLightingEnabled;
+  let _prevFogMode = useGameStore.getState().fogExplorationMode;
+  const unsubscribe = useGameStore.subscribe((state) => {
+    if (!state.dynamicLightingEnabled && _prevLighting) {
+      _prevLighting = false;
+      stopVisionService();
+      return;
+    }
+    _prevLighting = state.dynamicLightingEnabled;
+    // Clear explored polygons when fog mode switches back to current_only
+    if (state.fogExplorationMode !== _prevFogMode) {
+      if (state.fogExplorationMode === 'current_only') {
+        const rm = (window as any).rustRenderManager;
+        for (const id of Array.from(exploredIds)) {
+          try { rm?.remove_fog_polygon(id); } catch {}
+          exploredIds.delete(id);
+        }
+      }
+      _prevFogMode = state.fogExplorationMode;
+    }
+    if (state.sprites !== _prevSprites) {
+      _prevSprites = state.sprites;
+      try { applyPolygonsForSources(buildObstaclesFloat32()); } catch {}
     }
   });
 
-  // Keep a small handle on unsubscribe so service can be torn down later if needed
   (initVisionService as any)._unsubscribe = unsubscribe;
 }
 
 export function stopVisionService() {
-  if (_interval != null) {
-    window.clearInterval(_interval);
-    _interval = null;
-  }
-  if (_poller != null) {
-    window.clearInterval(_poller);
-    _poller = null;
-  }
+  if (_interval != null) { window.clearInterval(_interval); _interval = null; }
+  if (_poller != null) { window.clearInterval(_poller); _poller = null; }
+
   const unsub = (initVisionService as any)._unsubscribe;
   if (typeof unsub === 'function') unsub();
-  // Remove any remaining fog polygons we created
+
+  const rm = (window as any).rustRenderManager;
+  if (rm?.set_dynamic_lighting_enabled) rm.set_dynamic_lighting_enabled(false);
+
   for (const id of Array.from(activeIds)) {
-    try {
-      (window as any).rustRenderManager.remove_fog_polygon(id);
-    } catch {}
+    try { rm?.remove_fog_polygon(id); } catch {}
     activeIds.delete(id);
+  }
+  for (const id of Array.from(exploredIds)) {
+    try { rm?.remove_fog_polygon(id); } catch {}
+    exploredIds.delete(id);
+  }
+  lastPolyCache.clear();
+  lastObstaclesKey = null;
+  lastSourcePos.clear();
+}
+
+// --- DM Preview ---
+
+function applyDmPreviewPolygons(obstaclesArr: Float32Array, userId: number) {
+  const rm = (window as any).rustRenderManager;
+  if (!rm?.compute_visibility_polygon) return;
+
+  const sources = getVisionSources(600, userId);
+  const seenIds = new Set<string>();
+
+  for (const src of sources) {
+    const id = `vision_${src.id}`;
+    try {
+      const rawPoly = rm.compute_visibility_polygon(src.x, src.y, obstaclesArr, src.radius);
+      rm.add_fog_polygon(id, [{ x: src.x, y: src.y }, ...rawPoly]);
+    } catch {}
+    dmPreviewIds.add(id);
+    seenIds.add(id);
+
+    if (src.darkvisionRadius && src.darkvisionRadius > 0) {
+      const dvId = `darkvision_${src.id}`;
+      try {
+        const rawDvPoly = rm.compute_visibility_polygon(src.x, src.y, obstaclesArr, src.darkvisionRadius);
+        rm.add_fog_polygon(dvId, [{ x: src.x, y: src.y }, ...rawDvPoly]);
+      } catch {}
+      dmPreviewIds.add(dvId);
+      seenIds.add(dvId);
+    }
+  }
+
+  for (const id of Array.from(dmPreviewIds)) {
+    if (!seenIds.has(id)) {
+      try { rm.remove_fog_polygon(id); } catch {}
+      dmPreviewIds.delete(id);
+    }
   }
 }
 
-export default {
-  initVisionService,
-  stopVisionService,
-};
+export function startDmPreview(userId: number) {
+  stopDmPreview();
+  const rm = (window as any).rustRenderManager;
+  if (!rm) return;
+  rm.set_gm_mode?.(false);
+  rm.set_dynamic_lighting_enabled?.(true);
+  _dmPreviewInterval = window.setInterval(() => {
+    try { applyDmPreviewPolygons(buildObstaclesFloat32(), userId); } catch {}
+  }, 150);
+}
+
+export function stopDmPreview() {
+  if (_dmPreviewInterval != null) {
+    window.clearInterval(_dmPreviewInterval);
+    _dmPreviewInterval = null;
+  }
+  const rm = (window as any).rustRenderManager;
+  for (const id of Array.from(dmPreviewIds)) {
+    try { rm?.remove_fog_polygon(id); } catch {}
+    dmPreviewIds.delete(id);
+  }
+  rm?.set_dynamic_lighting_enabled?.(false);
+  rm?.set_gm_mode?.(true);
+}
+
+export default { initVisionService, stopVisionService, startDmPreview, stopDmPreview };
+

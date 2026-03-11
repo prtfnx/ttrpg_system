@@ -323,7 +323,10 @@ def create_virtual_table(db: Session, table_data: schemas.VirtualTableCreate) ->
         position_y=table_data.position_y,
         scale_x=table_data.scale_x,
         scale_y=table_data.scale_y,
-        layer_visibility=layer_visibility_json
+        layer_visibility=layer_visibility_json,
+        dynamic_lighting_enabled=table_data.dynamic_lighting_enabled,
+        fog_exploration_mode=table_data.fog_exploration_mode,
+        ambient_light_level=table_data.ambient_light_level,
     )
     db.add(db_table)
     db.commit()
@@ -395,7 +398,11 @@ def create_entity(db: Session, entity_data: schemas.EntityCreate, table_db_id: i
         max_hp=entity_data.max_hp,
         ac=entity_data.ac,
         aura_radius=entity_data.aura_radius,
-        aura_color=getattr(entity_data, 'aura_color', None)
+        aura_color=getattr(entity_data, 'aura_color', None),
+        # Vision
+        vision_radius=getattr(entity_data, 'vision_radius', None),
+        has_darkvision=getattr(entity_data, 'has_darkvision', False),
+        darkvision_radius=getattr(entity_data, 'darkvision_radius', None),
     )
     db.add(db_entity)
     db.commit()
@@ -457,7 +464,10 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> models.
             position_y=virtual_table_obj.position[1],
             scale_x=virtual_table_obj.scale[0],
             scale_y=virtual_table_obj.scale[1],
-            layer_visibility=virtual_table_obj.layer_visibility
+            layer_visibility=virtual_table_obj.layer_visibility,
+            dynamic_lighting_enabled=virtual_table_obj.dynamic_lighting_enabled,
+            fog_exploration_mode=virtual_table_obj.fog_exploration_mode,
+            ambient_light_level=virtual_table_obj.ambient_light_level,
         )
         db_table = update_virtual_table(db, table_id_str, table_update)
     else:
@@ -472,7 +482,10 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> models.
             position_y=virtual_table_obj.position[1],
             scale_x=virtual_table_obj.scale[0],
             scale_y=virtual_table_obj.scale[1],
-            layer_visibility=virtual_table_obj.layer_visibility
+            layer_visibility=virtual_table_obj.layer_visibility,
+            dynamic_lighting_enabled=virtual_table_obj.dynamic_lighting_enabled,
+            fog_exploration_mode=virtual_table_obj.fog_exploration_mode,
+            ambient_light_level=virtual_table_obj.ambient_light_level,
         )
         db_table = create_virtual_table(db, table_data)
     
@@ -540,7 +553,11 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             max_hp=getattr(entity_obj, 'max_hp', None),
             ac=getattr(entity_obj, 'ac', None),
             aura_radius=getattr(entity_obj, 'aura_radius', None),
-            aura_color=getattr(entity_obj, 'aura_color', None)
+            aura_color=getattr(entity_obj, 'aura_color', None),
+            # Vision
+            vision_radius=getattr(entity_obj, 'vision_radius', None),
+            has_darkvision=getattr(entity_obj, 'has_darkvision', False),
+            darkvision_radius=getattr(entity_obj, 'darkvision_radius', None),
         )
         db_entity = update_entity(db, entity_obj.sprite_id, entity_update)
     else:
@@ -570,7 +587,11 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             max_hp=getattr(entity_obj, 'max_hp', None),
             ac=getattr(entity_obj, 'ac', None),
             aura_radius=getattr(entity_obj, 'aura_radius', None),
-            aura_color=getattr(entity_obj, 'aura_color', None)
+            aura_color=getattr(entity_obj, 'aura_color', None),
+            # Vision
+            vision_radius=getattr(entity_obj, 'vision_radius', None),
+            has_darkvision=getattr(entity_obj, 'has_darkvision', False),
+            darkvision_radius=getattr(entity_obj, 'darkvision_radius', None),
         )
         db_entity = create_entity(db, entity_data, table_db_id)
     
@@ -604,6 +625,12 @@ def load_table_from_db(db: Session, table_id: str):
         if db_table.layer_visibility:
             virtual_table.layer_visibility = json.loads(db_table.layer_visibility)
         
+        # Dynamic lighting settings
+        virtual_table.dynamic_lighting_enabled = bool(db_table.dynamic_lighting_enabled or False)
+        virtual_table.fog_exploration_mode = db_table.fog_exploration_mode or 'current_only'
+        ambient = db_table.ambient_light_level
+        virtual_table.ambient_light_level = float(ambient if ambient is not None else 1.0)
+        
         # Load entities
         db_entities = get_table_entities(db, db_table.id)
         for db_entity in db_entities:
@@ -636,6 +663,9 @@ def load_table_from_db(db: Session, table_id: str):
                 asset_id=getattr(db_entity, 'asset_id', None),
                 width=float(getattr(db_entity, 'width', None) or 0.0),
                 height=float(getattr(db_entity, 'height', None) or 0.0),
+                vision_radius=getattr(db_entity, 'vision_radius', None),
+                has_darkvision=bool(getattr(db_entity, 'has_darkvision', False)),
+                darkvision_radius=getattr(db_entity, 'darkvision_radius', None),
             )
             entity.sprite_id = db_entity.sprite_id
             entity.scale_x = db_entity.scale_x

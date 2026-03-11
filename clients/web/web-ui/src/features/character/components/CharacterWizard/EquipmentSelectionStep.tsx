@@ -262,7 +262,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
   // Update form with selected equipment
   const updateFormEquipment = useCallback(() => {
     
-    const inventoryItems = selectedItems.map((item, index) => {
+    const inventoryItems = selectedItems.map((item) => {
       
       // Use the equipment data already in the item
       // It's already in the correct format from equipmentToWizardItem
@@ -309,7 +309,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
       initialLoadRef.current = false;
       
       // Inline the update logic to avoid dependency issues
-      const inventoryItems = selectedItems.map((item, index) => {
+      const inventoryItems = selectedItems.map((item) => {
         return {
           equipment: item.equipment,
           quantity: item.quantity,

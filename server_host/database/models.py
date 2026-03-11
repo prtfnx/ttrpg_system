@@ -80,6 +80,11 @@ class VirtualTable(Base):
     # Layer visibility (JSON string)
     layer_visibility = Column(Text)  # JSON: {"map": true, "tokens": true, ...}
     
+    # Dynamic lighting (per-table, DM-controlled)
+    dynamic_lighting_enabled = Column(Boolean, default=False)
+    fog_exploration_mode = Column(String(20), default='current_only')
+    ambient_light_level = Column(Float, default=1.0)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -127,6 +132,11 @@ class Entity(Base):
     ac = Column(Integer, nullable=True)
     aura_radius = Column(Float, nullable=True)
     aura_color = Column(String(7), nullable=True)  # hex color e.g. '#ffaa00'
+    
+    # Vision fields (for dynamic lighting, client-enforced)
+    vision_radius = Column(Float, nullable=True)       # pixels; None = client default
+    has_darkvision = Column(Boolean, default=False)
+    darkvision_radius = Column(Float, nullable=True)   # pixels; None = no darkvision
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

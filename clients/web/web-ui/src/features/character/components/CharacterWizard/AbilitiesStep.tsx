@@ -1,8 +1,8 @@
 import { useRacesForCharacterWizard } from '@features/compendium';
 import { useEffect, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
-import type { AbilitiesStepData } from './schemas';
 import { calculateRacialASI } from './raceData';
+import type { AbilitiesStepData } from './schemas';
 
 type AbilityName = keyof AbilitiesStepData;
 type Method = 'standard' | 'pointbuy' | 'roll' | 'manual';
@@ -21,7 +21,7 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
   const { data: races } = useRacesForCharacterWizard();
   const racialASI = races ? calculateRacialASI(selectedRace, selectedSubrace, races) : {};
 
-  const getRacialBonus = (ability: string): number => racialASI[ability] ?? 0;
+  const getRacialBonus = (ability: string): number => (racialASI as Record<string, number>)[ability] ?? 0;
 
   useEffect(() => {
     const resetValue = method === 'pointbuy' ? 8 : 10;

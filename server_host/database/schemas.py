@@ -62,6 +62,10 @@ class EntityBase(BaseModel):
     aura_radius: Optional[float] = None
     aura_color: Optional[str] = None  # hex e.g. '#ffaa00'
     metadata: Optional[str] = None
+    # Vision (for dynamic lighting, client-enforced)
+    vision_radius: Optional[float] = None
+    has_darkvision: bool = False
+    darkvision_radius: Optional[float] = None
 
 class EntityCreate(EntityBase):
     pass
@@ -90,6 +94,10 @@ class EntityUpdate(BaseModel):
     ac: Optional[int] = None
     aura_radius: Optional[float] = None
     aura_color: Optional[str] = None
+    # Vision
+    vision_radius: Optional[float] = None
+    has_darkvision: Optional[bool] = None
+    darkvision_radius: Optional[float] = None
 
 class Entity(EntityBase):
     id: int
@@ -110,6 +118,9 @@ class VirtualTableBase(BaseModel):
     scale_x: float = 1.0
     scale_y: float = 1.0
     layer_visibility: Optional[Dict[str, bool]] = None
+    dynamic_lighting_enabled: bool = False
+    fog_exploration_mode: str = 'current_only'
+    ambient_light_level: float = 1.0
 
 class VirtualTableCreate(VirtualTableBase):
     session_id: int
@@ -123,6 +134,9 @@ class VirtualTableUpdate(BaseModel):
     scale_x: Optional[float] = None
     scale_y: Optional[float] = None
     layer_visibility: Optional[Dict[str, bool]] = None
+    dynamic_lighting_enabled: Optional[bool] = None
+    fog_exploration_mode: Optional[str] = None
+    ambient_light_level: Optional[float] = None
 
 class VirtualTable(VirtualTableBase):
     id: int

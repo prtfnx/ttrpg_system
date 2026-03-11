@@ -14,7 +14,7 @@
 
 /* Header */
 .manager-header {
-  composes: wizard-header-primary from './CharacterWizardBase.module.css';
+  composes: wizard-header-primary from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   border-bottom: var(--border-width-md) solid var(--brown-800);
   padding: var(--space-lg);
 }
@@ -34,7 +34,7 @@
 }
 
 .close-manager {
-  composes: wizard-close-button from './CharacterWizardBase.module.css';
+  composes: wizard-close-button from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   background: var(--hover-overlay-light);
   width: var(--size-8);
   height: var(--size-8);
@@ -46,16 +46,16 @@
 
 /* Tabs */
 .manager-tabs {
-  composes: wizard-tabs from './CharacterWizardBase.module.css';
+  composes: wizard-tabs from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
 }
 
 .attack-tab-button {
-  composes: wizard-tab-button from './CharacterWizardBase.module.css';
+  composes: wizard-tab-button from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   flex: 1;
 }
 
 .attack-tab-button-active {
-  composes: wizard-tab-button-active-primary from './CharacterWizardBase.module.css';
+  composes: wizard-tab-button-active-primary from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
 }
 
 /* Content */
@@ -67,11 +67,11 @@
 
 /* Weapons Tab */
 .weapons-tab {
-  composes: wizard-column from './CharacterWizardBase.module.css';
+  composes: wizard-column from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
 }
 
 .weapons-header {
-  composes: wizard-row from './CharacterWizardBase.module.css';
+  composes: wizard-row from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   justify-content: space-between;
   margin-bottom: var(--space-lg);
 }
@@ -83,19 +83,19 @@
 }
 
 .weapon-count {
-  composes: wizard-badge from './CharacterWizardBase.module.css';
+  composes: wizard-badge from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   color: var(--text-secondary);
   font-size: var(--text-sm);
   background: var(--bg-secondary);
 }
 
 .weapons-list {
-  composes: wizard-grid from './CharacterWizardBase.module.css';
+  composes: wizard-grid from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   grid-template-columns: repeat(auto-fill, minmax(var(--size-87), 1fr));
 }
 
 .weapon-card {
-  composes: wizard-card-interactive from './CharacterWizardBase.module.css';
+  composes: wizard-card-interactive from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   transition: all var(--transition-normal);
 }
 

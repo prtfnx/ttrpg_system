@@ -21,7 +21,10 @@ class Entity:
                  aura_color: Optional[str] = None,
                  metadata: Optional[str] = None,
                  asset_id: Optional[str] = None,
-                 width: float = 0.0, height: float = 0.0):
+                 width: float = 0.0, height: float = 0.0,
+                 vision_radius: Optional[float] = None,
+                 has_darkvision: bool = False,
+                 darkvision_radius: Optional[float] = None):
         # Use entity_id consistently
         self.entity_id = entity_id
         self.id = entity_id  # Keep both for backward compatibility
@@ -58,6 +61,10 @@ class Entity:
         self.aura_radius = aura_radius
         self.aura_color = aura_color  # hex string e.g. '#ffaa00' (JSON string, opaque to server — used by lights etc.)
         self.metadata = metadata
+        # Vision fields (for dynamic lighting)
+        self.vision_radius = vision_radius      # pixels; None = use client default
+        self.has_darkvision = has_darkvision
+        self.darkvision_radius = darkvision_radius  # pixels; None = no darkvision
 
         self.sprite_id = str(uuid.uuid4())
         
@@ -87,6 +94,10 @@ class Entity:
             'aura_radius': self.aura_radius,
             'aura_color': self.aura_color,
             'metadata': self.metadata,
+            # Vision fields
+            'vision_radius': self.vision_radius,
+            'has_darkvision': self.has_darkvision,
+            'darkvision_radius': self.darkvision_radius,
             # Legacy fields
             'character': None,
             'moving': False,
@@ -121,6 +132,9 @@ class Entity:
         entity.width = data.get('width', 0.0)
         entity.height = data.get('height', 0.0)
         entity.metadata = data.get('metadata')
+        entity.vision_radius = data.get('vision_radius')
+        entity.has_darkvision = bool(data.get('has_darkvision', False))
+        entity.darkvision_radius = data.get('darkvision_radius')
         return entity
 
     def serialize(self) -> dict:
@@ -163,6 +177,10 @@ class VirtualTable:
         self.position = (0.0, 0.0)
         self.scale = (1.0, 1.0)
         self.layer_visibility = {layer: True for layer in self.layers}
+        # Dynamic lighting settings (per-table, DM-controlled)
+        self.dynamic_lighting_enabled: bool = False
+        self.fog_exploration_mode: str = 'current_only'  # 'current_only' | 'persist_dimmed'
+        self.ambient_light_level: float = 1.0            # 0.0 = pitch black, 1.0 = daylight
 
         # Initialize grid
         self.grid = {}
@@ -206,6 +224,10 @@ class VirtualTable:
         aura_radius = entity_data.get('aura_radius')
         aura_color = entity_data.get('aura_color')
         metadata = entity_data.get('metadata')
+        # Vision fields
+        vision_radius = entity_data.get('vision_radius')
+        has_darkvision = bool(entity_data.get('has_darkvision', False))
+        darkvision_radius = entity_data.get('darkvision_radius')
         
         entity = Entity(name, position, layer, path_to_texture, self.next_entity_id,
                        obstacle_type=obstacle_type, obstacle_data=obstacle_data,
@@ -215,7 +237,10 @@ class VirtualTable:
                        metadata=metadata,
                        asset_id=asset_id,
                        width=float(entity_data.get('width') or 0.0),
-                       height=float(entity_data.get('height') or 0.0))
+                       height=float(entity_data.get('height') or 0.0),
+                       vision_radius=vision_radius,
+                       has_darkvision=has_darkvision,
+                       darkvision_radius=darkvision_radius)
 
         # Honor the sprite_id supplied by the client so the WASM id and server id stay in sync.
         # Entity.__init__ always generates a fresh UUID; we overwrite it here when the caller
@@ -332,7 +357,10 @@ class VirtualTable:
             'width': self.width,
             'height': self.height,
             'layers': self.table_to_layered_dict(),
-            'fog_rectangles': self.fog_rectangles
+            'fog_rectangles': self.fog_rectangles,
+            'dynamic_lighting_enabled': self.dynamic_lighting_enabled,
+            'fog_exploration_mode': self.fog_exploration_mode,
+            'ambient_light_level': self.ambient_light_level,
         }
     
     def to_json(self) -> str:
@@ -345,6 +373,9 @@ class VirtualTable:
         self.display_name = data.get('table_name', data.get('name', 'Unknown Table'))
         self.width = data.get('width', 100)
         self.height = data.get('height', 100)
+        self.dynamic_lighting_enabled = bool(data.get('dynamic_lighting_enabled', False))
+        self.fog_exploration_mode = data.get('fog_exploration_mode', 'current_only')
+        self.ambient_light_level = float(data.get('ambient_light_level', 1.0))
         
         # Clear existing entities
         self.entities.clear()

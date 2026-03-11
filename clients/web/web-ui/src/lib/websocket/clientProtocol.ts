@@ -268,6 +268,8 @@ export class WebClientProtocol {
     // Character log and roll results
     this.registerHandler(MessageType.CHARACTER_LOG_RESPONSE, this.handleCharacterLogResponse.bind(this));
     this.registerHandler(MessageType.CHARACTER_ROLL_RESULT, this.handleCharacterRollResult.bind(this));
+    // Dynamic lighting settings broadcast
+    this.registerHandler(MessageType.TABLE_SETTINGS_CHANGED, this.handleTableSettingsChanged.bind(this));
   }
 
   registerHandler(type: string, handler: MessageHandler): void {
@@ -619,6 +621,15 @@ export class WebClientProtocol {
 
   private async handleTableResponse(message: Message): Promise<void> {
     console.log('Table response received:', message.data);
+    const data = message.data as any;
+    if (data?.table_data) {
+      const td = data.table_data;
+      useGameStore.getState().applyTableLightingSettings({
+        dynamic_lighting_enabled: td.dynamic_lighting_enabled ?? false,
+        fog_exploration_mode: td.fog_exploration_mode ?? 'current_only',
+        ambient_light_level: td.ambient_light_level ?? 1.0,
+      });
+    }
     window.dispatchEvent(new CustomEvent('table-response', { detail: message.data }));
   }
 
@@ -988,6 +999,12 @@ export class WebClientProtocol {
     window.dispatchEvent(new CustomEvent('character-roll-result', { detail: message.data }));
   }
 
+  private async handleTableSettingsChanged(message: Message): Promise<void> {
+    const data = message.data as { dynamic_lighting_enabled: boolean; fog_exploration_mode: string; ambient_light_level: number };
+    useGameStore.getState().applyTableLightingSettings(data);
+    window.dispatchEvent(new CustomEvent('table-settings-changed', { detail: data }));
+  }
+
   // Public API methods for sending requests
   requestTableList(): void {
     this.sendMessage(createMessage(MessageType.TABLE_LIST_REQUEST));
@@ -1033,6 +1050,10 @@ export class WebClientProtocol {
 
   switchAllPlayersToTable(tableId: string): void {
     this.sendMessage(createMessage(MessageType.TABLE_ACTIVE_SET_ALL, { table_id: tableId }));
+  }
+
+  sendTableSettingsUpdate(tableId: string, settings: { dynamic_lighting_enabled?: boolean; fog_exploration_mode?: string; ambient_light_level?: number }): void {
+    this.sendMessage(createMessage(MessageType.TABLE_SETTINGS_UPDATE, { table_id: tableId, ...settings }, 2));
   }
 
   requestPlayerList(): void {

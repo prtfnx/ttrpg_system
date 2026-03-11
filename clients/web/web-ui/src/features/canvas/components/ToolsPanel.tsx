@@ -95,6 +95,24 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
     
     return () => clearInterval(interval);
   }, []);
+
+  // Stop DM preview on unmount
+  useEffect(() => {
+    return () => {
+      if (dmPreviewUserId != null) {
+        stopDmPreview();
+        setDmPreviewMode(null);
+      }
+    };
+  }, []);
+
+  // Stop DM preview when lighting is disabled or active table changes
+  useEffect(() => {
+    if ((!dynamicLightingEnabled || activeTableId == null) && dmPreviewUserId != null) {
+      stopDmPreview();
+      setDmPreviewMode(null);
+    }
+  }, [dynamicLightingEnabled, activeTableId]);
   
   // Handle tool changes and communicate with Rust backend
   useEffect(() => {

@@ -127,16 +127,21 @@ function applyPolygonsForSources(obstaclesArr: Float32Array, opts?: VisionOption
       seenIds.add(id);
       activeIds.add(id);
     } else {
-      const poly: { x: number; y: number }[] = rm.compute_visibility_polygon(src.x, src.y, obstaclesArr, src.radius);
+      const prevPoly = lastPolyCache.get(id);
+      const rawPoly: { x: number; y: number }[] = rm.compute_visibility_polygon(src.x, src.y, obstaclesArr, src.radius);
+      // Prepend source as fan origin (star-shaped visibility polys are always interior at source)
+      const poly = [{ x: src.x, y: src.y }, ...rawPoly];
       seenIds.add(id);
       activeIds.add(id);
       lastSourcePos.set(src.id, posKey);
       lastPolyCache.set(id, poly);
-      // If token moves and we're tracking exploration, clear old explored polygon (new one is current)
-      if (persistExplored) {
+      // Save previous polygon as explored when moving with persist_dimmed
+      if (persistExplored && moved && prevPoly && prevPoly.length > 0) {
         const expId = `explored_${src.id}`;
-        exploredIds.delete(expId);
-        try { rm.remove_fog_polygon(expId); } catch {}
+        exploredIds.add(expId);
+        try { rm.add_fog_polygon(expId, prevPoly); } catch (err) {
+          console.error('[vision.service] add_fog_polygon failed for', expId, err);
+        }
       }
       try { rm.add_fog_polygon(id, poly); } catch (err) {
         console.error('[vision.service] add_fog_polygon failed for', id, err);
@@ -153,7 +158,8 @@ function applyPolygonsForSources(obstaclesArr: Float32Array, opts?: VisionOption
         seenIds.add(dvId);
         activeIds.add(dvId);
       } else {
-        const dvPoly: { x: number; y: number }[] = rm.compute_visibility_polygon(src.x, src.y, obstaclesArr, src.darkvisionRadius);
+        const rawDvPoly: { x: number; y: number }[] = rm.compute_visibility_polygon(src.x, src.y, obstaclesArr, src.darkvisionRadius);
+        const dvPoly = [{ x: src.x, y: src.y }, ...rawDvPoly];
         seenIds.add(dvId);
         activeIds.add(dvId);
         lastSourcePos.set(dvId, dvPosKey);
@@ -189,8 +195,21 @@ function applyPolygonsForSources(obstaclesArr: Float32Array, opts?: VisionOption
 export function initVisionService(pollMs = 150) {
   const sessionRole = useGameStore.getState().sessionRole;
   if (isDM(sessionRole)) return;
-  if (!useGameStore.getState().dynamicLightingEnabled) return;
   if (_interval != null) return;
+
+  if (!useGameStore.getState().dynamicLightingEnabled) {
+    // Subscribe and wait for lighting to be enabled later (e.g. DM enables it mid-session)
+    if ((initVisionService as any)._unsubscribe) return;
+    const unsub = useGameStore.subscribe((state) => {
+      if (state.dynamicLightingEnabled) {
+        unsub();
+        delete (initVisionService as any)._unsubscribe;
+        initVisionService(pollMs);
+      }
+    });
+    (initVisionService as any)._unsubscribe = unsub;
+    return;
+  }
 
   if (!(window as any).rustRenderManager) {
     if (_poller != null) return;
@@ -215,6 +234,7 @@ export function initVisionService(pollMs = 150) {
 
   let _prevSprites = useGameStore.getState().sprites;
   let _prevLighting = useGameStore.getState().dynamicLightingEnabled;
+  let _prevFogMode = useGameStore.getState().fogExplorationMode;
   const unsubscribe = useGameStore.subscribe((state) => {
     if (!state.dynamicLightingEnabled && _prevLighting) {
       _prevLighting = false;
@@ -222,6 +242,17 @@ export function initVisionService(pollMs = 150) {
       return;
     }
     _prevLighting = state.dynamicLightingEnabled;
+    // Clear explored polygons when fog mode switches back to current_only
+    if (state.fogExplorationMode !== _prevFogMode) {
+      if (state.fogExplorationMode === 'current_only') {
+        const rm = (window as any).rustRenderManager;
+        for (const id of Array.from(exploredIds)) {
+          try { rm?.remove_fog_polygon(id); } catch {}
+          exploredIds.delete(id);
+        }
+      }
+      _prevFogMode = state.fogExplorationMode;
+    }
     if (state.sprites !== _prevSprites) {
       _prevSprites = state.sprites;
       try { applyPolygonsForSources(buildObstaclesFloat32()); } catch {}
@@ -266,8 +297,8 @@ function applyDmPreviewPolygons(obstaclesArr: Float32Array, userId: number) {
   for (const src of sources) {
     const id = `vision_${src.id}`;
     try {
-      const poly = rm.compute_visibility_polygon(src.x, src.y, obstaclesArr, src.radius);
-      rm.add_fog_polygon(id, poly);
+      const rawPoly = rm.compute_visibility_polygon(src.x, src.y, obstaclesArr, src.radius);
+      rm.add_fog_polygon(id, [{ x: src.x, y: src.y }, ...rawPoly]);
     } catch {}
     dmPreviewIds.add(id);
     seenIds.add(id);
@@ -275,8 +306,8 @@ function applyDmPreviewPolygons(obstaclesArr: Float32Array, userId: number) {
     if (src.darkvisionRadius && src.darkvisionRadius > 0) {
       const dvId = `darkvision_${src.id}`;
       try {
-        const dvPoly = rm.compute_visibility_polygon(src.x, src.y, obstaclesArr, src.darkvisionRadius);
-        rm.add_fog_polygon(dvId, dvPoly);
+        const rawDvPoly = rm.compute_visibility_polygon(src.x, src.y, obstaclesArr, src.darkvisionRadius);
+        rm.add_fog_polygon(dvId, [{ x: src.x, y: src.y }, ...rawDvPoly]);
       } catch {}
       dmPreviewIds.add(dvId);
       seenIds.add(dvId);

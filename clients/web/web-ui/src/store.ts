@@ -334,6 +334,9 @@ export const useGameStore = create<GameStore>()(
         if ('scaleX' in updates) serverUpdate.scale_x = updates.scaleX;
         if ('scaleY' in updates) serverUpdate.scale_y = updates.scaleY;
         if ('rotation' in updates) serverUpdate.rotation = updates.rotation;
+        if ('visionRadius' in updates) serverUpdate.vision_radius = updates.visionRadius;
+        if ('hasDarkvision' in updates) serverUpdate.has_darkvision = updates.hasDarkvision;
+        if ('darkvisionRadius' in updates) serverUpdate.darkvision_radius = updates.darkvisionRadius;
         
         const changes = detectChanges(id, serverUpdate);
         if (Object.keys(changes).length > 0) {

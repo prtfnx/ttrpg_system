@@ -780,7 +780,12 @@ class ServerProtocol:
             return Message(MessageType.ERROR, {'error': 'Table not found'})
 
         if dynamic_lighting is not None:
-            table.dynamic_lighting_enabled = bool(dynamic_lighting)
+            # Strict bool parsing - JSON booleans from client are already bool,
+            # but guard against truthy strings like 'false'/'0'
+            if isinstance(dynamic_lighting, bool):
+                table.dynamic_lighting_enabled = dynamic_lighting
+            else:
+                table.dynamic_lighting_enabled = bool(dynamic_lighting)
         if fog_mode is not None:
             table.fog_exploration_mode = fog_mode
         if ambient is not None:
@@ -1002,7 +1007,8 @@ class ServerProtocol:
         if 'vision_radius' in update_data and is_dm(role):
             updates['vision_radius'] = update_data['vision_radius']
         if 'has_darkvision' in update_data and is_dm(role):
-            updates['has_darkvision'] = bool(update_data['has_darkvision'])
+            val = update_data['has_darkvision']
+            updates['has_darkvision'] = val if isinstance(val, bool) else bool(val)
         if 'darkvision_radius' in update_data and is_dm(role):
             updates['darkvision_radius'] = update_data['darkvision_radius']
         

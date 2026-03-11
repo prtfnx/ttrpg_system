@@ -628,7 +628,8 @@ def load_table_from_db(db: Session, table_id: str):
         # Dynamic lighting settings
         virtual_table.dynamic_lighting_enabled = bool(db_table.dynamic_lighting_enabled or False)
         virtual_table.fog_exploration_mode = db_table.fog_exploration_mode or 'current_only'
-        virtual_table.ambient_light_level = float(db_table.ambient_light_level or 1.0)
+        ambient = db_table.ambient_light_level
+        virtual_table.ambient_light_level = float(ambient if ambient is not None else 1.0)
         
         # Load entities
         db_entities = get_table_entities(db, db_table.id)

@@ -50,6 +50,9 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   const tables = useGameStore(s => s.tables);
   const activeTableId = useGameStore(s => s.activeTableId);
   const setActiveTableId = useGameStore(s => s.setActiveTableId);
+  const dynamicLightingEnabled = useGameStore(s => s.dynamicLightingEnabled);
+  const fogExplorationMode = useGameStore(s => s.fogExplorationMode);
+  const ambientLight = useGameStore(s => s.ambientLight);
   const [tableSwitcherOpen, setTableSwitcherOpen] = useState(false);
   const tableSwitcherRef = useRef<HTMLDivElement>(null);
 
@@ -710,6 +713,46 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
 
       {/* Grid Controls - DM only */}
       {dmMode && <GridControls />}
+
+      {/* Dynamic Lighting - DM only */}
+      {dmMode && activeTableId && (
+        <div className={styles.gamePanel}>
+          <h3 className={styles.panelTitle}>Dynamic Lighting</h3>
+          <div className={styles.controlRow}>
+            <label>
+              <input
+                type="checkbox"
+                checked={dynamicLightingEnabled}
+                onChange={e => ProtocolService.getProtocol().sendTableSettingsUpdate(activeTableId, { dynamic_lighting_enabled: e.target.checked })}
+              />{' '}Enable
+            </label>
+          </div>
+          {dynamicLightingEnabled && (
+            <>
+              <div className={styles.controlRow}>
+                <label>Ambient Light: {Math.round((ambientLight ?? 1.0) * 100)}%</label>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round((ambientLight ?? 1.0) * 100)}
+                  onChange={e => ProtocolService.getProtocol().sendTableSettingsUpdate(activeTableId, { ambient_light_level: Number(e.target.value) / 100 })}
+                />
+              </div>
+              <div className={styles.controlRow}>
+                <label>Fog Mode:</label>
+                <select
+                  value={fogExplorationMode}
+                  onChange={e => ProtocolService.getProtocol().sendTableSettingsUpdate(activeTableId, { fog_exploration_mode: e.target.value })}
+                >
+                  <option value="current_only">Current Only</option>
+                  <option value="persist_dimmed">Persist Dimmed</option>
+                </select>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Dice Roller Tool */}
       <DiceRoller />

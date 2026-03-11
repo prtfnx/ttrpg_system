@@ -494,6 +494,39 @@ impl RenderEngine {
     pub fn compute_visibility_polygon(&mut self, player_x: f32, player_y: f32, obstacles: js_sys::Float32Array, max_dist: f32) -> JsValue {
         geometry::compute_visibility_polygon(player_x, player_y, &obstacles, max_dist)
     }
+
+    /// Add a fog reveal polygon (array of {x,y}) under given id.
+    /// id prefix "vision_" = fully lit zone, "darkvision_" = dim zone.
+    #[wasm_bindgen]
+    pub fn add_fog_polygon(&mut self, id: &str, points: JsValue) {
+        let arr = js_sys::Array::from(&points);
+        let mut flat: Vec<f32> = Vec::with_capacity(arr.length() as usize * 2);
+        for i in 0..arr.length() {
+            let pt = arr.get(i);
+            let x = js_sys::Reflect::get(&pt, &"x".into())
+                .unwrap_or(JsValue::from(0.0)).as_f64().unwrap_or(0.0) as f32;
+            let y = js_sys::Reflect::get(&pt, &"y".into())
+                .unwrap_or(JsValue::from(0.0)).as_f64().unwrap_or(0.0) as f32;
+            flat.push(x);
+            flat.push(y);
+        }
+        self.fog.add_vision_polygon(id, flat);
+    }
+
+    #[wasm_bindgen]
+    pub fn remove_fog_polygon(&mut self, id: &str) {
+        self.fog.remove_vision_polygon(id);
+    }
+
+    #[wasm_bindgen]
+    pub fn set_ambient_light(&mut self, level: f32) {
+        self.fog.set_ambient_light(level);
+    }
+
+    #[wasm_bindgen]
+    pub fn set_dynamic_lighting_enabled(&mut self, enabled: bool) {
+        self.fog.set_dynamic_lighting_enabled(enabled);
+    }
     
     #[wasm_bindgen]
     pub fn handle_wheel(&mut self, screen_x: f32, screen_y: f32, delta_y: f32) {

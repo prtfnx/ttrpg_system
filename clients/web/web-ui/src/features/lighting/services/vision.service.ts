@@ -40,18 +40,13 @@ function buildObstaclesFloat32(): Float32Array {
   return new Float32Array(segs);
 }
 
-function getVisionSources(defaultRadius = 600): Array<{ id: string; x: number; y: number; radius: number }> {
+function getVisionSources(defaultRadius = 600): Array<{ id: string; x: number; y: number; radius: number; darkvisionRadius?: number }> {
   const store = useGameStore.getState();
   const sprites = store.sprites || [];
   const userId = store.userId;
   const sessionRole = store.sessionRole;
 
-  const radiusKeys = [
-    'visionRadius', 'vision_radius', 'lightRadius', 'light_radius',
-    'radius', 'sightRadius', 'sight_radius', 'aura_radius',
-  ];
-
-  const out: Array<{ id: string; x: number; y: number; radius: number }> = [];
+  const out: Array<{ id: string; x: number; y: number; radius: number; darkvisionRadius?: number }> = [];
 
   for (const s of sprites) {
     if (!s || typeof s !== 'object') continue;
@@ -63,15 +58,30 @@ function getVisionSources(defaultRadius = 600): Array<{ id: string; x: number; y
       if (controlledBy.length > 0 && !controlledBy.includes(userId)) continue;
     }
 
-    let radius: number | undefined = undefined;
-    for (const k of radiusKeys) {
-      const v = anyS[k];
-      if (typeof v === 'number' && v > 0) { radius = v; break; }
-      if (typeof v === 'string' && !isNaN(Number(v)) && Number(v) > 0) { radius = Number(v); break; }
+    // Use explicit visionRadius if set; fall back to legacy keys; then default
+    let radius: number;
+    if (typeof anyS.visionRadius === 'number' && anyS.visionRadius > 0) {
+      radius = anyS.visionRadius;
+    } else if (typeof anyS.vision_radius === 'number' && anyS.vision_radius > 0) {
+      radius = anyS.vision_radius;
+    } else {
+      const legacyKeys = ['lightRadius', 'light_radius', 'radius', 'sightRadius', 'sight_radius', 'aura_radius'];
+      radius = defaultRadius;
+      for (const k of legacyKeys) {
+        const v = anyS[k];
+        if (typeof v === 'number' && v > 0) { radius = v; break; }
+        if (typeof v === 'string' && !isNaN(Number(v)) && Number(v) > 0) { radius = Number(v); break; }
+      }
     }
 
-    if (radius == null) radius = defaultRadius;
-    out.push({ id: anyS.id, x: anyS.x, y: anyS.y, radius });
+    const darkvisionRadius: number | undefined =
+      anyS.hasDarkvision || anyS.has_darkvision
+        ? ((anyS.darkvisionRadius ?? anyS.darkvision_radius ?? 0) > 0
+            ? (anyS.darkvisionRadius ?? anyS.darkvision_radius)
+            : undefined)
+        : undefined;
+
+    out.push({ id: anyS.id, x: anyS.x, y: anyS.y, radius, darkvisionRadius });
   }
 
   return out;
@@ -102,53 +112,66 @@ function applyPolygonsForSources(obstaclesArr: Float32Array, opts?: VisionOption
   const seenIds = new Set<string>();
 
   for (const src of sources) {
+    // --- Normal vision polygon ---
     const id = `vision_${src.id}`;
-
     const posKey = `${src.x.toFixed(2)},${src.y.toFixed(2)},${src.radius}`;
     const prev = lastSourcePos.get(src.id);
     const moved = prev !== posKey;
 
-    // If neither obstacles nor this source moved, skip
     if (!obstaclesChanged && !moved) {
       seenIds.add(id);
       activeIds.add(id);
       if (debug) console.debug('[vision.service] skipping compute for', id);
-      continue;
+    } else {
+      const poly: any = (window as any).rustRenderManager.compute_visibility_polygon(
+        src.x, src.y, obstaclesArr, src.radius
+      );
+      seenIds.add(id);
+      activeIds.add(id);
+      lastSourcePos.set(src.id, posKey);
+      try {
+        (window as any).rustRenderManager.add_fog_polygon(id, poly);
+        if (debug) console.debug('[vision.service] updated fog polygon', id);
+      } catch (err) {
+        console.error('[vision.service] add_fog_polygon failed for', id, err);
+      }
     }
 
-    // perform wasm visibility compute
-    const poly: any = (window as any).rustRenderManager.compute_visibility_polygon(
-      src.x,
-      src.y,
-      obstaclesArr,
-      src.radius
-    );
+    // --- Darkvision polygon (grayscale tint handled by renderer via id prefix) ---
+    if (src.darkvisionRadius != null && src.darkvisionRadius > 0) {
+      const dvId = `darkvision_${src.id}`;
+      const dvPosKey = `${src.x.toFixed(2)},${src.y.toFixed(2)},dv${src.darkvisionRadius}`;
+      const dvPrev = lastSourcePos.get(dvId);
+      const dvMoved = dvPrev !== dvPosKey;
 
-    seenIds.add(id);
-    activeIds.add(id);
-    lastSourcePos.set(src.id, posKey);
-
-    try {
-      (window as any).rustRenderManager.add_fog_polygon(id, poly);
-      if (debug) console.debug('[vision.service] updated fog polygon', id, poly?.length ?? 'unknown');
-    } catch (err) {
-      console.error('[vision.service] add_fog_polygon failed for', id, err);
+      if (!obstaclesChanged && !dvMoved) {
+        seenIds.add(dvId);
+        activeIds.add(dvId);
+      } else {
+        const dvPoly: any = (window as any).rustRenderManager.compute_visibility_polygon(
+          src.x, src.y, obstaclesArr, src.darkvisionRadius
+        );
+        seenIds.add(dvId);
+        activeIds.add(dvId);
+        lastSourcePos.set(dvId, dvPosKey);
+        try {
+          (window as any).rustRenderManager.add_fog_polygon(dvId, dvPoly);
+          if (debug) console.debug('[vision.service] updated darkvision polygon', dvId);
+        } catch (err) {
+          console.error('[vision.service] add_fog_polygon failed for', dvId, err);
+        }
+      }
     }
   }
 
   // Remove polygons for sources that disappeared
   for (const oldId of Array.from(activeIds)) {
     if (!seenIds.has(oldId)) {
-      try {
-        (window as any).rustRenderManager.remove_fog_polygon(oldId);
-      } catch (err) {
-        // ignore
-      }
+      try { (window as any).rustRenderManager.remove_fog_polygon(oldId); } catch {}
       activeIds.delete(oldId);
     }
   }
 
-  // Update obstacles key after processing
   lastObstaclesKey = obKey;
 }
 
@@ -156,6 +179,9 @@ export function initVisionService(pollMs = 150) {
   // DMs see everything — vision masking is for players only
   const sessionRole = useGameStore.getState().sessionRole;
   if (isDM(sessionRole)) return;
+
+  // Respect per-table dynamic lighting toggle
+  if (!useGameStore.getState().dynamicLightingEnabled) return;
 
   // If service already running, no-op
   if (_interval != null) return;
@@ -183,17 +209,24 @@ export function initVisionService(pollMs = 150) {
     }
   }, pollMs);
 
-  // Also trigger an immediate update when sprites change to reduce latency
-  const unsubscribe = useGameStore.subscribe(() => {
-    try {
-      const obstacles = buildObstaclesFloat32();
-      applyPolygonsForSources(obstacles);
-    } catch (err) {
-      // ignore
+  // Also trigger an immediate update when sprites or lighting toggle change
+  let _prevSprites = useGameStore.getState().sprites;
+  let _prevLighting = useGameStore.getState().dynamicLightingEnabled;
+  const unsubscribe = useGameStore.subscribe((state) => {
+    if (!state.dynamicLightingEnabled && _prevLighting) {
+      _prevLighting = false;
+      stopVisionService();
+      return;
+    }
+    _prevLighting = state.dynamicLightingEnabled;
+    if (state.sprites !== _prevSprites) {
+      _prevSprites = state.sprites;
+      try {
+        applyPolygonsForSources(buildObstaclesFloat32());
+      } catch {}
     }
   });
 
-  // Keep a small handle on unsubscribe so service can be torn down later if needed
   (initVisionService as any)._unsubscribe = unsubscribe;
 }
 

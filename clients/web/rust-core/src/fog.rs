@@ -196,10 +196,14 @@ impl FogOfWarSystem {
                     float visionVal = texture(u_vision_texture, v_texcoord).r;
                     float darkAlpha = 1.0 - u_ambient_light;
                     
-                    if (fogHidden || visionVal > 0.75) {
+                    if (fogHidden || visionVal > 0.825) {
+                        // Fully hidden
                         fragColor = vec4(0.0, 0.0, 0.0, darkAlpha);
-                    } else if (visionVal > 0.25) {
-                        // Darkvision zone - dim blue-dark tint
+                    } else if (visionVal > 0.525) {
+                        // Previously explored — dim gray, half opacity
+                        fragColor = vec4(0.05, 0.05, 0.05, darkAlpha * 0.55);
+                    } else if (visionVal > 0.2) {
+                        // Darkvision zone — subtle dim blue tint
                         fragColor = vec4(0.0, 0.0, 0.05, darkAlpha * 0.65);
                     } else {
                         discard;
@@ -426,17 +430,20 @@ impl FogOfWarSystem {
             self.gl.uniform_matrix3fv_with_f32_array(Some(&loc), false, &ortho);
         }
 
-        // Render darkvision polygons first (value 0.5), then vision polygons (value 0.0) on top
+        // Draw in priority order: explored (lowest) → darkvision → vision (highest)
+        // Later draws overwrite earlier ones since BLEND is disabled.
         let ids: Vec<String> = self.vision_polygons.keys().cloned().collect();
-        for pass_value in [0.5f32, 0.0f32] {
+        let passes: &[(f32, &str)] = &[
+            (0.65, "explored_"),
+            (0.375, "darkvision_"),
+            (0.0, "vision_"),
+        ];
+        for (pass_value, prefix) in passes {
             for id in &ids {
-                let is_darkvision = id.starts_with("darkvision_");
-                let is_vision = id.starts_with("vision_");
-                let write = if pass_value == 0.5 { is_darkvision } else { is_vision };
-                if !write { continue; }
+                if !id.starts_with(prefix) { continue; }
                 let pts = self.vision_polygons.get(id.as_str()).cloned().unwrap_or_default();
                 if pts.len() < 6 { continue; }
-                self.render_polygon_to_fbo(program, &pts, pass_value)?;
+                self.render_polygon_to_fbo(program, &pts, *pass_value)?;
             }
         }
 

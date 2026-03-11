@@ -1,6 +1,7 @@
 use wasm_bindgen::prelude::*;
 use web_sys::{WebGl2RenderingContext as WebGlRenderingContext, WebGlProgram, WebGlShader};
 use indexmap::IndexMap;
+use std::collections::HashMap;
 use crate::math::Vec2;
 
 #[derive(Clone, Debug)]
@@ -69,6 +70,14 @@ pub struct FogOfWarSystem {
     // Canvas dimensions for viewport restoration
     canvas_width: f32,
     canvas_height: f32,
+
+    // Dynamic vision polygon system
+    vision_polygons: HashMap<String, Vec<f32>>, // id -> flat [x,y,...] boundary points
+    dynamic_lighting_enabled: bool,
+    ambient_light: f32, // 0.0 = pitch dark outside vision, 1.0 = fully lit
+    needs_vision_rebuild: bool,
+    vision_framebuffer: Option<web_sys::WebGlFramebuffer>,
+    vision_texture: Option<web_sys::WebGlTexture>,
 }
 
 impl FogOfWarSystem {
@@ -87,10 +96,17 @@ impl FogOfWarSystem {
             needs_full_rebuild: true,
             canvas_width: 800.0,
             canvas_height: 600.0,
+            vision_polygons: HashMap::new(),
+            dynamic_lighting_enabled: false,
+            ambient_light: 1.0,
+            needs_vision_rebuild: false,
+            vision_framebuffer: None,
+            vision_texture: None,
         };
         
         system.init_shaders()?;
         system.init_fog_texture()?;
+        system.init_vision_texture()?;
         Ok(system)
     }
     
@@ -165,22 +181,36 @@ impl FogOfWarSystem {
             in vec2 v_texcoord;
             
             uniform sampler2D u_fog_texture;
+            uniform sampler2D u_vision_texture;
             uniform bool u_is_gm;
+            uniform bool u_dynamic_lighting;
+            uniform float u_ambient_light;
             
             out vec4 fragColor;
             
             void main() {
-                float fogValue = texture(u_fog_texture, v_texcoord).r;
+                float fogVal = texture(u_fog_texture, v_texcoord).r;
+                bool fogHidden = fogVal > 0.5;
                 
-                if (fogValue > 0.5) {
-                    // Fogged area
-                    if (u_is_gm) {
-                        fragColor = vec4(0.5, 0.5, 0.5, 0.4); // 60% transparent gray for GM
+                if (u_dynamic_lighting && !u_is_gm) {
+                    float visionVal = texture(u_vision_texture, v_texcoord).r;
+                    float darkAlpha = 1.0 - u_ambient_light;
+                    
+                    if (fogHidden || visionVal > 0.75) {
+                        fragColor = vec4(0.0, 0.0, 0.0, darkAlpha);
+                    } else if (visionVal > 0.25) {
+                        // Darkvision zone - dim blue-dark tint
+                        fragColor = vec4(0.0, 0.0, 0.05, darkAlpha * 0.65);
                     } else {
-                        fragColor = vec4(0.0, 0.0, 0.0, 1.0); // Opaque black for players
+                        discard;
+                    }
+                } else if (fogHidden) {
+                    if (u_is_gm) {
+                        fragColor = vec4(0.5, 0.5, 0.5, 0.4);
+                    } else {
+                        fragColor = vec4(0.0, 0.0, 0.0, 1.0);
                     }
                 } else {
-                    // Revealed area - transparent
                     discard;
                 }
             }
@@ -276,6 +306,51 @@ impl FogOfWarSystem {
         Ok(())
     }
 
+    fn init_vision_texture(&mut self) -> Result<(), JsValue> {
+        let framebuffer = self.gl.create_framebuffer()
+            .ok_or("Failed to create vision framebuffer")?;
+        let texture = self.gl.create_texture()
+            .ok_or("Failed to create vision texture")?;
+        
+        self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(&texture));
+        self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_MIN_FILTER, WebGlRenderingContext::NEAREST as i32);
+        self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_MAG_FILTER, WebGlRenderingContext::NEAREST as i32);
+        self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_WRAP_S, WebGlRenderingContext::CLAMP_TO_EDGE as i32);
+        self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_WRAP_T, WebGlRenderingContext::CLAMP_TO_EDGE as i32);
+        
+        self.gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
+            WebGlRenderingContext::TEXTURE_2D, 0,
+            WebGlRenderingContext::R8 as i32,
+            self.texture_width, self.texture_height, 0,
+            WebGlRenderingContext::RED,
+            WebGlRenderingContext::UNSIGNED_BYTE,
+            None,
+        )?;
+        
+        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, Some(&framebuffer));
+        self.gl.framebuffer_texture_2d(
+            WebGlRenderingContext::FRAMEBUFFER, WebGlRenderingContext::COLOR_ATTACHMENT0,
+            WebGlRenderingContext::TEXTURE_2D, Some(&texture), 0,
+        );
+        
+        let status = self.gl.check_framebuffer_status(WebGlRenderingContext::FRAMEBUFFER);
+        if status != WebGlRenderingContext::FRAMEBUFFER_COMPLETE {
+            return Err(JsValue::from_str(&format!("Vision framebuffer incomplete: {}", status)));
+        }
+        
+        // Clear to 1.0 (all hidden — no vision polygons yet)
+        self.gl.viewport(0, 0, self.texture_width, self.texture_height);
+        self.gl.clear_color(1.0, 0.0, 0.0, 1.0);
+        self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
+        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
+        
+        self.vision_framebuffer = Some(framebuffer);
+        self.vision_texture = Some(texture);
+        
+        web_sys::console::log_1(&"[VISION-TEXTURE] Initialized vision mask texture".into());
+        Ok(())
+    }
+
     fn create_program(&self, vertex_source: &str, fragment_source: &str) -> Result<WebGlProgram, JsValue> {
         let vertex_shader = self.compile_shader(WebGlRenderingContext::VERTEX_SHADER, vertex_source)?;
         let fragment_shader = self.compile_shader(WebGlRenderingContext::FRAGMENT_SHADER, fragment_source)?;
@@ -306,8 +381,112 @@ impl FogOfWarSystem {
         Ok(shader)
     }
 
-    pub fn set_gm_mode(&mut self, is_gm: bool) {
-        self.is_gm = is_gm;
+    pub fn add_vision_polygon(&mut self, id: &str, points: Vec<f32>) {
+        self.vision_polygons.insert(id.to_string(), points);
+        self.needs_vision_rebuild = true;
+    }
+
+    pub fn remove_vision_polygon(&mut self, id: &str) {
+        self.vision_polygons.remove(id);
+        self.needs_vision_rebuild = true;
+    }
+
+    pub fn set_ambient_light(&mut self, level: f32) {
+        self.ambient_light = level.clamp(0.0, 1.0);
+    }
+
+    pub fn set_dynamic_lighting_enabled(&mut self, enabled: bool) {
+        self.dynamic_lighting_enabled = enabled;
+        if !enabled {
+            self.needs_vision_rebuild = true;
+        }
+    }
+
+    /// Rebuild the vision mask texture from stored polygons.
+    /// vision_ prefix → 0.0 (lit), darkvision_ prefix → 0.5 (dim), rest is 1.0 (hidden).
+    fn rebuild_vision_texture(&mut self) -> Result<(), JsValue> {
+        let framebuffer = self.vision_framebuffer.as_ref().ok_or("Vision framebuffer not initialized")?;
+        let program = self.fog_shader.as_ref().ok_or("Fog shader not initialized")?;
+
+        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, Some(framebuffer));
+        self.gl.viewport(0, 0, self.texture_width, self.texture_height);
+
+        // Start fully hidden (1.0 in red channel)
+        self.gl.clear_color(1.0, 0.0, 0.0, 1.0);
+        self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
+
+        self.gl.use_program(Some(program));
+        self.gl.disable(WebGlRenderingContext::BLEND);
+        self.gl.disable(WebGlRenderingContext::DEPTH_TEST);
+        self.gl.disable(WebGlRenderingContext::STENCIL_TEST);
+
+        let (tx, ty, tw, th) = self.table_bounds.unwrap_or((0.0, 0.0, 2000.0, 2000.0));
+        let ortho = self.create_orthographic_matrix(tx, ty, tw, th);
+        if let Some(loc) = self.gl.get_uniform_location(program, "u_view_matrix") {
+            self.gl.uniform_matrix3fv_with_f32_array(Some(&loc), false, &ortho);
+        }
+
+        // Render darkvision polygons first (value 0.5), then vision polygons (value 0.0) on top
+        let ids: Vec<String> = self.vision_polygons.keys().cloned().collect();
+        for pass_value in [0.5f32, 0.0f32] {
+            for id in &ids {
+                let is_darkvision = id.starts_with("darkvision_");
+                let is_vision = id.starts_with("vision_");
+                let write = if pass_value == 0.5 { is_darkvision } else { is_vision };
+                if !write { continue; }
+                let pts = self.vision_polygons.get(id.as_str()).cloned().unwrap_or_default();
+                if pts.len() < 6 { continue; }
+                self.render_polygon_to_fbo(program, &pts, pass_value)?;
+            }
+        }
+
+        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
+        self.gl.viewport(0, 0, self.canvas_width as i32, self.canvas_height as i32);
+
+        Ok(())
+    }
+
+    /// Render a closed polygon as a TRIANGLE_FAN to the currently bound FBO.
+    fn render_polygon_to_fbo(&self, program: &WebGlProgram, points: &[f32], value: f32) -> Result<(), JsValue> {
+        let n = points.len() / 2;
+        if n < 3 { return Ok(()); }
+
+        // Compute centroid as fan origin
+        let cx: f32 = points.chunks(2).map(|c| c[0]).sum::<f32>() / n as f32;
+        let cy: f32 = points.chunks(2).map(|c| c[1]).sum::<f32>() / n as f32;
+
+        // Build fan: centroid, all boundary points, close with first point
+        let mut fan: Vec<f32> = Vec::with_capacity(points.len() + 4);
+        fan.push(cx);
+        fan.push(cy);
+        fan.extend_from_slice(points);
+        fan.push(points[0]);
+        fan.push(points[1]);
+
+        if let Some(loc) = self.gl.get_uniform_location(program, "u_fog_color") {
+            self.gl.uniform4f(Some(&loc), value, 0.0, 0.0, 1.0);
+        }
+
+        let buffer = self.gl.create_buffer().ok_or("Failed to create polygon buffer")?;
+        self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&buffer));
+
+        unsafe {
+            let arr = js_sys::Float32Array::view(&fan);
+            self.gl.buffer_data_with_array_buffer_view(
+                WebGlRenderingContext::ARRAY_BUFFER, &arr, WebGlRenderingContext::STREAM_DRAW,
+            );
+        }
+
+        let pos_loc = self.gl.get_attrib_location(program, "a_position") as u32;
+        self.gl.enable_vertex_attrib_array(pos_loc);
+        self.gl.vertex_attrib_pointer_with_i32(pos_loc, 2, WebGlRenderingContext::FLOAT, false, 0, 0);
+        self.gl.draw_arrays(WebGlRenderingContext::TRIANGLE_FAN, 0, (fan.len() / 2) as i32);
+        self.gl.disable_vertex_attrib_array(pos_loc);
+
+        Ok(())
+    }
+
+    pub fn set_gm_mode(&mut self, is_gm: bool) {        self.is_gm = is_gm;
     }
 
     pub fn add_fog_rectangle(&mut self, id: String, start_x: f32, start_y: f32, end_x: f32, end_y: f32, mode: &str, table_id: String) {
@@ -531,45 +710,59 @@ impl FogOfWarSystem {
         self.canvas_width = canvas_width;
         self.canvas_height = canvas_height;
         
-        if self.fog_rectangles.is_empty() {
+        let has_fog = !self.fog_rectangles.is_empty();
+        let has_vision = self.dynamic_lighting_enabled && !self.is_gm && self.ambient_light < 0.99;
+
+        if !has_fog && !has_vision {
             return Ok(());
         }
         
-        // Rebuild texture if needed
-        if self.needs_full_rebuild {
+        // Rebuild fog texture if needed
+        if has_fog && self.needs_full_rebuild {
             self.rebuild_fog_texture()?;
             self.needs_full_rebuild = false;
         }
+
+        // Rebuild vision texture if needed
+        if has_vision && self.needs_vision_rebuild {
+            self.rebuild_vision_texture()?;
+            self.needs_vision_rebuild = false;
+        }
         
-        // Render cached fog texture to screen
-        let texture = self.fog_texture.as_ref().ok_or("Fog texture not initialized")?;
+        let fog_texture = self.fog_texture.as_ref().ok_or("Fog texture not initialized")?;
+        let vision_texture = self.vision_texture.as_ref().ok_or("Vision texture not initialized")?;
         let program = self.texture_shader.as_ref().ok_or("Texture shader not initialized")?;
         
         self.gl.use_program(Some(program));
         
-        // Bind fog texture
+        // Bind fog texture to unit 0
         self.gl.active_texture(WebGlRenderingContext::TEXTURE0);
-        self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(texture));
-        
-        let texture_location = self.gl.get_uniform_location(program, "u_fog_texture");
-        if let Some(location) = texture_location {
-            self.gl.uniform1i(Some(&location), 0); // Texture unit 0
+        self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(fog_texture));
+        if let Some(loc) = self.gl.get_uniform_location(program, "u_fog_texture") {
+            self.gl.uniform1i(Some(&loc), 0);
+        }
+
+        // Bind vision texture to unit 1
+        self.gl.active_texture(WebGlRenderingContext::TEXTURE1);
+        self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(vision_texture));
+        if let Some(loc) = self.gl.get_uniform_location(program, "u_vision_texture") {
+            self.gl.uniform1i(Some(&loc), 1);
         }
         
-        // Set view matrix
-        let view_matrix_location = self.gl.get_uniform_location(program, "u_view_matrix");
-        if let Some(location) = view_matrix_location {
-            self.gl.uniform_matrix3fv_with_f32_array(Some(&location), false, view_matrix);
+        if let Some(loc) = self.gl.get_uniform_location(program, "u_view_matrix") {
+            self.gl.uniform_matrix3fv_with_f32_array(Some(&loc), false, view_matrix);
         }
-        
-        let canvas_size_location = self.gl.get_uniform_location(program, "u_canvas_size");
-        if let Some(location) = canvas_size_location {
-            self.gl.uniform2f(Some(&location), canvas_width, canvas_height);
+        if let Some(loc) = self.gl.get_uniform_location(program, "u_canvas_size") {
+            self.gl.uniform2f(Some(&loc), canvas_width, canvas_height);
         }
-        
-        let is_gm_location = self.gl.get_uniform_location(program, "u_is_gm");
-        if let Some(location) = is_gm_location {
-            self.gl.uniform1i(Some(&location), if self.is_gm { 1 } else { 0 });
+        if let Some(loc) = self.gl.get_uniform_location(program, "u_is_gm") {
+            self.gl.uniform1i(Some(&loc), if self.is_gm { 1 } else { 0 });
+        }
+        if let Some(loc) = self.gl.get_uniform_location(program, "u_dynamic_lighting") {
+            self.gl.uniform1i(Some(&loc), if has_vision { 1 } else { 0 });
+        }
+        if let Some(loc) = self.gl.get_uniform_location(program, "u_ambient_light") {
+            self.gl.uniform1f(Some(&loc), self.ambient_light);
         }
         
         // Enable blending for fog overlay

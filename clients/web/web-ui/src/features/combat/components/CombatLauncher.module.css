@@ -1,5 +1,5 @@
 .combatLauncher-btn {
-  composes: wizard-button-primary from './CharacterWizardBase.module.css';
+  composes: wizard-button-primary from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   display: inline-flex;
   user-select: none;
   outline: none;
@@ -28,7 +28,7 @@
 }
 
 .combatLauncher-btn.secondary {
-  composes: wizard-button-secondary from './CharacterWizardBase.module.css';
+  composes: wizard-button-secondary from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
 }
 
 .combatLauncher-btn.secondary:hover:not(:disabled) {

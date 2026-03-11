@@ -3,7 +3,7 @@
  */
 
 .diceRoller {
-  composes: wizard-column from './CharacterWizardBase.module.css';
+  composes: wizard-column from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   max-width: 300px;
 }
 
@@ -18,7 +18,7 @@
 }
 
 .dice-button {
-  composes: wizard-button-secondary from './CharacterWizardBase.module.css';
+  composes: wizard-button-secondary from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -99,7 +99,7 @@
 
 /* Dice info */
 .dice-info {
-  composes: wizard-column from './CharacterWizardBase.module.css';
+  composes: wizard-column from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   align-items: flex-start;
   flex: 1;
   gap: var(--space-2xs);
@@ -184,7 +184,7 @@
 }
 
 .roll-breakdown {
-  composes: wizard-row from './CharacterWizardBase.module.css';
+  composes: wizard-row from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   justify-content: center;
   font-family: 'Courier New', monospace;
   font-weight: var(--font-semibold);
@@ -207,7 +207,7 @@
 
 .critical-indicator,
 .fumble-indicator {
-  composes: wizard-badge from './CharacterWizardBase.module.css';
+  composes: wizard-badge from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   margin-top: var(--space-xs);
   font-size: var(--text-xs);
 }
@@ -224,13 +224,13 @@
 
 /* Roll history */
 .dice-history {
-  composes: wizard-card-section from './CharacterWizardBase.module.css';
+  composes: wizard-card-section from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   max-height: 200px;
   overflow-y: auto;
 }
 
 .history-header {
-  composes: wizard-row from './CharacterWizardBase.module.css';
+  composes: wizard-row from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   justify-content: space-between;
   margin-bottom: var(--space-xs);
   font-size: var(--text-xs);
@@ -256,12 +256,12 @@
 }
 
 .history-list {
-  composes: wizard-column from './CharacterWizardBase.module.css';
+  composes: wizard-column from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   gap: var(--space-2xs);
 }
 
 .history-item {
-  composes: wizard-row from './CharacterWizardBase.module.css';
+  composes: wizard-row from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   justify-content: space-between;
   padding: var(--space-xs) var(--space-sm);
   background: var(--bg-primary);

@@ -18,13 +18,13 @@
 
 /* Header */
 .combat-header {
-  composes: wizard-header-primary from './CharacterWizardBase.module.css';
+  composes: wizard-header-primary from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   border-bottom: var(--border-width-md) solid var(--brown-800);
   box-shadow: var(--shadow-md);
 }
 
 .combat-title {
-  composes: wizard-column from './CharacterWizardBase.module.css';
+  composes: wizard-column from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   gap: var(--space-2xs);
 }
 
@@ -35,7 +35,7 @@
 }
 
 .character-summary {
-  composes: wizard-column from './CharacterWizardBase.module.css';
+  composes: wizard-column from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   gap: var(--space-3xs);
   font-size: var(--text-sm);
   opacity: 0.9;
@@ -52,7 +52,7 @@
 }
 
 .combat-actions {
-  composes: wizard-row from './CharacterWizardBase.module.css';
+  composes: wizard-row from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
 }
 
 .fullscreen-toggle,

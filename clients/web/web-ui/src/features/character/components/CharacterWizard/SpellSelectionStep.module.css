@@ -333,7 +333,6 @@
 }
 
 .panel-sticky h3 {
-  composes: wizard-header-secondary from './CharacterWizardBase.module.css';
   flex-shrink: 0;
 }
 
@@ -494,7 +493,6 @@
 }
 
 .error-message button {
-  composes: wizard-button-danger from './CharacterWizardBase.module.css';
   margin-top: var(--space-xs);
 }
 

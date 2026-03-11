@@ -153,6 +153,8 @@ export class RenderEngine {
    */
   add_fog_polygon(id: string, points: any): void;
   remove_fog_polygon(id: string): void;
+  set_ambient_light(level: number): void;
+  set_dynamic_lighting_enabled(enabled: boolean): void;
   handle_wheel(screen_x: number, screen_y: number, delta_y: number): void;
   set_zoom(zoom: number): void;
   center_camera(world_x: number, world_y: number): void;
@@ -489,6 +491,8 @@ export interface InitOutput {
   readonly renderengine_compute_visibility_polygon: (a: number, b: number, c: number, d: any, e: number) => any;
   readonly renderengine_add_fog_polygon: (a: number, b: number, c: number, d: any) => void;
   readonly renderengine_remove_fog_polygon: (a: number, b: number, c: number) => void;
+  readonly renderengine_set_ambient_light: (a: number, b: number) => void;
+  readonly renderengine_set_dynamic_lighting_enabled: (a: number, b: number) => void;
   readonly renderengine_handle_wheel: (a: number, b: number, c: number, d: number) => void;
   readonly renderengine_center_camera: (a: number, b: number, c: number) => void;
   readonly renderengine_set_camera: (a: number, b: number, c: number, d: number) => void;

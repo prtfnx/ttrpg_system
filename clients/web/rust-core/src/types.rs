@@ -13,7 +13,7 @@ pub struct Size {
     pub height: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Sprite {
     pub id: String,
     pub table_id: String, // NEW: Associates sprite with specific table
@@ -46,6 +46,12 @@ pub struct Sprite {
     pub text_content: Option<String>,
     pub text_size: Option<f64>,
     pub text_color: Option<[f32; 4]>,
+
+    // Obstacle shape metadata
+    #[serde(default)]
+    pub obstacle_type: Option<String>,  // "rectangle" | "circle" | "line" | "polygon"
+    #[serde(default)]
+    pub polygon_vertices: Option<Vec<[f32; 2]>>,  // world-space vertices for polygon obstacles
 }
 
 impl Sprite {
@@ -74,6 +80,8 @@ impl Sprite {
             text_content: None,
             text_size: None,
             text_color: None,
+            obstacle_type: None,
+            polygon_vertices: None,
         }
     }
     

@@ -19,6 +19,7 @@ pub enum InputMode {
     CreateText,     // New: Create text sprite
     Paint,          // New: Paint/brush tool
     DrawWall,       // New: Draw wall segment (two-click placement)
+    CreatePolygon,  // New: Create polygon obstacle (multi-click, close-on-first-vertex)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -69,6 +70,10 @@ pub struct InputHandler {
     // Wall drawing state (two-click placement)
     pub wall_draw_start: Option<Vec2>,
     pub wall_draw_current: Option<Vec2>,
+
+    // Polygon creation state (multi-click, close on first vertex)
+    pub polygon_vertices: Vec<Vec2>,
+    pub polygon_cursor: Option<Vec2>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -103,6 +108,8 @@ impl Default for InputHandler {
             last_click_sprite: None,
             wall_draw_start: None,
             wall_draw_current: None,
+            polygon_vertices: Vec::new(),
+            polygon_cursor: None,
         }
     }
 }
@@ -377,6 +384,52 @@ impl InputHandler {
     pub fn cancel_wall_draw(&mut self) {
         self.wall_draw_start = None;
         self.wall_draw_current = None;
+    }
+
+    // ============================================================================
+    // POLYGON CREATION
+    // ============================================================================
+
+    /// The distance threshold (world units) within which clicking near the first
+    /// vertex closes the polygon.
+    const POLYGON_CLOSE_THRESHOLD: f32 = 20.0;
+
+    /// Add a vertex. Returns true if the click closes the polygon (≥3 verts, near first).
+    pub fn add_polygon_vertex(&mut self, pos: Vec2) -> bool {
+        if self.polygon_vertices.len() >= 3 {
+            let first = self.polygon_vertices[0];
+            let dx = pos.x - first.x;
+            let dy = pos.y - first.y;
+            if (dx * dx + dy * dy).sqrt() < Self::POLYGON_CLOSE_THRESHOLD {
+                return true;
+            }
+        }
+        self.polygon_vertices.push(pos);
+        false
+    }
+
+    /// Move the live preview cursor.
+    pub fn update_polygon_cursor(&mut self, pos: Vec2) {
+        self.polygon_cursor = Some(pos);
+    }
+
+    /// Consume vertices and return them (resets state).
+    pub fn close_polygon(&mut self) -> Option<Vec<Vec2>> {
+        if self.polygon_vertices.len() < 3 { return None; }
+        let verts = std::mem::take(&mut self.polygon_vertices);
+        self.polygon_cursor = None;
+        Some(verts)
+    }
+
+    /// Remove last placed vertex (undo).
+    pub fn undo_polygon_vertex(&mut self) {
+        self.polygon_vertices.pop();
+    }
+
+    /// Cancel polygon creation without emitting anything.
+    pub fn cancel_polygon(&mut self) {
+        self.polygon_vertices.clear();
+        self.polygon_cursor = None;
     }
 
     // ===== ENHANCED INPUT METHODS FOR WASM =====

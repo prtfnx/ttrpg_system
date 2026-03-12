@@ -100,6 +100,30 @@ impl EventSystem {
                 }
                 return MouseEventResult::Handled;
             }
+            InputMode::CreatePolygon => {
+                let should_close = input.add_polygon_vertex(world_pos);
+                if should_close {
+                    if let Some(verts) = input.close_polygon() {
+                        if let Some(window) = web_sys::window() {
+                            let arr = js_sys::Array::new();
+                            for v in &verts {
+                                let pt = js_sys::Object::new();
+                                js_sys::Reflect::set(&pt, &"x".into(), &JsValue::from_f64(v.x as f64)).ok();
+                                js_sys::Reflect::set(&pt, &"y".into(), &JsValue::from_f64(v.y as f64)).ok();
+                                arr.push(&pt);
+                            }
+                            let detail = js_sys::Object::new();
+                            js_sys::Reflect::set(&detail, &"vertices".into(), &arr).ok();
+                            let init = web_sys::CustomEventInit::new();
+                            init.set_detail(&detail);
+                            if let Ok(evt) = web_sys::CustomEvent::new_with_event_init_dict("polygonCreated", &init) {
+                                window.dispatch_event(&evt).ok();
+                            }
+                        }
+                    }
+                }
+                return MouseEventResult::Handled;
+            }
             _ => {
                 // Continue with normal handling for other modes
             }
@@ -284,6 +308,10 @@ impl EventSystem {
             }
             InputMode::DrawWall => {
                 input.update_wall_draw(world_pos);
+                MouseEventResult::Handled
+            }
+            InputMode::CreatePolygon => {
+                input.update_polygon_cursor(world_pos);
                 MouseEventResult::Handled
             }
             _ => MouseEventResult::None
@@ -500,6 +528,10 @@ impl EventSystem {
             }
             InputMode::DrawWall => {
                 // Wall placement is click-based (handled in mouse_down), ignore mouse_up
+                MouseEventResult::Handled
+            }
+            InputMode::CreatePolygon => {
+                // Polygon placement is click-based (handled in mouse_down), ignore mouse_up
                 MouseEventResult::Handled
             }
             _ => {

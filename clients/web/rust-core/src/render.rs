@@ -407,6 +407,11 @@ impl RenderEngine {
         if let Some((start, end)) = self.input.get_wall_preview_line() {
             SpriteRenderer::draw_line_preview(start, end, &self.renderer)?;
         }
+
+        // Polygon creation preview
+        if self.input.input_mode == InputMode::CreatePolygon && !self.input.polygon_vertices.is_empty() {
+            SpriteRenderer::draw_polygon_preview(&self.input.polygon_vertices, self.input.polygon_cursor, &self.renderer)?;
+        }
         
         Ok(())
     }
@@ -462,23 +467,37 @@ impl RenderEngine {
 
         if let Some(obstacles_layer) = self.layer_manager.get_layer("obstacles") {
             for sprite in &obstacles_layer.sprites {
-                // Apply scale to raw dimensions
+                // Polygon obstacle: use stored world-space vertices directly
+                if sprite.obstacle_type.as_deref() == Some("polygon") {
+                    if let Some(verts) = &sprite.polygon_vertices {
+                        if verts.len() >= 2 {
+                            let n = verts.len();
+                            for i in 0..n {
+                                let next = (i + 1) % n;
+                                obstacles.push(verts[i][0]);
+                                obstacles.push(verts[i][1]);
+                                obstacles.push(verts[next][0]);
+                                obstacles.push(verts[next][1]);
+                            }
+                        }
+                    }
+                    continue;
+                }
+
+                // Rectangle (default): use scaled+rotated AABB corners
                 let w = (sprite.width * sprite.scale_x) as f32;
                 let h = (sprite.height * sprite.scale_y) as f32;
 
-                // Center of the sprite in world space
                 let cx = sprite.world_x as f32 + w / 2.0;
                 let cy = sprite.world_y as f32 + h / 2.0;
 
                 let half_w = w / 2.0;
                 let half_h = h / 2.0;
 
-                // Rotation is stored in radians in Rust sprite
                 let angle = sprite.rotation as f32;
                 let cos_a = angle.cos();
                 let sin_a = angle.sin();
 
-                // Rotate each corner around the sprite center
                 let raw = [(-half_w, -half_h), (half_w, -half_h), (half_w, half_h), (-half_w, half_h)];
                 let corners: [Vec2; 4] = std::array::from_fn(|i| {
                     let (dx, dy) = raw[i];
@@ -488,7 +507,6 @@ impl RenderEngine {
                     )
                 });
 
-                // Emit 4 edges as line segments
                 for i in 0..4 {
                     let next = (i + 1) % 4;
                     obstacles.push(corners[i].x);
@@ -1418,6 +1436,8 @@ impl RenderEngine {
             InputMode::CreateLine => "create_line".to_string(),
             InputMode::CreateText => "create_text".to_string(),
             InputMode::Paint => "paint".to_string(),
+            InputMode::DrawWall => "draw_wall".to_string(),
+            InputMode::CreatePolygon => "create_polygon".to_string(),
         }
     }
 
@@ -1478,6 +1498,72 @@ impl RenderEngine {
         self.input.input_mode = InputMode::DrawWall;
         self.input.cancel_wall_draw();
         web_sys::console::log_1(&"[RUST] Input mode set to DrawWall".into());
+    }
+
+    #[wasm_bindgen]
+    pub fn set_input_mode_create_polygon(&mut self) {
+        self.input.input_mode = InputMode::CreatePolygon;
+        self.input.cancel_polygon();
+        web_sys::console::log_1(&"[RUST] Input mode set to CreatePolygon".into());
+    }
+
+    #[wasm_bindgen]
+    pub fn cancel_polygon_creation(&mut self) {
+        self.input.cancel_polygon();
+        self.input.input_mode = InputMode::None;
+    }
+
+    #[wasm_bindgen]
+    pub fn undo_polygon_vertex(&mut self) {
+        self.input.undo_polygon_vertex();
+    }
+
+    /// Create a polygon obstacle sprite from world-space vertices (flat [x0,y0,x1,y1,...]).
+    /// Returns the new sprite ID or an empty string on failure.
+    #[wasm_bindgen]
+    pub fn create_polygon_sprite(&mut self, vertices_flat: &[f32], layer: &str, table_id: &str) -> String {
+        if vertices_flat.len() < 6 { return String::new(); } // need ≥3 vertices
+
+        // Compute AABB bounding box to place the sprite anchor
+        let xs: Vec<f32> = vertices_flat.iter().step_by(2).copied().collect();
+        let ys: Vec<f32> = vertices_flat.iter().skip(1).step_by(2).copied().collect();
+        let min_x = xs.iter().cloned().fold(f32::INFINITY, f32::min);
+        let max_x = xs.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+        let min_y = ys.iter().cloned().fold(f32::INFINITY, f32::min);
+        let max_y = ys.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+
+        let id = format!("polygon_{}", (js_sys::Math::random() * 1e15) as u64);
+        let verts: Vec<[f32; 2]> = vertices_flat.chunks(2).map(|c| [c[0], c[1]]).collect();
+
+        let sprite = crate::types::Sprite {
+            id: id.clone(),
+            table_id: table_id.to_string(),
+            world_x: min_x as f64,
+            world_y: min_y as f64,
+            width: (max_x - min_x) as f64,
+            height: (max_y - min_y) as f64,
+            scale_x: 1.0,
+            scale_y: 1.0,
+            rotation: 0.0,
+            layer: layer.to_string(),
+            texture_id: String::new(),
+            tint_color: [0.2, 0.2, 0.8, 0.5], // semi-transparent blue fill hint
+            obstacle_type: Some("polygon".to_string()),
+            polygon_vertices: Some(verts),
+            character_id: None,
+            controlled_by: Vec::new(),
+            hp: None, max_hp: None, ac: None,
+            aura_radius: None, aura_color: None,
+            is_text_sprite: None, text_content: None, text_size: None, text_color: None,
+        };
+
+        if let Some(layer_obj) = self.layer_manager.get_layer_mut(layer) {
+            layer_obj.sprites.push(sprite);
+            if layer == "obstacles" { self.obstacles_dirty = true; }
+            id
+        } else {
+            String::new()
+        }
     }
 
     #[wasm_bindgen]
@@ -1548,17 +1634,7 @@ impl RenderEngine {
             texture_id: texture_name, // Use procedural rectangle texture
             tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
             table_id: active_table_id,
-            character_id: None,
-            controlled_by: Vec::new(),
-            hp: None,
-            max_hp: None,
-            ac: None,
-            aura_radius: None,
-            aura_color: None,
-            is_text_sprite: None,
-            text_content: None,
-            text_size: None,
-            text_color: None,
+            ..Default::default()
         };
         
         web_sys::console::log_1(&format!("[RUST] Created sprite {}, adding to layer '{}'", sprite_id, layer_name).into());
@@ -1606,17 +1682,7 @@ impl RenderEngine {
             texture_id: texture_name, // Use procedural circle texture
             tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
             table_id: active_table_id,
-            character_id: None,
-            controlled_by: Vec::new(),
-            hp: None,
-            max_hp: None,
-            ac: None,
-            aura_radius: None,
-            aura_color: None,
-            is_text_sprite: None,
-            text_content: None,
-            text_size: None,
-            text_color: None,
+            ..Default::default()
         };
         
         // Convert to JsValue for layer manager
@@ -1673,17 +1739,7 @@ impl RenderEngine {
             texture_id: texture_name, // Use procedural line texture
             tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
             table_id: active_table_id,
-            character_id: None,
-            controlled_by: Vec::new(),
-            hp: None,
-            max_hp: None,
-            ac: None,
-            aura_radius: None,
-            aura_color: None,
-            is_text_sprite: None,
-            text_content: None,
-            text_size: None,
-            text_color: None,
+            ..Default::default()
         };
         
         // Convert to JsValue for layer manager
@@ -1769,6 +1825,7 @@ impl RenderEngine {
             text_content: Some(text.to_string()),
             text_size: Some(font_size as f64),
             text_color: Some(text_color),
+            ..Default::default()
         };
         
         web_sys::console::log_1(&format!("[RUST] Created text sprite {}, adding to layer '{}'", sprite_id, layer_name).into());
@@ -1860,17 +1917,7 @@ impl RenderEngine {
             texture_id: network_data.texture_name,
             tint_color: [1.0, 1.0, 1.0, 1.0],
             table_id: active_table_id,
-            character_id: None,
-            controlled_by: Vec::new(),
-            hp: None,
-            max_hp: None,
-            ac: None,
-            aura_radius: None,
-            aura_color: None,
-            is_text_sprite: None,
-            text_content: None,
-            text_size: None,
-            text_color: None,
+            ..Default::default()
         };
         
         let sprite_js = serde_wasm_bindgen::to_value(&sprite)?;
@@ -2350,6 +2397,8 @@ impl RenderEngine {
                     text_content: None,
                     text_size: None,
                     text_color: None,
+                    obstacle_type: None,
+                    polygon_vertices: None,
                 };                    // Convert sprite to JsValue and add to layer manager
                     if let Ok(sprite_js) = serde_wasm_bindgen::to_value(&sprite) {
                         match self.layer_manager.add_sprite_to_layer(layer_name, &sprite_js) {
@@ -2531,6 +2580,8 @@ impl RenderEngine {
             text_content: None,
             text_size: None,
             text_color: None,
+            obstacle_type: None,
+            polygon_vertices: None,
         };
 
         let sprite_js = serde_wasm_bindgen::to_value(&sprite)?;

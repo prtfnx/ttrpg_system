@@ -11,6 +11,7 @@ import { ProtocolService } from '@lib/api';
 import { AlignmentHelper } from '@shared/components';
 import DiceRoller from '@shared/components/DiceRoller';
 import { WallConfigModal } from './WallConfigModal';
+import { PolygonConfigModal } from './PolygonConfigModal';
 import { AlignLeft, BrickWall, Circle, Cloud, Crown, Flame, Folder, Lightbulb, Map, Minus, Mountain, Move, Paintbrush, Pencil, Ruler, Search, Shield, Snowflake, Sparkles, Square, Type, User, Users, Wrench, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { TextSpriteTool } from './TextSprite';
@@ -232,6 +233,10 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         case 'draw_wall':
           window.rustRenderManager.set_input_mode_draw_wall();
           console.log('[ToolsPanel] Wall drawing tool activated');
+          break;
+        case 'draw_polygon':
+          (window.rustRenderManager as any).set_input_mode_create_polygon();
+          console.log('[ToolsPanel] Polygon creation tool activated');
           break;
         case 'draw_shapes':
           window.rustRenderManager.set_input_mode_select();
@@ -566,6 +571,15 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           <BrickWall size={14} aria-hidden /> Draw Wall
         </button>
         )}
+        {dmMode && (
+        <button 
+          className={`${styles.toolButton} ${activeTool === 'draw_polygon' ? styles.active : ''}`}
+          onClick={() => setActiveTool('draw_polygon')}
+          title="Draw Polygon Obstacle (click vertices, click near first to close)"
+        >
+          <Square size={14} aria-hidden /> Polygon Obstacle
+        </button>
+        )}
         {elevatedMode && (
         <button 
           className={`${styles.toolButton} ${activeTool === 'spell_templates' ? styles.active : ''}`}
@@ -719,6 +733,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
 
         {/* Wall config modal — listens for wallDrawn CustomEvent from Rust */}
         {dmMode && <WallConfigModal />}
+        {dmMode && <PolygonConfigModal />}
         
         {/* Drawing Tools Settings */}
         {(activeTool === 'draw_shapes' || (activeTool === 'rectangle' && (window as any).fromDrawShapes)) && (

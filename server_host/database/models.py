@@ -284,6 +284,38 @@ class PendingEmailChange(Base):
     user = relationship("User")
 
 
+class Wall(Base):
+    """Persistent wall segment — feeds directly into lighting and vision pipeline."""
+    __tablename__ = "walls"
+
+    id = Column(Integer, primary_key=True, index=True)
+    wall_id = Column(String(36), unique=True, index=True, nullable=False)   # UUID
+    table_id = Column(String(36), ForeignKey("virtual_tables.table_id"), nullable=False, index=True)
+
+    x1 = Column(Float, nullable=False)
+    y1 = Column(Float, nullable=False)
+    x2 = Column(Float, nullable=False)
+    y2 = Column(Float, nullable=False)
+
+    wall_type = Column(String(20), nullable=False, default='normal')
+    blocks_movement = Column(Boolean, nullable=False, default=True)
+    blocks_light    = Column(Boolean, nullable=False, default=True)
+    blocks_sight    = Column(Boolean, nullable=False, default=True)
+    blocks_sound    = Column(Boolean, nullable=False, default=True)
+
+    is_door    = Column(Boolean, nullable=False, default=False)
+    door_state = Column(String(10), nullable=False, default='closed')  # closed|open|locked
+    is_secret  = Column(Boolean, nullable=False, default=False)
+    direction  = Column(String(10), nullable=False, default='both')   # both|left|right
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    table = relationship("VirtualTable")
+    creator = relationship("User", foreign_keys=[created_by])
+
+
 class AuditLog(Base):
     """Comprehensive audit logging for security events"""
     __tablename__ = "audit_logs"

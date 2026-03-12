@@ -79,6 +79,27 @@ impl EventSystem {
                 web_sys::console::log_1(&"[RUST EVENT] Paint mode handled in render.rs".into());
                 return MouseEventResult::Handled;
             }
+            InputMode::DrawWall => {
+                if let Some((start, end)) = input.register_wall_click(world_pos) {
+                    let min_len = 5.0_f32;
+                    let len = ((end.x - start.x).powi(2) + (end.y - start.y).powi(2)).sqrt();
+                    if len >= min_len {
+                        if let Some(window) = web_sys::window() {
+                            let detail = js_sys::Object::new();
+                            js_sys::Reflect::set(&detail, &"x1".into(), &JsValue::from_f64(start.x as f64)).ok();
+                            js_sys::Reflect::set(&detail, &"y1".into(), &JsValue::from_f64(start.y as f64)).ok();
+                            js_sys::Reflect::set(&detail, &"x2".into(), &JsValue::from_f64(end.x as f64)).ok();
+                            js_sys::Reflect::set(&detail, &"y2".into(), &JsValue::from_f64(end.y as f64)).ok();
+                            let init = web_sys::CustomEventInit::new();
+                            init.set_detail(&detail);
+                            if let Ok(evt) = web_sys::CustomEvent::new_with_event_init_dict("wallDrawn", &init) {
+                                window.dispatch_event(&evt).ok();
+                            }
+                        }
+                    }
+                }
+                return MouseEventResult::Handled;
+            }
             _ => {
                 // Continue with normal handling for other modes
             }
@@ -259,6 +280,10 @@ impl EventSystem {
             InputMode::CreateLine | InputMode::CreateText => {
                 // Update shape creation preview
                 input.update_shape_creation(world_pos);
+                MouseEventResult::Handled
+            }
+            InputMode::DrawWall => {
+                input.update_wall_draw(world_pos);
                 MouseEventResult::Handled
             }
             _ => MouseEventResult::None
@@ -471,6 +496,10 @@ impl EventSystem {
                     }
                 }
                 // Keep creation mode active for multiple text objects
+                MouseEventResult::Handled
+            }
+            InputMode::DrawWall => {
+                // Wall placement is click-based (handled in mouse_down), ignore mouse_up
                 MouseEventResult::Handled
             }
             _ => {

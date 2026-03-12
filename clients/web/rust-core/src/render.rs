@@ -395,6 +395,11 @@ impl RenderEngine {
                 _ => {}
             }
         }
+
+        // Wall draw preview line (two-click placement)
+        if let Some((start, end)) = self.input.get_wall_preview_line() {
+            SpriteRenderer::draw_line_preview(start, end, &self.renderer)?;
+        }
         
         Ok(())
     }
@@ -1453,6 +1458,13 @@ impl RenderEngine {
     pub fn set_input_mode_paint(&mut self) {
         self.input.input_mode = InputMode::Paint;
         web_sys::console::log_1(&"[RUST] Input mode set to Paint".into());
+    }
+
+    #[wasm_bindgen]
+    pub fn set_input_mode_draw_wall(&mut self) {
+        self.input.input_mode = InputMode::DrawWall;
+        self.input.cancel_wall_draw();
+        web_sys::console::log_1(&"[RUST] Input mode set to DrawWall".into());
     }
 
     #[wasm_bindgen]

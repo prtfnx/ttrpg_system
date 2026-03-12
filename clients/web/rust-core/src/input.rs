@@ -18,6 +18,7 @@ pub enum InputMode {
     CreateLine,     // New: Create line sprite
     CreateText,     // New: Create text sprite
     Paint,          // New: Paint/brush tool
+    DrawWall,       // New: Draw wall segment (two-click placement)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,6 +65,10 @@ pub struct InputHandler {
     // Double-click detection
     pub last_click_time: f64,
     pub last_click_sprite: Option<String>,
+
+    // Wall drawing state (two-click placement)
+    pub wall_draw_start: Option<Vec2>,
+    pub wall_draw_current: Option<Vec2>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -96,6 +101,8 @@ impl Default for InputHandler {
             shape_creation_current: None,
             last_click_time: 0.0,
             last_click_sprite: None,
+            wall_draw_start: None,
+            wall_draw_current: None,
         }
     }
 }
@@ -333,6 +340,45 @@ impl InputHandler {
         is_double_click
     }
     
+    // ============================================================================
+    // WALL DRAWING METHODS (two-click placement)
+    // ============================================================================
+
+    /// First click: store start point and start live preview.
+    /// Second click: return completed segment and reset start.
+    /// Returns Some((start, end)) when a wall segment is ready to be created.
+    pub fn register_wall_click(&mut self, pos: Vec2) -> Option<(Vec2, Vec2)> {
+        if let Some(start) = self.wall_draw_start.take() {
+            // Second click — complete the wall
+            self.wall_draw_current = None;
+            Some((start, pos))
+        } else {
+            // First click — start preview
+            self.wall_draw_start = Some(pos);
+            self.wall_draw_current = Some(pos);
+            None
+        }
+    }
+
+    pub fn update_wall_draw(&mut self, pos: Vec2) {
+        if self.wall_draw_start.is_some() {
+            self.wall_draw_current = Some(pos);
+        }
+    }
+
+    pub fn get_wall_preview_line(&self) -> Option<(Vec2, Vec2)> {
+        if let (Some(start), Some(current)) = (self.wall_draw_start, self.wall_draw_current) {
+            Some((start, current))
+        } else {
+            None
+        }
+    }
+
+    pub fn cancel_wall_draw(&mut self) {
+        self.wall_draw_start = None;
+        self.wall_draw_current = None;
+    }
+
     // ===== ENHANCED INPUT METHODS FOR WASM =====
     
     /// Handle mouse down with modifier keys for multi-selection

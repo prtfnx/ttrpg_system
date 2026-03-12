@@ -120,7 +120,15 @@ class MessageType(enum.Enum):    # Core messages
     # Dynamic lighting / table settings
     TABLE_SETTINGS_UPDATE = "table_settings_update"    # DM → server: change lighting settings
     TABLE_SETTINGS_CHANGED = "table_settings_changed"  # server → all clients: settings broadcast
-    
+
+    # Wall segment system
+    WALL_CREATE      = "wall_create"        # DM → server: add a wall
+    WALL_UPDATE      = "wall_update"        # DM → server: modify wall properties
+    WALL_REMOVE      = "wall_remove"        # DM → server: delete a wall
+    WALL_BATCH_CREATE = "wall_batch_create" # DM → server: add many walls at once
+    WALL_DATA        = "wall_data"          # server → client(s): single or batch wall state
+    DOOR_TOGGLE      = "door_toggle"        # any permitted role → server: toggle door state
+
     # Extension point for new message types
     CUSTOM = "custom"
 

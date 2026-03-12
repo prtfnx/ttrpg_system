@@ -25,23 +25,50 @@ export interface VisionOptions {
   debug?: boolean;
 }
 
+// Dirty flag: set to true whenever something that affects obstacle geometry changes.
+// Prevents expensive recompute every frame when nothing has changed.
+let _obstaclesDirty = true;
+let _cachedObstacles: Float32Array | null = null;
+
+// Invalidate obstacle cache on any sprite-layer change
+const OBSTACLE_INVALIDATING_EVENTS = ['spriteLayerChanged', 'spriteUpdated', 'spriteAdded', 'spriteRemoved'];
+OBSTACLE_INVALIDATING_EVENTS.forEach(evt => {
+  window.addEventListener(evt, () => { _obstaclesDirty = true; });
+});
+
 function buildObstaclesFloat32(): Float32Array {
+  if (!_obstaclesDirty && _cachedObstacles !== null) return _cachedObstacles;
+
   const sprites = useGameStore.getState().sprites || [];
   const obstacles = sprites.filter((s: any) => s.layer === 'obstacles');
   const segs: number[] = [];
 
   for (const s of obstacles) {
-    const x1 = s.x;
-    const y1 = s.y;
-    const x2 = s.x + getSpriteWidth(s);
-    const y2 = s.y + getSpriteHeight(s);
-    segs.push(x1, y1, x2, y1);
-    segs.push(x2, y1, x2, y2);
-    segs.push(x2, y2, x1, y2);
-    segs.push(x1, y2, x1, y1);
+    const w = getSpriteWidth(s);
+    const h = getSpriteHeight(s);
+    const cx = s.x + w / 2;
+    const cy = s.y + h / 2;
+    const angle = ((s as any).rotation ?? 0) * (Math.PI / 180);
+    const cosA = Math.cos(angle);
+    const sinA = Math.sin(angle);
+    const halfW = w / 2;
+    const halfH = h / 2;
+
+    const raw: [number, number][] = [[-halfW, -halfH], [halfW, -halfH], [halfW, halfH], [-halfW, halfH]];
+    const corners = raw.map(([dx, dy]) => [
+      cx + dx * cosA - dy * sinA,
+      cy + dx * sinA + dy * cosA,
+    ]);
+
+    for (let i = 0; i < 4; i++) {
+      const next = (i + 1) % 4;
+      segs.push(corners[i][0], corners[i][1], corners[next][0], corners[next][1]);
+    }
   }
 
-  return new Float32Array(segs);
+  _cachedObstacles = new Float32Array(segs);
+  _obstaclesDirty = false;
+  return _cachedObstacles;
 }
 
 function getVisionSources(defaultRadius = 600, forUserId?: number): Array<{ id: string; x: number; y: number; radius: number; darkvisionRadius?: number }> {

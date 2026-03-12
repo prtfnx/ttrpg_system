@@ -1248,3 +1248,96 @@ class ActionsCore(AsyncActionsProtocol):
         except Exception as e:
             logger.error(f"Error in character_roll: {e}")
             return ActionResult(False, f"Server error: {str(e)}")
+
+    # =========================================================================
+    # WALL SEGMENT ACTIONS
+    # =========================================================================
+
+    async def create_wall(self, table_id: str, wall_data: dict, session_id: Optional[int] = None) -> dict:
+        """Create a wall segment, persist to DB, and return its dict representation."""
+        from core_table.entities import Wall
+
+        table = await self._get_table(table_id)
+        if table is None:
+            raise ValueError(f"Table {table_id!r} not found")
+
+        wall = Wall.from_dict(wall_data)
+        table.add_wall(wall)
+
+        # Persist to database
+        if session_id and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
+            try:
+                from server_host.database.models import Wall as WallModel
+                db = self.table_manager.db_session
+                db_wall = WallModel(
+                    wall_id=wall.wall_id,
+                    table_id=str(table.table_id),
+                    x1=wall.x1, y1=wall.y1,
+                    x2=wall.x2, y2=wall.y2,
+                    wall_type=wall.wall_type,
+                    blocks_movement=wall.blocks_movement,
+                    blocks_light=wall.blocks_light,
+                    blocks_sight=wall.blocks_sight,
+                    blocks_sound=wall.blocks_sound,
+                    is_door=wall.is_door,
+                    door_state=wall.door_state,
+                    is_secret=wall.is_secret,
+                    direction=wall.direction,
+                    created_by=wall.created_by,
+                )
+                db.add(db_wall)
+                db.commit()
+                logger.info(f"Persisted wall {wall.wall_id} to database")
+            except Exception as e:
+                logger.error(f"Failed to persist wall to database: {e}")
+
+        return wall.to_dict()
+
+    async def update_wall(self, table_id: str, wall_id: str, updates: dict, session_id: Optional[int] = None) -> dict:
+        """Update wall fields, persist change, and return updated dict."""
+        table = await self._get_table(table_id)
+        if table is None:
+            raise ValueError(f"Table {table_id!r} not found")
+
+        wall = table.update_wall(wall_id, updates)
+
+        if session_id and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
+            try:
+                from server_host.database.models import Wall as WallModel
+                db = self.table_manager.db_session
+                db_wall = db.query(WallModel).filter(WallModel.wall_id == wall_id).first()
+                if db_wall:
+                    _allowed = {
+                        'x1', 'y1', 'x2', 'y2', 'wall_type',
+                        'blocks_movement', 'blocks_light', 'blocks_sight', 'blocks_sound',
+                        'is_door', 'door_state', 'is_secret', 'direction',
+                    }
+                    for key, value in updates.items():
+                        if key in _allowed:
+                            setattr(db_wall, key, value)
+                    db.commit()
+                    logger.info(f"Updated wall {wall_id} in database")
+            except Exception as e:
+                logger.error(f"Failed to update wall in database: {e}")
+
+        return wall.to_dict()
+
+    async def delete_wall(self, table_id: str, wall_id: str, session_id: Optional[int] = None) -> None:
+        """Remove a wall from in-memory table and delete from database."""
+        table = await self._get_table(table_id)
+        if table is None:
+            raise ValueError(f"Table {table_id!r} not found")
+
+        table.remove_wall(wall_id)
+
+        if session_id and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
+            try:
+                from server_host.database.models import Wall as WallModel
+                db = self.table_manager.db_session
+                db_wall = db.query(WallModel).filter(WallModel.wall_id == wall_id).first()
+                if db_wall:
+                    db.delete(db_wall)
+                    db.commit()
+                    logger.info(f"Deleted wall {wall_id} from database")
+            except Exception as e:
+                logger.error(f"Failed to delete wall from database: {e}")

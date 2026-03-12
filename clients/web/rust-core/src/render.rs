@@ -74,6 +74,9 @@ pub struct RenderEngine {
     // Wall segments
     wall_manager: WallManager,
 
+    // Dirty flag — set whenever obstacles may have changed
+    obstacles_dirty: bool,
+
     // Rendering settings
     background_color: [f32; 4], // RGBA background color
     is_gm: bool,
@@ -182,6 +185,7 @@ impl RenderEngine {
             table_sync,
             table_manager,
             wall_manager,
+            obstacles_dirty: true,
             background_color: [0.1, 0.1, 0.1, 1.0], // Default dark gray background
             is_gm: false,
             current_user_id: None,
@@ -343,8 +347,11 @@ impl RenderEngine {
             }
         }
 
-        // Extract obstacles for lighting shadows
-        self.update_lighting_obstacles();
+        // Extract obstacles for lighting shadows (only when something changed)
+        if self.obstacles_dirty {
+            self.update_lighting_obstacles();
+            self.obstacles_dirty = false;
+        }
         
         // web_sys::console::log_1(&"[RENDER-ORDER] 1️⃣ About to render lighting".into());
         // Render lighting system with shadow casting (filtered by active table)
@@ -986,14 +993,20 @@ impl RenderEngine {
     // Sprite management methods
     #[wasm_bindgen]
     pub fn add_sprite_to_layer(&mut self, layer_name: &str, sprite_data: &JsValue) -> Result<String, JsValue> {
-        self.layer_manager.add_sprite_to_layer(layer_name, sprite_data)
+        let result = self.layer_manager.add_sprite_to_layer(layer_name, sprite_data);
+        if result.is_ok() && layer_name == "obstacles" { self.obstacles_dirty = true; }
+        result
     }
     
     #[wasm_bindgen]
     pub fn remove_sprite(&mut self, sprite_id: &str) -> bool {
+        let on_obstacles = self.layer_manager.find_sprite(sprite_id).map(|(_, l)| l == "obstacles").unwrap_or(false);
         let result = self.layer_manager.remove_sprite(sprite_id);
-        if result && self.input.selected_sprite_id.as_ref() == Some(&sprite_id.to_string()) {
-            self.input.selected_sprite_id = None;
+        if result {
+            if self.input.selected_sprite_id.as_ref() == Some(&sprite_id.to_string()) {
+                self.input.selected_sprite_id = None;
+            }
+            if on_obstacles { self.obstacles_dirty = true; }
         }
         result
     }
@@ -1234,7 +1247,7 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn add_wall(&mut self, wall_json: &str) -> bool {
         let ok = self.wall_manager.add_wall_from_json(wall_json);
-        if ok { self.update_lighting_obstacles(); }
+        if ok { self.obstacles_dirty = true; }
         ok
     }
 
@@ -1242,7 +1255,7 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn remove_wall(&mut self, wall_id: &str) -> bool {
         let removed = self.wall_manager.remove_wall(wall_id);
-        if removed { self.update_lighting_obstacles(); }
+        if removed { self.obstacles_dirty = true; }
         removed
     }
 
@@ -1250,7 +1263,7 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn update_wall(&mut self, wall_id: &str, updates_json: &str) -> bool {
         let ok = self.wall_manager.update_from_json(wall_id, updates_json);
-        if ok { self.update_lighting_obstacles(); }
+        if ok { self.obstacles_dirty = true; }
         ok
     }
 
@@ -1258,7 +1271,7 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn clear_walls(&mut self) {
         self.wall_manager.clear();
-        self.update_lighting_obstacles();
+        self.obstacles_dirty = true;
     }
 
     /// Returns wall render data as a flat Float32Array: [x1,y1,x2,y2,r,g,b,a, ...] per wall.
@@ -2002,6 +2015,7 @@ impl RenderEngine {
 
     #[wasm_bindgen]
     pub fn move_sprite_to_layer_action(&mut self, sprite_id: &str, new_layer: &str) -> JsValue {
+        let old_layer_is_obstacles = self.layer_manager.find_sprite(sprite_id).map(|(_, l)| l == "obstacles").unwrap_or(false);
         let result = self.actions.move_sprite_to_layer(sprite_id, new_layer);
         
         // If successful, also move in layer manager
@@ -2011,6 +2025,7 @@ impl RenderEngine {
                 let moved = self.layer_manager.move_sprite_to_layer(sprite_id, new_layer);
                 if moved {
                     web_sys::console::log_1(&format!("✅ Sprite {} successfully moved to layer {} in both actions and layer manager", sprite_id, new_layer).into());
+                    if old_layer_is_obstacles || new_layer == "obstacles" { self.obstacles_dirty = true; }
                 } else {
                     web_sys::console::warn_1(&format!("⚠️ Sprite {} moved in actions but not found in layer manager", sprite_id).into());
                 }

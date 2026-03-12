@@ -51,6 +51,9 @@ const mockRustRenderManager = {
 // Mock the game store to control layer data
 const mockGameStore = {
   activeLayer: 'tokens',
+  activeTableId: 'table-test',
+  sessionRole: 'dm',
+  visibleLayers: ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles', 'fog_of_war'],
   layerVisibility: {
     map: true,
     tokens: true,
@@ -75,7 +78,10 @@ const mockGameStore = {
 };
 
 vi.mock('@/store', () => ({
-  useGameStore: () => mockGameStore
+  useGameStore: (selector?: (s: any) => any) => {
+    if (typeof selector === 'function') return selector(mockGameStore);
+    return mockGameStore;
+  }
 }));
 
 // Mock render engine for layer operations
@@ -100,6 +106,17 @@ const mockRenderEngine = {
 
 vi.mock('@features/canvas/hooks/useRenderEngine', () => ({
   useRenderEngine: () => mockRenderEngine
+}));
+
+const mockSendMessage = vi.fn();
+vi.mock('@lib/api', () => ({
+  useProtocol: () => ({ protocol: { sendMessage: mockSendMessage } }),
+}));
+vi.mock('@lib/websocket', () => ({
+  createMessage: vi.fn((type: string, data: unknown) => ({ type, data })),
+  MessageType: {
+    LAYER_SETTINGS_UPDATE: 'layer_settings_update',
+  },
 }));
 
 describe('LayerPanel - Game Master Layer Management', () => {
@@ -520,6 +537,51 @@ describe('LayerPanel - Game Master Layer Management', () => {
       await user.click(screen.getByText('Map'));
 
       expect(mockGameStore.setActiveLayer).toHaveBeenCalledWith('map');
+    });
+  });
+
+  describe('When DM changes layer settings, changes are sent to server', () => {
+    it('sends LAYER_SETTINGS_UPDATE when toggling visibility', async () => {
+      const { createMessage } = await import('@lib/websocket');
+      render(<LayerPanel initialLayers={TEST_LAYERS} />);
+
+      await user.click(screen.getByRole('button', { name: /toggle map/i }));
+
+      expect(mockSendMessage).toHaveBeenCalledOnce();
+      expect(vi.mocked(createMessage)).toHaveBeenCalledWith(
+        'layer_settings_update',
+        expect.objectContaining({ layer: 'map', settings: { visible: false } })
+      );
+    });
+
+    it('sends LAYER_SETTINGS_UPDATE when changing opacity', async () => {
+      const { createMessage } = await import('@lib/websocket');
+      render(<LayerPanel initialLayers={TEST_LAYERS} />);
+
+      await user.click(screen.getByText('Tokens'));
+      const slider = screen.getByTestId('opacity-slider-tokens');
+      await user.type(slider, '{arrowleft}');
+
+      expect(mockSendMessage).toHaveBeenCalled();
+      expect(vi.mocked(createMessage)).toHaveBeenCalledWith(
+        'layer_settings_update',
+        expect.objectContaining({ layer: 'tokens', settings: expect.objectContaining({ opacity: expect.any(Number) }) })
+      );
+    });
+
+    it('includes the active table id in every layer settings update', async () => {
+      const { createMessage } = await import('@lib/websocket');
+
+      // Set a table id in the store
+      mockGameStore.activeTableId = 'table-xyz';
+      render(<LayerPanel initialLayers={TEST_LAYERS} />);
+
+      await user.click(screen.getByRole('button', { name: /toggle map/i }));
+
+      expect(vi.mocked(createMessage)).toHaveBeenCalledWith(
+        'layer_settings_update',
+        expect.objectContaining({ table_id: 'table-xyz' })
+      );
     });
   });
 });

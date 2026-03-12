@@ -79,7 +79,6 @@ export const PolygonConfigModal: React.FC = () => {
           <select value={draft.layer} onChange={e => setDraft(prev => prev ? { ...prev, layer: e.target.value } : prev)}>
             <option value="obstacles">Obstacles</option>
             <option value="map">Map</option>
-            <option value="terrain">Terrain</option>
           </select>
         </label>
 

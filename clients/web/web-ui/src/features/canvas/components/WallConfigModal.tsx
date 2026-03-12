@@ -52,13 +52,8 @@ export const WallConfigModal: React.FC = () => {
       ...draft,
     };
 
-    // Optimistic local update
+    // Optimistic local update — addWall also forwards to rustRenderManager
     addWall(wall);
-
-    // Sync to WASM
-    if (window.rustRenderManager) {
-      (window.rustRenderManager as any).add_wall(JSON.stringify(wall));
-    }
 
     // Send to server — server expects { table_id, wall_data: {...} }
     protocol.sendMessage(createMessage(MessageType.WALL_CREATE, { table_id: tableId, wall_data: wall as unknown as Record<string, unknown> }));

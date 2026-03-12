@@ -108,7 +108,10 @@ describe('WallConfigModal — DM places a wall', () => {
     expect(mockSendMessage).toHaveBeenCalledOnce();
     const call = mockSendMessage.mock.calls[0][0];
     expect(call.type).toBe('wall_create');
-    expect(call.data).toMatchObject({ table_id: 'table-1', x1: 10, y1: 20, x2: 100, y2: 200 });
+    expect(call.data).toMatchObject({
+      table_id: 'table-1',
+      wall_data: { x1: 10, y1: 20, x2: 100, y2: 200 },
+    });
   });
 
   it('Place Wall optimistically adds wall to local store', async () => {

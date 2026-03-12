@@ -136,11 +136,13 @@ describe('PolygonConfigModal — DM places a polygon obstacle', () => {
     expect(call.type).toBe('sprite_create');
     expect(call.data).toMatchObject({
       table_id: 'table-1',
-      layer: 'obstacles',
-      obstacle_type: 'polygon',
-      sprite_id: 'polygon_sprite_123',
+      sprite_data: {
+        layer: 'obstacles',
+        obstacle_type: 'polygon',
+        sprite_id: 'polygon_sprite_123',
+      },
     });
-    expect(call.data.polygon_vertices).toHaveLength(4);
+    expect(call.data.sprite_data.polygon_vertices).toHaveLength(4);
   });
 
   it('modal closes after creating obstacle', async () => {

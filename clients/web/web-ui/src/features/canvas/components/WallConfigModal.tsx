@@ -22,10 +22,8 @@ const DEFAULTS: WallDraft = {
 
 export const WallConfigModal: React.FC = () => {
   const { protocol } = useProtocol();
-  const { tableId, addWall } = useGameStore(s => ({
-    tableId: s.activeTableId,
-    addWall: s.addWall,
-  }));
+  const tableId = useGameStore(s => s.activeTableId);
+  const addWall = useGameStore(s => s.addWall);
 
   const [draft, setDraft] = useState<WallDraft | null>(null);
 
@@ -62,8 +60,8 @@ export const WallConfigModal: React.FC = () => {
       (window.rustRenderManager as any).add_wall(JSON.stringify(wall));
     }
 
-    // Send to server
-    protocol.sendMessage(createMessage(MessageType.WALL_CREATE, wall as unknown as Record<string, unknown>));
+    // Send to server — server expects { table_id, wall_data: {...} }
+    protocol.sendMessage(createMessage(MessageType.WALL_CREATE, { table_id: tableId, wall_data: wall as unknown as Record<string, unknown> }));
     close();
   };
 

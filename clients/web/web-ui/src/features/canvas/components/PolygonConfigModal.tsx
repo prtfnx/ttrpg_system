@@ -15,7 +15,7 @@ const DEFAULT_LAYER = 'obstacles';
 
 export const PolygonConfigModal: React.FC = () => {
   const { protocol } = useProtocol();
-  const { tableId } = useGameStore(s => ({ tableId: s.activeTableId }));
+  const tableId = useGameStore(s => s.activeTableId);
 
   const [draft, setDraft] = useState<PolygonDraft | null>(null);
 
@@ -49,8 +49,8 @@ export const PolygonConfigModal: React.FC = () => {
       spriteId = (window.rustRenderManager as any).create_polygon_sprite(flat, layer, tableId) ?? '';
     }
 
-    // Send sprite_create to server so other clients sync it
-    const payload = {
+    // Send sprite_create to server — server expects { table_id, sprite_data: {...} }
+    const spriteData = {
       sprite_id: spriteId || `polygon_${Date.now()}`,
       table_id: tableId,
       layer,
@@ -60,7 +60,7 @@ export const PolygonConfigModal: React.FC = () => {
       coord_y: draft.vertices[0]?.y ?? 0,
       label: draft.label,
     };
-    protocol.sendMessage(createMessage(MessageType.SPRITE_CREATE, payload as unknown as Record<string, unknown>));
+    protocol.sendMessage(createMessage(MessageType.SPRITE_CREATE, { table_id: tableId, sprite_data: spriteData } as unknown as Record<string, unknown>));
     setDraft(null);
   }, [draft, tableId, protocol]);
 

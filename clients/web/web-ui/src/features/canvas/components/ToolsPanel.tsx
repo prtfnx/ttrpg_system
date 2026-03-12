@@ -10,12 +10,12 @@ import { isDM, isElevated } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
 import { AlignmentHelper } from '@shared/components';
 import DiceRoller from '@shared/components/DiceRoller';
-import { WallConfigModal } from './WallConfigModal';
-import { PolygonConfigModal } from './PolygonConfigModal';
 import { AlignLeft, BrickWall, Circle, Cloud, Crown, Flame, Folder, Lightbulb, Map, Minus, Mountain, Move, Paintbrush, Pencil, Ruler, Search, Shield, Snowflake, Sparkles, Square, Type, User, Users, Wrench, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { PolygonConfigModal } from './PolygonConfigModal';
 import { TextSpriteTool } from './TextSprite';
 import styles from './ToolsPanel.module.css';
+import { WallConfigModal } from './WallConfigModal';
 
 // Global type declarations
 declare global {

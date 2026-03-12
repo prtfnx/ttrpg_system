@@ -151,6 +151,10 @@ pub struct LayerSettings {
     pub blend_mode: BlendMode,
     pub visible: bool,
     pub z_order: i32,
+    /// RGBA tint applied to sprites on this layer when it is NOT the active layer
+    pub tint_color: [f32; 4],
+    /// Opacity multiplier when this layer is not active (0.0–1.0)
+    pub inactive_opacity: f32,
 }
 
 impl Default for LayerSettings {
@@ -161,6 +165,8 @@ impl Default for LayerSettings {
             blend_mode: BlendMode::Alpha,
             visible: true,
             z_order: 0,
+            tint_color: [1.0, 1.0, 1.0, 1.0],
+            inactive_opacity: 0.4,
         }
     }
 }
@@ -300,3 +306,67 @@ impl Color {
         [self.r, self.g, self.b, self.a]
     }
 }
+
+// =============================================================================
+// Wall segment types
+// =============================================================================
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WallType {
+    Normal,
+    Terrain,
+    Invisible,
+    Ethereal,
+    Window,
+}
+
+impl Default for WallType {
+    fn default() -> Self { WallType::Normal }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DoorState {
+    Closed,
+    Open,
+    Locked,
+}
+
+impl Default for DoorState {
+    fn default() -> Self { DoorState::Closed }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WallDirection {
+    Both,
+    Left,
+    Right,
+}
+
+impl Default for WallDirection {
+    fn default() -> Self { WallDirection::Both }
+}
+
+/// A wall segment in world-space coordinates.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Wall {
+    pub wall_id: String,
+    pub table_id: String,
+    pub x1: f32,
+    pub y1: f32,
+    pub x2: f32,
+    pub y2: f32,
+    #[serde(default)] pub wall_type:       WallType,
+    #[serde(default = "default_true")] pub blocks_movement: bool,
+    #[serde(default = "default_true")] pub blocks_light:    bool,
+    #[serde(default = "default_true")] pub blocks_sight:    bool,
+    #[serde(default = "default_true")] pub blocks_sound:    bool,
+    #[serde(default)] pub is_door:    bool,
+    #[serde(default)] pub door_state: DoorState,
+    #[serde(default)] pub is_secret:  bool,
+    #[serde(default)] pub direction:  WallDirection,
+}
+
+fn default_true() -> bool { true }

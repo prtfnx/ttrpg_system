@@ -763,6 +763,20 @@ class ServerProtocol:
             if table_obj2 and hasattr(table_obj2, 'walls'):
                 walls_list = [w.to_dict() for w in table_obj2.walls.values()]
 
+            # Fall back to DB if in-memory walls are empty (e.g. after server restart)
+            if not walls_list and table_id:
+                try:
+                    from server_host.database.database import SessionLocal
+                    from server_host.database.models import Wall as WallModel
+                    _db = SessionLocal()
+                    try:
+                        db_walls = _db.query(WallModel).filter(WallModel.table_id == str(table_id)).all()
+                        walls_list = [w.to_dict() for w in db_walls if hasattr(w, 'to_dict')]
+                    finally:
+                        _db.close()
+                except Exception as _e:
+                    logger.warning(f"Could not load walls from DB for table {table_id}: {_e}")
+
             # Include persisted layer settings for join-time sync
             layer_settings_data = {}
             if table_id:

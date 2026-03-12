@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use serde_json;
-use crate::types::{Wall, WallType, DoorState};
+use crate::types::{Wall, WallType, WallDirection, DoorState};
 
 /// Manages wall segments for a single virtual table.
 ///
@@ -46,6 +46,22 @@ impl WallManager {
                         "open"   => DoorState::Open,
                         "locked" => DoorState::Locked,
                         _        => DoorState::Closed,
+                    };
+                }
+                if let Some(s) = updates.get("wall_type").and_then(|v| v.as_str()) {
+                    wall.wall_type = match s {
+                        "terrain"   => WallType::Terrain,
+                        "invisible" => WallType::Invisible,
+                        "ethereal"  => WallType::Ethereal,
+                        "window"    => WallType::Window,
+                        _           => WallType::Normal,
+                    };
+                }
+                if let Some(s) = updates.get("direction").and_then(|v| v.as_str()) {
+                    wall.direction = match s {
+                        "left"  => WallDirection::Left,
+                        "right" => WallDirection::Right,
+                        _       => WallDirection::Both,
                     };
                 }
                 return true;

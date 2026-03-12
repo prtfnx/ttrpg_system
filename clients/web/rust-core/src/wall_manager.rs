@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use wasm_bindgen::prelude::*;
 use serde_json;
 use crate::types::{Wall, WallType, DoorState};
 
@@ -27,14 +26,6 @@ impl WallManager {
 
     pub fn remove_wall(&mut self, wall_id: &str) -> bool {
         self.walls.remove(wall_id).is_some()
-    }
-
-    pub fn get_wall(&self, wall_id: &str) -> Option<&Wall> {
-        self.walls.get(wall_id)
-    }
-
-    pub fn get_wall_mut(&mut self, wall_id: &str) -> Option<&mut Wall> {
-        self.walls.get_mut(wall_id)
     }
 
     pub fn update_from_json(&mut self, wall_id: &str, json: &str) -> bool {
@@ -81,20 +72,6 @@ impl WallManager {
         let mut out = Vec::with_capacity(self.walls.len() * 4);
         for wall in self.walls.values() {
             if wall.blocks_light && !self.door_is_open(wall) {
-                out.push(wall.x1);
-                out.push(wall.y1);
-                out.push(wall.x2);
-                out.push(wall.y2);
-            }
-        }
-        out
-    }
-
-    /// Returns all wall segments that block sight.
-    pub fn get_sight_blocking_segments(&self) -> Vec<f32> {
-        let mut out = Vec::with_capacity(self.walls.len() * 4);
-        for wall in self.walls.values() {
-            if wall.blocks_sight && !self.door_is_open(wall) {
                 out.push(wall.x1);
                 out.push(wall.y1);
                 out.push(wall.x2);

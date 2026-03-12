@@ -124,6 +124,7 @@ mod geometry;
 mod table_manager;
 mod table_sync;
 mod utils;
+mod wall_manager;
 
 pub use render::RenderEngine;
 pub use types::*;

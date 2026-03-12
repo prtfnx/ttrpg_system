@@ -272,6 +272,8 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.TABLE_SETTINGS_CHANGED, this.handleTableSettingsChanged.bind(this));
     // Wall segment sync
     this.registerHandler(MessageType.WALL_DATA, this.handleWallData.bind(this));
+    // Layer settings persistence
+    this.registerHandler(MessageType.LAYER_SETTINGS_UPDATE, this.handleLayerSettingsUpdate.bind(this));
   }
 
   registerHandler(type: string, handler: MessageHandler): void {
@@ -637,6 +639,10 @@ export class WebClientProtocol {
       useGameStore.getState().addWalls(data.walls);
       const rm = window.rustRenderManager as any;
       data.walls.forEach((w: any) => rm?.add_wall(JSON.stringify(w)));
+    }
+    // Apply persisted layer settings on join
+    if (data?.layer_settings && typeof data.layer_settings === 'object') {
+      this.applyLayerSettings(data.layer_settings as Record<string, Record<string, any>>);
     }
     window.dispatchEvent(new CustomEvent('table-response', { detail: message.data }));
   }
@@ -1043,6 +1049,35 @@ export class WebClientProtocol {
           rm?.remove_wall(data.wall_id);
         }
         break;
+    }
+  }
+
+  private async handleLayerSettingsUpdate(message: Message): Promise<void> {
+    const data = message.data as { layer: string; settings: Record<string, any> };
+    if (data?.layer && data?.settings) {
+      this.applyLayerSettings({ [data.layer]: data.settings });
+    }
+  }
+
+  /** Apply a map of { layerName → settings } to the WASM engine and Zustand store. */
+  private applyLayerSettings(settings: Record<string, Record<string, any>>): void {
+    const rm = window.rustRenderManager as any;
+    const store = useGameStore.getState();
+    for (const [layer, s] of Object.entries(settings)) {
+      if (s.opacity !== undefined) {
+        rm?.set_layer_opacity?.(layer, s.opacity);
+        store.setLayerOpacity(layer, s.opacity);
+      }
+      if (s.visible !== undefined) {
+        rm?.set_layer_visibility?.(layer, s.visible);
+        store.setLayerVisibility(layer, s.visible);
+      }
+      if (Array.isArray(s.tint_color) && s.tint_color.length >= 4) {
+        rm?.set_layer_tint_color?.(layer, s.tint_color[0], s.tint_color[1], s.tint_color[2], s.tint_color[3]);
+      }
+      if (s.inactive_opacity !== undefined) {
+        rm?.set_layer_inactive_opacity?.(layer, s.inactive_opacity);
+      }
     }
   }
 

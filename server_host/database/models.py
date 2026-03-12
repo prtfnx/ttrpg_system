@@ -79,6 +79,8 @@ class VirtualTable(Base):
     
     # Layer visibility (JSON string)
     layer_visibility = Column(Text)  # JSON: {"map": true, "tokens": true, ...}
+    # Per-layer settings (JSON string) — persistent opacity, tint, inactive_opacity per layer
+    layer_settings = Column(Text, nullable=True)  # JSON: {"tokens": {"opacity": 1.0, "tint_color": [...], ...}}
     
     # Dynamic lighting (per-table, DM-controlled)
     dynamic_lighting_enabled = Column(Boolean, default=False)

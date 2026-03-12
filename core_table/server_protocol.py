@@ -135,6 +135,9 @@ class ServerProtocol:
         self.register_handler(MessageType.WALL_BATCH_CREATE, self.handle_wall_batch_create)
         self.register_handler(MessageType.DOOR_TOGGLE,       self.handle_door_toggle)
 
+        # Layer settings persistence (DM-only write, broadcast to all)
+        self.register_handler(MessageType.LAYER_SETTINGS_UPDATE, self.handle_layer_settings_update)
+
         # Error handling
         self.register_handler(MessageType.ERROR, self.handle_error)
         self.register_handler(MessageType.SUCCESS, self.handle_success)
@@ -760,10 +763,28 @@ class ServerProtocol:
             if table_obj2 and hasattr(table_obj2, 'walls'):
                 walls_list = [w.to_dict() for w in table_obj2.walls.values()]
 
+            # Include persisted layer settings for join-time sync
+            layer_settings_data = {}
+            if session_id:
+                try:
+                    from server_host.database.database import SessionLocal
+                    from server_host.database import crud as _crud
+                    import json as _json
+                    _db = SessionLocal()
+                    try:
+                        _db_table = _crud.get_virtual_table_by_id(_db, str(table_id))
+                        if _db_table and _db_table.layer_settings:
+                            layer_settings_data = _json.loads(_db_table.layer_settings)
+                    finally:
+                        _db.close()
+                except Exception as _e:
+                    logger.warning(f"Could not load layer_settings from DB: {_e}")
+
             # return message that need send to client
             return Message(MessageType.TABLE_RESPONSE, {'name': table_name, 'client_id': client_id,
                                                             'table_data': table_data_with_hashes,
-                                                            'walls': walls_list})
+                                                            'walls': walls_list,
+                                                            'layer_settings': layer_settings_data})
 
     async def handle_table_settings_update(self, msg: Message, client_id: str) -> Message:
         """Handle DM request to change dynamic lighting / fog exploration settings for a table."""
@@ -2922,3 +2943,42 @@ class ServerProtocol:
         )
         return Message(MessageType.WALL_DATA, {'operation': 'update', 'wall': wall_dict, 'table_id': table_id})
 
+    async def handle_layer_settings_update(self, msg: Message, client_id: str) -> Message:
+        """DM updates per-layer settings (opacity, tint_color, inactive_opacity, visible).
+        Saves to DB and broadcasts to all clients in the session."""
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can change layer settings'})
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data provided'})
+
+        table_id = msg.data.get('table_id')
+        layer    = msg.data.get('layer')
+        settings = msg.data.get('settings', {})
+        if not table_id or not layer:
+            return Message(MessageType.ERROR, {'error': 'table_id and layer are required'})
+
+        session_id = self._get_session_id(msg)
+        if session_id:
+            try:
+                from server_host.database.database import SessionLocal
+                from server_host.database import crud, schemas
+                import json as _json
+                db = SessionLocal()
+                try:
+                    db_table = crud.get_virtual_table_by_id(db, table_id)
+                    if db_table:
+                        existing = _json.loads(db_table.layer_settings or '{}')
+                        existing[layer] = settings
+                        update = schemas.VirtualTableUpdate(layer_settings=existing)
+                        crud.update_virtual_table(db, table_id, update)
+                finally:
+                    db.close()
+            except Exception as e:
+                logger.error(f"handle_layer_settings_update DB error: {e}")
+
+        broadcast_payload = {'table_id': table_id, 'layer': layer, 'settings': settings}
+        await self.broadcast_to_session(
+            Message(MessageType.LAYER_SETTINGS_UPDATE, broadcast_payload),
+            client_id,
+        )
+        return Message(MessageType.LAYER_SETTINGS_UPDATE, broadcast_payload)

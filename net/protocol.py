@@ -129,6 +129,9 @@ class MessageType(enum.Enum):    # Core messages
     WALL_DATA        = "wall_data"          # server → client(s): single or batch wall state
     DOOR_TOGGLE      = "door_toggle"        # any permitted role → server: toggle door state
 
+    # Layer settings persistence (DM-only write, broadcast to all)
+    LAYER_SETTINGS_UPDATE = "layer_settings_update"  # DM → server + server → all clients
+
     # Extension point for new message types
     CUSTOM = "custom"
 

@@ -349,7 +349,7 @@ def update_virtual_table(db: Session, table_id: str, table_update: schemas.Virtu
     
     update_data = table_update.dict(exclude_unset=True)
     for field, value in update_data.items():
-        if field == 'layer_visibility' and value is not None:
+        if field in ('layer_visibility', 'layer_settings') and value is not None:
             setattr(db_table, field, json.dumps(value))
         else:
             setattr(db_table, field, value)

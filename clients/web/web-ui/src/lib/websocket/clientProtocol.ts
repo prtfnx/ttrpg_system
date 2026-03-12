@@ -270,6 +270,8 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.CHARACTER_ROLL_RESULT, this.handleCharacterRollResult.bind(this));
     // Dynamic lighting settings broadcast
     this.registerHandler(MessageType.TABLE_SETTINGS_CHANGED, this.handleTableSettingsChanged.bind(this));
+    // Wall segment sync
+    this.registerHandler(MessageType.WALL_DATA, this.handleWallData.bind(this));
   }
 
   registerHandler(type: string, handler: MessageHandler): void {
@@ -629,6 +631,12 @@ export class WebClientProtocol {
         fog_exploration_mode: td.fog_exploration_mode ?? 'current_only',
         ambient_light_level: td.ambient_light_level ?? 1.0,
       });
+    }
+    // Sync walls on table join
+    if (Array.isArray(data?.walls) && data.walls.length > 0) {
+      useGameStore.getState().addWalls(data.walls);
+      const rm = window.rustRenderManager as any;
+      data.walls.forEach((w: any) => rm?.add_wall(JSON.stringify(w)));
     }
     window.dispatchEvent(new CustomEvent('table-response', { detail: message.data }));
   }
@@ -1003,6 +1011,39 @@ export class WebClientProtocol {
     const data = message.data as { dynamic_lighting_enabled: boolean; fog_exploration_mode: string; ambient_light_level: number };
     useGameStore.getState().applyTableLightingSettings(data);
     window.dispatchEvent(new CustomEvent('table-settings-changed', { detail: data }));
+  }
+
+  private async handleWallData(message: Message): Promise<void> {
+    const data = message.data as { operation: string; wall?: Record<string, any>; walls?: Record<string, any>[]; wall_id?: string };
+    const store = useGameStore.getState();
+    const rm = window.rustRenderManager as any;
+    switch (data.operation) {
+      case 'create':
+        if (data.wall) {
+          store.addWall(data.wall as any);
+          rm?.add_wall(JSON.stringify(data.wall));
+        }
+        break;
+      case 'batch_create':
+      case 'join_sync':
+        if (data.walls?.length) {
+          store.addWalls(data.walls as any[]);
+          data.walls.forEach(w => rm?.add_wall(JSON.stringify(w)));
+        }
+        break;
+      case 'update':
+        if (data.wall?.wall_id) {
+          store.updateWall(data.wall.wall_id, data.wall as any);
+          rm?.update_wall(JSON.stringify(data.wall));
+        }
+        break;
+      case 'remove':
+        if (data.wall_id) {
+          store.removeWall(data.wall_id);
+          rm?.remove_wall(data.wall_id);
+        }
+        break;
+    }
   }
 
   // Public API methods for sending requests

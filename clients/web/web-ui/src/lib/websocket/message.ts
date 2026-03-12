@@ -119,6 +119,14 @@ export const MessageType = {
   // Dynamic lighting / table settings
   TABLE_SETTINGS_UPDATE: "table_settings_update",
   TABLE_SETTINGS_CHANGED: "table_settings_changed",
+
+  // Wall segments
+  WALL_CREATE: "wall_create",
+  WALL_UPDATE: "wall_update",
+  WALL_REMOVE: "wall_remove",
+  WALL_BATCH_CREATE: "wall_batch_create",
+  WALL_DATA: "wall_data",
+  DOOR_TOGGLE: "door_toggle",
   
   // Extension point for new message types
   CUSTOM: "custom"

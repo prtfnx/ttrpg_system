@@ -754,9 +754,16 @@ class ServerProtocol:
                 layers = table_data_with_hashes.get('layers', {})
                 table_data_with_hashes['layers'] = {k: v for k, v in layers.items() if k in allowed_layers}
 
+            # Include walls for join-time sync
+            table_obj2 = (result.data or {}).get('table')
+            walls_list = []
+            if table_obj2 and hasattr(table_obj2, 'walls'):
+                walls_list = [w.to_dict() for w in table_obj2.walls.values()]
+
             # return message that need send to client
             return Message(MessageType.TABLE_RESPONSE, {'name': table_name, 'client_id': client_id,
-                                                            'table_data': table_data_with_hashes})
+                                                            'table_data': table_data_with_hashes,
+                                                            'walls': walls_list})
 
     async def handle_table_settings_update(self, msg: Message, client_id: str) -> Message:
         """Handle DM request to change dynamic lighting / fog exploration settings for a table."""

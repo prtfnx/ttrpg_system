@@ -235,7 +235,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           console.log('[ToolsPanel] Wall drawing tool activated');
           break;
         case 'draw_polygon':
-          (window.rustRenderManager as any).set_input_mode_create_polygon();
+          window.rustRenderManager.set_input_mode_create_polygon();
           console.log('[ToolsPanel] Polygon creation tool activated');
           break;
         case 'draw_shapes':

@@ -233,6 +233,11 @@ export class RenderEngine {
   set_input_mode_create_text(): void;
   set_input_mode_select(): void;
   set_input_mode_paint(): void;
+  set_input_mode_draw_wall(): void;
+  set_input_mode_create_polygon(): void;
+  cancel_polygon_creation(): void;
+  undo_polygon_vertex(): void;
+  create_polygon_sprite(vertices_flat: Float32Array, layer: string, table_id: string): string;
   create_rectangle_sprite(x: number, y: number, width: number, height: number, layer_name: string): string;
   create_rectangle_sprite_with_options(x: number, y: number, width: number, height: number, layer_name: string, color: string, opacity: number, filled: boolean): string;
   create_circle_sprite(x: number, y: number, radius: number, layer_name: string): string;

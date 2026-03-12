@@ -595,6 +595,23 @@ class WasmIntegrationService {
         return;
       }
 
+      // Handle broadcast sprite creation from other clients
+      if (data.operation === 'create' && data.sprite_data) {
+        console.log('🆕 Creating new sprite from broadcast:', spriteId);
+        this.addSpriteToWasm(data.sprite_data);
+        return;
+      }
+
+      // Handle broadcast sprite removal from other clients
+      if (data.operation === 'remove') {
+        console.log('🗑️ Removing sprite from broadcast:', spriteId);
+        try { this.renderEngine.remove_sprite(spriteId); } catch (_) { /* ignore if not present */ }
+        useGameStore.setState(state => ({
+          sprites: state.sprites.filter(s => s.id !== spriteId)
+        }));
+        return;
+      }
+
       // Use efficient direct updates for specific operations
       if (data.operation === 'move' && data.position) {
         console.log('🎯 Using direct position update for move operation');

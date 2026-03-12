@@ -5,6 +5,24 @@ import { transformServerTablesToClient, validateTableId } from '@lib/websocket';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 
+export interface WallData {
+  wall_id: string;
+  table_id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  wall_type: 'normal' | 'terrain' | 'invisible' | 'ethereal' | 'window';
+  blocks_movement: boolean;
+  blocks_light: boolean;
+  blocks_sight: boolean;
+  blocks_sound: boolean;
+  is_door: boolean;
+  door_state: 'closed' | 'open' | 'locked';
+  is_secret: boolean;
+  direction: 'both' | 'left' | 'right';
+}
+
 // Change detection cache
 const spriteCache = new Map<string, Record<string, any>>();
 
@@ -133,6 +151,14 @@ interface GameStore extends GameState {
   // DM preview mode
   dmPreviewUserId: number | null;
   setDmPreviewMode: (userId: number | null) => void;
+
+  // Wall segment management
+  walls: WallData[];
+  addWall: (wall: WallData) => void;
+  addWalls: (walls: WallData[]) => void;
+  updateWall: (wallId: string, updates: Partial<WallData>) => void;
+  removeWall: (wallId: string) => void;
+  clearWalls: () => void;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -194,6 +220,9 @@ export const useGameStore = create<GameStore>()(
       dynamicLightingEnabled: false,
       fogExplorationMode: 'current_only' as const,
       dmPreviewUserId: null,
+
+      // Wall segment initial state
+      walls: [],
 
       // Actions
       moveSprite: (id: string, x: number, y: number) => {
@@ -739,6 +768,49 @@ export const useGameStore = create<GameStore>()(
             }
           }
         }));
+      },
+
+      // Wall segment actions
+      addWall: (wall: WallData) => {
+        set((state) => ({
+          walls: state.walls.some(w => w.wall_id === wall.wall_id)
+            ? state.walls.map(w => w.wall_id === wall.wall_id ? wall : w)
+            : [...state.walls, wall],
+        }));
+        const rm = (window as any).rustRenderManager;
+        if (rm?.add_wall) rm.add_wall(JSON.stringify(wall));
+      },
+
+      addWalls: (walls: WallData[]) => {
+        set((state) => {
+          const existing = new Map(state.walls.map(w => [w.wall_id, w]));
+          for (const w of walls) existing.set(w.wall_id, w);
+          return { walls: [...existing.values()] };
+        });
+        const rm = (window as any).rustRenderManager;
+        if (rm?.add_wall) {
+          for (const w of walls) rm.add_wall(JSON.stringify(w));
+        }
+      },
+
+      updateWall: (wallId: string, updates: Partial<WallData>) => {
+        set((state) => ({
+          walls: state.walls.map(w => w.wall_id === wallId ? { ...w, ...updates } : w),
+        }));
+        const rm = (window as any).rustRenderManager;
+        if (rm?.update_wall) rm.update_wall(wallId, JSON.stringify(updates));
+      },
+
+      removeWall: (wallId: string) => {
+        set((state) => ({ walls: state.walls.filter(w => w.wall_id !== wallId) }));
+        const rm = (window as any).rustRenderManager;
+        if (rm?.remove_wall) rm.remove_wall(wallId);
+      },
+
+      clearWalls: () => {
+        set(() => ({ walls: [] }));
+        const rm = (window as any).rustRenderManager;
+        if (rm?.clear_walls) rm.clear_walls();
       },
     }),
     {

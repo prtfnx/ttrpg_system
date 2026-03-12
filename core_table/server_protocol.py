@@ -2868,7 +2868,7 @@ class ServerProtocol:
             Message(MessageType.WALL_DATA, {'operation': 'remove', 'wall_id': wall_id, 'table_id': table_id}),
             client_id,
         )
-        return Message(MessageType.SUCCESS, {'wall_id': wall_id, 'operation': 'remove'})
+        return Message(MessageType.WALL_DATA, {'operation': 'remove', 'wall_id': wall_id, 'table_id': table_id})
 
     async def handle_wall_batch_create(self, msg: Message, client_id: str) -> Message:
         """DM imports many walls at once (e.g. after map import)."""

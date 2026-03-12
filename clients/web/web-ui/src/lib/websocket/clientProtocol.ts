@@ -637,8 +637,7 @@ export class WebClientProtocol {
     // Sync walls on table join
     if (Array.isArray(data?.walls) && data.walls.length > 0) {
       useGameStore.getState().addWalls(data.walls);
-      const rm = window.rustRenderManager as any;
-      data.walls.forEach((w: any) => rm?.add_wall(JSON.stringify(w)));
+      // addWalls already forwards each wall into rustRenderManager
     }
     // Apply persisted layer settings on join
     if (data?.layer_settings && typeof data.layer_settings === 'object') {
@@ -1022,32 +1021,19 @@ export class WebClientProtocol {
   private async handleWallData(message: Message): Promise<void> {
     const data = message.data as { operation: string; wall?: Record<string, any>; walls?: Record<string, any>[]; wall_id?: string };
     const store = useGameStore.getState();
-    const rm = window.rustRenderManager as any;
     switch (data.operation) {
       case 'create':
-        if (data.wall) {
-          store.addWall(data.wall as any);
-          rm?.add_wall(JSON.stringify(data.wall));
-        }
+        if (data.wall) store.addWall(data.wall as any);
         break;
       case 'batch_create':
       case 'join_sync':
-        if (data.walls?.length) {
-          store.addWalls(data.walls as any[]);
-          data.walls.forEach(w => rm?.add_wall(JSON.stringify(w)));
-        }
+        if (data.walls?.length) store.addWalls(data.walls as any[]);
         break;
       case 'update':
-        if (data.wall?.wall_id) {
-          store.updateWall(data.wall.wall_id, data.wall as any);
-          rm?.update_wall(JSON.stringify(data.wall));
-        }
+        if (data.wall?.wall_id) store.updateWall(data.wall.wall_id, data.wall as any);
         break;
       case 'remove':
-        if (data.wall_id) {
-          store.removeWall(data.wall_id);
-          rm?.remove_wall(data.wall_id);
-        }
+        if (data.wall_id) store.removeWall(data.wall_id);
         break;
     }
   }

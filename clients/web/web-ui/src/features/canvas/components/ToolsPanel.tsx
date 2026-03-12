@@ -10,6 +10,7 @@ import { isDM, isElevated } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
 import { AlignmentHelper } from '@shared/components';
 import DiceRoller from '@shared/components/DiceRoller';
+import { WallConfigModal } from './WallConfigModal';
 import { AlignLeft, BrickWall, Circle, Cloud, Crown, Flame, Folder, Lightbulb, Map, Minus, Mountain, Move, Paintbrush, Pencil, Ruler, Search, Shield, Snowflake, Sparkles, Square, Type, User, Users, Wrench, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { TextSpriteTool } from './TextSprite';
@@ -227,6 +228,10 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           window.rustRenderManager.set_input_mode_paint();
           window.rustRenderManager.paint_enter_mode(800, 600); // Also enter paint mode
           console.log('[ToolsPanel] Paint tool activated');
+          break;
+        case 'draw_wall':
+          window.rustRenderManager.set_input_mode_draw_wall();
+          console.log('[ToolsPanel] Wall drawing tool activated');
           break;
         case 'draw_shapes':
           window.rustRenderManager.set_input_mode_select();
@@ -552,6 +557,15 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           <Pencil size={14} aria-hidden /> Draw Shapes
         </button>
         )}
+        {dmMode && (
+        <button 
+          className={`${styles.toolButton} ${activeTool === 'draw_wall' ? styles.active : ''}`}
+          onClick={() => setActiveTool('draw_wall')}
+          title="Draw Wall (click start, click end)"
+        >
+          <BrickWall size={14} aria-hidden /> Draw Wall
+        </button>
+        )}
         {elevatedMode && (
         <button 
           className={`${styles.toolButton} ${activeTool === 'spell_templates' ? styles.active : ''}`}
@@ -702,6 +716,9 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
             </div>
           </div>
         )}
+
+        {/* Wall config modal — listens for wallDrawn CustomEvent from Rust */}
+        {dmMode && <WallConfigModal />}
         
         {/* Drawing Tools Settings */}
         {(activeTool === 'draw_shapes' || (activeTool === 'rectangle' && (window as any).fromDrawShapes)) && (

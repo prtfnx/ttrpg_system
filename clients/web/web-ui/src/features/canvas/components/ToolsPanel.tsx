@@ -2,6 +2,7 @@ import { useGameStore } from '@/store';
 import type { GameAPI } from '@/types';
 import { AssetManager } from '@features/assets';
 import { GridControls, LayerPanel } from '@features/canvas';
+import { useLayerHotkeys } from '@features/canvas/hooks';
 import { startDmPreview, stopDmPreview } from '@features/lighting';
 import { MeasurementTool } from '@features/measurement';
 import { PaintPanel } from '@features/painting';
@@ -9,10 +10,12 @@ import { isDM, isElevated } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
 import { AlignmentHelper } from '@shared/components';
 import DiceRoller from '@shared/components/DiceRoller';
-import { AlignLeft, Circle, Crown, Flame, Folder, Minus, Move, Paintbrush, Pencil, Ruler, Search, Snowflake, Sparkles, Square, Type, User, Wrench, Zap } from 'lucide-react';
+import { AlignLeft, BrickWall, Circle, Cloud, Crown, Flame, Folder, Lightbulb, Map, Minus, Mountain, Move, Paintbrush, Pencil, Ruler, Search, Shield, Snowflake, Sparkles, Square, Type, User, Users, Wrench, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { PolygonConfigModal } from './PolygonConfigModal';
 import { TextSpriteTool } from './TextSprite';
 import styles from './ToolsPanel.module.css';
+import { WallConfigModal } from './WallConfigModal';
 
 // Global type declarations
 declare global {
@@ -23,11 +26,60 @@ declare global {
 
 import type { UserInfo } from '@features/auth';
 
+const PLAYER_PERMITTED_LAYERS = [
+  { id: 'map',    label: 'Map',    Icon: Map },
+  { id: 'tokens', label: 'Tokens', Icon: Users },
+] as const;
+
+/** Simplified layer panel shown to non-DM players — eye-toggle only. */
+function PlayerLayerControls() {
+  const layerVisibility = useGameStore(s => s.layerVisibility);
+  const setLayerVisibility = useGameStore(s => s.setLayerVisibility);
+
+  const toggle = (id: string) => {
+    const next = !(layerVisibility[id] ?? true);
+    setLayerVisibility(id, next);
+    const rm = (window as any).rustRenderManager;
+    if (rm?.set_layer_visible) rm.set_layer_visible(id, next);
+  };
+
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <h4 style={{ margin: '6px 0 4px', fontSize: 12, opacity: 0.7 }}>Layers</h4>
+      {PLAYER_PERMITTED_LAYERS.map(({ id, label, Icon }) => {
+        const visible = layerVisibility[id] ?? true;
+        return (
+          <button
+            key={id}
+            onClick={() => toggle(id)}
+            title={visible ? `Hide ${label}` : `Show ${label}`}
+            aria-label={`Toggle ${label} layer`}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              width: '100%', padding: '4px 8px', marginBottom: 2,
+              background: 'transparent', border: '1px solid #444',
+              borderRadius: 4, color: visible ? '#eee' : '#666', cursor: 'pointer',
+              fontSize: 12,
+            }}
+          >
+            <Icon size={12} aria-hidden />
+            {label}
+            <span style={{ marginLeft: 'auto', opacity: 0.6 }}>{visible ? '👁' : '🚫'}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 interface ToolsPanelProps {
   userInfo: UserInfo;
 }
 
 export function ToolsPanel({ userInfo }: ToolsPanelProps) {
+  // Layer 1-7 hotkeys (DM only)
+  useLayerHotkeys();
+
   // console.log('[ToolsPanel] Component mounted'); // Removed to reduce noise
   const [assetManagerVisible, setAssetManagerVisible] = useState(false);
   const [paintPanelVisible, setPaintPanelVisible] = useState(false);
@@ -58,6 +110,24 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   const dmPreviewUserId = useGameStore(s => s.dmPreviewUserId);
   const setDmPreviewMode = useGameStore(s => s.setDmPreviewMode);
   const sprites = useGameStore(s => s.sprites);
+  const setActiveLayer = useGameStore(s => s.setActiveLayer);
+
+  // Layer toolbar config (order matches hotkeys 1-7)
+  const LAYER_ORDER = [
+    { id: 'map',            label: 'Map',     Icon: Map,       hotkey: '1' },
+    { id: 'tokens',         label: 'Tokens',  Icon: Users,     hotkey: '2' },
+    { id: 'dungeon_master', label: 'DM',      Icon: Shield,    hotkey: '3' },
+    { id: 'light',         label: 'Light',   Icon: Lightbulb, hotkey: '4' },
+    { id: 'height',        label: 'Height',  Icon: Mountain,  hotkey: '5' },
+    { id: 'obstacles',     label: 'Obst.',   Icon: BrickWall, hotkey: '6' },
+    { id: 'fog_of_war',    label: 'Fog',     Icon: Cloud,     hotkey: '7' },
+  ] as const;
+
+  const handleLayerSwitch = (layerId: string) => {
+    setActiveLayer(layerId);
+    const rm = (window as any).rustRenderManager;
+    if (rm?.set_active_layer) rm.set_active_layer(layerId);
+  };
 
   // Unique player IDs from sprite controlledBy fields (for DM preview dropdown)
   const playerIds: number[] = Array.from(
@@ -159,6 +229,14 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           window.rustRenderManager.set_input_mode_paint();
           window.rustRenderManager.paint_enter_mode(800, 600); // Also enter paint mode
           console.log('[ToolsPanel] Paint tool activated');
+          break;
+        case 'draw_wall':
+          window.rustRenderManager.set_input_mode_draw_wall();
+          console.log('[ToolsPanel] Wall drawing tool activated');
+          break;
+        case 'draw_polygon':
+          window.rustRenderManager.set_input_mode_create_polygon();
+          console.log('[ToolsPanel] Polygon creation tool activated');
           break;
         case 'draw_shapes':
           window.rustRenderManager.set_input_mode_select();
@@ -381,7 +459,23 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
 
       <h2>Tools</h2>
 
-      {/* Table Switcher — DM quick navigation */}
+      {/* Layer quick-switch toolbar — DM only (hotkeys 1-7) */}
+      {dmMode && (
+        <div className={styles.layerToolbar} aria-label="Layer switcher">
+          {LAYER_ORDER.map(({ id, label, Icon, hotkey }) => (
+            <button
+              key={id}
+              className={`${styles.layerBtn} ${activeLayer === id ? styles.activeLayerBtn : ''}`}
+              onClick={() => handleLayerSwitch(id)}
+              title={`${label} layer [${hotkey}]`}
+              aria-pressed={activeLayer === id}
+            >
+              <Icon size={11} aria-hidden />
+              <span className={styles.layerBtnHotkey}>{hotkey}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {dmMode && tables && tables.length > 0 && (
         <div ref={tableSwitcherRef} style={{ position: 'relative', marginBottom: '8px' }}>
           <div style={{ display: 'flex', gap: '4px' }}>
@@ -466,6 +560,24 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           title="Draw Shapes"
         >
           <Pencil size={14} aria-hidden /> Draw Shapes
+        </button>
+        )}
+        {dmMode && (
+        <button 
+          className={`${styles.toolButton} ${activeTool === 'draw_wall' ? styles.active : ''}`}
+          onClick={() => setActiveTool('draw_wall')}
+          title="Draw Wall (click start, click end)"
+        >
+          <BrickWall size={14} aria-hidden /> Draw Wall
+        </button>
+        )}
+        {dmMode && (
+        <button 
+          className={`${styles.toolButton} ${activeTool === 'draw_polygon' ? styles.active : ''}`}
+          onClick={() => setActiveTool('draw_polygon')}
+          title="Draw Polygon Obstacle (click vertices, click near first to close)"
+        >
+          <Square size={14} aria-hidden /> Polygon Obstacle
         </button>
         )}
         {elevatedMode && (
@@ -618,6 +730,10 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
             </div>
           </div>
         )}
+
+        {/* Wall config modal — listens for wallDrawn CustomEvent from Rust */}
+        {dmMode && <WallConfigModal />}
+        {dmMode && <PolygonConfigModal />}
         
         {/* Drawing Tools Settings */}
         {(activeTool === 'draw_shapes' || (activeTool === 'rectangle' && (window as any).fromDrawShapes)) && (
@@ -736,8 +852,13 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           </div>
         )}
 
-      {/* Layer Management Panel - DM only */}
+      {/* Layer Management Panel - DM only (full controls) */}
       {dmMode && <LayerPanel />}
+
+      {/* Player layer visibility toggles — permitted layers only */}
+      {!dmMode && (
+        <PlayerLayerControls />
+      )}
 
       {/* Grid Controls - DM only */}
       {dmMode && <GridControls />}

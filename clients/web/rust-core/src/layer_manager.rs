@@ -13,20 +13,34 @@ pub struct LayerManager {
 impl LayerManager {
     pub fn new() -> Self {
         let mut layers = HashMap::new();
+        // Per-layer tint colors shown when the layer is NOT active (RGBA)
+        let tint_colors: &[(&str, [f32; 4])] = &[
+            ("map",            [0.3, 0.5, 0.8, 0.5]),
+            ("tokens",         [0.3, 0.8, 0.3, 0.5]),
+            ("dungeon_master", [0.6, 0.3, 0.8, 0.5]),
+            ("light",          [0.8, 0.8, 0.3, 0.5]),
+            ("height",         [0.6, 0.4, 0.2, 0.5]),
+            ("obstacles",      [0.8, 0.2, 0.2, 0.5]),
+            ("fog_of_war",     [0.5, 0.5, 0.5, 0.5]),
+        ];
+
         for (i, &name) in LAYER_NAMES.iter().enumerate() {
             let mut settings = LayerSettings::default();
             settings.z_order = i as i32;
-            
-            // Configure default blend modes for specific layers
+
             match name {
                 "light" => settings.blend_mode = BlendMode::Additive,
                 "fog_of_war" => settings.blend_mode = BlendMode::Multiply,
                 _ => settings.blend_mode = BlendMode::Alpha,
             }
-            
+
+            if let Some(&(_, tint)) = tint_colors.iter().find(|&&(n, _)| n == name) {
+                settings.tint_color = tint;
+            }
+
             layers.insert(name.to_string(), Layer::new_with_settings(settings));
         }
-        
+
         Self { layers }
     }
     
@@ -94,6 +108,10 @@ impl LayerManager {
     
     pub fn get_layer_settings(&self, layer_name: &str) -> Option<&LayerSettings> {
         self.layers.get(layer_name).map(|layer| &layer.settings)
+    }
+
+    pub fn get_layer_settings_mut(&mut self, layer_name: &str) -> Option<&mut LayerSettings> {
+        self.layers.get_mut(layer_name).map(|layer| &mut layer.settings)
     }
     
     pub fn add_sprite_to_layer(&mut self, layer_name: &str, sprite_data: &JsValue) -> Result<String, JsValue> {

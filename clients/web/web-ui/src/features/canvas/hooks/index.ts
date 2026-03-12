@@ -3,3 +3,4 @@
  */
 
 export { KeyboardShortcutsDisplay, useKeyboardShortcuts } from './useKeyboardShortcuts';
+export { useLayerHotkeys } from './useLayerHotkeys';

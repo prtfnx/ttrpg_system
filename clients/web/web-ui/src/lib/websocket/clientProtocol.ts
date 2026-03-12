@@ -270,6 +270,10 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.CHARACTER_ROLL_RESULT, this.handleCharacterRollResult.bind(this));
     // Dynamic lighting settings broadcast
     this.registerHandler(MessageType.TABLE_SETTINGS_CHANGED, this.handleTableSettingsChanged.bind(this));
+    // Wall segment sync
+    this.registerHandler(MessageType.WALL_DATA, this.handleWallData.bind(this));
+    // Layer settings persistence
+    this.registerHandler(MessageType.LAYER_SETTINGS_UPDATE, this.handleLayerSettingsUpdate.bind(this));
   }
 
   registerHandler(type: string, handler: MessageHandler): void {
@@ -629,6 +633,15 @@ export class WebClientProtocol {
         fog_exploration_mode: td.fog_exploration_mode ?? 'current_only',
         ambient_light_level: td.ambient_light_level ?? 1.0,
       });
+    }
+    // Sync walls on table join
+    if (Array.isArray(data?.walls) && data.walls.length > 0) {
+      useGameStore.getState().addWalls(data.walls);
+      // addWalls already forwards each wall into rustRenderManager
+    }
+    // Apply persisted layer settings on join
+    if (data?.layer_settings && typeof data.layer_settings === 'object') {
+      this.applyLayerSettings(data.layer_settings as Record<string, Record<string, any>>);
     }
     window.dispatchEvent(new CustomEvent('table-response', { detail: message.data }));
   }
@@ -1003,6 +1016,55 @@ export class WebClientProtocol {
     const data = message.data as { dynamic_lighting_enabled: boolean; fog_exploration_mode: string; ambient_light_level: number };
     useGameStore.getState().applyTableLightingSettings(data);
     window.dispatchEvent(new CustomEvent('table-settings-changed', { detail: data }));
+  }
+
+  private async handleWallData(message: Message): Promise<void> {
+    const data = message.data as { operation: string; wall?: Record<string, any>; walls?: Record<string, any>[]; wall_id?: string };
+    const store = useGameStore.getState();
+    switch (data.operation) {
+      case 'create':
+        if (data.wall) store.addWall(data.wall as any);
+        break;
+      case 'batch_create':
+      case 'join_sync':
+        if (data.walls?.length) store.addWalls(data.walls as any[]);
+        break;
+      case 'update':
+        if (data.wall?.wall_id) store.updateWall(data.wall.wall_id, data.wall as any);
+        break;
+      case 'remove':
+        if (data.wall_id) store.removeWall(data.wall_id);
+        break;
+    }
+  }
+
+  private async handleLayerSettingsUpdate(message: Message): Promise<void> {
+    const data = message.data as { layer: string; settings: Record<string, any> };
+    if (data?.layer && data?.settings) {
+      this.applyLayerSettings({ [data.layer]: data.settings });
+    }
+  }
+
+  /** Apply a map of { layerName → settings } to the WASM engine and Zustand store. */
+  private applyLayerSettings(settings: Record<string, Record<string, any>>): void {
+    const rm = window.rustRenderManager as any;
+    const store = useGameStore.getState();
+    for (const [layer, s] of Object.entries(settings)) {
+      if (s.opacity !== undefined) {
+        rm?.set_layer_opacity?.(layer, s.opacity);
+        store.setLayerOpacity(layer, s.opacity);
+      }
+      if (s.visible !== undefined) {
+        rm?.set_layer_visibility?.(layer, s.visible);
+        store.setLayerVisibility(layer, s.visible);
+      }
+      if (Array.isArray(s.tint_color) && s.tint_color.length >= 4) {
+        rm?.set_layer_tint_color?.(layer, s.tint_color[0], s.tint_color[1], s.tint_color[2], s.tint_color[3]);
+      }
+      if (s.inactive_opacity !== undefined) {
+        rm?.set_layer_inactive_opacity?.(layer, s.inactive_opacity);
+      }
+    }
   }
 
   // Public API methods for sending requests

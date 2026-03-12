@@ -79,6 +79,8 @@ class VirtualTable(Base):
     
     # Layer visibility (JSON string)
     layer_visibility = Column(Text)  # JSON: {"map": true, "tokens": true, ...}
+    # Per-layer settings (JSON string) — persistent opacity, tint, inactive_opacity per layer
+    layer_settings = Column(Text, nullable=True)  # JSON: {"tokens": {"opacity": 1.0, "tint_color": [...], ...}}
     
     # Dynamic lighting (per-table, DM-controlled)
     dynamic_lighting_enabled = Column(Boolean, default=False)
@@ -282,6 +284,38 @@ class PendingEmailChange(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User")
+
+
+class Wall(Base):
+    """Persistent wall segment — feeds directly into lighting and vision pipeline."""
+    __tablename__ = "walls"
+
+    id = Column(Integer, primary_key=True, index=True)
+    wall_id = Column(String(36), unique=True, index=True, nullable=False)   # UUID
+    table_id = Column(String(36), ForeignKey("virtual_tables.table_id"), nullable=False, index=True)
+
+    x1 = Column(Float, nullable=False)
+    y1 = Column(Float, nullable=False)
+    x2 = Column(Float, nullable=False)
+    y2 = Column(Float, nullable=False)
+
+    wall_type = Column(String(20), nullable=False, default='normal')
+    blocks_movement = Column(Boolean, nullable=False, default=True)
+    blocks_light    = Column(Boolean, nullable=False, default=True)
+    blocks_sight    = Column(Boolean, nullable=False, default=True)
+    blocks_sound    = Column(Boolean, nullable=False, default=True)
+
+    is_door    = Column(Boolean, nullable=False, default=False)
+    door_state = Column(String(10), nullable=False, default='closed')  # closed|open|locked
+    is_secret  = Column(Boolean, nullable=False, default=False)
+    direction  = Column(String(10), nullable=False, default='both')   # both|left|right
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    table = relationship("VirtualTable")
+    creator = relationship("User", foreign_keys=[created_by])
 
 
 class AuditLog(Base):

@@ -11,10 +11,6 @@ use super::visibility::{VisibilityCalculator, Point};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum LightType {
     Point,
-    #[allow(dead_code)]
-    Spot { direction: f32, arc: f32 },
-    #[allow(dead_code)]
-    Area { width: f32, height: f32 },
 }
 
 /// Light source with shadow casting

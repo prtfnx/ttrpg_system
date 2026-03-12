@@ -140,9 +140,9 @@ class GameSessionProtocolService:
             self.table_manager.add_table(test_table)
             
             # Add some test entities
-            hero = test_table.add_entity("Hero", (2, 3), layer='tokens', path_to_texture='resources/hero.png')
-            goblin = test_table.add_entity("Goblin", (5, 6), layer='tokens', path_to_texture='resources/goblin.png')
-            treasure = test_table.add_entity("Treasure", (8, 9), layer='tokens', path_to_texture='resources/treasure.png')
+            hero = test_table.add_entity({'name': 'Hero', 'x': 2, 'y': 3, 'layer': 'tokens', 'texture_path': 'resources/hero.png'})
+            goblin = test_table.add_entity({'name': 'Goblin', 'x': 5, 'y': 6, 'layer': 'tokens', 'texture_path': 'resources/goblin.png'})
+            treasure = test_table.add_entity({'name': 'Treasure', 'x': 8, 'y': 9, 'layer': 'tokens', 'texture_path': 'resources/treasure.png'})
             
             logger.info(f"Created test_table with entities:")
             logger.info(f"Hero (ID: {hero.entity_id}, Sprite: {hero.sprite_id}) at {hero.position}")
@@ -155,17 +155,17 @@ class GameSessionProtocolService:
             self.table_manager.add_table(large_table)
             
             # Add entities across different layers
-            map_bg = large_table.add_entity("Map Background1", (0, 0), layer='map', path_to_texture='resources/map.jpg', asset_id='1aeb5857b9cd3b50')
-            player1 = large_table.add_entity("Player 1", (400, 300), layer='tokens', path_to_texture='server_host/res/player1.png', asset_id='e7f80bafaaf67027')
-            player2 = large_table.add_entity("Player 2", (12, 10), layer='tokens', path_to_texture='server_host/res/player2.png')
-            dm_note = large_table.add_entity("DM Note", (25, 25), layer='dungeon_master', path_to_texture='server_host/res/note.png')
-            light_source = large_table.add_entity("Light Source", (15, 15), layer='light', path_to_texture='server_host/res/torch.png')
+            map_bg = large_table.add_entity({'name': 'Map Background1', 'x': 0, 'y': 0, 'layer': 'map', 'texture_path': 'resources/map.jpg', 'asset_id': '1aeb5857b9cd3b50'})
+            player1 = large_table.add_entity({'name': 'Player 1', 'x': 400, 'y': 300, 'layer': 'tokens', 'texture_path': 'server_host/res/player1.png', 'asset_id': 'e7f80bafaaf67027'})
+            player2 = large_table.add_entity({'name': 'Player 2', 'x': 12, 'y': 10, 'layer': 'tokens', 'texture_path': 'server_host/res/player2.png'})
+            dm_note = large_table.add_entity({'name': 'DM Note', 'x': 25, 'y': 25, 'layer': 'dungeon_master', 'texture_path': 'server_host/res/note.png'})
+            light_source = large_table.add_entity({'name': 'Light Source', 'x': 15, 'y': 15, 'layer': 'light', 'texture_path': 'server_host/res/torch.png'})
 
             # Add some more entities to make it feel populated
-            orc1 = large_table.add_entity("Orc Warrior", (20, 15), layer='tokens', path_to_texture='resources/orc.png')
-            orc2 = large_table.add_entity("Orc Archer", (22, 17), layer='tokens', path_to_texture='resources/orc_archer.png')
-            chest = large_table.add_entity("Treasure Chest", (30, 30), layer='tokens', path_to_texture='resources/chest.png')
-            trap = large_table.add_entity("Hidden Trap", (18, 18), layer='dungeon_master', path_to_texture='resources/trap.png')
+            orc1 = large_table.add_entity({'name': 'Orc Warrior', 'x': 20, 'y': 15, 'layer': 'tokens', 'texture_path': 'resources/orc.png'})
+            orc2 = large_table.add_entity({'name': 'Orc Archer', 'x': 22, 'y': 17, 'layer': 'tokens', 'texture_path': 'resources/orc_archer.png'})
+            chest = large_table.add_entity({'name': 'Treasure Chest', 'x': 30, 'y': 30, 'layer': 'tokens', 'texture_path': 'resources/chest.png'})
+            trap = large_table.add_entity({'name': 'Hidden Trap', 'x': 18, 'y': 18, 'layer': 'dungeon_master', 'texture_path': 'resources/trap.png'})
             
             logger.info(f"Created large_table (1080x1920) with {len(large_table.entities)} entities:")
             for entity in large_table.entities.values():

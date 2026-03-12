@@ -128,6 +128,16 @@ class ServerProtocol:
         if hasattr(MessageType, 'CHARACTER_ROLL'):
             self.register_handler(MessageType.CHARACTER_ROLL, self.handle_character_roll)
         
+        # Wall management (DM-only for create/update/remove; all for door_toggle)
+        self.register_handler(MessageType.WALL_CREATE,       self.handle_wall_create)
+        self.register_handler(MessageType.WALL_UPDATE,       self.handle_wall_update)
+        self.register_handler(MessageType.WALL_REMOVE,       self.handle_wall_remove)
+        self.register_handler(MessageType.WALL_BATCH_CREATE, self.handle_wall_batch_create)
+        self.register_handler(MessageType.DOOR_TOGGLE,       self.handle_door_toggle)
+
+        # Layer settings persistence (DM-only write, broadcast to all)
+        self.register_handler(MessageType.LAYER_SETTINGS_UPDATE, self.handle_layer_settings_update)
+
         # Error handling
         self.register_handler(MessageType.ERROR, self.handle_error)
         self.register_handler(MessageType.SUCCESS, self.handle_success)
@@ -747,9 +757,48 @@ class ServerProtocol:
                 layers = table_data_with_hashes.get('layers', {})
                 table_data_with_hashes['layers'] = {k: v for k, v in layers.items() if k in allowed_layers}
 
+            # Include walls for join-time sync
+            table_obj2 = (result.data or {}).get('table')
+            walls_list = []
+            if table_obj2 and hasattr(table_obj2, 'walls'):
+                walls_list = [w.to_dict() for w in table_obj2.walls.values()]
+
+            # Fall back to DB if in-memory walls are empty (e.g. after server restart)
+            if not walls_list and table_id:
+                try:
+                    from server_host.database.database import SessionLocal
+                    from server_host.database.models import Wall as WallModel
+                    _db = SessionLocal()
+                    try:
+                        db_walls = _db.query(WallModel).filter(WallModel.table_id == str(table_id)).all()
+                        walls_list = [w.to_dict() for w in db_walls if hasattr(w, 'to_dict')]
+                    finally:
+                        _db.close()
+                except Exception as _e:
+                    logger.warning(f"Could not load walls from DB for table {table_id}: {_e}")
+
+            # Include persisted layer settings for join-time sync
+            layer_settings_data = {}
+            if table_id:
+                try:
+                    from server_host.database.database import SessionLocal
+                    from server_host.database import crud as _crud
+                    import json as _json
+                    _db = SessionLocal()
+                    try:
+                        _db_table = _crud.get_virtual_table_by_id(_db, str(table_id))
+                        if _db_table and _db_table.layer_settings:
+                            layer_settings_data = _json.loads(_db_table.layer_settings)
+                    finally:
+                        _db.close()
+                except Exception as _e:
+                    logger.warning(f"Could not load layer_settings from DB: {_e}")
+
             # return message that need send to client
             return Message(MessageType.TABLE_RESPONSE, {'name': table_name, 'client_id': client_id,
-                                                            'table_data': table_data_with_hashes})
+                                                            'table_data': table_data_with_hashes,
+                                                            'walls': walls_list,
+                                                            'layer_settings': layer_settings_data})
 
     async def handle_table_settings_update(self, msg: Message, client_id: str) -> Message:
         """Handle DM request to change dynamic lighting / fog exploration settings for a table."""
@@ -820,7 +869,7 @@ class ServerProtocol:
         await self.broadcast_to_session(
             Message(MessageType.TABLE_SETTINGS_CHANGED, broadcast_data), client_id
         )
-        return Message(MessageType.SUCCESS, broadcast_data)
+        return Message(MessageType.TABLE_SETTINGS_CHANGED, broadcast_data)
 
     async def handle_table_update(self, msg: Message, client_id: str) -> Message:
         """Handle and broadcast table update with sprite movement support"""
@@ -2751,3 +2800,199 @@ class ServerProtocol:
             logger.error(f"Error setting player active table for user {user_id} in session {session_code}: {e}")
             return False
 
+    # =========================================================================
+    # WALL MANAGEMENT HANDLERS
+    # =========================================================================
+
+    async def handle_wall_create(self, msg: Message, client_id: str) -> Message:
+        """DM creates a single wall segment and persists it to the database."""
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can create walls'})
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data provided'})
+
+        table_id = msg.data.get('table_id')
+        wall_data = msg.data.get('wall_data', {})
+        if not table_id or not wall_data:
+            return Message(MessageType.ERROR, {'error': 'table_id and wall_data are required'})
+
+        user_id = self._get_user_id(msg, client_id)
+        wall_data['table_id'] = table_id
+        wall_data['created_by'] = user_id
+
+        try:
+            wall_dict = await self.actions.create_wall(table_id=table_id, wall_data=wall_data,
+                                                       session_id=self._get_session_id(msg))
+        except Exception as e:
+            logger.error(f"handle_wall_create error: {e}")
+            return Message(MessageType.ERROR, {'error': str(e)})
+
+        await self.broadcast_to_session(
+            Message(MessageType.WALL_DATA, {'operation': 'create', 'wall': wall_dict, 'table_id': table_id}),
+            client_id,
+        )
+        return Message(MessageType.WALL_DATA, {'operation': 'create', 'wall': wall_dict, 'table_id': table_id})
+
+    async def handle_wall_update(self, msg: Message, client_id: str) -> Message:
+        """DM modifies wall properties (type, blocking flags, door state, etc.)."""
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can update walls'})
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data provided'})
+
+        table_id = msg.data.get('table_id')
+        wall_id  = msg.data.get('wall_id')
+        updates  = msg.data.get('updates', {})
+        if not table_id or not wall_id:
+            return Message(MessageType.ERROR, {'error': 'table_id and wall_id are required'})
+
+        try:
+            wall_dict = await self.actions.update_wall(table_id=table_id, wall_id=wall_id, updates=updates,
+                                                       session_id=self._get_session_id(msg))
+        except Exception as e:
+            logger.error(f"handle_wall_update error: {e}")
+            return Message(MessageType.ERROR, {'error': str(e)})
+
+        await self.broadcast_to_session(
+            Message(MessageType.WALL_DATA, {'operation': 'update', 'wall': wall_dict, 'table_id': table_id}),
+            client_id,
+        )
+        return Message(MessageType.WALL_DATA, {'operation': 'update', 'wall': wall_dict, 'table_id': table_id})
+
+    async def handle_wall_remove(self, msg: Message, client_id: str) -> Message:
+        """DM removes a wall segment permanently."""
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can remove walls'})
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data provided'})
+
+        table_id = msg.data.get('table_id')
+        wall_id  = msg.data.get('wall_id')
+        if not table_id or not wall_id:
+            return Message(MessageType.ERROR, {'error': 'table_id and wall_id are required'})
+
+        try:
+            await self.actions.delete_wall(table_id=table_id, wall_id=wall_id,
+                                           session_id=self._get_session_id(msg))
+        except Exception as e:
+            logger.error(f"handle_wall_remove error: {e}")
+            return Message(MessageType.ERROR, {'error': str(e)})
+
+        await self.broadcast_to_session(
+            Message(MessageType.WALL_DATA, {'operation': 'remove', 'wall_id': wall_id, 'table_id': table_id}),
+            client_id,
+        )
+        return Message(MessageType.WALL_DATA, {'operation': 'remove', 'wall_id': wall_id, 'table_id': table_id})
+
+    async def handle_wall_batch_create(self, msg: Message, client_id: str) -> Message:
+        """DM imports many walls at once (e.g. after map import)."""
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can batch-create walls'})
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data provided'})
+
+        table_id   = msg.data.get('table_id')
+        walls_data = msg.data.get('walls', [])
+        if not table_id or not isinstance(walls_data, list):
+            return Message(MessageType.ERROR, {'error': 'table_id and walls list are required'})
+
+        user_id    = self._get_user_id(msg, client_id)
+        session_id = self._get_session_id(msg)
+        created    = []
+        for wd in walls_data:
+            try:
+                wd['table_id']    = table_id
+                wd['created_by']  = user_id
+                wall_dict = await self.actions.create_wall(table_id=table_id, wall_data=wd, session_id=session_id)
+                created.append(wall_dict)
+            except Exception as e:
+                logger.warning(f"Skipping wall in batch due to error: {e}")
+
+        await self.broadcast_to_session(
+            Message(MessageType.WALL_DATA, {'operation': 'batch_create', 'walls': created, 'table_id': table_id}),
+            client_id,
+        )
+        return Message(MessageType.WALL_DATA, {'operation': 'batch_create', 'walls': created, 'table_id': table_id})
+
+    async def handle_door_toggle(self, msg: Message, client_id: str) -> Message:
+        """Toggle a door between open/closed.  Players can interact; locked doors require DM."""
+        role = self._get_client_role(client_id)
+        if not can_interact(role):
+            return Message(MessageType.ERROR, {'error': 'Spectators cannot interact with doors'})
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data provided'})
+
+        table_id = msg.data.get('table_id')
+        wall_id  = msg.data.get('wall_id')
+        if not table_id or not wall_id:
+            return Message(MessageType.ERROR, {'error': 'table_id and wall_id are required'})
+
+        # Validate this is actually a door — load from in-memory table walls
+        table = self.table_manager.tables_id.get(table_id) or self.table_manager.tables.get(table_id)
+        if table is None:
+            return Message(MessageType.ERROR, {'error': 'Table not found'})
+
+        wall = table.get_wall(wall_id) if hasattr(table, 'get_wall') else None
+        if wall is None:
+            return Message(MessageType.ERROR, {'error': 'Wall not found'})
+        if not wall.is_door:
+            return Message(MessageType.ERROR, {'error': 'This wall is not a door'})
+        if wall.door_state == 'locked' and not is_dm(role):
+            return Message(MessageType.ERROR, {'error': 'Door is locked — only the DM can open it'})
+
+        new_state = 'closed' if wall.door_state == 'open' else 'open'
+        try:
+            wall_dict = await self.actions.update_wall(
+                table_id=table_id, wall_id=wall_id,
+                updates={'door_state': new_state},
+                session_id=self._get_session_id(msg),
+            )
+        except Exception as e:
+            logger.error(f"handle_door_toggle error: {e}")
+            return Message(MessageType.ERROR, {'error': str(e)})
+
+        await self.broadcast_to_session(
+            Message(MessageType.WALL_DATA, {'operation': 'update', 'wall': wall_dict, 'table_id': table_id}),
+            client_id,
+        )
+        return Message(MessageType.WALL_DATA, {'operation': 'update', 'wall': wall_dict, 'table_id': table_id})
+
+    async def handle_layer_settings_update(self, msg: Message, client_id: str) -> Message:
+        """DM updates per-layer settings (opacity, tint_color, inactive_opacity, visible).
+        Saves to DB and broadcasts to all clients in the session."""
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can change layer settings'})
+        if not msg.data:
+            return Message(MessageType.ERROR, {'error': 'No data provided'})
+
+        table_id = msg.data.get('table_id')
+        layer    = msg.data.get('layer')
+        settings = msg.data.get('settings', {})
+        if not table_id or not layer:
+            return Message(MessageType.ERROR, {'error': 'table_id and layer are required'})
+
+        session_id = self._get_session_id(msg)
+        if session_id:
+            try:
+                from server_host.database.database import SessionLocal
+                from server_host.database import crud, schemas
+                import json as _json
+                db = SessionLocal()
+                try:
+                    db_table = crud.get_virtual_table_by_id(db, table_id)
+                    if db_table:
+                        existing = _json.loads(db_table.layer_settings or '{}')
+                        existing[layer] = settings
+                        update = schemas.VirtualTableUpdate(layer_settings=existing)
+                        crud.update_virtual_table(db, table_id, update)
+                finally:
+                    db.close()
+            except Exception as e:
+                logger.error(f"handle_layer_settings_update DB error: {e}")
+
+        broadcast_payload = {'table_id': table_id, 'layer': layer, 'settings': settings}
+        await self.broadcast_to_session(
+            Message(MessageType.LAYER_SETTINGS_UPDATE, broadcast_payload),
+            client_id,
+        )
+        return Message(MessageType.LAYER_SETTINGS_UPDATE, broadcast_payload)

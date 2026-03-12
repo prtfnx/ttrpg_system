@@ -22,6 +22,7 @@ use crate::paint::PaintSystem;
 use crate::utils;
 use crate::table_sync::TableSync;
 use crate::table_manager::TableManager;
+use crate::wall_manager::WallManager;
 
 fn parse_hex_color(hex: &str) -> Option<crate::types::Color> {
     let s = hex.trim_start_matches('#');
@@ -70,6 +71,12 @@ pub struct RenderEngine {
     // Table management
     table_manager: TableManager,
     
+    // Wall segments
+    wall_manager: WallManager,
+
+    // Dirty flag — set whenever obstacles may have changed
+    obstacles_dirty: bool,
+
     // Rendering settings
     background_color: [f32; 4], // RGBA background color
     is_gm: bool,
@@ -154,7 +161,8 @@ impl RenderEngine {
         let actions = ActionsClient::new();
         let paint = PaintSystem::new();
         let table_sync = TableSync::new();
-        let table_manager = TableManager::new();        
+        let table_manager = TableManager::new();
+        let wall_manager = WallManager::new();        
         let canvas_size = Vec2::new(canvas.width() as f32, canvas.height() as f32);
         let camera = Camera::default();
         let view_matrix = camera.view_matrix(canvas_size);
@@ -176,6 +184,8 @@ impl RenderEngine {
             paint,
             table_sync,
             table_manager,
+            wall_manager,
+            obstacles_dirty: true,
             background_color: [0.1, 0.1, 0.1, 1.0], // Default dark gray background
             is_gm: false,
             current_user_id: None,
@@ -303,7 +313,7 @@ impl RenderEngine {
             if *layer_name == "map" && layer.settings.visible {
                 self.renderer.set_blend_mode(&layer.settings.blend_mode);
                 self.renderer.set_layer_color(&layer.settings.color);
-                let effective_opacity = Self::get_effective_layer_opacity(layer_name, layer.settings.opacity, &active_layer);
+                let effective_opacity = Self::get_effective_layer_opacity(&layer.settings, layer_name, &active_layer);
                 for sprite in &layer.sprites {
                     if sprite.table_id == active_table_id {
                         SpriteRenderer::draw_sprite(sprite, effective_opacity, &self.renderer, &self.texture_manager, &self.text_renderer, &self.input, self.camera.zoom)?;
@@ -326,7 +336,7 @@ impl RenderEngine {
             {
                 self.renderer.set_blend_mode(&layer.settings.blend_mode);
                 self.renderer.set_layer_color(&layer.settings.color);
-                let effective_opacity = Self::get_effective_layer_opacity(layer_name, layer.settings.opacity, &active_layer);
+                let effective_opacity = Self::get_effective_layer_opacity(&layer.settings, layer_name, &active_layer);
                 
                 // Only render sprites that belong to the active table
                 for sprite in &layer.sprites {
@@ -337,8 +347,11 @@ impl RenderEngine {
             }
         }
 
-        // Extract obstacles for lighting shadows
-        self.update_lighting_obstacles();
+        // Extract obstacles for lighting shadows (only when something changed)
+        if self.obstacles_dirty {
+            self.update_lighting_obstacles();
+            self.obstacles_dirty = false;
+        }
         
         // web_sys::console::log_1(&"[RENDER-ORDER] 1️⃣ About to render lighting".into());
         // Render lighting system with shadow casting (filtered by active table)
@@ -389,6 +402,16 @@ impl RenderEngine {
                 _ => {}
             }
         }
+
+        // Wall draw preview line (two-click placement)
+        if let Some((start, end)) = self.input.get_wall_preview_line() {
+            SpriteRenderer::draw_line_preview(start, end, &self.renderer)?;
+        }
+
+        // Polygon creation preview
+        if self.input.input_mode == InputMode::CreatePolygon && !self.input.polygon_vertices.is_empty() {
+            SpriteRenderer::draw_polygon_preview(&self.input.polygon_vertices, self.input.polygon_cursor, &self.renderer)?;
+        }
         
         Ok(())
     }
@@ -423,25 +446,12 @@ impl RenderEngine {
     }
 
     /// Returns the effective opacity for a layer based on which layer is currently active.
-    /// Some layers are dimmed when they are not the selected/active layer.
-    fn get_effective_layer_opacity(layer_name: &str, base_opacity: f32, active_layer: &str) -> f32 {
-        let is_active = layer_name == active_layer;
-        match layer_name {
-            // DM layer: 50% transparent (0.5 opacity) when not active, full when active
-            "dungeon_master" => {
-                if is_active { base_opacity } else { base_opacity * 0.5 }
-            }
-            // Height layer: 50% transparent when not active
-            "height" => {
-                if is_active { base_opacity } else { base_opacity * 0.5 }
-            }
-            // Obstacle layer: 70% transparent (0.3 opacity) when not active
-            "obstacles" => {
-                if is_active { base_opacity } else { base_opacity * 0.3 }
-            }
-            // Map, tokens, light — always use base opacity
-            _ => base_opacity,
+    /// Uses `inactive_opacity` from layer settings; falls back to legacy hard-coded values.
+    fn get_effective_layer_opacity(layer_settings: &crate::types::LayerSettings, layer_name: &str, active_layer: &str) -> f32 {
+        if layer_name == active_layer {
+            return layer_settings.opacity;
         }
+        layer_settings.opacity * layer_settings.inactive_opacity
     }
     
     #[wasm_bindgen]
@@ -450,40 +460,53 @@ impl RenderEngine {
         vec![bounds.min.x as f64, bounds.min.y as f64, (bounds.max.x - bounds.min.x) as f64, (bounds.max.y - bounds.min.y) as f64]
     }
     
-    /// Extract obstacles from sprites for shadow casting
-    /// Converts sprite bounds to line segments for visibility calculations
+    /// Extract obstacles from sprites for shadow casting.
+    /// Applies rotation and scale so rotated/scaled sprites cast correct shadows.
     fn update_lighting_obstacles(&mut self) {
         let mut obstacles = Vec::new();
-        
-        // Extract obstacles from the "obstacles" layer
+
         if let Some(obstacles_layer) = self.layer_manager.get_layer("obstacles") {
-            // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] ✅ Found 'obstacles' layer with {} sprites", 
-            //     obstacles_layer.sprites.len()).into());
-            
             for sprite in &obstacles_layer.sprites {
-                // web_sys::console::log_1(&format!("[LIGHTING-DEBUG]   - Sprite '{}' at ({}, {}) size {}x{}", 
-                //     sprite.id, sprite.world_x, sprite.world_y, sprite.width, sprite.height).into());
-                
-                // IMPORTANT: world_x and world_y are TOP-LEFT corner, not center!
-                // Convert sprite bounds to 4 line segments (rectangle)
-                let x = sprite.world_x as f32;
-                let y = sprite.world_y as f32;
-                let w = sprite.width as f32;
-                let h = sprite.height as f32;
-                
-                // Four corners of the sprite (top-left origin)
-                let corners = [
-                    Vec2::new(x, y),         // Top-left
-                    Vec2::new(x + w, y),     // Top-right
-                    Vec2::new(x + w, y + h), // Bottom-right
-                    Vec2::new(x, y + h),     // Bottom-left
-                ];
-                
-                // web_sys::console::log_1(&format!("[LIGHTING-DEBUG]     Corners: TL({:.1},{:.1}) TR({:.1},{:.1}) BR({:.1},{:.1}) BL({:.1},{:.1})", 
-                //     corners[0].x, corners[0].y, corners[1].x, corners[1].y, 
-                //     corners[2].x, corners[2].y, corners[3].x, corners[3].y).into());
-                
-                // Add four edges as line segments
+                // Polygon obstacle: use stored world-space vertices directly
+                if sprite.obstacle_type.as_deref() == Some("polygon") {
+                    if let Some(verts) = &sprite.polygon_vertices {
+                        if verts.len() >= 2 {
+                            let n = verts.len();
+                            for i in 0..n {
+                                let next = (i + 1) % n;
+                                obstacles.push(verts[i][0]);
+                                obstacles.push(verts[i][1]);
+                                obstacles.push(verts[next][0]);
+                                obstacles.push(verts[next][1]);
+                            }
+                        }
+                    }
+                    continue;
+                }
+
+                // Rectangle (default): use scaled+rotated AABB corners
+                let w = (sprite.width * sprite.scale_x) as f32;
+                let h = (sprite.height * sprite.scale_y) as f32;
+
+                let cx = sprite.world_x as f32 + w / 2.0;
+                let cy = sprite.world_y as f32 + h / 2.0;
+
+                let half_w = w / 2.0;
+                let half_h = h / 2.0;
+
+                let angle = sprite.rotation as f32;
+                let cos_a = angle.cos();
+                let sin_a = angle.sin();
+
+                let raw = [(-half_w, -half_h), (half_w, -half_h), (half_w, half_h), (-half_w, half_h)];
+                let corners: [Vec2; 4] = std::array::from_fn(|i| {
+                    let (dx, dy) = raw[i];
+                    Vec2::new(
+                        cx + dx * cos_a - dy * sin_a,
+                        cy + dx * sin_a + dy * cos_a,
+                    )
+                });
+
                 for i in 0..4 {
                     let next = (i + 1) % 4;
                     obstacles.push(corners[i].x);
@@ -492,14 +515,16 @@ impl RenderEngine {
                     obstacles.push(corners[next].y);
                 }
             }
-        } else {
-            web_sys::console::error_1(&"[LIGHTING-DEBUG] ❌ ERROR: 'obstacles' layer NOT FOUND!".into());
         }
-        
-        // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 📊 Sending {} obstacle segments ({} floats) to lighting system", 
-        //     obstacles.len() / 4, obstacles.len()).into());
-        
-        // Update lighting system with obstacles
+
+        // Append wall segments that block light/sight
+        for seg in self.wall_manager.get_light_blocking_segments().chunks(4) {
+            obstacles.push(seg[0]);
+            obstacles.push(seg[1]);
+            obstacles.push(seg[2]);
+            obstacles.push(seg[3]);
+        }
+
         self.lighting.set_obstacles(&obstacles);
     }
     
@@ -823,11 +848,11 @@ impl RenderEngine {
                                 
                                 // Get shape settings from window
                                 let (color, opacity, filled) = self.get_shape_settings();
-                                
+                                let active_layer = self.active_layer.clone();
+
                                 // Create sprite locally in Rust for immediate visibility
-                                let sprite_id = self.create_rectangle_sprite_with_options(x, y, width, height, "tokens", &color, opacity, filled);
-                                web_sys::console::log_1(&format!("[RUST] Created rectangle sprite with ID: {}", sprite_id).into());
-                                
+                                let sprite_id = self.create_rectangle_sprite_with_options(x, y, width, height, &active_layer, &color, opacity, filled);
+
                                 // Send to server via gameAPI for synchronization
                                 if let Some(window) = web_sys::window() {
                                     if let Ok(game_api) = js_sys::Reflect::get(&window, &"gameAPI".into()) {
@@ -839,10 +864,17 @@ impl RenderEngine {
                                                 js_sys::Reflect::set(&sprite_data, &"y".into(), &y.into()).unwrap();
                                                 js_sys::Reflect::set(&sprite_data, &"width".into(), &width.into()).unwrap();
                                                 js_sys::Reflect::set(&sprite_data, &"height".into(), &height.into()).unwrap();
-                                                js_sys::Reflect::set(&sprite_data, &"layer".into(), &"tokens".into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"layer".into(), &active_layer.as_str().into()).unwrap();
                                                 js_sys::Reflect::set(&sprite_data, &"texture_path".into(), &"".into()).unwrap();
-                                                js_sys::Reflect::set(&sprite_data, &"color".into(), &"#50C878".into()).unwrap(); // Light green
-                                                
+                                                js_sys::Reflect::set(&sprite_data, &"color".into(), &color.as_str().into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"obstacle_type".into(), &"rectangle".into()).unwrap();
+                                                let obs = js_sys::Object::new();
+                                                js_sys::Reflect::set(&obs, &"x".into(), &x.into()).unwrap();
+                                                js_sys::Reflect::set(&obs, &"y".into(), &y.into()).unwrap();
+                                                js_sys::Reflect::set(&obs, &"width".into(), &width.into()).unwrap();
+                                                js_sys::Reflect::set(&obs, &"height".into(), &height.into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"obstacle_data".into(), &obs).unwrap();
+
                                                 let _ = send_fn.call2(&game_api, &"sprite_create".into(), &sprite_data);
                                             }
                                         }
@@ -868,11 +900,11 @@ impl RenderEngine {
                                 
                                 // Get shape settings from window
                                 let (color, opacity, filled) = self.get_shape_settings();
-                                
+                                let active_layer = self.active_layer.clone();
+
                                 // Create sprite locally in Rust for immediate visibility
-                                let sprite_id = self.create_circle_sprite_with_options(x, y, radius, "tokens", &color, opacity, filled);
-                                web_sys::console::log_1(&format!("[RUST] Created circle sprite with ID: {}", sprite_id).into());
-                                
+                                let sprite_id = self.create_circle_sprite_with_options(x, y, radius, &active_layer, &color, opacity, filled);
+
                                 // Send to server via gameAPI for synchronization
                                 let diameter = radius * 2.0;
                                 if let Some(window) = web_sys::window() {
@@ -881,15 +913,20 @@ impl RenderEngine {
                                             if let Ok(send_fn) = send_message.dyn_into::<js_sys::Function>() {
                                                 let sprite_data = js_sys::Object::new();
                                                 js_sys::Reflect::set(&sprite_data, &"id".into(), &sprite_id.into()).unwrap();
-                                                js_sys::Reflect::set(&sprite_data, &"x".into(), &(x - radius).into()).unwrap(); // Center to top-left
-                                                js_sys::Reflect::set(&sprite_data, &"y".into(), &(y - radius).into()).unwrap(); // Center to top-left
+                                                js_sys::Reflect::set(&sprite_data, &"x".into(), &(x - radius).into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"y".into(), &(y - radius).into()).unwrap();
                                                 js_sys::Reflect::set(&sprite_data, &"width".into(), &diameter.into()).unwrap();
                                                 js_sys::Reflect::set(&sprite_data, &"height".into(), &diameter.into()).unwrap();
-                                                js_sys::Reflect::set(&sprite_data, &"layer".into(), &"tokens".into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"layer".into(), &active_layer.as_str().into()).unwrap();
                                                 js_sys::Reflect::set(&sprite_data, &"texture_path".into(), &"".into()).unwrap();
-                                                js_sys::Reflect::set(&sprite_data, &"color".into(), &"#4A90E2".into()).unwrap(); // Blue
-                                                js_sys::Reflect::set(&sprite_data, &"shape".into(), &"circle".into()).unwrap(); // Mark as circle
-                                                
+                                                js_sys::Reflect::set(&sprite_data, &"color".into(), &color.as_str().into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"obstacle_type".into(), &"circle".into()).unwrap();
+                                                let obs = js_sys::Object::new();
+                                                js_sys::Reflect::set(&obs, &"cx".into(), &x.into()).unwrap();
+                                                js_sys::Reflect::set(&obs, &"cy".into(), &y.into()).unwrap();
+                                                js_sys::Reflect::set(&obs, &"radius".into(), &radius.into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"obstacle_data".into(), &obs).unwrap();
+
                                                 let _ = send_fn.call2(&game_api, &"sprite_create".into(), &sprite_data);
                                             }
                                         }
@@ -916,17 +953,17 @@ impl RenderEngine {
                                 
                                 // Get shape settings from window
                                 let (color, opacity, _) = self.get_shape_settings(); // Lines don't use filled
-                                
+                                let active_layer = self.active_layer.clone();
+
                                 // Create sprite locally in Rust for immediate visibility
-                                let sprite_id = self.create_line_sprite_with_options(x1, y1, x2, y2, "tokens", &color, opacity);
-                                web_sys::console::log_1(&format!("[RUST] Created line sprite with ID: {}", sprite_id).into());
-                                
+                                let sprite_id = self.create_line_sprite_with_options(x1, y1, x2, y2, &active_layer, &color, opacity);
+
                                 // Send to server via gameAPI for synchronization
                                 let min_x = x1.min(x2);
                                 let min_y = y1.min(y2);
-                                let width = (x2 - x1).abs().max(2.0); // Minimum width for visibility
-                                let height = (y2 - y1).abs().max(2.0); // Minimum height for visibility
-                                
+                                let width = (x2 - x1).abs().max(2.0);
+                                let height = (y2 - y1).abs().max(2.0);
+
                                 if let Some(window) = web_sys::window() {
                                     if let Ok(game_api) = js_sys::Reflect::get(&window, &"gameAPI".into()) {
                                         if let Ok(send_message) = js_sys::Reflect::get(&game_api, &"sendMessage".into()) {
@@ -937,15 +974,17 @@ impl RenderEngine {
                                                 js_sys::Reflect::set(&sprite_data, &"y".into(), &min_y.into()).unwrap();
                                                 js_sys::Reflect::set(&sprite_data, &"width".into(), &width.into()).unwrap();
                                                 js_sys::Reflect::set(&sprite_data, &"height".into(), &height.into()).unwrap();
-                                                js_sys::Reflect::set(&sprite_data, &"layer".into(), &"tokens".into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"layer".into(), &active_layer.as_str().into()).unwrap();
                                                 js_sys::Reflect::set(&sprite_data, &"texture_path".into(), &"".into()).unwrap();
-                                                js_sys::Reflect::set(&sprite_data, &"color".into(), &"#E74C3C".into()).unwrap(); // Red
-                                                js_sys::Reflect::set(&sprite_data, &"shape".into(), &"line".into()).unwrap(); // Mark as line
-                                                js_sys::Reflect::set(&sprite_data, &"line_start_x".into(), &x1.into()).unwrap(); // Store original line coordinates
-                                                js_sys::Reflect::set(&sprite_data, &"line_start_y".into(), &y1.into()).unwrap();
-                                                js_sys::Reflect::set(&sprite_data, &"line_end_x".into(), &x2.into()).unwrap();
-                                                js_sys::Reflect::set(&sprite_data, &"line_end_y".into(), &y2.into()).unwrap();
-                                                
+                                                js_sys::Reflect::set(&sprite_data, &"color".into(), &color.as_str().into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"obstacle_type".into(), &"line".into()).unwrap();
+                                                let obs = js_sys::Object::new();
+                                                js_sys::Reflect::set(&obs, &"x1".into(), &x1.into()).unwrap();
+                                                js_sys::Reflect::set(&obs, &"y1".into(), &y1.into()).unwrap();
+                                                js_sys::Reflect::set(&obs, &"x2".into(), &x2.into()).unwrap();
+                                                js_sys::Reflect::set(&obs, &"y2".into(), &y2.into()).unwrap();
+                                                js_sys::Reflect::set(&sprite_data, &"obstacle_data".into(), &obs).unwrap();
+
                                                 let _ = send_fn.call2(&game_api, &"sprite_create".into(), &sprite_data);
                                             }
                                         }
@@ -972,14 +1011,20 @@ impl RenderEngine {
     // Sprite management methods
     #[wasm_bindgen]
     pub fn add_sprite_to_layer(&mut self, layer_name: &str, sprite_data: &JsValue) -> Result<String, JsValue> {
-        self.layer_manager.add_sprite_to_layer(layer_name, sprite_data)
+        let result = self.layer_manager.add_sprite_to_layer(layer_name, sprite_data);
+        if result.is_ok() && layer_name == "obstacles" { self.obstacles_dirty = true; }
+        result
     }
     
     #[wasm_bindgen]
     pub fn remove_sprite(&mut self, sprite_id: &str) -> bool {
+        let on_obstacles = self.layer_manager.find_sprite(sprite_id).map(|(_, l)| l == "obstacles").unwrap_or(false);
         let result = self.layer_manager.remove_sprite(sprite_id);
-        if result && self.input.selected_sprite_id.as_ref() == Some(&sprite_id.to_string()) {
-            self.input.selected_sprite_id = None;
+        if result {
+            if self.input.selected_sprite_id.as_ref() == Some(&sprite_id.to_string()) {
+                self.input.selected_sprite_id = None;
+            }
+            if on_obstacles { self.obstacles_dirty = true; }
         }
         result
     }
@@ -1213,6 +1258,53 @@ impl RenderEngine {
         self.active_layer.clone()
     }
 
+    // ===== WALL MANAGEMENT =====
+
+    /// Add or replace a wall from a JSON object string.
+    /// Returns true if the wall was successfully parsed and stored.
+    #[wasm_bindgen]
+    pub fn add_wall(&mut self, wall_json: &str) -> bool {
+        let ok = self.wall_manager.add_wall_from_json(wall_json);
+        if ok { self.obstacles_dirty = true; }
+        ok
+    }
+
+    /// Remove a wall by its UUID string.
+    #[wasm_bindgen]
+    pub fn remove_wall(&mut self, wall_id: &str) -> bool {
+        let removed = self.wall_manager.remove_wall(wall_id);
+        if removed { self.obstacles_dirty = true; }
+        removed
+    }
+
+    /// Update mutable fields of a wall from a partial JSON object.
+    #[wasm_bindgen]
+    pub fn update_wall(&mut self, wall_id: &str, updates_json: &str) -> bool {
+        let ok = self.wall_manager.update_from_json(wall_id, updates_json);
+        if ok { self.obstacles_dirty = true; }
+        ok
+    }
+
+    /// Clear all walls (e.g. on table switch).
+    #[wasm_bindgen]
+    pub fn clear_walls(&mut self) {
+        self.wall_manager.clear();
+        self.obstacles_dirty = true;
+    }
+
+    /// Returns wall render data as a flat Float32Array: [x1,y1,x2,y2,r,g,b,a, ...] per wall.
+    #[wasm_bindgen]
+    pub fn get_wall_render_data(&self) -> js_sys::Float32Array {
+        let data = self.wall_manager.get_render_data();
+        js_sys::Float32Array::from(data.as_slice())
+    }
+
+    /// Number of currently loaded walls.
+    #[wasm_bindgen]
+    pub fn get_wall_count(&self) -> usize {
+        self.wall_manager.count()
+    }
+
     #[wasm_bindgen]
     pub fn set_current_user_id(&mut self, user_id: i32) {
         self.current_user_id = Some(user_id);
@@ -1344,6 +1436,8 @@ impl RenderEngine {
             InputMode::CreateLine => "create_line".to_string(),
             InputMode::CreateText => "create_text".to_string(),
             InputMode::Paint => "paint".to_string(),
+            InputMode::DrawWall => "draw_wall".to_string(),
+            InputMode::CreatePolygon => "create_polygon".to_string(),
         }
     }
 
@@ -1397,6 +1491,79 @@ impl RenderEngine {
     pub fn set_input_mode_paint(&mut self) {
         self.input.input_mode = InputMode::Paint;
         web_sys::console::log_1(&"[RUST] Input mode set to Paint".into());
+    }
+
+    #[wasm_bindgen]
+    pub fn set_input_mode_draw_wall(&mut self) {
+        self.input.input_mode = InputMode::DrawWall;
+        self.input.cancel_wall_draw();
+        web_sys::console::log_1(&"[RUST] Input mode set to DrawWall".into());
+    }
+
+    #[wasm_bindgen]
+    pub fn set_input_mode_create_polygon(&mut self) {
+        self.input.input_mode = InputMode::CreatePolygon;
+        self.input.cancel_polygon();
+        web_sys::console::log_1(&"[RUST] Input mode set to CreatePolygon".into());
+    }
+
+    #[wasm_bindgen]
+    pub fn cancel_polygon_creation(&mut self) {
+        self.input.cancel_polygon();
+        self.input.input_mode = InputMode::None;
+    }
+
+    #[wasm_bindgen]
+    pub fn undo_polygon_vertex(&mut self) {
+        self.input.undo_polygon_vertex();
+    }
+
+    /// Create a polygon obstacle sprite from world-space vertices (flat [x0,y0,x1,y1,...]).
+    /// Returns the new sprite ID or an empty string on failure.
+    #[wasm_bindgen]
+    pub fn create_polygon_sprite(&mut self, vertices_flat: &[f32], layer: &str, table_id: &str) -> String {
+        if vertices_flat.len() < 6 { return String::new(); } // need ≥3 vertices
+
+        // Compute AABB bounding box to place the sprite anchor
+        let xs: Vec<f32> = vertices_flat.iter().step_by(2).copied().collect();
+        let ys: Vec<f32> = vertices_flat.iter().skip(1).step_by(2).copied().collect();
+        let min_x = xs.iter().cloned().fold(f32::INFINITY, f32::min);
+        let max_x = xs.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+        let min_y = ys.iter().cloned().fold(f32::INFINITY, f32::min);
+        let max_y = ys.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+
+        let id = format!("polygon_{}", (js_sys::Math::random() * 1e15) as u64);
+        let verts: Vec<[f32; 2]> = vertices_flat.chunks(2).map(|c| [c[0], c[1]]).collect();
+
+        let sprite = crate::types::Sprite {
+            id: id.clone(),
+            table_id: table_id.to_string(),
+            world_x: min_x as f64,
+            world_y: min_y as f64,
+            width: (max_x - min_x) as f64,
+            height: (max_y - min_y) as f64,
+            scale_x: 1.0,
+            scale_y: 1.0,
+            rotation: 0.0,
+            layer: layer.to_string(),
+            texture_id: String::new(),
+            tint_color: [0.2, 0.2, 0.8, 0.5], // semi-transparent blue fill hint
+            obstacle_type: Some("polygon".to_string()),
+            polygon_vertices: Some(verts),
+            character_id: None,
+            controlled_by: Vec::new(),
+            hp: None, max_hp: None, ac: None,
+            aura_radius: None, aura_color: None,
+            is_text_sprite: None, text_content: None, text_size: None, text_color: None,
+        };
+
+        if let Some(layer_obj) = self.layer_manager.get_layer_mut(layer) {
+            layer_obj.sprites.push(sprite);
+            if layer == "obstacles" { self.obstacles_dirty = true; }
+            id
+        } else {
+            String::new()
+        }
     }
 
     #[wasm_bindgen]
@@ -1467,17 +1634,7 @@ impl RenderEngine {
             texture_id: texture_name, // Use procedural rectangle texture
             tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
             table_id: active_table_id,
-            character_id: None,
-            controlled_by: Vec::new(),
-            hp: None,
-            max_hp: None,
-            ac: None,
-            aura_radius: None,
-            aura_color: None,
-            is_text_sprite: None,
-            text_content: None,
-            text_size: None,
-            text_color: None,
+            ..Default::default()
         };
         
         web_sys::console::log_1(&format!("[RUST] Created sprite {}, adding to layer '{}'", sprite_id, layer_name).into());
@@ -1525,17 +1682,7 @@ impl RenderEngine {
             texture_id: texture_name, // Use procedural circle texture
             tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
             table_id: active_table_id,
-            character_id: None,
-            controlled_by: Vec::new(),
-            hp: None,
-            max_hp: None,
-            ac: None,
-            aura_radius: None,
-            aura_color: None,
-            is_text_sprite: None,
-            text_content: None,
-            text_size: None,
-            text_color: None,
+            ..Default::default()
         };
         
         // Convert to JsValue for layer manager
@@ -1592,17 +1739,7 @@ impl RenderEngine {
             texture_id: texture_name, // Use procedural line texture
             tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
             table_id: active_table_id,
-            character_id: None,
-            controlled_by: Vec::new(),
-            hp: None,
-            max_hp: None,
-            ac: None,
-            aura_radius: None,
-            aura_color: None,
-            is_text_sprite: None,
-            text_content: None,
-            text_size: None,
-            text_color: None,
+            ..Default::default()
         };
         
         // Convert to JsValue for layer manager
@@ -1688,6 +1825,7 @@ impl RenderEngine {
             text_content: Some(text.to_string()),
             text_size: Some(font_size as f64),
             text_color: Some(text_color),
+            ..Default::default()
         };
         
         web_sys::console::log_1(&format!("[RUST] Created text sprite {}, adding to layer '{}'", sprite_id, layer_name).into());
@@ -1779,17 +1917,7 @@ impl RenderEngine {
             texture_id: network_data.texture_name,
             tint_color: [1.0, 1.0, 1.0, 1.0],
             table_id: active_table_id,
-            character_id: None,
-            controlled_by: Vec::new(),
-            hp: None,
-            max_hp: None,
-            ac: None,
-            aura_radius: None,
-            aura_color: None,
-            is_text_sprite: None,
-            text_content: None,
-            text_size: None,
-            text_color: None,
+            ..Default::default()
         };
         
         let sprite_js = serde_wasm_bindgen::to_value(&sprite)?;
@@ -1934,6 +2062,7 @@ impl RenderEngine {
 
     #[wasm_bindgen]
     pub fn move_sprite_to_layer_action(&mut self, sprite_id: &str, new_layer: &str) -> JsValue {
+        let old_layer_is_obstacles = self.layer_manager.find_sprite(sprite_id).map(|(_, l)| l == "obstacles").unwrap_or(false);
         let result = self.actions.move_sprite_to_layer(sprite_id, new_layer);
         
         // If successful, also move in layer manager
@@ -1943,6 +2072,7 @@ impl RenderEngine {
                 let moved = self.layer_manager.move_sprite_to_layer(sprite_id, new_layer);
                 if moved {
                     web_sys::console::log_1(&format!("✅ Sprite {} successfully moved to layer {} in both actions and layer manager", sprite_id, new_layer).into());
+                    if old_layer_is_obstacles || new_layer == "obstacles" { self.obstacles_dirty = true; }
                 } else {
                     web_sys::console::warn_1(&format!("⚠️ Sprite {} moved in actions but not found in layer manager", sprite_id).into());
                 }
@@ -2051,7 +2181,29 @@ impl RenderEngine {
     pub fn set_layer_color(&mut self, layer_name: &str, r: f32, g: f32, b: f32) -> bool {
         self.layer_manager.set_layer_color(layer_name, r, g, b)
     }
-    
+
+    /// Set the RGBA tint applied to inactive layers (shown when layer is not active)
+    #[wasm_bindgen]
+    pub fn set_layer_tint_color(&mut self, layer_name: &str, r: f32, g: f32, b: f32, a: f32) -> bool {
+        if let Some(settings) = self.layer_manager.get_layer_settings_mut(layer_name) {
+            settings.tint_color = [r.clamp(0.0, 1.0), g.clamp(0.0, 1.0), b.clamp(0.0, 1.0), a.clamp(0.0, 1.0)];
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Set the opacity multiplier applied to a layer when it is not the active layer
+    #[wasm_bindgen]
+    pub fn set_layer_inactive_opacity(&mut self, layer_name: &str, opacity: f32) -> bool {
+        if let Some(settings) = self.layer_manager.get_layer_settings_mut(layer_name) {
+            settings.inactive_opacity = opacity.clamp(0.0, 1.0);
+            true
+        } else {
+            false
+        }
+    }
+
     #[wasm_bindgen]
     pub fn get_layer_settings(&self, layer_name: &str) -> JsValue {
         if let Some(settings) = self.layer_manager.get_layer_settings(layer_name) {
@@ -2245,6 +2397,8 @@ impl RenderEngine {
                     text_content: None,
                     text_size: None,
                     text_color: None,
+                    obstacle_type: None,
+                    polygon_vertices: None,
                 };                    // Convert sprite to JsValue and add to layer manager
                     if let Ok(sprite_js) = serde_wasm_bindgen::to_value(&sprite) {
                         match self.layer_manager.add_sprite_to_layer(layer_name, &sprite_js) {
@@ -2426,6 +2580,8 @@ impl RenderEngine {
             text_content: None,
             text_size: None,
             text_color: None,
+            obstacle_type: None,
+            polygon_vertices: None,
         };
 
         let sprite_js = serde_wasm_bindgen::to_value(&sprite)?;

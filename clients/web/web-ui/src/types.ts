@@ -145,7 +145,9 @@ export type ToolType =
   | 'text'          // Create text sprites
   | 'align'         // Alignment helper tool
   | 'draw_shapes'   // Drawing shapes tool
-  | 'spell_templates'; // Spell templates tool
+  | 'spell_templates' // Spell templates tool
+  | 'draw_wall'     // Draw wall obstacle tool
+  | 'draw_polygon'; // Draw polygon obstacle tool
 
 export interface ToolState {
   activeTool: ToolType;

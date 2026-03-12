@@ -2,7 +2,7 @@
 Pydantic schemas for API models
 """
 from pydantic import BaseModel, EmailStr, ConfigDict
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict, Tuple, Any
 from datetime import datetime
 
 # User schemas
@@ -118,6 +118,7 @@ class VirtualTableBase(BaseModel):
     scale_x: float = 1.0
     scale_y: float = 1.0
     layer_visibility: Optional[Dict[str, bool]] = None
+    layer_settings: Optional[Dict[str, Any]] = None
     dynamic_lighting_enabled: bool = False
     fog_exploration_mode: str = 'current_only'
     ambient_light_level: float = 1.0
@@ -134,6 +135,7 @@ class VirtualTableUpdate(BaseModel):
     scale_x: Optional[float] = None
     scale_y: Optional[float] = None
     layer_visibility: Optional[Dict[str, bool]] = None
+    layer_settings: Optional[Dict[str, Any]] = None
     dynamic_lighting_enabled: Optional[bool] = None
     fog_exploration_mode: Optional[str] = None
     ambient_light_level: Optional[float] = None

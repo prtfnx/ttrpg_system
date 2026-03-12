@@ -1,5 +1,7 @@
 import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
+import { useProtocol } from '@lib/api';
+import { createMessage, MessageType } from '@lib/websocket';
 import clsx from 'clsx';
 import type { LucideIcon } from 'lucide-react';
 import { Calendar, CloudFog, Construction, Crown, Eye, EyeOff, Layers, Lightbulb, Map, Mountain, Users } from 'lucide-react';
@@ -73,6 +75,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
   const availableLayers = DEFAULT_LAYERS.filter(l => allowedLayerIds.includes(l.id));
   
   const renderEngine = useRenderEngine();
+  const { protocol } = useProtocol();
 
   const [layers, setLayers] = useState<Layer[]>(initialLayers ?? []);
   const [isLoading, setIsLoading] = useState(true);
@@ -229,6 +232,15 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
       detail: { layerName, visible: newVisibility }
     });
     window.dispatchEvent(event_detail);
+
+    // Persist to server
+    if (protocol && activeTableId) {
+      protocol.sendMessage(createMessage(MessageType.LAYER_SETTINGS_UPDATE, {
+        table_id: activeTableId,
+        layer: layerId,
+        settings: { visible: newVisibility },
+      } as unknown as Record<string, unknown>));
+    }
   };
 
   const handleOpacityChange = (layerId: string, opacity: number) => {
@@ -242,6 +254,15 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
       } catch (error) {
         console.error('❌ LayerPanel: Failed to sync layer opacity to WASM:', error);
       }
+    }
+
+    // Persist to server
+    if (protocol && activeTableId) {
+      protocol.sendMessage(createMessage(MessageType.LAYER_SETTINGS_UPDATE, {
+        table_id: activeTableId,
+        layer: layerId,
+        settings: { opacity },
+      } as unknown as Record<string, unknown>));
     }
   };
 

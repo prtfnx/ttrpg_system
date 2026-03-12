@@ -182,6 +182,9 @@ class VirtualTable:
         self.fog_exploration_mode: str = 'current_only'  # 'current_only' | 'persist_dimmed'
         self.ambient_light_level: float = 1.0            # 0.0 = pitch black, 1.0 = daylight
 
+        # Wall segments (keyed by wall_id UUID string)
+        self.walls: Dict[str, Any] = {}
+
         # Initialize grid
         self.grid = {}
         for layer in self.layers:
@@ -472,6 +475,41 @@ class VirtualTable:
         except Exception as e:
             logger.error(f"Failed to save table to {file_path}: {e}")
             raise
+
+    # ------------------------------------------------------------------
+    # Wall segment CRUD
+    # ------------------------------------------------------------------
+
+    def add_wall(self, wall) -> None:
+        """Add a Wall entity to this table's in-memory wall registry."""
+        self.walls[wall.wall_id] = wall
+
+    def get_wall(self, wall_id: str):
+        """Return the Wall with the given id, or None."""
+        return self.walls.get(wall_id)
+
+    def update_wall(self, wall_id: str, updates: dict):
+        """Apply a dict of field updates to a wall and return it."""
+        wall = self.walls.get(wall_id)
+        if wall is None:
+            raise KeyError(f"Wall {wall_id!r} not found")
+        _allowed = {
+            'x1', 'y1', 'x2', 'y2', 'wall_type',
+            'blocks_movement', 'blocks_light', 'blocks_sight', 'blocks_sound',
+            'is_door', 'door_state', 'is_secret', 'direction',
+        }
+        for key, value in updates.items():
+            if key in _allowed:
+                setattr(wall, key, value)
+        return wall
+
+    def remove_wall(self, wall_id: str) -> None:
+        """Remove a wall from the in-memory registry."""
+        self.walls.pop(wall_id, None)
+
+    def get_all_walls(self) -> list:
+        """Return all walls as a list of dicts (for serialisation)."""
+        return [w.to_dict() for w in self.walls.values()]
 
 
 def get_entity_at_position(self, position: Tuple[int, int], layer: Optional[str] = None) -> Optional[Entity]:

@@ -451,4 +451,49 @@ impl SpriteRenderer {
         renderer.draw_lines(&line_vertices, [0.0, 1.0, 0.0, 0.8])?; // Green preview
         Ok(())
     }
+
+    /// Draw in-progress polygon: placed edges + live edge to cursor + ghost close-edge.
+    pub fn draw_polygon_preview(vertices: &[Vec2], cursor: Option<Vec2>, renderer: &WebGLRenderer) -> Result<(), JsValue> {
+        if vertices.is_empty() { return Ok(()); }
+
+        // Draw placed edges
+        let mut placed: Vec<f32> = Vec::new();
+        for i in 0..vertices.len().saturating_sub(1) {
+            placed.push(vertices[i].x);
+            placed.push(vertices[i].y);
+            placed.push(vertices[i + 1].x);
+            placed.push(vertices[i + 1].y);
+        }
+        if !placed.is_empty() {
+            renderer.draw_lines(&placed, [0.0, 1.0, 0.0, 0.9])?;
+        }
+
+        // Live edge from last vertex to cursor
+        if let Some(cur) = cursor {
+            let last = vertices[vertices.len() - 1];
+            renderer.draw_lines(&[last.x, last.y, cur.x, cur.y], [0.0, 1.0, 0.0, 0.6])?;
+
+            // Ghost close-edge from first vertex to cursor (if ≥3 verts)
+            if vertices.len() >= 3 {
+                let first = vertices[0];
+                renderer.draw_lines(&[cur.x, cur.y, first.x, first.y], [0.0, 1.0, 0.0, 0.25])?;
+
+                // Highlight snap zone around first vertex
+                const R: f32 = 20.0;
+                const SEGS: usize = 16;
+                let mut snap_circle: Vec<f32> = Vec::with_capacity(SEGS * 4);
+                for i in 0..SEGS {
+                    let a1 = i as f32 * 2.0 * std::f32::consts::PI / SEGS as f32;
+                    let a2 = (i + 1) as f32 * 2.0 * std::f32::consts::PI / SEGS as f32;
+                    snap_circle.push(first.x + R * a1.cos());
+                    snap_circle.push(first.y + R * a1.sin());
+                    snap_circle.push(first.x + R * a2.cos());
+                    snap_circle.push(first.y + R * a2.sin());
+                }
+                renderer.draw_lines(&snap_circle, [1.0, 1.0, 0.0, 0.5])?; // yellow snap ring
+            }
+        }
+
+        Ok(())
+    }
 }

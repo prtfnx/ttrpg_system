@@ -765,7 +765,7 @@ class ServerProtocol:
 
             # Include persisted layer settings for join-time sync
             layer_settings_data = {}
-            if session_id:
+            if table_id:
                 try:
                     from server_host.database.database import SessionLocal
                     from server_host.database import crud as _crud

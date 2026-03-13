@@ -1,4 +1,4 @@
-﻿import { useGameStore } from '@/store';
+import { useGameStore } from '@/store';
 
 class VisionService {
   private unsubscribe: (() => void) | null = null;
@@ -13,6 +13,7 @@ class VisionService {
   private spritePositions = new Map<string, { x: number; y: number }>();
   private spriteMovedListener: ((e: Event) => void) | null = null;
   private spriteDragPreviewListener: ((e: Event) => void) | null = null;
+  private renderManagerReadyListener: (() => void) | null = null;
 
   start(): void {
     if (this.isRunning) return;
@@ -32,10 +33,13 @@ class VisionService {
 
     const rm = (window as any).rustRenderManager;
     if (!rm) {
+      if (this.renderManagerReadyListener) return; // already waiting
       const onReady = () => {
         window.removeEventListener('render-manager-ready', onReady);
+        this.renderManagerReadyListener = null;
         this.start();
       };
+      this.renderManagerReadyListener = onReady;
       window.addEventListener('render-manager-ready', onReady);
       return;
     }
@@ -47,6 +51,7 @@ class VisionService {
 
     let prevSprites = state.sprites;
     let prevLighting: boolean = state.dynamicLightingEnabled;
+    let prevFogMode = state.fogExplorationMode;
 
     this.unsubscribe = useGameStore.subscribe((s) => {
       if (!s.dynamicLightingEnabled && prevLighting) {
@@ -60,10 +65,28 @@ class VisionService {
         prevSprites = s.sprites;
         this.scheduleRecompute();
       }
+
+      if (s.fogExplorationMode !== prevFogMode) {
+        if (s.fogExplorationMode !== 'persist_dimmed') this.clearExploredPolygons();
+        prevFogMode = s.fogExplorationMode;
+        this.scheduleRecompute();
+      }
     });
   }
 
+  private clearExploredPolygons(): void {
+    const rm = (window as any).rustRenderManager;
+    for (const id of this.exploredIds) {
+      try { rm?.remove_fog_polygon(id); } catch {}
+    }
+    this.exploredIds.clear();
+  }
+
   stop(): void {
+    if (this.renderManagerReadyListener) {
+      window.removeEventListener('render-manager-ready', this.renderManagerReadyListener);
+      this.renderManagerReadyListener = null;
+    }
     this.unsubscribe?.();
     this.unsubscribe = null;
     this.isRunning = false;
@@ -73,13 +96,10 @@ class VisionService {
     for (const id of this.activeIds) {
       try { rm?.remove_fog_polygon(id); } catch {}
     }
-    for (const id of this.exploredIds) {
-      try { rm?.remove_fog_polygon(id); } catch {}
-    }
+    this.clearExploredPolygons();
     rm?.set_dynamic_lighting_enabled(false);
 
     this.activeIds.clear();
-    this.exploredIds.clear();
     this.lastPositions.clear();
     this.lastObstaclesKey = null;
     this.spritePositions.clear();
@@ -133,6 +153,7 @@ class VisionService {
     const obstaclesChanged = obstaclesKey !== this.lastObstaclesKey;
     const { fogExplorationMode } = useGameStore.getState();
     const persistExplored = fogExplorationMode === 'persist_dimmed';
+    if (!persistExplored && this.exploredIds.size > 0) this.clearExploredPolygons();
     const sources = this.getVisionSources();
     const seenIds = new Set<string>();
 
@@ -266,7 +287,7 @@ class VisionService {
       if (controlled.length === 0) continue;
       if (targetUserId != null && !controlled.includes(targetUserId)) continue;
 
-      const radius = s.visionRadius ?? s.vision_radius ?? 60; // 60px default when not explicitly set
+      const radius = s.visionRadius ?? s.vision_radius;
       if (typeof radius !== 'number' || radius <= 0) continue;
 
       const hasDv = s.hasDarkvision || s.has_darkvision;

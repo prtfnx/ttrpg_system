@@ -26,6 +26,8 @@ function makeSprite(overrides: Record<string, any> = {}) {
     id: 'hero_1',
     x: 200,
     y: 400,
+    width: 0,
+    height: 0,
     layer: 'tokens',
     ...overrides,
   };

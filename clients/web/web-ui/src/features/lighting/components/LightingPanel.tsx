@@ -1,4 +1,4 @@
-﻿import { useGameStore } from '@/store';
+import { useGameStore } from '@/store';
 import type { Color } from '@/types';
 import { useRenderEngine } from '@features/canvas';
 import { useProtocol } from '@lib/api';

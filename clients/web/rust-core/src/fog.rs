@@ -78,12 +78,7 @@ pub struct FogOfWarSystem {
     needs_vision_rebuild: bool,
     vision_framebuffer: Option<web_sys::WebGlFramebuffer>,
     vision_texture: Option<web_sys::WebGlTexture>,
-
-    // Scene capture FBO for post-processing (darkvision grayscale desaturation)
-    scene_framebuffer: Option<web_sys::WebGlFramebuffer>,
-    scene_texture: Option<web_sys::WebGlTexture>,
-    scene_fbo_width: i32,
-    scene_fbo_height: i32,
+    vision_stencil_rb: Option<web_sys::WebGlRenderbuffer>,
 }
 
 impl FogOfWarSystem {
@@ -108,10 +103,7 @@ impl FogOfWarSystem {
             needs_vision_rebuild: false,
             vision_framebuffer: None,
             vision_texture: None,
-            scene_framebuffer: None,
-            scene_texture: None,
-            scene_fbo_width: 0,
-            scene_fbo_height: 0,
+            vision_stencil_rb: None,
         };
         
         system.init_shaders()?;
@@ -187,66 +179,51 @@ impl FogOfWarSystem {
 
         let texture_fragment_source = r#"#version 300 es
             precision highp float;
-            
+
             in vec2 v_texcoord;
-            
-            uniform sampler2D u_fog_texture;
-            uniform sampler2D u_vision_texture;
-            uniform sampler2D u_scene_texture;
+
+            uniform sampler2D u_fog_texture;    // R8: 1.0 = hidden, 0.0 = revealed
+            uniform sampler2D u_vision_texture; // R8: 1.0 = hidden, 0.0 = lit
             uniform bool u_is_gm;
             uniform bool u_dynamic_lighting;
-            uniform bool u_use_scene_texture;
             uniform float u_ambient_light;
-            uniform vec2 u_canvas_size;
-            
+
             out vec4 fragColor;
-            
+
             void main() {
                 float fogVal = texture(u_fog_texture, v_texcoord).r;
                 bool fogHidden = fogVal > 0.5;
-                
-                if (u_dynamic_lighting && !u_is_gm) {
-                    float visionVal = texture(u_vision_texture, v_texcoord).r;
-                    float darkAlpha = 1.0 - u_ambient_light;
-                    
-                    if (fogHidden || visionVal > 0.825) {
-                        fragColor = vec4(0.0, 0.0, 0.0, 1.0);
-                    } else if (visionVal > 0.525) {
-                        // Previously explored — desaturated + dark
-                        if (u_use_scene_texture) {
-                            vec2 su = gl_FragCoord.xy / u_canvas_size;
-                            vec4 scene = texture(u_scene_texture, su);
-                            float gray = dot(scene.rgb, vec3(0.299, 0.587, 0.114));
-                            fragColor = vec4(vec3(gray) * 0.3, 1.0);
-                        } else {
-                            fragColor = vec4(0.05, 0.05, 0.05, darkAlpha * 0.55);
-                        }
-                    } else if (visionVal > 0.2) {
-                        // Darkvision — grayscale desaturated scene (D&D 5e RAW)
-                        if (u_use_scene_texture) {
-                            vec2 su = gl_FragCoord.xy / u_canvas_size;
-                            vec4 scene = texture(u_scene_texture, su);
-                            float gray = dot(scene.rgb, vec3(0.299, 0.587, 0.114));
-                            fragColor = vec4(vec3(gray) * 0.7, 1.0);
-                        } else {
-                            fragColor = vec4(0.0, 0.0, 0.05, darkAlpha * 0.65);
-                        }
+
+                if (!u_dynamic_lighting) {
+                    // Fog-only mode
+                    if (fogHidden) {
+                        fragColor = u_is_gm ? vec4(0.0, 0.0, 0.0, 0.4) : vec4(0.0, 0.0, 0.0, 1.0);
                     } else {
-                        // Lit — full color
-                        if (u_use_scene_texture) {
-                            vec2 su = gl_FragCoord.xy / u_canvas_size;
-                            fragColor = texture(u_scene_texture, su);
-                        } else {
-                            discard;
-                        }
+                        discard;
                     }
-                } else if (fogHidden) {
-                    if (u_is_gm) {
-                        fragColor = vec4(0.5, 0.5, 0.5, 0.4);
-                    } else {
-                        fragColor = vec4(0.0, 0.0, 0.0, 1.0);
-                    }
+                    return;
+                }
+
+                // Dynamic lighting mode
+                if (fogHidden) {
+                    fragColor = u_is_gm ? vec4(0.0, 0.0, 0.0, 0.4) : vec4(0.0, 0.0, 0.0, 1.0);
+                    return;
+                }
+
+                float visionVal = texture(u_vision_texture, v_texcoord).r;
+
+                if (visionVal > 0.7) {
+                    // Hidden (1.0) or within vision but unlit (0.75) — dark
+                    float alpha = 1.0 - u_ambient_light;
+                    fragColor = vec4(0.0, 0.0, 0.0, alpha);
+                } else if (visionVal > 0.55) {
+                    // Explored area (0.65) — dim overlay
+                    fragColor = vec4(0.0, 0.0, 0.0, 0.7);
+                } else if (visionVal > 0.3) {
+                    // Darkvision zone (0.5) — grey/desaturated overlay
+                    fragColor = vec4(0.0, 0.0, 0.15, 0.55);
                 } else {
+                    // Lit area within vision (0.0) — fully visible
                     discard;
                 }
             }
@@ -368,22 +345,42 @@ impl FogOfWarSystem {
             WebGlRenderingContext::FRAMEBUFFER, WebGlRenderingContext::COLOR_ATTACHMENT0,
             WebGlRenderingContext::TEXTURE_2D, Some(&texture), 0,
         );
+
+        // Attach depth-stencil renderbuffer for stencil-gated light rendering
+        // DEPTH24_STENCIL8 = 0x88F0, DEPTH_STENCIL_ATTACHMENT = 0x821A
+        let stencil_rb = self.gl.create_renderbuffer()
+            .ok_or("Failed to create vision stencil renderbuffer")?;
+        self.gl.bind_renderbuffer(WebGlRenderingContext::RENDERBUFFER, Some(&stencil_rb));
+        self.gl.renderbuffer_storage(
+            WebGlRenderingContext::RENDERBUFFER,
+            0x88F0_u32, // DEPTH24_STENCIL8
+            self.texture_width,
+            self.texture_height,
+        );
+        self.gl.framebuffer_renderbuffer(
+            WebGlRenderingContext::FRAMEBUFFER,
+            0x821A_u32, // DEPTH_STENCIL_ATTACHMENT
+            WebGlRenderingContext::RENDERBUFFER,
+            Some(&stencil_rb),
+        );
         
         let status = self.gl.check_framebuffer_status(WebGlRenderingContext::FRAMEBUFFER);
         if status != WebGlRenderingContext::FRAMEBUFFER_COMPLETE {
             return Err(JsValue::from_str(&format!("Vision framebuffer incomplete: {}", status)));
         }
         
-        // Clear to 1.0 (all hidden — no vision polygons yet)
+        // Clear to 1.0 (all hidden) + stencil to 0
         self.gl.viewport(0, 0, self.texture_width, self.texture_height);
         self.gl.clear_color(1.0, 0.0, 0.0, 1.0);
-        self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
+        self.gl.clear_stencil(0);
+        self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT | WebGlRenderingContext::STENCIL_BUFFER_BIT);
         self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
         
         self.vision_framebuffer = Some(framebuffer);
         self.vision_texture = Some(texture);
+        self.vision_stencil_rb = Some(stencil_rb);
         
-        web_sys::console::log_1(&"[VISION-TEXTURE] Initialized vision mask texture".into());
+        web_sys::console::log_1(&"[VISION-TEXTURE] Initialized vision mask texture with stencil".into());
         Ok(())
     }
 
@@ -439,7 +436,17 @@ impl FogOfWarSystem {
     }
 
     /// Rebuild the vision mask texture from stored polygons.
-    /// vision_ prefix → 0.0 (lit), darkvision_ prefix → 0.5 (dim), rest is 1.0 (hidden).
+    ///
+    /// Vision texture values (in R channel):
+    ///   1.0    = fully hidden (outside all vision)
+    ///   0.75   = within vision but unlit (dark unless ambient)
+    ///   0.65   = previously explored area (dim overlay)
+    ///   0.5    = darkvision zone (grey/desaturated)
+    ///   0.0    = lit area within vision (fully visible)
+    ///
+    /// Uses stencil buffer to restrict light polygons (fog_light_*) to only
+    /// draw within vision/darkvision areas, preventing lights from revealing
+    /// areas outside the character's line of sight.
     fn rebuild_vision_texture(&mut self) -> Result<(), JsValue> {
         let framebuffer = self.vision_framebuffer.as_ref().ok_or("Vision framebuffer not initialized")?;
         let program = self.fog_shader.as_ref().ok_or("Fog shader not initialized")?;
@@ -447,14 +454,14 @@ impl FogOfWarSystem {
         self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, Some(framebuffer));
         self.gl.viewport(0, 0, self.texture_width, self.texture_height);
 
-        // Start fully hidden (1.0 in red channel)
+        // Clear color to 1.0 (hidden) and stencil to 0
         self.gl.clear_color(1.0, 0.0, 0.0, 1.0);
-        self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
+        self.gl.clear_stencil(0);
+        self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT | WebGlRenderingContext::STENCIL_BUFFER_BIT);
 
         self.gl.use_program(Some(program));
         self.gl.disable(WebGlRenderingContext::BLEND);
         self.gl.disable(WebGlRenderingContext::DEPTH_TEST);
-        self.gl.disable(WebGlRenderingContext::STENCIL_TEST);
 
         let (tx, ty, tw, th) = self.table_bounds.unwrap_or((0.0, 0.0, 2000.0, 2000.0));
         let ortho = self.create_orthographic_matrix(tx, ty, tw, th);
@@ -462,22 +469,57 @@ impl FogOfWarSystem {
             self.gl.uniform_matrix3fv_with_f32_array(Some(&loc), false, &ortho);
         }
 
-        // Draw in priority order: explored (lowest) → darkvision → vision (highest)
-        // Later draws overwrite earlier ones since BLEND is disabled.
         let ids: Vec<String> = self.vision_polygons.keys().cloned().collect();
-        let passes: &[(f32, &str)] = &[
+
+        // --- Phase 1: Draw vision/darkvision/explored polygons, write stencil = 1 ---
+        // Stencil marks where character vision exists so lights can't reveal hidden areas.
+        self.gl.enable(WebGlRenderingContext::STENCIL_TEST);
+        self.gl.stencil_mask(0xFF);
+        self.gl.stencil_func(WebGlRenderingContext::ALWAYS, 1, 0xFF);
+        self.gl.stencil_op(
+            WebGlRenderingContext::KEEP,    // stencil fail
+            WebGlRenderingContext::KEEP,    // depth fail
+            WebGlRenderingContext::REPLACE, // both pass → write 1
+        );
+
+        // Draw in overwrite order (later overwrites earlier, BLEND disabled):
+        //   explored_   → 0.65 (dim explored area)
+        //   vision_     → 0.75 (within vision but unlit — dark without light/darkvision)
+        //   darkvision_ → 0.5  (within vision + darkvision — grey/desaturated)
+        let vision_passes: &[(f32, &str)] = &[
             (0.65, "explored_"),
-            (0.375, "darkvision_"),
-            (0.0, "vision_"),
+            (0.75, "vision_"),
+            (0.5,  "darkvision_"),
         ];
-        for (pass_value, prefix) in passes {
+        for &(pass_value, prefix) in vision_passes {
             for id in &ids {
                 if !id.starts_with(prefix) { continue; }
                 let pts = self.vision_polygons.get(id.as_str()).cloned().unwrap_or_default();
                 if pts.len() < 6 { continue; }
-                self.render_polygon_to_fbo(program, &pts, *pass_value)?;
+                self.render_polygon_to_fbo(program, &pts, pass_value)?;
             }
         }
+
+        // --- Phase 2: Draw light polygons, gated by stencil (only within vision) ---
+        // Light areas (fog_light_*) are computed per-light via visibility polygon
+        // but must only reveal pixels inside the character's vision range.
+        self.gl.stencil_mask(0x00); // don't modify stencil
+        self.gl.stencil_func(WebGlRenderingContext::EQUAL, 1, 0xFF);
+        self.gl.stencil_op(
+            WebGlRenderingContext::KEEP,
+            WebGlRenderingContext::KEEP,
+            WebGlRenderingContext::KEEP,
+        );
+
+        for id in &ids {
+            if !id.starts_with("fog_light_") { continue; }
+            let pts = self.vision_polygons.get(id.as_str()).cloned().unwrap_or_default();
+            if pts.len() < 6 { continue; }
+            self.render_polygon_to_fbo(program, &pts, 0.0)?;
+        }
+
+        self.gl.disable(WebGlRenderingContext::STENCIL_TEST);
+        self.gl.stencil_mask(0xFF); // restore default
 
         self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
         self.gl.viewport(0, 0, self.canvas_width as i32, self.canvas_height as i32);
@@ -527,60 +569,8 @@ impl FogOfWarSystem {
         Ok(())
     }
 
-    pub fn set_gm_mode(&mut self, is_gm: bool) {        self.is_gm = is_gm;
-    }
-
-    /// Returns true when scene should be captured to FBO for post-processing.
-    pub fn needs_scene_capture(&self) -> bool {
-        self.dynamic_lighting_enabled && !self.is_gm
-    }
-
-    /// Bind scene capture FBO, recreating it if canvas size changed.
-    pub fn begin_scene_capture(&mut self, width: i32, height: i32) -> Result<(), JsValue> {
-        if self.scene_fbo_width != width || self.scene_fbo_height != height || self.scene_framebuffer.is_none() {
-            // Drop old resources
-            self.scene_framebuffer = None;
-            self.scene_texture = None;
-
-            let fb = self.gl.create_framebuffer().ok_or("Failed to create scene framebuffer")?;
-            let tex = self.gl.create_texture().ok_or("Failed to create scene texture")?;
-
-            self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(&tex));
-            self.gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
-                WebGlRenderingContext::TEXTURE_2D, 0, WebGlRenderingContext::RGBA as i32,
-                width, height, 0,
-                WebGlRenderingContext::RGBA, WebGlRenderingContext::UNSIGNED_BYTE, None,
-            )?;
-            self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_MIN_FILTER, WebGlRenderingContext::LINEAR as i32);
-            self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_MAG_FILTER, WebGlRenderingContext::LINEAR as i32);
-            self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_WRAP_S, WebGlRenderingContext::CLAMP_TO_EDGE as i32);
-            self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_WRAP_T, WebGlRenderingContext::CLAMP_TO_EDGE as i32);
-
-            self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, Some(&fb));
-            self.gl.framebuffer_texture_2d(
-                WebGlRenderingContext::FRAMEBUFFER,
-                WebGlRenderingContext::COLOR_ATTACHMENT0,
-                WebGlRenderingContext::TEXTURE_2D,
-                Some(&tex), 0,
-            );
-            self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
-            self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, None);
-
-            self.scene_framebuffer = Some(fb);
-            self.scene_texture = Some(tex);
-            self.scene_fbo_width = width;
-            self.scene_fbo_height = height;
-        }
-
-        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, self.scene_framebuffer.as_ref());
-        self.gl.viewport(0, 0, width, height);
-        Ok(())
-    }
-
-    /// Restore default framebuffer (main canvas).
-    pub fn end_scene_capture(&mut self) {
-        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
-        self.gl.viewport(0, 0, self.canvas_width as i32, self.canvas_height as i32);
+    pub fn set_gm_mode(&mut self, is_gm: bool) {
+        self.is_gm = is_gm;
     }
 
     pub fn add_fog_rectangle(&mut self, id: String, start_x: f32, start_y: f32, end_x: f32, end_y: f32, mode: &str, table_id: String) {
@@ -843,17 +833,6 @@ impl FogOfWarSystem {
             self.gl.uniform1i(Some(&loc), 1);
         }
 
-        // Bind scene texture to unit 2 (used for darkvision grayscale desaturation)
-        let use_scene = has_vision && self.scene_texture.is_some();
-        self.gl.active_texture(WebGlRenderingContext::TEXTURE2);
-        self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, self.scene_texture.as_ref());
-        if let Some(loc) = self.gl.get_uniform_location(program, "u_scene_texture") {
-            self.gl.uniform1i(Some(&loc), 2);
-        }
-        if let Some(loc) = self.gl.get_uniform_location(program, "u_use_scene_texture") {
-            self.gl.uniform1i(Some(&loc), if use_scene { 1 } else { 0 });
-        }
-        
         if let Some(loc) = self.gl.get_uniform_location(program, "u_view_matrix") {
             self.gl.uniform_matrix3fv_with_f32_array(Some(&loc), false, view_matrix);
         }
@@ -869,15 +848,9 @@ impl FogOfWarSystem {
         if let Some(loc) = self.gl.get_uniform_location(program, "u_ambient_light") {
             self.gl.uniform1f(Some(&loc), self.ambient_light);
         }
-        
-        // When compositing scene FBO (opaque pixels), disable blending.
-        // For fog-only overlay, keep alpha blending.
-        if use_scene {
-            self.gl.disable(WebGlRenderingContext::BLEND);
-        } else {
-            self.gl.enable(WebGlRenderingContext::BLEND);
-            self.gl.blend_func(WebGlRenderingContext::SRC_ALPHA, WebGlRenderingContext::ONE_MINUS_SRC_ALPHA);
-        }
+
+        self.gl.enable(WebGlRenderingContext::BLEND);
+        self.gl.blend_func(WebGlRenderingContext::SRC_ALPHA, WebGlRenderingContext::ONE_MINUS_SRC_ALPHA);
         
         // Render textured quad covering table bounds
         self.render_textured_quad(program)?;
@@ -952,11 +925,6 @@ impl FogOfWarSystem {
         let position_location = self.gl.get_attrib_location(program, "a_position");
         let texcoord_location = self.gl.get_attrib_location(program, "a_texcoord");
         
-        web_sys::console::log_1(&format!(
-            "[FOG-QUAD] Attribute locations: position={}, texcoord={}",
-            position_location, texcoord_location
-        ).into());
-        
         if position_location < 0 || texcoord_location < 0 {
             return Err(JsValue::from_str("Shader attribute locations not found"));
         }
@@ -988,8 +956,6 @@ impl FogOfWarSystem {
         
         // Draw quad
         self.gl.draw_arrays(WebGlRenderingContext::TRIANGLE_FAN, 0, 4);
-        
-        web_sys::console::log_1(&"[FOG-QUAD] Drew TRIANGLE_FAN with 4 vertices".into());
         
         self.gl.disable_vertex_attrib_array(position_location);
         self.gl.disable_vertex_attrib_array(texcoord_location);

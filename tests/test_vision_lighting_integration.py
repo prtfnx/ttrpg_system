@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
     from server_host.database import crud, schemas
-    from server_host.database.models import Base, Entity, GameSession, User, VirtualTable
+    from server_host.database.models import Base, Entity, GameSession, User, VirtualTable, Wall as WallModel
     HAS_SERVER = True
 except ImportError:
     HAS_SERVER = False
@@ -106,20 +106,26 @@ def test_light_entity_round_trip(db, table_db_id):
 
 
 def test_wall_entity_round_trip(db, table_db_id):
-    meta = json.dumps({"startX": 50, "startY": 50, "endX": 200, "endY": 50})
-    data = make_entity_data(
-        entity_id=2,
-        sprite_id="wall-001",
-        name="Wall Segment",
-        layer="walls",
-        metadata=meta,
-    )
-    entity = crud.create_entity(db, data, table_db_id)
-    db.flush()
+    """Walls are first-class entities stored in the walls table, not in entities."""
+    wall_data = {
+        'wall_id': 'wall-001',
+        'table_id': 'aaaa-bbbb-cccc-dddd',
+        'x1': 50.0, 'y1': 50.0,
+        'x2': 200.0, 'y2': 50.0,
+        'wall_type': 'normal',
+        'blocks_light': True,
+        'blocks_sight': True,
+        'blocks_movement': True,
+        'blocks_sound': True,
+    }
+    wall = crud.create_wall(db, wall_data)
 
-    assert entity.layer == "walls"
-    coords = json.loads(entity.entity_metadata)
-    assert coords["endX"] == 200
+    loaded = crud.get_wall(db, 'wall-001')
+    assert loaded is not None
+    assert loaded.x2 == 200.0
+    assert loaded.blocks_light is True
+    assert loaded.wall_type == 'normal'
+    assert loaded.table_id == 'aaaa-bbbb-cccc-dddd'
 
 
 def test_entity_vision_radius_none_by_default(db, table_db_id):

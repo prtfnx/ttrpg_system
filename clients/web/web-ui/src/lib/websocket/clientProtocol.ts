@@ -1179,6 +1179,35 @@ export class WebClientProtocol {
     this.sendMessage(createMessage(MessageType.SPRITE_REMOVE, { sprite_id: spriteId, table_id: activeTableId }, 2));
   }
 
+  // Wall management methods
+  createWall(wall: Record<string, unknown>): void {
+    const tableId = useGameStore.getState().activeTableId;
+    if (!tableId) return;
+    validateTableId(tableId);
+    this.sendMessage(createMessage(MessageType.WALL_CREATE, { table_id: tableId, wall_data: wall }, 2));
+  }
+
+  updateWall(wallId: string, updates: Record<string, unknown>): void {
+    const tableId = useGameStore.getState().activeTableId;
+    if (!tableId) return;
+    validateTableId(tableId);
+    this.sendMessage(createMessage(MessageType.WALL_UPDATE, { table_id: tableId, wall_id: wallId, updates }, 2));
+  }
+
+  removeWall(wallId: string): void {
+    const tableId = useGameStore.getState().activeTableId;
+    if (!tableId) return;
+    validateTableId(tableId);
+    this.sendMessage(createMessage(MessageType.WALL_REMOVE, { table_id: tableId, wall_id: wallId }, 2));
+  }
+
+  toggleDoor(wallId: string): void {
+    const tableId = useGameStore.getState().activeTableId;
+    if (!tableId) return;
+    validateTableId(tableId);
+    this.sendMessage(createMessage(MessageType.DOOR_TOGGLE, { table_id: tableId, wall_id: wallId }, 2));
+  }
+
   // Asset management methods
   requestAssetList(): void {
     this.sendMessage(createMessage(MessageType.ASSET_LIST_REQUEST));

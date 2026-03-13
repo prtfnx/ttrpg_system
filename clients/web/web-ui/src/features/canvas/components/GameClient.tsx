@@ -2,7 +2,7 @@ import { useGameStore } from '@/store';
 import { RightPanel } from '@app/RightPanel';
 import type { UserInfo } from '@features/auth';
 import { useAuthenticatedWebSocket } from '@features/auth';
-import { initVisionService, stopVisionService } from '@features/lighting';
+import { visionService } from '@features/lighting/services/vision.service';
 import { SessionManagementPanel } from '@features/session';
 import { isDM, type SessionRole } from '@features/session/types/roles';
 import clsx from 'clsx';
@@ -137,11 +137,11 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
   // Vision service: run for non-DMs to compute LOS; stop for DMs (they see all)
   useEffect(() => {
     if (isDM(sessionRole)) {
-      stopVisionService();
+      visionService.stop();
     } else {
-      initVisionService(150);
+      visionService.start();
     }
-    return () => stopVisionService();
+    return () => visionService.stop();
   }, [sessionRole]);
 
   // Handle DM force-switching all players to a table

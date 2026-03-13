@@ -1,7 +1,7 @@
 import { EntitiesPanel } from '@features/canvas/components/EntitiesPanel'
 import { ToolsPanel } from '@features/canvas/components/ToolsPanel'
 import { CharacterPanel } from '@features/character'
-import { initVisionService } from '@features/lighting/services/vision.service'
+import { visionService } from '@features/lighting/services/vision.service'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 
@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Start vision service which will wait for WASM and then run LOS updates
   try {
-    initVisionService(150);
+    visionService.start();
   } catch (err) {
     console.error('[integration] Failed to init vision service:', err);
   }

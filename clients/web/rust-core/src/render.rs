@@ -249,21 +249,11 @@ impl RenderEngine {
     
     #[wasm_bindgen]
     pub fn render(&mut self) -> Result<(), JsValue> {
-        // ===== PHASE 6.1: Conditional pipeline =====
-        // When dynamic lighting is active for a player, capture the scene to a FBO first
-        // so the fog composite shader can sample scene pixels for true darkvision grayscale.
-        let use_scene_capture = self.fog.needs_scene_capture();
-        let cw = self.canvas_size.x as i32;
-        let ch = self.canvas_size.y as i32;
-        if use_scene_capture {
-            self.fog.begin_scene_capture(cw, ch)?;
-        }
-
         // Use stored background color
         self.renderer.clear(
-            self.background_color[0], 
-            self.background_color[1], 
-            self.background_color[2], 
+            self.background_color[0],
+            self.background_color[1],
+            self.background_color[2],
             self.background_color[3]
         );
         
@@ -360,20 +350,8 @@ impl RenderEngine {
         
         // Render paint strokes (on top of everything except fog)
         self.paint.render_strokes(&self.renderer)?;
-        
-        // ===== PHASE 6.1: End scene capture, switch to main canvas =====
-        if use_scene_capture {
-            self.fog.end_scene_capture();
-            // Clear main canvas before compositing scene onto it
-            self.renderer.clear(
-                self.background_color[0],
-                self.background_color[1],
-                self.background_color[2],
-                self.background_color[3],
-            );
-        }
 
-        // Render fog of war system (should be rendered last, on top of everything, filtered by active table)
+        // Render fog of war system (last, alpha-overlaid on top of everything)
         self.fog.render_fog_filtered(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y, Some(&active_table_id))?;
         // web_sys::console::log_1(&"[RENDER-ORDER] 4️⃣ Fog complete".into());
         
@@ -460,10 +438,15 @@ impl RenderEngine {
         vec![bounds.min.x as f64, bounds.min.y as f64, (bounds.max.x - bounds.min.x) as f64, (bounds.max.y - bounds.min.y) as f64]
     }
     
-    /// Extract obstacles from sprites for shadow casting.
-    /// Applies rotation and scale so rotated/scaled sprites cast correct shadows.
+    /// Extract obstacles from sprites and wall manager for shadow casting.
+    /// Wall segments are sourced from WallManager (respects door state).
+    /// Sprite obstacles (rectangles/polygons on the obstacles layer) are also included.
     fn update_lighting_obstacles(&mut self) {
         let mut obstacles = Vec::new();
+
+        // Walls from WallManager — open doors are automatically excluded
+        let wall_segs = self.wall_manager.get_light_blocking_segments();
+        obstacles.extend_from_slice(&wall_segs);
 
         if let Some(obstacles_layer) = self.layer_manager.get_layer("obstacles") {
             for sprite in &obstacles_layer.sprites {
@@ -517,14 +500,6 @@ impl RenderEngine {
             }
         }
 
-        // Append wall segments that block light/sight
-        for seg in self.wall_manager.get_light_blocking_segments().chunks(4) {
-            obstacles.push(seg[0]);
-            obstacles.push(seg[1]);
-            obstacles.push(seg[2]);
-            obstacles.push(seg[3]);
-        }
-
         self.lighting.set_obstacles(&obstacles);
     }
     
@@ -535,10 +510,12 @@ impl RenderEngine {
         self.update_view_matrix();
     }
 
-    /// Compute visibility polygon given player position and flat obstacle float32 array
+    /// Compute visibility polygon — merges JS obstacle segments with WallManager segments.
     #[wasm_bindgen]
     pub fn compute_visibility_polygon(&mut self, player_x: f32, player_y: f32, obstacles: js_sys::Float32Array, max_dist: f32) -> JsValue {
-        geometry::compute_visibility_polygon(player_x, player_y, &obstacles, max_dist)
+        let mut all = obstacles.to_vec();
+        all.extend_from_slice(&self.wall_manager.get_light_blocking_segments());
+        geometry::compute_visibility_impl(player_x, player_y, &all, max_dist)
     }
 
     /// Add a fog reveal polygon (array of {x,y}) under given id.
@@ -687,8 +664,10 @@ impl RenderEngine {
             &mut self.input,
             self.layer_manager.get_layers_mut(),
             &mut self.lighting,
+            &self.wall_manager,
             self.camera.zoom,
-            ctrl_pressed
+            ctrl_pressed,
+            &self.active_layer.clone()
         );
         
         // Ownership check: block drag on sprites user doesn't control.
@@ -761,8 +740,20 @@ impl RenderEngine {
             world_pos,
             &mut self.input,
             self.layer_manager.get_layers_mut(),
-            &mut self.lighting
+            &mut self.lighting,
+            &mut self.wall_manager,
         );
+
+        // Mark obstacles dirty when dragging a sprite on the obstacles layer
+        // or when dragging a wall
+        if self.input.input_mode == InputMode::WallDrag {
+            self.obstacles_dirty = true;
+        } else if matches!(self.input.input_mode, InputMode::SpriteMove | InputMode::SpriteResize(_)) {
+            if let Some(ref sprite_id) = self.input.selected_sprite_id.clone() {
+                let on_obstacles = self.layer_manager.find_sprite(sprite_id).map(|(_, l)| l == "obstacles").unwrap_or(false);
+                if on_obstacles { self.obstacles_dirty = true; }
+            }
+        }
         
         // Update last mouse position
         self.input.last_mouse_screen = current_screen;
@@ -814,8 +805,10 @@ impl RenderEngine {
             &mut self.input,
             self.layer_manager.get_layers_mut(),
             &mut self.lighting,
+            &self.wall_manager,
             &mut self.fog,
-            table_id
+            table_id,
+            &self.active_layer.clone()
         );
         
         // Handle event system results that need render engine specific operations
@@ -1037,7 +1030,12 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn update_sprite_position(&mut self, sprite_id: &str, x: f64, y: f64) -> bool {
         let new_position = crate::math::Vec2::new(x as f32, y as f32);
-        self.layer_manager.update_sprite_position(sprite_id, new_position)
+        let ok = self.layer_manager.update_sprite_position(sprite_id, new_position);
+        if ok {
+            let on_obstacles = self.layer_manager.find_sprite(sprite_id).map(|(_, l)| l == "obstacles").unwrap_or(false);
+            if on_obstacles { self.obstacles_dirty = true; }
+        }
+        ok
     }
     
     #[wasm_bindgen]
@@ -1258,6 +1256,55 @@ impl RenderEngine {
         self.active_layer.clone()
     }
 
+    /// Return current obstacle segments (polygon + rectangle) as a flat f32 array.
+    /// TypeScript vision service calls this instead of computing from the stale store.
+    #[wasm_bindgen]
+    pub fn get_obstacle_segments_flat(&self) -> Vec<f32> {
+        let mut segs = Vec::new();
+        if let Some(layer) = self.layer_manager.get_layer("obstacles") {
+            for sprite in &layer.sprites {
+                if sprite.obstacle_type.as_deref() == Some("polygon") {
+                    if let Some(verts) = &sprite.polygon_vertices {
+                        if verts.len() >= 2 {
+                            let n = verts.len();
+                            for i in 0..n {
+                                let next = (i + 1) % n;
+                                segs.push(verts[i][0] as f32);
+                                segs.push(verts[i][1] as f32);
+                                segs.push(verts[next][0] as f32);
+                                segs.push(verts[next][1] as f32);
+                            }
+                        }
+                    }
+                    continue;
+                }
+                // Rectangle obstacle
+                let w = (sprite.width * sprite.scale_x) as f32;
+                let h = (sprite.height * sprite.scale_y) as f32;
+                let cx = sprite.world_x as f32 + w / 2.0;
+                let cy = sprite.world_y as f32 + h / 2.0;
+                let half_w = w / 2.0;
+                let half_h = h / 2.0;
+                let angle = sprite.rotation as f32;
+                let cos_a = angle.cos();
+                let sin_a = angle.sin();
+                let raw: [(f32, f32); 4] = [(-half_w, -half_h), (half_w, -half_h), (half_w, half_h), (-half_w, half_h)];
+                let corners: [Vec2; 4] = std::array::from_fn(|i| {
+                    let (dx, dy) = raw[i];
+                    Vec2::new(cx + dx * cos_a - dy * sin_a, cy + dx * sin_a + dy * cos_a)
+                });
+                for i in 0..4 {
+                    let next = (i + 1) % 4;
+                    segs.push(corners[i].x);
+                    segs.push(corners[i].y);
+                    segs.push(corners[next].x);
+                    segs.push(corners[next].y);
+                }
+            }
+        }
+        segs
+    }
+
     // ===== WALL MANAGEMENT =====
 
     /// Add or replace a wall from a JSON object string.
@@ -1438,6 +1485,7 @@ impl RenderEngine {
             InputMode::Paint => "paint".to_string(),
             InputMode::DrawWall => "draw_wall".to_string(),
             InputMode::CreatePolygon => "create_polygon".to_string(),
+            InputMode::WallDrag => "wall_drag".to_string(),
         }
     }
 

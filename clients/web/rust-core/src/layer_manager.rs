@@ -243,6 +243,18 @@ impl LayerManager {
     pub fn update_sprite_position(&mut self, sprite_id: &str, new_position: Vec2) -> bool {
         for layer in self.layers.values_mut() {
             if let Some(sprite) = layer.sprites.iter_mut().find(|s| s.id == sprite_id) {
+                // For polygon obstacles, translate stored vertices by the position delta
+                // so the obstacle geometry follows the sprite's visual position.
+                if sprite.obstacle_type.as_deref() == Some("polygon") {
+                    let dx = new_position.x as f64 - sprite.world_x;
+                    let dy = new_position.y as f64 - sprite.world_y;
+                    if let Some(verts) = &mut sprite.polygon_vertices {
+                        for v in verts.iter_mut() {
+                            v[0] += dx as f32;
+                            v[1] += dy as f32;
+                        }
+                    }
+                }
                 sprite.world_x = new_position.x as f64;
                 sprite.world_y = new_position.y as f64;
                 return true;

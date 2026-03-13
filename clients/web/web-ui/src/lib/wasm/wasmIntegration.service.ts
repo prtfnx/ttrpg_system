@@ -842,6 +842,20 @@ class WasmIntegrationService {
     if (!updated) {
       console.warn(`⚠️ No applicable update method found for partial data:`, data);
     }
+
+    // Vision fields — sync to store so visionService picks up changes broadcast by server
+    const vUpdates: Record<string, any> = {};
+    const vr = data.vision_radius ?? u.vision_radius;
+    if (vr !== undefined) { vUpdates.visionRadius = vr; vUpdates.vision_radius = vr; }
+    const hdv = data.has_darkvision ?? u.has_darkvision;
+    if (hdv !== undefined) { vUpdates.hasDarkvision = hdv; vUpdates.has_darkvision = hdv; }
+    const dvr = data.darkvision_radius ?? u.darkvision_radius;
+    if (dvr !== undefined) { vUpdates.darkvisionRadius = dvr; vUpdates.darkvision_radius = dvr; }
+    if (Object.keys(vUpdates).length > 0) {
+      useGameStore.setState(state => ({
+        sprites: state.sprites.map(s => s.id === spriteId ? { ...s, ...vUpdates } : s)
+      }));
+    }
   }
 
   private updateSpriteEfficiently(spriteId: string, data: any): void {
@@ -1134,6 +1148,14 @@ class WasmIntegrationService {
           : (typeof spriteData.controlled_by === 'string'
               ? (() => { try { return JSON.parse(spriteData.controlled_by); } catch { return []; } })()
               : []),
+        // Obstacle shape metadata (for lighting/collision)
+        obstacle_type: spriteData.obstacle_type || null,
+        polygon_vertices: (() => {
+          // polygon_vertices may be stored directly or inside obstacle_data
+          if (spriteData.polygon_vertices) return spriteData.polygon_vertices;
+          if (spriteData.obstacle_data?.vertices) return spriteData.obstacle_data.vertices;
+          return null;
+        })(),
       };
 
       console.log('Converted sprite for WASM:', wasmSprite);
@@ -1170,6 +1192,10 @@ class WasmIntegrationService {
           maxHp: spriteData.max_hp,
           ac: spriteData.ac,
           auraRadius: spriteData.aura_radius,
+          // Vision fields (dynamic lighting)
+          visionRadius: spriteData.vision_radius ?? undefined,
+          hasDarkvision: spriteData.has_darkvision ?? false,
+          darkvisionRadius: spriteData.darkvision_radius ?? undefined,
           syncStatus: 'synced' as const
         };
         useGameStore.getState().addSprite(storeSprite);

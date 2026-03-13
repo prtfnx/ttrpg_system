@@ -42,6 +42,8 @@ class WasmBridgeService {
   init() {
     if (this.isInitialized) return;
     window.addEventListener('wasm-sprite-operation', this.onWasmOperation as EventListener);
+    window.addEventListener('wasm-light-moved', this.onLightMoved as EventListener);
+    window.addEventListener('wasm-wall-moved', this.onWallMoved as EventListener);
     window.addEventListener('sprite-created', this.onSpriteCreated as EventListener);
     window.addEventListener('sprite-action-confirmed', this.onActionConfirmed as EventListener);
     window.addEventListener('sprite-action-rejected', this.onActionRejected as EventListener);
@@ -73,6 +75,8 @@ class WasmBridgeService {
 
   cleanup() {
     window.removeEventListener('wasm-sprite-operation', this.onWasmOperation as EventListener);
+    window.removeEventListener('wasm-light-moved', this.onLightMoved as EventListener);
+    window.removeEventListener('wasm-wall-moved', this.onWallMoved as EventListener);
     window.removeEventListener('sprite-created', this.onSpriteCreated as EventListener);
     window.removeEventListener('sprite-action-confirmed', this.onActionConfirmed as EventListener);
     window.removeEventListener('sprite-action-rejected', this.onActionRejected as EventListener);
@@ -104,6 +108,25 @@ class WasmBridgeService {
     if (sprite_id != null && x != null && y != null) {
       this.committedPositions.set(sprite_id, { x, y });
     }
+  };
+
+  private onLightMoved = (e: Event) => {
+    const { lightId, x, y } = (e as CustomEvent).detail ?? {};
+    if (!this.protocol || !lightId) return;
+    // Lights are sprites on the server with texture_path '__LIGHT__'.
+    // Send a sprite move so the server persists the new coordinates.
+    this.protocol.moveSprite(lightId, x, y);
+    // Also update the Zustand store so the UI stays consistent
+    useGameStore.getState().updateSprite(lightId, { x, y } as any);
+  };
+
+  private onWallMoved = (e: Event) => {
+    const { wallId, x1, y1, x2, y2 } = (e as CustomEvent).detail ?? {};
+    if (!this.protocol || !wallId) return;
+    // Update store (which also forwards to WASM)
+    useGameStore.getState().updateWall(wallId, { x1, y1, x2, y2 });
+    // Send to server
+    this.protocol.updateWall(wallId, { x1, y1, x2, y2 });
   };
 
   private onWasmOperation = (e: Event) => {

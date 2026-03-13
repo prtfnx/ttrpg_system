@@ -421,3 +421,153 @@
 .gamePanel::-webkit-scrollbar-thumb:hover {
   background: var(--gray-500);
 }
+
+/* ===== Player Layer Controls ===== */
+.playerLayers {
+  margin-bottom: var(--space-sm);
+}
+
+.playerLayersTitle {
+  margin: var(--space-xs) 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.playerLayerBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  margin-bottom: 2px;
+  background: transparent;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: var(--text-xs);
+}
+
+.playerLayerBtnHidden {
+  color: var(--text-muted);
+}
+
+.layerIconSlot {
+  margin-left: auto;
+  opacity: 0.6;
+}
+
+/* ===== Table Switcher ===== */
+.tableSwitcher {
+  position: relative;
+  margin-bottom: var(--space-sm);
+}
+
+.tableSwitcherRow {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.tableSwitcherTrigger {
+  flex: 1;
+  text-align: left;
+}
+
+.tableSwitcherDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 999;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.tableSwitcherItem {
+  display: block;
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  text-align: left;
+  background: transparent;
+  color: var(--text-primary);
+  border: none;
+  cursor: pointer;
+  font-size: var(--text-xs);
+}
+
+.tableSwitcherItem:hover {
+  background: var(--hover-overlay);
+}
+
+.tableSwitcherItemActive {
+  background: var(--bg-tertiary);
+}
+
+/* ===== Wall List ===== */
+.wallList {
+  margin-top: var(--space-sm);
+}
+
+.wallListHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-xs);
+}
+
+.wallListTitle {
+  margin: 0;
+  font-size: var(--text-xs);
+}
+
+.wallRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: 2px;
+  font-size: var(--text-xs);
+}
+
+.wallLabel {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.wallDangerBtn {
+  color: var(--color-danger);
+}
+
+/* ===== Dynamic Lighting control row ===== */
+.controlRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  font-size: var(--text-xs);
+}
+
+.controlRow label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.controlRow input[type="range"],
+.controlRow select {
+  flex: 1;
+}
+
+/* ===== Test helper (off-screen container) ===== */
+.srTestContainer {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+}

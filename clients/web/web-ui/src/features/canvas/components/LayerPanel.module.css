@@ -269,6 +269,32 @@
   100% { transform: rotate(360deg); }
 }
 
+/* Table indicator banner */
+.tableIndicator {
+  display: flex;
+  align-items: center;
+  padding: var(--space-xs) var(--space-sm);
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid var(--blue-500);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-sm);
+  font-size: var(--text-xs);
+  color: var(--blue-300);
+}
+
+.tableIndicatorIcon {
+  margin-right: var(--space-xs);
+  flex-shrink: 0;
+}
+
+/* Hidden test button (loading state fog toggle) */
+.fogTestBtn {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  z-index: 1000;
+}
+
 /* Scrollbar styling for layer list */
 .layerList::-webkit-scrollbar {
   width: var(--space-sm);

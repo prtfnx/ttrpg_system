@@ -22,10 +22,9 @@ fn seg_intersect(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> Option<Vec2> {
 }
 
 // Obstacles expected as flat array: [x1,y1,x2,y2, x1,y1,x2,y2, ...]
-#[wasm_bindgen]
-pub fn compute_visibility_polygon(player_x: f32, player_y: f32, obstacles: &js_sys::Float32Array, max_dist: f32) -> JsValue {
+// Internal version takes &[f32] so Rust code can call it without a JS Float32Array.
+pub(crate) fn compute_visibility_impl(player_x: f32, player_y: f32, data: &[f32], max_dist: f32) -> JsValue {
     let mut endpoints: Vec<Vec2> = Vec::new();
-    let data = obstacles.to_vec();
     let mut i = 0usize;
     while i + 3 < data.len() {
         let x1 = data[i]; let y1 = data[i+1]; let x2 = data[i+2]; let y2 = data[i+3];
@@ -145,4 +144,9 @@ pub fn compute_visibility_polygon(player_x: f32, player_y: f32, obstacles: &js_s
         arr.push(&js);
     }
     JsValue::from(arr)
+}
+
+#[wasm_bindgen]
+pub fn compute_visibility_polygon(player_x: f32, player_y: f32, obstacles: &js_sys::Float32Array, max_dist: f32) -> JsValue {
+    compute_visibility_impl(player_x, player_y, &obstacles.to_vec(), max_dist)
 }

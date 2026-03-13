@@ -93,6 +93,7 @@ class VirtualTable(Base):
     # Relationships
     session = relationship("GameSession", back_populates="tables")
     entities = relationship("Entity", back_populates="table", cascade="all, delete-orphan")
+    walls = relationship("Wall", back_populates="table", cascade="all, delete-orphan", foreign_keys="Wall.table_id", primaryjoin="VirtualTable.table_id==Wall.table_id")
 
 class Entity(Base):
     __tablename__ = "entities"
@@ -314,7 +315,7 @@ class Wall(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    table = relationship("VirtualTable")
+    table = relationship("VirtualTable", back_populates="walls", foreign_keys=[table_id], primaryjoin="Wall.table_id==VirtualTable.table_id")
     creator = relationship("User", foreign_keys=[created_by])
 
 

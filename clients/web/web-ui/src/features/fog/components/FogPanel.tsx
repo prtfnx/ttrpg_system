@@ -1,5 +1,6 @@
 import { useRenderEngine } from '@features/canvas';
 import { useProtocol } from '@lib/api';
+import { useGameStore } from '@/store';
 import clsx from 'clsx';
 import React, { useCallback, useEffect, useState } from 'react'; // FogPanel.tsx
 import styles from './FogPanel.module.css';
@@ -24,8 +25,8 @@ export const FogPanel: React.FC = () => {
   const sendFogUpdateToServer = useCallback((updatedRectangles: FogRectangle[]) => {
     if (!protocol || !renderer) return;
 
-    // Get active table ID
-    const tableId = (renderer as any).get_active_table_id?.();
+    // Get active table ID — prefer WASM state, fall back to store
+    const tableId = (renderer as any).get_active_table_id?.() ?? useGameStore.getState().activeTableId;
     if (!tableId) {
       console.warn('No active table ID, cannot send fog update');
       return;
@@ -43,6 +44,31 @@ export const FogPanel: React.FC = () => {
     console.log('🌫️ Sending fog update to server:', { tableId, hideCount: hideRectangles.length, revealCount: revealRectangles.length });
     protocol.updateFog(tableId, hideRectangles, revealRectangles);
   }, [protocol, renderer]);
+
+  // Load fog rectangles from server when table data arrives
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const data = (e as CustomEvent).detail;
+      if (!data?.fog_rectangles || !renderer) return;
+
+      const rects: FogRectangle[] = [];
+      for (const rect of data.fog_rectangles.hide ?? []) {
+        rects.push({ id: `fog_hide_${rects.length}`, startX: rect[0][0], startY: rect[0][1], endX: rect[1][0], endY: rect[1][1], mode: 'hide' });
+      }
+      for (const rect of data.fog_rectangles.reveal ?? []) {
+        rects.push({ id: `fog_reveal_${rects.length}`, startX: rect[0][0], startY: rect[0][1], endX: rect[1][0], endY: rect[1][1], mode: 'reveal' });
+      }
+
+      setFogRectangles(rects);
+      renderer.clear_fog();
+      for (const r of rects) {
+        renderer.add_fog_rectangle(r.id, r.startX, r.startY, r.endX, r.endY, r.mode);
+      }
+    };
+
+    window.addEventListener('table-data-received', handler);
+    return () => window.removeEventListener('table-data-received', handler);
+  }, [renderer]);
 
   // Mouse event handlers for fog drawing
   useEffect(() => {

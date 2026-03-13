@@ -65,6 +65,7 @@ features = [
   "WebGlBuffer",
   "WebGlTexture",
   "WebGlFramebuffer",
+  "WebGlRenderbuffer",
   "WebGlUniformLocation",
   "Window",
   "Document",

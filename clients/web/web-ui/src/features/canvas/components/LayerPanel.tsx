@@ -277,7 +277,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
         {/* Test fog toggle button for test compatibility */}
         <button 
           aria-label="Toggle fog of war layer"
-          style={{ position: 'absolute', left: '10px', top: '10px', zIndex: 1000 }}
+          className={styles.fogTestBtn}
           onClick={(e) => handleVisibilityToggle('fog_of_war', e)}
         >
           Toggle Fog of War
@@ -296,16 +296,8 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
       </div>
 
       {activeTableId && (
-        <div className={styles.tableIndicator} style={{
-          padding: '6px 12px',
-          background: 'rgba(59, 130, 246, 0.15)',
-          border: '1px solid #3b82f6',
-          borderRadius: '4px',
-          marginBottom: '12px',
-          fontSize: '12px',
-          color: '#93c5fd'
-        }}>
-          <Calendar size={14} aria-hidden style={{ marginRight: '6px', flexShrink: 0 }} />
+        <div className={styles.tableIndicator}>
+          <Calendar size={14} aria-hidden className={styles.tableIndicatorIcon} />
           <strong>Table:</strong> {activeTableId}
         </div>
       )}

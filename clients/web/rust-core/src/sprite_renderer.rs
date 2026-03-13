@@ -32,51 +32,71 @@ impl SpriteRenderer {
             (sprite.height * sprite.scale_y) as f32
         );
         
-        // Calculate sprite vertices with rotation
-        let vertices = Self::calculate_sprite_vertices(sprite, world_pos, size);
-        let tex_coords = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        
         let mut color = sprite.tint_color;
-        
         // Apply layer color modulation
         color = renderer.modulate_color(color);
-        
-        let has_texture = !sprite.texture_id.is_empty() && texture_manager.has_texture(&sprite.texture_id);
-        if has_texture {
-            texture_manager.bind_texture(&sprite.texture_id);
-            // Apply layer opacity to textured sprites
-            color[3] = if layer_opacity <= 0.01 { 
-                0.0  // Make completely invisible when layer opacity is very low
-            } else {
-                color[3] * layer_opacity  // For textured sprites, use linear opacity
-            };
-            // Render textured sprite normally
-            renderer.draw_quad(&vertices, &tex_coords, color, has_texture)?;
+
+        // Polygon obstacles: draw actual polygon outline, not AABB rectangle
+        let is_polygon = sprite.obstacle_type.as_deref() == Some("polygon");
+        if is_polygon {
+            if let Some(ref verts) = sprite.polygon_vertices {
+                if verts.len() >= 3 {
+                    texture_manager.unbind_texture();
+                    let border_opacity = if layer_opacity <= 0.01 { 0.0 } else { layer_opacity.powf(0.5) };
+                    let line_color = [color[0], color[1], color[2], (color[3] * border_opacity).max(0.2)];
+                    // Build line-segment pairs for a closed polygon
+                    let mut line_verts: Vec<f32> = Vec::with_capacity(verts.len() * 4);
+                    for i in 0..verts.len() {
+                        let next = (i + 1) % verts.len();
+                        line_verts.push(verts[i][0]);
+                        line_verts.push(verts[i][1]);
+                        line_verts.push(verts[next][0]);
+                        line_verts.push(verts[next][1]);
+                    }
+                    renderer.draw_lines(&line_verts, line_color)?;
+                }
+            }
         } else {
-            // For sprites without texture, unbind any texture and apply dramatic opacity effect
-            texture_manager.unbind_texture();
+            // Calculate sprite vertices with rotation
+            let vertices = Self::calculate_sprite_vertices(sprite, world_pos, size);
+            let tex_coords = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
             
-            let border_opacity = if layer_opacity <= 0.01 { 
-                0.0  // Make completely invisible when layer opacity is very low
+            let has_texture = !sprite.texture_id.is_empty() && texture_manager.has_texture(&sprite.texture_id);
+            if has_texture {
+                texture_manager.bind_texture(&sprite.texture_id);
+                // Apply layer opacity to textured sprites
+                color[3] = if layer_opacity <= 0.01 { 
+                    0.0  // Make completely invisible when layer opacity is very low
+                } else {
+                    color[3] * layer_opacity  // For textured sprites, use linear opacity
+                };
+                // Render textured sprite normally
+                renderer.draw_quad(&vertices, &tex_coords, color, has_texture)?;
             } else {
-                layer_opacity.powf(0.5)  // Use power curve for more dramatic effect on non-textured sprites
-            };
-            
-            // Create border vertices in proper order for a continuous rectangle
-            // vertices = [top-left-x, top-left-y, top-right-x, top-right-y, bottom-left-x, bottom-left-y, bottom-right-x, bottom-right-y]
-            let border_vertices = vec![
-                vertices[0], vertices[1],   // Top-left to Top-right
-                vertices[2], vertices[3],
-                vertices[2], vertices[3],   // Top-right to Bottom-right  
-                vertices[6], vertices[7],
-                vertices[6], vertices[7],   // Bottom-right to Bottom-left
-                vertices[4], vertices[5],
-                vertices[4], vertices[5],   // Bottom-left to Top-left
-                vertices[0], vertices[1],
-            ];
-            // Use sprite color with dramatic layer opacity effect, but ensure it's visible
-            let border_color = [color[0], color[1], color[2], (color[3] * border_opacity).max(0.2)];
-            renderer.draw_lines(&border_vertices, border_color)?;
+                // For sprites without texture, unbind any texture and apply dramatic opacity effect
+                texture_manager.unbind_texture();
+                
+                let border_opacity = if layer_opacity <= 0.01 { 
+                    0.0  // Make completely invisible when layer opacity is very low
+                } else {
+                    layer_opacity.powf(0.5)  // Use power curve for more dramatic effect on non-textured sprites
+                };
+                
+                // Create border vertices in proper order for a continuous rectangle
+                let border_vertices = vec![
+                    vertices[0], vertices[1],   // Top-left to Top-right
+                    vertices[2], vertices[3],
+                    vertices[2], vertices[3],   // Top-right to Bottom-right  
+                    vertices[6], vertices[7],
+                    vertices[6], vertices[7],   // Bottom-right to Bottom-left
+                    vertices[4], vertices[5],
+                    vertices[4], vertices[5],   // Bottom-left to Top-left
+                    vertices[0], vertices[1],
+                ];
+                // Use sprite color with dramatic layer opacity effect, but ensure it's visible
+                let border_color = [color[0], color[1], color[2], (color[3] * border_opacity).max(0.2)];
+                renderer.draw_lines(&border_vertices, border_color)?;
+            }
         }
         
         if is_selected {

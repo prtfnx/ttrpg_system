@@ -691,3 +691,72 @@ def load_table_from_db(db: Session, table_id: str):
     except Exception as e:
         print(f"Error loading table from database: {e}")
         return None, False
+
+
+# ---------------------------------------------------------------------------
+# Wall CRUD
+# ---------------------------------------------------------------------------
+
+def create_wall(db: Session, wall_data: dict) -> models.Wall:
+    db_wall = models.Wall(
+        wall_id=wall_data['wall_id'],
+        table_id=wall_data['table_id'],
+        x1=wall_data['x1'], y1=wall_data['y1'],
+        x2=wall_data['x2'], y2=wall_data['y2'],
+        wall_type=wall_data.get('wall_type', 'normal'),
+        blocks_movement=wall_data.get('blocks_movement', True),
+        blocks_light=wall_data.get('blocks_light', True),
+        blocks_sight=wall_data.get('blocks_sight', True),
+        blocks_sound=wall_data.get('blocks_sound', True),
+        is_door=wall_data.get('is_door', False),
+        door_state=wall_data.get('door_state', 'closed'),
+        is_secret=wall_data.get('is_secret', False),
+        direction=wall_data.get('direction', 'both'),
+        created_by=wall_data.get('created_by'),
+    )
+    db.add(db_wall)
+    db.commit()
+    db.refresh(db_wall)
+    return db_wall
+
+
+def get_wall(db: Session, wall_id: str) -> models.Wall | None:
+    return db.query(models.Wall).filter(models.Wall.wall_id == wall_id).first()
+
+
+def get_table_walls(db: Session, table_id: str) -> list[models.Wall]:
+    return db.query(models.Wall).filter(models.Wall.table_id == table_id).all()
+
+
+def update_wall(db: Session, wall_id: str, updates: dict) -> models.Wall | None:
+    _allowed = {
+        'x1', 'y1', 'x2', 'y2', 'wall_type',
+        'blocks_movement', 'blocks_light', 'blocks_sight', 'blocks_sound',
+        'is_door', 'door_state', 'is_secret', 'direction',
+    }
+    db_wall = get_wall(db, wall_id)
+    if not db_wall:
+        return None
+    for key, value in updates.items():
+        if key in _allowed:
+            setattr(db_wall, key, value)
+    db_wall.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(db_wall)
+    return db_wall
+
+
+def delete_wall(db: Session, wall_id: str) -> bool:
+    db_wall = get_wall(db, wall_id)
+    if not db_wall:
+        return False
+    db.delete(db_wall)
+    db.commit()
+    return True
+
+
+def delete_table_walls(db: Session, table_id: str) -> int:
+    """Delete all walls for a table. Returns count deleted."""
+    count = db.query(models.Wall).filter(models.Wall.table_id == table_id).delete()
+    db.commit()
+    return count

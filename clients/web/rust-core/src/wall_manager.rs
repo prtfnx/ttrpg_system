@@ -83,7 +83,7 @@ impl WallManager {
     // ------------------------------------------------------------------
 
     /// Returns all wall segments that block light/sight as flat (x1,y1,x2,y2) f32 pairs.
-    /// Open doors are excluded (they no longer block).
+    /// Open doors are excluded automatically.
     pub fn get_light_blocking_segments(&self) -> Vec<f32> {
         let mut out = Vec::with_capacity(self.walls.len() * 4);
         for wall in self.walls.values() {
@@ -125,6 +125,54 @@ impl WallManager {
 
     fn door_is_open(&self, wall: &Wall) -> bool {
         wall.is_door && matches!(wall.door_state, DoorState::Open)
+    }
+
+    /// Find the closest wall within `threshold` distance of `point`.
+    /// Returns the wall_id if found.
+    pub fn find_wall_at(&self, px: f32, py: f32, threshold: f32) -> Option<String> {
+        let mut best_id: Option<&str> = None;
+        let mut best_dist = threshold;
+        for wall in self.walls.values() {
+            let d = Self::point_segment_distance(px, py, wall.x1, wall.y1, wall.x2, wall.y2);
+            if d < best_dist {
+                best_dist = d;
+                best_id = Some(&wall.wall_id);
+            }
+        }
+        best_id.map(|s| s.to_string())
+    }
+
+    /// Get wall endpoints for a given wall_id.
+    pub fn get_wall_endpoints(&self, wall_id: &str) -> Option<(f32, f32, f32, f32)> {
+        self.walls.get(wall_id).map(|w| (w.x1, w.y1, w.x2, w.y2))
+    }
+
+    /// Translate a wall by (dx, dy).
+    pub fn translate_wall(&mut self, wall_id: &str, dx: f32, dy: f32) -> bool {
+        if let Some(wall) = self.walls.get_mut(wall_id) {
+            wall.x1 += dx;
+            wall.y1 += dy;
+            wall.x2 += dx;
+            wall.y2 += dy;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Shortest distance from point (px,py) to segment (ax,ay)-(bx,by).
+    fn point_segment_distance(px: f32, py: f32, ax: f32, ay: f32, bx: f32, by: f32) -> f32 {
+        let dx = bx - ax;
+        let dy = by - ay;
+        let len_sq = dx * dx + dy * dy;
+        if len_sq < 1e-6 {
+            return ((px - ax).powi(2) + (py - ay).powi(2)).sqrt();
+        }
+        let t = ((px - ax) * dx + (py - ay) * dy) / len_sq;
+        let t = t.clamp(0.0, 1.0);
+        let proj_x = ax + t * dx;
+        let proj_y = ay + t * dy;
+        ((px - proj_x).powi(2) + (py - proj_y).powi(2)).sqrt()
     }
 }
 

@@ -1,7 +1,7 @@
 import { useGameStore, type WallData } from '@/store';
 import { useProtocol } from '@lib/api';
-import { createMessage, MessageType } from '@lib/websocket';
 import React, { useCallback, useEffect, useState } from 'react';
+import styles from './WallConfigModal.module.css';
 
 interface WallDraft extends Omit<WallData, 'wall_id' | 'table_id'> {
   x1: number; y1: number; x2: number; y2: number;
@@ -54,20 +54,18 @@ export const WallConfigModal: React.FC = () => {
 
     // Optimistic local update — addWall also forwards to rustRenderManager
     addWall(wall);
-
-    // Send to server — server expects { table_id, wall_data: {...} }
-    protocol.sendMessage(createMessage(MessageType.WALL_CREATE, { table_id: tableId, wall_data: wall as unknown as Record<string, unknown> }));
+    protocol.createWall(wall as unknown as Record<string, unknown>);
     close();
   };
 
   if (!draft) return null;
 
   return (
-    <div style={overlay}>
-      <div style={modal}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 15 }}>New Wall Segment</h3>
+    <div className={styles.overlay}>
+      <div className={styles.modal}>
+        <h3>New Wall Segment</h3>
 
-        <label style={row}>
+        <label className={styles.row}>
           Type
           <select value={draft.wall_type} onChange={e => set('wall_type', e.target.value as WallDraft['wall_type'])}>
             <option value="normal">Normal</option>
@@ -78,7 +76,7 @@ export const WallConfigModal: React.FC = () => {
           </select>
         </label>
 
-        <label style={row}>
+        <label className={styles.row}>
           Direction
           <select value={draft.direction} onChange={e => set('direction', e.target.value as WallDraft['direction'])}>
             <option value="both">Both sides</option>
@@ -87,23 +85,23 @@ export const WallConfigModal: React.FC = () => {
           </select>
         </label>
 
-        <fieldset style={{ border: '1px solid #444', padding: '8px', marginBottom: 8, borderRadius: 4 }}>
-          <legend style={{ color: '#aaa', fontSize: 12 }}>Blocks</legend>
+        <fieldset className={styles.fieldset}>
+          <legend>Blocks</legend>
           {(['blocks_movement', 'blocks_light', 'blocks_sight', 'blocks_sound'] as const).map(k => (
-            <label key={k} style={{ ...row, marginBottom: 4 }}>
+            <label key={k} className={styles.row}>
               <input type="checkbox" checked={draft[k]} onChange={e => set(k, e.target.checked)} />
               {k.replace('blocks_', '').replace('_', ' ')}
             </label>
           ))}
         </fieldset>
 
-        <label style={row}>
+        <label className={styles.row}>
           <input type="checkbox" checked={draft.is_door} onChange={e => set('is_door', e.target.checked)} />
           Is door
         </label>
 
         {draft.is_door && (
-          <label style={row}>
+          <label className={styles.row}>
             Door state
             <select value={draft.door_state} onChange={e => set('door_state', e.target.value as WallDraft['door_state'])}>
               <option value="closed">Closed</option>
@@ -113,38 +111,17 @@ export const WallConfigModal: React.FC = () => {
           </label>
         )}
 
-        <label style={row}>
+        <label className={styles.row}>
           <input type="checkbox" checked={draft.is_secret} onChange={e => set('is_secret', e.target.checked)} />
           Secret
         </label>
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'flex-end' }}>
-          <button onClick={close} style={btnSecondary}>Cancel</button>
-          <button onClick={submit} style={btnPrimary}>Place Wall</button>
+        <div className={styles.actions}>
+          <button onClick={close} className={styles.btnSecondary}>Cancel</button>
+          <button onClick={submit} className={styles.btnPrimary}>Place Wall</button>
         </div>
       </div>
     </div>
   );
 };
 
-// Minimal inline styles — no CSS module needed for a simple modal
-const overlay: React.CSSProperties = {
-  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000,
-};
-const modal: React.CSSProperties = {
-  background: '#1e1e2e', color: '#cdd6f4', border: '1px solid #45475a',
-  borderRadius: 8, padding: 20, minWidth: 280, fontSize: 13,
-};
-const row: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8,
-  justifyContent: 'space-between',
-};
-const btnPrimary: React.CSSProperties = {
-  background: '#89b4fa', color: '#1e1e2e', border: 'none', borderRadius: 4,
-  padding: '6px 14px', cursor: 'pointer', fontWeight: 600,
-};
-const btnSecondary: React.CSSProperties = {
-  background: '#45475a', color: '#cdd6f4', border: 'none', borderRadius: 4,
-  padding: '6px 14px', cursor: 'pointer',
-};

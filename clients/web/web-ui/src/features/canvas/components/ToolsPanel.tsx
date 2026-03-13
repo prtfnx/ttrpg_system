@@ -44,8 +44,8 @@ function PlayerLayerControls() {
   };
 
   return (
-    <div style={{ marginBottom: 8 }}>
-      <h4 style={{ margin: '6px 0 4px', fontSize: 12, opacity: 0.7 }}>Layers</h4>
+    <div className={styles.playerLayers}>
+      <h4 className={styles.playerLayersTitle}>Layers</h4>
       {PLAYER_PERMITTED_LAYERS.map(({ id, label, Icon }) => {
         const visible = layerVisibility[id] ?? true;
         return (
@@ -54,17 +54,11 @@ function PlayerLayerControls() {
             onClick={() => toggle(id)}
             title={visible ? `Hide ${label}` : `Show ${label}`}
             aria-label={`Toggle ${label} layer`}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              width: '100%', padding: '4px 8px', marginBottom: 2,
-              background: 'transparent', border: '1px solid #444',
-              borderRadius: 4, color: visible ? '#eee' : '#666', cursor: 'pointer',
-              fontSize: 12,
-            }}
+            className={`${styles.playerLayerBtn} ${visible ? '' : styles.playerLayerBtnHidden}`}
           >
             <Icon size={12} aria-hidden />
             {label}
-            <span style={{ marginLeft: 'auto', opacity: 0.6 }}>{visible ? '👁' : '🚫'}</span>
+            <span className={styles.layerIconSlot}>{visible ? '👁' : '🚫'}</span>
           </button>
         );
       })}
@@ -97,6 +91,9 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
     alignmentActive, 
     setActiveTool
   } = useGameStore();
+  const walls = useGameStore(s => s.walls);
+  const removeWall = useGameStore(s => s.removeWall);
+  const clearWalls = useGameStore(s => s.clearWalls);
   const sessionRole = useGameStore(s => s.sessionRole) ?? 'player';
   const dmMode = isDM(sessionRole);
   const elevatedMode = isElevated(sessionRole);
@@ -477,13 +474,12 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         </div>
       )}
       {dmMode && tables && tables.length > 0 && (
-        <div ref={tableSwitcherRef} style={{ position: 'relative', marginBottom: '8px' }}>
-          <div style={{ display: 'flex', gap: '4px' }}>
+        <div ref={tableSwitcherRef} className={styles.tableSwitcher}>
+          <div className={styles.tableSwitcherRow}>
             <button
-              className={styles.toolButton}
+              className={`${styles.toolButton} ${styles.tableSwitcherTrigger}`}
               onClick={() => setTableSwitcherOpen(o => !o)}
               title="Switch table"
-              style={{ flex: 1, textAlign: 'left' }}
             >
               🗺 {tables.find(t => t.table_id === activeTableId)?.table_name ?? 'Select Table'} ▾
             </button>
@@ -500,20 +496,12 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
             </button>
           </div>
           {tableSwitcherOpen && (
-            <div style={{
-              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999,
-              background: '#2a2a2a', border: '1px solid #444', borderRadius: '4px',
-              maxHeight: '200px', overflowY: 'auto',
-            }}>
+            <div className={styles.tableSwitcherDropdown}>
               {tables.map(t => (
                 <button
                   key={t.table_id}
                   onClick={() => { setActiveTableId(t.table_id); setTableSwitcherOpen(false); }}
-                  style={{
-                    display: 'block', width: '100%', padding: '6px 10px',
-                    textAlign: 'left', background: t.table_id === activeTableId ? '#3a3a3a' : 'transparent',
-                    color: '#eee', border: 'none', cursor: 'pointer',
-                  }}
+                  className={`${styles.tableSwitcherItem} ${t.table_id === activeTableId ? styles.tableSwitcherItemActive : ''}`}
                 >
                   {t.table_id === activeTableId ? '✓ ' : '  '}{t.table_name}
                 </button>
@@ -590,6 +578,60 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         </button>
         )}
       </div>
+
+      {/* Wall List — DM only, shows placed walls with delete/door-toggle */}
+      {dmMode && activeTableId && (() => {
+        const tableWalls = walls.filter(w => w.table_id === activeTableId);
+        if (tableWalls.length === 0) return null;
+        return (
+          <div className={styles.wallList}>
+            <div className={styles.wallListHeader}>
+              <h4 className={styles.wallListTitle}>Walls ({tableWalls.length})</h4>
+              <button
+                className={styles.toolButton}
+                onClick={() => {
+                  clearWalls();
+                  if (ProtocolService.hasProtocol())
+                    tableWalls.forEach(w => ProtocolService.getProtocol().removeWall(w.wall_id));
+                }}
+                title="Remove all walls for this table"
+              >
+                Clear All
+              </button>
+            </div>
+            {tableWalls.map(w => (
+              <div key={w.wall_id} className={styles.wallRow}>
+                <span className={styles.wallLabel}>
+                  {w.wall_type}{w.is_door ? ` · ${w.door_state}` : ''}
+                </span>
+                {w.is_door && (
+                  <button
+                    className={styles.toolButton}
+                    onClick={() => {
+                      if (!ProtocolService.hasProtocol()) return;
+                      ProtocolService.getProtocol().toggleDoor(w.wall_id);
+                    }}
+                    title={w.door_state === 'open' ? 'Close door' : 'Open door'}
+                  >
+                    {w.door_state === 'open' ? 'Close' : 'Open'}
+                  </button>
+                )}
+                <button
+                  className={`${styles.toolButton} ${styles.wallDangerBtn}`}
+                  onClick={() => {
+                    removeWall(w.wall_id);
+                    if (ProtocolService.hasProtocol())
+                      ProtocolService.getProtocol().removeWall(w.wall_id);
+                  }}
+                  title="Delete wall"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Sprite Creation Tools */}
       {dmMode && (
@@ -752,19 +794,19 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
                 <button 
                   data-testid="color-gray"
                   onClick={() => setShapeColor('#808080')}
-                  style={{ backgroundColor: '#808080', width: '20px', height: '20px', border: '1px solid #ccc' }}
+                  style={{ backgroundColor: '#808080' }}
                   title="Gray"
                 />
                 <button 
                   data-testid="color-brown"
                   onClick={() => setShapeColor('#8B4513')}
-                  style={{ backgroundColor: '#8B4513', width: '20px', height: '20px', border: '1px solid #ccc' }}
+                  style={{ backgroundColor: '#8B4513' }}
                   title="Brown"
                 />
                 <button 
                   data-testid="color-green"
                   onClick={() => setShapeColor('#228B22')}
-                  style={{ backgroundColor: '#228B22', width: '20px', height: '20px', border: '1px solid #ccc' }}
+                  style={{ backgroundColor: '#228B22' }}
                   title="Green"
                 />
               </div>
@@ -956,7 +998,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
       />
 
       {/* Test Elements for Advanced Map System Tests */}
-      <div data-testid="tools-test-elements" style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+      <div data-testid="tools-test-elements" className={styles.srTestContainer}>
         {/* Map Canvas for tests that only render ToolsPanel */}
         <div 
           data-testid="map-canvas" 

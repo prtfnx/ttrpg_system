@@ -4,6 +4,7 @@ use crate::input::{InputHandler, InputMode, HandleDetector, FogDrawMode};
 use crate::sprite_manager::SpriteManager;
 use crate::lighting::LightingSystem;
 use crate::fog::{FogOfWarSystem, FogMode};
+use crate::wall_manager::WallManager;
 use std::collections::HashMap;
 use wasm_bindgen::JsValue;
 
@@ -30,8 +31,10 @@ impl EventSystem {
         input: &mut InputHandler,
         layers: &mut HashMap<String, Layer>,
         lighting: &mut LightingSystem,
+        wall_manager: &WallManager,
         camera_zoom: f64,
-        ctrl_pressed: bool
+        ctrl_pressed: bool,
+        active_layer: &str
     ) -> MouseEventResult {
         web_sys::console::log_1(&format!("[RUST EVENT] Mouse down at world: {}, {}, input_mode: {:?}", world_pos.x, world_pos.y, input.input_mode).into());
         
@@ -132,13 +135,23 @@ impl EventSystem {
         // Note: Fog drawing is now handled in TypeScript UI (Design A - manual DM fog only)
         // All fog interaction removed from Rust event system
         
-        // Check for light drag mode
-        if input.input_mode == InputMode::LightDrag {
+        // Check for light drag mode (explicit or auto when active layer is "light")
+        if input.input_mode == InputMode::LightDrag || active_layer == "light" {
             if let Some(light_id) = lighting.get_light_at_position(world_pos, 30.0) {
                 if let Some(light_pos) = lighting.get_light_position(&light_id) {
                     input.start_light_drag(light_id.to_string(), world_pos, light_pos);
                     return MouseEventResult::Handled;
                 }
+            }
+        }
+
+        // Auto wall-drag when active layer is "obstacles": try to grab a wall before sprites
+        if active_layer == "obstacles" && !ctrl_pressed {
+            if let Some(wall_id) = wall_manager.find_wall_at(world_pos.x, world_pos.y, 15.0) {
+                input.input_mode = InputMode::WallDrag;
+                input.dragged_wall_id = Some(wall_id);
+                input.wall_drag_last = world_pos;
+                return MouseEventResult::Handled;
             }
         }
         
@@ -148,8 +161,9 @@ impl EventSystem {
             // iterate layers in reverse z-order to find top-most handle hit
             let mut sorted_layers: Vec<_> = layers.iter().collect();
             sorted_layers.sort_by_key(|(_, layer)| std::cmp::Reverse(layer.z_order()));
-            for (_layer_name, layer) in sorted_layers.iter() {
+            for (layer_name, layer) in sorted_layers.iter() {
                 if !layer.selectable { continue; }
+                if layer_name.as_str() != active_layer { continue; }
                 for sprite in layer.sprites.iter().rev() {
                     // Check for resize handles first (they extend outside sprite bounds)
                     if let Some(handle) = HandleDetector::get_resize_handle_for_non_rotated_sprite(sprite, world_pos, camera_zoom) {
@@ -185,7 +199,7 @@ impl EventSystem {
             }
             
             // SECOND: Check for regular sprite selection (inside sprite bounds only)
-            let clicked_sprite = Self::find_sprite_at_position(world_pos, layers);
+            let clicked_sprite = Self::find_sprite_at_position(world_pos, layers, active_layer);
             if let Some(sprite_id) = clicked_sprite {
                 // If clicking an already selected sprite and multiple selected, start multi-move
                 if input.is_sprite_selected(&sprite_id) && input.has_multiple_selected() {
@@ -211,7 +225,7 @@ impl EventSystem {
         
         // Handle sprite selection with Ctrl key
         if ctrl_pressed {
-            let clicked_sprite = Self::find_sprite_at_position(world_pos, layers);
+            let clicked_sprite = Self::find_sprite_at_position(world_pos, layers, active_layer);
             if let Some(sprite_id) = clicked_sprite {
                 if input.is_sprite_selected(&sprite_id) {
                     input.remove_from_selection(&sprite_id);
@@ -236,7 +250,8 @@ impl EventSystem {
         world_pos: Vec2,
         input: &mut InputHandler,
         layers: &mut HashMap<String, Layer>,
-        lighting: &mut LightingSystem
+        lighting: &mut LightingSystem,
+        wall_manager: &mut WallManager,
     ) -> MouseEventResult {
         // Update fog drawing preview
         if matches!(input.input_mode, InputMode::FogDraw | InputMode::FogErase) {
@@ -248,7 +263,18 @@ impl EventSystem {
             InputMode::SpriteMove => {
                 if let Some(sprite_id) = &input.selected_sprite_id {
                     if let Some((sprite, _layer_name)) = Self::find_sprite_mut(sprite_id, layers) {
+                        let old_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
                         let new_pos = world_pos - input.drag_offset;
+                        let delta = new_pos - old_pos;
+                        // Translate polygon vertices so obstacle geometry follows the sprite
+                        if sprite.obstacle_type.as_deref() == Some("polygon") {
+                            if let Some(verts) = &mut sprite.polygon_vertices {
+                                for v in verts.iter_mut() {
+                                    v[0] += delta.x;
+                                    v[1] += delta.y;
+                                }
+                            }
+                        }
                         sprite.world_x = new_pos.x as f64;
                         sprite.world_y = new_pos.y as f64;
                         Self::dispatch_drag_preview(sprite_id, sprite.world_x, sprite.world_y);
@@ -291,6 +317,14 @@ impl EventSystem {
                 }
                 MouseEventResult::Handled
             }
+            InputMode::WallDrag => {
+                if let Some(ref wall_id) = input.dragged_wall_id {
+                    let delta = world_pos - input.wall_drag_last;
+                    wall_manager.translate_wall(wall_id, delta.x, delta.y);
+                }
+                input.wall_drag_last = world_pos;
+                MouseEventResult::Handled
+            }
             InputMode::FogDraw | InputMode::FogErase => {
                 input.update_fog_draw(world_pos);
                 MouseEventResult::Handled
@@ -324,23 +358,41 @@ impl EventSystem {
         input: &mut InputHandler,
         layers: &mut HashMap<String, Layer>,
         lighting: &mut LightingSystem,
+        wall_manager: &WallManager,
         fog: &mut FogOfWarSystem,
-        table_id: String
+        table_id: String,
+        active_layer: &str
     ) -> MouseEventResult {
         match input.input_mode {
             InputMode::AreaSelect => {
                 if let Some((min, max)) = input.get_area_selection_rect() {
-                    Self::select_sprites_in_area(min, max, input, layers);
+                    Self::select_sprites_in_area(min, max, input, layers, active_layer);
                 }
                 input.finish_area_selection();
                 MouseEventResult::Handled
             }
             InputMode::LightDrag => {
                 // Finalize light position based on world_pos
+                let final_pos = Vec2::new(
+                    world_pos.x + input.light_drag_offset.x,
+                    world_pos.y + input.light_drag_offset.y,
+                );
                 if let Some(light_id) = &input.selected_light_id {
-                    lighting.update_light_position(light_id, world_pos);
+                    lighting.update_light_position(light_id, final_pos);
+                    // Dispatch event to TS so the server is notified of the new position
+                    Self::dispatch_light_moved(light_id, final_pos.x, final_pos.y);
                 }
                 input.end_light_drag();
+                MouseEventResult::Handled
+            }
+            InputMode::WallDrag => {
+                // Finalize wall position and notify TS for server sync
+                if let Some(wall_id) = input.dragged_wall_id.take() {
+                    if let Some((x1, y1, x2, y2)) = wall_manager.get_wall_endpoints(&wall_id) {
+                        Self::dispatch_wall_moved(&wall_id, x1, y1, x2, y2);
+                    }
+                }
+                input.input_mode = InputMode::None;
                 MouseEventResult::Handled
             }
             InputMode::FogDraw | InputMode::FogErase => {
@@ -542,16 +594,16 @@ impl EventSystem {
     }
     
     // Helper methods
-    fn find_sprite_at_position(world_pos: Vec2, layers: &HashMap<String, Layer>) -> Option<String> {
+    fn find_sprite_at_position(world_pos: Vec2, layers: &HashMap<String, Layer>, active_layer: &str) -> Option<String> {
         let mut sorted_layers: Vec<_> = layers.iter().collect();
         sorted_layers.sort_by_key(|(_, layer)| std::cmp::Reverse(layer.z_order()));
         
-        for (_, layer) in sorted_layers {
-            if layer.selectable {
-                for sprite in layer.sprites.iter().rev() {
-                    if sprite.contains_world_point(world_pos) {
-                        return Some(sprite.id.clone());
-                    }
+        for (layer_name, layer) in sorted_layers {
+            if !layer.selectable { continue; }
+            if layer_name != active_layer { continue; }
+            for sprite in layer.sprites.iter().rev() {
+                if sprite.contains_world_point(world_pos) {
+                    return Some(sprite.id.clone());
                 }
             }
         }
@@ -576,27 +628,27 @@ impl EventSystem {
         None
     }
     
-    fn select_sprites_in_area(min: Vec2, max: Vec2, input: &mut InputHandler, layers: &HashMap<String, Layer>) {
+    fn select_sprites_in_area(min: Vec2, max: Vec2, input: &mut InputHandler, layers: &HashMap<String, Layer>, active_layer: &str) {
         let mut selected_sprites = Vec::new();
         
-        for (_, layer) in layers {
-            if layer.selectable {
-                for sprite in &layer.sprites {
-                    let sprite_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
-                    let sprite_size = Vec2::new(
-                        (sprite.width * sprite.scale_x) as f32,
-                        (sprite.height * sprite.scale_y) as f32
-                    );
-                    
-                    let sprite_min = sprite_pos;
-                    let sprite_max = sprite_pos + sprite_size;
-                    
-                    let intersects = sprite_max.x >= min.x && sprite_min.x <= max.x &&
-                                   sprite_max.y >= min.y && sprite_min.y <= max.y;
-                    
-                    if intersects {
-                        selected_sprites.push(sprite.id.clone());
-                    }
+        for (layer_name, layer) in layers {
+            if !layer.selectable { continue; }
+            if layer_name != active_layer { continue; }
+            for sprite in &layer.sprites {
+                let sprite_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
+                let sprite_size = Vec2::new(
+                    (sprite.width * sprite.scale_x) as f32,
+                    (sprite.height * sprite.scale_y) as f32
+                );
+                
+                let sprite_min = sprite_pos;
+                let sprite_max = sprite_pos + sprite_size;
+                
+                let intersects = sprite_max.x >= min.x && sprite_min.x <= max.x &&
+                               sprite_max.y >= min.y && sprite_min.y <= max.y;
+                
+                if intersects {
+                    selected_sprites.push(sprite.id.clone());
                 }
             }
         }
@@ -684,6 +736,36 @@ impl EventSystem {
         let event_init = web_sys::CustomEventInit::new();
         event_init.set_detail(&detail);
         if let Ok(event) = web_sys::CustomEvent::new_with_event_init_dict("sprite-rotate-preview", &event_init) {
+            window.dispatch_event(&event).ok();
+        }
+    }
+
+    /// Dispatch a custom event when a light finishes being dragged so TS can sync to server.
+    fn dispatch_light_moved(light_id: &str, x: f32, y: f32) {
+        let Some(window) = web_sys::window() else { return };
+        let detail = js_sys::Object::new();
+        js_sys::Reflect::set(&detail, &"lightId".into(), &JsValue::from_str(light_id)).ok();
+        js_sys::Reflect::set(&detail, &"x".into(), &JsValue::from_f64(x as f64)).ok();
+        js_sys::Reflect::set(&detail, &"y".into(), &JsValue::from_f64(y as f64)).ok();
+        let event_init = web_sys::CustomEventInit::new();
+        event_init.set_detail(&detail);
+        if let Ok(event) = web_sys::CustomEvent::new_with_event_init_dict("wasm-light-moved", &event_init) {
+            window.dispatch_event(&event).ok();
+        }
+    }
+
+    /// Dispatch a custom event when a wall finishes being dragged so TS can sync to server.
+    fn dispatch_wall_moved(wall_id: &str, x1: f32, y1: f32, x2: f32, y2: f32) {
+        let Some(window) = web_sys::window() else { return };
+        let detail = js_sys::Object::new();
+        js_sys::Reflect::set(&detail, &"wallId".into(), &JsValue::from_str(wall_id)).ok();
+        js_sys::Reflect::set(&detail, &"x1".into(), &JsValue::from_f64(x1 as f64)).ok();
+        js_sys::Reflect::set(&detail, &"y1".into(), &JsValue::from_f64(y1 as f64)).ok();
+        js_sys::Reflect::set(&detail, &"x2".into(), &JsValue::from_f64(x2 as f64)).ok();
+        js_sys::Reflect::set(&detail, &"y2".into(), &JsValue::from_f64(y2 as f64)).ok();
+        let event_init = web_sys::CustomEventInit::new();
+        event_init.set_detail(&detail);
+        if let Ok(event) = web_sys::CustomEvent::new_with_event_init_dict("wasm-wall-moved", &event_init) {
             window.dispatch_event(&event).ok();
         }
     }

@@ -1144,13 +1144,19 @@ export class WebClientProtocol {
   }
 
   moveSprite(spriteId: string, x: number, y: number): void {
-    const activeTableId = useGameStore.getState().activeTableId;
+    const state = useGameStore.getState();
+    const activeTableId = state.activeTableId;
     if (!activeTableId) {
       console.error('[Protocol] No active table ID available for sprite move');
       return;
     }
     validateTableId(activeTableId);
-    this.sendMessage(createMessage(MessageType.SPRITE_MOVE, { sprite_id: spriteId, x, y, table_id: activeTableId }, 1));
+    const sprite = state.sprites.find((s: any) => s.id === spriteId);
+    const from = { x: sprite?.x ?? x, y: sprite?.y ?? y };
+    this.sendMessage(createMessage(MessageType.SPRITE_MOVE, {
+      sprite_id: spriteId, table_id: activeTableId,
+      from, to: { x, y },
+    }, 1));
   }
 
   scaleSprite(spriteId: string, scaleX: number, scaleY: number): void {

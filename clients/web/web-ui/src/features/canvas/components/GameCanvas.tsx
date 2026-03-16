@@ -21,14 +21,14 @@ import fpsService from '../services/fps.service';
 import { performanceService } from '../services/performance.service';
 import styles from './GameCanvas.module.css';
 import {
-    CanvasRenderer,
-    getGridCoord,
-    resizeCanvas,
-    useCanvasDebug,
-    useContextMenu,
-    useFPS,
-    useLightPlacement,
-    usePerformanceMonitor,
+  CanvasRenderer,
+  getGridCoord,
+  resizeCanvas,
+  useCanvasDebug,
+  useContextMenu,
+  useFPS,
+  useLightPlacement,
+  usePerformanceMonitor,
 } from './GameCanvas/index';
 import { useCanvasEventsEnhanced } from './GameCanvas/useCanvasEventsEnhanced';
 import PerformanceMonitor from './PerformanceMonitor';

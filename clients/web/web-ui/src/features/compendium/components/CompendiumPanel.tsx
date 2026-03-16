@@ -1,58 +1,25 @@
 import { useAuth } from '@features/auth';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { compendiumService } from '../services/compendiumService';
+import { monsterCreationSystem, type MonsterInstance } from '../services/monsterCreation.service';
+import styles from './CompendiumPanel.module.css';
+import { MonsterCreationPanel } from './MonsterCreationPanel';
 
-// Use simplified interfaces for internal use
-interface Monster {
-  id: string;
-  name: string;
-  challenge_rating: number;
-  type: string;
-  hp?: number;
-  ac?: number;
-  stats?: Record<string, any>;
-  size?: string;
-  alignment?: string;
-  description?: string;
-}
+const PAGE_SIZE = 50;
 
-interface SimpleSpell {
-  id: string;
-  name: string;
-  level: number;
-  school: string;
-  description?: string;
-}
-
-interface Equipment {
-  id: string;
-  name: string;
-  type: string;
-  cost: string;
-  description?: string;
-}
+type EntryType = 'all' | 'monster' | 'spell' | 'equipment';
 
 interface CompendiumEntry {
   id: string;
   type: 'monster' | 'spell' | 'equipment';
   name: string;
   description: string;
-  stats?: Record<string, any>;
   challenge_rating?: number;
   level?: number;
   school?: string;
   cost?: string;
-  // Monster-specific properties
-  size?: string;
-  alignment?: string;
-  ac?: number;
-  hp?: number;
-}
-
-interface SearchFilters {
-  type: 'all' | 'monster' | 'spell' | 'equipment';
-  spellLevel?: string;
-  challengeRating?: string;
+  monsterType?: string;
+  raw?: Record<string, any>;
 }
 
 interface CompendiumPanelProps extends React.HTMLProps<HTMLDivElement> {
@@ -60,393 +27,269 @@ interface CompendiumPanelProps extends React.HTMLProps<HTMLDivElement> {
 }
 
 export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, className, style, id, ...otherProps }) => {
-  const { user, isAuthenticated, hasPermission } = useAuth();
-  
-  const [entries, setEntries] = useState<CompendiumEntry[]>([]);
+  const { isAuthenticated, hasPermission } = useAuth();
+
+  const initialType: EntryType =
+    category === 'spells' ? 'spell' :
+    category === 'monsters' ? 'monster' :
+    category === 'equipment' ? 'equipment' : 'all';
+
+  const [allEntries, setAllEntries] = useState<CompendiumEntry[]>([]);
   const [search, setSearch] = useState('');
-  const [debounced, setDebounced] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all'|'monster'|'spell'|'equipment'>(
-    category === 'spells' ? 'spell' : 
-    category === 'monsters' ? 'monster' : 
-    category === 'equipment' ? 'equipment' : 'all'
-  );
+  const [typeFilter, setTypeFilter] = useState<EntryType>(initialType);
   const [spellLevel, setSpellLevel] = useState('');
-  const [dragged, setDragged] = useState<CompendiumEntry | null>(null);
-  const [selectedEntry, setSelectedEntry] = useState<CompendiumEntry | null>(null);
+  const [crMin, setCrMin] = useState('');
+  const [crMax, setCrMax] = useState('');
+  const [monsterType, setMonsterType] = useState('');
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [monsterPanelOpen, setMonsterPanelOpen] = useState(false);
 
-  // Authentication check for compendium access
-  const checkCompendiumAccess = () => {
-    if (!isAuthenticated) {
-      return { hasAccess: false, error: 'Authentication required for compendium access' };
-    }
-    
-    // Check if user has compendium permissions
-    if (!hasPermission('compendium:read')) {
-      return { hasAccess: false, error: 'Insufficient permissions for compendium access' };
-    }
-    
-    return { hasAccess: true, error: null };
-  };
+  const compendiumInitialized = useRef(false);
+  const canAccess = isAuthenticated && hasPermission('compendium:read');
 
-  // Debounce search input
-  useEffect(() => { 
-    const t = setTimeout(() => setDebounced(search.trim()), 250); 
-    return () => clearTimeout(t); 
-  }, [search]);
-
-  // Transform functions for different entry types
-  const transformMonsterToEntry = (monster: Monster): CompendiumEntry => ({
-    id: monster.id,
-    type: 'monster' as const,
-    name: monster.name,
-    description: monster.description || `CR ${monster.challenge_rating} ${monster.type}`,
-    stats: monster,
-    challenge_rating: monster.challenge_rating,
-    size: monster.size,
-    alignment: monster.alignment,
-    ac: monster.ac,
-    hp: monster.hp
-  });
-
-  const transformSpellToEntry = (spell: SimpleSpell): CompendiumEntry => ({
-    id: spell.id,
-    type: 'spell' as const,
-    name: spell.name,
-    description: spell.description || `Level ${spell.level} ${spell.school} spell`,
-    stats: spell,
-    level: spell.level,
-    school: spell.school
-  });
-
-  const transformEquipmentToEntry = (equipment: Equipment): CompendiumEntry => ({
-    id: equipment.id,
-    type: 'equipment' as const,
-    name: equipment.name,
-    description: equipment.description || `${equipment.type} - ${equipment.cost}`,
-    stats: equipment,
-    cost: equipment.cost
-  });
-
-  // Authenticated search function
-  const performAuthenticatedSearch = async (query: string, filters: SearchFilters): Promise<CompendiumEntry[]> => {
-    const results: CompendiumEntry[] = [];
-
-    try {
-      if (filters.type === 'all' || filters.type === 'monster') {
-        try {
-          const res = await compendiumService.getMonsters({ limit: 300 });
-          const monsters: Monster[] = Object.entries(res.monsters)
-            .map(([name, m]: [string, any]) => ({
-              id: name.toLowerCase().replace(/\s+/g, '-'),
-              name,
-              challenge_rating: m.challenge_rating ?? 0,
-              type: m.type ?? '',
-              hp: m.hit_points,
-              ac: m.armor_class,
-              size: m.size,
-              alignment: m.alignment,
-              stats: m,
-            }))
-            .filter(m => !query || m.name.toLowerCase().includes(query.toLowerCase()));
-          results.push(...monsters.map(transformMonsterToEntry));
-        } catch (err) {
-          console.error('Error fetching monsters:', err);
-        }
-      }
-
-      if (filters.type === 'all' || filters.type === 'spell') {
-        try {
-          const response = await compendiumService.getSpells({ limit: 50 });
-          const spells = Object.values(response.spells).map(spell => ({
-            id: spell.name.toLowerCase().replace(/\s+/g, '-'),
-            name: spell.name,
-            level: spell.level,
-            school: spell.school,
-            description: spell.description
-          }));
-          
-          let filteredSpells = spells;
-          if (query) {
-            filteredSpells = spells.filter(spell => 
-              spell.name.toLowerCase().includes(query.toLowerCase())
-            );
-          }
-          if (filters.spellLevel && filters.spellLevel !== 'all') {
-            filteredSpells = filteredSpells.filter(spell => 
-              spell.level === parseInt(filters.spellLevel!)
-            );
-          }
-          
-          results.push(...filteredSpells.map(transformSpellToEntry));
-        } catch (error) {
-          console.error('Error fetching spells:', error);
-        }
-      }
-
-      if (filters.type === 'all' || filters.type === 'equipment') {
-        try {
-          const res = await compendiumService.getEquipment();
-          const equipment: Equipment[] = [];
-          for (const [category, items] of Object.entries(res.equipment ?? {})) {
-            for (const item of (items as any[])) {
-              const name: string = item.name ?? '';
-              if (!name) continue;
-              if (query && !name.toLowerCase().includes(query.toLowerCase())) continue;
-              equipment.push({
-                id: `${category}_${name}`.toLowerCase().replace(/\s+/g, '-'),
-                name,
-                type: category,
-                cost: item.cost ?? '—',
-                description: item.desc ?? item.description,
-              });
-            }
-          }
-          results.push(...equipment.map(transformEquipmentToEntry));
-        } catch (err) {
-          console.error('Error fetching equipment:', err);
-        }
-      }
-
-      return results;
-    } catch (error) {
-      console.error('Authentication or search failed:', error);
-      throw new Error('Search failed - please check your connection and permissions');
-    }
-  };
-
-  // Load compendium data based on search and filter with authentication
+  // Fetch all data once on mount
   useEffect(() => {
-    const loadData = async () => {
-      // Check authentication and permissions first
-      const accessCheck = checkCompendiumAccess();
-      if (!accessCheck.hasAccess) {
-        setError(accessCheck.error);
-        setEntries([]);
-        return;
-      }
+    if (!canAccess) return;
 
+    const load = async () => {
       setLoading(true);
       setError(null);
-      
-      try {
-        const searchFilters: SearchFilters = {
-          type: typeFilter,
-          spellLevel: spellLevel || undefined
-        };
+      const results: CompendiumEntry[] = [];
 
-        // Perform authenticated search with user context
-        const results = await performAuthenticatedSearch(debounced, searchFilters);
-        setEntries(results);
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load compendium data';
-        setError(errorMessage);
-        setEntries([]);
-        console.error('Compendium search error:', err);
-      } finally {
-        setLoading(false);
-      }
+      try {
+        const monsterRes = await compendiumService.getMonsters({ limit: 500 });
+        const rawMonsters = monsterRes.monsters ?? {};
+
+        // Init monsterCreationSystem once with raw data (enables full stat block in MonsterCreationPanel)
+        if (!compendiumInitialized.current) {
+          compendiumInitialized.current = true;
+          monsterCreationSystem.initializeWithCompendium({ monsters: rawMonsters }).catch(() => {});
+        }
+
+        for (const [name, m] of Object.entries(rawMonsters as Record<string, any>)) {
+          results.push({
+            id: name.toLowerCase().replace(/\s+/g, '-'),
+            type: 'monster',
+            name,
+            description: `CR ${m.challenge_rating ?? '?'} ${m.type ?? ''}`,
+            challenge_rating: parseFloat(m.challenge_rating) || 0,
+            monsterType: m.type ?? '',
+            raw: m,
+          });
+        }
+      } catch { /* monsters unavailable */ }
+
+      try {
+        const spellRes = await compendiumService.getSpells({ limit: 500 });
+        for (const spell of Object.values(spellRes.spells ?? {}) as any[]) {
+          results.push({
+            id: spell.name.toLowerCase().replace(/\s+/g, '-'),
+            type: 'spell',
+            name: spell.name,
+            description: `Level ${spell.level} ${spell.school}`,
+            level: spell.level,
+            school: spell.school,
+            raw: spell,
+          });
+        }
+      } catch { /* spells unavailable */ }
+
+      try {
+        const eqRes = await compendiumService.getEquipment();
+        for (const [cat, items] of Object.entries(eqRes.equipment ?? {})) {
+          for (const item of (items as any[])) {
+            if (!item.name) continue;
+            results.push({
+              id: `${cat}_${item.name}`.toLowerCase().replace(/\s+/g, '-'),
+              type: 'equipment',
+              name: item.name,
+              description: `${cat} — ${item.cost ?? '—'}`,
+              cost: item.cost,
+              raw: item,
+            });
+          }
+        }
+      } catch { /* equipment unavailable */ }
+
+      setAllEntries(results);
+      setLoading(false);
     };
 
-    loadData();
-  }, [debounced, typeFilter, spellLevel, isAuthenticated]);
+    load().catch(e => {
+      setError(String(e));
+      setLoading(false);
+    });
+  }, [canAccess]);
 
-  // Drag handlers
-  const onDragStart = (e: React.DragEvent, entry: CompendiumEntry) => {
-    setDragged(entry);
+  // Reset page on filter change
+  useEffect(() => { setPage(0); }, [search, typeFilter, spellLevel, crMin, crMax, monsterType]);
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    const crMinN = crMin !== '' ? parseFloat(crMin) : -Infinity;
+    const crMaxN = crMax !== '' ? parseFloat(crMax) : Infinity;
+
+    return allEntries.filter(e => {
+      if (typeFilter !== 'all' && e.type !== typeFilter) return false;
+      if (q && !e.name.toLowerCase().includes(q)) return false;
+      if (e.type === 'spell' && spellLevel && e.level !== parseInt(spellLevel)) return false;
+      if (e.type === 'monster') {
+        if (crMin !== '' && (e.challenge_rating ?? 0) < crMinN) return false;
+        if (crMax !== '' && (e.challenge_rating ?? 0) > crMaxN) return false;
+        if (monsterType && e.monsterType !== monsterType) return false;
+      }
+      return true;
+    });
+  }, [allEntries, search, typeFilter, spellLevel, crMin, crMax, monsterType]);
+
+  const pageEntries = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+
+  const onDragStart = useCallback((e: React.DragEvent, entry: CompendiumEntry) => {
     e.dataTransfer.setData('application/json', JSON.stringify(entry));
     e.dataTransfer.effectAllowed = 'copy';
-  };
+  }, []);
 
-  const onDragEnd = () => {
-    setDragged(null);
-  };
-
-  const onDropToTable = () => {
-    if (dragged) {
-      console.log('Would add to table:', dragged.name);
-      setDragged(null);
+  const onEntryClick = useCallback((entry: CompendiumEntry) => {
+    if (entry.type === 'monster') {
+      setMonsterPanelOpen(true);
+    } else {
+      window.dispatchEvent(new CustomEvent('compendium-insert', { detail: entry }));
     }
-  };
+  }, []);
 
-  const insertEntry = (entry: CompendiumEntry) => {
-    setSelectedEntry(entry);
-    window.dispatchEvent(new CustomEvent('compendium-insert', { detail: entry }));
-  };
+  const onMonsterPlaceOnTable = useCallback((instance: MonsterInstance) => {
+    window.dispatchEvent(new CustomEvent('compendium-insert', {
+      detail: {
+        type: 'monster',
+        name: instance.name,
+        id: instance.id,
+        templateId: instance.templateId,
+        stats: instance.template,
+      }
+    }));
+    setMonsterPanelOpen(false);
+  }, []);
 
-  // Filter entries based on additional criteria
-  const filtered = entries.filter(entry => {
-    // Additional filtering can be added here
-    if (typeFilter === 'spell' && spellLevel && entry.level !== undefined) {
-      return entry.level === parseInt(spellLevel);
-    }
-    return true;
-  });
+  const monsterTypes = useMemo(() => {
+    const types = new Set(allEntries.filter(e => e.type === 'monster').map(e => e.monsterType ?? '').filter(Boolean));
+    return Array.from(types).sort();
+  }, [allEntries]);
+
+  if (!isAuthenticated) {
+    return (
+      <div className={styles.panel}>
+        <div className={styles.status}>⚠️ Login required for compendium access</div>
+      </div>
+    );
+  }
+
+  if (!hasPermission('compendium:read')) {
+    return (
+      <div className={styles.panel}>
+        <div className={`${styles.status} ${styles.error}`}>⚠️ Insufficient permissions</div>
+      </div>
+    );
+  }
 
   return (
-    <div 
-      className={`compendium-panel ${className || ''}`} 
-      style={style} 
-      id={id}
-      onDrop={onDropToTable}
-      onDragOver={(e) => e.preventDefault()}
-      {...otherProps}
-    >
-      <div className="compendium-header">
+    <div className={`${styles.panel} ${className || ''}`} style={style} id={id} {...otherProps}>
+      <div className={styles.header}>
         <h3>📚 Compendium</h3>
-        {!isAuthenticated && (
-          <div className="auth-warning">
-            ⚠️ Login required for compendium access
-          </div>
-        )}
-        {isAuthenticated && !hasPermission('compendium:read') && (
-          <div className="permission-warning">
-            ⚠️ Insufficient permissions for compendium access
-          </div>
-        )}
-        {user && (
-          <div className="user-info">
-            Welcome, {user.username}
-          </div>
-        )}
       </div>
 
-      {error && (
-        <div className="error-message" style={{ color: 'red', padding: '8px', margin: '8px 0' }}>
-          {error}
-        </div>
-      )}
-
-      <div className="search-section">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search compendium..."
-          disabled={!isAuthenticated || !hasPermission('compendium:read')}
-          style={{ width: '100%', padding: '8px', margin: '8px 0' }}
-        />
-
-        <div className="filters">
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as any)}
-            disabled={!isAuthenticated || !hasPermission('compendium:read')}
-            style={{ margin: '4px' }}
-          >
-            <option value="all">All Types</option>
+      <div className={styles.controls}>
+        <div className={styles.searchRow}>
+          <input
+            className={styles.searchInput}
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search..."
+          />
+          <select className={styles.select} value={typeFilter} onChange={e => setTypeFilter(e.target.value as EntryType)}>
+            <option value="all">All</option>
             <option value="monster">Monsters</option>
             <option value="spell">Spells</option>
             <option value="equipment">Equipment</option>
           </select>
-
-          {typeFilter === 'spell' && (
-            <div style={{ display: 'flex', flexDirection: 'column', margin: '4px' }}>
-              <label htmlFor="spell-level-filter" style={{ fontSize: '12px', marginBottom: '2px' }}>
-                Spell Level
-              </label>
-              <select
-                id="spell-level-filter"
-                value={spellLevel}
-                onChange={(e) => setSpellLevel(e.target.value)}
-                disabled={!isAuthenticated || !hasPermission('compendium:read')}
-                style={{ margin: '0' }}
-              >
-                <option value="">All Levels</option>
-                {[0,1,2,3,4,5,6,7,8,9].map(level => (
-                  <option key={level} value={level.toString()}>Level {level}</option>
-                ))}
-              </select>
-            </div>
-          )}
         </div>
+
+        {(typeFilter === 'monster' || typeFilter === 'all') && (
+          <div className={styles.filterRow}>
+            <span className={styles.crLabel}>CR</span>
+            <input className={styles.crInput} type="number" min="0" max="30" step="0.125" placeholder="min" value={crMin} onChange={e => setCrMin(e.target.value)} />
+            <span className={styles.crLabel}>–</span>
+            <input className={styles.crInput} type="number" min="0" max="30" step="0.125" placeholder="max" value={crMax} onChange={e => setCrMax(e.target.value)} />
+            {monsterTypes.length > 0 && (
+              <select className={styles.select} value={monsterType} onChange={e => setMonsterType(e.target.value)}>
+                <option value="">Any type</option>
+                {monsterTypes.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            )}
+          </div>
+        )}
+
+        {typeFilter === 'spell' && (
+          <div className={styles.filterRow}>
+            <span className={styles.crLabel}>Level</span>
+            <select className={styles.select} value={spellLevel} onChange={e => setSpellLevel(e.target.value)}>
+              <option value="">All</option>
+              {[0,1,2,3,4,5,6,7,8,9].map(l => <option key={l} value={l}>{l === 0 ? 'Cantrip' : l}</option>)}
+            </select>
+          </div>
+        )}
       </div>
 
-      <div className="entries-list">
-        {loading && (
-          <div className="loading-indicator" style={{ padding: '16px', textAlign: 'center' }}>
-            Loading compendium data...
+      {error && <div className={`${styles.status} ${styles.error}`}>{error}</div>}
+
+      <div className={styles.list}>
+        {loading && <div className={styles.status}>Loading...</div>}
+
+        {!loading && filtered.length === 0 && (
+          <div className={styles.status}>
+            {allEntries.length === 0 ? 'No compendium data' : 'No matches'}
           </div>
         )}
 
-        {!loading && filtered.length === 0 && !error && (
-          <div className="no-results" style={{ padding: '16px', textAlign: 'center', color: '#999' }}>
-            {debounced ? 'No entries found' : 'Enter search terms to find compendium entries'}
-          </div>
-        )}
-
-        {!loading && filtered.map(entry => (
+        {!loading && pageEntries.map(entry => (
           <div
             key={`${entry.type}-${entry.id}`}
-            className={`entry-item ${selectedEntry?.id === entry.id ? 'selected' : ''}`}
-            draggable={isAuthenticated && hasPermission('compendium:read')}
-            onDragStart={(e) => onDragStart(e, entry)}
-            onDragEnd={onDragEnd}
-            onClick={() => insertEntry(entry)}
-            style={{
-              padding: '8px',
-              margin: '4px 0',
-              border: '1px solid #404040',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              backgroundColor: selectedEntry?.id === entry.id ? '#2a2a3a' : '#1a1a1a',
-              color: '#ffffff'
-            }}
+            className={styles.entry}
+            draggable
+            onDragStart={e => onDragStart(e, entry)}
+            onClick={() => onEntryClick(entry)}
           >
-            <div className="entry-header">
-              <span className="entry-type" style={{ 
-                backgroundColor: entry.type === 'monster' ? '#f44336' : 
-                               entry.type === 'spell' ? '#2196f3' : '#4caf50',
-                color: 'white',
-                padding: '2px 6px',
-                borderRadius: '12px',
-                fontSize: '10px',
-                textTransform: 'uppercase',
-                marginRight: '8px'
-              }}>
-                {entry.type}
-              </span>
-              <strong>{entry.name}</strong>
-              {entry.level !== undefined && (
-                <span style={{ marginLeft: '8px', color: '#999' }}>Lv.{entry.level}</span>
-              )}
+            <div className={styles.entryTop}>
+              <span className={`${styles.badge} ${styles[entry.type]}`}>{entry.type[0].toUpperCase()}</span>
+              <span className={styles.entryName}>{entry.name}</span>
               {entry.challenge_rating !== undefined && (
-                <span style={{ marginLeft: '8px', color: '#999' }}>CR {entry.challenge_rating}</span>
+                <span className={styles.entryMeta}>CR {entry.challenge_rating}</span>
+              )}
+              {entry.level !== undefined && (
+                <span className={styles.entryMeta}>Lv {entry.level}</span>
               )}
             </div>
-            <div className="entry-description" style={{ fontSize: '12px', color: '#bbb', marginTop: '4px' }}>
-              {entry.description}
-            </div>
+            <div className={styles.entryDesc}>{entry.description}</div>
           </div>
         ))}
       </div>
 
-      {selectedEntry && (
-        <div className="entry-details" style={{ 
-          position: 'fixed', 
-          top: '50%', 
-          left: '50%', 
-          transform: 'translate(-50%, -50%)',
-          background: '#1a1a1a',
-          color: '#ffffff',
-          border: '2px solid #404040',
-          borderRadius: '8px',
-          padding: '16px',
-          maxWidth: '400px',
-          zIndex: 1000,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-        }}>
-          <h4>{selectedEntry.name}</h4>
-          <p>{selectedEntry.description}</p>
-          <button 
-            onClick={() => setSelectedEntry(null)}
-            style={{ marginTop: '8px', padding: '4px 8px' }}
-          >
-            Close
-          </button>
+      {totalPages > 1 && (
+        <div className={styles.pagination}>
+          <button className={styles.paginationBtn} disabled={page === 0} onClick={() => setPage(p => p - 1)}>‹</button>
+          <span>{page + 1} / {totalPages} ({filtered.length})</span>
+          <button className={styles.paginationBtn} disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>›</button>
         </div>
       )}
+
+      <MonsterCreationPanel
+        isOpen={monsterPanelOpen}
+        onClose={() => setMonsterPanelOpen(false)}
+        onMonsterPlaceOnTable={onMonsterPlaceOnTable}
+      />
     </div>
   );
 };

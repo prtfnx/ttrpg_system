@@ -129,6 +129,14 @@ export const GameCanvas: React.FC = () => {
     }
   }, [rustRenderManagerRef.current]);
 
+  // Keep WASM active layer in sync with React store
+  useEffect(() => {
+    const engine = rustRenderManagerRef.current as any;
+    if (engine?.set_active_layer) {
+      engine.set_active_layer(activeLayer);
+    }
+  }, [activeLayer, rustRenderManagerRef.current]);
+
   // Handle mousemove for light placement preview
   useEffect(() => {
     if (!lightPlacementMode?.active) {

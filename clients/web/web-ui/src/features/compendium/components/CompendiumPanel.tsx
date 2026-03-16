@@ -135,9 +135,25 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
 
     try {
       if (filters.type === 'all' || filters.type === 'monster') {
-        // TODO: Implement monster search when backend supports it
-        const monsters: Monster[] = [];
-        results.push(...monsters.map(transformMonsterToEntry));
+        try {
+          const res = await compendiumService.getMonsters({ limit: 300 });
+          const monsters: Monster[] = Object.entries(res.monsters)
+            .map(([name, m]: [string, any]) => ({
+              id: name.toLowerCase().replace(/\s+/g, '-'),
+              name,
+              challenge_rating: m.challenge_rating ?? 0,
+              type: m.type ?? '',
+              hp: m.hit_points,
+              ac: m.armor_class,
+              size: m.size,
+              alignment: m.alignment,
+              stats: m,
+            }))
+            .filter(m => !query || m.name.toLowerCase().includes(query.toLowerCase()));
+          results.push(...monsters.map(transformMonsterToEntry));
+        } catch (err) {
+          console.error('Error fetching monsters:', err);
+        }
       }
 
       if (filters.type === 'all' || filters.type === 'spell') {
@@ -170,9 +186,27 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
       }
 
       if (filters.type === 'all' || filters.type === 'equipment') {
-        // TODO: Implement equipment search when backend supports it
-        const equipment: Equipment[] = [];
-        results.push(...equipment.map(transformEquipmentToEntry));
+        try {
+          const res = await compendiumService.getEquipment();
+          const equipment: Equipment[] = [];
+          for (const [category, items] of Object.entries(res.equipment ?? {})) {
+            for (const item of (items as any[])) {
+              const name: string = item.name ?? '';
+              if (!name) continue;
+              if (query && !name.toLowerCase().includes(query.toLowerCase())) continue;
+              equipment.push({
+                id: `${category}_${name}`.toLowerCase().replace(/\s+/g, '-'),
+                name,
+                type: category,
+                cost: item.cost ?? '—',
+                description: item.desc ?? item.description,
+              });
+            }
+          }
+          results.push(...equipment.map(transformEquipmentToEntry));
+        } catch (err) {
+          console.error('Error fetching equipment:', err);
+        }
       }
 
       return results;
@@ -219,8 +253,10 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
   }, [debounced, typeFilter, spellLevel, isAuthenticated]);
 
   // Drag handlers
-  const onDragStart = (entry: CompendiumEntry) => {
+  const onDragStart = (e: React.DragEvent, entry: CompendiumEntry) => {
     setDragged(entry);
+    e.dataTransfer.setData('application/json', JSON.stringify(entry));
+    e.dataTransfer.effectAllowed = 'copy';
   };
 
   const onDragEnd = () => {
@@ -235,8 +271,8 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
   };
 
   const insertEntry = (entry: CompendiumEntry) => {
-    console.log('Insert:', entry.name);
     setSelectedEntry(entry);
+    window.dispatchEvent(new CustomEvent('compendium-insert', { detail: entry }));
   };
 
   // Filter entries based on additional criteria
@@ -345,7 +381,7 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
             key={`${entry.type}-${entry.id}`}
             className={`entry-item ${selectedEntry?.id === entry.id ? 'selected' : ''}`}
             draggable={isAuthenticated && hasPermission('compendium:read')}
-            onDragStart={() => onDragStart(entry)}
+            onDragStart={(e) => onDragStart(e, entry)}
             onDragEnd={onDragEnd}
             onClick={() => insertEntry(entry)}
             style={{

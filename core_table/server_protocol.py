@@ -1133,11 +1133,12 @@ class ServerProtocol:
     async def handle_file_request(self, msg: Message, client_id: str) -> Message:
         return Message(MessageType.ERROR, {'error': 'File transfer not implemented yet'})  
     async def handle_compendium_sprite_add(self, msg: Message, client_id: str) -> Message:
-        """Create a sprite from compendium data and ensure asset URLs are provided.
+        """Create character + sprite from compendium monster data.
 
         Expected msg.data: {
             'table_id': str,
-            'sprite_data': { ... entity fields ... },
+            'sprite_data': { x, y, layer, name, client_temp_id, ... },
+            'monster_data': { name, type, challenge_rating, raw: {...} },  # optional
             'session_code': str (optional),
             'user_id': int (optional)
         }
@@ -1148,6 +1149,7 @@ class ServerProtocol:
 
         table_id = msg.data.get('table_id') or msg.data.get('table_name') or 'default'
         sprite_data = msg.data.get('sprite_data')
+        monster_data = msg.data.get('monster_data')
         session_code = msg.data.get('session_code', msg.data.get('session', 'default'))
         user_id = self._get_user_id(msg, client_id) or 0
 
@@ -1162,60 +1164,84 @@ class ServerProtocol:
         if layer in _dm_layers and not is_dm(role):
             return Message(MessageType.ERROR, {'error': 'Only DMs can create sprites on this layer'})
 
-        # Ensure the data includes table_id for actions.create_sprite_from_data
+        # --- Step 1: resolve monster token asset ---
+        asset_id = sprite_data.get('asset_id') or ''
+        if monster_data and not asset_id:
+            try:
+                from core_table.compendiums.token_resolution_service import get_token_service
+                token_service = get_token_service()
+                monster_name = monster_data.get('name', '')
+                monster_type = monster_data.get('type') or monster_data.get('monsterType', '')
+                token_info = token_service.get_token_info(monster_name, monster_type)
+                if token_info.get('asset_id'):
+                    asset_id = token_info['asset_id']
+                    logger.info(f"Resolved token for '{monster_name}': {asset_id}")
+            except Exception as e:
+                logger.warning(f"Token resolution failed: {e}")
+
+        # --- Step 2: create NPC character from monster data ---
+        character_id = sprite_data.get('character_id') or ''
+        if monster_data and not character_id:
+            try:
+                session_id = self._get_session_id(msg)
+                if session_id:
+                    raw = monster_data.get('raw') or {}
+                    char_data = {
+                        'name': monster_data.get('name', 'Unknown'),
+                        'type': 'npc',
+                        'monster_type': monster_data.get('type') or monster_data.get('monsterType', ''),
+                        'challenge_rating': monster_data.get('challenge_rating', ''),
+                        'npc': True,
+                        **raw  # merge all raw monster stats into character data
+                    }
+                    char_result = await self.actions.save_character(session_id, char_data, user_id)
+                    if char_result.success:
+                        character_id = char_result.data.get('character_id', '')
+                        logger.info(f"Created NPC character '{char_data['name']}': {character_id}")
+                    else:
+                        logger.warning(f"Character creation failed: {char_result.message}")
+            except Exception as e:
+                logger.warning(f"Character creation error: {e}")
+
+        # --- Step 3: build sprite and create it ---
         sprite_data_with_table = dict(sprite_data)
         sprite_data_with_table['table_id'] = table_id
+        if asset_id:
+            sprite_data_with_table['asset_id'] = asset_id
+        if character_id:
+            sprite_data_with_table['character_id'] = str(character_id)
 
-        # Enforce controlled_by ownership before creation
         if is_dm(role):
             sprite_data_with_table['controlled_by'] = json.dumps([])
         elif user_id:
             sprite_data_with_table['controlled_by'] = json.dumps([user_id])
 
         try:
-            # Create sprite via actions API
             result = await self.actions.create_sprite_from_data(sprite_data_with_table)
             if not result.success:
                 logger.error(f"Failed to create compendium sprite: {result.message}")
                 return Message(MessageType.ERROR, {'error': f'Failed to create sprite: {result.message}'})
 
-            # Prepare a minimal table structure containing the new entity so we can ensure assets in R2
-            # Ensure created_sprite is defined even if nested blocks fail
-            created_sprite = sprite_data
-            try:
-                # The created sprite data may be returned in result.data or be identical to input
-                # Build table_data structure compatible with ensure_assets_in_r2
-                table_data = {'layers': {created_sprite.get('layer', 'tokens'): {created_sprite.get('sprite_id', created_sprite.get('entity_id', 'new')): created_sprite}}}
-                table_data_enriched = await self.ensure_assets_in_r2(table_data, session_code=session_code, user_id=user_id)
-                # Extract asset info back to sprite
-                layer = created_sprite.get('layer', 'tokens')
-                entity_map = table_data_enriched.get('layers', {}).get(layer, {})
-                entity_key = next(iter(entity_map.keys())) if entity_map else None
-                enriched_entity = entity_map.get(entity_key, created_sprite) if entity_key else created_sprite
-            except Exception as e:
-                logger.warning(f"Failed to enrich created sprite with asset URLs: {e}")
-                enriched_entity = created_sprite
+            created_sprite = (result.data or {}).get('sprite_data') or sprite_data_with_table
 
-            # Broadcast sprite creation to all clients in session
+            # Broadcast to all other clients
             broadcast_data = {
-                'sprite_id': enriched_entity.get('sprite_id', enriched_entity.get('entity_id', None)),
+                'sprite_id': created_sprite.get('sprite_id', created_sprite.get('entity_id')),
                 'table_id': table_id,
-                'sprite_data': enriched_entity,
-                'operation': 'create'
+                'sprite_data': created_sprite,
+                'operation': 'create',
+                'client_temp_id': sprite_data.get('client_temp_id')
             }
-            
-            # Broadcast to other clients in session
             await self.broadcast_to_session(Message(MessageType.SPRITE_UPDATE, broadcast_data), client_id)
 
-            # Return the sprite id and any asset download url/xxhash if present
-            response_payload = {
-                'sprite_id': enriched_entity.get('sprite_id', enriched_entity.get('entity_id', None)),
+            return Message(MessageType.SPRITE_RESPONSE, {
+                'sprite_id': created_sprite.get('sprite_id', created_sprite.get('entity_id')),
                 'table_id': table_id,
-                'r2_asset_url': enriched_entity.get('r2_asset_url'),
-                'asset_xxhash': enriched_entity.get('asset_xxhash')
-            }
-
-            return Message(MessageType.SPRITE_RESPONSE, response_payload)
+                'sprite_data': created_sprite,
+                'character_id': character_id or None,
+                'client_temp_id': sprite_data.get('client_temp_id'),
+                'operation': 'create'
+            })
 
         except Exception as e:
             logger.error(f"Error processing compendium sprite add: {e}")

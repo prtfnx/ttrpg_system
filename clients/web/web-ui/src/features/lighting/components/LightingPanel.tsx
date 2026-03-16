@@ -45,9 +45,8 @@ function spriteToLight(sprite: any): Light | null {
   try {
     meta = typeof sprite.metadata === 'string' ? JSON.parse(sprite.metadata) : (sprite.metadata ?? {});
   } catch {
-    return null;
+    // If metadata parse fails, still show the light with defaults
   }
-  if (!meta.isLight) return null;
 
   return {
     id: sprite.id || sprite.sprite_id,
@@ -147,12 +146,20 @@ export const LightingPanel: React.FC = () => {
       const lightId = `${preset.name}_${Date.now()}`;
       const newLight: Light = { id: lightId, x, y, presetName: preset.name, color: preset.color, intensity: preset.intensity, radius: preset.radius, isOn: true };
 
+      // Add to WASM immediately
       try {
         engine.add_light(lightId, x, y);
         engine.set_light_color(lightId, newLight.color.r, newLight.color.g, newLight.color.b, newLight.color.a);
         engine.set_light_intensity(lightId, newLight.intensity);
         engine.set_light_radius(lightId, newLight.radius);
       } catch {}
+
+      // Add to Zustand immediately (optimistic) so WASM sync effect seeds prevLightIdsRef
+      // and server confirmation doesn't reset the position if user moves it first
+      if (activeTableId) {
+        const spritePayload = lightToSprite(newLight, activeTableId);
+        useGameStore.getState().addSprite({ ...spritePayload, texture: '__LIGHT__' } as any);
+      }
 
       setSelectedLightId(lightId);
       setPlacementMode(null);

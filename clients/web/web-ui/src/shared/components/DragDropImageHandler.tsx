@@ -250,9 +250,8 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
     e.preventDefault();
     e.stopPropagation();
     
-    // Check if dragged items contain files
-    const hasFiles = Array.from(e.dataTransfer.types).includes('Files');
-    if (hasFiles) {
+    const types = Array.from(e.dataTransfer.types);
+    if (types.includes('Files') || types.includes('application/json')) {
       setDragOver(true);
       e.dataTransfer.dropEffect = 'copy';
     }
@@ -277,7 +276,17 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
     const imageFiles = files.filter(file => file.type.startsWith('image/'));
     
     if (imageFiles.length === 0) {
-      console.log('No image files in drop');
+      // Handle compendium entry drops
+      const jsonData = e.dataTransfer.getData('application/json');
+      if (jsonData) {
+        try {
+          const entry = JSON.parse(jsonData);
+          const rect = e.currentTarget.getBoundingClientRect();
+          window.dispatchEvent(new CustomEvent('compendium-drop', {
+            detail: { ...entry, dropX: e.clientX - rect.left, dropY: e.clientY - rect.top }
+          }));
+        } catch {}
+      }
       return;
     }
 

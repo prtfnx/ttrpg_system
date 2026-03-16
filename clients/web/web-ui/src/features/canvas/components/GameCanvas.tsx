@@ -133,9 +133,10 @@ export const GameCanvas: React.FC = () => {
   useEffect(() => {
     const engine = rustRenderManagerRef.current as any;
     if (engine?.set_active_layer) {
+      console.log('[Canvas] set_active_layer:', activeLayer);
       engine.set_active_layer(activeLayer);
     }
-  }, [activeLayer, rustRenderManagerRef.current]);
+  }, [activeLayer]); // rustRenderManagerRef.current is not reactive; initial sync happens at engine init
 
   // Handle mousemove for light placement preview
   useEffect(() => {
@@ -426,6 +427,9 @@ export const GameCanvas: React.FC = () => {
         const effectiveRole = (sessionRole ?? initialRole) as import('@features/session/types/roles').SessionRole | null;
         if (userId != null) rustRenderEngine.set_current_user_id?.(userId);
         rustRenderEngine.set_gm_mode?.(isDM(effectiveRole));
+        // Sync active layer immediately so WASM knows the starting layer
+        const initialActiveLayer = useGameStore.getState().activeLayer;
+        (rustRenderEngine as any).set_active_layer?.(initialActiveLayer);
         window.dispatchEvent(new Event('render-manager-ready'));
 
         // Initialize performance monitoring

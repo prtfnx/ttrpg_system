@@ -137,11 +137,20 @@ impl EventSystem {
         
         // Check for light drag mode (explicit or auto when active layer is "light")
         if input.input_mode == InputMode::LightDrag || active_layer == "light" {
-            if let Some(light_id) = lighting.get_light_at_position(world_pos, 30.0) {
+            // Scale tolerance by zoom so the click target stays ~30 screen pixels regardless of zoom level
+            let tolerance = (30.0_f32 / camera_zoom as f32).max(15.0);
+            web_sys::console::log_1(&format!(
+                "[RUST LIGHT] active_layer='{}', light_count={}, pos=({:.1},{:.1}), tol={:.1}",
+                active_layer, lighting.get_light_count(), world_pos.x, world_pos.y, tolerance
+            ).into());
+            if let Some(light_id) = lighting.get_light_at_position(world_pos, tolerance) {
                 if let Some(light_pos) = lighting.get_light_position(&light_id) {
+                    web_sys::console::log_1(&format!("[RUST LIGHT] Found light '{}' at ({:.1},{:.1})", light_id, light_pos.x, light_pos.y).into());
                     input.start_light_drag(light_id.to_string(), world_pos, light_pos);
                     return MouseEventResult::Handled;
                 }
+            } else {
+                web_sys::console::log_1(&"[RUST LIGHT] No light found at click position".into());
             }
         }
 

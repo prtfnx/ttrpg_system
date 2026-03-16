@@ -1039,16 +1039,22 @@ class WasmIntegrationService {
         const color = lightMeta.color ?? { r: 1.0, g: 0.9, b: 0.7, a: 1.0 };
         const isOn = lightMeta.isOn !== false;
 
+        // If this light already exists in Zustand (optimistic insert), preserve its current position
+        // to avoid resetting a light the user may have already moved
+        const existing = useGameStore.getState().sprites.find((s: any) => s.id === lightId);
+        const finalX = existing ? (existing.x ?? x) : x;
+        const finalY = existing ? (existing.y ?? y) : y;
+
         const engine = this.renderEngine as any;
         if (typeof engine.add_light === 'function') {
-          engine.add_light(lightId, x, y);
+          engine.add_light(lightId, finalX, finalY);
           engine.set_light_color(lightId, color.r, color.g, color.b, color.a);
           engine.set_light_intensity(lightId, intensity);
           engine.set_light_radius(lightId, radius);
           if (!isOn && typeof engine.toggle_light === 'function') {
             engine.toggle_light(lightId);
           }
-          console.log(`✅ Light restored: ${lightId} at (${x}, ${y}) r=${radius}`);
+          console.log(`✅ Light restored: ${lightId} at (${finalX}, ${finalY}) r=${radius}`);
         } else {
           console.error('❌ add_light not available on render engine');
         }

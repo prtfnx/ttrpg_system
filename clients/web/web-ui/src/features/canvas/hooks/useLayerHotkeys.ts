@@ -3,9 +3,9 @@
  * Keys mirror the layer order shown in LayerPanel.
  * Ignored when typing in a text input.
  */
-import { useEffect } from 'react';
 import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
+import { useEffect } from 'react';
 
 const LAYER_HOTKEYS: Record<string, string> = {
   '1': 'map',

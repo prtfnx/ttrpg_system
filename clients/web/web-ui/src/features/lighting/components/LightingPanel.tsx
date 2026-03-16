@@ -3,14 +3,14 @@ import type { Color } from '@/types';
 import { useRenderEngine } from '@features/canvas';
 import { useProtocol } from '@lib/api';
 import {
-  Flame,
-  Lightbulb,
-  Moon,
-  MoveHorizontal,
-  Sparkles,
-  Sun,
-  Trash2,
-  X,
+    Flame,
+    Lightbulb,
+    Moon,
+    MoveHorizontal,
+    Sparkles,
+    Sun,
+    Trash2,
+    X,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './LightingPanel.module.css';

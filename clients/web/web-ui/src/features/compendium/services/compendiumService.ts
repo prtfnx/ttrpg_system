@@ -340,6 +340,24 @@ class CompendiumService {
   }
 
   /**
+   * Get all monsters with optional CR filter
+   */
+  async getMonsters(filters: { cr?: string; type?: string; limit?: number } = {}): Promise<{ monsters: Record<string, any>; count: number; metadata: any }> {
+    const params = new URLSearchParams();
+    if (filters.cr) params.append('cr', filters.cr);
+    if (filters.limit) params.append('limit', filters.limit.toString());
+    const qs = params.toString();
+    return this.fetchWithCache<{ monsters: Record<string, any>; count: number; metadata: any }>(`/monsters${qs ? `?${qs}` : ''}`);
+  }
+
+  /**
+   * Get all equipment data
+   */
+  async getEquipment(): Promise<{ equipment: Record<string, any[]> }> {
+    return this.fetchWithCache<{ equipment: Record<string, any[]> }>('/equipment');
+  }
+
+  /**
    * Get all races in frontend format
    */
   async getRacesForFrontend(): Promise<Record<string, any>> {

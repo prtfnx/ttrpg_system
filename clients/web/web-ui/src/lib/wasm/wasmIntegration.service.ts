@@ -646,24 +646,24 @@ class WasmIntegrationService {
 
   private updateSpritePosition(spriteId: string, position: {x: number, y: number}): void {
     try {
-      console.log(`Updating sprite ${spriteId} position to:`, position);
-      
-      // Try to use the WASM method - this should always work since it exists in render.rs
-      if (this.renderEngine && typeof (this.renderEngine as any).update_sprite_position === 'function') {
-        const success = (this.renderEngine as any).update_sprite_position(spriteId, position.x, position.y);
-        if (success) {
-          console.log(`✅ Successfully updated sprite ${spriteId} position using direct WASM method`);
-          return;
-        } else {
-          console.error(`❌ WASM update_sprite_position returned false for sprite ${spriteId} - sprite may not exist`);
-        }
-      } else {
-        console.error(`❌ WASM update_sprite_position method not available - this should not happen!`);
+      const engine = this.renderEngine as any;
+      if (!engine) return;
+
+      if (typeof engine.update_sprite_position === 'function') {
+        const success = engine.update_sprite_position(spriteId, position.x, position.y);
+        if (success) return;
       }
-      
-      // If we reach here, something is wrong - log error but don't corrupt sprite state
-      console.error(`💥 Failed to update sprite ${spriteId} position - avoiding remove+re-add to prevent data corruption`);
-      
+
+      // Sprite not found in WASM sprite registry — may be a light.
+      // Check Zustand store to determine entity type.
+      const sprite = useGameStore.getState().sprites.find((s: any) => s.id === spriteId);
+      const isLight = sprite?.layer === 'light' || sprite?.texture === '__LIGHT__';
+
+      if (isLight && typeof engine.update_light_position === 'function') {
+        engine.update_light_position(spriteId, position.x, position.y);
+      } else {
+        console.warn(`[WASM] Cannot update position: sprite ${spriteId} not found in sprite or light registry`);
+      }
     } catch (error) {
       console.error('Failed to update sprite position:', error);
     }
@@ -944,8 +944,9 @@ class WasmIntegrationService {
         this.updateSpriteInWasm(data);
       }
 
-      // Server-confirmed position → update committed baseline in bridge
+      // Server-confirmed position → update Zustand store and committed baseline in bridge
       if (movedPos) {
+        useGameStore.getState().moveSprite(spriteId, movedPos.x, movedPos.y);
         wasmBridgeService.seedSpriteState(spriteId, { x: movedPos.x, y: movedPos.y });
       }
 

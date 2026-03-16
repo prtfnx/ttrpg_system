@@ -548,9 +548,15 @@ class WasmIntegrationService {
     // Note: sprite_id may be null/None from the server even for valid creation responses
     if (data.operation === 'create' || (!data.operation && data.sprite_data)) {
       console.log('✅ WasmIntegration: Adding sprite to WASM engine:', data.sprite_data);
-      // Clear the optimistic sprite (same sprite_id) before re-adding with full server data
+      // Remove optimistic placeholder by client_temp_id
+      const tempId = data.client_temp_id;
+      if (tempId) {
+        this.clearOptimisticTimer(tempId);
+        try { this.renderEngine.remove_sprite(tempId); } catch(e) { /* ok */ }
+      }
+      // Also remove by confirmed sprite_id in case it was already added
       const confirmedId = data.sprite_data?.sprite_id;
-      if (confirmedId) {
+      if (confirmedId && confirmedId !== tempId) {
         this.clearOptimisticTimer(confirmedId);
         try { this.renderEngine.remove_sprite(confirmedId); } catch(e) { /* ok if not found */ }
       }
@@ -1408,35 +1414,72 @@ class WasmIntegrationService {
   }
 
   /**
-   * Handle compendium drop (drag-drop from compendium onto canvas) - optimistic add
+   * Handle compendium drop (drag-drop from compendium onto canvas).
+   * Converts screen coords to world coords, sends COMPENDIUM_SPRITE_ADD to server
+   * which chains character creation + sprite creation.
    */
   private handleCompendiumDrop(data: any): void {
     if (!data) return;
     try {
-      // Data coming from drag-drop may include tableId and payload
-      const payload = data.payload || data;
-      const spriteData: any = {
-        id: payload.id || `comp_${Date.now()}`,
-        x: payload.x ?? payload.world_x ?? payload.coord_x ?? payload.position?.[0] ?? 0,
-        y: payload.y ?? payload.world_y ?? payload.coord_y ?? payload.position?.[1] ?? 0,
-        width: payload.width || payload.size_x || 50,
-        height: payload.height || payload.size_y || 50,
-        asset_id: payload.asset_id || payload.texture || payload.imageUrl || payload.texture_id || payload.image || payload.texture_path || '',
-        layer: payload.layer || 'tokens',
-        rotation: payload.rotation || 0,
-        scale_x: payload.scale_x || 1,
-        scale_y: payload.scale_y || 1,
-        tint_color: payload.tint_color || [1, 1, 1, 1]
-      };
+      const store = useGameStore.getState();
+      const camera = store.camera;
+      const tableId = store.activeTableId;
 
-      this.addSpriteToWasm(spriteData);
-
-      // Start optimistic rollback timer for drag-drop optimistic ids
-      if (spriteData.id && String(spriteData.id).startsWith('opt_')) {
-        this.startOptimisticTimer(spriteData.id);
+      if (!tableId) {
+        console.warn('No active table for compendium drop');
+        return;
       }
+
+      // Convert canvas-relative screen coords to world coords
+      const worldX = ((data.dropX ?? 0) - camera.x) / camera.zoom;
+      const worldY = ((data.dropY ?? 0) - camera.y) / camera.zoom;
+
+      const tempId = `comp_${Date.now()}`;
+      const monsterName = data.name || 'Unknown';
+
+      // Optimistically add a placeholder sprite to WASM
+      this.addSpriteToWasm({
+        sprite_id: tempId,
+        x: worldX,
+        y: worldY,
+        width: 64,
+        height: 64,
+        asset_id: '',
+        layer: 'tokens',
+        name: monsterName,
+      });
+      this.startOptimisticTimer(tempId);
+
+      // Send to server — server chains: token resolve → character create → sprite create
+      window.dispatchEvent(new CustomEvent('protocol-send-message', {
+        detail: {
+          type: 'compendium_sprite_add',
+          data: {
+            table_id: tableId,
+            sprite_data: {
+              client_temp_id: tempId,
+              x: worldX,
+              y: worldY,
+              width: 64,
+              height: 64,
+              layer: 'tokens',
+              name: monsterName,
+            },
+            // only send monster_data for monster entries
+            ...(data.type === 'monster' && {
+              monster_data: {
+                name: monsterName,
+                type: data.monsterType || '',
+                challenge_rating: data.challenge_rating || '',
+                raw: data.raw || {},
+              }
+            }),
+          }
+        }
+      }));
+
     } catch (err) {
-      console.error('Failed to process compendium-drop in WASM integration:', err);
+      console.error('Failed to process compendium-drop:', err);
     }
   }
 

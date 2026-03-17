@@ -13,6 +13,7 @@ interface TokenConfigModalProps {
 
 export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, onClose }) => {
   const { sprites, characters, sessionRole, unlinkSpriteFromCharacter, getCharacterForSprite, updateSprite } = useGameStore();
+  const distanceUnit = useGameStore(s => s.distanceUnit);
   const { protocol, isConnected } = useProtocol();
 
   const sprite = sprites.find(s => s.id === spriteId);
@@ -110,9 +111,12 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
         
         // Auto-populate darkvision from character race data (already in feet from compendium)
         const raceDarkvision: number | undefined = char.data?.race_traits?.darkvision ?? char.data?.darkvision;
+        let darkvisionInTableUnits: number | undefined;
         if (raceDarkvision != null && raceDarkvision > 0) {
+          const converter = useGameStore.getState().getUnitConverter();
+          darkvisionInTableUnits = converter.fromFeet(raceDarkvision);
           setLocalHasDarkvision(true);
-          setLocalDarkvisionRadius(raceDarkvision); // feet from compendium
+          setLocalDarkvisionRadius(darkvisionInTableUnits);
         }
 
         // Single update: link character AND sync stats in one call
@@ -121,8 +125,8 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
           hp: newHp, 
           maxHp: newMaxHp, 
           ac: newAc,
-          ...(raceDarkvision != null && raceDarkvision > 0
-            ? { hasDarkvision: true, darkvisionRadiusUnits: raceDarkvision }
+          ...(darkvisionInTableUnits != null
+            ? { hasDarkvision: true, darkvisionRadiusUnits: darkvisionInTableUnits }
             : {}),
         });
       } else {
@@ -422,7 +426,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
                   min="0"
                   step="5"
                 />
-                <span style={{ marginLeft: '8px', color: '#888' }}>{useGameStore.getState().distanceUnit}</span>
+                <span style={{ marginLeft: '8px', color: '#888' }}>{distanceUnit}</span>
               </div>
               <div className={styles.statRow} style={{ marginTop: '6px' }}>
                 <label>

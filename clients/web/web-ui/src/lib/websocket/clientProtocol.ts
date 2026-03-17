@@ -1023,7 +1023,7 @@ export class WebClientProtocol {
     };
     const store = useGameStore.getState();
     store.applyTableLightingSettings(data);
-    if (data.grid_cell_px !== undefined || data.cell_distance !== undefined) {
+    if (data.grid_cell_px !== undefined || data.cell_distance !== undefined || data.distance_unit !== undefined) {
       store.setTableUnits({
         gridCellPx: data.grid_cell_px ?? 50,
         cellDistance: data.cell_distance ?? 5,

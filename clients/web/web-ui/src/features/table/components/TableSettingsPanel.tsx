@@ -6,13 +6,16 @@ import React from 'react';
 import styles from './TableSettingsPanel.module.css';
 
 export const TableSettingsPanel: React.FC = () => {
-  const { gridCellPx, cellDistance, distanceUnit, activeTableId, sessionRole, setTableUnits } = useGameStore();
+  const { gridCellPx, cellDistance, distanceUnit, activeTableId, sessionRole, setTableUnits, tables } = useGameStore();
 
   if (!isDM(sessionRole)) return null;
 
+  const activeTable = tables.find(t => t.table_id === activeTableId);
+  const tableWidthPx = activeTable?.width ?? 3000;
+  const tableHeightPx = activeTable?.height ?? 2000;
   const pixelsPerUnit = gridCellPx / cellDistance;
-  const widthUnits = 3000 / pixelsPerUnit;
-  const heightUnits = 2000 / pixelsPerUnit;
+  const widthUnits = tableWidthPx / pixelsPerUnit;
+  const heightUnits = tableHeightPx / pixelsPerUnit;
 
   const apply = (cellPx: number, dist: number, unit: DistanceUnit) => {
     setTableUnits({ gridCellPx: cellPx, cellDistance: dist, distanceUnit: unit });

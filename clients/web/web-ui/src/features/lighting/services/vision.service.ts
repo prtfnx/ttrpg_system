@@ -282,6 +282,7 @@ class VisionService {
     if (!dynamicLightingEnabled && this.dmPreviewUserId == null) return [];
 
     const targetUserId = this.dmPreviewUserId ?? userId;
+    const converter = useGameStore.getState().getUnitConverter();
     const out: { id: string; x: number; y: number; radius: number; darkvisionRadius?: number }[] = [];
 
     for (const s of (sprites || []) as any[]) {
@@ -289,13 +290,29 @@ class VisionService {
       if (controlled.length === 0) continue;
       if (targetUserId != null && !controlled.includes(targetUserId)) continue;
 
-      const radius = s.visionRadius ?? s.vision_radius;
-      if (typeof radius !== 'number' || radius <= 0) continue;
+      // Prefer game-unit fields, convert to pixels; fall back to legacy pixel fields
+      let radiusPx: number;
+      if (s.visionRadiusUnits != null || s.vision_radius_units != null) {
+        radiusPx = converter.toPixels(s.visionRadiusUnits ?? s.vision_radius_units);
+      } else {
+        radiusPx = s.visionRadius ?? s.vision_radius ?? 0;
+      }
+      if (radiusPx <= 0) continue;
 
       const hasDv = s.hasDarkvision || s.has_darkvision;
-      const dvRadius = hasDv ? (s.darkvisionRadius ?? s.darkvision_radius ?? 0) : 0;
+      let dvRadiusPx = 0;
+      if (hasDv) {
+        if (s.darkvisionRadiusUnits != null || s.darkvision_radius_units != null) {
+          dvRadiusPx = converter.toPixels(s.darkvisionRadiusUnits ?? s.darkvision_radius_units);
+        } else if (s.darkvisionRadius != null || s.darkvision_radius != null) {
+          dvRadiusPx = s.darkvisionRadius ?? s.darkvision_radius ?? 0;
+        } else {
+          // Auto-populate from compendium race data (already in feet)
+          const raceDvFt: number = s.characterData?.race?.darkvision ?? s.race_darkvision ?? 0;
+          if (raceDvFt > 0) dvRadiusPx = converter.toPixels(converter.fromFeet(raceDvFt));
+        }
+      }
 
-      // Use live position cache (top-left), offset to center for vision computation
       const pos = this.spritePositions.get(s.id) ?? { x: s.x, y: s.y };
       const w = s.width ?? ((s.scale_x ?? 1) * 64);
       const h = s.height ?? ((s.scale_y ?? 1) * 64);
@@ -304,8 +321,8 @@ class VisionService {
         id: s.id,
         x: pos.x + w / 2,
         y: pos.y + h / 2,
-        radius,
-        darkvisionRadius: dvRadius > 0 ? dvRadius : undefined,
+        radius: radiusPx,
+        darkvisionRadius: dvRadiusPx > 0 ? dvRadiusPx : undefined,
       });
     }
 

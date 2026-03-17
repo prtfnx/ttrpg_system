@@ -16,6 +16,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './LightingPanel.module.css';
 
 function lightToSprite(light: Light, tableId: string): Record<string, any> {
+  const converter = useGameStore.getState().getUnitConverter();
+  const radiusUnits = converter.toUnits(light.radius);
   return {
     id: light.id,
     x: light.x,
@@ -32,6 +34,7 @@ function lightToSprite(light: Light, tableId: string): Record<string, any> {
       color: light.color,
       intensity: light.intensity,
       radius: light.radius,
+      radius_units: radiusUnits,
       isOn: light.isOn,
     }),
   };
@@ -45,7 +48,16 @@ function spriteToLight(sprite: any): Light | null {
   try {
     meta = typeof sprite.metadata === 'string' ? JSON.parse(sprite.metadata) : (sprite.metadata ?? {});
   } catch {
-    // If metadata parse fails, still show the light with defaults
+    // keep defaults
+  }
+
+  // Prefer radius_units (game units) → convert to px; fall back to legacy radius (px)
+  let radius: number;
+  if (meta.radius_units != null) {
+    const converter = useGameStore.getState().getUnitConverter();
+    radius = converter.toPixels(meta.radius_units);
+  } else {
+    radius = meta.radius ?? 100;
   }
 
   return {
@@ -55,7 +67,7 @@ function spriteToLight(sprite: any): Light | null {
     presetName: meta.presetName,
     color: meta.color || { r: 1, g: 1, b: 1, a: 1 },
     intensity: meta.intensity ?? 1.0,
-    radius: meta.radius ?? 100,
+    radius,
     isOn: meta.isOn !== false,
   };
 }
@@ -88,6 +100,8 @@ export const LightingPanel: React.FC = () => {
   const activeTableId = useGameStore(s => s.activeTableId);
   const ambientLight = useGameStore(s => s.ambientLight);
   const setAmbientLight = useGameStore(s => s.setAmbientLight);
+  const getUnitConverter = useGameStore(s => s.getUnitConverter);
+  const distanceUnit = useGameStore(s => s.distanceUnit);
 
   const [selectedLightId, setSelectedLightId] = useState<string | null>(null);
   const [placementMode, setPlacementMode] = useState<typeof LIGHT_PRESETS[0] | null>(null);
@@ -268,7 +282,7 @@ export const LightingPanel: React.FC = () => {
                 background: `radial-gradient(circle, rgba(${preset.color.r * 255}, ${preset.color.g * 255}, ${preset.color.b * 255}, 0.3), rgba(${preset.color.r * 255}, ${preset.color.g * 255}, ${preset.color.b * 255}, 0))`,
                 border: `2px solid rgba(${preset.color.r * 255}, ${preset.color.g * 255}, ${preset.color.b * 255}, 0.8)`,
               }}
-              title={`${preset.name}  R:${preset.radius} I:${preset.intensity}`}
+              title={`${preset.name} — ${preset.radiusFt} ft • I:${preset.intensity}`}
             >
               <preset.Icon size={16} />
               <span>{preset.name}</span>
@@ -345,7 +359,7 @@ export const LightingPanel: React.FC = () => {
                       opacity: light.intensity,
                     }}
                   />
-                  <span className={styles['light-stats']}>R:{light.radius.toFixed(0)} I:{light.intensity.toFixed(2)}</span>
+                  <span className={styles['light-stats']}>{getUnitConverter().toUnits(light.radius).toFixed(0)} {distanceUnit} • I:{light.intensity.toFixed(2)}</span>
                 </div>
               </div>
             );
@@ -390,8 +404,26 @@ export const LightingPanel: React.FC = () => {
           </div>
 
           <div className={styles['property-group']}>
-            <label>Radius: {selectedLight.radius.toFixed(0)}px</label>
-            <input type="range" min="10" max="500" step="5" value={selectedLight.radius} onChange={(e) => updateLightProperty(selectedLight.id, 'radius', parseFloat(e.target.value))} />
+            {(() => {
+              const conv = getUnitConverter();
+              const radiusUnits = conv.toUnits(selectedLight.radius);
+              return (
+                <>
+                  <label>Radius: {radiusUnits.toFixed(0)} {distanceUnit}</label>
+                  <input
+                    type="range"
+                    min="5"
+                    max="300"
+                    step="5"
+                    value={radiusUnits}
+                    onChange={(e) => {
+                      const px = conv.toPixels(parseFloat(e.target.value));
+                      updateLightProperty(selectedLight.id, 'radius', px);
+                    }}
+                  />
+                </>
+              );
+            })()}
           </div>
         </div>
       )}

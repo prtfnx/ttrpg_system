@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useGameStore } from '@/store';
 
 export interface TableInfo {
   table_id: string;
@@ -13,7 +14,11 @@ export interface TableInfo {
   table_scale: number;
   show_grid: boolean;
   cell_side: number;
-  // Sync state tracking (best practice: local-first architecture)
+  // Unit coordinate system (single source of truth from server)
+  grid_cell_px: number;
+  cell_distance: number;
+  distance_unit: string;
+  // Sync state tracking
   syncStatus?: 'local' | 'syncing' | 'synced' | 'error';
   lastSyncTime?: number;
   syncError?: string;
@@ -84,6 +89,17 @@ export const useTableManager = (): UseTableManagerReturn => {
       
       const activeId = tableManager.get_active_table_id();
       setActiveTableId(activeId);
+
+      if (activeId) {
+        const active = parsedTables.find(t => t.table_id === activeId);
+        if (active) {
+          useGameStore.getState().setTableUnits({
+            gridCellPx: active.grid_cell_px ?? 50,
+            cellDistance: active.cell_distance ?? 5,
+            distanceUnit: (active.distance_unit as 'ft' | 'm') ?? 'ft',
+          });
+        }
+      }
     } catch (error) {
       console.error('Failed to refresh tables:', error);
     }
@@ -119,9 +135,17 @@ export const useTableManager = (): UseTableManagerReturn => {
     const success = tableManager.set_active_table(tableId);
     if (success) {
       setActiveTableId(tableId);
+      const active = tables.find(t => t.table_id === tableId);
+      if (active) {
+        useGameStore.getState().setTableUnits({
+          gridCellPx: active.grid_cell_px ?? 50,
+          cellDistance: active.cell_distance ?? 5,
+          distanceUnit: (active.distance_unit as 'ft' | 'm') ?? 'ft',
+        });
+      }
     }
     return success;
-  }, [tableManager]);
+  }, [tableManager, tables]);
 
   const setTableScreenArea = useCallback((tableId: string, area: ScreenArea): boolean => {
     if (!tableManager) return false;

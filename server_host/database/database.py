@@ -34,6 +34,8 @@ def _run_migrations():
         "ALTER TABLE virtual_tables ADD COLUMN cell_distance FLOAT DEFAULT 5.0",
         "ALTER TABLE virtual_tables ADD COLUMN distance_unit VARCHAR(10) DEFAULT 'ft'",
         "ALTER TABLE entities ADD COLUMN aura_radius_units FLOAT",
+        "ALTER TABLE entities ADD COLUMN vision_radius_units FLOAT",
+        "ALTER TABLE entities ADD COLUMN darkvision_radius_units FLOAT",
     ]
     with engine.connect() as conn:
         for sql in migrations:

@@ -25,7 +25,9 @@ class Entity:
                  vision_radius: Optional[float] = None,
                  has_darkvision: bool = False,
                  darkvision_radius: Optional[float] = None,
-                 aura_radius_units: Optional[float] = None):
+                 aura_radius_units: Optional[float] = None,
+                 vision_radius_units: Optional[float] = None,
+                 darkvision_radius_units: Optional[float] = None):
         # Use entity_id consistently
         self.entity_id = entity_id
         self.id = entity_id  # Keep both for backward compatibility
@@ -67,6 +69,8 @@ class Entity:
         self.has_darkvision = has_darkvision
         self.darkvision_radius = darkvision_radius
         self.aura_radius_units = aura_radius_units  # game units (ft/m)
+        self.vision_radius_units = vision_radius_units  # game units (ft/m)
+        self.darkvision_radius_units = darkvision_radius_units  # game units (ft/m)
 
         self.sprite_id = str(uuid.uuid4())
         
@@ -101,6 +105,8 @@ class Entity:
             'has_darkvision': self.has_darkvision,
             'darkvision_radius': self.darkvision_radius,
             'aura_radius_units': self.aura_radius_units,
+            'vision_radius_units': self.vision_radius_units,
+            'darkvision_radius_units': self.darkvision_radius_units,
             # Legacy fields
             'character': None,
             'moving': False,
@@ -139,6 +145,8 @@ class Entity:
         entity.has_darkvision = bool(data.get('has_darkvision', False))
         entity.darkvision_radius = data.get('darkvision_radius')
         entity.aura_radius_units = data.get('aura_radius_units')
+        entity.vision_radius_units = data.get('vision_radius_units')
+        entity.darkvision_radius_units = data.get('darkvision_radius_units')
         return entity
 
     def serialize(self) -> dict:

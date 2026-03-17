@@ -1083,6 +1083,10 @@ class ServerProtocol:
             updates['has_darkvision'] = val if isinstance(val, bool) else bool(val)
         if 'darkvision_radius' in update_data and is_dm(role):
             updates['darkvision_radius'] = update_data['darkvision_radius']
+        if 'vision_radius_units' in update_data and is_dm(role):
+            updates['vision_radius_units'] = update_data['vision_radius_units']
+        if 'darkvision_radius_units' in update_data and is_dm(role):
+            updates['darkvision_radius_units'] = update_data['darkvision_radius_units']
         
         # Apply updates via actions
         if updates:

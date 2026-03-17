@@ -67,6 +67,8 @@ class EntityBase(BaseModel):
     has_darkvision: bool = False
     darkvision_radius: Optional[float] = None
     aura_radius_units: Optional[float] = None
+    vision_radius_units: Optional[float] = None
+    darkvision_radius_units: Optional[float] = None
 
 class EntityCreate(EntityBase):
     pass
@@ -100,6 +102,8 @@ class EntityUpdate(BaseModel):
     has_darkvision: Optional[bool] = None
     darkvision_radius: Optional[float] = None
     aura_radius_units: Optional[float] = None
+    vision_radius_units: Optional[float] = None
+    darkvision_radius_units: Optional[float] = None
 
 class Entity(EntityBase):
     id: int

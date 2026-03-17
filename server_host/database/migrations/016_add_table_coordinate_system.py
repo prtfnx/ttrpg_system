@@ -33,6 +33,12 @@ def upgrade(db_path: str):
         if "aura_radius_units" not in e_cols:
             cursor.execute("ALTER TABLE entities ADD COLUMN aura_radius_units FLOAT")
             logger.info("  + entities.aura_radius_units")
+        if "vision_radius_units" not in e_cols:
+            cursor.execute("ALTER TABLE entities ADD COLUMN vision_radius_units FLOAT")
+            logger.info("  + entities.vision_radius_units")
+        if "darkvision_radius_units" not in e_cols:
+            cursor.execute("ALTER TABLE entities ADD COLUMN darkvision_radius_units FLOAT")
+            logger.info("  + entities.darkvision_radius_units")
 
         conn.commit()
         logger.info("✓ Migration 016 complete")

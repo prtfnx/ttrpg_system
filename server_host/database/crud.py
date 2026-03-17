@@ -407,6 +407,8 @@ def create_entity(db: Session, entity_data: schemas.EntityCreate, table_db_id: i
         vision_radius=getattr(entity_data, 'vision_radius', None),
         has_darkvision=getattr(entity_data, 'has_darkvision', False),
         darkvision_radius=getattr(entity_data, 'darkvision_radius', None),
+        vision_radius_units=getattr(entity_data, 'vision_radius_units', None),
+        darkvision_radius_units=getattr(entity_data, 'darkvision_radius_units', None),
     )
     db.add(db_entity)
     db.commit()
@@ -569,6 +571,8 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             vision_radius=getattr(entity_obj, 'vision_radius', None),
             has_darkvision=getattr(entity_obj, 'has_darkvision', False),
             darkvision_radius=getattr(entity_obj, 'darkvision_radius', None),
+            vision_radius_units=getattr(entity_obj, 'vision_radius_units', None),
+            darkvision_radius_units=getattr(entity_obj, 'darkvision_radius_units', None),
         )
         db_entity = update_entity(db, entity_obj.sprite_id, entity_update)
     else:
@@ -604,6 +608,8 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             vision_radius=getattr(entity_obj, 'vision_radius', None),
             has_darkvision=getattr(entity_obj, 'has_darkvision', False),
             darkvision_radius=getattr(entity_obj, 'darkvision_radius', None),
+            vision_radius_units=getattr(entity_obj, 'vision_radius_units', None),
+            darkvision_radius_units=getattr(entity_obj, 'darkvision_radius_units', None),
         )
         db_entity = create_entity(db, entity_data, table_db_id)
     
@@ -682,6 +688,8 @@ def load_table_from_db(db: Session, table_id: str):
                 has_darkvision=bool(getattr(db_entity, 'has_darkvision', False)),
                 darkvision_radius=getattr(db_entity, 'darkvision_radius', None),
                 aura_radius_units=getattr(db_entity, 'aura_radius_units', None),
+                vision_radius_units=getattr(db_entity, 'vision_radius_units', None),
+                darkvision_radius_units=getattr(db_entity, 'darkvision_radius_units', None),
             )
             entity.sprite_id = db_entity.sprite_id
             entity.scale_x = db_entity.scale_x

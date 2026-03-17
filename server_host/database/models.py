@@ -142,10 +142,12 @@ class Entity(Base):
     aura_color = Column(String(7), nullable=True)  # hex color e.g. '#ffaa00'
     
     # Vision fields (for dynamic lighting, client-enforced)
-    vision_radius = Column(Float, nullable=True)       # game units (ft/m)
+    vision_radius = Column(Float, nullable=True)       # pixels (legacy)
     has_darkvision = Column(Boolean, default=False)
-    darkvision_radius = Column(Float, nullable=True)   # game units (ft/m)
+    darkvision_radius = Column(Float, nullable=True)   # pixels (legacy)
     aura_radius_units = Column(Float, nullable=True)   # game units (ft/m)
+    vision_radius_units = Column(Float, nullable=True)       # game units (ft/m)
+    darkvision_radius_units = Column(Float, nullable=True)   # game units (ft/m)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

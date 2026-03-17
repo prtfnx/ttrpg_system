@@ -71,13 +71,14 @@ interface Light {
   isOn: boolean;
 }
 
+// Preset radii in game units (feet) — D&D PHB values
 const LIGHT_PRESETS = [
-  { name: 'Torch',     radius: 150, intensity: 1.0, color: { r: 1.0, g: 0.6, b: 0.2, a: 1.0 }, Icon: Flame },
-  { name: 'Candle',   radius: 80,  intensity: 0.7, color: { r: 1.0, g: 0.7, b: 0.3, a: 1.0 }, Icon: Lightbulb },
-  { name: 'Daylight', radius: 300, intensity: 1.0, color: { r: 1.0, g: 1.0, b: 0.9, a: 1.0 }, Icon: Sun },
-  { name: 'Moonlight',radius: 200, intensity: 0.4, color: { r: 0.6, g: 0.7, b: 1.0, a: 1.0 }, Icon: Moon },
-  { name: 'Fire',     radius: 120, intensity: 0.9, color: { r: 1.0, g: 0.4, b: 0.1, a: 1.0 }, Icon: Flame },
-  { name: 'Magic',    radius: 180, intensity: 0.8, color: { r: 0.5, g: 0.2, b: 1.0, a: 1.0 }, Icon: Sparkles },
+  { name: 'Torch',     radiusFt: 20, intensity: 1.0, color: { r: 1.0, g: 0.6, b: 0.2, a: 1.0 }, Icon: Flame },
+  { name: 'Candle',   radiusFt: 5,  intensity: 0.7, color: { r: 1.0, g: 0.7, b: 0.3, a: 1.0 }, Icon: Lightbulb },
+  { name: 'Daylight', radiusFt: 60, intensity: 1.0, color: { r: 1.0, g: 1.0, b: 0.9, a: 1.0 }, Icon: Sun },
+  { name: 'Moonlight',radiusFt: 40, intensity: 0.4, color: { r: 0.6, g: 0.7, b: 1.0, a: 1.0 }, Icon: Moon },
+  { name: 'Fire',     radiusFt: 20, intensity: 0.9, color: { r: 1.0, g: 0.4, b: 0.1, a: 1.0 }, Icon: Flame },
+  { name: 'Magic',    radiusFt: 30, intensity: 0.8, color: { r: 0.5, g: 0.2, b: 1.0, a: 1.0 }, Icon: Sparkles },
 ];
 
 export const LightingPanel: React.FC = () => {
@@ -144,7 +145,9 @@ export const LightingPanel: React.FC = () => {
       }
 
       const lightId = `${preset.name}_${Date.now()}`;
-      const newLight: Light = { id: lightId, x, y, presetName: preset.name, color: preset.color, intensity: preset.intensity, radius: preset.radius, isOn: true };
+      const converter = useGameStore.getState().getUnitConverter();
+      const radiusPx = converter.toPixels(converter.fromFeet(preset.radiusFt));
+      const newLight: Light = { id: lightId, x, y, presetName: preset.name, color: preset.color, intensity: preset.intensity, radius: radiusPx, isOn: true };
 
       // Add to WASM immediately
       try {

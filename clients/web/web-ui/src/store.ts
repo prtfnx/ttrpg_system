@@ -2,6 +2,7 @@ import type { Character, ConnectionState, GameState, Sprite, ToolType } from '@/
 import { isDM, type SessionRole } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
 import { transformServerTablesToClient, validateTableId } from '@lib/websocket';
+import { UnitConverter, dndDefault, type DistanceUnit, type TableUnitConfig } from '@/utils/unitConverter';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 
@@ -83,7 +84,10 @@ interface GameStore extends GameState {
   // Grid system state
   gridEnabled: boolean;
   gridSnapping: boolean;
-  gridSize: number;
+  gridSize: number;       // px per cell (alias for gridCellPx)
+  gridCellPx: number;
+  cellDistance: number;
+  distanceUnit: DistanceUnit;
   
   // Tool system state
   activeTool: ToolType;
@@ -131,6 +135,8 @@ interface GameStore extends GameState {
   setGridEnabled: (enabled: boolean) => void;
   setGridSnapping: (enabled: boolean) => void;
   setGridSize: (size: number) => void;
+  setTableUnits: (config: TableUnitConfig) => void;
+  getUnitConverter: () => UnitConverter;
   
   // Tool system actions
   setActiveTool: (tool: ToolType) => void;
@@ -203,6 +209,9 @@ export const useGameStore = create<GameStore>()(
       gridEnabled: true,
       gridSnapping: false,
       gridSize: 50,
+      gridCellPx: 50,
+      cellDistance: 5,
+      distanceUnit: 'ft' as DistanceUnit,
       
       // Tool system initial state
       activeTool: 'select',
@@ -498,7 +507,22 @@ export const useGameStore = create<GameStore>()(
       setGridSize: (size: number) => {
         set(() => ({
           gridSize: size,
+          gridCellPx: size,
         }));
+      },
+
+      setTableUnits: (config: TableUnitConfig) => {
+        set(() => ({
+          gridCellPx: config.gridCellPx,
+          gridSize: config.gridCellPx,
+          cellDistance: config.cellDistance,
+          distanceUnit: config.distanceUnit,
+        }));
+      },
+
+      getUnitConverter: () => {
+        const s = useGameStore.getState();
+        return new UnitConverter({ gridCellPx: s.gridCellPx, cellDistance: s.cellDistance, distanceUnit: s.distanceUnit });
       },
       
       // Tool system actions

@@ -1013,8 +1013,23 @@ export class WebClientProtocol {
   }
 
   private async handleTableSettingsChanged(message: Message): Promise<void> {
-    const data = message.data as { dynamic_lighting_enabled: boolean; fog_exploration_mode: string; ambient_light_level: number };
-    useGameStore.getState().applyTableLightingSettings(data);
+    const data = message.data as {
+      dynamic_lighting_enabled: boolean;
+      fog_exploration_mode: string;
+      ambient_light_level: number;
+      grid_cell_px?: number;
+      cell_distance?: number;
+      distance_unit?: string;
+    };
+    const store = useGameStore.getState();
+    store.applyTableLightingSettings(data);
+    if (data.grid_cell_px !== undefined || data.cell_distance !== undefined) {
+      store.setTableUnits({
+        gridCellPx: data.grid_cell_px ?? 50,
+        cellDistance: data.cell_distance ?? 5,
+        distanceUnit: (data.distance_unit as 'ft' | 'm') ?? 'ft',
+      });
+    }
     window.dispatchEvent(new CustomEvent('table-settings-changed', { detail: data }));
   }
 

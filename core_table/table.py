@@ -24,10 +24,7 @@ class Entity:
                  width: float = 0.0, height: float = 0.0,
                  vision_radius: Optional[float] = None,
                  has_darkvision: bool = False,
-                 darkvision_radius: Optional[float] = None,
-                 aura_radius_units: Optional[float] = None,
-                 vision_radius_units: Optional[float] = None,
-                 darkvision_radius_units: Optional[float] = None):
+                 darkvision_radius: Optional[float] = None):
         # Use entity_id consistently
         self.entity_id = entity_id
         self.id = entity_id  # Keep both for backward compatibility
@@ -65,12 +62,9 @@ class Entity:
         self.aura_color = aura_color  # hex string e.g. '#ffaa00' (JSON string, opaque to server — used by lights etc.)
         self.metadata = metadata
         # Vision fields (for dynamic lighting)
-        self.vision_radius = vision_radius
+        self.vision_radius = vision_radius      # pixels; None = use client default
         self.has_darkvision = has_darkvision
-        self.darkvision_radius = darkvision_radius
-        self.aura_radius_units = aura_radius_units  # game units (ft/m)
-        self.vision_radius_units = vision_radius_units  # game units (ft/m)
-        self.darkvision_radius_units = darkvision_radius_units  # game units (ft/m)
+        self.darkvision_radius = darkvision_radius  # pixels; None = no darkvision
 
         self.sprite_id = str(uuid.uuid4())
         
@@ -104,9 +98,6 @@ class Entity:
             'vision_radius': self.vision_radius,
             'has_darkvision': self.has_darkvision,
             'darkvision_radius': self.darkvision_radius,
-            'aura_radius_units': self.aura_radius_units,
-            'vision_radius_units': self.vision_radius_units,
-            'darkvision_radius_units': self.darkvision_radius_units,
             # Legacy fields
             'character': None,
             'moving': False,
@@ -144,9 +135,6 @@ class Entity:
         entity.vision_radius = data.get('vision_radius')
         entity.has_darkvision = bool(data.get('has_darkvision', False))
         entity.darkvision_radius = data.get('darkvision_radius')
-        entity.aura_radius_units = data.get('aura_radius_units')
-        entity.vision_radius_units = data.get('vision_radius_units')
-        entity.darkvision_radius_units = data.get('darkvision_radius_units')
         return entity
 
     def serialize(self) -> dict:
@@ -154,8 +142,7 @@ class Entity:
         return self.to_dict()
 
 class VirtualTable:
-    def __init__(self, name: str, width: int, height: int, table_id: Optional[str] = None,
-                 grid_cell_px: float = 50.0, cell_distance: float = 5.0, distance_unit: str = 'ft'):
+    def __init__(self, name: str, width: int, height: int, table_id: Optional[str] = None):
         if not name or not name.strip():
             raise ValueError("Table name cannot be empty")
         if width <= 0:
@@ -195,11 +182,6 @@ class VirtualTable:
         self.fog_exploration_mode: str = 'current_only'  # 'current_only' | 'persist_dimmed'
         self.ambient_light_level: float = 1.0            # 0.0 = pitch black, 1.0 = daylight
 
-        # Coordinate system
-        self.grid_cell_px: float = grid_cell_px
-        self.cell_distance: float = cell_distance
-        self.distance_unit: str = distance_unit
-
         # Wall segments (keyed by wall_id UUID string)
         self.walls: Dict[str, Any] = {}
 
@@ -208,14 +190,7 @@ class VirtualTable:
         for layer in self.layers:
             self.grid[layer] = [[None for _ in range(width)] for _ in range(height)]
 
-    @property
-    def pixels_per_unit(self) -> float:
-        """Pixels per game unit (ft or m). Default: 10.0 (50px / 5ft)"""
-        if self.cell_distance <= 0:
-            return 10.0
-        return self.grid_cell_px / self.cell_distance
-
-    def add_entity(self, entity_data: Dict[str, Any]) -> Optional['Entity']:
+    def add_entity(self, entity_data: Dict[str, Any]) -> Optional[Entity]:
         """Add entity and return it"""
         position = entity_data.get('position')
         if position:
@@ -389,9 +364,6 @@ class VirtualTable:
             'dynamic_lighting_enabled': self.dynamic_lighting_enabled,
             'fog_exploration_mode': self.fog_exploration_mode,
             'ambient_light_level': self.ambient_light_level,
-            'grid_cell_px': self.grid_cell_px,
-            'cell_distance': self.cell_distance,
-            'distance_unit': self.distance_unit,
         }
     
     def to_json(self) -> str:
@@ -407,10 +379,7 @@ class VirtualTable:
         self.dynamic_lighting_enabled = bool(data.get('dynamic_lighting_enabled', False))
         self.fog_exploration_mode = data.get('fog_exploration_mode', 'current_only')
         self.ambient_light_level = float(data.get('ambient_light_level', 1.0))
-        self.grid_cell_px = float(data.get('grid_cell_px', 50.0))
-        self.cell_distance = float(data.get('cell_distance', 5.0))
-        self.distance_unit = data.get('distance_unit', 'ft')
-
+        
         # Clear existing entities
         self.entities.clear()
         self.sprite_to_entity.clear()

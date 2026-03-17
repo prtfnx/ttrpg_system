@@ -217,6 +217,15 @@ impl TextRenderer {
     }
 }
 
-pub fn format_distance(pixels: f32, converter: &crate::unit_converter::UnitConverter) -> String {
-    converter.format_distance(pixels)
+/// Helper function to format distance for display
+pub fn format_distance(distance: f32) -> String {
+    let grid_size = 50.0;
+    let grid_units = distance / grid_size;
+    let feet = grid_units * 5.0; // D&D: 5ft per square
+    
+    if feet < 10.0 {
+        format!("{:.1}ft", feet)
+    } else {
+        format!("{:.0}ft", feet)
+    }
 }

@@ -327,6 +327,9 @@ def create_virtual_table(db: Session, table_data: schemas.VirtualTableCreate) ->
         dynamic_lighting_enabled=table_data.dynamic_lighting_enabled,
         fog_exploration_mode=table_data.fog_exploration_mode,
         ambient_light_level=table_data.ambient_light_level,
+        grid_cell_px=table_data.grid_cell_px,
+        cell_distance=table_data.cell_distance,
+        distance_unit=table_data.distance_unit,
     )
     db.add(db_table)
     db.commit()
@@ -399,6 +402,7 @@ def create_entity(db: Session, entity_data: schemas.EntityCreate, table_db_id: i
         ac=entity_data.ac,
         aura_radius=entity_data.aura_radius,
         aura_color=getattr(entity_data, 'aura_color', None),
+        aura_radius_units=getattr(entity_data, 'aura_radius_units', None),
         # Vision
         vision_radius=getattr(entity_data, 'vision_radius', None),
         has_darkvision=getattr(entity_data, 'has_darkvision', False),
@@ -468,6 +472,9 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> models.
             dynamic_lighting_enabled=virtual_table_obj.dynamic_lighting_enabled,
             fog_exploration_mode=virtual_table_obj.fog_exploration_mode,
             ambient_light_level=virtual_table_obj.ambient_light_level,
+            grid_cell_px=getattr(virtual_table_obj, 'grid_cell_px', 50.0),
+            cell_distance=getattr(virtual_table_obj, 'cell_distance', 5.0),
+            distance_unit=getattr(virtual_table_obj, 'distance_unit', 'ft'),
         )
         db_table = update_virtual_table(db, table_id_str, table_update)
     else:
@@ -486,6 +493,9 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> models.
             dynamic_lighting_enabled=virtual_table_obj.dynamic_lighting_enabled,
             fog_exploration_mode=virtual_table_obj.fog_exploration_mode,
             ambient_light_level=virtual_table_obj.ambient_light_level,
+            grid_cell_px=getattr(virtual_table_obj, 'grid_cell_px', 50.0),
+            cell_distance=getattr(virtual_table_obj, 'cell_distance', 5.0),
+            distance_unit=getattr(virtual_table_obj, 'distance_unit', 'ft'),
         )
         db_table = create_virtual_table(db, table_data)
     
@@ -554,6 +564,7 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             ac=getattr(entity_obj, 'ac', None),
             aura_radius=getattr(entity_obj, 'aura_radius', None),
             aura_color=getattr(entity_obj, 'aura_color', None),
+            aura_radius_units=getattr(entity_obj, 'aura_radius_units', None),
             # Vision
             vision_radius=getattr(entity_obj, 'vision_radius', None),
             has_darkvision=getattr(entity_obj, 'has_darkvision', False),
@@ -588,6 +599,7 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             ac=getattr(entity_obj, 'ac', None),
             aura_radius=getattr(entity_obj, 'aura_radius', None),
             aura_color=getattr(entity_obj, 'aura_color', None),
+            aura_radius_units=getattr(entity_obj, 'aura_radius_units', None),
             # Vision
             vision_radius=getattr(entity_obj, 'vision_radius', None),
             has_darkvision=getattr(entity_obj, 'has_darkvision', False),
@@ -630,6 +642,9 @@ def load_table_from_db(db: Session, table_id: str):
         virtual_table.fog_exploration_mode = db_table.fog_exploration_mode or 'current_only'
         ambient = db_table.ambient_light_level
         virtual_table.ambient_light_level = float(ambient if ambient is not None else 1.0)
+        virtual_table.grid_cell_px = float(db_table.grid_cell_px or 50.0)
+        virtual_table.cell_distance = float(db_table.cell_distance or 5.0)
+        virtual_table.distance_unit = db_table.distance_unit or 'ft'
         
         # Load entities
         db_entities = get_table_entities(db, db_table.id)
@@ -666,6 +681,7 @@ def load_table_from_db(db: Session, table_id: str):
                 vision_radius=getattr(db_entity, 'vision_radius', None),
                 has_darkvision=bool(getattr(db_entity, 'has_darkvision', False)),
                 darkvision_radius=getattr(db_entity, 'darkvision_radius', None),
+                aura_radius_units=getattr(db_entity, 'aura_radius_units', None),
             )
             entity.sprite_id = db_entity.sprite_id
             entity.scale_x = db_entity.scale_x

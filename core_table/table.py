@@ -379,7 +379,10 @@ class VirtualTable:
         self.dynamic_lighting_enabled = bool(data.get('dynamic_lighting_enabled', False))
         self.fog_exploration_mode = data.get('fog_exploration_mode', 'current_only')
         self.ambient_light_level = float(data.get('ambient_light_level', 1.0))
-        
+        self.grid_cell_px = float(data.get('grid_cell_px') or 50.0)
+        self.cell_distance = float(data.get('cell_distance') or 5.0)
+        self.distance_unit = data.get('distance_unit') or 'ft'
+
         # Clear existing entities
         self.entities.clear()
         self.sprite_to_entity.clear()

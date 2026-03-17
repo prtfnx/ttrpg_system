@@ -294,9 +294,11 @@ class MeasurementTool:
         distance = self.get_distance()
         if distance is None:
             return "No measurement"
-        
-        distance_units = self.get_distance_in_units()
-        return f"Distance: {distance:.1f} px ({distance_units:.1f} units)"
+
+        pixels_per_unit = getattr(getattr(self.context, 'current_table', None), 'pixels_per_unit', 10.0)
+        distance_units = self.get_distance_in_units(pixels_per_unit)
+        unit = getattr(getattr(self.context, 'current_table', None), 'distance_unit', 'ft') or 'ft'
+        return f"{distance_units:.1f} {unit}"
     
     def _draw_text_above_arrow(self, renderer, start_x, start_y, end_x, end_y, text):
         """Draw text above the arrow using SDL3 text rendering"""

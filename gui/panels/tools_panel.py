@@ -116,7 +116,8 @@ class ToolsPanel:
                 if measurement_tool.start_point and measurement_tool.end_point:
                     distance = measurement_tool.get_distance()
                     if distance is not None:
-                        distance_units = measurement_tool.get_distance_in_units()
+                        pixels_per_unit = getattr(self.context.current_table, 'pixels_per_unit', 10.0)
+                        distance_units = measurement_tool.get_distance_in_units(pixels_per_unit)
                         imgui.text(f"Distance: {distance:.1f} px")
                         imgui.text(f"({distance_units:.1f} units)")
                         

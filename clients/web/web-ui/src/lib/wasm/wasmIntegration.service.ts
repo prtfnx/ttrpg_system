@@ -1205,10 +1205,13 @@ class WasmIntegrationService {
           maxHp: spriteData.max_hp,
           ac: spriteData.ac,
           auraRadius: spriteData.aura_radius,
+          auraRadiusUnits: spriteData.aura_radius_units ?? undefined,
           // Vision fields (dynamic lighting)
           visionRadius: spriteData.vision_radius ?? undefined,
+          visionRadiusUnits: spriteData.vision_radius_units ?? undefined,
           hasDarkvision: spriteData.has_darkvision ?? false,
           darkvisionRadius: spriteData.darkvision_radius ?? undefined,
+          darkvisionRadiusUnits: spriteData.darkvision_radius_units ?? undefined,
           syncStatus: 'synced' as const
         };
         useGameStore.getState().addSprite(storeSprite);

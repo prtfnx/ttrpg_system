@@ -1,6 +1,5 @@
 import { useGameStore } from '@/store';
 import type { GameAPI } from '@/types';
-import { DND_DISTANCES } from '@/utils/unitConverter';
 import { AssetManager } from '@features/assets';
 import { GridControls, LayerPanel } from '@features/canvas';
 import { useLayerHotkeys } from '@features/canvas/hooks';
@@ -845,12 +844,12 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
             <div className={styles.templateButtons}>
               <button
                 onClick={() => {
-                  const conv = useGameStore.getState().getUnitConverter();
+                  console.log('[ToolsPanel] Fireball template selected');
+                  // Store selected template for map interaction
                   (window as any).selectedSpellTemplate = {
                     name: 'fireball',
-                    radiusFt: DND_DISTANCES.FIREBALL_RADIUS,
-                    radiusPx: conv.toPixels(conv.fromFeet(DND_DISTANCES.FIREBALL_RADIUS)),
-                    type: 'sphere',
+                    radius: 20,
+                    type: 'sphere'
                   };
                 }}
                 title="Fireball (20 ft radius)"
@@ -859,14 +858,12 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
               </button>
               <button
                 onClick={() => {
-                  const conv = useGameStore.getState().getUnitConverter();
+                  console.log('[ToolsPanel] Cone of Cold template selected');
                   (window as any).selectedSpellTemplate = {
                     name: 'cone_of_cold',
-                    lengthFt: DND_DISTANCES.CONE_LENGTH,
-                    lengthPx: conv.toPixels(conv.fromFeet(DND_DISTANCES.CONE_LENGTH)),
-                    widthFt: DND_DISTANCES.CONE_LENGTH,
-                    widthPx: conv.toPixels(conv.fromFeet(DND_DISTANCES.CONE_LENGTH)),
-                    type: 'cone',
+                    length: 60,
+                    width: 60,
+                    type: 'cone'
                   };
                 }}
                 title="Cone of Cold (60 ft cone)"
@@ -875,14 +872,12 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
               </button>
               <button
                 onClick={() => {
-                  const conv = useGameStore.getState().getUnitConverter();
+                  console.log('[ToolsPanel] Lightning Bolt template selected');
                   (window as any).selectedSpellTemplate = {
                     name: 'lightning_bolt',
-                    lengthFt: DND_DISTANCES.LIGHTNING_BOLT_LENGTH,
-                    lengthPx: conv.toPixels(conv.fromFeet(DND_DISTANCES.LIGHTNING_BOLT_LENGTH)),
-                    widthFt: DND_DISTANCES.LIGHTNING_BOLT_WIDTH,
-                    widthPx: conv.toPixels(conv.fromFeet(DND_DISTANCES.LIGHTNING_BOLT_WIDTH)),
-                    type: 'line',
+                    length: 100,
+                    width: 5,
+                    type: 'line'
                   };
                 }}
                 title="Lightning Bolt (100 ft line)"

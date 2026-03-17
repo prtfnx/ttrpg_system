@@ -402,14 +402,6 @@ class AdvancedMeasurementService {
     }
   }
 
-  /** Sync grid pixel size from table unit config (call when table settings change). */
-  syncWithTableUnits(gridCellPx: number, cellDistance: number, unit: 'ft' | 'm'): void {
-    const unitLabel = unit === 'ft' ? 'feet' : 'meters';
-    for (const grid of this.grids.values()) {
-      this.updateGrid(grid.id, { size: gridCellPx, scale: cellDistance, unit: unitLabel as any });
-    }
-  }
-
   /**
    * Snap a point to the active grid
    */
@@ -685,12 +677,12 @@ class AdvancedMeasurementService {
   }
 
   private initializeDefaultGrids(): void {
-    // D&D 5e default: 50px per cell, 5ft per cell
+    // Standard D&D grid
     const dndGrid: GridConfiguration = {
       id: 'dnd_standard',
       name: 'D&D Standard (5ft squares)',
       type: 'square',
-      size: 50, // pixels per square (matches grid_cell_px default)
+      size: 30, // 30 pixels per square
       scale: 5, // 5 feet per square
       unit: 'feet',
       color: '#cccccc',
@@ -715,8 +707,8 @@ class AdvancedMeasurementService {
       name: 'Hex Grid (5ft)',
       type: 'hex',
       orientation: 'flat',
-      size: 50,
-      hexRadius: 43,
+      size: 30,
+      hexRadius: 26,
       scale: 5,
       unit: 'feet',
       color: '#cccccc',

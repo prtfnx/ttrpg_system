@@ -266,7 +266,7 @@ export const GameCanvas: React.FC = () => {
       const rm = rustRenderManagerRef.current;
       if (!canvas || !mainCanvas) { raf = requestAnimationFrame(draw); return; }
 
-      const { sprites, sessionRole, getUnitConverter } = useGameStore.getState();
+      const { sprites, sessionRole } = useGameStore.getState();
       const ctx = canvas.getContext('2d');
       if (!ctx) { raf = requestAnimationFrame(draw); return; }
 
@@ -283,16 +283,11 @@ export const GameCanvas: React.FC = () => {
       ctx.save();
       ctx.scale(dpr, dpr);
 
-      const conv = getUnitConverter();
       for (const sprite of sprites) {
         const s = sprite as any;
-        const vr: number = s.visionRadiusUnits != null
-          ? conv.toPixels(s.visionRadiusUnits)
-          : (s.visionRadius ?? s.vision_radius ?? 0);
+        const vr: number = s.visionRadius ?? s.vision_radius ?? 0;
         const dvr: number = (s.hasDarkvision || s.has_darkvision)
-          ? (s.darkvisionRadiusUnits != null
-              ? conv.toPixels(s.darkvisionRadiusUnits)
-              : (s.darkvisionRadius ?? s.darkvision_radius ?? 0))
+          ? (s.darkvisionRadius ?? s.darkvision_radius ?? 0)
           : 0;
         if (!vr && !dvr) continue;
 

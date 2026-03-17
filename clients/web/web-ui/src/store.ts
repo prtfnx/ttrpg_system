@@ -2,8 +2,6 @@ import type { Character, ConnectionState, GameState, Sprite, ToolType } from '@/
 import { isDM, type SessionRole } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
 import { transformServerTablesToClient, validateTableId } from '@lib/websocket';
-import { UnitConverter, type DistanceUnit, type TableUnitConfig } from '@/utils/unitConverter';
-import { advancedMeasurementSystem } from '@features/measurement/services/advancedMeasurement.service';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 
@@ -85,10 +83,7 @@ interface GameStore extends GameState {
   // Grid system state
   gridEnabled: boolean;
   gridSnapping: boolean;
-  gridSize: number;       // px per cell (alias for gridCellPx)
-  gridCellPx: number;
-  cellDistance: number;
-  distanceUnit: DistanceUnit;
+  gridSize: number;
   
   // Tool system state
   activeTool: ToolType;
@@ -136,8 +131,6 @@ interface GameStore extends GameState {
   setGridEnabled: (enabled: boolean) => void;
   setGridSnapping: (enabled: boolean) => void;
   setGridSize: (size: number) => void;
-  setTableUnits: (config: TableUnitConfig) => void;
-  getUnitConverter: () => UnitConverter;
   
   // Tool system actions
   setActiveTool: (tool: ToolType) => void;
@@ -210,9 +203,6 @@ export const useGameStore = create<GameStore>()(
       gridEnabled: true,
       gridSnapping: false,
       gridSize: 50,
-      gridCellPx: 50,
-      cellDistance: 5,
-      distanceUnit: 'ft' as DistanceUnit,
       
       // Tool system initial state
       activeTool: 'select',
@@ -367,7 +357,6 @@ export const useGameStore = create<GameStore>()(
         if ('maxHp' in updates) serverUpdate.max_hp = updates.maxHp;
         if ('ac' in updates) serverUpdate.ac = updates.ac;
         if ('auraRadius' in updates) serverUpdate.aura_radius = updates.auraRadius;
-        if ('auraRadiusUnits' in updates) serverUpdate.aura_radius_units = updates.auraRadiusUnits;
         if ('auraColor' in updates) serverUpdate.aura_color = updates.auraColor;
         if ('x' in updates) serverUpdate.x = updates.x;
         if ('y' in updates) serverUpdate.y = updates.y;
@@ -375,10 +364,8 @@ export const useGameStore = create<GameStore>()(
         if ('scaleY' in updates) serverUpdate.scale_y = updates.scaleY;
         if ('rotation' in updates) serverUpdate.rotation = updates.rotation;
         if ('visionRadius' in updates) serverUpdate.vision_radius = updates.visionRadius;
-        if ('visionRadiusUnits' in updates) serverUpdate.vision_radius_units = updates.visionRadiusUnits;
         if ('hasDarkvision' in updates) serverUpdate.has_darkvision = updates.hasDarkvision;
         if ('darkvisionRadius' in updates) serverUpdate.darkvision_radius = updates.darkvisionRadius;
-        if ('darkvisionRadiusUnits' in updates) serverUpdate.darkvision_radius_units = updates.darkvisionRadiusUnits;
         
         const changes = detectChanges(id, serverUpdate);
         if (Object.keys(changes).length > 0) {
@@ -511,29 +498,7 @@ export const useGameStore = create<GameStore>()(
       setGridSize: (size: number) => {
         set(() => ({
           gridSize: size,
-          gridCellPx: size,
         }));
-      },
-
-      setTableUnits: (config: TableUnitConfig) => {
-        set(() => ({
-          gridCellPx: config.gridCellPx,
-          gridSize: config.gridCellPx,
-          cellDistance: config.cellDistance,
-          distanceUnit: config.distanceUnit,
-        }));
-        advancedMeasurementSystem.syncWithTableUnits(config.gridCellPx, config.cellDistance, config.distanceUnit);
-        // Sync to Rust WASM
-        const rm = (window as any).rustRenderManager;
-        const tableId = useGameStore.getState().activeTableId;
-        if (rm?.set_table_units && tableId) {
-          rm.set_table_units(tableId, config.gridCellPx, config.cellDistance, config.distanceUnit);
-        }
-      },
-
-      getUnitConverter: () => {
-        const s = useGameStore.getState();
-        return new UnitConverter({ gridCellPx: s.gridCellPx, cellDistance: s.cellDistance, distanceUnit: s.distanceUnit });
       },
       
       // Tool system actions

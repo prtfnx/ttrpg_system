@@ -3,7 +3,6 @@ use crate::math::Vec2;
 use crate::webgl_renderer::WebGLRenderer;
 use crate::texture_manager::TextureManager;
 use crate::text_renderer::{TextRenderer, format_distance};
-use crate::unit_converter::UnitConverter;
 use crate::sprite_manager::SpriteManager;
 use crate::input::InputHandler;
 use wasm_bindgen::prelude::*;
@@ -317,12 +316,11 @@ impl SpriteRenderer {
     }
     
     pub fn draw_measurement_line(
-        start: Vec2,
-        end: Vec2,
+        start: Vec2, 
+        end: Vec2, 
         renderer: &WebGLRenderer,
         text_renderer: &TextRenderer,
         texture_manager: &TextureManager,
-        converter: &UnitConverter,
     ) -> Result<(), JsValue> {
         // Calculate direction and distance
         let dx = end.x - start.x;
@@ -396,7 +394,7 @@ impl SpriteRenderer {
         let mid_point = Vec2::new((start.x + end.x) / 2.0, (start.y + end.y) / 2.0);
         
         // Format distance text
-        let distance_text = format_distance(distance, converter);
+        let distance_text = format_distance(distance);
         
         // Offset label perpendicular to line so it doesn't overlap the arrow
         let label_offset = 20.0;

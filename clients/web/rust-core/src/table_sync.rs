@@ -73,18 +73,8 @@ pub struct TableData {
     pub show_grid: bool,
     #[serde(default)]
     pub cell_side: f64,
-    #[serde(default = "default_grid_cell_px")]
-    pub grid_cell_px: f64,
-    #[serde(default = "default_cell_distance")]
-    pub cell_distance: f64,
-    #[serde(default = "default_distance_unit")]
-    pub distance_unit: String,
     pub layers: std::collections::HashMap<String, Vec<SpriteData>>,
 }
-
-fn default_grid_cell_px() -> f64 { 50.0 }
-fn default_cell_distance() -> f64 { 5.0 }
-fn default_distance_unit() -> String { "ft".to_string() }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpriteData {
@@ -112,8 +102,6 @@ pub struct SpriteData {
     pub ac: Option<i32>,
     #[serde(default)]
     pub aura_radius: Option<f64>,
-    #[serde(default)]
-    pub aura_radius_units: Option<f64>,
     #[serde(default)]
     pub aura_color: Option<String>,
     

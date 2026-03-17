@@ -1013,23 +1013,8 @@ export class WebClientProtocol {
   }
 
   private async handleTableSettingsChanged(message: Message): Promise<void> {
-    const data = message.data as {
-      dynamic_lighting_enabled: boolean;
-      fog_exploration_mode: string;
-      ambient_light_level: number;
-      grid_cell_px?: number;
-      cell_distance?: number;
-      distance_unit?: string;
-    };
-    const store = useGameStore.getState();
-    store.applyTableLightingSettings(data);
-    if (data.grid_cell_px !== undefined || data.cell_distance !== undefined || data.distance_unit !== undefined) {
-      store.setTableUnits({
-        gridCellPx: data.grid_cell_px ?? 50,
-        cellDistance: data.cell_distance ?? 5,
-        distanceUnit: (data.distance_unit as 'ft' | 'm') ?? 'ft',
-      });
-    }
+    const data = message.data as { dynamic_lighting_enabled: boolean; fog_exploration_mode: string; ambient_light_level: number };
+    useGameStore.getState().applyTableLightingSettings(data);
     window.dispatchEvent(new CustomEvent('table-settings-changed', { detail: data }));
   }
 
@@ -1129,14 +1114,7 @@ export class WebClientProtocol {
     this.sendMessage(createMessage(MessageType.TABLE_ACTIVE_SET_ALL, { table_id: tableId }));
   }
 
-  sendTableSettingsUpdate(tableId: string, settings: {
-    dynamic_lighting_enabled?: boolean;
-    fog_exploration_mode?: string;
-    ambient_light_level?: number;
-    grid_cell_px?: number;
-    cell_distance?: number;
-    distance_unit?: string;
-  }): void {
+  sendTableSettingsUpdate(tableId: string, settings: { dynamic_lighting_enabled?: boolean; fog_exploration_mode?: string; ambient_light_level?: number }): void {
     this.sendMessage(createMessage(MessageType.TABLE_SETTINGS_UPDATE, { table_id: tableId, ...settings }, 2));
   }
 

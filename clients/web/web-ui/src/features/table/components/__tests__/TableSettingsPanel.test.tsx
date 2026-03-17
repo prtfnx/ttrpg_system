@@ -12,7 +12,7 @@
 
 import { useGameStore } from '@/store';
 import { TableSettingsPanel } from '@features/table/components/TableSettingsPanel';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -64,14 +64,13 @@ describe('TableSettingsPanel — DM view', () => {
     expect(screen.getByText(/m$/)).toBeInTheDocument();
   });
 
-  it('calls setTableUnits when cell slider changes', async () => {
-    const user = userEvent.setup();
+  it('calls setTableUnits when cell slider changes', () => {
     render(<TableSettingsPanel />);
 
     const slider = screen.getByRole('slider');
-    await user.clear(slider);
-    // Simulate slider change
-    await userEvent.type(slider, '80');
+    // Simulate slider change for a range input
+    fireEvent.change(slider, { target: { value: '80' } });
+
     // setTableUnits should have been called at least once
     expect(mockSetTableUnits).toHaveBeenCalled();
   });

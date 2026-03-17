@@ -367,6 +367,7 @@ export const useGameStore = create<GameStore>()(
         if ('maxHp' in updates) serverUpdate.max_hp = updates.maxHp;
         if ('ac' in updates) serverUpdate.ac = updates.ac;
         if ('auraRadius' in updates) serverUpdate.aura_radius = updates.auraRadius;
+        if ('auraRadiusUnits' in updates) serverUpdate.aura_radius_units = updates.auraRadiusUnits;
         if ('auraColor' in updates) serverUpdate.aura_color = updates.auraColor;
         if ('x' in updates) serverUpdate.x = updates.x;
         if ('y' in updates) serverUpdate.y = updates.y;
@@ -374,8 +375,10 @@ export const useGameStore = create<GameStore>()(
         if ('scaleY' in updates) serverUpdate.scale_y = updates.scaleY;
         if ('rotation' in updates) serverUpdate.rotation = updates.rotation;
         if ('visionRadius' in updates) serverUpdate.vision_radius = updates.visionRadius;
+        if ('visionRadiusUnits' in updates) serverUpdate.vision_radius_units = updates.visionRadiusUnits;
         if ('hasDarkvision' in updates) serverUpdate.has_darkvision = updates.hasDarkvision;
         if ('darkvisionRadius' in updates) serverUpdate.darkvision_radius = updates.darkvisionRadius;
+        if ('darkvisionRadiusUnits' in updates) serverUpdate.darkvision_radius_units = updates.darkvisionRadiusUnits;
         
         const changes = detectChanges(id, serverUpdate);
         if (Object.keys(changes).length > 0) {
@@ -520,6 +523,12 @@ export const useGameStore = create<GameStore>()(
           distanceUnit: config.distanceUnit,
         }));
         advancedMeasurementSystem.syncWithTableUnits(config.gridCellPx, config.cellDistance, config.distanceUnit);
+        // Sync to Rust WASM
+        const rm = (window as any).rustRenderManager;
+        const tableId = useGameStore.getState().activeTableId;
+        if (rm?.set_table_units && tableId) {
+          rm.set_table_units(tableId, config.gridCellPx, config.cellDistance, config.distanceUnit);
+        }
       },
 
       getUnitConverter: () => {

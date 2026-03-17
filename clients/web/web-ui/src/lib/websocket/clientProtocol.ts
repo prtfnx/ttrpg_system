@@ -1129,7 +1129,14 @@ export class WebClientProtocol {
     this.sendMessage(createMessage(MessageType.TABLE_ACTIVE_SET_ALL, { table_id: tableId }));
   }
 
-  sendTableSettingsUpdate(tableId: string, settings: { dynamic_lighting_enabled?: boolean; fog_exploration_mode?: string; ambient_light_level?: number }): void {
+  sendTableSettingsUpdate(tableId: string, settings: {
+    dynamic_lighting_enabled?: boolean;
+    fog_exploration_mode?: string;
+    ambient_light_level?: number;
+    grid_cell_px?: number;
+    cell_distance?: number;
+    distance_unit?: string;
+  }): void {
     this.sendMessage(createMessage(MessageType.TABLE_SETTINGS_UPDATE, { table_id: tableId, ...settings }, 2));
   }
 

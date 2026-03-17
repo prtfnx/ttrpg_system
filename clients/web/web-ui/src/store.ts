@@ -3,6 +3,7 @@ import { isDM, type SessionRole } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
 import { transformServerTablesToClient, validateTableId } from '@lib/websocket';
 import { UnitConverter, dndDefault, type DistanceUnit, type TableUnitConfig } from '@/utils/unitConverter';
+import { advancedMeasurementSystem } from '@features/measurement/services/advancedMeasurement.service';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 
@@ -518,6 +519,7 @@ export const useGameStore = create<GameStore>()(
           cellDistance: config.cellDistance,
           distanceUnit: config.distanceUnit,
         }));
+        advancedMeasurementSystem.syncWithTableUnits(config.gridCellPx, config.cellDistance, config.distanceUnit);
       },
 
       getUnitConverter: () => {

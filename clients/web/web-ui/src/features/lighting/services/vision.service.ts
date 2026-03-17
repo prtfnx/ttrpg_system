@@ -200,7 +200,9 @@ class VisionService {
       let meta: any = {};
       try { meta = typeof ls.metadata === 'string' ? JSON.parse(ls.metadata) : (ls.metadata ?? {}); } catch {}
       if (meta.isOn === false) continue;
-      const lightRadius = meta.radius ?? 150;
+      // meta.radius is stored in pixels (LightingPanel converts at placement)
+      // Fallback: 20ft torch at default 10px/ft = 200px
+      const lightRadius = meta.radius ?? useGameStore.getState().getUnitConverter().toPixels(20);
       const lightFogId = `fog_light_${ls.id}`;
       const lx = ls.x ?? 0;
       const ly = ls.y ?? 0;

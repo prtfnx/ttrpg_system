@@ -113,6 +113,8 @@ pub struct SpriteData {
     #[serde(default)]
     pub aura_radius: Option<f64>,
     #[serde(default)]
+    pub aura_radius_units: Option<f64>,
+    #[serde(default)]
     pub aura_color: Option<String>,
     
     #[serde(default)]

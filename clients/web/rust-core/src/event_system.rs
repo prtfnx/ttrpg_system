@@ -499,6 +499,7 @@ impl EventSystem {
                         let detail = Object::new();
                         js_sys::Reflect::set(&detail, &"distance".into(), &JsValue::from_f64(distance as f64)).ok();
                         js_sys::Reflect::set(&detail, &"gameUnits".into(), &JsValue::from_f64(game_dist as f64)).ok();
+                        js_sys::Reflect::set(&detail, &"gridUnits".into(), &JsValue::from_f64(game_dist as f64)).ok();
                         js_sys::Reflect::set(&detail, &"feet".into(), &JsValue::from_f64(feet as f64)).ok();
                         js_sys::Reflect::set(&detail, &"meters".into(), &JsValue::from_f64(meters as f64)).ok();
                         js_sys::Reflect::set(&detail, &"angle".into(), &JsValue::from_f64(angle as f64)).ok();

@@ -3,7 +3,7 @@ Migration: Add table coordinate system
 Date: 2026-03-17
 Description:
   - Adds grid_cell_px, cell_distance, distance_unit to virtual_tables
-  - Adds aura_radius_units to entities
+  - Adds aura_radius_units, vision_radius_units, darkvision_radius_units to entities
 """
 import sqlite3
 from server_host.utils.logger import setup_logger

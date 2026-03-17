@@ -86,7 +86,12 @@ class VirtualTable(Base):
     dynamic_lighting_enabled = Column(Boolean, default=False)
     fog_exploration_mode = Column(String(20), default='current_only')
     ambient_light_level = Column(Float, default=1.0)
-    
+
+    # Grid & coordinate system
+    grid_cell_px = Column(Float, default=50.0)       # pixels per grid cell
+    cell_distance = Column(Float, default=5.0)       # game units per cell
+    distance_unit = Column(String(10), default='ft') # "ft" or "m"
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -137,10 +142,13 @@ class Entity(Base):
     aura_color = Column(String(7), nullable=True)  # hex color e.g. '#ffaa00'
     
     # Vision fields (for dynamic lighting, client-enforced)
-    vision_radius = Column(Float, nullable=True)       # pixels; None = client default
+    vision_radius = Column(Float, nullable=True)       # pixels (legacy)
     has_darkvision = Column(Boolean, default=False)
-    darkvision_radius = Column(Float, nullable=True)   # pixels; None = no darkvision
-    
+    darkvision_radius = Column(Float, nullable=True)   # pixels (legacy)
+    aura_radius_units = Column(Float, nullable=True)   # game units (ft/m)
+    vision_radius_units = Column(Float, nullable=True)       # game units (ft/m)
+    darkvision_radius_units = Column(Float, nullable=True)   # game units (ft/m)
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

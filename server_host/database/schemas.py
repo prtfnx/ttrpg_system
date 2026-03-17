@@ -66,6 +66,9 @@ class EntityBase(BaseModel):
     vision_radius: Optional[float] = None
     has_darkvision: bool = False
     darkvision_radius: Optional[float] = None
+    aura_radius_units: Optional[float] = None
+    vision_radius_units: Optional[float] = None
+    darkvision_radius_units: Optional[float] = None
 
 class EntityCreate(EntityBase):
     pass
@@ -98,6 +101,9 @@ class EntityUpdate(BaseModel):
     vision_radius: Optional[float] = None
     has_darkvision: Optional[bool] = None
     darkvision_radius: Optional[float] = None
+    aura_radius_units: Optional[float] = None
+    vision_radius_units: Optional[float] = None
+    darkvision_radius_units: Optional[float] = None
 
 class Entity(EntityBase):
     id: int
@@ -122,6 +128,9 @@ class VirtualTableBase(BaseModel):
     dynamic_lighting_enabled: bool = False
     fog_exploration_mode: str = 'current_only'
     ambient_light_level: float = 1.0
+    grid_cell_px: float = 50.0
+    cell_distance: float = 5.0
+    distance_unit: str = 'ft'
 
 class VirtualTableCreate(VirtualTableBase):
     session_id: int
@@ -139,6 +148,9 @@ class VirtualTableUpdate(BaseModel):
     dynamic_lighting_enabled: Optional[bool] = None
     fog_exploration_mode: Optional[str] = None
     ambient_light_level: Optional[float] = None
+    grid_cell_px: Optional[float] = None
+    cell_distance: Optional[float] = None
+    distance_unit: Optional[str] = None
 
 class VirtualTable(VirtualTableBase):
     id: int

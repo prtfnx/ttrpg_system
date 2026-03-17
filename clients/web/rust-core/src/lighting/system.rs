@@ -17,11 +17,12 @@ pub enum LightType {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Light {
     pub id: String,
-    pub table_id: String, // NEW: Associates light with specific table
+    pub table_id: String,
     pub position: Vec2,
     pub color: Color,
     pub intensity: f32,
-    pub radius: f32,
+    pub radius: f32,          // pixels — used for rendering
+    pub radius_units: Option<f32>, // game units (ft/m) — source of truth
     pub falloff: f32,
     pub is_on: bool,
     pub light_type: LightType,
@@ -37,11 +38,12 @@ impl Light {
     pub fn new(id: String, x: f32, y: f32) -> Self {
         Self {
             id,
-            table_id: "default_table".to_string(), // Default to default_table
+            table_id: "default_table".to_string(),
             position: Vec2::new(x, y),
             color: Color::new(1.0, 1.0, 0.9, 1.0), // Warm white
             intensity: 1.0,
             radius: 200.0,
+            radius_units: None,
             falloff: 2.0,
             is_on: true,
             light_type: LightType::Point,

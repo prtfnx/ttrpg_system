@@ -5,6 +5,7 @@ use crate::sprite_manager::SpriteManager;
 use crate::lighting::LightingSystem;
 use crate::fog::{FogOfWarSystem, FogMode};
 use crate::wall_manager::WallManager;
+use crate::unit_converter::UnitConverter;
 use std::collections::HashMap;
 use wasm_bindgen::JsValue;
 
@@ -370,7 +371,8 @@ impl EventSystem {
         wall_manager: &WallManager,
         fog: &mut FogOfWarSystem,
         table_id: String,
-        active_layer: &str
+        active_layer: &str,
+        converter: &UnitConverter,
     ) -> MouseEventResult {
         match input.input_mode {
             InputMode::AreaSelect => {
@@ -483,13 +485,11 @@ impl EventSystem {
                     let distance = (dx * dx + dy * dy).sqrt();
                     let angle = dy.atan2(dx) * 180.0 / std::f32::consts::PI;
                     
-                    // Calculate grid units (assuming 50px per grid square, 5ft per square)
-                    const DEFAULT_GRID_SIZE: f32 = 50.0; // Will be configurable in settings
-                    let grid_units = distance / DEFAULT_GRID_SIZE;
-                    let feet = grid_units * 5.0; // D&D standard: 5ft per square
-                    let meters = feet * 0.3048; // Convert feet to meters
+                    let game_dist = converter.to_units(distance);
+                    let feet = converter.to_feet(game_dist);
+                    let meters = converter.to_meters(game_dist);
                     
-                    web_sys::console::log_1(&format!("[RUST EVENT] Measurement complete: {:.2} units ({:.1} ft) from ({:.1}, {:.1}) to ({:.1}, {:.1})", distance, feet, start.x, start.y, end.x, end.y).into());
+                    web_sys::console::log_1(&format!("[RUST EVENT] Measurement complete: {:.2} px ({:.1} {}) from ({:.1}, {:.1}) to ({:.1}, {:.1})", distance, game_dist, converter.unit().label(), start.x, start.y, end.x, end.y).into());
                     
                     // Dispatch custom event to React with measurement data
                     if let Some(window) = web_sys::window() {
@@ -498,7 +498,7 @@ impl EventSystem {
                         
                         let detail = Object::new();
                         js_sys::Reflect::set(&detail, &"distance".into(), &JsValue::from_f64(distance as f64)).ok();
-                        js_sys::Reflect::set(&detail, &"gridUnits".into(), &JsValue::from_f64(grid_units as f64)).ok();
+                        js_sys::Reflect::set(&detail, &"gameUnits".into(), &JsValue::from_f64(game_dist as f64)).ok();
                         js_sys::Reflect::set(&detail, &"feet".into(), &JsValue::from_f64(feet as f64)).ok();
                         js_sys::Reflect::set(&detail, &"meters".into(), &JsValue::from_f64(meters as f64)).ok();
                         js_sys::Reflect::set(&detail, &"angle".into(), &JsValue::from_f64(angle as f64)).ok();

@@ -362,7 +362,10 @@ impl RenderEngine {
         
         // Draw measurement line if active
         if let Some((start, end)) = self.input.get_measurement_line() {
-            SpriteRenderer::draw_measurement_line(start, end, &self.renderer, &self.text_renderer, &self.texture_manager)?;
+            let conv = self.table_manager.get_unit_converter(
+                &self.table_manager.get_active_table_id().unwrap_or("default_table".to_string())
+            );
+            SpriteRenderer::draw_measurement_line(start, end, &self.renderer, &self.text_renderer, &self.texture_manager, &conv)?;
         }
         
         // Draw shape creation preview if active
@@ -799,6 +802,7 @@ impl RenderEngine {
         // Use the event system to handle mouse up events
         let table_id = self.table_manager.get_active_table_id()
             .unwrap_or("default_table".to_string());
+        let converter = self.table_manager.get_unit_converter(&table_id);
         
         let result = self.event_system.handle_mouse_up(
             world_pos,
@@ -808,7 +812,8 @@ impl RenderEngine {
             &self.wall_manager,
             &mut self.fog,
             table_id,
-            &self.active_layer.clone()
+            &self.active_layer.clone(),
+            &converter,
         );
         
         // Handle event system results that need render engine specific operations
@@ -2551,6 +2556,15 @@ impl RenderEngine {
             
             self.table_manager.create_table(&table_id, &table.table_name, table.width, table.height)?;
             self.table_manager.set_active_table(&table_id);
+            // Sync unit system from server table config
+            self.table_manager.set_table_units(
+                &table_id,
+                table.grid_cell_px,
+                table.cell_distance,
+                &table.distance_unit,
+            );
+            // Keep grid system in sync
+            self.grid.sync_from_table(table.grid_cell_px as f32);
             
             // Verify it was set
             let active = self.table_manager.get_active_table_id();
@@ -2601,7 +2615,13 @@ impl RenderEngine {
     fn add_sprite_from_table_data(&mut self, sprite_data: &crate::table_sync::SpriteData, table_id: &str) -> Result<(), JsValue> {
         let character_id = sprite_data.character_id.clone();
         let controlled_by = sprite_data.controlled_by.clone().unwrap_or_default();
-        let aura_radius = sprite_data.aura_radius;
+        // Prefer game-unit aura radius; fall back to legacy pixel radius
+        let aura_radius = if let Some(units) = sprite_data.aura_radius_units {
+            let conv = self.table_manager.get_unit_converter(table_id);
+            Some(conv.to_pixels(units as f32) as f64)
+        } else {
+            sprite_data.aura_radius
+        };
         let aura_color = sprite_data.aura_color.clone();
 
         let sprite = Sprite {
@@ -2741,8 +2761,16 @@ impl RenderEngine {
                 // Handle runtime aura radius/color changes
                 let light_id = format!("token_light_{}", update_data.sprite_id);
                 let sid = &update_data.sprite_id;
-                if let Some(radius_val) = update_data.data.get("aura_radius") {
-                    let radius = radius_val.as_f64().unwrap_or(0.0);
+                // Prefer game-unit radius; fall back to pixel radius
+                let aura_radius_px: Option<f64> = if let Some(units) = update_data.data.get("aura_radius_units").and_then(|v| v.as_f64()) {
+                    let active_id = self.table_manager.get_active_table_id().unwrap_or_else(|| "default_table".to_string());
+                    let conv = self.table_manager.get_unit_converter(&active_id);
+                    Some(conv.to_pixels(units as f32) as f64)
+                } else {
+                    update_data.data.get("aura_radius").and_then(|v| v.as_f64())
+                };
+                if let Some(radius_val) = aura_radius_px {
+                    let radius = radius_val;
                     if radius > 0.0 {
                         if self.lighting.get_light_mut(&light_id).is_some() {
                             if let Some(l) = self.lighting.get_light_mut(&light_id) {

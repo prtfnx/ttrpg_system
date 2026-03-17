@@ -8,7 +8,7 @@ import { FogPanel } from '@features/fog';
 import { LightingPanel } from '@features/lighting';
 import { AdvancedMeasurementPanel } from '@features/measurement';
 import { type SessionRole, canInteract, isDM, isElevated } from '@features/session/types/roles';
-import { TableManagementPanel, TablePanel, TableSyncPanel } from '@features/table';
+import { TableManagementPanel, TablePanel, TableSettingsPanel, TableSyncPanel } from '@features/table';
 import clsx from 'clsx';
 import { useEffect, useRef, useState } from 'react';
 import { ActionQueuePanel } from '../features/actions/components/ActionQueuePanel';
@@ -23,13 +23,14 @@ import styles from './RightPanel.module.css';
 
 const isDevelopment = import.meta.env.DEV;
 
-type TabId = 'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' |
+type TabId = 'tables' | 'grid' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' |
              'sync' | 'players' | 'actions' | 'quick-actions' | 'queue' | 'compendium' | 'assets' |
              'network' | 'initiative' | 'performance' | 'backgrounds' | 'measurement' | 'customize';
 
 const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
   // DM tabs
   'tables':        isDM,
+  'grid':          isDM,
   'quick-actions': isDM,
   'players':       isDM,
   'lighting':      isDM,
@@ -56,7 +57,7 @@ const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
 };
 
 const DEFAULT_TAB_ORDER: TabId[] = [
-  'tables', 'compendium', 'quick-actions', 'characters', 'entities',
+  'tables', 'grid', 'compendium', 'quick-actions', 'characters', 'entities',
   'players', 'initiative', 'chat', 'lighting', 'fog', 'measurement',
   'backgrounds', 'performance', 'customize',
 ];
@@ -96,6 +97,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRo
       <div className={styles.tabsContainer} role="tablist" aria-label="Panel navigation">
         {tab('compendium', 'Compendium')}
         {tab('tables', 'Tables')}
+        {tab('grid', 'Grid')}
         {tab('quick-actions', 'Quick Actions')}
         {tab('characters', 'Characters')}
         {tab('players', 'Players')}
@@ -117,6 +119,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRo
       </div>
       <div className={styles.tabContent} role="tabpanel" aria-label={`${activeTab} panel`}>
         {activeTab === 'tables' && <TableManagementPanel />}
+        {activeTab === 'grid' && <TableSettingsPanel />}
         {activeTab === 'quick-actions' && <ActionsQuickPanel renderEngine={window.rustRenderManager as any || null} />}
         {isDevelopment && activeTab === 'table-tools' && <TablePanel />}
         {isDevelopment && activeTab === 'sync' && <TableSyncPanel />}

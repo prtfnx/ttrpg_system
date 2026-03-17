@@ -815,11 +815,20 @@ class ServerProtocol:
         dynamic_lighting = msg.data.get('dynamic_lighting_enabled')
         fog_mode = msg.data.get('fog_exploration_mode')
         ambient = msg.data.get('ambient_light_level')
+        grid_cell_px = msg.data.get('grid_cell_px')
+        cell_distance = msg.data.get('cell_distance')
+        distance_unit = msg.data.get('distance_unit')
 
         if fog_mode is not None and fog_mode not in VALID_FOG_MODES:
             return Message(MessageType.ERROR, {'error': f'fog_exploration_mode must be one of {VALID_FOG_MODES}'})
         if ambient is not None and not (0.0 <= float(ambient) <= 1.0):
             return Message(MessageType.ERROR, {'error': 'ambient_light_level must be between 0.0 and 1.0'})
+        if grid_cell_px is not None and not (10.0 <= float(grid_cell_px) <= 500.0):
+            return Message(MessageType.ERROR, {'error': 'grid_cell_px must be between 10 and 500'})
+        if cell_distance is not None and float(cell_distance) <= 0:
+            return Message(MessageType.ERROR, {'error': 'cell_distance must be positive'})
+        if distance_unit is not None and distance_unit not in ('ft', 'm'):
+            return Message(MessageType.ERROR, {'error': 'distance_unit must be ft or m'})
 
         # Apply to in-memory table
         table = self.table_manager.tables_id.get(table_id)
@@ -839,6 +848,12 @@ class ServerProtocol:
             table.fog_exploration_mode = fog_mode
         if ambient is not None:
             table.ambient_light_level = float(ambient)
+        if grid_cell_px is not None:
+            table.grid_cell_px = float(grid_cell_px)
+        if cell_distance is not None:
+            table.cell_distance = float(cell_distance)
+        if distance_unit is not None:
+            table.distance_unit = distance_unit
 
         # Persist to DB
         session_id = self._get_session_id(msg)
@@ -852,6 +867,9 @@ class ServerProtocol:
                         dynamic_lighting_enabled=table.dynamic_lighting_enabled,
                         fog_exploration_mode=table.fog_exploration_mode,
                         ambient_light_level=table.ambient_light_level,
+                        grid_cell_px=table.grid_cell_px,
+                        cell_distance=table.cell_distance,
+                        distance_unit=table.distance_unit,
                     )
                     crud.update_virtual_table(db, str(table.table_id), update)
                 finally:
@@ -865,6 +883,9 @@ class ServerProtocol:
             'dynamic_lighting_enabled': table.dynamic_lighting_enabled,
             'fog_exploration_mode': table.fog_exploration_mode,
             'ambient_light_level': table.ambient_light_level,
+            'grid_cell_px': table.grid_cell_px,
+            'cell_distance': table.cell_distance,
+            'distance_unit': table.distance_unit,
         }
         await self.broadcast_to_session(
             Message(MessageType.TABLE_SETTINGS_CHANGED, broadcast_data), client_id
@@ -1052,6 +1073,8 @@ class ServerProtocol:
             updates['aura_radius'] = update_data['aura_radius']
         if 'aura_color' in update_data:
             updates['aura_color'] = update_data['aura_color']
+        if 'aura_radius_units' in update_data:
+            updates['aura_radius_units'] = update_data['aura_radius_units']
         # Vision fields (DM-settable per token)
         if 'vision_radius' in update_data and is_dm(role):
             updates['vision_radius'] = update_data['vision_radius']
@@ -1060,6 +1083,10 @@ class ServerProtocol:
             updates['has_darkvision'] = val if isinstance(val, bool) else bool(val)
         if 'darkvision_radius' in update_data and is_dm(role):
             updates['darkvision_radius'] = update_data['darkvision_radius']
+        if 'vision_radius_units' in update_data and is_dm(role):
+            updates['vision_radius_units'] = update_data['vision_radius_units']
+        if 'darkvision_radius_units' in update_data and is_dm(role):
+            updates['darkvision_radius_units'] = update_data['darkvision_radius_units']
         
         # Apply updates via actions
         if updates:

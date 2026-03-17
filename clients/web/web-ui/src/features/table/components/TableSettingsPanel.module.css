@@ -1,0 +1,71 @@
+.panel {
+  composes: panel-content from '@shared/styles/PanelBase.module.css';
+  padding: var(--space-md);
+}
+
+.title {
+  margin: 0 0 var(--space-md) 0;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wider);
+}
+
+.field {
+  composes: control-group from '@shared/styles/PanelBase.module.css';
+}
+
+.label {
+  composes: control-label from '@shared/styles/PanelBase.module.css';
+}
+
+.labelValue {
+  color: var(--text-muted);
+  font-weight: var(--font-normal);
+}
+
+.slider {
+  width: 100%;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  margin-top: var(--space-xs);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+.numberInput {
+  composes: control-input from '@shared/styles/PanelBase.module.css';
+  width: 70px;
+  flex-shrink: 0;
+}
+
+.unitToggle {
+  display: flex;
+  gap: var(--space-xs);
+  margin-left: auto;
+}
+
+.unitBtn {
+  composes: panel-button from '@shared/styles/PanelBase.module.css';
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-xs);
+}
+
+.unitBtn.active {
+  composes: primary from '@shared/styles/PanelBase.module.css';
+}
+
+.infoBox {
+  composes: settings-section from '@shared/styles/PanelBase.module.css';
+  margin: var(--space-md) 0 0 0;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: var(--leading-relaxed);
+}

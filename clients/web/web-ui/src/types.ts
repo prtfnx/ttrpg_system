@@ -30,14 +30,17 @@ export interface Sprite {
   maxHp?: number;
   ac?: number;
   auraRadius?: number;
+  auraRadiusUnits?: number;   // game units (ft/m) — source of truth
   auraColor?: string;  // hex e.g. '#ffaa00'
   isVisible?: boolean;  // DM-controlled visibility flag; undefined = visible
   metadata?: string;
   syncStatus?: 'local' | 'syncing' | 'synced' | 'error';
-  // Vision (dynamic lighting)
-  visionRadius?: number;       // pixels; undefined = client default
+  // Vision (dynamic lighting) — prefer *Units fields (game units), fall back to pixels
+  visionRadius?: number;         // pixels (legacy)
+  visionRadiusUnits?: number;    // game units (ft/m) — source of truth
   hasDarkvision?: boolean;
-  darkvisionRadius?: number;   // pixels; undefined = no darkvision
+  darkvisionRadius?: number;     // pixels (legacy)
+  darkvisionRadiusUnits?: number; // game units (ft/m) — source of truth
 }
 
 export interface Character {

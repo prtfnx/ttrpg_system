@@ -403,8 +403,8 @@ class AdvancedMeasurementService {
   }
 
   /** Sync grid pixel size from table unit config (call when table settings change). */
-  syncWithTableUnits(gridCellPx: number, cellDistance: number, unit: 'feet' | 'meters'): void {
-    const unitLabel = unit === 'feet' ? 'feet' : 'meters';
+  syncWithTableUnits(gridCellPx: number, cellDistance: number, unit: 'ft' | 'm'): void {
+    const unitLabel = unit === 'ft' ? 'feet' : 'meters';
     for (const grid of this.grids.values()) {
       this.updateGrid(grid.id, { size: gridCellPx, scale: cellDistance, unit: unitLabel as any });
     }

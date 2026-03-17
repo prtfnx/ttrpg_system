@@ -1,6 +1,7 @@
 use wasm_bindgen::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use crate::unit_converter::{UnitConverter, DistanceUnit};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TableInfo {
@@ -16,6 +17,9 @@ pub struct TableInfo {
     pub table_scale: f64,
     pub show_grid: bool,
     pub cell_side: f64,
+    pub grid_cell_px: f64,
+    pub cell_distance: f64,
+    pub distance_unit: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -68,7 +72,10 @@ impl TableManager {
             viewport_y: 0.0,
             table_scale: 1.0,
             show_grid: true,
-            cell_side: 20.0,
+            cell_side: 50.0,
+            grid_cell_px: 50.0,
+            cell_distance: 5.0,
+            distance_unit: "ft".to_string(),
         };
 
         self.tables.insert(table_id.to_string(), table);
@@ -310,11 +317,45 @@ impl TableManager {
             return Some(vec![x, y]);
         }
         
-        let cell_size = table.cell_side;
+        let cell_size = table.grid_cell_px;
         let snapped_x = (x / cell_size).round() * cell_size;
         let snapped_y = (y / cell_size).round() * cell_size;
         
         Some(vec![snapped_x, snapped_y])
+    }
+
+    #[wasm_bindgen]
+    pub fn set_table_units(&mut self, table_id: &str, grid_cell_px: f64, cell_distance: f64, unit: &str) -> bool {
+        if let Some(table) = self.tables.get_mut(table_id) {
+            table.grid_cell_px = grid_cell_px.max(10.0).min(500.0);
+            table.cell_distance = cell_distance.max(0.001);
+            table.distance_unit = unit.to_string();
+            table.cell_side = table.grid_cell_px; // keep in sync
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn get_unit_converter(&self, table_id: &str) -> UnitConverter {
+        match self.tables.get(table_id) {
+            Some(t) => UnitConverter::new(
+                t.grid_cell_px as f32,
+                t.cell_distance as f32,
+                DistanceUnit::from_str(&t.distance_unit),
+            ),
+            None => UnitConverter::dnd_default(),
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn units_to_pixels(&self, table_id: &str, game_distance: f64) -> f64 {
+        self.get_unit_converter(table_id).to_pixels(game_distance as f32) as f64
+    }
+
+    #[wasm_bindgen]
+    pub fn pixels_to_units(&self, table_id: &str, pixels: f64) -> f64 {
+        self.get_unit_converter(table_id).to_units(pixels as f32) as f64
     }
 }
 

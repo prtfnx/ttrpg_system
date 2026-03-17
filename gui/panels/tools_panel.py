@@ -116,9 +116,9 @@ class ToolsPanel:
                 if measurement_tool.start_point and measurement_tool.end_point:
                     distance = measurement_tool.get_distance()
                     if distance is not None:
-                        distance_feet = measurement_tool.get_distance_in_feet()
-                        imgui.text(f"Distance: {distance:.1f} units")
-                        imgui.text(f"({distance_feet:.1f} feet)")
+                        distance_units = measurement_tool.get_distance_in_units()
+                        imgui.text(f"Distance: {distance:.1f} px")
+                        imgui.text(f"({distance_units:.1f} units)")
                         
                         if imgui.button("Save Measurement"):
                             self.measurement_history.append(distance)
@@ -127,7 +127,7 @@ class ToolsPanel:
                             
                             # Add to chat if available
                             if hasattr(self.context, 'add_chat_message'):
-                                self.context.add_chat_message(f"Measured distance: {distance:.1f} units ({distance_feet:.1f} ft)")
+                                self.context.add_chat_message(f"Measured distance: {distance:.1f} px ({distance_units:.1f} units)")
                             
                             measurement_tool.clear()
             else:

@@ -149,12 +149,12 @@ class MeasurementTool:
         dy = self.end_point[1] - self.start_point[1]
         return math.sqrt(dx * dx + dy * dy)
     
-    def get_distance_in_feet(self, pixels_per_foot: float = 50.0) -> Optional[float]:
-        """Get the distance converted to feet (assuming grid scale)"""
+    def get_distance_in_units(self, pixels_per_unit: float = 10.0) -> Optional[float]:
+        """Get the distance in game units (configurable px/unit ratio)"""
         distance = self.get_distance()
         if distance is None:
             return None
-        return distance / pixels_per_foot
+        return distance / pixels_per_unit
     
     def render(self, renderer):
         """Render measurement arrows and text on the table"""
@@ -295,8 +295,8 @@ class MeasurementTool:
         if distance is None:
             return "No measurement"
         
-        distance_feet = self.get_distance_in_feet()
-        return f"Distance: {distance:.1f} units ({distance_feet:.1f} ft)"
+        distance_units = self.get_distance_in_units()
+        return f"Distance: {distance:.1f} px ({distance_units:.1f} units)"
     
     def _draw_text_above_arrow(self, renderer, start_x, start_y, end_x, end_y, text):
         """Draw text above the arrow using SDL3 text rendering"""

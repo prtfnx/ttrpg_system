@@ -125,6 +125,7 @@ mod table_manager;
 mod table_sync;
 mod utils;
 mod wall_manager;
+pub mod unit_converter;
 
 pub use render::RenderEngine;
 pub use types::*;

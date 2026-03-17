@@ -36,6 +36,11 @@ impl GridSystem {
     pub fn set_size(&mut self, size: f32) {
         self.size = size.max(10.0).min(200.0); // Reasonable bounds
     }
+
+    /// Sync grid cell size from table's grid_cell_px. Use this instead of set_size().
+    pub fn sync_from_table(&mut self, grid_cell_px: f32) {
+        self.size = grid_cell_px.max(10.0).min(500.0);
+    }
     
     pub fn get_size(&self) -> f32 {
         self.size

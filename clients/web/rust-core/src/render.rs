@@ -362,7 +362,10 @@ impl RenderEngine {
         
         // Draw measurement line if active
         if let Some((start, end)) = self.input.get_measurement_line() {
-            SpriteRenderer::draw_measurement_line(start, end, &self.renderer, &self.text_renderer, &self.texture_manager)?;
+            let conv = self.table_manager.get_unit_converter(
+                &self.table_manager.get_active_table_id().unwrap_or("default_table".to_string())
+            );
+            SpriteRenderer::draw_measurement_line(start, end, &self.renderer, &self.text_renderer, &self.texture_manager, &conv)?;
         }
         
         // Draw shape creation preview if active
@@ -799,6 +802,7 @@ impl RenderEngine {
         // Use the event system to handle mouse up events
         let table_id = self.table_manager.get_active_table_id()
             .unwrap_or("default_table".to_string());
+        let converter = self.table_manager.get_unit_converter(&table_id);
         
         let result = self.event_system.handle_mouse_up(
             world_pos,
@@ -808,7 +812,8 @@ impl RenderEngine {
             &self.wall_manager,
             &mut self.fog,
             table_id,
-            &self.active_layer.clone()
+            &self.active_layer.clone(),
+            &converter,
         );
         
         // Handle event system results that need render engine specific operations
@@ -2551,6 +2556,15 @@ impl RenderEngine {
             
             self.table_manager.create_table(&table_id, &table.table_name, table.width, table.height)?;
             self.table_manager.set_active_table(&table_id);
+            // Sync unit system from server table config
+            self.table_manager.set_table_units(
+                &table_id,
+                table.grid_cell_px,
+                table.cell_distance,
+                &table.distance_unit,
+            );
+            // Keep grid system in sync
+            self.grid.sync_from_table(table.grid_cell_px as f32);
             
             // Verify it was set
             let active = self.table_manager.get_active_table_id();

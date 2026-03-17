@@ -23,11 +23,11 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
   const [localHp, setLocalHp] = useState<number>(sprite?.hp ?? linkedCharacter?.data?.stats?.hp ?? 10);
   const [localMaxHp, setLocalMaxHp] = useState<number>(sprite?.maxHp ?? linkedCharacter?.data?.stats?.maxHp ?? 10);
   const [localAc, setLocalAc] = useState<number>(sprite?.ac ?? linkedCharacter?.data?.stats?.ac ?? 10);
-  const [localAuraRadius, setLocalAuraRadius] = useState<number>(sprite?.auraRadius ?? 0);
+  const [localAuraRadius, setLocalAuraRadius] = useState<number>(sprite?.auraRadiusUnits ?? (sprite?.auraRadius ? useGameStore.getState().getUnitConverter().toUnits(sprite.auraRadius) : 0));
   const [localAuraColor, setLocalAuraColor] = useState<string>(sprite?.auraColor ?? '#ffe4b5');
-  const [localVisionRadius, setLocalVisionRadius] = useState<number | ''>(sprite?.visionRadius ?? '');
+  const [localVisionRadius, setLocalVisionRadius] = useState<number | ''>(sprite?.visionRadiusUnits ?? (sprite?.visionRadius ? useGameStore.getState().getUnitConverter().toUnits(sprite.visionRadius) : ''));
   const [localHasDarkvision, setLocalHasDarkvision] = useState<boolean>(sprite?.hasDarkvision ?? false);
-  const [localDarkvisionRadius, setLocalDarkvisionRadius] = useState<number | ''>(sprite?.darkvisionRadius ?? '');
+  const [localDarkvisionRadius, setLocalDarkvisionRadius] = useState<number | ''>(sprite?.darkvisionRadiusUnits ?? (sprite?.darkvisionRadius ? useGameStore.getState().getUnitConverter().toUnits(sprite.darkvisionRadius) : ''));
   const [newOwnerId, setNewOwnerId] = useState<string>('');
   const [sessionPlayers, setSessionPlayers] = useState<{ id: string; name: string }[]>([]);
 
@@ -78,11 +78,11 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
       setLocalHp(sprite.hp ?? linkedCharacter?.data?.stats?.hp ?? 10);
       setLocalMaxHp(sprite.maxHp ?? linkedCharacter?.data?.stats?.maxHp ?? 10);
       setLocalAc(sprite.ac ?? linkedCharacter?.data?.stats?.ac ?? 10);
-      setLocalAuraRadius(sprite.auraRadius ?? 0);
+      setLocalAuraRadius(sprite.auraRadiusUnits ?? (sprite.auraRadius ? useGameStore.getState().getUnitConverter().toUnits(sprite.auraRadius) : 0));
       setLocalAuraColor(sprite.auraColor ?? '#ffe4b5');
-      setLocalVisionRadius(sprite.visionRadius ?? '');
+      setLocalVisionRadius(sprite.visionRadiusUnits ?? (sprite.visionRadius ? useGameStore.getState().getUnitConverter().toUnits(sprite.visionRadius) : ''));
       setLocalHasDarkvision(sprite.hasDarkvision ?? false);
-      setLocalDarkvisionRadius(sprite.darkvisionRadius ?? '');
+      setLocalDarkvisionRadius(sprite.darkvisionRadiusUnits ?? (sprite.darkvisionRadius ? useGameStore.getState().getUnitConverter().toUnits(sprite.darkvisionRadius) : ''));
       setSelectedCharacterId(sprite.characterId || '');
     }
   }, [sprite, linkedCharacter]);
@@ -108,11 +108,11 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
         setLocalAc(newAc);
         setSelectedCharacterId(characterId);
         
-        // Auto-populate darkvision from character race data
+        // Auto-populate darkvision from character race data (already in feet from compendium)
         const raceDarkvision: number | undefined = char.data?.race_traits?.darkvision ?? char.data?.darkvision;
         if (raceDarkvision != null && raceDarkvision > 0) {
           setLocalHasDarkvision(true);
-          setLocalDarkvisionRadius(raceDarkvision);
+          setLocalDarkvisionRadius(raceDarkvision); // feet from compendium
         }
 
         // Single update: link character AND sync stats in one call
@@ -122,7 +122,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
           maxHp: newMaxHp, 
           ac: newAc,
           ...(raceDarkvision != null && raceDarkvision > 0
-            ? { hasDarkvision: true, darkvisionRadius: raceDarkvision }
+            ? { hasDarkvision: true, darkvisionRadiusUnits: raceDarkvision }
             : {}),
         });
       } else {
@@ -209,7 +209,9 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
 
   const handleAuraRadiusChange = (newRadius: number) => {
     setLocalAuraRadius(newRadius);
-    updateSprite(spriteId, { auraRadius: newRadius });
+    // newRadius is in game units (ft/m); convert to px for WASM rendering
+    const conv = useGameStore.getState().getUnitConverter();
+    updateSprite(spriteId, { auraRadiusUnits: newRadius, auraRadius: conv.toPixels(newRadius) });
   };
 
   const handleAuraColorChange = (newColor: string) => {
@@ -407,12 +409,20 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
                   value={localVisionRadius}
                   placeholder="default"
                   onChange={(e) => setLocalVisionRadius(e.target.value === '' ? '' : Math.max(0, parseFloat(e.target.value) || 0))}
-                  onBlur={() => updateSprite(spriteId, { visionRadius: localVisionRadius === '' ? undefined : Number(localVisionRadius) })}
+                  onBlur={() => {
+                    if (localVisionRadius === '') {
+                      updateSprite(spriteId, { visionRadiusUnits: undefined, visionRadius: undefined });
+                    } else {
+                      const units = Number(localVisionRadius);
+                      const px = useGameStore.getState().getUnitConverter().toPixels(units);
+                      updateSprite(spriteId, { visionRadiusUnits: units, visionRadius: px });
+                    }
+                  }}
                   className={styles.hpInput}
                   min="0"
-                  step="30"
+                  step="5"
                 />
-                <span style={{ marginLeft: '8px', color: '#888' }}>px</span>
+                <span style={{ marginLeft: '8px', color: '#888' }}>{useGameStore.getState().distanceUnit}</span>
               </div>
               <div className={styles.statRow} style={{ marginTop: '6px' }}>
                 <label>
@@ -431,10 +441,16 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
                     value={localDarkvisionRadius}
                     placeholder="radius"
                     onChange={(e) => setLocalDarkvisionRadius(e.target.value === '' ? '' : Math.max(0, parseFloat(e.target.value) || 0))}
-                    onBlur={() => updateSprite(spriteId, { darkvisionRadius: localDarkvisionRadius === '' ? undefined : Number(localDarkvisionRadius) })}
+                    onBlur={() => {
+                      if (localDarkvisionRadius !== '') {
+                        const units = Number(localDarkvisionRadius);
+                        const px = useGameStore.getState().getUnitConverter().toPixels(units);
+                        updateSprite(spriteId, { darkvisionRadiusUnits: units, darkvisionRadius: px });
+                      }
+                    }}
                     className={styles.hpInput}
                     min="0"
-                    step="30"
+                    step="5"
                     style={{ marginLeft: '8px' }}
                   />
                 )}

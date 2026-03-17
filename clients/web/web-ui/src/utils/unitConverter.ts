@@ -11,7 +11,9 @@ export class UnitConverter {
   private readonly unit: DistanceUnit;
 
   constructor(config: TableUnitConfig) {
-    this.pxPerUnit = config.gridCellPx / config.cellDistance;
+    const cellDist = Number.isFinite(config.cellDistance) && config.cellDistance > 0
+      ? config.cellDistance : 5;
+    this.pxPerUnit = config.gridCellPx / cellDist;
     this.unit = config.distanceUnit;
   }
 

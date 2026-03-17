@@ -516,18 +516,25 @@ export const useGameStore = create<GameStore>()(
       },
 
       setTableUnits: (config: TableUnitConfig) => {
+        const gridCellPx = Number.isFinite(config.gridCellPx) && config.gridCellPx > 0
+          ? config.gridCellPx : 50;
+        const cellDistance = Number.isFinite(config.cellDistance) && config.cellDistance > 0
+          ? config.cellDistance : 5;
+        const distanceUnit = config.distanceUnit === 'ft' || config.distanceUnit === 'm'
+          ? config.distanceUnit : 'ft';
+
         set(() => ({
-          gridCellPx: config.gridCellPx,
-          gridSize: config.gridCellPx,
-          cellDistance: config.cellDistance,
-          distanceUnit: config.distanceUnit,
+          gridCellPx,
+          gridSize: gridCellPx,
+          cellDistance,
+          distanceUnit,
         }));
-        advancedMeasurementSystem.syncWithTableUnits(config.gridCellPx, config.cellDistance, config.distanceUnit);
+        advancedMeasurementSystem.syncWithTableUnits(gridCellPx, cellDistance, distanceUnit);
         // Sync to Rust WASM
         const rm = (window as any).rustRenderManager;
         const tableId = useGameStore.getState().activeTableId;
         if (rm?.set_table_units && tableId) {
-          rm.set_table_units(tableId, config.gridCellPx, config.cellDistance, config.distanceUnit);
+          rm.set_table_units(tableId, gridCellPx, cellDistance, distanceUnit);
         }
       },
 

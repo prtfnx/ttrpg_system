@@ -821,12 +821,27 @@ class ServerProtocol:
 
         if fog_mode is not None and fog_mode not in VALID_FOG_MODES:
             return Message(MessageType.ERROR, {'error': f'fog_exploration_mode must be one of {VALID_FOG_MODES}'})
-        if ambient is not None and not (0.0 <= float(ambient) <= 1.0):
-            return Message(MessageType.ERROR, {'error': 'ambient_light_level must be between 0.0 and 1.0'})
-        if grid_cell_px is not None and not (10.0 <= float(grid_cell_px) <= 500.0):
-            return Message(MessageType.ERROR, {'error': 'grid_cell_px must be between 10 and 500'})
-        if cell_distance is not None and float(cell_distance) <= 0:
-            return Message(MessageType.ERROR, {'error': 'cell_distance must be positive'})
+        if ambient is not None:
+            try:
+                ambient = float(ambient)
+            except (ValueError, TypeError):
+                return Message(MessageType.ERROR, {'error': 'ambient_light_level must be a number between 0.0 and 1.0'})
+            if not (0.0 <= ambient <= 1.0):
+                return Message(MessageType.ERROR, {'error': 'ambient_light_level must be between 0.0 and 1.0'})
+        if grid_cell_px is not None:
+            try:
+                grid_cell_px = float(grid_cell_px)
+            except (ValueError, TypeError):
+                return Message(MessageType.ERROR, {'error': 'grid_cell_px must be a number between 10 and 500'})
+            if not (10.0 <= grid_cell_px <= 500.0):
+                return Message(MessageType.ERROR, {'error': 'grid_cell_px must be between 10 and 500'})
+        if cell_distance is not None:
+            try:
+                cell_distance = float(cell_distance)
+            except (ValueError, TypeError):
+                return Message(MessageType.ERROR, {'error': 'cell_distance must be a positive number'})
+            if cell_distance <= 0:
+                return Message(MessageType.ERROR, {'error': 'cell_distance must be positive'})
         if distance_unit is not None and distance_unit not in ('ft', 'm'):
             return Message(MessageType.ERROR, {'error': 'distance_unit must be ft or m'})
 

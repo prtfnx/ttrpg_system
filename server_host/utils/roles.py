@@ -80,6 +80,26 @@ def get_visible_layers(role: str) -> list[str]:
     return _VISIBLE_LAYERS.get(role, ["map", "tokens", "fog"])
 
 
+# Role hierarchy: who can modify whom
+_ROLE_MODIFY_HIERARCHY: dict[str, set[str]] = {
+    SessionRole.OWNER: {SessionRole.CO_DM, SessionRole.TRUSTED_PLAYER, SessionRole.PLAYER, SessionRole.SPECTATOR},
+    SessionRole.CO_DM: {SessionRole.TRUSTED_PLAYER, SessionRole.PLAYER, SessionRole.SPECTATOR},
+    SessionRole.TRUSTED_PLAYER: set(),
+    SessionRole.PLAYER: set(),
+    SessionRole.SPECTATOR: set(),
+}
+
+
+def can_modify_role(actor_role: str, target_role: str) -> bool:
+    """Return True if actor_role can modify/assign target_role."""
+    return target_role in _ROLE_MODIFY_HIERARCHY.get(actor_role, set())
+
+
+def has_session_admin_permission(role: str) -> bool:
+    """Return True if role has admin-level session permissions."""
+    return role in DM_ROLES
+
+
 # Max sprites a player of each role can own simultaneously
 SPRITE_LIMITS: dict[str, int] = {
     SessionRole.OWNER: 1000,

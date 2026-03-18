@@ -77,15 +77,18 @@ impl TextRenderer {
             return Ok(());
         }
         
-        // Calculate text dimensions
+        // Calculate text dimensions (advances are in atlas pixels so scale by `size`)
         let text_width: f32 = text.chars()
             .map(|ch| self.get_char_advance(ch) * size)
             .sum();
-        let text_height = size;
-        
-        // Draw background if requested
+
+        // Use actual character pixel height from atlas scaled by size
+        let char_height = self.char_size * size;
+        let text_height = char_height;
+
+        // Draw background if requested. Padding scales with size so box remains readable
         if with_background {
-            let padding = 4.0;
+            let padding = 6.0 * size;
             self.draw_text_background(
                 x - text_width * 0.5 - padding,
                 y - text_height * 0.5 - padding,

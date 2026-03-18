@@ -40,6 +40,6 @@ class TestPasswordHashing:
         """Test password verification against stored hash"""
         from server_host.database import crud
         # Correct password should verify
-        assert crud.verify_password("pass123", test_user.hashed_password)
+        assert crud.verify_password("Pass1234", test_user.hashed_password)
         # Wrong password should not verify
         assert not crud.verify_password("wrongpass", test_user.hashed_password)

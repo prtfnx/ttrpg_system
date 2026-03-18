@@ -85,7 +85,7 @@ def test_user(test_db):
     user_data = schemas.UserCreate(
         username="testuser",
         email="test@example.com",
-        password="pass123"  # Short to avoid bcrypt 72-byte limit
+        password="Pass1234"
     )
     return crud.create_user(test_db, user_data)
 

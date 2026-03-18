@@ -1,7 +1,7 @@
 """
 Database models for TTRPG server
 """
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Float
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Float, UniqueConstraint
 from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime
 
@@ -47,6 +47,7 @@ class GameSession(Base):
 
 class GamePlayer(Base):
     __tablename__ = "game_players"
+    __table_args__ = (UniqueConstraint("session_id", "user_id", name="uq_gameplayer_session_user"),)
     
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(Integer, ForeignKey("game_sessions.id"), nullable=False)

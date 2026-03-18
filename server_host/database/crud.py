@@ -350,13 +350,13 @@ def update_virtual_table(db: Session, table_id: str, table_update: schemas.Virtu
     if not db_table:
         return None
     
-    update_data = table_update.dict(exclude_unset=True)
+    update_data = table_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         if field in ('layer_visibility', 'layer_settings') and value is not None:
             setattr(db_table, field, json.dumps(value))
         else:
             setattr(db_table, field, value)
-    
+
     db_table.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(db_table)
@@ -429,12 +429,12 @@ def update_entity(db: Session, sprite_id: str, entity_update: schemas.EntityUpda
     if not db_entity:
         return None
     
-    update_data = entity_update.dict(exclude_unset=True)
+    update_data = entity_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         # schema field 'metadata' maps to SQLAlchemy attribute 'entity_metadata'
         attr = 'entity_metadata' if field == 'metadata' else field
         setattr(db_entity, attr, value)
-    
+
     db_entity.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(db_entity)

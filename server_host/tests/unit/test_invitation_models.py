@@ -1,13 +1,13 @@
 import pytest
-import time
 from datetime import datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 from sqlalchemy.exc import IntegrityError
 
 from server_host.database.models import SessionInvitation, AuditLog, GamePlayer
 from server_host.routers.invitations import generate_invite_code
-from server_host.routers.game import can_modify_role, has_session_admin_permission, sanitize_session_code
-from server_host.utils.security import sanitize_user_input, validate_invite_code_format
+from server_host.utils.roles import can_modify_role, has_session_admin_permission
+from server_host.utils.security import sanitize_session_code, sanitize_user_input, validate_invite_code_format
+from server_host.utils.audit import format_audit_details, extract_client_info, filter_audit_logs
 
 @pytest.mark.unit
 class TestSessionInvitationModel:
@@ -122,7 +122,7 @@ class TestSessionInvitationModel:
         
         # Codes should be proper length and format
         for code in codes:
-            assert len(code) == 16  # Based on implementation
+            assert len(code) == 12  # generate_invite_code(length=12) default
             assert code.isalnum()  # Should be alphanumeric
             
     def test_invitation_role_validation(self):
@@ -211,57 +211,58 @@ class TestAuditLogModel:
 class TestGamePlayerModel:
     """Unit tests for GamePlayer model with role functionality"""
     
-    def test_game_player_role_assignment(self, test_db, test_user, test_game_session):
+    def test_game_player_role_assignment(self, test_db, test_game_session):
         """Test that roles can be assigned to game players"""
-        
+        from server_host.database import crud, schemas
+        # Use a fresh user who is NOT the session owner
+        member = crud.create_user(test_db, schemas.UserCreate(
+            username="member1", email="member1@test.com", password="Pass1234"
+        ))
+
         player = GamePlayer(
-            user_id=test_user.id,
+            user_id=member.id,
             session_id=test_game_session.id,
             role="co_dm"
         )
-        
+
         test_db.add(player)
         test_db.commit()
         test_db.refresh(player)
-        
+
         assert player.role == "co_dm"
-        
-    def test_game_player_default_role(self, test_db, test_user, test_game_session):
+
+    def test_game_player_default_role(self, test_db, test_game_session):
         """Test that default role is 'player'"""
-        
+        from server_host.database import crud, schemas
+        member = crud.create_user(test_db, schemas.UserCreate(
+            username="member2", email="member2@test.com", password="Pass1234"
+        ))
+
         player = GamePlayer(
-            user_id=test_user.id,
+            user_id=member.id,
             session_id=test_game_session.id
-            # No role specified, should default to 'player'
         )
-        
+
         test_db.add(player)
         test_db.commit()
         test_db.refresh(player)
-        
+
         assert player.role == "player"
-        
-    def test_game_player_unique_constraint(self, test_db, test_user, test_game_session):
+
+    def test_game_player_unique_constraint(self, test_db, test_game_session):
         """Test that a user can only have one role per session"""
-        
-        # Create first player record
-        player1 = GamePlayer(
-            user_id=test_user.id,
-            session_id=test_game_session.id,
-            role="player"
-        )
+        from server_host.database import crud, schemas
+        member = crud.create_user(test_db, schemas.UserCreate(
+            username="member3", email="member3@test.com", password="Pass1234"
+        ))
+
+        player1 = GamePlayer(user_id=member.id, session_id=test_game_session.id, role="player")
         test_db.add(player1)
         test_db.commit()
-        
-        # Try to create duplicate
-        player2 = GamePlayer(
-            user_id=test_user.id,
-            session_id=test_game_session.id,
-            role="co_dm"
-        )
+
+        player2 = GamePlayer(user_id=member.id, session_id=test_game_session.id, role="co_dm")
         test_db.add(player2)
-        
-        # Should raise integrity error due to unique constraint
+
         with pytest.raises(IntegrityError):
             test_db.commit()
 
@@ -269,21 +270,16 @@ class TestGamePlayerModel:
 class TestInvitationBusinessLogic:
     """Unit tests for invitation-related business logic functions"""
     
-    def test_generate_unique_invite_code_collision_handling(self):
-        """Test that invite code generation handles collisions properly"""
-        
-        # Mock collision scenario
-        with patch('server_host.routers.invitations.secrets.token_urlsafe') as mock_token:
-            # First call returns a "collision", second call returns unique code
-            mock_token.side_effect = ["COLLISION", "UNIQUE123"]
-            
-            # This would simulate checking against database and finding collision,
-            # then generating a new unique code
-            code1 = generate_invite_code()  
-            code2 = generate_invite_code()
-            
-            assert code1 == "COLLISION"
-            assert code2 == "UNIQUE123"
+    def test_generate_invite_code_format(self):
+        """Test that generated invite codes have correct length and format"""
+        code = generate_invite_code()
+        assert len(code) == 12
+        assert code.isalnum()
+
+    def test_generate_invite_code_custom_length(self):
+        """Test that invite code length can be customized"""
+        code = generate_invite_code(length=24)
+        assert len(code) == 24
             
     def test_role_hierarchy_validation(self):
         """Test role hierarchy logic"""

@@ -59,7 +59,7 @@ export const TableSettingsPanel: React.FC = () => {
             {(['ft', 'm'] as DistanceUnit[]).map(u => (
               <button
                 key={u}
-                className={`${styles.unitBtn}${distanceUnit === u ? ` ${styles.active}` : ''}`}
+                className={`${styles.unitBtn}${distanceUnit === u ? ` ${styles.unitBtnActive}` : ''}`}
                 onClick={() => apply(gridCellPx, cellDistance, u)}
               >
                 {u}

@@ -57,7 +57,7 @@
   font-size: var(--text-xs);
 }
 
-.unitBtn.active {
+.unitBtnActive {
   composes: primary from '@shared/styles/PanelBase.module.css';
 }
 

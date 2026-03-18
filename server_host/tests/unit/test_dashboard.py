@@ -9,16 +9,7 @@ class TestDashboard:
         assert response.status_code in [302, 401]
     
     def test_dashboard_shows_user_sessions(self, auth_client, test_db, test_user, test_game_session):
-        """Dashboard displays user's sessions"""
-        # Add user to session
-        player = models.GamePlayer(
-            session_id=test_game_session.id,
-            user_id=test_user.id,
-            role="player"
-        )
-        test_db.add(player)
-        test_db.commit()
-        
+        """Dashboard displays user's sessions (user is already the session owner)"""
         response = auth_client.get("/users/dashboard")
         
         assert response.status_code == 200

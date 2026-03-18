@@ -50,8 +50,16 @@ class TestInvitationFlow:
         assert invite.uses_count == 1
     
     def test_login_with_invite_auto_accepts(self, client, test_db, test_user, test_game_session):
-        """Login with invite code auto-accepts invitation"""
-        # Create invitation
+        """Login with invite code adds a new (non-owner) user to the session"""
+        from server_host.database import crud, schemas
+
+        # A second user who is NOT yet in the session
+        invitee = crud.create_user(test_db, schemas.UserCreate(
+            username="inviteeuser",
+            email="invitee@example.com",
+            password="Pass1234",
+        ))
+
         invite = models.SessionInvitation(
             invite_code="TESTINV456",
             session_id=test_game_session.id,
@@ -64,26 +72,23 @@ class TestInvitationFlow:
         )
         test_db.add(invite)
         test_db.commit()
-        
-        # Login with invite code
+
         response = client.post("/users/login", data={
-            "username": test_user.username,
-            "password": "pass123",
+            "username": invitee.username,
+            "password": "Pass1234",
             "invite_code": "TESTINV456"
         }, follow_redirects=False)
-        
+
         assert response.status_code == 302
         assert test_game_session.session_code in response.headers["location"]
-        
-        # Check user was added to session
+
         player = test_db.query(models.GamePlayer).filter(
-            models.GamePlayer.user_id == test_user.id,
+            models.GamePlayer.user_id == invitee.id,
             models.GamePlayer.session_id == test_game_session.id
         ).first()
-        
         assert player is not None
-        
-        # Check invite usage incremented
+        assert player.role == "player"
+
         test_db.refresh(invite)
         assert invite.uses_count == 1
     

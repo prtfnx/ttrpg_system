@@ -2564,7 +2564,7 @@ impl RenderEngine {
                 &table.distance_unit,
             );
             // Keep grid system in sync
-            self.grid.sync_from_table(table.grid_cell_px as f32);
+            self.grid_system.sync_from_table(table.grid_cell_px as f32);
             
             // Verify it was set
             let active = self.table_manager.get_active_table_id();

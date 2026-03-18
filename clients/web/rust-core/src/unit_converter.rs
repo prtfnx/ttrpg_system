@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use wasm_bindgen::prelude::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum DistanceUnit {
@@ -24,6 +25,7 @@ impl DistanceUnit {
 
 /// Single authoritative unit converter for a table's coordinate system.
 /// All game distances flow through here — no scattered px/ft ratios.
+#[wasm_bindgen]
 #[derive(Debug, Clone)]
 pub struct UnitConverter {
     grid_cell_px: f32,

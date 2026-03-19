@@ -1,352 +1,186 @@
+import { useProtocol } from '@app/providers';
 import { useSessionManagement } from '@features/session';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock the session service
-vi.mock('@features/session/services', () => ({
-  sessionManagementService: {
-    updateSessionSettings: vi.fn(() => Promise.resolve({ success: true })),
-    getSessionStats: vi.fn(() => Promise.resolve({
-      totalPlayers: 4,
-      activePlayers: 3,
-      spectators: 1,
-      sessionDuration: '2h 30m'
-    })),
-    deleteSession: vi.fn(() => Promise.resolve({ success: true })),
-    getAuditLog: vi.fn(() => Promise.resolve({
-      entries: [
-        {
-          id: '1',
-          event_type: 'SETTINGS_UPDATED',
-          user_id: 'user1',
-          details: { setting: 'name', oldValue: 'Old Name', newValue: 'New Name' },
-          created_at: new Date().toISOString()
-        }
-      ]
-    }))
-  }
+vi.mock('@app/providers', () => ({
+  useAuth: vi.fn(() => ({
+    user: { id: 1, username: 'Owner' },
+  })),
+  useProtocol: vi.fn(() => ({
+    protocol: {
+      registerHandler: vi.fn(),
+      unregisterHandler: vi.fn(),
+    },
+    isConnected: true,
+  })),
 }));
 
-// Mock dependent hooks
-vi.mock('./useSessionPlayers', () => ({
+const mockRefetch = vi.fn();
+
+vi.mock('../useSessionPlayers', () => ({
   useSessionPlayers: vi.fn(() => ({
     players: [
-      { id: 'user1', name: 'Player 1', role: 'player', isConnected: true },
-      { id: 'user2', name: 'Player 2', role: 'dm', isConnected: true }
+      { id: 10, user_id: 1, username: 'Owner', role: 'owner', is_connected: true, permissions: ['change_roles', 'kick'] },
+      { id: 11, user_id: 2, username: 'Player2', role: 'player', is_connected: true, permissions: [] },
     ],
     loading: false,
     error: null,
-    refetch: vi.fn()
-  }))
+    refetch: mockRefetch,
+  })),
 }));
 
-vi.mock('./useRoleManagement', () => ({
+const mockChangeRole = vi.fn();
+const mockKickPlayer = vi.fn();
+
+vi.mock('../useRoleManagement', () => ({
   useRoleManagement: vi.fn(() => ({
-    changeRole: vi.fn(() => Promise.resolve()),
-    kickPlayer: vi.fn(() => Promise.resolve()),
+    changeRole: mockChangeRole,
+    kickPlayer: mockKickPlayer,
     changing: false,
-    error: null
-  }))
+    error: null,
+  })),
 }));
 
-// Mock the protocol context  
-vi.mock('@app/providers', () => ({
-  useProtocol: () => ({
-    protocol: {
-      sendEvent: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn()
-    },
-    isConnected: true
-  }),
-  useAuth: () => ({
-    user: {
-      id: 'test-user-1',
-      role: 'owner'
-    },
-    hasPermission: vi.fn(() => true)
-  })
+vi.mock('react-toastify', () => ({
+  toast: { success: vi.fn(), error: vi.fn() },
 }));
 
 describe('useSessionManagement', () => {
-  const mockSessionCode = 'TEST123';
+  const sessionCode = 'TEST123';
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockChangeRole.mockResolvedValue(true);
+    mockKickPlayer.mockResolvedValue(true);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
 
-  describe('Initialization', () => {
-    it('initializes with default state', () => {
-      const { result } = renderHook(() => useSessionManagement(mockSessionCode));
-
-      expect(result.current.isLoading).toBe(false);
-      expect(result.current.error).toBeNull();
-      expect(result.current.stats).toBeNull();
-      expect(result.current.auditLog).toEqual([]);
-    });
-
-    it('handles missing session code', () => {
-      const { result } = renderHook(() => useSessionManagement(''));
-
-      expect(result.current.isLoading).toBe(false);
-      expect(result.current.error).toContain('Session code is required');
-    });
-  });
-
-  describe('Session Settings Management', () => {
-    it('updates session settings successfully', async () => {
-      const { result } = renderHook(() => useSessionManagement(mockSessionCode));
-
-      const settingsUpdate = {
-        name: 'Updated Session Name',
-        description: 'Updated description',
-        max_players: 6
-      };
-
-      await act(async () => {
-        await result.current.updateSettings(settingsUpdate);
-      });
-
-      expect(result.current.isLoading).toBe(false);
+  describe('Initial state', () => {
+    it('exposes player list from useSessionPlayers', () => {
+      const { result } = renderHook(() => useSessionManagement(sessionCode));
+      expect(result.current.players).toHaveLength(2);
+      expect(result.current.loading).toBe(false);
       expect(result.current.error).toBeNull();
     });
 
-    it('handles settings update failure', async () => {
-      const { sessionManagementService } = await import('@features/session/services');
-      vi.mocked(sessionManagementService.updateSessionSettings).mockRejectedValueOnce(
-        new Error('Update failed')
-      );
-
-      const { result } = renderHook(() => useSessionManagement(mockSessionCode));
-
-      await act(async () => {
-        await result.current.updateSettings({ name: 'New Name' });
-      });
-
-      expect(result.current.error).toContain('Failed to update settings');
-      expect(result.current.isLoading).toBe(false);
+    it('resolves currentPlayer from auth user', () => {
+      const { result } = renderHook(() => useSessionManagement(sessionCode));
+      expect(result.current.currentPlayer?.user_id).toBe(1);
+      expect(result.current.currentPlayer?.role).toBe('owner');
     });
 
-    it('validates required settings fields', async () => {
-      const { result } = renderHook(() => useSessionManagement(mockSessionCode));
+    it('owner can manage players', () => {
+      const { result } = renderHook(() => useSessionManagement(sessionCode));
+      expect(result.current.canManagePlayers).toBe(true);
+    });
 
-      await act(async () => {
-        await result.current.updateSettings({ max_players: -1 });
-      });
-
-      expect(result.current.error).toContain('Max players must be greater than 0');
+    it('panel starts collapsed with invites hidden', () => {
+      const { result } = renderHook(() => useSessionManagement(sessionCode));
+      expect(result.current.isExpanded).toBe(false);
+      expect(result.current.showInvites).toBe(false);
     });
   });
 
-  describe('Session Statistics', () => {
-    it('loads session statistics', async () => {
-      const { result } = renderHook(() => useSessionManagement(mockSessionCode));
-
-      await act(async () => {
-        await result.current.loadStats();
-      });
-
-      expect(result.current.stats).toEqual({
-        totalPlayers: 4,
-        activePlayers: 3,
-        spectators: 1,
-        sessionDuration: '2h 30m'
-      });
-      expect(result.current.isLoading).toBe(false);
+  describe('UI state controls', () => {
+    it('toggleExpanded flips isExpanded', () => {
+      const { result } = renderHook(() => useSessionManagement(sessionCode));
+      act(() => { result.current.toggleExpanded(); });
+      expect(result.current.isExpanded).toBe(true);
+      act(() => { result.current.toggleExpanded(); });
+      expect(result.current.isExpanded).toBe(false);
     });
 
-    it('handles stats loading failure', async () => {
-      const { sessionManagementService } = await import('@features/session/services');
-      vi.mocked(sessionManagementService.getSessionStats).mockRejectedValueOnce(
-        new Error('Stats unavailable')
-      );
+    it('toggleInvites shows invite panel', () => {
+      const { result } = renderHook(() => useSessionManagement(sessionCode));
+      act(() => { result.current.toggleInvites(); });
+      expect(result.current.showInvites).toBe(true);
+    });
 
-      const { result } = renderHook(() => useSessionManagement(mockSessionCode));
-
-      await act(async () => {
-        await result.current.loadStats();
-      });
-
-      expect(result.current.error).toContain('Failed to load statistics');
-      expect(result.current.stats).toBeNull();
+    it('closeInvites hides invite panel', () => {
+      const { result } = renderHook(() => useSessionManagement(sessionCode));
+      act(() => { result.current.toggleInvites(); });
+      act(() => { result.current.closeInvites(); });
+      expect(result.current.showInvites).toBe(false);
     });
   });
 
-  describe('Session Deletion', () => {
-    it('deletes session with confirmation', async () => {
-      const { result } = renderHook(() => useSessionManagement(mockSessionCode));
+  describe('handleRoleChange', () => {
+    it('calls changeRole with correct args on success', async () => {
+      const { result } = renderHook(() => useSessionManagement(sessionCode));
+      const target = { id: 11, user_id: 2, username: 'Player2', role: 'player' as const, is_connected: true, permissions: [] };
 
       await act(async () => {
-        await result.current.deleteSession(mockSessionCode);
+        await result.current.handleRoleChange(target, 'co_dm');
       });
 
-      expect(result.current.isLoading).toBe(false);
-      expect(result.current.error).toBeNull();
+      expect(mockChangeRole).toHaveBeenCalledWith(2, 'co_dm');
+      expect(mockRefetch).toHaveBeenCalled();
     });
 
-    it('requires matching session code for deletion', async () => {
-      const { result } = renderHook(() => useSessionManagement(mockSessionCode));
-
-      await act(async () => {
-        await result.current.deleteSession('WRONG123');
+    it('returns false when player lacks change_roles permission', async () => {
+      const { useSessionPlayers } = await import('../useSessionPlayers');
+      vi.mocked(useSessionPlayers).mockReturnValueOnce({
+        players: [{ id: 10, user_id: 1, username: 'Player', role: 'player' as const, is_connected: true, permissions: [] }],
+        loading: false,
+        error: null,
+        refetch: mockRefetch,
       });
 
-      expect(result.current.error).toContain('Session code does not match');
-    });
+      const { result } = renderHook(() => useSessionManagement(sessionCode));
+      const target = { id: 11, user_id: 2, username: 'Other', role: 'player' as const, is_connected: true, permissions: [] };
 
-    it('handles deletion failure', async () => {
-      const { sessionManagementService } = await import('@features/session/services');
-      vi.mocked(sessionManagementService.deleteSession).mockRejectedValueOnce(
-        new Error('Deletion failed')
-      );
-
-      const { result } = renderHook(() => useSessionManagement(mockSessionCode));
-
+      let res = true;
       await act(async () => {
-        await result.current.deleteSession(mockSessionCode);
+        res = await result.current.handleRoleChange(target, 'dm');
       });
 
-      expect(result.current.error).toContain('Failed to delete session');
+      expect(res).toBe(false);
+      expect(mockChangeRole).not.toHaveBeenCalled();
     });
   });
 
-  describe('Audit Log Management', () => {
-    it('loads audit log entries', async () => {
-      const { result } = renderHook(() => useSessionManagement(mockSessionCode));
+  describe('handleKick', () => {
+    it('kicks player on confirmation', async () => {
+      const { result } = renderHook(() => useSessionManagement(sessionCode));
+      const target = { id: 11, user_id: 2, username: 'Player2', role: 'player' as const, is_connected: true, permissions: [] };
 
       await act(async () => {
-        await result.current.loadAuditLog();
+        await result.current.handleKick(target);
       });
 
-      expect(result.current.auditLog).toHaveLength(1);
-      expect(result.current.auditLog[0].event_type).toBe('SETTINGS_UPDATED');
-      expect(result.current.isLoading).toBe(false);
+      expect(mockKickPlayer).toHaveBeenCalledWith(2);
+      expect(mockRefetch).toHaveBeenCalled();
     });
 
-    it('handles audit log loading failure', async () => {
-      const { sessionManagementService } = await import('@features/session/services');
-      vi.mocked(sessionManagementService.getAuditLog).mockRejectedValueOnce(
-        new Error('Audit log unavailable')
-      );
+    it('does not kick when user cancels confirm', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(false);
+      const { result } = renderHook(() => useSessionManagement(sessionCode));
+      const target = { id: 11, user_id: 2, username: 'Player2', role: 'player' as const, is_connected: true, permissions: [] };
 
-      const { result } = renderHook(() => useSessionManagement(mockSessionCode));
-
+      let res = true;
       await act(async () => {
-        await result.current.loadAuditLog();
+        res = await result.current.handleKick(target);
       });
 
-      expect(result.current.error).toContain('Failed to load audit log');
-      expect(result.current.auditLog).toEqual([]);
-    });
-
-    it('filters audit log by event type', async () => {
-      const { result } = renderHook(() => useSessionManagement(mockSessionCode));
-
-      await act(async () => {
-        await result.current.loadAuditLog('SETTINGS_UPDATED');
-      });
-
-      // Should pass filter parameter to service
-      const { sessionManagementService } = await import('@features/session/services');
-      expect(sessionManagementService.getAuditLog).toHaveBeenCalledWith(
-        mockSessionCode, 
-        { eventType: 'SETTINGS_UPDATED' }
-      );
+      expect(res).toBe(false);
+      expect(mockKickPlayer).not.toHaveBeenCalled();
     });
   });
 
-  describe('Real-time Updates', () => {
-    it('handles protocol events for settings updates', async () => {
-      const { result } = renderHook(() => useSessionManagement(mockSessionCode));
-
-      // Simulate protocol event
-      const settingsUpdateEvent = {
-        type: 'SESSION_SETTINGS_UPDATED',
-        sessionCode: mockSessionCode,
-        settings: { name: 'Real-time Updated Name' }
-      };
-
-      // The hook should register for protocol events and handle them
-      // This would be tested with a more complex setup involving the protocol mock
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    it('handles protocol events for player changes', async () => {
-      const { result } = renderHook(() => useSessionManagement(mockSessionCode));
-
-      // Test that player join/leave events trigger stats refresh
-      expect(result.current.stats).toBeNull();
-    });
-  });
-
-  describe('Permission Handling', () => {
-    it('restricts operations based on user role', async () => {
-      // Mock user with player role (not owner/co_dm)
-      vi.mocked(vi.fn()).mockImplementation(() => ({
-        useAuth: () => ({
-          user: { id: 'test-user-2', role: 'player' },
-          hasPermission: vi.fn(() => false)
-        })
-      }));
-
-      const { result } = renderHook(() => useSessionManagement(mockSessionCode));
-
-      await act(async () => {
-        await result.current.updateSettings({ name: 'New Name' });
+  describe('Protocol integration', () => {
+    it('registers and unregisters event handler', () => {
+      const mockRegister = vi.fn();
+      const mockUnregister = vi.fn();
+      vi.mocked(useProtocol).mockReturnValueOnce({
+        protocol: { registerHandler: mockRegister, unregisterHandler: mockUnregister },
+        isConnected: true,
       });
 
-      expect(result.current.error).toContain('Insufficient permissions');
-    });
-
-    it('allows operations for privileged users', async () => {
-      const { result } = renderHook(() => useSessionManagement(mockSessionCode));
-
-      await act(async () => {
-        await result.current.updateSettings({ name: 'New Name' });
-      });
-
-      expect(result.current.error).toBeNull();
-    });
-  });
-
-  describe('Error Recovery', () => {
-    it('clears errors when retrying operations', async () => {
-      const { sessionManagementService } = await import('@features/session/services');
-      
-      // First call fails
-      vi.mocked(sessionManagementService.updateSessionSettings)
-        .mockRejectedValueOnce(new Error('Network error'))
-        .mockResolvedValueOnce({ success: true });
-
-      const { result } = renderHook(() => useSessionManagement(mockSessionCode));
-
-      // First attempt fails
-      await act(async () => {
-        await result.current.updateSettings({ name: 'New Name' });
-      });
-      expect(result.current.error).toContain('Failed to update settings');
-
-      // Second attempt succeeds and clears error
-      await act(async () => {
-        await result.current.updateSettings({ name: 'New Name' });
-      });
-      expect(result.current.error).toBeNull();
-    });
-
-    it('provides retry mechanism for failed operations', async () => {
-      const { result } = renderHook(() => useSessionManagement(mockSessionCode));
-
-      // Set up an error state
-      await act(async () => {
-        await result.current.updateSettings({ max_players: -1 });
-      });
-      expect(result.current.error).toBeTruthy();
-
-      // Clear error
-      act(() => {
-        result.current.clearError();
-      });
-      expect(result.current.error).toBeNull();
+      const { unmount } = renderHook(() => useSessionManagement(sessionCode));
+      expect(mockRegister).toHaveBeenCalledWith('CUSTOM', expect.any(Function));
+      unmount();
+      expect(mockUnregister).toHaveBeenCalledWith('CUSTOM');
     });
   });
 });

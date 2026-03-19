@@ -6,11 +6,10 @@ import { InitiativeTracker } from '@features/combat';
 import { CompendiumPanel } from '@features/compendium';
 import { FogPanel } from '@features/fog';
 import { LightingPanel } from '@features/lighting';
-import { AdvancedMeasurementPanel } from '@features/measurement';
 import { type SessionRole, canInteract, isDM, isElevated } from '@features/session/types/roles';
-import { TableManagementPanel, TablePanel, TableSettingsPanel, TableSyncPanel } from '@features/table';
+import { TableManagementPanel, TablePanel, TableSyncPanel } from '@features/table';
 import clsx from 'clsx';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActionQueuePanel } from '../features/actions/components/ActionQueuePanel';
 import { ActionsPanel } from '../features/actions/components/ActionsPanel';
 import { ActionsQuickPanel } from '../features/actions/components/ActionsQuickPanel';
@@ -23,14 +22,13 @@ import styles from './RightPanel.module.css';
 
 const isDevelopment = import.meta.env.DEV;
 
-type TabId = 'tables' | 'grid' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' |
+type TabId = 'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' |
              'sync' | 'players' | 'actions' | 'quick-actions' | 'queue' | 'compendium' | 'assets' |
-             'network' | 'initiative' | 'performance' | 'backgrounds' | 'measurement' | 'customize';
+             'network' | 'initiative' | 'performance' | 'backgrounds' | 'customize';
 
 const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
   // DM tabs
   'tables':        isDM,
-  'grid':          isDM,
   'quick-actions': isDM,
   'players':       isDM,
   'lighting':      isDM,
@@ -45,7 +43,6 @@ const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
   // All interactive roles
   'entities':      isDM,
   'initiative':    () => true,
-  'measurement':   () => true,
   'customize':     () => true,
   // Dev-only (always gated by isDevelopment at render time)
   'table-tools':   isDM,
@@ -57,14 +54,13 @@ const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
 };
 
 const DEFAULT_TAB_ORDER: TabId[] = [
-  'tables', 'grid', 'compendium', 'quick-actions', 'characters', 'entities',
-  'players', 'initiative', 'chat', 'lighting', 'fog', 'measurement',
+  'tables', 'compendium', 'quick-actions', 'characters', 'entities',
+  'players', 'initiative', 'chat', 'lighting', 'fog',
   'backgrounds', 'performance', 'customize',
 ];
 
 export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRole?: string }) {
   const [activeTab, setActiveTab] = useState<TabId>('entities');
-  const canvasRef = useRef<HTMLCanvasElement>(null!);
   const sessionRole = (useGameStore(s => s.sessionRole) ?? props.userRole ?? 'player') as SessionRole;
 
   const isVisible = (tab: TabId) => TAB_VISIBLE[tab]?.(sessionRole) ?? false;
@@ -97,7 +93,6 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRo
       <div className={styles.tabsContainer} role="tablist" aria-label="Panel navigation">
         {tab('compendium', 'Compendium')}
         {tab('tables', 'Tables')}
-        {tab('grid', 'Grid')}
         {tab('quick-actions', 'Quick Actions')}
         {tab('characters', 'Characters')}
         {tab('players', 'Players')}
@@ -106,7 +101,6 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRo
         {tab('chat', 'Chat')}
         {tab('lighting', 'Lighting')}
         {tab('fog', 'Fog')}
-        {tab('measurement', 'Measurement')}
         {tab('backgrounds', 'Backgrounds')}
         {tab('performance', 'Performance')}
         {tab('customize', 'Customize')}
@@ -119,7 +113,6 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRo
       </div>
       <div className={styles.tabContent} role="tabpanel" aria-label={`${activeTab} panel`}>
         {activeTab === 'tables' && <TableManagementPanel />}
-        {activeTab === 'grid' && <TableSettingsPanel />}
         {activeTab === 'quick-actions' && <ActionsQuickPanel renderEngine={window.rustRenderManager as any || null} />}
         {isDevelopment && activeTab === 'table-tools' && <TablePanel />}
         {isDevelopment && activeTab === 'sync' && <TableSyncPanel />}
@@ -132,7 +125,6 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRo
         {activeTab === 'chat' && <ChatPanel />}
         {activeTab === 'lighting' && <LightingPanel />}
         {activeTab === 'fog' && <FogPanel />}
-        {activeTab === 'measurement' && <AdvancedMeasurementPanel isOpen={true} onClose={() => setActiveTab('entities')} canvasRef={canvasRef} />}
         {activeTab === 'backgrounds' && <BackgroundManagementPanel isOpen={true} onClose={() => setActiveTab('entities')} renderEngine={window.rustRenderManager as any || null} />}
         {activeTab === 'performance' && <PerformanceSettingsPanel isVisible={true} onClose={() => setActiveTab('entities')} />}
         {activeTab === 'customize' && <CustomizePanel />}

@@ -1,9 +1,9 @@
 import { useRacesForCharacterWizard } from '@features/compendium';
 import { useEffect, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
+import styles from './AbilitiesStep.module.css';
 import { calculateRacialASI } from './raceData';
 import type { AbilitiesStepData } from './schemas';
-import styles from './AbilitiesStep.module.css';
 
 type AbilityName = keyof AbilitiesStepData;
 type Method = 'standard' | 'pointbuy' | 'roll' | 'manual';

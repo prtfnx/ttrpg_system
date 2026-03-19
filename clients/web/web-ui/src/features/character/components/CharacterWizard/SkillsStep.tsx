@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import type { SkillsStepData } from './schemas';
+import styles from './SkillsStep.module.css';
 
 // D&D 5e skills
 const SKILLS = [
@@ -153,32 +154,32 @@ export function SkillsStep({
   const canSubmit = selectedClassSkills.length === classSkillChoices;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Select Skills</div>
-      <div style={{ fontSize: 12, marginBottom: 8 }}>
-        Debug: Selected: [{selected.join(', ')}] | Background: [{backgroundSkills.join(', ')}] | 
+    <div className={styles.container}>
+      <div className={styles.title}>Select Skills</div>
+      <div className={styles.debugInfo}>
+        Debug: Selected: [{selected.join(', ')}] | Background: [{backgroundSkills.join(', ')}] |
         Available Class: [{availableClassSkills.join(', ')}] | Need: {classSkillChoices}
       </div>
-      <div style={{ marginBottom: 8 }}>
+      <div className={styles.infoLine}>
         <b>Background Skills:</b> {backgroundSkills.join(', ') || 'None'}
       </div>
       {raceSkills.length > 0 && (
-        <div style={{ marginBottom: 8 }}>
+        <div className={styles.infoLine}>
           <b>Racial Skills:</b> {raceSkills.join(', ')}
         </div>
       )}
-      <div style={{ marginBottom: 8 }}>
+      <div className={styles.infoLine}>
         <b>Class Skills:</b> Choose {classSkillChoices} from: {availableClassSkills.length > 0 ? availableClassSkills.join(', ') : '(All granted by background/race)'}
-        <span style={{ fontSize: 12, color: '#888', marginLeft: 8 }} title="If a class skill is already granted by your background or race, you may pick a replacement from the remaining class skills.">[?]</span>
+        <span className={styles.helpTip} title="If a class skill is already granted by your background or race, you may pick a replacement from the remaining class skills.">[?]</span>
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      <div className={styles.skillGrid}>
         {SKILLS.map(skill => {
           const isBackground = backgroundSkills.includes(skill);
           const isRace = raceSkills.includes(skill);
           const isClass = availableClassSkills.includes(skill);
           const checked = selected.includes(skill);
           return (
-            <label key={skill} style={{ display: 'flex', alignItems: 'center', gap: 4, opacity: isClass || isBackground || isRace ? 1 : 0.5 }}>
+            <label key={skill} className={`${styles.skillLabel} ${!isClass && !isBackground && !isRace ? styles.skillLabelDisabled : ''}`}>
               <input
                 type="checkbox"
                 checked={checked}
@@ -186,21 +187,21 @@ export function SkillsStep({
                 onChange={() => toggleSkill(skill)}
               />
               {skill}
-              {isBackground && <span style={{ fontSize: 10, color: '#6366f1' }}>(Background)</span>}
-              {isRace && <span style={{ fontSize: 10, color: '#059669' }}>(Race)</span>}
-              {!isClass && !isBackground && !isRace && <span style={{ fontSize: 10, color: '#aaa' }}>(Unavailable)</span>}
+              {isBackground && <span className={styles.backgroundBadge}>(Background)</span>}
+              {isRace && <span className={styles.raceBadge}>(Race)</span>}
+              {!isClass && !isBackground && !isRace && <span className={styles.unavailableBadge}>(Unavailable)</span>}
             </label>
           );
         })}
       </div>
       {formState.errors.skills && (
-        <span style={{ color: 'red' }}>{formState.errors.skills.message as string}</span>
+        <span className={styles.errorText}>{formState.errors.skills.message as string}</span>
       )}
       <button
         type="button"
         data-testid="skills-next-button"
         disabled={!canSubmit}
-        style={{ marginTop: 16, alignSelf: 'flex-end', padding: '8px 24px', fontWeight: 600, fontSize: 16 }}
+        className={styles.nextBtn}
         onClick={_onNext}
       >
         Next

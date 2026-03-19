@@ -64,7 +64,7 @@
   gap: var(--space-xs);
   padding: 0 var(--space-md);
   height: 28px;
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -81,15 +81,15 @@
   background: var(--color-info);
   border: var(--border-width) solid var(--color-info);
   border-radius: var(--radius-md);
-  padding: var(--spacing-md) var(--spacing-lg);
-  margin: 0 var(--space-lg) var(--spacing-md) var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+  margin: 0 var(--space-lg) var(--space-md) var(--space-lg);
   flex-shrink: 0;
 }
 
 .bulkCount {
   font-weight: var(--font-semibold);
-  color: white;
-  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
 }
 
 .bulkButtons {
@@ -99,25 +99,25 @@
 
 .bulkDuplicateButton {
   composes: panel-button info from '@shared/styles/PanelBase.module.css';
-  padding: var(--spacing-xs) var(--spacing-md);
-  font-size: var(--font-size-sm);
+  padding: var(--space-xs) var(--space-md);
+  font-size: var(--text-sm);
 }
 
 .bulkDeleteButton {
   composes: panel-button danger from '@shared/styles/PanelBase.module.css';
-  padding: var(--spacing-xs) var(--spacing-md);
-  font-size: var(--font-size-sm);
+  padding: var(--space-xs) var(--space-md);
+  font-size: var(--text-sm);
 }
 
 /* Panel Settings */
 .panelSettings {
   composes: settings-section from '@shared/styles/PanelBase.module.css';
   flex-shrink: 0;
-  margin: 0 var(--space-lg) var(--spacing-md) var(--space-lg);
+  margin: 0 var(--space-lg) var(--space-md) var(--space-lg);
 }
 
 .helpText {
-  font-size: var(--font-size-xs);
+  font-size: var(--text-xs);
   color: var(--text-muted);
   margin-left: var(--space-xl);
 }
@@ -125,10 +125,10 @@
 /* Search and Filter Bar */
 .searchFilterBar {
   display: flex;
-  gap: var(--spacing-md);
+  gap: var(--space-md);
   align-items: center;
-  margin: 0 var(--space-lg) var(--spacing-md) var(--space-lg);
-  padding: var(--spacing-sm);
+  margin: 0 var(--space-lg) var(--space-md) var(--space-lg);
+  padding: var(--space-sm);
   background: var(--bg-tertiary);
   border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-md);
@@ -138,14 +138,14 @@
 .selectAllCheckbox {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
   background: var(--color-info);
   border: var(--border-width) solid var(--color-info);
   border-radius: var(--radius-sm);
   cursor: pointer;
   user-select: none;
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
   font-weight: var(--font-medium);
   white-space: nowrap;
 }
@@ -165,8 +165,8 @@
 
 .searchIcon {
   position: absolute;
-  left: var(--spacing-sm);
-  font-size: var(--font-size-sm);
+  left: var(--space-sm);
+  font-size: var(--text-sm);
   color: var(--text-muted);
   pointer-events: none;
 }
@@ -174,7 +174,7 @@
 .searchInput {
   composes: control-input from '@shared/styles/PanelBase.module.css';
   width: 100%;
-  padding: var(--spacing-sm) calc(var(--spacing-xl) + var(--spacing-sm)) var(--spacing-sm) calc(var(--spacing-xl) + var(--spacing-sm));
+  padding: var(--space-sm) calc(var(--space-xl) + var(--space-sm)) var(--space-sm) calc(var(--space-xl) + var(--space-sm));
 }
 
 .searchInput:focus {
@@ -185,20 +185,20 @@
 
 .clearSearch {
   position: absolute;
-  right: var(--spacing-xs);
+  right: var(--space-xs);
   background: transparent;
   border: none;
   color: var(--text-muted);
   font-size: var(--text-2xl);
   line-height: 1;
-  padding: var(--spacing-xs) var(--spacing-sm);
+  padding: var(--space-xs) var(--space-sm);
   cursor: pointer;
   border-radius: var(--radius-sm);
   transition: all var(--transition-fast);
 }
 
 .clearSearch:hover {
-  background: var(--hover-bg);
+  background: var(--hover-overlay);
   color: var(--text-primary);
 }
 
@@ -210,53 +210,53 @@
 
 .sortSelect {
   composes: control-input from '@shared/styles/PanelBase.module.css';
-  padding: var(--spacing-sm);
+  padding: var(--space-sm);
   cursor: pointer;
 }
 
 .sortOrderButton {
   composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
-  padding: var(--spacing-sm) var(--space-md);
+  padding: var(--space-sm) var(--space-md);
   font-size: var(--text-lg);
   line-height: 1;
 }
 
 .tableCount {
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
   color: var(--text-muted);
   white-space: nowrap;
-  padding: 0 var(--spacing-sm);
+  padding: 0 var(--space-sm);
 }
 
 .createTableForm {
   composes: settings-section from '@shared/styles/PanelBase.module.css';
   flex-shrink: 0;
-  margin: 0 var(--space-lg) var(--spacing-md) var(--space-lg);
+  margin: 0 var(--space-lg) var(--space-md) var(--space-lg);
 }
 
 .templateButtons {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--spacing-sm);
+  gap: var(--space-sm);
   align-items: center;
-  margin-bottom: var(--spacing-lg);
-  padding: var(--spacing-md);
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md);
   background: var(--bg-tertiary);
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
 }
 
 .templateLabel {
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
   color: var(--text-muted);
   font-weight: var(--font-medium);
-  margin-right: var(--spacing-xs);
+  margin-right: var(--space-xs);
 }
 
 .templateButton {
   composes: panel-button info from '@shared/styles/PanelBase.module.css';
-  padding: var(--spacing-sm) var(--spacing-md);
-  font-size: var(--font-size-xs);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-xs);
   white-space: nowrap;
 }
 
@@ -270,24 +270,24 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
-  font-size: var(--font-size-sm);
+  gap: var(--space-xs);
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   font-weight: var(--font-medium);
 }
 
 .formRow input {
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--space-sm) var(--space-md);
   background: var(--bg-tertiary);
   border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
 }
 
 .formRow input:focus {
   outline: none;
-  border-color: var(--color-info);
+  border-color: var(--border-focus);
   box-shadow: var(--focus-ring);
 }
 
@@ -300,14 +300,14 @@
 
 .confirmButton {
   composes: panel-button primary from '@shared/styles/PanelBase.module.css';
-  padding: var(--spacing-sm) var(--spacing-lg);
-  font-size: var(--font-size-sm);
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--text-sm);
 }
 
 .cancelButton {
   composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
-  padding: var(--spacing-sm) var(--spacing-lg);
-  font-size: var(--font-size-sm);
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--text-sm);
 }
 
 .tablesList {
@@ -325,14 +325,14 @@
 .loadingIndicator {
   text-align: center;
   color: var(--text-muted);
-  padding: var(--spacing-xl);
+  padding: var(--space-xl);
   font-style: italic;
 }
 
 .emptyState {
   text-align: center;
   color: var(--text-muted);
-  padding: var(--spacing-xl);
+  padding: var(--space-xl);
 }
 
 .emptyState p {
@@ -362,7 +362,7 @@
 
 .tableCard.active {
   border-color: var(--color-info);
-  box-shadow: 0 8px 16px var(--color-info-shadow);
+  box-shadow: var(--shadow-lg);
 }
 
 .tableCard.active::before {
@@ -382,8 +382,8 @@
 
 .tableCard.selected {
   border-color: var(--color-info);
-  box-shadow: 0 8px 16px var(--color-info-shadow);
-  background: var(--bg-active);
+  box-shadow: var(--shadow-lg);
+  background: var(--color-primary-overlay);
 }
 
 .tableCard.selected::before {
@@ -398,13 +398,13 @@
 
 .bulkCheckboxWrapper {
   position: absolute;
-  top: var(--spacing-sm);
-  left: var(--spacing-sm);
+  top: var(--space-sm);
+  left: var(--space-sm);
   z-index: 15;
   background: var(--modal-overlay);
   backdrop-filter: blur(8px);
   border-radius: var(--radius-sm);
-  padding: var(--spacing-xs);
+  padding: var(--space-xs);
 }
 
 .bulkCheckbox {
@@ -475,7 +475,7 @@
 }
 
 .tablePreview:hover {
-  background: var(--hover-bg);
+  background: var(--hover-overlay);
 }
 
 /* Table Info Section */
@@ -592,7 +592,7 @@
 
 .actionBtnSettings:hover {
   background: var(--button-secondary-hover);
-  color: white;
+  color: var(--text-primary);
 }
 
 .actionBtnDuplicate:hover {
@@ -615,11 +615,11 @@
   background: var(--bg-secondary);
   border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-lg);
-  padding: var(--spacing-2xl);
+  padding: var(--space-2xl);
   max-width: 440px;
   width: 90%;
   text-align: center;
-  box-shadow: 0 20px 60px var(--overlay-dark-subtle);
+  box-shadow: var(--shadow-xl);
   animation: slideUp 0.2s ease-out;
   position: relative;
 }
@@ -636,27 +636,27 @@
 }
 
 .modalContent h4 {
-  margin: 0 0 var(--spacing-lg) 0;
+  margin: 0 0 var(--space-lg) 0;
   color: var(--text-primary);
-  font-size: var(--font-size-xl);
+  font-size: var(--text-xl);
   font-weight: var(--font-semibold);
 }
 
 .modalContent p {
-  margin: var(--spacing-sm) 0;
+  margin: var(--space-sm) 0;
   color: var(--text-secondary);
-  font-size: var(--font-size-base);
+  font-size: var(--text-base);
   line-height: 1.5;
 }
 
 .tableName {
   font-weight: var(--font-semibold);
   color: var(--text-primary);
-  font-size: var(--font-size-lg);
-  padding: var(--spacing-md);
+  font-size: var(--text-lg);
+  padding: var(--space-md);
   background: var(--bg-tertiary);
   border-radius: var(--radius-md);
-  margin-top: var(--spacing-md) !important;
+  margin-top: var(--space-md) !important;
 }
 
 .modalActions {
@@ -668,16 +668,16 @@
 
 .confirmDeleteButton {
   composes: panel-button danger from '@shared/styles/PanelBase.module.css';
-  padding: var(--spacing-md) var(--spacing-xl);
-  font-size: var(--font-size-base);
+  padding: var(--space-md) var(--space-xl);
+  font-size: var(--text-base);
   font-weight: var(--font-medium);
   min-width: 100px;
 }
 
 .cancelButton {
   composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
-  padding: var(--spacing-md) var(--spacing-xl);
-  font-size: var(--font-size-base);
+  padding: var(--space-md) var(--space-xl);
+  font-size: var(--text-base);
   font-weight: var(--font-medium);
   min-width: 100px;
 }
@@ -799,7 +799,7 @@
   width: 100%;
   padding: var(--space-xs) var(--space-sm);
   background: var(--bg-tertiary);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--text-sm);
@@ -837,7 +837,7 @@
   width: 70px;
   padding: var(--space-xs) var(--space-sm);
   background: var(--bg-tertiary);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--text-sm);
@@ -881,28 +881,28 @@
 .checkboxLabel {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--space-sm);
   cursor: pointer;
   color: var(--text-primary);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
 }
 
 .formRow {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-md);
+  gap: var(--space-md);
 }
 
 .checkboxRow {
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--space-md);
 }
 
 .modalActions {
   display: flex;
   justify-content: flex-end;
-  gap: var(--spacing-md);
-  margin-top: var(--spacing-xl);
-  padding-top: var(--spacing-lg);
+  gap: var(--space-md);
+  margin-top: var(--space-xl);
+  padding-top: var(--space-lg);
   border-top: var(--border-width) solid var(--border-primary);
 }
 

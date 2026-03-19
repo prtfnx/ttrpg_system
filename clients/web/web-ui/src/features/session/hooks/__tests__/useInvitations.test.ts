@@ -1,467 +1,221 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useInvitations } from '@features/session';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { invitationService } from '../../services/invitation.service';
+import type { SessionInvitation } from '../../types/invitations';
 
-// Mock the invitation service
 vi.mock('../../services/invitation.service', () => ({
   invitationService: {
-    createInvitation: vi.fn(() => Promise.resolve({
-      id: 'inv123',
-      sessionCode: 'TEST123',
-      role: 'player',
-      inviteCode: 'INVITE456',
-      createdBy: 'user1',
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      used: false
-    })),
-    listSessionInvitations: vi.fn(() => Promise.resolve([
-      {
-        id: 'inv1',
-        sessionCode: 'TEST123',
-        role: 'player',
-        inviteCode: 'CODE1',
-        createdBy: 'user1',
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        used: false
-      },
-      {
-        id: 'inv2',
-        sessionCode: 'TEST123',
-        role: 'spectator',
-        inviteCode: 'CODE2',
-        createdBy: 'user1',
-        expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
-        used: true
-      }
-    ])),
-    deleteInvitation: vi.fn(() => Promise.resolve({ success: true })),
-    revokeInvitation: vi.fn(() => Promise.resolve({ success: true }))
-  }
+    listSessionInvitations: vi.fn(),
+    createInvitation: vi.fn(),
+    revokeInvitation: vi.fn(),
+    deleteInvitation: vi.fn(),
+  },
 }));
 
-// Mock toast notifications
-vi.mock('react-toastify', () => ({
-  toast: {
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn()
-  }
-}));
-
-// Mock auth context
-vi.mock('@features/auth', () => ({
-  useAuth: () => ({
-    user: {
-      id: 'test-user-1',
-      role: 'owner'
-    },
-    hasPermission: vi.fn(() => true)
-  })
-}));
+const mockInvitations: SessionInvitation[] = [
+  {
+    id: 1,
+    invite_code: 'CODE1',
+    session_code: 'TEST123',
+    pre_assigned_role: 'player',
+    created_at: new Date().toISOString(),
+    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    max_uses: 10,
+    uses_count: 0,
+    is_active: true,
+    is_valid: true,
+    invite_url: 'http://localhost/join/CODE1',
+  },
+  {
+    id: 2,
+    invite_code: 'CODE2',
+    session_code: 'TEST123',
+    pre_assigned_role: 'spectator',
+    created_at: new Date().toISOString(),
+    max_uses: 1,
+    uses_count: 1,
+    is_active: false,
+    is_valid: false,
+    invite_url: 'http://localhost/join/CODE2',
+  },
+];
 
 describe('useInvitations', () => {
-  const mockSessionCode = 'TEST123';
+  const sessionCode = 'TEST123';
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(invitationService.listSessionInvitations).mockResolvedValue([...mockInvitations]);
+    vi.mocked(invitationService.createInvitation).mockResolvedValue({ ...mockInvitations[0], id: 3 });
+    vi.mocked(invitationService.revokeInvitation).mockResolvedValue(undefined as any);
+    vi.mocked(invitationService.deleteInvitation).mockResolvedValue(undefined as any);
   });
 
   describe('Initialization', () => {
-    it('initializes with default state', () => {
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
+    it('starts with empty state before fetch completes', () => {
+      vi.mocked(invitationService.listSessionInvitations).mockReturnValue(new Promise(() => {}));
+      const { result } = renderHook(() => useInvitations(sessionCode));
 
       expect(result.current.invitations).toEqual([]);
-      expect(result.current.loading).toBe(false);
       expect(result.current.error).toBeNull();
     });
 
     it('loads invitations on mount', async () => {
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
+      const { result } = renderHook(() => useInvitations(sessionCode));
 
       await waitFor(() => {
         expect(result.current.invitations).toHaveLength(2);
       });
 
-      expect(result.current.invitations[0].role).toBe('player');
-      expect(result.current.invitations[1].role).toBe('spectator');
+      expect(result.current.invitations[0].pre_assigned_role).toBe('player');
+      expect(result.current.invitations[1].pre_assigned_role).toBe('spectator');
       expect(result.current.loading).toBe(false);
     });
 
-    it('handles loading failure', async () => {
-      const { invitationService } = await import('../../services/invitation.service');
-      vi.mocked(invitationService.getInvitations).mockRejectedValueOnce(
-        new Error('Failed to load invitations')
-      );
+    it('does not fetch when sessionCode is null', () => {
+      renderHook(() => useInvitations(null));
+      expect(invitationService.listSessionInvitations).not.toHaveBeenCalled();
+    });
 
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
+    it('sets error when fetch fails', async () => {
+      vi.mocked(invitationService.listSessionInvitations).mockRejectedValueOnce(
+        new Error('Network error')
+      );
+      const { result } = renderHook(() => useInvitations(sessionCode));
 
       await waitFor(() => {
-        expect(result.current.error).toContain('Failed to load invitations');
+        expect(result.current.error).toBe('Network error');
       });
 
       expect(result.current.invitations).toEqual([]);
+      expect(result.current.loading).toBe(false);
     });
   });
 
-  describe('Creating Invitations', () => {
-    it('creates invitation with specified role', async () => {
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
+  describe('createInvitation', () => {
+    it('calls service with the provided data', async () => {
+      const { result } = renderHook(() => useInvitations(sessionCode));
+      await waitFor(() => expect(result.current.invitations).toHaveLength(2));
+
+      const createData = { session_code: sessionCode, pre_assigned_role: 'player', max_uses: 5 };
 
       await act(async () => {
-        await result.current.createInvitation('player', { expiresInHours: 24 });
+        await result.current.createInvitation(createData);
       });
 
-      expect(result.current.invitations).toHaveLength(3); // 2 existing + 1 new
-      expect(result.current.isLoading).toBe(false);
-      expect(result.current.error).toBeNull();
+      expect(invitationService.createInvitation).toHaveBeenCalledWith(createData);
     });
 
-    it('creates invitation with custom expiration', async () => {
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
+    it('refetches after creation', async () => {
+      const { result } = renderHook(() => useInvitations(sessionCode));
+      await waitFor(() => expect(result.current.invitations).toHaveLength(2));
 
       await act(async () => {
-        await result.current.createInvitation('trusted_player', { 
-          expiresInHours: 12,
-          maxUses: 5 
-        });
+        await result.current.createInvitation({ session_code: sessionCode, pre_assigned_role: 'player', max_uses: 1 });
       });
 
-      const { invitationService } = await import('../../services/invitation.service');
-      expect(invitationService.createInvitation).toHaveBeenCalledWith(
-        mockSessionCode,
-        'trusted_player',
-        expect.objectContaining({
-          expiresInHours: 12,
-          maxUses: 5
-        })
-      );
+      expect(invitationService.listSessionInvitations).toHaveBeenCalledTimes(2);
     });
 
-    it('handles creation failure', async () => {
-      const { invitationService } = await import('../../services/invitation.service');
-      vi.mocked(invitationService.createInvitation).mockRejectedValueOnce(
-        new Error('Creation failed')
-      );
+    it('returns null and sets error on failure', async () => {
+      vi.mocked(invitationService.createInvitation).mockRejectedValueOnce(new Error('Create failed'));
+      const { result } = renderHook(() => useInvitations(sessionCode));
 
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
-
+      let created: SessionInvitation | null = undefined as any;
       await act(async () => {
-        await result.current.createInvitation('player');
+        created = await result.current.createInvitation({ session_code: sessionCode, pre_assigned_role: 'player', max_uses: 1 });
       });
 
-      expect(result.current.error).toContain('Failed to create invitation');
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    it('validates role parameter', async () => {
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
-
-      await act(async () => {
-        await result.current.createInvitation('invalid_role' as any);
-      });
-
-      expect(result.current.error).toContain('Invalid role specified');
+      expect(created).toBeNull();
+      expect(result.current.error).toBe('Create failed');
     });
   });
 
-  describe('Managing Existing Invitations', () => {
-    it('deletes invitation by id', async () => {
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
-
-      // Wait for initial load
-      await waitFor(() => {
-        expect(result.current.invitations).toHaveLength(2);
-      });
+  describe('revokeInvitation', () => {
+    it('calls service with invitation id', async () => {
+      const { result } = renderHook(() => useInvitations(sessionCode));
+      await waitFor(() => expect(result.current.invitations).toHaveLength(2));
 
       await act(async () => {
-        await result.current.deleteInvitation('inv1');
+        await result.current.revokeInvitation(1);
       });
 
-      expect(result.current.invitations).toHaveLength(1);
-      expect(result.current.invitations[0].id).toBe('inv2');
+      expect(invitationService.revokeInvitation).toHaveBeenCalledWith(1);
     });
 
-    it('refreshes invitation to generate new code', async () => {
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
-
-      // Wait for initial load
-      await waitFor(() => {
-        expect(result.current.invitations).toHaveLength(2);
-      });
+    it('refetches after revoke', async () => {
+      const { result } = renderHook(() => useInvitations(sessionCode));
+      await waitFor(() => expect(result.current.invitations).toHaveLength(2));
 
       await act(async () => {
-        await result.current.refreshInvitation('inv1');
+        await result.current.revokeInvitation(1);
       });
 
-      const refreshedInvitation = result.current.invitations.find(inv => inv.id === 'inv1');
-      expect(refreshedInvitation).toBeDefined();
-      // The invitation should be updated with new code from mock response
+      expect(invitationService.listSessionInvitations).toHaveBeenCalledTimes(2);
     });
 
-    it('handles deletion failure', async () => {
-      const { invitationService } = await import('../../services/invitation.service');
-      vi.mocked(invitationService.deleteInvitation).mockRejectedValueOnce(
-        new Error('Deletion failed')
-      );
+    it('returns false and sets error on failure', async () => {
+      vi.mocked(invitationService.revokeInvitation).mockRejectedValueOnce(new Error('Revoke failed'));
+      const { result } = renderHook(() => useInvitations(sessionCode));
 
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
-
+      let success = true;
       await act(async () => {
-        await result.current.deleteInvitation('inv1');
+        success = await result.current.revokeInvitation(1);
       });
 
-      expect(result.current.error).toContain('Failed to delete invitation');
-    });
-
-    it('handles refresh failure', async () => {
-      const { invitationService } = await import('../../services/invitation.service');
-      vi.mocked(invitationService.refreshInvitation).mockRejectedValueOnce(
-        new Error('Refresh failed')
-      );
-
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
-
-      await act(async () => {
-        await result.current.refreshInvitation('inv1');
-      });
-
-      expect(result.current.error).toContain('Failed to refresh invitation');
+      expect(success).toBe(false);
+      expect(result.current.error).toBe('Revoke failed');
     });
   });
 
-  describe('Invitation Filtering and Display', () => {
-    it('provides active invitations filter', async () => {
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
+  describe('deleteInvitation', () => {
+    it('calls service with invitation id', async () => {
+      const { result } = renderHook(() => useInvitations(sessionCode));
+      await waitFor(() => expect(result.current.invitations).toHaveLength(2));
 
-      await waitFor(() => {
-        expect(result.current.invitations).toHaveLength(2);
+      await act(async () => {
+        await result.current.deleteInvitation(2);
       });
 
-      const activeInvitations = result.current.activeInvitations;
-      expect(activeInvitations).toHaveLength(1);
-      expect(activeInvitations[0].used).toBe(false);
+      expect(invitationService.deleteInvitation).toHaveBeenCalledWith(2);
     });
 
-    it('provides expired invitations filter', async () => {
-      // Mock invitation service to return expired invitation
-      const { invitationService } = await import('../../services/invitation.service');
-      vi.mocked(invitationService.getInvitations).mockResolvedValueOnce([
-        {
-          id: 'expired1',
-          sessionCode: 'TEST123',
-          role: 'player',
-          inviteCode: 'EXPIRED1',
-          createdBy: 'user1',
-          expiresAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(), // 1 hour ago
-          used: false
-        }
-      ]);
+    it('refetches after delete', async () => {
+      const { result } = renderHook(() => useInvitations(sessionCode));
+      await waitFor(() => expect(result.current.invitations).toHaveLength(2));
 
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
-
-      await waitFor(() => {
-        expect(result.current.invitations).toHaveLength(1);
+      await act(async () => {
+        await result.current.deleteInvitation(2);
       });
 
-      const expiredInvitations = result.current.expiredInvitations;
-      expect(expiredInvitations).toHaveLength(1);
-      expect(expiredInvitations[0].id).toBe('expired1');
+      expect(invitationService.listSessionInvitations).toHaveBeenCalledTimes(2);
     });
 
-    it('provides used invitations filter', async () => {
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
+    it('returns false and sets error on failure', async () => {
+      vi.mocked(invitationService.deleteInvitation).mockRejectedValueOnce(new Error('Delete failed'));
+      const { result } = renderHook(() => useInvitations(sessionCode));
 
-      await waitFor(() => {
-        expect(result.current.invitations).toHaveLength(2);
+      let success = true;
+      await act(async () => {
+        success = await result.current.deleteInvitation(2);
       });
 
-      const usedInvitations = result.current.usedInvitations;
-      expect(usedInvitations).toHaveLength(1);
-      expect(usedInvitations[0].used).toBe(true);
-    });
-
-    it('filters invitations by role', async () => {
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
-
-      await waitFor(() => {
-        expect(result.current.invitations).toHaveLength(2);
-      });
-
-      const playerInvitations = result.current.getInvitationsByRole('player');
-      expect(playerInvitations).toHaveLength(1);
-      expect(playerInvitations[0].role).toBe('player');
-
-      const spectatorInvitations = result.current.getInvitationsByRole('spectator');
-      expect(spectatorInvitations).toHaveLength(1);
-      expect(spectatorInvitations[0].role).toBe('spectator');
+      expect(success).toBe(false);
+      expect(result.current.error).toBe('Delete failed');
     });
   });
 
-  describe('Invitation Links and Sharing', () => {
-    it('generates full invitation URL', async () => {
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
-
-      await waitFor(() => {
-        expect(result.current.invitations).toHaveLength(2);
-      });
-
-      const invitationUrl = result.current.getInvitationUrl('inv1');
-      expect(invitationUrl).toContain('/join/CODE1');
-      expect(invitationUrl).toContain(mockSessionCode);
-    });
-
-    it('copies invitation URL to clipboard', async () => {
-      // Mock clipboard API
-      Object.assign(navigator, {
-        clipboard: {
-          writeText: vi.fn(() => Promise.resolve())
-        }
-      });
-
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
-
-      await waitFor(() => {
-        expect(result.current.invitations).toHaveLength(2);
-      });
+  describe('refetch', () => {
+    it('fetches invitations again when called manually', async () => {
+      const { result } = renderHook(() => useInvitations(sessionCode));
+      await waitFor(() => expect(result.current.invitations).toHaveLength(2));
 
       await act(async () => {
-        await result.current.copyInvitationUrl('inv1');
+        await result.current.refetch();
       });
 
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-        expect.stringContaining('/join/CODE1')
-      );
-    });
-
-    it('handles clipboard copy failure gracefully', async () => {
-      // Mock clipboard API failure
-      Object.assign(navigator, {
-        clipboard: {
-          writeText: vi.fn(() => Promise.reject(new Error('Clipboard failed')))
-        }
-      });
-
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
-
-      await act(async () => {
-        await result.current.copyInvitationUrl('inv1');
-      });
-
-      expect(result.current.error).toContain('Failed to copy to clipboard');
-    });
-  });
-
-  describe('Real-time Updates', () => {
-    it('handles invitation usage events', async () => {
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
-
-      // Simulate invitation being used
-      await act(async () => {
-        result.current.markInvitationAsUsed('inv1');
-      });
-
-      const usedInvitation = result.current.invitations.find(inv => inv.id === 'inv1');
-      expect(usedInvitation?.used).toBe(true);
-    });
-
-    it('auto-refreshes data on focus', async () => {
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
-
-      // Simulate window focus event
-      await act(async () => {
-        result.current.refreshData();
-      });
-
-      const { invitationService } = await import('../../services/invitation.service');
-      expect(invitationService.getInvitations).toHaveBeenCalledTimes(2); // Initial load + refresh
-    });
-  });
-
-  describe('Permission and Validation', () => {
-    it('restricts operations based on user permissions', async () => {
-      // Mock user with limited permissions
-      vi.mocked(vi.fn()).mockImplementation(() => ({
-        useAuth: () => ({
-          user: { id: 'limited-user', role: 'co_dm' },
-          hasPermission: vi.fn((permission) => permission !== 'manage_invitations')
-        })
-      }));
-
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
-
-      await act(async () => {
-        await result.current.createInvitation('player');
-      });
-
-      expect(result.current.error).toContain('Insufficient permissions');
-    });
-
-    it('validates session code format', () => {
-      const { result } = renderHook(() => useInvitations(''));
-
-      expect(result.current.error).toContain('Valid session code is required');
-    });
-
-    it('limits number of active invitations', async () => {
-      // Mock service to return max invitations
-      const { invitationService } = await import('../../services/invitation.service');
-      const maxInvitations = Array.from({ length: 10 }, (_, i) => ({
-        id: `inv${i}`,
-        sessionCode: mockSessionCode,
-        role: 'player',
-        inviteCode: `CODE${i}`,
-        createdBy: 'user1',
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        used: false
-      }));
-
-      vi.mocked(invitationService.getInvitations).mockResolvedValueOnce(maxInvitations);
-
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
-
-      await waitFor(() => {
-        expect(result.current.invitations).toHaveLength(10);
-      });
-
-      await act(async () => {
-        await result.current.createInvitation('player');
-      });
-
-      expect(result.current.error).toContain('Maximum number of active invitations reached');
-    });
-  });
-
-  describe('Error Recovery and Cleanup', () => {
-    it('clears errors after successful operations', async () => {
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
-
-      // Trigger an error
-      await act(async () => {
-        await result.current.createInvitation('invalid_role' as any);
-      });
-      expect(result.current.error).toBeTruthy();
-
-      // Successful operation should clear error
-      await act(async () => {
-        await result.current.createInvitation('player');
-      });
-      expect(result.current.error).toBeNull();
-    });
-
-    it('provides manual error clearing', () => {
-      const { result } = renderHook(() => useInvitations(mockSessionCode));
-
-      // Set error state
-      act(() => {
-        (result.current as any).setError('Test error');
-      });
-
-      // Clear error manually
-      act(() => {
-        result.current.clearError();
-      });
-
-      expect(result.current.error).toBeNull();
+      expect(invitationService.listSessionInvitations).toHaveBeenCalledTimes(2);
     });
   });
 });

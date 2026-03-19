@@ -134,6 +134,7 @@ function InlineTextEditor({ worldPosition, onComplete, onCancel }: InlineTextEdi
         
         <button
           onClick={() => text.trim() && onComplete(text.trim(), fontSize, color)}
+          aria-label="Confirm"
           style={{
             padding: '4px 12px',
             background: '#4299e1',

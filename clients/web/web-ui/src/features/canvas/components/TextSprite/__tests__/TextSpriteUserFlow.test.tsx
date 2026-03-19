@@ -35,7 +35,7 @@ describe('Text sprite creation user flow', () => {
     await user.type(input, 'Hello Table');
 
     // Click create button (checkmark button)
-    const createBtn = screen.getByRole('button', { name: '✓' });
+    const createBtn = screen.getByRole('button', { name: /confirm/i });
     await user.click(createBtn);
 
     // Wait for onSuccess callback to be invoked via createTextSprite -> onSuccess

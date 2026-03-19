@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import styles from './SpellPreparationManager.module.css';
 
 interface Spell {
   id: string;
@@ -91,18 +92,9 @@ export function SpellPreparationManager({
   // Don't show for non-preparation casters
   if (maxPreparedSpells === 0) {
     return (
-      <div style={{ 
-        padding: 16, 
-        border: '1px solid #e2e8f0', 
-        borderRadius: 8,
-        background: '#f8fafc'
-      }}>
-        <h3 style={{ margin: '0 0 8px 0', fontSize: '1.1em', color: '#1e293b' }}>
-          Spell Management
-        </h3>
-        <p style={{ margin: 0, color: '#64748b', fontSize: '0.9em' }}>
-          This class doesn't prepare spells (spells known system).
-        </p>
+      <div className={styles.container}>
+        <h3 className={styles.title}>Spell Management</h3>
+        <p className={styles.spellMeta}>This class doesn't prepare spells (spells known system).</p>
       </div>
     );
   }
@@ -115,12 +107,7 @@ export function SpellPreparationManager({
     <div>
       {/* Domain Spells for Clerics */}
       {characterClass.toLowerCase().includes('cleric') && (
-        <div style={{ 
-          marginBottom: 16,
-          padding: 16,
-          background: '#f0fdf4',
-          borderRadius: 8
-        }}>
+        <div className={styles.domainSpells}>
           <h4>Domain Spells (always prepared)</h4>
           <div>
             <strong>1st Level:</strong> bless, cure wounds
@@ -131,69 +118,28 @@ export function SpellPreparationManager({
         </div>
       )}
 
-      <div style={{ 
-        padding: 16, 
-        borderRadius: 8,
-        background: '#f8fafc'
-      }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          marginBottom: 16
-        }}>
-          <h3 style={{ margin: 0, fontSize: '1.1em', color: '#1e293b' }}>
-            Spell Management
-          </h3>
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <h3 className={styles.title}>Spell Management</h3>
           <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-            <div style={{ fontSize: '0.9em', color: '#64748b' }}>
-              {preparedSpells.length} / {maxPreparedSpells} prepared
-            </div>
-            <div style={{ fontSize: '0.9em', color: '#64748b' }}>
-              Spell Slots Used: <span data-testid="spell-slots-used">{spellSlotsUsed}</span>
-            </div>
+            <div className={styles.counter}>{preparedSpells.length} / {maxPreparedSpells} prepared</div>
+            <div className={styles.counter}>Spell Slots Used: <span data-testid="spell-slots-used">{spellSlotsUsed}</span></div>
           </div>
         </div>
 
-        <div style={{ 
-          display: 'flex', 
-          gap: 16,
-          marginBottom: 16
-        }}>
-        <div style={{ flex: 1 }}>
-          <h4 style={{ margin: '0 0 8px 0', fontSize: '1em', color: '#374151' }}>
-            Available Spells
-          </h4>
-          <div style={{ 
-            maxHeight: 200, 
-            overflowY: 'auto',
-            border: '1px solid #d1d5db',
-            borderRadius: 4,
-            background: 'white'
-          }}>
+        <div className={styles.spellGrid}>
+        <div className={styles.spellColumn}>
+          <h4 className={styles.columnTitle}>Available Spells</h4>
+          <div className={styles.spellList}>
             {availableSpells.length === 0 ? (
-              <div style={{ 
-                padding: 12, 
-                textAlign: 'center', 
-                color: '#64748b',
-                fontSize: '0.9em'
-              }}>
+              <div className={styles.emptyState}>
                 {preparedSpells.length >= maxPreparedSpells 
-                  ? "Cannot prepare more spells" 
-                  : "No spells available to prepare"}
+                  ? 'Cannot prepare more spells' 
+                  : 'No spells available to prepare'}
               </div>
             ) : (
               availableSpells.map(spell => (
-                <div 
-                  key={spell.id}
-                  style={{
-                    padding: '8px 12px',
-                    borderBottom: '1px solid #f1f5f9',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8
-                  }}
-                >
+                <div key={spell.id} className={styles.spellItem}>
                   <input
                     type="checkbox"
                     id={`prepare-${spell.id}`}
@@ -206,30 +152,12 @@ export function SpellPreparationManager({
                     disabled={preparedSpells.length >= maxPreparedSpells}
                     aria-label={`prepare spell ${spell.name}`}
                   />
-                  <label 
-                    htmlFor={`prepare-${spell.id}`}
-                    style={{ 
-                      flex: 1,
-                      cursor: 'pointer',
-                      fontSize: '0.9em'
-                    }}
-                  >
-                    <div style={{ fontWeight: 500 }}>
+                  <label htmlFor={`prepare-${spell.id}`} className={styles.spellLabel}>
+                    <div className={styles.spellName}>
                       {spell.name}
-                      {spell.ritual && (
-                        <span style={{ 
-                          marginLeft: 8, 
-                          fontSize: '0.75em', 
-                          color: '#7c3aed',
-                          fontWeight: 400
-                        }}>
-                          (Ritual)
-                        </span>
-                      )}
+                      {spell.ritual && <span className={styles.ritualBadge}>(Ritual)</span>}
                     </div>
-                    <div style={{ fontSize: '0.8em', color: '#64748b' }}>
-                      Level {spell.level} {spell.school}
-                    </div>
+                    <div className={styles.spellMeta}>Level {spell.level} {spell.school}</div>
                   </label>
                 </div>
               ))
@@ -237,78 +165,29 @@ export function SpellPreparationManager({
           </div>
         </div>
 
-        <div style={{ flex: 1 }}>
-          <h4 style={{ margin: '0 0 8px 0', fontSize: '1em', color: '#374151' }}>
-            Prepared Spells
-          </h4>
-          <div style={{ 
-            maxHeight: 200, 
-            overflowY: 'auto',
-            border: '1px solid #d1d5db',
-            borderRadius: 4,
-            background: 'white'
-          }}>
+        <div className={styles.spellColumn}>
+          <h4 className={styles.columnTitle}>Prepared Spells</h4>
+          <div className={styles.spellList}>
             {prepared.length === 0 ? (
-              <div style={{ 
-                padding: 12, 
-                textAlign: 'center', 
-                color: '#64748b',
-                fontSize: '0.9em'
-              }}>
-                No spells prepared
-              </div>
+              <div className={styles.emptyState}>No spells prepared</div>
             ) : (
               prepared.map(spell => (
-                <div 
+                <div
                   key={spell.id}
-                  style={{
-                    padding: '8px 12px',
-                    borderBottom: '1px solid #f1f5f9',
-                    cursor: 'pointer',
-                    background: selectedSpell?.id === spell.id ? '#e0f2fe' : 'transparent'
-                  }}
-                  onClick={() => {
-                    setSelectedSpell(spell);
-                    setIsRitualCasting(false);
-                  }}
+                  className={`${styles.preparedItem} ${selectedSpell?.id === spell.id ? styles.preparedItemSelected : ''}`}
+                  onClick={() => { setSelectedSpell(spell); setIsRitualCasting(false); }}
                 >
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center' 
-                  }}>
+                  <div className={styles.preparedItemRow}>
                     <div>
-                      <div style={{ fontWeight: 500, fontSize: '0.9em' }}>
+                      <div className={styles.spellName}>
                         {spell.name}
-                        {spell.ritual && (
-                          <span style={{ 
-                            marginLeft: 8, 
-                            fontSize: '0.75em', 
-                            color: '#7c3aed',
-                            fontWeight: 400
-                          }}>
-                            (Ritual)
-                          </span>
-                        )}
+                        {spell.ritual && <span className={styles.ritualBadge}>(Ritual)</span>}
                       </div>
-                      <div style={{ fontSize: '0.8em', color: '#64748b' }}>
-                        Level {spell.level} {spell.school}
-                      </div>
+                      <div className={styles.spellMeta}>Level {spell.level} {spell.school}</div>
                     </div>
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onUnprepareSpell(spell.id);
-                      }}
-                      style={{
-                        padding: '4px 8px',
-                        background: '#dc2626',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: 4,
-                        fontSize: '0.8em',
-                        cursor: 'pointer'
-                      }}
+                      className={styles.removeBtn}
+                      onClick={(e) => { e.stopPropagation(); onUnprepareSpell(spell.id); }}
                     >
                       Remove
                     </button>
@@ -321,66 +200,29 @@ export function SpellPreparationManager({
       </div>
 
       {/* Ritual Spells Section */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          marginBottom: 8
-        }}>
-          <h4 style={{ margin: 0, fontSize: '1em', color: '#374151' }}>
-            Ritual Spells
-          </h4>
-          <button
-            onClick={() => setShowRitualSpells(!showRitualSpells)}
-            style={{
-              padding: '4px 8px',
-              background: 'transparent',
-              border: '1px solid #d1d5db',
-              borderRadius: 4,
-              fontSize: '0.8em',
-              cursor: 'pointer',
-              color: '#374151'
-            }}
-          >
+      <div className={styles.ritualSection}>
+        <div className={styles.ritualHeader}>
+          <h4 className={styles.sectionLabel}>Ritual Spells</h4>
+          <button className={styles.toggleBtn} onClick={() => setShowRitualSpells(!showRitualSpells)}>
             {showRitualSpells ? 'Hide' : 'Show'}
           </button>
         </div>
         
         {showRitualSpells && (
-          <div style={{ 
-            padding: 12, 
-            background: '#fefce8', 
-            border: '1px solid #facc15',
-            borderRadius: 4 
-          }}>
-            <div style={{ fontSize: '0.85em', color: '#92400e', marginBottom: 8 }}>
+          <div className={styles.ritualBox}>
+            <div className={styles.ritualInfo}>
               Ritual spells can be cast without preparing them, but take 10 minutes longer to cast.
             </div>
             {ritualSpells.length === 0 ? (
-              <div style={{ fontSize: '0.85em', color: '#64748b' }}>
-                No ritual spells known.
-              </div>
+              <div className={styles.spellMeta}>No ritual spells known.</div>
             ) : (
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div className={styles.ritualChips}>
                 {ritualSpells.map(spell => (
-                  <button 
+                  <button
                     key={spell.id}
+                    className={styles.ritualChip}
                     aria-label={`Cast ${spell.name} (Ritual)`}
-                    onClick={() => {
-                      setSelectedSpell(spell);
-                      setIsRitualCasting(true);
-                      // Show casting time information or cast the spell
-                    }}
-                    style={{
-                      padding: '4px 8px',
-                      background: '#f3e8ff',
-                      border: '1px solid #a855f7',
-                      borderRadius: 4,
-                      fontSize: '0.8em',
-                      color: '#7c3aed',
-                      cursor: 'pointer'
-                    }}
+                    onClick={() => { setSelectedSpell(spell); setIsRitualCasting(true); }}
                   >
                     {spell.name}
                   </button>
@@ -393,60 +235,21 @@ export function SpellPreparationManager({
 
       {/* Spell Details */}
       {selectedSpell && (
-        <div style={{ 
-          padding: 12, 
-          background: '#f1f5f9', 
-          border: '1px solid #cbd5e1',
-          borderRadius: 4 
-        }}>
-          <h5 style={{ margin: '0 0 8px 0', fontSize: '1em', color: '#1e293b' }}>
-            {selectedSpell.name}
-          </h5>
-          <div style={{ fontSize: '0.85em', color: '#475569', marginBottom: 8 }}>
+        <div className={styles.spellDetail}>
+          <h5 className={styles.detailTitle}>{selectedSpell.name}</h5>
+          <div className={styles.detailMeta}>
             <div>Level: {selectedSpell.level} | School: {selectedSpell.school}</div>
             <div>Casting Time: {isRitualCasting ? `${selectedSpell.castingTime} + 10 minutes (ritual)` : selectedSpell.castingTime} | Range: {selectedSpell.range}</div>
             <div>Components: {selectedSpell.components} | Duration: {selectedSpell.duration}</div>
-            {isRitualCasting && (
-              <div style={{ color: '#7c3aed' }}>No spell slot required</div>
-            )}
+            {isRitualCasting && <div className={styles.detailRitualNote}>No spell slot required</div>}
           </div>
-          <div style={{ fontSize: '0.85em', color: '#374151', lineHeight: 1.4 }}>
-            {selectedSpell.description}
-          </div>
+          <div className={styles.detailDesc}>{selectedSpell.description}</div>
           {isRitualCasting && (
-            <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-              <button 
-                aria-label="Cast Ritual"
-                onClick={() => {
-                  // Handle ritual casting confirmation
-                }}
-                style={{
-                  padding: '8px 16px',
-                  background: '#7c3aed',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 4,
-                  fontSize: '0.9em',
-                  cursor: 'pointer'
-                }}
-              >
+            <div className={styles.castRow}>
+              <button className={styles.castBtn} aria-label="Cast Ritual" onClick={() => {}}>
                 Cast Ritual
               </button>
-              <button 
-                onClick={() => {
-                  setIsRitualCasting(false);
-                  setSelectedSpell(null);
-                }}
-                style={{
-                  padding: '8px 16px',
-                  background: '#e5e7eb',
-                  color: '#374151',
-                  border: 'none',
-                  borderRadius: 4,
-                  fontSize: '0.9em',
-                  cursor: 'pointer'
-                }}
-              >
+              <button className={styles.cancelBtn} onClick={() => { setIsRitualCasting(false); setSelectedSpell(null); }}>
                 Cancel
               </button>
             </div>

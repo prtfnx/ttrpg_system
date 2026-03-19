@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CloudFog, Construction, Crown, Lightbulb, Map, Mountain, Square, Users } from 'lucide-react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';

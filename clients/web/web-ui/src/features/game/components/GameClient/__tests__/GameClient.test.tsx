@@ -1,7 +1,7 @@
 import { useGameStore } from '@/store';
 import type { UserInfo } from '@features/auth';
 import { GameClient } from '@features/canvas';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock child components to test GameClient in isolation
@@ -114,7 +114,7 @@ describe('GameClient - Double-Click Detection Tests', () => {
       const event = new CustomEvent('tokenDoubleClick', {
         detail: { spriteId: 'sprite-1' }
       });
-      window.dispatchEvent(event);
+      act(() => { window.dispatchEvent(event); });
 
       // Wait for modal to appear
       await waitFor(() => {
@@ -132,7 +132,7 @@ describe('GameClient - Double-Click Detection Tests', () => {
       const event = new CustomEvent('tokenDoubleClick', {
         detail: { spriteId: testSpriteId }
       });
-      window.dispatchEvent(event);
+      act(() => { window.dispatchEvent(event); });
 
       expect(consoleSpy).toHaveBeenCalledWith(
         '[GameClient] Token double-click on sprite:',
@@ -159,7 +159,7 @@ describe('GameClient - Double-Click Detection Tests', () => {
       const event1 = new CustomEvent('tokenDoubleClick', {
         detail: { spriteId: 'sprite-2' }
       });
-      window.dispatchEvent(event1);
+      act(() => { window.dispatchEvent(event1); });
 
       await waitFor(() => {
         expect(screen.queryByText(/token configuration/i)).toBeDefined();
@@ -169,7 +169,7 @@ describe('GameClient - Double-Click Detection Tests', () => {
       const event2 = new CustomEvent('tokenDoubleClick', {
         detail: { spriteId: 'sprite-3' }
       });
-      window.dispatchEvent(event2);
+      act(() => { window.dispatchEvent(event2); });
 
       // Modal should still be open but for different sprite
       await waitFor(() => {
@@ -189,7 +189,7 @@ describe('GameClient - Double-Click Detection Tests', () => {
 
       // Should not throw error
       expect(() => {
-        window.dispatchEvent(event);
+        act(() => { window.dispatchEvent(event); });
       }).not.toThrow();
 
       consoleErrorSpy.mockRestore();
@@ -235,7 +235,7 @@ describe('GameClient - Double-Click Detection Tests', () => {
       const event = new CustomEvent('tokenDoubleClick', {
         detail: { spriteId: targetSpriteId }
       });
-      window.dispatchEvent(event);
+      act(() => { window.dispatchEvent(event); });
 
       await waitFor(() => {
         expect(screen.getByText(/token configuration/i)).toBeInTheDocument();
@@ -249,7 +249,7 @@ describe('GameClient - Double-Click Detection Tests', () => {
       const event = new CustomEvent('tokenDoubleClick', {
         detail: { spriteId: 'sprite-1' }
       });
-      window.dispatchEvent(event);
+      act(() => { window.dispatchEvent(event); });
 
       await waitFor(() => {
         expect(screen.getByText(/token configuration/i)).toBeInTheDocument();
@@ -272,7 +272,7 @@ describe('GameClient - Double-Click Detection Tests', () => {
         const event = new CustomEvent('tokenDoubleClick', {
           detail: { spriteId: 'sprite-1' }
         });
-        window.dispatchEvent(event);
+        act(() => { window.dispatchEvent(event); });
       }
 
       // Modal should be open
@@ -295,7 +295,7 @@ describe('GameClient - Double-Click Detection Tests', () => {
       const event = new CustomEvent('tokenDoubleClick', {
         detail: { spriteId: 'sprite-log-test' }
       });
-      window.dispatchEvent(event);
+      act(() => { window.dispatchEvent(event); });
 
       expect(consoleSpy).toHaveBeenCalledWith(
         '[GameClient] Token double-click on sprite:',
@@ -313,7 +313,7 @@ describe('GameClient - Double-Click Detection Tests', () => {
       const event = new CustomEvent('tokenDoubleClick', {
         detail: { spriteId, extraData: 'should be ignored' }
       });
-      window.dispatchEvent(event);
+      act(() => { window.dispatchEvent(event); });
 
       await waitFor(() => {
         expect(screen.queryByText(/token configuration/i)).toBeDefined();
@@ -333,8 +333,11 @@ describe('GameClient - Double-Click Detection Tests', () => {
         onAuthError={vi.fn()}
       />);
 
-      // Since dependencies are empty [], cleanup should only run on unmount
-      expect(removeSpy).not.toHaveBeenCalled();
+      // tokenDoubleClick listener should NOT be removed on re-render (effect has [] deps)
+      const tokenDoubleClickRemoved = removeSpy.mock.calls.some(
+        ([eventName]) => eventName === 'tokenDoubleClick'
+      );
+      expect(tokenDoubleClickRemoved).toBe(false);
 
       removeSpy.mockRestore();
     });

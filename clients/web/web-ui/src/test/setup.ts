@@ -324,6 +324,18 @@ beforeAll(() => {
     set_input_mode_create_line: vi.fn(),
     set_input_mode_create_text: vi.fn(),
     set_input_mode_paint: vi.fn(),
+    // Lighting / vision methods
+    set_dynamic_lighting_enabled: vi.fn(),
+    set_gm_mode: vi.fn(),
+    fog_set_gm_mode: vi.fn(),
+    set_layer_visibility: vi.fn(),
+    set_current_user_id: vi.fn(),
+    clear_fog: vi.fn(),
+    add_fog_rectangle: vi.fn(),
+    remove_fog_polygon: vi.fn(),
+    add_fog_polygon: vi.fn(),
+    compute_visibility_polygon: vi.fn(() => []),
+    get_obstacle_segments_flat: vi.fn(() => []),
   };
 });
 

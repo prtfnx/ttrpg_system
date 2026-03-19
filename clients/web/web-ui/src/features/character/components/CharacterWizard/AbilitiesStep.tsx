@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { calculateRacialASI } from './raceData';
 import type { AbilitiesStepData } from './schemas';
+import styles from './AbilitiesStep.module.css';
 
 type AbilityName = keyof AbilitiesStepData;
 type Method = 'standard' | 'pointbuy' | 'roll' | 'manual';
@@ -53,10 +54,10 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className={styles.container}>
       <h2>Assign ability scores</h2>
       
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div className={styles.methodRow}>
         {[
           { value: 'standard', label: 'Standard Array' },
           { value: 'pointbuy', label: 'Point Buy (27 points)' },
@@ -65,16 +66,9 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
         ].map(({ value, label }) => (
           <button
             key={value}
-            type="button" 
+            type="button"
+            className={method === value ? styles.methodBtnActive : styles.methodBtnInactive}
             onClick={() => setMethod(value as Method)}
-            style={{
-              padding: '8px 16px',
-              background: method === value ? '#007acc' : '#f0f0f0',
-              color: method === value ? 'white' : 'black',
-              border: 'none',
-              borderRadius: 4,
-              cursor: 'pointer'
-            }}
           >
             {label}
           </button>
@@ -82,40 +76,32 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
       </div>
 
       {method === 'roll' && (
-        <button type="button" onClick={rollAbilities} style={{ padding: '8px 16px', width: 'fit-content' }}>
+        <button type="button" className={styles.rollBtn} onClick={rollAbilities}>
           Roll Abilities
         </button>
       )}
 
       {method === 'pointbuy' && (
-        <div style={{ 
-          padding: '12px', 
-          background: '#f0f8ff', 
-          border: '1px solid #007acc', 
-          borderRadius: 4,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
+        <div className={styles.pointBuyInfo}>
           <span>
             Point Buy (27 points): <span data-testid="points-remaining">{27 - getTotalPointsUsed()}</span> points remaining
           </span>
-          <small style={{ color: '#666' }}>
+          <small className={styles.infoNote}>
             Costs: 8-13 = face value - 8, 14 = 7pts, 15 = 9pts
           </small>
         </div>
       )}
 
-      <div style={{ display: 'grid', gap: 12 }}>
+      <div className={styles.abilityGrid}>
         {ABILITIES.map((ability, index) => (
-          <div key={ability} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <label style={{ minWidth: 100, fontWeight: 'bold' }}>{ABILITY_LABELS[index]}</label>
+          <div key={ability} className={styles.abilityRow}>
+            <label className={styles.abilityLabel}>{ABILITY_LABELS[index]}</label>
             
             {method === 'standard' ? (
               <select 
+                className={styles.select}
                 value={getValues()[ability] || ''}
                 onChange={(e) => setValue(ability, Number(e.target.value), { shouldValidate: true })}
-                style={{ padding: 8, minWidth: 100 }}
               >
                 <option value="">Select...</option>
                 {STANDARD_ARRAY.map(score => (
@@ -124,9 +110,9 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
               </select>
             ) : method === 'roll' && rolls.length > 0 ? (
               <select
+                className={styles.select}
                 value={getValues()[ability] || ''}
                 onChange={(e) => setValue(ability, Number(e.target.value), { shouldValidate: true })}
-                style={{ padding: 8, minWidth: 100 }}
               >
                 <option value="">Select...</option>
                 {rolls.map((roll, i) => (
@@ -134,9 +120,10 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
                 ))}
               </select>
             ) : method === 'pointbuy' ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div className={styles.pbRow}>
                 <button
                   type="button"
+                  className={(getValues()[ability] || 8) > 8 ? styles.decBtnActive : styles.decBtnDisabled}
                   onClick={() => {
                     const current = getValues()[ability] || 8;
                     if (current > 8 && getTotalPointsUsed() >= getPointCost(current)) {
@@ -144,23 +131,16 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
                     }
                   }}
                   disabled={(getValues()[ability] || 8) <= 8}
-                  style={{
-                    padding: '4px 8px',
-                    background: (getValues()[ability] || 8) > 8 ? '#dc2626' : '#9ca3af',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 4,
-                    cursor: (getValues()[ability] || 8) > 8 ? 'pointer' : 'not-allowed'
-                  }}
                 >
                   -
                 </button>
-                <span style={{ minWidth: 40, textAlign: 'center', fontWeight: 'bold' }}>
+                <span className={styles.scoreDisplay}>
                   {getValues()[ability] || 8}
                 </span>
                 <button
                   type="button"
                   aria-label={`Increase ${ABILITY_LABELS[index]}`}
+                  className={(getValues()[ability] || 8) < 15 && getTotalPointsUsed() < 27 ? styles.incBtnActive : styles.incBtnDisabled}
                   onClick={() => {
                     const current = getValues()[ability] || 8;
                     const newValue = current + 1;
@@ -171,26 +151,12 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
                     }
                   }}
                   disabled={(getValues()[ability] || 8) >= 15 || getTotalPointsUsed() >= 27}
-                  style={{
-                    padding: '4px 8px',
-                    background: (getValues()[ability] || 8) < 15 && getTotalPointsUsed() < 27 ? '#059669' : '#9ca3af',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 4,
-                    cursor: (getValues()[ability] || 8) < 15 && getTotalPointsUsed() < 27 ? 'pointer' : 'not-allowed'
-                  }}
                 >
                   +
                 </button>
-                {/* Display final score with racial bonuses for testing */}
-                <span 
+                <span
                   data-testid={`${ability}-final`}
-                  style={{ 
-                    marginLeft: 12, 
-                    fontSize: '0.9em', 
-                    color: '#374151',
-                    fontWeight: 500
-                  }}
+                  className={styles.finalScore}
                 >
                   Final: {(getValues()[ability] || 8) + getRacialBonus(ability)}
                 </span>
@@ -205,11 +171,7 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
                     type="number"
                     min={8}
                     max={20}
-                    style={{ 
-                      padding: 8, 
-                      width: 80,
-                      border: '1px solid #ccc'
-                    }}
+                    className={styles.input}
                     onChange={(e) => field.onChange(Number(e.target.value))}
                   />
                 )}
@@ -217,13 +179,13 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
             )}
             
             {method === 'pointbuy' && (
-              <span style={{ fontSize: 12, color: '#666', minWidth: 60 }}>
+              <span className={styles.costNote}>
                 Cost: {getPointCost(getValues()[ability] || 8)}pts
               </span>
             )}
             
             {errors[ability] && (
-              <span style={{ color: 'red', fontSize: 14 }}>{errors[ability]?.message}</span>
+              <span className={styles.errorText}>{errors[ability]?.message}</span>
             )}
           </div>
         ))}

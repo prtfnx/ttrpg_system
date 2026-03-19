@@ -1,0 +1,151 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.methodRow {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.methodBtn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+
+.methodBtnActive {
+  background: var(--color-primary);
+  color: var(--text-inverse-primary);
+}
+
+.methodBtnInactive {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.methodBtnInactive:hover {
+  background: var(--bg-elevated);
+}
+
+.rollBtn {
+  padding: 8px 16px;
+  width: fit-content;
+  background: var(--color-success);
+  color: var(--text-inverse-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.pointBuyInfo {
+  padding: var(--space-md);
+  background: var(--color-info-overlay);
+  border: var(--border-width) solid var(--color-info);
+  border-radius: var(--radius-sm);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-primary);
+}
+
+.infoNote {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.abilityGrid {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.abilityRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.abilityLabel {
+  min-width: 100px;
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.select {
+  padding: var(--space-sm);
+  min-width: 100px;
+  background: var(--bg-tertiary);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.input {
+  padding: var(--space-sm);
+  width: 80px;
+  background: var(--bg-tertiary);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.pbRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.decBtn {
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  color: var(--text-inverse-primary);
+  font-weight: var(--font-semibold);
+}
+
+.decBtnActive { background: var(--color-danger); }
+.decBtnDisabled { background: var(--bg-elevated); color: var(--text-disabled); cursor: not-allowed; }
+
+.incBtn {
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  color: var(--text-inverse-primary);
+  font-weight: var(--font-semibold);
+}
+
+.incBtnActive { background: var(--color-success); }
+.incBtnDisabled { background: var(--bg-elevated); color: var(--text-disabled); cursor: not-allowed; }
+
+.scoreDisplay {
+  min-width: 40px;
+  text-align: center;
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.finalScore {
+  margin-left: var(--space-md);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-weight: var(--font-medium);
+}
+
+.costNote {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  min-width: 60px;
+}
+
+.errorText {
+  color: var(--color-danger);
+  font-size: var(--text-sm);
+}

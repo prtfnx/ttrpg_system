@@ -208,7 +208,8 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
   useEffect(() => {
     const handleTokenDoubleClick = (event: Event) => {
       const customEvent = event as CustomEvent;
-      const { spriteId } = customEvent.detail;
+      const spriteId = customEvent.detail?.spriteId;
+      if (!spriteId) return;
       console.log('[GameClient] Token double-click on sprite:', spriteId);
       setTokenConfigSpriteId(spriteId);
     };

@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
 import { config } from '@shared/config/appConfig';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../auth';
 import { useChatStore } from '../chatStore';
 import { useChatWebSocket } from '../hooks/useChatWebSocket';
+import styles from './ChatPanel.module.css';
 
 export function ChatPanel() {
   const { user } = useAuth();
@@ -42,34 +43,31 @@ export function ChatPanel() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'transparent' }}>
-      <div style={{ flex: 1, overflowY: 'auto', background: '#1a1a1a', borderRadius: 8, border: '1px solid #404040', padding: 12, marginBottom: 8 }}>
+    <div className={styles.panel}>
+      <div className={styles.messages}>
         {messages.map(msg => (
-          <div key={msg.id} style={{ marginBottom: 6, fontSize: 15, color: '#ffffff' }}>
-            <span style={{ fontWeight: 600, color: '#6366f1' }}>{msg.user}:</span> <span>{msg.text}</span>
-            <span style={{ color: '#808080', fontSize: 12, marginLeft: 8 }}>{new Date(msg.timestamp).toLocaleTimeString()}</span>
+          <div key={msg.id} className={styles.message}>
+            <span className={styles.username}>{msg.user}:</span> <span>{msg.text}</span>
+            <span className={styles.timestamp}>{new Date(msg.timestamp).toLocaleTimeString()}</span>
           </div>
         ))}
         {errorMessage && (
-          <div style={{ marginBottom: 6, fontSize: 15, color: '#ff6b6b' }}>
+          <div className={styles.errorMsg}>
             <span style={{ fontWeight: 600 }}>Error:</span> <span>{errorMessage}</span>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div className={styles.inputRow}>
         <input
           type="text"
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') handleSend(); }}
           placeholder="Type a message..."
-          style={{ flex: 1, padding: 8, borderRadius: 4, border: '1px solid #404040', background: '#1a1a1a', color: '#ffffff', fontSize: 15 }}
+          className={styles.input}
         />
-        <button
-          onClick={handleSend}
-          style={{ padding: '8px 18px', borderRadius: 4, background: '#6366f1', color: '#fff', fontWeight: 700, border: 'none', fontSize: 15 }}
-        >
+        <button className={styles.sendBtn} onClick={handleSend}>
           Send
         </button>
       </div>

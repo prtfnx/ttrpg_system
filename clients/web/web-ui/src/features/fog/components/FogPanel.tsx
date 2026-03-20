@@ -286,7 +286,7 @@ export const FogPanel: React.FC = () => {
       
       <div className={styles.panelSection}>
         <div className={styles.controlGroup}>
-          <div style={{ marginBottom: '12px', color: '#888', fontSize: '13px' }}>
+          <div style={{ marginBottom: '12px', color: 'var(--text-muted)', fontSize: '13px' }}>
             Click a mode button, then click and drag on canvas to draw rectangles
           </div>
           
@@ -393,7 +393,7 @@ export const FogPanel: React.FC = () => {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
           <div style={{ 
             padding: '12px', 
-            backgroundColor: 'var(--bg-secondary, #374151)', 
+            backgroundColor: 'var(--bg-secondary)', 
             border: '1px solid var(--border-color, #4b5563)',
             borderRadius: '4px', 
             textAlign: 'center' 
@@ -405,7 +405,7 @@ export const FogPanel: React.FC = () => {
           </div>
           <div style={{ 
             padding: '12px', 
-            backgroundColor: 'var(--bg-secondary, #374151)', 
+            backgroundColor: 'var(--bg-secondary)', 
             border: '1px solid var(--border-color, #4b5563)',
             borderRadius: '4px', 
             textAlign: 'center' 

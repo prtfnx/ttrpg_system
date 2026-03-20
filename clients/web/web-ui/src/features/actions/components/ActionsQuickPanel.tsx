@@ -121,7 +121,7 @@ export const ActionsQuickPanel: React.FC<ActionsQuickPanelProps> = ({ renderEngi
                 width: '100%', 
                 padding: '6px', 
                 fontSize: '12px',
-                background: '#10b981',
+                background: 'var(--color-success)',
                 color: 'white',
                 border: 'none',
                 borderRadius: '4px',
@@ -143,7 +143,7 @@ export const ActionsQuickPanel: React.FC<ActionsQuickPanelProps> = ({ renderEngi
               style={{ 
                 padding: '6px 8px', 
                 fontSize: '11px',
-                background: '#ef4444',
+                background: 'var(--color-danger)',
                 color: 'white',
                 border: 'none',
                 borderRadius: '3px',
@@ -158,7 +158,7 @@ export const ActionsQuickPanel: React.FC<ActionsQuickPanelProps> = ({ renderEngi
               style={{ 
                 padding: '6px 8px', 
                 fontSize: '11px',
-                background: '#6366f1',
+                background: 'var(--color-accent)',
                 color: 'white',
                 border: 'none',
                 borderRadius: '3px',
@@ -180,7 +180,7 @@ export const ActionsQuickPanel: React.FC<ActionsQuickPanelProps> = ({ renderEngi
               style={{ 
                 padding: '6px 8px', 
                 fontSize: '11px',
-                background: '#f59e0b',
+                background: 'var(--color-warning)',
                 color: 'white',
                 border: 'none',
                 borderRadius: '3px',
@@ -195,7 +195,7 @@ export const ActionsQuickPanel: React.FC<ActionsQuickPanelProps> = ({ renderEngi
               style={{ 
                 padding: '6px 8px', 
                 fontSize: '11px',
-                background: '#f59e0b',
+                background: 'var(--color-warning)',
                 color: 'white',
                 border: 'none',
                 borderRadius: '3px',
@@ -209,12 +209,12 @@ export const ActionsQuickPanel: React.FC<ActionsQuickPanelProps> = ({ renderEngi
 
         {/* Status */}
         <div className="action-status">
-          <div style={{ fontSize: '11px', color: '#9ca3af' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
             Tables: {actions.tables.size} | History: {actions.actionHistory.length}
             {actions.isLoading && <span> | Loading...</span>}
           </div>
           {actions.error && (
-            <div style={{ fontSize: '11px', color: '#ef4444', marginTop: '4px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--color-danger)', marginTop: '4px' }}>
               Error: {actions.error}
             </div>
           )}

@@ -7,7 +7,7 @@ import { CompendiumPanel } from '@features/compendium';
 import { FogPanel } from '@features/fog';
 import { LightingPanel } from '@features/lighting';
 import { type SessionRole, canInteract, isDM, isElevated } from '@features/session/types/roles';
-import { TableManagementPanel, TablePanel, TableSyncPanel } from '@features/table';
+import { MapPanel, TableManagementPanel, TablePanel, TableSyncPanel } from '@features/table';
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 import { ActionQueuePanel } from '../features/actions/components/ActionQueuePanel';
@@ -24,7 +24,7 @@ const isDevelopment = import.meta.env.DEV;
 
 type TabId = 'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' |
              'sync' | 'players' | 'actions' | 'quick-actions' | 'queue' | 'compendium' | 'assets' |
-             'network' | 'initiative' | 'performance' | 'backgrounds' | 'customize';
+             'network' | 'initiative' | 'performance' | 'backgrounds' | 'customize' | 'map';
 
 const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
   // DM tabs
@@ -44,6 +44,8 @@ const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
   'entities':      isDM,
   'initiative':    () => true,
   'customize':     () => true,
+  // Map panel
+  'map':           isDM,
   // Dev-only (always gated by isDevelopment at render time)
   'table-tools':   isDM,
   'sync':          isDM,
@@ -56,7 +58,7 @@ const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
 const DEFAULT_TAB_ORDER: TabId[] = [
   'tables', 'compendium', 'quick-actions', 'characters', 'entities',
   'players', 'initiative', 'chat', 'lighting', 'fog',
-  'backgrounds', 'performance', 'customize',
+  'backgrounds', 'map', 'performance', 'customize',
 ];
 
 export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRole?: string }) {
@@ -104,6 +106,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRo
         {tab('backgrounds', 'Backgrounds')}
         {tab('performance', 'Performance')}
         {tab('customize', 'Customize')}
+        {tab('map', 'Map')}
         {isDevelopment && tab('table-tools', 'Table Tools')}
         {isDevelopment && tab('sync', 'Sync')}
         {isDevelopment && tab('actions', 'Actions')}
@@ -131,6 +134,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRo
         {activeTab === 'compendium' && <CompendiumPanel />}
         {isDevelopment && activeTab === 'assets' && <AssetPanel />}
         {isDevelopment && activeTab === 'network' && <NetworkPanel />}
+        {activeTab === 'map' && <MapPanel />}
       </div>
     </div>
   );

@@ -249,7 +249,7 @@ export const AssetPanel: React.FC = () => {
             textAlign: 'center',
             margin: '10px 0',
             cursor: 'pointer',
-            backgroundColor: isDragOver ? '#f0f0f0' : 'transparent'
+            backgroundColor: isDragOver ? 'var(--hover-overlay)' : 'transparent'
           }}
         >
           <p>Drag files here or click to upload</p>
@@ -280,7 +280,7 @@ export const AssetPanel: React.FC = () => {
           </div>
           
           {/* Performance monitoring */}
-          <div className={styles.performanceStats} style={{ fontSize: '12px', color: '#666' }}>
+          <div className={styles.performanceStats} style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
             <div data-testid="files-total">{uploadStats.filesTotal}</div>
             <div data-testid="files-processed">{uploadStats.filesProcessed}</div>
             <div data-testid="assets-loaded">{mockAssets.length}</div>
@@ -366,7 +366,7 @@ export const AssetPanel: React.FC = () => {
         </div>
         
         {/* Performance monitoring */}
-        <div className={styles.performanceStats} style={{ fontSize: '12px', color: '#666' }}>
+        <div className={styles.performanceStats} style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
           <div data-testid="files-total">{mockAssets.length}</div>
           <div data-testid="files-processed">{mockAssets.length}</div>
           <div data-testid="assets-loaded">{mockAssets.length}</div>
@@ -392,14 +392,14 @@ export const AssetPanel: React.FC = () => {
           padding: 20,
           marginBottom: 16,
           textAlign: 'center',
-          background: '#f9fafb',
+          background: 'var(--bg-tertiary)',
           borderRadius: '8px',
           cursor: 'pointer'
         }}
         onClick={() => document.getElementById('file-input')?.click()}
       >
         {uploading ? 'Uploading...' : 'Drag files here or click to upload'}
-        {uploadError && <div style={{color:'#f87171',marginTop:8}}>{uploadError}</div>}
+        {uploadError && <div style={{color:'var(--color-danger)',marginTop:8}}>{uploadError}</div>}
       </div>
 
       {/* Hidden file input for click-to-upload */}

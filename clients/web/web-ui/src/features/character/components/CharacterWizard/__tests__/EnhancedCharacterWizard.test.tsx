@@ -103,12 +103,12 @@ describe('EnhancedCharacterWizard', () => {
       );
 
       // Check using semantic query for active step
-      const templateStep = screen.getByRole('button', { name: /template selection/i, current: 'step' });
-      expect(templateStep).toBeInTheDocument();
-      expect(screen.getByText(/Choose a template or start from scratch/i)).toBeInTheDocument();
+      const identityStep = screen.getByRole('button', { name: /character identity/i, current: 'step' });
+      expect(identityStep).toBeInTheDocument();
+      expect(screen.getByText(/Name, portrait, bio/i)).toBeInTheDocument();
     });
 
-    it('allows skipping template selection step', async () => {
+    it('allows navigating past identity step', async () => {
       render(
         <EnhancedCharacterWizard
           isOpen={true}
@@ -117,13 +117,13 @@ describe('EnhancedCharacterWizard', () => {
         />
       );
 
-      const skipButton = screen.getByRole('button', { name: /^skip/i });
-      await user.click(skipButton);
+      const nextButton = screen.getByRole('button', { name: /next/i });
+      await user.click(nextButton);
 
-      // Should move to identity step
+      // Should move to race selection step
       await waitFor(() => {
-        const identityStep = screen.getByRole('button', { name: /character identity/i, current: 'step' });
-        expect(identityStep).toBeInTheDocument();
+        const raceStep = screen.getByRole('button', { name: /race selection/i, current: 'step' });
+        expect(raceStep).toBeInTheDocument();
       });
     });
 
@@ -149,23 +149,23 @@ describe('EnhancedCharacterWizard', () => {
         />
       );
 
-      // Navigate to identity step
+      // Navigate to race selection step
       const nextButton = screen.getByRole('button', { name: /next/i });
       await user.click(nextButton);
 
       await waitFor(() => {
-        const identityStep = screen.getByRole('button', { name: /character identity/i, current: 'step' });
-        expect(identityStep).toBeInTheDocument();
+        const raceStep = screen.getByRole('button', { name: /race selection/i, current: 'step' });
+        expect(raceStep).toBeInTheDocument();
       });
 
       // Navigate back using Previous button
       const backButton = screen.getByRole('button', { name: /previous/i });
       await user.click(backButton);
 
-      // Should return to template selection (step 1)
+      // Should return to character identity (step 1)
       await waitFor(() => {
-        const templateStep = screen.getByRole('button', { name: /template selection/i, current: 'step' });
-        expect(templateStep).toBeInTheDocument();
+        const identityStep = screen.getByRole('button', { name: /character identity/i, current: 'step' });
+        expect(identityStep).toBeInTheDocument();
       });
     });
 
@@ -193,17 +193,17 @@ describe('EnhancedCharacterWizard', () => {
         />
       );
 
-      // Navigate to identity step
+      // Navigate to race selection step
       const nextButton = screen.getByRole('button', { name: /next/i });
       await user.click(nextButton);
 
-      // Verify we're on the identity step using aria-current
+      // Verify we're on the race selection step using aria-current
       await waitFor(() => {
-        const identityStep = screen.getByRole('button', { 
-          name: /character identity/i, 
+        const raceStep = screen.getByRole('button', { 
+          name: /race selection/i, 
           current: 'step' 
         });
-        expect(identityStep).toBeInTheDocument();
+        expect(raceStep).toBeInTheDocument();
       });
     });
   });
@@ -263,8 +263,8 @@ describe('EnhancedCharacterWizard', () => {
       );
 
       // All steps should be available for editing
-      expect(screen.getByRole('button', { name: /template selection/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /character identity/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /race selection/i })).toBeInTheDocument();
     });
   });
 
@@ -278,27 +278,27 @@ describe('EnhancedCharacterWizard', () => {
         />
       );
 
-      // Start at template selection
-      expect(screen.getByRole('button', { name: /template selection/i, current: 'step' })).toBeInTheDocument();
+      // Start at character identity
+      expect(screen.getByRole('button', { name: /character identity/i, current: 'step' })).toBeInTheDocument();
 
       // Navigate to next step
       const nextButton = screen.getByRole('button', { name: /next/i });
       await user.click(nextButton);
 
-      // Should move to identity step
+      // Should move to race selection step
       await waitFor(() => {
-        const identityStep = screen.getByRole('button', { name: /character identity/i, current: 'step' });
-        expect(identityStep).toBeInTheDocument();
+        const raceStep = screen.getByRole('button', { name: /race selection/i, current: 'step' });
+        expect(raceStep).toBeInTheDocument();
       });
 
       // Navigate back
       const backButton = screen.getByRole('button', { name: /previous/i });
       await user.click(backButton);
 
-      // Should return to template selection
+      // Should return to character identity
       await waitFor(() => {
-        const templateStep = screen.getByRole('button', { name: /template selection/i, current: 'step' });
-        expect(templateStep).toBeInTheDocument();
+        const identityStep = screen.getByRole('button', { name: /character identity/i, current: 'step' });
+        expect(identityStep).toBeInTheDocument();
       });
     });
 
@@ -390,10 +390,10 @@ describe('EnhancedCharacterWizard', () => {
         />
       );
 
-      // Should show Template Selection step as active (step 1)
-      const activeStep = screen.getByRole('button', { name: /template selection/i, current: 'step' });
+      // Should show Character Identity as active step (step 1)
+      const activeStep = screen.getByRole('button', { name: /character identity/i, current: 'step' });
       expect(activeStep).toBeInTheDocument();
-      expect(screen.getByText('1', { selector: '.step-number' })).toBeInTheDocument();
+      expect(activeStep).toHaveTextContent('1');
     });
 
     it('updates progress as user navigates through steps', async () => {
@@ -409,8 +409,8 @@ describe('EnhancedCharacterWizard', () => {
       await user.click(nextButton);
 
       await waitFor(() => {
-        // Should show Character Identity as active step (step 2)
-        const activeStep = screen.getByRole('button', { name: /character identity/i, current: 'step' });
+        // Should show Race Selection as active step (step 2)
+        const activeStep = screen.getByRole('button', { name: /race selection/i, current: 'step' });
         expect(activeStep).toBeInTheDocument();
       });
     });

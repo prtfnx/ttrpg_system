@@ -51,6 +51,8 @@ function spriteToLight(sprite: any): Light | null {
     // keep defaults
   }
 
+  if (meta.isLight === false) return null;
+
   // Prefer radius_units (game units) → convert to px; fall back to legacy radius (px)
   let radius: number;
   if (meta.radius_units != null) {
@@ -171,6 +173,7 @@ export const LightingPanel: React.FC = () => {
         engine.set_light_radius(lightId, newLight.radius);
       } catch {}
 
+      prevLightIdsRef.current.add(lightId);
       // Add to Zustand immediately (optimistic) so WASM sync effect seeds prevLightIdsRef
       // and server confirmation doesn't reset the position if user moves it first
       if (activeTableId) {
@@ -217,7 +220,7 @@ export const LightingPanel: React.FC = () => {
     const updated = { ...light, [property]: value };
     const spriteData = lightToSprite(updated, activeTableId ?? 'default_table');
     if (protocol) protocol.updateSprite(lightId, spriteData);
-    useGameStore.getState().updateSprite(lightId, { metadata: spriteData.metadata } as any);
+    useGameStore.getState().updateSprite(lightId, { x: updated.x, y: updated.y, metadata: spriteData.metadata } as any);
   };
 
   const startPlacingLight = (preset: typeof LIGHT_PRESETS[0]) => {
@@ -264,7 +267,7 @@ export const LightingPanel: React.FC = () => {
       {placementMode && (
         <div className={styles['placement-indicator']}>
           <span>Placing: {placementMode.name}</span>
-          <button onClick={() => { setPlacementMode(null); window.dispatchEvent(new CustomEvent('cancelLightPlacement')); }}>
+          <button aria-label="Cancel" onClick={() => { setPlacementMode(null); window.dispatchEvent(new CustomEvent('cancelLightPlacement')); }}>
             <X size={14} />
           </button>
         </div>
@@ -293,7 +296,7 @@ export const LightingPanel: React.FC = () => {
 
       <div className={styles['ambient-controls']}>
         <h4>Ambient Lighting</h4>
-        <label htmlFor="ambient-light">Ambient: {(ambientLight * 100).toFixed(0)}%</label>
+        <label htmlFor="ambient-light">Ambient Light: {(ambientLight * 100).toFixed(0)}%</label>
         <input
           id="ambient-light"
           type="range"
@@ -341,6 +344,7 @@ export const LightingPanel: React.FC = () => {
                       <MoveHorizontal size={14} />
                     </button>
                     <button
+                      title="Toggle"
                       className={styles[light.isOn ? 'on' : 'off']}
                       onClick={(e) => { e.stopPropagation(); updateLightProperty(light.id, 'isOn', !light.isOn); }}
                     >

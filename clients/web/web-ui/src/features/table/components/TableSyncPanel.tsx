@@ -412,7 +412,7 @@ function TableSyncPanel() {
           </div>
           
           <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #333' }}>
-            <div style={{ marginBottom: '8px', color: '#888', fontSize: '12px' }}>
+            <div style={{ marginBottom: '8px', color: 'var(--text-muted)', fontSize: '12px' }}>
               Quick Test Sprites:
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>

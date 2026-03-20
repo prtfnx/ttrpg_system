@@ -6,7 +6,8 @@ import type { TableInfo, ScreenArea } from '@features/table';
 // Mock WASM TableManager
 const mockTableManager = {
   set_canvas_size: vi.fn(),
-  get_all_tables: vi.fn(() => []),
+  get_all_tables: vi.fn(() => '[]'),
+  get_active_table_id: vi.fn(() => null),
   create_table: vi.fn(() => true),
   set_active_table: vi.fn(() => true),
   set_table_screen_area: vi.fn(() => true),
@@ -23,7 +24,9 @@ const mockTableManager = {
 
 // Mock global WASM
 const mockWasm = {
-  TableManager: vi.fn(() => mockTableManager),
+  // Must be a regular function (not arrow) — Vitest uses Reflect.construct internally
+  // for 'new' calls, and arrow functions are not constructable.
+  TableManager: vi.fn(function() { return mockTableManager; }),
 };
 
 // Setup global mocks
@@ -83,7 +86,7 @@ describe('useTableManager', () => {
 
     it('handles table manager initialization failure gracefully', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockWasm.TableManager.mockImplementationOnce(() => {
+      mockWasm.TableManager.mockImplementationOnce(function() {
         throw new Error('WASM initialization failed');
       });
 
@@ -107,7 +110,10 @@ describe('useTableManager', () => {
     });
 
     it('returns false when table manager is not initialized', () => {
-      mockWasm.TableManager.mockReturnValueOnce(null);
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockWasm.TableManager.mockImplementationOnce(function() {
+        throw new Error('simulated init failure');
+      });
       const { result } = renderHook(() => useTableManager());
 
       act(() => {
@@ -117,7 +123,11 @@ describe('useTableManager', () => {
     });
 
     it('handles table creation with invalid dimensions', () => {
-      mockTableManager.create_table.mockReturnValueOnce(false);
+      // WASM create_table returns void and throws on error; hook returns false on throw
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockTableManager.create_table.mockImplementationOnce(function() {
+        throw new Error('invalid dimensions');
+      });
       const { result } = renderHook(() => useTableManager());
 
       act(() => {
@@ -168,7 +178,10 @@ describe('useTableManager', () => {
         },
       ];
 
-      mockTableManager.get_all_tables.mockReturnValueOnce(mockTableData);
+      const tableDataJson = JSON.stringify(mockTableData);
+      // Need two returnValues: one for the init refresh, one for the explicit call
+      mockTableManager.get_all_tables.mockReturnValueOnce(tableDataJson);
+      mockTableManager.get_all_tables.mockReturnValueOnce(tableDataJson);
       const { result } = renderHook(() => useTableManager());
 
       act(() => {
@@ -283,13 +296,16 @@ describe('useTableManager', () => {
         expect(success).toBe(true);
       });
 
-      expect(mockTableManager.set_table_screen_area).toHaveBeenCalledWith('table1', area);
+      expect(mockTableManager.set_table_screen_area).toHaveBeenCalledWith('table1', area.x, area.y, area.width, area.height);
     });
   });
 
   describe('Error Handling', () => {
     it('handles operations when table manager is null', () => {
-      mockWasm.TableManager.mockReturnValueOnce(null);
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockWasm.TableManager.mockImplementationOnce(function() {
+        throw new Error('simulated null manager');
+      });
       const { result } = renderHook(() => useTableManager());
 
       // All operations should return false when manager is null
@@ -323,7 +339,7 @@ describe('useTableManager', () => {
         result.current.refreshTables();
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith('Error refreshing tables:', expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to refresh tables:', expect.any(Error));
       expect(result.current.tables).toEqual([]); // Should remain empty on error
     });
   });

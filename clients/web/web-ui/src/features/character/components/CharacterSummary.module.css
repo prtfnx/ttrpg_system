@@ -1,0 +1,187 @@
+.summary {
+  padding: var(--space-lg);
+  border: 2px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-lg);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 2px solid var(--border-primary);
+}
+
+.charName {
+  margin: 0 0 var(--space-sm) 0;
+  font-size: 1.8em;
+  color: var(--text-primary);
+  font-weight: bold;
+}
+
+.classDisplay {
+  font-size: 1.1em;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-xs);
+}
+
+.identity {
+  font-size: 1em;
+  color: var(--text-muted);
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.statCard {
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  text-align: center;
+}
+
+.statLabel {
+  font-size: 0.8em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.statValue {
+  font-size: 1.5em;
+  font-weight: bold;
+}
+
+.statSub {
+  font-size: 0.7em;
+}
+
+/* HP card */
+.hpCard {
+  background: var(--color-danger-overlay);
+  border-color: var(--color-danger);
+}
+
+.hpLabel { color: var(--color-danger); }
+.hpValue { color: var(--color-danger); }
+.hpSub { color: var(--color-danger); opacity: 0.7; }
+
+/* AC card */
+.acCard {
+  background: var(--color-info-overlay);
+  border-color: var(--color-info);
+}
+
+.acLabel { color: var(--color-info); }
+.acValue { color: var(--color-info); }
+
+/* Proficiency card */
+.profCard {
+  background: var(--color-success-glow);
+  border-color: var(--color-success);
+}
+
+.profLabel { color: var(--color-success); }
+.profValue { color: var(--color-success); }
+
+/* XP card */
+.xpCard {
+  background: var(--color-warning-overlay);
+  border-color: var(--color-warning);
+}
+
+.xpLabel { color: var(--color-warning); }
+.xpValue { color: var(--color-warning); }
+.xpSub { color: var(--color-warning); opacity: 0.7; }
+
+/* Ability Scores */
+.abilitiesSection {
+  margin-bottom: var(--space-md);
+}
+
+.abilitiesTitle {
+  margin: 0 0 var(--space-md) 0;
+  font-size: 1.2em;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.abilityGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--space-sm);
+}
+
+.abilityCard {
+  background: var(--bg-tertiary);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  text-align: center;
+}
+
+.abilityCode {
+  font-size: 0.7em;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.abilityScore {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: var(--text-primary);
+  margin: 2px 0;
+}
+
+.abilityModPos {
+  font-size: 0.8em;
+  font-weight: 500;
+  color: var(--color-success);
+}
+
+.abilityModNeg {
+  font-size: 0.8em;
+  font-weight: 500;
+  color: var(--color-danger);
+}
+
+/* Progress Section */
+.progressSection {
+  background: var(--bg-tertiary);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  padding: var(--space-md);
+}
+
+.progressHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--space-xs);
+}
+
+.progressLabel {
+  font-size: 0.9em;
+  color: var(--text-muted);
+}
+
+.progressTrack {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-full, 9999px);
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-active));
+  border-radius: var(--radius-full, 9999px);
+  transition: width 0.3s ease;
+}

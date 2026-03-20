@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import styles from './CharacterSummary.module.css';
 
 interface CharacterSummaryProps {
   character: {
@@ -91,174 +92,54 @@ export function CharacterSummary({ character }: CharacterSummaryProps) {
   const calculatedMaxHP = maxHitPoints + constitutionBonus;
 
   return (
-    <div style={{ 
-      padding: 20, 
-      border: '2px solid #e2e8f0', 
-      borderRadius: 12,
-      background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
-      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-    }}>
+    <div className={styles.summary}>
       {/* Character Header */}
-      <div style={{ 
-        textAlign: 'center', 
-        marginBottom: 20,
-        paddingBottom: 16,
-        borderBottom: '2px solid #cbd5e1'
-      }}>
-        <h2 style={{ 
-          margin: '0 0 8px 0', 
-          fontSize: '1.8em', 
-          color: '#1e293b',
-          fontWeight: 'bold'
-        }}>
-          {name}
-        </h2>
-        <div style={{ 
-          fontSize: '1.1em', 
-          color: '#475569',
-          marginBottom: 4
-        }}>
-          {classDisplay}
-        </div>
-        <div style={{ 
-          fontSize: '1em', 
-          color: '#64748b'
-        }}>
-          {race} {background}
-        </div>
+      <div className={styles.header}>
+        <h2 className={styles.charName}>{name}</h2>
+        <div className={styles.classDisplay}>{classDisplay}</div>
+        <div className={styles.identity}>{race} {background}</div>
       </div>
 
       {/* Core Stats Grid */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', 
-        gap: 16,
-        marginBottom: 20
-      }}>
+      <div className={styles.statsGrid}>
         {/* Hit Points */}
-        <div style={{ 
-          background: '#fef2f2', 
-          border: '2px solid #fca5a5',
-          borderRadius: 8, 
-          padding: 12, 
-          textAlign: 'center' 
-        }}>
-          <div style={{ fontSize: '0.8em', color: '#991b1b', fontWeight: 600 }}>
-            HIT POINTS
-          </div>
-          <div style={{ fontSize: '1.5em', fontWeight: 'bold', color: '#dc2626' }}>
-            {currentHitPoints} / {calculatedMaxHP}
-          </div>
-          <div style={{ fontSize: '0.7em', color: '#7f1d1d' }}>
-            {hitDice}
-          </div>
+        <div className={`${styles.statCard} ${styles.hpCard}`}>
+          <div className={`${styles.statLabel} ${styles.hpLabel}`}>HIT POINTS</div>
+          <div className={`${styles.statValue} ${styles.hpValue}`}>{currentHitPoints} / {calculatedMaxHP}</div>
+          <div className={`${styles.statSub} ${styles.hpSub}`}>{hitDice}</div>
         </div>
 
         {/* Armor Class */}
-        <div style={{ 
-          background: '#f0f9ff', 
-          border: '2px solid #7dd3fc',
-          borderRadius: 8, 
-          padding: 12, 
-          textAlign: 'center' 
-        }}>
-          <div style={{ fontSize: '0.8em', color: '#0c4a6e', fontWeight: 600 }}>
-            ARMOR CLASS
-          </div>
-          <div style={{ fontSize: '1.5em', fontWeight: 'bold', color: '#0284c7' }}>
-            {armorClass}
-          </div>
+        <div className={`${styles.statCard} ${styles.acCard}`}>
+          <div className={`${styles.statLabel} ${styles.acLabel}`}>ARMOR CLASS</div>
+          <div className={`${styles.statValue} ${styles.acValue}`}>{armorClass}</div>
         </div>
 
         {/* Proficiency Bonus */}
-        <div style={{ 
-          background: '#f0fdf4', 
-          border: '2px solid #86efac',
-          borderRadius: 8, 
-          padding: 12, 
-          textAlign: 'center' 
-        }}>
-          <div style={{ fontSize: '0.8em', color: '#14532d', fontWeight: 600 }}>
-            PROFICIENCY
-          </div>
-          <div style={{ fontSize: '1.5em', fontWeight: 'bold', color: '#16a34a' }}>
-            {formatModifier(proficiencyBonus)}
-          </div>
+        <div className={`${styles.statCard} ${styles.profCard}`}>
+          <div className={`${styles.statLabel} ${styles.profLabel}`}>PROFICIENCY</div>
+          <div className={`${styles.statValue} ${styles.profValue}`}>{formatModifier(proficiencyBonus)}</div>
         </div>
 
         {/* Experience */}
-        <div style={{ 
-          background: '#fefce8', 
-          border: '2px solid #facc15',
-          borderRadius: 8, 
-          padding: 12, 
-          textAlign: 'center' 
-        }}>
-          <div style={{ fontSize: '0.8em', color: '#92400e', fontWeight: 600 }}>
-            EXPERIENCE
-          </div>
-          <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#ca8a04' }}>
-            {(experience || 0).toLocaleString()}
-          </div>
-          <div style={{ fontSize: '0.7em', color: '#a16207' }}>
-            Level {displayLevel}
-          </div>
+        <div className={`${styles.statCard} ${styles.xpCard}`}>
+          <div className={`${styles.statLabel} ${styles.xpLabel}`}>EXPERIENCE</div>
+          <div className={`${styles.statValue} ${styles.xpValue}`}>{(experience || 0).toLocaleString()}</div>
+          <div className={`${styles.statSub} ${styles.xpSub}`}>Level {displayLevel}</div>
         </div>
       </div>
 
       {/* Ability Scores */}
-      <div style={{ marginBottom: 16 }}>
-        <h3 style={{ 
-          margin: '0 0 12px 0', 
-          fontSize: '1.2em', 
-          color: '#374151',
-          textAlign: 'center'
-        }}>
-          Ability Scores
-        </h3>
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(6, 1fr)', 
-          gap: 8
-        }}>
+      <div className={styles.abilitiesSection}>
+        <h3 className={styles.abilitiesTitle}>Ability Scores</h3>
+        <div className={styles.abilityGrid}>
           {Object.entries(abilityScores).map(([ability, score]) => {
             const modifier = getAbilityModifier(score);
             return (
-              <div 
-                key={ability}
-                style={{ 
-                  background: 'white', 
-                  border: '1px solid #d1d5db',
-                  borderRadius: 6, 
-                  padding: 8, 
-                  textAlign: 'center',
-                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
-                }}
-              >
-                <div style={{ 
-                  fontSize: '0.7em', 
-                  color: '#6b7280', 
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em'
-                }}>
-                  {ability.substring(0, 3)}
-                </div>
-                <div style={{ 
-                  fontSize: '1.2em', 
-                  fontWeight: 'bold', 
-                  color: '#111827',
-                  margin: '2px 0'
-                }}>
-                  {score}
-                </div>
-                <div style={{ 
-                  fontSize: '0.8em', 
-                  color: modifier >= 0 ? '#16a34a' : '#dc2626',
-                  fontWeight: 500
-                }}>
-                  {formatModifier(modifier)}
-                </div>
+              <div key={ability} className={styles.abilityCard}>
+                <div className={styles.abilityCode}>{ability.substring(0, 3)}</div>
+                <div className={styles.abilityScore}>{score}</div>
+                <div className={modifier >= 0 ? styles.abilityModPos : styles.abilityModNeg}>{formatModifier(modifier)}</div>
               </div>
             );
           })}
@@ -267,38 +148,17 @@ export function CharacterSummary({ character }: CharacterSummaryProps) {
 
       {/* Progress to Next Level */}
       {displayLevel < 20 && (
-        <div style={{ 
-          background: '#f8fafc', 
-          border: '1px solid #e2e8f0',
-          borderRadius: 6, 
-          padding: 12 
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            marginBottom: 4 
-          }}>
-            <span style={{ fontSize: '0.9em', color: '#64748b' }}>
-              Progress to Level {displayLevel + 1}
-            </span>
-            <span style={{ fontSize: '0.9em', color: '#64748b' }}>
+        <div className={styles.progressSection}>
+          <div className={styles.progressHeader}>
+            <span className={styles.progressLabel}>Progress to Level {displayLevel + 1}</span>
+            <span className={styles.progressLabel}>
               {(experience - EXPERIENCE_THRESHOLDS[displayLevel - 1]).toLocaleString()} / {(EXPERIENCE_THRESHOLDS[displayLevel] - EXPERIENCE_THRESHOLDS[displayLevel - 1]).toLocaleString()} XP
             </span>
           </div>
-          <div style={{ 
-            width: '100%', 
-            height: 8, 
-            background: '#e2e8f0', 
-            borderRadius: 4 
-          }}>
-            <div 
-              style={{ 
-                height: '100%', 
-                background: 'linear-gradient(90deg, #3b82f6, #1d4ed8)',
-                borderRadius: 4,
-                width: `${Math.min(100, ((experience - EXPERIENCE_THRESHOLDS[displayLevel - 1]) / (EXPERIENCE_THRESHOLDS[displayLevel] - EXPERIENCE_THRESHOLDS[displayLevel - 1])) * 100)}%`,
-                transition: 'width 0.3s ease'
-              }}
+          <div className={styles.progressTrack}>
+            <div
+              className={styles.progressFill}
+              style={{ width: `${Math.min(100, ((experience - EXPERIENCE_THRESHOLDS[displayLevel - 1]) / (EXPERIENCE_THRESHOLDS[displayLevel] - EXPERIENCE_THRESHOLDS[displayLevel - 1])) * 100)}%` }}
             />
           </div>
         </div>

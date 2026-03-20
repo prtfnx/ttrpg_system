@@ -182,7 +182,7 @@ export function EntitiesPanel() {
                 return s.isVisible !== false;
               });
           return visibleSprites.length === 0 ? (
-          <div style={{ color: '#666', textAlign: 'center', padding: '2rem' }}>
+          <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
             {syncState.status === 'syncing' ? (
               <div>
                 <div>Syncing sprites...</div>
@@ -190,7 +190,7 @@ export function EntitiesPanel() {
                   <div style={{ 
                     width: '100%', 
                     height: '4px', 
-                    backgroundColor: '#eee', 
+                    backgroundColor: 'var(--bg-tertiary)', 
                     borderRadius: '2px',
                     marginTop: '8px',
                     overflow: 'hidden'
@@ -198,7 +198,7 @@ export function EntitiesPanel() {
                     <div style={{
                       width: `${syncState.progress}%`,
                       height: '100%',
-                      backgroundColor: '#007bff',
+                      backgroundColor: 'var(--color-primary)',
                       transition: 'width 0.3s ease'
                     }} />
                   </div>

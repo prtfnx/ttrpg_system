@@ -116,7 +116,7 @@ export function GridControls() {
           </div>
         </div>
 
-        <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>
+        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
           {pixelsPerUnit.toFixed(1)} px/{distanceUnit} · 1 cell = {cellDistance} {distanceUnit}
         </div>
       </div>

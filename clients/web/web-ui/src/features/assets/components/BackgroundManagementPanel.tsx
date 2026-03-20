@@ -601,7 +601,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                           speed: 1.0,
                           particleCount: 100,
                           opacity: 0.5,
-                          color: '#ffffff',
+                          color: 'var(--text-inverse-primary)',
                           enabled: true
                         };
                         handleAddWeatherEffect(newEffect);

@@ -392,7 +392,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
                 min="0"
                 step="5"
               />
-              <span style={{ marginLeft: '8px', color: '#888' }}>ft</span>
+              <span style={{ marginLeft: '8px', color: 'var(--text-muted)' }}>ft</span>
               <input
                 type="color"
                 value={localAuraColor}
@@ -405,7 +405,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
 
           {canManageOwnership && (
             <div className={styles.configSection}>
-              <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: '#ccc' }}>Vision</h4>
+              <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: 'var(--text-secondary)' }}>Vision</h4>
               <div className={styles.statRow}>
                 <label>Vision Radius:</label>
                 <input
@@ -426,7 +426,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
                   min="0"
                   step="5"
                 />
-                <span style={{ marginLeft: '8px', color: '#888' }}>{distanceUnit}</span>
+                <span style={{ marginLeft: '8px', color: 'var(--text-muted)' }}>{distanceUnit}</span>
               </div>
               <div className={styles.statRow} style={{ marginTop: '6px' }}>
                 <label>
@@ -469,7 +469,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
               <p className={styles.characterDetails}>
                 Level {linkedCharacter.data?.level || 1} {linkedCharacter.data?.race || 'Unknown'} {linkedCharacter.data?.class || 'Unknown'}
               </p>
-              <p className={styles.syncNote} style={{ fontSize: '12px', color: '#888', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <p className={styles.syncNote} style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Check size={14} aria-hidden /> Token stats synced with character
               </p>
             </div>
@@ -477,7 +477,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
           
           {!linkedCharacter && (
             <div className={styles.noCharacterMessage}>
-              <p style={{ color: '#888', fontStyle: 'italic' }}>
+              <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
                 No character linked - token stats are independent
               </p>
             </div>

@@ -326,7 +326,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
               height: 40,
               layer: 'tokens',
               texture_path: 'Hero.png',
-              color: '#00CC33',
+              color: 'var(--color-success)',
             });
             window.gameAPI.sendMessage('sprite_create', {
               id: `sprite_test_2`,
@@ -336,7 +336,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
               height: 35,
               layer: 'tokens',
               texture_path: 'treasure.png',
-              color: '#CC3300',
+              color: 'var(--color-danger)',
             });
             
             // Add test obstacle sprite for shadow testing
@@ -348,7 +348,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
               height: 80,
               layer: 'obstacles',
               texture_path: '', // No texture, just a solid rectangle
-              color: '#666666', // Gray color for wall
+              color: 'var(--text-muted)', // Gray color for wall
             });
             
             console.log('[ToolsPanel] Added test sprites including obstacle for shadow testing');

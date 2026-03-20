@@ -70,7 +70,7 @@ export const PolygonConfigModal: React.FC = () => {
     <div style={overlay}>
       <div style={modal}>
         <h3 style={{ margin: '0 0 12px', fontSize: 15 }}>New Polygon Obstacle</h3>
-        <p style={{ color: '#a6adc8', fontSize: 12, marginBottom: 12 }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 12 }}>
           {draft.vertices.length} vertices placed
         </p>
 
@@ -89,7 +89,7 @@ export const PolygonConfigModal: React.FC = () => {
             value={draft.label}
             onChange={e => setDraft(prev => prev ? { ...prev, label: e.target.value } : prev)}
             placeholder="e.g. Wall, Pillar"
-            style={{ flex: 1, background: '#313244', border: '1px solid #45475a', color: '#cdd6f4', borderRadius: 4, padding: '4px 8px' }}
+            style={{ flex: 1, background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)', borderRadius: 4, padding: '4px 8px' }}
           />
         </label>
 
@@ -107,7 +107,7 @@ const overlay: React.CSSProperties = {
   display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000,
 };
 const modal: React.CSSProperties = {
-  background: '#1e1e2e', color: '#cdd6f4', border: '1px solid #45475a',
+  background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)',
   borderRadius: 8, padding: 20, minWidth: 280, fontSize: 13,
 };
 const row: React.CSSProperties = {
@@ -115,10 +115,10 @@ const row: React.CSSProperties = {
   justifyContent: 'space-between',
 };
 const btnPrimary: React.CSSProperties = {
-  background: '#89b4fa', color: '#1e1e2e', border: 'none', borderRadius: 4,
+  background: 'var(--color-primary)', color: 'var(--text-inverse-primary)', border: 'none', borderRadius: 4,
   padding: '6px 14px', cursor: 'pointer', fontWeight: 600,
 };
 const btnSecondary: React.CSSProperties = {
-  background: '#45475a', color: '#cdd6f4', border: 'none', borderRadius: 4,
+  background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: 'none', borderRadius: 4,
   padding: '6px 14px', cursor: 'pointer',
 };

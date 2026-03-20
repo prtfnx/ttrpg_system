@@ -682,7 +682,7 @@ export const GameCanvas: React.FC = () => {
               left: '50%',
               transform: 'translateX(-50%)',
               background: 'rgba(0,0,0,0.65)',
-              color: '#fff',
+              color: 'var(--text-primary)',
               fontSize: 11,
               fontWeight: 600,
               padding: '2px 10px',
@@ -706,7 +706,7 @@ export const GameCanvas: React.FC = () => {
             top: '100px',
             width: '30px',
             height: '30px',
-            background: '#blue',
+            background: 'transparent',
             borderRadius: '50%',
             cursor: 'grab',
             zIndex: 10,
@@ -752,49 +752,21 @@ export const GameCanvas: React.FC = () => {
         {/* Context Menu */}
         {contextMenu.visible && (
           <div
-            style={{
-              position: 'fixed',
-              left: contextMenu.x,
-              top: contextMenu.y,
-              background: 'white',
-              border: '1px solid #ccc',
-              borderRadius: 4,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-              zIndex: 1000,
-              minWidth: 120,
-              fontFamily: 'system-ui, -apple-system, sans-serif',
-              fontSize: 14,
-              color: '#333',
-            }}
+            className={styles.contextMenu}
+            style={{ left: contextMenu.x, top: contextMenu.y }}
             onClick={(e) => e.stopPropagation()}
           >
             {contextMenu.spriteId ? (
               <>
                 <div
-                  style={{
-                    padding: '8px 12px',
-                    cursor: 'pointer',
-                    borderBottom: '1px solid #eee',
-                    color: '#333',
-                    background: 'transparent',
-                  }}
-                  onMouseOver={(e) => (e.currentTarget.style.background = '#f0f0f0')}
-                  onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
+                  className={styles.contextMenuItem}
                   onClick={() => handleContextMenuAction('copy')}
                 >
                   Copy Sprite
                 </div>
                 {contextMenu.copiedSprite && (
                   <div
-                    style={{
-                      padding: '8px 12px',
-                      cursor: 'pointer',
-                      borderBottom: '1px solid #eee',
-                      color: '#333',
-                      background: 'transparent',
-                    }}
-                    onMouseOver={(e) => (e.currentTarget.style.background = '#f0f0f0')}
-                    onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
+                    className={styles.contextMenuItem}
                     onClick={() => handleContextMenuAction('paste')}
                   >
                     Paste Sprite
@@ -803,23 +775,9 @@ export const GameCanvas: React.FC = () => {
 
                 {/* Move to Layer submenu */}
                 <div
-                  style={{
-                    padding: '8px 12px',
-                    cursor: 'pointer',
-                    borderBottom: '1px solid #eee',
-                    color: '#333',
-                    background: 'transparent',
-                    position: 'relative',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = '#f0f0f0';
+                  className={styles.contextMenuItem}
+                  onMouseOver={() => {
                     setContextMenu((prev) => ({ ...prev, showLayerSubmenu: true }));
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = 'transparent';
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -832,33 +790,13 @@ export const GameCanvas: React.FC = () => {
                   {/* Layer submenu */}
                   {contextMenu.showLayerSubmenu && (
                     <div
-                      style={{
-                        position: 'absolute',
-                        left: '100%',
-                        top: 0,
-                        background: 'white',
-                        border: '1px solid #ccc',
-                        borderRadius: 4,
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                        minWidth: 140,
-                        zIndex: 1001,
-                      }}
+                      className={styles.contextMenuSub}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {AVAILABLE_LAYERS.map((layer) => (
                         <div
                           key={layer.id}
-                          style={{
-                            padding: '8px 12px',
-                            cursor: 'pointer',
-                            color: '#333',
-                            background: 'transparent',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                          }}
-                          onMouseOver={(e) => (e.currentTarget.style.background = '#f0f0f0')}
-                          onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
+                          className={styles.contextMenuItem}
                           onClick={() => handleMoveToLayer(layer.id)}
                         >
                           <layer.icon size={14} aria-hidden />
@@ -870,42 +808,19 @@ export const GameCanvas: React.FC = () => {
                 </div>
 
                 <div
-                  style={{
-                    padding: '8px 12px',
-                    cursor: 'pointer',
-                    borderBottom: '1px solid #eee',
-                    color: '#333',
-                    background: 'transparent',
-                  }}
-                  onMouseOver={(e) => (e.currentTarget.style.background = '#f0f0f0')}
-                  onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
+                  className={styles.contextMenuItem}
                   onClick={() => handleContextMenuAction('resize')}
                 >
                   Resize Sprite
                 </div>
                 <div
-                  style={{
-                    padding: '8px 12px',
-                    cursor: 'pointer',
-                    borderBottom: '1px solid #eee',
-                    color: '#333',
-                    background: 'transparent',
-                  }}
-                  onMouseOver={(e) => (e.currentTarget.style.background = '#f0f0f0')}
-                  onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
+                  className={styles.contextMenuItem}
                   onClick={() => handleContextMenuAction('rotate')}
                 >
                   Rotate Sprite
                 </div>
                 <div
-                  style={{
-                    padding: '8px 12px',
-                    cursor: 'pointer',
-                    color: '#dc2626',
-                    background: 'transparent',
-                  }}
-                  onMouseOver={(e) => (e.currentTarget.style.background = '#fef2f2')}
-                  onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
+                  className={styles.contextMenuItemDanger}
                   onClick={() => handleContextMenuAction('delete')}
                 >
                   Delete Sprite
@@ -915,14 +830,7 @@ export const GameCanvas: React.FC = () => {
               // Show paste option when clicking on empty space if there's a copied sprite
               contextMenu.copiedSprite && (
                 <div
-                  style={{
-                    padding: '8px 12px',
-                    cursor: 'pointer',
-                    color: '#333',
-                    background: 'transparent',
-                  }}
-                  onMouseOver={(e) => (e.currentTarget.style.background = '#f0f0f0')}
-                  onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
+                  className={styles.contextMenuItem}
                   onClick={() => handleContextMenuAction('paste')}
                 >
                   Paste Sprite

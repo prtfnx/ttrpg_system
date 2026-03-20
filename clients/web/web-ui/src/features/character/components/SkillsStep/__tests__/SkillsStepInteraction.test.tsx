@@ -1,4 +1,4 @@
-import { SkillsStep } from '@features/character';
+import { SkillsStep } from '../../CharacterWizard/SkillsStep';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FormProvider, useForm } from 'react-hook-form';

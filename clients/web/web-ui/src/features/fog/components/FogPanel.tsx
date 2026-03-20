@@ -1,6 +1,6 @@
+import { useGameStore } from '@/store';
 import { useRenderEngine } from '@features/canvas';
 import { useProtocol } from '@lib/api';
-import { useGameStore } from '@/store';
 import clsx from 'clsx';
 import React, { useCallback, useEffect, useState } from 'react'; // FogPanel.tsx
 import styles from './FogPanel.module.css';

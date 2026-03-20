@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import { Square } from 'lucide-react';
 import { describe, expect, it } from 'vitest';
 
 import { LayerPanel } from '@features/canvas';
@@ -9,7 +10,7 @@ describe('LayerPanel integration (user flow)', () => {
     const manyLayers = Array.from({ length: 20 }).map((_, i) => ({
       id: `layer_${i}`,
       name: `Layer ${i}`,
-      icon: '•',
+      icon: Square,
       color: '#ddd',
       spriteCount: i
     }));

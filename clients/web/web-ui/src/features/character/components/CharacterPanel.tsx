@@ -72,7 +72,8 @@ function CharacterPanel() {
   const effectiveUserId = storeUserId ?? currentUserId;
 
   const filteredCharacters = characters.filter(char => {
-    if (!isDM(sessionRole) && char.ownerId !== effectiveUserId) return false;
+    if (!isDM(sessionRole) && char.ownerId !== effectiveUserId &&
+        !(Array.isArray(char.controlledBy) && char.controlledBy.includes(effectiveUserId))) return false;
     if (!searchFilter) return true;
     const search = searchFilter.toLowerCase();
     return (

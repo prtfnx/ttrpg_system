@@ -220,21 +220,16 @@ describe('CharacterPanel', () => {
       const otherCharacter = createTestCharacter({ 
         id: 'other-char', 
         name: 'Other Character',
-        ownerId: 2 // Different from current user (1)
+        ownerId: 2, // Different from current user (1)
+        controlledBy: [] // Not controlled by current user
       });
       
       useGameStore.getState().addCharacter(otherCharacter);
       render(<CharacterPanel />);
       
-      const characterCard = screen.getByRole('listitem', { name: /character: other character/i });
-      await user.click(characterCard);
-      
-      await waitFor(() => {
-        const deleteButtons = screen.queryAllByRole('button', { name: /delete/i });
-        if (deleteButtons.length > 0) {
-          expect(deleteButtons[0]).toBeDisabled();
-        }
-      });
+      // Non-DM users cannot see characters owned by other users
+      const characterCard = screen.queryByRole('listitem', { name: /character: other character/i });
+      expect(characterCard).not.toBeInTheDocument();
     });
 
     it('shows appropriate controls for controlled characters', async () => {
@@ -437,8 +432,8 @@ describe('CharacterPanel', () => {
       await user.click(characterCard);
       
       await waitFor(() => {
-        // Should show token badges with 🎭 emoji
-        const tokens = screen.getAllByText('🎭');
+        // Should show token badges for linked sprites
+        const tokens = screen.getAllByTitle(/can control|no permission/i);
         expect(tokens.length).toBe(2);
       });
     });
@@ -446,17 +441,6 @@ describe('CharacterPanel', () => {
 
   describe('Connection Status', () => {
     it('shows offline banner when not connected', () => {
-      // Mock the protocol to return disconnected
-      vi.mocked(vi.importActual('../../services/ProtocolContext')).useProtocol = () => ({
-        protocol: {
-          requestCharacterList: vi.fn(),
-          saveCharacter: vi.fn(),
-          deleteCharacter: vi.fn(),
-          updateCharacter: vi.fn(),
-        },
-        isConnected: false,
-      });
-      
       render(<CharacterPanel />);
       
       expect(screen.getByText(/offline.*changes saved locally/i)).toBeInTheDocument();

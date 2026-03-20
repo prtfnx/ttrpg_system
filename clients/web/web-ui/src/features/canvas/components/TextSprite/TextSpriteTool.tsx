@@ -106,7 +106,7 @@ function InlineTextEditor({ worldPosition, onComplete, onCancel }: InlineTextEdi
           border: '1px solid #4299e1',
           zIndex: 10000,
           fontSize: '12px',
-          color: '#ccc',
+          color: 'var(--text-secondary)',
         }}
       >
         <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -119,7 +119,7 @@ function InlineTextEditor({ worldPosition, onComplete, onCancel }: InlineTextEdi
             onChange={(e) => setFontSize(Number(e.target.value))}
             style={{ width: '80px' }}
           />
-          <span style={{ minWidth: '30px', color: '#fff' }}>{fontSize}px</span>
+          <span style={{ minWidth: '30px', color: 'var(--text-primary)' }}>{fontSize}px</span>
         </label>
         
         <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -137,8 +137,8 @@ function InlineTextEditor({ worldPosition, onComplete, onCancel }: InlineTextEdi
           aria-label="Confirm"
           style={{
             padding: '4px 12px',
-            background: '#4299e1',
-            color: '#fff',
+            background: 'var(--color-primary)',
+            color: 'var(--text-inverse-primary)',
             border: 'none',
             borderRadius: '4px',
             cursor: 'pointer',
@@ -151,8 +151,8 @@ function InlineTextEditor({ worldPosition, onComplete, onCancel }: InlineTextEdi
           onClick={onCancel}
           style={{
             padding: '4px 12px',
-            background: '#666',
-            color: '#fff',
+            background: 'var(--bg-elevated)',
+            color: 'var(--text-primary)',
             border: 'none',
             borderRadius: '4px',
             cursor: 'pointer',

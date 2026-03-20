@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import styles from './ExperienceTracker.module.css';
 
 interface ExperienceTrackerProps {
   currentLevel: number;
@@ -78,85 +79,39 @@ export function ExperienceTracker({
   };
 
   return (
-    <div style={{ 
-      padding: 16, 
-      border: '1px solid #e2e8f0', 
-      borderRadius: 8,
-      background: '#f8fafc'
-    }}>
-      <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1em', color: '#1e293b' }}>
-        Experience Tracker
-      </h3>
+    <div className={styles.container}>
+      <h3 className={styles.title}>Experience Tracker</h3>
       
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          marginBottom: 8
-        }}>
-          <span style={{ fontWeight: 500 }}>Level {currentLevel}</span>
-          <span style={{ fontSize: '0.9em', color: '#64748b' }}>
-            {currentExperience} / {nextLevelExp} XP
-          </span>
+      <div>
+        <div className={styles.progressHeader}>
+          <span className={styles.levelLabel}>Level {currentLevel}</span>
+          <span className={styles.xpLabel}>{currentExperience} / {nextLevelExp} XP</span>
         </div>
         
         {/* Progress bar */}
-        <div style={{ 
-          width: '100%', 
-          height: 8, 
-          background: '#e2e8f0', 
-          borderRadius: 4,
-          overflow: 'hidden'
-        }}>
-          <div style={{ 
-            width: `${Math.min(progressToNext, 100)}%`, 
-            height: '100%', 
-            background: currentLevel < 20 ? '#059669' : '#dc2626',
-            transition: 'width 0.3s ease'
-          }} />
+        <div className={styles.progressTrack}>
+          <div
+            className={`${styles.progressFill} ${currentLevel < 20 ? styles.progressFillActive : styles.progressFillMax}`}
+            style={{ width: `${Math.min(progressToNext, 100)}%` }}
+          />
         </div>
         
         {currentLevel < 20 && (
-          <div style={{ 
-            fontSize: '0.85em', 
-            color: '#64748b', 
-            marginTop: 4 
-          }}>
+          <div className={styles.progressNote}>
             {nextLevelExp - currentExperience} XP needed for level {currentLevel + 1}
           </div>
         )}
         
         {currentLevel >= 20 && (
-          <div style={{ 
-            fontSize: '0.85em', 
-            color: '#dc2626', 
-            marginTop: 4,
-            fontWeight: 500
-          }}>
+          <div className={styles.maxLevelNote}>
             Maximum level reached!
           </div>
         )}
       </div>
       
-      <div style={{ 
-        display: 'flex', 
-        gap: 8, 
-        alignItems: 'flex-end' 
-      }}>
-        <div style={{ flex: 1 }}>
-          <label 
-            htmlFor="add-experience"
-            style={{ 
-              display: 'block', 
-              marginBottom: 4, 
-              fontSize: '0.9em', 
-              fontWeight: 500,
-              color: '#374151'
-            }}
-          >
-            Add Experience:
-          </label>
+      <div className={styles.inputRow}>
+        <div className={styles.inputField}>
+          <label htmlFor="add-experience" className={styles.inputLabel}>Add Experience:</label>
           <input
             id="add-experience"
             type="number"
@@ -165,49 +120,21 @@ export function ExperienceTracker({
             onChange={(e) => setExperienceToAdd(e.target.value)}
             placeholder="Enter XP to add"
             aria-label="Add Experience"
-            style={{
-              width: '100%',
-              padding: '6px 10px',
-              border: '1px solid #d1d5db',
-              borderRadius: 4,
-              fontSize: '0.9em'
-            }}
+            className={styles.input}
           />
         </div>
         
         <button
+          className={styles.addBtn}
           onClick={handleAddExperience}
           disabled={!experienceToAdd || isNaN(parseInt(experienceToAdd))}
-          style={{
-            padding: '6px 12px',
-            background: experienceToAdd && !isNaN(parseInt(experienceToAdd)) ? '#059669' : '#9ca3af',
-            color: 'white',
-            border: 'none',
-            borderRadius: 4,
-            fontSize: '0.9em',
-            fontWeight: 500,
-            cursor: experienceToAdd && !isNaN(parseInt(experienceToAdd)) ? 'pointer' : 'not-allowed',
-            marginRight: 8
-          }}
         >
           Add Experience
         </button>
         
         {/* Level Up button when enough XP has been gained */}
         {canLevelUp && (
-          <button
-            onClick={() => onLevelUp(targetLevel)}
-            style={{
-              padding: '6px 12px',
-              background: '#dc2626',
-              color: 'white',
-              border: 'none',
-              borderRadius: 4,
-              fontSize: '0.9em',
-              fontWeight: 500,
-              cursor: 'pointer'
-            }}
-          >
+          <button className={styles.levelUpBtn} onClick={() => onLevelUp(targetLevel)}>
             Level Up
           </button>
         )}

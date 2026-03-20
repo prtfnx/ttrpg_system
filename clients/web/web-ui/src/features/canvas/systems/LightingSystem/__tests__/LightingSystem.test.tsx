@@ -83,7 +83,7 @@ describe('Lighting System', () => {
       const preset = {
         name: 'Torch',
         color: { r: 1.0, g: 0.6, b: 0.2, a: 1.0 },
-        radius: 150,
+        radiusFt: 20,
         intensity: 1.0
       };
       const placementEvent = new CustomEvent('lightPlaced', {
@@ -106,7 +106,7 @@ describe('Lighting System', () => {
       );
       expect(mockEngine.set_light_radius).toHaveBeenCalledWith(
         expect.any(String),
-        150 // Torch radius
+        200 // Torch radius (20ft * 10px/ft)
       );
       expect(mockEngine.set_light_intensity).toHaveBeenCalledWith(
         expect.any(String),
@@ -127,7 +127,7 @@ describe('Lighting System', () => {
   expect(screen.getByText((content) => content.includes('Placing: Torch'))).toBeInTheDocument();
       
   // Click cancel
-  const cancelButton = screen.getByText(/cancel/i);
+  const cancelButton = screen.getByRole('button', { name: /cancel/i });
   await user.click(cancelButton);
   // Verify placement mode exited
   expect(screen.queryByText((content) => content.includes('Placing: Torch'))).not.toBeInTheDocument();
@@ -137,12 +137,12 @@ describe('Lighting System', () => {
 
   describe('Test Scenario 2: Multiple Light Presets', () => {
     const presets = [
-      { name: 'Torch', color: { r: 255, g: 140, b: 0 }, radius: 150, intensity: 1.0 },
-      { name: 'Candle', color: { r: 255, g: 223, b: 0 }, radius: 80, intensity: 0.7 },
-      { name: 'Daylight', color: { r: 255, g: 255, b: 255 }, radius: 300, intensity: 1.2 },
-      { name: 'Moonlight', color: { r: 173, g: 216, b: 230 }, radius: 200, intensity: 0.5 },
-      { name: 'Fire', color: { r: 255, g: 69, b: 0 }, radius: 120, intensity: 0.9 },
-      { name: 'Magic', color: { r: 138, g: 43, b: 226 }, radius: 180, intensity: 0.8 },
+      { name: 'Torch',    color: { r: 255, g: 140, b: 0 },   radiusFt: 20, expectedPx: 200, intensity: 1.0 },
+      { name: 'Candle',   color: { r: 255, g: 223, b: 0 },   radiusFt: 5,  expectedPx: 50,  intensity: 0.7 },
+      { name: 'Daylight', color: { r: 255, g: 255, b: 255 }, radiusFt: 60, expectedPx: 600, intensity: 1.2 },
+      { name: 'Moonlight',color: { r: 173, g: 216, b: 230 }, radiusFt: 40, expectedPx: 400, intensity: 0.5 },
+      { name: 'Fire',     color: { r: 255, g: 69,  b: 0 },   radiusFt: 20, expectedPx: 200, intensity: 0.9 },
+      { name: 'Magic',    color: { r: 138, g: 43,  b: 226 }, radiusFt: 30, expectedPx: 300, intensity: 0.8 },
     ];
 
     presets.forEach(preset => {
@@ -162,7 +162,7 @@ describe('Lighting System', () => {
               b: preset.color.b / 255 || preset.color.b,
               a: 1.0
             },
-            radius: preset.radius,
+            radiusFt: preset.radiusFt,
             intensity: preset.intensity
           } }
         });
@@ -173,7 +173,7 @@ describe('Lighting System', () => {
           expect(mockEngine.set_light_color).toHaveBeenCalled();
           expect(mockEngine.set_light_radius).toHaveBeenCalledWith(
             expect.any(String),
-            preset.radius
+            preset.expectedPx
           );
           expect(mockEngine.set_light_intensity).toHaveBeenCalledWith(
             expect.any(String),
@@ -231,9 +231,9 @@ describe('Lighting System', () => {
       });
       
       // Test max (100%)
-      fireEvent.change(slider, { target: { value: '100' } });
+      fireEvent.change(slider, { target: { value: '1' } });
       await waitFor(() => {
-        expect(mockEngine.set_ambient_light).toHaveBeenCalledWith(1.0);
+        expect(mockEngine.set_ambient_light).toHaveBeenCalledWith(1);
       });
     });
   });
@@ -391,8 +391,8 @@ describe('Lighting System', () => {
         expect(mockEngine.add_light).toHaveBeenCalled();
       });
       
-      // Find toggle button (should have 🔆 emoji)
-      const toggleButton = await screen.findByText('🔆');
+      // Find toggle button
+      const toggleButton = await screen.findByTitle('Toggle');
       await user.click(toggleButton);
       
       // Verify light was toggled
@@ -422,8 +422,8 @@ describe('Lighting System', () => {
         expect(mockEngine.add_light).toHaveBeenCalled();
       });
       
-      // Find delete button (❌)
-      const deleteButton = await screen.findByText('❌');
+      // Find delete button
+      const deleteButton = await screen.findByTitle('Remove');
       await user.click(deleteButton);
       
       // Verify light was removed
@@ -526,7 +526,7 @@ describe('Lighting System', () => {
         const preset = {
           name: 'Torch',
           color: { r: 1.0, g: 0.6, b: 0.2, a: 1.0 },
-          radius: 150,
+          radiusFt: 20,
           intensity: 1.0
         };
         window.dispatchEvent(new CustomEvent('lightPlaced', {

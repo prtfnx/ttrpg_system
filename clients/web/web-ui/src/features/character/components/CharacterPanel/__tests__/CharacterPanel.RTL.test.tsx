@@ -1,10 +1,10 @@
+import { useGameStore } from '@/store';
+import { createTestCharacter, createTestSprite } from '@/test/utils/testFactories';
+import { CharacterPanel } from '@features/character';
 import '@testing-library/jest-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { CharacterPanel } from '@features/character';
-import { useGameStore } from '@/store';
-import { createTestCharacter, createTestSprite } from '@/test/utils/testFactories';
 
 // Mock external dependencies
 vi.mock('@features/auth', () => ({

@@ -54,7 +54,7 @@ const mockTableData = {
   refreshTables: vi.fn(),
 };
 
-vi.mock('../hooks/useTableManager', () => ({
+vi.mock('../../hooks/useTableManager', () => ({
   useTableManager: () => mockTableData,
 }));
 

@@ -1,8 +1,9 @@
 // Mock useGameStore for LayerPanel
-vi.mock('../../store', () => ({
-  useGameStore: vi.fn().mockReturnValue({
+const mockStoreState = {
     activeLayer: 'tokens',
     sprites: [],
+    sessionRole: 'owner',
+    visibleLayers: ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles', 'fog_of_war'],
     selectSprite: vi.fn(),
     setActiveLayer: vi.fn(),
     layerVisibility: { tokens: true, background: true },
@@ -46,6 +47,11 @@ vi.mock('../../store', () => ({
     removeCharacter: vi.fn(),
     addInventoryItem: vi.fn(),
     // Add any additional methods as needed for future-proofing
+};
+vi.mock('../../store', () => ({
+  useGameStore: vi.fn((selector?: (s: any) => any) => {
+    if (typeof selector === 'function') return selector(mockStoreState);
+    return mockStoreState;
   })
 }));
 /**

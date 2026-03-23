@@ -20,7 +20,7 @@ const mockSessionManagement = {
   refetch: vi.fn()
 };
 
-vi.mock('../hooks/useSessionManagement', () => ({
+vi.mock('../../hooks/useSessionManagement', () => ({
   useSessionManagement: () => mockSessionManagement
 }));
 
@@ -34,7 +34,7 @@ vi.mock('../CollapsedView', () => ({
   )
 }));
 
-vi.mock('./Invitations/InvitationManager', () => ({
+vi.mock('../Invitations/InvitationManager', () => ({
   InvitationManager: ({ sessionCode, onClose }: any) => (
     <div data-testid="invitation-manager">
       <span>Managing invites for: {sessionCode}</span>
@@ -58,9 +58,14 @@ describe('SessionManagementPanel - Game Master Experience', () => {
   
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset to expanded state by default
+    // Reset all state to defaults
+    mockSessionManagement.players = [];
+    mockSessionManagement.loading = false;
+    mockSessionManagement.error = null;
     mockSessionManagement.isExpanded = true;
     mockSessionManagement.showInvites = false;
+    mockSessionManagement.changing = false;
+    mockSessionManagement.canManagePlayers = true;
   });
 
   describe('When panel is collapsed', () => {
@@ -213,7 +218,7 @@ describe('SessionManagementPanel - Game Master Experience', () => {
       render(<SessionManagementPanel sessionCode={sessionCode} />);
 
       // Should indicate something is happening
-      const managementPanel = screen.getByText('Session Management').closest('div');
+      const managementPanel = screen.getByText('Session Management').closest('div')?.parentElement;
       expect(managementPanel).toHaveClass('changing');
     });
   });

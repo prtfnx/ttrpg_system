@@ -49,15 +49,25 @@ class InvitationService {
     return this.fetchAPI<SessionInvitation[]>(`/session/${sessionCode}`);
   }
 
+  async getInvitations(sessionCode: string): Promise<SessionInvitation[]> {
+    return this.listSessionInvitations(sessionCode);
+  }
+
   async revokeInvitation(invitationId: number): Promise<{ success: boolean; message: string }> {
     return this.fetchAPI<{ success: boolean; message: string }>(`/${invitationId}/revoke`, {
       method: 'PUT'
     });
   }
 
-  async deleteInvitation(invitationId: number): Promise<{ success: boolean; message: string }> {
+  async deleteInvitation(invitationId: string | number): Promise<{ success: boolean; message: string }> {
     return this.fetchAPI<{ success: boolean; message: string }>(`/${invitationId}`, {
       method: 'DELETE'
+    });
+  }
+
+  async refreshInvitation(invitationId: string): Promise<SessionInvitation> {
+    return this.fetchAPI<SessionInvitation>(`/${invitationId}/refresh`, {
+      method: 'POST'
     });
   }
 }

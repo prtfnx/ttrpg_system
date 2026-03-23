@@ -41,7 +41,7 @@ const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
   'characters':    canInteract,
   'chat':          canInteract,
   // All interactive roles
-  'entities':      isDM,
+  'entities':      () => true,
   'initiative':    () => true,
   'customize':     () => true,
   // Map panel

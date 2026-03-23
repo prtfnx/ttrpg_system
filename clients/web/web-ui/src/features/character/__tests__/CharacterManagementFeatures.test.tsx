@@ -9,6 +9,8 @@
  * @vitest-environment jsdom
  */
 
+import { useGameStore } from '@/store';
+import type { Character } from '@/types';
 import {
   cloneCharacter,
   exportCharacter,
@@ -18,8 +20,6 @@ import {
 } from '@shared/utils/characterImportExport';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { useGameStore } from '../store';
-import type { Character } from '../types';
 
 describe('Character Management - Store Integration', () => {
   beforeEach(() => {

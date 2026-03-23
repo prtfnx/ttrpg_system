@@ -423,11 +423,10 @@ export const useGameStore = create<GameStore>()(
           ? sprite.controlledBy.map(Number)
           : [];
         if (userId === undefined) return cb.length > 0;
-        if (cb.length === 0) return false; // no controlled_by = DM-only
         if (cb.includes(userId)) return true;
         const character = state.getCharacterForSprite(spriteId);
         if (!character) return false;
-        return character.ownerId === userId;
+        return character.ownerId === userId || (Array.isArray(character.controlledBy) && character.controlledBy.map(Number).includes(userId));
       },
 
       canEditCharacter: (characterId: string, userId?: number) => {

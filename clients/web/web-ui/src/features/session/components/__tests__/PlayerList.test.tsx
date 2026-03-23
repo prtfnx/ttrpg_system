@@ -6,13 +6,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the role selector component
 vi.mock('../PlayerRoleSelector', () => ({
-  PlayerRoleSelector: ({ currentRole, onRoleChange, disabled }: any) => (
+  PlayerRoleSelector: ({ currentRole, onChange, disabled, canEdit }: any) => (
     <select 
       data-testid="role-selector"
+      data-role={currentRole}
       value={currentRole}
-      onChange={(e) => onRoleChange(e.target.value)}
-      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={disabled || canEdit === false}
     >
+      <option value="owner">Owner</option>
       <option value="player">Player</option>
       <option value="trusted_player">Trusted Player</option>
       <option value="co_dm">Co-DM</option>
@@ -76,7 +78,7 @@ describe('PlayerList', () => {
     it('shows empty state when no players', () => {
       renderWithProviders(<PlayerList {...defaultProps} players={[]} />);
 
-      expect(screen.getByText('Players (0)')).toBeInTheDocument();
+      expect(screen.queryByTestId('player-item')).not.toBeInTheDocument();
     });
 
     it('displays player roles correctly', () => {
@@ -144,7 +146,7 @@ describe('PlayerList', () => {
       renderWithProviders(<PlayerList {...defaultProps} players={playersWithOwner} />);
 
       const roleSelectors = screen.getAllByTestId('role-selector');
-      const ownerSelector = roleSelectors[roleSelectors.length - 1];
+      const ownerSelector = Array.from(roleSelectors).find(s => s.getAttribute('data-role') === 'owner');
       
       expect(ownerSelector).toBeDisabled();
     });

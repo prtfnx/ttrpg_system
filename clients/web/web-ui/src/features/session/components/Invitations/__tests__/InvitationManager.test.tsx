@@ -3,25 +3,25 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock the useInvitations hook to control what the component receives
-const mockInvitations = {
-  invitations: [],
+// vi.hoisted ensures these refs are available when vi.mock factories run
+const mockInvitations = vi.hoisted(() => ({
+  invitations: [] as any[],
   loading: false,
-  error: null,
+  error: null as string | null,
   createInvitation: vi.fn(),
   revokeInvitation: vi.fn(),
   deleteInvitation: vi.fn()
-};
+}));
 
-vi.mock('../../hooks/useInvitations', () => ({
+vi.mock('@features/session/hooks/useInvitations', () => ({
   useInvitations: () => mockInvitations
 }));
 
-// Mock toast notifications to verify user feedback
-const mockToast = {
+// vi.hoisted ensures these are available when vi.mock factory runs
+const mockToast = vi.hoisted(() => ({
   success: vi.fn(),
   error: vi.fn()
-};
+}));
 
 vi.mock('react-toastify', () => ({
   toast: mockToast
@@ -34,7 +34,7 @@ Object.defineProperty(window, 'confirm', {
 });
 
 // Mock the InviteLink component to focus on manager behavior
-vi.mock('./InviteLink', () => ({
+vi.mock('../InviteLink', () => ({
   InviteLink: ({ invitation, onRevoke, onDelete }: any) => (
     <div data-testid={`invite-link-${invitation.id}`}>
       <span>Role: {invitation.pre_assigned_role}</span>
@@ -468,10 +468,10 @@ describe('InvitationManager - Game Master Invitation Workflows', () => {
       const roleSelect = screen.getByLabelText(/role/i);
       
       // Should have all the expected roles
-      expect(screen.getByRole('option', { name: /player/i })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: /spectator/i })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: /trusted.player/i })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: /co.dm/i })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Player' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Spectator' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Trusted Player' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Co-DM' })).toBeInTheDocument();
     });
   });
 

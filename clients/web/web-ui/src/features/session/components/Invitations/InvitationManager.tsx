@@ -12,10 +12,10 @@ interface InvitationManagerProps {
 }
 
 export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCode, onClose, standalone }) => {
-  const { invitations, loading, createInvitation, revokeInvitation, deleteInvitation } = useInvitations(sessionCode);
+  const { invitations, loading, error, retry, createInvitation, revokeInvitation, deleteInvitation } = useInvitations(sessionCode) as any;
   const [selectedRole, setSelectedRole] = useState<SessionRole>('player');
   const [expiresHours, setExpiresHours] = useState(24);
-  const [maxUses, setMaxUses] = useState(1);
+  const [maxUses, setMaxUses] = useState<string | number>(1);
   const [creating, setCreating] = useState(false);
 
   const handleCreate = async () => {
@@ -31,7 +31,7 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
       session_code: sessionCode,
       pre_assigned_role: selectedRole,
       expires_hours: expiresHours,
-      max_uses: maxUses
+      max_uses: Math.max(1, Number(maxUses) || 1)
     });
 
     console.log('Invitation creation result:', result);
@@ -70,19 +70,21 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
 
   return (
     <div className={styles.overlay} onClick={standalone ? undefined : onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Manage Invitations">
         <div className={styles.header}>
           <h2>Manage Invitations</h2>
           <button className={styles.closeBtn} onClick={onClose}>✕</button>
         </div>
 
-        <div className={styles.createSection}>
+        {!loading && (
+          <div className={styles.createSection}>
           <h3>Create New Invitation</h3>
 
           <div className={styles.formGrid}>
             <div className={styles.field}>
-              <label>Role</label>
+              <label htmlFor="invitation-role">Role</label>
               <select
+                id="invitation-role"
                 value={selectedRole}
                 onChange={(e) => setSelectedRole(e.target.value as SessionRole)}
                 className={styles.select}
@@ -95,8 +97,9 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
             </div>
 
             <div className={styles.field}>
-              <label>Expires in (hours)</label>
+              <label htmlFor="invitation-expires">Expires in (hours)</label>
               <input
+                id="invitation-expires"
                 type="number"
                 value={expiresHours}
                 onChange={(e) => setExpiresHours(Number(e.target.value))}
@@ -107,11 +110,17 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
             </div>
 
             <div className={styles.field}>
-              <label>Max uses</label>
+              <label htmlFor="invitation-max-uses">Max uses</label>
               <input
+                id="invitation-max-uses"
                 type="number"
                 value={maxUses}
-                onChange={(e) => setMaxUses(Number(e.target.value))}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === '') { setMaxUses(''); return; }
+                  const n = Number(v);
+                  setMaxUses(n < 1 ? 1 : n);
+                }}
                 min="1"
                 max="100"
                 className={styles.input}
@@ -127,14 +136,26 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
             {creating ? 'Creating...' : 'Create Invitation'}
           </button>
         </div>
+        )}
 
         <div className={styles.listSection}>
           <h3>Active Invitations ({invitations.filter(i => i.is_valid).length})</h3>
 
-          {loading && <div className={styles.loading}>Loading...</div>}
+          {loading && <div className={styles.loading}>Loading invitations...</div>}
 
-          {!loading && invitations.length === 0 && (
-            <div className={styles.empty}>No invitations yet</div>
+          {error && !loading && (
+            <div className={styles.error}>
+              <span>Error loading invitations:</span>
+              <span> {error}</span>
+              <button onClick={() => retry?.()}>Retry</button>
+            </div>
+          )}
+
+          {!loading && !error && invitations.length === 0 && (
+            <div className={styles.empty}>
+              <p>No active invitations</p>
+              <p>Create your first invitation above</p>
+            </div>
           )}
 
           {!loading && invitations.length > 0 && (

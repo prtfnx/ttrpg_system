@@ -1,65 +1,78 @@
 import { AuthProvider } from '@features/auth';
-import { RightPanel } from '@features/layout/app/RightPanel';
+import { RightPanel } from '@app/RightPanel';
+import { useGameStore } from '@/store';
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock only what's necessary - child components that would cause issues
-vi.mock('../features/table/components/TableManagementPanel', () => ({
+// Mock child components to prevent complex dependency chains
+vi.mock('@features/table', () => ({
   TableManagementPanel: () => <div data-testid="table-management-panel">Table Management</div>,
+  TablePanel: () => <div data-testid="table-panel">Table Tools Panel</div>,
+  TableSyncPanel: () => <div data-testid="table-sync-panel">Table Sync Panel</div>,
+  MapPanel: () => <div data-testid="map-panel">Map Panel</div>,
 }));
 
-vi.mock('../features/character/components/CharacterPanel', () => ({
+vi.mock('@features/character', () => ({
   CharacterPanel: () => <div data-testid="character-panel">Character Panel</div>,
 }));
 
-vi.mock('../features/compendium/components/CompendiumPanel', () => ({
+vi.mock('@features/character/components/CustomizePanel', () => ({
+  CustomizePanel: () => <div data-testid="customize-panel">Customize Panel</div>,
+}));
+
+vi.mock('@features/compendium', () => ({
   CompendiumPanel: () => <div data-testid="compendium-panel">Compendium Panel</div>,
 }));
 
-vi.mock('../features/actions/components/ActionsQuickPanel', () => ({
+vi.mock('@features/actions/components/ActionsQuickPanel', () => ({
   ActionsQuickPanel: () => <div data-testid="actions-quick-panel">Quick Actions Panel</div>,
 }));
 
-vi.mock('../features/network/components/PlayerManagerPanel', () => ({
+vi.mock('@features/actions/components/ActionsPanel', () => ({
+  ActionsPanel: () => <div data-testid="actions-panel">Actions Panel</div>,
+}));
+
+vi.mock('@features/actions/components/ActionQueuePanel', () => ({
+  ActionQueuePanel: () => <div data-testid="action-queue-panel">Action Queue Panel</div>,
+}));
+
+vi.mock('@features/network/components/PlayerManagerPanel', () => ({
   PlayerManagerPanel: () => <div data-testid="player-manager-panel">Player Manager</div>,
 }));
 
-vi.mock('../features/combat/components/InitiativeTracker', () => ({
+vi.mock('@features/network/components/NetworkPanel', () => ({
+  NetworkPanel: () => <div data-testid="network-panel">Network Panel</div>,
+}));
+
+vi.mock('@features/combat', () => ({
   InitiativeTracker: () => <div data-testid="initiative-tracker">Initiative Tracker</div>,
 }));
 
-vi.mock('../features/canvas/components/EntitiesPanel', () => ({
+vi.mock('@features/canvas/components/EntitiesPanel', () => ({
   EntitiesPanel: () => <div data-testid="entities-panel">Entities Panel</div>,
 }));
 
-vi.mock('../features/chat/components/ChatPanel', () => ({
-  ChatPanel: () => <div data-testid="chat-panel">Chat Panel</div>,
-}));
-
-vi.mock('../features/lighting/components/LightingPanel', () => ({
-  LightingPanel: () => <div data-testid="lighting-panel">Lighting Panel</div>,
-}));
-
-vi.mock('../features/fog/components/FogPanel', () => ({
-  FogPanel: () => <div data-testid="fog-panel">Fog Panel</div>,
-}));
-
-vi.mock('../features/measurement/components/AdvancedMeasurementPanel', () => ({
-  AdvancedMeasurementPanel: () => <div data-testid="advanced-measurement-panel">Measurement Panel</div>,
-}));
-
-vi.mock('../features/assets/components/BackgroundManagementPanel', () => ({
-  BackgroundManagementPanel: () => <div data-testid="background-management-panel">Background Panel</div>,
-}));
-
-vi.mock('../features/canvas/components/PerformanceSettingsPanel', () => ({
+vi.mock('@features/canvas/components/PerformanceSettingsPanel', () => ({
   default: () => <div data-testid="performance-settings-panel">Performance Settings</div>,
 }));
 
-vi.mock('../features/character/components/CustomizePanel', () => ({
-  CustomizePanel: () => <div data-testid="customize-panel">Customize Panel</div>,
+vi.mock('@features/chat', () => ({
+  ChatPanel: () => <div data-testid="chat-panel">Chat Panel</div>,
+}));
+
+vi.mock('@features/lighting', () => ({
+  LightingPanel: () => <div data-testid="lighting-panel">Lighting Panel</div>,
+}));
+
+vi.mock('@features/fog', () => ({
+  FogPanel: () => <div data-testid="fog-panel">Fog Panel</div>,
+}));
+
+vi.mock('@features/assets', () => ({
+  AssetPanel: () => <div data-testid="asset-panel">Asset Panel</div>,
+  BackgroundManagementPanel: () => <div data-testid="background-management-panel">Background Panel</div>,
 }));
 
 describe('RightPanel', () => {
@@ -78,6 +91,8 @@ describe('RightPanel', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Set owner role so all DM tabs are visible
+    useGameStore.setState({ sessionRole: 'owner' });
     // Set production mode by default
     vi.stubEnv('DEV', false);
   });
@@ -98,10 +113,9 @@ describe('RightPanel', () => {
 
       // Verify all production tabs are present with proper roles
       const tabs = [
-        'Compendium', 'Tables', 'Quick Actions', 'Characters', 
-        'Players', 'Initiative', 'Entities', 'Chat', 
-        'Lighting', 'Fog', 'Measurement', 'Backgrounds', 
-        'Performance', 'Customize'
+        'Compendium', 'Tables', 'Quick Actions', 'Characters',
+        'Players', 'Initiative', 'Entities', 'Chat',
+        'Lighting', 'Fog', 'Backgrounds', 'Performance', 'Customize'
       ];
 
       tabs.forEach(tabName => {
@@ -111,11 +125,11 @@ describe('RightPanel', () => {
       });
     });
 
-    it('defaults to Tables tab being selected', () => {
+    it('defaults to Entities tab being selected', () => {
       renderWithProviders(<RightPanel sessionCode={mockSessionCode} userInfo={mockUserInfo} />);
 
-      const tablesTab = screen.getByRole('tab', { name: /^tables$/i });
-      expect(tablesTab).toHaveAttribute('aria-selected', 'true');
+      const entitiesTab = screen.getByRole('tab', { name: /^entities$/i });
+      expect(entitiesTab).toHaveAttribute('aria-selected', 'true');
 
       // Check that tabpanel exists and is visible
       const tabPanel = screen.getByRole('tabpanel');
@@ -163,8 +177,8 @@ describe('RightPanel', () => {
     it('switches between multiple tabs correctly', async () => {
       renderWithProviders(<RightPanel sessionCode={mockSessionCode} userInfo={mockUserInfo} />);
 
-      // Start at Tables (default)
-      expect(screen.getByRole('tab', { name: /^tables$/i })).toHaveAttribute('aria-selected', 'true');
+      // Start at Entities (default)
+      expect(screen.getByRole('tab', { name: /^entities$/i })).toHaveAttribute('aria-selected', 'true');
 
       // Switch to Players
       const playersTab = screen.getByRole('tab', { name: /^players$/i });
@@ -184,18 +198,18 @@ describe('RightPanel', () => {
     it('properly manages aria-selected across tab switches', async () => {
       renderWithProviders(<RightPanel sessionCode={mockSessionCode} userInfo={mockUserInfo} />);
 
-      const tablesTab = screen.getByRole('tab', { name: /^tables$/i });
       const entitiesTab = screen.getByRole('tab', { name: /^entities$/i });
+      const chatTab = screen.getByRole('tab', { name: /^chat$/i });
 
-      // Initially Tables is selected
-      expect(tablesTab).toHaveAttribute('aria-selected', 'true');
-      expect(entitiesTab).toHaveAttribute('aria-selected', 'false');
-
-      // Switch to Entities
-      await user.click(entitiesTab);
-
-      expect(tablesTab).toHaveAttribute('aria-selected', 'false');
+      // Initially Entities is selected (default)
       expect(entitiesTab).toHaveAttribute('aria-selected', 'true');
+      expect(chatTab).toHaveAttribute('aria-selected', 'false');
+
+      // Switch to Chat
+      await user.click(chatTab);
+
+      expect(entitiesTab).toHaveAttribute('aria-selected', 'false');
+      expect(chatTab).toHaveAttribute('aria-selected', 'true');
     });
   });
 
@@ -233,16 +247,10 @@ describe('RightPanel', () => {
     it('shows utility panels when selected', async () => {
       renderWithProviders(<RightPanel sessionCode={mockSessionCode} userInfo={mockUserInfo} />);
 
-      // Test Measurement panel
-      const measurementTab = screen.getByRole('tab', { name: /measurement/i });
-      await user.click(measurementTab);
-      let tabPanel = screen.getByRole('tabpanel');
-      expect(tabPanel).toHaveAttribute('aria-label', 'measurement panel');
-
       // Test Backgrounds panel  
       const backgroundsTab = screen.getByRole('tab', { name: /backgrounds/i });
       await user.click(backgroundsTab);
-      tabPanel = screen.getByRole('tabpanel');
+      let tabPanel = screen.getByRole('tabpanel');
       expect(tabPanel).toHaveAttribute('aria-label', 'backgrounds panel');
 
       // Test Performance panel
@@ -284,15 +292,6 @@ describe('RightPanel', () => {
     });
 
     it('can switch to development tabs', async () => {
-      // Mock the development components
-      vi.mock('../features/table/components/TablePanel', () => ({
-        TablePanel: () => <div data-testid="table-panel">Table Tools Panel</div>,
-      }));
-
-      vi.mock('../features/table/components/TableSyncPanel', () => ({
-        TableSyncPanel: () => <div data-testid="table-sync-panel">Table Sync Panel</div>,
-      }));
-
       renderWithProviders(<RightPanel sessionCode={mockSessionCode} userInfo={mockUserInfo} />);
 
       // Test switching to a dev tab
@@ -306,7 +305,7 @@ describe('RightPanel', () => {
 
   describe('Session and User Props', () => {
     it('passes session code and user info to appropriate panels', async () => {
-      const customUserInfo = { id: 456, username: 'customuser', role: 'dm' as const, permissions: [] };
+      const customUserInfo = { id: 456, username: 'customuser', role: 'owner' as const, permissions: [] };
       const customSessionCode = 'CUSTOM789';
 
       renderWithProviders(<RightPanel sessionCode={customSessionCode} userInfo={customUserInfo} />);
@@ -331,12 +330,12 @@ describe('RightPanel', () => {
     it('supports keyboard navigation between tabs', async () => {
       renderWithProviders(<RightPanel sessionCode={mockSessionCode} userInfo={mockUserInfo} />);
 
-      const tablesTab = screen.getByRole('tab', { name: /^tables$/i });
-      const compendiumTab = screen.getByRole('tab', { name: /compendium/i });
+      const entitiesTab = screen.getByRole('tab', { name: /^entities$/i });
+      const chatTab = screen.getByRole('tab', { name: /^chat$/i });
 
-      // Focus on first tab
-      tablesTab.focus();
-      expect(tablesTab).toHaveFocus();
+      // Focus on a visible tab
+      entitiesTab.focus();
+      expect(entitiesTab).toHaveFocus();
 
       // Use keyboard to navigate (actual navigation depends on keyboard handler implementation)
       // For now, just test that tabs are focusable

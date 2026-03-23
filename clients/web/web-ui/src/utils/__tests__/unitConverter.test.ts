@@ -5,7 +5,7 @@
  * distances display correctly, conversions are consistent,
  * and switching ft↔m affects all derived values.
  *
- * @vitest-environment node
+ * @vitest-environment jsdom
  */
 
 import { describe, expect, it } from 'vitest';

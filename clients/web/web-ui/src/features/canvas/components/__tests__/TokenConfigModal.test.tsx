@@ -473,6 +473,7 @@ describe('TokenConfigModal - Component UI Tests', () => {
       const user = userEvent.setup();
       const testSprite = createTestSprite({
         auraRadius: 30,
+        auraRadiusUnits: 30,
       });
 
       useGameStore.setState({ sprites: [testSprite] });
@@ -494,7 +495,7 @@ describe('TokenConfigModal - Component UI Tests', () => {
         });
 
         const updatedSprite = useGameStore.getState().sprites.find(s => s.id === 'sprite-1');
-        expect(updatedSprite?.auraRadius).toBe(50);
+        expect(updatedSprite?.auraRadiusUnits).toBe(50);
       }
     });
   });

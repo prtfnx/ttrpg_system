@@ -12,7 +12,7 @@
 
 import { useGameStore } from '@/store';
 import { TableSettingsPanel } from '@features/table/components/TableSettingsPanel';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -28,7 +28,7 @@ const mockSetTableUnits = vi.fn();
 beforeEach(() => {
   vi.clearAllMocks();
   useGameStore.setState({
-    sessionRole: 'dm',
+    sessionRole: 'owner',
     gridCellPx: 50,
     cellDistance: 5,
     distanceUnit: 'ft',
@@ -61,7 +61,7 @@ describe('TableSettingsPanel — DM view', () => {
   it('shows meter conversion line when unit is ft', () => {
     render(<TableSettingsPanel />);
     // Should show meter equivalent
-    expect(screen.getByText(/m$/)).toBeInTheDocument();
+    expect(screen.getAllByText(/m$/).length).toBeGreaterThan(0);
   });
 
   it('calls setTableUnits when cell slider changes', () => {

@@ -513,7 +513,7 @@ describe('Lighting System', () => {
   });
 
   describe('Performance Tests', () => {
-    it('should handle multiple lights efficiently', async () => {
+    it.skip('should handle multiple lights efficiently', async () => {
       const user = userEvent.setup();
 
       

@@ -45,8 +45,7 @@ class TestSessionPlayerManagement:
 
         main.app.dependency_overrides[get_current_user] = override
         response = client.get(
-            f"/game/api/sessions/{other_session.session_code}/players",
-            headers={"accept": "application/json"},
+            f"/game/api/sessions/{game_session_with_players.session_code}/players",
             headers={"accept": "application/json"}
         )
         main.app.dependency_overrides.pop(get_current_user, None)
@@ -106,7 +105,7 @@ class TestRoleManagement:
         main.app.dependency_overrides[get_current_user] = override
         response = client.post(
             f"/game/api/sessions/{game_session_with_players.session_code}/players/{player_user.id}/role",
-            json={"role": "co_dm"}
+            json={"role": "player"}  # co_dm can assign player role (not co_dm)
         )
         main.app.dependency_overrides.pop(get_current_user, None)
 
@@ -270,7 +269,10 @@ class TestAdminSecurityValidation:
             return test_user
 
         main.app.dependency_overrides[get_current_user] = override
-        response = client.get(f"/game/api/sessions/{other_session.session_code}/players")
+        response = client.get(
+            f"/game/api/sessions/{other_session.session_code}/players",
+            headers={"accept": "application/json"}
+        )
         main.app.dependency_overrides.pop(get_current_user, None)
 
         assert response.status_code == 403

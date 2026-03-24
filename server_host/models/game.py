@@ -20,6 +20,7 @@ class GameSession(BaseModel):
     is_active: bool
     created_at: datetime
     game_data: Optional[str] = None
+    user_role: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)
 

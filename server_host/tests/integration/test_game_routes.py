@@ -117,7 +117,8 @@ class TestGameFlow:
         # GM login
         gm_login = client.post(
             "/users/login",
-            data={"username": "gmuser", "password": "GmPass123"}
+            data={"username": "gmuser", "password": "GmPass123"},
+            follow_redirects=False
         )
         assert "token" in gm_login.cookies
         
@@ -148,7 +149,8 @@ class TestGameFlow:
         # Player login
         player_login = client.post(
             "/users/login",
-            data={"username": "player1", "password": "PlayerPass123"}
+            data={"username": "player1", "password": "PlayerPass123"},
+            follow_redirects=False
         )
         assert "token" in player_login.cookies
         

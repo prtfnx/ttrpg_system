@@ -1,5 +1,5 @@
 import pytest
-import time
+import secrets
 from datetime import datetime, timedelta
 from unittest.mock import patch, Mock
 
@@ -10,7 +10,7 @@ def invitation_factory(test_db, test_user, test_game_session):
     """Factory fixture for creating test invitations"""
     def _create_invitation(**kwargs):
         defaults = {
-            "invite_code": f"INV{int(time.time())}{test_user.id}",
+            "invite_code": secrets.token_urlsafe(12),
             "session_id": test_game_session.id,
             "pre_assigned_role": "player",
             "created_by": test_user.id,

@@ -23,7 +23,7 @@ def generate_invite_code(length: int = 12) -> str:
     alphabet = string.ascii_letters + string.digits
     return ''.join(secrets.choice(alphabet) for _ in range(length))
 
-@router.post("/create", response_model=schemas.InvitationResponse)
+@router.post("/create", response_model=schemas.InvitationResponse, status_code=201)
 async def create_invitation(
     invite_data: schemas.CreateInvitationRequest,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
@@ -152,6 +152,9 @@ async def get_invitation(invite_code: str, db: Session = Depends(get_db)):
     if not invitation:
         raise HTTPException(status_code=404, detail="Invitation not found")
     
+    if not invitation.is_valid():
+        raise HTTPException(status_code=410, detail="Invitation expired or no uses remaining")
+    
     return schemas.InvitationResponse.from_orm(invitation)
 
 @router.post("/{invite_code}/accept")
@@ -170,7 +173,7 @@ async def accept_invitation(
         raise HTTPException(status_code=404, detail="Invitation not found")
     
     if not invitation.is_valid():
-        raise HTTPException(status_code=400, detail="Invitation expired or used up")
+        raise HTTPException(status_code=410, detail="Invitation expired or used up")
 
     assigned_role = invitation.pre_assigned_role
     if not is_valid_role(assigned_role) or assigned_role == SessionRole.OWNER:

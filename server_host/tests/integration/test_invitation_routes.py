@@ -51,7 +51,7 @@ class TestInvitationCreation:
         response = client.post("/api/invitations/create", json={
             "session_code": test_game_session.session_code,
             "pre_assigned_role": "player"
-        })
+        }, headers={"accept": "application/json"})
         main.app.dependency_overrides.pop(get_current_user, None)
 
         assert response.status_code == 403
@@ -177,7 +177,8 @@ class TestInvitationManagement:
             return player_user
 
         main.app.dependency_overrides[get_current_user] = override_current
-        response = client.delete(f"/api/invitations/{invitation.id}")
+        response = client.delete(f"/api/invitations/{invitation.id}",
+            headers={"accept": "application/json"})
         main.app.dependency_overrides.pop(get_current_user, None)
 
         assert response.status_code == 403

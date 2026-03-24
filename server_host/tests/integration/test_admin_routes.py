@@ -45,7 +45,9 @@ class TestSessionPlayerManagement:
 
         main.app.dependency_overrides[get_current_user] = override
         response = client.get(
-            f"/game/api/sessions/{game_session_with_players.session_code}/players"
+            f"/game/api/sessions/{other_session.session_code}/players",
+            headers={"accept": "application/json"},
+            headers={"accept": "application/json"}
         )
         main.app.dependency_overrides.pop(get_current_user, None)
 
@@ -90,7 +92,8 @@ class TestRoleManagement:
         main.app.dependency_overrides[get_current_user] = override
         response = client.post(
             f"/game/api/sessions/{game_session_with_players.session_code}/players/{co_dm_user.id}/role",
-            json={"role": "co_dm"}
+            json={"role": "co_dm"},
+            headers={"accept": "application/json"}
         )
         main.app.dependency_overrides.pop(get_current_user, None)
 
@@ -153,7 +156,8 @@ class TestPlayerRemoval:
 
         main.app.dependency_overrides[get_current_user] = override
         response = client.delete(
-            f"/game/api/sessions/{game_session_with_players.session_code}/players/{co_dm_user.id}"
+            f"/game/api/sessions/{game_session_with_players.session_code}/players/{co_dm_user.id}",
+            headers={"accept": "application/json"}
         )
         main.app.dependency_overrides.pop(get_current_user, None)
 
@@ -165,7 +169,8 @@ class TestPlayerRemoval:
 
         main.app.dependency_overrides[get_current_user] = override
         response = client.delete(
-            f"/game/api/sessions/{game_session_with_players.session_code}/players/{test_user.id}"
+            f"/game/api/sessions/{game_session_with_players.session_code}/players/{test_user.id}",
+            headers={"accept": "application/json"}
         )
         main.app.dependency_overrides.pop(get_current_user, None)
 

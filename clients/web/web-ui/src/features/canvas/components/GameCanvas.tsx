@@ -20,6 +20,7 @@ import { MultiSelectManager } from '../services';
 import fpsService from '../services/fps.service';
 import { performanceService } from '../services/performance.service';
 import styles from './GameCanvas.module.css';
+import { FloatingLayerPicker } from './FloatingLayerPicker';
 import {
   CanvasRenderer,
   getGridCoord,
@@ -695,30 +696,8 @@ export const GameCanvas: React.FC = () => {
         <div data-testid="layer-tokens" data-visible="true" style={{ display: 'none' }} />
         <div data-testid="layer-fog-of-war" data-visible="true" style={{ display: 'none' }} />
 
-        {/* Active layer indicator — DM only */}
-        {dmMode && (
-          <div
-            data-testid="active-layer-indicator"
-            style={{
-              position: 'absolute',
-              top: 6,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              background: 'rgba(0,0,0,0.65)',
-              color: 'var(--text-primary)',
-              fontSize: 11,
-              fontWeight: 600,
-              padding: '2px 10px',
-              borderRadius: 12,
-              pointerEvents: 'none',
-              zIndex: 200,
-              letterSpacing: '0.04em',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {AVAILABLE_LAYERS.find(l => l.id === activeLayer)?.name ?? activeLayer}
-          </div>
-        )}
+        {/* Floating layer picker — DM only, always visible on canvas */}
+        <FloatingLayerPicker />
 
         {/* Draggable tokens for testing */}
         <div

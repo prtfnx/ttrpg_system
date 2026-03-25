@@ -1,6 +1,6 @@
 import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
-import { BrickWall, Cloud, CloudFog, Crown, Lightbulb, Map, Mountain, Users } from 'lucide-react';
+import { BrickWall, CloudFog, Crown, Lightbulb, Map, Mountain, Users } from 'lucide-react';
 import styles from './FloatingLayerPicker.module.css';
 
 const LAYERS = [

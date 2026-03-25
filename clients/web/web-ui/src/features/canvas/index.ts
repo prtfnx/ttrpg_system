@@ -1,10 +1,10 @@
 ﻿export { EntitiesPanel } from './components/EntitiesPanel';
+export { FloatingLayerPicker } from './components/FloatingLayerPicker';
 export { GameCanvas } from './components/GameCanvas';
 export { GameClient } from './components/GameClient';
 export { GridControls } from './components/GridControls';
 export { GridSettings } from './components/GridSettings';
 export { LayerPanel } from './components/LayerPanel';
-export { FloatingLayerPicker } from './components/FloatingLayerPicker';
 export { PerformanceMonitor } from './components/PerformanceMonitor';
 export { TextSpriteCreator, TextSpriteEditor, TextSpriteTool } from './components/TextSprite';
 export { TextSpriteModal } from './components/TextSprite/TextSpriteModal';

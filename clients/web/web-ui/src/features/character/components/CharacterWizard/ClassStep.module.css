@@ -52,6 +52,15 @@
   color: var(--text-primary);
 }
 
+.description {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--line-height-relaxed);
+  margin: 0 0 var(--space-md) 0;
+  padding-bottom: var(--space-sm);
+  border-bottom: var(--border-width) solid var(--border-secondary);
+}
+
 .hit-die {
   color: var(--color-danger);
   font-weight: var(--font-medium);

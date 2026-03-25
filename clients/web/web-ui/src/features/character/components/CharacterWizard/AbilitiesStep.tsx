@@ -1,3 +1,4 @@
+import { useChatStore } from '@features/chat';
 import { useRacesForCharacterWizard } from '@features/compendium';
 import { useEffect, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
@@ -16,6 +17,7 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
   const { control, setValue, getValues, watch, formState: { errors } } = useFormContext<AbilitiesStepData>();
   const [method, setMethod] = useState<Method>('standard');
   const [rolls, setRolls] = useState<number[]>([]);
+  const addMessage = useChatStore(s => s.addMessage);
 
   const selectedRace = watch('race' as any) as string ?? '';
   const selectedSubrace = watch('subrace' as any) as string ?? '';
@@ -37,6 +39,19 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
         .reduce((sum, roll) => sum + roll, 0)
     ).sort((a, b) => b - a);
     setRolls(newRolls);
+
+    // Auto-assign rolls to abilities in order
+    ABILITIES.forEach((ability, i) => {
+      setValue(ability, newRolls[i], { shouldValidate: true });
+    });
+
+    // Log to chat
+    addMessage({
+      id: Date.now().toString(),
+      user: 'System',
+      text: `🎲 Ability roll (4d6 drop lowest): [${newRolls.join(', ')}] → assigned to Str/Dex/Con/Int/Wis/Cha`,
+      timestamp: Date.now(),
+    });
   };
 
   // Point buy calculation
@@ -77,7 +92,7 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
 
       {method === 'roll' && (
         <button type="button" className={styles.rollBtn} onClick={rollAbilities}>
-          Roll Abilities
+          {rolls.length > 0 ? 'Re-roll Abilities' : 'Roll Abilities'}
         </button>
       )}
 

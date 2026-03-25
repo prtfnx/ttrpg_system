@@ -5,7 +5,6 @@ import clsx from 'clsx';
 import { Copy, ExternalLink, Settings2, Trash2, Users } from 'lucide-react';
 import type { FC } from 'react';
 import styles from '../TableManagementPanel.module.css';
-import { TablePreview } from '../TablePreview';
 import { formatDate } from './utils';
 
 interface TableCardProps {
@@ -27,13 +26,6 @@ export const TableCard: FC<TableCardProps> = ({
 }) => {
   const sessionRole = useGameStore(s => s.sessionRole);
   const canSetForAll = isDM(sessionRole);
-  const handleClick = () => {
-    if (isBulkMode) {
-      onSelect(table.table_id);
-    } else {
-      onOpen(table.table_id);
-    }
-  };
 
   const handleSetForAll = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -43,97 +35,47 @@ export const TableCard: FC<TableCardProps> = ({
   };
 
   return (
-    <div 
-      className={clsx(
-        styles.tableCard,
-        isActive && styles.active,
-        isBulkMode && styles.bulkMode,
-        isSelected && styles.selected
-      )}
-    >
+    <div className={clsx(styles.tableCard, isActive && styles.active, isSelected && styles.selected)}>
       {isBulkMode && (
-        <div className={styles.bulkCheckboxWrapper}>
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => onSelect(table.table_id)}
-            className={styles.bulkCheckbox}
-          />
-        </div>
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => onSelect(table.table_id)}
+          className={styles.bulkCheckbox}
+          onClick={e => e.stopPropagation()}
+        />
       )}
 
-      {syncBadge}
-
-      <div className={styles.tablePreview} onClick={handleClick}>
-        <TablePreview table={table} width={160} height={120} />
-      </div>
-
-      <div className={styles.tableCardInfo} onClick={handleClick}>
-        <h4 className={styles.tableCardName} title={table.table_name}>
-          {table.table_name}
-        </h4>
-        <div className={styles.tableCardMeta}>
-          <span className={styles.metaItem}>
-            <span>{table.width} × {table.height}</span>
-          </span>
-          {table.entity_count !== undefined && table.entity_count > 0 && (
-            <>
-              <span className={styles.metaSeparator}>·</span>
-              <span className={styles.metaItem}>
-                <span>{table.entity_count} entities</span>
-              </span>
-            </>
-          )}
-        </div>
-        <div className={styles.tableCardDate}>
-          {formatDate(table.created_at)}
-        </div>
+      <div className={styles.tableCardInfo} onClick={() => onOpen(table.table_id)}>
+        <span className={styles.tableCardName} title={table.table_name}>{table.table_name}</span>
+        <span className={styles.tableCardMeta}>
+          {table.width}×{table.height}
+          {table.entity_count ? ` · ${table.entity_count}e` : ''}
+          {' · '}{formatDate(table.created_at)}
+        </span>
       </div>
 
       <div className={styles.tableCardActions}>
-        {!isBulkMode && (
-          <>
-            <button
-              onClick={(e) => { e.stopPropagation(); onOpen(table.table_id); }}
-              className={clsx(styles.actionBtn, styles.actionBtnOpen)}
-              title="Open table"
-            >
-              <ExternalLink size={12} />
-              <span className={styles.actionText}>Open</span>
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onSettings(table.table_id); }}
-              className={clsx(styles.actionBtn, styles.actionBtnSettings)}
-              title="Settings"
-            >
-              <Settings2 size={12} />
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onDuplicate(table.table_id); }}
-              className={clsx(styles.actionBtn, styles.actionBtnDuplicate)}
-              title="Duplicate"
-            >
-              <Copy size={12} />
-            </button>
-            {canSetForAll && (
-            <button
-              onClick={handleSetForAll}
-              className={clsx(styles.actionBtn)}
-              title="Switch all players to this table"
-            >
-              <Users size={12} />
-            </button>
-            )}
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(table.table_id); }}
-              className={clsx(styles.actionBtn, styles.actionBtnDelete)}
-              title="Delete"
-            >
-              <Trash2 size={12} />
-            </button>
-          </>
+        {syncBadge}
+        <button onClick={(e) => { e.stopPropagation(); onOpen(table.table_id); }} className={styles.actionBtn} title="Open">
+          <ExternalLink size={12} />
+        </button>
+        <button onClick={(e) => { e.stopPropagation(); onSettings(table.table_id); }} className={styles.actionBtn} title="Settings">
+          <Settings2 size={12} />
+        </button>
+        <button onClick={(e) => { e.stopPropagation(); onDuplicate(table.table_id); }} className={styles.actionBtn} title="Duplicate">
+          <Copy size={12} />
+        </button>
+        {canSetForAll && (
+          <button onClick={handleSetForAll} className={styles.actionBtn} title="Switch all players">
+            <Users size={12} />
+          </button>
         )}
+        <button onClick={(e) => { e.stopPropagation(); onDelete(table.table_id); }} className={clsx(styles.actionBtn, styles.actionBtnDelete)} title="Delete">
+          <Trash2 size={12} />
+        </button>
       </div>
     </div>
   );
 };
+

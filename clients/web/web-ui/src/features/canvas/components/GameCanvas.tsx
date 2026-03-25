@@ -319,13 +319,15 @@ export const GameCanvas: React.FC = () => {
 
         const hw = (s.width ?? 40) / 2;
         const hh = (s.height ?? 40) / 2;
+        // Use live drag position if being dragged, otherwise use store position
+        const pos = dragPositionsRef.current.get(s.id) ?? { x: s.x, y: s.y };
         try {
-          const ctr = rm.world_to_screen(s.x + hw, s.y + hh);
+          const ctr = rm.world_to_screen(pos.x + hw, pos.y + hh);
           const sx = ctr[0] / dpr;
           const sy = ctr[1] / dpr;
 
           if (vr > 0) {
-            const edge = rm.world_to_screen(s.x + hw + vr, s.y + hh);
+            const edge = rm.world_to_screen(pos.x + hw + vr, pos.y + hh);
             const sr = (edge[0] - ctr[0]) / dpr;
             ctx.beginPath();
             ctx.arc(sx, sy, sr, 0, Math.PI * 2);
@@ -335,7 +337,7 @@ export const GameCanvas: React.FC = () => {
           }
 
           if (dvr > 0) {
-            const edge = rm.world_to_screen(s.x + hw + dvr, s.y + hh);
+            const edge = rm.world_to_screen(pos.x + hw + dvr, pos.y + hh);
             const sr = (edge[0] - ctr[0]) / dpr;
             ctx.beginPath();
             ctx.arc(sx, sy, sr, 0, Math.PI * 2);

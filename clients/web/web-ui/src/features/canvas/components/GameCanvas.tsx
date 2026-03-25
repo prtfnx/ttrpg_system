@@ -58,6 +58,8 @@ export const GameCanvas: React.FC = () => {
   const dprRef = useRef<number>(1);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const visionRingsCanvasRef = useRef<HTMLCanvasElement>(null);
+  // Tracks live drag positions so vision rings follow during drag
+  const dragPositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
 
   const dynamicLightingEnabled = useGameStore(s => s.dynamicLightingEnabled);
   // Protocol and store setup
@@ -87,6 +89,25 @@ export const GameCanvas: React.FC = () => {
   // Stream live drag/resize/rotate previews to other clients via WebSocket
   const sendWsMessage = useCallback((msg: unknown) => { protocol?.sendMessage(msg as any); }, [protocol]);
   useSpriteDragSync(sendWsMessage);
+
+  // Track drag positions so vision rings follow the token during drag
+  useEffect(() => {
+    const onDrag = (e: Event) => {
+      const { spriteId, x, y } = (e as CustomEvent).detail ?? {};
+      if (spriteId) dragPositionsRef.current.set(spriteId, { x, y });
+    };
+    const onMoved = (e: Event) => {
+      const d = (e as CustomEvent).detail ?? {};
+      const id = d.sprite_id || d.id;
+      if (id) dragPositionsRef.current.delete(id);
+    };
+    window.addEventListener('sprite-drag-preview', onDrag);
+    window.addEventListener('sprite-moved', onMoved);
+    return () => {
+      window.removeEventListener('sprite-drag-preview', onDrag);
+      window.removeEventListener('sprite-moved', onMoved);
+    };
+  }, []);
 
   // Use extracted hooks
   const debugPanel = useCanvasDebug(canvasRef, rustRenderManagerRef, dprRef);

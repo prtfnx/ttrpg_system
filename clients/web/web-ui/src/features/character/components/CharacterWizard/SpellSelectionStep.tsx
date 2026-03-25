@@ -42,7 +42,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
   characterClass: propCharacterClass,
   characterLevel: propCharacterLevel,
   abilityScores: propAbilityScores,
-  onNext,
+  onNext: _onNext,
   onBack,
   onPrevious
 }) => {
@@ -62,9 +62,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
   };
   
   const handleBack = onBack || onPrevious;
-  const handleNext = () => {
-    onNext();
-  };
+  void handleBack; // used only when step renders its own navigation
   
   const currentSpells = watch('spells') || { cantrips: [], knownSpells: [], preparedSpells: [] };
 

@@ -104,7 +104,8 @@
   padding: 0;
   border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-xs);
-  background: white;
+  background: var(--bg-primary);
+  color: var(--text-primary);
   cursor: pointer;
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
@@ -112,14 +113,14 @@
 }
 
 .level-filter:hover {
-  border-color: var(--blue-600);
-  background: var(--blue-50);
+  border-color: var(--color-primary);
+  background: var(--bg-elevated);
 }
 
 .level-filter.active {
-  background: var(--blue-600);
-  color: white;
-  border-color: var(--blue-600);
+  background: var(--color-primary);
+  color: var(--text-inverse-primary);
+  border-color: var(--color-primary);
 }
 
 .active-filters {
@@ -187,8 +188,8 @@
 }
 
 .spell-card-compact.selected {
-  border-color: var(--green-600);
-  background: var(--green-50);
+  border-color: var(--color-success);
+  background: var(--bg-elevated);
 }
 
 .spell-card-compact.disabled {
@@ -197,13 +198,13 @@
 }
 
 .spell-card-compact.disabled:hover {
-  border-color: var(--gray-200);
+  border-color: var(--border-secondary);
   box-shadow: none;
 }
 
 .spell-card-compact.expanded {
-  background: white;
-  border-color: var(--blue-600);
+  background: var(--bg-elevated);
+  border-color: var(--color-primary);
 }
 
 /* Spell Card Header (Always Visible) */

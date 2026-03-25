@@ -1,24 +1,40 @@
 .tableManagementPanel {
-  composes: panel-container extra-wide from '@shared/styles/PanelBase.module.css';
   display: flex;
   flex-direction: column;
+  width: 100%;
   height: 100%;
-  max-height: 100%;
   overflow: hidden;
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .panelHeader {
-  composes: panel-header from '@shared/styles/PanelBase.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   flex-shrink: 0;
-  padding: var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: var(--border-width) solid var(--border-primary);
+  background: var(--bg-elevated);
+  gap: var(--space-sm);
   min-width: 0;
+  flex-wrap: wrap;
+}
+
+.panelHeader h3 {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  white-space: nowrap;
 }
 
 .headerActions {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: var(--space-xs);
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 /* Group of compact icon-only utility buttons */
@@ -81,8 +97,8 @@
   background: var(--color-info);
   border: var(--border-width) solid var(--color-info);
   border-radius: var(--radius-md);
-  padding: var(--space-md) var(--space-lg);
-  margin: 0 var(--space-lg) var(--space-md) var(--space-lg);
+  padding: var(--space-xs) var(--space-sm);
+  margin: 0 var(--space-sm) var(--space-xs) var(--space-sm);
   flex-shrink: 0;
 }
 
@@ -113,7 +129,7 @@
 .panelSettings {
   composes: settings-section from '@shared/styles/PanelBase.module.css';
   flex-shrink: 0;
-  margin: 0 var(--space-lg) var(--space-md) var(--space-lg);
+  margin: 0 var(--space-sm) var(--space-sm) var(--space-sm);
 }
 
 .helpText {
@@ -125,14 +141,15 @@
 /* Search and Filter Bar */
 .searchFilterBar {
   display: flex;
-  gap: var(--space-md);
+  gap: var(--space-xs);
   align-items: center;
-  margin: 0 var(--space-lg) var(--space-md) var(--space-lg);
-  padding: var(--space-sm);
+  margin: var(--space-sm);
+  padding: var(--space-xs);
   background: var(--bg-tertiary);
   border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-md);
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .selectAllCheckbox {
@@ -231,7 +248,7 @@
 .createTableForm {
   composes: settings-section from '@shared/styles/PanelBase.module.css';
   flex-shrink: 0;
-  margin: 0 var(--space-lg) var(--space-md) var(--space-lg);
+  margin: 0 var(--space-sm) var(--space-sm) var(--space-sm);
 }
 
 .templateButtons {
@@ -311,13 +328,13 @@
 }
 
 .tablesList {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
   flex: 1 1 auto;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 0 var(--space-lg) var(--space-lg) var(--space-lg);
+  padding: var(--space-sm);
   min-height: 0;
   align-content: start;
 }
@@ -339,119 +356,68 @@
   margin: var(--space-sm) 0;
 }
 
-/* Modern Card-Based Design - Material Design 3 Principles */
+/* Compact row-based card for sidebar */
 .tableCard {
   position: relative;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-xs);
   background: var(--bg-secondary);
   border: var(--border-width) solid var(--border-primary);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: var(--space-xs) var(--space-sm);
   cursor: pointer;
-  transition: all var(--transition-normal);
-  box-shadow: var(--shadow-sm);
-  min-height: 220px;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+  min-height: 0;
 }
 
 .tableCard:hover {
-  transform: translateY(calc(-1 * var(--space-xs)));
-  box-shadow: var(--shadow-lg);
+  background: var(--hover-overlay);
   border-color: var(--border-hover);
 }
 
 .tableCard.active {
-  border-color: var(--color-info);
-  box-shadow: var(--shadow-lg);
-}
-
-.tableCard.active::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: var(--space-xs);
-  background: linear-gradient(90deg, var(--color-info), var(--cyan-400));
-}
-
-/* Bulk Mode Styles */
-.tableCard.bulkMode {
-  cursor: pointer;
-}
-
-.tableCard.selected {
-  border-color: var(--color-info);
-  box-shadow: var(--shadow-lg);
+  border-left-color: var(--color-info);
   background: var(--color-primary-overlay);
 }
 
-.tableCard.selected::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: var(--space-xs);
-  background: linear-gradient(90deg, var(--color-info), var(--cyan-400));
+.tableCard.selected {
+  border-left-color: var(--color-info);
+  background: var(--color-primary-overlay);
 }
 
+/* Bulk Mode Styles */
 .bulkCheckboxWrapper {
-  position: absolute;
-  top: var(--space-sm);
-  left: var(--space-sm);
-  z-index: 15;
-  background: var(--modal-overlay);
-  backdrop-filter: blur(8px);
-  border-radius: var(--radius-sm);
-  padding: var(--space-xs);
+  flex-shrink: 0;
 }
 
 .bulkCheckbox {
   cursor: pointer;
-  width: var(--space-lg);
-  height: var(--space-lg);
+  width: 14px;
+  height: 14px;
   margin: 0;
+  accent-color: var(--color-info);
 }
 
 /* Sync Status Badge */
 .syncBadge {
-  position: absolute;
-  top: var(--space-sm);
-  right: var(--space-sm);
-  background: var(--overlay-dark-light);
-  backdrop-filter: blur(8px);
-  border-radius: var(--radius-sm);
-  width: 22px;
-  height: 22px;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: help;
-  z-index: 10;
-  transition: all var(--duration-base) ease;
   color: var(--text-muted);
-}
-
-.syncBadge:hover {
-  background: var(--overlay-dark-heavy);
-  transform: scale(1.1);
-}
-
-.syncBadgeLocal {
-  opacity: 0.9;
 }
 
 .syncBadgeSyncing {
   animation: pulse 1.5s ease-in-out infinite;
 }
 
-.syncBadgeSynced {
-  opacity: 0.7;
-}
-
 .syncBadgeError {
-  background: var(--notification-danger-bg);
   color: var(--color-danger);
 }
 
@@ -460,45 +426,24 @@
   to { transform: rotate(360deg); }
 }
 
-/* Table Preview Section */
-.tablePreview {
-  width: 100%;
-  min-height: 120px;
-  max-height: 120px;
-  height: 120px;
-  background: var(--bg-primary);
-  border-bottom: var(--border-width) solid var(--border-primary);
-  overflow: hidden;
-  cursor: pointer;
-  transition: background var(--transition-fast);
-  flex-shrink: 0;
-}
-
-.tablePreview:hover {
-  background: var(--hover-overlay);
-}
-
 /* Table Info Section */
 .tableCardInfo {
-  flex: 1 1 auto;
-  padding: var(--space-sm) var(--space-md);
-  cursor: pointer;
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2xs);
-  min-height: 50px;
-  justify-content: center;
+  gap: 1px;
+  cursor: pointer;
 }
 
 .tableCardName {
   font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
+  font-weight: var(--font-medium);
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   line-height: 1.3;
-  margin: 0;
 }
 
 .tableCard.active .tableCardName {
@@ -506,98 +451,31 @@
 }
 
 .tableCardMeta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  flex-wrap: wrap;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  line-height: 1.4;
-}
-
-.metaItem {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2xs);
-}
-
-.metaIcon {
-  font-size: var(--text-sm);
-  line-height: 1;
-}
-
-.metaSeparator {
-  color: var(--text-disabled);
-  user-select: none;
-}
-
-.tableCardDate {
   font-size: var(--text-2xs);
-  color: var(--text-disabled);
-  line-height: 1.3;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Action Bar */
 .tableCardActions {
   display: flex;
+  align-items: center;
   gap: var(--space-2xs);
-  padding: var(--space-xs) var(--space-sm);
-  background: var(--bg-tertiary);
-  border-top: var(--border-width) solid var(--border-primary);
-  min-height: 30px;
+  flex-shrink: 0;
 }
 
 .actionBtn {
   composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
-  flex: 1 1 auto;
-  padding: var(--space-xs) var(--space-sm);
-  font-size: var(--text-2xs);
+  width: 22px;
+  height: 22px;
+  padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2xs);
-  min-height: 26px;
-  white-space: nowrap;
-}
-
-.actionText {
-  display: none;
-}
-
-.actionBtnOpen .actionText {
-  display: inline;
-}
-
-/* Responsive: Hide all text on narrow cards */
-@media (max-width: 280px) {
-  .actionText {
-    display: none !important;
-  }
-  
-  .actionBtn {
-    min-width: 32px;
-  }
-}
-
-.actionBtnOpen {
-  border-color: var(--button-info-bg);
-  font-weight: var(--font-medium);
-}
-
-.actionBtnOpen:hover {
-  background: var(--button-info-bg);
-  border-color: var(--button-info-hover);
-  color: var(--button-info-text);
-}
-
-.actionBtnSettings:hover {
-  background: var(--button-secondary-hover);
-  color: var(--text-primary);
-}
-
-.actionBtnDuplicate:hover {
-  background: var(--button-info-bg);
-  color: var(--button-info-text);
+  flex-shrink: 0;
+  border-radius: var(--radius-xs);
 }
 
 .actionBtnDelete:hover {
@@ -701,43 +579,13 @@
   background: var(--gray-500);
 }
 
-/* Responsive Grid */
+/* Responsive - side panel is always narrow */
 @media (max-width: 768px) {
-  .tablesList {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: var(--space-sm);
-  }
-  
-  .tableCard {
-    height: 200px;
-  }
-  
-  .action-btn {
-    font-size: var(--text-3xs);
-    padding: var(--space-xs);
-  }
-  
-  .action-icon {
-    font-size: var(--text-2xs);
-  }
-  
-  .tableCard-actions {
-    flex-wrap: wrap;
-  }
-  
   .searchFilterBar {
     flex-wrap: wrap;
   }
-  
   .searchBox {
     flex: 1 1 100%;
-    margin-bottom: var(--space-sm);
-  }
-}
-
-@media (min-width: 1200px) {
-  .tablesList {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   }
 }
 

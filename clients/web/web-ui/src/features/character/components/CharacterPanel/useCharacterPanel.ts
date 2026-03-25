@@ -3,11 +3,11 @@ import type { Character } from '@/types';
 import { authService } from '@features/auth';
 import { useProtocol } from '@lib/api';
 import {
-  cloneCharacter,
-  downloadCharacterAsJSON,
-  downloadMultipleCharactersAsJSON,
-  pickAndImportCharacter,
-  showToast
+    cloneCharacter,
+    downloadCharacterAsJSON,
+    downloadMultipleCharactersAsJSON,
+    pickAndImportCharacter,
+    showToast
 } from '@shared/utils';
 import React, { useEffect, useState } from 'react';
 import { genId } from './utils';
@@ -190,8 +190,11 @@ export function useCharacterPanel() {
     
     if (protocol && isConnected) {
       try {
+        // Send flat blob: wizard form data + character_id for server lookup
+        // After reload, character.data = this blob, so data.class/data.race work correctly
+        const saveBlob = { character_id: tempId, ...data };
         registerPendingOperation(tempId, 'create', newCharacter);
-        protocol.saveCharacter(newCharacter, currentUserId);
+        protocol.saveCharacter(saveBlob, currentUserId);
       } catch (error) {
         confirmPendingOperation(tempId);
         updateCharacter(tempId, { syncStatus: 'error' });
@@ -213,7 +216,8 @@ export function useCharacterPanel() {
 
     try {
       registerPendingOperation(charId, 'create', char);
-      protocol.saveCharacter(char as unknown as Record<string, unknown>, currentUserId);
+      const saveBlob = { character_id: charId, ...(char.data as any) };
+      protocol.saveCharacter(saveBlob, currentUserId);
       showToast.info(`Retrying save for "${char.name}"...`);
     } catch (error) {
       confirmPendingOperation(charId);
@@ -295,11 +299,8 @@ export function useCharacterPanel() {
         if (protocol && isConnected) {
           try {
             registerPendingOperation(character.id, 'create');
-            protocol.saveCharacter({
-              character_data: character,
-              user_id: currentUserId,
-              session_code: sessionId?.toString() || ''
-            });
+            const saveBlob = { character_id: character.id, ...(character.data as any) };
+            protocol.saveCharacter(saveBlob, currentUserId);
           } catch (error) {
             confirmPendingOperation(character.id);
             showToast.warning(`Character "${character.name}" imported locally only.`);
@@ -325,11 +326,8 @@ export function useCharacterPanel() {
     if (protocol && isConnected) {
       try {
         registerPendingOperation(clonedChar.id, 'create');
-        protocol.saveCharacter({
-          character_data: clonedChar,
-          user_id: currentUserId,
-          session_code: sessionId?.toString() || ''
-        });
+        const saveBlob = { character_id: clonedChar.id, ...(clonedChar.data as any) };
+        protocol.saveCharacter(saveBlob, currentUserId);
       } catch (error) {
         confirmPendingOperation(clonedChar.id);
         showToast.warning(`Cloned character saved locally only.`);

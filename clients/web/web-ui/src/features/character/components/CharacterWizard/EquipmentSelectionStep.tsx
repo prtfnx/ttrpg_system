@@ -21,7 +21,7 @@ interface EquipmentSelectionStepProps {
 export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
   characterClass: propCharacterClass,
   abilityScores: propAbilityScores,
-  onNext,
+  onNext: _onNext,
   onBack,
   onPrevious
 }) => {
@@ -40,6 +40,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
   };
   
   const handleBack = onBack || onPrevious;
+  void handleBack; // used only when step renders its own navigation
   
   // Use ref to track if we're in initial load to prevent infinite loop
   const initialLoadRef = React.useRef(true);
@@ -259,37 +260,6 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
     setCurrentGold(prev => prev + refund);
   }, [selectedItems, availableEquipment]);
 
-  // Update form with selected equipment
-  const updateFormEquipment = useCallback(() => {
-    
-    const inventoryItems = selectedItems.map((item) => {
-      
-      // Use the equipment data already in the item
-      // It's already in the correct format from equipmentToWizardItem
-      const result = {
-        equipment: item.equipment, // Already has name, weight, cost
-        quantity: item.quantity,
-        equipped: item.equipped
-      };
-      return result;
-    });
-    
-    const carryingCapacity = calculateCarryingCapacity();
-    
-    const equipmentData = {
-      items: inventoryItems,
-      currency: {
-        cp: 0,
-        sp: 0, 
-        ep: 0,
-        gp: currentGold,
-        pp: 0
-      },
-      carrying_capacity: carryingCapacity
-    };
-    setValue('equipment', equipmentData, { shouldValidate: true });
-  }, [selectedItems, currentGold, calculateCarryingCapacity, setValue, availableEquipment]);
-
   // Auto-save equipment to form whenever selectedItems changes
   useEffect(() => {
     if (!loading) {
@@ -345,12 +315,6 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
     }
   }, [selectedItems, currentGold, loading, abilityScores, setValue]); // Don't include updateFormEquipment!
 
-  // Handle next step
-  const handleNext = useCallback(() => {
-    updateFormEquipment();
-    onNext();
-  }, [updateFormEquipment, onNext]);
-
   // Calculate total weight and check encumbrance
   const { totalWeight, isEncumbered, isHeavilyEncumbered } = useMemo(() => {
     const weight = selectedItems.reduce((total, item) => {
@@ -378,29 +342,29 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
 
   return (
     <ErrorBoundary>
-      <div className="equipment-selection-step">
+      <div className={styles['equipment-selection-step']}>
         <h2>Select Starting Equipment</h2>
         
         {error && (
-          <div className="error-message">
-            <span className="error-icon">⚠️</span>
+          <div className={styles['error-message']}>
+            <span className={styles['error-icon']}>⚠️</span>
             {error}
           </div>
         )}
 
         {/* Equipment Summary */}
-        <div className="equipment-summary">
-          <div className="summary-item">
-            <span className="label">Starting Gold:</span>
-            <span className="value">{startingGold} gp</span>
+        <div className={styles['equipment-summary']}>
+          <div className={styles['summary-item']}>
+            <span className={styles.label}>Starting Gold:</span>
+            <span className={styles.value}>{startingGold} gp</span>
           </div>
-          <div className="summary-item">
-            <span className="label">Remaining Gold:</span>
-            <span className="value">{currentGold} gp</span>
+          <div className={styles['summary-item']}>
+            <span className={styles.label}>Remaining Gold:</span>
+            <span className={styles.value}>{currentGold} gp</span>
           </div>
-          <div className="summary-item">
-            <span className="label">Total Weight:</span>
-            <span className={`value ${isHeavilyEncumbered ? 'heavily-encumbered' : isEncumbered ? 'encumbered' : ''}`}>
+          <div className={styles['summary-item']}>
+            <span className={styles.label}>Total Weight:</span>
+            <span className={`${styles.value} ${isHeavilyEncumbered ? styles['heavily-encumbered'] : isEncumbered ? styles.encumbered : ''}`}>
               {totalWeight.toFixed(1)} lbs
               {isHeavilyEncumbered && ' (Heavily Encumbered)'}
               {isEncumbered && !isHeavilyEncumbered && ' (Encumbered)'}
@@ -409,22 +373,20 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
         </div>
 
         {/* Equipment Filters - Spans both columns */}
-        <div className="equipment-filters">
-          <div className="search-container">
-            <input
-              type="text"
-              placeholder="Search equipment..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
-            />
-          </div>
+        <div className={styles['equipment-filters']}>
+          <input
+            type="text"
+            placeholder="Search equipment..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className={styles['search-input']}
+          />
           
-          <div className="category-filters">
+          <div className={styles['category-filters']}>
             {equipmentCategories.map(category => (
               <button
                 key={category}
-                className={`category-button ${selectedCategory === category ? 'active' : ''}`}
+                className={`${styles['category-button']} ${selectedCategory === category ? styles['active'] : ''}`}
                 onClick={() => setSelectedCategory(category)}
               >
                 {category.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
@@ -433,35 +395,35 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
           </div>
         </div>
 
-        <div className="equipment-content">
+        <div className={styles['equipment-content']}>
           {/* Available Equipment - Left side */}
-          <div className="available-equipment">
+          <div className={styles['available-equipment']}>
             <h3>Available Equipment ({filteredEquipment.length})</h3>
             <div className={styles.equipmentGrid}>
               {filteredEquipment.map((equipment) => (
-                <div key={equipment.name} className="equipment-card">
-                  <div className="equipment-header">
+                <div key={equipment.name} className={styles['equipment-card']}>
+                  <div className={styles['equipment-header']}>
                     <h4>{equipment.name}</h4>
-                    <div className="equipment-cost">
+                    <div className={styles['equipment-cost']}>
                       {equipment.cost?.quantity || 0} {equipment.cost?.unit || 'gp'}
                     </div>
                   </div>
                   
                   {equipment.description && (
-                    <p className="equipment-description">
+                    <p className={styles['equipment-description']}>
                       {equipment.description}
                     </p>
                   )}
                   
-                  <div className="equipment-stats">
-                    <span className="weight">Weight: {equipment.weight || 0} lbs</span>
+                  <div className={styles['equipment-stats']}>
+                    <span>{equipment.weight || 0} lbs</span>
                     {equipment.category && (
-                      <span className="category">{equipment.category}</span>
+                      <span className={styles['equipment-category']}>{equipment.category}</span>
                     )}
                   </div>
                   
                   <button
-                    className="add-equipment-button"
+                    className={styles['add-equipment-button']}
                     onClick={() => addItem(equipment)}
                     disabled={currentGold < (equipment.cost?.quantity || 0)}
                   >
@@ -471,7 +433,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
               ))}
               
               {filteredEquipment.length === 0 && (
-                <div className="no-equipment">
+                <div className={styles['no-equipment']}>
                   No equipment found matching your criteria.
                 </div>
               )}
@@ -479,31 +441,29 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
           </div>
 
           {/* Selected Equipment */}
-          <div className="selected-equipment">
+          <div className={styles['selected-equipment']}>
             <h3>Selected Equipment ({selectedItems.length})</h3>
             {selectedItems.length > 0 ? (
-              <div className="selected-items">
+              <div className={styles['selected-items']}>
                 {selectedItems.map((item, index) => (
-                  <div key={`${item?.equipment?.name || 'item'}-${index}`} className="selected-item">
-                    <div className="item-info">
-                      <span className="item-name">{item?.equipment?.name || 'Unknown Item'}</span>
-                      <span className="item-quantity">x{item?.quantity || 1}</span>
-                      <span className="item-weight">{((item?.equipment?.weight ?? 0) * (item?.quantity ?? 1)).toFixed(1)} lbs</span>
+                  <div key={`${item?.equipment?.name || 'item'}-${index}`} className={styles['selected-item']}>
+                    <div className={styles['item-info']}>
+                      <span className={styles['item-name']}>{item?.equipment?.name || 'Unknown Item'}</span>
+                      <span className={styles['item-quantity']}>×{item?.quantity || 1}</span>
+                      <span className={styles['item-weight']}>{((item?.equipment?.weight ?? 0) * (item?.quantity ?? 1)).toFixed(1)} lbs</span>
                     </div>
-                    <div className="item-actions">
-                      <button
-                        className="remove-button"
-                        onClick={() => removeItem(index)}
-                        title="Remove one"
-                      >
-                        ➖
-                      </button>
-                    </div>
+                    <button
+                      className={styles['remove-button']}
+                      onClick={() => removeItem(index)}
+                      title="Remove one"
+                    >
+                      −
+                    </button>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="no-selected">
+              <div className={styles['no-selected']}>
                 No equipment selected yet.
               </div>
             )}

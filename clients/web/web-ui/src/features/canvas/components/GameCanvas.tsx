@@ -19,8 +19,8 @@ import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
 import { MultiSelectManager } from '../services';
 import fpsService from '../services/fps.service';
 import { performanceService } from '../services/performance.service';
-import styles from './GameCanvas.module.css';
 import { FloatingLayerPicker } from './FloatingLayerPicker';
+import styles from './GameCanvas.module.css';
 import {
   CanvasRenderer,
   getGridCoord,

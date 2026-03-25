@@ -37,6 +37,7 @@ export interface Race {
 export interface CharacterClass {
   name: string;
   hit_die: number; // Just the number (e.g., 12 for d12)
+  description?: string;
   primary_abilities: string[];
   saving_throw_proficiencies: string[]; // Renamed from saving_throws
   skill_proficiencies?: string[];

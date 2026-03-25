@@ -42,6 +42,10 @@ export function ClassStep({ onNext: _onNext, onBack: _onBack }: { onNext?: () =>
             <div className={styles['details-card']}>
               <h3>{selectedClassData.name}</h3>
 
+              {selectedClassData.description && (
+                <p className={styles.description}>{selectedClassData.description}</p>
+              )}
+
               <div className={styles['detail-row']}>
                 <strong>Hit Die:</strong>{' '}
                 <span className={styles['hit-die']}>d{selectedClassData.hit_die}</span>
@@ -56,14 +60,35 @@ export function ClassStep({ onNext: _onNext, onBack: _onBack }: { onNext?: () =>
 
               {selectedClassData.saving_throw_proficiencies && selectedClassData.saving_throw_proficiencies.length > 0 && (
                 <div className={styles['detail-row']}>
-                  <strong>Saving Throw Proficiencies:</strong>{' '}
+                  <strong>Saving Throws:</strong>{' '}
                   {selectedClassData.saving_throw_proficiencies.join(', ')}
+                </div>
+              )}
+
+              {selectedClassData.armor_proficiencies && selectedClassData.armor_proficiencies.length > 0 && (
+                <div className={styles['detail-row']}>
+                  <strong>Armor:</strong>{' '}
+                  {selectedClassData.armor_proficiencies.join(', ')}
+                </div>
+              )}
+
+              {selectedClassData.weapon_proficiencies && selectedClassData.weapon_proficiencies.length > 0 && (
+                <div className={styles['detail-row']}>
+                  <strong>Weapons:</strong>{' '}
+                  {selectedClassData.weapon_proficiencies.join(', ')}
+                </div>
+              )}
+
+              {selectedClassData.spell_ability && (
+                <div className={styles['detail-row']}>
+                  <strong>Spellcasting Ability:</strong>{' '}
+                  {selectedClassData.spell_ability}
                 </div>
               )}
 
               {selectedClassData.skill_proficiencies && selectedClassData.skill_proficiencies.length > 0 && (
                 <div className={styles['detail-row']}>
-                  <strong>Skill Proficiencies:</strong>{' '}
+                  <strong>Skills:</strong>{' '}
                   Choose {selectedClassData.num_skills || 2} from: {selectedClassData.skill_proficiencies.join(', ')}
                 </div>
               )}

@@ -544,24 +544,6 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
           </div>
         )}
 
-        {/* Navigation */}
-        <div className={styles['step-navigation']}>
-          <button
-            type="button"
-            onClick={handleBack}
-            className={styles['back-button']}
-          >
-            ← Back
-          </button>
-          
-          <button
-            type="button"
-            onClick={handleNext}
-            className={styles['next-button']}
-          >
-            Next →
-          </button>
-        </div>
       </div>
     </ErrorBoundary>
   );

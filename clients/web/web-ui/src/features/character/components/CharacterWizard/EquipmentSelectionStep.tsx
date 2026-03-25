@@ -2,10 +2,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import {
-    equipmentManagementService,
-    equipmentToWizardItem,
-    type Equipment,
-    type WizardEquipmentItem
+  equipmentManagementService,
+  equipmentToWizardItem,
+  type Equipment,
+  type WizardEquipmentItem
 } from '../../services/equipmentManagement.service';
 import styles from './EquipmentSelectionStep.module.css';
 import type { WizardFormData } from './WizardFormData';
@@ -510,26 +510,6 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
           </div>
         </div>
 
-        {/* Navigation */}
-        <div className="step-navigation">
-          <button
-            type="button"
-            onClick={handleBack}
-            className="nav-button back-button"
-          >
-            ← Back
-          </button>
-          
-          <button
-            type="button"
-            onClick={handleNext}
-            className="nav-button next-button"
-            disabled={isHeavilyEncumbered}
-            title={isHeavilyEncumbered ? 'Cannot proceed while heavily encumbered' : ''}
-          >
-            Next →
-          </button>
-        </div>
       </div>
     </ErrorBoundary>
   );

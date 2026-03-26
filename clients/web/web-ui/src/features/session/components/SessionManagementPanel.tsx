@@ -72,7 +72,6 @@ export const SessionManagementPanel: React.FC<SessionManagementPanelProps> = ({ 
               players={players}
               sessionCode={sessionCode}
               canManagePlayers={canManagePlayers}
-              canModify={canManagePlayers}
               changing={changing}
               onRoleChange={handleRoleChange}
               onKick={handleKick}

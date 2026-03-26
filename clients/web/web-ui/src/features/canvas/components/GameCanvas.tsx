@@ -12,7 +12,7 @@ import type { RenderEngine } from '@lib/wasm/wasm';
 import { DragDropImageHandler } from '@shared/components';
 import { useWebSocket } from '@shared/hooks';
 import type { LucideIcon } from 'lucide-react';
-import { ChevronRight, CloudFog, Construction, Crown, Lightbulb, Map, Mountain, Users } from 'lucide-react';
+import { ChevronRight, CloudFog, Construction, Crown, Lightbulb, Map as MapIcon, Mountain, Users } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSpriteDragSync } from '../hooks/useSpriteDragSync';
 import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
@@ -44,7 +44,7 @@ declare global {
 
 // Available layers - matching LayerPanel
 const AVAILABLE_LAYERS: { id: string; name: string; icon: LucideIcon }[] = [
-  { id: 'map', name: 'Map', icon: Map },
+  { id: 'map', name: 'Map', icon: MapIcon },
   { id: 'tokens', name: 'Tokens', icon: Users },
   { id: 'dungeon_master', name: 'DM Layer', icon: Crown },
   { id: 'light', name: 'Lighting', icon: Lightbulb },
@@ -60,7 +60,7 @@ export const GameCanvas: React.FC = () => {
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const visionRingsCanvasRef = useRef<HTMLCanvasElement>(null);
   // Tracks live drag positions so vision rings follow during drag
-  const dragPositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const dragPositionsRef = useRef(new Map<string, { x: number; y: number }>());
 
   const dynamicLightingEnabled = useGameStore(s => s.dynamicLightingEnabled);
   // Protocol and store setup
@@ -75,8 +75,6 @@ export const GameCanvas: React.FC = () => {
   const { updateConnectionState, tables, activeTableId } = useGameStore();
   const activeTable = tables.find((t) => t.table_id === activeTableId);
   const activeLayer = useGameStore(s => s.activeLayer);
-  const sessionRole = useGameStore(s => s.sessionRole);
-  const dmMode = isDM(sessionRole);
   const { connect: connectWebSocket, disconnect: disconnectWebSocket } = useWebSocket(
     'ws://127.0.0.1:12345/ws'
   );

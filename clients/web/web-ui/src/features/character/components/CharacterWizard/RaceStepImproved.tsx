@@ -162,15 +162,6 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
         </div>
       )}
 
-      <div className={styles.actions}>
-        <button
-          type="submit"
-          disabled={!selectedRace || (hasSubraces && !selectedSubrace)}
-          className={styles['submit-btn']}
-        >
-          Next
-        </button>
-      </div>
     </form>
   );
 }

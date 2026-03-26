@@ -3,6 +3,7 @@ import clsx from 'clsx';
 import React, { useRef, useState } from 'react';
 import type { TableInfo } from '../hooks/useTableManager';
 import { useTableManager } from '../hooks/useTableManager';
+import { TablePreview } from './TablePreview';
 import styles from './TablePanel.module.css';
 
 const TablePanel: React.FC = () => {
@@ -136,6 +137,10 @@ const TablePanel: React.FC = () => {
             aria-label={table.table_name}
             className={clsx(styles.tableItem, table.table_id === activeTableId && styles.active)}
           >
+            <div className={styles.tablePreviewWrapper} onClick={() => handleTableSelect(table.table_id)}>
+              <TablePreview table={table as any} width={160} height={90} />
+            </div>
+
             <div className={styles.tableHeader}>
               <span 
                 className={styles.tableName}

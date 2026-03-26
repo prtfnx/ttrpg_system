@@ -1,6 +1,8 @@
 import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
 import { BrickWall, CloudFog, Crown, Lightbulb, Map, Mountain, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './FloatingLayerPicker.module.css';
 
 const LAYERS = [
@@ -17,10 +19,20 @@ export function FloatingLayerPicker() {
   const sessionRole = useGameStore(s => s.sessionRole);
   const activeLayer = useGameStore(s => s.activeLayer);
   const setActiveLayer = useGameStore(s => s.setActiveLayer);
+  // Track DM status in local state so we re-render after WS role arrives
+  const [dmConfirmed, setDmConfirmed] = useState(false);
 
-  // sessionRole is null until WS welcome message; fall back to injected initial role
-  const effectiveRole = sessionRole ?? ((window as any).__INITIAL_DATA__?.userRole ?? null);
-  if (!isDM(effectiveRole)) return null;
+  useEffect(() => {
+    // Check on mount using injected initial data (before WS welcome)
+    const initial = (window as any).__INITIAL_DATA__?.userRole ?? null;
+    if (isDM(initial)) setDmConfirmed(true);
+  }, []);
+
+  useEffect(() => {
+    if (isDM(sessionRole)) setDmConfirmed(true);
+  }, [sessionRole]);
+
+  if (!dmConfirmed) return null;
 
   const switchLayer = (id: string) => {
     setActiveLayer(id);
@@ -30,7 +42,7 @@ export function FloatingLayerPicker() {
 
   const active = LAYERS.find(l => l.id === activeLayer);
 
-  return (
+  return createPortal(
     <div className={styles.picker} role="toolbar" aria-label="Layer switcher">
       {LAYERS.map(({ id, label, Icon, hotkey }) => (
         <button
@@ -44,9 +56,8 @@ export function FloatingLayerPicker() {
           <Icon size={14} aria-hidden />
         </button>
       ))}
-      {active && (
-        <span className={styles.label}>{active.label}</span>
-      )}
-    </div>
+      {active && <span className={styles.label}>{active.label}</span>}
+    </div>,
+    document.body,
   );
 }

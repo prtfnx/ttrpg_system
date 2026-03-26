@@ -39,13 +39,22 @@ class ActionsCore(AsyncActionsProtocol):
         self.redo_stack.clear()  # Clear redo stack when new action is performed
     
     async def _get_table(self, table_id: str) -> Optional[VirtualTable]:
-        """Get table by ID"""
-        logger.debug(f"Getting table with ID: {table_id}, all table_manager.tables: {self.table_manager.tables_id.keys()}")
+        """Get table by ID or name"""
+        logger.debug(f"Getting table with ID: {table_id}, all table_manager.tables: {self.table_manager.tables.keys()}")
+        # Check the UUID index first
         table = self.table_manager.tables_id.get(table_id)
-        if not table:
-            # Try to get from name if ID not found
-            table = self.table_manager.tables.get(table_id)
-        logger.debug(f"Found table: {table}")
+        if table:
+            logger.debug(f"Found table: {table}")
+            return table
+        # Rebuild UUID index from live tables (handles tables loaded after init)
+        self.table_manager.tables_id = {str(t.table_id): t for t in self.table_manager.tables.values()}
+        table = self.table_manager.tables_id.get(table_id)
+        if table:
+            logger.debug(f"Found table after index rebuild: {table}")
+            return table
+        # Last resort: look up by name
+        table = self.table_manager.tables.get(table_id)
+        logger.debug(f"Found table by name: {table}")
         return table
     
     async def _persist_table_state(self, table: VirtualTable, operation_name: str, session_id: Optional[int] = None):

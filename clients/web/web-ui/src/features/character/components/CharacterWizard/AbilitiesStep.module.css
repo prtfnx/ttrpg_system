@@ -4,6 +4,66 @@
   gap: var(--space-md);
 }
 
+/* Character summary bar at top of step */
+.summaryBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-secondary);
+  border: var(--border-width) solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.summaryItem {
+  color: var(--text-secondary);
+}
+
+.summaryItem:not(:last-child)::after {
+  content: '·';
+  margin-left: var(--space-sm);
+  opacity: 0.5;
+}
+
+/* Roll mode */
+.rollSection {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.rollResults {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.rollChipAvail {
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-bold);
+  font-size: var(--text-sm);
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+  min-width: 2rem;
+  text-align: center;
+}
+
+.rollChipUsed {
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-bold);
+  font-size: var(--text-sm);
+  background: var(--bg-elevated);
+  color: var(--text-disabled);
+  min-width: 2rem;
+  text-align: center;
+  text-decoration: line-through;
+}
+
 .methodRow {
   display: flex;
   gap: var(--space-sm);

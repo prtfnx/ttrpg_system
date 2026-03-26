@@ -170,6 +170,47 @@ export function useCharacterPanel() {
       setShowWizard(false);
       return;
     }
+
+    // Transform WizardFormData → CharacterSheet-compatible data shape
+    const conScore = data.constitution || 10;
+    const conMod = Math.floor((conScore - 10) / 2);
+    const dexScore = data.dexterity || 10;
+    const dexMod = Math.floor((dexScore - 10) / 2);
+
+    const HIT_DICE: Record<string, number> = {
+      barbarian: 12, fighter: 10, paladin: 10, ranger: 10,
+      bard: 8, cleric: 8, druid: 8, monk: 8, rogue: 8, warlock: 8, artificer: 8,
+      sorcerer: 6, wizard: 6,
+    };
+    const hitDie = HIT_DICE[(data.class || '').toLowerCase()] || 8;
+    const maxHp = Math.max(1, hitDie + conMod);
+
+    const abilityScores = {
+      str: data.strength || 10,
+      dex: dexScore,
+      con: conScore,
+      int: data.intelligence || 10,
+      wis: data.wisdom || 10,
+      cha: data.charisma || 10,
+    };
+
+    const skillsObj: Record<string, boolean> = {};
+    for (const skill of (data.skills as string[] || [])) {
+      skillsObj[skill] = true;
+    }
+
+    // Strip wizard UI-only fields before save
+    const { _abilityMethod: _m, _abilityRolls: _r, _rollAssignments: _a, ...cleanData } = data;
+
+    const characterData = {
+      ...cleanData,
+      abilityScores,
+      skills: skillsObj,
+      savingThrows: { str: false, dex: false, con: false, int: false, wis: false, cha: false },
+      stats: { hp: maxHp, maxHp, ac: 10, speed: 30, initiative: dexMod },
+      level: data.level || 1,
+      proficiencyBonus: 2,
+    };
     
     const newCharacter = {
       id: tempId,
@@ -177,7 +218,7 @@ export function useCharacterPanel() {
       name: data.name || `${data.race} ${data.class}`,
       ownerId: currentUserId,
       controlledBy: [],
-      data,
+      data: characterData,
       version: 1,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -190,9 +231,7 @@ export function useCharacterPanel() {
     
     if (protocol && isConnected) {
       try {
-        // Send flat blob: wizard form data + character_id for server lookup
-        // After reload, character.data = this blob, so data.class/data.race work correctly
-        const saveBlob = { character_id: tempId, ...data };
+        const saveBlob = { character_id: tempId, ...characterData };
         registerPendingOperation(tempId, 'create', newCharacter);
         protocol.saveCharacter(saveBlob, currentUserId);
       } catch (error) {

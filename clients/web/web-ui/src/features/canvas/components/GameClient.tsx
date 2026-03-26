@@ -105,8 +105,10 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     const apply = () => {
       const engine = window.rustRenderManager;
       if (engine?.set_gm_mode) {
-        engine.set_gm_mode(isDM(sessionRole));
-        (engine as any).fog_set_gm_mode?.(isDM(sessionRole));
+        // Use __INITIAL_DATA__ as fallback so GM mode is correct before WELCOME arrives
+        const effectiveRole = sessionRole ?? (window as any).__INITIAL_DATA__?.userRole ?? null;
+        engine.set_gm_mode(isDM(effectiveRole));
+        (engine as any).fog_set_gm_mode?.(isDM(effectiveRole));
       }
     };
     apply();

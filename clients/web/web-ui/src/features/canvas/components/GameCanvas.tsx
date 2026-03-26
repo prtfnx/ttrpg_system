@@ -316,8 +316,8 @@ export const GameCanvas: React.FC = () => {
           : 0;
         if (!vr && !dvr) continue;
 
-        const hw = (s.width ?? 40) / 2;
-        const hh = (s.height ?? 40) / 2;
+        const hw = (s.width ?? (s.scale_x ?? 1) * 64) / 2;
+        const hh = (s.height ?? (s.scale_y ?? 1) * 64) / 2;
         // Use live drag position if being dragged, otherwise use store position
         const pos = dragPositionsRef.current.get(s.id) ?? { x: s.x, y: s.y };
         try {

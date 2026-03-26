@@ -143,20 +143,20 @@
 }
 
 .step-number {
-  composes: wizard-badge from './CharacterWizardBase.module.css';
-  background: var(--wizard-border-overlay);
-  width: var(--size-6);
-  height: var(--size-6);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  opacity: 0.7;
+  min-width: 1.2em;
+  text-align: center;
 }
 
 .step-button.active .step-number {
-  background: var(--blue-600);
+  opacity: 1;
   color: var(--text-inverse-primary);
 }
 
 .step-button.completed .step-number {
-  background: var(--wizard-border-overlay);
+  opacity: 0.6;
 }
 
 .step-title {

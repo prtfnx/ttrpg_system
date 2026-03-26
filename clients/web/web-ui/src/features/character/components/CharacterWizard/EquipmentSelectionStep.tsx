@@ -10,6 +10,18 @@ import {
 import styles from './EquipmentSelectionStep.module.css';
 import type { WizardFormData } from './WizardFormData';
 
+const CURRENCY_TO_GOLD: Record<string, number> = { cp: 0.01, sp: 0.1, ep: 0.5, gp: 1, pp: 10 };
+
+function costToGold(cost: Equipment['cost'] | undefined): number {
+  if (!cost) return 0;
+  return cost.quantity * (CURRENCY_TO_GOLD[cost.unit] ?? 1);
+}
+
+function formatCost(cost: Equipment['cost']): string {
+  if (!cost || cost.quantity === 0) return 'Free';
+  return `${cost.quantity} ${cost.unit}`;
+}
+
 interface EquipmentSelectionStepProps {
   characterClass?: string;
   abilityScores?: Record<string, number>;
@@ -211,10 +223,10 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
       return;
     }
     
-    const cost = equipment.cost?.quantity || 0;
+    const cost = costToGold(equipment.cost);
     
     if (currentGold < cost) {
-      setError(`Not enough gold! Need ${cost} gp but only have ${currentGold} gp`);
+      setError(`Not enough gold! Need ${formatCost(equipment.cost)} but only have ${currentGold.toFixed(2)} gp`);
       return;
     }
 
@@ -245,7 +257,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
   const removeItem = useCallback((index: number) => {
     const item = selectedItems[index];
     const equipment = availableEquipment.find(eq => eq.name === item.equipment.name);
-    const refund = equipment?.cost?.quantity || 0;
+    const refund = costToGold(equipment?.cost);
     
     if (item.quantity > 1) {
       // Decrease quantity
@@ -372,6 +384,35 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
           </div>
         </div>
 
+        {/* Standard Starting Equipment */}
+        {(() => {
+          const startingPack = equipmentManagementService.getStartingEquipment(characterClass);
+          const hasStarting = startingPack.equipment.filter(Boolean).length > 0;
+          if (!hasStarting) return null;
+          return (
+            <div className={styles['starting-equipment']}>
+              <div className={styles['starting-equipment-header']}>
+                <span>Standard {characterClass.charAt(0).toUpperCase() + characterClass.slice(1)} Equipment</span>
+                <button
+                  className={styles['take-standard-button']}
+                  onClick={() => {
+                    const items = startingPack.equipment.filter(Boolean).map(eq => equipmentToWizardItem(eq, 1));
+                    setSelectedItems(items);
+                    setCurrentGold(0);
+                  }}
+                >
+                  Take Standard Pack
+                </button>
+              </div>
+              <div className={styles['starting-items-list']}>
+                {startingPack.equipment.filter(Boolean).map((eq, i) => (
+                  <span key={i} className={styles['starting-item-tag']}>{eq.name} ({formatCost(eq.cost)})</span>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Equipment Filters - Spans both columns */}
         <div className={styles['equipment-filters']}>
           <input
@@ -405,7 +446,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
                   <div className={styles['equipment-header']}>
                     <h4>{equipment.name}</h4>
                     <div className={styles['equipment-cost']}>
-                      {equipment.cost?.quantity || 0} {equipment.cost?.unit || 'gp'}
+                      {formatCost(equipment.cost)}
                     </div>
                   </div>
                   
@@ -425,7 +466,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
                   <button
                     className={styles['add-equipment-button']}
                     onClick={() => addItem(equipment)}
-                    disabled={currentGold < (equipment.cost?.quantity || 0)}
+                    disabled={currentGold < costToGold(equipment.cost)}
                   >
                     Add to Inventory
                   </button>

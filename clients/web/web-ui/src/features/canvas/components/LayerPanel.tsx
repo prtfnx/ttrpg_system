@@ -268,7 +268,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
 
   if (isLoading) {
     return (
-      <div className={clsx(styles.layerPanel, styles.loading, className)} style={dynamicStyle} id={id} {...otherProps}>
+      <div className={clsx(styles.layerPanel, styles.loading, className)} id={id} {...otherProps}>
         <div className={styles.loadingContent}>
           <div className={styles.spinner}></div>
           <span>Initializing layers...</span>
@@ -287,7 +287,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
   }
 
   return (
-    <div className={clsx(styles.layerPanel, className, dynamicDimensions.isClamped && styles.clamped)} style={dynamicStyle} id={id} {...otherProps}>
+    <div className={clsx(styles.layerPanel, className)} id={id} {...otherProps}>
       <div className={styles.layerPanelHeader}>
         <h3>Layers</h3>
         <div className={styles.layerCount}>

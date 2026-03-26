@@ -1,6 +1,6 @@
 import { useGameStore } from '@/store';
 import clsx from 'clsx';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import type { TableInfo } from '../hooks/useTableManager';
 import { useTableManager } from '../hooks/useTableManager';
 import styles from './TablePanel.module.css';
@@ -22,6 +22,7 @@ const TablePanel: React.FC = () => {
   const [newTableName, setNewTableName] = useState('');
   const [newTableWidth, setNewTableWidth] = useState(2000);
   const [newTableHeight, setNewTableHeight] = useState(2000);
+  const zoomRef = useRef(1.0);
 
   const handleCreateTable = () => {
     if (!newTableName.trim()) return;
@@ -69,10 +70,12 @@ const TablePanel: React.FC = () => {
   };
 
   const handleZoomTable = (tableId: string, zoomIn: boolean) => {
-    const zoomFactor = zoomIn ? 1.2 : 0.8;
-    const centerX = 400; // Canvas center - should be dynamic
-    const centerY = 300;
-    zoomTable(tableId, zoomFactor, centerX, centerY);
+    const factor = zoomIn ? 1.2 : 0.8;
+    const newZoom = Math.max(0.1, Math.min(5.0, zoomRef.current * factor));
+    zoomRef.current = newZoom;
+    const rm = (window as any).rustRenderManager;
+    if (rm?.set_zoom) rm.set_zoom(newZoom);
+    zoomTable(tableId, factor, 400, 300);
   };
 
   return (

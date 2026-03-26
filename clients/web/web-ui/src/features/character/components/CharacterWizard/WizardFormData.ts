@@ -82,6 +82,10 @@ export type WizardFormData = {
     level: number;
     subclass?: string;
   }>;
+  // Wizard UI state - persisted but not sent to server
+  _abilityMethod?: 'standard' | 'pointbuy' | 'roll' | 'manual';
+  _abilityRolls?: number[];
+  _rollAssignments?: Partial<Record<string, number>>; // ability name → index in _abilityRolls
 };
 
 // Enhanced validation schema with Zod

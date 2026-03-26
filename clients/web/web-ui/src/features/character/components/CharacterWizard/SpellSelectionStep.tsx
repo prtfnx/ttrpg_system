@@ -249,15 +249,38 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
       <div className={styles['spell-selection-step']}>
         <div className={styles['step-header']}>
           <h2>Select Spells for {characterClass}</h2>
-          <p className={styles['spell-requirements']}>
-            {(spellSlots.cantrips || 0) > 0 && `Choose ${spellSlots.cantrips} cantrips`}
-            {(spellSlots.cantrips || 0) > 0 && maxSpellsKnown !== Infinity && ' • '}
-            {maxSpellsKnown !== Infinity && `Choose ${maxSpellsKnown} spells`}
-            {maxSpellsKnown === Infinity && `Prepare spells`}
-          </p>
-          <p className={styles['spell-help']}>
-            You can only learn spells of levels you have spell slots for (Level {characterLevel} caster)
-          </p>
+          {(() => {
+            const isPrepared = maxSpellsKnown === Infinity;
+            const abilityKey = spellcastingStats.spellcastingAbility.toLowerCase();
+            const abilityScore = (abilityScores as any)?.[abilityKey] || 10;
+            const abilityMod = Math.floor((abilityScore - 10) / 2);
+            const modStr = abilityMod >= 0 ? `+${abilityMod}` : `${abilityMod}`;
+            const preparedCount = Math.max(1, abilityMod + characterLevel);
+            return (
+              <div className={styles['spell-limits']}>
+                {(spellSlots.cantrips || 0) > 0 && (
+                  <span className={styles['spell-limit-item']}>
+                    <strong>{spellSlots.cantrips}</strong> cantrips
+                    <span className={styles['spell-limit-source']}>{characterClass} level {characterLevel}</span>
+                  </span>
+                )}
+                {!isPrepared && (maxSpellsKnown as number) > 0 && (
+                  <span className={styles['spell-limit-item']}>
+                    <strong>{maxSpellsKnown}</strong> spells known
+                    <span className={styles['spell-limit-source']}>{characterClass} progression</span>
+                  </span>
+                )}
+                {isPrepared && (
+                  <span className={styles['spell-limit-item']}>
+                    <strong>{preparedCount}</strong> spells to prepare
+                    <span className={styles['spell-limit-source']}>
+                      {spellcastingStats.spellcastingAbility} {modStr} + level {characterLevel}
+                    </span>
+                  </span>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         <div className={styles['spell-content']}>

@@ -2,8 +2,8 @@ import { useRacesForCharacterWizard } from '@features/compendium';
 import { useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { calculateRacialASI, getRacialTraits } from './raceData';
-import type { RaceStepData } from './schemas';
 import styles from './RaceStepImproved.module.css';
+import type { RaceStepData } from './schemas';
 
 interface ExtendedRaceData extends RaceStepData {
   subrace?: string;

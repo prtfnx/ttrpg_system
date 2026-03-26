@@ -680,14 +680,19 @@ class EquipmentManagementService {
       const items = data.equipment?.items || [];
       
       return items.map((item: any) => {
-        // Calculate cost in gold pieces
-        const costInGold = (
-          (item.cost?.copper || 0) * 0.01 +
-          (item.cost?.silver || 0) * 0.1 +
-          (item.cost?.electrum || 0) * 0.5 +
-          (item.cost?.gold || 0) +
-          (item.cost?.platinum || 0) * 10
-        );
+        // Pick natural denomination (most significant non-zero currency)
+        const pp = item.cost?.platinum || 0;
+        const gp = item.cost?.gold || 0;
+        const ep = item.cost?.electrum || 0;
+        const sp = item.cost?.silver || 0;
+        const cp = item.cost?.copper || 0;
+        let costQuantity = 0;
+        let costUnit: 'cp' | 'sp' | 'ep' | 'gp' | 'pp' = 'gp';
+        if (pp > 0) { costQuantity = pp; costUnit = 'pp'; }
+        else if (gp > 0) { costQuantity = gp; costUnit = 'gp'; }
+        else if (ep > 0) { costQuantity = ep; costUnit = 'ep'; }
+        else if (sp > 0) { costQuantity = sp; costUnit = 'sp'; }
+        else if (cp > 0) { costQuantity = cp; costUnit = 'cp'; }
         
         // Determine category from item data
         let category: EquipmentCategoryType = EquipmentCategory.GEAR;
@@ -726,10 +731,7 @@ class EquipmentManagementService {
         return {
           name: item.name,
           category,
-          cost: {
-            quantity: Math.round(costInGold * 100) / 100, // Round to 2 decimal places
-            unit: 'gp'
-          },
+          cost: { quantity: costQuantity, unit: costUnit },
           weight: item.weight || 0,
           description: item.description || '',
           properties: item.properties || {}

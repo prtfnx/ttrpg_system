@@ -18,7 +18,9 @@ export function FloatingLayerPicker() {
   const activeLayer = useGameStore(s => s.activeLayer);
   const setActiveLayer = useGameStore(s => s.setActiveLayer);
 
-  if (!isDM(sessionRole)) return null;
+  // sessionRole is null until WS welcome message; fall back to injected initial role
+  const effectiveRole = sessionRole ?? ((window as any).__INITIAL_DATA__?.userRole ?? null);
+  if (!isDM(effectiveRole)) return null;
 
   const switchLayer = (id: string) => {
     setActiveLayer(id);

@@ -12,7 +12,7 @@ interface InvitationManagerProps {
 }
 
 export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCode, onClose, standalone }) => {
-  const { invitations, loading, error, retry, createInvitation, revokeInvitation, deleteInvitation } = useInvitations(sessionCode) as any;
+  const { invitations, loading, error, refetch: retry, createInvitation, revokeInvitation, deleteInvitation } = useInvitations(sessionCode);
   const [selectedRole, setSelectedRole] = useState<SessionRole>('player');
   const [expiresHours, setExpiresHours] = useState(24);
   const [maxUses, setMaxUses] = useState<string | number>(1);

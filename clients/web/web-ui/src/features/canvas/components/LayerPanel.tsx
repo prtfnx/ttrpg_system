@@ -86,17 +86,6 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     return calculateDynamicHeight(layers.length);
   }, [layers.length]);
 
-  // Create dynamic style object; when clamped we prefer to allow internal scrolling
-  const dynamicStyle = useMemo(() => {
-    const baseStyle = style || {};
-    return {
-      ...baseStyle,
-      height: `${dynamicDimensions.height}px`,
-      maxHeight: `${dynamicDimensions.maxHeight}px`,
-      transition: 'height 0.24s ease-in-out'
-    } as React.CSSProperties;
-  }, [style, dynamicDimensions]);
-
   useEffect(() => {
     // Initialize layers
     const initLayers = () => {

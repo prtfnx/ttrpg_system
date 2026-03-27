@@ -109,7 +109,7 @@ export const TableManagementPanel: FC = () => {
             title="Create new table"
           >
             <Plus size={14} />
-            New Table
+            New
           </button>
         </div>
       </div>

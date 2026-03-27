@@ -357,7 +357,64 @@ export const GameCanvas: React.FC = () => {
     return () => cancelAnimationFrame(raf);
   }, [dynamicLightingEnabled]);
 
-  // WASM initialization and render loop
+  // Wall overlay — DM-only: draw wall segments from WASM get_wall_render_data on a canvas 2D overlay
+  const wallCanvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const { sessionRole } = useGameStore.getState();
+    const isDM = sessionRole === 'owner' || sessionRole === 'co_dm';
+    if (!isDM) return;
+
+    let raf: number;
+
+    const draw = () => {
+      const canvas = wallCanvasRef.current;
+      const mainCanvas = canvasRef.current;
+      const rm = rustRenderManagerRef.current as any;
+      if (!canvas || !mainCanvas || !rm) { raf = requestAnimationFrame(draw); return; }
+
+      // Match overlay size to main canvas
+      if (canvas.width !== mainCanvas.width || canvas.height !== mainCanvas.height) {
+        canvas.width = mainCanvas.width;
+        canvas.height = mainCanvas.height;
+        canvas.style.width = mainCanvas.style.width;
+        canvas.style.height = mainCanvas.style.height;
+      }
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { raf = requestAnimationFrame(draw); return; }
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      try {
+        if (typeof rm.get_wall_render_data !== 'function') { raf = requestAnimationFrame(draw); return; }
+        const data: Float32Array = rm.get_wall_render_data();
+        // Each wall = 8 floats: x1,y1,x2,y2,r,g,b,a  (world coords)
+        const STRIDE = 8;
+        ctx.save();
+        ctx.lineWidth = 2;
+        for (let i = 0; i + STRIDE <= data.length; i += STRIDE) {
+          const wx1 = data[i], wy1 = data[i + 1], wx2 = data[i + 2], wy2 = data[i + 3];
+          const r = data[i + 4], g = data[i + 5], b = data[i + 6], a = data[i + 7];
+
+          if (typeof rm.world_to_screen !== 'function') continue;
+          const s1 = rm.world_to_screen(wx1, wy1);
+          const s2 = rm.world_to_screen(wx2, wy2);
+          if (!s1 || !s2) continue;
+
+          ctx.beginPath();
+          ctx.moveTo(s1[0], s1[1]);
+          ctx.lineTo(s2[0], s2[1]);
+          ctx.strokeStyle = `rgba(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)},${a})`;
+          ctx.stroke();
+        }
+        ctx.restore();
+      } catch { /* rm may not be ready yet */ }
+
+      raf = requestAnimationFrame(draw);
+    };
+
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, []);
   useEffect(() => {
     let animationFrameId: number | null = null;
     let mounted = true;
@@ -746,6 +803,18 @@ export const GameCanvas: React.FC = () => {
             left: 0,
             pointerEvents: 'none',
             zIndex: 101,
+          }}
+        />
+
+        {/* Wall overlay — DM view: wall segments drawn by WASM get_wall_render_data */}
+        <canvas
+          ref={wallCanvasRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            pointerEvents: 'none',
+            zIndex: 102,
           }}
         />
 

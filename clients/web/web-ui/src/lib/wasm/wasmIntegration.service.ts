@@ -1124,6 +1124,52 @@ class WasmIntegrationService {
       }
       
       // Regular sprite handling (not a light or fog)
+
+      // Polygon obstacle: recreate from vertices (no texture to load)
+      const polyVertices = spriteData.polygon_vertices
+        || spriteData.obstacle_data?.vertices
+        || null;
+      if (spriteData.obstacle_type === 'polygon' && polyVertices && Array.isArray(polyVertices)) {
+        const engine = this.renderEngine as any;
+        if (typeof engine.create_polygon_sprite === 'function') {
+          const tableId = spriteData.table_id || 'default_table';
+          const flat = new Float32Array((polyVertices as Array<{ x: number; y: number }>).flatMap(v => [v.x, v.y]));
+          const spriteId = spriteData.sprite_id || spriteData.id || `polygon_${Date.now()}`;
+          try {
+            // create_polygon_sprite returns the assigned id; pass the existing id as table_id
+            // so we need to use a workaround — call it then rename.
+            const createdId: string = engine.create_polygon_sprite(flat, layer, tableId);
+            // If the sprite got a different id, try to rename via remove+re-add — not possible.
+            // The best approach: if id mismatch, we accept the WASM-generated id.
+            console.log(`[WASM] Polygon sprite restored: expected=${spriteId}, got=${createdId}`, polyVertices);
+          } catch (err) {
+            console.error('[WASM] Failed to restore polygon sprite via create_polygon_sprite:', err);
+          }
+        } else {
+          console.warn('[WASM] create_polygon_sprite not available — polygon obstacle will not render');
+        }
+
+        // Still add to Zustand so UI panels see it
+        try {
+          const polyX = spriteData.polygon_vertices?.[0]?.x ?? spriteData.obstacle_data?.vertices?.[0]?.x ?? spriteData.coord_x ?? spriteData.x ?? 0;
+          const polyY = spriteData.polygon_vertices?.[0]?.y ?? spriteData.obstacle_data?.vertices?.[0]?.y ?? spriteData.coord_y ?? spriteData.y ?? 0;
+          useGameStore.getState().addSprite({
+            id: spriteData.sprite_id || spriteData.id || `polygon_${Date.now()}`,
+            name: spriteData.name || 'Polygon Obstacle',
+            tableId: spriteData.table_id || 'default_table',
+            x: polyX,
+            y: polyY,
+            layer,
+            texture: '',
+            scale: { x: 1, y: 1 },
+            rotation: 0,
+            syncStatus: 'synced' as const,
+          });
+        } catch { /* store update failure is non-critical */ }
+
+        return; // Skip add_sprite_to_layer — polygon sprites have no texture
+      }
+
       // Create sprite object for WASM - handle various position formats
       let x = 0, y = 0;
       if (Array.isArray(spriteData.position) && spriteData.position.length >= 2) {

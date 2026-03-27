@@ -22,44 +22,52 @@ function InlineTextEditor({ worldPosition, onComplete, onCancel }: InlineTextEdi
   const [screenPos, setScreenPos] = useState<{ x: number; y: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Convert world coords to screen coords
+  // Convert world coords to screen coords — retry until rustRenderManager is ready
   useEffect(() => {
-    const rustManager = (window as any).rustRenderManager;
-    const canvas = document.querySelector('.game-canvas') as HTMLCanvasElement;
-    
-    if (!rustManager || !canvas) {
-      console.error('[InlineTextEditor] Missing rustManager or canvas');
-      return;
-    }
+    let cancelled = false;
+    let retryId: ReturnType<typeof setTimeout> | null = null;
 
-    try {
-      const rect = canvas.getBoundingClientRect();
-      const screenCoords = rustManager.world_to_screen(worldPosition.x, worldPosition.y);
-      
-      console.log('[InlineTextEditor] Converting coords:', {
-        world: worldPosition,
-        screen: screenCoords,
-        canvasRect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
-      });
-      
-      // Validate screen coordinates
-      if (screenCoords && screenCoords.length >= 2 && 
-          !isNaN(screenCoords[0]) && !isNaN(screenCoords[1])) {
-        const finalX = rect.left + screenCoords[0];
-        const finalY = rect.top + screenCoords[1];
-        
-        console.log('[InlineTextEditor] Final screen position:', { x: finalX, y: finalY });
-        
-        setScreenPos({
-          x: finalX,
-          y: finalY
-        });
-      } else {
-        console.error('[InlineTextEditor] Invalid screen coords:', screenCoords);
+    const tryConvert = () => {
+      const rustManager = (window as any).rustRenderManager;
+      const canvas = document.querySelector('.game-canvas') as HTMLCanvasElement;
+
+      if (!rustManager || !canvas) {
+        if (!cancelled) retryId = setTimeout(tryConvert, 100);
+        return;
       }
-    } catch (error) {
-      console.error('[InlineTextEditor] Error converting coords:', error);
-    }
+
+      try {
+        const rect = canvas.getBoundingClientRect();
+        const screenCoords = rustManager.world_to_screen(worldPosition.x, worldPosition.y);
+
+        console.log('[InlineTextEditor] Converting coords:', {
+          world: worldPosition,
+          screen: screenCoords,
+          canvasRect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+        });
+
+        // Validate screen coordinates
+        if (screenCoords && screenCoords.length >= 2 &&
+            !isNaN(screenCoords[0]) && !isNaN(screenCoords[1])) {
+          const finalX = rect.left + screenCoords[0];
+          const finalY = rect.top + screenCoords[1];
+
+          console.log('[InlineTextEditor] Final screen position:', { x: finalX, y: finalY });
+
+          if (!cancelled) setScreenPos({ x: finalX, y: finalY });
+        } else {
+          console.error('[InlineTextEditor] Invalid screen coords:', screenCoords);
+        }
+      } catch (error) {
+        console.error('[InlineTextEditor] Error converting coords:', error);
+      }
+    };
+
+    tryConvert();
+    return () => {
+      cancelled = true;
+      if (retryId !== null) clearTimeout(retryId);
+    };
   }, [worldPosition]);
 
   // Auto-focus input

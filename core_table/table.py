@@ -233,6 +233,11 @@ class VirtualTable:
         # Obstacle metadata
         obstacle_type = entity_data.get('obstacle_type', None)
         obstacle_data = entity_data.get('obstacle_data', None)
+        # Polygon vertices may be sent as top-level polygon_vertices instead of obstacle_data
+        if obstacle_type == 'polygon' and obstacle_data is None:
+            poly_verts = entity_data.get('polygon_vertices', None)
+            if poly_verts:
+                obstacle_data = {'vertices': poly_verts}
 
         #TODO validate position 
         #if not self.is_valid_position(position):

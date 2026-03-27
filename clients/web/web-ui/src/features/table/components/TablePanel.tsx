@@ -3,8 +3,8 @@ import clsx from 'clsx';
 import React, { useRef, useState } from 'react';
 import type { TableInfo } from '../hooks/useTableManager';
 import { useTableManager } from '../hooks/useTableManager';
-import { TablePreview } from './TablePreview';
 import styles from './TablePanel.module.css';
+import { TablePreview } from './TablePreview';
 
 const TablePanel: React.FC = () => {
   const { setActiveTableId: setGlobalActiveTableId } = useGameStore();

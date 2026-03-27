@@ -11,7 +11,7 @@ import { isDM, isElevated } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
 import { AlignmentHelper } from '@shared/components';
 import DiceRoller from '@shared/components/DiceRoller';
-import { AlignLeft, BrickWall, Circle, Cloud, Crown, Flame, Folder, Lightbulb, Map, Minus, Mountain, Move, Paintbrush, Pencil, Ruler, Search, Shield, Snowflake, Sparkles, Square, Type, User, Users, Wrench, Zap } from 'lucide-react';
+import { AlignLeft, BrickWall, Check, ChevronDown, Circle, Cloud, Crown, Eye, EyeOff, Flame, Folder, Lightbulb, Map, Minus, Mountain, Move, Paintbrush, Pencil, Ruler, Search, Send, Shield, Snowflake, Sparkles, Square, Type, User, Users, Wrench, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { PolygonConfigModal } from './PolygonConfigModal';
 import { TextSpriteTool } from './TextSprite';
@@ -58,7 +58,7 @@ function PlayerLayerControls() {
           >
             <Icon size={12} aria-hidden />
             {label}
-            <span className={styles.layerIconSlot}>{visible ? 'рџ‘Ѓ' : 'рџљ«'}</span>
+            <span className={styles.layerIconSlot}>{visible ? <Eye size={10} aria-hidden /> : <EyeOff size={10} aria-hidden />}</span>
           </button>
         );
       })}
@@ -232,7 +232,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
                   onClick={() => setTableSwitcherOpen(o => !o)}
                   title="Switch table"
                 >
-                  рџ—є {tables.find(t => t.table_id === activeTableId)?.table_name ?? 'Select Table'} в–ѕ
+                  <Map size={13} aria-hidden /> {tables.find(t => t.table_id === activeTableId)?.table_name ?? 'Select Table'} <ChevronDown size={11} aria-hidden />
                 </button>
                 <button
                   className={styles.toolButton}
@@ -243,7 +243,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
                     setTableSwitcherOpen(false);
                   }}
                 >
-                  рџ“¤
+                  <Send size={14} aria-hidden />
                 </button>
               </div>
               {tableSwitcherOpen && (
@@ -254,7 +254,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
                       onClick={() => { setActiveTableId(t.table_id); setTableSwitcherOpen(false); }}
                       className={`${styles.tableSwitcherItem} ${t.table_id === activeTableId ? styles.tableSwitcherItemActive : ''}`}
                     >
-                      {t.table_id === activeTableId ? 'вњ“ ' : '  '}{t.table_name}
+                      {t.table_id === activeTableId ? <Check size={11} aria-hidden style={{ marginRight: 4, flexShrink: 0 }} /> : <span style={{ display: 'inline-block', width: 15 }} />}{t.table_name}
                     </button>
                   ))}
                 </div>

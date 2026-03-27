@@ -2,6 +2,7 @@ import { EntitiesPanel } from '@features/canvas/components/EntitiesPanel'
 import { ToolsPanel } from '@features/canvas/components/ToolsPanel'
 import { CharacterPanel } from '@features/character'
 import { visionService } from '@features/lighting/services/vision.service'
+import { ProtocolService } from '@lib/api'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 
@@ -38,29 +39,50 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.rustRenderManager) {
           try {
             switch (type) {
-              case 'sprite_create':
-                if (typeof window.rustRenderManager.add_sprite_to_layer === 'function') {
-                  const layer = (data.layer as string) ?? 'tokens';
-                  // Fill in all required fields for Rust Sprite struct
-                  const sprite = {
-                    id: data.id || `sprite_${Date.now()}`,
-                    world_x: data.x ?? 0,
-                    world_y: data.y ?? 0,
-                    width: data.width ?? 32,
-                    height: data.height ?? 32,
-                    scale_x: data.scale_x ?? 1.0,
-                    scale_y: data.scale_y ?? 1.0,
-                    rotation: data.rotation ?? 0.0,
-                    layer: layer,
-                    texture_id: data.texture_path ?? data.asset_id ?? '',
-                    tint_color: [1.0, 1.0, 1.0, 1.0],
-                    table_id: data.table_id ?? 'default_table',
-                    controlled_by: data.controlled_by ?? [],
-                  };
-                  console.log('[integration] Forwarding to WASM add_sprite_to_layer:', layer, sprite);
-                  window.rustRenderManager.add_sprite_to_layer(layer, sprite);
-                }
+              case 'sprite_create': {
+                const layer = (data.layer as string) ?? 'tokens';
+                const sprite = {
+                  id: (data.id as string) || `sprite_${Date.now()}`,
+                  world_x: (data.x as number) ?? 0,
+                  world_y: (data.y as number) ?? 0,
+                  width: (data.width as number) ?? 32,
+                  height: (data.height as number) ?? 32,
+                  scale_x: (data.scale_x as number) ?? 1.0,
+                  scale_y: (data.scale_y as number) ?? 1.0,
+                  rotation: (data.rotation as number) ?? 0.0,
+                  layer,
+                  texture_id: (data.texture_path as string) ?? (data.asset_id as string) ?? '',
+                  tint_color: [1.0, 1.0, 1.0, 1.0],
+                  table_id: (data.table_id as string) ?? 'default_table',
+                  controlled_by: (data.controlled_by as string[]) ?? [],
+                  obstacle_type: (data.obstacle_type as string) ?? null,
+                  obstacle_data: (data.obstacle_data as object) ?? null,
+                };
+                // Defer WASM call — Rust fires this from its own input handler,
+                // so calling add_sprite_to_layer synchronously would re-enter WASM
+                // while it is still executing (mutable borrow → recursive use panic).
+                queueMicrotask(() => {
+                  try {
+                    if (typeof window.rustRenderManager?.add_sprite_to_layer === 'function') {
+                      console.log('[integration] Forwarding to WASM add_sprite_to_layer:', layer, sprite);
+                      window.rustRenderManager.add_sprite_to_layer(layer, sprite);
+                    }
+                  } catch (err) {
+                    console.error('[integration] WASM add_sprite_to_layer error:', err);
+                  }
+                });
+                // Forward to server for persistence and broadcast to other players
+                queueMicrotask(() => {
+                  try {
+                    if (ProtocolService.hasProtocol()) {
+                      ProtocolService.getProtocol().createSprite({ ...sprite, layer, table_id: sprite.table_id });
+                    }
+                  } catch (err) {
+                    console.error('[integration] Protocol createSprite error:', err);
+                  }
+                });
                 break;
+              }
               
               case 'sprite_move':
                 if (typeof window.rustRenderManager.send_sprite_move === 'function') {

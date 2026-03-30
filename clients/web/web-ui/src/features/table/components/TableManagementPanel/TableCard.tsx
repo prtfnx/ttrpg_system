@@ -46,6 +46,27 @@ export const TableCard: FC<TableCardProps> = ({
         />
       )}
 
+      {/* Proportional rectangle preview */}
+      {(() => {
+        const w = table.width || 1;
+        const h = table.height || 1;
+        const aspect = w / h;
+        const maxW = 32, maxH = 24;
+        let rw: number, rh: number;
+        if (aspect >= maxW / maxH) {
+          rw = maxW;
+          rh = Math.max(6, Math.round(maxW / aspect));
+        } else {
+          rh = maxH;
+          rw = Math.max(8, Math.round(maxH * aspect));
+        }
+        return (
+          <div className={styles.tableThumbnail}>
+            <div className={styles.tableThumbnailRect} style={{ width: rw, height: rh }} />
+          </div>
+        );
+      })()}
+
       <div className={styles.tableCardInfo} onClick={() => onOpen(table.table_id)}>
         <span className={styles.tableCardName} title={table.table_name}>{table.table_name}</span>
         <span className={styles.tableCardMeta}>

@@ -486,7 +486,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
                       title={step.description}
                     >
                       <span className={styles['step-number']}>
-                        {WIZARD_STEPS.filter((s, i) => i <= originalIndex && shouldShowStep(s, getValues())).length}
+                        {WIZARD_STEPS.filter((s, i) => i <= originalIndex && shouldShowStep(s, getValues())).length})
                       </span>
                       <span className={styles['step-title']}>{step.title}</span>
                       {completedSteps.has(originalIndex) && (

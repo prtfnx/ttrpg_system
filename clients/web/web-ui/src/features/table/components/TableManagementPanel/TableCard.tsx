@@ -36,48 +36,42 @@ export const TableCard: FC<TableCardProps> = ({
 
   return (
     <div className={clsx(styles.tableCard, isActive && styles.active, isSelected && styles.selected)}>
-      {isBulkMode && (
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={() => onSelect(table.table_id)}
-          className={styles.bulkCheckbox}
-          onClick={e => e.stopPropagation()}
-        />
-      )}
-
-      {/* Proportional rectangle preview */}
-      {(() => {
-        const w = table.width || 1;
-        const h = table.height || 1;
-        const aspect = w / h;
-        const maxW = 32, maxH = 24;
-        let rw: number, rh: number;
-        if (aspect >= maxW / maxH) {
-          rw = maxW;
-          rh = Math.max(6, Math.round(maxW / aspect));
-        } else {
-          rh = maxH;
-          rw = Math.max(8, Math.round(maxH * aspect));
-        }
-        return (
-          <div className={styles.tableThumbnail}>
-            <div className={styles.tableThumbnailRect} style={{ width: rw, height: rh }} />
-          </div>
-        );
-      })()}
-
-      <div className={styles.tableCardInfo} onClick={() => onOpen(table.table_id)}>
-        <span className={styles.tableCardName} title={table.table_name}>{table.table_name}</span>
-        <span className={styles.tableCardMeta}>
-          {table.width}×{table.height}
-          {table.entity_count ? ` · ${table.entity_count}e` : ''}
-          {' · '}{formatDate(table.created_at)}
-        </span>
+      {/* Title row with optional bulk checkbox */}
+      <div className={styles.tableCardHeader}>
+        {isBulkMode && (
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onSelect(table.table_id)}
+            className={styles.bulkCheckbox}
+            onClick={e => e.stopPropagation()}
+          />
+        )}
+        <span className={styles.tableCardName} title={table.table_name} onClick={() => onOpen(table.table_id)}>{table.table_name}</span>
+        {syncBadge}
       </div>
 
+      {/* Proportional rectangle preview — fills card width */}
+      <div className={styles.tableThumbnail} onClick={() => onOpen(table.table_id)}>
+        {(() => {
+          const w = table.width || 1;
+          const h = table.height || 1;
+          const aspect = w / h;
+          const previewH = Math.round(Math.min(80, Math.max(32, 100 / aspect)));
+          return (
+            <div className={styles.tableThumbnailRect} style={{ paddingBottom: `${(h / w) * 100}%` }} />
+          );
+        })()}
+      </div>
+
+      {/* Meta info */}
+      <span className={styles.tableCardMeta}>
+        {table.width}×{table.height}
+        {table.entity_count ? ` · ${table.entity_count} entities` : ''}
+      </span>
+
+      {/* Action buttons row */}
       <div className={styles.tableCardActions}>
-        {syncBadge}
         <button onClick={(e) => { e.stopPropagation(); onOpen(table.table_id); }} className={styles.actionBtn} title="Open">
           <ExternalLink size={12} />
         </button>

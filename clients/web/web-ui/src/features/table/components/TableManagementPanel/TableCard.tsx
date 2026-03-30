@@ -5,7 +5,6 @@ import clsx from 'clsx';
 import { Copy, ExternalLink, Settings2, Trash2, Users } from 'lucide-react';
 import type { FC } from 'react';
 import styles from '../TableManagementPanel.module.css';
-import { formatDate } from './utils';
 
 interface TableCardProps {
   table: TableInfo;

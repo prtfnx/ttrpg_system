@@ -2,10 +2,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import {
-  equipmentManagementService,
-  equipmentToWizardItem,
-  type Equipment,
-  type WizardEquipmentItem
+    equipmentManagementService,
+    equipmentToWizardItem,
+    type Equipment,
+    type WizardEquipmentItem
 } from '../../services/equipmentManagement.service';
 import styles from './EquipmentSelectionStep.module.css';
 import type { WizardFormData } from './WizardFormData';
@@ -382,6 +382,18 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
               {isEncumbered && !isHeavilyEncumbered && ' (Encumbered)'}
             </span>
           </div>
+        </div>
+
+        {/* Currency Reference */}
+        <div className={styles['currency-reference']}>
+          <span className={styles['currency-label']}>Currency:</span>
+          <span className={styles['currency-rate']}>10 cp = 1 sp</span>
+          <span className={styles['currency-sep']}>·</span>
+          <span className={styles['currency-rate']}>10 sp = 1 gp</span>
+          <span className={styles['currency-sep']}>·</span>
+          <span className={styles['currency-rate']}>2 ep = 1 gp</span>
+          <span className={styles['currency-sep']}>·</span>
+          <span className={styles['currency-rate']}>10 gp = 1 pp</span>
         </div>
 
         {/* Standard Starting Equipment */}

@@ -2,14 +2,14 @@
 .equipment-selection-step {
   max-width: 1400px;
   margin: 0 auto;
-  padding: var(--space-xl);
+  padding: var(--space-md);
   font-family: var(--font-primary);
 }
 
 .equipment-selection-step h2 {
   text-align: center;
-  margin-bottom: var(--space-xl);
-  font-size: var(--text-3xl);
+  margin-bottom: var(--space-md);
+  font-size: var(--text-2xl);
   color: var(--text-primary);
 }
 
@@ -53,12 +53,12 @@
 /* Equipment Summary */
 .equipment-summary {
   composes: wizard-grid from './CharacterWizardBase.module.css';
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   background: var(--bg-secondary);
-  padding: var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-md);
   border: var(--border-width-thick) solid var(--border-secondary);
-  margin-bottom: var(--space-xl);
+  margin-bottom: var(--space-sm);
 }
 
 .summary-item {
@@ -94,9 +94,9 @@
 .equipment-content {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: var(--space-lg);
-  margin-bottom: var(--space-xl);
-  min-height: 600px;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+  min-height: 500px;
 }
 
 /* Standard Starting Equipment */
@@ -104,8 +104,8 @@
   background: var(--bg-secondary);
   border: var(--border-width-thick) solid var(--border-accent);
   border-radius: var(--radius-md);
-  padding: var(--space-md) var(--space-lg);
-  margin-bottom: var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-md);
 }
 
 .starting-equipment-header {
@@ -147,6 +147,34 @@
   padding: 2px var(--space-sm);
   font-size: var(--text-sm);
   color: var(--text-secondary);
+}
+
+/* Currency Reference */
+.currency-reference {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  background: var(--bg-secondary);
+  border: var(--border-width) solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-md);
+  margin-bottom: var(--space-md);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.currency-label {
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.currency-rate {
+  color: var(--text-secondary);
+}
+
+.currency-sep {
+  color: var(--text-tertiary);
 }
 
 /* Equipment Filters */

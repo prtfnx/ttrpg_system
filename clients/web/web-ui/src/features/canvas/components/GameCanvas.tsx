@@ -22,14 +22,14 @@ import { performanceService } from '../services/performance.service';
 import { FloatingLayerPicker } from './FloatingLayerPicker';
 import styles from './GameCanvas.module.css';
 import {
-  CanvasRenderer,
-  getGridCoord,
-  resizeCanvas,
-  useCanvasDebug,
-  useContextMenu,
-  useFPS,
-  useLightPlacement,
-  usePerformanceMonitor,
+    CanvasRenderer,
+    getGridCoord,
+    resizeCanvas,
+    useCanvasDebug,
+    useContextMenu,
+    useFPS,
+    useLightPlacement,
+    usePerformanceMonitor,
 } from './GameCanvas/index';
 import { useCanvasEventsEnhanced } from './GameCanvas/useCanvasEventsEnhanced';
 import PerformanceMonitor from './PerformanceMonitor';
@@ -1008,7 +1008,10 @@ export const GameCanvas: React.FC = () => {
               fontWeight: 'bold',
             }}
             onClick={() => {
-              console.log('Zoom in');
+              const canvas = canvasRef.current;
+              const rm = rustRenderManagerRef.current as any;
+              if (!canvas || !rm?.handle_wheel) return;
+              rm.handle_wheel(canvas.width / 2, canvas.height / 2, -120);
             }}
           >
             +
@@ -1027,7 +1030,10 @@ export const GameCanvas: React.FC = () => {
               fontWeight: 'bold',
             }}
             onClick={() => {
-              console.log('Zoom out');
+              const canvas = canvasRef.current;
+              const rm = rustRenderManagerRef.current as any;
+              if (!canvas || !rm?.handle_wheel) return;
+              rm.handle_wheel(canvas.width / 2, canvas.height / 2, 120);
             }}
           >
             -

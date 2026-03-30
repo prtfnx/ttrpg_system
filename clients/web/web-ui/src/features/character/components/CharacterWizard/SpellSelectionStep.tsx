@@ -261,13 +261,13 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                 {(spellSlots.cantrips || 0) > 0 && (
                   <span className={styles['spell-limit-item']}>
                     <strong>{spellSlots.cantrips}</strong> cantrips
-                    <span className={styles['spell-limit-source']}>{characterClass} level {characterLevel}</span>
+                    <span className={styles['spell-limit-source']}>{characterClass} table, level {characterLevel}</span>
                   </span>
                 )}
                 {!isPrepared && (maxSpellsKnown as number) > 0 && (
                   <span className={styles['spell-limit-item']}>
                     <strong>{maxSpellsKnown}</strong> spells known
-                    <span className={styles['spell-limit-source']}>{characterClass} progression</span>
+                    <span className={styles['spell-limit-source']}>{characterClass} table, level {characterLevel}</span>
                   </span>
                 )}
                 {isPrepared && (

@@ -2,7 +2,6 @@ import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
 import { BrickWall, CloudFog, Crown, Lightbulb, Map, Mountain, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
 import styles from './FloatingLayerPicker.module.css';
 
 const LAYERS = [
@@ -42,7 +41,7 @@ export function FloatingLayerPicker() {
 
   const active = LAYERS.find(l => l.id === activeLayer);
 
-  return createPortal(
+  return (
     <div className={styles.picker} role="toolbar" aria-label="Layer switcher">
       {LAYERS.map(({ id, label, Icon, hotkey }) => (
         <button
@@ -57,7 +56,6 @@ export function FloatingLayerPicker() {
         </button>
       ))}
       {active && <span className={styles.label}>{active.label}</span>}
-    </div>,
-    document.body,
+    </div>
   );
 }

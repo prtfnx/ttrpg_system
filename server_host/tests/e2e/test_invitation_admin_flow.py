@@ -90,7 +90,7 @@ class TestCompleteInvitationWorkflow:
             models.AuditLog.session_code == test_game_session.session_code
         ).all()
         
-        event_types = [log.event_type for log in audit_logs]
+        event_types = [log.event_type.lower() for log in audit_logs]
         assert "invitation_created" in event_types
         assert "invitation_accepted" in event_types
         
@@ -129,7 +129,6 @@ class TestCompleteAdminWorkflow:
         
         # Step 4: Test that the newly promoted co-DM can perform admin actions
         # Create a new regular player to manage
-        new_player = test_db.merge(test_db.query(test_db.bind.metadata.tables['users'].c).first())
         new_player_user = crud.create_user(
             test_db,
             schemas.UserCreate(
@@ -175,16 +174,16 @@ class TestCompleteAdminWorkflow:
             session_code=session_code
         ).order_by(AuditLog.timestamp.asc()).all()
         
-        event_types = [log.event_type for log in audit_logs]
-        assert "role_changed" in event_types
+        event_types = [log.event_type.lower() for log in audit_logs]
+        assert "player_role_changed" in event_types
         assert "player_kicked" in event_types
         
         # Verify audit log details
-        role_change_log = next(log for log in audit_logs if log.event_type == "role_changed")
+        role_change_log = next(log for log in audit_logs if log.event_type.lower() == "player_role_changed")
         assert str(player_user.id) in role_change_log.details
         assert "co_dm" in role_change_log.details
         
-        kick_log = next(log for log in audit_logs if log.event_type == "player_kicked") 
+        kick_log = next(log for log in audit_logs if log.event_type.lower() == "player_kicked")
         assert str(new_player_user.id) in kick_log.details
         
         # Clean up override
@@ -246,7 +245,7 @@ class TestConcurrentInvitationUsage:
 class TestSecurityScenarios:
     """End-to-end security testing scenarios"""
     
-    def test_privilege_escalation_prevention(self, test_db, game_session_with_players, player_user, test_user):
+    def test_privilege_escalation_prevention(self, test_db, client, game_session_with_players, player_user, test_user):
         """Test that regular players cannot escalate their privileges"""
         # Override to regular player
         async def override_get_current_user():
@@ -258,20 +257,23 @@ class TestSecurityScenarios:
         # Attempt 1: Try to promote themselves to co-DM
         self_promote_response = player_client.post(
             f"/game/api/sessions/{game_session_with_players.session_code}/players/{player_user.id}/role",
-            json={"role": "co_dm"}
+            json={"role": "co_dm"},
+            headers={"Accept": "application/json"}
         )
         assert self_promote_response.status_code == 403
         
         # Attempt 2: Try to promote themselves to owner
         owner_promote_response = player_client.post(
             f"/game/api/sessions/{game_session_with_players.session_code}/players/{player_user.id}/role",
-            json={"role": "owner"}
+            json={"role": "owner"},
+            headers={"Accept": "application/json"}
         )
         assert owner_promote_response.status_code in [403, 422]  # Forbidden or validation error
         
         # Attempt 3: Try to kick the owner
         kick_owner_response = player_client.delete(
-            f"/game/api/sessions/{game_session_with_players.session_code}/players/{test_user.id}"
+            f"/game/api/sessions/{game_session_with_players.session_code}/players/{test_user.id}",
+            headers={"Accept": "application/json"}
         )
         assert kick_owner_response.status_code == 403
         

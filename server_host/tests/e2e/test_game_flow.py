@@ -15,7 +15,7 @@ class TestCompleteUserGameFlow:
                 "username": "gamemaster",
                 "email": "gm@example.com",
                 "password": "Secure1234",
-                "password_confirm": "Secure1234"
+                "confirm_password": "Secure1234"
             }
         )
         # Registration redirects or shows success
@@ -54,7 +54,7 @@ class TestMultiPlayerGameSession:
                 "username": "dungeon_master",
                 "email": "dm@example.com",
                 "password": "dm123",
-                "password_confirm": "dm123"
+                "confirm_password": "dm123"
             }
         )
         
@@ -121,7 +121,7 @@ class TestRateLimitingBehavior:
                     "username": f"spammer{i}",
                     "email": f"spam{i}@example.com",
                     "password": "Pass1234W",
-                    "password_confirm": "Pass1234W"
+                    "confirm_password": "Pass1234W"
                 }
             )
             responses.append(response.status_code)

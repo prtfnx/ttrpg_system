@@ -137,7 +137,17 @@
 .starting-items-list {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-xs);
+  margin-bottom: var(--space-xs);
+}
+
+.starting-items-label {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-weight: var(--font-semibold);
+  margin-right: var(--space-xs);
+  white-space: nowrap;
 }
 
 .starting-item-tag {
@@ -262,34 +272,32 @@
 .equipment-card {
   composes: wizard-card from './CharacterWizardBase.module.css';
   background: var(--bg-secondary);
-  padding: var(--space-md);
-  transition: all var(--transition-normal) ease;
-  display: flex;
-  flex-direction: column;
-  min-height: 140px;
+  padding: var(--space-xs) var(--space-sm);
+  transition: border-color var(--transition-normal) ease;
+  cursor: pointer;
 }
 
 .equipment-card:hover {
   border-color: var(--blue-600);
-  box-shadow: var(--shadow-lg);
-  transform: translateY(calc(var(--space-xs) * -0.5));
 }
 
-.equipment-header {
-  composes: wizard-row from './CharacterWizardBase.module.css';
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: var(--space-sm);
+.equipment-card-expanded {
+  border-color: var(--blue-700);
 }
 
-.equipment-header h4 {
-  margin: 0;
-  font-size: var(--text-base);
-  color: var(--text-primary);
+.equipment-compact-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.equipment-name {
   flex: 1;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  padding-right: var(--space-xs);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .equipment-cost {
@@ -297,31 +305,35 @@
   background: var(--green-600);
   font-size: var(--text-xs);
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.equipment-weight {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.equipment-expanded-details {
+  margin-top: var(--space-xs);
+  border-top: var(--border-width) solid var(--border-subtle);
+  padding-top: var(--space-xs);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
 }
 
 .equipment-description {
   font-size: var(--text-sm);
   color: var(--text-secondary);
   line-height: var(--line-normal);
-  margin: var(--space-xs) 0;
-  flex: 1;
-  overflow-y: auto;
-  max-height: 4.5em; /* ~3 lines */
-  word-wrap: break-word;
-  overflow-wrap: break-word;
+  margin: 0;
 }
 
 .equipment-stats {
-  composes: wizard-row from './CharacterWizardBase.module.css';
-  justify-content: space-between;
-  align-items: center;
-  margin: var(--space-sm) 0;
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   color: var(--text-secondary);
-}
-
-.equipment-weight {
-  font-weight: var(--font-medium);
 }
 
 .equipment-category {
@@ -333,9 +345,10 @@
 
 .add-equipment-button {
   composes: wizard-button-primary from './CharacterWizardBase.module.css';
-  width: 100%;
-  padding: var(--space-xs);
-  font-size: var(--text-sm);
+  padding: 2px var(--space-sm);
+  font-size: var(--text-lg);
+  line-height: 1;
+  flex-shrink: 0;
   background: var(--blue-600);
 }
 

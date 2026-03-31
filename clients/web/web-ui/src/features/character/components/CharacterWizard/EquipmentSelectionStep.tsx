@@ -1,4 +1,5 @@
-﻿import { ErrorBoundary } from '@shared/components';
+﻿import { useBackgrounds } from '@features/compendium';
+import { ErrorBoundary } from '@shared/components';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import {
@@ -39,9 +40,9 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
 }) => {
   const { setValue, getValues } = useFormContext<WizardFormData>();
   
-  // Get data from form context if not provided as props
   const formData = getValues();
   const characterClass = propCharacterClass || formData.class || 'fighter';
+  const characterBackground = (formData as any).background || '';
   const abilityScores = propAbilityScores || {
     strength: formData.strength || 10,
     dexterity: formData.dexterity || 10,
@@ -52,13 +53,11 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
   };
   
   const handleBack = onBack || onPrevious;
-  void handleBack; // used only when step renders its own navigation
+  void handleBack;
   
-  // Use ref to track if we're in initial load to prevent infinite loop
   const initialLoadRef = React.useRef(true);
   const previousItemsRef = React.useRef<string>('');
 
-  // Local state
   const [availableEquipment, setAvailableEquipment] = useState<Equipment[]>([]);
   const [selectedItems, setSelectedItems] = useState<WizardEquipmentItem[]>([]);
   const [filteredEquipment, setFilteredEquipment] = useState<Equipment[]>([]);
@@ -68,6 +67,11 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
   const [currentGold, setCurrentGold] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+  // Background data for free starting equipment
+  const { data: backgrounds } = useBackgrounds();
+  const bgData = backgrounds?.find(b => b.name.toLowerCase() === characterBackground.toLowerCase());
 
   // Equipment categories for filtering
   const equipmentCategories = useMemo(() => [
@@ -396,31 +400,48 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
           <span className={styles['currency-rate']}>10 gp = 1 pp</span>
         </div>
 
-        {/* Standard Starting Equipment */}
+        {/* Standard Starting Equipment (Free) */}
         {(() => {
           const startingPack = equipmentManagementService.getStartingEquipment(characterClass);
-          const hasStarting = startingPack.equipment.filter(Boolean).length > 0;
-          if (!hasStarting) return null;
+          const classItems = startingPack.equipment.filter(Boolean);
+          const bgItemNames = bgData?.equipment ?? [];
+          const bgItems = bgItemNames.map(name => availableEquipment.find(e => e.name === name)).filter(Boolean) as Equipment[];
+          const hasAny = classItems.length > 0 || bgItems.length > 0;
+          if (!hasAny) return null;
           return (
             <div className={styles['starting-equipment']}>
               <div className={styles['starting-equipment-header']}>
-                <span>Standard {characterClass.charAt(0).toUpperCase() + characterClass.slice(1)} Equipment</span>
+                <span>Starting Equipment — Free Grant</span>
                 <button
                   className={styles['take-standard-button']}
                   onClick={() => {
-                    const items = startingPack.equipment.filter(Boolean).map(eq => equipmentToWizardItem(eq, 1));
-                    setSelectedItems(items);
-                    setCurrentGold(0);
+                    const allItems = [
+                      ...classItems.map(eq => equipmentToWizardItem(eq, 1)),
+                      ...bgItems.map(eq => equipmentToWizardItem(eq, 1))
+                    ];
+                    setSelectedItems(allItems);
+                    // No gold consumption — starting gear is free in D&D 5e
                   }}
                 >
                   Take Standard Pack
                 </button>
               </div>
-              <div className={styles['starting-items-list']}>
-                {startingPack.equipment.filter(Boolean).map((eq, i) => (
-                  <span key={i} className={styles['starting-item-tag']}>{eq.name} ({formatCost(eq.cost)})</span>
-                ))}
-              </div>
+              {classItems.length > 0 && (
+                <div className={styles['starting-items-list']}>
+                  <span className={styles['starting-items-label']}>Class ({characterClass.charAt(0).toUpperCase() + characterClass.slice(1)}):</span>
+                  {classItems.map((eq, i) => (
+                    <span key={i} className={styles['starting-item-tag']}>{eq.name}</span>
+                  ))}
+                </div>
+              )}
+              {bgItems.length > 0 && (
+                <div className={styles['starting-items-list']}>
+                  <span className={styles['starting-items-label']}>Background ({characterBackground}):</span>
+                  {bgItems.map((eq, i) => (
+                    <span key={i} className={styles['starting-item-tag']}>{eq.name}</span>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })()}
@@ -453,37 +474,42 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
           <div className={styles['available-equipment']}>
             <h3>Available Equipment ({filteredEquipment.length})</h3>
             <div className={styles.equipmentGrid}>
-              {filteredEquipment.map((equipment) => (
-                <div key={equipment.name} className={styles['equipment-card']}>
-                  <div className={styles['equipment-header']}>
-                    <h4>{equipment.name}</h4>
-                    <div className={styles['equipment-cost']}>
-                      {formatCost(equipment.cost)}
+              {filteredEquipment.map((equipment) => {
+                const isExpanded = expandedCards.has(equipment.name);
+                const canAfford = currentGold >= costToGold(equipment.cost);
+                return (
+                  <div
+                    key={equipment.name}
+                    className={`${styles['equipment-card']} ${isExpanded ? styles['equipment-card-expanded'] : ''}`}
+                    onClick={() => setExpandedCards(prev => {
+                      const next = new Set(prev);
+                      next.has(equipment.name) ? next.delete(equipment.name) : next.add(equipment.name);
+                      return next;
+                    })}
+                  >
+                    <div className={styles['equipment-compact-row']}>
+                      <span className={styles['equipment-name']}>{equipment.name}</span>
+                      <span className={styles['equipment-cost']}>{formatCost(equipment.cost)}</span>
+                      {equipment.weight != null && <span className={styles['equipment-weight']}>{equipment.weight}lb</span>}
+                      <button
+                        className={styles['add-equipment-button']}
+                        onClick={e => { e.stopPropagation(); addItem(equipment); }}
+                        disabled={!canAfford}
+                        title={canAfford ? 'Add to inventory' : 'Not enough gold'}
+                      >
+                        +
+                      </button>
                     </div>
-                  </div>
-                  
-                  {equipment.description && (
-                    <p className={styles['equipment-description']}>
-                      {equipment.description}
-                    </p>
-                  )}
-                  
-                  <div className={styles['equipment-stats']}>
-                    <span>{equipment.weight || 0} lbs</span>
-                    {equipment.category && (
-                      <span className={styles['equipment-category']}>{equipment.category}</span>
+                    {isExpanded && (
+                      <div className={styles['equipment-expanded-details']}>
+                        {equipment.description && <p className={styles['equipment-description']}>{equipment.description}</p>}
+                        {equipment.category && <span className={styles['equipment-category']}>{equipment.category}</span>}
+                        <span className={styles['equipment-stats']}>{equipment.weight || 0} lbs</span>
+                      </div>
                     )}
                   </div>
-                  
-                  <button
-                    className={styles['add-equipment-button']}
-                    onClick={() => addItem(equipment)}
-                    disabled={currentGold < costToGold(equipment.cost)}
-                  >
-                    Add to Inventory
-                  </button>
-                </div>
-              ))}
+                );
+              })}
               
               {filteredEquipment.length === 0 && (
                 <div className={styles['no-equipment']}>

@@ -36,6 +36,10 @@ def _run_migrations():
         "ALTER TABLE entities ADD COLUMN aura_radius_units FLOAT",
         "ALTER TABLE entities ADD COLUMN vision_radius_units FLOAT",
         "ALTER TABLE entities ADD COLUMN darkvision_radius_units FLOAT",
+        "ALTER TABLE virtual_tables ADD COLUMN grid_enabled BOOLEAN DEFAULT 1",
+        "ALTER TABLE virtual_tables ADD COLUMN snap_to_grid BOOLEAN DEFAULT 1",
+        "ALTER TABLE virtual_tables ADD COLUMN grid_color_hex VARCHAR(9) DEFAULT '#ffffff'",
+        "ALTER TABLE virtual_tables ADD COLUMN background_color_hex VARCHAR(9) DEFAULT '#2a3441'",
     ]
     with engine.connect() as conn:
         for sql in migrations:

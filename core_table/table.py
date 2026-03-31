@@ -199,6 +199,10 @@ class VirtualTable:
         self.grid_cell_px: float = grid_cell_px
         self.cell_distance: float = cell_distance
         self.distance_unit: str = distance_unit
+        self.grid_enabled: bool = True
+        self.snap_to_grid: bool = True
+        self.grid_color_hex: str = '#ffffff'
+        self.background_color_hex: str = '#2a3441'
 
         # Wall segments (keyed by wall_id UUID string)
         self.walls: Dict[str, Any] = {}

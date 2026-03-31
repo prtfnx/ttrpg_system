@@ -131,6 +131,10 @@ class VirtualTableBase(BaseModel):
     grid_cell_px: float = 50.0
     cell_distance: float = 5.0
     distance_unit: str = 'ft'
+    grid_enabled: bool = True
+    snap_to_grid: bool = True
+    grid_color_hex: str = '#ffffff'
+    background_color_hex: str = '#2a3441'
 
 class VirtualTableCreate(VirtualTableBase):
     session_id: int
@@ -151,6 +155,10 @@ class VirtualTableUpdate(BaseModel):
     grid_cell_px: Optional[float] = None
     cell_distance: Optional[float] = None
     distance_unit: Optional[str] = None
+    grid_enabled: Optional[bool] = None
+    snap_to_grid: Optional[bool] = None
+    grid_color_hex: Optional[str] = None
+    background_color_hex: Optional[str] = None
 
 class VirtualTable(VirtualTableBase):
     id: int

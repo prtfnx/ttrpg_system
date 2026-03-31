@@ -92,6 +92,10 @@ class VirtualTable(Base):
     grid_cell_px = Column(Float, default=50.0)       # pixels per grid cell
     cell_distance = Column(Float, default=5.0)       # game units per cell
     distance_unit = Column(String(10), default='ft') # "ft" or "m"
+    grid_enabled = Column(Boolean, default=True)
+    snap_to_grid = Column(Boolean, default=True)
+    grid_color_hex = Column(String(9), default='#ffffff')
+    background_color_hex = Column(String(9), default='#2a3441')
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

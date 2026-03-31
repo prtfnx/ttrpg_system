@@ -14,8 +14,8 @@ class TestCompleteUserGameFlow:
             data={
                 "username": "gamemaster",
                 "email": "gm@example.com",
-                "password": "secure123",
-                "password_confirm": "secure123"
+                "password": "Secure1234",
+                "password_confirm": "Secure1234"
             }
         )
         # Registration redirects or shows success
@@ -26,7 +26,7 @@ class TestCompleteUserGameFlow:
             "/users/login",
             data={
                 "username": "gamemaster",
-                "password": "secure123"
+                "password": "Secure1234"
             }
         )
         assert login_response.status_code in [200, 302]
@@ -120,8 +120,8 @@ class TestRateLimitingBehavior:
                 data={
                     "username": f"spammer{i}",
                     "email": f"spam{i}@example.com",
-                    "password": "pass123",
-                    "password_confirm": "pass123"
+                    "password": "Pass1234W",
+                    "password_confirm": "Pass1234W"
                 }
             )
             responses.append(response.status_code)

@@ -50,7 +50,7 @@ class TestCompleteInvitationWorkflow:
         assert validate_response.status_code == 200
         
         validation_data = validate_response.json()
-        assert validation_data["session_name"] == test_game_session.name
+        assert validation_data["session_code"] == test_game_session.session_code
         assert validation_data["pre_assigned_role"] == "player"
         
         # Step 3: Player accepts the invitation
@@ -118,7 +118,7 @@ class TestCompleteAdminWorkflow:
         # Step 2: Owner promotes regular player to co-DM
         promote_response = auth_client.post(
             f"/game/api/sessions/{session_code}/players/{player_user.id}/role",
-            json={"new_role": "co_dm"}
+            json={"role": "co_dm"}
         )
         assert promote_response.status_code == 200
         
@@ -258,14 +258,14 @@ class TestSecurityScenarios:
         # Attempt 1: Try to promote themselves to co-DM
         self_promote_response = player_client.post(
             f"/game/api/sessions/{game_session_with_players.session_code}/players/{player_user.id}/role",
-            json={"new_role": "co_dm"}
+            json={"role": "co_dm"}
         )
         assert self_promote_response.status_code == 403
         
         # Attempt 2: Try to promote themselves to owner
         owner_promote_response = player_client.post(
             f"/game/api/sessions/{game_session_with_players.session_code}/players/{player_user.id}/role",
-            json={"new_role": "owner"}
+            json={"role": "owner"}
         )
         assert owner_promote_response.status_code in [403, 422]  # Forbidden or validation error
         
@@ -312,19 +312,24 @@ class TestSecurityScenarios:
         )
         
         # Attempt to access other user's session players
-        response = auth_client.get(f"/game/api/sessions/{other_session.session_code}/players")
+        response = auth_client.get(
+            f"/game/api/sessions/{other_session.session_code}/players",
+            headers={"Accept": "application/json"}
+        )
         assert response.status_code == 403
         
         # Attempt to modify other user's session
         response = auth_client.post(
             f"/game/api/sessions/{other_session.session_code}/players/{other_user.id}/role",
-            json={"new_role": "player"}  # Even demoting owner should fail
+            json={"role": "player"},
+            headers={"Accept": "application/json"}
         )
         assert response.status_code == 403
         
         # Attempt to kick from other user's session
         response = auth_client.delete(
-            f"/game/api/sessions/{other_session.session_code}/players/{other_user.id}"
+            f"/game/api/sessions/{other_session.session_code}/players/{other_user.id}",
+            headers={"Accept": "application/json"}
         )
         assert response.status_code == 403
 
@@ -377,7 +382,7 @@ class TestPerformanceAndStress:
             start_time = time.time()
             response = auth_client.post(
                 f"/game/api/sessions/{test_game_session.session_code}/players/{users[i].id}/role",
-                json={"new_role": "co_dm"}
+                json={"role": "co_dm"}
             )
             end_time = time.time()
             

@@ -286,7 +286,8 @@ export const GameCanvas: React.FC = () => {
       const rm = rustRenderManagerRef.current;
       if (!canvas || !mainCanvas) { raf = requestAnimationFrame(draw); return; }
 
-      const { sprites, sessionRole, getUnitConverter } = useGameStore.getState();
+      const { sprites, sessionRole, getUnitConverter, gridCellPx } = useGameStore.getState();
+      const cellPx = gridCellPx ?? 50;
       const ctx = canvas.getContext('2d');
       if (!ctx) { raf = requestAnimationFrame(draw); return; }
 
@@ -316,8 +317,8 @@ export const GameCanvas: React.FC = () => {
           : 0;
         if (!vr && !dvr) continue;
 
-        const hw = (s.width ?? (s.scale_x ?? 1) * 64) / 2;
-        const hh = (s.height ?? (s.scale_y ?? 1) * 64) / 2;
+        const hw = (s.scale?.x ?? (s as any).scale_x ?? 1) * cellPx / 2;
+        const hh = (s.scale?.y ?? (s as any).scale_y ?? 1) * cellPx / 2;
         // Use live drag position if being dragged, otherwise use store position
         const pos = dragPositionsRef.current.get(s.id) ?? { x: s.x, y: s.y };
         try {

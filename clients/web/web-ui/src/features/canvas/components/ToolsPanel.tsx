@@ -98,7 +98,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   const elevatedMode = isElevated(sessionRole);
   const tables = useGameStore(s => s.tables);
   const activeTableId = useGameStore(s => s.activeTableId);
-  const setActiveTableId = useGameStore(s => s.setActiveTableId);
+  const switchToTable = useGameStore(s => s.switchToTable);
   const dynamicLightingEnabled = useGameStore(s => s.dynamicLightingEnabled);
   const fogExplorationMode = useGameStore(s => s.fogExplorationMode);
   const ambientLight = useGameStore(s => s.ambientLight);
@@ -251,7 +251,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
                   {tables.map(t => (
                     <button
                       key={t.table_id}
-                      onClick={() => { setActiveTableId(t.table_id); setTableSwitcherOpen(false); }}
+                      onClick={() => { switchToTable(t.table_id); setTableSwitcherOpen(false); }}
                       className={`${styles.tableSwitcherItem} ${t.table_id === activeTableId ? styles.tableSwitcherItemActive : ''}`}
                     >
                       {t.table_id === activeTableId ? <Check size={11} aria-hidden style={{ marginRight: 4, flexShrink: 0 }} /> : <span style={{ display: 'inline-block', width: 15 }} />}{t.table_name}

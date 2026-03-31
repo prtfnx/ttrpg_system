@@ -5,15 +5,12 @@ import { CircleUser } from "lucide-react";
 import React, { useRef, useState } from "react";
 import { useGameStore } from "../../../store";
 import type { Character } from "../../../types";
-import styles from "./CharacterSheetNew.module.css";
 import { ActivityTab } from './ActivityTab';
+import styles from "./CharacterSheetNew.module.css";
 import { InventoryTab } from './InventoryTab';
 import { SpellsTab } from './SpellsTab';
 
-const ABILITY_LABELS: Record<string, string> = {
-  str: 'Strength', dex: 'Dexterity', con: 'Constitution',
-  int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma',
-};
+
 const ABILITY_SHORT: Record<string, string> = {
   str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA',
 };

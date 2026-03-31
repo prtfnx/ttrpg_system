@@ -55,8 +55,6 @@ export const TableCard: FC<TableCardProps> = ({
         {(() => {
           const w = table.width || 1;
           const h = table.height || 1;
-          const aspect = w / h;
-          const previewH = Math.round(Math.min(80, Math.max(32, 100 / aspect)));
           return (
             <div className={styles.tableThumbnailRect} style={{ paddingBottom: `${(h / w) * 100}%` }} />
           );

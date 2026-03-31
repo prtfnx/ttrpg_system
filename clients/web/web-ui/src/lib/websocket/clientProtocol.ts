@@ -628,11 +628,23 @@ export class WebClientProtocol {
     const data = message.data as any;
     if (data?.table_data) {
       const td = data.table_data;
-      useGameStore.getState().applyTableLightingSettings({
+      const store = useGameStore.getState();
+      store.applyTableLightingSettings({
         dynamic_lighting_enabled: td.dynamic_lighting_enabled ?? false,
         fog_exploration_mode: td.fog_exploration_mode ?? 'current_only',
         ambient_light_level: td.ambient_light_level ?? 1.0,
       });
+      if (td.grid_cell_px !== undefined || td.cell_distance !== undefined || td.distance_unit !== undefined) {
+        store.setTableUnits({
+          gridCellPx: td.grid_cell_px ?? 50,
+          cellDistance: td.cell_distance ?? 5,
+          distanceUnit: td.distance_unit ?? 'ft',
+        });
+      }
+      if (td.grid_enabled !== undefined) store.setGridEnabled(td.grid_enabled);
+      if (td.snap_to_grid !== undefined) store.setGridSnapping(td.snap_to_grid);
+      if (td.grid_color_hex) store.setGridColorHex(td.grid_color_hex);
+      if (td.background_color_hex) store.setBackgroundColorHex(td.background_color_hex);
     }
     // Sync walls on table join
     if (Array.isArray(data?.walls) && data.walls.length > 0) {
@@ -1020,6 +1032,10 @@ export class WebClientProtocol {
       grid_cell_px?: number;
       cell_distance?: number;
       distance_unit?: string;
+      grid_enabled?: boolean;
+      snap_to_grid?: boolean;
+      grid_color_hex?: string;
+      background_color_hex?: string;
     };
     const store = useGameStore.getState();
     store.applyTableLightingSettings(data);
@@ -1029,6 +1045,25 @@ export class WebClientProtocol {
         cellDistance: data.cell_distance ?? 5,
         distanceUnit: (data.distance_unit as 'ft' | 'm') ?? 'ft',
       });
+    }
+    if (data.grid_enabled !== undefined) store.setGridEnabled(data.grid_enabled);
+    if (data.snap_to_grid !== undefined) store.setGridSnapping(data.snap_to_grid);
+    if (data.grid_color_hex !== undefined) store.setGridColorHex(data.grid_color_hex);
+    if (data.background_color_hex !== undefined) store.setBackgroundColorHex(data.background_color_hex);
+
+    // Apply visual changes directly to WASM renderer
+    const rm = (window as any).rustRenderManager;
+    if (rm) {
+      if (data.grid_enabled !== undefined && rm.set_grid_enabled) rm.set_grid_enabled(data.grid_enabled);
+      if (data.snap_to_grid !== undefined && rm.set_snap_to_grid) rm.set_snap_to_grid(data.snap_to_grid);
+      if (data.grid_color_hex && rm.set_grid_color) {
+        const c = data.grid_color_hex;
+        rm.set_grid_color(parseInt(c.slice(1,3),16)/255, parseInt(c.slice(3,5),16)/255, parseInt(c.slice(5,7),16)/255, 0.4);
+      }
+      if (data.background_color_hex && rm.set_background_color) {
+        const c = data.background_color_hex;
+        rm.set_background_color(parseInt(c.slice(1,3),16)/255, parseInt(c.slice(3,5),16)/255, parseInt(c.slice(5,7),16)/255, 1.0);
+      }
     }
     window.dispatchEvent(new CustomEvent('table-settings-changed', { detail: data }));
   }
@@ -1136,6 +1171,10 @@ export class WebClientProtocol {
     grid_cell_px?: number;
     cell_distance?: number;
     distance_unit?: string;
+    grid_enabled?: boolean;
+    snap_to_grid?: boolean;
+    grid_color_hex?: string;
+    background_color_hex?: string;
   }): void {
     this.sendMessage(createMessage(MessageType.TABLE_SETTINGS_UPDATE, { table_id: tableId, ...settings }, 2));
   }

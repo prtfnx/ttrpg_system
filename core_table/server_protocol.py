@@ -818,6 +818,10 @@ class ServerProtocol:
         grid_cell_px = msg.data.get('grid_cell_px')
         cell_distance = msg.data.get('cell_distance')
         distance_unit = msg.data.get('distance_unit')
+        grid_enabled = msg.data.get('grid_enabled')
+        snap_to_grid = msg.data.get('snap_to_grid')
+        grid_color_hex = msg.data.get('grid_color_hex')
+        background_color_hex = msg.data.get('background_color_hex')
 
         if fog_mode is not None and fog_mode not in VALID_FOG_MODES:
             return Message(MessageType.ERROR, {'error': f'fog_exploration_mode must be one of {VALID_FOG_MODES}'})
@@ -845,6 +849,15 @@ class ServerProtocol:
         if distance_unit is not None and distance_unit not in ('ft', 'm'):
             return Message(MessageType.ERROR, {'error': 'distance_unit must be ft or m'})
 
+        HEX_PATTERN = r'^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$'
+        import re as _re
+        if grid_color_hex is not None:
+            if not isinstance(grid_color_hex, str) or not _re.match(HEX_PATTERN, grid_color_hex):
+                return Message(MessageType.ERROR, {'error': 'grid_color_hex must be a valid hex color'})
+        if background_color_hex is not None:
+            if not isinstance(background_color_hex, str) or not _re.match(HEX_PATTERN, background_color_hex):
+                return Message(MessageType.ERROR, {'error': 'background_color_hex must be a valid hex color'})
+
         # Apply to in-memory table
         table = self.table_manager.tables_id.get(table_id)
         if table is None:
@@ -869,6 +882,14 @@ class ServerProtocol:
             table.cell_distance = float(cell_distance)
         if distance_unit is not None:
             table.distance_unit = distance_unit
+        if grid_enabled is not None:
+            table.grid_enabled = bool(grid_enabled)
+        if snap_to_grid is not None:
+            table.snap_to_grid = bool(snap_to_grid)
+        if grid_color_hex is not None:
+            table.grid_color_hex = grid_color_hex
+        if background_color_hex is not None:
+            table.background_color_hex = background_color_hex
 
         # Persist to DB
         session_id = self._get_session_id(msg)
@@ -885,6 +906,10 @@ class ServerProtocol:
                         grid_cell_px=table.grid_cell_px,
                         cell_distance=table.cell_distance,
                         distance_unit=table.distance_unit,
+                        grid_enabled=table.grid_enabled,
+                        snap_to_grid=table.snap_to_grid,
+                        grid_color_hex=table.grid_color_hex,
+                        background_color_hex=table.background_color_hex,
                     )
                     crud.update_virtual_table(db, str(table.table_id), update)
                 finally:
@@ -901,6 +926,10 @@ class ServerProtocol:
             'grid_cell_px': table.grid_cell_px,
             'cell_distance': table.cell_distance,
             'distance_unit': table.distance_unit,
+            'grid_enabled': table.grid_enabled,
+            'snap_to_grid': table.snap_to_grid,
+            'grid_color_hex': table.grid_color_hex,
+            'background_color_hex': table.background_color_hex,
         }
         await self.broadcast_to_session(
             Message(MessageType.TABLE_SETTINGS_CHANGED, broadcast_data), client_id

@@ -89,6 +89,8 @@ interface GameStore extends GameState {
   gridCellPx: number;
   cellDistance: number;
   distanceUnit: DistanceUnit;
+  gridColorHex: string;
+  backgroundColorHex: string;
   
   // Tool system state
   activeTool: ToolType;
@@ -137,6 +139,8 @@ interface GameStore extends GameState {
   setGridSnapping: (enabled: boolean) => void;
   setGridSize: (size: number) => void;
   setTableUnits: (config: TableUnitConfig) => void;
+  setGridColorHex: (hex: string) => void;
+  setBackgroundColorHex: (hex: string) => void;
   getUnitConverter: () => UnitConverter;
   
   // Tool system actions
@@ -213,6 +217,8 @@ export const useGameStore = create<GameStore>()(
       gridCellPx: 50,
       cellDistance: 5,
       distanceUnit: 'ft' as DistanceUnit,
+      gridColorHex: '#ffffff',
+      backgroundColorHex: '#2a3441',
       
       // Tool system initial state
       activeTool: 'select',
@@ -512,6 +518,14 @@ export const useGameStore = create<GameStore>()(
           gridSize: size,
           gridCellPx: size,
         }));
+      },
+
+      setGridColorHex: (hex: string) => {
+        set(() => ({ gridColorHex: hex }));
+      },
+
+      setBackgroundColorHex: (hex: string) => {
+        set(() => ({ backgroundColorHex: hex }));
       },
 
       setTableUnits: (config: TableUnitConfig) => {

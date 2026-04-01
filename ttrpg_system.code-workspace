@@ -1,8 +1,10 @@
 {
 	"folders": [
-		{
-			"path": "."
-		}
+		{ "name": "root", "path": "." },
+		{ "name": "web-ui", "path": "apps/web-ui" },
+		{ "name": "server", "path": "apps/server" },
+		{ "name": "rust-core", "path": "packages/rust-core" },
+		{ "name": "core-table", "path": "packages/core-table" }
 	],
 	"settings": {}
 }

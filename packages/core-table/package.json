@@ -1,0 +1,10 @@
+{
+  "name": "@ttrpg/core-table",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "pytest -x -q",
+    "test:run": "pytest -q",
+    "lint": "ruff check ."
+  }
+}

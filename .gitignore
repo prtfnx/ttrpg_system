@@ -1,79 +1,119 @@
+# ============================================================
+# Build artifacts
+# ============================================================
+**/target/
+**/pkg/
+**/dist/
+**/build/
+
+# ============================================================
 # Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-venv/
-.venv/
+# ============================================================
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.venv/
+**/.coverage
+**/htmlcov/
+**/.pytest_cache/
+**/*.egg-info/
 *.spec
-.coverage
-pytest_cache/
 
-# Project specific
-sdl3/
-dnd_tools.py
-core_dnd/__pycache__/
-core_table/dnd_item.py
-resources/
-res/
-trash/
-docs/
-profiling/
+# ============================================================
+# Node / JavaScript
+# ============================================================
+**/node_modules/
+**/.pnpm-store/
+**/package-lock.json
 
-# Compendiums (allow only loaders)
-core_table/compendiums/tokens/*
-!core_table/compendiums/*loader.py
+# ============================================================
+# Rust
+# ============================================================
+**/Cargo.lock
 
-# Large data files (>1MB) - use external source 
-core_table/compendiums/exports/*
+# ============================================================
+# IDE & OS
+# ============================================================
+.vscode/settings.json
+*.code-workspace
+.DS_Store
+Thumbs.db
 
-# Server
-server_host/.env
-server_host/*.db
-server_host/server.log
-server_host/doc/
-server_host/static/ui/index.html
-server_host/templates/vite_assets.html
-server_host/templates/admin_assets.html
-server_host/ttrpg_game.db
+# ============================================================
+# Environment & secrets
+# ============================================================
+**/.env
+**/.env.local
+**/.env.*.local
 
-# Storage and data
+# ============================================================
+# Databases & backups
+# ============================================================
+**/*.db
+**/*.db.backup_*
+**/*.sql.gz
+
+# ============================================================
+# Logs & temp files
+# ============================================================
+**/*.log
+**/imgui.ini
+**/imgui_log.txt
+debug.log
+
+# ============================================================
+# Project-specific generated / ephemeral
+# ============================================================
+cache/
+downloads/
+backups/
 storage/perf_test/
 storage/test_storage/
 storage/game_data/settings.json
 storage/game_data/saves/player.json
 storage_config.json
 
-# Backups 
-backups/
-*.backup
-*.sql.gz
 
-# Web client
-clients/web/web-ui/node_modules/
-clients/web/web-ui/dist/
-clients/web/web-ui/package-lock.json
-clients/web/web-ui/public/
+# Test outputs (generated, not source)
+test_output_*.txt
+test_output_*.json
 
+# ============================================================
 # Server static assets (built from web client)
+# ============================================================
+apps/server/static/ui/
+!apps/server/static/ui/.gitkeep
+# Legacy paths kept during migration
 server_host/static/ui/
 !server_host/static/ui/.gitkeep
 
-# Rust
-clients/web/rust-core/target/
-clients/web/rust-core/pkg/
-clients/web/rust-core/Cargo.lock
+# ============================================================
+# Compendiums — allow only loaders, not large data exports
+# ============================================================
+core_table/compendiums/tokens/*
+!core_table/compendiums/*loader.py
+core_table/compendiums/exports/*
+packages/core-table/compendiums/tokens/*
+!packages/core-table/compendiums/*loader.py
+packages/core-table/compendiums/exports/*
+packages/core-table/core_table/compendiums/tokens/*
+packages/core-table/core_table/compendiums/exports*
+
+# ============================================================
+# Legacy / archived directories
+# ============================================================
+legacy/desktop_client/sdl3/
+legacy/desktop_client/profiling/
+legacy/desktop_client/trash/
 
 
-# Logs and temporary files
-debug.log
-imgui.ini
-log
-gui/imgui_log.txt
+# ============================================================
+# Docs (internal; tracked separately if needed)
+# ============================================================
+docs/
 
-# Environment
-.env
+# Server internal
+server_host/doc/
 
-# Scripts
-scripts/
+

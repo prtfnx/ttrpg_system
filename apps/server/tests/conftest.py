@@ -1,0 +1,114 @@
+import pytest
+import sys
+import os
+from pathlib import Path
+
+# Add apps/server and tests/ to path so all server and test modules are importable
+server_dir = str(Path(__file__).parent.parent)
+parent_dir = str(Path(__file__).parent.parent.parent)
+tests_dir = str(Path(__file__).parent)
+
+for d in [server_dir, parent_dir, tests_dir]:
+    if d not in sys.path:
+        sys.path.insert(0, d)
+
+os.environ['PYTHONPATH'] = os.pathsep.join([server_dir, parent_dir, tests_dir])
+
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+import main
+from database.database import get_db
+from database.models import Base
+
+app = main.app
+
+SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+
+@pytest.fixture(scope="function")
+def test_db_engine():
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    yield engine
+    Base.metadata.drop_all(bind=engine)
+
+@pytest.fixture(scope="function")
+def test_db(test_db_engine):
+    TestingSessionLocal = sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=test_db_engine
+    )
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiters():
+    """Reset rate limiters before each test to prevent 429 errors"""
+    from utils.rate_limiter import registration_limiter, login_limiter, password_reset_limiter
+    from routers.demo import demo_limiter
+    
+    registration_limiter.clear()
+    login_limiter.clear()
+    demo_limiter.clear()
+    password_reset_limiter.clear()
+    yield
+
+@pytest.fixture(scope="function")
+def client(test_db):
+    def override_get_db():
+        try:
+            yield test_db
+        finally:
+            pass
+    
+    app.dependency_overrides[get_db] = override_get_db
+    
+    with TestClient(app) as test_client:
+        yield test_client
+    
+    app.dependency_overrides.clear()
+
+@pytest.fixture
+def test_user(test_db):
+    from database import crud, schemas
+    user_data = schemas.UserCreate(
+        username="testuser",
+        email="test@example.com",
+        password="Pass1234"
+    )
+    return crud.create_user(test_db, user_data)
+
+@pytest.fixture
+def auth_token(test_user):
+    from routers.users import create_access_token
+    return create_access_token(data={"sub": test_user.username})
+
+@pytest.fixture
+def auth_client(client, test_db, test_user, auth_token):
+    from routers.users import get_current_user
+    
+    async def override_get_current_user():
+        return test_user
+    
+    app.dependency_overrides[get_current_user] = override_get_current_user
+    client.cookies.set("token", auth_token)
+    
+    yield client
+    
+    app.dependency_overrides.pop(get_current_user, None)
+
+@pytest.fixture
+def test_game_session(test_db, test_user):
+    from database import crud, schemas
+    session_data = schemas.GameSessionCreate(name="Test Game Session")
+    return crud.create_game_session(test_db, session_data, test_user.id, "TEST01")

@@ -225,7 +225,9 @@ class R2AssetManager:
         """Download file from R2 to local path"""
         try:
             # Ensure local directory exists
-            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            dir_name = os.path.dirname(local_path)
+            if dir_name:
+                os.makedirs(dir_name, exist_ok=True)
             
             # Download from R2
             self.s3_client.download_file(
@@ -409,7 +411,9 @@ class R2AssetManager:
         """Download file from R2 with hash verification"""
         try:
             # Ensure local directory exists
-            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            dir_name = os.path.dirname(local_path)
+            if dir_name:
+                os.makedirs(dir_name, exist_ok=True)
             
             # Get object metadata first to retrieve stored hash
             head_response = self.s3_client.head_object(

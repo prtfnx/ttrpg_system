@@ -97,6 +97,8 @@ core_table/compendiums/exports/*
 packages/core-table/compendiums/tokens/*
 !packages/core-table/compendiums/*loader.py
 packages/core-table/compendiums/exports/*
+packages/core-table/core_table/compendiums/tokens/*
+packages/core-table/core_table/compendiums/exports*
 
 # ============================================================
 # Legacy / archived directories
@@ -113,3 +115,5 @@ docs/
 
 # Server internal
 server_host/doc/
+
+

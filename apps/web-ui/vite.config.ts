@@ -29,6 +29,7 @@ export default defineConfig(({ mode }) => {
       target: 'esnext',
       minify: isDevelopment ? false : 'terser',
       sourcemap: isDevelopment,
+      manifest: true,
       // wasm-bindgen JS glue is inherently ~130 KB gzipped — silence the false alarm
       chunkSizeWarningLimit: 550,
       rollupOptions: {

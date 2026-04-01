@@ -61,7 +61,7 @@ function Build-Web {
 }
 
 function Copy-ToServer {
-    Write-Host "`n==> Copying build artifacts to server static..." -ForegroundColor Cyan
+    Write-Host "`n==> Copying build to server static..." -ForegroundColor Cyan
 
     if (!(Test-Path $Static)) {
         New-Item -ItemType Directory -Path $Static | Out-Null

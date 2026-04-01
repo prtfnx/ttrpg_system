@@ -3,16 +3,16 @@ import sys
 import os
 from pathlib import Path
 
-# Add apps/server to path so tests can import server modules directly
+# Add apps/server and tests/ to path so all server and test modules are importable
 server_dir = str(Path(__file__).parent.parent)
 parent_dir = str(Path(__file__).parent.parent.parent)
+tests_dir = str(Path(__file__).parent)
 
-if server_dir not in sys.path:
-    sys.path.insert(0, server_dir)
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
+for d in [server_dir, parent_dir, tests_dir]:
+    if d not in sys.path:
+        sys.path.insert(0, d)
 
-os.environ['PYTHONPATH'] = f"{server_dir};{parent_dir}"
+os.environ['PYTHONPATH'] = os.pathsep.join([server_dir, parent_dir, tests_dir])
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

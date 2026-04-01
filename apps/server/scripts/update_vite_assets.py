@@ -1,56 +1,60 @@
 """
-Script to extract <script> and <link> tags from Vite's index.html and update vite_assets.html for Jinja2 injection.
-Run this after every Vite build.
+Generate vite_assets.html and admin_assets.html from Vite's .vite/manifest.json.
+Run after every web-ui build (automatically called by build_and_deploy.ps1).
 """
-import re
+import json
+import sys
 from pathlib import Path
 
-# Paths are relative to repo root (run from repo root, or adjust REPO_ROOT)
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-VITE_INDEX = REPO_ROOT / "apps/server/static/ui/index.html"
-VITE_ASSETS = REPO_ROOT / "apps/server/templates/vite_assets.html"
-
-# Regex to match <script ...> and <link ...> tags
-TAG_RE = re.compile(r"<(script|link)[^>]+>", re.IGNORECASE)
-
-if not VITE_INDEX.exists():
-    raise FileNotFoundError(f"Vite index.html not found: {VITE_INDEX.resolve()}")
-
-with VITE_INDEX.open("r", encoding="utf-8") as f:
-    html = f.read()
+MANIFEST = REPO_ROOT / "apps" / "web-ui" / "dist" / ".vite" / "manifest.json"
+TEMPLATES = REPO_ROOT / "apps" / "server" / "templates"
+BASE = "/static/ui/"
 
 
-# Extract all <script> and <link> tags from the entire HTML (not just <head>)
-all_tags = TAG_RE.finditer(html)
+def _entry_tags(manifest: dict, key: str) -> list[str]:
+    entry = manifest.get(key)
+    if not entry:
+        print(f"  WARNING: entry '{key}' not in manifest", file=sys.stderr)
+        return []
+    lines = []
+    src = entry.get("file", "")
+    if src.endswith(".js"):
+        lines.append(f'<script type="module" crossorigin src="{BASE}{src}"></script>')
+    for imp in entry.get("imports", []):
+        chunk_file = manifest.get(imp, {}).get("file", imp)
+        lines.append(f'<link rel="modulepreload" crossorigin href="{BASE}{chunk_file}" />')
+    for css in entry.get("css", []):
+        lines.append(f'<link rel="stylesheet" crossorigin href="{BASE}{css}" />')
+    return lines
 
-# Improved asset path rewriting for all Vite assets
-asset_lines = []
-for m in all_tags:
-    tag = m.group(0)
-    # Rewrite main-*.js, main-*.css, integration-*.js, and all /assets/ paths
-    tag = re.sub(r'"/main-', '"/static/ui/main-', tag)
-    tag = re.sub(r'"/integration-', '"/static/ui/integration-', tag)
-    tag = re.sub(r'"/assets/', '"/static/ui/assets/', tag)
-    tag = re.sub(r'href="/main-', 'href="/static/ui/main-', tag)
-    tag = re.sub(r'href="/integration-', 'href="/static/ui/integration-', tag)
-    tag = re.sub(r'href="/assets/', 'href="/static/ui/assets/', tag)
-    # Ensure script tag is closed properly
-    if tag.startswith('<script'):
-        if not tag.endswith('>'):
-            tag += '>'
-        if not tag.endswith('</script>'):
-            tag = tag.rstrip('>') + '></script>'
-    elif tag.startswith('<link'):
-        tag = tag.rstrip('>')
-        if not tag.endswith('/'):
-            tag += ' /'
-        tag = tag.rstrip(' /') + ' />'
-    asset_lines.append(tag)
 
-# Write to vite_assets.html as a flat list of tags, one per line, no fragment
-with VITE_ASSETS.open("w", encoding="utf-8") as f:
-    f.write("{# Auto-generated from Vite index.html #}\n")
-    for line in asset_lines:
-        f.write(f"{line.strip()}\n")
+def main():
+    if not MANIFEST.exists():
+        print(f"ERROR: {MANIFEST} not found. Run `pnpm build` in apps/web-ui first.")
+        sys.exit(1)
 
-print(f"Updated {VITE_ASSETS} with {len(asset_lines)} asset tags from {VITE_INDEX}")
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+
+    # --- vite_assets.html (main app) ---
+    icon = next((v["file"] for k, v in manifest.items() if "vite.svg" in k), None)
+    main_lines = []
+    if icon:
+        main_lines.append(f'<link rel="icon" type="image/svg+xml" href="{BASE}{icon}" />')
+    main_lines += _entry_tags(manifest, "index.html")
+    out = TEMPLATES / "vite_assets.html"
+    out.write_text("{# Auto-generated from Vite manifest #}\n" + "\n".join(main_lines) + "\n", encoding="utf-8")
+    print(f"  Written: {out.relative_to(REPO_ROOT)}")
+
+    # --- admin_assets.html (integration entry) ---
+    admin_lines = _entry_tags(manifest, "src/integration.tsx")
+    out = TEMPLATES / "admin_assets.html"
+    out.write_text("{# Auto-generated admin assets #}\n" + "\n".join(admin_lines) + "\n", encoding="utf-8")
+    print(f"  Written: {out.relative_to(REPO_ROOT)}")
+
+    print("Done.")
+
+
+if __name__ == "__main__":
+    main()
+

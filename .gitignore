@@ -73,7 +73,7 @@ storage/test_storage/
 storage/game_data/settings.json
 storage/game_data/saves/player.json
 storage_config.json
-scripts/
+
 
 # Test outputs (generated, not source)
 test_output_*.txt

@@ -1,62 +1,102 @@
-# PowerShell script to build Rust WASM, build React, copy assets, and update vite_assets.html for FastAPI
-# Usage: .\build_and_deploy.ps1 [-dev]
-# -dev: Build in development mode with unminified React for debugging
+# Build Rust WASM, React, copy assets to server, and update vite asset manifest.
+#
+# Usage:
+#   .\build_and_deploy.ps1              # full production build
+#   .\build_and_deploy.ps1 -dev         # development build (unminified, debug logging)
+#   .\build_and_deploy.ps1 -wasm-only   # build WASM only
+#   .\build_and_deploy.ps1 -web-only    # build React only (skip WASM)
+#   .\build_and_deploy.ps1 -skip-copy   # build everything but don't copy to server
 
 param(
-    [switch]$dev
+    [switch]$dev,
+    [switch]$WasmOnly,
+    [switch]$WebOnly,
+    [switch]$SkipCopy
 )
 
-$buildMode = if ($dev) { "development" } else { "production" }
-Write-Host "Build mode: $buildMode"
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
 
-# 1. Build Rust WASM with proper logging configuration
-Write-Host "Building Rust WASM..."
-Push-Location "clients/web/rust-core"
+$Root    = $PSScriptRoot
+$RustDir = "$Root\packages\rust-core"
+$WebDir  = "$Root\apps\web-ui"
+$WasmOut = "$WebDir\public\wasm"
+$Dist    = "$WebDir\dist"
+$Static  = "$Root\apps\server\static\ui"
+$UpdateScript = "$Root\apps\server\scripts\update_vite_assets.py"
 
-if ($dev) {
-    # Development build: Enable all logging features for debugging
-    Write-Host "(Development mode: Enabling debug logging features for WASM)"
-    wasm-pack build --target web --out-dir ../public/wasm --features dev-logging
+function Build-Wasm {
+    Write-Host "`n==> Building Rust WASM..." -ForegroundColor Cyan
+    Push-Location $RustDir
+    try {
+        if ($dev) {
+            Write-Host "    [dev] debug logging features enabled"
+            wasm-pack build --target web --out-dir "$WasmOut" --features dev-logging
+        } else {
+            wasm-pack build --release --target web --out-dir "$WasmOut"
+        }
+    } finally {
+        Pop-Location
+    }
+}
+
+function Build-Web {
+    Write-Host "`n==> Building React (Vite)..." -ForegroundColor Cyan
+    Push-Location $WebDir
+    try {
+        if ($dev) {
+            Write-Host "    [dev] unminified build"
+            $env:NODE_ENV = "development"
+            npm run build -- --mode development
+        } else {
+            $env:NODE_ENV = "production"
+            npm run build
+        }
+    } finally {
+        Pop-Location
+    }
+}
+
+function Copy-ToServer {
+    Write-Host "`n==> Copying build artifacts to server static..." -ForegroundColor Cyan
+
+    if (!(Test-Path $Static)) {
+        New-Item -ItemType Directory -Path $Static | Out-Null
+    } else {
+        Remove-Item "$Static\*" -Recurse -Force
+    }
+
+    # React build
+    Copy-Item "$Dist\*" $Static -Recurse -Force
+    Write-Host "    React dist  -> $Static"
+
+    # WASM files
+    $WasmDest = "$Static\wasm"
+    if (!(Test-Path $WasmDest)) {
+        New-Item -ItemType Directory -Path $WasmDest | Out-Null
+    }
+    Copy-Item "$WasmOut\*" $WasmDest -Recurse -Force
+    Write-Host "    WASM files  -> $WasmDest"
+
+    # Regenerate vite asset manifest template
+    Write-Host "`n==> Updating vite_assets.html..."
+    python $UpdateScript
+}
+
+# ── Execution ──────────────────────────────────────────────────────────────────
+
+$mode = if ($dev) { "development" } else { "production" }
+Write-Host "Build mode: $mode" -ForegroundColor Yellow
+
+if ($WasmOnly) {
+    Build-Wasm
+} elseif ($WebOnly) {
+    Build-Web
+    if (!$SkipCopy) { Copy-ToServer }
 } else {
-    # Production build: No logging features for optimal performance
-    Write-Host "(Production mode: No logging features - optimized for performance)"
-    wasm-pack build --target web --out-dir ../public/wasm --release
+    Build-Wasm
+    Build-Web
+    if (!$SkipCopy) { Copy-ToServer }
 }
 
-Pop-Location
-
-# 2. Build React (Vite)
-Write-Host "Building React (Vite) in $buildMode mode..."
-Push-Location "clients/web/web-ui"
-if ($dev) {
-    $env:NODE_ENV = "development"
-    Write-Host "(Development mode: React will be unminified with detailed error messages)"
-} else {
-    $env:NODE_ENV = "production"
-}
-npm run build
-Pop-Location
-
-
-# 3. Copy React build to FastAPI static directory
-Write-Host "Copying React build to FastAPI static directory..."
-$dist = "clients/web/web-ui/dist"
-$static = "server_host/static/ui"
-if (Test-Path $static) {
-    Remove-Item "$static/*" -Recurse -Force
-}
-Copy-Item "$dist/*" $static -Recurse -Force
-
-# 3b. Copy WASM files to FastAPI static directory
-$wasmSrc = "clients/web/public/wasm"
-$wasmDest = "$static/wasm"
-if (!(Test-Path $wasmDest)) {
-    New-Item -ItemType Directory -Path $wasmDest | Out-Null
-}
-Copy-Item "$wasmSrc/*" $wasmDest -Recurse -Force
-
-# 4. Update vite_assets.html
-Write-Host "Updating vite_assets.html..."
-python server_host/scripts/update_vite_assets.py
-
-Write-Host "Build and deploy complete."
+Write-Host "`nDone." -ForegroundColor Green

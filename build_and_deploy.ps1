@@ -1,11 +1,11 @@
-# Build Rust WASM, React, copy assets to server, and update vite asset manifest.
+﻿# Build Rust WASM, React, copy assets to server, and update vite asset manifest.
 #
 # Usage:
 #   .\build_and_deploy.ps1              # full production build
 #   .\build_and_deploy.ps1 -dev         # development build (unminified, debug logging)
-#   .\build_and_deploy.ps1 -wasm-only   # build WASM only
-#   .\build_and_deploy.ps1 -web-only    # build React only (skip WASM)
-#   .\build_and_deploy.ps1 -skip-copy   # build everything but don't copy to server
+#   .\build_and_deploy.ps1 -WasmOnly    # build WASM only
+#   .\build_and_deploy.ps1 -WebOnly     # build React only (skip WASM)
+#   .\build_and_deploy.ps1 -SkipCopy    # build everything but don't copy to server
 
 param(
     [switch]$dev,
@@ -15,91 +15,115 @@ param(
 )
 
 Set-StrictMode -Version Latest
-$ErrorActionPreference = "Continue"  # wasm-pack writes INFO to stderr; don't abort on it
+$ErrorActionPreference = "Stop"
 
-$Root    = $PSScriptRoot
-$RustDir = "$Root\packages\rust-core"
-$WebDir  = "$Root\apps\web-ui"
-$WasmOut = "$WebDir\public\wasm"
-$Dist    = "$WebDir\dist"
-$Static  = "$Root\apps\server\static\ui"
+$Root         = $PSScriptRoot
+$RustDir      = "$Root\packages\rust-core"
+$WebDir       = "$Root\apps\web-ui"
+$WasmOut      = "$WebDir\public\wasm"
+$Dist         = "$WebDir\dist"
+$Static       = "$Root\apps\server\static\ui"
+$Python       = "$Root\.venv\Scripts\python.exe"
 $UpdateScript = "$Root\apps\server\scripts\update_vite_assets.py"
+
+function Require-Command ($name) {
+    if (-not (Get-Command $name -ErrorAction SilentlyContinue)) {
+        throw "Required tool not found: '$name'. Install it and try again."
+    }
+}
 
 function Build-Wasm {
     Write-Host "`n==> Building Rust WASM..." -ForegroundColor Cyan
+    Require-Command "wasm-pack"
     Push-Location $RustDir
     try {
         if ($dev) {
-            Write-Host "    [dev] debug logging features enabled"
-            wasm-pack build --target web --out-dir "$WasmOut" --features dev-logging
+            Write-Host "    [dev] debug logging enabled"
+            # stderr INFO lines from wasm-pack are noise, not errors - check exit code
+            wasm-pack build --target web --out-dir "$WasmOut" --features dev-logging 2>&1 | Write-Host
         } else {
-            wasm-pack build --release --target web --out-dir "$WasmOut"
+            wasm-pack build --release --target web --out-dir "$WasmOut" 2>&1 | Write-Host
         }
-        # wasm-pack exits 0 on success, but writes INFO lines to stderr.
-        # PowerShell treats stderr output as errors — check exit code explicitly.
         if ($LASTEXITCODE -ne 0) { throw "wasm-pack failed (exit $LASTEXITCODE)" }
     } finally {
         Pop-Location
     }
+    Write-Host "    WASM -> $WasmOut" -ForegroundColor DarkGreen
 }
 
 function Build-Web {
     Write-Host "`n==> Building React (Vite)..." -ForegroundColor Cyan
+    # NODE_ENV must not be set to production here - pnpm would skip devDependencies.
+    # Vite reads mode from --mode flag, not NODE_ENV during build steps.
+    $savedNodeEnv = $env:NODE_ENV
+    Remove-Item Env:NODE_ENV -ErrorAction SilentlyContinue
     Push-Location $WebDir
     try {
+        # tsc type-check then vite build -- mirrors the `build` script in package.json
+        pnpm exec tsc -b
+        if ($LASTEXITCODE -ne 0) { throw "TypeScript check failed" }
+
         if ($dev) {
-            Write-Host "    [dev] unminified build"
-            $env:NODE_ENV = "development"
-            npm run build -- --mode development
+            pnpm exec vite build --mode development
         } else {
-            $env:NODE_ENV = "production"
-            npm run build
+            pnpm exec vite build
         }
+        if ($LASTEXITCODE -ne 0) { throw "Vite build failed" }
     } finally {
+        if ($savedNodeEnv) { $env:NODE_ENV = $savedNodeEnv }
         Pop-Location
     }
+    Write-Host "    dist -> $Dist" -ForegroundColor DarkGreen
 }
 
 function Copy-ToServer {
     Write-Host "`n==> Copying build to server static..." -ForegroundColor Cyan
 
-    if (!(Test-Path $Static)) {
-        New-Item -ItemType Directory -Path $Static | Out-Null
-    } else {
+    if (-not (Test-Path "$Dist\.vite\manifest.json")) {
+        throw "Build output missing at $Dist - run Build-Web first."
+    }
+
+    if (Test-Path $Static) {
         Remove-Item "$Static\*" -Recurse -Force
+    } else {
+        New-Item -ItemType Directory -Path $Static -Force | Out-Null
     }
 
-    # React build
     Copy-Item "$Dist\*" $Static -Recurse -Force
-    Write-Host "    React dist  -> $Static"
+    Write-Host "    React dist  -> $Static" -ForegroundColor DarkGreen
 
-    # WASM files
-    $WasmDest = "$Static\wasm"
-    if (!(Test-Path $WasmDest)) {
-        New-Item -ItemType Directory -Path $WasmDest | Out-Null
+    if (Test-Path $WasmOut) {
+        $WasmDest = "$Static\wasm"
+        New-Item -ItemType Directory -Path $WasmDest -Force | Out-Null
+        Copy-Item "$WasmOut\*" $WasmDest -Recurse -Force
+        Write-Host "    WASM        -> $WasmDest" -ForegroundColor DarkGreen
+    } else {
+        Write-Host "    [warn] No WASM at $WasmOut -- skipping wasm copy" -ForegroundColor Yellow
     }
-    Copy-Item "$WasmOut\*" $WasmDest -Recurse -Force
-    Write-Host "    WASM files  -> $WasmDest"
 
-    # Regenerate vite asset manifest template
-    Write-Host "`n==> Updating vite_assets.html..."
-    python $UpdateScript
+    Write-Host "`n==> Updating vite asset templates..."
+    & $Python $UpdateScript
+    if ($LASTEXITCODE -ne 0) { throw "update_vite_assets.py failed" }
 }
 
-# ── Execution ──────────────────────────────────────────────────────────────────
+# -- Execution ------------------------------------------------------------------
 
 $mode = if ($dev) { "development" } else { "production" }
 Write-Host "Build mode: $mode" -ForegroundColor Yellow
 
-if ($WasmOnly) {
-    Build-Wasm
-} elseif ($WebOnly) {
-    Build-Web
-    if (!$SkipCopy) { Copy-ToServer }
-} else {
-    Build-Wasm
-    Build-Web
-    if (!$SkipCopy) { Copy-ToServer }
+try {
+    if ($WasmOnly) {
+        Build-Wasm
+    } elseif ($WebOnly) {
+        Build-Web
+        if (-not $SkipCopy) { Copy-ToServer }
+    } else {
+        Build-Wasm
+        Build-Web
+        if (-not $SkipCopy) { Copy-ToServer }
+    }
+    Write-Host "`nDone." -ForegroundColor Green
+} catch {
+    Write-Host "`nBuild failed: $_" -ForegroundColor Red
+    exit 1
 }
-
-Write-Host "`nDone." -ForegroundColor Green

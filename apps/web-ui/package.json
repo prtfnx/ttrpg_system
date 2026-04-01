@@ -16,7 +16,7 @@
     "test:coverage": "vitest run --coverage",
     "validate:css": "node scripts/validate-css.js",
     "validate:css:verbose": "node scripts/validate-css.js --verbose",
-    "prepare": "husky"
+    "prepare": "node -e \"const {execSync}=require('child_process'),p=require('path');try{execSync('git config core.hooksPath apps/web-ui/.husky',{cwd:p.join(__dirname,'../..'),stdio:'inherit'})}catch(e){}\""
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",

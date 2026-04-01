@@ -15,7 +15,7 @@ param(
 )
 
 Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"  # wasm-pack writes INFO to stderr; don't abort on it
 
 $Root    = $PSScriptRoot
 $RustDir = "$Root\packages\rust-core"
@@ -35,6 +35,9 @@ function Build-Wasm {
         } else {
             wasm-pack build --release --target web --out-dir "$WasmOut"
         }
+        # wasm-pack exits 0 on success, but writes INFO lines to stderr.
+        # PowerShell treats stderr output as errors — check exit code explicitly.
+        if ($LASTEXITCODE -ne 0) { throw "wasm-pack failed (exit $LASTEXITCODE)" }
     } finally {
         Pop-Location
     }

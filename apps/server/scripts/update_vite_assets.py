@@ -5,8 +5,10 @@ Run this after every Vite build.
 import re
 from pathlib import Path
 
-VITE_INDEX = Path("server_host/static/ui/index.html")
-VITE_ASSETS = Path("server_host/templates/vite_assets.html")
+# Paths are relative to repo root (run from repo root, or adjust REPO_ROOT)
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+VITE_INDEX = REPO_ROOT / "apps/server/static/ui/index.html"
+VITE_ASSETS = REPO_ROOT / "apps/server/templates/vite_assets.html"
 
 # Regex to match <script ...> and <link ...> tags
 TAG_RE = re.compile(r"<(script|link)[^>]+>", re.IGNORECASE)

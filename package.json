@@ -6,6 +6,8 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "test": "turbo test",
+    "test:run": "turbo test:run",
+    "test:coverage": "turbo test:coverage",
     "lint": "turbo lint",
     "clean": "turbo clean"
   },

@@ -205,7 +205,7 @@
         // Load WASM module
         async function loadWasm() {
             try {
-                wasmModule = await import('/static/pkg/ttrpg_rust_core.js');
+                wasmModule = await import('/static/ui/wasm/ttrpg_rust_core.js');
                 await wasmModule.default();
                 addLog('info', 'WASM module loaded successfully');
                 return true;

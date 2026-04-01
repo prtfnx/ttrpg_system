@@ -37,15 +37,22 @@ function Build-Wasm {
     Require-Command "wasm-pack"
     Push-Location $RustDir
     try {
+        # wasm-pack writes [INFO] lines to stderr which PowerShell treats as errors
+        # when $ErrorActionPreference = "Stop". Temporarily lower it for this call.
+        $savedEAP = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
         if ($dev) {
             Write-Host "    [dev] debug logging enabled"
-            # stderr INFO lines from wasm-pack are noise, not errors - check exit code
-            wasm-pack build --target web --out-dir "$WasmOut" --features dev-logging 2>&1 | Write-Host
+            wasm-pack build --target web --out-dir "$WasmOut" --features dev-logging 2>&1 |
+                ForEach-Object { Write-Host $_ }
         } else {
-            wasm-pack build --release --target web --out-dir "$WasmOut" 2>&1 | Write-Host
+            wasm-pack build --release --target web --out-dir "$WasmOut" 2>&1 |
+                ForEach-Object { Write-Host $_ }
         }
+        $ErrorActionPreference = $savedEAP
         if ($LASTEXITCODE -ne 0) { throw "wasm-pack failed (exit $LASTEXITCODE)" }
     } finally {
+        $ErrorActionPreference = $savedEAP
         Pop-Location
     }
     Write-Host "    WASM -> $WasmOut" -ForegroundColor DarkGreen

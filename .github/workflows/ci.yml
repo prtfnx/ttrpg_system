@@ -20,11 +20,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-        working-directory: apps/web-ui
-      - run: pnpm lint
-        working-directory: apps/web-ui
-      - run: pnpm test:run
-        working-directory: apps/web-ui
+      - run: pnpm lint --filter @ttrpg/web-ui
+      - run: pnpm test:run --filter @ttrpg/web-ui
 
   rust:
     name: Rust WASM (test)

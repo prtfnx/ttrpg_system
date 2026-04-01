@@ -48,14 +48,14 @@ export default defineConfig(({ mode }) => {
             if (id.includes('lucide-react')) return 'icons';
             // All other node_modules → vendor (stable, long cache lifetime)
             if (id.includes('node_modules')) return 'vendor';
-            // WASM bridge + generated TS declarations — changes every Rust build
-            // Must be assigned BEFORE features to avoid feature code bleeding in
-            if (id.includes('/src/lib/wasm/')) return 'wasm';
-            // Network/protocol layer without WASM mixed in
-            if (id.includes('/src/lib/websocket/') || id.includes('/src/lib/api/')) return 'protocol';
-            // Store is imported everywhere; give it its own chunk so it isn't
-            // duplicated across feature chunks
-            if (id.includes('/src/store')) return 'store';
+            // Store, protocol, and WASM bridge form a tightly coupled core with
+            // circular imports — keep them in a single chunk to avoid Rollup errors.
+            if (
+              id.includes('/src/store') ||
+              id.includes('/src/lib/websocket/') ||
+              id.includes('/src/lib/api/') ||
+              id.includes('/src/lib/wasm/')
+            ) return 'core';
           }
         }
       }

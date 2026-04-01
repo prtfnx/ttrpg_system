@@ -7,11 +7,11 @@ import copy
 import typing
 import asyncio
 import time
+import logging
 if typing.TYPE_CHECKING:
     from .server import TableManager
-from logger import setup_logger
 
-logger = setup_logger(__name__)
+logger = logging.getLogger(__name__)
 class ActionsCore(AsyncActionsProtocol):
     """
     Server-side implementation of ActionsProtocol for VirtualTable.
@@ -152,7 +152,7 @@ class ActionsCore(AsyncActionsProtocol):
         """
         try:
             if hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
-                from server_host.database import crud
+                from database import crud
                 
                 logger.debug(f"Deleting table from database: table_id={table_id}, session_id={session_id}")
                 
@@ -1056,7 +1056,7 @@ class ActionsCore(AsyncActionsProtocol):
                            user_id: int) -> ActionResult:
         """Save a character to the database"""
         try:
-            from server_host.managers.character_manager import get_server_character_manager
+            from managers.character_manager import get_server_character_manager
             
             char_manager = get_server_character_manager()
             result = char_manager.save_character(session_id, character_data, user_id)
@@ -1086,7 +1086,7 @@ class ActionsCore(AsyncActionsProtocol):
                            user_id: int) -> ActionResult:
         """Load a character from the database"""
         try:
-            from server_host.managers.character_manager import get_server_character_manager
+            from managers.character_manager import get_server_character_manager
             
             char_manager = get_server_character_manager()
             result = char_manager.load_character(session_id, character_id, user_id)
@@ -1115,7 +1115,7 @@ class ActionsCore(AsyncActionsProtocol):
     async def list_characters(self, session_id: int, user_id: int) -> ActionResult:
         """List characters for a session and user"""
         try:
-            from server_host.managers.character_manager import get_server_character_manager
+            from managers.character_manager import get_server_character_manager
             
             char_manager = get_server_character_manager()
             result = char_manager.list_characters(session_id, user_id)
@@ -1146,7 +1146,7 @@ class ActionsCore(AsyncActionsProtocol):
                              user_id: int) -> ActionResult:
         """Delete a character from the database"""
         try:
-            from server_host.managers.character_manager import get_server_character_manager
+            from managers.character_manager import get_server_character_manager
             
             char_manager = get_server_character_manager()
             result = char_manager.delete_character(session_id, character_id, user_id)
@@ -1175,7 +1175,7 @@ class ActionsCore(AsyncActionsProtocol):
     async def update_character(self, session_id: int, character_id: str, updates: Dict[str, Any], user_id: int, expected_version: Optional[int] = None, bypass_owner_check: bool = False) -> ActionResult:
         """Apply partial updates (delta) to a character using server-side manager with optimistic concurrency."""
         try:
-            from server_host.managers.character_manager import get_server_character_manager
+            from managers.character_manager import get_server_character_manager
 
             char_manager = get_server_character_manager()
             result = char_manager.update_character(session_id, character_id, updates, user_id, expected_version, bypass_owner_check=bypass_owner_check)
@@ -1203,7 +1203,7 @@ class ActionsCore(AsyncActionsProtocol):
     async def get_character_log(self, session_id: int, character_id: str, user_id: int, limit: int = 50) -> ActionResult:
         """Return recent character log entries."""
         try:
-            from server_host.managers.character_manager import get_server_character_manager
+            from managers.character_manager import get_server_character_manager
             char_manager = get_server_character_manager()
             result = char_manager.get_character_logs(character_id, session_id, limit)
             if result['success']:
@@ -1219,7 +1219,7 @@ class ActionsCore(AsyncActionsProtocol):
         """Roll d20 server-side and log result for broadcast. Clients send intent only."""
         import secrets
         try:
-            from server_host.managers.character_manager import get_server_character_manager
+            from managers.character_manager import get_server_character_manager
 
             # Server owns the dice — clients cannot spoof results
             roll1 = secrets.randbelow(20) + 1
@@ -1276,7 +1276,7 @@ class ActionsCore(AsyncActionsProtocol):
         # Persist to database
         if session_id and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
             try:
-                from server_host.database.models import Wall as WallModel
+                from database.models import Wall as WallModel
                 db = self.table_manager.db_session
                 db_wall = WallModel(
                     wall_id=wall.wall_id,
@@ -1312,7 +1312,7 @@ class ActionsCore(AsyncActionsProtocol):
 
         if session_id and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
             try:
-                from server_host.database.models import Wall as WallModel
+                from database.models import Wall as WallModel
                 db = self.table_manager.db_session
                 db_wall = db.query(WallModel).filter(WallModel.wall_id == wall_id).first()
                 if db_wall:
@@ -1341,7 +1341,7 @@ class ActionsCore(AsyncActionsProtocol):
 
         if session_id and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
             try:
-                from server_host.database.models import Wall as WallModel
+                from database.models import Wall as WallModel
                 db = self.table_manager.db_session
                 db_wall = db.query(WallModel).filter(WallModel.wall_id == wall_id).first()
                 if db_wall:

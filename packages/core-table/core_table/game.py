@@ -1,17 +1,13 @@
 import os
-import sys
 import asyncio
-from logger import setup_logger
+import logging
 from typing import Dict, List
-
-# Add parent directory to path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import core_table.table as table
 from core_table.server import GameServer, TableManager
 from core_table.entities import Spell
 
-logger = setup_logger(__name__)
+logger = logging.getLogger(__name__)
 
 INITIALIZE_TABLE = "INITIALIZE_TABLE"
 

@@ -11,11 +11,11 @@ from typing import Optional, Dict, List
 from difflib import SequenceMatcher
 from functools import lru_cache
 
-from logger import setup_logger
-from server_host.database.database import SessionLocal
-from server_host.database.models import Asset
+import logging
+from database.database import SessionLocal
+from database.models import Asset
 
-logger = setup_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class TokenResolutionService:

@@ -1,19 +1,15 @@
 import asyncio
-from logger import setup_logger
+import logging
 import json
 import uuid
 import os
 import sys
 from typing import Dict, Set
 
-# Add parent directory to path to import protocol
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from .table import VirtualTable
+from .protocol import Message, MessageType
 
-from core_table.server_protocol import ServerProtocol
-from core_table.table import VirtualTable
-from net.protocol import Message, MessageType
-
-logger = setup_logger(__name__)
+logger = logging.getLogger(__name__)
 
 HOST = '127.0.0.1'
 PORT = 12345
@@ -99,7 +95,7 @@ class TableManager:
             return False
         
         try:
-            from server_host.database import crud
+            from database import crud
             
             default_table_id = str(self.default_table.table_id)
             for table_id, table in self.tables.items():
@@ -121,7 +117,7 @@ class TableManager:
         
         try:
             #TODO change this to use the crud module
-            from server_host.database import crud
+            from database import crud
             
             # Get all tables for this session
             db_tables = crud.get_session_tables(self.db_session, session_id)
@@ -147,7 +143,7 @@ class TableManager:
             return False
         
         try:
-            from server_host.database import crud
+            from database import crud
             table = self.tables[table_id]
             crud.save_table_to_db(self.db_session, table, session_id)
             logger.info(f"Saved table '{table.display_name}' (ID: {table_id}) to database")
@@ -162,7 +158,7 @@ class TableManager:
             return False
         
         try:
-            from server_host.database import crud
+            from database import crud
             virtual_table, success = crud.load_table_from_db(self.db_session, table_id)
             if success and virtual_table:
                 self.tables[str(virtual_table.table_id)] = virtual_table

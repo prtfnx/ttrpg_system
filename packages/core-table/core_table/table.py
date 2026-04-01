@@ -1,10 +1,10 @@
 import json
 import os
-from server_host.utils.logger import setup_logger
+import logging
 from typing import Dict, Tuple, List, Optional, Any
 import uuid
 
-logger = setup_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # logging.basicConfig removed - using central logger setup
 

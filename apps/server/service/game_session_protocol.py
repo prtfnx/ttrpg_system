@@ -14,7 +14,7 @@ from dataclasses import asdict
 import os
 
 from core_table.protocol import Message, MessageType, ProtocolHandler
-from core_table.server_protocol import ServerProtocol
+from .server_protocol import ServerProtocol
 from core_table.server import TableManager
 from .asset_manager import get_server_asset_manager
 from ..utils.logger import setup_logger

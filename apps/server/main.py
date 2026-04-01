@@ -17,25 +17,21 @@ from fastapi.exception_handlers import http_exception_handler
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from sqlalchemy.orm import Session
 
-# Add parent directory to path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from server_host.utils.logger import setup_logger
-from server_host.routers import users
-from server_host.routers.users import get_current_user_optional
-from server_host.routers import game
-from server_host.routers import compendium
-from server_host.routers import invitations
-from server_host.routers import demo
-from server_host.routers import auth
-from server_host.api import game_ws
-from server_host.database.database import create_tables, SessionLocal, get_db
-from server_host.database import models
-from server_host.service.game_session import ConnectionManager
-from server_host.utils.rate_limiter import registration_limiter, login_limiter
+from utils.logger import setup_logger
+from routers import users
+from routers.users import get_current_user_optional
+from routers import game
+from routers import compendium
+from routers import invitations
+from routers import demo
+from routers import auth
+from api import game_ws
+from database.database import create_tables, SessionLocal, get_db
+from database import models
+from service.game_session import ConnectionManager
+from utils.rate_limiter import registration_limiter, login_limiter
 from starlette.middleware.sessions import SessionMiddleware
 
-# Import table manager for WebSocket protocol
 from core_table.server import TableManager
 
 

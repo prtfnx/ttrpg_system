@@ -5,7 +5,7 @@ Description: Stores per-character action history (HP changes, spell casts,
              skill rolls, rest events, item changes). Used by ActivityTab.
 """
 import sqlite3
-from server_host.utils.logger import setup_logger
+from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 

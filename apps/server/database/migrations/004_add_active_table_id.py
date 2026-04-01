@@ -5,7 +5,7 @@ Description: Adds active_table_id column to store user's currently active table 
 """
 import sqlite3
 import os
-from server_host.utils.logger import setup_logger
+from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     # Add parent directory to path
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))
     
-    from server_host.database.database import DB_PATH
+    from database.database import DB_PATH
     
     print(f"Running migration on database: {DB_PATH}")
     

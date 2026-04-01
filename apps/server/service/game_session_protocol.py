@@ -12,20 +12,15 @@ from typing import Dict, Set, Optional, Any, List
 from fastapi import WebSocket, WebSocketDisconnect
 from dataclasses import asdict
 import os
-import sys
 
-# Add parent directory to path to import protocol
-parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.append(parent_dir)
-
-from net.protocol import Message, MessageType, ProtocolHandler
+from core_table.protocol import Message, MessageType, ProtocolHandler
 from core_table.server_protocol import ServerProtocol
 from core_table.server import TableManager
 from .asset_manager import get_server_asset_manager
-from server_host.utils.logger import setup_logger
-from server_host.database.models import GameSession
-from server_host.database.crud import append_ban_to_session
-from server_host.utils.roles import get_permissions, get_visible_layers, is_dm as _is_dm
+from ..utils.logger import setup_logger
+from ..database.models import GameSession
+from ..database.crud import append_ban_to_session
+from ..utils.roles import get_permissions, get_visible_layers, is_dm as _is_dm
 logger = setup_logger(__name__)
 
 
@@ -156,9 +151,9 @@ class GameSessionProtocolService:
             
             # Add entities across different layers
             map_bg = large_table.add_entity({'name': 'Map Background1', 'x': 0, 'y': 0, 'layer': 'map', 'texture_path': 'resources/map.jpg', 'asset_id': '1aeb5857b9cd3b50'})
-            player1 = large_table.add_entity({'name': 'Player 1', 'x': 400, 'y': 300, 'layer': 'tokens', 'texture_path': 'server_host/res/player1.png', 'asset_id': 'e7f80bafaaf67027'})
-            player2 = large_table.add_entity({'name': 'Player 2', 'x': 12, 'y': 10, 'layer': 'tokens', 'texture_path': 'server_host/res/player2.png'})
-            dm_note = large_table.add_entity({'name': 'DM Note', 'x': 25, 'y': 25, 'layer': 'dungeon_master', 'texture_path': 'server_host/res/note.png'})
+            player1 = large_table.add_entity({'name': 'Player 1', 'x': 400, 'y': 300, 'layer': 'tokens', 'texture_path': 'resources/player1.png', 'asset_id': 'e7f80bafaaf67027'})
+            player2 = large_table.add_entity({'name': 'Player 2', 'x': 12, 'y': 10, 'layer': 'tokens', 'texture_path': 'resources/player2.png'})
+            dm_note = large_table.add_entity({'name': 'DM Note', 'x': 25, 'y': 25, 'layer': 'dungeon_master', 'texture_path': 'resources/note.png'})
             light_source = large_table.add_entity({'name': 'Light Source', 'x': 15, 'y': 15, 'layer': 'light', 'texture_path': 'server_host/res/torch.png'})
 
             # Add some more entities to make it feel populated

@@ -19,11 +19,11 @@ from datetime import datetime, timedelta
 import logging
 from typing import Optional
 
-from server_host.database.database import get_db
-from server_host.database import models
-from server_host.routers.users import create_access_token
-from server_host.utils.rate_limiter import RateLimiter
-from server_host.config import Settings
+from ..database.database import get_db
+from ..database import models
+from .users import create_access_token
+from ..utils.rate_limiter import RateLimiter
+from ..config import Settings
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

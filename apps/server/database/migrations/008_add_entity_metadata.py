@@ -4,7 +4,7 @@ Date: 2026-02-26
 Description: Stores opaque JSON metadata for special entity types (lights, fog, etc.)
 """
 import sqlite3
-from server_host.utils.logger import setup_logger
+from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 

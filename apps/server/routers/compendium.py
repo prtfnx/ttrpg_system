@@ -4,23 +4,19 @@ Serves compendium data (races, classes, spells, equipment, monsters) via REST AP
 """
 
 import json
-import os
-import sys
+import core_table
 from pathlib import Path
 from typing import Optional, Dict, List, Any
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
-# Add parent directory to path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from server_host.utils.logger import setup_logger
+from ..utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 router = APIRouter(prefix="/api/compendium", tags=["compendium"])
 
-# Path to compendium exports directory
-COMPENDIUM_DIR = Path(__file__).parent.parent.parent / "core_table" / "compendiums" / "exports"
+# Compendium exports directory inside the installed core_table package
+COMPENDIUM_DIR = Path(core_table.__file__).parent / "compendiums" / "exports"
 
 class CompendiumService:
     """Service for loading and serving D&D 5e compendium data"""

@@ -88,7 +88,7 @@ class TestGameSessionAccess:
         assert response.status_code == 200
         
     def test_session_code_uniqueness(self, test_db, test_user):
-        from server_host.routers.game import generate_unique_session_code
+        from routers.game import generate_unique_session_code
         
         codes = set()
         for _ in range(10):

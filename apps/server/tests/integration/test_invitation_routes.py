@@ -1,10 +1,10 @@
-﻿import pytest
+import pytest
 from datetime import datetime, timedelta
 from fastapi.testclient import TestClient
 
-from server_host.routers.users import get_current_user
-from server_host import main
-from server_host.database import crud, models
+from routers.users import get_current_user
+import main
+from database import crud, models
 
 from ..utils.invitation_fixtures import *
 

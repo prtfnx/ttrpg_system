@@ -6,13 +6,13 @@ import jwt
 @pytest.mark.unit
 class TestTokenGeneration:
     def test_create_access_token(self):
-        from server_host.routers.users import create_access_token
+        from routers.users import create_access_token
         token = create_access_token(data={"sub": "testuser"})
         assert token is not None
         assert isinstance(token, str)
         
     def test_token_expiration(self):
-        from server_host.routers.users import create_access_token, SECRET_KEY, ALGORITHM
+        from routers.users import create_access_token, SECRET_KEY, ALGORITHM
         
         token = create_access_token(
             data={"sub": "testuser"},
@@ -25,7 +25,7 @@ class TestTokenGeneration:
 @pytest.mark.unit
 class TestPasswordHashing:
     def test_password_is_hashed(self, test_db):
-        from server_host.database import crud, schemas
+        from database import crud, schemas
         user_data = schemas.UserCreate(
             username="secure",
             email="secure@example.com",
@@ -38,7 +38,7 @@ class TestPasswordHashing:
         
     def test_verify_password(self, test_db, test_user):
         """Test password verification against stored hash"""
-        from server_host.database import crud
+        from database import crud
         # Correct password should verify
         assert crud.verify_password("Pass1234", test_user.hashed_password)
         # Wrong password should not verify

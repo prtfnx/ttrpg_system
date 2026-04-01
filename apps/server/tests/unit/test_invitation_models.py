@@ -3,11 +3,11 @@ from datetime import datetime, timedelta
 from unittest.mock import patch, Mock
 from sqlalchemy.exc import IntegrityError
 
-from server_host.database.models import SessionInvitation, AuditLog, GamePlayer
-from server_host.routers.invitations import generate_invite_code
-from server_host.utils.roles import can_modify_role, has_session_admin_permission
-from server_host.utils.security import sanitize_session_code, sanitize_user_input, validate_invite_code_format
-from server_host.utils.audit import format_audit_details, extract_client_info, filter_audit_logs
+from database.models import SessionInvitation, AuditLog, GamePlayer
+from routers.invitations import generate_invite_code
+from utils.roles import can_modify_role, has_session_admin_permission
+from utils.security import sanitize_session_code, sanitize_user_input, validate_invite_code_format
+from utils.audit import format_audit_details, extract_client_info, filter_audit_logs
 
 @pytest.mark.unit
 class TestSessionInvitationModel:
@@ -213,7 +213,7 @@ class TestGamePlayerModel:
     
     def test_game_player_role_assignment(self, test_db, test_game_session):
         """Test that roles can be assigned to game players"""
-        from server_host.database import crud, schemas
+        from database import crud, schemas
         # Use a fresh user who is NOT the session owner
         member = crud.create_user(test_db, schemas.UserCreate(
             username="member1", email="member1@test.com", password="Pass1234"
@@ -233,7 +233,7 @@ class TestGamePlayerModel:
 
     def test_game_player_default_role(self, test_db, test_game_session):
         """Test that default role is 'player'"""
-        from server_host.database import crud, schemas
+        from database import crud, schemas
         member = crud.create_user(test_db, schemas.UserCreate(
             username="member2", email="member2@test.com", password="Pass1234"
         ))
@@ -251,7 +251,7 @@ class TestGamePlayerModel:
 
     def test_game_player_unique_constraint(self, test_db, test_game_session):
         """Test that a user can only have one role per session"""
-        from server_host.database import crud, schemas
+        from database import crud, schemas
         member = crud.create_user(test_db, schemas.UserCreate(
             username="member3", email="member3@test.com", password="Pass1234"
         ))

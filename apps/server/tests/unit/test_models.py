@@ -1,5 +1,5 @@
 import pytest
-from server_host.database import schemas
+from database import schemas
 from pydantic import ValidationError
 
 @pytest.mark.unit

@@ -1,9 +1,9 @@
-﻿import pytest
+import pytest
 from unittest.mock import patch
 
-from server_host.routers.users import get_current_user
-from server_host import main
-from server_host.database import crud, schemas, models
+from routers.users import get_current_user
+import main
+from database import crud, schemas, models
 
 from ..utils.invitation_fixtures import *
 

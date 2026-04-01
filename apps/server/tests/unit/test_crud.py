@@ -1,5 +1,5 @@
 import pytest
-from server_host.database import crud, schemas
+from database import crud, schemas
 
 @pytest.mark.unit
 class TestUserCRUD:

@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 Comprehensive test script for the TTRPG Webhook Server
 Tests all major functionality of the webhook-based server
@@ -37,7 +37,7 @@ class ServerTester:
             data = await resp.json()
             assert data["status"] == "running"
             assert data["server"] == "TTRPG Webhook Server"
-            logger.info("✅ Root endpoint working")
+            logger.info("? Root endpoint working")
         
         # Test health endpoint
         async with self.session.get(f"{self.base_url}/health") as resp:
@@ -45,7 +45,7 @@ class ServerTester:
             data = await resp.json()
             assert data["status"] == "healthy"
             assert data["server_running"] is True
-            logger.info("✅ Health endpoint working")
+            logger.info("? Health endpoint working")
     
     async def test_client_registration(self):
         """Test client registration and listing"""
@@ -65,7 +65,7 @@ class ServerTester:
             data = await resp.json()
             assert data["status"] == "registered"
             assert data["client_id"] == "test-comprehensive-client"
-            logger.info("✅ Client registration working")
+            logger.info("? Client registration working")
         
         # Check client list
         async with self.session.get(f"{self.base_url}/api/clients") as resp:
@@ -80,7 +80,7 @@ class ServerTester:
                     client_found = True
                     break
             assert client_found, "Registered client not found in client list"
-            logger.info("✅ Client listing working")
+            logger.info("? Client listing working")
         
         return "test-comprehensive-client"
     
@@ -105,7 +105,7 @@ class ServerTester:
             data = await resp.json()
             assert data["status"] == "received"
             assert data["client_id"] == client_id
-            logger.info("✅ PING message handling working")
+            logger.info("? PING message handling working")
         
         # Test TEST message
         test_message = {
@@ -123,7 +123,7 @@ class ServerTester:
             assert resp.status == 200
             data = await resp.json()
             assert data["status"] == "received"
-            logger.info("✅ TEST message handling working")
+            logger.info("? TEST message handling working")
         
         # Test TABLE_REQUEST message
         table_request = {
@@ -141,7 +141,7 @@ class ServerTester:
             assert resp.status == 200
             data = await resp.json()
             assert data["status"] == "received"
-            logger.info("✅ TABLE_REQUEST message handling working")
+            logger.info("? TABLE_REQUEST message handling working")
     
     async def test_table_management(self):
         """Test table listing and management"""
@@ -164,7 +164,7 @@ class ServerTester:
                     assert table["height"] == 100
                     break
             assert default_found, "Default table not found"
-            logger.info("✅ Table listing working")
+            logger.info("? Table listing working")
         
         # Test specific table endpoint
         async with self.session.get(f"{self.base_url}/api/table/default") as resp:
@@ -172,7 +172,7 @@ class ServerTester:
             data = await resp.json()
             assert data["status"] == "success"
             assert data["table"]["name"] == "default"
-            logger.info("✅ Specific table endpoint working")
+            logger.info("? Specific table endpoint working")
     
     async def test_table_creation(self):
         """Test table creation"""
@@ -194,7 +194,7 @@ class ServerTester:
             assert data["table"]["name"] == "test-table-comprehensive"
             assert data["table"]["width"] == 150
             assert data["table"]["height"] == 150
-            logger.info("✅ Table creation working")
+            logger.info("? Table creation working")
         
         # Verify table was created by listing tables
         async with self.session.get(f"{self.base_url}/api/tables") as resp:
@@ -207,7 +207,7 @@ class ServerTester:
                     test_table_found = True
                     break
             assert test_table_found, "Created table not found in table list"
-            logger.info("✅ Table creation verification working")
+            logger.info("? Table creation verification working")
     
     async def test_ping_endpoint(self, client_id: str):
         """Test ping endpoint"""
@@ -223,7 +223,7 @@ class ServerTester:
             data = await resp.json()
             assert data["status"] == "pong"
             assert data["client_id"] == client_id
-            logger.info("✅ Ping endpoint working")
+            logger.info("? Ping endpoint working")
     
     async def test_client_unregistration(self, client_id: str):
         """Test client unregistration"""
@@ -239,7 +239,7 @@ class ServerTester:
             data = await resp.json()
             assert data["status"] == "unregistered"
             assert data["client_id"] == client_id
-            logger.info("✅ Client unregistration working")
+            logger.info("? Client unregistration working")
         
         # Verify client was removed
         async with self.session.get(f"{self.base_url}/api/clients") as resp:
@@ -252,7 +252,7 @@ class ServerTester:
                     client_found = True
                     break
             assert not client_found, "Unregistered client still found in client list"
-            logger.info("✅ Client unregistration verification working")
+            logger.info("? Client unregistration verification working")
 
 async def run_comprehensive_test():
     """Run all comprehensive tests"""

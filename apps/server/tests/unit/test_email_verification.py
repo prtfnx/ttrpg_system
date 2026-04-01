@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime, timedelta
-from server_host.database import models
+from database import models
 
 @pytest.mark.unit
 class TestEmailVerification:

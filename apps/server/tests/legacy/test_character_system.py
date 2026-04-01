@@ -14,7 +14,7 @@ sys.path.append(project_root)
 def test_character_manager():
     """Test the character manager functionality"""
     try:
-        from server_host.managers.character_manager import get_server_character_manager
+        from managers.character_manager import get_server_character_manager
         
         manager = get_server_character_manager()
         print("✅ ServerCharacterManager imported successfully")
@@ -32,7 +32,7 @@ def test_character_manager():
 def test_database_models():
     """Test database models import"""
     try:
-        from server_host.database.models import SessionCharacter, GameSession, User
+        from database.models import SessionCharacter, GameSession, User
         print("✅ Database models imported successfully")
         
         # Test model attributes

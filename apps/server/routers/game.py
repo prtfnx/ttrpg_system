@@ -15,7 +15,7 @@ from ..utils.logger import setup_logger
 from ..utils.roles import get_permissions, get_visible_layers, can_assign_role, is_dm
 from ..service.game_session import get_connection_manager
 from .users import get_current_active_user
-from net.protocol import Message, MessageType
+from core_table.protocol import Message, MessageType
 import os
 
 logger = setup_logger(__name__)

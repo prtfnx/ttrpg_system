@@ -4,8 +4,8 @@ Database utility functions for game session management
 import logging
 from typing import Optional, Tuple
 from sqlalchemy.orm import Session
-from server_host.database import crud, models, schemas
-from server_host.service.game_session_protocol import GameSessionProtocolService
+from . import crud, models, schemas
+from ..service.game_session_protocol import GameSessionProtocolService
 
 logger = logging.getLogger(__name__)
 

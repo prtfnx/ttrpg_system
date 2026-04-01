@@ -1,6 +1,6 @@
 import pytest
-from server_host.database import models
-from server_host.routers.users import create_access_token
+from database import models
+from routers.users import create_access_token
 from datetime import datetime, timedelta
 
 @pytest.mark.unit

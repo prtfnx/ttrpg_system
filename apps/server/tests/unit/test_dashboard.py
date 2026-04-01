@@ -1,5 +1,5 @@
 import pytest
-from server_host.database import models
+from database import models
 
 @pytest.mark.unit
 class TestDashboard:
@@ -35,7 +35,7 @@ class TestDashboard:
         assert response.status_code == 302
         assert "/game/session/" in response.headers["location"]
         
-        from server_host.database import models
+        from database import models
         session = test_db.query(models.GameSession).filter(
             models.GameSession.name == "New Adventure"
         ).first()

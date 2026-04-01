@@ -8,7 +8,7 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
-from server_host.database import models, crud, schemas
+from database import models, crud, schemas
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ class TestForgotPassword:
         assert response.status_code == 200
 
     def test_always_shows_sent_page_for_known_email(self, client, test_user):
-        with patch("server_host.routers.users.send_password_reset"):
+        with patch("routers.users.send_password_reset"):
             response = client.post("/users/forgot-password", data={"email": test_user.email})
         assert response.status_code == 200
 
@@ -64,7 +64,7 @@ class TestForgotPassword:
         assert response.status_code == 200
 
     def test_creates_reset_token_in_db(self, client, test_user, test_db):
-        with patch("server_host.routers.users.send_password_reset"):
+        with patch("routers.users.send_password_reset"):
             client.post("/users/forgot-password", data={"email": test_user.email})
 
         token = test_db.query(models.PasswordResetToken).filter(
@@ -74,7 +74,7 @@ class TestForgotPassword:
         assert token.used is False
 
     def test_new_request_invalidates_old_token(self, client, test_user, test_db):
-        with patch("server_host.routers.users.send_password_reset"):
+        with patch("routers.users.send_password_reset"):
             client.post("/users/forgot-password", data={"email": test_user.email})
             client.post("/users/forgot-password", data={"email": test_user.email})
 
@@ -110,7 +110,7 @@ class TestResetPassword:
 
     def test_successful_reset_redirects_to_login(self, client, test_user, test_db):
         raw = _make_reset_token(test_db, test_user)
-        with patch("server_host.routers.users.send_password_changed"):
+        with patch("routers.users.send_password_changed"):
             response = client.post("/users/reset-password", data={
                 "token": raw,
                 "new_password": "NewSecret1",
@@ -123,7 +123,7 @@ class TestResetPassword:
     def test_reset_bumps_session_version(self, client, test_user, test_db):
         raw = _make_reset_token(test_db, test_user)
         old_sv = test_user.session_version or 0
-        with patch("server_host.routers.users.send_password_changed"):
+        with patch("routers.users.send_password_changed"):
             client.post("/users/reset-password", data={
                 "token": raw,
                 "new_password": "NewSecret1",
@@ -134,7 +134,7 @@ class TestResetPassword:
 
     def test_token_is_single_use(self, client, test_user, test_db):
         raw = _make_reset_token(test_db, test_user)
-        with patch("server_host.routers.users.send_password_changed"):
+        with patch("routers.users.send_password_changed"):
             client.post("/users/reset-password", data={
                 "token": raw,
                 "new_password": "NewSecret1",
@@ -213,7 +213,7 @@ class TestSettings:
     def test_password_set_oauth_user_no_current_required(self, auth_client, test_db, test_user):
         """OAuth user (password_set_at=None) can set a first password without providing current."""
         assert test_user.password_set_at is None
-        with patch("server_host.routers.users.send_password_changed"):
+        with patch("routers.users.send_password_changed"):
             response = auth_client.post("/users/settings/password", data={
                 "current_password": "",
                 "new_password": "NewSecret1",
@@ -246,7 +246,7 @@ class TestSettings:
 
     def test_password_same_as_current_rejected(self, auth_client, test_db, test_user):
         _set_password(test_db, test_user, "OldSecret1")
-        with patch("server_host.routers.users.send_password_changed"):
+        with patch("routers.users.send_password_changed"):
             response = auth_client.post("/users/settings/password", data={
                 "current_password": "OldSecret1",
                 "new_password": "OldSecret1",
@@ -257,7 +257,7 @@ class TestSettings:
 
     def test_password_change_bumps_session_version(self, auth_client, test_db, test_user):
         old_sv = test_user.session_version or 0
-        with patch("server_host.routers.users.send_password_changed"):
+        with patch("routers.users.send_password_changed"):
             auth_client.post("/users/settings/password", data={
                 "current_password": "",
                 "new_password": "NewSecret1",
@@ -267,7 +267,7 @@ class TestSettings:
         assert (test_user.session_version or 0) == old_sv + 1
 
     def test_password_change_issues_new_cookie(self, auth_client):
-        with patch("server_host.routers.users.send_password_changed"):
+        with patch("routers.users.send_password_changed"):
             response = auth_client.post("/users/settings/password", data={
                 "current_password": "",
                 "new_password": "NewSecret1",
@@ -325,8 +325,8 @@ class TestEmailChange:
         test_user.password_set_at = None  # skip password check
         test_db.commit()
 
-        with patch("server_host.routers.users.send_email_change_verify"), \
-             patch("server_host.routers.users.send_email_change_notify"):
+        with patch("routers.users.send_email_change_verify"), \
+             patch("routers.users.send_email_change_notify"):
             response = auth_client.post("/users/settings/email", data={
                 "new_email": "taken@example.com",
                 "password": "",
@@ -338,8 +338,8 @@ class TestEmailChange:
         test_user.password_set_at = None
         test_db.commit()
 
-        with patch("server_host.routers.users.send_email_change_verify"), \
-             patch("server_host.routers.users.send_email_change_notify"):
+        with patch("routers.users.send_email_change_verify"), \
+             patch("routers.users.send_email_change_notify"):
             response = auth_client.post("/users/settings/email", data={
                 "new_email": "changed@example.com",
                 "password": "",

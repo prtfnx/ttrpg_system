@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
-from server_host.database.database import get_db
-from server_host.database import crud, schemas
-from server_host.database.session_utils import (
+from ..database.database import get_db
+from ..database import crud, schemas
+from ..database.session_utils import (
     create_game_session_with_persistence,
     load_game_session_with_persistence,
     save_game_session_state,

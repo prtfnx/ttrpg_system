@@ -9,11 +9,11 @@ from datetime import datetime, timedelta
 import secrets
 import string
 
-from server_host.database.database import get_db
-from server_host.database import crud, schemas, models
-from server_host.routers.users import get_current_active_user
-from server_host.utils.logger import setup_logger
-from server_host.utils.roles import is_dm, is_valid_role, SessionRole
+from ..database.database import get_db
+from ..database import crud, schemas, models
+from .users import get_current_active_user
+from ..utils.logger import setup_logger
+from ..utils.roles import is_dm, is_valid_role, SessionRole
 
 router = APIRouter()
 logger = setup_logger(__name__)

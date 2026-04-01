@@ -13,7 +13,7 @@ import pytest
 import uuid
 
 from core_table.table import VirtualTable, Entity
-from server_host.database import crud, schemas
+from database import crud, schemas
 
 
 # ---------------------------------------------------------------------------
@@ -30,7 +30,7 @@ def _make_sprite_id() -> str:
 
 @pytest.fixture
 def session(test_db, test_user):
-    from server_host.database import crud as db_crud, schemas as sc
+    from database import crud as db_crud, schemas as sc
     session_data = sc.GameSessionCreate(name="Lighting Test Session")
     return db_crud.create_game_session(test_db, session_data, test_user.id, "LIGHT01")
 

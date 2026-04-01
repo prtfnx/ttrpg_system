@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime, timedelta
-from server_host.database import models
+from database import models
 
 @pytest.mark.unit
 class TestInvitationFlow:
@@ -51,7 +51,7 @@ class TestInvitationFlow:
     
     def test_login_with_invite_auto_accepts(self, client, test_db, test_user, test_game_session):
         """Login with invite code adds a new (non-owner) user to the session"""
-        from server_host.database import crud, schemas
+        from database import crud, schemas
 
         # A second user who is NOT yet in the session
         invitee = crud.create_user(test_db, schemas.UserCreate(

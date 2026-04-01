@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime
 from unittest.mock import patch
-from server_host.database import models
+from database import models
 
 @pytest.mark.unit
 class TestDemoSystem:

@@ -1,5 +1,5 @@
 import pytest
-from server_host.utils.rate_limiter import RateLimiter
+from utils.rate_limiter import RateLimiter
 import time
 
 @pytest.mark.unit

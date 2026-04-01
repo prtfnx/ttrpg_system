@@ -12,7 +12,7 @@ import string
 import re
 import json
 import uuid
-from server_host.utils.logger import setup_logger
+from ..utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

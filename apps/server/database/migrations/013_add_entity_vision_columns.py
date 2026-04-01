@@ -5,7 +5,7 @@ Description: Adds vision_radius, has_darkvision, and darkvision_radius columns
              required by the dynamic lighting / vision system.
 """
 import sqlite3
-from server_host.utils.logger import setup_logger
+from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 

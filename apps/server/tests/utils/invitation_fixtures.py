@@ -3,7 +3,7 @@ import secrets
 from datetime import datetime, timedelta
 from unittest.mock import patch, Mock
 
-from server_host.database import models, crud, schemas
+from database import models, crud, schemas
 
 @pytest.fixture
 def invitation_factory(test_db, test_user, test_game_session):

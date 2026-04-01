@@ -14,7 +14,7 @@ from typing import List, Dict
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from net.protocol import Message, MessageType
+from core_table.protocol import Message, MessageType
 
 logger = logging.getLogger(__name__)
 

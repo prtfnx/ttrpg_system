@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 
 @pytest.mark.integration
 class TestUserRegistration:

@@ -3,7 +3,7 @@ from faker import Faker
 fake = Faker()
 
 def user_factory(**kwargs):
-    from server_host.database import schemas
+    from database import schemas
     defaults = {
         "username": fake.user_name(),
         "email": fake.email(),
@@ -13,7 +13,7 @@ def user_factory(**kwargs):
     return schemas.UserCreate(**defaults)
 
 def game_session_factory(**kwargs):
-    from server_host.database import schemas
+    from database import schemas
     defaults = {
         "name": f"Game Session {fake.word()}"
     }

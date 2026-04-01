@@ -4,10 +4,10 @@ import time
 from unittest.mock import patch
 from fastapi.testclient import TestClient
 
-from server_host.routers.users import get_current_user
-from server_host import main
-from server_host.database import crud, schemas, models
-from server_host.database.models import GamePlayer, AuditLog
+from routers.users import get_current_user
+import main
+from database import crud, schemas, models
+from database.models import GamePlayer, AuditLog
 
 # Import fixtures
 from ..utils.invitation_fixtures import *

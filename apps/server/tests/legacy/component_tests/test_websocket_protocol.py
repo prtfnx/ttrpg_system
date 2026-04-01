@@ -13,7 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from websocket_protocol import WebSocketServerProtocol
 from core_table.game import Game
 import core_table.game as game_module
-from net.protocol import Message, MessageType
+from core_table.protocol import Message, MessageType
 
 async def test_websocket_protocol():
     """Test WebSocket protocol functionality"""

@@ -4,7 +4,7 @@ Date: 2026-02-11
 Description: Adds role-based access control and secure invitation management
 """
 import sqlite3
-from server_host.utils.logger import setup_logger
+from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 

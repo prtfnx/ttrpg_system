@@ -14,8 +14,8 @@ from sqlalchemy.pool import StaticPool
 @pytest.fixture()
 def db_mod(monkeypatch, tmp_path):
     """Wire character_manager to an isolated in-memory SQLite DB."""
-    import server_host.database.database as dbmod
-    import server_host.database.models as models
+    import database.database as dbmod
+    import database.models as models
 
     db_url = "sqlite:///:memory:"
     engine = create_engine(db_url, connect_args={"check_same_thread": False}, poolclass=StaticPool)
@@ -31,14 +31,14 @@ def db_mod(monkeypatch, tmp_path):
 
 @pytest.fixture()
 def manager(db_mod):
-    import server_host.managers.character_manager as cm_mod
+    import managers.character_manager as cm_mod
     importlib.reload(cm_mod)
     return cm_mod.get_server_character_manager()
 
 
 @pytest.fixture()
 def user_and_session(db_mod):
-    from server_host.database.models import GameSession, User
+    from database.models import GameSession, User
 
     db = db_mod.SessionLocal()
     try:
@@ -133,7 +133,7 @@ class TestBypassOwnerCheck:
         uid, sid = user_and_session
 
         # Create second user
-        from server_host.database.models import User
+        from database.models import User
         db = db_mod.SessionLocal()
         try:
             other = User(username="other", email="o@o.com", full_name="Other", hashed_password="y")
@@ -154,7 +154,7 @@ class TestBypassOwnerCheck:
     def test_bypass_allows_non_owner_update(self, manager, user_and_session, db_mod):
         uid, sid = user_and_session
 
-        from server_host.database.models import User
+        from database.models import User
         db = db_mod.SessionLocal()
         try:
             dm = User(username="dm", email="dm@dm.com", full_name="DM", hashed_password="z")

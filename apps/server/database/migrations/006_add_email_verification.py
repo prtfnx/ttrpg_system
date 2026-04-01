@@ -7,7 +7,7 @@ Description: Adds email verification, Google OAuth support, and demo session tra
 - Adds is_demo column to game_sessions table
 """
 import sqlite3
-from server_host.utils.logger import setup_logger
+from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 

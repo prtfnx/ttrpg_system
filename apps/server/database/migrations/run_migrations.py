@@ -7,11 +7,11 @@ import sys
 import sqlite3
 from pathlib import Path
 
-# Add project root to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
+# Add apps/server directory to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from server_host.utils.logger import setup_logger
-from server_host.database.database import DB_PATH
+from utils.logger import setup_logger
+from database.database import DB_PATH
 
 logger = setup_logger(__name__)
 
@@ -93,7 +93,7 @@ class MigrationRunner:
             
             # Import and run migration
             try:
-                module_name = f"server_host.database.migrations.{migration_name}"
+                module_name = f"database.migrations.{migration_name}"
                 migration_module = __import__(module_name, fromlist=['upgrade'])
                 
                 # Run upgrade

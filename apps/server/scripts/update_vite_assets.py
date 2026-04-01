@@ -12,20 +12,49 @@ TEMPLATES = REPO_ROOT / "apps" / "server" / "templates"
 BASE = "/static/ui/"
 
 
+def _collect_chunks(manifest: dict, key: str, visited: set) -> list[dict]:
+    """BFS over the import graph, return all reachable chunk entries (deduped)."""
+    chunks = []
+    queue = list(manifest.get(key, {}).get("imports", []))
+    while queue:
+        imp = queue.pop(0)
+        if imp in visited:
+            continue
+        visited.add(imp)
+        chunk = manifest.get(imp)
+        if not chunk:
+            continue
+        chunks.append(chunk)
+        queue.extend(chunk.get("imports", []))
+    return chunks
+
+
 def _entry_tags(manifest: dict, key: str) -> list[str]:
     entry = manifest.get(key)
     if not entry:
         print(f"  WARNING: entry '{key}' not in manifest", file=sys.stderr)
         return []
+
+    visited: set = set()
+    chunks = _collect_chunks(manifest, key, visited)
+
     lines = []
     src = entry.get("file", "")
     if src.endswith(".js"):
         lines.append(f'<script type="module" crossorigin src="{BASE}{src}"></script>')
-    for imp in entry.get("imports", []):
-        chunk_file = manifest.get(imp, {}).get("file", imp)
-        lines.append(f'<link rel="modulepreload" crossorigin href="{BASE}{chunk_file}" />')
+
+    # modulepreload + chunk CSS (must come before entry CSS so cascade order is right)
+    for chunk in chunks:
+        chunk_file = chunk.get("file", "")
+        if chunk_file:
+            lines.append(f'<link rel="modulepreload" crossorigin href="{BASE}{chunk_file}" />')
+        for css in chunk.get("css", []):
+            lines.append(f'<link rel="stylesheet" crossorigin href="{BASE}{css}" />')
+
+    # Entry-level CSS last (highest specificity wins)
     for css in entry.get("css", []):
         lines.append(f'<link rel="stylesheet" crossorigin href="{BASE}{css}" />')
+
     return lines
 
 

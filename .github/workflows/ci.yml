@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  web:
+    name: Web UI (lint + test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+        working-directory: apps/web-ui
+      - run: pnpm lint
+        working-directory: apps/web-ui
+      - run: pnpm test:run
+        working-directory: apps/web-ui
+
+  rust:
+    name: Rust WASM (test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - run: cargo test
+        working-directory: packages/rust-core
+
+  server:
+    name: Server (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install core-table
+        run: pip install -e packages/core-table
+      - name: Install server dependencies
+        run: pip install -r apps/server/requirements.txt
+      - name: Run tests
+        run: pytest
+        working-directory: apps/server

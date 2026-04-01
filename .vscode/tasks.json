@@ -4,24 +4,45 @@
 		{
 			"label": "Start Web Client Dev Server",
 			"type": "shell",
-			"command": "npm",
-			"args": [
-				"run",
-				"dev"
-			],
+			"command": "npm run dev",
+			"options": { "cwd": "${workspaceFolder}/apps/web-ui" },
 			"group": "build",
 			"isBackground": true,
 			"problemMatcher": []
 		},
 		{
-      "label": "Build and Deploy",
-      "type": "shell",
-      "command": ".\\build_and_deploy.ps1",
-      "problemMatcher": [],
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      }
-    }
+			"label": "Build and Deploy",
+			"type": "shell",
+			"command": ".\\build_and_deploy.ps1",
+			"problemMatcher": [],
+			"group": { "kind": "build", "isDefault": true }
+		},
+		{
+			"label": "Build and Deploy (dev)",
+			"type": "shell",
+			"command": ".\\build_and_deploy.ps1 -dev",
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Build: WASM only",
+			"type": "shell",
+			"command": ".\\build_and_deploy.ps1 -WasmOnly",
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Dev: Server",
+			"type": "shell",
+			"command": ".\\scripts\\dev-server.ps1",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Setup: Python venv",
+			"type": "shell",
+			"command": ".\\scripts\\setup-python.ps1",
+			"problemMatcher": []
+		}
 	]
 }

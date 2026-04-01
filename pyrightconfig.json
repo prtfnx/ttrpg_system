@@ -1,18 +1,16 @@
 {
   "include": [
-    "."
+    "apps/server",
+    "packages/core-table"
   ],
   "exclude": [
     "**/node_modules",
     "**/__pycache__",
     ".venv",
-    "trash",
+    "legacy",
     "downloads",
     "cache",
     ".pytest_cache"
-  ],
-  "ignore": [
-    "sdl3/**"
   ],
   "reportMissingImports": true,
   "reportMissingTypeStubs": false,

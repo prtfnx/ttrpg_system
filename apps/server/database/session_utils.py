@@ -5,7 +5,7 @@ import logging
 from typing import Optional, Tuple
 from sqlalchemy.orm import Session
 from . import crud, models, schemas
-from ..service.game_session_protocol import GameSessionProtocolService
+from service.game_session_protocol import GameSessionProtocolService
 
 logger = logging.getLogger(__name__)
 

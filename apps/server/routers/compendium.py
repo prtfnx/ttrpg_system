@@ -10,7 +10,7 @@ from typing import Optional, Dict, List, Any
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
-from ..utils.logger import setup_logger
+from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 router = APIRouter(prefix="/api/compendium", tags=["compendium"])

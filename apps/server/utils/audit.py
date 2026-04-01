@@ -6,7 +6,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
-from ..database import models
+from database import models
 from .logger import setup_logger
 
 logger = setup_logger(__name__)

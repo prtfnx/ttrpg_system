@@ -8,12 +8,12 @@ from sqlalchemy.orm import Session
 from typing import Annotated, List
 import secrets
 import string
-from ..database.database import get_db
-from ..database import crud, schemas, models
-from ..models import game as game_models
-from ..utils.logger import setup_logger
-from ..utils.roles import get_permissions, get_visible_layers, can_assign_role, is_dm
-from ..service.game_session import get_connection_manager
+from database.database import get_db
+from database import crud, schemas, models
+from models import game as game_models
+from utils.logger import setup_logger
+from utils.roles import get_permissions, get_visible_layers, can_assign_role, is_dm
+from service.game_session import get_connection_manager
 from .users import get_current_active_user
 from core_table.protocol import Message, MessageType
 import os
@@ -426,7 +426,7 @@ async def kick_player(
 
 def get_role_permissions(role: str) -> list:
     """Kept for template compatibility — delegates to roles module."""
-    from ..utils.roles import get_permissions
+    from utils.roles import get_permissions
     return get_permissions(role)
 
 @router.get("/api/sessions", response_model=List[game_models.GameSession])

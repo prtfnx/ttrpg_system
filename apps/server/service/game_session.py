@@ -11,12 +11,12 @@ import time
 from datetime import datetime
 from core_table.protocol import Message, MessageType, ProtocolHandler
 from .game_session_protocol import GameSessionProtocolService
-from ..utils.logger import setup_logger
+from utils.logger import setup_logger
 # Database imports
-from ..database.database import SessionLocal
-from ..database.session_utils import create_game_session_with_persistence, load_game_session_protocol_from_db, save_game_session_state
+from database.database import SessionLocal
+from database.session_utils import create_game_session_with_persistence, load_game_session_protocol_from_db, save_game_session_state
 from .asset_manager import get_server_asset_manager
-from ..utils.roles import get_permissions, get_visible_layers
+from utils.roles import get_permissions, get_visible_layers
 
 logger = setup_logger(__name__)
 

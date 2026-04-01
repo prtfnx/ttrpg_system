@@ -17,10 +17,10 @@ from core_table.protocol import Message, MessageType, ProtocolHandler
 from .server_protocol import ServerProtocol
 from core_table.server import TableManager
 from .asset_manager import get_server_asset_manager
-from ..utils.logger import setup_logger
-from ..database.models import GameSession
-from ..database.crud import append_ban_to_session
-from ..utils.roles import get_permissions, get_visible_layers, is_dm as _is_dm
+from utils.logger import setup_logger
+from database.models import GameSession
+from database.crud import append_ban_to_session
+from utils.roles import get_permissions, get_visible_layers, is_dm as _is_dm
 logger = setup_logger(__name__)
 
 

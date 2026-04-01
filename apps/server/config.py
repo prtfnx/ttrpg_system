@@ -31,5 +31,7 @@ class Settings(BaseSettings):
     r2_access_key: str = ""
     r2_secret_key: str = ""
     r2_bucket_name: str = ""
+    r2_endpoint: str = ""        # Full endpoint URL (optional, derived from account_id if absent)
+    r2_public_url: str = ""      # Public bucket URL for direct access
     
     model_config = SettingsConfigDict(env_file=".env")

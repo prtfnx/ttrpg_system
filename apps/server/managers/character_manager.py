@@ -11,9 +11,9 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
-from ..database.database import SessionLocal
-from ..database.models import CharacterLog, GameSession, SessionCharacter
-from ..utils.logger import setup_logger
+from database.database import SessionLocal
+from database.models import CharacterLog, GameSession, SessionCharacter
+from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 

@@ -6,8 +6,8 @@ import logging
 
 import resend
 
-from ..config import Settings
-from ..utils.logger import setup_logger
+from config import Settings
+from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 _settings = Settings()

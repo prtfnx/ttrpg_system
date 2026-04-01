@@ -13,14 +13,14 @@ import hashlib
 import jwt
 import secrets
 
-from ..database.database import get_db
-from ..database import crud
-from ..database import schemas
-from ..database import models
-from ..models import auth as auth_models
-from ..utils.rate_limiter import registration_limiter, login_limiter, password_reset_limiter, get_client_ip
-from ..utils.logger import setup_logger
-from ..service.email import send_password_reset, send_password_changed, send_email_change_verify, send_email_change_notify
+from database.database import get_db
+from database import crud
+from database import schemas
+from database import models
+from models import auth as auth_models
+from utils.rate_limiter import registration_limiter, login_limiter, password_reset_limiter, get_client_ip
+from utils.logger import setup_logger
+from service.email import send_password_reset, send_password_changed, send_email_change_verify, send_email_change_notify
 from functools import lru_cache
 import os
 
@@ -29,7 +29,7 @@ logger = setup_logger(__name__)
 router = APIRouter(prefix="/users", tags=["users"])
 templates_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
 templates = Jinja2Templates(directory=templates_dir)
-from .. import config
+import config
 
 @lru_cache
 def get_settings():

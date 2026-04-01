@@ -7,11 +7,11 @@ from typing import Dict, Set, Optional, Tuple, Any, Callable
 
 from core_table.protocol import Message, MessageType, BatchMessage 
 from core_table.actions_core import ActionsCore
-from ..utils.logger import setup_logger
-from ..utils.roles import is_dm, is_elevated, can_interact, get_visible_layers, get_sprite_limit
+from utils.logger import setup_logger
+from utils.roles import is_dm, is_elevated, can_interact, get_visible_layers, get_sprite_limit
 from .asset_manager import get_server_asset_manager, AssetRequest
-from ..database.models import Asset, GameSession, GamePlayer
-from ..database.database import SessionLocal
+from database.models import Asset, GameSession, GamePlayer
+from database.database import SessionLocal
 
 logger = setup_logger(__name__)
 
@@ -298,7 +298,7 @@ class ServerProtocol:
         if not is_dm(role):
             limit = get_sprite_limit(role)
             if user_id is not None and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
-                from ..database.models import Entity
+                from database.models import Entity
                 all_entities = self.table_manager.db_session.query(Entity).filter(Entity.controlled_by.isnot(None)).all()
                 owned_count = sum(1 for e in all_entities if user_id in json.loads(e.controlled_by or '[]'))
                 if owned_count >= limit:
@@ -760,8 +760,8 @@ class ServerProtocol:
             # Fall back to DB if in-memory walls are empty (e.g. after server restart)
             if not walls_list and table_id:
                 try:
-                    from ..database.database import SessionLocal
-                    from ..database.models import Wall as WallModel
+                    from database.database import SessionLocal
+                    from database.models import Wall as WallModel
                     _db = SessionLocal()
                     try:
                         db_walls = _db.query(WallModel).filter(WallModel.table_id == str(table_id)).all()
@@ -775,8 +775,8 @@ class ServerProtocol:
             layer_settings_data = {}
             if table_id:
                 try:
-                    from ..database.database import SessionLocal
-                    from ..database import crud as _crud
+                    from database.database import SessionLocal
+                    from database import crud as _crud
                     import json as _json
                     _db = SessionLocal()
                     try:
@@ -889,8 +889,8 @@ class ServerProtocol:
         session_id = self._get_session_id(msg)
         if session_id:
             try:
-                from ..database.database import SessionLocal
-                from ..database import crud, schemas
+                from database.database import SessionLocal
+                from database import crud, schemas
                 db = SessionLocal()
                 try:
                     update = schemas.VirtualTableUpdate(
@@ -1147,7 +1147,7 @@ class ServerProtocol:
                 if not character_id:
                     # Look it up from the DB entity
                     try:
-                        from ..database.models import Entity as DBEntity
+                        from database.models import Entity as DBEntity
                         db = SessionLocal()
                         try:
                             entity_row = db.query(DBEntity).filter_by(id=sprite_id).first()
@@ -1893,7 +1893,7 @@ class ServerProtocol:
 
             # ── 2. DB fallback (for tables not in memory, e.g. persistence queries) ─
             if hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
-                from ..database import crud
+                from database import crud
                 entity_db = crud.get_entity_by_sprite_id(self.table_manager.db_session, sprite_id)
                 if entity_db is None:
                     # Sprite unknown to DB — deny
@@ -1915,7 +1915,7 @@ class ServerProtocol:
 
                 # Check character ownership if sprite is linked to a character
                 if entity_db.character_id:
-                    from ..database.models import SessionCharacter
+                    from database.models import SessionCharacter
                     character = self.table_manager.db_session.query(SessionCharacter).filter_by(
                         character_id=entity_db.character_id
                     ).first()
@@ -1956,7 +1956,7 @@ class ServerProtocol:
             # Get all entities linked to this character
             db = SessionLocal()
             try:
-                from ..database.models import Entity as DBEntity, VirtualTable as DBVirtualTable
+                from database.models import Entity as DBEntity, VirtualTable as DBVirtualTable
                 
                 # Find the table_id for this session
                 table_record = db.query(DBVirtualTable).filter(
@@ -3065,8 +3065,8 @@ class ServerProtocol:
         session_id = self._get_session_id(msg)
         if session_id:
             try:
-                from ..database.database import SessionLocal
-                from ..database import crud, schemas
+                from database.database import SessionLocal
+                from database import crud, schemas
                 import json as _json
                 db = SessionLocal()
                 try:

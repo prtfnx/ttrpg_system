@@ -37,11 +37,11 @@ import re
 import secrets
 import time
 
-from ..database.database import SessionLocal, get_db
-from ..database import models, crud
+from database.database import SessionLocal, get_db
+from database import models, crud
 from .users import create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
-from ..config import Settings
-from ..utils.logger import setup_logger
+from config import Settings
+from utils.logger import setup_logger
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = setup_logger(__name__)

@@ -9,12 +9,12 @@ import logging
 import jwt
 import time
 
-from ..database.database import get_db
-from ..database import crud, models
-from ..service.game_session import ConnectionManager, get_connection_manager
-from ..routers.users import SECRET_KEY, ALGORITHM
-from ..utils.logger import setup_logger
-from ..utils.roles import get_permissions, get_visible_layers
+from database.database import get_db
+from database import crud, models
+from service.game_session import ConnectionManager, get_connection_manager
+from routers.users import SECRET_KEY, ALGORITHM
+from utils.logger import setup_logger
+from utils.roles import get_permissions, get_visible_layers
 import os
 
 logger = setup_logger(__name__)

@@ -1,7 +1,7 @@
 ﻿import { ProtocolService, useProtocol } from '@lib/api';
 import { showToast } from '@shared/utils';
 import clsx from "clsx";
-import { CircleUser } from "lucide-react";
+import { Check, CircleUser, Dices, Footprints, Shield, X, Zap } from "lucide-react";
 import React, { useRef, useState } from "react";
 import { useGameStore } from "../../../store";
 import type { Character } from "../../../types";
@@ -98,7 +98,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
   const handleSkillRoll = (skillName: string, modifier: number) => {
     if (isConnected && ProtocolService.hasProtocol() && character) {
       ProtocolService.getProtocol().rollSkill(character.id, skillName, modifier);
-      showToast.success(`Rolling ${skillName}вЂ¦`);
+      showToast.success(`Rolling ${skillName}…`);
     }
   };
 
@@ -198,65 +198,6 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
   const linkedTokens = getSpritesForCharacter(character.id);
   const availableSprites = sprites.filter(s => s.tableId === activeTableId && !s.characterId);
 
-
-  const openInNewWindow = () => {
-    const newWindow = window.open(
-      '',
-      'character-sheet',
-      'width=1400,height=900,scrollbars=yes,resizable=yes'
-    );
-    
-    if (newWindow) {
-      // Get all stylesheets from current document
-      const styles = Array.from(document.styleSheets)
-        .map(sheet => {
-          try {
-            return Array.from(sheet.cssRules)
-              .map(rule => rule.cssText)
-              .join('\n');
-          } catch (e) {
-            // Cross-origin stylesheets will throw, skip them
-            return '';
-          }
-        })
-        .join('\n');
-
-      // Get the character sheet HTML
-      const sheetHTML = document.querySelector('.character-sheet-redesigned')?.outerHTML || '<p>Error loading character sheet</p>';
-      
-      newWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>${character.name} - Character Sheet</title>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-              ${styles}
-              body { 
-                margin: 0; 
-                padding: 0; 
-                background: #1a1a1a;
-                overflow: auto;
-              }
-              .character-sheet-redesigned {
-                height: 100vh;
-              }
-              /* Hide pop-out button in pop-out window */
-              .popout-btn {
-                display: none !important;
-              }
-            </style>
-          </head>
-          <body>
-            ${sheetHTML}
-          </body>
-        </html>
-      `);
-      newWindow.document.close();
-    }
-  };
-
   return (
     <div className={styles.characterSheetRedesigned}>
       {/* Header */}
@@ -265,9 +206,9 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
           <h1 className={styles.charName}>{character.name}</h1>
           <div className={styles.charSubtitle}>
             <span>{data.class || 'Class'}</span>
-            <span className={styles.charDivider}>вЂў</span>
+            <span className={styles.charDivider}>&middot;</span>
             <span>Level {data.level || 1}</span>
-            <span className={styles.charDivider}>вЂў</span>
+            <span className={styles.charDivider}>&middot;</span>
             <span>{data.race || 'Race'}</span>
           </div>
         </div>
@@ -276,17 +217,12 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
             <div className={styles.profLabel}>Proficiency</div>
             <div className={styles.profValue}>+{profBonus}</div>
           </div>
-          <button type="button" className={styles.popoutBtn} onClick={openInNewWindow} title="Open in new window">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M14 2H8v2h3.59L5.29 10.3l1.42 1.42L13 5.41V9h2V3c0-.55-.45-1-1-1zM12 14H3V5h4V3H3a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-4h-2v4z"/>
-            </svg>
-          </button>
         </div>
       </div>
 
       {/* Main layout: sidebar + content */}
       <div className={styles.sheetLayout}>
-        {/* Left sidebar вЂ” always visible */}
+        {/* Left sidebar — always visible */}
         <aside className={styles.sidebar}>
           <div className={styles.abilitiesColumn}>
             {Object.entries(abilities).map(([key, rawVal]) => {
@@ -423,7 +359,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                     {(['successes', 'failures'] as const).map(type => (
                       <div key={type} className={styles.deathRow}>
                         <span className={clsx(styles.deathLabel, type === 'failures' && styles.deathFailLabel)}>
-                          {type === 'successes' ? 'вњ“' : 'вњ—'}
+                          {type === 'successes' ? <Check size={14} aria-hidden /> : <X size={14} aria-hidden />}
                         </span>
                         {[0, 1, 2].map(i => (
                           <input key={i} type="checkbox" className={clsx(styles.deathCheck, type === 'failures' && styles.deathFail)}
@@ -506,7 +442,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                   <textarea
                     value={character.data?.bio || ''}
                     onChange={e => onSave({ data: { ...data, bio: e.target.value } })}
-                    placeholder="Backstory, personality, goalsвЂ¦"
+                    placeholder="Backstory, personality, goals…"
                     rows={6}
                     className={styles.bioTextarea}
                   />

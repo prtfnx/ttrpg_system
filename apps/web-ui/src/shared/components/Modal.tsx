@@ -4,6 +4,11 @@ import { Component, createRef } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './Modal.module.css';
 
+/**
+ * @deprecated Use FloatingWindow for non-blocking panels.
+ * Keep ONLY for destructive confirmation dialogs (delete, error alerts).
+ */
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;

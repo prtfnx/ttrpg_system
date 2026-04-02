@@ -1,19 +1,19 @@
 import { useGameStore } from '@/store';
-import type { Character } from '@/types';
 import { isDM } from '@features/session/types/roles';
+import { useWindowManager } from '@shared/components/FloatingWindow';
 import clsx from 'clsx';
 import { AlertTriangle, ChevronDown, ChevronRight, CircleUser, ClipboardCopy, Download, FileText, Link2, RefreshCw, Shield, Trash2, Upload } from 'lucide-react';
-import ReactDOM from 'react-dom';
 import styles from './CharacterPanel.module.css';
 import { BulkActionsBar } from './CharacterPanel/BulkActionsBar';
 import { CharacterStats } from './CharacterPanel/CharacterStats';
 import { SyncStatusIcon } from './CharacterPanel/SyncStatusIcon';
 import { useCharacterPanel } from './CharacterPanel/useCharacterPanel';
-import { CharacterSheet } from './CharacterSheetNew';
+import { CharacterSheetWindow } from './CharacterSheetWindow';
 import { EnhancedCharacterWizard } from './CharacterWizard/EnhancedCharacterWizard';
 import { ShareCharacterDialog } from './ShareCharacterDialog';
 
 function CharacterPanel() {
+  const windowManager = useWindowManager();
   const {
     characters,
     isConnected,
@@ -27,7 +27,6 @@ function CharacterPanel() {
     searchFilter,
     selectedCharacterIds,
     bulkSelectMode,
-    viewSheetCharId,
     selectedCharacter,
     handleCharacterClick,
     handleCreateCharacter,
@@ -52,13 +51,11 @@ function CharacterPanel() {
     handleAddCondition,
     handleRemoveCondition,
     handleShareCharacter,
-    handleViewSheet,
     handleSavePermissions,
     handleDragStart,
     setShowWizard,
     setShareDialogCharId,
     setSearchFilter,
-    setViewSheetCharId,
     setEditFormData,
     updateCharacter,
     getSpritesForCharacter,
@@ -107,7 +104,7 @@ function CharacterPanel() {
                 <Download size={14} /> Export All
               </button>
               <button className={clsx(styles.compactBtn, bulkSelectMode && styles.active)} onClick={handleToggleBulkMode}>
-                {bulkSelectMode ? '✓ Select' : '☑ Select'}
+                {bulkSelectMode ? 'Deselect' : 'Select'}
               </button>
             </>
           )}
@@ -144,14 +141,13 @@ function CharacterPanel() {
               className={styles.searchField}
             />
             {searchFilter && (
-              <button 
+              <button className={styles.searchClear}
                 onClick={() => setSearchFilter('')} 
-                className={styles.searchClear}
                 aria-label="Clear search"
                 type="button"
                 title="Clear"
               >
-                ✕
+                ×
               </button>
             )}
           </div>
@@ -291,7 +287,14 @@ function CharacterPanel() {
                   />
 
                   <div className={styles.cardActions}>
-                    <button className={styles.actionBtn} onClick={() => handleViewSheet(char.id)} title="View sheet">
+                    <button className={styles.actionBtn} onClick={() => {
+                      windowManager.openWindow(
+                        `character-sheet-${char.id}`,
+                        CharacterSheetWindow,
+                        { characterId: char.id },
+                        { title: `${char.name} — Sheet`, width: 900, height: 700 }
+                      );
+                    }} title="View sheet">
                       <span className={styles.actionIcon}><FileText size={16} aria-hidden /></span>
                       <span className={styles.actionLabel}>Sheet</span>
                     </button>
@@ -356,35 +359,6 @@ function CharacterPanel() {
             onSave={handleSavePermissions}
           />
         );
-      })()}
-
-      {viewSheetCharId && (() => {
-        const char = characters.find(c => c.id === viewSheetCharId);
-        if (!char) return null;
-        
-        const handleSheetSave = (updates: Partial<Character>) => {
-          updateCharacter(viewSheetCharId, updates);
-          if (protocol && isConnected) {
-            updateCharacter(viewSheetCharId, { syncStatus: 'syncing' });
-            protocol.updateCharacter(viewSheetCharId, updates, char.version);
-          }
-        };
-        
-        const modalContent = (
-          <div className={styles.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) setViewSheetCharId(null); }}>
-            <div className={clsx(styles.modalContent, "characterSheetModal")} onClick={(e) => e.stopPropagation()}>
-              <div className={styles.modalHeader}>
-                <h2>{char.name} - Character Sheet</h2>
-                <button className={styles.modalCloseBtn} onClick={() => setViewSheetCharId(null)} type="button">✕</button>
-              </div>
-              <div className={styles.modalBody}>
-                <CharacterSheet character={char} onSave={handleSheetSave} />
-              </div>
-            </div>
-          </div>
-        );
-        
-        return ReactDOM.createPortal(modalContent, document.body);
       })()}
     </div>
   );

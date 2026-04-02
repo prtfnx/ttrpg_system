@@ -1,4 +1,5 @@
 import { GameClient } from '@features/canvas/components/GameClient';
+import { WindowManagerProvider } from '@shared/components/FloatingWindow';
 import { useEffect, useState } from 'react';
 import { ToastContainer } from 'react-toastify';
 // CSS is loaded via CDN or not needed in test environment
@@ -174,17 +175,19 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <div className={styles.app}>
-        <ProtocolProvider sessionCode={state.selectedSession}>
-          <GameClient 
-            sessionCode={state.selectedSession}
-            userInfo={state.userInfo}
-            userRole={state.userRole!}
-            onAuthError={handleAuthError}
-          />
-        </ProtocolProvider>
-        <ToastContainer theme="dark" />
-      </div>
+      <WindowManagerProvider>
+        <div className={styles.app}>
+          <ProtocolProvider sessionCode={state.selectedSession}>
+            <GameClient 
+              sessionCode={state.selectedSession}
+              userInfo={state.userInfo}
+              userRole={state.userRole!}
+              onAuthError={handleAuthError}
+            />
+          </ProtocolProvider>
+          <ToastContainer theme="dark" />
+        </div>
+      </WindowManagerProvider>
     </ErrorBoundary>
   );
 }

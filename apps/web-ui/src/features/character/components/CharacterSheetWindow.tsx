@@ -1,7 +1,7 @@
 import { useGameStore } from '@/store';
 import type { Character } from '@/types';
-import { CharacterSheet } from '../CharacterSheetNew';
-import { useCharacterPanel } from '../CharacterPanel/useCharacterPanel';
+import { CharacterSheet } from './CharacterSheetNew';
+import { useCharacterPanel } from './CharacterPanel/useCharacterPanel';
 
 interface CharacterSheetWindowProps {
   characterId: string;

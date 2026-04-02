@@ -1,7 +1,7 @@
 ﻿import { ProtocolService, useProtocol } from '@lib/api';
 import { showToast } from '@shared/utils';
 import clsx from "clsx";
-import { Check, CircleUser, Dices, Footprints, Shield, X, Zap } from "lucide-react";
+import { Check, CircleUser, Dices, Footprints, Shield, X, Zap } from 'lucide-react';
 import React, { useRef, useState } from "react";
 import { useGameStore } from "../../../store";
 import type { Character } from "../../../types";
@@ -83,13 +83,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
     onSave({ data: { ...data, stats: { ...stats, hp: newHP, tempHp: newTempHp, deathSaves } } });
   };
 
-  const handleDeathSave = (type: 'successes' | 'failures', index: number) => {
-    const current = stats.deathSaves || { successes: 0, failures: 0 };
-    const val = current[type];
-    // Toggle: clicking checked box unchecks it, clicking unchecked checks it
-    const toggled = index < val ? index : index + 1;
-    onSave({ data: { ...data, stats: { ...stats, deathSaves: { ...current, [type]: toggled } } } });
-  };
+
 
   const handleTempHpChange = (value: number) => {
     onSave({ data: { ...data, stats: { ...stats, tempHp: Math.max(0, value) } } });
@@ -358,24 +352,24 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                 {/* Combat row */}
                 <div className={styles.combatRow}>
                   <div className={styles.combatStat}>
-                    <div className={styles.combatIcon}>рџ›Ў</div>
+                    <div className={styles.combatIcon}><Shield size={16} aria-hidden /></div>
                     <input type="number" className={styles.combatInput} value={stats.ac || 10}
                       onChange={e => handleStatUpdate('ac', Number(e.target.value))} />
                     <div className={styles.combatLabel}>Armor Class</div>
                   </div>
                   <div className={styles.combatStat}>
-                    <div className={styles.combatIcon}>вљЎ</div>
+                    <div className={styles.combatIcon}><Zap size={16} aria-hidden /></div>
                     <div className={styles.combatValue}>{modStr(getModifier(abilities.dex))}</div>
                     <div className={styles.combatLabel}>Initiative</div>
                   </div>
                   <div className={styles.combatStat}>
-                    <div className={styles.combatIcon}>рџЏѓ</div>
+                    <div className={styles.combatIcon}><Footprints size={16} aria-hidden /></div>
                     <input type="number" className={styles.combatInput} value={stats.speed || 30}
                       onChange={e => handleStatUpdate('speed', Number(e.target.value))} />
                     <div className={styles.combatLabel}>Speed (ft)</div>
                   </div>
                   <div className={styles.combatStat}>
-                    <div className={styles.combatIcon}>рџЋІ</div>
+                    <div className={styles.combatIcon}><Dices size={16} aria-hidden /></div>
                     <div className={styles.combatValue}>{data.level || 1}d{data.hitDie || 8}</div>
                     <button type="button" className={styles.hitDieBtn}
                       onClick={() => handleHPChange(Math.floor(Math.random() * (data.hitDie || 8)) + 1 + getModifier(abilities.con))}>

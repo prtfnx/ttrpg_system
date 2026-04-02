@@ -58,11 +58,9 @@ function CharacterPanel() {
     setShareDialogCharId,
     setSearchFilter,
     setEditFormData,
-    updateCharacter,
     getSpritesForCharacter,
     canEditCharacter,
     canControlSprite,
-    protocol,
   } = useCharacterPanel();
 
   const sessionRole = useGameStore(s => s.sessionRole);

@@ -53,7 +53,6 @@ export const CharacterStats: React.FC<CharacterStatsProps> = ({
               onChange={e => onFormChange({ ...editFormData, hp: parseInt(e.target.value) || 0 })}
               className={styles.statInput}
             />
-            <span>/ {editFormData.maxHp}</span>
           </div>
           <div className={styles.statRow}>
             <label>Max HP:</label>

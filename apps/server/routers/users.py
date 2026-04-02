@@ -778,7 +778,7 @@ async def settings_password(
 async def settings_email(
     request: Request,
     new_email: str = Form(...),
-    password: str = Form(...),
+    password: str = Form(default=""),
     current_user: Annotated[schemas.User, Depends(get_current_active_user)] = None,
     db: Session = Depends(get_db),
 ):
@@ -852,7 +852,7 @@ def verify_email_change(request: Request, token: str = "", db: Session = Depends
 async def settings_delete(
     request: Request,
     username_confirm: str = Form(...),
-    password: str = Form(...),
+    password: str = Form(default=""),
     current_user: Annotated[schemas.User, Depends(get_current_active_user)] = None,
     db: Session = Depends(get_db),
 ):

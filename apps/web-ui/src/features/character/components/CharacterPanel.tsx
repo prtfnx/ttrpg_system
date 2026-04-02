@@ -6,6 +6,7 @@ import { AlertTriangle, ChevronDown, ChevronRight, CircleUser, ClipboardCopy, Do
 import styles from './CharacterPanel.module.css';
 import { BulkActionsBar } from './CharacterPanel/BulkActionsBar';
 import { CharacterStats } from './CharacterPanel/CharacterStats';
+import { QuickActions } from './CharacterPanel/QuickActions';
 import { SyncStatusIcon } from './CharacterPanel/SyncStatusIcon';
 import { useCharacterPanel } from './CharacterPanel/useCharacterPanel';
 import { CharacterSheetWindow } from './CharacterSheetWindow';
@@ -285,6 +286,8 @@ function CharacterPanel() {
                     onAddCondition={() => handleAddCondition(char.id)}
                     onRemoveCondition={(cond) => handleRemoveCondition(char.id, cond)}
                   />
+
+                  <QuickActions character={char} isConnected={isConnected} />
 
                   <div className={styles.cardActions}>
                     <button className={styles.actionBtn} onClick={() => {

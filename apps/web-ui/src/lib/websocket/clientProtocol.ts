@@ -1405,6 +1405,62 @@ export class WebClientProtocol {
     }));
   }
 
+  rollAbilitySave(characterId: string, ability: string, modifier: number, advantage = false, disadvantage = false): void {
+    if (this.userId === null) return;
+    this.sendMessage(createMessage(MessageType.CHARACTER_ROLL, {
+      character_id: characterId,
+      roll_type: 'saving_throw',
+      skill: `${ability}_save`,
+      modifier,
+      advantage,
+      disadvantage,
+      user_id: this.userId,
+      session_code: this.sessionCode
+    }));
+  }
+
+  rollAbilityCheck(characterId: string, ability: string, modifier: number, advantage = false, disadvantage = false): void {
+    if (this.userId === null) return;
+    this.sendMessage(createMessage(MessageType.CHARACTER_ROLL, {
+      character_id: characterId,
+      roll_type: 'ability_check',
+      skill: `${ability}_check`,
+      modifier,
+      advantage,
+      disadvantage,
+      user_id: this.userId,
+      session_code: this.sessionCode
+    }));
+  }
+
+  rollAttack(characterId: string, attackType: string, modifier: number, advantage = false, disadvantage = false): void {
+    if (this.userId === null) return;
+    this.sendMessage(createMessage(MessageType.CHARACTER_ROLL, {
+      character_id: characterId,
+      roll_type: 'attack',
+      skill: `${attackType}_attack`,
+      modifier,
+      advantage,
+      disadvantage,
+      user_id: this.userId,
+      session_code: this.sessionCode
+    }));
+  }
+
+  rollDeathSave(characterId: string): void {
+    if (this.userId === null) return;
+    this.sendMessage(createMessage(MessageType.CHARACTER_ROLL, {
+      character_id: characterId,
+      roll_type: 'death_save',
+      skill: 'death_save',
+      modifier: 0,
+      advantage: false,
+      disadvantage: false,
+      user_id: this.userId,
+      session_code: this.sessionCode
+    }));
+  }
+
   disconnect(): void {
     this.connectionAlive = false;
     this.notifyConnectionState('disconnected');

@@ -12,6 +12,7 @@ export interface ShortcutsDisplayProps {
   className?: string;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useKeyboardShortcuts = () => {
   const [shortcuts, setShortcuts] = useState<KeyboardShortcut[]>([]);
   const [context, setContext] = useState<{

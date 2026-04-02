@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 console.log('[DEBUG] main.tsx script loaded');
 import { AuthProvider } from '@features/auth';
 import { EntitiesPanel } from '@features/canvas/components/EntitiesPanel';

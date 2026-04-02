@@ -13,8 +13,10 @@ interface ProtocolContextValue {
 
 const ProtocolContext = createContext<ProtocolContextValue | undefined>(undefined);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export { ProtocolContext };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useProtocol() {
   const ctx = useContext(ProtocolContext);
   if (!ctx && (globalThis as any).__VITEST__) {

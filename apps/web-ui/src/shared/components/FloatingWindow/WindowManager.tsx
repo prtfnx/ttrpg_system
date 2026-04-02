@@ -100,6 +100,7 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useWindowManager(): WindowManagerContextValue {
   const ctx = useContext(WindowManagerContext);
   if (!ctx) throw new Error('useWindowManager must be used within WindowManagerProvider');

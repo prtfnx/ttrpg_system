@@ -2198,19 +2198,23 @@ class ServerProtocol:
         result = await self.actions.save_character(session_id, character_data, user_id)
 
         if result.success:
-            # Broadcast character save to other clients in session
             resdata = result.data or {}
-            broadcast_data = {
-                'character_id': resdata.get('character_id'),
-                'session_code': session_code,
-                'operation': 'character_save',
-                'user_id': user_id
-            }
-            await self.broadcast_to_session(Message(MessageType.PLAYER_STATUS, broadcast_data), client_id)
-            
+            character_id_saved = resdata.get('character_id')
+            version_saved = resdata.get('version', 1)
+            # Broadcast full character data so other clients can update their state
+            char_for_broadcast = dict(character_data)
+            char_for_broadcast['character_id'] = character_id_saved
+            await self.broadcast_to_session(Message(MessageType.CHARACTER_UPDATE, {
+                'operation': 'save',
+                'character_id': character_id_saved,
+                'character_data': char_for_broadcast,
+                'version': version_saved,
+            }), client_id)
+
             return Message(MessageType.CHARACTER_SAVE_RESPONSE, {
                 'success': True,
-                'character_id': resdata.get('character_id'),
+                'character_id': character_id_saved,
+                'version': version_saved,
                 'message': result.message
             })
         else:
@@ -2329,15 +2333,11 @@ class ServerProtocol:
         result = await self.actions.delete_character(session_id, character_id, user_id)
         
         if result.success:
-            # Broadcast character deletion to other clients in session
-            broadcast_data = {
+            await self.broadcast_to_session(Message(MessageType.CHARACTER_UPDATE, {
+                'operation': 'delete',
                 'character_id': character_id,
-                'session_code': session_code,
-                'operation': 'character_delete',
-                'user_id': user_id
-            }
-            await self.broadcast_to_session(Message(MessageType.PLAYER_STATUS, broadcast_data), client_id)
-            
+            }), client_id)
+
             return Message(MessageType.CHARACTER_DELETE_RESPONSE, {
                 'success': True,
                 'character_id': character_id,

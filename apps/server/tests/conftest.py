@@ -3,14 +3,22 @@ import sys
 import os
 from pathlib import Path
 
-# Add apps/server and tests/ to path so all server and test modules are importable
+# Add apps/server first so it shadows tests/utils, then tests/ last
 server_dir = str(Path(__file__).parent.parent)
 parent_dir = str(Path(__file__).parent.parent.parent)
 tests_dir = str(Path(__file__).parent)
 
-for d in [server_dir, parent_dir, tests_dir]:
+# Ensure server_dir is first; tests_dir at the end so tests/utils doesn't shadow server/utils
+for d in [server_dir, parent_dir]:
     if d not in sys.path:
         sys.path.insert(0, d)
+    else:
+        # Move it to front if already present
+        sys.path.remove(d)
+        sys.path.insert(0, d)
+# tests_dir goes at the end to avoid masking server packages
+if tests_dir not in sys.path:
+    sys.path.append(tests_dir)
 
 os.environ['PYTHONPATH'] = os.pathsep.join([server_dir, parent_dir, tests_dir])
 

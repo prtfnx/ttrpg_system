@@ -1243,7 +1243,8 @@ class ActionsCore(AsyncActionsProtocol):
 
             char_manager = get_server_character_manager()
             char_manager.log_event(character_id, session_id, user_id, 'skill_roll', desc)
-            return ActionResult(True, 'Roll completed', {
+
+            result_data = {
                 'character_id': character_id,
                 'roll_type': roll_type,
                 'skill': skill,
@@ -1253,7 +1254,42 @@ class ActionsCore(AsyncActionsProtocol):
                 'advantage': advantage,
                 'disadvantage': disadvantage,
                 'description': desc,
-            })
+            }
+
+            # Death save: DC 10, natural 20 = stabilize, natural 1 = double failure
+            if roll_type == 'death_save':
+                stabilized = die_roll == 20
+                double_failure = die_roll == 1
+                passed = die_roll >= 10
+
+                result_data['passed'] = passed
+                result_data['stabilized'] = stabilized
+                result_data['double_failure'] = double_failure
+
+                char_result = char_manager.load_character(session_id, character_id, user_id)
+                if char_result.get('success'):
+                    char_data = char_result.get('character_data', {})
+                    inner = char_data.get('data', {})
+                    current = inner.get('stats', {}).get('deathSaves', {'successes': 0, 'failures': 0})
+
+                    if stabilized:
+                        new_saves = {'successes': 3, 'failures': current.get('failures', 0)}
+                    elif double_failure:
+                        new_saves = {'successes': current.get('successes', 0), 'failures': min(3, current.get('failures', 0) + 2)}
+                    elif passed:
+                        new_saves = {'successes': min(3, current.get('successes', 0) + 1), 'failures': current.get('failures', 0)}
+                    else:
+                        new_saves = {'successes': current.get('successes', 0), 'failures': min(3, current.get('failures', 0) + 1)}
+
+                    updated_stats = {**inner.get('stats', {}), 'deathSaves': new_saves}
+                    char_manager.update_character(
+                        session_id, character_id,
+                        {'data': {**inner, 'stats': updated_stats}},
+                        user_id, bypass_owner_check=True
+                    )
+                    result_data['death_saves'] = new_saves
+
+            return ActionResult(True, 'Roll completed', result_data)
         except Exception as e:
             logger.error(f"Error in character_roll: {e}")
             return ActionResult(False, f"Server error: {str(e)}")

@@ -73,6 +73,8 @@ storage/test_storage/
 storage/game_data/settings.json
 storage/game_data/saves/player.json
 storage_config.json
+apps/server/templates/admin_assets.html
+apps/server/templates/vite_assets.html
 
 
 # Test outputs (generated, not source)
@@ -115,5 +117,4 @@ docs/
 
 # Server internal
 server_host/doc/
-
 

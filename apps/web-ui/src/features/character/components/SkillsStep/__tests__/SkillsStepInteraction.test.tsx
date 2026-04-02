@@ -80,7 +80,7 @@ describe('SkillsStep Interaction Test', () => {
     }
 
     // Debug: log DOM after selection
-    // eslint-disable-next-line no-console
+     
     console.log('[Test] DOM after skill selection:', document.body.innerHTML);
 
     // Try to submit (wait for button to be enabled or present)

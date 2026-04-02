@@ -273,7 +273,7 @@ export function calculateRacialASI(race: string, subrace?: string, racesData?: R
   const raceData = RACES_SOURCE[race];
   if (!raceData) return {};
   
-  let totalASI = { ...raceData.abilityScoreIncrease };
+  const totalASI = { ...raceData.abilityScoreIncrease };
   
   if (subrace && raceData.subraces && raceData.subraces[subrace]) {
     const subraceData = raceData.subraces[subrace];
@@ -293,7 +293,7 @@ export function getRacialTraits(race: string, subrace?: string, racesData?: Reco
   const raceData = RACES_SOURCE[race];
   if (!raceData) return [];
   
-  let traits = [...raceData.traits];
+  const traits = [...raceData.traits];
   
   if (subrace && raceData.subraces && raceData.subraces[subrace]) {
     traits.push(...raceData.subraces[subrace].traits);
@@ -307,7 +307,7 @@ export function getRacialProficiencies(race: string, subrace?: string): NonNulla
   const raceData = RACES[race];
   if (!raceData) return {};
   
-  let proficiencies = { ...raceData.proficiencies };
+  const proficiencies = { ...raceData.proficiencies };
   
   if (subrace && raceData.subraces && raceData.subraces[subrace]) {
     const subraceProficiencies = raceData.subraces[subrace].proficiencies || {};

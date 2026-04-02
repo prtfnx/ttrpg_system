@@ -241,12 +241,12 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
       
       const dx = e.clientX - dragRef.current.startX;
       if (dragRef.current.side === 'left') {
-        let w = Math.max(200, Math.min(600, dragRef.current.startWidth + dx));
+        const w = Math.max(200, Math.min(600, dragRef.current.startWidth + dx));
         setLeftWidth(w);
         localStorage.setItem('panel_left_width', w.toString());
         console.log(`📏 GameClient: Left panel width: ${w}px`);
       } else {
-        let w = Math.max(250, Math.min(600, dragRef.current.startWidth - dx));
+        const w = Math.max(250, Math.min(600, dragRef.current.startWidth - dx));
         setRightWidth(w);
         localStorage.setItem('panel_right_width', w.toString());
         console.log(`📏 GameClient: Right panel width: ${w}px`);

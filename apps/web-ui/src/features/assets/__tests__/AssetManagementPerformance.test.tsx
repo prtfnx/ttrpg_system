@@ -533,7 +533,7 @@ describe('Asset Management System - Performance and Caching', () => {
 
   describe('Performance Monitoring and Metrics', () => {
     it('should track and report asset loading performance', async () => {
-      let performanceMetrics = {
+      const performanceMetrics = {
         totalAssets: 0,
         loadedAssets: 0,
         failedAssets: 0,
@@ -665,7 +665,7 @@ describe('Asset Management System - Performance and Caching', () => {
     it('should handle memory management for large asset collections', async () => {
       const memoryThreshold = 512 * 1024 * 1024; // 512MB threshold
       let currentMemoryUsage = 0;
-      let loadedAssets: Map<string, any> = new Map();
+      const loadedAssets: Map<string, any> = new Map();
       
       render(
         <div data-testid="memory-management">

@@ -117,7 +117,7 @@ export const CombatTracker: React.FC<CombatTrackerProps> = ({
     const newParticipants = [...participants];
     newParticipants[currentTurn].isActive = false;
     
-    let nextTurnIndex = (currentTurn + 1) % participants.length;
+    const nextTurnIndex = (currentTurn + 1) % participants.length;
     
     // If we're back to the first participant, increment round
     if (nextTurnIndex === 0) {

@@ -122,7 +122,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
     setLoading(true);
     
     try {
-      let results = monsterCreationSystem.searchMonsters(searchQuery, filters);
+      const results = monsterCreationSystem.searchMonsters(searchQuery, filters);
       
       // Apply sorting
       results.sort((a, b) => {

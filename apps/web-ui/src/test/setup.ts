@@ -77,7 +77,14 @@ HTMLCanvasElement.prototype.getContext = vi.fn(function(this: HTMLCanvasElement,
     const canvas = this;
     return {
       fillRect: vi.fn(),
+      strokeRect: vi.fn(),
       clearRect: vi.fn(),
+      rect: vi.fn(),
+      arc: vi.fn(),
+      closePath: vi.fn(),
+      clip: vi.fn(),
+      setTransform: vi.fn(),
+      createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
       getImageData: vi.fn((_x: number, _y: number, width: number, height: number) => {
         // Return ImageData with requested dimensions, not always 1x1
         const size = width * height * 4;

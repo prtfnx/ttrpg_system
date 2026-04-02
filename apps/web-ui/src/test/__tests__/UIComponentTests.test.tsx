@@ -118,7 +118,7 @@ describe('Form Validation Components', () => {
     
     const toggleButtons = screen.queryAllByLabelText(/show password|toggle password/i) ||
                          screen.queryAllByRole('button').filter(btn => 
-                           btn.textContent?.includes('👁') || 
+                           btn.getAttribute('aria-label')?.toLowerCase().includes('visibility') || btn.textContent?.includes('visibility') || btn.title?.includes('visibility') || 
                            btn.getAttribute('aria-label')?.includes('password')
                          );
     

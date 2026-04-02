@@ -39,27 +39,27 @@ class CompendiumService:
             if char_file.exists():
                 with open(char_file, 'r', encoding='utf-8') as f:
                     self.character_data = json.load(f)
-                logger.info(f"✅ Loaded character data: {len(self.character_data.get('races', []))} races")
+                logger.info(f"Loaded character data: {len(self.character_data.get('races', []))} races")
             else:
-                logger.warning("❌ character_data.json not found")
+                logger.warning("character_data.json not found")
             
             # Load spell data
             spell_file = COMPENDIUM_DIR / "spellbook_optimized.json"
             if spell_file.exists():
                 with open(spell_file, 'r', encoding='utf-8') as f:
                     self.spell_data = json.load(f)
-                logger.info(f"✅ Loaded spell data: {self.spell_data['metadata']['spell_count']} spells")
+                logger.info(f"Loaded spell data: {self.spell_data['metadata']['spell_count']} spells")
             else:
-                logger.warning("❌ spellbook_optimized.json not found")
+                logger.warning("spellbook_optimized.json not found")
             
             # Load equipment data
             equipment_file = COMPENDIUM_DIR / "equipment_data.json"
             if equipment_file.exists():
                 with open(equipment_file, 'r', encoding='utf-8') as f:
                     self.equipment_data = json.load(f)
-                logger.info("✅ Loaded equipment data")
+                logger.info("Loaded equipment data")
             else:
-                logger.warning("❌ equipment_data.json not found")
+                logger.warning("equipment_data.json not found")
             
             # Load bestiary data
             bestiary_file = COMPENDIUM_DIR / "bestiary_optimized.json"
@@ -73,21 +73,21 @@ class CompendiumService:
                     monster_count = len(self.bestiary_data['monsters'])
                 else:
                     monster_count = "unknown"
-                logger.info(f"✅ Loaded bestiary data: {monster_count} monsters")
+                logger.info(f"Loaded bestiary data: {monster_count} monsters")
             else:
-                logger.warning("❌ bestiary_optimized.json not found")
+                logger.warning("bestiary_optimized.json not found")
 
             # Load feats data
             feats_file = COMPENDIUM_DIR / "feats_data.json"
             if feats_file.exists():
                 with open(feats_file, 'r', encoding='utf-8') as f:
                     self.feats_data = json.load(f)
-                logger.info(f"✅ Loaded feats data: {len(self.feats_data.get('feats', []))} feats")
+                logger.info(f"Loaded feats data: {len(self.feats_data.get('feats', []))} feats")
             else:
-                logger.warning("❌ feats_data.json not found")
+                logger.warning("feats_data.json not found")
 
         except Exception as e:
-            logger.error(f"❌ Error loading compendium data: {e}")
+            logger.error(f"Error loading compendium data: {e}")
 
 # Global compendium service instance
 compendium_service = CompendiumService()

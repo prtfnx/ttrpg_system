@@ -85,7 +85,7 @@ export const XPTracker: React.FC<XPTrackerProps> = ({
         )}
         {canLevelUp && (
           <div className={styles.levelUpIndicator}>
-            🎉 Level Up Available!
+            Level Up Available!
           </div>
         )}
       </div>
@@ -184,7 +184,7 @@ export const XPTracker: React.FC<XPTrackerProps> = ({
         </div>
       ) : (
         <div className="max-level-indicator">
-          <div className="max-level-icon">👑</div>
+          <div className="max-level-icon">MAX</div>
           <div className="max-level-text">
             <strong>Maximum Level Reached</strong>
             <p>Your character has reached the pinnacle of power at level 20!</p>

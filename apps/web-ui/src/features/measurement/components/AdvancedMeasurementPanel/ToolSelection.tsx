@@ -15,21 +15,21 @@ export const ToolSelection: FC<ToolSelectionProps> = ({ activeTool, onToolSelect
       onClick={() => onToolSelect('measure')}
       title="Measurement Tool"
     >
-      📏 Measure
+      Measure
     </button>
     <button 
       className={`tool-btn ${activeTool === 'shape' ? 'active' : ''}`}
       onClick={() => onToolSelect('shape')}
       title="Shape Tool"
     >
-      📐 Shapes
+      Shapes
     </button>
     <button 
       className={`tool-btn ${activeTool === 'template' ? 'active' : ''}`}
       onClick={() => onToolSelect('template')}
       title="Template Tool"
     >
-      🎯 Templates
+      Templates
     </button>
     <button 
       className={`tool-btn ${activeTool === 'grid' ? 'active' : ''}`}

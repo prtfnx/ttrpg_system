@@ -22,14 +22,14 @@ import { performanceService } from '../services/performance.service';
 import { FloatingLayerPicker } from './FloatingLayerPicker';
 import styles from './GameCanvas.module.css';
 import {
-    CanvasRenderer,
-    getGridCoord,
-    resizeCanvas,
-    useCanvasDebug,
-    useContextMenu,
-    useFPS,
-    useLightPlacement,
-    usePerformanceMonitor,
+  CanvasRenderer,
+  getGridCoord,
+  resizeCanvas,
+  useCanvasDebug,
+  useContextMenu,
+  useFPS,
+  useLightPlacement,
+  usePerformanceMonitor,
 } from './GameCanvas/index';
 import { useCanvasEventsEnhanced } from './GameCanvas/useCanvasEventsEnhanced';
 import PerformanceMonitor from './PerformanceMonitor';
@@ -106,12 +106,12 @@ export const GameCanvas: React.FC = () => {
       window.removeEventListener('sprite-drag-preview', onDrag);
       window.removeEventListener('sprite-moved', onMoved);
     };
-  }, []);
+ }, []);
 
   // Use extracted hooks
   const debugPanel = useCanvasDebug(canvasRef, rustRenderManagerRef, dprRef);
   const fps = useFPS(fpsService);
-  const [showPerformanceMonitor, togglePerformanceMonitor] = usePerformanceMonitor();
+ const [showPerformanceMonitor, togglePerformanceMonitor] = usePerformanceMonitor();
 
   // Context menu logic
   const { contextMenu, setContextMenu, handleContextMenuAction, handleMoveToLayer } = useContextMenu({
@@ -124,7 +124,7 @@ export const GameCanvas: React.FC = () => {
   const { lightPlacementMode, setLightPlacementMode } = useLightPlacement(canvasRef as React.RefObject<HTMLCanvasElement>);
 
   // Light placement preview state
-  const [lightPreviewPos, setLightPreviewPos] = useState<{ x: number; y: number } | null>(null);
+ const [lightPreviewPos, setLightPreviewPos] = useState<{ x: number; y: number } | null>(null);
 
   // Multi-select manager
   const multiSelectManagerRef = useRef<MultiSelectManager | null>(null);
@@ -147,16 +147,16 @@ export const GameCanvas: React.FC = () => {
     if (rustRenderManagerRef.current) {
       multiSelectManagerRef.current = new MultiSelectManager(rustRenderManagerRef.current);
     }
-  }, [rustRenderManagerRef.current]);
+ }, [rustRenderManagerRef.current]);
 
   // Keep WASM active layer in sync with React store
   useEffect(() => {
     const engine = rustRenderManagerRef.current as any;
     if (engine?.set_active_layer) {
-      console.log('[Canvas] set_active_layer:', activeLayer);
+ console.log('[Canvas] set_active_layer:', activeLayer);
       engine.set_active_layer(activeLayer);
     }
-  }, [activeLayer]); // rustRenderManagerRef.current is not reactive; initial sync happens at engine init
+ }, [activeLayer]); // rustRenderManagerRef.current is not reactive; initial sync happens at engine init
 
   // Handle mousemove for light placement preview
   useEffect(() => {
@@ -187,7 +187,7 @@ export const GameCanvas: React.FC = () => {
         canvas.removeEventListener('mousemove', handleMouseMove);
       };
     }
-  }, [lightPlacementMode]);
+ }, [lightPlacementMode]);
 
   // Draw light placement preview on overlay canvas
   useEffect(() => {
@@ -268,7 +268,7 @@ export const GameCanvas: React.FC = () => {
     ctx.stroke();
 
     ctx.restore();
-  }, [lightPreviewPos, lightPlacementMode]);
+ }, [lightPreviewPos, lightPlacementMode]);
 
   // Vision rings overlay — DM-only indicator circles for token vision/darkvision radii
   useEffect(() => {
@@ -323,12 +323,12 @@ export const GameCanvas: React.FC = () => {
         const pos = dragPositionsRef.current.get(s.id) ?? { x: s.x, y: s.y };
         try {
           const ctr = rm.world_to_screen(pos.x + hw, pos.y + hh);
-          const sx = ctr[0] / dpr;
-          const sy = ctr[1] / dpr;
+ const sx = ctr[0] / dpr;
+ const sy = ctr[1] / dpr;
 
           if (vr > 0) {
             const edge = rm.world_to_screen(pos.x + hw + vr, pos.y + hh);
-            const sr = (edge[0] - ctr[0]) / dpr;
+ const sr = (edge[0] - ctr[0]) / dpr;
             ctx.beginPath();
             ctx.arc(sx, sy, sr, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(255, 210, 80, 0.45)';
@@ -338,14 +338,14 @@ export const GameCanvas: React.FC = () => {
 
           if (dvr > 0) {
             const edge = rm.world_to_screen(pos.x + hw + dvr, pos.y + hh);
-            const sr = (edge[0] - ctr[0]) / dpr;
+ const sr = (edge[0] - ctr[0]) / dpr;
             ctx.beginPath();
             ctx.arc(sx, sy, sr, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(160, 100, 255, 0.45)';
-            ctx.setLineDash([6, 4]);
+ ctx.setLineDash([6, 4]);
             ctx.lineWidth = 1.5;
             ctx.stroke();
-            ctx.setLineDash([]);
+ ctx.setLineDash([]);
           }
         } catch { /* sprite may not be on screen */ }
       }
@@ -356,7 +356,7 @@ export const GameCanvas: React.FC = () => {
 
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [dynamicLightingEnabled]);
+ }, [dynamicLightingEnabled]);
 
   // Wall overlay — DM-only: draw wall segments from WASM get_wall_render_data on a canvas 2D overlay
   const wallCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -393,8 +393,8 @@ export const GameCanvas: React.FC = () => {
         ctx.save();
         ctx.lineWidth = 2;
         for (let i = 0; i + STRIDE <= data.length; i += STRIDE) {
-          const wx1 = data[i], wy1 = data[i + 1], wx2 = data[i + 2], wy2 = data[i + 3];
-          const r = data[i + 4], g = data[i + 5], b = data[i + 6], a = data[i + 7];
+ const wx1 = data[i], wy1 = data[i + 1], wx2 = data[i + 2], wy2 = data[i + 3];
+ const r = data[i + 4], g = data[i + 5], b = data[i + 6], a = data[i + 7];
 
           if (typeof rm.world_to_screen !== 'function') continue;
           const s1 = rm.world_to_screen(wx1, wy1);
@@ -402,8 +402,8 @@ export const GameCanvas: React.FC = () => {
           if (!s1 || !s2) continue;
 
           ctx.beginPath();
-          ctx.moveTo(s1[0], s1[1]);
-          ctx.lineTo(s2[0], s2[1]);
+ ctx.moveTo(s1[0], s1[1]);
+ ctx.lineTo(s2[0], s2[1]);
           ctx.strokeStyle = `rgba(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)},${a})`;
           ctx.stroke();
         }
@@ -415,7 +415,7 @@ export const GameCanvas: React.FC = () => {
 
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, []);
+ }, []);
   useEffect(() => {
     let animationFrameId: number | null = null;
     let mounted = true;
@@ -434,7 +434,7 @@ export const GameCanvas: React.FC = () => {
               resizeCanvas(canvas, dprRef, rustRenderManagerRef.current);
             }
           } catch (e) {
-            console.error('Scheduled resize failed', e);
+ console.error('Scheduled resize failed', e);
           }
           resizeTimeout = null;
         }, 10);
@@ -442,34 +442,34 @@ export const GameCanvas: React.FC = () => {
     };
 
     const loadAndInitWasm = async () => {
-      console.log('loadAndInitWasm called');
+ console.log('loadAndInitWasm called');
       try {
         updateConnectionState('connecting');
-        console.log('Starting WASM dynamic import...');
+ console.log('Starting WASM dynamic import...');
 
         // Use proper dynamic import with runtime path construction
         const wasmPath = '/static/ui/wasm/ttrpg_rust_core.js';
         const wasmModule = await import(/* @vite-ignore */ wasmPath);
         window.ttrpg_rust_core = wasmModule;
-        console.log('[WASM] window.ttrpg_rust_core:', wasmModule);
+ console.log('[WASM] window.ttrpg_rust_core:', wasmModule);
 
         const initWasm = wasmModule?.default;
         const WasmRenderEngine = wasmModule?.RenderEngine;
 
         if (!initWasm) {
-          console.error('[WASM] initWasm is undefined!', wasmModule);
+ console.error('[WASM] initWasm is undefined!', wasmModule);
           updateConnectionState('error');
           return;
         }
         if (!WasmRenderEngine) {
-          console.error('[WASM] RenderEngine is undefined!', wasmModule);
+ console.error('[WASM] RenderEngine is undefined!', wasmModule);
           updateConnectionState('error');
           return;
         }
 
-        console.log('[WASM] WASM module loaded, calling initWasm...');
+ console.log('[WASM] WASM module loaded, calling initWasm...');
         await initWasm();
-        console.log('[WASM] initWasm completed');
+ console.log('[WASM] initWasm completed');
 
         // Dispatch wasm-ready event for other services to listen
         window.dispatchEvent(
@@ -480,25 +480,25 @@ export const GameCanvas: React.FC = () => {
             },
           })
         );
-        console.log('[WASM] wasm-ready event dispatched');
+ console.log('[WASM] wasm-ready event dispatched');
 
         if (!mounted) {
-          console.warn('Component not mounted, aborting WASM init');
+ console.warn('Component not mounted, aborting WASM init');
           return;
         }
 
         const canvas = canvasRef.current;
         if (!canvas) {
-          console.error('[WASM] Canvas is null!');
+ console.error('[WASM] Canvas is null!');
           updateConnectionState('error');
           return;
         }
 
         resizeCanvas(canvas, dprRef, window.rustRenderManager || null);
 
-        console.log('[WASM] Constructing RenderEngine...');
+ console.log('[WASM] Constructing RenderEngine...');
         const rustRenderEngine = new WasmRenderEngine(canvas);
-        console.log('[WASM] RenderEngine constructed:', rustRenderEngine);
+ console.log('[WASM] RenderEngine constructed:', rustRenderEngine);
 
         // Center camera on world origin
         rustRenderEngine.set_camera(0, 0, 1.0);
@@ -519,15 +519,15 @@ export const GameCanvas: React.FC = () => {
 
         // Initialize performance monitoring
         performanceService.initialize(rustRenderEngine);
-        console.log('[PERFORMANCE] Service initialized');
+ console.log('[PERFORMANCE] Service initialized');
 
         // Initialize WASM integration service for protocol-driven updates
         wasmIntegrationService.initialize(rustRenderEngine);
-        console.log('[WASM] Integration service initialized');
+ console.log('[WASM] Integration service initialized');
 
         // Initialize asset integration service
         assetIntegrationService.initialize();
-        console.log('[ASSET] Integration service initialized');
+ console.log('[ASSET] Integration service initialized');
 
         canvas.addEventListener('mousedown', stableMouseDown);
         canvas.addEventListener('mousemove', stableMouseMove);
@@ -546,9 +546,9 @@ export const GameCanvas: React.FC = () => {
         // Setup ResizeObserver
         try {
           resizeObserver = new ResizeObserver((entries) => {
-            console.log('🔍 Canvas: ResizeObserver triggered, entries:', entries.length);
+            console.log(' Canvas: ResizeObserver triggered, entries:', entries.length);
             for (const entry of entries) {
-              console.log(
+ console.log(
                 '  - Element resized:',
                 entry.target.tagName,
                 entry.target.className,
@@ -564,11 +564,11 @@ export const GameCanvas: React.FC = () => {
           // Also observe the canvas container to catch flex layout changes
           const container = canvas.parentElement;
           if (container) {
-            console.log('📦 Canvas: Also observing canvas container:', container.className);
+ console.log(' Canvas: Also observing canvas container:', container.className);
             resizeObserver.observe(container);
           }
         } catch (err) {
-          console.warn('ResizeObserver unavailable or failed to observe canvas:', err);
+ console.warn('ResizeObserver unavailable or failed to observe canvas:', err);
         }
         try {
           window.addEventListener('resize', scheduleResize);
@@ -578,7 +578,7 @@ export const GameCanvas: React.FC = () => {
 
         // Mark WASM as initialized for thumbnail service
         (window as any).wasmInitialized = true;
-        console.log('[WASM] window.wasmInitialized = true');
+ console.log('[WASM] window.wasmInitialized = true');
 
         // Start render loop
         const renderLoop = () => {
@@ -590,7 +590,7 @@ export const GameCanvas: React.FC = () => {
             // Record frame for unified FPS service
             fpsService.recordFrame();
           } catch (error) {
-            console.error('Rust WASM render error:', error);
+ console.error('Rust WASM render error:', error);
           }
           if (mounted) animationFrameId = requestAnimationFrame(renderLoop);
         };
@@ -610,14 +610,14 @@ export const GameCanvas: React.FC = () => {
               rotation: 0.0,
               layer: 'tokens',
               texture_id: '',
-              tint_color: [1.0, 0.5, 0.5, 1.0], // Red tint
+ tint_color: [1.0, 0.5, 0.5, 1.0], // Red tint
               table_id: 'default_table',
-              controlled_by: [],
+ controlled_by: [],
             };
             rustRenderEngine.add_sprite_to_layer('tokens', testSprite);
-            console.log('[WASM] Test sprite added');
+ console.log('[WASM] Test sprite added');
           } catch (err) {
-            console.error('[WASM] Failed to add test sprite:', err);
+ console.error('[WASM] Failed to add test sprite:', err);
           }
         }, 1000);
 
@@ -626,11 +626,11 @@ export const GameCanvas: React.FC = () => {
           await connectWebSocket();
           updateConnectionState('connected');
         } catch (wsErr) {
-          console.error('WebSocket connection failed:', wsErr);
+ console.error('WebSocket connection failed:', wsErr);
           updateConnectionState('error');
         }
       } catch (error) {
-        console.error('Failed to load WASM module:', error);
+ console.error('Failed to load WASM module:', error);
         updateConnectionState('error');
       }
     };
@@ -683,7 +683,7 @@ export const GameCanvas: React.FC = () => {
       resizeObserver = null;
       window.rustRenderManager = undefined;
     };
-  }, [
+ }, [
     updateConnectionState,
     connectWebSocket,
     disconnectWebSocket,
@@ -698,9 +698,9 @@ export const GameCanvas: React.FC = () => {
   ]);
 
   // Debug overlay state (development only)
-  const [debugCursorScreen, setDebugCursorScreen] = React.useState({ x: 0, y: 0 });
-  const [debugCursorWorld, setDebugCursorWorld] = React.useState({ x: 0, y: 0 });
-  const [debugGrid, setDebugGrid] = React.useState({ x: 0, y: 0 });
+ const [debugCursorScreen, setDebugCursorScreen] = React.useState({ x: 0, y: 0 });
+ const [debugCursorWorld, setDebugCursorWorld] = React.useState({ x: 0, y: 0 });
+ const [debugGrid, setDebugGrid] = React.useState({ x: 0, y: 0 });
 
   // Mouse move handler for debug overlay
   const updateDebugOverlay = React.useCallback((event: MouseEvent) => {
@@ -729,7 +729,7 @@ export const GameCanvas: React.FC = () => {
         // ignore errors when polling cursor coordinates
       }
     }
-  }, []);
+ }, []);
 
   // Attach debug mouse handler only in development
   React.useEffect(() => {
@@ -742,7 +742,7 @@ export const GameCanvas: React.FC = () => {
         canvas.removeEventListener('mousemove', updateDebugOverlay);
       };
     }
-  }, [updateDebugOverlay]);
+ }, [updateDebugOverlay]);
 
   return (
     <DragDropImageHandler>

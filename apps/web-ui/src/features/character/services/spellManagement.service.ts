@@ -199,14 +199,14 @@ export const SPELLS_KNOWN_BY_CLASS = {
 
 export interface SpellSlots {
   cantrips?: number;
-  [key: number]: number;
+ [key: number]: number;
   pact_slots?: number;
   pact_level?: number;
 }
 
 export interface CharacterSpells {
-  cantrips: string[];
-  knownSpells: string[];
+ cantrips: string[];
+ knownSpells: string[];
   preparedSpells: string[];
   spellSlots: SpellSlots;
 }
@@ -220,12 +220,12 @@ class SpellManagementService {
     const normalizedClass = characterClass.charAt(0).toUpperCase() + characterClass.slice(1).toLowerCase();
     const classData = SPELL_SLOTS_BY_CLASS_AND_LEVEL[normalizedClass as keyof typeof SPELL_SLOTS_BY_CLASS_AND_LEVEL];
     if (!classData) {
-      console.warn(`⚠️ No spell slot data for class: ${characterClass} (normalized: ${normalizedClass})`);
+      console.warn(` No spell slot data for class: ${characterClass} (normalized: ${normalizedClass})`);
       return { cantrips: 0 };
     }
     
     const slots = classData[level as keyof typeof classData] || { cantrips: 0 };
-    console.log(`✅ Spell slots for ${normalizedClass} level ${level}:`, slots);
+    console.log(` Spell slots for ${normalizedClass} level ${level}:`, slots);
     return slots;
   }
 
@@ -240,7 +240,7 @@ class SpellManagementService {
     
     // If class has fixed spells known (Bard, Sorcerer, Warlock, Ranger)
     if (classData) {
-      return classData[level as keyof typeof classData] || 0;
+ return classData[level as keyof typeof classData] || 0;
     }
     
     // Prepared casters (Cleric, Druid, Wizard, Paladin) can prepare: ability modifier + level
@@ -258,7 +258,7 @@ class SpellManagementService {
       const modifier = Math.floor((abilityScore - 10) / 2);
       const preparedCount = Math.max(1, modifier + level); // Minimum of 1
       
-      console.log(`✅ ${normalizedClass} can prepare ${preparedCount} spells (${abilityKey} ${abilityScore}, modifier ${modifier}, level ${level})`);
+      console.log(` ${normalizedClass} can prepare ${preparedCount} spells (${abilityKey} ${abilityScore}, modifier ${modifier}, level ${level})`);
       return preparedCount;
     }
     
@@ -273,7 +273,7 @@ class SpellManagementService {
     const filtered: Record<string, Spell> = {};
     const classLower = characterClass.toLowerCase();
     
-    for (const [name, spell] of Object.entries(spells)) {
+ for (const [name, spell] of Object.entries(spells)) {
       // Case-insensitive check, and handle subclasses like "Fighter (eldritch knight)"
       const hasClass = spell.classes.some(c => {
         const cLower = c.toLowerCase();
@@ -281,7 +281,7 @@ class SpellManagementService {
       });
       
       if (hasClass) {
-        filtered[name] = spell;
+ filtered[name] = spell;
       }
     }
     
@@ -301,7 +301,7 @@ class SpellManagementService {
     
     // Find highest spell level with available slots
     for (let spellLevel = 9; spellLevel >= 1; spellLevel--) {
-      if (slots[spellLevel] && slots[spellLevel] > 0) {
+ if (slots[spellLevel] && slots[spellLevel] > 0) {
         return spellLevel;
       }
     }
@@ -319,7 +319,7 @@ class SpellManagementService {
     spellsData: Record<string, Spell>
   ): {
     isValid: boolean;
-    errors: string[];
+ errors: string[];
     cantripsCount: number;
     spellsCount: number;
     maxCantrips: number;
@@ -386,8 +386,8 @@ class SpellManagementService {
     characterClass: string,
     characterLevel: number
   ): {
-    cantrips: Spell[];
-    spells: Spell[];
+ cantrips: Spell[];
+ spells: Spell[];
   } {
     const classSpells = this.getSpellsForClass(spells, characterClass);
     const maxSpellLevel = this.getMaxSpellLevel(characterClass, characterLevel);
@@ -424,7 +424,7 @@ class SpellManagementService {
   } {
     // Guard against undefined or null abilityScores
     if (!abilityScores || typeof abilityScores !== 'object') {
-      console.warn('🔮 getSpellcastingStats: abilityScores is undefined/null, using defaults');
+      console.warn(' getSpellcastingStats: abilityScores is undefined/null, using defaults');
       abilityScores = {
         strength: 10,
         dexterity: 10,

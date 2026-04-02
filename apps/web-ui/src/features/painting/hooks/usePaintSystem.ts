@@ -68,7 +68,7 @@ export function usePaintSystem(
     
     if (typeof renderEngine.paint_set_current_table === 'function') {
       renderEngine.paint_set_current_table(activeTableId);
-      console.log(`🎨 Paint system switched to table: ${activeTableId}`);
+      console.log(`Paint system switched to table: ${activeTableId}`);
     } else {
       console.debug('Render engine missing paint_set_current_table()');
     }

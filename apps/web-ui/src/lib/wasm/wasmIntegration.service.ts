@@ -225,7 +225,7 @@ class WasmIntegrationService {
     const handleOptimisticSpriteCreate = (event: Event) => {
       const data = (event as CustomEvent).detail;
       if (!data || !data.sprite_id) return;
-      console.log('🎭 Optimistic sprite create (drag-drop):', data.sprite_id);
+      console.log('Optimistic sprite create (drag-drop):', data.sprite_id);
       try {
         this.addSpriteToWasm(data);
         this.startOptimisticTimer(data.sprite_id);
@@ -458,10 +458,10 @@ class WasmIntegrationService {
       
       // Fallback: Load sprites from flat array (backward compatibility)
       if (data.sprites && Array.isArray(data.sprites)) {
-        console.log('🔍 Processing fallback sprites array:', data.sprites.length);
-        console.log('🔍 First sprite sample:', JSON.stringify(data.sprites[0], null, 2));
+        console.log('Processing fallback sprites array:', data.sprites.length);
+        console.log('First sprite sample:', JSON.stringify(data.sprites[0], null, 2));
         data.sprites.forEach((spriteData: any, index: number) => {
-          console.log(`🔍 Processing fallback sprite ${index}:`, JSON.stringify(spriteData, null, 2));
+          console.log(`Processing fallback sprite ${index}:`, JSON.stringify(spriteData, null, 2));
           this.addSpriteToWasm(spriteData);
         });
       }
@@ -539,7 +539,7 @@ class WasmIntegrationService {
   }
 
   private handleSpriteResponse(data: any): void {
-    console.log('🎭 WasmIntegration: Received sprite response from server:', data);
+    console.log('WasmIntegration: Received sprite response from server:', data);
     
     if (!this.renderEngine) return;
 
@@ -547,7 +547,7 @@ class WasmIntegrationService {
     // Move/Scale/Rotate operations are handled by direct WASM updates and don't need this fallback
     // Note: sprite_id may be null/None from the server even for valid creation responses
     if (data.operation === 'create' || (!data.operation && data.sprite_data)) {
-      console.log('✅ WasmIntegration: Adding sprite to WASM engine:', data.sprite_data);
+      console.log('WasmIntegration: Adding sprite to WASM engine:', data.sprite_data);
       // Remove optimistic placeholder by client_temp_id
       const tempId = data.client_temp_id;
       if (tempId) {
@@ -563,28 +563,28 @@ class WasmIntegrationService {
       try {
         this.addSpriteToWasm(data.sprite_data);
       } catch (error) {
-        console.error('❌ WasmIntegration: Failed to add sprite to WASM:', error);
+        console.error('WasmIntegration: Failed to add sprite to WASM:', error);
       }
     } else if (data.operation === 'remove' && data.success) {
       // Handle sprite removal confirmation from server
       const spriteId = data.sprite_id;
       if (spriteId) {
-        console.log('🗑️ WasmIntegration: Server confirmed sprite deletion, removing from WASM:', spriteId);
+        console.log('️ WasmIntegration: Server confirmed sprite deletion, removing from WASM:', spriteId);
         try {
           this.renderEngine.remove_sprite(spriteId);
-          console.log('✅ WasmIntegration: Sprite removed from WASM after server confirmation:', spriteId);
+          console.log('WasmIntegration: Sprite removed from WASM after server confirmation:', spriteId);
         } catch (error) {
-          console.error('❌ WasmIntegration: Failed to remove sprite from WASM:', error);
+          console.error('WasmIntegration: Failed to remove sprite from WASM:', error);
         }
       }
-      console.log('✅ WasmIntegration: Sprite operation confirmed by server:', data.operation, data.sprite_id);
+      console.log('WasmIntegration: Sprite operation confirmed by server:', data.operation, data.sprite_id);
     } else if (data.operation === 'move' || data.operation === 'scale' || data.operation === 'resize' || data.operation === 'rotate') {
       // These operations are handled directly by WASM updates, no fallback needed
-      console.log('✅ WasmIntegration: Sprite operation confirmed by server:', data.operation, data.sprite_id);
+      console.log('WasmIntegration: Sprite operation confirmed by server:', data.operation, data.sprite_id);
     } else if (data.sprite_id === null) {
-      console.warn('⚠️ WasmIntegration: Sprite operation failed on server:', data);
+      console.warn('️ WasmIntegration: Sprite operation failed on server:', data);
     } else {
-      console.warn('⚠️ WasmIntegration: Unknown sprite response type:', data);
+      console.warn('️ WasmIntegration: Unknown sprite response type:', data);
     }
   }
 
@@ -610,7 +610,7 @@ class WasmIntegrationService {
 
       // Handle broadcast sprite removal from other clients
       if (data.operation === 'remove') {
-        console.log('🗑️ Removing sprite from broadcast:', spriteId);
+        console.log('️ Removing sprite from broadcast:', spriteId);
         try { this.renderEngine.remove_sprite(spriteId); } catch (_) { /* ignore if not present */ }
         useGameStore.setState(state => ({
           sprites: state.sprites.filter(s => s.id !== spriteId)
@@ -620,29 +620,29 @@ class WasmIntegrationService {
 
       // Use efficient direct updates for specific operations
       if (data.operation === 'move' && data.position) {
-        console.log('🎯 Using direct position update for move operation');
+        console.log('Using direct position update for move operation');
         this.updateSpritePosition(spriteId, data.position);
       } else if (data.operation === 'scale' && (data.scale_x !== undefined || data.scale_y !== undefined)) {
-        console.log('🎯 Using direct scale update for scale operation');
+        console.log('Using direct scale update for scale operation');
         this.updateSpriteScale(spriteId, data.scale_x, data.scale_y);
       } else if (data.operation === 'rotate' && data.rotation !== undefined) {
-        console.log('🎯 Using direct rotation update for rotate operation');
+        console.log('Using direct rotation update for rotate operation');
         this.updateSpriteRotation(spriteId, data.rotation);
       } else if (data.operation && !this.hasCompleteData(data)) {
         // For partial updates, try to use available direct update methods
-        console.log(`🔧 Attempting partial update for operation: ${data.operation}`);
+        console.log(`Attempting partial update for operation: ${data.operation}`);
         this.handlePartialSpriteUpdate(spriteId, data);
       } else if (this.hasCompleteData(data) && this.needsFullRecreation(data)) {
         // Only do full recreate for fundamental changes (layer, texture change, etc.)
-        console.log('🔄 Full sprite recreation needed for fundamental change');
+        console.log('Full sprite recreation needed for fundamental change');
         this.renderEngine.remove_sprite(spriteId);
         this.addSpriteToWasm(data);
       } else if (this.hasCompleteData(data)) {
         // For complete data without fundamental changes, use efficient updates
-        console.log('⚡ Using efficient updates for complete data');
+        console.log('Using efficient updates for complete data');
         this.updateSpriteEfficiently(spriteId, data);
       } else {
-        console.warn(`❌ Incomplete sprite update data for operation ${data.operation}:`, data);
+        console.warn(`Incomplete sprite update data for operation ${data.operation}:`, data);
         console.warn('Skipping update to avoid corrupting sprite state');
       }
     } catch (error) {
@@ -679,7 +679,7 @@ class WasmIntegrationService {
     try {
       // Prevent recursive/concurrent scale operations
       if (this.pendingScaleOperations.has(spriteId)) {
-        console.warn(`⚠️ Scale operation already pending for sprite ${spriteId}, skipping`);
+        console.warn(`️ Scale operation already pending for sprite ${spriteId}, skipping`);
         return;
       }
 
@@ -687,20 +687,20 @@ class WasmIntegrationService {
       
       const finalScaleX = scaleX || 1.0;
       const finalScaleY = scaleY || 1.0;
-      console.log(`🔍 Updating sprite ${spriteId} scale to: x=${finalScaleX}, y=${finalScaleY}`);
+      console.log(`Updating sprite ${spriteId} scale to: x=${finalScaleX}, y=${finalScaleY}`);
       
       // Check if this is actually a scale change (not just resetting to 1.0)
       if (finalScaleX === 1.0 && finalScaleY === 1.0) {
-        console.log('⚠️ Scale values are 1.0, 1.0 - this might be resetting sprite to original size');
+        console.log('️ Scale values are 1.0, 1.0 - this might be resetting sprite to original size');
       }
       
       if (!this.renderEngine) {
-        console.error('❌ RenderEngine not available for sprite scale update');
+        console.error('RenderEngine not available for sprite scale update');
         return;
       }
       
       // Check if the method exists and what type it is
-      console.log('🔍 Checking WASM update_sprite_scale method:', typeof (this.renderEngine as any).update_sprite_scale);
+      console.log('Checking WASM update_sprite_scale method:', typeof (this.renderEngine as any).update_sprite_scale);
       
       if (typeof (this.renderEngine as any).update_sprite_scale === 'function') {
         // Create fresh copies to avoid unsafe aliasing in Rust
@@ -709,29 +709,29 @@ class WasmIntegrationService {
         const scaleYCopy = Number(finalScaleY);
         
         const success = (this.renderEngine as any).update_sprite_scale(spriteIdCopy, scaleXCopy, scaleYCopy);
-        console.log(`🎯 WASM update_sprite_scale returned:`, success);
+        console.log(`WASM update_sprite_scale returned:`, success);
         
         if (success) {
-          console.log(`✅ Successfully updated sprite ${spriteId} scale - forcing render update`);
+          console.log(`Successfully updated sprite ${spriteId} scale - forcing render update`);
           // Force a render to make sure the visual change is applied
           if (typeof (this.renderEngine as any).render === 'function') {
             (this.renderEngine as any).render();
-            console.log('🎨 Forced render after scale update');
+            console.log('Forced render after scale update');
           }
           // Also try requesting animation frame
           requestAnimationFrame(() => {
             if (this.renderEngine && typeof (this.renderEngine as any).render === 'function') {
               (this.renderEngine as any).render();
-              console.log('🎨 Animation frame render after scale update');
+              console.log('Animation frame render after scale update');
             }
           });
           this.pendingScaleOperations.delete(spriteId);
           return;
         } else {
-          console.error(`❌ WASM update_sprite_scale failed for sprite ${spriteId}`);
+          console.error(`WASM update_sprite_scale failed for sprite ${spriteId}`);
         }
       } else {
-        console.warn(`❌ WASM update_sprite_scale method not available`);
+        console.warn(`WASM update_sprite_scale method not available`);
       }
       
       console.warn('Scale update requires complete sprite data - operation will be skipped to prevent sprite corruption');
@@ -801,7 +801,7 @@ class WasmIntegrationService {
 
   private handlePartialSpriteUpdate(spriteId: string, data: any): void {
     // Handle partial updates using available direct methods
-    console.log(`🔧 Handling partial update for ${spriteId}:`, data);
+    console.log(`Handling partial update for ${spriteId}:`, data);
 
     // Flatten: top-level fields take priority; fall back to nested `updates` object
     const u = data.updates ?? {};
@@ -846,7 +846,7 @@ class WasmIntegrationService {
     }
 
     if (!updated) {
-      console.warn(`⚠️ No applicable update method found for partial data:`, data);
+      console.warn(`️ No applicable update method found for partial data:`, data);
     }
 
     // Vision fields — sync to store so visionService picks up changes broadcast by server
@@ -866,7 +866,7 @@ class WasmIntegrationService {
 
   private updateSpriteEfficiently(spriteId: string, data: any): void {
     // Use multiple direct updates instead of remove+recreate
-    console.log(`⚡ Efficiently updating sprite ${spriteId} with complete data`);
+    console.log(`Efficiently updating sprite ${spriteId} with complete data`);
     
     // Update position if available
     if (data.position || (data.x !== undefined && data.y !== undefined) || (data.world_x !== undefined && data.world_y !== undefined)) {
@@ -897,7 +897,7 @@ class WasmIntegrationService {
     // - update_sprite_texture (for texture swaps)
     // - update_sprite_tint (color changes)
     
-    console.log(`✅ Efficient update completed for sprite ${spriteId}`);
+    console.log(`Efficient update completed for sprite ${spriteId}`);
   }
 
   private handleSpriteRemoved(data: any): void {
@@ -906,9 +906,9 @@ class WasmIntegrationService {
     try {
       const spriteId = data.sprite_id || data.id;
       if (spriteId) {
-        console.log('🗑️ WasmIntegration: Removing sprite from WASM:', spriteId);
+        console.log('️ WasmIntegration: Removing sprite from WASM:', spriteId);
         this.renderEngine.remove_sprite(spriteId);
-        console.log('✅ WasmIntegration: Sprite removed from WASM:', spriteId);
+        console.log('WasmIntegration: Sprite removed from WASM:', spriteId);
         
         // Invalidate thumbnail cache for the table
         const tableId = data.table_id;
@@ -916,10 +916,10 @@ class WasmIntegrationService {
           tableThumbnailService.invalidateTable(tableId);
         }
       } else {
-        console.warn('⚠️ WasmIntegration: No sprite ID found in removal data:', data);
+        console.warn('️ WasmIntegration: No sprite ID found in removal data:', data);
       }
     } catch (error) {
-      console.error('❌ WasmIntegration: Failed to remove sprite from WASM:', error);
+      console.error('WasmIntegration: Failed to remove sprite from WASM:', error);
     }
   }
 
@@ -1021,7 +1021,7 @@ class WasmIntegrationService {
       const isFogReveal = spriteData.texture_path === '__FOG_REVEAL__';
       
       if (isLight) {
-        console.log('🔦 Detected light entity from server, adding as light:', spriteData);
+        console.log('Detected light entity from server, adding as light:', spriteData);
 
         let x = 0, y = 0;
         if (Array.isArray(spriteData.position) && spriteData.position.length >= 2) {
@@ -1061,9 +1061,9 @@ class WasmIntegrationService {
           if (!isOn && typeof engine.toggle_light === 'function') {
             engine.toggle_light(lightId);
           }
-          console.log(`✅ Light restored: ${lightId} at (${finalX}, ${finalY}) r=${radius}`);
+          console.log(`Light restored: ${lightId} at (${finalX}, ${finalY}) r=${radius}`);
         } else {
-          console.error('❌ add_light not available on render engine');
+          console.error('add_light not available on render engine');
         }
 
         // Also push to Zustand so LightingPanel can see it
@@ -1084,7 +1084,7 @@ class WasmIntegrationService {
       
       // Check if this is a fog rectangle
       if (isFogHide || isFogReveal) {
-        console.log('🌫️ Detected fog entity from server, adding as fog rectangle:', spriteData);
+        console.log('️ Detected fog entity from server, adding as fog rectangle:', spriteData);
         
         // Parse position (start point of rectangle)
         let startX = 0, startY = 0;
@@ -1115,9 +1115,9 @@ class WasmIntegrationService {
             endY,
             mode
           );
-          console.log(`✅ Successfully added fog rectangle from server: ${fogId} (${mode}) at [${startX}, ${startY}] to [${endX}, ${endY}]`);
+          console.log(`Successfully added fog rectangle from server: ${fogId} (${mode}) at [${startX}, ${startY}] to [${endX}, ${endY}]`);
         } else {
-          console.error('❌ add_fog_rectangle method not available on render engine');
+          console.error('add_fog_rectangle method not available on render engine');
         }
         
         return; // Exit early, don't add as sprite

@@ -41,7 +41,7 @@ export const FogPanel: React.FC = () => {
       .filter(rect => rect.mode === 'reveal')
       .map(rect => [[rect.startX, rect.startY], [rect.endX, rect.endY]] as [[number, number], [number, number]]);
 
-    console.log('🌫️ Sending fog update to server:', { tableId, hideCount: hideRectangles.length, revealCount: revealRectangles.length });
+    console.log('Sending fog update to server:', { tableId, hideCount: hideRectangles.length, revealCount: revealRectangles.length });
     protocol.updateFog(tableId, hideRectangles, revealRectangles);
   }, [protocol, renderer]);
 
@@ -281,7 +281,7 @@ export const FogPanel: React.FC = () => {
   return (
     <div className={styles.panelBase}>
       <div className={styles.panelHeader}>
-        <h3>🌫️ Fog of War</h3>
+        <h3>Fog of War</h3>
       </div>
       
       <div className={styles.panelSection}>
@@ -297,7 +297,7 @@ export const FogPanel: React.FC = () => {
               className={clsx(styles.panelButton, fogDrawMode === 'hide' && styles.success)}
               title="Click and drag on canvas to draw fog hide rectangles"
             >
-              {fogDrawMode === 'hide' ? '✓ ' : ''}🌑 Hide Mode
+              {fogDrawMode === 'hide' ? <><b>+</b> </> : ''} Hide Mode
             </button>
             <button 
               onClick={() => handleToggleFogMode('reveal')}
@@ -305,7 +305,7 @@ export const FogPanel: React.FC = () => {
               className={clsx(styles.panelButton, fogDrawMode === 'reveal' && styles.success)}
               title="Click and drag on canvas to draw fog reveal rectangles"
             >
-              {fogDrawMode === 'reveal' ? '✓ ' : ''}☀️ Reveal Mode
+              {fogDrawMode === 'reveal' ? <><b>+</b> </> : ''} Reveal Mode
             </button>
             <button 
               onClick={handleHideAll}
@@ -313,7 +313,7 @@ export const FogPanel: React.FC = () => {
               className={styles.panelButton}
               title="Cover entire table with fog"
             >
-              🌑 Hide All
+              Hide All
             </button>
             <button 
               onClick={handleClearAll}
@@ -321,7 +321,7 @@ export const FogPanel: React.FC = () => {
               className={clsx(styles.panelButton, styles.danger)}
               title="Remove all fog rectangles"
             >
-              🗑️ Clear All
+              Clear All
             </button>
           </div>
 
@@ -335,7 +335,7 @@ export const FogPanel: React.FC = () => {
               fontSize: '13px',
               color: 'var(--text-primary, #ffffff)'
             }}>
-              ✏️ <strong>{fogDrawMode === 'hide' ? 'Hide' : 'Reveal'} Mode Active</strong> - Click and drag on the canvas to draw fog rectangles
+              <strong>{fogDrawMode === 'hide' ? 'Hide' : 'Reveal'} Mode Active</strong> - Click and drag on the canvas to draw fog rectangles
             </div>
           )}
         </div>
@@ -367,7 +367,7 @@ export const FogPanel: React.FC = () => {
                 <div style={{ flex: 1 }}>
                   <div>
                     <span style={{ fontWeight: '500', color: 'var(--text-primary, #ffffff)' }}>
-                      {rect.mode === 'hide' ? '🌑' : '☀️'} {rect.mode.toUpperCase()}
+                      {rect.mode === 'hide' ? '[H]' : '[R]'} {rect.mode.toUpperCase()}
                     </span>
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary, #9ca3af)', marginTop: '2px' }}>
@@ -380,7 +380,7 @@ export const FogPanel: React.FC = () => {
                   style={{ padding: '4px 8px', fontSize: '12px' }}
                   title="Remove this fog rectangle"
                 >
-                  ❌
+                  x
                 </button>
               </div>
             ))
@@ -389,7 +389,7 @@ export const FogPanel: React.FC = () => {
       </div>
 
       <div className={styles.panelSection}>
-        <h4>📊 Statistics</h4>
+        <h4>Statistics</h4>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
           <div style={{ 
             padding: '12px', 
@@ -401,7 +401,7 @@ export const FogPanel: React.FC = () => {
             <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-primary, #ffffff)' }}>
               {fogRectangles.filter(r => r.mode === 'hide').length}
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary, #9ca3af)' }}>🌑 Hidden Areas</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary, #9ca3af)' }}>[H] Hidden Areas</div>
           </div>
           <div style={{ 
             padding: '12px', 
@@ -413,7 +413,7 @@ export const FogPanel: React.FC = () => {
             <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-primary, #ffffff)' }}>
               {fogRectangles.filter(r => r.mode === 'reveal').length}
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary, #9ca3af)' }}>☀️ Revealed Areas</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary, #9ca3af)' }}>[R] Revealed Areas</div>
           </div>
         </div>
       </div>

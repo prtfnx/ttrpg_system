@@ -88,7 +88,7 @@ export const MeasurementsTab: FC<MeasurementsTabProps> = ({
               onClick={() => console.log('Remove measurement:', measurement.id)}
               title="Delete measurement"
             >
-              🗑️
+              
             </button>
           </div>
         </div>

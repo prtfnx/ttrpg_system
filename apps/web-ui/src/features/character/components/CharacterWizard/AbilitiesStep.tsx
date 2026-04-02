@@ -57,7 +57,7 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
     addMessage({
       id: Date.now().toString(),
       user: 'System',
-      text: `🎲 Ability roll (4d6 drop lowest): [${newRolls.join(', ')}]`,
+      text: `Ability roll (4d6 drop lowest): [${newRolls.join(', ')}]`,
       timestamp: Date.now(),
     });
   };

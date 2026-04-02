@@ -47,10 +47,10 @@ export const InviteLink: React.FC<InviteLinkProps> = ({ invitation, onRevoke, on
       <div className={styles.header}>
         <span className={styles.role}>{invitation.pre_assigned_role}</span>
         <span className={styles.status}>
-          {!invitation.is_active ? '🚫 Revoked' :
+          {!invitation.is_active ? 'Revoked' :
            isExpired ? '⌛ Expired' :
-           isUsedUp ? '✓ Used up' :
-           '✓ Active'}
+           isUsedUp ? 'Used' :
+           'Active'}
         </span>
       </div>
 
@@ -67,7 +67,7 @@ export const InviteLink: React.FC<InviteLinkProps> = ({ invitation, onRevoke, on
           onClick={copyToClipboard}
           disabled={!invitation.is_valid}
         >
-          {copied ? '✓' : '📋'}
+          {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
 
@@ -102,7 +102,7 @@ export const InviteLink: React.FC<InviteLinkProps> = ({ invitation, onRevoke, on
           className={styles.deleteBtn}
           onClick={() => onDelete(invitation.id)}
         >
-          🗑️ Delete
+          Delete
         </button>
       )}
     </div>

@@ -275,10 +275,10 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
           Create Instance
         </button>
         {template.spells && (
-          <span className="monster-feature-icon" title="Spellcaster">🔮</span>
+          <span className="monster-feature-icon" title="Spellcaster">*</span>
         )}
         {template.legendary && (
-          <span className="monster-feature-icon" title="Legendary">⭐</span>
+          <span className="monster-feature-icon" title="Legendary">+</span>
         )}
       </div>
     </div>
@@ -301,7 +301,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
             className="monster-btn monster-btn-primary monster-btn-small"
             title="Place on Table"
           >
-            📍
+            pin
           </button>
           <button
             onClick={(e) => {
@@ -311,7 +311,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
             className="monster-btn monster-btn-danger monster-btn-small"
             title="Delete"
           >
-            🗑️
+            del
           </button>
         </div>
       </div>
@@ -477,7 +477,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
             onClick={() => setShowFilters(!showFilters)}
             className={`monster-btn monster-btn-secondary ${showFilters ? 'active' : ''}`}
           >
-            🔍 Filters
+            Filters
           </button>
         </div>
         
@@ -506,13 +506,13 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
               onClick={() => setPreviewMode('card')}
               className={`monster-btn monster-btn-small ${previewMode === 'card' ? 'active' : ''}`}
             >
-              📋
+              copy
             </button>
             <button
               onClick={() => setPreviewMode('list')}
               className={`monster-btn monster-btn-small ${previewMode === 'list' ? 'active' : ''}`}
             >
-              📄
+              view
             </button>
           </div>
         </div>
@@ -601,7 +601,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
             onClick={() => setSelectedTemplate(null)}
             className="monster-btn monster-btn-secondary monster-btn-small"
           >
-            ✕
+            x
           </button>
         </div>
         
@@ -668,10 +668,10 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
 
         <div className="monster-panel-tabs">
           {[
-            { id: 'browse', label: 'Browse Monsters', icon: '📚', count: searchResults.length },
-            { id: 'instances', label: 'Instances', icon: '⚔️', count: instances.length },
-            { id: 'create', label: 'Create Custom', icon: '🛠️' },
-            { id: 'encounters', label: 'Encounters', icon: '🎲' }
+            { id: 'browse', label: 'Browse Monsters', icon: 'book', count: searchResults.length },
+            { id: 'instances', label: 'Instances', icon: 'sword', count: instances.length },
+            { id: 'create', label: 'Create Custom', icon: 'wrench' },
+            { id: 'encounters', label: 'Encounters', icon: 'dice' }
           ].map(tab => (
             <button
               key={tab.id}

@@ -31,7 +31,7 @@ export class CombatTestRunner {
     const startTime = Date.now();
     const results: TestResult[] = [];
 
-    console.log(`🧪 Starting combat integration tests for ${character.name}`);
+    console.log(` Starting combat integration tests for ${character.name}`);
     
     // Test 1: Character Data Validation
     results.push(await this.validateCharacterData(character));
@@ -55,8 +55,8 @@ export class CombatTestRunner {
     const passCount = results.filter(r => r.status === 'pass').length;
     const failCount = results.filter(r => r.status === 'fail').length;
 
-    console.log(`✅ Tests completed in ${totalTime}ms`);
-    console.log(`📊 Results: ${passCount} passed, ${failCount} failed`);
+    console.log(` Tests completed in ${totalTime}ms`);
+    console.log(` Results: ${passCount} passed, ${failCount} failed`);
 
     this.testResults = results;
     return results;
@@ -91,7 +91,7 @@ export class CombatTestRunner {
       }
 
       // Validate ability score ranges (3-20 for standard D&D)
-      const abilities = [
+ const abilities = [
         character.strength, character.dexterity, character.constitution,
         character.intelligence, character.wisdom, character.charisma
       ];
@@ -399,7 +399,7 @@ export class CombatTestRunner {
 
       // Validate level progression (1, 2, 3, ...)
       for (let i = 0; i < levelHistory.length; i++) {
-        if (levelHistory[i].level !== i + 1) {
+ if (levelHistory[i].level !== i + 1) {
           return {
             testName: 'Level Progression Validation',
             status: 'fail',
@@ -526,7 +526,7 @@ export class CombatTestRunner {
    * Get the most recent test results
    */
   getLatestResults(): TestResult[] {
-    return [...this.testResults];
+ return [...this.testResults];
   }
 }
 

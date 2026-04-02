@@ -42,7 +42,7 @@ class DebugErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBounda
   }
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     // Log error for debugging
-    console.error('ErrorBoundary caught:', error, info);
+ console.error('ErrorBoundary caught:', error, info);
   }
   render() {
     if (this.state.hasError) {
@@ -67,7 +67,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
   useEffect(() => {
     if (protocol) (window as any).protocol = protocol;
     return () => { if ((window as any).protocol === protocol) delete (window as any).protocol; };
-  }, [protocol]);
+ }, [protocol]);
 
   // Expose activeTableId for components that need the current table context (e.g. Compendium drag)
   useEffect(() => {
@@ -78,7 +78,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     };
     window.addEventListener('table-data-received', handler);
     return () => window.removeEventListener('table-data-received', handler);
-  }, []);
+ }, []);
 
   // Handle asset download requests from WASM integration service
   useEffect(() => {
@@ -87,10 +87,10 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
       const { asset_id } = customEvent.detail;
       
       if (protocol && protocol.downloadAsset) {
-        console.log('Handling asset download request for:', asset_id);
+ console.log('Handling asset download request for:', asset_id);
         protocol.downloadAsset(asset_id);
       } else {
-        console.warn('Protocol not available for asset download:', asset_id);
+ console.warn('Protocol not available for asset download:', asset_id);
       }
     };
 
@@ -98,7 +98,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     return () => {
       window.removeEventListener('request-asset-download', handleAssetDownloadRequest);
     };
-  }, [protocol]);
+ }, [protocol]);
 
   // Set WASM GM mode based on role — call immediately when effect runs (handles re-mounts too)
   useEffect(() => {
@@ -115,14 +115,14 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     // Also apply when WASM render manager becomes available (may init after this effect)
     window.addEventListener('render-manager-ready', apply);
     return () => window.removeEventListener('render-manager-ready', apply);
-  }, [sessionRole]);
+ }, [sessionRole]);
 
   // Pass current user ID to WASM for sprite ownership enforcement
   useEffect(() => {
     if (userId != null) {
       window.rustRenderManager?.set_current_user_id?.(userId);
     }
-  }, [userId]);
+ }, [userId]);
 
   // Sync WASM layer visibility — role gates + user toggles both apply
   useEffect(() => {
@@ -134,7 +134,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
       const userToggle = layerVisibility[layer] ?? true;
       engine.set_layer_visibility(layer, roleAllows && userToggle);
     }
-  }, [sessionRole, visibleLayers, layerVisibility]);
+ }, [sessionRole, visibleLayers, layerVisibility]);
 
   // Vision service: run for non-DMs to compute LOS; stop for DMs (they see all)
   useEffect(() => {
@@ -144,7 +144,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
       visionService.start();
     }
     return () => visionService.stop();
-  }, [sessionRole]);
+ }, [sessionRole]);
 
   // Handle DM force-switching all players to a table
   useEffect(() => {
@@ -154,7 +154,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     };
     window.addEventListener('table-force-switch', handler);
     return () => window.removeEventListener('table-force-switch', handler);
-  }, []);
+ }, []);
 
   // Apply fog updates received from other clients in real-time
   useEffect(() => {
@@ -168,7 +168,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
       engine.clear_fog?.();
       const hideRects: Array<[[number, number], [number, number]]> = data.hide_rectangles ?? [];
       const revealRects: Array<[[number, number], [number, number]]> = data.reveal_rectangles ?? [];
-      hideRects.forEach(([start, end], i) =>
+ hideRects.forEach(([start, end], i) =>
         engine.add_fog_rectangle?.(`hide_${i}`, start[0], start[1], end[0], end[1], 'hide')
       );
       revealRects.forEach(([start, end], i) =>
@@ -177,7 +177,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     };
     window.addEventListener('table-updated', handler);
     return () => window.removeEventListener('table-updated', handler);
-  }, []);
+ }, []);
 
   // Handle authentication errors
   if (error?.includes('Authentication failed')) {
@@ -186,25 +186,25 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
   }
 
   // Panel size state with localStorage persistence
-  const [leftWidth, setLeftWidth] = React.useState(() => {
+ const [leftWidth, setLeftWidth] = React.useState(() => {
     const v = localStorage.getItem('panel_left_width');
     return v ? parseInt(v) : 320;
   });
-  const [rightWidth, setRightWidth] = React.useState(() => {
+ const [rightWidth, setRightWidth] = React.useState(() => {
     const v = localStorage.getItem('panel_right_width');
     return v ? parseInt(v) : 400;
   });
-  const [leftVisible, setLeftVisible] = React.useState(() => {
+ const [leftVisible, setLeftVisible] = React.useState(() => {
     const v = localStorage.getItem('panel_left_visible');
     return v !== 'false';
   });
-  const [rightVisible, setRightVisible] = React.useState(() => {
+ const [rightVisible, setRightVisible] = React.useState(() => {
     const v = localStorage.getItem('panel_right_visible');
     return v !== 'false';
   });
 
   // Token config modal state
-  const [tokenConfigSpriteId, setTokenConfigSpriteId] = React.useState<string | null>(null);
+ const [tokenConfigSpriteId, setTokenConfigSpriteId] = React.useState<string | null>(null);
 
   // Listen for double-click events from Rust WASM
   useEffect(() => {
@@ -212,7 +212,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
       const customEvent = event as CustomEvent;
       const spriteId = customEvent.detail?.spriteId;
       if (!spriteId) return;
-      console.log('[GameClient] Token double-click on sprite:', spriteId);
+ console.log('[GameClient] Token double-click on sprite:', spriteId);
       setTokenConfigSpriteId(spriteId);
     };
 
@@ -220,7 +220,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     return () => {
       window.removeEventListener('tokenDoubleClick', handleTokenDoubleClick);
     };
-  }, []);
+ }, []);
 
   // Handle drag to resize panels
   const dragRef = React.useRef<{ side: 'left'|'right', startX: number, startWidth: number }|null>(null);
@@ -231,7 +231,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     dragRef.current = { side, startX: e.clientX, startWidth: side === 'left' ? leftWidth : rightWidth };
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
-    console.log(`🔄 GameClient: Starting ${side} panel resize`);
+    console.log(` GameClient: Starting ${side} panel resize`);
   };
   
   React.useEffect(() => {
@@ -244,12 +244,12 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
         const w = Math.max(200, Math.min(600, dragRef.current.startWidth + dx));
         setLeftWidth(w);
         localStorage.setItem('panel_left_width', w.toString());
-        console.log(`📏 GameClient: Left panel width: ${w}px`);
+        console.log(` GameClient: Left panel width: ${w}px`);
       } else {
         const w = Math.max(250, Math.min(600, dragRef.current.startWidth - dx));
         setRightWidth(w);
         localStorage.setItem('panel_right_width', w.toString());
-        console.log(`📏 GameClient: Right panel width: ${w}px`);
+        console.log(` GameClient: Right panel width: ${w}px`);
       }
       
       // Trigger multiple resize notifications for better canvas detection
@@ -277,7 +277,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
       document.removeEventListener('mousemove', onDrag);
       document.removeEventListener('mouseup', onDragEnd);
     };
-  }, []); // Remove dependency on leftWidth, rightWidth to prevent recreating listeners
+ }, []); // Remove dependency on leftWidth, rightWidth to prevent recreating listeners
 
   // Persist panel visibility
   const toggleLeft = () => {

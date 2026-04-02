@@ -17,13 +17,13 @@ export interface LayerInfo {
 }
 
 const LAYER_CONFIG = [
-  { name: 'map', displayName: 'Background Map', icon: '🗺️' },
-  { name: 'tokens', displayName: 'Tokens/Characters', icon: '⚔️' },
-  { name: 'dungeon_master', displayName: 'DM Layer', icon: '🎭' },
-  { name: 'light', displayName: 'Lighting', icon: '💡' },
-  { name: 'height', displayName: 'Height/Terrain', icon: '⛰️' },
-  { name: 'obstacles', displayName: 'Obstacles', icon: '🚧' },
-  { name: 'fog_of_war', displayName: 'Fog of War', icon: '🌫️' },
+  { name: 'map', displayName: 'Background Map', icon: 'map' },
+  { name: 'tokens', displayName: 'Tokens/Characters', icon: 'sword' },
+  { name: 'dungeon_master', displayName: 'DM Layer', icon: 'theater' },
+  { name: 'light', displayName: 'Lighting', icon: 'lightbulb' },
+  { name: 'height', displayName: 'Height/Terrain', icon: 'mountain' },
+  { name: 'obstacles', displayName: 'Obstacles', icon: 'construction' },
+  { name: 'fog_of_war', displayName: 'Fog of War', icon: 'fog' },
 ];
 
 export const useLayerManager = () => {

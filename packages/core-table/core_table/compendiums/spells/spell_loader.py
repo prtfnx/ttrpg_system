@@ -25,10 +25,10 @@ class SpellLoader:
     def load_from_json(self, json_file: str) -> bool:
         """Load spells from JSON file"""
         try:
-            print(f"📖 Loading spells from: {json_file}")
+            print(f"Loading spells from: {json_file}")
             
             if not os.path.exists(json_file):
-                print(f"❌ File not found: {json_file}")
+                print(f"File not found: {json_file}")
                 return False
             
             with open(json_file, 'r', encoding='utf-8') as f:
@@ -47,11 +47,11 @@ class SpellLoader:
                     self.spells[spell_name] = spell
                     loaded_count += 1
             
-            print(f"✅ Loaded {loaded_count} spells from JSON")
+            print(f"Loaded {loaded_count} spells from JSON")
             return True
             
         except Exception as e:
-            print(f"❌ Error loading JSON: {e}")
+            print(f"Error loading JSON: {e}")
             return False
     
     def _dict_to_spell(self, data: Dict[str, Any]) -> Optional[Spell]:
@@ -124,7 +124,7 @@ class SpellLoader:
             return spell
             
         except Exception as e:
-            print(f"⚠️ Error converting spell data: {e}")
+            print(f"️ Error converting spell data: {e}")
             return None
     
     def get_spell(self, name: str) -> Optional[Spell]:
@@ -184,7 +184,7 @@ class SpellLoader:
             print("No spells loaded")
             return
         
-        print(f"\n📚 Spell Library Summary")
+        print(f"\n Spell Library Summary")
         print(f"Total spells: {len(self.spells)}")
         
         if self.metadata:
@@ -222,7 +222,7 @@ class SpellLoader:
 
 def test_spell_loader():
     """Test the spell loader"""
-    print("🧪 Testing Spell Loader")
+    print("Testing Spell Loader")
     print("=" * 40)
     
     loader = SpellLoader()
@@ -235,7 +235,7 @@ def test_spell_loader():
             loader.print_summary()
             
             # Test searches
-            print(f"\n🔍 Search Examples:")
+            print(f"\n Search Examples:")
             
             # Search for fireball
             fireball_results = loader.search_spells("fireball")

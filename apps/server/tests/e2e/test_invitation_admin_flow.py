@@ -9,8 +9,6 @@ import main
 from database import crud, schemas, models
 from database.models import GamePlayer, AuditLog
 
-# Import fixtures
-from utils.invitation_fixtures import *
 
 @pytest.mark.e2e
 class TestCompleteInvitationWorkflow:

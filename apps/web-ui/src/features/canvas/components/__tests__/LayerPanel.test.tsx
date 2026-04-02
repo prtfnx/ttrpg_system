@@ -217,7 +217,7 @@ describe('LayerPanel - Game Master Layer Management', () => {
       await user.click(mapToggle);
 
       // In a full integration test, user would see:
-      // - Icon changes from 👁️ to 🙈
+      // - Visibility icon changes
       // - Layer becomes dimmed/grayed out
       // - Sprite count might update
       // For this unit test, we verify the interaction completed without error

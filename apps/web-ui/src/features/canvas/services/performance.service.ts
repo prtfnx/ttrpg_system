@@ -68,7 +68,7 @@ class PerformanceService {
   private performanceLog: Array<{
     timestamp: number;
     metrics: PerformanceMetrics;
-  }> = [];
+ }> = [];
 
   constructor() {
     this.metrics = this.initializeMetrics();
@@ -103,7 +103,7 @@ class PerformanceService {
     this.renderEngine = renderEngine;
     this.startMonitoring();
     this.applyOptimizations();
-    console.log('🚀 Performance service initialized');
+    console.log(' Performance service initialized');
   }
 
   /**
@@ -122,7 +122,7 @@ class PerformanceService {
       this.optimizeIfNeeded();
     }, 250);
 
-    console.log('📊 Performance monitoring started');
+ console.log(' Performance monitoring started');
   }
 
   /**
@@ -137,7 +137,7 @@ class PerformanceService {
       this.monitoringInterval = null;
     }
 
-    console.log('📊 Performance monitoring stopped');
+    console.log(' Performance monitoring stopped');
   }
 
   /**
@@ -214,7 +214,7 @@ class PerformanceService {
     this.settings = { ...this.settings, ...newSettings };
     this.applyOptimizations();
     this.saveSettings();
-    console.log('⚙️ Performance settings updated:', newSettings);
+    console.log(' Performance settings updated:', newSettings);
   }
 
   /**
@@ -319,9 +319,9 @@ class PerformanceService {
         this.renderEngine.set_max_render_distance(this.settings.maxRenderDistance);
       }
 
-      console.log('🔧 Performance optimizations applied');
+      console.log(' Performance optimizations applied');
     } catch (error) {
-      console.error('❌ Failed to apply performance optimizations:', error);
+      console.error(' Failed to apply performance optimizations:', error);
     }
   }
 
@@ -341,13 +341,13 @@ class PerformanceService {
     // Require more extreme conditions to trigger optimization
     // If FPS is consistently below 70% of target, reduce quality
     if (this.metrics.averageFPS < targetFPS * 0.7) {
-      console.log(`📉 Auto-downgrading: FPS ${this.metrics.averageFPS.toFixed(1)} < ${(targetFPS * 0.7).toFixed(1)} (70% of target ${targetFPS})`);
+      console.log(` Auto-downgrading: FPS ${this.metrics.averageFPS.toFixed(1)} < ${(targetFPS * 0.7).toFixed(1)} (70% of target ${targetFPS})`);
       this.downgradePerformance();
       this.lastOptimizationTime = now;
     }
     // If FPS is consistently above 150% of target with memory headroom, upgrade quality
     else if (this.metrics.averageFPS > targetFPS * 1.5 && this.metrics.memoryUsage.usedJSHeapSize < this.metrics.memoryUsage.jsHeapSizeLimit * 0.6) {
-      console.log(`📈 Auto-upgrading: FPS ${this.metrics.averageFPS.toFixed(1)} > ${(targetFPS * 1.5).toFixed(1)} (150% of target ${targetFPS})`);
+      console.log(` Auto-upgrading: FPS ${this.metrics.averageFPS.toFixed(1)} > ${(targetFPS * 1.5).toFixed(1)} (150% of target ${targetFPS})`);
       this.upgradePerformance();
       this.lastOptimizationTime = now;
     }
@@ -409,7 +409,7 @@ class PerformanceService {
 
   clearSpriteCache(): void {
     this.spriteCache.clear();
-    console.log('🗑️ Sprite cache cleared');
+    console.log(' Sprite cache cleared');
   }
 
   /**
@@ -430,7 +430,7 @@ class PerformanceService {
 
   clearTextureCache(): void {
     this.textureCache.clear();
-    console.log('🗑️ Texture cache cleared');
+    console.log(' Texture cache cleared');
   }
 
   private estimateTextureSize(textureData: any): number {
@@ -481,7 +481,7 @@ class PerformanceService {
    * Get performance history for analytics
    */
   getPerformanceHistory(): Array<{ timestamp: number; metrics: PerformanceMetrics }> {
-    return [...this.performanceLog];
+ return [...this.performanceLog];
   }
 
   /**
@@ -491,7 +491,7 @@ class PerformanceService {
     try {
       localStorage.setItem('ttrpg_performance_settings', JSON.stringify(this.settings));
     } catch (error) {
-      console.warn('Failed to save performance settings:', error);
+ console.warn('Failed to save performance settings:', error);
     }
   }
 
@@ -503,7 +503,7 @@ class PerformanceService {
       const saved = localStorage.getItem('ttrpg_performance_settings');
       return saved ? JSON.parse(saved) : {};
     } catch (error) {
-      console.warn('Failed to load performance settings:', error);
+ console.warn('Failed to load performance settings:', error);
       return {};
     }
   }
@@ -569,7 +569,7 @@ ${this.generateRecommendations()}
     this.clearSpriteCache();
     this.clearTextureCache();
     this.performanceLog = [];
-    console.log('🧹 Performance service disposed');
+    console.log(' Performance service disposed');
   }
 }
 

@@ -77,14 +77,14 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
   const renderEngine = useRenderEngine();
   const { protocol } = useProtocol();
 
-  const [layers, setLayers] = useState<Layer[]>(initialLayers ?? []);
-  const [isLoading, setIsLoading] = useState(true);
-  const [expandedLayer, setExpandedLayer] = useState<string | null>(null);
+ const [layers, setLayers] = useState<Layer[]>(initialLayers ?? []);
+ const [isLoading, setIsLoading] = useState(true);
+ const [expandedLayer, setExpandedLayer] = useState<string | null>(null);
 
   // Calculate dynamic dimensions
   const dynamicDimensions = useMemo(() => {
     return calculateDynamicHeight(layers.length);
-  }, [layers.length]);
+ }, [layers.length]);
 
   useEffect(() => {
     // Initialize layers
@@ -112,7 +112,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
 
     const timer = setTimeout(initLayers, delay);
     return () => clearTimeout(timer);
-  }, []);
+ }, []);
 
   // Re-filter layers when role/visibleLayers changes
   useEffect(() => {
@@ -122,7 +122,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
         return filtered;
       });
     }
-  }, [sessionRole, visibleLayers]);
+ }, [sessionRole, visibleLayers]);
 
   // Update sprite counts when activeTableId changes
   // Don't depend on sprites array - that causes updates for EVERY sprite change
@@ -133,7 +133,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     const updateSpriteCounts = () => {
       const renderManager = (window as any).rustRenderManager;
       if (!renderManager) {
-        console.warn('[LayerPanel] RenderManager not available');
+ console.warn('[LayerPanel] RenderManager not available');
         return;
       }
 
@@ -144,7 +144,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
             const count = renderManager.get_layer_sprite_count(layer.id);
             return { ...layer, spriteCount: count };
           } catch (error) {
-            console.error(`[LayerPanel] Failed to get count for layer ${layer.id}:`, error);
+ console.error(`[LayerPanel] Failed to get count for layer ${layer.id}:`, error);
             return { ...layer, spriteCount: 0 };
           }
         })
@@ -152,7 +152,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     };
 
     updateSpriteCounts();
-  }, [activeTableId, isLoading]);
+ }, [activeTableId, isLoading]);
 
   // Subscribe to sprite events for immediate UI updates
   useEffect(() => {
@@ -182,7 +182,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
       window.removeEventListener('spriteRemoved', handleSpriteEvent);
       window.removeEventListener('spriteUpdated', handleSpriteEvent);
     };
-  }, []);
+ }, []);
 
   const handleLayerClick = (layerId: string) => {
     setActiveLayer(layerId);
@@ -191,7 +191,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
       try {
         (renderEngine as any).set_active_layer?.(layerId);
       } catch (error) {
-        console.error('❌ LayerPanel: Failed to sync active layer to WASM:', error);
+        console.error(' LayerPanel: Failed to sync active layer to WASM:', error);
       }
     }
     // Toggle expansion: if clicking the same layer, toggle it; if different, expand new one
@@ -209,9 +209,9 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     if (renderEngine) {
       try {
         (renderEngine as any).set_layer_visible?.(layerId, newVisibility);
-        console.log(`🎨 LayerPanel: Synced layer visibility to WASM: ${layerId} = ${newVisibility}`);
+        console.log(` LayerPanel: Synced layer visibility to WASM: ${layerId} = ${newVisibility}`);
       } catch (error) {
-        console.error('❌ LayerPanel: Failed to sync layer visibility to WASM:', error);
+        console.error(' LayerPanel: Failed to sync layer visibility to WASM:', error);
       }
     }
     
@@ -239,9 +239,9 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     if (renderEngine) {
       try {
         (renderEngine as any).set_layer_opacity?.(layerId, opacity);
-        console.log(`🎨 LayerPanel: Synced layer opacity to WASM: ${layerId} = ${opacity}`);
+        console.log(` LayerPanel: Synced layer opacity to WASM: ${layerId} = ${opacity}`);
       } catch (error) {
-        console.error('❌ LayerPanel: Failed to sync layer opacity to WASM:', error);
+        console.error(' LayerPanel: Failed to sync layer opacity to WASM:', error);
       }
     }
 

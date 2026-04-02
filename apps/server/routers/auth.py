@@ -92,7 +92,7 @@ if OAUTH_CONFIGURED:
                 'prompt': 'select_account'  # Always show account selector
             }
         )
-        logger.info("✓ Google OAuth configured successfully")
+        logger.info("Google OAuth configured successfully")
     except Exception as e:
         logger.error(f"Failed to configure Google OAuth: {e}")
         OAUTH_CONFIGURED = False

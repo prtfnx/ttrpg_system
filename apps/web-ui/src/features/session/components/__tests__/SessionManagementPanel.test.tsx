@@ -44,10 +44,10 @@ vi.mock('../Invitations/InvitationManager', () => ({
 }));
 
 vi.mock('../PlayerList', () => ({
-  PlayerList: ({ players, onRoleChange, onRemove, canModify }: any) => (
+  PlayerList: ({ players, onRoleChange, onRemove, canManagePlayers }: any) => (
     <div data-testid="player-list">
       <span>Players: {players.length}</span>
-      <span>Can modify: {canModify ? 'yes' : 'no'}</span>
+      <span>Can modify: {canManagePlayers ? 'yes' : 'no'}</span>
     </div>
   )
 }));

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Settings, Users } from 'lucide-react';
 import styles from './SessionManagementPanel.module.css';
 
 interface CollapsedViewProps {
@@ -10,7 +11,7 @@ export const CollapsedView: React.FC<CollapsedViewProps> = ({ sessionCode, onTog
   return (
     <div className={styles.collapsed}>
       <button className={styles.toggle} onClick={onToggle}>
-        👥 Manage Players
+        <Users size={14} aria-hidden /> Manage Players
       </button>
       <a 
         href={`/game/session/${sessionCode}/admin`} 
@@ -18,7 +19,7 @@ export const CollapsedView: React.FC<CollapsedViewProps> = ({ sessionCode, onTog
         target="_blank" 
         rel="noopener noreferrer"
       >
-        ⚙️ Admin Panel
+        <Settings size={14} aria-hidden /> Admin Panel
       </a>
     </div>
   );

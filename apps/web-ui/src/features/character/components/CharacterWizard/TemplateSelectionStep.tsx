@@ -47,7 +47,7 @@ export const TemplateSelectionStep: React.FC = () => {
           className={`template-type-btn ${templateType === 'scratch' ? 'active' : ''}`}
           onClick={() => handleTemplateTypeChange('scratch')}
         >
-          <div className="template-type-icon">✨</div>
+          <div className="template-type-icon">*</div>
           <div className="template-type-info">
             <div className="template-type-title">Start from Scratch</div>
             <div className="template-type-desc">Build your character step by step</div>
@@ -59,7 +59,7 @@ export const TemplateSelectionStep: React.FC = () => {
           className={`template-type-btn ${templateType === 'pc' ? 'active' : ''}`}
           onClick={() => handleTemplateTypeChange('pc')}
         >
-          <div className="template-type-icon">🎭</div>
+          <div className="template-type-icon">@</div>
           <div className="template-type-info">
             <div className="template-type-title">Player Character</div>
             <div className="template-type-desc">Full character sheet for PCs</div>
@@ -71,7 +71,7 @@ export const TemplateSelectionStep: React.FC = () => {
           className={`template-type-btn ${templateType === 'npc' ? 'active' : ''}`}
           onClick={() => handleTemplateTypeChange('npc')}
         >
-          <div className="template-type-icon">👥</div>
+          <div className="template-type-icon">#</div>
           <div className="template-type-info">
             <div className="template-type-title">NPC/Monster</div>
             <div className="template-type-desc">Simplified stat block for NPCs</div>
@@ -138,7 +138,7 @@ export const TemplateSelectionStep: React.FC = () => {
       <div className="selection-summary">
         {selectedTemplate ? (
           <div className="summary-box success">
-            ✅ Template selected: <strong>{ALL_TEMPLATES.find((t: CharacterTemplate) => t.id === selectedTemplate)?.name}</strong>
+            Template selected: <strong>{ALL_TEMPLATES.find((t: CharacterTemplate) => t.id === selectedTemplate)?.name}</strong>
           </div>
         ) : templateType === 'scratch' ? (
           <div className="summary-box info">
@@ -146,7 +146,7 @@ export const TemplateSelectionStep: React.FC = () => {
           </div>
         ) : (
           <div className="summary-box warning">
-            ⚠️ Please select a template from the list above
+            Please select a template from the list above
           </div>
         )}
       </div>

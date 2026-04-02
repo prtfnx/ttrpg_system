@@ -35,8 +35,8 @@ describe('EnhancedLogin - User Experience Tests', () => {
     
     // Default mock for OAuth providers - what a user would expect to see
     mockAuthService.getOAuthProviders.mockResolvedValue([
-      { id: 'google', name: 'Google', icon: '🔍', isEnabled: true },
-      { id: 'discord', name: 'Discord', icon: '💬', isEnabled: true }
+      { id: 'google', name: 'Google', icon: 'google', isEnabled: true },
+      { id: 'discord', name: 'Discord', icon: 'discord', isEnabled: true }
     ]);
   });
 

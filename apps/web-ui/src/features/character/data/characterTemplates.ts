@@ -36,7 +36,7 @@ export const PC_TEMPLATE: CharacterTemplate = {
   name: 'Player Character',
   type: 'pc',
   description: 'Full character sheet for player characters with detailed stats, skills, equipment, and spells',
-  icon: '🎭',
+  icon: 'pc',
   data: {
     // === BASIC INFO ===
     characterName: 'New Character',
@@ -248,7 +248,7 @@ export const NPC_TEMPLATE: CharacterTemplate = {
   name: 'NPC / Monster',
   type: 'npc',
   description: 'Simplified stat block for NPCs, monsters, and creatures. Quick reference format for combat.',
-  icon: '👹',
+  icon: 'npc',
   data: {
     // === BASIC INFO ===
     name: 'Goblin',
@@ -389,7 +389,7 @@ export const PC_WIZARD_TEMPLATE: CharacterTemplate = {
   name: 'Wizard (Spellcaster)',
   type: 'pc',
   description: 'A scholarly magic-user with full spellcasting capabilities',
-  icon: '🧙',
+  icon: 'wizard',
   data: {
     ...PC_TEMPLATE.data,
     characterName: 'New Wizard',
@@ -528,7 +528,7 @@ export const NPC_HUMANOID_TEMPLATE: CharacterTemplate = {
   name: 'NPC Humanoid (Guard)',
   type: 'npc',
   description: 'A standard humanoid NPC suitable for guards, bandits, or common folk',
-  icon: '🛡️',
+  icon: 'guard',
   data: {
     ...NPC_TEMPLATE.data,
     name: 'Guard',
@@ -601,7 +601,7 @@ export const NPC_BEAST_TEMPLATE: CharacterTemplate = {
   name: 'NPC Beast (Wolf)',
   type: 'npc',
   description: 'A beast or animal creature',
-  icon: '🐺',
+  icon: 'wolf',
   data: {
     ...NPC_TEMPLATE.data,
     name: 'Wolf',

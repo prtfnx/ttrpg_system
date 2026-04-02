@@ -41,13 +41,13 @@ class FPSService {
    */
   initialize(): void {
     if (this.isInitialized) {
-      console.warn('[FPSService] Already initialized');
+ console.warn('[FPSService] Already initialized');
       return;
     }
     
     this.lastUpdateTime = performance.now();
     this.isInitialized = true;
-    console.log('[FPSService] ✅ Initialized - Single source of truth for FPS measurement');
+    console.log('[FPSService] Initialized - Single source of truth for FPS measurement');
   }
 
   /**
@@ -148,8 +148,8 @@ class FPSService {
   resetStats(): void {
     this.minFPS = Infinity;
     this.maxFPS = 0;
-    this.fpsHistory = [];
-    console.log('[FPSService] Statistics reset');
+ this.fpsHistory = [];
+ console.log('[FPSService] Statistics reset');
   }
 
   /**
@@ -161,7 +161,7 @@ class FPSService {
       try {
         callback(metrics);
       } catch (error) {
-        console.error('[FPSService] Error in subscriber callback:', error);
+ console.error('[FPSService] Error in subscriber callback:', error);
       }
     });
   }
@@ -172,9 +172,9 @@ class FPSService {
    */
   destroy(): void {
     this.subscribers.clear();
-    this.fpsHistory = [];
+ this.fpsHistory = [];
     this.isInitialized = false;
-    console.log('[FPSService] Destroyed');
+ console.log('[FPSService] Destroyed');
   }
 
   /**

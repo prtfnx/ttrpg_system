@@ -156,9 +156,9 @@ class ServerProtocol:
             return False    
     async def handle_ping(self, msg: Message, client_id: str) -> Message:
         """Handle ping message"""
-        logger.info(f"🏓 PING received from client {client_id}")
+        logger.info(f"PING received from client {client_id}")
         response = Message(MessageType.PONG, {'timestamp': time.time(), 'client_id': client_id})
-        logger.info(f"🏓 Sending PONG back to client {client_id}")
+        logger.info(f"Sending PONG back to client {client_id}")
         return response
     
     async def handle_success(self, msg: Message, client_id: str) -> Message:

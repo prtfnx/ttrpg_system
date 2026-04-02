@@ -140,7 +140,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load equipment');
-        console.error('🎒 Error loading equipment:', err);
+        console.error('Error loading equipment:', err);
       } finally {
         setLoading(false);
       }
@@ -222,7 +222,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
   const addItem = useCallback((equipment: Equipment) => {
     // Guard against missing equipment data
     if (!equipment || !equipment.name) {
-      console.error('🎒 addItem: Invalid equipment data:', equipment);
+      console.error('addItem: Invalid equipment data:', equipment);
       setError('Invalid equipment selected');
       return;
     }
@@ -363,7 +363,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
         
         {error && (
           <div className={styles['error-message']}>
-            <span className={styles['error-icon']}>⚠️</span>
+            <span className={styles['error-icon']}>!</span>
             {error}
           </div>
         )}

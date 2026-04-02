@@ -438,7 +438,7 @@ class TokenResolutionService:
                 for pattern in search_patterns:
                     asset = db.query(Asset).filter(Asset.asset_name == pattern).first()
                     if asset:
-                        logger.info(f"✅ Asset found: {monster_name} -> {asset.r2_key}")
+                        logger.info(f"Asset found: {monster_name} -> {asset.r2_key}")
                         return {
                             'asset_id': asset.r2_asset_id,
                             'asset_xxhash': asset.xxhash,
@@ -448,7 +448,7 @@ class TokenResolutionService:
                             'r2_key': asset.r2_key
                         }
                 
-                logger.warning(f"❌ No asset found for monster: {monster_name}")
+                logger.warning(f"No asset found for monster: {monster_name}")
                 return None
                 
             finally:

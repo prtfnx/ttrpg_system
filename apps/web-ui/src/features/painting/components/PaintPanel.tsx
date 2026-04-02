@@ -66,10 +66,10 @@ interface PaintModeStatus {
 const PaintModeIndicator: React.FC<{ status: PaintModeStatus }> = ({ status }) => (
   <div className={`paint-mode-indicator ${status.mode} ${status.isActive ? 'active' : 'inactive'}`}>
     <div className={styles.modeIcon}>
-      {status.mode === 'draw' && <span>🖌️</span>}
-      {status.mode === 'erase' && <span>🧽</span>}
-      {status.mode === 'template' && <span>📋</span>}
-      {status.mode === 'table' && <span>🗓️</span>}
+      {status.mode === 'draw' && <span>Draw</span>}
+      {status.mode === 'erase' && <span>Erase</span>}
+      {status.mode === 'template' && <span>Template</span>}
+      {status.mode === 'table' && <span>Table</span>}
     </div>
     <div className={styles.modeDetails}>
       <div className={styles.modeName}>{status.mode.toUpperCase()} MODE</div>
@@ -375,11 +375,11 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
       style={panelStyle}
     >
       <div className={styles.paintPanelHeader}>
-        <h3>🎨 Paint System</h3>
+        <h3>Paint System</h3>
         <div className={styles.headerControls}>
           {onToggle && (
             <button onClick={onToggle} className={styles.panelToggle}>
-              ⬇
+              &darr;
             </button>
           )}
           {onClose && (
@@ -425,7 +425,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
               disabled={!paintState.isActive}
               title="Paint to local canvas (preview only)"
             >
-              🖼️ Canvas Mode
+              Canvas Mode
             </button>
             <button 
               className={`mode-button ${paintMode === 'table' ? 'active' : ''}`}
@@ -433,23 +433,23 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
               disabled={!paintState.isActive || !isIntegrated}
               title={isIntegrated ? "Paint directly to WASM table (persistent)" : "WASM table integration not available"}
             >
-              🗺️ Table Mode {!isIntegrated && '(Unavailable)'}
+              Table Mode {!isIntegrated && '(Unavailable)'}
             </button>
           </div>
           <div className={styles.modeStatus}>
             {paintMode === 'table' && isIntegrated && (
               <div className={clsx(styles.statusIndicator, styles.success)}>
-                ✅ Paint strokes will be saved to the table
+                Paint strokes will be saved to the table
               </div>
             )}
             {paintMode === 'canvas' && (
               <div className={clsx(styles.statusIndicator, styles.warning)}>
-                ⚠️ Paint strokes are preview only (not saved to table)
+                Paint strokes are preview only (not saved to table)
               </div>
             )}
             {paintMode === 'table' && !isIntegrated && (
               <div className={clsx(styles.statusIndicator, styles.error)}>
-                ❌ WASM table integration unavailable
+                WASM table integration unavailable
               </div>
             )}
           </div>
@@ -476,21 +476,21 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
                 onClick={() => setBrushType('brush')}
                 disabled={!paintState.isActive}
               >
-                🖌️ Brush
+                Brush
               </button>
               <button 
                 className={`panel-button ${brushType === 'marker' ? 'primary' : ''}`}
                 onClick={() => setBrushType('marker')}
                 disabled={!paintState.isActive}
               >
-                🖍️ Marker
+                Marker
               </button>
               <button 
                 className={`panel-button ${brushType === 'eraser' ? 'primary' : ''}`}
                 onClick={() => setBrushType('eraser')}
                 disabled={!paintState.isActive}
               >
-                🧽 Eraser
+                Eraser
               </button>
             </div>
           </div>
@@ -612,7 +612,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
               className={styles.btnPrimary}
               title="Save current strokes as template"
             >
-              💾 Save Template
+              Save Template
             </button>
           </div>
 
@@ -635,14 +635,14 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
                       className={clsx(styles.btnSecondary, styles.small)}
                       title="Load template"
                     >
-                      📂 Load
+                      Load
                     </button>
                     <button
                       onClick={() => handleDeleteTemplate(template.id)}
                       className={clsx(styles.btnDanger, styles.small)}
                       title="Delete template"
                     >
-                      🗑️
+                      Delete
                     </button>
                   </div>
                 </div>
@@ -728,7 +728,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
               className={styles.btnPrimary}
               title="Save current strokes as sprites"
             >
-              💾 Save Strokes
+              Save Strokes
             </button>
             <button
               onClick={paintControls.clearAll}
@@ -736,7 +736,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
               className={styles.btnDanger}
               title="Clear all strokes"
             >
-              🗑️ Clear All
+              Clear All
             </button>
           </div>
         </div>

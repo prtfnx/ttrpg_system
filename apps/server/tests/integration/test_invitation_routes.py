@@ -6,7 +6,6 @@ from routers.users import get_current_user
 import main
 from database import crud, models
 
-from utils.invitation_fixtures import *
 
 
 @pytest.mark.integration

@@ -20,17 +20,17 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
   const linkedCharacter = sprite?.characterId ? getCharacterForSprite(spriteId) : null;
   const canManageOwnership = isDM(sessionRole);
 
-  const [selectedCharacterId, setSelectedCharacterId] = useState<string>(sprite?.characterId || '');
-  const [localHp, setLocalHp] = useState<number>(sprite?.hp ?? linkedCharacter?.data?.stats?.hp ?? 10);
-  const [localMaxHp, setLocalMaxHp] = useState<number>(sprite?.maxHp ?? linkedCharacter?.data?.stats?.maxHp ?? 10);
-  const [localAc, setLocalAc] = useState<number>(sprite?.ac ?? linkedCharacter?.data?.stats?.ac ?? 10);
-  const [localAuraRadius, setLocalAuraRadius] = useState<number>(sprite?.auraRadiusUnits ?? (sprite?.auraRadius ? useGameStore.getState().getUnitConverter().toUnits(sprite.auraRadius) : 0));
-  const [localAuraColor, setLocalAuraColor] = useState<string>(sprite?.auraColor ?? '#ffe4b5');
-  const [localVisionRadius, setLocalVisionRadius] = useState<number | ''>(sprite?.visionRadiusUnits ?? (sprite?.visionRadius ? useGameStore.getState().getUnitConverter().toUnits(sprite.visionRadius) : ''));
-  const [localHasDarkvision, setLocalHasDarkvision] = useState<boolean>(sprite?.hasDarkvision ?? false);
-  const [localDarkvisionRadius, setLocalDarkvisionRadius] = useState<number | ''>(sprite?.darkvisionRadiusUnits ?? (sprite?.darkvisionRadius ? useGameStore.getState().getUnitConverter().toUnits(sprite.darkvisionRadius) : ''));
-  const [newOwnerId, setNewOwnerId] = useState<string>('');
-  const [sessionPlayers, setSessionPlayers] = useState<{ id: string; name: string }[]>([]);
+ const [selectedCharacterId, setSelectedCharacterId] = useState<string>(sprite?.characterId || '');
+ const [localHp, setLocalHp] = useState<number>(sprite?.hp ?? linkedCharacter?.data?.stats?.hp ?? 10);
+ const [localMaxHp, setLocalMaxHp] = useState<number>(sprite?.maxHp ?? linkedCharacter?.data?.stats?.maxHp ?? 10);
+ const [localAc, setLocalAc] = useState<number>(sprite?.ac ?? linkedCharacter?.data?.stats?.ac ?? 10);
+ const [localAuraRadius, setLocalAuraRadius] = useState<number>(sprite?.auraRadiusUnits ?? (sprite?.auraRadius ? useGameStore.getState().getUnitConverter().toUnits(sprite.auraRadius) : 0));
+ const [localAuraColor, setLocalAuraColor] = useState<string>(sprite?.auraColor ?? '#ffe4b5');
+ const [localVisionRadius, setLocalVisionRadius] = useState<number | ''>(sprite?.visionRadiusUnits ?? (sprite?.visionRadius ? useGameStore.getState().getUnitConverter().toUnits(sprite.visionRadius) : ''));
+ const [localHasDarkvision, setLocalHasDarkvision] = useState<boolean>(sprite?.hasDarkvision ?? false);
+ const [localDarkvisionRadius, setLocalDarkvisionRadius] = useState<number | ''>(sprite?.darkvisionRadiusUnits ?? (sprite?.darkvisionRadius ? useGameStore.getState().getUnitConverter().toUnits(sprite.darkvisionRadius) : ''));
+ const [newOwnerId, setNewOwnerId] = useState<string>('');
+ const [sessionPlayers, setSessionPlayers] = useState<{ id: string; name: string }[]>([]);
 
   // Fetch session player list for DM ownership controls
   useEffect(() => {
@@ -48,7 +48,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
     };
     window.addEventListener('player-list-updated', handler);
     return () => window.removeEventListener('player-list-updated', handler);
-  }, [canManageOwnership, protocol, isConnected]);
+ }, [canManageOwnership, protocol, isConnected]);
 
   // Load characters if not already loaded
   useEffect(() => {
@@ -56,21 +56,21 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
     const currentUserId = userInfo?.id || 0;
     
     if (protocol && isConnected && currentUserId && characters.length === 0) {
-      console.log('[TokenConfigModal] 🔄 Loading character list for user:', currentUserId);
+      console.log('[TokenConfigModal] Loading character list for user:', currentUserId);
       protocol.requestCharacterList(currentUserId);
     }
-  }, [protocol, isConnected, characters.length]);
+ }, [protocol, isConnected, characters.length]);
 
   // Debug logging
   useEffect(() => {
-    console.log('[TokenConfigModal] Characters updated:', {
+ console.log('[TokenConfigModal] Characters updated:', {
       spriteId,
       sprite,
       linkedCharacter,
       charactersCount: characters.length,
       characters: characters.map(c => ({ id: c.id, name: c.name, sessionId: c.sessionId }))
     });
-  }, [characters, spriteId, sprite, linkedCharacter]);
+ }, [characters, spriteId, sprite, linkedCharacter]);
 
   // Update local state when sprite or linked character changes
   useEffect(() => {
@@ -86,7 +86,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
       setLocalDarkvisionRadius(sprite.darkvisionRadiusUnits ?? (sprite.darkvisionRadius ? useGameStore.getState().getUnitConverter().toUnits(sprite.darkvisionRadius) : ''));
       setSelectedCharacterId(sprite.characterId || '');
     }
-  }, [sprite, linkedCharacter]);
+ }, [sprite, linkedCharacter]);
 
   if (!sprite) {
     return null;
@@ -149,7 +149,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
   const handleHpChange = (newHp: number) => {
     setLocalHp(newHp);
     
-    console.log('[TokenConfigModal] Updating HP:', { 
+ console.log('[TokenConfigModal] Updating HP:', { 
       spriteId, 
       newHp, 
       currentCharacterId: sprite?.characterId,
@@ -228,7 +228,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
   // Current ownership list
   const controlledBy: string[] = Array.isArray(sprite?.controlledBy)
     ? sprite!.controlledBy.map(String)
-    : [];
+ : [];
 
   const handleAddOwner = () => {
     const id = newOwnerId.trim();

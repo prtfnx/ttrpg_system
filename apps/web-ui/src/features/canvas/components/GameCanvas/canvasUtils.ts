@@ -46,7 +46,7 @@ export const resizeCanvas = (
   // Get size from container instead of canvas element to avoid timing issues
   const container = canvas.parentElement;
   if (!container) {
-    console.warn('Canvas has no parent container for sizing');
+ console.warn('Canvas has no parent container for sizing');
     return;
   }
   
@@ -81,7 +81,7 @@ export const resizeCanvas = (
       }
     }
   } catch (err) {
-    console.warn('screen_to_world before resize failed:', err);
+ console.warn('screen_to_world before resize failed:', err);
   }
 
   // Update canvas internal resolution
@@ -106,13 +106,13 @@ export const resizeCanvas = (
         resizeSuccess = true;
       }
       if (!resizeSuccess) {
-        console.warn('🦀 WASM: No resize method found on render manager');
+        console.warn(' WASM: No resize method found on render manager');
       }
     } else {
-      console.warn('🦀 WASM: No render manager available for resize');
+      console.warn(' WASM: No render manager available for resize');
     }
   } catch (err) {
-    console.error('WASM resize error:', err);
+ console.error('WASM resize error:', err);
   }
 
   // Re-center camera so the same world point stays under the canvas center
@@ -130,6 +130,6 @@ export const resizeCanvas = (
       }
     }
   } catch (err) {
-    console.error('WASM center_camera after resize failed:', err);
+ console.error('WASM center_camera after resize failed:', err);
   }
 };

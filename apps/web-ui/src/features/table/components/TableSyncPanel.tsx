@@ -42,15 +42,15 @@ function TableSyncPanel() {
 
   useEffect(() => {
     if (isConnected) {
-      addLog('success', 'Connected to table sync service', '🟢');
+      addLog('success', 'Connected to table sync service', '[ok]');
     } else {
-      addLog('warning', 'Disconnected from table sync service', '🔴');
+      addLog('warning', 'Disconnected from table sync service', '[x]');
     }
   }, [isConnected]);
 
   useEffect(() => {
     if (error) {
-      addLog('error', `Error: ${error}`, '❌');
+      addLog('error', `Error: ${error}`, '[x]');
     }
   }, [error]);
 
@@ -62,7 +62,7 @@ function TableSyncPanel() {
   };
 
   const optimisticRequestTable = (tableId: string) => {
-    addLog('info', `Optimistically requesting table: ${tableId}`, '📡');
+    addLog('info', `Optimistically requesting table: ${tableId}`, '[->]');
     setMutationQueue(q => [...q, { type: 'update', payload: { tableId } }]);
   };
 
@@ -74,13 +74,13 @@ function TableSyncPanel() {
         try {
           if (mutation.type === 'create') {
             await tableSync.request_new_table(mutation.payload.name);
-            addLog('success', `Table created: ${mutation.payload.name}`, '✅');
+            addLog('success', `Table created: ${mutation.payload.name}`, '[ok]');
           } else if (mutation.type === 'update') {
             await tableSync.request_table(mutation.payload.tableId);
-            addLog('success', `Table requested: ${mutation.payload.tableId}`, '✅');
+            addLog('success', `Table requested: ${mutation.payload.tableId}`, '[ok]');
           }
         } catch (err) {
-          addLog('error', `Failed to ${mutation.type} table: ${err}`, '❌');
+          addLog('error', `Failed to ${mutation.type} table: ${err}`, '[x]');
         }
       }
       setMutationQueue([]);
@@ -90,7 +90,7 @@ function TableSyncPanel() {
 
   const handleRequestTable = async () => {
     if (!tableSync || !currentTableId.trim()) {
-      addLog('warning', 'Please enter a table ID', '⚠️');
+      addLog('warning', 'Please enter a table ID', '[!]');
       return;
     }
     optimisticRequestTable(currentTableId.trim());
@@ -98,7 +98,7 @@ function TableSyncPanel() {
 
   const handleCreateNewTable = async () => {
     if (!tableSync || !newTableName.trim()) {
-      addLog('warning', 'Please enter a table name', '⚠️');
+      addLog('warning', 'Please enter a table name', '[!]');
       return;
     }
     optimisticCreateTable(newTableName.trim());
@@ -107,13 +107,13 @@ function TableSyncPanel() {
 
   const handleAddSprite = async () => {
     if (!tableSync) {
-      addLog('warning', 'Table sync not available', '⚠️');
+      addLog('warning', 'Table sync not available', '[!]');
       return;
     }
 
     try {
       const spriteId = `sprite_${Date.now()}`;
-      addLog('info', `Adding sprite: ${spriteData.name}`, '🎨');
+      addLog('info', `Adding sprite: ${spriteData.name}`, '[~]');
       
       await tableSync.add_sprite(
         spriteId,
@@ -126,21 +126,21 @@ function TableSyncPanel() {
         spriteData.rotation
       );
       
-      addLog('success', `Sprite added: ${spriteData.name} (${spriteId})`, '✅');
+      addLog('success', `Sprite added: ${spriteData.name} (${spriteId})`, '[ok]');
     } catch (err) {
-      addLog('error', `Failed to add sprite: ${err}`, '❌');
+      addLog('error', `Failed to add sprite: ${err}`, '[x]');
     }
   };
 
   const handleUpdateSprite = async () => {
     if (!tableSync) {
-      addLog('warning', 'Table sync not available', '⚠️');
+      addLog('warning', 'Table sync not available', '[!]');
       return;
     }
 
     try {
       const spriteId = `sprite_${Date.now() - 1000}`; // Use a recent ID for demo
-      addLog('info', `Updating sprite: ${spriteData.name}`, '📝');
+      addLog('info', `Updating sprite: ${spriteData.name}`, '[e]');
       
       await tableSync.update_sprite(
         spriteId,
@@ -153,38 +153,38 @@ function TableSyncPanel() {
         spriteData.rotation
       );
       
-      addLog('success', `Sprite updated: ${spriteData.name} (${spriteId})`, '✅');
+      addLog('success', `Sprite updated: ${spriteData.name} (${spriteId})`, '[ok]');
     } catch (err) {
-      addLog('error', `Failed to update sprite: ${err}`, '❌');
+      addLog('error', `Failed to update sprite: ${err}`, '[x]');
     }
   };
 
   const handleRemoveSprite = async () => {
     if (!tableSync) {
-      addLog('warning', 'Table sync not available', '⚠️');
+      addLog('warning', 'Table sync not available', '[!]');
       return;
     }
 
     try {
       const spriteId = `sprite_${Date.now() - 1000}`; // Use a recent ID for demo
-      addLog('info', `Removing sprite: ${spriteId}`, '🗑️');
+      addLog('info', `Removing sprite: ${spriteId}`, '[del]');
       
       await tableSync.remove_sprite(spriteId);
-      addLog('success', `Sprite removed: ${spriteId}`, '✅');
+      addLog('success', `Sprite removed: ${spriteId}`, '[ok]');
     } catch (err) {
-      addLog('error', `Failed to remove sprite: ${err}`, '❌');
+      addLog('error', `Failed to remove sprite: ${err}`, '[x]');
     }
   };
 
   const handleAddTestLine = async () => {
     if (!tableSync) {
-      addLog('warning', 'Table sync not available', '⚠️');
+      addLog('warning', 'Table sync not available', '[!]');
       return;
     }
 
     try {
       const spriteId = `line_${Date.now()}`;
-      addLog('info', `Adding test line segment`, '📏');
+      addLog('info', `Adding test line segment`, '[--]');
       
       await tableSync.add_sprite(
         spriteId,
@@ -197,21 +197,21 @@ function TableSyncPanel() {
         0
       );
       
-      addLog('success', `Line segment added: ${spriteId}`, '✅');
+      addLog('success', `Line segment added: ${spriteId}`, '[ok]');
     } catch (err) {
-      addLog('error', `Failed to add line: ${err}`, '❌');
+      addLog('error', `Failed to add line: ${err}`, '[x]');
     }
   };
 
   const handleAddTestCircle = async () => {
     if (!tableSync) {
-      addLog('warning', 'Table sync not available', '⚠️');
+      addLog('warning', 'Table sync not available', '[!]');
       return;
     }
 
     try {
       const spriteId = `circle_${Date.now()}`;
-      addLog('info', `Adding test circle`, '⭕');
+      addLog('info', `Adding test circle`, '[o]');
       
       await tableSync.add_sprite(
         spriteId,
@@ -224,22 +224,22 @@ function TableSyncPanel() {
         0
       );
       
-      addLog('success', `Circle added: ${spriteId}`, '✅');
+      addLog('success', `Circle added: ${spriteId}`, '[ok]');
     } catch (err) {
-      addLog('error', `Failed to add circle: ${err}`, '❌');
+      addLog('error', `Failed to add circle: ${err}`, '[x]');
     }
   };
 
   const clearLog = () => {
     setActivityLog([]);
-    addLog('info', 'Activity log cleared', '🧹');
+    addLog('info', 'Activity log cleared', '[c]');
   };
 
   if (isLoading) {
     return (
       <div className="panel-base">
         <div className="loading-state">
-          <div className="loading-spinner">⏳</div>
+          <div className="loading-spinner">...</div>
           <p>Loading table sync...</p>
         </div>
       </div>
@@ -249,21 +249,21 @@ function TableSyncPanel() {
   return (
     <div className="panel-base">
       <div className={styles.panelHeader}>
-        <h3>🎲 Table Sync</h3>
+        <h3>Table Sync</h3>
         <div className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
-          <span>{isConnected ? '🟢' : '🔴'}</span>
+          <span>{isConnected ? '[ok]' : '[x]'}</span>
           <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
         </div>
       </div>
 
       {error && (
         <div className="error-banner">
-          <span>❌ {error}</span>
+          <span>[x] {error}</span>
         </div>
       )}
 
       <div className="panel-section">
-        <h4>📡 Table Operations</h4>
+        <h4>Table Operations</h4>
         <div className="control-group">
           <div className="input-group">
             <label>Table ID</label>
@@ -280,7 +280,7 @@ function TableSyncPanel() {
             disabled={!tableSync || !isConnected}
             className="panel-button primary"
           >
-            📡 Request Table
+            Request Table
           </button>
         </div>
         
@@ -306,7 +306,7 @@ function TableSyncPanel() {
       </div>
 
       <div className="panel-section">
-        <h4>🎨 Sprite Operations</h4>
+        <h4>Sprite Operations</h4>
         <div className="control-group">
           <div className="input-grid">
             <div className="input-group">
@@ -393,21 +393,21 @@ function TableSyncPanel() {
               disabled={!tableSync || !isConnected}
               className="panel-button success"
             >
-              ➕ Add Sprite
+              + Add Sprite
             </button>
             <button 
               onClick={handleUpdateSprite}
               disabled={!tableSync || !isConnected}
               className="panel-button primary"
             >
-              📝 Update Sprite
+              Update Sprite
             </button>
             <button 
               onClick={handleRemoveSprite}
               disabled={!tableSync || !isConnected}
               className="panel-button danger"
             >
-              🗑️ Remove Sprite
+              Remove Sprite
             </button>
           </div>
           
@@ -422,7 +422,7 @@ function TableSyncPanel() {
                 className="panel-button"
                 title="Add horizontal line segment (100x5)"
               >
-                📏 Line Segment
+                Line Segment
               </button>
               <button 
                 onClick={handleAddTestCircle}
@@ -430,7 +430,7 @@ function TableSyncPanel() {
                 className="panel-button"
                 title="Add circle (60px diameter)"
               >
-                ⭕ Circle
+                Circle
               </button>
             </div>
           </div>
@@ -439,16 +439,16 @@ function TableSyncPanel() {
 
       <div className="panel-section">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <h4>📋 Activity Log</h4>
+          <h4>Activity Log</h4>
           <button onClick={clearLog} className="panel-button">
-            🧹 Clear
+            Clear
           </button>
         </div>
         
         <div className="activity-log">
           {activityLog.length === 0 ? (
             <div className="empty-state">
-              <span>📝 No activity yet. Try requesting a table or adding a sprite!</span>
+              <span>No activity yet. Try requesting a table or adding a sprite!</span>
             </div>
           ) : (
             activityLog.map((log) => (

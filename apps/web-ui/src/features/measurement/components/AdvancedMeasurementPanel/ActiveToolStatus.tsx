@@ -28,12 +28,12 @@ export const ActiveToolStatus: FC<ActiveToolStatusProps> = ({
       </div>
       {activeMeasurement && (
         <div className={styles.measurementStatus}>
-          <span>📏 Measuring... Click to complete</span>
+          <span>Measuring... Click to complete</span>
         </div>
       )}
       {isCreatingShape && (
         <div className={styles.shapeStatus}>
-          <span>📐 Creating {selectedShapeType}... {shapePoints.length} points</span>
+          <span>Creating {selectedShapeType}... {shapePoints.length} points</span>
           {selectedShapeType === 'polygon' && (
             <span className={styles.shapeHelp}>Double-click to complete</span>
           )}

@@ -26,7 +26,7 @@ interface UseContextMenuProps {
 }
 
 export const useContextMenu = ({ canvasRef, rustRenderManagerRef, protocol }: UseContextMenuProps) => {
-  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
+ const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     visible: false,
     x: 0,
     y: 0,
@@ -42,15 +42,15 @@ export const useContextMenu = ({ canvasRef, rustRenderManagerRef, protocol }: Us
       switch (action) {
         case 'delete':
           if (spriteId && protocol) {
-            console.log('🗑️ GameCanvas: Sending sprite delete request to server:', spriteId);
+            console.log(' GameCanvas: Sending sprite delete request to server:', spriteId);
             try {
               protocol.removeSprite(spriteId);
-              console.log('✅ GameCanvas: Sprite delete request sent to server');
+              console.log(' GameCanvas: Sprite delete request sent to server');
             } catch (error) {
-              console.error('❌ GameCanvas: Failed to send sprite delete request:', error);
+              console.error(' GameCanvas: Failed to send sprite delete request:', error);
             }
           } else if (spriteId) {
-            console.warn('⚠️ GameCanvas: Protocol not available, deleting sprite locally only');
+            console.warn(' GameCanvas: Protocol not available, deleting sprite locally only');
             rustRenderManagerRef.current.delete_sprite(spriteId);
           }
           break;
@@ -73,8 +73,8 @@ export const useContextMenu = ({ canvasRef, rustRenderManagerRef, protocol }: Us
               rustRenderManagerRef.current.paste_sprite(
                 'tokens',
                 contextMenu.copiedSprite,
-                worldCoords[0],
-                worldCoords[1]
+ worldCoords[0],
+ worldCoords[1]
               );
             }
           }
@@ -83,7 +83,7 @@ export const useContextMenu = ({ canvasRef, rustRenderManagerRef, protocol }: Us
           if (spriteId) {
             const newSize = prompt('Enter new size (width,height):', '64,64');
             if (newSize) {
-              const [width, height] = newSize.split(',').map((n) => parseFloat(n.trim()));
+ const [width, height] = newSize.split(',').map((n) => parseFloat(n.trim()));
               if (!isNaN(width) && !isNaN(height)) {
                 rustRenderManagerRef.current.resize_sprite(spriteId, width, height);
               }
@@ -114,7 +114,7 @@ export const useContextMenu = ({ canvasRef, rustRenderManagerRef, protocol }: Us
         }));
       }
     },
-    [contextMenu, protocol, canvasRef, rustRenderManagerRef]
+ [contextMenu, protocol, canvasRef, rustRenderManagerRef]
   );
 
   const handleMoveToLayer = useCallback(
@@ -127,10 +127,10 @@ export const useContextMenu = ({ canvasRef, rustRenderManagerRef, protocol }: Us
         const renderEngine = rustRenderManagerRef.current as any;
         if (renderEngine.move_sprite_to_layer_action) {
           const result = renderEngine.move_sprite_to_layer_action(contextMenu.spriteId, layerId);
-          console.log(`✅ GameCanvas: Moved sprite ${contextMenu.spriteId} to layer ${layerId}`, result);
+          console.log(` GameCanvas: Moved sprite ${contextMenu.spriteId} to layer ${layerId}`, result);
 
           updateSprite(contextMenu.spriteId, { layer: layerId });
-          console.log(`🔄 GameCanvas: Updated sprite ${contextMenu.spriteId} layer in store to ${layerId}`);
+          console.log(` GameCanvas: Updated sprite ${contextMenu.spriteId} layer in store to ${layerId}`);
 
           window.dispatchEvent(
             new CustomEvent('spriteLayerChanged', {
@@ -138,10 +138,10 @@ export const useContextMenu = ({ canvasRef, rustRenderManagerRef, protocol }: Us
             })
           );
         } else {
-          console.warn('⚠️ GameCanvas: move_sprite_to_layer_action not available in WASM');
+          console.warn(' GameCanvas: move_sprite_to_layer_action not available in WASM');
         }
       } catch (error) {
-        console.error('❌ GameCanvas: Failed to move sprite to layer:', error);
+        console.error(' GameCanvas: Failed to move sprite to layer:', error);
       }
 
       setContextMenu((prev) => ({
@@ -152,7 +152,7 @@ export const useContextMenu = ({ canvasRef, rustRenderManagerRef, protocol }: Us
         copiedSprite: prev.copiedSprite,
       }));
     },
-    [contextMenu.spriteId, rustRenderManagerRef]
+ [contextMenu.spriteId, rustRenderManagerRef]
   );
 
   // Close context menu on click outside
@@ -169,7 +169,7 @@ export const useContextMenu = ({ canvasRef, rustRenderManagerRef, protocol }: Us
       document.addEventListener('click', handleClick);
       return () => document.removeEventListener('click', handleClick);
     }
-  }, [contextMenu.visible]);
+ }, [contextMenu.visible]);
 
   return {
     contextMenu,
@@ -180,7 +180,7 @@ export const useContextMenu = ({ canvasRef, rustRenderManagerRef, protocol }: Us
 };
 
 export const useLightPlacement = (canvasRef: RefObject<HTMLCanvasElement>) => {
-  const [lightPlacementMode, setLightPlacementMode] = useState<LightPlacementMode | null>(null);
+ const [lightPlacementMode, setLightPlacementMode] = useState<LightPlacementMode | null>(null);
 
   // Listen for light placement events from LightingPanel
   useEffect(() => {
@@ -212,7 +212,7 @@ export const useLightPlacement = (canvasRef: RefObject<HTMLCanvasElement>) => {
       window.removeEventListener('startLightPlacement', handleStartPlacement);
       window.removeEventListener('cancelLightPlacement', handleCancelPlacement);
     };
-  }, [canvasRef]);
+ }, [canvasRef]);
 
   return {
     lightPlacementMode,

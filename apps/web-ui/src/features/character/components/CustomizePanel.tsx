@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Moon, Paintbrush, Settings, Sliders } from 'lucide-react';
 import styles from './CustomizePanel.module.css';
 
 type Theme = 'dark' | 'light' | 'high-contrast' | 'cyberpunk' | 'forest';
@@ -53,13 +54,13 @@ export function CustomizePanel() {
   return (
     <div className={styles.customizePanel}>
       <div className={styles.header}>
-        <h2>🎨 Customize Interface</h2>
+        <h2><Paintbrush size={18} aria-hidden /> Customize Interface</h2>
         <p className={styles.subtitle}>Personalize your TTRPG experience</p>
       </div>
 
       {/* Theme Selection */}
       <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>🌙 Theme</h3>
+        <h3 className={styles.sectionTitle}><Moon size={14} aria-hidden /> Theme</h3>
         <div className={styles.themeGrid}>
           <button
             className={`${styles.themeCard} ${theme === 'dark' ? styles.active : ''}`}
@@ -101,7 +102,7 @@ export function CustomizePanel() {
 
       {/* Color Scheme */}
       <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>🎨 Accent Color</h3>
+        <h3 className={styles.sectionTitle}><Paintbrush size={14} aria-hidden /> Accent Color</h3>
         <div className={styles.colorGrid}>
           {(['blue', 'purple', 'green', 'red', 'orange'] as ColorScheme[]).map((color) => (
             <button
@@ -111,7 +112,7 @@ export function CustomizePanel() {
               onClick={() => handleColorSchemeChange(color)}
               aria-label={`${color} accent`}
             >
-              {colorScheme === color && <span className={styles.checkmark}>✓</span>}
+              {colorScheme === color && <span className={styles.checkmark}><Sliders size={12} aria-hidden /></span>}
             </button>
           ))}
         </div>
@@ -119,7 +120,7 @@ export function CustomizePanel() {
 
       {/* Button Style */}
       <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>🔘 Button Style</h3>
+        <h3 className={styles.sectionTitle}><Sliders size={14} aria-hidden /> Button Style</h3>
         <div className={styles.buttonStyleGrid}>
           <button
             className={`${styles.stylePreviewButton} ${buttonStyle === 'rounded' ? styles.active : ''}`}
@@ -147,7 +148,7 @@ export function CustomizePanel() {
 
       {/* Advanced Settings */}
       <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>⚙️ Advanced</h3>
+        <h3 className={styles.sectionTitle}><Settings size={14} aria-hidden /> Advanced</h3>
         
         <div className={styles.settingRow}>
           <label className={styles.settingLabel}>

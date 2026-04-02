@@ -669,13 +669,13 @@ export const CombatIntegrationTests: React.FC = () => {
   const getStatusIcon = (status: 'pass' | 'fail' | 'pending') => {
     switch (status) {
       case 'pass':
-        return '✅';
+        return '[ok]';
       case 'fail':
-        return '❌';
+        return '[x]';
       case 'pending':
-        return '⏳';
+        return '...';
       default:
-        return '❓';
+        return '[?]';
     }
   };
 
@@ -716,7 +716,7 @@ export const CombatIntegrationTests: React.FC = () => {
           onClick={runComprehensiveTests}
           disabled={isRunningTests}
         >
-          {isRunningTests ? '🔄 Running Tests...' : '▶️ Run All Tests'}
+          {isRunningTests ? 'Running Tests...' : 'Run All Tests'}
         </button>
       </div>
 

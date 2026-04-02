@@ -54,7 +54,7 @@ class AssetIntegrationService {
    */
   initialize(): void {
     this.setupEventListeners();
-    console.log('Asset Integration Service initialized');
+ console.log('Asset Integration Service initialized');
   }
 
   /**
@@ -96,10 +96,10 @@ class AssetIntegrationService {
   }
 
   private async handleAssetDownloaded(data: AssetDownloadResponse): Promise<void> {
-    console.log('Asset download response received:', data);
+ console.log('Asset download response received:', data);
 
     if (!data.success) {
-      console.error('Asset download failed:', data.error);
+ console.error('Asset download failed:', data.error);
       return;
     }
 
@@ -112,15 +112,15 @@ class AssetIntegrationService {
         await this.cacheAssetData(data.asset_id, data.asset_data);
       }
     } catch (error) {
-      console.error('Failed to process asset download:', error);
+ console.error('Failed to process asset download:', error);
     }
   }
 
   private handleAssetListUpdated(data: AssetListResponse): void {
-    console.log('Asset list updated:', data);
+ console.log('Asset list updated:', data);
 
     if (!data.success) {
-      console.error('Asset list update failed:', data.error);
+ console.error('Asset list update failed:', data.error);
       return;
     }
 
@@ -133,10 +133,10 @@ class AssetIntegrationService {
   }
 
   private async handleAssetUploadResponse(data: AssetUploadResponse): Promise<void> {
-    console.log('Asset upload response received:', data);
+ console.log('Asset upload response received:', data);
 
     if (!data.success) {
-      console.error('Asset upload failed:', data.error);
+ console.error('Asset upload failed:', data.error);
       window.dispatchEvent(new CustomEvent('asset-upload-failed', { 
         detail: { error: data.error } 
       }));
@@ -155,16 +155,16 @@ class AssetIntegrationService {
   }
 
   private handleAssetUploadCompleted(data: AssetUploadCompleted): void {
-    console.log('🎯 AssetIntegrationService: Upload completed for asset:', data.asset_id);
+    console.log(' AssetIntegrationService: Upload completed for asset:', data.asset_id);
 
     if (!data.success) {
-      console.error('Asset upload to R2 failed:', data.error);
+ console.error('Asset upload to R2 failed:', data.error);
       return;
     }
 
     // Send confirmation to server that upload is complete
     if (this.protocol) {
-      console.log('📡 AssetIntegrationService: Confirming upload to server for asset:', data.asset_id);
+      console.log(' AssetIntegrationService: Confirming upload to server for asset:', data.asset_id);
       this.protocol.sendMessage(createMessage(MessageType.ASSET_UPLOAD_CONFIRM, {
         asset_id: data.asset_id,
         success: true,
@@ -172,13 +172,13 @@ class AssetIntegrationService {
         content_type: data.content_type
       }, 2));
     } else {
-      console.error('Protocol service not available for upload confirmation');
+ console.error('Protocol service not available for upload confirmation');
     }
   }
 
   private async downloadAndCacheAsset(assetId: string, downloadUrl: string): Promise<void> {
     try {
-      console.log('Downloading asset:', assetId, 'from:', downloadUrl);
+ console.log('Downloading asset:', assetId, 'from:', downloadUrl);
 
       const response = await fetch(downloadUrl);
       if (!response.ok) {
@@ -195,10 +195,10 @@ class AssetIntegrationService {
       // For now, we'll store it in a simple cache and load it into WASM
       await this.loadAssetIntoWasm(assetId, objectUrl);
 
-      console.log('Asset downloaded and cached:', assetId);
+ console.log('Asset downloaded and cached:', assetId);
 
     } catch (error) {
-      console.error('Failed to download and cache asset:', error);
+ console.error('Failed to download and cache asset:', error);
     }
   }
 
@@ -210,10 +210,10 @@ class AssetIntegrationService {
       
       await this.loadAssetIntoWasm(assetId, objectUrl);
       
-      console.log('Asset data cached:', assetId);
+ console.log('Asset data cached:', assetId);
 
     } catch (error) {
-      console.error('Failed to cache asset data:', error);
+ console.error('Failed to cache asset data:', error);
     }
   }
 
@@ -228,7 +228,7 @@ class AssetIntegrationService {
             // Load texture into WASM render engine
             if (window.rustRenderManager && window.rustRenderManager.load_texture) {
               window.rustRenderManager.load_texture(assetId, img);
-              console.log('Texture loaded into WASM:', assetId);
+ console.log('Texture loaded into WASM:', assetId);
             }
             resolve();
           } catch (error) {
@@ -244,7 +244,7 @@ class AssetIntegrationService {
       });
 
     } catch (error) {
-      console.error('Failed to load asset into WASM:', error);
+ console.error('Failed to load asset into WASM:', error);
       throw error;
     }
   }
@@ -258,10 +258,10 @@ class AssetIntegrationService {
     const bytes = new Uint8Array(binaryString.length);
     
     for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
+ bytes[i] = binaryString.charCodeAt(i);
     }
     
-    return new Blob([bytes]);
+ return new Blob([bytes]);
   }
 
   /**

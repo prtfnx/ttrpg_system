@@ -16,14 +16,14 @@ describe('CollapsedView', () => {
     it('renders manage players button', () => {
       render(<CollapsedView sessionCode={testSessionCode} onToggle={mockOnToggle} />);
 
-      const button = screen.getByRole('button', { name: '👥 Manage Players' });
+      const button = screen.getByRole('button', { name: 'Manage Players' });
       expect(button).toBeInTheDocument();
     });
 
     it('renders admin panel link with correct href', () => {
       render(<CollapsedView sessionCode={testSessionCode} onToggle={mockOnToggle} />);
 
-      const adminLink = screen.getByRole('link', { name: '⚙️ Admin Panel' });
+      const adminLink = screen.getByRole('link', { name: 'Admin Panel' });
       expect(adminLink).toBeInTheDocument();
       expect(adminLink).toHaveAttribute('href', `/game/session/${testSessionCode}/admin`);
     });
@@ -31,7 +31,7 @@ describe('CollapsedView', () => {
     it('admin panel link opens in new tab', () => {
       render(<CollapsedView sessionCode={testSessionCode} onToggle={mockOnToggle} />);
 
-      const adminLink = screen.getByRole('link', { name: '⚙️ Admin Panel' });
+      const adminLink = screen.getByRole('link', { name: 'Admin Panel' });
       expect(adminLink).toHaveAttribute('target', '_blank');
       expect(adminLink).toHaveAttribute('rel', 'noopener noreferrer');
     });
@@ -40,14 +40,14 @@ describe('CollapsedView', () => {
       const customSessionCode = 'CUSTOM456';
       render(<CollapsedView sessionCode={customSessionCode} onToggle={mockOnToggle} />);
 
-      const adminLink = screen.getByRole('link', { name: '⚙️ Admin Panel' });
+      const adminLink = screen.getByRole('link', { name: 'Admin Panel' });
       expect(adminLink).toHaveAttribute('href', `/game/session/${customSessionCode}/admin`);
     });
 
     it('handles empty session code gracefully', () => {
       render(<CollapsedView sessionCode="" onToggle={mockOnToggle} />);
 
-      const adminLink = screen.getByRole('link', { name: '⚙️ Admin Panel' });
+      const adminLink = screen.getByRole('link', { name: 'Admin Panel' });
       expect(adminLink).toHaveAttribute('href', '/game/session//admin');
     });
 
@@ -55,7 +55,7 @@ describe('CollapsedView', () => {
       const specialSessionCode = 'TEST-123_ABC';
       render(<CollapsedView sessionCode={specialSessionCode} onToggle={mockOnToggle} />);
 
-      const adminLink = screen.getByRole('link', { name: '⚙️ Admin Panel' });
+      const adminLink = screen.getByRole('link', { name: 'Admin Panel' });
       expect(adminLink).toHaveAttribute('href', `/game/session/${specialSessionCode}/admin`);
     });
   });
@@ -64,7 +64,7 @@ describe('CollapsedView', () => {
     it('calls onToggle when manage players button is clicked', async () => {
       render(<CollapsedView sessionCode={testSessionCode} onToggle={mockOnToggle} />);
 
-      const button = screen.getByRole('button', { name: '👥 Manage Players' });
+      const button = screen.getByRole('button', { name: 'Manage Players' });
       await user.click(button);
 
       expect(mockOnToggle).toHaveBeenCalledTimes(1);
@@ -73,7 +73,7 @@ describe('CollapsedView', () => {
     it('calls onToggle only once per click', async () => {
       render(<CollapsedView sessionCode={testSessionCode} onToggle={mockOnToggle} />);
 
-      const button = screen.getByRole('button', { name: '👥 Manage Players' });
+      const button = screen.getByRole('button', { name: 'Manage Players' });
       await user.click(button);
       await user.click(button);
       await user.click(button);
@@ -84,7 +84,7 @@ describe('CollapsedView', () => {
     it('does not prevent default admin panel link behavior', async () => {
       render(<CollapsedView sessionCode={testSessionCode} onToggle={mockOnToggle} />);
 
-      const adminLink = screen.getByRole('link', { name: '⚙️ Admin Panel' });
+      const adminLink = screen.getByRole('link', { name: 'Admin Panel' });
       
       // Click on admin link - should not call onToggle
       await user.click(adminLink);
@@ -96,7 +96,7 @@ describe('CollapsedView', () => {
     it('button is accessible via keyboard', async () => {
       render(<CollapsedView sessionCode={testSessionCode} onToggle={mockOnToggle} />);
 
-      const button = screen.getByRole('button', { name: '👥 Manage Players' });
+      const button = screen.getByRole('button', { name: 'Manage Players' });
       
       // Focus and activate with Enter
       button.focus();
@@ -108,7 +108,7 @@ describe('CollapsedView', () => {
     it('button is accessible via Space key', async () => {
       render(<CollapsedView sessionCode={testSessionCode} onToggle={mockOnToggle} />);
 
-      const button = screen.getByRole('button', { name: '👥 Manage Players' });
+      const button = screen.getByRole('button', { name: 'Manage Players' });
       
       // Focus and activate with Space
       button.focus();
@@ -120,7 +120,7 @@ describe('CollapsedView', () => {
     it('admin link is accessible via keyboard', () => {
       render(<CollapsedView sessionCode={testSessionCode} onToggle={mockOnToggle} />);
 
-      const adminLink = screen.getByRole('link', { name: '⚙️ Admin Panel' });
+      const adminLink = screen.getByRole('link', { name: 'Admin Panel' });
       
       // Should be focusable
       adminLink.focus();
@@ -130,8 +130,8 @@ describe('CollapsedView', () => {
     it('supports tab navigation between elements', () => {
       render(<CollapsedView sessionCode={testSessionCode} onToggle={mockOnToggle} />);
 
-      const button = screen.getByRole('button', { name: '👥 Manage Players' });
-      const adminLink = screen.getByRole('link', { name: '⚙️ Admin Panel' });
+      const button = screen.getByRole('button', { name: 'Manage Players' });
+      const adminLink = screen.getByRole('link', { name: 'Admin Panel' });
 
       // Both elements should be in tab order
       expect(button).not.toHaveAttribute('tabindex', '-1');
@@ -143,8 +143,8 @@ describe('CollapsedView', () => {
     it('displays correct emojis/icons', () => {
       render(<CollapsedView sessionCode={testSessionCode} onToggle={mockOnToggle} />);
 
-      expect(screen.getByText('👥 Manage Players')).toBeInTheDocument();
-      expect(screen.getByText('⚙️ Admin Panel')).toBeInTheDocument();
+      expect(screen.getByText('Manage Players')).toBeInTheDocument();
+      expect(screen.getByText('Admin Panel')).toBeInTheDocument();
     });
 
     it('applies correct CSS classes', () => {
@@ -154,10 +154,10 @@ describe('CollapsedView', () => {
 
       const collapsedDiv = container.firstChild as HTMLElement;
     expect(collapsedDiv).toHaveClass('_collapsed_5b9edc');
-      const button = screen.getByRole('button', { name: '👥 Manage Players' });
+      const button = screen.getByRole('button', { name: 'Manage Players' });
       expect(button).toHaveClass('_toggle_5b9edc');
 
-      const adminLink = screen.getByRole('link', { name: '⚙️ Admin Panel' });
+      const adminLink = screen.getByRole('link', { name: 'Admin Panel' });
       expect(adminLink).toHaveClass('_adminLink_5b9edc');
     });
   });
@@ -173,7 +173,7 @@ describe('CollapsedView', () => {
       );
 
       // Should work with first handler
-      const button = screen.getByRole('button', { name: '👥 Manage Players' });
+      const button = screen.getByRole('button', { name: 'Manage Players' });
       user.click(button);
 
       // Update prop
@@ -189,13 +189,13 @@ describe('CollapsedView', () => {
         <CollapsedView sessionCode="INITIAL" onToggle={mockOnToggle} />
       );
 
-      let adminLink = screen.getByRole('link', { name: '⚙️ Admin Panel' });
+      let adminLink = screen.getByRole('link', { name: 'Admin Panel' });
       expect(adminLink).toHaveAttribute('href', '/game/session/INITIAL/admin');
 
       // Change session code
       rerender(<CollapsedView sessionCode="UPDATED" onToggle={mockOnToggle} />);
 
-      adminLink = screen.getByRole('link', { name: '⚙️ Admin Panel' });
+      adminLink = screen.getByRole('link', { name: 'Admin Panel' });
       expect(adminLink).toHaveAttribute('href', '/game/session/UPDATED/admin');
     });
   });
@@ -204,7 +204,7 @@ describe('CollapsedView', () => {
     it('uses proper rel attributes for external link security', () => {
       render(<CollapsedView sessionCode={testSessionCode} onToggle={mockOnToggle} />);
 
-      const adminLink = screen.getByRole('link', { name: '⚙️ Admin Panel' });
+      const adminLink = screen.getByRole('link', { name: 'Admin Panel' });
       const relValue = adminLink.getAttribute('rel');
       
       expect(relValue).toContain('noopener');
@@ -216,7 +216,7 @@ describe('CollapsedView', () => {
       render(<CollapsedView sessionCode={maliciousCode} onToggle={mockOnToggle} />);
 
       // The href should contain the raw string, not execute as script
-      const adminLink = screen.getByRole('link', { name: '⚙️ Admin Panel' });
+      const adminLink = screen.getByRole('link', { name: 'Admin Panel' });
       expect(adminLink.getAttribute('href')).toBe(`/game/session/${maliciousCode}/admin`);
       
       // Should not create any script elements

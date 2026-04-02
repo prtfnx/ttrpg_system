@@ -61,17 +61,17 @@ const AdvancedMeasurementPanel: FC<AdvancedMeasurementPanelProps> = ({
       <div className={styles.measurementPanelOverlay}>
         <div className={styles.measurementPanel}>
           <div className={styles.panelHeader}>
-            <h2>📏 Advanced Measurement & Grid System</h2>
+            <h2>Advanced Measurement & Grid System</h2>
             <button className={styles.closeBtn} onClick={onClose} aria-label="Close panel">
-              ✕
+              x
             </button>
           </div>
 
           {error && (
             <div className={styles.errorMessage} role="alert">
-              <span className={styles.errorIcon}>⚠️</span>
+              <span className={styles.errorIcon}>!</span>
               {error}
-              <button className={styles.errorDismiss} onClick={() => setError(null)}>✕</button>
+              <button className={styles.errorDismiss} onClick={() => setError(null)}>x</button>
             </div>
           )}
 

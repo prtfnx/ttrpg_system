@@ -4,6 +4,17 @@ import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('@shared/components/FloatingWindow', () => ({
+  useWindowManager: () => ({
+    openWindow: vi.fn(),
+    closeWindow: vi.fn(),
+    bringToFront: vi.fn(),
+    isOpen: vi.fn(() => false),
+  }),
+  WindowManagerProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  FloatingWindow: vi.fn(() => null),
+}));
+
 // Import web client system components
 import { ActionsPanel } from '@features/actions';
 import { AssetPanel } from '@features/assets';

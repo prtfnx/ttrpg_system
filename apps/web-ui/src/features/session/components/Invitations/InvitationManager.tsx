@@ -73,7 +73,7 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
       <div className={styles.modal} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Manage Invitations">
         <div className={styles.header}>
           <h2>Manage Invitations</h2>
-          <button className={styles.closeBtn} onClick={onClose}>✕</button>
+          <button className={styles.closeBtn} onClick={onClose} aria-label="Close">x</button>
         </div>
 
         {!loading && (

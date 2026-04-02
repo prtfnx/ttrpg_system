@@ -48,6 +48,17 @@ vi.mock('../../utils/toast', () => ({
   },
 }));
 
+vi.mock('@shared/components/FloatingWindow', () => ({
+  useWindowManager: () => ({
+    openWindow: vi.fn(),
+    closeWindow: vi.fn(),
+    bringToFront: vi.fn(),
+    isOpen: vi.fn(() => false),
+  }),
+  WindowManagerProvider: ({ children }: { children: unknown }) => children,
+  FloatingWindow: vi.fn(() => null),
+}));
+
 vi.mock('@shared/utils/characterImportExport', () => ({
   cloneCharacter: vi.fn((char, userId) => ({
     ...char,
@@ -353,7 +364,7 @@ describe('CharacterPanel', () => {
       render(<CharacterPanel />);
       
       // Enter bulk selection mode
-      const selectButton = screen.getByRole('button', { name: /☑ select/i });
+      const selectButton = screen.getByRole('button', { name: /^select$/i });
       await user.click(selectButton);
       
       // Should show bulk actions - use getAllByText for multiple matches
@@ -369,7 +380,7 @@ describe('CharacterPanel', () => {
       render(<CharacterPanel />);
       
       // Enter bulk selection mode
-      const selectButton = screen.getByRole('button', { name: /☑ select/i });
+      const selectButton = screen.getByRole('button', { name: /^select$/i });
       await user.click(selectButton);
       
       // Select first character
@@ -385,7 +396,7 @@ describe('CharacterPanel', () => {
       render(<CharacterPanel />);
       
       // Enter bulk selection mode
-      const selectButton = screen.getByRole('button', { name: /☑ select/i });
+      const selectButton = screen.getByRole('button', { name: /^select$/i });
       await user.click(selectButton);
       
       // Click select all - get the first one (should be the actual select all button)

@@ -155,7 +155,7 @@ describe('useLayerManager', () => {
       expect(tokensLayer?.spriteCount).toBe(5);
       expect(mapLayer?.spriteCount).toBe(1);
       expect(tokensLayer?.displayName).toBe('Tokens/Characters');
-      expect(tokensLayer?.icon).toBe('⚔️');
+      expect(tokensLayer?.icon).toBe('sword');
     });
 
     it('refreshes layer data when called', async () => {

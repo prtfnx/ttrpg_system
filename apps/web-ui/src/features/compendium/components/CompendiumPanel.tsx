@@ -181,7 +181,7 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
   if (!isAuthenticated) {
     return (
       <div className={styles.panel}>
-        <div className={styles.status}>⚠️ Login required for compendium access</div>
+        <div className={styles.status}>Login required for compendium access</div>
       </div>
     );
   }
@@ -189,7 +189,7 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
   if (!hasPermission('compendium:read')) {
     return (
       <div className={styles.panel}>
-        <div className={`${styles.status} ${styles.error}`}>⚠️ Insufficient permissions</div>
+        <div className={`${styles.status} ${styles.error}`}>Insufficient permissions</div>
       </div>
     );
   }
@@ -197,7 +197,7 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
   return (
     <div className={`${styles.panel} ${className || ''}`} style={style} id={id} {...otherProps}>
       <div className={styles.header}>
-        <h3>📚 Compendium</h3>
+        <h3>Compendium</h3>
       </div>
 
       <div className={styles.controls}>

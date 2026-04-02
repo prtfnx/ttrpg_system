@@ -457,7 +457,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                                     }}
                                     disabled={!canSelect && !isSelected}
                                   >
-                                    {isSelected ? '✓ Selected' : '+ Add to Spellbook'}
+                                    {isSelected ? 'Selected' : '+ Add to Spellbook'}
                                   </button>
                                 </div>
                               )}

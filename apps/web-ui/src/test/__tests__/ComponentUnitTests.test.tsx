@@ -194,14 +194,13 @@ describe('CharacterSheet Component', () => {
     race: 'Human',
     class: 'Fighter',
     level: 1,
-    strength: 16,
-    dexterity: 14,
-    constitution: 15,
-    intelligence: 13,
-    wisdom: 12,
-    charisma: 10,
     background: 'Soldier',
-    skills: ['Athletics', 'Intimidation']
+    skills: ['Athletics', 'Intimidation'],
+    data: {
+      abilityScores: {
+        str: 16, dex: 14, con: 15, int: 13, wis: 12, cha: 10
+      }
+    }
   };
 
   it('renders without crashing with minimal data', () => {
@@ -243,9 +242,9 @@ describe('CharacterSheet Component', () => {
     } else {
       // Alternative: check that ability names are rendered (STRENGTH, DEXTERITY, etc.)
       const hasAbilityLabels = 
-        screen.queryByText(/STRENGTH/i) !== null ||
-        screen.queryByText(/DEXTERITY/i) !== null ||
-        screen.queryByText(/CONSTITUTION/i) !== null;
+        screen.queryAllByText(/^STR$/i).length > 0 ||
+        screen.queryAllByText(/^DEX$/i).length > 0 ||
+        screen.queryAllByText(/^CON$/i).length > 0;
       
       expect(hasAbilityLabels).toBe(true);
     }

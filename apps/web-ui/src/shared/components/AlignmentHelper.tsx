@@ -218,26 +218,26 @@ export function AlignmentHelper({ isActive }: AlignmentHelperProps) {
         <div className="alignment-group">
           <label>Horizontal:</label>
           <div className="button-group">
-            <button onClick={() => alignSprites('left')} title="Align Left">⬅️</button>
-            <button onClick={() => alignSprites('center')} title="Align Center">↔️</button>
-            <button onClick={() => alignSprites('right')} title="Align Right">➡️</button>
+            <button onClick={() => alignSprites('left')} title="Align Left">&larr;</button>
+            <button onClick={() => alignSprites('center')} title="Align Center">&harr;</button>
+            <button onClick={() => alignSprites('right')} title="Align Right">&rarr;</button>
           </div>
         </div>
         
         <div className="alignment-group">
           <label>Vertical:</label>
           <div className="button-group">
-            <button onClick={() => alignSprites('top')} title="Align Top">⬆️</button>
-            <button onClick={() => alignSprites('middle')} title="Align Middle">↕️</button>
-            <button onClick={() => alignSprites('bottom')} title="Align Bottom">⬇️</button>
+            <button onClick={() => alignSprites('top')} title="Align Top">&uarr;</button>
+            <button onClick={() => alignSprites('middle')} title="Align Middle">&varr;</button>
+            <button onClick={() => alignSprites('bottom')} title="Align Bottom">&darr;</button>
           </div>
         </div>
         
         <div className="alignment-group">
           <label>Distribute:</label>
           <div className="button-group">
-            <button onClick={() => alignSprites('distribute-h')} title="Distribute Horizontally">📐</button>
-            <button onClick={() => alignSprites('distribute-v')} title="Distribute Vertically">📏</button>
+            <button onClick={() => alignSprites('distribute-h')} title="Distribute Horizontally">H</button>
+            <button onClick={() => alignSprites('distribute-v')} title="Distribute Vertically">V</button>
           </div>
         </div>
         

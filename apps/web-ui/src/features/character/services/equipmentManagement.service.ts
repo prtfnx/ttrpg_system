@@ -176,7 +176,7 @@ export interface Tool extends Equipment {
 // Starting Equipment by Class
 export interface StartingEquipmentChoice {
   choose: number;
-  from: Equipment[];
+ from: Equipment[];
   type: 'equipment' | 'equipment_pack';
 }
 
@@ -615,11 +615,11 @@ export const ADVENTURING_GEAR: AdventuringGear[] = [
 // Starting equipment by class
 export const CLASS_STARTING_EQUIPMENT: Record<string, StartingEquipment> = {
   Fighter: {
-    equipment: [],
-    equipment_choices: [
+ equipment: [],
+ equipment_choices: [
       {
         choose: 1,
-        from: [
+ from: [
           ...ARMOR.filter(a => a.armor_type === ArmorType.HEAVY),
           ...ARMOR.filter(a => a.name === 'Leather'),
           ...ADVENTURING_GEAR.filter(g => g.name === 'Longbow')
@@ -629,11 +629,11 @@ export const CLASS_STARTING_EQUIPMENT: Record<string, StartingEquipment> = {
     ]
   },
   Wizard: {
-    equipment: [
+ equipment: [
       WEAPONS.find(w => w.name === 'Quarterstaff')!,
       ADVENTURING_GEAR.find(g => g.name === 'Backpack')!
     ],
-    equipment_choices: [
+ equipment_choices: [
       {
         choose: 1,
         from: WEAPONS.filter(w => w.name === 'Dagger'),
@@ -642,15 +642,15 @@ export const CLASS_STARTING_EQUIPMENT: Record<string, StartingEquipment> = {
     ]
   },
   Rogue: {
-    equipment: [
+ equipment: [
       ARMOR.find(a => a.name === 'Leather')!,
       WEAPONS.find(w => w.name === 'Dagger')!,
       WEAPONS.find(w => w.name === 'Dagger')!
     ],
-    equipment_choices: [
+ equipment_choices: [
       {
         choose: 1,
-        from: [
+ from: [
           WEAPONS.find(w => w.name === 'Rapier')!,
           WEAPONS.find(w => w.name === 'Shortsword')!
         ],
@@ -738,7 +738,7 @@ class EquipmentManagementService {
         } as Equipment;
       });
     } catch (error) {
-      console.error('Failed to fetch equipment from API:', error);
+ console.error('Failed to fetch equipment from API:', error);
       // For production, throw error instead of falling back to hardcoded data
       // This ensures proper error handling and prevents stale data usage
       throw new Error('Equipment data not available. Please check your connection and try again.');
@@ -762,7 +762,7 @@ class EquipmentManagementService {
     }
     
     this.equipmentCache = await this.fetchEquipmentFromAPI();
-    console.log(`✅ Loaded ${this.equipmentCache.length} equipment items from compendium`);
+    console.log(` Loaded ${this.equipmentCache.length} equipment items from compendium`);
     return this.equipmentCache;
   }
 
@@ -771,8 +771,8 @@ class EquipmentManagementService {
    */
   getStartingEquipment(characterClass: string): StartingEquipment {
     return CLASS_STARTING_EQUIPMENT[characterClass] || {
-      equipment: [],
-      equipment_choices: []
+ equipment: [],
+ equipment_choices: []
     };
   }
 
@@ -841,42 +841,42 @@ class EquipmentManagementService {
    * Get equipment proficiencies for a class
    */
   getClassProficiencies(characterClass: string): {
-    armor: string[];
-    weapons: string[];
-    tools: string[];
+ armor: string[];
+ weapons: string[];
+ tools: string[];
   } {
     const proficiencies = {
       Fighter: {
-        armor: ['Light armor', 'Medium armor', 'Heavy armor', 'Shields'],
-        weapons: ['Simple weapons', 'Martial weapons'],
-        tools: []
+ armor: ['Light armor', 'Medium armor', 'Heavy armor', 'Shields'],
+ weapons: ['Simple weapons', 'Martial weapons'],
+ tools: []
       },
       Wizard: {
-        armor: [],
-        weapons: ['Daggers', 'Darts', 'Slings', 'Quarterstaffs', 'Light crossbows'],
-        tools: []
+ armor: [],
+ weapons: ['Daggers', 'Darts', 'Slings', 'Quarterstaffs', 'Light crossbows'],
+ tools: []
       },
       Rogue: {
-        armor: ['Light armor'],
-        weapons: ['Simple weapons', 'Hand crossbows', 'Longswords', 'Rapiers', 'Shortswords'],
-        tools: ['Thieves\' tools']
+ armor: ['Light armor'],
+ weapons: ['Simple weapons', 'Hand crossbows', 'Longswords', 'Rapiers', 'Shortswords'],
+ tools: ['Thieves\' tools']
       },
       Cleric: {
-        armor: ['Light armor', 'Medium armor', 'Shields'],
-        weapons: ['Simple weapons'],
-        tools: []
+ armor: ['Light armor', 'Medium armor', 'Shields'],
+ weapons: ['Simple weapons'],
+ tools: []
       },
       Ranger: {
-        armor: ['Light armor', 'Medium armor', 'Shields'],
-        weapons: ['Simple weapons', 'Martial weapons'],
-        tools: []
+ armor: ['Light armor', 'Medium armor', 'Shields'],
+ weapons: ['Simple weapons', 'Martial weapons'],
+ tools: []
       }
     };
 
     return proficiencies[characterClass as keyof typeof proficiencies] || {
-      armor: [],
-      weapons: [],
-      tools: []
+ armor: [],
+ weapons: [],
+ tools: []
     };
   }
 }

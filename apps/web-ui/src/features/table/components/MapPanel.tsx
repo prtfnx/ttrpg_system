@@ -155,7 +155,7 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...res
   return (
     <div className={`map-panel ${className || ''}`} style={style} id={id} {...rest}>
       <div className="panel-header">
-        <h3>🗺️ Map & Grid</h3>
+        <h3>Map & Grid</h3>
       </div>
 
       <div className="panel-content">

@@ -305,7 +305,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({ sessionCod
               onChange={(e) => setNewInitiative(prev => ({ ...prev, initiative: parseInt(e.target.value) || 10 }))}
             />
             <button onClick={() => setNewInitiative(prev => ({ ...prev, initiative: Math.floor(Math.random() * 20) + 1 }))}>
-              🎲
+              d20
             </button>
           </div>
           <div className="form-row">
@@ -363,7 +363,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({ sessionCod
                   className="roll-init-btn"
                   title="Roll Initiative"
                 >
-                  🎲
+                  d20
                 </button>
               </div>
               <button

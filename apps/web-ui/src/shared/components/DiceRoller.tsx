@@ -29,7 +29,7 @@ export function DiceRoller({ dice = 20, count = 1, onRoll }: DiceRollerProps) {
     onRoll?.(newResults);
 
     // Send to chat if possible
-    const text = `🎲 Rolled ${count}d${selectedDice}: ${newResults.join(', ')}${newResults.length > 1 ? ` (Total: ${newResults.reduce((a, b) => a + b, 0)})` : ''}`;
+    const text = `Rolled ${count}d${selectedDice}: ${newResults.join(', ')}${newResults.length > 1 ? ` (Total: ${newResults.reduce((a, b) => a + b, 0)})` : ''}`;
     if (window.gameAPI && typeof window.gameAPI.sendMessage === 'function') {
       window.gameAPI.sendMessage('chat', { text });
       setSentToChat(true);

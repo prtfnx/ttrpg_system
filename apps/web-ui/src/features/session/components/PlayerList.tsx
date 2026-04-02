@@ -86,7 +86,7 @@ export const PlayerList: React.FC<PlayerListProps> = ({
                     disabled={changing}
                     title="Kick player"
                   >
-                    ✕
+                    x
                   </button>
                 )}
               </div>

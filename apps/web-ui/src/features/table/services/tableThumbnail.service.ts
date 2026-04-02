@@ -244,7 +244,7 @@ class TableThumbnailService {
           totalPixels,
           nonBlackPixels,
           percentVisible: `${percentVisible}%`,
-          status: nonBlackPixels > 0 ? '✅ Has content' : '⚠️ All black/empty'
+          status: nonBlackPixels > 0 ? 'Has content': '️ All black/empty'
         });
         
         // Cache the result

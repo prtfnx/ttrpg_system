@@ -46,7 +46,7 @@ class SpriteCreationService {
       throw new Error('Protocol not initialized');
     }
 
-    console.log('🎭 SpriteCreation: Creating sprite for asset:', request.assetId);
+    console.log(' SpriteCreation: Creating sprite for asset:', request.assetId);
 
     // Generate a unique sprite ID
     const spriteId = crypto.randomUUID();
@@ -57,7 +57,7 @@ class SpriteCreationService {
     // Get the actual table ID from the game store
     const activeTableId = useGameStore.getState().activeTableId;
     if (!activeTableId) {
-      console.error('[SpriteCreation] No active table ID available for sprite creation');
+ console.error('[SpriteCreation] No active table ID available for sprite creation');
       return spriteId;
     }
 
@@ -82,7 +82,7 @@ class SpriteCreationService {
       detail: { ...spriteData, table_id: activeTableId, controlled_by: [] }
     }));
     
-    console.log('📡 SpriteCreation: Requesting server to create sprite:', spriteData);
+    console.log(' SpriteCreation: Requesting server to create sprite:', spriteData);
 
     this.protocol.sendMessage(createMessage(MessageType.SPRITE_CREATE, { 
       sprite_data: spriteData, 

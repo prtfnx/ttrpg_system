@@ -16,7 +16,7 @@ interface PerformanceProfile {
   sessionId: string;
   startTime: number;
   metrics: PerformanceMetric[];
-  warnings: string[];
+ warnings: string[];
   recommendations: string[];
 }
 
@@ -47,12 +47,12 @@ class PerformanceProfiler {
     this.currentProfile = {
       sessionId,
       startTime: performance.now(),
-      metrics: [],
-      warnings: [],
-      recommendations: []
+ metrics: [],
+ warnings: [],
+ recommendations: []
     };
     
-    console.log(`🔍 Performance profiling started: ${sessionId}`);
+    console.log(` Performance profiling started: ${sessionId}`);
   }
 
   /**
@@ -60,7 +60,7 @@ class PerformanceProfiler {
    */
   startTimer(name: string, category: PerformanceMetric['category'] = 'calculation', metadata?: Record<string, any>): void {
     if (!this.currentProfile) {
-      console.warn('Performance profiling not started. Call startProfiling() first.');
+ console.warn('Performance profiling not started. Call startProfiling() first.');
       return;
     }
 
@@ -79,13 +79,13 @@ class PerformanceProfiler {
    */
   endTimer(name: string): number {
     if (!this.currentProfile) {
-      console.warn('Performance profiling not started.');
+ console.warn('Performance profiling not started.');
       return 0;
     }
 
     const startTime = this.activeTimers.get(name);
     if (!startTime) {
-      console.warn(`Timer "${name}" was not started.`);
+ console.warn(`Timer "${name}" was not started.`);
       return 0;
     }
 
@@ -148,7 +148,7 @@ class PerformanceProfiler {
     if (metric.duration > threshold) {
       const warning = `Performance warning: ${metric.name} took ${metric.duration.toFixed(2)}ms (threshold: ${threshold}ms)`;
       this.currentProfile.warnings.push(warning);
-      console.warn(warning);
+ console.warn(warning);
     }
   }
 
@@ -201,7 +201,7 @@ class PerformanceProfiler {
    */
   endProfiling(): PerformanceProfile | null {
     if (!this.currentProfile) {
-      console.warn('No active profiling session.');
+ console.warn('No active profiling session.');
       return null;
     }
 
@@ -211,11 +211,11 @@ class PerformanceProfiler {
     const profile = { ...this.currentProfile };
     const totalDuration = performance.now() - profile.startTime;
     
-    console.log(`📊 Performance profiling completed: ${profile.sessionId}`);
-    console.log(`⏱️ Session duration: ${totalDuration.toFixed(2)}ms`);
-    console.log(`📈 Metrics collected: ${profile.metrics.length}`);
-    console.log(`⚠️ Warnings: ${profile.warnings.length}`);
-    console.log(`💡 Recommendations: ${profile.recommendations.length}`);
+ console.log(` Performance profiling completed: ${profile.sessionId}`);
+ console.log(` Session duration: ${totalDuration.toFixed(2)}ms`);
+ console.log(` Metrics collected: ${profile.metrics.length}`);
+ console.log(` Warnings: ${profile.warnings.length}`);
+ console.log(` Recommendations: ${profile.recommendations.length}`);
 
     this.currentProfile = null;
     return profile;
@@ -257,8 +257,8 @@ export class CombatPerformanceOptimizer {
       'ability_score_calculations',
       () => {
         const modifiers: Record<string, number> = {};
-        for (const [ability, score] of Object.entries(abilityScores)) {
-          modifiers[ability] = Math.floor((score - 10) / 2);
+ for (const [ability, score] of Object.entries(abilityScores)) {
+ modifiers[ability] = Math.floor((score - 10) / 2);
         }
         return modifiers;
       },
@@ -291,7 +291,7 @@ export class CombatPerformanceOptimizer {
    * Profile damage calculations
    */
   async profileDamageCalculation(
-    baseDamage: number[], 
+ baseDamage: number[], 
     abilityModifier: number, 
     criticalHit: boolean = false
   ): Promise<{ totalDamage: number; duration: number }> {
@@ -373,11 +373,11 @@ export class CombatPerformanceOptimizer {
         // Simplified spell slot calculation
         const spellSlots: number[] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // Levels 0-9
         
-        if (['wizard', 'sorcerer', 'warlock'].includes(characterClass.toLowerCase())) {
+ if (['wizard', 'sorcerer', 'warlock'].includes(characterClass.toLowerCase())) {
           // Full caster progression
           for (let level = 1; level <= Math.min(characterLevel, 20); level++) {
             const slotLevel = Math.min(Math.ceil(level / 2), 9);
-            spellSlots[slotLevel] += level <= 2 ? 2 : level <= 4 ? 3 : 4;
+ spellSlots[slotLevel] += level <= 2 ? 2 : level <= 4 ? 3 : 4;
           }
         }
         

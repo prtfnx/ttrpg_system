@@ -17,28 +17,28 @@ export const useTableManagement = () => {
     switchToTable
   } = useGameStore();
 
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newTableName, setNewTableName] = useState('');
-  const [newTableWidth, setNewTableWidth] = useState(2000);
-  const [newTableHeight, setNewTableHeight] = useState(2000);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+ const [showCreateForm, setShowCreateForm] = useState(false);
+ const [newTableName, setNewTableName] = useState('');
+ const [newTableWidth, setNewTableWidth] = useState(2000);
+ const [newTableHeight, setNewTableHeight] = useState(2000);
+ const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   
-  const [settingsTableId, setSettingsTableId] = useState<string | null>(null);
-  const [settingsName, setSettingsName] = useState('');
-  const [settingsWidth, setSettingsWidth] = useState(2000);
-  const [settingsHeight, setSettingsHeight] = useState(2000);
-  const [settingsGridSize, setSettingsGridSize] = useState(50);
-  const [settingsGridEnabled, setSettingsGridEnabled] = useState(true);
+ const [settingsTableId, setSettingsTableId] = useState<string | null>(null);
+ const [settingsName, setSettingsName] = useState('');
+ const [settingsWidth, setSettingsWidth] = useState(2000);
+ const [settingsHeight, setSettingsHeight] = useState(2000);
+ const [settingsGridSize, setSettingsGridSize] = useState(50);
+ const [settingsGridEnabled, setSettingsGridEnabled] = useState(true);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<'name' | 'date' | 'size'>('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+ const [searchQuery, setSearchQuery] = useState('');
+ const [sortBy, setSortBy] = useState<'name' | 'date' | 'size'>('name');
+ const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   
-  const [autoSync, setAutoSync] = useState(true);
-  const [showSettings, setShowSettings] = useState(false);
+ const [autoSync, setAutoSync] = useState(true);
+ const [showSettings, setShowSettings] = useState(false);
 
-  const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
-  const [bulkMode, setBulkMode] = useState(false);
+ const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
+ const [bulkMode, setBulkMode] = useState(false);
 
   // Request table list on mount if already connected and store is empty
   useEffect(() => {
@@ -46,7 +46,7 @@ export const useTableManagement = () => {
       requestTableList();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+ }, []);
 
   useEffect(() => {
     const handleTableListUpdate = (event: Event) => {
@@ -127,7 +127,7 @@ export const useTableManagement = () => {
       window.removeEventListener('table-deleted', handleTableDeleted);
       window.removeEventListener('protocol-connected', handleProtocolConnected);
     };
-  }, [setTables, setTablesLoading, requestTableList]);
+ }, [setTables, setTablesLoading, requestTableList]);
 
   const handleCreateTable = () => {
     if (!newTableName.trim()) {
@@ -152,21 +152,21 @@ export const useTableManagement = () => {
   };
 
   const handleDiagnoseThumbnails = async () => {
-    console.group('🔍 Thumbnail Diagnostic Report');
+    console.group(' Thumbnail Diagnostic Report');
     
     const wasmReady = (window as any).wasmInitialized;
-    console.log('1. WASM Status:', wasmReady ? '✅ Initialized' : '❌ Not Initialized');
+    console.log('1. WASM Status:', wasmReady ? ' Initialized' : ' Not Initialized');
     
     const mainCanvas = document.querySelector('[data-testid="game-canvas"]') as HTMLCanvasElement;
-    console.log('2. Main Canvas:', mainCanvas ? {
-      found: '✅ Yes',
+ console.log('2. Main Canvas:', mainCanvas ? {
+      found: 'Yes',
       dimensions: `${mainCanvas.width}x${mainCanvas.height}`,
-      inDOM: mainCanvas.parentElement ? '✅ In DOM' : '❌ Not in DOM'
-    } : '❌ Not Found');
+      inDOM: mainCanvas.parentElement ? 'In DOM': 'Not in DOM'
+    } : 'Not Found');
     
     const renderEngine = tableThumbnailService.getRenderEngine();
-    console.log('3. Active Table:', tables[0]?.table_name || '❌ None');
-    console.log('5. Render Engine:', renderEngine ? '✅ Available' : '❌ Not Available');
+    console.log('3. Active Table:', tables[0]?.table_name || ' None');
+    console.log('5. Render Engine:', renderEngine ? ' Available' : ' Not Available');
     
     if (mainCanvas) {
       const ctx = mainCanvas.getContext('2d');
@@ -177,14 +177,14 @@ export const useTableManagement = () => {
           1, 1
         ).data;
         const isBlack = centerPixel[0] === 0 && centerPixel[1] === 0 && centerPixel[2] === 0;
-        console.log('6. Canvas Content (center pixel):', isBlack ? '⚠️ Black (empty?)' : '✅ Has Content', centerPixel);
+        console.log('6. Canvas Content (center pixel):', isBlack ? ' Black (empty?)' : ' Has Content', centerPixel);
       }
     }
     
     if (activeTableId) {
       const table = tables.find(t => t.table_id === activeTableId);
       if (table) {
-        console.log('7. Attempting to regenerate thumbnail for active table:', table.table_name);
+ console.log('7. Attempting to regenerate thumbnail for active table:', table.table_name);
         try {
           const imageData = await tableThumbnailService.generateThumbnail(
             table.table_id,
@@ -194,22 +194,22 @@ export const useTableManagement = () => {
             120,
             true
           );
-          console.log('   Result:', imageData ? `✅ Generated ${imageData.width}x${imageData.height}` : '❌ Returned null');
+          console.log(' Result:', imageData ? ` Generated ${imageData.width}x${imageData.height}` : ' Returned null');
         } catch (error) {
-          console.error('   ❌ Error:', error);
+          console.error(' Error:', error);
         }
       }
     }
     
     const cacheStats = tableThumbnailService.getCacheStats();
-    console.log('8. Cache Statistics:', {
+ console.log('8. Cache Statistics:', {
       totalCached: cacheStats.size,
       tablesWithCache: cacheStats.tables
     });
     
-    console.groupEnd();
+ console.groupEnd();
     
-    alert(`Thumbnail Diagnostic Complete\n\nCheck browser console (F12) for detailed report.\n\nQuick Summary:\n- WASM: ${wasmReady ? '✅' : '❌'}\n- Canvas: ${mainCanvas ? '✅' : '❌'}\n- Active Table: ${activeTableId ? '✅' : '❌'}\n- Cached: ${cacheStats.size} thumbnails`);
+    alert(`Thumbnail Diagnostic Complete\n\nCheck browser console (F12) for detailed report.\n\nQuick Summary:\n- WASM: ${wasmReady ? '': ''}\n- Canvas: ${mainCanvas ? '': ''}\n- Active Table: ${activeTableId ? '': ''}\n- Cached: ${cacheStats.size} thumbnails`);
   };
 
   const handleOpenSettings = (tableId: string) => {
@@ -266,13 +266,13 @@ export const useTableManagement = () => {
           grid_enabled: settingsGridEnabled,
           grid_snapping: false,
           layers: {
-            map: [],
-            tokens: [],
-            dungeon_master: [],
-            light: [],
-            height: [],
-            obstacles: [],
-            fog_of_war: []
+ map: [],
+ tokens: [],
+ dungeon_master: [],
+ light: [],
+ height: [],
+ obstacles: [],
+ fog_of_war: []
           }
         }
       };
@@ -309,7 +309,7 @@ export const useTableManagement = () => {
       );
     }
 
-    const sorted = [...filtered].sort((a, b) => {
+ const sorted = [...filtered].sort((a, b) => {
       let comparison = 0;
       
       switch (sortBy) {
@@ -332,7 +332,7 @@ export const useTableManagement = () => {
     });
 
     return sorted;
-  }, [tables, searchQuery, sortBy, sortOrder]);
+ }, [tables, searchQuery, sortBy, sortOrder]);
 
   const handleDuplicateTable = (tableId: string) => {
     const table = tables.find(t => t.table_id === tableId);

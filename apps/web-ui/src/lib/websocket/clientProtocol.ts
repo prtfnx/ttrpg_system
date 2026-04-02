@@ -90,9 +90,9 @@ export class WebClientProtocol {
       this.websocket.send(JSON.stringify(batchMessage));
       // Only clear queue after successful send
       this.batchQueue = [];
-      console.log('✅ Protocol: Batch sent successfully');
+      console.log('Protocol: Batch sent successfully');
     } catch (error) {
-      console.error('❌ Protocol: Failed to send batch:', error);
+      console.error('Protocol: Failed to send batch:', error);
       // Keep messages in queue for retry
     }
   }
@@ -173,9 +173,9 @@ export class WebClientProtocol {
     // Listen for requests to send protocol messages
     const handleProtocolSendMessage = (event: Event) => {
       const customEvent = event as CustomEvent;
-      console.log('🔧 Protocol: Received protocol-send-message event', customEvent.detail);
+      console.log('Protocol: Received protocol-send-message event', customEvent.detail);
       if (customEvent.detail && customEvent.detail.type && customEvent.detail.data) {
-        console.log('🚀 Protocol: Sending message via WebSocket:', {
+        console.log('Protocol: Sending message via WebSocket:', {
           type: customEvent.detail.type,
           websocketState: this.websocket?.readyState,
           isConnected: this.websocket?.readyState === WebSocket.OPEN
@@ -186,12 +186,12 @@ export class WebClientProtocol {
           5
         ));
       } else {
-        console.warn('⚠️ Protocol: Invalid protocol-send-message event detail', customEvent.detail);
+        console.warn('️ Protocol: Invalid protocol-send-message event detail', customEvent.detail);
       }
     };
     
     window.addEventListener('protocol-send-message', handleProtocolSendMessage);
-    console.log('✅ Protocol: Registered protocol-send-message event listener');
+    console.log('Protocol: Registered protocol-send-message event listener');
   }
 
   private registerBuiltInHandlers(): void {
@@ -321,7 +321,7 @@ export class WebClientProtocol {
         };
 
         this.websocket.onclose = (event) => {
-          console.log(`[Protocol] ⚠️ WebSocket CLOSED - code: ${event.code}, reason: '${event.reason}', wasClean: ${event.wasClean}`);
+          console.log(`[Protocol] ️ WebSocket CLOSED - code: ${event.code}, reason: '${event.reason}', wasClean: ${event.wasClean}`);
           protocolLogger.connection('WebSocket connection closed', { code: event.code, reason: event.reason });
           this.connectionAlive = false;
           this.notifyConnectionState('disconnected');
@@ -329,14 +329,14 @@ export class WebClientProtocol {
           this.connecting = false;
           
           if (event.code === 1008) {
-            console.log(`[Protocol] 🚫 Code 1008 detected. Reason: '${event.reason}'`);
+            console.log(`[Protocol]  Code 1008 detected. Reason: '${event.reason}'`);
             if (event.reason === 'Kicked from session') {
-              console.warn('⚠️ KICKED FROM SESSION - NOT RECONNECTING');
+              console.warn('️ KICKED FROM SESSION - NOT RECONNECTING');
               showToast.error('You have been kicked from the session');
               reject(new Error('Kicked from session'));
               return; // Prevent reconnection
             } else {
-              console.warn(`⚠️ Code 1008 but different reason: '${event.reason}'`);
+              console.warn(`️ Code 1008 but different reason: '${event.reason}'`);
               reject(new Error('Authentication failed or not authorized'));
               return; // Prevent reconnection
             }
@@ -368,7 +368,7 @@ export class WebClientProtocol {
       
       // Log all incoming messages for debugging
       if (message.type === 'pong') {
-        console.log('[Protocol] 📨 Received PONG message from server');
+        console.log('[Protocol]  Received PONG message from server');
       }
       
       const handler = this.handlers.get(message.type);
@@ -406,7 +406,7 @@ export class WebClientProtocol {
     this.pingInterval = window.setInterval(() => {
       if (this.websocket?.readyState === WebSocket.OPEN) {
         // Send ping
-        console.log('[Protocol] 🏓 Sending PING message...');
+        console.log('[Protocol]  Sending PING message...');
         const pingTime = Date.now();
         this.sendMessage(createMessage(MessageType.PING));
         protocolLogger.connection('Ping sent', { lastPong: new Date(this.lastPongReceived).toISOString() });
@@ -420,7 +420,7 @@ export class WebClientProtocol {
           // Check if pong was received AFTER we sent this ping
           const timeSincePing = Date.now() - pingTime;
           if (this.lastPongReceived < pingTime) {
-            console.error(`[Protocol] ⚠️⚠️⚠️ PONG TIMEOUT! No pong received for ${timeSincePing}ms after ping (timeout: ${this.PONG_TIMEOUT_MS}ms)`);
+            console.error(`[Protocol] ️️️ PONG TIMEOUT! No pong received for ${timeSincePing}ms after ping (timeout: ${this.PONG_TIMEOUT_MS}ms)`);
             console.error('[Protocol] Connection appears dead - disconnecting and reconnecting...');
             this.connectionAlive = false;
             this.notifyConnectionState('timeout');
@@ -428,7 +428,7 @@ export class WebClientProtocol {
             this.disconnect();
             this.attemptReconnect();
           } else {
-            console.log('[Protocol] ✅ Pong received within timeout window');
+            console.log('[Protocol]  Pong received within timeout window');
           }
         }, this.PONG_TIMEOUT_MS);
       } else {
@@ -520,7 +520,7 @@ export class WebClientProtocol {
 
   private async handlePong(_message: Message): Promise<void> {
     // Handle pong response - connection alive
-    console.log('[Protocol] 🏓 PONG received - connection alive!');
+    console.log('[Protocol]  PONG received - connection alive!');
     this.lastPongReceived = Date.now();
     this.connectionAlive = true;
     if (this.pongTimeout) {
@@ -816,11 +816,11 @@ export class WebClientProtocol {
           version: version,
           syncStatus: 'synced'
         });
-        console.log(`✅ Character synced: temp ID ${tempChar.id} → real ID ${realId}`);
+        console.log(`Character synced: temp ID ${tempChar.id} → real ID ${realId}`);
       }
     } else if (message.data?.success === false) {
       // Handle save failure
-      console.error('❌ Character save failed:', message.data?.error);
+      console.error('Character save failed:', message.data?.error);
       
       // Find and mark character as error
       const store = useGameStore.getState();
@@ -862,7 +862,7 @@ export class WebClientProtocol {
       store.characters.forEach(c => store.removeCharacter(c.id));
       characters.forEach(c => store.addCharacter(c));
       
-      console.log(`✅ Loaded ${characters.length} characters from server`);
+      console.log(`Loaded ${characters.length} characters from server`);
       
       // Also update asset cache for legacy compatibility
       const cacheChars = characters.map(c => ({
@@ -889,7 +889,7 @@ export class WebClientProtocol {
     if (operation === 'delete' && characterId) {
       // Handle character deletion broadcast
       store.removeCharacter(characterId);
-      console.log(`🗑️ Character deleted (broadcast): ${characterId}`);
+      console.log(`️ Character deleted (broadcast): ${characterId}`);
       window.dispatchEvent(new CustomEvent('character-deleted', { detail: { character_id: characterId } }));
       return;
     }
@@ -915,10 +915,10 @@ export class WebClientProtocol {
         const existing = store.characters.find(c => c.id === character.id);
         if (existing) {
           store.updateCharacter(character.id, character);
-          console.log(`♻️ Character updated (broadcast): ${character.name}`);
+          console.log(`️ Character updated (broadcast): ${character.name}`);
         } else {
           store.addCharacter(character);
-          console.log(`➕ Character added (broadcast): ${character.name}`);
+          console.log(`Character added (broadcast): ${character.name}`);
         }
         
         window.dispatchEvent(new CustomEvent('character-updated', { detail: { character_id: character.id, operation } }));
@@ -938,7 +938,7 @@ export class WebClientProtocol {
       updatePayload.updatedAt = new Date().toISOString();
       
       store.updateCharacter(characterId, updatePayload);
-      console.log(`🔄 Character updated (delta): ${characterId}`, updates);
+      console.log(`Character updated (delta): ${characterId}`, updates);
       window.dispatchEvent(new CustomEvent('character-updated', { detail: { character_id: characterId, updates } }));
     }
   }
@@ -960,14 +960,14 @@ export class WebClientProtocol {
         updatePayload.version = typeof version === 'number' ? version : parseInt(String(version));
       }
       store.updateCharacter(characterId, updatePayload);
-      console.log(`✅ Character update confirmed: ${characterId}, version ${version}`);
+      console.log(`Character update confirmed: ${characterId}, version ${version}`);
     } else if (!success && characterId) {
       // Update failed - handle version conflict or other errors
       const store = useGameStore.getState();
       
       if (error === 'Version conflict' && currentVersion !== undefined) {
         // Version conflict - auto-retry with latest version
-        console.warn(`⚠️ Version conflict for character ${characterId}. Current version: ${currentVersion}`);
+        console.warn(`️ Version conflict for character ${characterId}. Current version: ${currentVersion}`);
         showToast.warning('Character was modified by another user. Retrying with latest version...');
         
         // Fetch latest version from server
@@ -979,7 +979,7 @@ export class WebClientProtocol {
           const loadedData = customEvent.detail;
           
           if (loadedData?.character_data?.character_id === characterId) {
-            console.log(`🔄 Retrying update for ${characterId} with version ${currentVersion}`);
+            console.log(`Retrying update for ${characterId} with version ${currentVersion}`);
             
             // Get the character from store with pending updates
             const character = store.characters.find(c => c.id === characterId);
@@ -1007,7 +1007,7 @@ export class WebClientProtocol {
         
       } else {
         // Other error
-        console.error(`❌ Character update failed: ${error}`);
+        console.error(`Character update failed: ${error}`);
         store.updateCharacter(characterId, { syncStatus: 'error' } as any);
         showToast.error(`Failed to update character: ${error || 'Unknown error'}`);
       }
@@ -1227,7 +1227,7 @@ export class WebClientProtocol {
       return;
     }
     validateTableId(activeTableId);
-    console.log('📏 Protocol: Sending sprite scale:', { spriteId, scaleX, scaleY, activeTableId });
+    console.log('Protocol: Sending sprite scale:', { spriteId, scaleX, scaleY, activeTableId });
     this.sendMessage(createMessage(MessageType.SPRITE_SCALE, { 
       sprite_id: spriteId, 
       scale_x: scaleX, 
@@ -1310,7 +1310,7 @@ export class WebClientProtocol {
   saveCharacter(characterData: Record<string, unknown>, userId?: number): void {
     const effectiveUserId = userId ?? this.userId;
     if (effectiveUserId === null) {
-      console.error('❌ Cannot save character: user ID not set');
+      console.error('Cannot save character: user ID not set');
       return;
     }
 
@@ -1329,7 +1329,7 @@ export class WebClientProtocol {
   loadCharacter(characterId: string, userId?: number): void {
     const effectiveUserId = userId ?? this.userId;
     if (effectiveUserId === null) {
-      console.error('❌ Cannot load character: user ID not set');
+      console.error('Cannot load character: user ID not set');
       return;
     }
 
@@ -1350,7 +1350,7 @@ export class WebClientProtocol {
   updateCharacter(characterId: string, updates: Record<string, unknown>, version?: number, userId?: number): void {
     const effectiveUserId = userId ?? this.userId;
     if (effectiveUserId === null) {
-      console.error('❌ Cannot update character: user ID not set');
+      console.error('Cannot update character: user ID not set');
       return;
     }
 
@@ -1371,7 +1371,7 @@ export class WebClientProtocol {
   requestCharacterList(userId?: number): void {
     const effectiveUserId = userId ?? this.userId;
     if (effectiveUserId === null) {
-      console.error('❌ Cannot request character list: user ID not set');
+      console.error('Cannot request character list: user ID not set');
       return;
     }
 
@@ -1498,39 +1498,39 @@ export class WebClientProtocol {
   // =========================================================================
 
   private async handleTest(message: Message): Promise<void> {
-    console.log('🧪 Protocol: Test message received:', message.data);
+    console.log('Protocol: Test message received:', message.data);
     window.dispatchEvent(new CustomEvent('protocol-test-received', { detail: message.data }));
   }
 
   // Authentication handlers
   private async handleAuthStatus(message: Message): Promise<void> {
-    console.log('🔐 Protocol: Auth status received:', message.data);
+    console.log('Protocol: Auth status received:', message.data);
     window.dispatchEvent(new CustomEvent('auth-status-changed', { detail: message.data }));
   }
 
   // Player action handlers
   private async handlePlayerActionResponse(message: Message): Promise<void> {
-    console.log('👤 Protocol: Player action response:', message.data);
+    console.log('Protocol: Player action response:', message.data);
     window.dispatchEvent(new CustomEvent('player-action-response', { detail: message.data }));
   }
 
   private async handlePlayerActionUpdate(message: Message): Promise<void> {
-    console.log('👤 Protocol: Player action update:', message.data);
+    console.log('Protocol: Player action update:', message.data);
     window.dispatchEvent(new CustomEvent('player-action-update', { detail: message.data }));
   }
 
   private async handlePlayerStatus(message: Message): Promise<void> {
-    console.log('👤 Protocol: Player status:', message.data);
+    console.log('Protocol: Player status:', message.data);
     window.dispatchEvent(new CustomEvent('player-status-changed', { detail: message.data }));
   }
 
   private async handlePlayerKickResponse(message: Message): Promise<void> {
-    console.log('👤 Protocol: Player kick response:', message.data);
+    console.log('Protocol: Player kick response:', message.data);
     window.dispatchEvent(new CustomEvent('player-kick-response', { detail: message.data }));
   }
 
   private async handlePlayerBanResponse(message: Message): Promise<void> {
-    console.log('👤 Protocol: Player ban response:', message.data);
+    console.log('Protocol: Player ban response:', message.data);
     window.dispatchEvent(new CustomEvent('player-ban-response', { detail: message.data }));
   }
 
@@ -1557,7 +1557,7 @@ export class WebClientProtocol {
   }
 
   private async handleConnectionStatusResponse(message: Message): Promise<void> {
-    console.log('🔗 Protocol: Connection status response:', message.data);
+    console.log('Protocol: Connection status response:', message.data);
     window.dispatchEvent(new CustomEvent('connection-status-response', { detail: message.data }));
   }
 
@@ -1572,37 +1572,37 @@ export class WebClientProtocol {
   }
 
   private async handleSpriteData(message: Message): Promise<void> {
-    console.log('🎭 Protocol: Sprite data received:', message.data);
+    console.log('Protocol: Sprite data received:', message.data);
     window.dispatchEvent(new CustomEvent('sprite-data-received', { detail: message.data }));
   }
 
   // File transfer handlers
   private async handleFileData(message: Message): Promise<void> {
-    console.log('📁 Protocol: File data received:', message.data);
+    console.log('Protocol: File data received:', message.data);
     window.dispatchEvent(new CustomEvent('file-data-received', { detail: message.data }));
   }
 
   // Asset management handlers
   private async handleAssetDeleteResponse(message: Message): Promise<void> {
-    console.log('💾 Protocol: Asset delete response:', message.data);
+    console.log('Protocol: Asset delete response:', message.data);
     window.dispatchEvent(new CustomEvent('asset-delete-response', { detail: message.data }));
   }
 
   private async handleAssetHashCheck(message: Message): Promise<void> {
-    console.log('💾 Protocol: Asset hash check:', message.data);
+    console.log('Protocol: Asset hash check:', message.data);
     window.dispatchEvent(new CustomEvent('asset-hash-check', { detail: message.data }));
   }
 
   // Character management handlers
   private async handleCharacterDeleteResponse(message: Message): Promise<void> {
-    console.log('👤 Protocol: Character delete response:', message.data);
+    console.log('Protocol: Character delete response:', message.data);
     
     const success = message.data?.success;
     const characterId = String(message.data?.character_id || '');
     const error = message.data?.error;
     
     if (success && characterId) {
-      console.log(`✅ Character deletion confirmed: ${characterId}`);
+      console.log(`Character deletion confirmed: ${characterId}`);
       // Character already removed optimistically, just confirm
       const store = useGameStore.getState();
       // Ensure character is removed from store
@@ -1610,7 +1610,7 @@ export class WebClientProtocol {
       showToast.success('Character deleted successfully');
     } else if (!success) {
       // Deletion failed - need to restore the character
-      console.error(`❌ Character deletion failed:`, error);
+      console.error(`Character deletion failed:`, error);
       showToast.error(`Failed to delete character: ${error || 'Unknown error'}`);
       
       // Try to restore from backup if available
@@ -1687,7 +1687,7 @@ export class WebClientProtocol {
   deleteCharacter(characterId: string, userId?: number): void {
     const effectiveUserId = userId ?? this.userId;
     if (effectiveUserId === null) {
-      console.error('❌ Cannot delete character: user ID not set');
+      console.error('Cannot delete character: user ID not set');
       return;
     }
 

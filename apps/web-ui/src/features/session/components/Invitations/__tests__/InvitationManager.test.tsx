@@ -10,7 +10,8 @@ const mockInvitations = vi.hoisted(() => ({
   error: null as string | null,
   createInvitation: vi.fn(),
   revokeInvitation: vi.fn(),
-  deleteInvitation: vi.fn()
+  deleteInvitation: vi.fn(),
+  refetch: vi.fn()
 }));
 
 vi.mock('@features/session/hooks/useInvitations', () => ({
@@ -109,7 +110,7 @@ describe('InvitationManager - Game Master Invitation Workflows', () => {
     it('can be closed by clicking the close button', async () => {
       render(<InvitationManager sessionCode={sessionCode} onClose={onClose} />);
 
-      await user.click(screen.getByText('✕'));
+      await user.click(screen.getByRole('button', { name: /close/i }));
 
       expect(onClose).toHaveBeenCalledTimes(1);
     });
@@ -351,7 +352,7 @@ describe('InvitationManager - Game Master Invitation Workflows', () => {
     it('allows retry when error occurs', async () => {
       mockInvitations.error = 'Network timeout';
       const retryFn = vi.fn();
-      mockInvitations.retry = retryFn;
+      mockInvitations.refetch = retryFn;
 
       render(<InvitationManager sessionCode={sessionCode} onClose={onClose} />);
 

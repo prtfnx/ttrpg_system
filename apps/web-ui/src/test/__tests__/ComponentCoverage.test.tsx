@@ -245,7 +245,7 @@ describe('PaintPanel Component', () => {
     render(<PaintPanel {...mockProps} />);
     
     // Look for toggle/close buttons
-    const controlButtons = screen.queryAllByRole('button', { name: /close|toggle|×|⬇/i });
+    const controlButtons = screen.queryAllByRole('button', { name: /close|toggle|×|v/i });
     
     if (controlButtons.length > 0) {
       await user.click(controlButtons[0]);
